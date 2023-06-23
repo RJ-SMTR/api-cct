@@ -15,7 +15,7 @@ export class InfoController {
   }
 
   @Get('v:version')
-  @ApiParam({ name: 'version', example: '1' }) // Add this line
+  @ApiParam({ name: 'version', example: '1' })
   getByVersion(
     @Param('version') version: string,
   ): Promise<NullableType<Info[]>> {
