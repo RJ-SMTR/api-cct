@@ -16,4 +16,8 @@ export class Info extends BaseEntity {
   @ApiProperty({ example: '1' })
   @Column()
   value: string;
+
+  @ApiProperty({ example: '1' })
+  @Column({ nullable: true })
+  version: string;
 }

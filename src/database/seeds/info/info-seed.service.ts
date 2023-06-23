@@ -17,6 +17,7 @@ export class InfoSeedService {
       const count = await this.repository.count({
         where: {
           name: item.name,
+          version: item.version,
         },
       });
 
@@ -26,6 +27,7 @@ export class InfoSeedService {
             id: id,
             name: item.name,
             value: item.value,
+            version: item.version,
           }),
         );
       }
