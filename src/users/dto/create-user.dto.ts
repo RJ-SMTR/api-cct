@@ -64,29 +64,29 @@ export class CreateUserDto {
 
   @ApiProperty({ example: 'John' })
   @IsNotEmpty()
-  fullName?: string | null;
+  fullName?: string;
 
   @ApiProperty({ example: '213890329890312' })
   @IsNotEmpty()
-  permissionCode?: string | null;
+  permissionCode?: string;
 
   @ApiProperty({ example: '16322676313' })
   @IsNotEmpty()
-  cpf?: string | null;
+  cpf?: string;
 
   @ApiProperty({ example: '6352' })
   @IsNotEmpty()
   @MaxLength(4)
-  agency?: string | null;
+  agency?: string;
 
   @ApiProperty({ example: '17263731' })
   @IsNotEmpty()
-  bankAccount?: string | null;
+  bankAccount?: string;
 
   @ApiProperty({ example: '2' })
   @IsNotEmpty()
-  bankAccountDigit?: string | null;
+  bankAccountDigit?: string;
 
   @ApiProperty()
-  phone?: string | null;
+  phone?: string;
 }
