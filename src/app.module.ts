@@ -28,6 +28,7 @@ import { MailModule } from './mail/mail.module';
 import { HomeModule } from './home/home.module';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { AllConfigType } from './config/config.type';
+import { InfoModule } from './info/info.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { AllConfigType } from './config/config.type';
     ForgotModule,
     MailModule,
     HomeModule,
+    InfoModule,
   ],
 })
 export class AppModule {}
