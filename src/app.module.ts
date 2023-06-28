@@ -29,6 +29,8 @@ import { HomeModule } from './home/home.module';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { AllConfigType } from './config/config.type';
 import { InfoModule } from './info/info.module';
+import { AuthLicenseeModule } from './auth-licensee/auth-licensee.module';
+import { SgtuModule } from './sgtu/sgtu.module';
 
 @Module({
   imports: [
@@ -86,6 +88,8 @@ import { InfoModule } from './info/info.module';
     MailModule,
     HomeModule,
     InfoModule,
+    AuthLicenseeModule,
+    SgtuModule,
   ],
 })
 export class AppModule {}
