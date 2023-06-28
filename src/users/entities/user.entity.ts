@@ -96,4 +96,25 @@ export class User extends EntityHelper {
 
   @DeleteDateColumn()
   deletedAt: Date;
+
+  @Column({ type: String, nullable: true })
+  fullName?: string;
+
+  @Column({ type: String, nullable: true })
+  permissionCode?: string;
+
+  @Column({ type: String, nullable: true })
+  cpf?: string;
+
+  @Column({ type: String, nullable: true })
+  agency?: string;
+
+  @Column({ type: String, nullable: true })
+  bankAccount?: string;
+
+  @Column({ type: String, nullable: true })
+  bankAccountDigit?: string;
+
+  @Column({ type: String, nullable: true })
+  phone?: string;
 }

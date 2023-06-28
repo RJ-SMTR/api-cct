@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsNotEmpty,
   IsOptional,
+  MaxLength,
   MinLength,
   Validate,
 } from 'class-validator';
@@ -60,4 +61,32 @@ export class CreateUserDto {
   status?: Status;
 
   hash?: string | null;
+
+  @ApiProperty({ example: 'John' })
+  @IsNotEmpty()
+  fullName?: string;
+
+  @ApiProperty({ example: '213890329890312' })
+  @IsNotEmpty()
+  permissionCode?: string;
+
+  @ApiProperty({ example: '16322676313' })
+  @IsNotEmpty()
+  cpf?: string;
+
+  @ApiProperty({ example: '6352' })
+  @IsNotEmpty()
+  @MaxLength(4)
+  agency?: string;
+
+  @ApiProperty({ example: '17263731' })
+  @IsNotEmpty()
+  bankAccount?: string;
+
+  @ApiProperty({ example: '2' })
+  @IsNotEmpty()
+  bankAccountDigit?: string;
+
+  @ApiProperty()
+  phone?: string;
 }
