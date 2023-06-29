@@ -13,13 +13,15 @@ export class MailService {
     private readonly configService: ConfigService<AllConfigType>,
   ) {}
 
-  async userSignUp(mailData: MailData<{ hash: string }>): Promise<void | string> {
+  async userSignUp(
+    mailData: MailData<{ hash: string }>,
+  ): Promise<void | string> {
     const i18n = I18nContext.current();
     let emailConfirmTitle: MaybeType<string>;
     let text1: MaybeType<string>;
     let text2: MaybeType<string>;
     let text3: MaybeType<string>;
-  
+
     if (i18n) {
       [emailConfirmTitle, text1, text2, text3] = await Promise.all([
         i18n.t('common.confirmEmail'),
@@ -28,10 +30,12 @@ export class MailService {
         i18n.t('confirm-email.text3'),
       ]);
     }
-  
-    const frontendDomain = this.configService.get('app.frontendDomain', { infer: true });
+
+    const frontendDomain = this.configService.get('app.frontendDomain', {
+      infer: true,
+    });
     const emailConfirmLink = `${frontendDomain}/confirm-email/${mailData.data.hash}`;
-  
+
     if (process.env.NODE_ENV === 'production') {
       await this.mailerService.sendMail({
         to: mailData.to,
@@ -51,7 +55,7 @@ export class MailService {
     } else {
       return emailConfirmLink;
     }
-  }  
+  }
 
   async forgotPassword(mailData: MailData<{ hash: string }>): Promise<void> {
     const i18n = I18nContext.current();

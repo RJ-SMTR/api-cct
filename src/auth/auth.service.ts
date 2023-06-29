@@ -185,7 +185,7 @@ export class AuthService {
         hash,
       },
     });
-    
+
     return { link: link };
   }
 
