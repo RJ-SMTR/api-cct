@@ -161,7 +161,7 @@ export class AuthService {
     };
   }
 
-  async register(dto: AuthRegisterLoginDto): Promise<void> {
+  async register(dto: AuthRegisterLoginDto): Promise<void | object> {
     const hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
@@ -179,12 +179,14 @@ export class AuthService {
       hash,
     });
 
-    // await this.mailService.userSignUp({
-    //   to: dto.email,
-    //   data: {
-    //     hash,
-    //   },
-    // });
+    const link = await this.mailService.userSignUp({
+      to: dto.email,
+      data: {
+        hash,
+      },
+    });
+    
+    return { link: link };
   }
 
   async confirmEmail(hash: string): Promise<void> {
