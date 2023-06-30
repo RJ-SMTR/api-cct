@@ -31,6 +31,7 @@ import { AllConfigType } from './config/config.type';
 import { InfoModule } from './info/info.module';
 import { AuthLicenseeModule } from './auth-licensee/auth-licensee.module';
 import { SgtuModule } from './sgtu/sgtu.module';
+import { CoreBankModule } from './core-bank/core-bank.module';
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { SgtuModule } from './sgtu/sgtu.module';
     InfoModule,
     AuthLicenseeModule,
     SgtuModule,
+    CoreBankModule,
   ],
 })
 export class AppModule {}

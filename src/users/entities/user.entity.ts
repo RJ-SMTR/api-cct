@@ -118,4 +118,7 @@ export class User extends EntityHelper {
 
   @Column({ type: String, nullable: true })
   phone?: string;
+
+  @Column({ type: Boolean, nullable: true })
+  sgtuActive?: boolean;
 }

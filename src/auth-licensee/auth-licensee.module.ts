@@ -6,9 +6,17 @@ import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { MailModule } from 'src/mail/mail.module';
+import { CoreBankModule } from 'src/core-bank/core-bank.module';
 
 @Module({
-  imports: [ConfigModule, AuthModule, SgtuModule, UsersModule, MailModule],
+  imports: [
+    ConfigModule,
+    AuthModule,
+    SgtuModule,
+    CoreBankModule,
+    UsersModule,
+    MailModule,
+  ],
   controllers: [AuthLicenseeController],
   providers: [AuthLicenseeService],
 })

@@ -80,6 +80,9 @@ export class CreateUserDto {
   @ApiProperty({ example: '2' })
   bankAccountDigit?: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '5521912345678' })
   phone?: string;
+
+  @ApiProperty()
+  sgtuActive?: boolean;
 }

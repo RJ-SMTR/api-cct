@@ -11,13 +11,16 @@ import { Role } from 'src/roles/entities/role.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { MailService } from 'src/mail/mail.service';
+import { CoreBankService } from 'src/core-bank/core-bank.service';
+import { CoreBankInterface } from 'src/core-bank/interfaces/core-bank.interface';
 
 @Injectable()
 export class AuthLicenseeService {
   constructor(
-    private sgtuService: SgtuService,
     private usersService: UsersService,
     private mailService: MailService,
+    private sgtuService: SgtuService,
+    private coreBankService: CoreBankService,
   ) {}
 
   public async getProfileByCredentials(
@@ -51,11 +54,19 @@ export class AuthLicenseeService {
 
     const sgtuProfile: SgtuInterface =
       await this.sgtuService.getSgtuProfileByLicensee(dto.licensee);
+    const coreBankProfile: CoreBankInterface =
+      await this.coreBankService.getCoreBankProfileByCpfCnpj(
+        sgtuProfile.cpfCnpj,
+      );
 
-    console.log(sgtuProfile);
     await this.usersService.create({
-      ...sgtuProfile,
       ...dto,
+      fullName: sgtuProfile.fullName,
+      cpfCnpj: sgtuProfile.cpfCnpj,
+      sgtuActive: sgtuProfile.active,
+      agency: coreBankProfile.agencyCode,
+      bankAccount: coreBankProfile.bankAccount,
+      bankAccountDigit: coreBankProfile.bankAccountDigit,
       role: {
         id: RoleEnum.user,
       } as Role,
@@ -64,7 +75,6 @@ export class AuthLicenseeService {
       } as Status,
       hash,
     });
-    console.log(hash);
 
     const link = await this.mailService.userSignUp({
       to: dto.email,

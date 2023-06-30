@@ -13,6 +13,7 @@ export class SgtuService {
         nome: 'Usuário 1',
         placa: 'ABC1234',
         telefone: '999999999',
+        ativo: true,
       },
       {
         id: '2',
@@ -22,6 +23,7 @@ export class SgtuService {
         nome: 'Usuário 2',
         placa: 'DEF4567',
         telefone: '888888888',
+        ativo: false,
       },
     ],
   });
@@ -34,12 +36,14 @@ export class SgtuService {
     const sgtuResponseObject = await JSON.parse(this.sgtuResponseMockup);
     const sgtuResponse: SgtuInterface[] = sgtuResponseObject.data.map(
       (item) => ({
+        id: item.id,
         cpfCnpj: item.cpf,
         rg: item.rg,
         licensee: item.autorizacao,
         name: item.nome,
         plate: item.placa,
         phone: item.telefone,
+        active: item.ativo,
       }),
     );
 
@@ -49,12 +53,22 @@ export class SgtuService {
 
     if (filteredData.length === 1) {
       return filteredData[0];
+    } else if (filteredData.length > 1) {
+      throw new HttpException(
+        {
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          errors: {
+            licensee: 'multipleSgtuProfilesFound',
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
     } else {
       throw new HttpException(
         {
           status: HttpStatus.UNPROCESSABLE_ENTITY,
           errors: {
-            licensee: 'licenseeProfileNotFound',
+            licensee: 'sgtuProfileNotFound',
           },
         },
         HttpStatus.UNPROCESSABLE_ENTITY,

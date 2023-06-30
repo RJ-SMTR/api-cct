@@ -1,9 +1,10 @@
 export interface SgtuInterface {
   id?: string;
-  cpfCnpj?: string;
+  fullName?: string;
+  cpfCnpj: string;
+  licensee: string;
+  active: boolean;
   rg?: string;
-  licensee?: string;
-  name?: string;
   plate?: string;
   phone?: string;
 }
