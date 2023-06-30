@@ -4,12 +4,12 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-import { isCPF, isCNPJ } from 'validation-br';
+import { validateCNPJ, validateCPF } from 'validations-br';
 
 @ValidatorConstraint({ async: false })
 export class IsCnpjConstraint implements ValidatorConstraintInterface {
   validate(value: any) {
-    return isCPF(value) || isCNPJ(value);
+    return validateCPF(value) || validateCNPJ(value);
   }
   defaultMessage() {
     return 'invalidCpfCnpj';

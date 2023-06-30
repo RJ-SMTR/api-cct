@@ -62,11 +62,15 @@ export class User extends EntityHelper {
 
   @Index()
   @Column({ type: String, nullable: true })
-  firstName: string | null;
+  firstName?: string | null;
 
   @Index()
   @Column({ type: String, nullable: true })
-  lastName: string | null;
+  lastName?: string | null;
+
+  @Index()
+  @Column({ type: String, nullable: true })
+  fullName?: string | null;
 
   @ManyToOne(() => FileEntity, {
     eager: true,
@@ -98,13 +102,10 @@ export class User extends EntityHelper {
   deletedAt: Date;
 
   @Column({ type: String, nullable: true })
-  fullName?: string;
+  licensee?: string;
 
   @Column({ type: String, nullable: true })
-  permissionCode?: string;
-
-  @Column({ type: String, nullable: true })
-  cpf?: string;
+  cpfCnpj?: string;
 
   @Column({ type: String, nullable: true })
   agency?: string;
