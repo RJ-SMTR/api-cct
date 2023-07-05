@@ -31,6 +31,9 @@ import { AllConfigType } from './config/config.type';
 import { InfoModule } from './info/info.module';
 import { AuthLicenseeModule } from './auth-licensee/auth-licensee.module';
 import { SgtuModule } from './sgtu/sgtu.module';
+import { AuthWhatsappModule } from './auth-whatsapp/auth-whatsapp.module';
+import whatsappConfig from './config/whatsapp.config';
+import { ValidationCodeModule } from './validation-code/validation-code';
 
 @Module({
   imports: [
@@ -46,6 +49,7 @@ import { SgtuModule } from './sgtu/sgtu.module';
         googleConfig,
         twitterConfig,
         appleConfig,
+        whatsappConfig,
       ],
       envFilePath: ['.env'],
     }),
@@ -90,6 +94,8 @@ import { SgtuModule } from './sgtu/sgtu.module';
     InfoModule,
     AuthLicenseeModule,
     SgtuModule,
+    AuthWhatsappModule,
+    ValidationCodeModule,
   ],
 })
 export class AppModule {}

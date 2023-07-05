@@ -73,6 +73,11 @@ export type TwitterConfig = {
   consumerSecret?: string;
 };
 
+export type WhatsappConfig = {
+  senderPhoneId?: string;
+  accessTokenSecret?: string;
+};
+
 export type AllConfigType = {
   app: AppConfig;
   apple: AppleConfig;
@@ -83,4 +88,5 @@ export type AllConfigType = {
   google: GoogleConfig;
   mail: MailConfig;
   twitter: TwitterConfig;
+  whatsapp: WhatsappConfig;
 };

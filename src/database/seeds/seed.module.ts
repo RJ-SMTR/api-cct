@@ -9,6 +9,8 @@ import { RoleSeedModule } from './role/role-seed.module';
 import { StatusSeedModule } from './status/status-seed.module';
 import { UserSeedModule } from './user/user-seed.module';
 import { InfoSeedModule } from './info/info-seed.module';
+import { ValidationCodeMethodSeedModule } from './validation-code-method/validation-code-method-seed.module';
+import { CodeDestinationSeedModule } from './validdation-code-destination/validation-code-destination-seed.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { InfoSeedModule } from './info/info-seed.module';
     StatusSeedModule,
     UserSeedModule,
     InfoSeedModule,
+    CodeDestinationSeedModule,
+    ValidationCodeMethodSeedModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, appConfig],

@@ -1,19 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, Validate } from 'class-validator';
-import { IsExist } from 'src/utils/validators/is-exists.validator';
 import { Transform } from 'class-transformer';
+import { IsEmail, Validate } from 'class-validator';
 import { lowerCaseTransformer } from 'src/utils/transformers/lower-case.transformer';
-import { User } from 'src/users/entities/user.entity';
+import { IsExist } from 'src/utils/validators/is-exists.validator';
 
-export class AuthEmailLoginDto {
+export class AuthWhatsappVerifyDto {
   @ApiProperty({ example: 'test1@example.com' })
   @Transform(lowerCaseTransformer)
-  @Validate(IsExist, [User], {
+  @IsEmail()
+  @Validate(IsExist, ['User'], {
     message: 'emailNotExists',
   })
   email: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
-  password: string;
+  @ApiProperty({ example: '5521912345678' })
+  phone?: string;
 }
