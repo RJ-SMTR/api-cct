@@ -1,5 +1,4 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { SgtuInterface } from './interfaces/sgtu.interface';
 import { sgtuResponseMockup } from './data/sgtu-response-mockup';
 import { SgtuDto } from './dto/sgtu.dto';
 
@@ -7,7 +6,7 @@ import { SgtuDto } from './dto/sgtu.dto';
 export class SgtuService {
   public async getSgtuProfileByLicensee(
     permitCode: string,
-  ): Promise<SgtuInterface> {
+  ): Promise<SgtuDto> {
     // TODO: fetch instead of mockup
 
     const sgtuResponseObject = await JSON.parse(sgtuResponseMockup);
