@@ -2,9 +2,9 @@ export interface CoreBankInterface {
   id?: string;
   cpfCnpj: string;
   rg?: string;
-  agencyCode: string;
-  agencyDigit: string;
-  agencyName: string;
-  bankAccount: string;
+  bankAgencyName: string;
+  bankAgencyCode: string;
+  bankAgencyDigit: string;
+  bankAccountCode: string;
   bankAccountDigit: string;
 }

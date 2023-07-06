@@ -1,10 +1,8 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { SgtuInterface } from 'src/sgtu/interfaces/sgtu.interface';
 import { SgtuService } from 'src/sgtu/sgtu.service';
 import { AuthPreRegisterLicenseeDto } from './dto/auth-pre-register-licensee.dto';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
-import * as crypto from 'crypto';
-import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { UsersService } from 'src/users/users.service';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { Role } from 'src/roles/entities/role.entity';
@@ -13,6 +11,7 @@ import { Status } from 'src/statuses/entities/status.entity';
 import { MailService } from 'src/mail/mail.service';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { CoreBankInterface } from 'src/core-bank/interfaces/core-bank.interface';
+import { LicenseeProfileInterface } from './interfaces/licensee-profile.interface';
 
 @Injectable()
 export class AuthLicenseeService {
@@ -24,65 +23,60 @@ export class AuthLicenseeService {
   ) {}
 
   public async getProfileByCredentials(
-    loginDto: AuthPreRegisterLicenseeDto,
-  ): Promise<SgtuInterface> {
-    // TODO: SGTU fetch instead of sgtuResponseMockup
-
+    preRegisterDto: AuthPreRegisterLicenseeDto,
+  ): Promise<LicenseeProfileInterface> {
     const sgtuProfile: SgtuInterface =
-      await this.sgtuService.getSgtuProfileByLicensee(loginDto.licensee);
-
-    // Validate if CPF/RG exists in  response
-    if (!(loginDto.cpfCnpj === sgtuProfile.cpfCnpj)) {
-      throw new HttpException(
-        {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
-            cpfCnpj: 'cpfCnpjDoesNotMatch',
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+      await this.sgtuService.getSgtuProfileByLicensee(
+        preRegisterDto.permitCode,
       );
-    }
 
-    return sgtuProfile;
-  }
-  async register(dto: AuthRegisterLicenseeDto): Promise<void | object> {
-    const hash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
-
-    const sgtuProfile: SgtuInterface =
-      await this.sgtuService.getSgtuProfileByLicensee(dto.licensee);
     const coreBankProfile: CoreBankInterface =
       await this.coreBankService.getCoreBankProfileByCpfCnpj(
         sgtuProfile.cpfCnpj,
       );
 
+    const licenseeProfile: LicenseeProfileInterface = {
+      cpfCnpj: sgtuProfile.cpfCnpj,
+      permitCode: sgtuProfile.permitCode,
+      fullName: sgtuProfile.fullName,
+      sgtuBlocked: sgtuProfile.sgtuBlocked,
+      email: sgtuProfile.email,
+      bankAgency: coreBankProfile.bankAgencyCode,
+      bankAccount: coreBankProfile.bankAccountCode,
+      bankAccountDigit: coreBankProfile.bankAccountDigit,
+    };
+    console.log(licenseeProfile);
+
+    return licenseeProfile;
+  }
+
+  async register(registerDto: AuthRegisterLicenseeDto): Promise<void | object> {
+    const sgtuProfile: SgtuInterface =
+      await this.sgtuService.getSgtuProfileByLicensee(registerDto.permitCode);
+
+    const coreBankProfile: CoreBankInterface =
+      await this.coreBankService.getCoreBankProfileByCpfCnpj(
+        sgtuProfile.cpfCnpj,
+      );
+
+    const email = sgtuProfile.email;
+
     await this.usersService.create({
-      ...dto,
+      ...registerDto,
+      email: email,
       fullName: sgtuProfile.fullName,
       cpfCnpj: sgtuProfile.cpfCnpj,
-      sgtuActive: sgtuProfile.active,
-      agency: coreBankProfile.agencyCode,
-      bankAccount: coreBankProfile.bankAccount,
+      permitCode: sgtuProfile.permitCode,
+      sgtuBlocked: sgtuProfile.sgtuBlocked,
+      bankAgency: coreBankProfile.bankAgencyCode,
+      bankAccount: coreBankProfile.bankAccountCode,
       bankAccountDigit: coreBankProfile.bankAccountDigit,
       role: {
         id: RoleEnum.user,
       } as Role,
       status: {
-        id: StatusEnum.inactive,
+        id: StatusEnum.active,
       } as Status,
-      hash,
     });
-
-    const link = await this.mailService.userSignUp({
-      to: dto.email,
-      data: {
-        hash,
-      },
-    });
-
-    return { link: link };
   }
 }

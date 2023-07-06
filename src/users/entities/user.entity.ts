@@ -102,13 +102,13 @@ export class User extends EntityHelper {
   deletedAt: Date;
 
   @Column({ type: String, nullable: true })
-  licensee?: string;
+  permitCode?: string;
 
   @Column({ type: String, nullable: true })
   cpfCnpj?: string;
 
   @Column({ type: String, nullable: true })
-  agency?: string;
+  bankAgency?: string;
 
   @Column({ type: String, nullable: true })
   bankAccount?: string;
@@ -120,5 +120,5 @@ export class User extends EntityHelper {
   phone?: string;
 
   @Column({ type: Boolean, nullable: true })
-  sgtuActive?: boolean;
+  sgtuBlocked?: boolean;
 }

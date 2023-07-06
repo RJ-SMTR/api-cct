@@ -27,7 +27,7 @@ export class AuthRegisterLoginDto {
   fullName?: string;
 
   @ApiProperty({ example: '213890329890312' })
-  permissionCode?: string;
+  permitCode?: string;
 
   @ApiProperty({ example: '16322676313' })
   cpf?: string;

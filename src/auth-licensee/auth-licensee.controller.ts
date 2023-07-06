@@ -1,9 +1,9 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { SgtuInterface } from 'src/sgtu/interfaces/sgtu.interface';
 import { AuthPreRegisterLicenseeDto } from './dto/auth-pre-register-licensee.dto';
 import { AuthLicenseeService } from './auth-licensee.service';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
+import { LicenseeProfileInterface } from './interfaces/licensee-profile.interface';
 
 @ApiTags('Auth')
 @Controller({
@@ -17,7 +17,7 @@ export class AuthLicenseeController {
   @HttpCode(HttpStatus.OK)
   async preRegister(
     @Body() loginDto: AuthPreRegisterLicenseeDto,
-  ): Promise<SgtuInterface> {
+  ): Promise<LicenseeProfileInterface> {
     const profile = await this.authLicenseeService.getProfileByCredentials(
       loginDto,
     );

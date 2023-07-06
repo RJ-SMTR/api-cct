@@ -66,13 +66,13 @@ export class CreateUserDto {
   @Validate(IsNotExist, ['User'], {
     message: 'licenseeAlreadyExists',
   })
-  licensee?: string;
+  permitCode?: string;
 
   @ApiProperty({ example: '16322676313' })
   cpfCnpj?: string;
 
   @ApiProperty({ example: '6352' })
-  agency?: string;
+  bankAgency?: string;
 
   @ApiProperty({ example: '17263731' })
   bankAccount?: string;
@@ -84,5 +84,5 @@ export class CreateUserDto {
   phone?: string;
 
   @ApiProperty()
-  sgtuActive?: boolean;
+  sgtuBlocked?: boolean;
 }
