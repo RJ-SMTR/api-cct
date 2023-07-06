@@ -1,34 +1,36 @@
 import { Injectable } from '@nestjs/common';
-import { SgtuInterface } from 'src/sgtu/interfaces/sgtu.interface';
 import { SgtuService } from 'src/sgtu/sgtu.service';
-import { AuthPreRegisterLicenseeDto } from './dto/auth-pre-register-licensee.dto';
-import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
+import { PreRegisterLicenseeDto } from './dto/pre-register-licensee.dto';
+import { AuthRegisterLicenseeDto } from './dto/register-licensee.dto';
 import { UsersService } from 'src/users/users.service';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { Role } from 'src/roles/entities/role.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { Status } from 'src/statuses/entities/status.entity';
-import { MailService } from 'src/mail/mail.service';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { CoreBankInterface } from 'src/core-bank/interfaces/core-bank.interface';
 import { LicenseeProfileInterface } from './interfaces/licensee-profile.interface';
+import { BaseValidator } from 'src/utils/validators/base-validator';
+import { SgtuDto } from 'src/sgtu/dto/sgtu.dto';
 
 @Injectable()
 export class AuthLicenseeService {
   constructor(
     private usersService: UsersService,
-    private mailService: MailService,
+    private baseValidator: BaseValidator,
     private sgtuService: SgtuService,
     private coreBankService: CoreBankService,
   ) {}
 
   public async getProfileByCredentials(
-    preRegisterDto: AuthPreRegisterLicenseeDto,
+    preRegisterDto: PreRegisterLicenseeDto,
   ): Promise<LicenseeProfileInterface> {
-    const sgtuProfile: SgtuInterface =
+    const sgtuProfile: SgtuDto =
       await this.sgtuService.getSgtuProfileByLicensee(
         preRegisterDto.permitCode,
       );
+
+    await this.baseValidator.validateOrReject(sgtuProfile, SgtuDto);
 
     const coreBankProfile: CoreBankInterface =
       await this.coreBankService.getCoreBankProfileByCpfCnpj(
@@ -51,8 +53,10 @@ export class AuthLicenseeService {
   }
 
   async register(registerDto: AuthRegisterLicenseeDto): Promise<void | object> {
-    const sgtuProfile: SgtuInterface =
+    const sgtuProfile: SgtuDto =
       await this.sgtuService.getSgtuProfileByLicensee(registerDto.permitCode);
+
+    await this.baseValidator.validateOrReject(sgtuProfile, SgtuDto);
 
     const coreBankProfile: CoreBankInterface =
       await this.coreBankService.getCoreBankProfileByCpfCnpj(

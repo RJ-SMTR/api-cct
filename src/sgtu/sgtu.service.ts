@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { SgtuInterface } from './interfaces/sgtu.interface';
 import { sgtuResponseMockup } from './data/sgtu-response-mockup';
+import { SgtuDto } from './dto/sgtu.dto';
 
 @Injectable()
 export class SgtuService {
@@ -10,19 +11,17 @@ export class SgtuService {
     // TODO: fetch instead of mockup
 
     const sgtuResponseObject = await JSON.parse(sgtuResponseMockup);
-    const sgtuResponse: SgtuInterface[] = sgtuResponseObject.data.map(
-      (item) => ({
-        id: item.id,
-        cpfCnpj: item.cpf,
-        rg: item.rg,
-        permitCode: item.autorizacao,
-        fullName: item.nome,
-        plate: item.placa,
-        phone: item.telefone,
-        sgtuBlocked: item.bloqueado,
-        email: item.email,
-      }),
-    );
+    const sgtuResponse: SgtuDto[] = sgtuResponseObject.data.map((item) => ({
+      id: item.id,
+      cpfCnpj: item.cpf,
+      rg: item.rg,
+      permitCode: item.autorizacao,
+      fullName: item.nome,
+      plate: item.placa,
+      phone: item.telefone,
+      sgtuBlocked: item.bloqueado,
+      email: item.email,
+    }));
 
     const filteredData = sgtuResponse.filter(
       (item) => item.permitCode === permitCode,

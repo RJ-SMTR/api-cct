@@ -7,6 +7,7 @@ import { AuthModule } from 'src/auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { MailModule } from 'src/mail/mail.module';
 import { CoreBankModule } from 'src/core-bank/core-bank.module';
+import { BaseValidator } from 'src/utils/validators/base-validator';
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import { CoreBankModule } from 'src/core-bank/core-bank.module';
     MailModule,
   ],
   controllers: [AuthLicenseeController],
-  providers: [AuthLicenseeService],
+  providers: [AuthLicenseeService, BaseValidator],
 })
 export class AuthLicenseeModule {}

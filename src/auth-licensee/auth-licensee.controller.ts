@@ -1,8 +1,8 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { AuthPreRegisterLicenseeDto } from './dto/auth-pre-register-licensee.dto';
+import { PreRegisterLicenseeDto } from './dto/pre-register-licensee.dto';
 import { AuthLicenseeService } from './auth-licensee.service';
-import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
+import { AuthRegisterLicenseeDto } from './dto/register-licensee.dto';
 import { LicenseeProfileInterface } from './interfaces/licensee-profile.interface';
 
 @ApiTags('Auth')
@@ -16,7 +16,7 @@ export class AuthLicenseeController {
   @Post('pre-register')
   @HttpCode(HttpStatus.OK)
   async preRegister(
-    @Body() loginDto: AuthPreRegisterLicenseeDto,
+    @Body() loginDto: PreRegisterLicenseeDto,
   ): Promise<LicenseeProfileInterface> {
     const profile = await this.authLicenseeService.getProfileByCredentials(
       loginDto,
