@@ -4,9 +4,7 @@ import { SgtuDto } from './dto/sgtu.dto';
 
 @Injectable()
 export class SgtuService {
-  public async getSgtuProfileByLicensee(
-    permitCode: string,
-  ): Promise<SgtuDto> {
+  public async getSgtuProfileByLicensee(permitCode: string): Promise<SgtuDto> {
     // TODO: fetch instead of mockup
 
     const sgtuResponseObject = await JSON.parse(sgtuResponseMockup);
