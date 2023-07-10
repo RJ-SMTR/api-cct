@@ -47,6 +47,8 @@ export class AuthLicenseeService {
 
     const inviteResponse: AuthLicenseeInviteProfileInterface = {
       fullName: sgtuProfile.fullName,
+      permitCode: sgtuProfile.permitCode,
+      email: sgtuProfile.email,
       hash: inviteProfile.hash,
     };
 
