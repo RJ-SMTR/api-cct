@@ -1,36 +1,33 @@
 import {
   ArgumentMetadata,
-  HttpException,
   HttpStatus,
-  Injectable,
-  PipeTransform,
+  HttpException,
   ValidationPipe,
   ValidationPipeOptions,
+  Injectable,
 } from '@nestjs/common';
 import { InviteService } from '../invite.service';
 
 @Injectable()
-export class InviteHashExistsPipe implements PipeTransform<any> {
-  private readonly validationPipe: ValidationPipe;
+export class InviteHashExistsPipe extends ValidationPipe {
   constructor(private readonly inviteService: InviteService) {
     const options: ValidationPipeOptions = {
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
     };
-
-    this.validationPipe = new ValidationPipe(options);
+    super(options);
   }
 
   async transform(value: any, metadata: ArgumentMetadata) {
-    await this.validationPipe.transform(value, metadata);
+    const transformedValue = await super.transform(value, metadata);
 
-    const inviteFound = this.inviteService.findByHash(value);
+    const inviteFound = this.inviteService.findByHash(transformedValue);
     if (!inviteFound) {
       this.throwError(value, metadata);
     }
 
-    return value;
+    return transformedValue;
   }
 
   private throwError(value: any, metadata: ArgumentMetadata) {

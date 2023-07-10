@@ -12,6 +12,10 @@ export class SgtuDto {
   })
   cpfCnpj: string;
 
+  @IsNotEmpty()
+  @Validate(IsNotExist, ['User'], {
+    message: 'permitCodeAlreadyRegistered',
+  })
   permitCode: string;
 
   sgtuBlocked: boolean;
