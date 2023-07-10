@@ -12,16 +12,85 @@ import { BaseValidator } from 'src/utils/validators/base-validator';
 import { SgtuDto } from 'src/sgtu/dto/sgtu.dto';
 import { InviteService } from 'src/invite/invite.service';
 import { AuthLicenseeInviteProfileInterface } from './interfaces/auth-licensee-invite-profile.interface';
+import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
+import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
+import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
+import * as bcrypt from 'bcryptjs';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthLicenseeService {
   constructor(
+    private jwtService: JwtService,
     private usersService: UsersService,
     private baseValidator: BaseValidator,
     private sgtuService: SgtuService,
     private coreBankService: CoreBankService,
     private inviteService: InviteService,
   ) {}
+
+  async validateLogin(
+    loginDto: AuthLicenseeLoginDto,
+    onlyAdmin: boolean,
+  ): Promise<LoginResponseType> {
+    const user = await this.usersService.findOne({
+      permitCode: loginDto.permitCode,
+    });
+
+    if (
+      !user ||
+      (user?.role &&
+        !(onlyAdmin ? [RoleEnum.admin] : [RoleEnum.user]).includes(
+          user.role.id,
+        ))
+    ) {
+      throw new HttpException(
+        {
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          errors: {
+            email: 'notFound',
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    if (user.provider !== AuthProvidersEnum.email) {
+      throw new HttpException(
+        {
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          errors: {
+            email: `needLoginViaProvider:${user.provider}`,
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    const isValidPassword = await bcrypt.compare(
+      loginDto.password,
+      user.password,
+    );
+
+    if (!isValidPassword) {
+      throw new HttpException(
+        {
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          errors: {
+            password: 'incorrectPassword',
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    const token = this.jwtService.sign({
+      id: user.id,
+      role: user.role,
+    });
+
+    return { token, user };
+  }
 
   async getInviteProfileByHash(
     hash: string,
