@@ -5,7 +5,6 @@ import {
   IsEmail,
   IsNotEmpty,
   IsOptional,
-  MaxLength,
   MinLength,
   Validate,
 } from 'class-validator';
@@ -34,12 +33,13 @@ export class CreateUserDto {
   socialId?: string | null;
 
   @ApiProperty({ example: 'John' })
-  @IsNotEmpty()
-  firstName: string | null;
+  firstName?: string | null;
 
   @ApiProperty({ example: 'Doe' })
-  @IsNotEmpty()
-  lastName: string | null;
+  lastName?: string | null;
+
+  @ApiProperty({ example: 'John Doe' })
+  fullName?: string | null;
 
   @ApiProperty({ type: () => FileEntity })
   @IsOptional()
@@ -62,31 +62,27 @@ export class CreateUserDto {
 
   hash?: string | null;
 
-  @ApiProperty({ example: 'John' })
-  @IsNotEmpty()
-  fullName?: string;
-
   @ApiProperty({ example: '213890329890312' })
-  @IsNotEmpty()
-  permissionCode?: string;
+  @Validate(IsNotExist, ['User'], {
+    message: 'licenseeAlreadyExists',
+  })
+  permitCode?: string;
 
   @ApiProperty({ example: '16322676313' })
-  @IsNotEmpty()
-  cpf?: string;
+  cpfCnpj?: string;
 
   @ApiProperty({ example: '6352' })
-  @IsNotEmpty()
-  @MaxLength(4)
-  agency?: string;
+  bankAgency?: string;
 
   @ApiProperty({ example: '17263731' })
-  @IsNotEmpty()
   bankAccount?: string;
 
   @ApiProperty({ example: '2' })
-  @IsNotEmpty()
   bankAccountDigit?: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '5521912345678' })
   phone?: string;
+
+  @ApiProperty()
+  sgtuBlocked?: boolean;
 }

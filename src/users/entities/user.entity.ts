@@ -62,11 +62,15 @@ export class User extends EntityHelper {
 
   @Index()
   @Column({ type: String, nullable: true })
-  firstName: string | null;
+  firstName?: string | null;
 
   @Index()
   @Column({ type: String, nullable: true })
-  lastName: string | null;
+  lastName?: string | null;
+
+  @Index()
+  @Column({ type: String, nullable: true })
+  fullName?: string | null;
 
   @ManyToOne(() => FileEntity, {
     eager: true,
@@ -98,16 +102,13 @@ export class User extends EntityHelper {
   deletedAt: Date;
 
   @Column({ type: String, nullable: true })
-  fullName?: string;
+  permitCode?: string;
 
   @Column({ type: String, nullable: true })
-  permissionCode?: string;
+  cpfCnpj?: string;
 
   @Column({ type: String, nullable: true })
-  cpf?: string;
-
-  @Column({ type: String, nullable: true })
-  agency?: string;
+  bankAgency?: string;
 
   @Column({ type: String, nullable: true })
   bankAccount?: string;
@@ -117,4 +118,7 @@ export class User extends EntityHelper {
 
   @Column({ type: String, nullable: true })
   phone?: string;
+
+  @Column({ type: Boolean, nullable: true })
+  sgtuBlocked?: boolean;
 }

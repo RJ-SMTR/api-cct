@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class ColumnInfoVersion1687533339069 implements MigrationInterface {
-  name = 'ColumnInfoVersion1687533339069';
+  name = 'InfoVersion1687533339069';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(

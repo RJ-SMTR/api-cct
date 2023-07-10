@@ -1,8 +1,18 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { SgtuInterface } from 'src/sgtu/interfaces/sgtu.interface';
-import { AuthPreRegisterLicenseeDto } from './dto/auth-pre-register-licensee.dto';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+} from '@nestjs/common';
+import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthLicenseeService } from './auth-licensee.service';
+import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
+import { InviteHashExistsPipe } from 'src/invite/pipes/invite-hash-exists.pipe';
+import { BaseValidator } from 'src/utils/validators/base-validator';
+import { InvitePermitCodeDto } from 'src/invite/dto/invite-permit-code.dto';
+import { InviteApiParams } from 'src/invite/api-param/invite.api-param';
 
 @ApiTags('Auth')
 @Controller({
@@ -10,14 +20,38 @@ import { AuthLicenseeService } from './auth-licensee.service';
   version: '1',
 })
 export class AuthLicenseeController {
-  constructor(private service: AuthLicenseeService) {}
+  constructor(
+    private authLicenseeService: AuthLicenseeService,
+    private baseValidator: BaseValidator,
+  ) {}
 
-  @Post('pre-register')
+  @Post('invite/:hash')
   @HttpCode(HttpStatus.OK)
-  async preRegister(
-    @Body() loginDto: AuthPreRegisterLicenseeDto,
-  ): Promise<SgtuInterface> {
-    const profile = await this.service.getProfileByCredentials(loginDto);
-    return profile;
+  @ApiParam(InviteApiParams.hash)
+  async invite(
+    @Param('hash', InviteHashExistsPipe) hash: string,
+  ): Promise<void | object> {
+    const ret = await this.authLicenseeService.getInviteProfileByHash(hash);
+    return ret;
+  }
+
+  @Post('register/:hash')
+  @HttpCode(HttpStatus.OK)
+  @ApiParam(InviteApiParams.hash)
+  async register(
+    @Param('hash', InviteHashExistsPipe) hash: string,
+    @Body() data: AuthRegisterLicenseeDto,
+  ): Promise<void | object> {
+    const invitePermitCodeDto: InvitePermitCodeDto = {
+      hash: hash,
+      permitCode: data.permitCode,
+    };
+    await this.baseValidator.validateOrReject(
+      invitePermitCodeDto,
+      InvitePermitCodeDto,
+    );
+
+    const ret = await this.authLicenseeService.register(data, hash);
+    return ret;
   }
 }
