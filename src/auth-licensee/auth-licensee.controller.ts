@@ -11,6 +11,7 @@ import { AuthLicenseeService } from './auth-licensee.service';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
 import { InviteHashExistsPipe } from 'src/invite/pipes/invite-hash-exists.pipe';
 import { InviteApiParams } from 'src/invite/api-param/invite.api-param';
+import { IsInvitePermitCodeRegisteredPipe } from 'src/invite/pipes/is-invite-permit-code-registered.pipe';
 
 @ApiTags('Auth')
 @Controller({
@@ -24,7 +25,8 @@ export class AuthLicenseeController {
   @HttpCode(HttpStatus.OK)
   @ApiParam(InviteApiParams.hash)
   async invite(
-    @Param('hash', InviteHashExistsPipe) hash: string,
+    @Param('hash', InviteHashExistsPipe, IsInvitePermitCodeRegisteredPipe)
+    hash: string,
   ): Promise<void | object> {
     return await this.authLicenseeService.getInviteProfileByHash(hash);
   }
@@ -33,7 +35,8 @@ export class AuthLicenseeController {
   @HttpCode(HttpStatus.OK)
   @ApiParam(InviteApiParams.hash)
   async register(
-    @Param('hash', InviteHashExistsPipe) hash: string,
+    @Param('hash', InviteHashExistsPipe, IsInvitePermitCodeRegisteredPipe)
+    hash: string,
     @Body() data: AuthRegisterLicenseeDto,
   ): Promise<void | object> {
     return await this.authLicenseeService.register(data, hash);

@@ -9,7 +9,6 @@ import { MailModule } from 'src/mail/mail.module';
 import { CoreBankModule } from 'src/core-bank/core-bank.module';
 import { BaseValidator } from 'src/utils/validators/base-validator';
 import { InviteModule } from 'src/invite/invite.module';
-import { InviteHashExistsConstraint } from 'src/invite/validators/invite-hash-exists.validator';
 
 @Module({
   imports: [
@@ -22,6 +21,6 @@ import { InviteHashExistsConstraint } from 'src/invite/validators/invite-hash-ex
     InviteModule,
   ],
   controllers: [AuthLicenseeController],
-  providers: [AuthLicenseeService, BaseValidator, InviteHashExistsConstraint],
+  providers: [AuthLicenseeService, BaseValidator],
 })
 export class AuthLicenseeModule {}

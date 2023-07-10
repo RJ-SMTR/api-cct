@@ -59,8 +59,21 @@ export class AuthLicenseeService {
     registerDto: AuthRegisterLicenseeDto,
     hash: string,
   ): Promise<void | object> {
+    const inviteProfile = this.inviteService.findByHash(hash);
+    if (!inviteProfile) {
+      throw new HttpException(
+        {
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          errors: {
+            internal: 'inviteHashNotFound',
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
     const sgtuProfile: SgtuDto =
-      await this.sgtuService.getSgtuProfileByLicensee(registerDto.permitCode);
+      await this.sgtuService.getSgtuProfileByLicensee(inviteProfile.permitCode);
 
     await this.baseValidator.validateOrReject(sgtuProfile, SgtuDto);
 
