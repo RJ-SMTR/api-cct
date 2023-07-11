@@ -1,32 +1,45 @@
 import {
-  Injectable,
-  PipeTransform,
-  BadRequestException,
+  ArgumentMetadata,
   HttpStatus,
+  HttpException,
+  ValidationPipe,
+  ValidationPipeOptions,
+  Injectable,
 } from '@nestjs/common';
-import { validate } from 'class-validator';
-import { plainToClass } from 'class-transformer';
-import { InviteHashDto } from '../dto/invite-hash.dto';
+import { InviteService } from '../invite.service';
 
 @Injectable()
-export class InviteHashExistsPipe implements PipeTransform<any> {
-  async transform(value: any) {
-    const hashParamDto = plainToClass(InviteHashDto, { hash: value });
-    const errors = await validate(hashParamDto);
+export class InviteHashExistsPipe extends ValidationPipe {
+  constructor(private readonly inviteService: InviteService) {
+    const options: ValidationPipeOptions = {
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    };
+    super(options);
+  }
 
-    if (errors.length > 0) {
-      const errorResponse = {};
-      errors.forEach((item) => {
-        if (item.constraints) {
-          errorResponse[item.property] = Object.values(item.constraints)[0];
-        }
-      });
-      throw new BadRequestException({
-        status: HttpStatus.BAD_REQUEST,
-        errors: errorResponse,
-      });
+  async transform(value: any, metadata: ArgumentMetadata) {
+    const transformedValue = await super.transform(value, metadata);
+
+    const inviteFound = this.inviteService.findByHash(transformedValue);
+    if (!inviteFound) {
+      this.throwError(value, metadata);
     }
 
-    return value;
+    return transformedValue;
+  }
+
+  private throwError(value: any, metadata: ArgumentMetadata) {
+    const fieldName = String(metadata.data);
+    throw new HttpException(
+      {
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        errors: {
+          [fieldName]: 'invalidInviteHash',
+        },
+      },
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
   }
 }
