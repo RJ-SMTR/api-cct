@@ -178,6 +178,6 @@ export class AuthLicenseeService {
       role: user.role,
     });
 
-    return  { token, user };
+    return { token, user };
   }
 }
