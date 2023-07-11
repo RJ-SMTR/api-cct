@@ -153,7 +153,7 @@ export class AuthLicenseeService {
 
     const email = sgtuProfile.email;
 
-    await this.usersService.create({
+    const user = await this.usersService.create({
       ...registerDto,
       password: registerDto.password,
       hash: hash,
@@ -172,5 +172,12 @@ export class AuthLicenseeService {
         id: StatusEnum.active,
       } as Status,
     });
+
+    const token = this.jwtService.sign({
+      id: user.id,
+      role: user.role,
+    });
+
+    return  { token, user };
   }
 }
