@@ -19,6 +19,7 @@ import { ForgotService } from 'src/forgot/forgot.service';
 import { MailService } from 'src/mail/mail.service';
 import { NullableType } from '../utils/types/nullable.type';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 
 @Injectable()
 export class AuthService {
@@ -46,24 +47,24 @@ export class AuthService {
     ) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             email: 'notFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
     if (user.provider !== AuthProvidersEnum.email) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             email: `needLoginViaProvider:${user.provider}`,
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -75,12 +76,12 @@ export class AuthService {
     if (!isValidPassword) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             password: 'incorrectPassword',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -141,12 +142,12 @@ export class AuthService {
     if (!user) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             user: 'userNotFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -197,7 +198,6 @@ export class AuthService {
     if (!user) {
       throw new HttpException(
         {
-          status: HttpStatus.NOT_FOUND,
           error: `notFound`,
         },
         HttpStatus.NOT_FOUND,
@@ -219,7 +219,6 @@ export class AuthService {
     if (!user) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
           errors: {
             email: 'emailNotExists',
           },
@@ -255,12 +254,12 @@ export class AuthService {
     if (!forgot) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             hash: `notFound`,
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -290,12 +289,12 @@ export class AuthService {
         if (!currentUser) {
           throw new HttpException(
             {
-              status: HttpStatus.UNPROCESSABLE_ENTITY,
-              errors: {
+              error: HttpErrorMessages.UNAUTHORIZED,
+              details: {
                 user: 'userNotFound',
               },
             },
-            HttpStatus.UNPROCESSABLE_ENTITY,
+            HttpStatus.UNAUTHORIZED,
           );
         }
 
@@ -307,19 +306,18 @@ export class AuthService {
         if (!isValidOldPassword) {
           throw new HttpException(
             {
-              status: HttpStatus.UNPROCESSABLE_ENTITY,
-              errors: {
+              error: HttpErrorMessages.UNAUTHORIZED,
+              details: {
                 oldPassword: 'incorrectOldPassword',
               },
             },
-            HttpStatus.UNPROCESSABLE_ENTITY,
+            HttpStatus.UNAUTHORIZED,
           );
         }
       } else {
         throw new HttpException(
           {
-            status: HttpStatus.UNPROCESSABLE_ENTITY,
-            errors: {
+            error: {
               oldPassword: 'missingOldPassword',
             },
           },
