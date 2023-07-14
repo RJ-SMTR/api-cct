@@ -280,52 +280,6 @@ export class AuthService {
     user: User,
     userDto: AuthUpdateDto,
   ): Promise<NullableType<User>> {
-    if (userDto.password) {
-      if (userDto.oldPassword) {
-        const currentUser = await this.usersService.findOne({
-          id: user.id,
-        });
-
-        if (!currentUser) {
-          throw new HttpException(
-            {
-              error: HttpErrorMessages.UNAUTHORIZED,
-              details: {
-                user: 'userNotFound',
-              },
-            },
-            HttpStatus.UNAUTHORIZED,
-          );
-        }
-
-        const isValidOldPassword = await bcrypt.compare(
-          userDto.oldPassword,
-          currentUser.password,
-        );
-
-        if (!isValidOldPassword) {
-          throw new HttpException(
-            {
-              error: HttpErrorMessages.UNAUTHORIZED,
-              details: {
-                oldPassword: 'incorrectOldPassword',
-              },
-            },
-            HttpStatus.UNAUTHORIZED,
-          );
-        }
-      } else {
-        throw new HttpException(
-          {
-            error: {
-              oldPassword: 'missingOldPassword',
-            },
-          },
-          HttpStatus.UNPROCESSABLE_ENTITY,
-        );
-      }
-    }
-
     await this.usersService.update(user.id, userDto);
 
     return this.usersService.findOne({

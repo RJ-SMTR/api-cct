@@ -22,6 +22,7 @@ import { Exclude, Expose } from 'class-transformer';
 @Entity()
 export class User extends EntityHelper {
   @PrimaryGeneratedColumn()
+  @Exclude({ toPlainOnly: true })
   id: number;
 
   // For "string | null" we need to use String type.
@@ -53,19 +54,23 @@ export class User extends EntityHelper {
 
   @Column({ default: AuthProvidersEnum.email })
   @Expose({ groups: ['me', 'admin'] })
+  @Exclude({ toPlainOnly: true })
   provider: string;
 
   @Index()
   @Column({ type: String, nullable: true })
   @Expose({ groups: ['me', 'admin'] })
+  @Exclude({ toPlainOnly: true })
   socialId: string | null;
 
   @Index()
   @Column({ type: String, nullable: true })
+  @Exclude({ toPlainOnly: true })
   firstName?: string | null;
 
   @Index()
   @Column({ type: String, nullable: true })
+  @Exclude({ toPlainOnly: true })
   lastName?: string | null;
 
   @Index()
@@ -80,11 +85,13 @@ export class User extends EntityHelper {
   @ManyToOne(() => Role, {
     eager: true,
   })
+  @Exclude({ toPlainOnly: true })
   role?: Role | null;
 
   @ManyToOne(() => Status, {
     eager: true,
   })
+  @Exclude({ toPlainOnly: true })
   status?: Status;
 
   @Column({ type: String, nullable: true })
@@ -93,12 +100,15 @@ export class User extends EntityHelper {
   hash: string | null;
 
   @CreateDateColumn()
+  @Exclude({ toPlainOnly: true })
   createdAt: Date;
 
   @UpdateDateColumn()
+  @Exclude({ toPlainOnly: true })
   updatedAt: Date;
 
   @DeleteDateColumn()
+  @Exclude({ toPlainOnly: true })
   deletedAt: Date;
 
   @Column({ type: String, nullable: true })
@@ -107,13 +117,16 @@ export class User extends EntityHelper {
   @Column({ type: String, nullable: true })
   cpfCnpj?: string;
 
-  @Column({ type: String, nullable: true })
+  @Column({ type: String, nullable: true, length: 3 })
+  bankCode?: string;
+
+  @Column({ type: String, nullable: true, length: 4 })
   bankAgency?: string;
 
-  @Column({ type: String, nullable: true })
+  @Column({ type: String, nullable: true, length: 20 })
   bankAccount?: string;
 
-  @Column({ type: String, nullable: true })
+  @Column({ type: String, nullable: true, length: 2 })
   bankAccountDigit?: string;
 
   @Column({ type: String, nullable: true })

@@ -155,7 +155,6 @@ export class AuthLicenseeService {
     const email = sgtuProfile.email;
 
     const user = await this.usersService.create({
-      ...registerDto,
       password: registerDto.password,
       hash: hash,
       email: email,
