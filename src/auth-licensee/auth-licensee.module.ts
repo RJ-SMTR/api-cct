@@ -6,20 +6,22 @@ import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailModule } from 'src/mail/mail.module';
-import { CoreBankModule } from 'src/core-bank/core-bank.module';
 import { BaseValidator } from 'src/utils/validators/base-validator';
 import { InviteModule } from 'src/invite/invite.module';
 import { JwtModule } from '@nestjs/jwt';
+import { JaeModule } from 'src/jae/jae.module';
+import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
 
 @Module({
   imports: [
     ConfigModule,
     AuthModule,
     SgtuModule,
-    CoreBankModule,
     UsersModule,
     MailModule,
     InviteModule,
+    JaeModule,
+
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -32,6 +34,6 @@ import { JwtModule } from '@nestjs/jwt';
     }),
   ],
   controllers: [AuthLicenseeController],
-  providers: [AuthLicenseeService, BaseValidator],
+  providers: [AuthLicenseeService, BaseValidator, IsNotExist],
 })
 export class AuthLicenseeModule {}

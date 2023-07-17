@@ -9,6 +9,7 @@ import { RoleSeedModule } from './role/role-seed.module';
 import { StatusSeedModule } from './status/status-seed.module';
 import { UserSeedModule } from './user/user-seed.module';
 import { InfoSeedModule } from './info/info-seed.module';
+import { BankSeedModule } from './bank/bank-seed.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { InfoSeedModule } from './info/info-seed.module';
     StatusSeedModule,
     UserSeedModule,
     InfoSeedModule,
+    BankSeedModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, appConfig],
