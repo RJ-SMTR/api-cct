@@ -7,6 +7,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { InviteService } from '../invite.service';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 
 @Injectable()
 export class InviteHashExistsPipe extends ValidationPipe {
@@ -34,12 +35,12 @@ export class InviteHashExistsPipe extends ValidationPipe {
     const fieldName = String(metadata.data);
     throw new HttpException(
       {
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        errors: {
+        error: HttpErrorMessages.UNAUTHORIZED,
+        details: {
           [fieldName]: 'invalidInviteHash',
         },
       },
-      HttpStatus.UNPROCESSABLE_ENTITY,
+      HttpStatus.UNAUTHORIZED,
     );
   }
 }
