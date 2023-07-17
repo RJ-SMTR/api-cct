@@ -71,8 +71,8 @@ export class CreateUserDto {
   @ApiProperty({ example: '16322676313' })
   cpfCnpj?: string;
 
-  @ApiProperty({ example: '001' })
-  bankCode?: string;
+  @ApiProperty({ example: 1 })
+  bankCode?: number;
 
   @ApiProperty({ example: '6352' })
   bankAgency?: string;
@@ -87,5 +87,8 @@ export class CreateUserDto {
   phone?: string;
 
   @ApiProperty()
-  sgtuBlocked?: boolean;
+  isSgtuBlocked?: boolean;
+
+  @ApiProperty({ example: '19003842273' })
+  passValidatorId?: string;
 }

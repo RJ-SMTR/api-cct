@@ -1,16 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumberString, IsOptional, Length } from 'class-validator';
+import { IsNumberString, IsOptional, Length, Max, Min } from 'class-validator';
 import { IsPhoneBr } from '../validators/is-phone-br.validator';
 import { IsNotNumberString } from 'src/utils/validators/is-not-number-string.validator';
-import { IsValidBankCode } from '../validators/is-valid-bank-code.validator';
+import { IsValidBankCode } from '../../banks/validators/is-valid-bank-code.validator';
 
 export class AuthUpdateDto {
-  @ApiProperty({ example: '001' })
+  @ApiProperty({ example: 1 })
   @IsOptional()
-  @IsNumberString()
-  @Length(3, 3)
+  @Min(0)
+  @Max(999)
   @IsValidBankCode()
-  bankCode?: string;
+  bankCode?: number;
 
   @ApiProperty({ example: '1234' })
   @IsOptional()

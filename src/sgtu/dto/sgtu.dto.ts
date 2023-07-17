@@ -18,7 +18,7 @@ export class SgtuDto {
   })
   permitCode: string;
 
-  sgtuBlocked: boolean;
+  isSgtuBlocked: boolean;
 
   @IsNotEmpty()
   @Validate(IsNotExist, ['User'], {

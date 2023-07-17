@@ -6,8 +6,6 @@ import { RoleEnum } from 'src/roles/roles.enum';
 import { Role } from 'src/roles/entities/role.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { Status } from 'src/statuses/entities/status.entity';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { CoreBankInterface } from 'src/core-bank/interfaces/core-bank.interface';
 import { BaseValidator } from 'src/utils/validators/base-validator';
 import { SgtuDto } from 'src/sgtu/dto/sgtu.dto';
 import { InviteService } from 'src/invite/invite.service';
@@ -18,16 +16,18 @@ import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { JaeInterface } from 'src/jae/interfaces/jae.interface';
+import { JaeService } from 'src/jae/jae.service';
 
 @Injectable()
 export class AuthLicenseeService {
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
-    private baseValidator: BaseValidator,
     private sgtuService: SgtuService,
-    private coreBankService: CoreBankService,
+    private jaeService: JaeService,
     private inviteService: InviteService,
+    private baseValidator: BaseValidator,
   ) {}
 
   async validateLogin(
@@ -93,7 +93,7 @@ export class AuthLicenseeService {
     return { token, user };
   }
 
-  async getInviteProfileByHash(
+  async getProfileByHash(
     hash: string,
   ): Promise<AuthLicenseeInviteProfileInterface> {
     const inviteProfile = this.inviteService.findByHash(hash);
@@ -110,8 +110,9 @@ export class AuthLicenseeService {
       );
     }
 
-    const sgtuProfile: SgtuDto =
-      await this.sgtuService.getSgtuProfileByLicensee(inviteProfile.permitCode);
+    const sgtuProfile: SgtuDto = await this.sgtuService.getProfileByLicensee(
+      inviteProfile.permitCode,
+    );
 
     await this.baseValidator.validateOrReject(sgtuProfile, SgtuDto);
 
@@ -142,15 +143,15 @@ export class AuthLicenseeService {
       );
     }
 
-    const sgtuProfile: SgtuDto =
-      await this.sgtuService.getSgtuProfileByLicensee(inviteProfile.permitCode);
+    const sgtuProfile: SgtuDto = await this.sgtuService.getProfileByLicensee(
+      inviteProfile.permitCode,
+    );
 
     await this.baseValidator.validateOrReject(sgtuProfile, SgtuDto);
 
-    const coreBankProfile: CoreBankInterface =
-      await this.coreBankService.getCoreBankProfileByCpfCnpj(
-        sgtuProfile.cpfCnpj,
-      );
+    const jaeProfile: JaeInterface = await this.jaeService.getProfileByLicensee(
+      inviteProfile.permitCode,
+    );
 
     const email = sgtuProfile.email;
 
@@ -161,10 +162,8 @@ export class AuthLicenseeService {
       fullName: sgtuProfile.fullName,
       cpfCnpj: sgtuProfile.cpfCnpj,
       permitCode: sgtuProfile.permitCode,
-      sgtuBlocked: sgtuProfile.sgtuBlocked,
-      bankAgency: coreBankProfile.bankAgencyCode,
-      bankAccount: coreBankProfile.bankAccountCode,
-      bankAccountDigit: coreBankProfile.bankAccountDigit,
+      isSgtuBlocked: sgtuProfile.isSgtuBlocked,
+      passValidatorId: jaeProfile.passValidatorId,
       role: {
         id: RoleEnum.user,
       } as Role,

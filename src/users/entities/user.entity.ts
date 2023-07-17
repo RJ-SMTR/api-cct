@@ -117,8 +117,8 @@ export class User extends EntityHelper {
   @Column({ type: String, nullable: true })
   cpfCnpj?: string;
 
-  @Column({ type: String, nullable: true, length: 3 })
-  bankCode?: string;
+  @Column({ type: Number, nullable: true })
+  bankCode?: number;
 
   @Column({ type: String, nullable: true, length: 4 })
   bankAgency?: string;
@@ -133,5 +133,49 @@ export class User extends EntityHelper {
   phone?: string;
 
   @Column({ type: Boolean, nullable: true })
-  sgtuBlocked?: boolean;
+  isSgtuBlocked?: boolean;
+
+  @Column({ type: String, nullable: true })
+  passValidatorId?: string;
+
+  @Expose({ name: 'aux_isRegistrationComplete' })
+  checkIfRegistrationIsComplete(): boolean {
+    return (
+      // non editable
+      Boolean(this.cpfCnpj) &&
+      Boolean(this.permitCode) &&
+      Boolean(this.email) &&
+      Boolean(this.passValidatorId) &&
+      this.isSgtuBlocked !== undefined &&
+      // editable
+      Boolean(this.phone) &&
+      Boolean(this.bankCode) &&
+      Boolean(this.bankAgency) &&
+      Boolean(this.bankAccount) &&
+      Boolean(this.bankAccountDigit)
+    );
+  }
+
+  @Expose({ name: 'aux_missingRegistrationFields' })
+  getMissingRegistrationFields(): string[] {
+    const requiredFields: string[] = [
+      // non editable
+      'cpfCnpj',
+      'permitCode',
+      'email',
+      'passValidatorId',
+      'isSgtuBlocked',
+      // editable
+      'phone',
+      'bankCode',
+      'bankAgency',
+      'bankAccount',
+      'bankAccountDigit',
+    ];
+
+    return requiredFields.filter(
+      (field) =>
+        !(typeof this[field] === 'boolean' || Boolean(this[field]) === true),
+    );
+  }
 }

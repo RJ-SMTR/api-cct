@@ -5,7 +5,7 @@ import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 
 @Injectable()
 export class SgtuService {
-  public async getSgtuProfileByLicensee(permitCode: string): Promise<SgtuDto> {
+  public async getProfileByLicensee(permitCode: string): Promise<SgtuDto> {
     // TODO: fetch instead of mockup
 
     const sgtuResponseObject = await JSON.parse(sgtuResponseMockup);
@@ -17,7 +17,7 @@ export class SgtuService {
       fullName: item.nome,
       plate: item.placa,
       phone: item.telefone,
-      sgtuBlocked: item.bloqueado,
+      isSgtuBlocked: item.bloqueado,
       email: item.email,
     }));
 
