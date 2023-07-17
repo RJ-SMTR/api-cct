@@ -23,26 +23,35 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let status: HttpStatus;
     let errorMessage: string;
+    let errorKeyName = 'error';
     let details: string;
 
-    console.log(JSON.stringify(exception));
     if (exception instanceof HttpException) {
       status = exception.getStatus();
+      const options = exception?.['options'] as HttpExceptionOptions;
       const errorResponse = exception.getResponse() as HttpExceptionResponse;
+      details = errorResponse.details || options?.description || '';
 
-      details =
-        errorResponse.details ||
-        (exception?.['options'] as HttpExceptionOptions)?.description ||
-        '';
-      errorMessage = exception.message;
-      if (typeof errorResponse.error === 'string') {
-        errorMessage =
-          errorResponse.error || JSON.stringify(errorResponse?.['errors']);
-      } else if (
-        Object.prototype.toString.call(errorResponse.error) === '[object Array]'
-      ) {
+      const isErrorString: boolean = typeof errorResponse.error === 'string';
+      const isErrorArray: boolean =
+        Object.prototype.toString.call(errorResponse.error) ===
+        '[object Array]';
+      if (isErrorString) {
+        try {
+          const decodedError = JSON.parse(errorResponse.error as string);
+          errorMessage = decodedError?.error;
+          details = decodedError?.details;
+        } catch (error) {
+          errorMessage = errorResponse.error as string;
+        }
+      } else if (errorResponse.error && isErrorArray) {
         errorMessage = errorResponse.error[0];
         errorResponse.error?.[1] && (details = errorResponse.error[1]);
+      } else if (errorResponse?.errors) {
+        errorKeyName = 'errors';
+        errorMessage = errorResponse.errors as string;
+      } else {
+        errorMessage = exception.message;
       }
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -60,7 +69,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     logger.error(errorSummary);
     response.status(status).json({
       status: errorResponse.statusCode,
-      error: errorResponse.error,
+      [errorKeyName]: errorResponse.error,
       timestamp: errorResponse.timestamp,
     });
   }
