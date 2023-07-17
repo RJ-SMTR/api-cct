@@ -17,6 +17,7 @@ import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
 import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 
 @Injectable()
 export class AuthLicenseeService {
@@ -46,24 +47,24 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             email: 'notFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
     if (user.provider !== AuthProvidersEnum.email) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             email: `needLoginViaProvider:${user.provider}`,
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -75,12 +76,12 @@ export class AuthLicenseeService {
     if (!isValidPassword) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             password: 'incorrectPassword',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -100,12 +101,12 @@ export class AuthLicenseeService {
     if (!inviteProfile) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             permitCode: 'inviteHashNotFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -132,12 +133,12 @@ export class AuthLicenseeService {
     if (!inviteProfile) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             internal: 'inviteHashNotFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 

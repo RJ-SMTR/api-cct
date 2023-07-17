@@ -73,7 +73,7 @@ import { AllConfigType } from 'src/config/config.type';
                 new HttpException(
                   {
                     status: HttpStatus.UNPROCESSABLE_ENTITY,
-                    errors: {
+                    details: {
                       file: `cantUploadFileType`,
                     },
                   },

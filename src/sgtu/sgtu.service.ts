@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { sgtuResponseMockup } from './data/sgtu-response-mockup';
 import { SgtuDto } from './dto/sgtu.dto';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 
 @Injectable()
 export class SgtuService {
@@ -29,22 +30,22 @@ export class SgtuService {
     } else if (filteredData.length > 1) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          details: {
             permitCode: 'multipleSgtuProfilesFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     } else {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          details: {
             permitCode: 'sgtuProfileNotFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
