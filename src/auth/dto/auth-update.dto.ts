@@ -1,34 +1,38 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, MinLength, Validate } from 'class-validator';
-import { IsExist } from '../../utils/validators/is-exists.validator';
-import { FileEntity } from '../../files/entities/file.entity';
+import { IsNumberString, IsOptional, Length, Max, Min } from 'class-validator';
+import { IsPhoneBr } from '../validators/is-phone-br.validator';
+import { IsNotNumberString } from 'src/utils/validators/is-not-number-string.validator';
+import { IsValidBankCode } from '../../banks/validators/is-valid-bank-code.validator';
 
 export class AuthUpdateDto {
-  @ApiProperty({ type: () => FileEntity })
+  @ApiProperty({ example: 1 })
   @IsOptional()
-  @Validate(IsExist, ['FileEntity', 'id'], {
-    message: 'imageNotExists',
-  })
-  photo?: FileEntity;
+  @Min(0)
+  @Max(999)
+  @IsValidBankCode()
+  bankCode?: number;
 
-  @ApiProperty({ example: 'John' })
+  @ApiProperty({ example: '1234' })
   @IsOptional()
-  @IsNotEmpty({ message: 'mustBeNotEmpty' })
-  firstName?: string;
+  @Length(4, 4)
+  @IsNumberString()
+  bankAgency?: string;
 
-  @ApiProperty({ example: 'Doe' })
+  @ApiProperty({ example: '17263731' })
   @IsOptional()
-  @IsNotEmpty({ message: 'mustBeNotEmpty' })
-  lastName?: string;
+  @IsNumberString()
+  @Length(5, 20)
+  bankAccount?: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2' })
   @IsOptional()
-  @IsNotEmpty()
-  @MinLength(6)
-  password?: string;
+  @IsNumberString()
+  @Length(1, 2)
+  bankAccountDigit?: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '(21)91234-5678' })
   @IsOptional()
-  @IsNotEmpty({ message: 'mustBeNotEmpty' })
-  oldPassword: string;
+  @IsNotNumberString()
+  @IsPhoneBr({ countryCode: false, stateCode: true, mobileDigit: 'optional' })
+  phone?: string;
 }

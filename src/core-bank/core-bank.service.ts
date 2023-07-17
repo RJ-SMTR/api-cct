@@ -2,10 +2,11 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CoreBankInterface } from './interfaces/core-bank.interface';
 import { coreBankResponseMockup } from './data/core-bank-response-mockup';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { UpdateCoreBankInterface } from './interfaces/update-core-bank.interface';
 
 @Injectable()
 export class CoreBankService {
-  public async getCoreBankProfileByCpfCnpj(
+  public async getProfileByCpfCnpj(
     cpfCnpj: string,
   ): Promise<CoreBankInterface> {
     // TODO: fetch instead of mockup
@@ -15,6 +16,7 @@ export class CoreBankService {
       (item) => ({
         id: item.id,
         cpfCnpj: item.cpf,
+        bankCode: item.banco,
         bankAgencyName: item.ente,
         bankAgencyCode: item.agencia,
         bankAgencyDigit: item.dvAgencia,
@@ -51,5 +53,14 @@ export class CoreBankService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  update(cpfCnpj: string, coreBankProfile: UpdateCoreBankInterface) {
+    // TODO: PATCH bank data to core bank API
+    console.log(
+      `PATCH core bank:\n` +
+        `\tcpfCnpj ${cpfCnpj}\n` +
+        `\tProfile: ${JSON.stringify(coreBankProfile)}`,
+    );
   }
 }

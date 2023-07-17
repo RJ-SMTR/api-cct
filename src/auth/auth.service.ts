@@ -20,6 +20,8 @@ import { MailService } from 'src/mail/mail.service';
 import { NullableType } from '../utils/types/nullable.type';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { CoreBankService } from 'src/core-bank/core-bank.service';
+import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +30,7 @@ export class AuthService {
     private usersService: UsersService,
     private forgotService: ForgotService,
     private mailService: MailService,
+    private coreBankService: CoreBankService,
   ) {}
 
   async validateLogin(
@@ -280,57 +283,48 @@ export class AuthService {
     user: User,
     userDto: AuthUpdateDto,
   ): Promise<NullableType<User>> {
-    if (userDto.password) {
-      if (userDto.oldPassword) {
-        const currentUser = await this.usersService.findOne({
-          id: user.id,
-        });
+    const userProfile = await this.usersService.findOne({ id: user.id });
 
-        if (!currentUser) {
-          throw new HttpException(
-            {
-              error: HttpErrorMessages.UNAUTHORIZED,
-              details: {
-                user: 'userNotFound',
-              },
-            },
-            HttpStatus.UNAUTHORIZED,
-          );
-        }
-
-        const isValidOldPassword = await bcrypt.compare(
-          userDto.oldPassword,
-          currentUser.password,
-        );
-
-        if (!isValidOldPassword) {
-          throw new HttpException(
-            {
-              error: HttpErrorMessages.UNAUTHORIZED,
-              details: {
-                oldPassword: 'incorrectOldPassword',
-              },
-            },
-            HttpStatus.UNAUTHORIZED,
-          );
-        }
-      } else {
-        throw new HttpException(
-          {
-            error: {
-              oldPassword: 'missingOldPassword',
-            },
+    if (!userProfile || !(userProfile && userProfile?.cpfCnpj)) {
+      throw new HttpException(
+        {
+          status: HttpStatus.UNAUTHORIZED,
+          error: 'unauthorized',
+          details: {
+            token: 'valid token but decoded user data is invalid',
+            ...(!userProfile && { id: 'userNotExists' }),
+            ...(!(userProfile && userProfile?.cpfCnpj) && {
+              cpfCnpj: 'invalidCpfCnpj',
+            }),
           },
-          HttpStatus.UNPROCESSABLE_ENTITY,
-        );
-      }
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     await this.usersService.update(user.id, userDto);
-
-    return this.usersService.findOne({
+    const newUserProfile = await this.usersService.findOne({
       id: user.id,
     });
+    if (!newUserProfile) {
+      throw new HttpException(
+        {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          details: 'updatedUserNotFound',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const coreBankProfile: UpdateCoreBankInterface = {
+      bankAccountCode: newUserProfile.bankAccount,
+      bankAccountDigit: newUserProfile.bankAccountDigit,
+      bankAgencyCode: newUserProfile.bankAgency,
+      bankCode: newUserProfile.bankCode,
+    };
+    this.coreBankService.update(userProfile.cpfCnpj, coreBankProfile);
+
+    return newUserProfile;
   }
 
   async softDelete(user: User): Promise<void> {

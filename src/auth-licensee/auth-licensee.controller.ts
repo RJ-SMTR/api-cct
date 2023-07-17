@@ -41,7 +41,7 @@ export class AuthLicenseeController {
     @Param('hash', InviteHashExistsPipe)
     hash: string,
   ): Promise<void | object> {
-    return await this.authLicenseeService.getInviteProfileByHash(hash);
+    return await this.authLicenseeService.getProfileByHash(hash);
   }
 
   @Post('register/:hash')

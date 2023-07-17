@@ -3,6 +3,7 @@ export const coreBankResponseMockup: string = JSON.stringify({
     {
       id: '1',
       cpf: '79858972679',
+      banco: 1,
       agencia: '2234',
       dvAgencia: '9',
       conta: '58339',
@@ -11,6 +12,7 @@ export const coreBankResponseMockup: string = JSON.stringify({
       ente: 'RIO DE JANEIRO (CAP)',
     },
     {
+      banco: 10,
       id: '2',
       cpf: '98765432100',
       agencia: '72',

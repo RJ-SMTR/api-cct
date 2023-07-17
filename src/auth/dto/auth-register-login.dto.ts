@@ -41,6 +41,6 @@ export class AuthRegisterLoginDto {
   @ApiProperty({ example: '2' })
   bankAccountDigit?: string;
 
-  @ApiProperty({ example: '5521912345678' })
+  @ApiProperty({ example: '(21)91234-5678' })
   phone?: string;
 }

@@ -3,6 +3,7 @@ import { RoleSeedService } from './role/role-seed.service';
 import { SeedModule } from './seed.module';
 import { StatusSeedService } from './status/status-seed.service';
 import { UserSeedService } from './user/user-seed.service';
+import { BankSeedService } from './bank/bank-seed.service';
 import { InfoSeedService } from './info/info-seed.service';
 
 const runSeed = async () => {
@@ -13,6 +14,7 @@ const runSeed = async () => {
   await app.get(StatusSeedService).run();
   await app.get(UserSeedService).run();
   await app.get(InfoSeedService).run();
+  await app.get(BankSeedService).run();
 
   await app.close();
 };

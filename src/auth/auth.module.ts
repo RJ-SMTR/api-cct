@@ -11,6 +11,9 @@ import { ForgotModule } from 'src/forgot/forgot.module';
 import { MailModule } from 'src/mail/mail.module';
 import { IsExist } from 'src/utils/validators/is-exists.validator';
 import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
+import { CoreBankService } from 'src/core-bank/core-bank.service';
+import { IsValidBankCodeConstraint } from 'src/banks/validators/is-valid-bank-code.validator';
+import { CoreBankModule } from 'src/core-bank/core-bank.module';
 
 @Module({
   imports: [
@@ -18,6 +21,7 @@ import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
     ForgotModule,
     PassportModule,
     MailModule,
+    CoreBankModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -30,7 +34,15 @@ import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
     }),
   ],
   controllers: [AuthController],
-  providers: [IsExist, IsNotExist, AuthService, JwtStrategy, AnonymousStrategy],
+  providers: [
+    IsExist,
+    IsNotExist,
+    AuthService,
+    JwtStrategy,
+    AnonymousStrategy,
+    CoreBankService,
+    IsValidBankCodeConstraint,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}
