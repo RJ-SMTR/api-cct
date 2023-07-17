@@ -1,6 +1,7 @@
 import {
   registerDecorator,
   ValidationArguments,
+  ValidationOptions,
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
@@ -108,12 +109,16 @@ export class IsPhoneBrConstraint implements ValidatorConstraintInterface {
  * @param options set phone number parts as `'optional'`, `true` for mandatory or `false` for forbidden
  * @returns True if string is a valid brazillian phone.
  */
-export function IsPhoneBr(options?: IsPhoneOptions) {
+export function IsPhoneBr(
+  options?: IsPhoneOptions,
+  validationOptions?: ValidationOptions,
+) {
   return function (object: any, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
       constraints: [options || {}],
+      options: validationOptions,
       validator: IsPhoneBrConstraint,
     });
   };
