@@ -85,7 +85,6 @@ export class User extends EntityHelper {
   @ManyToOne(() => Role, {
     eager: true,
   })
-  @Exclude({ toPlainOnly: true })
   role?: Role | null;
 
   @ManyToOne(() => Status, {
