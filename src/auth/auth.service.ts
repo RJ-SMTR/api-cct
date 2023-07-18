@@ -240,7 +240,7 @@ export class AuthService {
     });
 
     console.log(process.env.NODE_ENV);
-    if(process.env.NODE_ENV == 'development') {
+    if (process.env.NODE_ENV == 'development') {
       return { hash: hash };
     }
 
