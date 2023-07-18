@@ -1,5 +1,6 @@
 import {
   registerDecorator,
+  ValidationOptions,
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
@@ -33,12 +34,13 @@ export class IsValidBankCodeConstraint implements ValidatorConstraintInterface {
   }
 }
 
-export function IsValidBankCode() {
+export function IsValidBankCode(validationOptions?: ValidationOptions) {
   return function (object: any, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
       constraints: [],
+      options: validationOptions,
       validator: IsValidBankCodeConstraint,
     });
   };
