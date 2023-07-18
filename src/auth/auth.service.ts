@@ -315,7 +315,7 @@ export class AuthService {
       throw new HttpException(
         {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
-          details: 'updatedUserNotFound',
+          detail: 'updatedUserNotFound',
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );

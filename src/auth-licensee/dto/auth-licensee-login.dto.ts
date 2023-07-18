@@ -5,9 +5,7 @@ import { IsExist } from 'src/utils/validators/is-exists.validator';
 export class AuthLicenseeLoginDto {
   @ApiProperty({ example: '213890329890312' })
   @IsNotEmpty()
-  @Validate(IsExist, ['User'], {
-    message: 'permitCodeNotExists',
-  })
+  @Validate(IsExist, ['User'], { message: 'permitCodeNotExists' })
   permitCode: string;
 
   @ApiProperty({ example: 'secret' })
