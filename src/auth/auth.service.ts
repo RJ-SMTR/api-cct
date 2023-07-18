@@ -214,7 +214,7 @@ export class AuthService {
     await user.save();
   }
 
-  async forgotPassword(email: string): Promise<void> {
+  async forgotPassword(email: string): Promise<void | object> {
     const user = await this.usersService.findOne({
       email,
     });
@@ -238,6 +238,11 @@ export class AuthService {
       hash,
       user,
     });
+
+    console.log(process.env.NODE_ENV);
+    if(process.env.NODE_ENV == 'development') {
+      return { hash: hash };
+    }
 
     await this.mailService.forgotPassword({
       to: email,

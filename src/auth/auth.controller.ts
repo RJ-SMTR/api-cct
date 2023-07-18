@@ -71,10 +71,10 @@ export class AuthController {
   }
 
   @Post('forgot/password')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   async forgotPassword(
     @Body() forgotPasswordDto: AuthForgotPasswordDto,
-  ): Promise<void> {
+  ): Promise<void | object> {
     return this.service.forgotPassword(forgotPasswordDto.email);
   }
 
