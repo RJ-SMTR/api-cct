@@ -81,20 +81,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const { statusCode, clientMessage, method, uri, internalMessage } =
       errorResponse;
 
-    const errorLog = `Code: ${statusCode} - ${method}: ${uri}
+    const errorLog =
+      `Code: ${statusCode} - ${method}: ${uri}
     
-    - Message:\n${JSON.stringify(
-      { ...clientMessage, ...internalMessage },
-      null,
-      4,
-    )}
+    - Message:\n` +
+      `${JSON.stringify({ ...clientMessage, ...internalMessage }, null, 4)}
 
-    - Response:
-    ${JSON.stringify(errorResponse)}
+    - Response:\n` +
+      `${JSON.stringify(errorResponse)}
 
-    - Error:
-    ${JSON.stringify(exception)}
-    `;
+    - Traceback:\n` +
+      (exception instanceof Error ? (exception as Error).stack : '');
 
     return errorLog;
   };
