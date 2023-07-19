@@ -5,6 +5,7 @@ export interface HttpExceptionResponse {
   errors?: object;
   detail?: string;
   details?: object;
+  response?: object;
 }
 
 export interface CustomHttpExceptionResponse extends HttpExceptionResponse {

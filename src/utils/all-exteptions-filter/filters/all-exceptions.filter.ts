@@ -12,7 +12,6 @@ import {
   HttpExceptionResponse,
 } from '../interfaces/http-exception-response.interface';
 import { getCustomValidationOptions } from '../custom-validation-options';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -29,11 +28,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     logger.error(this.getErrorLogSummary(responseData, exception));
 
-    response.status(responseData.statusCode).json({
-      status: responseData.statusCode,
-      ...responseData.clientMessage,
-      timestamp: responseData.timestamp,
-    });
+    response.status(responseData.statusCode).json(
+      responseData?.response || {
+        status: responseData.statusCode,
+        ...responseData.clientMessage,
+        timestamp: responseData.timestamp,
+      },
+    );
   }
 
   private getResponseData(kwargs: {
@@ -50,20 +51,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const httpResponse = exception.getResponse() as HttpExceptionResponse;
-      const customResponse = getCustomValidationOptions(httpResponse);
+      const customResponse = getCustomValidationOptions(httpResponse, {
+        setLowestStatus: true,
+        setMainMessage: true,
+      });
       responseData = {
         ...responseData,
         statusCode: exception.getStatus(),
         ...(customResponse || httpResponse),
       };
     }
-    if (responseData?.error) {
+    if (responseData?.response) {
+      responseData.clientMessage = responseData.response;
+    } else if (responseData?.error) {
       responseData.clientMessage = { error: responseData.error };
     } else if (responseData?.errors) {
       responseData.clientMessage = { errors: responseData.errors };
-    } else {
-      responseData.error = HttpErrorMessages.INTERNAL_SERVER_ERROR;
-      responseData.clientMessage = { errors: responseData.error };
     }
     if (responseData?.details) {
       responseData.internalMessage = { details: responseData.details };
@@ -83,15 +86,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const errorLog =
       `Code: ${statusCode} - ${method}: ${uri}
-    
-    - Message:\n` +
-      `${JSON.stringify({ ...clientMessage, ...internalMessage }, null, 4)}
-
-    - Response:\n` +
-      `${JSON.stringify(errorResponse)}
-
-    - Traceback:\n` +
-      (exception instanceof Error ? (exception as Error).stack : '');
+    - Message: ${JSON.stringify({ ...clientMessage, ...internalMessage })}` +
+      (exception instanceof Error
+        ? `\n    - Traceback:\n` + (exception as Error).stack
+        : '');
 
     return errorLog;
   };

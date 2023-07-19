@@ -9,7 +9,9 @@ export class BaseValidator {
     inputs: Record<string, any>,
     schemaMeta: Type<T>,
     httpStatus: HttpStatus = HttpStatus.UNPROCESSABLE_ENTITY,
-    httpErrorMessage: HttpErrorMessages = HttpErrorMessages.UNPROCESSABLE_ENTITY,
+    httpErrorMessage:
+      | HttpErrorMessages
+      | undefined = HttpErrorMessages.UNPROCESSABLE_ENTITY,
   ): Promise<T> {
     const schema: T = plainToClass(schemaMeta, inputs);
     const errors = await validate(schema as Record<string, any>, {
@@ -22,7 +24,7 @@ export class BaseValidator {
       if (constraints !== undefined) {
         throw new HttpException(
           {
-            error: httpErrorMessage,
+            ...(httpErrorMessage && { error: httpErrorMessage }),
             details: {
               [error.property]: constraints[Object.keys(constraints)[0]],
             },
