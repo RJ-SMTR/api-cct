@@ -29,7 +29,8 @@ export class AuthLicenseeController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   public login(
-    @Body() loginDto: AuthLicenseeLoginDto,
+    @Body()
+    loginDto: AuthLicenseeLoginDto,
   ): Promise<LoginResponseType> {
     return this.authLicenseeService.validateLogin(loginDto, false);
   }

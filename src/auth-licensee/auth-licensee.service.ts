@@ -114,7 +114,12 @@ export class AuthLicenseeService {
       inviteProfile.permitCode,
     );
 
-    await this.baseValidator.validateOrReject(sgtuProfile, SgtuDto);
+    await this.baseValidator.validateOrReject(
+      sgtuProfile,
+      SgtuDto,
+      HttpStatus.UNAUTHORIZED,
+      HttpErrorMessages.UNAUTHORIZED,
+    );
 
     const inviteResponse: AuthLicenseeInviteProfileInterface = {
       fullName: sgtuProfile.fullName,
@@ -147,7 +152,12 @@ export class AuthLicenseeService {
       inviteProfile.permitCode,
     );
 
-    await this.baseValidator.validateOrReject(sgtuProfile, SgtuDto);
+    await this.baseValidator.validateOrReject(
+      sgtuProfile,
+      SgtuDto,
+      HttpStatus.UNAUTHORIZED,
+      HttpErrorMessages.UNAUTHORIZED,
+    );
 
     const jaeProfile: JaeInterface = await this.jaeService.getProfileByLicensee(
       inviteProfile.permitCode,

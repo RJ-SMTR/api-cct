@@ -219,14 +219,19 @@ export class AuthService {
       email,
     });
 
+    const returnMessage = {
+      info: 'if email exists, an email should be sent.',
+    };
+
     if (!user) {
       throw new HttpException(
         {
-          errors: {
+          response: returnMessage,
+          details: {
             email: 'emailNotExists',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.ACCEPTED,
       );
     }
 
@@ -234,14 +239,17 @@ export class AuthService {
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
+
     await this.forgotService.create({
       hash,
       user,
     });
 
-    console.log(process.env.NODE_ENV);
     if (process.env.NODE_ENV == 'development') {
-      return { hash: hash };
+      return {
+        ...returnMessage,
+        hash: hash,
+      };
     }
 
     await this.mailService.forgotPassword({
@@ -250,6 +258,8 @@ export class AuthService {
         hash,
       },
     });
+
+    return returnMessage;
   }
 
   async resetPassword(hash: string, password: string): Promise<void> {
@@ -315,7 +325,7 @@ export class AuthService {
       throw new HttpException(
         {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
-          details: 'updatedUserNotFound',
+          detail: 'updatedUserNotFound',
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
