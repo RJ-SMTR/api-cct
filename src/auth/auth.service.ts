@@ -303,8 +303,6 @@ export class AuthService {
     if (!userProfile || !(userProfile && userProfile?.cpfCnpj)) {
       throw new HttpException(
         {
-          status: HttpStatus.UNAUTHORIZED,
-          error: 'unauthorized',
           details: {
             token: 'valid token but decoded user data is invalid',
             ...(!userProfile && { id: 'userNotExists' }),

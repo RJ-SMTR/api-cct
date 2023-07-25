@@ -15,7 +15,7 @@ import { getCustomValidationOptions } from '../custom-validation-options';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  catch(exception: object, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
@@ -38,7 +38,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 
   private getResponseData(kwargs: {
-    exception: object;
+    exception: unknown;
     request: Request;
   }): CustomHttpExceptionResponse {
     const { exception, request } = kwargs;
@@ -55,13 +55,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         setLowestStatus: true,
         setMainMessage: true,
       });
+
       responseData = {
         ...responseData,
         statusCode: exception.getStatus(),
         ...(customResponse || httpResponse),
       };
     }
-    if (responseData?.response) {
+    if (responseData?.message) {
+      responseData.clientMessage = { message: responseData.message };
+    } else if (responseData?.response) {
       responseData.clientMessage = responseData.response;
     } else if (responseData?.error) {
       responseData.clientMessage = { error: responseData.error };
