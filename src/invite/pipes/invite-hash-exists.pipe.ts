@@ -35,7 +35,7 @@ export class InviteHashExistsPipe extends ValidationPipe {
     const fieldName = String(metadata.data);
     throw new HttpException(
       {
-        error: HttpErrorMessages.UNAUTHORIZED,
+        message: HttpErrorMessages.UNAUTHORIZED,
         details: {
           [fieldName]: 'invalidInviteHash',
         },

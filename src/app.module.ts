@@ -35,6 +35,7 @@ import { CoreBankModule } from './core-bank/core-bank.module';
 import { InviteModule } from './invite/invite.module';
 import { JaeModule } from './jae/jae.module';
 import { BanksModule } from './banks/banks.module';
+import { BankStatementsModule } from './bank-statements/bank-statements.module';
 
 @Module({
   imports: [
@@ -98,6 +99,7 @@ import { BanksModule } from './banks/banks.module';
     InviteModule,
     JaeModule,
     BanksModule,
+    BankStatementsModule,
   ],
 })
 export class AppModule {}
