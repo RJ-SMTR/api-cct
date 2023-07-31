@@ -11,8 +11,6 @@ import {
 @ValidatorConstraint({ async: false })
 export class AreFieldsEmptyConstraint implements ValidatorConstraintInterface {
   validate(value: any, args: ValidationArguments) {
-    console.log('VALIDATE', args.object, Object(args.object));
-
     const fieldsObject = args.object;
     const fieldNames: string[] = args.constraints;
     if (isEmpty(value) || fieldNames.length === 0) {
