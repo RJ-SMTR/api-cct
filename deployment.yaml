@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-cct
+  namespace: devs-beta
+spec:
+  selector:
+    app: api-cct
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 3000
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-cct
+  namespace: devs-beta
+  labels:
+    app: api-cct
+spec:
+  selector:
+    matchLabels:
+      app: api-cct
+  template:
+    metadata:
+      labels:
+        app: api-cct
+    spec:
+      containers:
+      - name: api-cct
+        image: gcr.io/rj-smtr/api-cct
+        env:
+        - name: NODE_ENV
+          value: "production"
+        ports:
+        - containerPort: 3000
+        imagePullPolicy: Always
+      serviceAccountName: default
