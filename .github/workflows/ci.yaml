@@ -1,7 +1,10 @@
 name: Linting and auditing
 
 on:
+  push:
+    branches: [develop]
   pull_request:
+    branches: [develop]
 
 jobs:
   lint:
