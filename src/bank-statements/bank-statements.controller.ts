@@ -33,11 +33,14 @@ export class BankStatementsController {
   @UseGuards(AuthGuard('jwt'))
   @Post('me')
   @HttpCode(HttpStatus.OK)
-  async getFromUser(
+  async getBankStatementsFromUser(
     @Request() request,
     @Body() profileDto: BankStatementsGetDto,
   ): Promise<BankStatementsInterface[]> {
     const user = await this.usersService.getOneFromRequest(request);
-    return this.bankStatementsService.getFromUser(user, profileDto);
+    return this.bankStatementsService.getBankStatementsFromUser(
+      user,
+      profileDto,
+    );
   }
 }

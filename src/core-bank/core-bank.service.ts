@@ -1,19 +1,24 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { CoreBankInterface } from './interfaces/core-bank.interface';
-import { coreBankResponseMockup } from './data/core-bank-response-mockup';
+import { CoreBankProfileInterface } from './interfaces/core-bank-profile.interface';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { UpdateCoreBankInterface } from './interfaces/update-core-bank.interface';
+import { CoreBankDataService } from './data/core-bank-data.service';
+import { NullableType } from 'src/utils/types/nullable.type';
 
 @Injectable()
 export class CoreBankService {
+  constructor(private readonly coreBankDataService: CoreBankDataService) {}
+
   public async getProfileByCpfCnpj(
     cpfCnpj: string,
-  ): Promise<CoreBankInterface> {
+  ): Promise<CoreBankProfileInterface> {
     // TODO: fetch instead of mockup
 
-    const coreBankResponseObject = await JSON.parse(coreBankResponseMockup);
-    const sgtuResponse: CoreBankInterface[] = coreBankResponseObject.data.map(
-      (item) => ({
+    const coreBankResponseObject = JSON.parse(
+      await this.coreBankDataService.getProfiles(),
+    );
+    const responseMapped: CoreBankProfileInterface[] =
+      coreBankResponseObject.data.map((item) => ({
         id: item.id,
         cpfCnpj: item.cpf,
         bankCode: item.banco,
@@ -23,10 +28,9 @@ export class CoreBankService {
         bankAgencyCnpj: item.cnpj,
         bankAccountCode: item.conta,
         bankAccountDigit: item.dvConta,
-      }),
-    );
+      }));
 
-    const filteredData = sgtuResponse.filter(
+    const filteredData = responseMapped.filter(
       (item) => item.cpfCnpj === cpfCnpj,
     );
 
@@ -53,6 +57,38 @@ export class CoreBankService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  /**
+   * Return mokcked json API response
+   * @param cpfCnpj 
+   * @example
+   ```js
+    {
+      data: [
+        {
+          id: 1,
+          data: '2023-08-11',
+          cpf: 'cpf1',
+          valor: 1234.56
+          status: 'sucesso'
+        },
+        ...
+      ]
+    }
+  ```
+   */
+  public getBankStatementsByCpfCnpj(cpfCnpj: string): NullableType<string> {
+    // TODO: fetch instead of mockup
+
+    const coreBankResponseObject = JSON.parse(
+      this.coreBankDataService.getBankStatements(),
+    )?.cpf?.[cpfCnpj];
+    if (coreBankResponseObject === undefined) {
+      return null;
+    }
+
+    return JSON.stringify(coreBankResponseObject);
   }
 
   update(cpfCnpj: string, coreBankProfile: UpdateCoreBankInterface) {
