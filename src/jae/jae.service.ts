@@ -1,19 +1,33 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { JaeInterface } from './interfaces/jae.interface';
-import { jaeResponseMockup } from './data/jae-response-mockup';
+import { JaeDataService } from './data/jae-data.service';
+import { JaeProfileInterface } from './interfaces/jae-profile.interface';
 
 @Injectable()
 export class JaeService {
-  public async getProfileByLicensee(permitCode: string): Promise<JaeInterface> {
+  constructor(private jaeDataService: JaeDataService) {}
+
+  public async getGtfsDataByValidator(ticketValidatorId: string) {
+    return await this.jaeDataService.getGtfsDataByValidator(ticketValidatorId);
+  }
+
+  public async getTicketRevenuesByValidator(ticketValidatorId: string) {
+    return await this.jaeDataService.getTicketRevenuesByValidator(
+      ticketValidatorId,
+    );
+  }
+
+  public getProfileByLicensee(permitCode: string): JaeProfileInterface {
     // TODO: fetch instead of mockup
 
-    const jaeResponseObject = await JSON.parse(jaeResponseMockup);
-    const jaeResponse: JaeInterface[] = jaeResponseObject.data.map((item) => ({
-      id: item.id,
-      permitCode: item.autorizacao,
-      plate: item.placa,
-      passValidatorId: item.validador,
-    }));
+    const jaeResponseObject = this.jaeDataService.getProfiles();
+    const jaeResponse: JaeProfileInterface[] = jaeResponseObject.map(
+      (item) => ({
+        id: item.id,
+        permitCode: item.autorizacao,
+        plate: item.placa,
+        passValidatorId: item.validador,
+      }),
+    );
 
     const filteredData = jaeResponse.filter(
       (item) => item.permitCode === permitCode,

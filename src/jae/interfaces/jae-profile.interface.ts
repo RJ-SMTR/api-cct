@@ -1,4 +1,4 @@
-export class JaeInterface {
+export class JaeProfileInterface {
   id?: string;
   permitCode: string;
   plate?: string;

@@ -36,7 +36,8 @@ import { InviteModule } from './invite/invite.module';
 import { JaeModule } from './jae/jae.module';
 import { BanksModule } from './banks/banks.module';
 import { BankStatementsModule } from './bank-statements/bank-statements.module';
-import { TripsIncomeModule } from './trips-income/trips-income.module';
+import { TicketRevenuesModule } from './ticket-revenues/ticket-revenues.module';
+import { ValidatorGtfsDataModule } from './validator-gtfs-data/validator-gtfs-data.module';
 
 @Module({
   imports: [
@@ -101,7 +102,9 @@ import { TripsIncomeModule } from './trips-income/trips-income.module';
     JaeModule,
     BanksModule,
     BankStatementsModule,
-    TripsIncomeModule,
+    // TripsIncomeModule,
+    TicketRevenuesModule,
+    ValidatorGtfsDataModule,
   ],
 })
 export class AppModule {}
