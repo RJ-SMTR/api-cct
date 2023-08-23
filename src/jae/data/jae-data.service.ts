@@ -4,18 +4,12 @@ import { JaeTicketRevenueInterface } from '../interfaces/jae-ticket-revenue.inte
 import { JaeStopTimesInterface } from '../interfaces/jae-stop-times.interface';
 import { JaeValidatorGtfsDataInterface } from '../interfaces/jae-validator-gtfs-data.interface';
 
-interface ITimeObj {
-  hour: number;
-  minute: number;
-  second: number;
-}
-
 @Injectable()
 export class JaeDataService {
   private tripIncomes: JaeTicketRevenueInterface[] = [];
-  public ticketRevenuesArgs = {
-    startHour: 10,
-    endHour: 15,
+  private ticketRevenuesArgs = {
+    startHour: 13,
+    endHour: 18,
     minutesInterval: 30,
     weeks: 4 * 3,
     highDemandProbability: 0.2,
@@ -48,11 +42,11 @@ export class JaeDataService {
       : 20 + Math.floor(Math.random() * 81);
   }
 
-  public _getTicketRevenuesArgs() {
+  private getTicketRevenuesArgs() {
     return this.ticketRevenuesArgs;
   }
 
-  public async _getStopTimes(
+  private async getStopTimes(
     uniqueTrips: number,
   ): Promise<JaeStopTimesInterface[]> {
     let uniqueTripsList: string[] = [];
@@ -84,51 +78,26 @@ export class JaeDataService {
   }
 
   private getLicensees() {
-    return this._getTicketRevenuesArgs().licenseeProfiles;
+    return this.getTicketRevenuesArgs().licenseeProfiles;
   }
 
   private async setStopTimes() {
     const licenseesCount = this.getLicensees().length;
-    const tripsPerLicensee = this._getTicketRevenuesArgs().tripsPerLicensee;
-    this.stopTimes = await this._getStopTimes(
-      tripsPerLicensee * licenseesCount,
-    );
-  }
-
-  private getTimeObj(
-    hour?: number,
-    minute?: number,
-    second?: number,
-  ): ITimeObj {
-    const response = {
-      hour: hour === undefined ? 0 : hour,
-      minute: minute === undefined ? 0 : minute,
-      second: second === undefined ? 0 : second,
-    } as ITimeObj;
-    return response;
-  }
-  private getTreatedTimeObj(hour = 0, oldTime?: ITimeObj): ITimeObj {
-    const timeObj = oldTime || this.getTimeObj();
-    if (hour === 24) {
-      timeObj.hour = 23;
-      timeObj.minute = 59;
-      timeObj.second = 59;
-    }
-    return timeObj;
+    const tripsPerLicensee = this.getTicketRevenuesArgs().tripsPerLicensee;
+    this.stopTimes = await this.getStopTimes(tripsPerLicensee * licenseesCount);
   }
 
   private setTicketRevenues() {
     const now = new Date(Date.now());
-    const timezoneOffset =
-      (now.getHours() - now.getUTCHours()) * 60 +
-      (now.getMinutes() - now.getUTCMinutes());
+    const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
     const {
       minutesInterval,
       weeks,
-      startHour,
       ticketValue,
       highDemandProbability,
-    } = this._getTicketRevenuesArgs();
+      startHour,
+      endHour,
+    } = this.getTicketRevenuesArgs();
     const tripIncomes: JaeTicketRevenueInterface[] = [];
     this.vehicleData = [];
     const uniqueTripsList: string[] = [
@@ -143,7 +112,7 @@ export class JaeDataService {
         .filter((i) => i.trip_id.trip_id === tripId)
         .sort((a, b) => a.stop_sequence - b.stop_sequence);
       this.vehicleData.push({
-        passValidatorId: profile.validador,
+        validador: profile.validador,
         data: [
           {
             trip: stopTimes[0].trip_id,
@@ -152,33 +121,33 @@ export class JaeDataService {
         ],
       });
       for (let day = 0; day < weeks * 7; day++) {
-        const endHour =
-          this._getTicketRevenuesArgs().endHour - ~~timezoneOffset / 60;
-        // if (day === 0 && endHour > now.getUTCHours()) {
-        //   endHour = now.getUTCHours();
+        let endMinutes = endHour * 60;
+        // let currentEndHour = endHour;
+        if (day === 0 && endMinutes > nowMinutes) {
+          endMinutes = nowMinutes;
+          // currentEndHour = now.getUTCHours();
+        }
+        const diffMinutes = endMinutes - startHour * 60;
+        const minuteSteps = diffMinutes / minutesInterval;
+        const totalMinutes = ~~minuteSteps * minutesInterval;
+        // if (startHour === 6 && day < 2 && tripIndex == '0') {
+        //   console.log(`day: ${day}, index:${tripIndex}, diff: ${diffMinutes}`
+        //   + `, steps: ${minuteSteps}, totalMin: ${totalMinutes}, start: ${startHour*60}`
+        //   + `, end: ${endMinutes}`)
         // }
-        const getCurrentMinute = (minuteIndex: number) =>
-          endHour * 60 - minutesInterval * minuteIndex;
-        for (
-          let minuteIndex = 0;
-          getCurrentMinute(minuteIndex) >= startHour * 60;
-          minuteIndex++
-        ) {
-          // let endTime = this.getTimeObj(endHour);
-          // if (minuteIndex === 0) {
-          //   endTime = this.getTreatedTimeObj(endHour, endTime);
-          // }
-          const stopTimesCycleIndex = minuteIndex % stopTimes.length;
+        if (diffMinutes < 0) {
+          continue;
+        }
+        for (let minuteStep = 0; minuteStep <= minuteSteps; minuteStep++) {
+          const stopTimesCycleIndex = minuteStep % stopTimes.length;
           const stopTime = stopTimes[stopTimesCycleIndex];
           const date = new Date(now);
-          const nearestMinute = Math.round(date.getUTCMinutes() / 10) * 10;
+          const currentMinute = minutesInterval * minuteStep;
           date.setUTCDate(date.getUTCDate() - day);
-          date.setUTCHours(
-            endHour,
-            nearestMinute - minutesInterval * minuteIndex,
-            0,
-            0,
-          );
+          date.setUTCHours(startHour, totalMinutes - currentMinute);
+          // if (startHour === 6 && minuteStep < 4 && day <2 && tripIndex == '0') {
+          //   console.log(`step: ${minuteStep}/${minuteSteps}, date: ${date.toUTCString()}`)
+          // }
           const newTripIncome: JaeTicketRevenueInterface = {
             codigo: tripIncomes.length,
             dataHora: date.toISOString(),
@@ -208,11 +177,12 @@ export class JaeDataService {
       const minutesDifference =
         (now.getTime() - lastDate.getTime()) / (1000 * 60);
       const { minutesInterval, startHour, endHour } =
-        this._getTicketRevenuesArgs();
+        this.getTicketRevenuesArgs();
+      const currentMinute = now.getUTCHours() * 60 + now.getUTCMinutes();
       if (
         minutesDifference >= minutesInterval &&
-        now.getHours() >= startHour &&
-        now.getHours() <= endHour
+        currentMinute >= startHour * 60 &&
+        currentMinute <= endHour * 60
       ) {
         this.setTicketRevenues();
       }
@@ -234,12 +204,12 @@ export class JaeDataService {
   ): Promise<string> {
     await this.updateDataIfNeeded();
     const filteredTicketRevenue = this.vehicleData.filter(
-      (i) => i.passValidatorId === passValidatorId,
+      (i) => i.validador === passValidatorId,
     );
     return JSON.stringify({ data: filteredTicketRevenue });
   }
 
   public getProfiles() {
-    return this._getTicketRevenuesArgs().licenseeProfiles;
+    return this.getTicketRevenuesArgs().licenseeProfiles;
   }
 }
