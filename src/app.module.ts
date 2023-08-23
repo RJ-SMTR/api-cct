@@ -37,7 +37,6 @@ import { JaeModule } from './jae/jae.module';
 import { BanksModule } from './banks/banks.module';
 import { BankStatementsModule } from './bank-statements/bank-statements.module';
 import { TicketRevenuesModule } from './ticket-revenues/ticket-revenues.module';
-import { ValidatorGtfsDataModule } from './validator-gtfs-data/validator-gtfs-data.module';
 
 @Module({
   imports: [
@@ -102,9 +101,7 @@ import { ValidatorGtfsDataModule } from './validator-gtfs-data/validator-gtfs-da
     JaeModule,
     BanksModule,
     BankStatementsModule,
-    // TripsIncomeModule,
     TicketRevenuesModule,
-    ValidatorGtfsDataModule,
   ],
 })
 export class AppModule {}
