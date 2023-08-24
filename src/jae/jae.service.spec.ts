@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JaeService } from './jae.service';
 import { Provider } from '@nestjs/common';
 import { JaeDataService } from './data/jae-data.service';
+import { JaeTicketRevenueInterface } from './interfaces/jae-ticket-revenue.interface';
+import { JaeProfileInterface } from './interfaces/jae-profile.interface';
 
 describe('JaeService', () => {
   let jaeService: JaeService;
@@ -27,35 +29,45 @@ describe('JaeService', () => {
     expect(jaeService).toBeDefined();
   });
 
-  describe('getGtfsDataByValidator', () => {
-    it('should return mocked data when validatorId is found', async () => {
+  describe('getProfileByPermitCode', () => {
+    it('should return mocked data when validatorId is found', () => {
       // Arrange
-      const validatorId = 'existingValidator';
-      const expectedResponse = JSON.stringify({
-        data: [1, 2, 3],
-      });
-      jest
-        .spyOn(jaeDataService, 'getGtfsDataByValidator')
-        .mockResolvedValueOnce(expectedResponse);
+      const profiles = [
+        {
+          id: 0,
+          permitCode: 'permitCode_1',
+          passValidatorId: 'passValidatorId_1',
+          plate: 'plate_1',
+        },
+        {
+          id: 1,
+          permitCode: 'permitCode_2',
+          passValidatorId: 'passValidatorId_2',
+          plate: 'plate_2',
+        },
+      ] as JaeProfileInterface[];
+      const permitCode = profiles[0].permitCode;
+      jest.spyOn(jaeDataService, 'getProfiles').mockReturnValueOnce(profiles);
 
       // Assert
-      const response = await jaeService.getGtfsDataByValidator(validatorId);
+      const response = jaeService.getProfileByPermitCode(permitCode);
 
       // Act
-      expect(response).toEqual(expectedResponse);
+      expect(response).toEqual(profiles[0]);
     });
   });
 
   describe('getTicketRevenuesByValidator', () => {
     it('shoud return mocked data when validatorId is found', async () => {
       // Arrange
-      const validatorId = 'existingValidator';
-      const expectedResponse = JSON.stringify({
-        data: [1, 2, 3],
-      });
+      const validatorId = 'validatorId_1';
+      const ticketRevenues = [
+        { id: 0, passValidatorId: 'validatorId_1' },
+        { id: 1, passValidatorId: 'validatorId_2' },
+      ] as JaeTicketRevenueInterface[];
       jest
         .spyOn(jaeDataService, 'getTicketRevenuesByValidator')
-        .mockResolvedValueOnce(expectedResponse);
+        .mockResolvedValueOnce(ticketRevenues);
 
       // Assert
       const response = await jaeService.getTicketRevenuesByValidator(
@@ -63,7 +75,7 @@ describe('JaeService', () => {
       );
 
       // Act
-      expect(response).toEqual(expectedResponse);
+      expect(response).toEqual(ticketRevenues);
     });
   });
 });

@@ -36,17 +36,17 @@ describe('JaeDataService', () => {
     it('should return a list when validator is found', async () => {
       // Arrange
       const expectedDataKeys = new Set([
-        'codigo',
-        'validador',
-        'placa',
-        'dataHora',
-        'valor',
-        'latitude',
-        'longitude',
-        'transacoes',
+        'id',
+        'passValidatorId',
+        'plate',
+        'dateTime',
+        'amount',
+        'lat',
+        'lon',
+        'transactions',
       ]);
       const passValidatorId = (jaeDataService as any).getTicketRevenuesArgs()
-        .licenseeProfiles[0].validador;
+        .jaeProfiles[0].passValidatorId;
       jest
         .spyOn(jaeDataService as any, 'getStopTimes')
         .mockResolvedValueOnce(stopTimesList);
@@ -55,20 +55,16 @@ describe('JaeDataService', () => {
       const result = await jaeDataService.getTicketRevenuesByValidator(
         passValidatorId,
       );
-      let resultValidJson: any = undefined;
-      try {
-        resultValidJson = JSON.parse(result);
-      } catch (error) {}
 
       // Assert
-      expect(typeof resultValidJson === 'object').toBeTruthy();
-      const data = resultValidJson?.data;
-      expect(Array.isArray(data)).toBeTruthy();
-      expect(data.length).toBeGreaterThan(0);
-      expect(new Set(Object.keys(data?.[0]))).toMatchObject(expectedDataKeys);
-      expect(data[0].dataHora).toEqual('2023-06-30T06:10:00.000Z');
-      expect(data[1].dataHora).toEqual('2023-06-30T06:00:00.000Z');
-      expect(data[2].dataHora).toEqual('2023-06-29T08:00:00.000Z');
+      expect(typeof passValidatorId !== 'undefined').toBeTruthy();
+      expect((jaeDataService as any).tripIncomes.length).toBeGreaterThan(0);
+      expect(Array.isArray(result)).toBeTruthy();
+      expect(result.length).toBeGreaterThan(0);
+      expect(new Set(Object.keys(result?.[0]))).toMatchObject(expectedDataKeys);
+      expect(result[0].dateTime).toEqual('2023-06-30T06:10:00.000Z');
+      expect(result[1].dateTime).toEqual('2023-06-30T06:00:00.000Z');
+      expect(result[2].dateTime).toEqual('2023-06-29T08:00:00.000Z');
     }, 10000);
 
     it('should return an empty list when validator is not found', async () => {
@@ -82,22 +78,16 @@ describe('JaeDataService', () => {
       const result = await jaeDataService.getTicketRevenuesByValidator(
         passValidatorId,
       );
-      let resultValidJson: any = undefined;
-      try {
-        resultValidJson = JSON.parse(result);
-      } catch (error) {}
 
       // Assert
-      expect(typeof resultValidJson === 'object').toBeTruthy();
-      const response = resultValidJson?.data;
-      expect(Array.isArray(response)).toBeTruthy();
-      expect(response.length).toEqual(0);
-    }, 10000);
+      expect(Array.isArray(result)).toBeTruthy();
+      expect(result.length).toEqual(0);
+    });
 
     it('should update list when time passes', async () => {
       // Arrange
       const passValidatorId = (jaeDataService as any).getTicketRevenuesArgs()
-        .licenseeProfiles[0].validador;
+        .jaeProfiles[0].passValidatorId;
       jest
         .spyOn(jaeDataService as any, 'getStopTimes')
         .mockResolvedValueOnce(stopTimesList);
@@ -105,15 +95,8 @@ describe('JaeDataService', () => {
         jest
           .spyOn(global.Date, 'now')
           .mockImplementation(() => new Date(dateString).valueOf());
-      const getResult = async () => {
-        try {
-          return JSON.parse(
-            await jaeDataService.getTicketRevenuesByValidator(passValidatorId),
-          ).data;
-        } catch (error) {
-          return error;
-        }
-      };
+      const getResult = async () =>
+        await jaeDataService.getTicketRevenuesByValidator(passValidatorId);
 
       // Act
       mockDate('2023-06-30T06:10:00.000Z');
@@ -124,70 +107,23 @@ describe('JaeDataService', () => {
       const result_06_20 = await getResult();
 
       // Assert
+      expect(typeof passValidatorId !== 'undefined').toBeTruthy();
       expect(typeof result_06_10 !== 'undefined').toBeTruthy();
       expect(typeof result_06_15 !== 'undefined').toBeTruthy();
       expect(typeof result_06_20 !== 'undefined').toBeTruthy();
-      expect(result_06_10[0].dataHora).toEqual('2023-06-30T06:10:00.000Z');
-      expect(result_06_15[0].dataHora).toEqual('2023-06-30T06:10:00.000Z');
-      expect(result_06_20[0].dataHora).toEqual('2023-06-30T06:20:00.000Z');
-    }, 10000);
+      expect(result_06_10[0].dateTime).toEqual('2023-06-30T06:10:00.000Z');
+      expect(result_06_15[0].dateTime).toEqual('2023-06-30T06:10:00.000Z');
+      expect(result_06_20[0].dateTime).toEqual('2023-06-30T06:20:00.000Z');
+    });
   });
 
-  describe('getVehicleDataByValidator', () => {
-    it('should return a list when validator is found', async () => {
-      // Arrange
-      const expectedResponseKeys = new Set(['data', 'passValidatorId']);
-      const expectedDataKeys = new Set(['trip', 'stopTimes']);
-      const passValidatorId = (jaeDataService as any).getTicketRevenuesArgs()
-        .licenseeProfiles[0].validador;
-      jest
-        .spyOn(jaeDataService as any, 'getStopTimes')
-        .mockResolvedValueOnce(stopTimesList);
-
+  describe('getProfiles', () => {
+    it('should return jae profiles list', () => {
       // Act
-      const result = await jaeDataService.getGtfsDataByValidator(
-        passValidatorId,
-      );
-      let resultValidJson: any = undefined;
-      try {
-        resultValidJson = JSON.parse(result);
-      } catch (error) {}
+      const result = jaeDataService.getProfiles();
 
       // Assert
-      expect(typeof resultValidJson === 'object').toBeTruthy();
-      const response = resultValidJson?.data;
-      expect(Array.isArray(response)).toBeTruthy();
-      expect(response.length).toBeGreaterThan(0);
-      expect(new Set(Object.keys(response[0]))).toMatchObject(
-        expectedResponseKeys,
-      );
-      const data = response[0].data;
-      expect(data.length).toBeGreaterThan(0);
-      expect(new Set(Object.keys(data[0]))).toMatchObject(expectedDataKeys);
-      expect(data[0].stopTimes.length).toBeGreaterThan(0);
-    }, 10000);
-
-    it('should return an empty list when validator is not found', async () => {
-      // Arrange
-      const passValidatorId = 'inexistent-validator-id';
-      jest
-        .spyOn(jaeDataService as any, 'getStopTimes')
-        .mockResolvedValueOnce(stopTimesList);
-
-      // Act
-      const result = await jaeDataService.getGtfsDataByValidator(
-        passValidatorId,
-      );
-      let resultValidJson: any = undefined;
-      try {
-        resultValidJson = JSON.parse(result);
-      } catch (error) {}
-
-      // Assert
-      expect(typeof resultValidJson === 'object').toBeTruthy();
-      const response = resultValidJson?.data;
-      expect(Array.isArray(response)).toBeTruthy();
-      expect(response.length).toEqual(0);
-    }, 10000);
+      expect(Array.isArray(result)).toBeTruthy();
+    });
   });
 });

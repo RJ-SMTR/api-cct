@@ -2,8 +2,8 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { User } from 'src/users/entities/user.entity';
 import { TicketRevenuesGetDto } from './dto/ticket-revenues-get.dto';
 import { JaeService } from 'src/jae/jae.service';
-import { TicketRevenuesInterface } from './interface/ticket-revenue.interface';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { JaeTicketRevenueInterface } from 'src/jae/interfaces/jae-ticket-revenue.interface';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -12,7 +12,7 @@ export class TicketRevenuesService {
   public async getDataFromUser(
     user: User,
     args: TicketRevenuesGetDto,
-  ): Promise<TicketRevenuesInterface[]> {
+  ): Promise<JaeTicketRevenueInterface[]> {
     if (!user.permitCode || !user.passValidatorId) {
       throw new HttpException(
         {
@@ -28,25 +28,10 @@ export class TicketRevenuesService {
     }
 
     // TODO: fetch instead of mockup
-    const ticketRevenuesResponseObject = await JSON.parse(
-      await this.jaeService.getTicketRevenuesByValidator(user.passValidatorId),
-    ).data;
 
-    const ticketRevenuesResponse: TicketRevenuesInterface[] | undefined =
-      ticketRevenuesResponseObject.map(
-        (item) =>
-          ({
-            id: item.codigo,
-            passValidatorId: item.validador,
-            plate: item.placa,
-            dateTime: item.dataHora,
-            amount: item.valor,
-            lat: item.latitude,
-            lon: item.longitude,
-            transactions: item.transacoes,
-          } as TicketRevenuesInterface),
-      );
-    if (!ticketRevenuesResponse) {
+    const ticketRevenuesResponse =
+      await this.jaeService.getTicketRevenuesByValidator(user.passValidatorId);
+    if (ticketRevenuesResponse.length === 0) {
       throw new HttpException(
         {
           error: HttpErrorMessages.INTERNAL_SERVER_ERROR,

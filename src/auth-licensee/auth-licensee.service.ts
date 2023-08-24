@@ -160,7 +160,7 @@ export class AuthLicenseeService {
     );
 
     const jaeProfile: JaeProfileInterface =
-      await this.jaeService.getProfileByLicensee(inviteProfile.permitCode);
+      await this.jaeService.getProfileByPermitCode(inviteProfile.permitCode);
 
     const email = sgtuProfile.email;
 

@@ -1,6 +1,6 @@
-export class JaeProfileInterface {
-  id?: string;
+export interface JaeProfileInterface {
+  id: number;
   permitCode: string;
-  plate?: string;
+  plate: string;
   passValidatorId: string;
 }

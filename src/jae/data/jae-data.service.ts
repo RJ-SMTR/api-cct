@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { JaeTicketRevenueInterface } from '../interfaces/jae-ticket-revenue.interface';
 import { JaeStopTimesInterface } from '../interfaces/jae-stop-times.interface';
 import { JaeValidatorGtfsDataInterface } from '../interfaces/jae-validator-gtfs-data.interface';
+import { JaeProfileInterface } from '../interfaces/jae-profile.interface';
 
 @Injectable()
 export class JaeDataService {
@@ -15,20 +16,20 @@ export class JaeDataService {
     highDemandProbability: 0.2,
     ticketValue: 4.3,
     tripsPerLicensee: 1,
-    licenseeProfiles: [
+    jaeProfiles: [
       {
-        id: '1',
-        autorizacao: '213890329890312',
-        placa: 'ABC1234',
-        validador: '19003842273',
+        id: 1,
+        permitCode: '213890329890312',
+        plate: 'ABC1234',
+        passValidatorId: '19003842273',
       },
       {
-        id: '2',
-        autorizacao: '218302734908664',
-        placa: 'DEF4567',
-        validador: '18710349009',
+        id: 2,
+        permitCode: '218302734908664',
+        plate: 'DEF4567',
+        passValidatorId: '18710349009',
       },
-    ],
+    ] as JaeProfileInterface[],
   };
   private readonly baseUrlMobilidade = 'https://api.mobilidade.rio';
   private stopTimes: JaeStopTimesInterface[] = [];
@@ -77,14 +78,11 @@ export class JaeDataService {
     }
   }
 
-  private getLicensees() {
-    return this.getTicketRevenuesArgs().licenseeProfiles;
-  }
-
   private async setStopTimes() {
-    const licenseesCount = this.getLicensees().length;
-    const tripsPerLicensee = this.getTicketRevenuesArgs().tripsPerLicensee;
-    this.stopTimes = await this.getStopTimes(tripsPerLicensee * licenseesCount);
+    const { tripsPerLicensee, jaeProfiles } = this.getTicketRevenuesArgs();
+    this.stopTimes = await this.getStopTimes(
+      jaeProfiles.length * tripsPerLicensee,
+    );
   }
 
   private setTicketRevenues() {
@@ -97,22 +95,23 @@ export class JaeDataService {
       highDemandProbability,
       startHour,
       endHour,
+      jaeProfiles,
     } = this.getTicketRevenuesArgs();
     const tripIncomes: JaeTicketRevenueInterface[] = [];
     this.vehicleData = [];
     const uniqueTripsList: string[] = [
       ...new Set(this.stopTimes.map((i) => i.trip_id.trip_id)),
     ];
-    const licenseesLength = this.getLicensees().length;
+    const licenseesLength = jaeProfiles.length;
     for (const tripIndex in uniqueTripsList) {
       const licenseeStepIndex = ~~(Number(tripIndex) / licenseesLength);
-      const profile = this.getLicensees()[licenseeStepIndex];
+      const profile = jaeProfiles[licenseeStepIndex];
       const tripId = uniqueTripsList[tripIndex];
       const stopTimes = this.stopTimes
         .filter((i) => i.trip_id.trip_id === tripId)
         .sort((a, b) => a.stop_sequence - b.stop_sequence);
       this.vehicleData.push({
-        validador: profile.validador,
+        validador: profile.passValidatorId,
         data: [
           {
             trip: stopTimes[0].trip_id,
@@ -139,14 +138,14 @@ export class JaeDataService {
           date.setUTCDate(date.getUTCDate() - day);
           date.setUTCHours(startHour, totalMinutes - currentMinute);
           const newTripIncome: JaeTicketRevenueInterface = {
-            codigo: tripIncomes.length,
-            dataHora: date.toISOString(),
-            latitude: stopTime.stop_id.stop_lat,
-            longitude: stopTime.stop_id.stop_lon,
-            placa: profile.placa,
-            validador: profile.validador,
-            valor: ticketValue,
-            transacoes: this.generateRandomNumber(highDemandProbability),
+            id: tripIncomes.length,
+            dateTime: date.toISOString(),
+            lat: stopTime.stop_id.stop_lat,
+            lon: stopTime.stop_id.stop_lon,
+            plate: profile.plate,
+            passValidatorId: profile.passValidatorId,
+            amount: ticketValue,
+            transactions: this.generateRandomNumber(highDemandProbability),
           };
           tripIncomes.push(newTripIncome);
         }
@@ -163,7 +162,7 @@ export class JaeDataService {
       this.setTicketRevenues();
     } else {
       const now = new Date(Date.now());
-      const lastDate = new Date(this.tripIncomes[0].dataHora);
+      const lastDate = new Date(this.tripIncomes[0].dateTime);
       const minutesDifference =
         (now.getTime() - lastDate.getTime()) / (1000 * 60);
       const { minutesInterval, startHour, endHour } =
@@ -181,25 +180,15 @@ export class JaeDataService {
 
   public async getTicketRevenuesByValidator(
     passValidatorId: string,
-  ): Promise<string> {
+  ): Promise<JaeTicketRevenueInterface[]> {
     await this.updateDataIfNeeded();
     const filteredTripIncomes = this.tripIncomes.filter(
-      (i) => i.validador === passValidatorId,
+      (i) => i.passValidatorId === passValidatorId,
     );
-    return JSON.stringify({ data: filteredTripIncomes });
-  }
-
-  public async getGtfsDataByValidator(
-    passValidatorId: string,
-  ): Promise<string> {
-    await this.updateDataIfNeeded();
-    const filteredTicketRevenue = this.vehicleData.filter(
-      (i) => i.validador === passValidatorId,
-    );
-    return JSON.stringify({ data: filteredTicketRevenue });
+    return filteredTripIncomes;
   }
 
   public getProfiles() {
-    return this.getTicketRevenuesArgs().licenseeProfiles;
+    return this.getTicketRevenuesArgs().jaeProfiles;
   }
 }
