@@ -122,19 +122,12 @@ export class JaeDataService {
       });
       for (let day = 0; day < weeks * 7; day++) {
         let endMinutes = endHour * 60;
-        // let currentEndHour = endHour;
         if (day === 0 && endMinutes > nowMinutes) {
           endMinutes = nowMinutes;
-          // currentEndHour = now.getUTCHours();
         }
         const diffMinutes = endMinutes - startHour * 60;
         const minuteSteps = diffMinutes / minutesInterval;
         const totalMinutes = ~~minuteSteps * minutesInterval;
-        // if (startHour === 6 && day < 2 && tripIndex == '0') {
-        //   console.log(`day: ${day}, index:${tripIndex}, diff: ${diffMinutes}`
-        //   + `, steps: ${minuteSteps}, totalMin: ${totalMinutes}, start: ${startHour*60}`
-        //   + `, end: ${endMinutes}`)
-        // }
         if (diffMinutes < 0) {
           continue;
         }
@@ -145,9 +138,6 @@ export class JaeDataService {
           const currentMinute = minutesInterval * minuteStep;
           date.setUTCDate(date.getUTCDate() - day);
           date.setUTCHours(startHour, totalMinutes - currentMinute);
-          // if (startHour === 6 && minuteStep < 4 && day <2 && tripIndex == '0') {
-          //   console.log(`step: ${minuteStep}/${minuteSteps}, date: ${date.toUTCString()}`)
-          // }
           const newTripIncome: JaeTicketRevenueInterface = {
             codigo: tripIncomes.length,
             dataHora: date.toISOString(),
