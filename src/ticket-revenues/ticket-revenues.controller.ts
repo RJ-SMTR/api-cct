@@ -33,11 +33,11 @@ export class TicketRevenuesController {
   @UseGuards(AuthGuard('jwt'))
   @Post('me')
   @HttpCode(HttpStatus.OK)
-  async getBankStatementsFromUser(
+  async getFromUser(
     @Request() request,
     @Body() filterDto: TicketRevenuesGetDto,
   ): Promise<TicketRevenuesInterface[]> {
     const user = await this.usersService.getOneFromRequest(request);
-    return this.ticketRevenuesService.getDataFromUser(user, filterDto);
+    return await this.ticketRevenuesService.getDataFromUser(user, filterDto);
   }
 }

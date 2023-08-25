@@ -13,13 +13,12 @@ export class TicketRevenuesService {
     user: User,
     args: TicketRevenuesGetDto,
   ): Promise<JaeTicketRevenueInterface[]> {
-    if (!user.permitCode || !user.passValidatorId) {
+    if (!user.passValidatorId) {
       throw new HttpException(
         {
           details: {
             user: {
-              ...(!user.permitCode && { permitCode: 'fieldIsEmpty' }),
-              ...(!user.passValidatorId && { passValidatorId: 'fieldIsEmpty' }),
+              passValidatorId: 'fieldIsEmpty',
             },
           },
         },
@@ -31,12 +30,13 @@ export class TicketRevenuesService {
 
     const ticketRevenuesResponse =
       await this.jaeService.getTicketRevenuesByValidator(user.passValidatorId);
+    console.log('response:', typeof ticketRevenuesResponse);
     if (ticketRevenuesResponse.length === 0) {
       throw new HttpException(
         {
           error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
           details: {
-            permitCode: 'ticketRevenuesNotFound',
+            passValidatorId: 'fetchResultNotFound',
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -45,15 +45,15 @@ export class TicketRevenuesService {
 
     const filteredData = ticketRevenuesResponse.filter((item) => {
       const DEFAULT_PREVIOUS_DAYS = 30;
-      const previousDays: number =
-        args?.previousDays !== undefined
-          ? args.previousDays
-          : DEFAULT_PREVIOUS_DAYS;
-      const previousDaysDate: Date | null = new Date();
-      previousDaysDate.setUTCDate(previousDaysDate.getDate() - previousDays);
+      let previousDays: number = DEFAULT_PREVIOUS_DAYS;
+      if (args?.previousDays !== undefined) {
+        previousDays = args.previousDays;
+      }
+      const previousDaysDate: Date = new Date(Date.now());
+      previousDaysDate.setUTCDate(previousDaysDate.getUTCDate() - previousDays);
       previousDaysDate.setUTCHours(0, 0, 0, 0);
 
-      const todayDate = new Date();
+      const todayDate = new Date(Date.now());
       const itemDate: Date = new Date(item.dateTime);
       const startDate: Date | null = args?.startDate
         ? new Date(args.startDate)
