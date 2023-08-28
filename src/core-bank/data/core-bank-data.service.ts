@@ -42,57 +42,57 @@ export class CoreBankDataService {
   }
 
   /**
-       * @example
-       ```js
-       {
-          cpf: {
-              'cpf1':{
-                  data: [
-                      {
-                          id: 1,
-                          data: '2023-08-11',
-                          cpf: 'cpf1',
-                          valor: 1234.56
-                          status: 'sucesso'
-                      },
-                      ...
-                  ]
-              }
-          }
-       }
-       ```
-       */
+   * @abstract Every statement consider revenues from monday to thursday,
+   * and the statement is send in the next day: friday.
+   * @example
+  ```js
+  {
+    cpf: {
+      'cpf1':{
+        data: [
+          {
+            id: 1,
+            data: '2023-08-11',
+            cpf: 'cpf1',
+            valor: 1234.56
+            status: 'sucesso'
+          },
+          ...
+        ]
+      }
+    }
+  }
+  ```
+  */
 
   private setBankStatements() {
     let tripsIncomeResponseJson: any = { cpf: {} };
+    const friday = 5;
     for (const cpf of this.bankStatementsArgs.cpfs) {
       tripsIncomeResponseJson.cpf[cpf] = { data: [] };
-      for (let i = 0; i < this.bankStatementsArgs.weeks; i++) {
+      for (let week = 0; week < this.bankStatementsArgs.weeks; week++) {
         const date = new Date(Date.now());
-        date.setDate(date.getDate() - 7 * i);
-        while (date.getDay() !== 5) {
-          // weekday != Friday
-          date.setDate(date.getDate() - 1);
-        }
 
+        date.setUTCDate(date.getUTCDate() - 7 * week);
+        while (date.getUTCDay() !== friday) {
+          date.setUTCDate(date.getUTCDate() - 1);
+        }
         date.setUTCHours(0, 0, 0, 0);
+
+        const { maxValue, minValue } = this.bankStatementsArgs;
         const randomInt = Math.floor(
-          Math.random() *
-            (this.bankStatementsArgs.maxValue -
-              this.bankStatementsArgs.minValue +
-              1) +
-            this.bankStatementsArgs.minValue,
+          Math.random() * (maxValue - minValue + 1) + minValue,
         );
         const randomDecimal =
           Math.floor(Math.random() * (99 - 0 + 1) + 0) / 100;
+        const yearString = date.getUTCFullYear().toString();
+        const monthString = (date.getUTCMonth() + 1)
+          .toString()
+          .padStart(2, '0');
+        const dayString = date.getUTCDate().toString().padStart(2, '0');
         tripsIncomeResponseJson.cpf[cpf].data.push({
-          id: i,
-          data: `${date.getFullYear().toString()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}-${date
-            .getUTCDate()
-            .toString()
-            .padStart(2, '0')}`,
+          id: week,
+          data: `${yearString}-${monthString}-${dayString}`,
           cpf: cpf,
           valor: randomInt + randomDecimal,
           status: Math.random() > 0.2 ? 'sucesso' : 'falha',
@@ -109,7 +109,7 @@ export class CoreBankDataService {
       JSON.parse(this.bankStatements).cpf[cpf].data[0].data,
     );
     const hoursDifference =
-      (new Date(Date.now()).getTime() - lastDate.getTime()) / (1000 * 60 * 60);
+      (new Date().getTime() - lastDate.getTime()) / (1000 * 60 * 60);
     if (hoursDifference >= 24 * 7) {
       this.setBankStatements();
     }

@@ -15,10 +15,6 @@ describe('CoreBankDataService', () => {
     coreBankDataService = module.get<CoreBankDataService>(CoreBankDataService);
   });
 
-  // afterEach(async () => {
-  //     jest.useRealTimers();
-  // });
-
   it('should be defined', () => {
     expect(coreBankDataService).toBeDefined();
   });
@@ -72,7 +68,7 @@ describe('CoreBankDataService', () => {
     expect(typeof resultData?.[0]?.valor).toEqual('number');
     expect(typeof resultData?.[0]?.status).toEqual('string');
 
-    expect(resultData?.[0]?.data).toEqual('2023-01-17');
-    expect(resultData?.[1]?.data).toEqual('2023-01-10');
+    expect(resultData?.[0]?.data).toEqual('2023-01-13');
+    expect(resultData?.[1]?.data).toEqual('2023-01-06');
   });
 });
