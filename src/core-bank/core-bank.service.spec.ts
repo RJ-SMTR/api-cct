@@ -2,6 +2,48 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CoreBankService } from './core-bank.service';
 import { Provider } from '@nestjs/common';
 import { CoreBankDataService } from './data/core-bank-data.service';
+import { CoreBankStatementsInterface } from './interfaces/core-bank-statements.interface';
+import { CoreBankProfileInterface } from './interfaces/core-bank-profile.interface';
+
+const coreBankProfiles: CoreBankProfileInterface[] = [
+  {
+    id: 1,
+    cpfCnpj: 'cpfCnpj_1',
+    bankCode: 1,
+    bankAgencyCode: 'bankAgencyCode_1',
+    bankAgencyDigit: 'bankAgencyDigit_1',
+    bankAccountCode: 'bankAccountCode_1',
+    bankAccountDigit: 'bankAccountDigit_1',
+    rg: 'rg_1',
+    bankAgencyName: 'bankAgencyName_1',
+  },
+  {
+    id: 2,
+    cpfCnpj: 'cpfCnpj_2',
+    bankCode: 2,
+    bankAgencyCode: 'bankAgencyCode_2',
+    bankAgencyDigit: 'bankAgencyDigit_2',
+    bankAccountCode: 'bankAccountCode_2',
+    bankAccountDigit: 'bankAccountDigit_2',
+    rg: 'rg_2',
+    bankAgencyName: 'bankAgencyName_2',
+  },
+];
+
+const bankStatements = [] as CoreBankStatementsInterface[];
+const firstFriday_2023_01 = 6;
+for (let cpfIndex = 0; cpfIndex < 2; cpfIndex++) {
+  const cpf = `cpfCnpj_${cpfIndex}`;
+  for (let week = 0; week < 3; week++) {
+    bankStatements.push({
+      id: cpfIndex * 3 + week,
+      amount: week * 10,
+      cpfCnpj: cpf,
+      date: `2023-01-${firstFriday_2023_01 + week * 7}`,
+      status: week % 2 ? 'sucesso' : 'falha',
+    });
+  }
+}
 
 describe('CoreBankService', () => {
   let coreBankService: CoreBankService;
@@ -22,91 +64,12 @@ describe('CoreBankService', () => {
     coreBankService = module.get<CoreBankService>(CoreBankService);
     coreBankDataService = module.get<CoreBankDataService>(CoreBankDataService);
 
-    jest.spyOn(coreBankDataService, 'getProfiles').mockReturnValue(
-      JSON.stringify({
-        data: [
-          {
-            id: '1',
-            cpf: 'cpf1',
-            banco: 1,
-            agencia: 'a1',
-            dvAgencia: 'dva1',
-            conta: 'c1',
-            dvConta: 'dvc1',
-            cnpj: 'cnpj1',
-            ente: 'ente1',
-          },
-          {
-            id: '2',
-            cpf: 'cpf2',
-            banco: 2,
-            agencia: 'a2',
-            dvAgencia: 'dva2',
-            conta: 'c2',
-            dvConta: 'dvc1',
-            cnpj: 'cnpj2',
-            ente: 'ente2',
-          },
-        ],
-      }),
-    );
-
-    jest.spyOn(coreBankDataService, 'getBankStatements').mockReturnValue(
-      JSON.stringify({
-        cpf: {
-          cpf1: {
-            data: [
-              {
-                id: 1,
-                data: '2023-01-01',
-                cpf: 'cpf1',
-                valor: 111.11,
-                status: 'sucesso',
-              },
-              {
-                id: 2,
-                data: '2023-01-08',
-                cpf: 'cpf1',
-                valor: 222.11,
-                status: 'falha',
-              },
-              {
-                id: 3,
-                data: '2023-01-15',
-                cpf: 'cpf1',
-                valor: 333.11,
-                status: 'sucesso',
-              },
-            ],
-          },
-          cpf2: {
-            data: [
-              {
-                id: 1,
-                data: '2023-01-15',
-                cpf: 'cpf2',
-                valor: 111.22,
-                status: 'sucesso',
-              },
-              {
-                id: 2,
-                data: '2023-01-14',
-                cpf: 'cpf2',
-                valor: 222.22,
-                status: 'falha',
-              },
-              {
-                id: 3,
-                data: '2023-01-13',
-                cpf: 'cpf2',
-                valor: 333.22,
-                status: 'sucesso',
-              },
-            ],
-          },
-        },
-      }),
-    );
+    jest
+      .spyOn(coreBankDataService, 'getProfiles')
+      .mockReturnValue(coreBankProfiles);
+    jest
+      .spyOn(coreBankDataService, 'getBankStatements')
+      .mockReturnValue(bankStatements);
     jest
       .spyOn(global.Date, 'now')
       .mockImplementation(() => new Date('2023-01-15').valueOf());
@@ -119,19 +82,9 @@ describe('CoreBankService', () => {
   describe('getProfileByCpfCnpj', () => {
     it('should return matched profile when exists', async () => {
       // Arrange
-      const profiles = JSON.parse(coreBankDataService.getProfiles());
-      const expectedResult = {
-        id: profiles.data[0].id,
-        cpfCnpj: profiles.data[0].cpf,
-        bankCode: profiles.data[0].banco,
-        bankAgencyName: profiles.data[0].ente,
-        bankAgencyCode: profiles.data[0].agencia,
-        bankAgencyDigit: profiles.data[0].dvAgencia,
-        bankAgencyCnpj: profiles.data[0].cnpj,
-        bankAccountCode: profiles.data[0].conta,
-        bankAccountDigit: profiles.data[0].dvConta,
-      };
-      const cpf = 'cpf1';
+      const profiles = coreBankDataService.getProfiles();
+      const expectedResult = profiles[0];
+      const cpf = expectedResult.cpfCnpj;
 
       // Act
       const result = await coreBankService.getProfileByCpfCnpj(cpf);
@@ -154,25 +107,26 @@ describe('CoreBankService', () => {
   describe('getBankStatementsByCpfCnpj', () => {
     it("should return profile's bank statements when profile exists", () => {
       // Arrange
-      const profiles = JSON.parse(coreBankDataService.getBankStatements());
-      const cpf = 'cpf1';
-      const expectedResult = JSON.stringify(profiles.cpf[cpf]);
+      const cpfCnpj = 'cpfCnpj_1';
+      const statements = coreBankDataService.getBankStatements();
+      const expectedResult = statements.filter((i) => i.cpfCnpj === cpfCnpj);
 
       // Act
-      const result = coreBankService.getBankStatementsByCpfCnpj(cpf);
+      const result = coreBankService.getBankStatementsByCpfCnpj(cpfCnpj);
 
       // Assert
       expect(result).toEqual(expectedResult);
     });
 
-    it('should return null when no profile found', async () => {
+    it('should return null when no profile found', () => {
       // Arrange
       const cpf = 'inexistent-cpf';
 
+      // Act
+      const response = coreBankService.getBankStatementsByCpfCnpj(cpf);
+
       // Assert
-      await expect(
-        coreBankService.getBankStatementsByCpfCnpj(cpf),
-      ).resolves.toBeNull();
+      expect(response.length).toEqual(0);
     });
   });
 });

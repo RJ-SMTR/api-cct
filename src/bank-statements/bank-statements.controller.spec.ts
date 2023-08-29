@@ -3,10 +3,10 @@ import { BankStatementsController } from './bank-statements.controller';
 import { BankStatementsService } from './bank-statements.service';
 import { Provider } from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
-import { BankStatementsInterface } from './interfaces/bank-statements.interface';
 import { Request } from 'express';
 import { User } from 'src/users/entities/user.entity';
 import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
+import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
 
 describe('BankStatementsController', () => {
   let bankStatementsController: BankStatementsController;
@@ -49,7 +49,7 @@ describe('BankStatementsController', () => {
       // Arrange
       const user = {
         id: 1,
-        cpfCnpj: 'cpf1',
+        cpfCnpj: 'cpfCnpj_1',
       } as User;
       const request = {
         user: {
@@ -58,38 +58,13 @@ describe('BankStatementsController', () => {
       } as unknown as Request;
       const args = {} as BankStatementsGetDto;
       const bankStatements = [
-        {
-          id: 1,
-          date: '2023-01-01',
-          cpfCnpj: 'cpf1',
-          amount: 111.11,
-          status: 'sucesso',
-        },
-        {
-          id: 2,
-          date: '2023-01-08',
-          cpfCnpj: 'cpf1',
-          amount: 222.11,
-          status: 'falha',
-        },
-        {
-          id: 3,
-          date: '2023-01-15',
-          cpfCnpj: 'cpf1',
-          amount: 333.11,
-          status: 'sucesso',
-        },
-        {
-          id: 4,
-          date: '2023-01-22',
-          cpfCnpj: 'cpf1',
-          amount: 333.11,
-          status: 'sucesso',
-        },
-      ] as BankStatementsInterface[];
+        { id: 0, cpfCnpj: 'cpfCnpj_1' },
+        { id: 1, cpfCnpj: 'cpfCnpj_1' },
+        { id: 2, cpfCnpj: 'cpfCnpj_1' },
+      ] as Partial<CoreBankStatementsInterface>[] as CoreBankStatementsInterface[];
       jest
         .spyOn(bankStatementsService, 'getBankStatementsFromUser')
-        .mockResolvedValueOnce(bankStatements);
+        .mockReturnValueOnce(bankStatements);
       jest.spyOn(usersService, 'getOneFromRequest').mockResolvedValueOnce(user);
 
       // Act
@@ -114,7 +89,9 @@ describe('BankStatementsController', () => {
       const args = {} as BankStatementsGetDto;
       jest
         .spyOn(bankStatementsService, 'getBankStatementsFromUser')
-        .mockRejectedValueOnce(new Error());
+        .mockImplementationOnce(() => {
+          throw new Error();
+        });
       jest
         .spyOn(usersService, 'getOneFromRequest')
         .mockResolvedValueOnce(inexistentUser);

@@ -1,19 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { BankStatementsInterface } from './interfaces/bank-statements.interface';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
 import { User } from 'src/users/entities/user.entity';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
+import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
 
 @Injectable()
 export class BankStatementsService {
   constructor(private readonly coreBankService: CoreBankService) {}
 
-  public async getBankStatementsFromUser(
+  public getBankStatementsFromUser(
     user: User,
     args: BankStatementsGetDto,
-  ): Promise<BankStatementsInterface[]> {
+  ): CoreBankStatementsInterface[] {
     if (!user.cpfCnpj) {
       throw new HttpException(
         {
@@ -29,48 +29,21 @@ export class BankStatementsService {
     }
 
     // TODO: fetch instead of mockup
-    const bankStatementsResponseJson =
+    const bankStatementsResponse =
       this.coreBankService.getBankStatementsByCpfCnpj(user.cpfCnpj);
-    if (!bankStatementsResponseJson) {
+    if (bankStatementsResponse.length === 0) {
       throw new HttpException(
         {
           error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
           details: {
-            cpfCnpj: 'bankStatementsRequestFailed',
+            cpfCnpj: 'emptyBankStatementsForProfile',
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
 
-    const bankStatementsResponseObject = await JSON.parse(
-      bankStatementsResponseJson,
-    );
-
-    const bankStatementsResponseMapped: BankStatementsInterface[] | undefined =
-      bankStatementsResponseObject.data.map(
-        (item) =>
-          ({
-            id: item.id,
-            cpfCnpj: item.cpf,
-            date: item.data,
-            amount: item.valor,
-            status: item.status,
-          } as BankStatementsInterface),
-      );
-    if (!bankStatementsResponseMapped) {
-      throw new HttpException(
-        {
-          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
-          details: {
-            cpfCnpj: 'bankStatementsBiProfilesFound',
-          },
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
-    const filteredData = bankStatementsResponseMapped.filter((item) => {
+    const filteredData = bankStatementsResponse.filter((item) => {
       const DEFAULT_PREVIOUS_DAYS = 30;
       const previousDays: number =
         args?.previousDays !== undefined

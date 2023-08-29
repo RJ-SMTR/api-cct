@@ -3,7 +3,7 @@ import { CoreBankProfileInterface } from './interfaces/core-bank-profile.interfa
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { UpdateCoreBankInterface } from './interfaces/update-core-bank.interface';
 import { CoreBankDataService } from './data/core-bank-data.service';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { CoreBankStatementsInterface } from './interfaces/core-bank-statements.interface';
 
 @Injectable()
 export class CoreBankService {
@@ -14,25 +14,9 @@ export class CoreBankService {
   ): Promise<CoreBankProfileInterface> {
     // TODO: fetch instead of mockup
 
-    const coreBankResponseObject = JSON.parse(
-      await this.coreBankDataService.getProfiles(),
-    );
-    const responseMapped: CoreBankProfileInterface[] =
-      coreBankResponseObject.data.map((item) => ({
-        id: item.id,
-        cpfCnpj: item.cpf,
-        bankCode: item.banco,
-        bankAgencyName: item.ente,
-        bankAgencyCode: item.agencia,
-        bankAgencyDigit: item.dvAgencia,
-        bankAgencyCnpj: item.cnpj,
-        bankAccountCode: item.conta,
-        bankAccountDigit: item.dvConta,
-      }));
+    const profiles = await this.coreBankDataService.getProfiles();
 
-    const filteredData = responseMapped.filter(
-      (item) => item.cpfCnpj === cpfCnpj,
-    );
+    const filteredData = profiles.filter((item) => item.cpfCnpj === cpfCnpj);
 
     if (filteredData.length === 1) {
       return filteredData[0];
@@ -61,34 +45,14 @@ export class CoreBankService {
 
   /**
    * Return mokcked json API response
-   * @param cpfCnpj 
-   * @example
-   ```js
-    {
-      data: [
-        {
-          id: 1,
-          data: '2023-08-11',
-          cpf: 'cpf1',
-          valor: 1234.56
-          status: 'sucesso'
-        },
-        ...
-      ]
-    }
-  ```
    */
-  public getBankStatementsByCpfCnpj(cpfCnpj: string): NullableType<string> {
+  public getBankStatementsByCpfCnpj(
+    cpfCnpj: string,
+  ): CoreBankStatementsInterface[] {
     // TODO: fetch instead of mockup
-
-    const coreBankResponseObject = JSON.parse(
-      this.coreBankDataService.getBankStatements(),
-    )?.cpf?.[cpfCnpj];
-    if (coreBankResponseObject === undefined) {
-      return null;
-    }
-
-    return JSON.stringify(coreBankResponseObject);
+    return this.coreBankDataService
+      .getBankStatements()
+      .filter((i) => i.cpfCnpj === cpfCnpj);
   }
 
   update(cpfCnpj: string, coreBankProfile: UpdateCoreBankInterface) {

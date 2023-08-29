@@ -4,54 +4,13 @@ import { Provider } from '@nestjs/common';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { User } from 'src/users/entities/user.entity';
 import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
+import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
 
-const bankStatements = {
-  cpf: {
-    cpf1: {
-      data: [
-        {
-          id: 1,
-          data: '2023-01-01',
-          cpf: 'cpf1',
-          valor: 111.11,
-          status: 'sucesso',
-        },
-        {
-          id: 2,
-          data: '2023-01-08',
-          cpf: 'cpf1',
-          valor: 222.11,
-          status: 'falha',
-        },
-        {
-          id: 3,
-          data: '2023-01-15',
-          cpf: 'cpf1',
-          valor: 333.11,
-          status: 'sucesso',
-        },
-        {
-          id: 4,
-          data: '2023-01-22',
-          cpf: 'cpf1',
-          valor: 333.11,
-          status: 'sucesso',
-        },
-      ],
-    },
-    cpf2: {
-      data: [
-        {
-          id: 1,
-          data: '2023-01-01',
-          cpf: 'cpf2',
-          valor: 111.22,
-          status: 'sucesso',
-        },
-      ],
-    },
-  },
-};
+const allBankStatements = [
+  { id: 0, cpfCnpj: 'cpfCnpj_1', date: '2023-01-20' },
+  { id: 1, cpfCnpj: 'cpfCnpj_1', date: '2023-01-13' },
+  { id: 2, cpfCnpj: 'cpfCnpj_1', date: '2023-01-06' },
+] as Partial<CoreBankStatementsInterface>[] as CoreBankStatementsInterface[];
 
 describe('BankStatementsService', () => {
   let bankStatementsService: BankStatementsService;
@@ -86,29 +45,20 @@ describe('BankStatementsService', () => {
     it('should return statements for previous days when user fetched successfully', async () => {
       // Arrange
       const user = {
-        cpfCnpj: 'cpf1',
+        cpfCnpj: allBankStatements[0].cpfCnpj,
       } as User;
       const args = {
         previousDays: 14,
       } as BankStatementsGetDto;
 
+      const expectedResult = allBankStatements.slice(0, 2);
+
       jest
         .spyOn(coreBankService, 'getBankStatementsByCpfCnpj')
-        .mockReturnValueOnce(
-          JSON.stringify(bankStatements.cpf[user.cpfCnpj as string]),
-        );
+        .mockReturnValueOnce(allBankStatements);
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() => new Date('2023-01-22').valueOf());
-      const expectedResult = bankStatements.cpf[user.cpfCnpj as string].data
-        .slice(1, 4)
-        .map((item) => ({
-          id: item.id,
-          date: item.data,
-          cpfCnpj: item.cpf,
-          amount: item.valor,
-          status: item.status,
-        }));
 
       // Act
       const result = await bankStatementsService.getBankStatementsFromUser(
@@ -123,30 +73,24 @@ describe('BankStatementsService', () => {
     it('should return statements between dates when user fetched successfully', async () => {
       // Arrange
       const user = {
-        cpfCnpj: 'cpf1',
+        cpfCnpj: allBankStatements[0].cpfCnpj,
       } as User;
       const args = {
-        startDate: '2023-01-08',
-        endDate: '2023-01-15',
+        startDate: '2023-01-06',
+        endDate: '2023-01-13',
       } as BankStatementsGetDto;
+
+      const bankStatementsByCpf = allBankStatements.filter(
+        (i) => i.cpfCnpj === user.cpfCnpj,
+      );
+      const expectedResult = bankStatementsByCpf.slice(1, 3);
 
       jest
         .spyOn(coreBankService, 'getBankStatementsByCpfCnpj')
-        .mockReturnValueOnce(
-          JSON.stringify(bankStatements.cpf[user.cpfCnpj as string]),
-        );
+        .mockReturnValueOnce(bankStatementsByCpf);
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() => new Date('2023-01-22').valueOf());
-      const expectedResult = bankStatements.cpf[user.cpfCnpj as string].data
-        .slice(1, 3)
-        .map((item) => ({
-          id: item.id,
-          date: item.data,
-          cpfCnpj: item.cpf,
-          amount: item.valor,
-          status: item.status,
-        }));
 
       // Act
       const result = await bankStatementsService.getBankStatementsFromUser(
@@ -158,7 +102,7 @@ describe('BankStatementsService', () => {
       expect(result).toEqual(expectedResult);
     });
 
-    it('should throw exception when profile is not found', async () => {
+    it('should throw exception when profile is not found', () => {
       // Arrange
       const user = {
         cpfCnpj: 'inexistent-cpf',
@@ -166,14 +110,15 @@ describe('BankStatementsService', () => {
       const args = {
         previousDays: 14,
       } as BankStatementsGetDto;
+
       jest
         .spyOn(coreBankService, 'getBankStatementsByCpfCnpj')
-        .mockReturnValueOnce(null);
+        .mockReturnValueOnce([]);
 
       // Assert
-      await expect(
+      expect(() =>
         bankStatementsService.getBankStatementsFromUser(user, args),
-      ).rejects.toThrowError();
+      ).toThrowError();
     });
   });
 });

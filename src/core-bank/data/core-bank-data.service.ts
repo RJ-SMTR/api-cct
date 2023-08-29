@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { CoreBankStatementsInterface } from '../interfaces/core-bank-statements.interface';
+import { CoreBankProfileInterface } from '../interfaces/core-bank-profile.interface';
 
 @Injectable()
 export class CoreBankDataService {
-  private bankStatements: string;
+  private bankStatements: CoreBankStatementsInterface[];
   public bankStatementsArgs: any = {
     cpfs: ['79858972679', '98765432100'],
     weeks: 4 * 3,
@@ -10,66 +12,44 @@ export class CoreBankDataService {
     minValue: 50,
   };
 
-  private profiles = JSON.stringify({
-    data: [
-      {
-        id: '1',
-        cpf: '79858972679',
-        banco: 1,
-        agencia: '2234',
-        dvAgencia: '9',
-        conta: '58339',
-        dvConta: '9',
-        cnpj: '04034484000140',
-        ente: 'RIO DE JANEIRO (CAP)',
-      },
-      {
-        id: '2',
-        cpf: '98765432100',
-        banco: 10,
-        agencia: '72',
-        dvAgencia: '8',
-        conta: '205005',
-        dvConta: '6',
-        cnpj: '28521748000159',
-        ente: 'NITEROI',
-      },
-    ],
-  });
+  private profiles: CoreBankProfileInterface[] = [
+    {
+      id: 1,
+      cpfCnpj: '79858972679',
+      bankCode: 1,
+      bankAgencyCode: '2234',
+      bankAgencyDigit: '9',
+      bankAccountCode: '58339',
+      bankAccountDigit: '9',
+      rg: '04034484000140',
+      bankAgencyName: 'RIO DE JANEIRO (CAP)',
+    },
+    {
+      id: 2,
+      cpfCnpj: '98765432100',
+      bankCode: 10,
+      bankAgencyCode: '72',
+      bankAgencyDigit: '8',
+      bankAccountCode: '205005',
+      bankAccountDigit: '6',
+      rg: '28521748000159',
+      bankAgencyName: 'NITEROI',
+    },
+  ];
 
   constructor() {
     this.setBankStatements();
   }
 
   /**
-   * @abstract Every statement consider revenues from monday to thursday,
+   * Every statement consider revenues from monday to thursday,
    * and the statement is send in the next day: friday.
-   * @example
-  ```js
-  {
-    cpf: {
-      'cpf1':{
-        data: [
-          {
-            id: 1,
-            data: '2023-08-11',
-            cpf: 'cpf1',
-            valor: 1234.56
-            status: 'sucesso'
-          },
-          ...
-        ]
-      }
-    }
-  }
-  ```
-  */
+   */
 
   private setBankStatements() {
-    let tripsIncomeResponseJson: any = { cpf: {} };
+    const bankStatements: CoreBankStatementsInterface[] = [];
     const friday = 5;
     for (const cpf of this.bankStatementsArgs.cpfs) {
-      tripsIncomeResponseJson.cpf[cpf] = { data: [] };
       for (let week = 0; week < this.bankStatementsArgs.weeks; week++) {
         const date = new Date(Date.now());
 
@@ -90,33 +70,34 @@ export class CoreBankDataService {
           .toString()
           .padStart(2, '0');
         const dayString = date.getUTCDate().toString().padStart(2, '0');
-        tripsIncomeResponseJson.cpf[cpf].data.push({
+        bankStatements.push({
           id: week,
-          data: `${yearString}-${monthString}-${dayString}`,
-          cpf: cpf,
-          valor: randomInt + randomDecimal,
+          date: `${yearString}-${monthString}-${dayString}`,
+          cpfCnpj: cpf,
+          amount: randomInt + randomDecimal,
           status: Math.random() > 0.2 ? 'sucesso' : 'falha',
         });
       }
     }
-    tripsIncomeResponseJson = JSON.stringify(tripsIncomeResponseJson);
-    this.bankStatements = tripsIncomeResponseJson;
+    this.bankStatements = bankStatements;
   }
 
-  public getBankStatements(): string {
-    const cpf = this.bankStatementsArgs.cpfs[0];
-    const lastDate = new Date(
-      JSON.parse(this.bankStatements).cpf[cpf].data[0].data,
-    );
-    const hoursDifference =
-      (new Date().getTime() - lastDate.getTime()) / (1000 * 60 * 60);
-    if (hoursDifference >= 24 * 7) {
+  public getBankStatements(): CoreBankStatementsInterface[] {
+    if (this.bankStatements.length === 0) {
       this.setBankStatements();
+    } else {
+      const lastDate = new Date(this.bankStatements?.[0]?.date);
+      const hoursDifference =
+        (new Date(Date.now()).getTime() - lastDate.getTime()) /
+        (1000 * 60 * 60);
+      if (hoursDifference >= 24 * 7) {
+        this.setBankStatements();
+      }
     }
     return this.bankStatements;
   }
 
-  public getProfiles(): string {
+  public getProfiles(): CoreBankProfileInterface[] {
     return this.profiles;
   }
 }

@@ -1,4 +1,4 @@
-export class BankStatementsInterface {
+export interface CoreBankStatementsInterface {
   id: number;
   cpfCnpj: string;
   date: string;
