@@ -94,7 +94,7 @@ describe('JaeDataService', () => {
       const mockDate = (dateString: string) =>
         jest
           .spyOn(global.Date, 'now')
-          .mockImplementationOnce(() => new Date(dateString).valueOf());
+          .mockImplementation(() => new Date(dateString).valueOf());
       const getResult = async () =>
         await jaeDataService.getTicketRevenuesByValidator(passValidatorId);
 

@@ -13,8 +13,9 @@ describe('JaeService', () => {
     const jaeDataServiceMock = {
       provide: JaeDataService,
       useValue: {
-        getTicketIncomesByValidator: jest.fn(),
+        getTicketRevenuesByValidator: jest.fn(),
         getGtfsDataByValidator: jest.fn(),
+        getProfiles: jest.fn(),
       },
     } as Provider;
     const module: TestingModule = await Test.createTestingModule({
