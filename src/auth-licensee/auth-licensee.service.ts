@@ -16,8 +16,8 @@ import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { JaeInterface } from 'src/jae/interfaces/jae.interface';
 import { JaeService } from 'src/jae/jae.service';
+import { JaeProfileInterface } from 'src/jae/interfaces/jae-profile.interface';
 
 @Injectable()
 export class AuthLicenseeService {
@@ -159,9 +159,8 @@ export class AuthLicenseeService {
       HttpErrorMessages.UNAUTHORIZED,
     );
 
-    const jaeProfile: JaeInterface = await this.jaeService.getProfileByLicensee(
-      inviteProfile.permitCode,
-    );
+    const jaeProfile: JaeProfileInterface =
+      await this.jaeService.getProfileByPermitCode(inviteProfile.permitCode);
 
     const email = sgtuProfile.email;
 

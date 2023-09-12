@@ -8,7 +8,7 @@ import {
 } from 'class-validator';
 import { AreFieldsEmpty } from 'src/utils/validators/are-others-not-filled.validator';
 
-export class TripsIncomeGetDto {
+export class TicketRevenuesGetDto {
   @ApiProperty({ example: '2023-07-05' })
   @ValidateIf((obj) => obj.endDate && !obj.previousDays)
   @IsNotEmpty({ message: 'startDate and endDate must be both filled or empty' })
