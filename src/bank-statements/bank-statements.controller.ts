@@ -10,10 +10,10 @@ import {
 } from '@nestjs/common';
 import { BankStatementsService } from './bank-statements.service';
 import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
-import { BankStatementsInterface } from './interfaces/bank-statements.interface';
 import { UsersService } from 'src/users/users.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
 
 @ApiTags('BankStatements')
 @Controller({
@@ -33,11 +33,14 @@ export class BankStatementsController {
   @UseGuards(AuthGuard('jwt'))
   @Post('me')
   @HttpCode(HttpStatus.OK)
-  async getFromUser(
+  async getBankStatementsFromUser(
     @Request() request,
     @Body() profileDto: BankStatementsGetDto,
-  ): Promise<BankStatementsInterface[]> {
+  ): Promise<CoreBankStatementsInterface[]> {
     const user = await this.usersService.getOneFromRequest(request);
-    return this.bankStatementsService.getFromUser(user, profileDto);
+    return this.bankStatementsService.getBankStatementsFromUser(
+      user,
+      profileDto,
+    );
   }
 }
