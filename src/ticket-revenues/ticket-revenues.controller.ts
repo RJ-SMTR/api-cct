@@ -10,19 +10,19 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { TripsIncomeGetDto } from './dto/trips-income-get.dto';
-import { TripsIncomeInterface } from './interfaces/trips-income.interface';
-import { TripsIncomeService } from './trips-income.service';
+import { TicketRevenuesGetDto } from './dto/ticket-revenues-get.dto';
 import { UsersService } from 'src/users/users.service';
+import { TicketRevenuesService } from './ticket-revenues.service';
+import { TicketRevenuesInterface } from './interface/ticket-revenue.interface';
 
-@ApiTags('TripsIncome')
+@ApiTags('TicketRevenues')
 @Controller({
-  path: 'trips-income',
+  path: 'ticket-revenues',
   version: '1',
 })
-export class TripsIncomeController {
+export class TicketRevenuesController {
   constructor(
-    private readonly bankStatementsService: TripsIncomeService,
+    private readonly ticketRevenuesService: TicketRevenuesService,
     private readonly usersService: UsersService,
   ) {}
 
@@ -35,9 +35,9 @@ export class TripsIncomeController {
   @HttpCode(HttpStatus.OK)
   async getFromUser(
     @Request() request,
-    @Body() profileDto: TripsIncomeGetDto,
-  ): Promise<TripsIncomeInterface[]> {
+    @Body() filterDto: TicketRevenuesGetDto,
+  ): Promise<TicketRevenuesInterface[]> {
     const user = await this.usersService.getOneFromRequest(request);
-    return this.bankStatementsService.getFromUser(user, profileDto);
+    return await this.ticketRevenuesService.getDataFromUser(user, filterDto);
   }
 }
