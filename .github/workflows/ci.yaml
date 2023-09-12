@@ -29,9 +29,9 @@ jobs:
         with:
           node-version: 16.x
       - name: Install dependencies
-        run: npm ci
-      # - name: Run audit
-      #   uses: tangro/actions-audit@v1.1.39
+        run: npm ci --legacy-peer-deps
+      - name: Run audit
+        uses: tangro/actions-audit@v1.1.39
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
