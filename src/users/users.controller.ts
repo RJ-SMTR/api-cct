@@ -30,7 +30,6 @@ import { User } from './entities/user.entity';
 import { InfinityPaginationResultType } from '../utils/types/infinity-pagination-result.type';
 import { NullableType } from '../utils/types/nullable.type';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { FilesService } from 'src/files/files.service';
 import { FileTypeValidationPipe } from 'src/utils/pipes/file-type-validation.pipe';
 
 @ApiBearerAuth()
@@ -42,10 +41,7 @@ import { FileTypeValidationPipe } from 'src/utils/pipes/file-type-validation.pip
   version: '1',
 })
 export class UsersController {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly filesService: FilesService,
-  ) {}
+  constructor(private readonly usersService: UsersService) {}
 
   @SerializeOptions({
     groups: ['admin'],

@@ -188,7 +188,6 @@ export class UsersService {
     const invalidUsers = excelUsers.filter(
       (i) => Object.keys(i.errors).length > 0,
     );
-    // .map(({ user, ...rest }) => rest);
     if (invalidUsers.length > 0) {
       throw new HttpException(
         {
@@ -201,6 +200,12 @@ export class UsersService {
           },
         },
         HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    for (const excelUser of excelUsers) {
+      await this.usersRepository.save(
+        this.usersRepository.create(excelUser.user),
       );
     }
   }
