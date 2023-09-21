@@ -1,7 +1,7 @@
 import { User } from '../entities/user.entity';
 
-export interface ExcelUsersInterface {
-  excelRow?: number;
+export interface FileUserInterface {
+  row?: number;
   user: Partial<User>;
   errors: Partial<User>;
 }

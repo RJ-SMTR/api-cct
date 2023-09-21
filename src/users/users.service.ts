@@ -12,8 +12,8 @@ import * as xlsx from 'xlsx';
 import { CreateUserExcelDto } from './dto/create-user-excel.dto';
 import { validate } from 'class-validator';
 import { plainToClass } from 'class-transformer';
-import { ExcelUsersInterface } from './interfaces/excel-users.interface';
-import { ExcelUserMap } from './maps/excel-user.map';
+import { FileUserInterface } from './interfaces/file-user.interface';
+import { ExcelUserMap } from './mappings/excel-user.map';
 
 @Injectable()
 export class UsersService {
@@ -92,7 +92,7 @@ export class UsersService {
     });
   }
 
-  getWorksheetFromExcel(file: Express.Multer.File): xlsx.WorkSheet {
+  getWorksheetFromFile(file: Express.Multer.File): xlsx.WorkSheet {
     if (!file) {
       throw new HttpException(
         {
@@ -112,7 +112,7 @@ export class UsersService {
       worksheet = workbook.Sheets[sheetName];
     } catch (error) {
       throw new HttpException(
-        'Error parsing Excel file',
+        `Error parsing file`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -123,7 +123,7 @@ export class UsersService {
     worksheet: xlsx.WorkSheet,
     expectedUserFields: string[],
     validatorDto,
-  ): Promise<ExcelUsersInterface[]> {
+  ): Promise<FileUserInterface[]> {
     const expectedExcelUserFields: string[] = expectedUserFields.map(
       (str) => ExcelUserMap[str] || str,
     );
@@ -143,7 +143,7 @@ export class UsersService {
     }
 
     const excelData = xlsx.utils.sheet_to_json(worksheet);
-    const excelUsers: ExcelUsersInterface[] = excelData.map((item) => ({
+    const excelUsers: FileUserInterface[] = excelData.map((item) => ({
       user: {
         permitCode: (item as any).codigo_permissionario,
         email: (item as any).email,
@@ -168,7 +168,7 @@ export class UsersService {
         {},
       );
       excelUsers[i] = {
-        excelRow: row,
+        row: row,
         ...excelUser,
         errors: errorDictionary,
       };
@@ -177,8 +177,8 @@ export class UsersService {
     return excelUsers;
   }
 
-  async createFromExcel(file: Express.Multer.File): Promise<any> {
-    const worksheet = this.getWorksheetFromExcel(file);
+  async createFromFile(file: Express.Multer.File): Promise<any> {
+    const worksheet = this.getWorksheetFromFile(file);
     const expectedUserFields = ['permitCode', 'email'];
     const excelUsers = await this.getExcelUsersFromWorksheet(
       worksheet,

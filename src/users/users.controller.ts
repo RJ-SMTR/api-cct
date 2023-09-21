@@ -30,7 +30,7 @@ import { User } from './entities/user.entity';
 import { InfinityPaginationResultType } from '../utils/types/infinity-pagination-result.type';
 import { NullableType } from '../utils/types/nullable.type';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { FileTypeValidationPipe } from 'src/utils/pipes/file-type-validation.pipe';
+import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
 
 @ApiBearerAuth()
 @Roles(RoleEnum.admin)
@@ -109,6 +109,7 @@ export class UsersController {
   @Post('upload')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
+    description: 'Allowed files: spreadsheet, csv',
     schema: {
       type: 'object',
       properties: {
@@ -120,10 +121,10 @@ export class UsersController {
     },
   })
   @UseInterceptors(FileInterceptor('file'))
-  @UsePipes(new FileTypeValidationPipe(['spreadsheet']))
+  @UsePipes(new FileTypeValidationPipe(['spreadsheet', 'csv']))
   async uploadFile(
     @UploadedFile() file: Express.Multer.File | Express.MulterS3.File,
   ) {
-    return this.usersService.createFromExcel(file);
+    return this.usersService.createFromFile(file);
   }
 }

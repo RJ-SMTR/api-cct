@@ -4,26 +4,18 @@ import {
   BadRequestException,
   UploadedFile,
 } from '@nestjs/common';
-
-type AllowedFileTypes = 'spreadsheet' | 'text';
-
-const fileTypeMappings: Record<AllowedFileTypes, string[]> = {
-  spreadsheet: [
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  ],
-  text: ['text/csv'],
-};
+import { fileConverter } from '../file-type-converter';
+import { FileType } from '../types/file.type';
 
 @Injectable()
 export class FileTypeValidationPipe implements PipeTransform {
-  constructor(private readonly allowedFileTypes: AllowedFileTypes[]) {}
+  constructor(private readonly allowedFileTypes: FileType[]) {}
 
   transform(@UploadedFile() file: Express.Multer.File) {
     const fileMimeType = file.mimetype;
 
-    const allowedMimeTypes = this.allowedFileTypes.flatMap(
-      (fileType) => fileTypeMappings[fileType],
+    const allowedMimeTypes = this.allowedFileTypes.flatMap((fileType) =>
+      fileConverter.fileTypeToMimeType(fileType),
     );
 
     if (!allowedMimeTypes.includes(fileMimeType)) {
