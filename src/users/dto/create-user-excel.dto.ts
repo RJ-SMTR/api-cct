@@ -18,7 +18,7 @@ export class CreateUserExcelDto {
   @IsString()
   @ApiProperty({ example: '213890329890312' })
   @IsNotEmpty()
-  @Validate(IsNotExist, ['User', { ignoreBlankNull: true }], {
+  @Validate(IsNotExist, ['User', { ignoreBlankOrNull: true }], {
     message: 'licenseeAlreadyExists',
   })
   permitCode: string;
