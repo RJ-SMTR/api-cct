@@ -180,12 +180,12 @@ export class UsersService {
   async createFromFile(file: Express.Multer.File): Promise<any> {
     const worksheet = this.getWorksheetFromFile(file);
     const expectedUserFields = ['permitCode', 'email'];
-    const excelUsers = await this.getExcelUsersFromWorksheet(
+    const fileUsers = await this.getExcelUsersFromWorksheet(
       worksheet,
       expectedUserFields,
       CreateUserExcelDto,
     );
-    const invalidUsers = excelUsers.filter(
+    const invalidUsers = fileUsers.filter(
       (i) => Object.keys(i.errors).length > 0,
     );
     if (invalidUsers.length > 0) {
@@ -203,10 +203,11 @@ export class UsersService {
       );
     }
 
-    for (const excelUser of excelUsers) {
+    for (const excelUser of fileUsers) {
       await this.usersRepository.save(
         this.usersRepository.create(excelUser.user),
       );
     }
+    return HttpStatus.CREATED;
   }
 }
