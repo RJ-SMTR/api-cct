@@ -8,10 +8,10 @@ import { User } from 'src/users/entities/user.entity';
 export class JaeService {
   constructor(private jaeDataService: JaeDataService) {}
 
-  public async getTicketRevenuesByValidator(
+  public async getTicketRevenuesByPermitCode(
     ticketValidatorId: string,
   ): Promise<JaeTicketRevenueInterface[]> {
-    return await this.jaeDataService.getTicketRevenuesByValidator(
+    return await this.jaeDataService.getTicketRevenuesByPermitCode(
       ticketValidatorId,
     );
   }

@@ -32,39 +32,45 @@ describe('JaeDataService', () => {
     expect(jaeDataService).toBeDefined();
   });
 
-  describe('getTicketRevenuesByValidator', () => {
+  describe('getTicketRevenuesByPermitCode', () => {
     it('should return a list when validator is found', async () => {
       // Arrange
-      const expectedDataKeys = new Set([
-        'id',
-        'passValidatorId',
-        'plate',
-        'dateTime',
-        'amount',
-        'lat',
-        'lon',
-        'transactions',
-      ]);
-      const passValidatorId = (jaeDataService as any).getTicketRevenuesArgs()
-        .jaeProfiles[0].passValidatorId;
+      const permitCode = (jaeDataService as any).getTicketRevenuesArgs()
+        .jaeProfiles[0].permitCode;
       jest
         .spyOn(jaeDataService as any, 'getStopTimes')
         .mockResolvedValueOnce(stopTimesList);
 
       // Act
-      const result = await jaeDataService.getTicketRevenuesByValidator(
-        passValidatorId,
+      const result = await jaeDataService.getTicketRevenuesByPermitCode(
+        permitCode,
       );
 
       // Assert
-      expect(typeof passValidatorId !== 'undefined').toBeTruthy();
-      expect((jaeDataService as any).tripIncomes.length).toBeGreaterThan(0);
+      expect(typeof permitCode !== 'undefined').toBeTruthy();
+      expect((jaeDataService as any).ticketRevenues.length).toBeGreaterThan(0);
       expect(Array.isArray(result)).toBeTruthy();
       expect(result.length).toBeGreaterThan(0);
-      expect(new Set(Object.keys(result?.[0]))).toMatchObject(expectedDataKeys);
-      expect(result[0].dateTime).toEqual('2023-06-30T06:10:00.000Z');
-      expect(result[1].dateTime).toEqual('2023-06-30T06:00:00.000Z');
-      expect(result[2].dateTime).toEqual('2023-06-29T08:00:00.000Z');
+      const filteredResult = [
+        result.find(
+          (i) => i.transactionDateTime === '2023-06-30T06:10:00.000Z',
+        ),
+        result.find(
+          (i) => i.transactionDateTime === '2023-06-30T06:00:00.000Z',
+        ),
+        result.find(
+          (i) => i.transactionDateTime === '2023-06-29T08:00:00.000Z',
+        ),
+      ];
+      expect(filteredResult[0] !== undefined).toBeTruthy();
+      expect(filteredResult[1] !== undefined).toBeTruthy();
+      expect(filteredResult[2] !== undefined).toBeTruthy();
+      expect(Number(filteredResult[0]?.id)).toBeLessThan(
+        Number(filteredResult[1]?.id),
+      );
+      expect(Number(filteredResult[1]?.id)).toBeLessThan(
+        Number(filteredResult[2]?.id),
+      );
     }, 10000);
 
     it('should return an empty list when validator is not found', async () => {
@@ -75,7 +81,7 @@ describe('JaeDataService', () => {
         .mockResolvedValueOnce(stopTimesList);
 
       // Act
-      const result = await jaeDataService.getTicketRevenuesByValidator(
+      const result = await jaeDataService.getTicketRevenuesByPermitCode(
         passValidatorId,
       );
 
@@ -86,8 +92,8 @@ describe('JaeDataService', () => {
 
     it('should update list when time passes', async () => {
       // Arrange
-      const passValidatorId = (jaeDataService as any).getTicketRevenuesArgs()
-        .jaeProfiles[0].passValidatorId;
+      const permitCode = (jaeDataService as any).getTicketRevenuesArgs()
+        .jaeProfiles[0].permitCode;
       jest
         .spyOn(jaeDataService as any, 'getStopTimes')
         .mockResolvedValueOnce(stopTimesList);
@@ -96,7 +102,7 @@ describe('JaeDataService', () => {
           .spyOn(global.Date, 'now')
           .mockImplementation(() => new Date(dateString).valueOf());
       const getResult = async () =>
-        await jaeDataService.getTicketRevenuesByValidator(passValidatorId);
+        await jaeDataService.getTicketRevenuesByPermitCode(permitCode);
 
       // Act
       mockDate('2023-06-30T06:10:00.000Z');
@@ -107,13 +113,19 @@ describe('JaeDataService', () => {
       const result_06_20 = await getResult();
 
       // Assert
-      expect(typeof passValidatorId !== 'undefined').toBeTruthy();
+      expect(typeof permitCode !== 'undefined').toBeTruthy();
       expect(typeof result_06_10 !== 'undefined').toBeTruthy();
       expect(typeof result_06_15 !== 'undefined').toBeTruthy();
       expect(typeof result_06_20 !== 'undefined').toBeTruthy();
-      expect(result_06_10[0].dateTime).toEqual('2023-06-30T06:10:00.000Z');
-      expect(result_06_15[0].dateTime).toEqual('2023-06-30T06:10:00.000Z');
-      expect(result_06_20[0].dateTime).toEqual('2023-06-30T06:20:00.000Z');
+      expect(result_06_10[0].transactionDateTime).toEqual(
+        '2023-06-30T06:10:00.000Z',
+      );
+      expect(result_06_15[0].transactionDateTime).toEqual(
+        '2023-06-30T06:10:00.000Z',
+      );
+      expect(result_06_20[0].transactionDateTime).toEqual(
+        '2023-06-30T06:20:00.000Z',
+      );
     });
   });
 

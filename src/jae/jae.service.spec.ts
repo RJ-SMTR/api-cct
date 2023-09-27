@@ -13,7 +13,7 @@ describe('JaeService', () => {
     const jaeDataServiceMock = {
       provide: JaeDataService,
       useValue: {
-        getTicketRevenuesByValidator: jest.fn(),
+        getTicketRevenuesByPermitCode: jest.fn(),
         getGtfsDataByValidator: jest.fn(),
         getProfiles: jest.fn(),
       },
@@ -38,13 +38,13 @@ describe('JaeService', () => {
           id: 0,
           permitCode: 'permitCode_1',
           passValidatorId: 'passValidatorId_1',
-          plate: 'plate_1',
+          vehiclePlate: 'plate_1',
         },
         {
           id: 1,
           permitCode: 'permitCode_2',
           passValidatorId: 'passValidatorId_2',
-          plate: 'plate_2',
+          vehiclePlate: 'plate_2',
         },
       ] as JaeProfileInterface[];
       const permitCode = profiles[0].permitCode;
@@ -58,21 +58,21 @@ describe('JaeService', () => {
     });
   });
 
-  describe('getTicketRevenuesByValidator', () => {
+  describe('getTicketRevenuesByPermitCode', () => {
     it('shoud return mocked data when validatorId is found', async () => {
       // Arrange
-      const validatorId = 'validatorId_1';
+      const permitCode = 'permitCode_1';
       const ticketRevenues = [
-        { id: 0, passValidatorId: 'validatorId_1' },
-        { id: 1, passValidatorId: 'validatorId_2' },
+        { id: 0, permitCode: 'permitCode_1' },
+        { id: 1, permitCode: 'permitCode_2' },
       ] as JaeTicketRevenueInterface[];
       jest
-        .spyOn(jaeDataService, 'getTicketRevenuesByValidator')
+        .spyOn(jaeDataService, 'getTicketRevenuesByPermitCode')
         .mockResolvedValueOnce(ticketRevenues);
 
       // Assert
-      const response = await jaeService.getTicketRevenuesByValidator(
-        validatorId,
+      const response = await jaeService.getTicketRevenuesByPermitCode(
+        permitCode,
       );
 
       // Act
