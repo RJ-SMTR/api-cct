@@ -20,7 +20,13 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { AuthGuard } from '@nestjs/passport';
@@ -57,12 +63,18 @@ export class UsersController {
   })
   @Get()
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({ name: 'page', required: false, description: 'default: 1' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'default: 500 (max)',
+  })
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('limit', new DefaultValuePipe(500), ParseIntPipe) limit: number,
   ): Promise<InfinityPaginationResultType<User>> {
-    if (limit > 50) {
-      limit = 50;
+    if (limit > 500) {
+      limit = 500;
     }
 
     return infinityPagination(
