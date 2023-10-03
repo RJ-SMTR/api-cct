@@ -55,9 +55,11 @@ export class AuthController {
   }
 
   @Post('email/register')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async register(@Body() createUserDto: AuthRegisterLoginDto): Promise<void> {
-    return this.service.register(createUserDto);
+  @HttpCode(HttpStatus.OK)
+  async register(
+    @Body() createUserDto: AuthRegisterLoginDto,
+  ): Promise<void | object> {
+    return await this.service.register(createUserDto);
   }
 
   @Post('email/confirm')
@@ -69,10 +71,10 @@ export class AuthController {
   }
 
   @Post('forgot/password')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.ACCEPTED)
   async forgotPassword(
     @Body() forgotPasswordDto: AuthForgotPasswordDto,
-  ): Promise<void> {
+  ): Promise<void | object> {
     return this.service.forgotPassword(forgotPasswordDto.email);
   }
 

@@ -29,12 +29,15 @@ export class CreateUser1604164774154 implements MigrationInterface {
       "photoId" uuid, 
       "roleId" integer, 
       "statusId" integer, 
-      "permissionCode" character varying,
-      "cpf" character varying,
-      "agency" character varying,
-      "bankAccount" character varying,
-      "bankAccountDigit" character varying,
+      "permitCode" character varying,
+      "cpfCnpj" character varying,
+      "bankCode" integer,
+      "bankAgency" character varying(4),
+      "bankAccount" character varying(20),
+      "bankAccountDigit" character varying(2),
       "phone" character varying,
+      "isSgtuBlocked" boolean,
+      "passValidatorId" character varying,
       CONSTRAINT "UQ_e12875dfb3b1d92d7d7c5377e22" UNIQUE ("email"), 
       CONSTRAINT "PK_cace4a159ff9f2512dd42373760" PRIMARY KEY ("id"))`,
     );
@@ -46,6 +49,9 @@ export class CreateUser1604164774154 implements MigrationInterface {
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_f0e1b4ecdca13b177e2e3a0613" ON "user" ("lastName") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_035190f70c9aff0ef331258d28" ON "user" ("fullName") `,
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_e282acb94d2e3aec10f480e4f6" ON "user" ("hash") `,

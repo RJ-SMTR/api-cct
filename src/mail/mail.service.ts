@@ -13,7 +13,9 @@ export class MailService {
     private readonly configService: ConfigService<AllConfigType>,
   ) {}
 
-  async userSignUp(mailData: MailData<{ hash: string }>): Promise<void> {
+  async userSignUp(
+    mailData: MailData<{ hash: string }>,
+  ): Promise<void | string> {
     const i18n = I18nContext.current();
     let emailConfirmTitle: MaybeType<string>;
     let text1: MaybeType<string>;
@@ -29,25 +31,30 @@ export class MailService {
       ]);
     }
 
-    await this.mailerService.sendMail({
-      to: mailData.to,
-      subject: emailConfirmTitle,
-      text: `${this.configService.get('app.frontendDomain', {
-        infer: true,
-      })}/confirm-email/${mailData.data.hash} ${emailConfirmTitle}`,
-      template: 'activation',
-      context: {
-        title: emailConfirmTitle,
-        url: `${this.configService.get('app.frontendDomain', {
-          infer: true,
-        })}/confirm-email/${mailData.data.hash}`,
-        actionTitle: emailConfirmTitle,
-        app_name: this.configService.get('app.name', { infer: true }),
-        text1,
-        text2,
-        text3,
-      },
+    const frontendDomain = this.configService.get('app.frontendDomain', {
+      infer: true,
     });
+    const emailConfirmLink = `${frontendDomain}/confirm-email/${mailData.data.hash}`;
+
+    if (process.env.NODE_ENV === 'production') {
+      await this.mailerService.sendMail({
+        to: mailData.to,
+        subject: emailConfirmTitle,
+        text: `${emailConfirmLink} ${emailConfirmTitle}`,
+        template: 'activation',
+        context: {
+          title: emailConfirmTitle,
+          url: emailConfirmLink,
+          actionTitle: emailConfirmTitle,
+          app_name: this.configService.get('app.name', { infer: true }),
+          text1,
+          text2,
+          text3,
+        },
+      });
+    } else {
+      return emailConfirmLink;
+    }
   }
 
   async forgotPassword(mailData: MailData<{ hash: string }>): Promise<void> {

@@ -19,6 +19,9 @@ import { ForgotService } from 'src/forgot/forgot.service';
 import { MailService } from 'src/mail/mail.service';
 import { NullableType } from '../utils/types/nullable.type';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { CoreBankService } from 'src/core-bank/core-bank.service';
+import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +30,7 @@ export class AuthService {
     private usersService: UsersService,
     private forgotService: ForgotService,
     private mailService: MailService,
+    private coreBankService: CoreBankService,
   ) {}
 
   async validateLogin(
@@ -46,24 +50,24 @@ export class AuthService {
     ) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             email: 'notFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
     if (user.provider !== AuthProvidersEnum.email) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             email: `needLoginViaProvider:${user.provider}`,
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -75,12 +79,12 @@ export class AuthService {
     if (!isValidPassword) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             password: 'incorrectPassword',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -141,12 +145,12 @@ export class AuthService {
     if (!user) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             user: 'userNotFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -161,7 +165,7 @@ export class AuthService {
     };
   }
 
-  async register(dto: AuthRegisterLoginDto): Promise<void> {
+  async register(dto: AuthRegisterLoginDto): Promise<void | object> {
     const hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
@@ -179,12 +183,14 @@ export class AuthService {
       hash,
     });
 
-    // await this.mailService.userSignUp({
-    //   to: dto.email,
-    //   data: {
-    //     hash,
-    //   },
-    // });
+    const link = await this.mailService.userSignUp({
+      to: dto.email,
+      data: {
+        hash,
+      },
+    });
+
+    return { link: link };
   }
 
   async confirmEmail(hash: string): Promise<void> {
@@ -195,7 +201,6 @@ export class AuthService {
     if (!user) {
       throw new HttpException(
         {
-          status: HttpStatus.NOT_FOUND,
           error: `notFound`,
         },
         HttpStatus.NOT_FOUND,
@@ -209,20 +214,24 @@ export class AuthService {
     await user.save();
   }
 
-  async forgotPassword(email: string): Promise<void> {
+  async forgotPassword(email: string): Promise<void | object> {
     const user = await this.usersService.findOne({
       email,
     });
 
+    const returnMessage = {
+      info: 'if email exists, an email should be sent.',
+    };
+
     if (!user) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          response: returnMessage,
+          details: {
             email: 'emailNotExists',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.ACCEPTED,
       );
     }
 
@@ -230,10 +239,18 @@ export class AuthService {
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
+
     await this.forgotService.create({
       hash,
       user,
     });
+
+    if (process.env.NODE_ENV == 'development') {
+      return {
+        ...returnMessage,
+        hash: hash,
+      };
+    }
 
     await this.mailService.forgotPassword({
       to: email,
@@ -241,6 +258,8 @@ export class AuthService {
         hash,
       },
     });
+
+    return returnMessage;
   }
 
   async resetPassword(hash: string, password: string): Promise<void> {
@@ -253,12 +272,12 @@ export class AuthService {
     if (!forgot) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             hash: `notFound`,
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -279,58 +298,46 @@ export class AuthService {
     user: User,
     userDto: AuthUpdateDto,
   ): Promise<NullableType<User>> {
-    if (userDto.password) {
-      if (userDto.oldPassword) {
-        const currentUser = await this.usersService.findOne({
-          id: user.id,
-        });
+    const userProfile = await this.usersService.findOne({ id: user.id });
 
-        if (!currentUser) {
-          throw new HttpException(
-            {
-              status: HttpStatus.UNPROCESSABLE_ENTITY,
-              errors: {
-                user: 'userNotFound',
-              },
-            },
-            HttpStatus.UNPROCESSABLE_ENTITY,
-          );
-        }
-
-        const isValidOldPassword = await bcrypt.compare(
-          userDto.oldPassword,
-          currentUser.password,
-        );
-
-        if (!isValidOldPassword) {
-          throw new HttpException(
-            {
-              status: HttpStatus.UNPROCESSABLE_ENTITY,
-              errors: {
-                oldPassword: 'incorrectOldPassword',
-              },
-            },
-            HttpStatus.UNPROCESSABLE_ENTITY,
-          );
-        }
-      } else {
-        throw new HttpException(
-          {
-            status: HttpStatus.UNPROCESSABLE_ENTITY,
-            errors: {
-              oldPassword: 'missingOldPassword',
-            },
+    if (!userProfile || !(userProfile && userProfile?.cpfCnpj)) {
+      throw new HttpException(
+        {
+          details: {
+            token: 'valid token but decoded user data is invalid',
+            ...(!userProfile && { id: 'userNotExists' }),
+            ...(!(userProfile && userProfile?.cpfCnpj) && {
+              cpfCnpj: 'invalidCpfCnpj',
+            }),
           },
-          HttpStatus.UNPROCESSABLE_ENTITY,
-        );
-      }
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     await this.usersService.update(user.id, userDto);
-
-    return this.usersService.findOne({
+    const newUserProfile = await this.usersService.findOne({
       id: user.id,
     });
+    if (!newUserProfile) {
+      throw new HttpException(
+        {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          detail: 'updatedUserNotFound',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const coreBankProfile: UpdateCoreBankInterface = {
+      bankAccountCode: newUserProfile.bankAccount,
+      bankAccountDigit: newUserProfile.bankAccountDigit,
+      bankAgencyCode: newUserProfile.bankAgency,
+      bankCode: newUserProfile.bankCode,
+    };
+    this.coreBankService.update(userProfile.cpfCnpj, coreBankProfile);
+
+    return newUserProfile;
   }
 
   async softDelete(user: User): Promise<void> {

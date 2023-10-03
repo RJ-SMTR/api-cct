@@ -29,6 +29,14 @@ import { HomeModule } from './home/home.module';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { AllConfigType } from './config/config.type';
 import { InfoModule } from './info/info.module';
+import { AuthLicenseeModule } from './auth-licensee/auth-licensee.module';
+import { SgtuModule } from './sgtu/sgtu.module';
+import { CoreBankModule } from './core-bank/core-bank.module';
+import { InviteModule } from './invite/invite.module';
+import { JaeModule } from './jae/jae.module';
+import { BanksModule } from './banks/banks.module';
+import { BankStatementsModule } from './bank-statements/bank-statements.module';
+import { TicketRevenuesModule } from './ticket-revenues/ticket-revenues.module';
 
 @Module({
   imports: [
@@ -86,6 +94,14 @@ import { InfoModule } from './info/info.module';
     MailModule,
     HomeModule,
     InfoModule,
+    AuthLicenseeModule,
+    SgtuModule,
+    CoreBankModule,
+    InviteModule,
+    JaeModule,
+    BanksModule,
+    BankStatementsModule,
+    TicketRevenuesModule,
   ],
 })
 export class AppModule {}

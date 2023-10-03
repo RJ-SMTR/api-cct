@@ -1,5 +1,5 @@
 // info-data.interface.ts
-export interface InfoData {
+export interface InfoDataInterface {
   name: string;
   value: string;
   version?: string;

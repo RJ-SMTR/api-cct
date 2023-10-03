@@ -13,11 +13,20 @@ import {
   HttpStatus,
   HttpCode,
   SerializeOptions,
+  UseInterceptors,
+  UploadedFile,
+  UsePipes,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { AuthGuard } from '@nestjs/passport';
@@ -26,6 +35,8 @@ import { infinityPagination } from 'src/utils/infinity-pagination';
 import { User } from './entities/user.entity';
 import { InfinityPaginationResultType } from '../utils/types/infinity-pagination-result.type';
 import { NullableType } from '../utils/types/nullable.type';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
 
 @ApiBearerAuth()
 @Roles(RoleEnum.admin)
@@ -52,12 +63,18 @@ export class UsersController {
   })
   @Get()
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({ name: 'page', required: false, description: 'default: 1' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'default: 500 (max)',
+  })
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('limit', new DefaultValuePipe(500), ParseIntPipe) limit: number,
   ): Promise<InfinityPaginationResultType<User>> {
-    if (limit > 50) {
-      limit = 50;
+    if (limit > 500) {
+      limit = 500;
     }
 
     return infinityPagination(
@@ -94,5 +111,32 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: number): Promise<void> {
     return this.usersService.softDelete(id);
+  }
+
+  @SerializeOptions({
+    groups: ['admin'],
+  })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('upload')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Allowed files: spreadsheet, csv',
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  @UsePipes(new FileTypeValidationPipe(['spreadsheet', 'csv']))
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File | Express.MulterS3.File,
+  ) {
+    return this.usersService.createFromFile(file);
   }
 }

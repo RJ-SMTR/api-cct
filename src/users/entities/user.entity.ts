@@ -22,6 +22,7 @@ import { Exclude, Expose } from 'class-transformer';
 @Entity()
 export class User extends EntityHelper {
   @PrimaryGeneratedColumn()
+  @Exclude({ toPlainOnly: true })
   id: number;
 
   // For "string | null" we need to use String type.
@@ -53,20 +54,28 @@ export class User extends EntityHelper {
 
   @Column({ default: AuthProvidersEnum.email })
   @Expose({ groups: ['me', 'admin'] })
+  @Exclude({ toPlainOnly: true })
   provider: string;
 
   @Index()
   @Column({ type: String, nullable: true })
   @Expose({ groups: ['me', 'admin'] })
+  @Exclude({ toPlainOnly: true })
   socialId: string | null;
 
   @Index()
   @Column({ type: String, nullable: true })
-  firstName: string | null;
+  @Exclude({ toPlainOnly: true })
+  firstName?: string | null;
 
   @Index()
   @Column({ type: String, nullable: true })
-  lastName: string | null;
+  @Exclude({ toPlainOnly: true })
+  lastName?: string | null;
+
+  @Index()
+  @Column({ type: String, nullable: true })
+  fullName?: string | null;
 
   @ManyToOne(() => FileEntity, {
     eager: true,
@@ -81,6 +90,7 @@ export class User extends EntityHelper {
   @ManyToOne(() => Status, {
     eager: true,
   })
+  @Exclude({ toPlainOnly: true })
   status?: Status;
 
   @Column({ type: String, nullable: true })
@@ -89,32 +99,82 @@ export class User extends EntityHelper {
   hash: string | null;
 
   @CreateDateColumn()
+  @Exclude({ toPlainOnly: true })
   createdAt: Date;
 
   @UpdateDateColumn()
+  @Exclude({ toPlainOnly: true })
   updatedAt: Date;
 
   @DeleteDateColumn()
+  @Exclude({ toPlainOnly: true })
   deletedAt: Date;
 
   @Column({ type: String, nullable: true })
-  fullName?: string;
+  permitCode?: string;
 
   @Column({ type: String, nullable: true })
-  permissionCode?: string;
+  cpfCnpj?: string;
 
-  @Column({ type: String, nullable: true })
-  cpf?: string;
+  @Column({ type: Number, nullable: true })
+  bankCode?: number;
 
-  @Column({ type: String, nullable: true })
-  agency?: string;
+  @Column({ type: String, nullable: true, length: 4 })
+  bankAgency?: string;
 
-  @Column({ type: String, nullable: true })
+  @Column({ type: String, nullable: true, length: 20 })
   bankAccount?: string;
 
-  @Column({ type: String, nullable: true })
+  @Column({ type: String, nullable: true, length: 2 })
   bankAccountDigit?: string;
 
   @Column({ type: String, nullable: true })
   phone?: string;
+
+  @Column({ type: Boolean, nullable: true })
+  isSgtuBlocked?: boolean;
+
+  @Column({ type: String, nullable: true })
+  passValidatorId?: string;
+
+  @Expose({ name: 'aux_isRegistrationComplete' })
+  checkIfRegistrationIsComplete(): boolean {
+    return (
+      // non editable
+      Boolean(this.cpfCnpj) &&
+      Boolean(this.permitCode) &&
+      Boolean(this.email) &&
+      Boolean(this.passValidatorId) &&
+      this.isSgtuBlocked !== undefined &&
+      // editable
+      Boolean(this.phone) &&
+      Boolean(this.bankCode) &&
+      Boolean(this.bankAgency) &&
+      Boolean(this.bankAccount) &&
+      Boolean(this.bankAccountDigit)
+    );
+  }
+
+  @Expose({ name: 'aux_missingRegistrationFields' })
+  getMissingRegistrationFields(): string[] {
+    const requiredFields: string[] = [
+      // non editable
+      'cpfCnpj',
+      'permitCode',
+      'email',
+      'passValidatorId',
+      'isSgtuBlocked',
+      // editable
+      'phone',
+      'bankCode',
+      'bankAgency',
+      'bankAccount',
+      'bankAccountDigit',
+    ];
+
+    return requiredFields.filter(
+      (field) =>
+        !(typeof this[field] === 'boolean' || Boolean(this[field]) === true),
+    );
+  }
 }
