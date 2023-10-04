@@ -18,6 +18,7 @@ import * as bcrypt from 'bcryptjs';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { Exclude, Expose } from 'class-transformer';
+import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
 
 @Entity()
 export class User extends EntityHelper {
@@ -138,7 +139,7 @@ export class User extends EntityHelper {
   passValidatorId?: string;
 
   @Expose({ name: 'aux_isRegistrationComplete' })
-  checkIfRegistrationIsComplete(): boolean {
+  aux_isRegistrationComplete(): boolean {
     return (
       // non editable
       Boolean(this.cpfCnpj) &&
@@ -156,7 +157,7 @@ export class User extends EntityHelper {
   }
 
   @Expose({ name: 'aux_missingRegistrationFields' })
-  getMissingRegistrationFields(): string[] {
+  aux_missingRegistrationFields(): string[] {
     const requiredFields: string[] = [
       // non editable
       'cpfCnpj',
@@ -177,4 +178,6 @@ export class User extends EntityHelper {
         !(typeof this[field] === 'boolean' || Boolean(this[field]) === true),
     );
   }
+
+  aux_inviteStatus?: InviteStatus | null;
 }

@@ -42,7 +42,7 @@ export class AuthLicenseeController {
     @Param('hash', InviteHashExistsPipe)
     hash: string,
   ): Promise<void | object> {
-    return await this.authLicenseeService.getProfileByHash(hash);
+    return await this.authLicenseeService.getInviteProfile(hash);
   }
 
   @Post('register/:hash')
@@ -53,6 +53,6 @@ export class AuthLicenseeController {
     hash: string,
     @Body() data: AuthRegisterLicenseeDto,
   ): Promise<void | object> {
-    return await this.authLicenseeService.register(data, hash);
+    return await this.authLicenseeService.concludeRegistration(data, hash);
   }
 }

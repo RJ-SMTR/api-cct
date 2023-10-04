@@ -3,7 +3,6 @@ import { SgtuService } from 'src/sgtu/sgtu.service';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
 import { UsersService } from 'src/users/users.service';
 import { RoleEnum } from 'src/roles/roles.enum';
-import { Role } from 'src/roles/entities/role.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { BaseValidator } from 'src/utils/validators/base-validator';
@@ -18,6 +17,7 @@ import { JwtService } from '@nestjs/jwt';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { JaeService } from 'src/jae/jae.service';
 import { JaeProfileInterface } from 'src/jae/interfaces/jae-profile.interface';
+import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
 
 @Injectable()
 export class AuthLicenseeService {
@@ -93,12 +93,12 @@ export class AuthLicenseeService {
     return { token, user };
   }
 
-  async getProfileByHash(
+  async getInviteProfile(
     hash: string,
   ): Promise<AuthLicenseeInviteProfileInterface> {
-    const inviteProfile = this.inviteService.findByHash(hash);
+    const invite = await this.inviteService.findByHash(hash);
 
-    if (!inviteProfile) {
+    if (!invite) {
       throw new HttpException(
         {
           error: HttpErrorMessages.UNAUTHORIZED,
@@ -110,8 +110,29 @@ export class AuthLicenseeService {
       );
     }
 
-    const sgtuProfile: SgtuDto = await this.sgtuService.getProfileByLicensee(
-      inviteProfile.permitCode,
+    const user = await this.usersService.getOne({ id: invite.user.id });
+
+    if (user.id !== invite.user.id || typeof user.permitCode !== 'string') {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
+            user: {
+              ...(user.id !== invite.user.id && {
+                id: 'invalidUserForInviteHash',
+              }),
+              ...(typeof user.permitCode !== 'string' && {
+                permitCode: 'cantBeEmpty',
+              }),
+            },
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const sgtuProfile: SgtuDto = await this.sgtuService.getGeneratedProfile(
+      invite,
     );
 
     await this.baseValidator.validateOrReject(
@@ -121,35 +142,89 @@ export class AuthLicenseeService {
       HttpErrorMessages.UNAUTHORIZED,
     );
 
-    const inviteResponse: AuthLicenseeInviteProfileInterface = {
-      fullName: sgtuProfile.fullName,
-      permitCode: sgtuProfile.permitCode,
-      email: sgtuProfile.email,
-      hash: inviteProfile.hash,
-    };
-
-    return inviteResponse;
-  }
-
-  async register(
-    registerDto: AuthRegisterLicenseeDto,
-    hash: string,
-  ): Promise<void | object> {
-    const inviteProfile = this.inviteService.findByHash(hash);
-    if (!inviteProfile) {
+    if (
+      sgtuProfile.permitCode !== user.permitCode ||
+      sgtuProfile.email !== user.email
+    ) {
       throw new HttpException(
         {
           error: HttpErrorMessages.UNAUTHORIZED,
           details: {
-            internal: 'inviteHashNotFound',
+            user: {
+              ...(sgtuProfile.permitCode !== user.permitCode && {
+                id: 'differentPermitCodeFound',
+              }),
+              ...(sgtuProfile.email !== user.email && {
+                permitCode: 'differentEmailFound',
+              }),
+            },
           },
         },
         HttpStatus.UNAUTHORIZED,
       );
     }
 
-    const sgtuProfile: SgtuDto = await this.sgtuService.getProfileByLicensee(
-      inviteProfile.permitCode,
+    const inviteResponse: AuthLicenseeInviteProfileInterface = {
+      fullName: sgtuProfile.fullName,
+      permitCode: sgtuProfile.permitCode,
+      email: sgtuProfile.email,
+      hash: invite.hash,
+    };
+
+    return inviteResponse;
+  }
+
+  async concludeRegistration(
+    registerDto: AuthRegisterLicenseeDto,
+    hash: string,
+  ): Promise<void | object> {
+    const invite = await this.inviteService.findByHash(hash);
+    if (!invite || invite.inviteStatus.id !== InviteStatusEnum.sent) {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
+            invite: {
+              ...(!invite && { hash: 'inviteHashNotFound' }),
+              ...(invite &&
+                invite.inviteStatus.id !== InviteStatusEnum.sent && {
+                  inviteStatus: `expected 'sent' but got '${invite.inviteStatus.name}'`,
+                }),
+            },
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const user = await this.usersService.getOne({ id: invite.user.id });
+
+    if (
+      user.id !== invite.user.id ||
+      user.permitCode === undefined ||
+      user.email === null
+    ) {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
+            user: {
+              ...(user.id !== invite.user.id && {
+                id: 'invalidUserForInviteHash',
+              }),
+              ...(user.permitCode === undefined && {
+                permitCode: 'cantBeEmpty',
+              }),
+              ...(user.email === null && { email: 'cantBeEmpty' }),
+            },
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const sgtuProfile: SgtuDto = await this.sgtuService.getGeneratedProfile(
+      invite,
     );
 
     await this.baseValidator.validateOrReject(
@@ -160,11 +235,17 @@ export class AuthLicenseeService {
     );
 
     const jaeProfile: JaeProfileInterface =
-      await this.jaeService.getProfileByPermitCode(inviteProfile.permitCode);
+      this.jaeService.getGeneratedProfileByUser(user);
 
-    const email = sgtuProfile.email;
+    const email = user.email;
 
-    const user = await this.usersService.create({
+    await this.inviteService.update(invite.id, {
+      inviteStatus: {
+        id: InviteStatusEnum.used,
+      },
+    });
+
+    const updatedUser = await this.usersService.update(user.id, {
       password: registerDto.password,
       hash: hash,
       email: email,
@@ -173,19 +254,19 @@ export class AuthLicenseeService {
       permitCode: sgtuProfile.permitCode,
       isSgtuBlocked: sgtuProfile.isSgtuBlocked,
       passValidatorId: jaeProfile.passValidatorId,
-      role: {
-        id: RoleEnum.user,
-      } as Role,
       status: {
         id: StatusEnum.active,
       } as Status,
     });
 
     const token = this.jwtService.sign({
-      id: user.id,
-      role: user.role,
+      id: updatedUser.id,
+      role: updatedUser.role,
     });
 
-    return { token, user };
+    return {
+      token,
+      user: updatedUser,
+    };
   }
 }

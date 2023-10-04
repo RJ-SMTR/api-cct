@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Status } from 'src/statuses/entities/status.entity';
-import { StatusEnum } from 'src/statuses/statuses.enum';
+import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
+import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
 import { Repository } from 'typeorm';
 
 @Injectable()
-export class StatusSeedService {
+export class InviteStatusSeedService {
   constructor(
-    @InjectRepository(Status)
-    private repository: Repository<Status>,
+    @InjectRepository(InviteStatus)
+    private repository: Repository<InviteStatus>,
   ) {}
 
   async run() {
-    for (const value in StatusEnum) {
+    for (const value in InviteStatusEnum) {
       console.log(value);
       if (isNaN(Number(value))) {
         continue;
@@ -28,7 +28,7 @@ export class StatusSeedService {
         await this.repository.save(
           this.repository.create({
             id: Number(value),
-            name: StatusEnum[value],
+            name: InviteStatusEnum[value],
           }),
         );
       }

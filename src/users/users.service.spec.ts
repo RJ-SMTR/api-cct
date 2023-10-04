@@ -6,7 +6,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { Provider } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { FileUserInterface } from './interfaces/file-user.interface';
-import { CreateUserExcelDto } from './dto/create-user-excel.dto';
+import { CreateFileUserDto } from './dto/create-file-user.dto';
 import * as CLASS_VALIDATOR from 'class-validator';
 import * as XLSX from 'xlsx';
 
@@ -83,7 +83,7 @@ describe('UsersService', () => {
       await usersService.createFromFile(fileMock);
 
       // Assert
-      expect(usersService.getExcelUsersFromWorksheet).toHaveBeenCalledWith(
+      expect(usersService.getFileUsersFromWorksheet).toHaveBeenCalledWith(
         expect.any(Object),
         expect.any(Array),
         expect.any(Function),
@@ -144,10 +144,10 @@ describe('UsersService', () => {
       ] as FileUserInterface[];
 
       // Act
-      const result = await usersService.getExcelUsersFromWorksheet(
+      const result = await usersService.getFileUsersFromWorksheet(
         worksheetMock,
         expectedUserFields,
-        CreateUserExcelDto,
+        CreateFileUserDto,
       );
 
       // Assert

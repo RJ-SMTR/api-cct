@@ -4,7 +4,7 @@ import { IsEmail, IsNotEmpty, IsString, Validate } from 'class-validator';
 import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
 import { lowerCaseTransformer } from 'src/utils/transformers/lower-case.transformer';
 
-export class CreateUserExcelDto {
+export class CreateFileUserDto {
   @ApiProperty({ example: 'test1@example.com' })
   @IsNotEmpty()
   @IsString()

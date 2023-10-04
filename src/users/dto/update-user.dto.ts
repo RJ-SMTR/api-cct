@@ -14,7 +14,6 @@ import { lowerCaseTransformer } from 'src/utils/transformers/lower-case.transfor
 export class UpdateUserDto extends PartialType(CreateUserDto) {
   @ApiProperty({ example: 'test1@example.com' })
   @Transform(lowerCaseTransformer)
-  @IsOptional()
   @Validate(IsNotExist, ['User'], {
     message: 'emailAlreadyExists',
   })
