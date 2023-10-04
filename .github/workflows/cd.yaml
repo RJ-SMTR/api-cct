@@ -16,7 +16,6 @@ env:
 
 jobs:
   lint:
-    needs: before
     name: Dockerfiles linting
     runs-on: ubuntu-latest
     steps:
