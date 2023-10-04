@@ -20,17 +20,7 @@ spec:
     spec:
       containers:
         - name: cct-api
-          image: gcr.io/rj-smtr/api-cct:1.0.1-rc.1
-          command:
-            [
-              "sh",
-              "-c",
-              "sed",
-              "-i",
-              "'14s/.*/DATABASE_PASWORD=${DATABASE_PASSWORD}/'",
-              "-f",
-              "/usr/src/app/.env",
-            ]
+          image: gcr.io/PROJECT_ID/IMAGE_APP:TAG
           ports:
             - containerPort: 3000
           # resources:
