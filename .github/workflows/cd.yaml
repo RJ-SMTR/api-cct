@@ -55,9 +55,12 @@ jobs:
       - name: Mount env
         run: |-
           echo $ENV_PROD > .env
+          ls
 
       - name: Build Docker image
         run: |-
+          pwd
+          ls
           docker build \
             --tag "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA" \
             -f Dockerfile \
