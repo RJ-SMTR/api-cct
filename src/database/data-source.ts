@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { DataSource, DataSourceOptions } from 'typeorm';
 
 export const AppDataSource = new DataSource({
-  type: 'postgres',
+  type: process.env.DATABASE_TYPE ?? 'aurora-postgres',
   url: process.env.DATABASE_URL,
   host: process.env.DATABASE_HOST,
   port: process.env.DATABASE_PORT
