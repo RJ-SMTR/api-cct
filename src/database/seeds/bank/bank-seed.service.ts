@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { bankData } from './bank-data';
+import { bankSeedData } from './bank-seed-data';
 import { Bank } from 'src/banks/entities/bank.entity';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class BankSeedService {
 
   async run() {
     let id = 1;
-    for (const item of bankData) {
+    for (const item of bankSeedData) {
       const count = await this.repository.count({
         where: {
           ispb: item.ispb,

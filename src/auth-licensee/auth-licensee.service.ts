@@ -179,23 +179,33 @@ export class AuthLicenseeService {
     hash: string,
   ): Promise<void | object> {
     const invite = await this.inviteService.findByHash(hash);
-    if (!invite || invite.inviteStatus.id !== InviteStatusEnum.sent) {
+    if (!invite) {
       throw new HttpException(
         {
           error: HttpErrorMessages.UNAUTHORIZED,
           details: {
             invite: {
-              ...(!invite && { hash: 'inviteHashNotFound' }),
-              ...(invite &&
-                invite.inviteStatus.id !== InviteStatusEnum.sent && {
-                  inviteStatus: `expected 'sent' but got '${invite.inviteStatus.name}'`,
-                }),
+              hash: 'inviteHashNotFound',
             },
           },
         },
         HttpStatus.UNAUTHORIZED,
       );
     }
+
+    // if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
+    //   throw new HttpException(
+    //     {
+    //       error: HttpErrorMessages.UNAUTHORIZED,
+    //       details: {
+    //         invite: {
+    //           inviteStatus: `expected 'sent' but got '${invite.inviteStatus.name}'`
+    //         }
+    //       },
+    //     },
+    //     HttpStatus.UNAUTHORIZED,
+    //   );
+    // }
 
     const user = await this.usersService.getOne({ id: invite.user.id });
 

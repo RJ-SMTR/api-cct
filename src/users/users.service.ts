@@ -35,13 +35,21 @@ export class UsersService {
     );
   }
 
-  findManyWithPagination(
+  async findManyWithPagination(
     paginationOptions: IPaginationOptions,
   ): Promise<User[]> {
-    return this.usersRepository.find({
+    const users = await this.usersRepository.find({
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
     });
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i];
+      if (user !== null) {
+        user.aux_inviteStatus = await this.getAux_inviteSatus(user);
+      }
+      users[i] = user;
+    }
+    return users;
   }
 
   private async getAux_inviteSatus(
@@ -240,9 +248,7 @@ export class UsersService {
           id: StatusEnum.register,
         },
       } as DeepPartial<User>);
-      console.log('createdUser:', createdUser);
-      const savedUser = await this.usersRepository.save(createdUser);
-      console.log('savedUser:', savedUser);
+      await this.usersRepository.save(createdUser);
 
       await this.inviteService.create({
         user: createdUser,

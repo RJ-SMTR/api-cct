@@ -5,7 +5,9 @@ import { StatusSeedService } from './status/status-seed.service';
 import { UserSeedService } from './user/user-seed.service';
 import { BankSeedService } from './bank/bank-seed.service';
 import { InfoSeedService } from './info/info-seed.service';
-import { InviteStatusSeedService } from './invite-status/invite-status.service';
+import { InviteStatusSeedService } from './invite-status/invite-status-seed.service';
+import { SettingTypeSeedService } from './setting-type/setting-type.service';
+import { SettingSeedService } from './setting/setting-seed.service';
 
 const runSeed = async () => {
   const app = await NestFactory.create(SeedModule);
@@ -17,6 +19,8 @@ const runSeed = async () => {
   await app.get(InfoSeedService).run();
   await app.get(BankSeedService).run();
   await app.get(InviteStatusSeedService).run();
+  await app.get(SettingTypeSeedService).run();
+  await app.get(SettingSeedService).run();
 
   await app.close();
 };

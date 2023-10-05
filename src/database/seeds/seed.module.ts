@@ -10,7 +10,9 @@ import { StatusSeedModule } from './status/status-seed.module';
 import { UserSeedModule } from './user/user-seed.module';
 import { InfoSeedModule } from './info/info-seed.module';
 import { BankSeedModule } from './bank/bank-seed.module';
-import { InviteStatusSeedModule } from './invite-status/invite-status.module';
+import { InviteStatusSeedModule } from './invite-status/invite-status-seed.module';
+import { SettingTypeSeedModule } from './setting-type/setting-type.module';
+import { SettingSeedModule } from './setting/setting-seed.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { InviteStatusSeedModule } from './invite-status/invite-status.module';
     InfoSeedModule,
     BankSeedModule,
     InviteStatusSeedModule,
+    SettingTypeSeedModule,
+    SettingSeedModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, appConfig],
