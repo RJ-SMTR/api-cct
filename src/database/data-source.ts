@@ -1,5 +1,7 @@
 import 'reflect-metadata';
 import { DataSource, DataSourceOptions } from 'typeorm';
+console.log('*************PASSWORD***************');
+console.log(process.env.DATABASE_PASSWORD);
 
 export const AppDataSource = new DataSource({
   type: process.env.DATABASE_TYPE,
