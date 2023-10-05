@@ -54,7 +54,7 @@ jobs:
 
       - name: Mount env
         run: |-
-          echo $ENV_PROD > env-deploy
+          echo "${{ secrets.ENV_PROD }}" > env-deploy
           ls -a
 
       - name: Build Docker image
