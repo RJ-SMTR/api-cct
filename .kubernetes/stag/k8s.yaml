@@ -57,7 +57,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/rewrite-target: /
-    cert-manager.io/cluster-issuer: "letsencrypt-dev"
+    cert-manager.io/issuer: "letsencrypt"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # nginx.ingress.kubernetes.io/proxy-body-size: "100m"
     # nginx.org/client-max-body-size: "100m"
@@ -82,7 +82,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: letsencrypt
-  namespace: cct
+  namespace: cct-stag
 spec:
   acme:
     email: caiorsantos.smtr@gmail.com

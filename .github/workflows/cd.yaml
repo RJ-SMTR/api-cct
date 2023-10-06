@@ -1,10 +1,9 @@
-name: CD
+name: Deploy [prod]
 
 on:
   push:
     branches:
       - "main"
-      - "devops"
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
