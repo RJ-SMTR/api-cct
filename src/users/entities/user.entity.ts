@@ -22,7 +22,6 @@ import { Exclude, Expose } from 'class-transformer';
 @Entity()
 export class User extends EntityHelper {
   @PrimaryGeneratedColumn()
-  @Exclude({ toPlainOnly: true })
   id: number;
 
   // For "string | null" we need to use String type.
