@@ -135,10 +135,18 @@ export class UsersService {
         }
       }
     }
-    if (!headers.every((item1) => expectedExcelUserFields.includes(item1))) {
+    if (!expectedExcelUserFields.every((item1) => headers.includes(item1))) {
       throw new HttpException(
-        'Error parsing Excel file: invalid headers',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        {
+          error: {
+            file: {
+              message: 'inivalidHeaders',
+              receivedHeaders: headers,
+              expectedHeaders: expectedExcelUserFields,
+            },
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
 
