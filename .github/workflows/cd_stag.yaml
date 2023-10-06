@@ -76,7 +76,7 @@ jobs:
         run: |-
           cd ./.kubernetes/stag
           ./kustomize edit set image gcr.io/PROJECT_ID/IMAGE:TAG=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA
-          ./kustomize build . | kubectl apply -n cct-staging -f -
-          kubectl get services -n cct-staging -o wide
+          ./kustomize build . | kubectl apply -n cct-stag -f -
+          kubectl get services -n cct-stag -o wide
 
 # trigger
