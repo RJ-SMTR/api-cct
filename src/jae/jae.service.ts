@@ -16,6 +16,10 @@ export class JaeService {
     );
   }
 
+  async getTicketRevenuesMocked(): Promise<JaeTicketRevenueInterface[]> {
+    return await this.jaeDataService.getTicketRevenuesMocked();
+  }
+
   public getProfileByPermitCode(permitCode: string): JaeProfileInterface {
     // TODO: fetch instead of mockup
 
@@ -53,9 +57,10 @@ export class JaeService {
   public getGeneratedProfileByUser(user: User): JaeProfileInterface {
     return {
       id: 1,
+      vehicleOrderNumberId: 1,
       passValidatorId: String(user.passValidatorId),
-      plate: 'ABC123',
       permitCode: Math.floor(Math.random() * 1e15).toString(),
+      vehiclePlate: 'ABC123',
     };
   }
 }

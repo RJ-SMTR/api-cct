@@ -28,8 +28,9 @@ export class TicketRevenuesService {
 
     // TODO: fetch instead of mockup
 
+    // TODO: get by user.permitCode
     const ticketRevenuesResponse =
-      await this.jaeService.getTicketRevenuesByPermitCode(user.permitCode);
+      await this.jaeService.getTicketRevenuesMocked();
     if (ticketRevenuesResponse.length === 0) {
       throw new HttpException(
         {

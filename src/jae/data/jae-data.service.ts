@@ -25,18 +25,18 @@ export class JaeDataService {
     tripsPerLicensee: 1,
     jaeProfiles: [
       {
+        id: 2,
+        permitCode: 'permitCode_mock',
+        vehiclePlate: 'GHI8901',
+        passValidatorId: '187103490390',
+        vehicleOrderNumberId: 102373242,
+      },
+      {
         id: 1,
         permitCode: '213890329890312',
         vehiclePlate: 'ABC1234',
         passValidatorId: '19003842273',
         vehicleOrderNumberId: 102373241,
-      },
-      {
-        id: 2,
-        permitCode: '218302734908664',
-        vehiclePlate: 'DEF4567',
-        passValidatorId: '18710349009',
-        vehicleOrderNumberId: 102373242,
       },
     ] as JaeProfileInterface[],
     ticketTransactionTypes: [
@@ -289,13 +289,20 @@ export class JaeDataService {
       }
     }
   }
-
   public async getTicketRevenuesByPermitCode(
-    permitCode: string,
+    permitCode?: string,
   ): Promise<JaeTicketRevenueInterface[]> {
     await this.updateDataIfNeeded();
     const filteredTicketRevenues = this.ticketRevenues.filter(
       (i) => i.permitCode === permitCode,
+    );
+    return filteredTicketRevenues;
+  }
+  public async getTicketRevenuesMocked(): Promise<JaeTicketRevenueInterface[]> {
+    await this.updateDataIfNeeded();
+    const profiles = this.getTicketRevenuesArgs().jaeProfiles;
+    const filteredTicketRevenues = this.ticketRevenues.filter(
+      (i) => i.permitCode === profiles[0].permitCode,
     );
     return filteredTicketRevenues;
   }

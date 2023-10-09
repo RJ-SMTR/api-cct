@@ -42,7 +42,7 @@ describe('BankStatementsService', () => {
   });
 
   describe('getBankStatementsFromUser', () => {
-    it('should return statements for previous days when user fetched successfully', async () => {
+    it('should return statements for previous days when user fetched successfully', () => {
       // Arrange
       const user = {
         cpfCnpj: allBankStatements[0].cpfCnpj,
@@ -61,7 +61,7 @@ describe('BankStatementsService', () => {
         .mockImplementation(() => new Date('2023-01-22').valueOf());
 
       // Act
-      const result = await bankStatementsService.getBankStatementsFromUser(
+      const result = bankStatementsService.getBankStatementsFromUser(
         user,
         args,
       );
@@ -70,7 +70,7 @@ describe('BankStatementsService', () => {
       expect(result).toEqual(expectedResult);
     });
 
-    it('should return statements between dates when user fetched successfully', async () => {
+    it('should return statements between dates when user fetched successfully', () => {
       // Arrange
       const user = {
         cpfCnpj: allBankStatements[0].cpfCnpj,
@@ -93,7 +93,7 @@ describe('BankStatementsService', () => {
         .mockImplementation(() => new Date('2023-01-22').valueOf());
 
       // Act
-      const result = await bankStatementsService.getBankStatementsFromUser(
+      const result = bankStatementsService.getBankStatementsFromUser(
         user,
         args,
       );

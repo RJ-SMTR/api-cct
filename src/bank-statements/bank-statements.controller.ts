@@ -14,6 +14,7 @@ import { UsersService } from 'src/users/users.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
+import { User } from 'src/users/entities/user.entity';
 
 @ApiTags('BankStatements')
 @Controller({
@@ -39,7 +40,7 @@ export class BankStatementsController {
   ): Promise<CoreBankStatementsInterface[]> {
     const user = await this.usersService.getOneFromRequest(request);
     return this.bankStatementsService.getBankStatementsFromUser(
-      user,
+      { ...user, cpfCnpj: 'cpfCnpj_mocked' } as User,
       profileDto,
     );
   }
