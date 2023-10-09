@@ -1,3 +1,5 @@
+import { HttpStatus } from '@nestjs/common';
+
 export enum HttpErrorMessages {
   INTERNAL_SERVER_ERROR = 'InternalServerError',
   AUTHENTICATION_FAILED = 'AuthenticationFailed',
@@ -6,3 +8,4 @@ export enum HttpErrorMessages {
   UNAUTHORIZED = 'Unauthorized',
   UNPROCESSABLE_ENTITY = 'UnprocessableEntity',
 }
+HttpStatus;

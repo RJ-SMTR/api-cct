@@ -10,5 +10,6 @@ import { IsMatchingTypeConstraint } from 'src/utils/validators/is-matching-type.
   imports: [TypeOrmModule.forFeature([SettingEntity])],
   controllers: [SettingsController],
   providers: [SettingsService, IsNotExist, IsMatchingTypeConstraint],
+  exports: [SettingsService],
 })
 export class SettingsModule {}

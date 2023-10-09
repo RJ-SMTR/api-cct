@@ -12,7 +12,7 @@ export class UpdateSettingsDto {
   })
   name: string;
 
-  @ApiProperty({ examples: [null, '1'], default: null })
+  @ApiProperty({ examples: [null, '1'], default: null, required: false })
   @IsOptional()
   version: string | null;
 

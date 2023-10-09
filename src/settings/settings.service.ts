@@ -5,6 +5,8 @@ import { IsNull, Repository } from 'typeorm';
 import { NullableType } from 'src/utils/types/nullable.type';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { SettingDataInterface } from './interfaces/setting-data.interface';
+import { appSettings } from './app.settings';
 
 @Injectable()
 export class SettingsService {
@@ -53,7 +55,14 @@ export class SettingsService {
     return settings[0];
   }
 
+  async getOneBySettingData(
+    setting: SettingDataInterface,
+  ): Promise<SettingEntity> {
+    return this.getOneByNameVersion(setting.name, setting.version);
+  }
+
   async findByVersion(version: string): Promise<SettingEntity[]> {
+    await this.getOneBySettingData(appSettings.any__activate_auto_send_invite);
     // If no version found, return empty to indicate it
     const count = await this.settingsRepository.count({
       where: { version: version },

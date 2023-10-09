@@ -17,6 +17,17 @@ export class InviteService {
     return this.inviteRepository.save(this.inviteRepository.create(data));
   }
 
+  async find(
+    fields?: EntityCondition<Invite>,
+  ): Promise<NullableType<Invite[]>> {
+    return this.inviteRepository.find({
+      where: fields,
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+  }
+
   findByHash(hash: string): Promise<NullableType<Invite>> {
     return this.inviteRepository.findOne({
       where: {
@@ -56,5 +67,31 @@ export class InviteService {
 
   async softDelete(id: number): Promise<void> {
     await this.inviteRepository.softDelete(id);
+  }
+
+  /**
+   * Sets errors and updates `failedAt`
+   */
+  setInviteError(
+    invite: Invite,
+    args: {
+      smtpErrorCode?: number | null;
+      httpErrorCode?: number | null;
+    },
+  ) {
+    if (args.smtpErrorCode === undefined && args.httpErrorCode === undefined) {
+      return;
+    }
+    if (args.smtpErrorCode !== undefined) {
+      invite.smtpErrorCode = args.smtpErrorCode;
+    }
+    if (args.httpErrorCode !== undefined) {
+      invite.httpErrorCode = args.httpErrorCode;
+    }
+    if (invite.smtpErrorCode === null && invite.httpErrorCode === null) {
+      invite.failedAt = null;
+    } else {
+      invite.failedAt = new Date(Date.now());
+    }
   }
 }

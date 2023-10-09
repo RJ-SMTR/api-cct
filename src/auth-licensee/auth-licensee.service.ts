@@ -18,6 +18,7 @@ import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { JaeService } from 'src/jae/jae.service';
 import { JaeProfileInterface } from 'src/jae/interfaces/jae-profile.interface';
 import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class AuthLicenseeService {
@@ -28,6 +29,7 @@ export class AuthLicenseeService {
     private jaeService: JaeService,
     private inviteService: InviteService,
     private baseValidator: BaseValidator,
+    private mailService: MailService,
   ) {}
 
   async validateLogin(
@@ -193,19 +195,19 @@ export class AuthLicenseeService {
       );
     }
 
-    // if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
-    //   throw new HttpException(
-    //     {
-    //       error: HttpErrorMessages.UNAUTHORIZED,
-    //       details: {
-    //         invite: {
-    //           inviteStatus: `expected 'sent' but got '${invite.inviteStatus.name}'`
-    //         }
-    //       },
-    //     },
-    //     HttpStatus.UNAUTHORIZED,
-    //   );
-    // }
+    if (invite.inviteStatus.id === InviteStatusEnum.used) {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
+            invite: {
+              inviteStatus: `inviteAlreadyUsed'`,
+            },
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
 
     const user = await this.usersService.getOne({ id: invite.user.id });
 

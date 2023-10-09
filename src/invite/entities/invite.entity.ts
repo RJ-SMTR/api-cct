@@ -6,7 +6,6 @@ import {
   Entity,
   ManyToOne,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Allow } from 'class-validator';
@@ -38,14 +37,23 @@ export class Invite extends BaseEntity {
   })
   inviteStatus: InviteStatus;
 
-  @Column({ type: Date, nullable: true })
-  expiresAt: Date | null;
+  @Column({ type: Number, nullable: true })
+  smtpErrorCode?: number | null;
+
+  @Column({ type: Number, nullable: true })
+  httpErrorCode?: number | null;
 
   @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @Column({ type: Date, nullable: true })
+  expiresAt: Date | null;
+
+  @Column({ type: Date, nullable: true })
+  failedAt?: Date | null;
+
+  @Column({ type: Date, nullable: true })
+  sentAt?: Date;
 
   @DeleteDateColumn()
   @Exclude()

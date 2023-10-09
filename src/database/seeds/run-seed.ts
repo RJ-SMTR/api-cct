@@ -8,19 +8,35 @@ import { InfoSeedService } from './info/info-seed.service';
 import { InviteStatusSeedService } from './invite-status/invite-status-seed.service';
 import { SettingTypeSeedService } from './setting-type/setting-type.service';
 import { SettingSeedService } from './setting/setting-seed.service';
+import { MailCountSeedService } from './mail-count/mail-count-seed.service';
 
 const runSeed = async () => {
   const app = await NestFactory.create(SeedModule);
 
+  // filter
+  let services = [
+    RoleSeedService,
+    StatusSeedService,
+    UserSeedService,
+    InfoSeedService,
+    BankSeedService,
+    InviteStatusSeedService,
+    SettingTypeSeedService,
+    SettingSeedService,
+    MailCountSeedService,
+  ];
+
+  const nameFilter = process.argv.slice(2)[0];
+  if (nameFilter) {
+    services = services.filter((module) =>
+      module.name.toLowerCase().includes(nameFilter.toLowerCase()),
+    );
+  }
+
   // run
-  await app.get(RoleSeedService).run();
-  await app.get(StatusSeedService).run();
-  await app.get(UserSeedService).run();
-  await app.get(InfoSeedService).run();
-  await app.get(BankSeedService).run();
-  await app.get(InviteStatusSeedService).run();
-  await app.get(SettingTypeSeedService).run();
-  await app.get(SettingSeedService).run();
+  for (const module of services) {
+    await app.get(module).run();
+  }
 
   await app.close();
 };

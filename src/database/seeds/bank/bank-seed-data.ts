@@ -9,7 +9,7 @@ const filePath = `${__dirname}/data/bank-data.json`;
 const bankDataJson = fs.readFileSync(filePath, 'utf8');
 const bankDataObject = JSON.parse(bankDataJson);
 
-export const bankSeedData: BankDataInterface[] = bankDataObject.map(
+export const bankData: BankDataInterface[] = bankDataObject.map(
   (item: any) =>
     item !== undefined &&
     Object.values(item).every((v) => v !== null && v !== undefined) && {

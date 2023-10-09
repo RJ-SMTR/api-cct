@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../users/entities/user.entity';
 import * as bcrypt from 'bcryptjs';
@@ -25,6 +25,8 @@ import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-ba
 
 @Injectable()
 export class AuthService {
+  private logger: Logger = new Logger('AuthService');
+
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
@@ -183,14 +185,15 @@ export class AuthService {
       hash,
     });
 
-    const link = await this.mailService.userSignUp({
-      to: dto.email,
-      data: {
-        hash,
-      },
-    });
+    const { mailConfirmationLink: emailConfirmationLink } =
+      await this.mailService.userConcludeRegistration({
+        to: dto.email,
+        data: {
+          hash,
+        },
+      });
 
-    return { link: link };
+    return { link: emailConfirmationLink };
   }
 
   async confirmEmail(hash: string): Promise<void> {
@@ -224,15 +227,8 @@ export class AuthService {
     };
 
     if (!user) {
-      throw new HttpException(
-        {
-          response: returnMessage,
-          details: {
-            email: 'emailNotExists',
-          },
-        },
-        HttpStatus.ACCEPTED,
-      );
+      this.logger.warn(`forgotPassword(): email '${email}' does not exists`);
+      return returnMessage;
     }
 
     const hash = crypto

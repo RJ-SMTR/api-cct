@@ -13,6 +13,8 @@ import { BankSeedModule } from './bank/bank-seed.module';
 import { InviteStatusSeedModule } from './invite-status/invite-status-seed.module';
 import { SettingTypeSeedModule } from './setting-type/setting-type.module';
 import { SettingSeedModule } from './setting/setting-seed.module';
+import { MailCountSeedModule } from './mail-count/mail-count-seed.module';
+import mailConfig from 'src/config/mail.config';
 
 @Module({
   imports: [
@@ -24,9 +26,10 @@ import { SettingSeedModule } from './setting/setting-seed.module';
     InviteStatusSeedModule,
     SettingTypeSeedModule,
     SettingSeedModule,
+    MailCountSeedModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, appConfig],
+      load: [databaseConfig, appConfig, mailConfig],
       envFilePath: ['.env'],
     }),
     TypeOrmModule.forRootAsync({

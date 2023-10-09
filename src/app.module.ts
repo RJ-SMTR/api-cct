@@ -38,6 +38,8 @@ import { BanksModule } from './banks/banks.module';
 import { BankStatementsModule } from './bank-statements/bank-statements.module';
 import { TicketRevenuesModule } from './ticket-revenues/ticket-revenues.module';
 import { SettingsModule } from './settings/settings.module';
+import { MailCountModule } from './mail-count/mail-count.module';
+import { CronJobsModule } from './cron-jobs/cron-jobs.module';
 
 @Module({
   imports: [
@@ -104,6 +106,8 @@ import { SettingsModule } from './settings/settings.module';
     BankStatementsModule,
     TicketRevenuesModule,
     SettingsModule,
+    MailCountModule,
+    CronJobsModule,
   ],
 })
 export class AppModule {}

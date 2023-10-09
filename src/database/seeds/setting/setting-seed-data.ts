@@ -1,29 +1,7 @@
-import { SettingTypeEnum } from 'src/setting-types/setting-type.enum';
+import { appSettings } from 'src/settings/app.settings';
 import { SettingDataInterface } from 'src/settings/interfaces/setting-data.interface';
+import { SettingsRecordType } from 'src/settings/types/settings-record.type';
 
 export const settingSeedData: SettingDataInterface[] = [
-  // settings for any api version
-  {
-    name: 'activate_auto_send_invite',
-    value: 'false',
-    version: null,
-    editable: true,
-    settingType: SettingTypeEnum.boolean,
-  },
-
-  // v1
-  {
-    name: 'ab_test_enabled',
-    value: 'false',
-    version: '1',
-    editable: false,
-    settingType: SettingTypeEnum.boolean,
-  },
-  {
-    name: 'user_file_max_upload_size',
-    value: '10MB',
-    version: '1',
-    editable: false,
-    settingType: SettingTypeEnum.string,
-  },
+  ...Object.values(appSettings as SettingsRecordType),
 ];
