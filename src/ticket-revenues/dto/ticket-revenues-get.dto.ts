@@ -6,7 +6,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
-import { AreFieldsEmpty } from 'src/utils/validators/are-others-not-filled.validator';
+import { AreFieldsEmpty } from 'src/utils/validators/are-fields-empty.validator';
 
 export class TicketRevenuesGetDto {
   @ApiProperty({ example: '2023-07-05' })

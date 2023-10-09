@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { JaeDataService } from './data/jae-data.service';
 import { JaeProfileInterface } from './interfaces/jae-profile.interface';
 import { JaeTicketRevenueInterface } from './interfaces/jae-ticket-revenue.interface';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class JaeService {
@@ -47,5 +48,14 @@ export class JaeService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  public getGeneratedProfileByUser(user: User): JaeProfileInterface {
+    return {
+      id: 1,
+      passValidatorId: String(user.passValidatorId),
+      plate: 'ABC123',
+      permitCode: Math.floor(Math.random() * 1e15).toString(),
+    };
   }
 }

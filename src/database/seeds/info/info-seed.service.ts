@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Info } from 'src/info/entities/info.entity';
 import { Repository } from 'typeorm';
-import { infoData } from './info-data';
+import { infoSeedData } from './info-seed-data';
 
 @Injectable()
 export class InfoSeedService {
@@ -13,7 +13,7 @@ export class InfoSeedService {
 
   async run() {
     let id = 1;
-    for (const item of infoData) {
+    for (const item of infoSeedData) {
       const count = await this.repository.count({
         where: {
           name: item.name,

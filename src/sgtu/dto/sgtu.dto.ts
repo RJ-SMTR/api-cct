@@ -1,5 +1,4 @@
-import { IsNotEmpty, Validate } from 'class-validator';
-import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
+import { IsNotEmpty } from 'class-validator';
 
 export class SgtuDto {
   id?: string;
@@ -7,23 +6,14 @@ export class SgtuDto {
   fullName: string;
 
   @IsNotEmpty()
-  @Validate(IsNotExist, ['User'], {
-    message: 'licenseeAlreadyRegistered',
-  })
   cpfCnpj: string;
 
   @IsNotEmpty()
-  @Validate(IsNotExist, ['User'], {
-    message: 'permitCodeAlreadyRegistered',
-  })
   permitCode: string;
 
   isSgtuBlocked: boolean;
 
   @IsNotEmpty()
-  @Validate(IsNotExist, ['User'], {
-    message: 'emailAlreadyRegistered',
-  })
   email: string;
 
   rg?: string;

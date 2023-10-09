@@ -43,6 +43,9 @@ class EnvironmentVariablesValidator {
 
   @IsBoolean()
   MAIL_REQUIRE_TLS: boolean;
+
+  @IsString()
+  MAIL_INVITE_CRONJOB: string;
 }
 
 export default registerAs<MailConfig>('mail', () => {
@@ -58,5 +61,6 @@ export default registerAs<MailConfig>('mail', () => {
     ignoreTLS: process.env.MAIL_IGNORE_TLS === 'true',
     secure: process.env.MAIL_SECURE === 'true',
     requireTLS: process.env.MAIL_REQUIRE_TLS === 'true',
+    inviteCronjob: process.env.MAIL_INVITE_CRONJOB,
   };
 });
