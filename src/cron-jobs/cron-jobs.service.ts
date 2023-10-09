@@ -63,6 +63,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         `bulkSendInvites(): job finished because ${appSettings.any__activate_auto_send_invite.name} = 'false'`,
       );
+
       return;
     }
 
