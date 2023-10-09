@@ -23,7 +23,6 @@ import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity'
 @Entity()
 export class User extends EntityHelper {
   @PrimaryGeneratedColumn()
-  @Exclude({ toPlainOnly: true })
   id: number;
 
   // For "string | null" we need to use String type.
