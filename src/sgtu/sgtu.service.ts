@@ -10,17 +10,21 @@ export class SgtuService {
     // TODO: fetch instead of mockup
 
     const sgtuResponseObject = await JSON.parse(sgtuResponseMockup);
-    const sgtuResponse: SgtuDto[] = sgtuResponseObject.data.map((item) => ({
-      id: item.id,
-      cpfCnpj: item.cpf,
-      rg: item.rg,
-      permitCode: item.autorizacao,
-      fullName: item.nome,
-      plate: item.placa,
-      phone: item.telefone,
-      isSgtuBlocked: item.bloqueado,
-      email: item.email,
-    }));
+    const sgtuResponse: SgtuDto[] = sgtuResponseObject.data.map(
+      (item) =>
+        ({
+          id: item.id,
+          cpfCnpj: item.cpf,
+          rg: item.rg,
+          permitCode: item.autorizacao,
+          fullName: item.nome,
+          vehiclePlate: item.placa,
+          vehicleOrderNumberId: item.ordem,
+          phone: item.telefone,
+          isSgtuBlocked: item.bloqueado,
+          email: item.email,
+        } as SgtuDto),
+    );
 
     const filteredData = sgtuResponse.filter(
       (item) => item.permitCode === permitCode,

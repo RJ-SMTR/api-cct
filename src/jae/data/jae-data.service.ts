@@ -5,31 +5,94 @@ import { JaeStopTimesInterface } from '../interfaces/jae-stop-times.interface';
 import { JaeValidatorGtfsDataInterface } from '../interfaces/jae-validator-gtfs-data.interface';
 import { JaeProfileInterface } from '../interfaces/jae-profile.interface';
 
+interface ProbabilityInterface {
+  name: string | null;
+  probability: number;
+  bigqueryName: string | null;
+  id: number;
+}
+
 @Injectable()
 export class JaeDataService {
-  private tripIncomes: JaeTicketRevenueInterface[] = [];
+  private ticketRevenues: JaeTicketRevenueInterface[] = [];
   private ticketRevenuesArgs = {
     startHour: 13,
     endHour: 18,
     minutesInterval: 30,
     weeks: 4 * 3,
     highDemandProbability: 0.2,
-    ticketValue: 4.3,
+    ticketTransactionValue: 4.3,
     tripsPerLicensee: 1,
     jaeProfiles: [
       {
-        id: 1,
-        permitCode: '213890329890312',
-        plate: 'ABC1234',
-        passValidatorId: '19003842273',
+        id: 2,
+        permitCode: 'permitCode_mock',
+        vehiclePlate: 'GHI8901',
+        passValidatorId: '187103490390',
+        vehicleOrderNumberId: 102373242,
       },
       {
-        id: 2,
-        permitCode: '218302734908664',
-        plate: 'DEF4567',
-        passValidatorId: '18710349009',
+        id: 1,
+        permitCode: '213890329890312',
+        vehiclePlate: 'ABC1234',
+        passValidatorId: '19003842273',
+        vehicleOrderNumberId: 102373241,
       },
     ] as JaeProfileInterface[],
+    ticketTransactionTypes: [
+      {
+        name: 'full',
+        probability: 0.6,
+        bigqueryName: 'inteira',
+        id: 1,
+      },
+      {
+        name: 'half',
+        probability: 0.2,
+        bigqueryName: 'meia',
+        id: 2,
+      },
+      {
+        name: 'free',
+        probability: 0.2,
+        bigqueryName: 'gratuidade',
+        id: 3,
+      },
+    ] as ProbabilityInterface[],
+    ticketPaymentMediaTypes: [
+      {
+        name: 'phone',
+        probability: 0.8,
+        bigqueryName: 'telefone',
+        id: 1,
+      },
+      {
+        name: 'card',
+        probability: 0.2,
+        bigqueryName: 'cartao',
+        id: 2,
+      },
+    ] as ProbabilityInterface[],
+    transportIntegrationTypes: [
+      {
+        name: null,
+        probability: 0.5,
+        bigqueryName: null,
+        id: 1,
+      },
+      {
+        name: 'van',
+        probability: 0.3,
+        bigqueryName: 'van',
+        id: 2,
+      },
+      {
+        name: 'bus_supervia',
+        probability: 0.2,
+        bigqueryName: 'supervia',
+        id: 3,
+      },
+    ] as ProbabilityInterface[],
   };
   private readonly baseUrlMobilidade = 'https://api.mobilidade.rio';
   private stopTimes: JaeStopTimesInterface[] = [];
@@ -41,6 +104,27 @@ export class JaeDataService {
     return Math.random() > probabilityHighValue
       ? Math.floor(Math.random() * 20)
       : 20 + Math.floor(Math.random() * 81);
+  }
+
+  private getItemByProbability(probabilities: ProbabilityInterface[]): any {
+    const totalWeight = probabilities.reduce(
+      (total, object) => total + object.probability,
+      0,
+    );
+    const randomNum = Math.random() * totalWeight;
+    let currentPosition = 0;
+    let chosenObject: any = null;
+    for (const object of probabilities) {
+      if (
+        randomNum >= currentPosition &&
+        randomNum < currentPosition + object.probability
+      ) {
+        chosenObject = object;
+        break;
+      }
+      currentPosition += object.probability;
+    }
+    return chosenObject;
   }
 
   private getTicketRevenuesArgs() {
@@ -91,13 +175,16 @@ export class JaeDataService {
     const {
       minutesInterval,
       weeks,
-      ticketValue,
+      ticketTransactionValue,
       highDemandProbability,
       startHour,
       endHour,
       jaeProfiles,
+      ticketTransactionTypes,
+      ticketPaymentMediaTypes,
+      transportIntegrationTypes,
     } = this.getTicketRevenuesArgs();
-    const tripIncomes: JaeTicketRevenueInterface[] = [];
+    const ticketRevenues: JaeTicketRevenueInterface[] = [];
     this.vehicleData = [];
     const uniqueTripsList: string[] = [
       ...new Set(this.stopTimes.map((i) => i.trip_id.trip_id)),
@@ -138,31 +225,56 @@ export class JaeDataService {
           date.setUTCDate(date.getUTCDate() - day);
           date.setUTCHours(startHour, totalMinutes - currentMinute);
           const newTripIncome: JaeTicketRevenueInterface = {
-            id: tripIncomes.length,
-            dateTime: date.toISOString(),
-            lat: stopTime.stop_id.stop_lat,
-            lon: stopTime.stop_id.stop_lon,
-            plate: profile.plate,
-            passValidatorId: profile.passValidatorId,
-            amount: ticketValue,
-            transactions: this.generateRandomNumber(highDemandProbability),
+            id: ticketRevenues.length,
+            transactionDateTime: date.toISOString(),
+            transactionValue: ticketTransactionValue,
+            transactionLat: stopTime.stop_id.stop_lat,
+            transactionLon: stopTime.stop_id.stop_lon,
+            vehicleOrderNumberId: profile.vehicleOrderNumberId,
+            permitCode: profile.permitCode,
+
+            // Not needed fields
+            clientId: `${ticketRevenues.length}`,
+            stopId: stopTime.stop_id.stop_id,
+            integrationId: 0,
+            individualIntegrationId: 0,
+            dateIndex: date.toISOString(),
+            processingDateTime: date.toISOString(),
+            captureDateTime: date.toISOString(),
+            vehicleService: 0,
+            directionId: 0,
+            stopLat: stopTime.stop_id.stop_lat,
+            stopLon: stopTime.stop_id.stop_lon,
           };
-          tripIncomes.push(newTripIncome);
+          const transactions = this.generateRandomNumber(highDemandProbability);
+          for (let i = 0; i < transactions; i++) {
+            ticketRevenues.push({
+              ...newTripIncome,
+              transactionType: this.getItemByProbability(ticketTransactionTypes)
+                .name,
+              paymentMediaType: this.getItemByProbability(
+                ticketPaymentMediaTypes,
+              ).name,
+              transportIntegrationType: this.getItemByProbability(
+                transportIntegrationTypes,
+              ).name,
+            });
+          }
         }
       }
     }
-    this.tripIncomes = tripIncomes;
+    this.ticketRevenues = ticketRevenues;
   }
 
   private async updateDataIfNeeded() {
     if (this.stopTimes.length === 0) {
       await this.setStopTimes();
       this.setTicketRevenues();
-    } else if (this.tripIncomes.length === 0) {
+    } else if (this.ticketRevenues.length === 0) {
       this.setTicketRevenues();
     } else {
       const now = new Date(Date.now());
-      const lastDate = new Date(this.tripIncomes[0].dateTime);
+      const lastDate = new Date(this.ticketRevenues[0].transactionDateTime);
       const minutesDifference =
         (now.getTime() - lastDate.getTime()) / (1000 * 60);
       const { minutesInterval, startHour, endHour } =
@@ -177,15 +289,22 @@ export class JaeDataService {
       }
     }
   }
-
-  public async getTicketRevenuesByValidator(
-    passValidatorId: string,
+  public async getTicketRevenuesByPermitCode(
+    permitCode?: string,
   ): Promise<JaeTicketRevenueInterface[]> {
     await this.updateDataIfNeeded();
-    const filteredTripIncomes = this.tripIncomes.filter(
-      (i) => i.passValidatorId === passValidatorId,
+    const filteredTicketRevenues = this.ticketRevenues.filter(
+      (i) => i.permitCode === permitCode,
     );
-    return filteredTripIncomes;
+    return filteredTicketRevenues;
+  }
+  public async getTicketRevenuesMocked(): Promise<JaeTicketRevenueInterface[]> {
+    await this.updateDataIfNeeded();
+    const profiles = this.getTicketRevenuesArgs().jaeProfiles;
+    const filteredTicketRevenues = this.ticketRevenues.filter(
+      (i) => i.permitCode === profiles[0].permitCode,
+    );
+    return filteredTicketRevenues;
   }
 
   public getProfiles() {

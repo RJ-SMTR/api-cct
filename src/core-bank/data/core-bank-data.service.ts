@@ -6,7 +6,7 @@ import { CoreBankProfileInterface } from '../interfaces/core-bank-profile.interf
 export class CoreBankDataService {
   private bankStatements: CoreBankStatementsInterface[];
   public bankStatementsArgs: any = {
-    cpfs: ['79858972679', '98765432100'],
+    cpfs: ['cpfCnpj_mocked', '98765432100'],
     weeks: 4 * 3,
     maxValue: 1500,
     minValue: 50,
@@ -15,7 +15,7 @@ export class CoreBankDataService {
   private profiles: CoreBankProfileInterface[] = [
     {
       id: 1,
-      cpfCnpj: '79858972679',
+      cpfCnpj: 'cpfCnpj_mocked',
       bankCode: 1,
       bankAgencyCode: '2234',
       bankAgencyDigit: '9',

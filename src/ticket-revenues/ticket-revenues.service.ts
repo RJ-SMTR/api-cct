@@ -13,12 +13,12 @@ export class TicketRevenuesService {
     user: User,
     args: TicketRevenuesGetDto,
   ): Promise<JaeTicketRevenueInterface[]> {
-    if (!user.passValidatorId) {
+    if (!user.permitCode) {
       throw new HttpException(
         {
           details: {
             user: {
-              passValidatorId: 'fieldIsEmpty',
+              permitCode: 'fieldIsEmpty',
             },
           },
         },
@@ -28,15 +28,15 @@ export class TicketRevenuesService {
 
     // TODO: fetch instead of mockup
 
+    // TODO: get by user.permitCode
     const ticketRevenuesResponse =
-      await this.jaeService.getTicketRevenuesByValidator(user.passValidatorId);
-    console.log('response:', typeof ticketRevenuesResponse);
+      await this.jaeService.getTicketRevenuesMocked();
     if (ticketRevenuesResponse.length === 0) {
       throw new HttpException(
         {
           error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
           details: {
-            passValidatorId: 'fetchResultNotFound',
+            permitCode: 'fetchResultNotFound',
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -54,7 +54,7 @@ export class TicketRevenuesService {
       previousDaysDate.setUTCHours(0, 0, 0, 0);
 
       const todayDate = new Date(Date.now());
-      const itemDate: Date = new Date(item.dateTime);
+      const itemDate: Date = new Date(item.transactionDateTime);
       const startDate: Date | null = args?.startDate
         ? new Date(args.startDate)
         : null;

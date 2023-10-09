@@ -16,9 +16,11 @@ export class SgtuDto {
   @IsNotEmpty()
   email: string;
 
+  vehicleOrderNumberId: number;
+
   rg?: string;
 
-  plate?: string;
+  vehiclePlate?: string;
 
   phone?: string;
 }

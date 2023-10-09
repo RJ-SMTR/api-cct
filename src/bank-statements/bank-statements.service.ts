@@ -29,8 +29,9 @@ export class BankStatementsService {
     }
 
     // TODO: fetch instead of mockup
+    // TODO: get by user.cpfCnpj
     const bankStatementsResponse =
-      this.coreBankService.getBankStatementsByCpfCnpj(user.cpfCnpj);
+      this.coreBankService.getBankStatementsMocked();
     if (bankStatementsResponse.length === 0) {
       throw new HttpException(
         {
@@ -70,6 +71,12 @@ export class BankStatementsService {
         previousDaysDate &&
         itemDate >= previousDaysDate &&
         itemDate <= todayDate;
+
+      console.log({
+        isCpfCnpj: item.cpfCnpj === user.cpfCnpj,
+        item_cpf: item.cpfCnpj,
+        user_cpf: user.cpfCnpj,
+      });
 
       return (
         item.cpfCnpj === user.cpfCnpj &&

@@ -43,9 +43,6 @@ export class CoreBankService {
     }
   }
 
-  /**
-   * Return mokcked json API response
-   */
   public getBankStatementsByCpfCnpj(
     cpfCnpj: string,
   ): CoreBankStatementsInterface[] {
@@ -53,6 +50,16 @@ export class CoreBankService {
     return this.coreBankDataService
       .getBankStatements()
       .filter((i) => i.cpfCnpj === cpfCnpj);
+  }
+
+  public getBankStatementsMocked(): CoreBankStatementsInterface[] {
+    // TODO: fetch instead of mockup
+    const profiles = this.coreBankDataService.getProfiles();
+    const statements = this.coreBankDataService.getBankStatements();
+    const filteredData = statements.filter(
+      (i) => i.cpfCnpj === profiles[0].cpfCnpj,
+    );
+    return filteredData;
   }
 
   update(cpfCnpj: string, coreBankProfile: UpdateCoreBankInterface) {

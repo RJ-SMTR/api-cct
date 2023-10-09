@@ -1,6 +1,7 @@
 export interface JaeProfileInterface {
   id: number;
   permitCode: string;
-  plate: string;
+  vehiclePlate: string;
+  vehicleOrderNumberId: number;
   passValidatorId: string;
 }

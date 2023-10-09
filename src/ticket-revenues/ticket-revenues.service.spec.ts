@@ -4,7 +4,6 @@ import { Provider } from '@nestjs/common';
 import { JaeService } from 'src/jae/jae.service';
 import { User } from 'src/users/entities/user.entity';
 import { JaeTicketRevenueInterface } from 'src/jae/interfaces/jae-ticket-revenue.interface';
-import { Between } from 'typeorm';
 
 describe('TicketRevenuesService', () => {
   let ticketRevenuesService: TicketRevenuesService;
@@ -14,7 +13,7 @@ describe('TicketRevenuesService', () => {
     const jaeServiceMock = {
       provide: JaeService,
       useValue: {
-        getTicketRevenuesByValidator: jest.fn(),
+        getTicketRevenuesByPermitCode: jest.fn(),
       },
     } as Provider;
     const module: TestingModule = await Test.createTestingModule({
@@ -44,23 +43,36 @@ describe('TicketRevenuesService', () => {
           const hourStr = (i * 10).toString().padStart(2, '0');
           expectedResult.push({
             id: i,
-            amount: i,
-            dateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
-            lat: i,
-            lon: i,
-            passValidatorId: `passValidatorId_${i}`,
-            plate: `plate_${i}`,
-            transactions: i,
+            paymentMediaType: `media_${i}`,
+            transportIntegrationType: `integration_${i}`,
+            transactionType: `transaction_${i}`,
+            transactionDateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
+            transactionValue: i,
+            transactionLat: i,
+            transactionLon: i,
+            vehicleOrderNumberId: i,
+            permitCode: `permitCode_${i}`,
+            // Extra fields
+            clientId: `clientId_${i}`,
+            integrationId: i,
+            individualIntegrationId: i,
+            dateIndex: `dateIndex_${i}`,
+            processingDateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
+            captureDateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
+            vehicleService: i,
+            directionId: i,
+            stopId: `stopId_${i}`,
+            stopLat: i,
+            stopLon: i,
           });
         }
       }
       const user = {
         id: 1,
-        passValidatorId: expectedResult[0].passValidatorId,
         permitCode: 'permitCode_1',
       } as Partial<User>;
       jest
-        .spyOn(jaeService, 'getTicketRevenuesByValidator')
+        .spyOn(jaeService, 'getTicketRevenuesByPermitCode')
         .mockResolvedValue(expectedResult);
       jest
         .spyOn(global.Date, 'now')
@@ -80,7 +92,6 @@ describe('TicketRevenuesService', () => {
           endDate: '2023-06-03',
         },
       );
-      Between;
       // Assert
       expect(resultPreviousDays).toEqual(expectedResult.slice(0, 6));
       expect(resultBetweenDates).toEqual(expectedResult.slice(3, 9));
