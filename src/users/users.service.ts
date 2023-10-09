@@ -9,17 +9,24 @@ import { NullableType } from '../utils/types/nullable.type';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { Request } from 'express';
 import * as xlsx from 'xlsx';
-import { CreateUserExcelDto } from './dto/create-user-excel.dto';
+import * as crypto from 'crypto';
+import { CreateFileUserDto } from './dto/create-file-user.dto';
 import { validate } from 'class-validator';
 import { plainToClass } from 'class-transformer';
 import { FileUserInterface } from './interfaces/file-user.interface';
-import { ExcelUserMap } from './mappings/excel-user.map';
+import { FileUserMap } from './mappings/file-user.map';
+import { StatusEnum } from 'src/statuses/statuses.enum';
+import { InviteService } from 'src/invite/invite.service';
+import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
+import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
-    private usersRepository: Repository<User>, // private baseValidator: BaseValidator,
+    private usersRepository: Repository<User>,
+    private inviteService: InviteService,
   ) {}
 
   create(createProfileDto: CreateUserDto): Promise<User> {
@@ -28,28 +35,53 @@ export class UsersService {
     );
   }
 
-  findManyWithPagination(
+  async findManyWithPagination(
     paginationOptions: IPaginationOptions,
   ): Promise<User[]> {
-    return this.usersRepository.find({
+    const users = await this.usersRepository.find({
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
     });
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i];
+      if (user !== null) {
+        user.aux_inviteStatus = await this.getAux_inviteSatus(user);
+      }
+      users[i] = user;
+    }
+    return users;
   }
 
-  findOne(fields: EntityCondition<User>): Promise<NullableType<User>> {
-    return this.usersRepository.findOne({
+  private async getAux_inviteSatus(
+    user: User | null,
+  ): Promise<InviteStatus | null> {
+    const invite = await this.inviteService.findRecentByUser(user);
+    let inviteStatus: InviteStatus | null = null;
+    if (invite?.inviteStatus !== undefined) {
+      inviteStatus = invite.inviteStatus;
+    }
+    return inviteStatus;
+  }
+
+  async findOne(fields: EntityCondition<User>): Promise<NullableType<User>> {
+    const user = await this.usersRepository.findOne({
       where: fields,
     });
+    if (user !== null) {
+      user.aux_inviteStatus = await this.getAux_inviteSatus(user);
+    }
+    return user;
   }
 
-  update(id: number, payload: DeepPartial<User>): Promise<User> {
-    return this.usersRepository.save(
+  async update(id: number, payload: DeepPartial<User>): Promise<User> {
+    const user = await this.usersRepository.save(
       this.usersRepository.create({
         id,
         ...payload,
       }),
     );
+    user.aux_inviteStatus = await this.getAux_inviteSatus(user);
+    return user;
   }
 
   async softDelete(id: number): Promise<void> {
@@ -69,6 +101,7 @@ export class UsersService {
         HttpStatus.UNAUTHORIZED,
       );
     }
+    user.aux_inviteStatus = await this.getAux_inviteSatus(user);
     return user;
   }
 
@@ -119,13 +152,13 @@ export class UsersService {
     return worksheet;
   }
 
-  async getExcelUsersFromWorksheet(
+  async getFileUsersFromWorksheet(
     worksheet: xlsx.WorkSheet,
     expectedUserFields: string[],
     validatorDto,
   ): Promise<FileUserInterface[]> {
-    const expectedExcelUserFields: string[] = expectedUserFields.map(
-      (str) => ExcelUserMap[str] || str,
+    const expectedFileUserFields: string[] = expectedUserFields.map(
+      (str) => FileUserMap[str] || str,
     );
     const headers: any[] = [];
     for (const key in worksheet) {
@@ -135,23 +168,15 @@ export class UsersService {
         }
       }
     }
-    if (!expectedExcelUserFields.every((item1) => headers.includes(item1))) {
+    if (!headers.every((item1) => expectedFileUserFields.includes(item1))) {
       throw new HttpException(
-        {
-          error: {
-            file: {
-              message: 'inivalidHeaders',
-              receivedHeaders: headers,
-              expectedHeaders: expectedExcelUserFields,
-            },
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        'Error parsing file user: invalid headers',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
 
-    const excelData = xlsx.utils.sheet_to_json(worksheet);
-    const excelUsers: FileUserInterface[] = excelData.map((item) => ({
+    const fileData = xlsx.utils.sheet_to_json(worksheet);
+    const fileUsers: FileUserInterface[] = fileData.map((item) => ({
       user: {
         permitCode: (item as any).codigo_permissionario,
         email: (item as any).email,
@@ -159,9 +184,9 @@ export class UsersService {
       errors: {},
     }));
     let row = 2;
-    for (let i = 0; i < excelUsers.length; i++) {
-      const excelUser = excelUsers[i];
-      const schema = plainToClass(validatorDto, excelUser.user);
+    for (let i = 0; i < fileUsers.length; i++) {
+      const fileUser = fileUsers[i];
+      const schema = plainToClass(validatorDto, fileUser.user);
       const errors = await validate(schema as Record<string, any>, {
         stopAtFirstError: true,
       });
@@ -175,23 +200,23 @@ export class UsersService {
         },
         {},
       );
-      excelUsers[i] = {
+      fileUsers[i] = {
         row: row,
-        ...excelUser,
+        ...fileUser,
         errors: errorDictionary,
       };
       row++;
     }
-    return excelUsers;
+    return fileUsers;
   }
 
   async createFromFile(file: Express.Multer.File): Promise<any> {
     const worksheet = this.getWorksheetFromFile(file);
     const expectedUserFields = ['permitCode', 'email'];
-    const fileUsers = await this.getExcelUsersFromWorksheet(
+    const fileUsers = await this.getFileUsersFromWorksheet(
       worksheet,
       expectedUserFields,
-      CreateUserExcelDto,
+      CreateFileUserDto,
     );
     const invalidUsers = fileUsers.filter(
       (i) => Object.keys(i.errors).length > 0,
@@ -202,7 +227,7 @@ export class UsersService {
           error: {
             file: {
               message: 'invalidRows',
-              headerMap: ExcelUserMap,
+              headerMap: FileUserMap,
               invalidRows: invalidUsers,
             },
           },
@@ -211,10 +236,28 @@ export class UsersService {
       );
     }
 
-    for (const excelUser of fileUsers) {
-      await this.usersRepository.save(
-        this.usersRepository.create(excelUser.user),
-      );
+    for (const fileUser of fileUsers) {
+      const hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+      const createdUser = this.usersRepository.create({
+        ...fileUser.user,
+        hash: hash,
+        status: {
+          id: StatusEnum.register,
+        },
+      } as DeepPartial<User>);
+      await this.usersRepository.save(createdUser);
+
+      await this.inviteService.create({
+        user: createdUser,
+        hash: hash,
+        email: createdUser.email as string,
+        inviteStatus: {
+          id: InviteStatusEnum.created,
+        },
+      });
     }
     return HttpStatus.CREATED;
   }
