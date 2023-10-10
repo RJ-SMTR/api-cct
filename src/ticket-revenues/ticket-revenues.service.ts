@@ -4,6 +4,7 @@ import { TicketRevenuesGetDto } from './dto/ticket-revenues-get.dto';
 import { JaeService } from 'src/jae/jae.service';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { JaeTicketRevenueInterface } from 'src/jae/interfaces/jae-ticket-revenue.interface';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -12,6 +13,7 @@ export class TicketRevenuesService {
   public async getDataFromUser(
     user: User,
     args: TicketRevenuesGetDto,
+    pagination: IPaginationOptions,
   ): Promise<JaeTicketRevenueInterface[]> {
     if (!user.permitCode) {
       throw new HttpException(
@@ -30,7 +32,7 @@ export class TicketRevenuesService {
 
     // TODO: get by user.permitCode
     const ticketRevenuesResponse =
-      await this.jaeService.getTicketRevenuesMocked();
+      await this.jaeService.getTicketRevenuesMocked(pagination);
     if (ticketRevenuesResponse.length === 0) {
       throw new HttpException(
         {

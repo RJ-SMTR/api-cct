@@ -20,6 +20,7 @@ import { InviteService } from 'src/invite/invite.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
 import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
+import { getEnumKey } from 'src/utils/get-enum-key';
 
 @Injectable()
 export class UsersService {
@@ -160,18 +161,28 @@ export class UsersService {
     const expectedFileUserFields: string[] = expectedUserFields.map(
       (str) => FileUserMap[str] || str,
     );
-    const headers: any[] = [];
+    const receivedHeaders: any[] = [];
     for (const key in worksheet) {
       if (worksheet.hasOwnProperty(key)) {
         if (key.endsWith('1')) {
-          headers.push(worksheet[key].v);
+          receivedHeaders.push(worksheet[key].v);
         }
       }
     }
-    if (!headers.every((item1) => expectedFileUserFields.includes(item1))) {
+    if (
+      !receivedHeaders.every((item1) => expectedFileUserFields.includes(item1))
+    ) {
       throw new HttpException(
-        'Error parsing file user: invalid headers',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        {
+          error: {
+            file: {
+              message: 'inivalidHeaders',
+              receivedHeaders: receivedHeaders,
+              expectedHeaders: expectedFileUserFields,
+            },
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
 
@@ -246,6 +257,7 @@ export class UsersService {
         hash: hash,
         status: {
           id: StatusEnum.register,
+          name: getEnumKey(StatusEnum, StatusEnum.register),
         },
       } as DeepPartial<User>);
       await this.usersRepository.save(createdUser);

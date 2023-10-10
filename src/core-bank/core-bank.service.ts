@@ -9,13 +9,14 @@ import { CoreBankStatementsInterface } from './interfaces/core-bank-statements.i
 export class CoreBankService {
   constructor(private readonly coreBankDataService: CoreBankDataService) {}
 
-  public async getProfileByCpfCnpj(
-    cpfCnpj: string,
-  ): Promise<CoreBankProfileInterface> {
+  public updateDataIfNeeded() {
+    this.coreBankDataService.updateDataIfNeeded();
+  }
+
+  public getProfileByCpfCnpj(cpfCnpj: string): CoreBankProfileInterface {
     // TODO: fetch instead of mockup
 
-    const profiles = await this.coreBankDataService.getProfiles();
-
+    const profiles = this.coreBankDataService.getProfiles();
     const filteredData = profiles.filter((item) => item.cpfCnpj === cpfCnpj);
 
     if (filteredData.length === 1) {

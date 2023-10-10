@@ -1,19 +1,23 @@
 import {
-  Body,
   Controller,
+  DefaultValuePipe,
+  Get,
   HttpCode,
   HttpStatus,
-  Post,
+  ParseIntPipe,
+  Query,
   Request,
   SerializeOptions,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { TicketRevenuesGetDto } from './dto/ticket-revenues-get.dto';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UsersService } from 'src/users/users.service';
 import { TicketRevenuesService } from './ticket-revenues.service';
 import { JaeTicketRevenueInterface } from 'src/jae/interfaces/jae-ticket-revenue.interface';
+import { MinMaxNumberPipe } from 'src/utils/pipes/min-max-number.pipe';
+import { InfinityPaginationResultType } from 'src/utils/types/infinity-pagination-result.type';
+import { infinityPagination } from 'src/utils/infinity-pagination';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -31,13 +35,44 @@ export class TicketRevenuesController {
   })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Post('me')
+  @Get('me')
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'default: 1 (min)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'default: 500 (max)',
+    example: 500,
+  })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({
+    name: 'previousDays',
+    required: false,
+    description: 'default: 7, minimum: 0',
+  })
   async getFromUser(
     @Request() request,
-    @Body() filterDto: TicketRevenuesGetDto,
-  ): Promise<JaeTicketRevenueInterface[]> {
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(5), ParseIntPipe) limit: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('previousDays', new MinMaxNumberPipe({ min: 0 }))
+    previousDays?: number | undefined,
+  ): Promise<InfinityPaginationResultType<JaeTicketRevenueInterface>> {
     const user = await this.usersService.getOneFromRequest(request);
-    return await this.ticketRevenuesService.getDataFromUser(user, filterDto);
+    return infinityPagination(
+      await this.ticketRevenuesService.getDataFromUser(
+        user,
+        { startDate, endDate, previousDays },
+        { limit, page },
+      ),
+      { limit, page },
+    );
   }
 }

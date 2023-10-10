@@ -1,9 +1,10 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { JaeTicketRevenueInterface } from '../interfaces/jae-ticket-revenue.interface';
 import { JaeStopTimesInterface } from '../interfaces/jae-stop-times.interface';
 import { JaeValidatorGtfsDataInterface } from '../interfaces/jae-validator-gtfs-data.interface';
 import { JaeProfileInterface } from '../interfaces/jae-profile.interface';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
 
 interface ProbabilityInterface {
   name: string | null;
@@ -13,7 +14,8 @@ interface ProbabilityInterface {
 }
 
 @Injectable()
-export class JaeDataService {
+export class JaeDataService implements OnModuleInit {
+  private logger: Logger = new Logger('JaeDataService', { timestamp: true });
   private ticketRevenues: JaeTicketRevenueInterface[] = [];
   private ticketRevenuesArgs = {
     startHour: 13,
@@ -99,6 +101,13 @@ export class JaeDataService {
   private vehicleData: JaeValidatorGtfsDataInterface[] = [];
 
   constructor(private readonly httpService: HttpService) {}
+
+  onModuleInit() {
+    async () => {
+      this.logger.log('onModuleInit(): initializing mocked data');
+      await this.updateDataIfNeeded();
+    };
+  }
 
   private generateRandomNumber(probabilityHighValue: number): number {
     return Math.random() > probabilityHighValue
@@ -264,13 +273,20 @@ export class JaeDataService {
       }
     }
     this.ticketRevenues = ticketRevenues;
+    this.logger.log('setTicketRevenues(): mocked data generated');
   }
 
-  private async updateDataIfNeeded() {
+  async updateDataIfNeeded() {
     if (this.stopTimes.length === 0) {
       await this.setStopTimes();
+      this.logger.debug(
+        'updateDataIfNeeded(): generating mocked data - no stopTimes',
+      );
       this.setTicketRevenues();
     } else if (this.ticketRevenues.length === 0) {
+      this.logger.debug(
+        'updateDataIfNeeded(): generating mocked data - no ticketRevenues',
+      );
       this.setTicketRevenues();
     } else {
       const now = new Date(Date.now());
@@ -285,6 +301,9 @@ export class JaeDataService {
         currentMinute >= startHour * 60 &&
         currentMinute <= endHour * 60
       ) {
+        this.logger.debug(
+          'updateDataIfNeeded(): generating mocked data - time has passed',
+        );
         this.setTicketRevenues();
       }
     }
@@ -298,12 +317,21 @@ export class JaeDataService {
     );
     return filteredTicketRevenues;
   }
-  public async getTicketRevenuesMocked(): Promise<JaeTicketRevenueInterface[]> {
+  public async getTicketRevenuesMocked(
+    pagination?: IPaginationOptions,
+  ): Promise<JaeTicketRevenueInterface[]> {
     await this.updateDataIfNeeded();
     const profiles = this.getTicketRevenuesArgs().jaeProfiles;
-    const filteredTicketRevenues = this.ticketRevenues.filter(
+    let filteredTicketRevenues = this.ticketRevenues.filter(
       (i) => i.permitCode === profiles[0].permitCode,
     );
+    if (pagination) {
+      const sliceStart = pagination?.limit * (pagination?.page - 1);
+      filteredTicketRevenues = filteredTicketRevenues.slice(
+        sliceStart,
+        sliceStart + pagination.limit,
+      );
+    }
     return filteredTicketRevenues;
   }
 

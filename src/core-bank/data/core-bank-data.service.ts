@@ -1,10 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { CoreBankStatementsInterface } from '../interfaces/core-bank-statements.interface';
 import { CoreBankProfileInterface } from '../interfaces/core-bank-profile.interface';
 
 @Injectable()
-export class CoreBankDataService {
-  private bankStatements: CoreBankStatementsInterface[];
+export class CoreBankDataService implements OnModuleInit {
+  private logger: Logger = new Logger('CoreBankDataService', {
+    timestamp: true,
+  });
+  private bankStatements: CoreBankStatementsInterface[] = [];
   public bankStatementsArgs: any = {
     cpfs: ['cpfCnpj_mocked', '98765432100'],
     weeks: 4 * 3,
@@ -37,8 +40,9 @@ export class CoreBankDataService {
     },
   ];
 
-  constructor() {
-    this.setBankStatements();
+  onModuleInit() {
+    this.logger.log('onModuleInit(): initializing mocked data');
+    this.updateDataIfNeeded();
   }
 
   /**
@@ -79,21 +83,32 @@ export class CoreBankDataService {
         });
       }
     }
+    this.logger.log('setBankStatements(): mocked data generated');
     this.bankStatements = bankStatements;
   }
 
-  public getBankStatements(): CoreBankStatementsInterface[] {
+  public updateDataIfNeeded() {
     if (this.bankStatements.length === 0) {
       this.setBankStatements();
+      this.logger.debug(
+        'updateDataIfNeeded(): generating mocked data - bankStatements is empty',
+      );
     } else {
       const lastDate = new Date(this.bankStatements?.[0]?.date);
       const hoursDifference =
         (new Date(Date.now()).getTime() - lastDate.getTime()) /
         (1000 * 60 * 60);
       if (hoursDifference >= 24 * 7) {
+        this.logger.debug(
+          'updateDataIfNeeded(): generating mocked data - time has passed',
+        );
         this.setBankStatements();
       }
     }
+  }
+
+  public getBankStatements(): CoreBankStatementsInterface[] {
+    this.updateDataIfNeeded();
     return this.bankStatements;
   }
 

@@ -84,6 +84,7 @@ describe('TicketRevenuesService', () => {
       const resultPreviousDays = await ticketRevenuesService.getDataFromUser(
         user as unknown as User,
         { previousDays: 1 },
+        { limit: 9999, page: 1 },
       );
       const resultBetweenDates = await ticketRevenuesService.getDataFromUser(
         user as unknown as User,
@@ -91,6 +92,7 @@ describe('TicketRevenuesService', () => {
           startDate: '2023-06-01',
           endDate: '2023-06-03',
         },
+        { limit: 9999, page: 1 },
       );
       // Assert
       expect(resultPreviousDays).toEqual(expectedResult.slice(0, 6));

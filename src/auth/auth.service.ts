@@ -25,7 +25,7 @@ import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-ba
 
 @Injectable()
 export class AuthService {
-  private logger: Logger = new Logger('AuthService');
+  private logger: Logger = new Logger('AuthService', { timestamp: true });
 
   constructor(
     private jwtService: JwtService,
