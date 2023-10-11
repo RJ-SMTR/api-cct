@@ -2,10 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CoreBankService } from './core-bank.service';
 import { Provider } from '@nestjs/common';
 import { CoreBankDataService } from './data/core-bank-data.service';
-import { CoreBankStatementsInterface } from './interfaces/core-bank-statements.interface';
-import { CoreBankProfileInterface } from './interfaces/core-bank-profile.interface';
+import { ICoreBankStatements } from './interfaces/core-bank-statements.interface';
+import { ICoreBankProfile } from './interfaces/core-bank-profile.interface';
 
-const coreBankProfiles: CoreBankProfileInterface[] = [
+const coreBankProfiles: ICoreBankProfile[] = [
   {
     id: 1,
     cpfCnpj: 'cpfCnpj_1',
@@ -30,7 +30,7 @@ const coreBankProfiles: CoreBankProfileInterface[] = [
   },
 ];
 
-const bankStatements = [] as CoreBankStatementsInterface[];
+const bankStatements = [] as ICoreBankStatements[];
 const firstFriday_2023_01 = 6;
 for (let cpfIndex = 0; cpfIndex < 2; cpfIndex++) {
   const cpf = `cpfCnpj_${cpfIndex}`;

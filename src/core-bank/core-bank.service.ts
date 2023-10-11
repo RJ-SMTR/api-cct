@@ -1,9 +1,9 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { CoreBankProfileInterface } from './interfaces/core-bank-profile.interface';
+import { ICoreBankProfile } from './interfaces/core-bank-profile.interface';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { UpdateCoreBankInterface } from './interfaces/update-core-bank.interface';
 import { CoreBankDataService } from './data/core-bank-data.service';
-import { CoreBankStatementsInterface } from './interfaces/core-bank-statements.interface';
+import { ICoreBankStatements } from './interfaces/core-bank-statements.interface';
 
 @Injectable()
 export class CoreBankService {
@@ -13,7 +13,7 @@ export class CoreBankService {
     this.coreBankDataService.updateDataIfNeeded();
   }
 
-  public getProfileByCpfCnpj(cpfCnpj: string): CoreBankProfileInterface {
+  public getProfileByCpfCnpj(cpfCnpj: string): ICoreBankProfile {
     // TODO: fetch instead of mockup
 
     const profiles = this.coreBankDataService.getProfiles();
@@ -44,16 +44,14 @@ export class CoreBankService {
     }
   }
 
-  public getBankStatementsByCpfCnpj(
-    cpfCnpj: string,
-  ): CoreBankStatementsInterface[] {
+  public getBankStatementsByCpfCnpj(cpfCnpj: string): ICoreBankStatements[] {
     // TODO: fetch instead of mockup
     return this.coreBankDataService
       .getBankStatements()
       .filter((i) => i.cpfCnpj === cpfCnpj);
   }
 
-  public getBankStatementsMocked(): CoreBankStatementsInterface[] {
+  public getBankStatementsMocked(): ICoreBankStatements[] {
     // TODO: fetch instead of mockup
     const profiles = this.coreBankDataService.getProfiles();
     const statements = this.coreBankDataService.getBankStatements();

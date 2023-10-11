@@ -1,4 +1,4 @@
-export interface CoreBankProfileInterface {
+export interface ICoreBankProfile {
   id: number;
   cpfCnpj: string;
   rg: string;

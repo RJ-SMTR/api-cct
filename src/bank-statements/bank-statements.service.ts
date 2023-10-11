@@ -4,7 +4,7 @@ import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
 import { User } from 'src/users/entities/user.entity';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
+import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
 
 @Injectable()
 export class BankStatementsService {
@@ -13,7 +13,7 @@ export class BankStatementsService {
   public getBankStatementsFromUser(
     user: User,
     args: BankStatementsGetDto,
-  ): CoreBankStatementsInterface[] {
+  ): ICoreBankStatements[] {
     if (!user.cpfCnpj) {
       throw new HttpException(
         {

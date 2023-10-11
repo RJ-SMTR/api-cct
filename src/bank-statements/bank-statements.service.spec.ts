@@ -4,13 +4,13 @@ import { Provider } from '@nestjs/common';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { User } from 'src/users/entities/user.entity';
 import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
-import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
+import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
 
 const allBankStatements = [
   { id: 0, cpfCnpj: 'cpfCnpj_1', date: '2023-01-20' },
   { id: 1, cpfCnpj: 'cpfCnpj_1', date: '2023-01-13' },
   { id: 2, cpfCnpj: 'cpfCnpj_1', date: '2023-01-06' },
-] as Partial<CoreBankStatementsInterface>[] as CoreBankStatementsInterface[];
+] as Partial<ICoreBankStatements>[] as ICoreBankStatements[];
 
 describe('BankStatementsService', () => {
   let bankStatementsService: BankStatementsService;

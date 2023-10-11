@@ -13,7 +13,7 @@ import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
 import { UsersService } from 'src/users/users.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
+import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
 import { User } from 'src/users/entities/user.entity';
 
 @ApiTags('BankStatements')
@@ -37,7 +37,7 @@ export class BankStatementsController {
   async getBankStatementsFromUser(
     @Request() request,
     @Body() profileDto: BankStatementsGetDto,
-  ): Promise<CoreBankStatementsInterface[]> {
+  ): Promise<ICoreBankStatements[]> {
     const user = await this.usersService.getOneFromRequest(request);
     return this.bankStatementsService.getBankStatementsFromUser(
       { ...user, cpfCnpj: 'cpfCnpj_mocked' } as User,
