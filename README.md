@@ -1,6 +1,8 @@
-# NestJS REST API boilerplate 🇺🇦
+# API-CCT
 
-![github action status](https://github.com/brocoders/nestjs-boilerplate/actions/workflows/docker-e2e.yml/badge.svg)
+![github action status](https://github.com/RJ-SMTR/api-cct/actions/workflows/docker-e2e.yml/badge.svg)
+
+This project is based on [nestjs-boilerplate - brocoders](https://github.com/brocoders/nestjs-boilerplate).
 
 ## Description
 
@@ -40,7 +42,12 @@ NestJS REST API boilerplate for typical project
 git clone --depth 1 https://github.com/brocoders/nestjs-boilerplate.git my-app
 cd my-app/
 cp env-example .env
-docker compose up -d
+docker compose -f docker-compose.dev.yaml up
+```
+
+Running specific containers:
+```bash
+docker compose -f docker-compose.dev.yaml up -d api postgres maildev
 ```
 
 For check status run
@@ -139,4 +146,11 @@ docker compose -f docker-compose.ci.yaml --env-file env-example -p ci up --build
 
 ```bash
 docker run --rm jordi/ab -n 100 -c 100 -T application/json -H "Authorization: Bearer USER_TOKEN" -v 2 http://<server_ip>:3000/api/v1/users
+```
+
+## Tips
+
+When searching for files in VSCode you normally want to icnore these generated files:
+```
+node_modules/, files/, dist/, .data
 ```
