@@ -20,7 +20,9 @@ import { InviteService } from 'src/invite/invite.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
 import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
-import { getEnumKey } from 'src/utils/get-enum-key';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { Role } from 'src/roles/entities/role.entity';
+import { Status } from 'src/statuses/entities/status.entity';
 
 @Injectable()
 export class UsersService {
@@ -255,10 +257,8 @@ export class UsersService {
       const createdUser = this.usersRepository.create({
         ...fileUser.user,
         hash: hash,
-        status: {
-          id: StatusEnum.register,
-          name: getEnumKey(StatusEnum, StatusEnum.register),
-        },
+        status: new Status(StatusEnum.register),
+        role: new Role(RoleEnum.user),
       } as DeepPartial<User>);
       await this.usersRepository.save(createdUser);
 
@@ -266,9 +266,7 @@ export class UsersService {
         user: createdUser,
         hash: hash,
         email: createdUser.email as string,
-        inviteStatus: {
-          id: InviteStatusEnum.created,
-        },
+        inviteStatus: new InviteStatus(InviteStatusEnum.created),
       });
     }
     return HttpStatus.CREATED;
