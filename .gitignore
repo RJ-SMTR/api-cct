@@ -41,3 +41,4 @@ lerna-debug.log*
 /ormconfig.json
 local.*
 *.local.*
+.kubernetes/local

@@ -42,7 +42,9 @@ NestJS REST API boilerplate for typical project
 git clone --depth 1 https://github.com/brocoders/nestjs-boilerplate.git my-app
 cd my-app/
 cp env-example .env
-docker compose -f docker-compose.dev.yaml up
+cp docker-compose.example.yaml docker-compose.local.yaml
+cp example.Dockerfile local.Dockerfile
+docker compose -f docker-compose.local.yaml up
 ```
 
 Running specific containers:
