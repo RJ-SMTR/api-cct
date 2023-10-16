@@ -59,8 +59,8 @@ export class AuthLicenseeService {
     }
 
     if (
-      user?.status?.id === undefined
-      || user?.status?.id !== StatusEnum.active
+      user?.status?.id === undefined ||
+      user?.status?.id !== StatusEnum.active
     ) {
       throw new HttpException(
         {
