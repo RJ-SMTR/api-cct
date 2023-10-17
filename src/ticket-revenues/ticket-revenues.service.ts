@@ -19,6 +19,7 @@ export class TicketRevenuesService {
       throw new HttpException(
         {
           details: {
+            message: 'maybe your token has expired, try to get a new one',
             user: {
               permitCode: 'fieldIsEmpty',
             },
@@ -63,6 +64,9 @@ export class TicketRevenuesService {
       const endDate: Date | null = args?.endDate
         ? new Date(args.endDate)
         : null;
+      if (endDate !== null) {
+        endDate.setUTCHours(23, 59, 59, 999);
+      }
 
       const hasDateRange = Boolean(args?.startDate && args?.endDate);
       const hasStartOrEnd = Boolean(args?.startDate || args?.endDate);

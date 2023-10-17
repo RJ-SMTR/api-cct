@@ -62,6 +62,9 @@ export class BankStatementsService {
       const endDate: Date | null = args?.endDate
         ? new Date(args.endDate)
         : null;
+      if (endDate !== null) {
+        endDate.setUTCHours(23, 59, 59, 999);
+      }
 
       const hasDateRange = Boolean(args?.startDate && args?.endDate);
       const hasStartOrEnd = Boolean(args?.startDate || args?.endDate);
