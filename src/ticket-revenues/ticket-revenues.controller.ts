@@ -49,8 +49,16 @@ export class TicketRevenuesController {
     description: 'default: 500 (max)',
     example: 500,
   })
-  @ApiQuery({ name: 'startDate', required: false })
-  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'hours: 00:00',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'hours: 23:59:59.999',
+  })
   @ApiQuery({
     name: 'previousDays',
     required: false,

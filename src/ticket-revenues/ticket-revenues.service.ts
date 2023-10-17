@@ -33,7 +33,7 @@ export class TicketRevenuesService {
 
     // TODO: get by user.permitCode
     const ticketRevenuesResponse =
-      await this.jaeService.getTicketRevenuesMocked(pagination);
+      await this.jaeService.getTicketRevenuesMocked();
     if (ticketRevenuesResponse.length === 0) {
       throw new HttpException(
         {
@@ -46,7 +46,7 @@ export class TicketRevenuesService {
       );
     }
 
-    const filteredData = ticketRevenuesResponse.filter((item) => {
+    let filteredData = ticketRevenuesResponse.filter((item) => {
       const DEFAULT_PREVIOUS_DAYS = 30;
       let previousDays: number = DEFAULT_PREVIOUS_DAYS;
       if (args?.previousDays !== undefined) {
@@ -84,6 +84,13 @@ export class TicketRevenuesService {
             (!hasStartOrEnd && isFromPreviousDays)))
       );
     });
+    if (pagination) {
+      const sliceStart = pagination?.limit * (pagination?.page - 1);
+      filteredData = filteredData.slice(
+        sliceStart,
+        sliceStart + pagination.limit,
+      );
+    }
 
     return filteredData;
   }
