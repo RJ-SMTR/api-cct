@@ -29,16 +29,15 @@ describe('CoreBankDataService', () => {
     }
 
     // Act
-    // setDate('2023-01-19');
-    // const resultThursday = coreBankDataService.getBankStatements();
+    setDate('2023-01-19');
+    const resultThursday = coreBankDataService.getBankStatements();
     setDate('2023-01-20');
     const resultFriday = coreBankDataService.getBankStatements();
 
     // Assert
-    // expect(resultThursday?.[0]?.date).toEqual('2023-01-19');
-    // expect(resultThursday?.[1]?.date).toEqual('2023-01-18');
+    expect(resultThursday?.[0]?.date).toEqual('2023-01-19');
+    expect(resultThursday?.[1]?.date).toEqual('2023-01-18');
 
-    console.log(resultFriday);
     expect(resultFriday?.[0]?.date).toEqual('2023-01-20');
     expect(resultFriday?.[1]?.date).toEqual('2023-01-20');
     expect(resultFriday?.[2]?.date).toEqual('2023-01-13');

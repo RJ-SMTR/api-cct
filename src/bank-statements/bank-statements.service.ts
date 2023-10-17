@@ -72,12 +72,6 @@ export class BankStatementsService {
         itemDate >= previousDaysDate &&
         itemDate <= todayDate;
 
-      console.log({
-        isCpfCnpj: item.cpfCnpj === user.cpfCnpj,
-        item_cpf: item.cpfCnpj,
-        user_cpf: user.cpfCnpj,
-      });
-
       return (
         item.cpfCnpj === user.cpfCnpj &&
         ((hasDateRange && isFromStart && isUntilEnd) ||
