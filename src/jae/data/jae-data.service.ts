@@ -1,6 +1,6 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { JaeTicketRevenueInterface } from '../interfaces/jae-ticket-revenue.interface';
+import { IJaeTicketRevenue } from '../interfaces/jae-ticket-revenue.interface';
 import { JaeStopTimesInterface } from '../interfaces/jae-stop-times.interface';
 import { JaeValidatorGtfsDataInterface } from '../interfaces/jae-validator-gtfs-data.interface';
 import { JaeProfileInterface } from '../interfaces/jae-profile.interface';
@@ -16,7 +16,7 @@ interface ProbabilityInterface {
 @Injectable()
 export class JaeDataService implements OnModuleInit {
   private logger: Logger = new Logger('JaeDataService', { timestamp: true });
-  private ticketRevenues: JaeTicketRevenueInterface[] = [];
+  private ticketRevenues: IJaeTicketRevenue[] = [];
   private ticketRevenuesArgs = {
     startHour: 13,
     endHour: 18,
@@ -193,7 +193,7 @@ export class JaeDataService implements OnModuleInit {
       ticketPaymentMediaTypes,
       transportIntegrationTypes,
     } = this.getTicketRevenuesArgs();
-    const ticketRevenues: JaeTicketRevenueInterface[] = [];
+    const ticketRevenues: IJaeTicketRevenue[] = [];
     this.vehicleData = [];
     const uniqueTripsList: string[] = [
       ...new Set(this.stopTimes.map((i) => i.trip_id.trip_id)),
@@ -233,7 +233,7 @@ export class JaeDataService implements OnModuleInit {
           const currentMinute = minutesInterval * minuteStep;
           date.setUTCDate(date.getUTCDate() - day);
           date.setUTCHours(startHour, totalMinutes - currentMinute);
-          const newTripIncome: JaeTicketRevenueInterface = {
+          const newTripIncome: IJaeTicketRevenue = {
             id: ticketRevenues.length,
             transactionDateTime: date.toISOString(),
             transactionValue: ticketTransactionValue,
@@ -310,7 +310,7 @@ export class JaeDataService implements OnModuleInit {
   }
   public async getTicketRevenuesByPermitCode(
     permitCode?: string,
-  ): Promise<JaeTicketRevenueInterface[]> {
+  ): Promise<IJaeTicketRevenue[]> {
     await this.updateDataIfNeeded();
     const filteredTicketRevenues = this.ticketRevenues.filter(
       (i) => i.permitCode === permitCode,
@@ -319,7 +319,7 @@ export class JaeDataService implements OnModuleInit {
   }
   public async getTicketRevenuesMocked(
     pagination?: IPaginationOptions,
-  ): Promise<JaeTicketRevenueInterface[]> {
+  ): Promise<IJaeTicketRevenue[]> {
     await this.updateDataIfNeeded();
     const profiles = this.getTicketRevenuesArgs().jaeProfiles;
     let filteredTicketRevenues = this.ticketRevenues.filter(

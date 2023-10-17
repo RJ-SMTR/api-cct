@@ -30,4 +30,12 @@ export class TicketRevenuesGetDto {
   @AreFieldsEmpty(['startDate', 'endDate'])
   @Min(0)
   previousDays?: number;
+
+  @ApiProperty({
+    examples: ['transacion', 'normal'],
+    default: 'transaction',
+    description: 'filter',
+  })
+  @IsOptional()
+  cropWeek?: 'transaction' | 'normal';
 }

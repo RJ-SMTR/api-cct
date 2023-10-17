@@ -1,21 +1,35 @@
-export interface IJaeTicketRevenue {
+export interface IJaeTicketRevenueGroup {
   /** id_transacao */
   id: number;
 
-  /** id_tipo_pagamento */
-  paymentMediaType?: string;
+  /** id_tipo_pagamento (group count) */
+  paymentMediaTypeCount: {
+    phone: number;
+    card: number;
+  };
 
-  /** id_tipo_integracao */
-  transportIntegrationType?: string | null;
+  /** id_tipo_integracao (group count) */
+  transportIntegrationTypeCount: {
+    null: number;
+    van: number;
+    bus_supervia: number;
+  };
 
-  /** id_tipo_transacao */
-  transactionType?: string;
+  /** id_tipo_transacao (group count) */
+  transactionTypeCount: {
+    full: number;
+    half: number;
+    free: number;
+  };
 
   /** datetime_transacao */
   transactionDateTime: string;
 
-  /** valor_transacao */
-  transactionValue: number;
+  /** valor_transacao (count) */
+  transactionCount: number;
+
+  /** valor_transacao (total) */
+  transactionValueSum: number;
 
   /** latitude */
   transactionLat: number;

@@ -3,7 +3,7 @@ import { TicketRevenuesService } from './ticket-revenues.service';
 import { Provider } from '@nestjs/common';
 import { JaeService } from 'src/jae/jae.service';
 import { User } from 'src/users/entities/user.entity';
-import { JaeTicketRevenueInterface } from 'src/jae/interfaces/jae-ticket-revenue.interface';
+import { IJaeTicketRevenue } from 'src/jae/interfaces/jae-ticket-revenue.interface';
 
 describe('TicketRevenuesService', () => {
   let ticketRevenuesService: TicketRevenuesService;
@@ -36,7 +36,7 @@ describe('TicketRevenuesService', () => {
   describe('getDataFromUser', () => {
     it('should return a slice of data when successfull', async () => {
       // Arrange
-      const expectedResult: JaeTicketRevenueInterface[] = [];
+      const expectedResult: IJaeTicketRevenue[] = [];
       for (let day = 3; day >= 1; day--) {
         for (let i = 3; i >= 1; i--) {
           const dayStr = day.toString().padStart(2, '0');

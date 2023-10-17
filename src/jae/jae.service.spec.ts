@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JaeService } from './jae.service';
 import { Provider } from '@nestjs/common';
 import { JaeDataService } from './data/jae-data.service';
-import { JaeTicketRevenueInterface } from './interfaces/jae-ticket-revenue.interface';
+import { IJaeTicketRevenue } from './interfaces/jae-ticket-revenue.interface';
 import { JaeProfileInterface } from './interfaces/jae-profile.interface';
 
 describe('JaeService', () => {
@@ -65,7 +65,7 @@ describe('JaeService', () => {
       const ticketRevenues = [
         { id: 0, permitCode: 'permitCode_1' },
         { id: 1, permitCode: 'permitCode_2' },
-      ] as JaeTicketRevenueInterface[];
+      ] as IJaeTicketRevenue[];
       jest
         .spyOn(jaeDataService, 'getTicketRevenuesByPermitCode')
         .mockResolvedValueOnce(ticketRevenues);
