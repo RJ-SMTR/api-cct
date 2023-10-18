@@ -8,8 +8,10 @@ import {
   IsOptional,
   IsBoolean,
   IsEmail,
+  ValidateIf,
 } from 'class-validator';
 import validateConfig from 'src/utils/validate-config';
+import { AppConfigNodeEnvEnum } from './app.config';
 
 class EnvironmentVariablesValidator {
   @IsInt()
@@ -22,7 +24,7 @@ class EnvironmentVariablesValidator {
   MAIL_HOST: string;
 
   @IsString()
-  @IsOptional()
+  @ValidateIf(() => process.env.NODE_ENV === AppConfigNodeEnvEnum.Production)
   MAIL_USER: string;
 
   @IsString()
@@ -46,6 +48,18 @@ class EnvironmentVariablesValidator {
 
   @IsString()
   MAIL_INVITE_CRONJOB: string;
+
+  @IsString()
+  @ValidateIf(() => process.env.NODE_ENV === AppConfigNodeEnvEnum.Production)
+  MAIL_GOOGLE_CLIENT_ID: string;
+
+  @IsString()
+  @ValidateIf(() => process.env.NODE_ENV === AppConfigNodeEnvEnum.Production)
+  MAIL_GOOGLE_CLIENT_SECRET: string;
+
+  @IsString()
+  @ValidateIf(() => process.env.NODE_ENV === AppConfigNodeEnvEnum.Production)
+  MAIL_GOOGLE_REFRESH_TOKEN: string;
 }
 
 export default registerAs<MailConfig>('mail', () => {
@@ -62,5 +76,8 @@ export default registerAs<MailConfig>('mail', () => {
     secure: process.env.MAIL_SECURE === 'true',
     requireTLS: process.env.MAIL_REQUIRE_TLS === 'true',
     inviteCronjob: process.env.MAIL_INVITE_CRONJOB,
+    googleClientId: process.env.MAIL_GOOGLE_CLIENT_ID,
+    googleClientSecret: process.env.MAIL_GOOGLE_CLIENT_SECRET,
+    googleRefreshToken: process.env.MAIL_GOOGLE_REFRESH_TOKEN,
   };
 });

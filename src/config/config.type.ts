@@ -67,6 +67,9 @@ export type MailConfig = {
   secure: boolean;
   requireTLS: boolean;
   inviteCronjob?: string;
+  googleClientId?: string;
+  googleClientSecret?: string;
+  googleRefreshToken?: string;
 };
 
 export type TwitterConfig = {

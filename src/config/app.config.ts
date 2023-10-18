@@ -11,16 +11,16 @@ import {
   Min,
 } from 'class-validator';
 
-enum Environment {
+export enum AppConfigNodeEnvEnum {
   Development = 'development',
   Production = 'production',
   Test = 'test',
 }
 
 class EnvironmentVariablesValidator {
-  @IsEnum(Environment)
+  @IsEnum(AppConfigNodeEnvEnum)
   @IsOptional()
-  NODE_ENV: Environment;
+  NODE_ENV: AppConfigNodeEnvEnum;
 
   @IsInt()
   @Min(0)
