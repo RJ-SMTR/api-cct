@@ -87,4 +87,9 @@ export type AllConfigType = {
   google: GoogleConfig;
   mail: MailConfig;
   twitter: TwitterConfig;
+  'mail.user': string;
+  'mail.password': string;
+  'mail.host': string;
+  'mail.port': number;
+  'mail.secure': boolean;
 };

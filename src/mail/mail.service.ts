@@ -30,78 +30,106 @@ export class MailService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    // (async () => {
-    //   try {
-    //     await this.setTransport();
-    //   } catch (error) {
-    //     this.logger.error(error);
-    //     throw new Error(error);
-    //   }
-    // })()
-    //   .catch()
-    //   .then()
-    //   .finally();
+    void (async () => {
+      try {
+        await this.setTransport();
+      } catch (error) {
+        this.logger.error(error);
+        throw new Error(error);
+      }
+    })()
+      .catch()
+      .then()
+      .finally();
   }
 
-  private async setTransport() {
-    const isMailEnvsDefined = [
-      this.configService.get('mail.googleClientId', { infer: true }),
-      this.configService.get('mail.googleClientSecret', { infer: true }),
-      this.configService.get('mail.googleRefreshToken', { infer: true }),
-      this.configService.get('mail.user', { infer: true }),
-    ].every((i) => i !== undefined);
-    if (!isMailEnvsDefined) {
-      this.logger.warn(
-        'setTransport(): Function aborted because needed mail envs are not defined in production. Bulk mail sending feature wont work in production!',
-      );
+  private setTransport() {
+    // Make sure you have all the required environment variables for your SMTP.
+    const user = this.configService.get<string>('mail.user');
+    const pass = this.configService.get<string>('mail.password');
+    const host = this.configService.get<string>('mail.host');
+    const port = this.configService.get<number>('mail.port');
+    const secure = this.configService.get<boolean>('mail.secure'); // true for 465, false for other ports
+
+    if (!user || !pass || !host || !port) {
+      console.log({ user, pass, host, port, secure });
+      this.logger.error('Mail environment variables are not fully set.');
       return;
     }
-    const OAuth2 = google.auth.OAuth2;
-    const oauth2Client = new OAuth2(
-      this.configService.getOrThrow('mail.googleClientId', { infer: true }),
-      this.configService.getOrThrow('mail.googleClientSecret', { infer: true }),
-      'https://developers.google.com/oauthplayground',
-    );
-
-    oauth2Client.setCredentials({
-      refresh_token: this.configService.getOrThrow('mail.googleRefreshToken', {
-        infer: true,
-      }),
-    });
-
-    console.log(oauth2Client.credentials);
-
-    const accessToken: string = await new Promise((resolve, reject) => {
-      oauth2Client.getAccessToken((err, token: string) => {
-        console.log({ token });
-        if (err) {
-          console.log(JSON.stringify(err));
-          reject(err);
-        }
-        resolve(token);
-      });
-    });
 
     const config: Options = {
-      service: 'gmail',
+      host,
+      port,
+      secure,
       auth: {
-        type: 'OAuth2',
-        user: this.configService.get('mail.user', { infer: true }),
-        clientId: this.configService.getOrThrow('mail.googleClientId', {
-          infer: true,
-        }),
-        clientSecret: this.configService.getOrThrow('mail.googleClientSecret', {
-          infer: true,
-        }),
-        accessToken,
+        user,
+        pass,
       },
     };
-    this.mailerService.addTransporter('gmail', config);
-    console.log({
-      transporter: (this.mailerService as any).transporter,
-      transporters: (this.mailerService as any).transporters,
-    });
+
+    this.mailerService.addTransporter('smtp', config);
   }
+
+  // private async setTransport() {
+  //   const isMailEnvsDefined = [
+  //     this.configService.get('mail.googleClientId', { infer: true }),
+  //     this.configService.get('mail.googleClientSecret', { infer: true }),
+  //     this.configService.get('mail.googleRefreshToken', { infer: true }),
+  //     this.configService.get('mail.user', { infer: true }),
+  //   ].every((i) => i !== undefined);
+  //   if (!isMailEnvsDefined) {
+  //     this.logger.warn(
+  //       'setTransport(): Function aborted because needed mail envs are not defined in production. Bulk mail sending feature wont work in production!',
+  //     );
+  //     return;
+  //   }
+  //   const OAuth2 = google.auth.OAuth2;
+  //   const oauth2Client = new OAuth2(
+  //     this.configService.getOrThrow('mail.googleClientId', { infer: true }),
+  //     this.configService.getOrThrow('mail.googleClientSecret', { infer: true }),
+  //     'https://developers.google.com/oauthplayground',
+  //   );
+
+  //   oauth2Client.setCredentials({
+  //     refresh_token: this.configService.getOrThrow('mail.googleRefreshToken', {
+  //       infer: true,
+  //     }),
+  //   });
+
+  //   console.log('credentials');
+  //   console.log(oauth2Client);
+
+  //   const accessToken: string = await new Promise((resolve, reject) => {
+  //     oauth2Client.getAccessToken((err, token: string) => {
+  //       if (err) {
+  //         console.log('error');
+  //         console.log(JSON.stringify(err));
+  //         reject(err);
+  //       }
+  //       resolve(token);
+  //     });
+  //   });
+
+  //   const config: Options = {
+  //     service: 'gmail',
+  //     auth: {
+  //       type: 'OAuth2',
+  //       user: this.configService.get('mail.user', { infer: true }),
+  //       clientId: this.configService.getOrThrow('mail.googleClientId', {
+  //         infer: true,
+  //       }),
+  //       clientSecret: this.configService.getOrThrow('mail.googleClientSecret', {
+  //         infer: true,
+  //       }),
+  //       accessToken,
+  //     },
+  //   };
+  //   this.mailerService.addTransporter('gmail', config);
+  //   console.log({
+  //     transporter: (this.mailerService as any).transporter,
+  //     transporters: (this.mailerService as any).transporters,
+  //   });
+  // }
 
   private getMailSentInfo(sentMessageInfo: SentMessageInfo): MailSentInfo {
     return {
