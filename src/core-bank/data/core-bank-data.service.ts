@@ -3,7 +3,7 @@ import { ICoreBankStatements } from '../interfaces/core-bank-statements.interfac
 import { ICoreBankProfile } from '../interfaces/core-bank-profile.interface';
 import { CoreBankStatusEnum } from '../enums/core-bank-status.enum';
 import { CoreBankStatusCodeEnum } from '../enums/core-bank-status-code.enum';
-import { getEnumKey } from 'src/utils/get-enum-key';
+import { getEnumKey } from 'src/utils/enum-utils';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 
 @Injectable()

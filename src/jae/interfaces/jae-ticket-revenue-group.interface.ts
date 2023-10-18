@@ -43,6 +43,8 @@ export interface IJaeTicketRevenueGroup {
   /** codigo_permissionario - it doesn't exist yet */
   permitCode: string;
 
+  aux_epochWeek: number;
+
   // Not needed fields below
 
   /** id_cliente */

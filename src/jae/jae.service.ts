@@ -4,7 +4,6 @@ import { JaeProfileInterface } from './interfaces/jae-profile.interface';
 import { IJaeTicketRevenue } from './interfaces/jae-ticket-revenue.interface';
 import { User } from 'src/users/entities/user.entity';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { IJaeTicketRevenueGroup } from './interfaces/jae-ticket-revenue-group.interface';
 
 @Injectable()
 export class JaeService {
@@ -20,50 +19,6 @@ export class JaeService {
     return await this.jaeDataService.getTicketRevenuesByPermitCode(
       ticketValidatorId,
     );
-  }
-
-  public groupTicketRevenuesByWeek(
-    ticketRevenues: IJaeTicketRevenue[],
-  ): IJaeTicketRevenueGroup[] {
-    const result = ticketRevenues.reduce(
-      (acc: Record<string, IJaeTicketRevenueGroup>, item) => {
-        const dateGroup = item.transactionDateTime.slice(0, 10);
-        if (!acc[dateGroup]) {
-          acc[dateGroup] = {
-            ...item,
-            transactionCount: 0,
-            transactionValueSum: 0,
-            transactionTypeCount: {
-              full: 0,
-              half: 0,
-              free: 0,
-            },
-            transportIntegrationTypeCount: {
-              null: 0,
-              van: 0,
-              bus_supervia: 0,
-            },
-            paymentMediaTypeCount: {
-              card: 0,
-              phone: 0,
-            },
-          };
-        }
-        acc[dateGroup].transactionCount += 1;
-        acc[dateGroup].transactionValueSum += item.transactionValue;
-        acc[dateGroup].transactionTypeCount[item.transactionType as any] += 1;
-        acc[dateGroup].transportIntegrationTypeCount[
-          item.transportIntegrationType as any
-        ] += 1;
-        acc[dateGroup].paymentMediaTypeCount[item.paymentMediaType as any] += 1;
-        return acc;
-      },
-      {},
-    );
-    const resultList = Object.keys(result).map(
-      (dateGroup) => result[dateGroup],
-    );
-    return resultList;
   }
 
   async getTicketRevenuesMocked(

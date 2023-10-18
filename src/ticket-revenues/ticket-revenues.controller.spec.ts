@@ -69,10 +69,10 @@ describe('TicketRevenuesController', () => {
         .mockResolvedValueOnce(expectedResult as IJaeTicketRevenue[]);
 
       // Act
-      const result = await ticketRevenuesController.getFromUser(request, args);
+      const result = await ticketRevenuesController.getGrouped(request, args);
 
       // Assert
-      expect(ticketRevenuesService.getDataFromUser).toBeCalledTimes(1);
+      expect(ticketRevenuesService.getUngroupedFromUser).toBeCalledTimes(1);
       expect(result).toEqual(expectedResult);
     });
   });

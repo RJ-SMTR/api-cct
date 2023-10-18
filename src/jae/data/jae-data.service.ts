@@ -18,8 +18,8 @@ export class JaeDataService implements OnModuleInit {
   private logger: Logger = new Logger('JaeDataService', { timestamp: true });
   private ticketRevenues: IJaeTicketRevenue[] = [];
   private ticketRevenuesArgs = {
-    startHour: 13,
-    endHour: 18,
+    startHour: 6 + 3,
+    endHour: 12 + 3,
     minutesInterval: 30,
     weeks: 4 * 3,
     highDemandProbability: 0.2,

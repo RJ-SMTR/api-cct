@@ -8,7 +8,7 @@ import { MailCountService } from 'src/mail-count/mail-count.service';
 import { SettingsService } from 'src/settings/settings.service';
 import { appSettings } from 'src/settings/app.settings';
 import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
-import { getEnumKey } from 'src/utils/get-enum-key';
+import { getEnumKey } from 'src/utils/enum-utils';
 import { Invite } from 'src/invite/entities/invite.entity';
 import { MailCount } from 'src/mail-count/entities/mail-count.entity';
 import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';

@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  ParseBoolPipe,
   ParseIntPipe,
   Query,
   Request,
@@ -19,6 +20,9 @@ import { MinMaxNumberPipe } from 'src/utils/pipes/min-max-number.pipe';
 import { InfinityPaginationResultType } from 'src/utils/types/infinity-pagination-result.type';
 import { infinityPagination } from 'src/utils/infinity-pagination';
 import { IJaeTicketRevenueGroup } from 'src/jae/interfaces/jae-ticket-revenue-group.interface';
+import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
+import { TicketRevenuesGroupByEnum } from './enums/ticket-revenues-group-by.enum';
+import { ValidateEnumPipe } from 'src/utils/pipes/validate-enum.pipe';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -36,19 +40,29 @@ export class TicketRevenuesController {
   })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('me/old')
+  @Get('me/ungrouped')
   @HttpCode(HttpStatus.OK)
   @ApiQuery({
     name: 'page',
     required: false,
     description: 'default: 1 (min)',
-    example: 1,
   })
   @ApiQuery({
     name: 'limit',
     required: false,
     description: 'default: 500 (max)',
-    example: 500,
+  })
+  @ApiQuery({
+    name: 'ignorePreviousWeek',
+    type: Boolean,
+    required: false,
+    description: 'default: true',
+  })
+  @ApiQuery({
+    name: 'startWeekday',
+    required: false,
+    description:
+      'possibleValues: 0 (monday) - 6 (sunday), default: 3 (thursday)',
   })
   @ApiQuery({
     name: 'startDate',
@@ -63,12 +77,25 @@ export class TicketRevenuesController {
   @ApiQuery({
     name: 'previousDays',
     required: false,
-    description: 'default: 7, minimum: 0',
+    description: 'default: 30, minimum: 0',
   })
-  async getFromUserOld(
+  async getUngrouped(
     @Request() request,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(5), ParseIntPipe) limit: number,
+    @Query('limit', new DefaultValuePipe(500), ParseIntPipe) limit: number,
+    /**
+     * @type `boolean` in compile time
+     * @bug Type is set as `boolean | any` because if type is boolean the DefaultValuePipe will be always `false`.
+     */
+    @Query('ignorePreviousWeek', new DefaultValuePipe(true), ParseBoolPipe)
+    ignorePreviousWeek: boolean | any,
+    @Query(
+      'startWeekday',
+      new DefaultValuePipe(WeekdayEnum.THURSDAY),
+      new MinMaxNumberPipe({ min: 0, max: 6 }),
+      ParseIntPipe,
+    )
+    startWeekday: number,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('previousDays', new MinMaxNumberPipe({ min: 0 }))
@@ -76,9 +103,9 @@ export class TicketRevenuesController {
   ): Promise<InfinityPaginationResultType<IJaeTicketRevenue>> {
     const user = await this.usersService.getOneFromRequest(request);
     return infinityPagination(
-      await this.ticketRevenuesService.getDataFromUser(
+      await this.ticketRevenuesService.getUngroupedFromUser(
         user,
-        { startDate, endDate, previousDays },
+        { startDate, endDate, previousDays, startWeekday, ignorePreviousWeek },
         { limit, page },
       ),
       { limit, page },
@@ -90,19 +117,36 @@ export class TicketRevenuesController {
   })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('me')
+  @Get('/me/grouped')
   @HttpCode(HttpStatus.OK)
   @ApiQuery({
     name: 'page',
     required: false,
     description: 'default: 1 (min)',
-    example: 1,
   })
   @ApiQuery({
     name: 'limit',
     required: false,
     description: 'default: 500 (max)',
-    example: 500,
+  })
+  @ApiQuery({
+    name: 'ignorePreviousWeek',
+    type: Boolean,
+    required: false,
+    description: 'default: true',
+  })
+  @ApiQuery({
+    name: 'startWeekday',
+    required: false,
+    description:
+      'possibleValues: 0 (monday) - 6 (sunday), default: 3 (thursday)',
+  })
+  @ApiQuery({
+    name: 'groupBy',
+    required: false,
+    description:
+      `possibleValues: [${Object.values(TicketRevenuesGroupByEnum)}], ` +
+      `default: ${TicketRevenuesGroupByEnum.DAY}`,
   })
   @ApiQuery({
     name: 'startDate',
@@ -117,12 +161,31 @@ export class TicketRevenuesController {
   @ApiQuery({
     name: 'previousDays',
     required: false,
-    description: 'default: 7, minimum: 0',
+    description: `default: 30, minimum: 0`,
   })
-  async getFromUser(
+  async getGrouped(
     @Request() request,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(5), ParseIntPipe) limit: number,
+    @Query('limit', new DefaultValuePipe(500), ParseIntPipe) limit: number,
+    /**
+     * @type `boolean` in compile time
+     * @bug Type is set as `boolean | any` because if type is boolean the DefaultValuePipe will be always `false`.
+     */
+    @Query('ignorePreviousWeek', new DefaultValuePipe(true), ParseBoolPipe)
+    ignorePreviousWeek: boolean | any,
+    @Query(
+      'startWeekday',
+      new DefaultValuePipe(WeekdayEnum.THURSDAY),
+      new MinMaxNumberPipe({ min: 0, max: 6 }),
+      ParseIntPipe,
+    )
+    startWeekday: number,
+    @Query(
+      'groupBy',
+      new DefaultValuePipe(TicketRevenuesGroupByEnum.DAY),
+      new ValidateEnumPipe(TicketRevenuesGroupByEnum),
+    )
+    groupBy: TicketRevenuesGroupByEnum,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('previousDays', new MinMaxNumberPipe({ min: 0 }))
@@ -130,9 +193,16 @@ export class TicketRevenuesController {
   ): Promise<InfinityPaginationResultType<IJaeTicketRevenueGroup>> {
     const user = await this.usersService.getOneFromRequest(request);
     return infinityPagination(
-      await this.ticketRevenuesService.getGroupedDataFromUser(
+      await this.ticketRevenuesService.getGroupedFromUser(
         user,
-        { startDate, endDate, previousDays },
+        {
+          startDate,
+          endDate,
+          previousDays,
+          ignorePreviousWeek,
+          startWeekday,
+          groupBy,
+        },
         { limit, page },
       ),
       { limit, page },

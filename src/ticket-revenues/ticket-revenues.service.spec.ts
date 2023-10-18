@@ -81,19 +81,21 @@ describe('TicketRevenuesService', () => {
         );
 
       // Act
-      const resultPreviousDays = await ticketRevenuesService.getDataFromUser(
-        user as unknown as User,
-        { previousDays: 1 },
-        { limit: 9999, page: 1 },
-      );
-      const resultBetweenDates = await ticketRevenuesService.getDataFromUser(
-        user as unknown as User,
-        {
-          startDate: '2023-06-01',
-          endDate: '2023-06-03',
-        },
-        { limit: 9999, page: 1 },
-      );
+      const resultPreviousDays =
+        await ticketRevenuesService.getUngroupedFromUser(
+          user as unknown as User,
+          { previousDays: 1 },
+          { limit: 9999, page: 1 },
+        );
+      const resultBetweenDates =
+        await ticketRevenuesService.getUngroupedFromUser(
+          user as unknown as User,
+          {
+            startDate: '2023-06-01',
+            endDate: '2023-06-03',
+          },
+          { limit: 9999, page: 1 },
+        );
       // Assert
       expect(resultPreviousDays).toEqual(expectedResult.slice(0, 6));
       expect(resultBetweenDates).toEqual(expectedResult.slice(3, 9));

@@ -6,7 +6,9 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
+import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import { AreFieldsEmpty } from 'src/utils/validators/are-fields-empty.validator';
+import { TicketRevenuesGroupByEnum } from '../enums/ticket-revenues-group-by.enum';
 
 export class TicketRevenuesGetDto {
   @ApiProperty({ example: '2023-07-05' })
@@ -32,10 +34,25 @@ export class TicketRevenuesGetDto {
   previousDays?: number;
 
   @ApiProperty({
-    examples: ['transacion', 'normal'],
-    default: 'transaction',
-    description: 'filter',
+    example: WeekdayEnum.THURSDAY,
+    default: WeekdayEnum.THURSDAY,
   })
   @IsOptional()
-  cropWeek?: 'transaction' | 'normal';
+  startWeekday: number;
+
+  @ApiProperty({
+    example: WeekdayEnum.THURSDAY,
+    default: true,
+    description: 'ignore incomplete previous week in `startDate`',
+  })
+  @IsOptional()
+  ignorePreviousWeek: boolean;
+
+  @ApiProperty({
+    examples: TicketRevenuesGroupByEnum,
+    default: TicketRevenuesGroupByEnum.DAY,
+    required: false,
+  })
+  @IsOptional()
+  groupBy?: TicketRevenuesGroupByEnum;
 }
