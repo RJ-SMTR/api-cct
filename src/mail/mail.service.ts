@@ -16,7 +16,6 @@ import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interf
 import { SentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
 import { Options } from 'nodemailer/lib/smtp-transport';
-import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService implements OnModuleInit {
