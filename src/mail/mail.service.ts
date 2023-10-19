@@ -59,7 +59,8 @@ export class MailService implements OnModuleInit {
     const config: Options = {
       host: host(),
       port: port(),
-      secure: secure(),
+      secure: true,
+      secureConnection: false,
       auth: {
         user: user(),
         pass: pass(),
