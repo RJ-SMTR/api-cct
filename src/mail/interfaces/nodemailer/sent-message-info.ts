@@ -1,10 +1,10 @@
-import { SentMessageInfo } from 'nodemailer';
+// import { SentMessageInfo as NodeMailerSentMessageInfo } from 'nodemailer';
 
 /**
  * To represent original `SentMessageInfo` form nodemailer
  * @see {@link https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/nodemailer/index.d.ts#L24 nodemailer - GitHub}
  */
-export interface SentMessageInfo {
+export interface MySentMessageInfo {
   accepted: string[];
   rejected: string[];
   ehlo: string[];

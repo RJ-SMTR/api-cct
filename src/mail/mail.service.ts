@@ -13,8 +13,8 @@ import { AllConfigType } from 'src/config/config.type';
 import { MaybeType } from '../utils/types/maybe.type';
 import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
 import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interface';
-// import { SentMessageInfo } from './interfaces/nodemailer/sent-message-info';
-// import { EhloStatus } from './enums/ehlo-status.enum';
+import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
+import { EhloStatus } from './enums/ehlo-status.enum';
 import { Options } from 'nodemailer/lib/smtp-transport';
 import nodemailer from 'nodemailer';
 
@@ -48,7 +48,7 @@ export class MailService implements OnModuleInit {
     const host = () => this.configService.get('mail.host', { infer: true });
     /** True for 465, false for other ports */
     const port = () => this.configService.get('mail.port', { infer: true });
-    // const secure = () => this.configService.get('mail.secure', { infer: true });
+    const secure = () => this.configService.get('mail.secure', { infer: true });
 
     if (!user() || !pass() || !host() || !port()) {
       this.logger.error(
@@ -58,39 +58,64 @@ export class MailService implements OnModuleInit {
     }
 
     const config: Options = {
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
+      host: host(),
+      port: port(),
+      secure: secure(),
       auth: {
         user: user(),
         pass: pass(),
       },
     };
-    console.log('CONFIG');
-    console.log(config);
+
     this.mailerService.addTransporter('smtp', config);
   }
 
-  private transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: {
-      user: 'ruiz.smtr@gmail.com',
-      pass: 'cjph wqsz hhcq jalz',
-    },
-  });
+  private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
+    return {
+      ...sentMessageInfo,
+      ehlo: sentMessageInfo.ehlo as EhloStatus[],
+      response: {
+        code: Number(sentMessageInfo.response?.split(' ')?.[0] || '0'),
+        message: sentMessageInfo.response,
+      },
+    };
+  }
 
   /**
    * @throws `HttpException`
    */
-  private async safeSendMail(sendMailOptions: ISendMailOptions): Promise<any> {
+  private async safeSendMail(
+    sendMailOptions: ISendMailOptions,
+  ): Promise<MailSentInfo> {
     try {
-      console.log('OPTIONS SEND EMAIL');
-      console.log(sendMailOptions);
-      return await this.transporter.sendMail(sendMailOptions);
+      console.log('OPTIONS');
+      try {
+        const transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
+          auth: {
+            user: 'ruiz.smtr@gmail.com',
+            pass: 'cjph wqsz hhcq jalz',
+          },
+        });
+        await transporter.sendMail({
+          from: '"Your Name" <your.email@example.com>', // sender address
+          to: 'alexander.rivail@gamil.com', // list of receivers
+          subject: 'Hello1111 ✔', // Subject line
+          text: 'Hello world?!!!', // plain text body
+          html: '<b>Hello world?</b>', // html body
+        });
+
+        console.log('Message sent');
+      } catch (error) {
+        console.error('Failed to send email:', error);
+      }
+      return this.getMailSentInfo(
+        await this.mailerService.sendMail(sendMailOptions),
+      );
     } catch (error) {
-      console.log('erro ao enviar:', error);
+      console.log(error);
       throw new HttpException(
         {
           error: HttpStatus.INTERNAL_SERVER_ERROR,
