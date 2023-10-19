@@ -13,9 +13,10 @@ import { AllConfigType } from 'src/config/config.type';
 import { MaybeType } from '../utils/types/maybe.type';
 import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
 import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interface';
-import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
+// import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
 import { Options } from 'nodemailer/lib/smtp-transport';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService implements OnModuleInit {
@@ -69,7 +70,7 @@ export class MailService implements OnModuleInit {
     this.mailerService.addTransporter('smtp', config);
   }
 
-  private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
+  private getMailSentInfo(sentMessageInfo: any): MailSentInfo {
     return {
       ...sentMessageInfo,
       ehlo: sentMessageInfo.ehlo as EhloStatus[],
@@ -88,9 +89,19 @@ export class MailService implements OnModuleInit {
   ): Promise<MailSentInfo> {
     try {
       console.log({ SERVICE: this.mailerService });
-      return this.getMailSentInfo(
-        await this.mailerService.sendMail(sendMailOptions),
-      );
+
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: 'ruiz.smtr@gmail.com',
+          pass: 'cjph wqsz hhcq jalz',
+        },
+      });
+      const info = await transporter.sendMail(sendMailOptions);
+
+      return this.getMailSentInfo(info);
     } catch (error) {
       console.log(error);
       throw new HttpException(
