@@ -16,7 +16,6 @@ import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interf
 import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
 import { Options } from 'nodemailer/lib/smtp-transport';
-import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService implements OnModuleInit {
@@ -48,7 +47,7 @@ export class MailService implements OnModuleInit {
     const host = () => this.configService.get('mail.host', { infer: true });
     /** True for 465, false for other ports */
     const port = () => this.configService.get('mail.port', { infer: true });
-    const secure = () => this.configService.get('mail.secure', { infer: true });
+    // const secure = () => this.configService.get('mail.secure', { infer: true });
 
     if (!user() || !pass() || !host() || !port()) {
       this.logger.error(
@@ -58,12 +57,12 @@ export class MailService implements OnModuleInit {
     }
 
     const config: Options = {
-      host: host(),
-      port: port(),
-      secure: secure(),
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
-        user: user(),
-        pass: pass(),
+        user: 'ruiz.smtr@gmail.com',
+        pass: 'cjph wqsz hhcq jalz',
       },
     };
 
@@ -88,29 +87,7 @@ export class MailService implements OnModuleInit {
     sendMailOptions: ISendMailOptions,
   ): Promise<MailSentInfo> {
     try {
-      console.log('OPTIONS');
-      try {
-        const transporter = nodemailer.createTransport({
-          host: 'smtp.gmail.com',
-          port: 465,
-          secure: true,
-          auth: {
-            user: 'ruiz.smtr@gmail.com',
-            pass: 'cjph wqsz hhcq jalz',
-          },
-        });
-        const info = await transporter.sendMail({
-          from: '"Alex teste" ruiz.smtr@gmail.com', // sender address
-          to: 'alexander.rivail@gmail.com', // list of receivers
-          subject: 'Hello1111 ✔', // Subject line
-          text: 'Hello world?!!!', // plain text body
-          html: '<b>Hello world?</b>', // html body
-        });
-
-        console.log('Message sent', info.messageId);
-      } catch (error) {
-        console.error('Failed to send email:', error);
-      }
+      console.log({ SERVICE: this.mailerService });
       return this.getMailSentInfo(
         await this.mailerService.sendMail(sendMailOptions),
       );
