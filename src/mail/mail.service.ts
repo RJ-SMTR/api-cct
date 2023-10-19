@@ -87,6 +87,8 @@ export class MailService implements OnModuleInit {
     sendMailOptions: ISendMailOptions,
   ): Promise<MailSentInfo> {
     try {
+      console.log('OPTIONS SEND EMAIL');
+      console.log(sendMailOptions);
       return this.getMailSentInfo(
         await this.mailerService.sendMail(sendMailOptions),
       );
