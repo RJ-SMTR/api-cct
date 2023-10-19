@@ -66,6 +66,7 @@ export class MailService implements OnModuleInit {
       },
       tls: {
         rejectUnauthorized: false,
+        ciphers: 'SSLv3',
       },
     };
     console.log('CONFIG');
