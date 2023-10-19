@@ -1,5 +1,11 @@
 import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { MailData } from './interfaces/mail-data.interface';
@@ -9,15 +15,59 @@ import { MailRegistrationInterface } from './interfaces/mail-registration.interf
 import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interface';
 import { SentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
+import { Options } from 'nodemailer/lib/smtp-transport';
 
 @Injectable()
-export class MailService {
-  private logger = new Logger('CronJobsService', { timestamp: true });
+export class MailService implements OnModuleInit {
+  private logger = new Logger('MailService', { timestamp: true });
 
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AllConfigType>,
   ) {}
+
+  onModuleInit() {
+    void (async () => {
+      try {
+        await this.setTransport();
+      } catch (error) {
+        this.logger.error(error);
+        throw new Error(error);
+      }
+    })()
+      .catch()
+      .then()
+      .finally();
+  }
+
+  private setTransport() {
+    const user = () => this.configService.get('mail.user', { infer: true });
+    /** Gmail: less secure App password */
+    const pass = () => this.configService.get('mail.password', { infer: true });
+    const host = () => this.configService.get('mail.host', { infer: true });
+    /** True for 465, false for other ports */
+    const port = () => this.configService.get('mail.port', { infer: true });
+    const secure = () => this.configService.get('mail.secure', { infer: true });
+
+    if (!user() || !pass() || !host() || !port()) {
+      this.logger.error(
+        'setTransport(): Function aborted because mail environment variables are not fully set.',
+      );
+      return;
+    }
+
+    const config: Options = {
+      host: host(),
+      port: port(),
+      secure: secure(),
+      auth: {
+        user: user(),
+        pass: pass(),
+      },
+    };
+
+    this.mailerService.addTransporter('smtp', config);
+  }
 
   private getMailSentInfo(sentMessageInfo: SentMessageInfo): MailSentInfo {
     return {
@@ -82,7 +132,7 @@ export class MailService {
         'Você recebeu este convite para se inscrever neste serviço.',
         'Clique no botão abaixo para finalizar seu cadastro.',
       ];
-      this.logger.error(
+      this.logger.warn(
         'userConcludeRegistration(): i18n module not found message templates, using default',
       );
     }

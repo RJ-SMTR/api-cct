@@ -108,13 +108,22 @@ export class CronJobsService implements OnModuleInit {
               hash: invite.hash,
             },
           });
+
+        // Success
         if (mailSentInfo.response.code === 250) {
           this.inviteService.setInviteError(newInvite, {
             httpErrorCode: null,
             smtpErrorCode: null,
           });
           newInvite.inviteStatus = new InviteStatus(InviteStatusEnum.sent);
-        } else {
+          mailSender.recipientCount++;
+          await this.mailCountService.update(mailSender.id, {
+            recipientCount: mailSender.recipientCount,
+          });
+        }
+
+        // Errror
+        else {
           this.logger.error(
             'bulkSendInvites(): invite sent returned error' +
               '\n    - Message: ' +
@@ -143,10 +152,6 @@ export class CronJobsService implements OnModuleInit {
       }
 
       await this.inviteService.update(newInvite.id, newInvite);
-      mailSender.recipientCount++;
-      await this.mailCountService.update(mailSender.id, {
-        recipientCount: mailSender.recipientCount,
-      });
 
       if (mailSender.recipientCount === mailSender.maxRecipients) {
         this.logger.log(
