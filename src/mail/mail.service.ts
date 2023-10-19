@@ -16,6 +16,7 @@ import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interf
 import { SentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
 import { Options } from 'nodemailer/lib/smtp-transport';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService implements OnModuleInit {
@@ -68,6 +69,7 @@ export class MailService implements OnModuleInit {
         rejectUnauthorized: false,
         ciphers: 'SSLv3',
       },
+      connectionTimeout: 30000,
     };
     console.log('CONFIG');
     console.log(config);
@@ -98,7 +100,7 @@ export class MailService implements OnModuleInit {
         await this.mailerService.sendMail(sendMailOptions),
       );
     } catch (error) {
-      console.log(error);
+      console.log('erro ao enviar:', error);
       throw new HttpException(
         {
           error: HttpStatus.INTERNAL_SERVER_ERROR,
