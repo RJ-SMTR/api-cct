@@ -59,7 +59,7 @@ export class MailService implements OnModuleInit {
     const config: Options = {
       host: 'smtp.gmail.com',
       port: 587,
-      secure: false,
+      secure: true,
       auth: {
         user: user(),
         pass: pass(),
