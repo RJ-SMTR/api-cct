@@ -16,6 +16,7 @@ import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interf
 import { SentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
 import { Options } from 'nodemailer/lib/smtp-transport';
+const nodemailer = require('nodemailer');
 
 @Injectable()
 export class MailService implements OnModuleInit {
@@ -70,29 +71,24 @@ export class MailService implements OnModuleInit {
     this.mailerService.addTransporter('smtp', config);
   }
 
-  private getMailSentInfo(sentMessageInfo: SentMessageInfo): MailSentInfo {
-    return {
-      ...sentMessageInfo,
-      ehlo: sentMessageInfo.ehlo as EhloStatus[],
-      response: {
-        code: Number(sentMessageInfo.response?.split(' ')?.[0] || '0'),
-        message: sentMessageInfo.response,
-      },
-    };
-  }
+  private transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: 'ruiz.smtr@gmail.com',
+      pass: 'cjph wqsz hhcq jalz',
+    },
+  });
 
   /**
    * @throws `HttpException`
    */
-  private async safeSendMail(
-    sendMailOptions: ISendMailOptions,
-  ): Promise<MailSentInfo> {
+  private async safeSendMail(sendMailOptions: ISendMailOptions): Promise<any> {
     try {
       console.log('OPTIONS SEND EMAIL');
       console.log(sendMailOptions);
-      return this.getMailSentInfo(
-        await this.mailerService.sendMail(sendMailOptions),
-      );
+      return await this.transporter.sendMail(sendMailOptions);
     } catch (error) {
       console.log('erro ao enviar:', error);
       throw new HttpException(
