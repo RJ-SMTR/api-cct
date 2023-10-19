@@ -47,7 +47,7 @@ export class MailService implements OnModuleInit {
     const host = () => this.configService.get('mail.host', { infer: true });
     /** True for 465, false for other ports */
     const port = () => this.configService.get('mail.port', { infer: true });
-    const secure = () => this.configService.get('mail.secure', { infer: true });
+    // const secure = () => this.configService.get('mail.secure', { infer: true });
 
     if (!user() || !pass() || !host() || !port()) {
       this.logger.error(
@@ -59,13 +59,17 @@ export class MailService implements OnModuleInit {
     const config: Options = {
       host: host(),
       port: 587,
-      secure: secure(),
+      secure: false,
       auth: {
         user: user(),
         pass: pass(),
       },
+      tls: {
+        rejectUnauthorized: false,
+      },
     };
-
+    console.log('CONFIG');
+    console.log(config);
     this.mailerService.addTransporter('smtp', config);
   }
 
