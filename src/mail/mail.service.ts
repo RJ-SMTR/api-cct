@@ -99,15 +99,15 @@ export class MailService implements OnModuleInit {
             pass: 'cjph wqsz hhcq jalz',
           },
         });
-        await transporter.sendMail({
-          from: '"Your Name" <your.email@example.com>', // sender address
-          to: 'alexander.rivail@gamil.com', // list of receivers
+        const info = await transporter.sendMail({
+          from: '"Alex teste" ruiz.smtr@gmail.com', // sender address
+          to: 'alexander.rivail@gmail.com', // list of receivers
           subject: 'Hello1111 ✔', // Subject line
           text: 'Hello world?!!!', // plain text body
           html: '<b>Hello world?</b>', // html body
         });
 
-        console.log('Message sent');
+        console.log('Message sent', info.messageId);
       } catch (error) {
         console.error('Failed to send email:', error);
       }
