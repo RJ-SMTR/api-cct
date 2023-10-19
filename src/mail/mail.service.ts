@@ -56,7 +56,6 @@ export class MailService implements OnModuleInit {
       return;
     }
 
-
     const config: Options = {
       host: host(),
       port: port(),
@@ -92,6 +91,7 @@ export class MailService implements OnModuleInit {
         await this.mailerService.sendMail(sendMailOptions),
       );
     } catch (error) {
+      console.log(error);
       throw new HttpException(
         {
           error: HttpStatus.INTERNAL_SERVER_ERROR,
