@@ -64,11 +64,6 @@ export class MailService implements OnModuleInit {
         user: user(),
         pass: pass(),
       },
-      tls: {
-        rejectUnauthorized: false,
-        ciphers: 'SSLv3',
-      },
-      connectionTimeout: 30000,
     };
     console.log('CONFIG');
     console.log(config);
