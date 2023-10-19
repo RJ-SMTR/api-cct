@@ -13,10 +13,10 @@ import { AllConfigType } from 'src/config/config.type';
 import { MaybeType } from '../utils/types/maybe.type';
 import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
 import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interface';
-import { SentMessageInfo } from './interfaces/nodemailer/sent-message-info';
-import { EhloStatus } from './enums/ehlo-status.enum';
+// import { SentMessageInfo } from './interfaces/nodemailer/sent-message-info';
+// import { EhloStatus } from './enums/ehlo-status.enum';
 import { Options } from 'nodemailer/lib/smtp-transport';
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService implements OnModuleInit {
