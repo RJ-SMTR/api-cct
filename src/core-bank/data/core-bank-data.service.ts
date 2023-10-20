@@ -125,12 +125,12 @@ export class CoreBankDataService implements OnModuleInit {
     const now = new Date(Date.now());
     for (const cpf of this.bankStatementsArgs.cpfs) {
       let id = 1;
-      if (now.getUTCDay() === WeekdayEnum.THURSDAY) {
+      if (now.getUTCDay() === WeekdayEnum._3_THURSDAY) {
         bankStatements.push(
           this.generateBankStatement({
             id: id,
             nthWeek: 0,
-            weekday: WeekdayEnum.THURSDAY,
+            weekday: WeekdayEnum._3_THURSDAY,
             cpfCnpj: cpf,
             status: CoreBankStatusEnum.accumulated,
           }),
@@ -140,7 +140,7 @@ export class CoreBankDataService implements OnModuleInit {
           this.generateBankStatement({
             id: id,
             nthWeek: 0,
-            weekday: WeekdayEnum.WEDNESDAY,
+            weekday: WeekdayEnum._2_WEDNESDAY,
             cpfCnpj: cpf,
             status: CoreBankStatusEnum.accumulated,
           }),
@@ -165,7 +165,7 @@ export class CoreBankDataService implements OnModuleInit {
           this.generateBankStatement({
             id: week + id,
             nthWeek: week,
-            weekday: WeekdayEnum.FRIDAY,
+            weekday: WeekdayEnum._3_THURSDAY,
             cpfCnpj: cpf,
           }),
         );

@@ -42,7 +42,7 @@ describe('TicketRevenuesService', () => {
           const dayStr = day.toString().padStart(2, '0');
           const hourStr = (i * 10).toString().padStart(2, '0');
           expectedResult.push({
-            id: i,
+            transactionId: i,
             paymentMediaType: `media_${i}`,
             transportIntegrationType: `integration_${i}`,
             transactionType: `transaction_${i}`,
@@ -56,7 +56,7 @@ describe('TicketRevenuesService', () => {
             clientId: `clientId_${i}`,
             integrationId: i,
             individualIntegrationId: i,
-            dateIndex: `dateIndex_${i}`,
+            partitionDate: `dateIndex_${i}`,
             processingDateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
             captureDateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
             vehicleService: i,

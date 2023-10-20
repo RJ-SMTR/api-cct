@@ -63,8 +63,8 @@ describe('JaeService', () => {
       // Arrange
       const permitCode = 'permitCode_1';
       const ticketRevenues = [
-        { id: 0, permitCode: 'permitCode_1' },
-        { id: 1, permitCode: 'permitCode_2' },
+        { transactionId: 0, permitCode: 'permitCode_1' },
+        { transactionId: 1, permitCode: 'permitCode_2' },
       ] as IJaeTicketRevenue[];
       jest
         .spyOn(jaeDataService, 'getTicketRevenuesByPermitCode')

@@ -234,7 +234,7 @@ export class JaeDataService implements OnModuleInit {
           date.setUTCDate(date.getUTCDate() - day);
           date.setUTCHours(startHour, totalMinutes - currentMinute);
           const newTripIncome: IJaeTicketRevenue = {
-            id: ticketRevenues.length,
+            transactionId: ticketRevenues.length,
             transactionDateTime: date.toISOString(),
             transactionValue: ticketTransactionValue,
             transactionLat: stopTime.stop_id.stop_lat,
@@ -247,7 +247,7 @@ export class JaeDataService implements OnModuleInit {
             stopId: stopTime.stop_id.stop_id,
             integrationId: 0,
             individualIntegrationId: 0,
-            dateIndex: date.toISOString(),
+            partitionDate: date.toISOString(),
             processingDateTime: date.toISOString(),
             captureDateTime: date.toISOString(),
             vehicleService: 0,

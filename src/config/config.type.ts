@@ -54,6 +54,7 @@ export type FileConfig = {
 export type GoogleConfig = {
   clientId?: string;
   clientSecret?: string;
+  clientApiJson?: string;
 };
 
 export type MailConfig = {

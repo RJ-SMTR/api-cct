@@ -1,6 +1,6 @@
 export interface IJaeTicketRevenueGroup {
   /** id_transacao */
-  id: number;
+  transactionId: number;
 
   /** id_tipo_pagamento (group count) */
   paymentMediaTypeCount: {
@@ -57,7 +57,7 @@ export interface IJaeTicketRevenueGroup {
   individualIntegrationId: number;
 
   /** data (partition, GMT0) */
-  dateIndex: string;
+  partitionDate: string;
 
   /** datetime_processamento */
   processingDateTime: string;

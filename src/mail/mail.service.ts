@@ -12,7 +12,7 @@ import { EhloStatus } from './enums/ehlo-status.enum';
 
 @Injectable()
 export class MailService {
-  private logger = new Logger('CronJobsService', { timestamp: true });
+  private logger = new Logger('MailService', { timestamp: true });
 
   constructor(
     private readonly mailerService: MailerService,

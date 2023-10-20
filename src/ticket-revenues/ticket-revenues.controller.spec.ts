@@ -58,8 +58,8 @@ describe('TicketRevenuesController', () => {
       } as Partial<Request>;
       const args = { previousDays: 1 } as TicketRevenuesGetDto;
       const expectedResult: Partial<IJaeTicketRevenue>[] = [
-        { id: 1 },
-        { id: 2 },
+        { transactionId: 1 },
+        { transactionId: 2 },
       ];
       jest
         .spyOn(usersService, 'getOneFromRequest')
