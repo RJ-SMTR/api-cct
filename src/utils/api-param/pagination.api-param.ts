@@ -7,11 +7,11 @@ export const PaginationApiParams = {
   page: {
     name: 'page',
     required: false,
-    description: '**default:** 1, **min:** 1',
+    description: '_Default_ : 1' + '\n\n_Min_ : 1',
   } as ApiParamOptions,
   limit: {
     name: 'limit',
     required: false,
-    description: '**default:** 500, **min:** 1, **max:** 500',
+    description: '_Default_ : 500' + '\n\n_Min_ : 1' + '\n\n_Max_ : 500',
   } as ApiParamOptions,
 };

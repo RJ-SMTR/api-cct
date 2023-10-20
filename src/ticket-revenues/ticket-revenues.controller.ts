@@ -107,10 +107,8 @@ export class TicketRevenuesController {
   @ApiQuery({
     name: 'groupBy',
     required: false,
-    description:
-      `**allowedValues:** \`${Object.values(TicketRevenuesGroupByEnum).join(
-        '`, `',
-      )}\`, ` + `**default:** \`${TicketRevenuesGroupByEnum.DAY}\``,
+    description: `_Default_ : ${TicketRevenuesGroupByEnum.DAY}`,
+    enum: TicketRevenuesGroupByEnum,
   })
   async getGrouped(
     @Request() request,

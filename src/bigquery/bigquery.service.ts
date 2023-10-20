@@ -4,30 +4,35 @@ import { ConfigService } from '@nestjs/config';
 import { AllConfigType } from 'src/config/config.type';
 
 export enum BigqueryServiceInstances {
-  bqSmtr,
+  smtr = 'smtr',
 }
 
 @Injectable()
 export class BigqueryService {
-  private readonly bqSmtr: BigQuery;
+  private bigQueryInstances: Record<string, BigQuery> = {};
   private logger: Logger = new Logger('BigqueryService', { timestamp: true });
 
   constructor(private configService: ConfigService<AllConfigType>) {
     const jsonCredentials = () =>
       this.configService.getOrThrow('google.clientApiJson', { infer: true });
-    this.bqSmtr = new BigQuery({
+    this.bigQueryInstances.smtr = new BigQuery({
       credentials: JSON.parse(jsonCredentials()),
     });
   }
 
   public getBqInstance(option: BigqueryServiceInstances): BigQuery {
-    if (option === BigqueryServiceInstances.bqSmtr) {
-      return this.bqSmtr;
+    const bqInstance = this.bigQueryInstances[option];
+    if (bqInstance !== undefined) {
+      return bqInstance;
     }
     throw new HttpException(
       {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
-        detail: 'getBqService(): invalid service found',
+        details: {
+          message: 'invalid bqService chosen',
+          bqInstances: Object.keys(this.bigQueryInstances),
+          availableOptions: Object.values(BigqueryServiceInstances),
+        },
       },
       HttpStatus.INTERNAL_SERVER_ERROR,
     );

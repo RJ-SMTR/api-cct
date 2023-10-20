@@ -78,7 +78,7 @@ export interface ITicketRevenuesGroup {
   transactionTypeCounts: Record<string, number>;
 
   /**
-   * Represents counts for `transportIntegrationType` (`id_tipo_integracao)
+   * Represents counts for `transportIntegrationType` (`id_tipo_integracao`)
    *
    * @description Tipo da integração realizada (identificador relacionado à matriz de integração)
    * @example {'0': 13, '1': 32}

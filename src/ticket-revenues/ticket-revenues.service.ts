@@ -65,7 +65,7 @@ export class TicketRevenuesService {
 
     const ticketRevenues: ITicketRevenue[] =
       await this.bigqueryService.runQuery(
-        BigqueryServiceInstances.bqSmtr,
+        BigqueryServiceInstances.smtr,
         `
         SELECT
           CAST(data AS STRING) AS partitionDate,
