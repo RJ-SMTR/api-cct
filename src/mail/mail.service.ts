@@ -1,11 +1,5 @@
 import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Logger,
-  OnModuleInit,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { MailData } from './interfaces/mail-data.interface';
@@ -17,25 +11,13 @@ import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
 
 @Injectable()
-export class MailService implements OnModuleInit {
+export class MailService {
   private logger = new Logger('MailService', { timestamp: true });
 
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AllConfigType>,
   ) {}
-
-  onModuleInit() {
-    void (() => {
-      try {
-        // await this.setTransport();
-        console.log(this.mailerService);
-      } catch (error) {
-        this.logger.error(error);
-        throw new Error(error);
-      }
-    })();
-  }
 
   private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
     return {
