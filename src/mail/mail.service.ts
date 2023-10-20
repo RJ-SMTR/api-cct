@@ -1,11 +1,5 @@
 import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Logger,
-  OnModuleInit,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { MailData } from './interfaces/mail-data.interface';
@@ -13,63 +7,30 @@ import { AllConfigType } from 'src/config/config.type';
 import { MaybeType } from '../utils/types/maybe.type';
 import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
 import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interface';
-import { SentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
-import { Options } from 'nodemailer/lib/smtp-transport';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
-export class MailService implements OnModuleInit {
+export class MailService {
   private logger = new Logger('MailService', { timestamp: true });
+  private transporter: nodemailer.Transporter;
 
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AllConfigType>,
-  ) {}
-
-  onModuleInit() {
-    void (async () => {
-      try {
-        await this.setTransport();
-      } catch (error) {
-        this.logger.error(error);
-        throw new Error(error);
-      }
-    })()
-      .catch()
-      .then()
-      .finally();
-  }
-
-  private setTransport() {
-    const user = () => this.configService.get('mail.user', { infer: true });
-    /** Gmail: less secure App password */
-    const pass = () => this.configService.get('mail.password', { infer: true });
-    const host = () => this.configService.get('mail.host', { infer: true });
-    /** True for 465, false for other ports */
-    const port = () => this.configService.get('mail.port', { infer: true });
-    const secure = () => this.configService.get('mail.secure', { infer: true });
-
-    if (!user() || !pass() || !host() || !port()) {
-      this.logger.error(
-        'setTransport(): Function aborted because mail environment variables are not fully set.',
-      );
-      return;
-    }
-
-    const config: Options = {
-      host: host(),
-      port: port(),
-      secure: secure(),
+  ) {
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get('mail.host', { infer: true }),
+      port: 465,
+      secure: true,
       auth: {
-        user: user(),
-        pass: pass(),
+        user: this.configService.get('mail.user', { infer: true }),
+        pass: this.configService.get('mail.password', { infer: true }),
       },
-    };
-
-    this.mailerService.addTransporter('smtp', config);
+    });
   }
 
-  private getMailSentInfo(sentMessageInfo: SentMessageInfo): MailSentInfo {
+  private getMailSentInfo(sentMessageInfo: any): MailSentInfo {
     return {
       ...sentMessageInfo,
       ehlo: sentMessageInfo.ehlo as EhloStatus[],
@@ -87,11 +48,9 @@ export class MailService implements OnModuleInit {
     sendMailOptions: ISendMailOptions,
   ): Promise<MailSentInfo> {
     try {
-      console.log('OPTIONS SEND EMAIL');
-      console.log(sendMailOptions);
-      return this.getMailSentInfo(
-        await this.mailerService.sendMail(sendMailOptions),
-      );
+      const info = await this.transporter.sendMail(sendMailOptions);
+      console.log(this.transporter);
+      return this.getMailSentInfo(info);
     } catch (error) {
       console.log(error);
       throw new HttpException(
