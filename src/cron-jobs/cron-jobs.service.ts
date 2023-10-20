@@ -120,9 +120,10 @@ export class CronJobsService implements OnModuleInit {
           await this.mailCountService.update(mailSender.id, {
             recipientCount: mailSender.recipientCount,
           });
+          this.logger.log('bulkSendInvites(): invite sent successfully.');
         }
 
-        // Errror
+        // SMTP error
         else {
           this.logger.error(
             'bulkSendInvites(): invite sent returned error' +
@@ -136,6 +137,8 @@ export class CronJobsService implements OnModuleInit {
             smtpErrorCode: mailSentInfo.response.code,
           });
         }
+
+        // API error
       } catch (httpException) {
         this.logger.error(
           'bulkSendInvites(): invite failed to send' +
@@ -153,6 +156,7 @@ export class CronJobsService implements OnModuleInit {
 
       await this.inviteService.update(newInvite.id, newInvite);
 
+      // Quota limit reached
       if (mailSender.recipientCount === mailSender.maxRecipients) {
         this.logger.log(
           'bulkSendInvites(): mailSender ' +
