@@ -1,5 +1,11 @@
 import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { MailData } from './interfaces/mail-data.interface';
@@ -7,30 +13,31 @@ import { AllConfigType } from 'src/config/config.type';
 import { MaybeType } from '../utils/types/maybe.type';
 import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
 import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interface';
+import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
-import * as nodemailer from 'nodemailer';
 
 @Injectable()
-export class MailService {
+export class MailService implements OnModuleInit {
   private logger = new Logger('MailService', { timestamp: true });
-  private transporter: nodemailer.Transporter;
 
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AllConfigType>,
-  ) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get('mail.host', { infer: true }),
-      port: 465,
-      secure: true,
-      auth: {
-        user: this.configService.get('mail.user', { infer: true }),
-        pass: this.configService.get('mail.password', { infer: true }),
-      },
-    });
+  ) {}
+
+  onModuleInit() {
+    void (() => {
+      try {
+        // await this.setTransport();
+        console.log(this.mailerService);
+      } catch (error) {
+        this.logger.error(error);
+        throw new Error(error);
+      }
+    })();
   }
 
-  private getMailSentInfo(sentMessageInfo: any): MailSentInfo {
+  private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
     return {
       ...sentMessageInfo,
       ehlo: sentMessageInfo.ehlo as EhloStatus[],
@@ -48,11 +55,10 @@ export class MailService {
     sendMailOptions: ISendMailOptions,
   ): Promise<MailSentInfo> {
     try {
-      const info = await this.transporter.sendMail(sendMailOptions);
-      console.log(this.transporter);
-      return this.getMailSentInfo(info);
+      return this.getMailSentInfo(
+        await this.mailerService.sendMail(sendMailOptions),
+      );
     } catch (error) {
-      console.log(error);
       throw new HttpException(
         {
           error: HttpStatus.INTERNAL_SERVER_ERROR,
