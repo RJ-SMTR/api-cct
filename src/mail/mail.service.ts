@@ -49,6 +49,7 @@ export class MailService {
   ): Promise<MailSentInfo> {
     try {
       const info = await this.transporter.sendMail(sendMailOptions);
+      console.log(this.transporter);
       return this.getMailSentInfo(info);
     } catch (error) {
       console.log(error);
