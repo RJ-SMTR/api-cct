@@ -131,7 +131,7 @@ export interface ITicketRevenuesGroup {
 
   /**
    * The first valid date or datetime string of this group.
-   * @example '2023-10-01', '2023-10-02 15:01:23'
+   * @example '2023-10-02T15:01:23.000Z'
    */
   aux_groupDateTime: string;
 }

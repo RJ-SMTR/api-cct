@@ -26,6 +26,7 @@ export interface ITicketRevenue {
    *
    * @description Hora de processamento da transação
    * @type `integer | null`
+   * @example 11
    */
   processingHour: number;
 

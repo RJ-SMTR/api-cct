@@ -43,13 +43,13 @@ export class BigqueryService {
    * @throws `HttpException`
    */
   public async runQuery(bqInstance: BigqueryServiceInstances, query: string) {
-    console.log('bigquery:', query);
     this.logger.debug('Query fetch started');
+    console.log('bigquery:', query);
     try {
       const [rows] = await this.getBqInstance(bqInstance).query({
         query,
       });
-      this.logger.debug('Query fetch finished');
+      this.logger.debug(`Query fetch finished. Count: ${rows.length}`);
       return rows;
     } catch (error) {
       throw new HttpException(

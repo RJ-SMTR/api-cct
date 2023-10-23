@@ -12,6 +12,7 @@ import {
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
 import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
+import { getDateNthWeek } from 'src/utils/date-utils';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -27,6 +28,7 @@ export class TicketRevenuesService {
   ): Promise<ITicketRevenue[]> {
     let argsOffset = args?.offset;
     const qWhere: string[] = [];
+
     if (args?.offset !== undefined && args.limit === undefined) {
       this.logger.warn(
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
@@ -34,81 +36,71 @@ export class TicketRevenuesService {
       );
       argsOffset = undefined;
     }
+
     if (args?.previousDays !== undefined) {
       const previousDaysDate: Date = new Date(Date.now());
       previousDaysDate.setUTCDate(
         previousDaysDate.getUTCDate() - args.previousDays,
       );
       qWhere.push(
-        `Date(data) <= Date('${previousDaysDate.toISOString().split('T')[0]}')`,
+        `DATE(data) >= DATE('${previousDaysDate.toISOString().split('T')[0]}')`,
       );
     } else {
       if (args?.startDate !== undefined) {
-        qWhere.push(`Date(data) >= Date('${args.startDate}')`);
+        qWhere.push(`DATE(data) >= DATE('${args.startDate}')`);
       }
       if (args?.endDate !== undefined) {
-        qWhere.push(`Date(data) <= Date('${args.endDate}')`);
+        qWhere.push(`DATE(data) <= DATE('${args.endDate}')`);
       }
     }
+
     if (args?.permitCode !== undefined) {
-      const permitCode =
-        args.permitCode !== 'mock'
-          ? `'${args.permitCode}'`
-          : `(
-        SELECT DISTINCT permissao
-        FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`
-        ORDER BY permissao DESC
-        LIMIT 1
-      )`;
-      qWhere.push(`permissao = ${permitCode}`);
+      let permitCode = args.permitCode;
+      if (permitCode[0] === "'") {
+        this.logger.warn(
+          "permitCode contains ' character, removing it before query",
+        );
+        permitCode = permitCode.replace("'", '');
+      }
+      qWhere.push(`permissao = '${permitCode}'`);
     }
 
     const ticketRevenues: ITicketRevenue[] =
       await this.bigqueryService.runQuery(
         BigqueryServiceInstances.smtr,
         `
-        SELECT
-          CAST(data AS STRING) AS partitionDate,
-          hora AS processingHour,
-          CAST(datetime_transacao AS STRING) AS transactionDateTime,
-          CAST(datetime_processamento AS STRING) AS processingDateTime,
-          datetime_captura AS captureDateTime,
-          modo AS transportType,
-          permissao AS permitCode,
-          servico AS vehicleService,
-          sentido AS directionId,
-          id_veiculo AS vehicleId,
-          id_cliente AS clientId,
-          id_transacao AS transactionId,
-          id_tipo_pagamento AS paymentMediaType,
-          id_tipo_transacao AS transactionType,
-          id_tipo_integracao AS transportIntegrationType,
-          id_integracao AS integrationId,
-          latitude AS transactionLat,
-          longitude AS transactionLon,
-          stop_id AS stopId,
-          stop_lat AS stopLat,
-          stop_lon AS stopLon,
-          valor_transacao AS transactionValue,
-          versao AS bqDataVersion
-        FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`
-        ${qWhere.length > 0 ? `WHERE ${qWhere.join(' AND ')}` : ''}
-        ORDER BY data DESC, hora DESC
-        ${args?.limit !== undefined ? `LIMIT ${args.limit}` : ''}
-        ${argsOffset !== undefined ? `OFFSET ${argsOffset}` : ''}
-      `,
+SELECT
+  CAST(data AS STRING) AS partitionDate,
+  hora AS processingHour,
+  CAST(datetime_transacao AS STRING) AS transactionDateTime,
+  CAST(datetime_processamento AS STRING) AS processingDateTime,
+  datetime_captura AS captureDateTime,
+  modo AS transportType,
+  permissao AS permitCode,
+  servico AS vehicleService,
+  sentido AS directionId,
+  id_veiculo AS vehicleId,
+  id_cliente AS clientId,
+  id_transacao AS transactionId,
+  id_tipo_pagamento AS paymentMediaType,
+  id_tipo_transacao AS transactionType,
+  id_tipo_integracao AS transportIntegrationType,
+  id_integracao AS integrationId,
+  latitude AS transactionLat,
+  longitude AS transactionLon,
+  stop_id AS stopId,
+  stop_lat AS stopLat,
+  stop_lon AS stopLon,
+  valor_transacao AS transactionValue,
+  versao AS bqDataVersion
+FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
+          (qWhere.length > 0 ? `\nWHERE ${qWhere.join(' AND ')}` : '') +
+          `\nORDER BY data DESC, hora DESC` +
+          (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
+          (argsOffset !== undefined ? `\nOFFSET ${argsOffset}` : ''),
       );
 
     return ticketRevenues;
-  }
-
-  private getTicketRevenueDateTime(item: ITicketRevenue): string {
-    return (
-      item.transactionDateTime ||
-      item?.processingDateTime ||
-      item?.captureDateTime ||
-      `${item.partitionDate} ${item.processingHour || 0}`
-    );
   }
 
   public async getUngroupedFromUser(
@@ -148,6 +140,7 @@ export class TicketRevenuesService {
       );
       return [];
     }
+    console.log('LEN', ticketRevenuesResponse.length);
 
     // Filter
     let filteredData = ticketRevenuesResponse.filter((item) => {
@@ -160,7 +153,7 @@ export class TicketRevenuesService {
       previousDaysDate.setUTCHours(0, 0, 0, 0);
 
       const todayDate = new Date(Date.now());
-      const itemDate: Date = new Date(this.getTicketRevenueDateTime(item));
+      const itemDate: Date = new Date(item.partitionDate);
       const startDate: Date | null = args?.startDate
         ? new Date(args.startDate)
         : null;
@@ -179,13 +172,12 @@ export class TicketRevenuesService {
         previousDaysDate &&
         itemDate >= previousDaysDate &&
         itemDate <= todayDate;
-
-      return (
+      const isValidData =
         (hasDateRange && isFromStart && isUntilEnd) ||
         (!hasDateRange &&
           ((hasStartOrEnd && (isFromStart || isUntilEnd)) ||
-            (!hasStartOrEnd && isFromPreviousDays)))
-      );
+            (!hasStartOrEnd && isFromPreviousDays)));
+      return isValidData;
     });
 
     // Pagination
@@ -194,25 +186,6 @@ export class TicketRevenuesService {
     }
 
     return filteredData;
-  }
-
-  private getDaysToAdd(currentWeekday: number, desiredWeekday: number) {
-    currentWeekday = (currentWeekday + 7) % 7;
-    desiredWeekday = (desiredWeekday + 7) % 7;
-    const daysToAdd = (desiredWeekday - currentWeekday + 7) % 7;
-    return daysToAdd;
-  }
-
-  private getNthEpochWeek(dateInput: Date, startWeekday: number): number {
-    const epochDate = new Date(1970, 0, 1);
-    epochDate.setDate(
-      epochDate.getDate() + this.getDaysToAdd(epochDate.getDay(), startWeekday),
-    );
-    const millisecondsDifference = dateInput.getTime() - epochDate.getTime();
-    const millisecondsInAWeek = 7 * 24 * 60 * 60 * 1000;
-    const nthWeekNumber =
-      Math.floor(millisecondsDifference / millisecondsInAWeek) + 1;
-    return nthWeekNumber;
   }
 
   public getTicketRevenuesGroups(
@@ -225,14 +198,11 @@ export class TicketRevenuesService {
         accumulator: Record<string, ITicketRevenuesGroup>,
         item: ITicketRevenue,
       ) => {
-        const itemDateTime = this.getTicketRevenueDateTime(item);
-        const nthWeek = this.getNthEpochWeek(
-          new Date(itemDateTime),
-          startWeekday,
-        );
+        const itemDate = new Date(item.partitionDate);
+        const nthWeek = getDateNthWeek(itemDate, startWeekday);
         const dateGroup =
           groupBy === TicketRevenuesGroupByEnum.DAY
-            ? itemDateTime.slice(0, 10)
+            ? item.partitionDate
             : nthWeek;
 
         if (!accumulator[dateGroup]) {
@@ -250,7 +220,7 @@ export class TicketRevenuesService {
             stopLonCounts: {},
             transactionValueSum: 0,
             aux_epochWeek: nthWeek,
-            aux_groupDateTime: itemDateTime,
+            aux_groupDateTime: itemDate.toISOString(),
           };
         }
 
@@ -409,7 +379,7 @@ export class TicketRevenuesService {
       previousDaysDate.setUTCHours(0, 0, 0, 0);
 
       const todayDate = new Date(Date.now());
-      const itemDate: Date = new Date(group.aux_groupDateTime);
+      const itemDate: Date = new Date(group.partitionDate);
       let startDate: Date | null = args?.startDate
         ? new Date(args.startDate)
         : null;
@@ -467,8 +437,8 @@ export class TicketRevenuesService {
     const newStartDate = new Date(startDate);
     const localEndDate = new Date(endDate);
     if (
-      this.getNthEpochWeek(localEndDate, startWeekday) >
-      this.getNthEpochWeek(newStartDate, startWeekday)
+      getDateNthWeek(localEndDate, startWeekday) >
+      getDateNthWeek(newStartDate, startWeekday)
     ) {
       const addDays = (startWeekday - startDate.getDay() + 7) % 7;
       newStartDate.setDate(newStartDate.getDate() + addDays);

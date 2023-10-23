@@ -53,6 +53,7 @@ export class TicketRevenuesController {
   @ApiQuery(DateApiParams.startWeekday(WeekdayEnum._3_THURSDAY))
   async getUngrouped(
     @Request() request,
+
     @Query('page', new DefaultValuePipe(1), new MinMaxNumberPipe({ min: 1 }))
     page: number,
     @Query(
@@ -112,6 +113,7 @@ export class TicketRevenuesController {
   })
   async getGrouped(
     @Request() request,
+
     @Query('page', new DefaultValuePipe(1), new MinMaxNumberPipe({ min: 1 }))
     page: number,
     @Query(

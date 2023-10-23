@@ -191,7 +191,7 @@ export class UsersService {
     const fileData = xlsx.utils.sheet_to_json(worksheet);
     const fileUsers: FileUserInterface[] = fileData.map((item) => ({
       user: {
-        permitCode: (item as any).codigo_permissionario,
+        permitCode: (item as any).codigo_permissionario.replace("'", ''),
         email: (item as any).email,
       },
       errors: {},
