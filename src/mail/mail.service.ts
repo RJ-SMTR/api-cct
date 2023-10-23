@@ -90,7 +90,7 @@ export class MailService {
     const frontendDomain = this.configService.get('app.frontendDomain', {
       infer: true,
     });
-    const emailConfirmLink = `${frontendDomain}/confirm-email/${mailData.data.hash}`;
+    const emailConfirmLink = `${frontendDomain}/conclude-registration/${mailData.data.hash}`;
 
     try {
       const mailSentInfo = await this.safeSendMail({
