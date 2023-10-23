@@ -190,6 +190,9 @@ export class UsersService {
       const errors = await validate(schema as Record<string, any>, {
         stopAtFirstError: true,
       });
+      if (typeof fileUser.user.permitCode === 'string') {
+        fileUser.user.permitCode = fileUser.user.permitCode.replace("'", '');
+      }
       const errorDictionary: { [field: string]: string[] } = errors.reduce(
         (result, error) => {
           const { property, constraints } = error;
