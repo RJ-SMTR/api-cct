@@ -7,7 +7,7 @@ import { lowerCaseTransformer } from 'src/utils/transformers/lower-case.transfor
 export class CreateFileUserDto {
   @ApiProperty({ example: 'test1@example.com' })
   @IsNotEmpty()
-  @IsString()
+  @IsEmail()
   @Transform(lowerCaseTransformer)
   @Validate(IsNotExist, ['User'], {
     message: 'emailAlreadyExists',
@@ -15,11 +15,11 @@ export class CreateFileUserDto {
   @IsEmail()
   email: string;
 
+  @ApiProperty({ example: '123.456-7' })
   @IsString()
-  @ApiProperty({ example: '213890329890312' })
   @IsNotEmpty()
   @Validate(IsNotExist, ['User', { ignoreBlankOrNull: true }], {
-    message: 'licenseeAlreadyExists',
+    message: 'permitCode already exists',
   })
   permitCode: string;
 }
