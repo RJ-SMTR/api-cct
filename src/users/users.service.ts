@@ -191,7 +191,7 @@ export class UsersService {
         stopAtFirstError: true,
       });
       if (typeof fileUser.user.permitCode === 'string') {
-        fileUser.user.permitCode = fileUser.user.permitCode.replace("'", '');
+        fileUser.user.permitCode = fileUser.user.permitCode.replace(/'/g, '');
       }
       const errorDictionary: { [field: string]: string[] } = errors.reduce(
         (result, error) => {
@@ -251,6 +251,7 @@ export class UsersService {
           id: StatusEnum.register,
         },
       } as DeepPartial<User>);
+      console.log('CREATING USER', fileUser.user);
       await this.usersRepository.save(createdUser);
 
       await this.inviteService.create({
