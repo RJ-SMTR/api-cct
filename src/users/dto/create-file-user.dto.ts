@@ -12,12 +12,11 @@ export class CreateFileUserDto {
   @Validate(IsNotExist, ['User'], {
     message: 'emailAlreadyExists',
   })
-  @IsEmail()
   email: string;
 
   @ApiProperty({ example: '123.456-7' })
-  @IsString()
   @IsNotEmpty()
+  @IsString()
   @Validate(IsNotExist, ['User', { ignoreBlankOrNull: true }], {
     message: 'permitCode already exists',
   })
