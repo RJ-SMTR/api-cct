@@ -199,7 +199,6 @@ export class AuthService {
   }
 
   async resendRegisterMail(obj: AuthResendEmailDto): Promise<void> {
-    console.log('AKI', obj);
     if (!obj) {
       throw new HttpException(
         {

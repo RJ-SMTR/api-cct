@@ -73,8 +73,9 @@ export class AuthController {
 
   @Post('email/resend')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async resendRegisterMail(@Body() resendEmailDto: AuthResendEmailDto): Promise<void> {
-    console.log("CONTROLE", resendEmailDto)
+  async resendRegisterMail(
+    @Body() resendEmailDto: AuthResendEmailDto,
+  ): Promise<void> {
     return this.service.resendRegisterMail(resendEmailDto);
   }
 
