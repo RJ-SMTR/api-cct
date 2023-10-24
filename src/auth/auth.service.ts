@@ -22,6 +22,8 @@ import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
+import { MailData } from 'src/mail/interfaces/mail-data.interface';
+import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 
 @Injectable()
 export class AuthService {
@@ -194,6 +196,49 @@ export class AuthService {
       });
 
     return { link: emailConfirmationLink };
+  }
+
+  async resendRegisterMail(obj: AuthResendEmailDto): Promise<void> {
+    console.log('AKI', obj);
+    if (!obj) {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.USER_NOT_FOUND,
+          details: {
+            error: `user not found`,
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const user = await this.usersService.findOne({
+      id: obj.id,
+    });
+
+    if (!user) {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.USER_NOT_FOUND,
+          details: {
+            error: `User not found`,
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    await user.save();
+    if (user.hash && user.email && user.hash) {
+      const mailData: MailData<{ hash: string; to: string }> = {
+        to: user.email,
+        data: {
+          hash: user.hash,
+          to: user.email,
+        },
+      };
+      await this.mailService.userConcludeRegistration(mailData);
+    }
   }
 
   async confirmEmail(hash: string): Promise<void> {
