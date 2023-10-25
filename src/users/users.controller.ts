@@ -40,6 +40,7 @@ import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-vali
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { InviteStatusNamesEnum } from 'src/invite-statuses/invite-status.enum';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
+import { EnumValidationPipe } from 'src/utils/pipes/enum-validation.pipe';
 
 @ApiBearerAuth()
 @Roles(RoleEnum.admin)
@@ -119,7 +120,11 @@ export class UsersController {
     @Query('cpfCnpj') cpfCnpj?: string,
     @Query('isSgtuBlocked') isSgtuBlocked?: boolean,
     @Query('passValidatorId') passValidatorId?: string,
-    @Query('inviteStatus') inviteStatusName?: string,
+    @Query(
+      'inviteStatus',
+      new EnumValidationPipe(InviteStatusNamesEnum, 'value'),
+    )
+    inviteStatusName?: InviteStatusNamesEnum,
   ): Promise<InfinityPaginationResultType<User>> {
     if (limit > 500) {
       limit = 500;
