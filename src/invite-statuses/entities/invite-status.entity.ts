@@ -2,7 +2,7 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { InviteStatusEnum } from '../invite-status.enum';
-import { getEnumKey } from 'src/utils/enum-utils';
+import { getEnumKey } from 'src/utils/enum.utils';
 
 @Entity()
 export class InviteStatus extends EntityHelper {

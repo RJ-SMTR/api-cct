@@ -3,8 +3,6 @@ import { User } from 'src/users/entities/user.entity';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
-import { TicketRevenuesGroupByEnum } from './enums/ticket-revenues-group-by.enum';
-import { ITicketRevenuesGetUngrouped } from './interfaces/ticket-revenues-get-ungrouped.interface';
 import {
   BigqueryService,
   BigqueryServiceInstances,
@@ -13,6 +11,12 @@ import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interfa
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
 import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
 import { getDateNthWeek } from 'src/utils/date-utils';
+import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
+import {
+  PAYMENT_START_WEEKDAY,
+  PAYMENT_WEEKDAY,
+  getPaymentStartEndDates,
+} from 'src/utils/payment-date-utils';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -23,99 +27,16 @@ export class TicketRevenuesService {
 
   constructor(private readonly bigqueryService: BigqueryService) {}
 
-  public async fetchTicketRevenues(
-    args?: IFetchTicketRevenues,
-  ): Promise<ITicketRevenue[]> {
-    let argsOffset = args?.offset;
-    const qWhere: string[] = [];
-
-    if (args?.offset !== undefined && args.limit === undefined) {
-      this.logger.warn(
-        "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-          " 'offset' will be ignored to prevent query fail",
-      );
-      argsOffset = undefined;
-    }
-
-    if (args?.previousDays !== undefined) {
-      const previousDaysDate: Date = new Date(Date.now());
-      previousDaysDate.setUTCDate(
-        previousDaysDate.getUTCDate() - args.previousDays,
-      );
-      qWhere.push(
-        `DATE(data) >= DATE('${previousDaysDate.toISOString().split('T')[0]}')`,
-      );
-    } else {
-      if (args?.startDate !== undefined) {
-        qWhere.push(`DATE(data) >= DATE('${args.startDate}')`);
-      }
-      if (args?.endDate !== undefined) {
-        qWhere.push(`DATE(data) <= DATE('${args.endDate}')`);
-      }
-    }
-
-    if (args?.permitCode !== undefined) {
-      let permitCode = args.permitCode;
-      if (permitCode[0] === "'") {
-        this.logger.warn(
-          "permitCode contains ' character, removing it before query",
-        );
-        permitCode = permitCode.replace("'", '');
-      }
-      qWhere.push(`permissao = '${permitCode}'`);
-    }
-
-    const ticketRevenues: ITicketRevenue[] =
-      await this.bigqueryService.runQuery(
-        BigqueryServiceInstances.smtr,
-        `
-SELECT
-  CAST(data AS STRING) AS partitionDate,
-  hora AS processingHour,
-  CAST(datetime_transacao AS STRING) AS transactionDateTime,
-  CAST(datetime_processamento AS STRING) AS processingDateTime,
-  datetime_captura AS captureDateTime,
-  modo AS transportType,
-  permissao AS permitCode,
-  servico AS vehicleService,
-  sentido AS directionId,
-  id_veiculo AS vehicleId,
-  id_cliente AS clientId,
-  id_transacao AS transactionId,
-  id_tipo_pagamento AS paymentMediaType,
-  id_tipo_transacao AS transactionType,
-  id_tipo_integracao AS transportIntegrationType,
-  id_integracao AS integrationId,
-  latitude AS transactionLat,
-  longitude AS transactionLon,
-  stop_id AS stopId,
-  stop_lat AS stopLat,
-  stop_lon AS stopLon,
-  valor_transacao AS transactionValue,
-  versao AS bqDataVersion
-FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
-          (qWhere.length > 0 ? `\nWHERE ${qWhere.join(' AND ')}` : '') +
-          `\nORDER BY data DESC, hora DESC` +
-          (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
-          (argsOffset !== undefined ? `\nOFFSET ${argsOffset}` : ''),
-      );
-
-    return ticketRevenues;
-  }
-
-  public async getUngroupedFromUser(
+  public async getGroupedFromUser(
     user: User,
-    args: ITicketRevenuesGetUngrouped,
+    args: ITicketRevenuesGetGrouped,
     pagination: IPaginationOptions,
-  ): Promise<ITicketRevenue[]> {
-    const pageOffsetStart = pagination.limit * (pagination.page - 1);
-    const pageOffsetEnd = pageOffsetStart + pagination.limit;
-
+  ): Promise<ITicketRevenuesGroupedResponse> {
     if (!user.permitCode) {
       throw new HttpException(
         {
           details: {
-            message: 'maybe your token has expired, try to get a new one',
+            message: 'Maybe your token has expired, try to get a new one',
             user: {
               permitCode: 'fieldIsEmpty',
             },
@@ -125,85 +46,103 @@ FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
       );
     }
 
-    // Fetch
+    const { startDate, endDate } = getPaymentStartEndDates({
+      startDateStr: args.startDate,
+      endDateStr: args.endDate,
+      timeInterval: args.timeInterval,
+    });
+
+    // Get data
     const ticketRevenuesResponse = await this.fetchTicketRevenues({
       permitCode: user.permitCode,
-      ...(args.startDate && { startDate: args.startDate }),
-      ...(args.endDate && { endDate: args.endDate }),
-      ...(args.previousDays && { previousDays: args.previousDays }),
-      limit: pagination.limit,
-      offset: pageOffsetStart,
+      startDate,
+      endDate,
     });
+
+    let ticketRevenuesSumGroup: ITicketRevenuesGroup = {
+      count: 0,
+      partitionDate: '',
+      transportTypeCounts: {},
+      permitCode: '',
+      directionIdCounts: {},
+      paymentMediaTypeCounts: {},
+      transactionTypeCounts: {},
+      transportIntegrationTypeCounts: {},
+      stopIdCounts: {},
+      stopLatCounts: {},
+      stopLonCounts: {},
+      transactionValueSum: 0,
+      aux_epochWeek: 0,
+      aux_groupDateTime: '',
+    };
+
     if (ticketRevenuesResponse.length === 0) {
-      this.logger.debug(
-        'getUngroupedFromUser(): aborted because fetch got no results for permitCode.',
-      );
-      return [];
+      return {
+        data: [],
+        ticketRevenuesGroupSum: ticketRevenuesSumGroup,
+        transactionValueLastDay: 0,
+      };
     }
-    console.log('LEN', ticketRevenuesResponse.length);
 
-    // Filter
-    let filteredData = ticketRevenuesResponse.filter((item) => {
-      let previousDays: number = this.DEFAULT_PREVIOUS_DAYS;
-      if (args?.previousDays !== undefined) {
-        previousDays = args.previousDays;
-      }
-      const previousDaysDate: Date = new Date(Date.now());
-      previousDaysDate.setUTCDate(previousDaysDate.getUTCDate() - previousDays);
-      previousDaysDate.setUTCHours(0, 0, 0, 0);
-
-      const todayDate = new Date(Date.now());
-      const itemDate: Date = new Date(item.partitionDate);
-      const startDate: Date | null = args?.startDate
-        ? new Date(args.startDate)
-        : null;
-      const endDate: Date | null = args?.endDate
-        ? new Date(args.endDate)
-        : null;
-      if (endDate !== null) {
-        endDate.setUTCHours(23, 59, 59, 999);
-      }
-
-      const hasDateRange = Boolean(args?.startDate && args?.endDate);
-      const hasStartOrEnd = Boolean(args?.startDate || args?.endDate);
-      const isFromStart = startDate && itemDate >= startDate;
-      const isUntilEnd = endDate && itemDate <= endDate;
-      const isFromPreviousDays =
-        previousDaysDate &&
-        itemDate >= previousDaysDate &&
-        itemDate <= todayDate;
-      const isValidData =
-        (hasDateRange && isFromStart && isUntilEnd) ||
-        (!hasDateRange &&
-          ((hasStartOrEnd && (isFromStart || isUntilEnd)) ||
-            (!hasStartOrEnd && isFromPreviousDays)));
-      return isValidData;
+    let ticketRevenuesGroups = this.getTicketRevenuesGroups(
+      ticketRevenuesResponse,
+      'day',
+    ).filter((group) => {
+      const itemDate: Date = new Date(group.partitionDate);
+      return itemDate.getUTCDay() !== PAYMENT_WEEKDAY;
     });
-
-    // Pagination
     if (pagination) {
-      filteredData = filteredData.slice(pageOffsetStart, pageOffsetEnd);
+      const offset = pagination?.limit * (pagination?.page - 1);
+      ticketRevenuesGroups = ticketRevenuesGroups.slice(
+        offset,
+        offset + pagination.limit,
+      );
     }
 
-    return filteredData;
+    const lastDayTransactionValue =
+      ticketRevenuesGroups.length > 0
+        ? ticketRevenuesGroups[0].transactionValueSum
+        : 0;
+
+    const ticketRevenuesSumGroups = this.getTicketRevenuesGroups(
+      ticketRevenuesResponse,
+      'all',
+    );
+    if (ticketRevenuesSumGroups.length === 1) {
+      ticketRevenuesSumGroup = ticketRevenuesSumGroups[0];
+    }
+    if (ticketRevenuesSumGroups.length > 1) {
+      this.logger.error(
+        'getGroupedFromUser(): ticketRevenuesSumGroups should have 0-1 items',
+      );
+    }
+
+    return {
+      data: ticketRevenuesGroups,
+      ticketRevenuesGroupSum: ticketRevenuesSumGroup,
+      transactionValueLastDay: lastDayTransactionValue,
+    };
   }
 
   public getTicketRevenuesGroups(
     ticketRevenues: ITicketRevenue[],
-    groupBy: TicketRevenuesGroupByEnum = TicketRevenuesGroupByEnum.WEEK,
-    startWeekday: WeekdayEnum = WeekdayEnum._6_SUNDAY,
+    groupBy: 'day' | 'week' | 'all',
   ): ITicketRevenuesGroup[] {
     const result = ticketRevenues.reduce(
       (
         accumulator: Record<string, ITicketRevenuesGroup>,
         item: ITicketRevenue,
       ) => {
+        const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
         const itemDate = new Date(item.partitionDate);
         const nthWeek = getDateNthWeek(itemDate, startWeekday);
-        const dateGroup =
-          groupBy === TicketRevenuesGroupByEnum.DAY
-            ? item.partitionDate
-            : nthWeek;
+        let dateGroup: string | number = item.partitionDate; // 'day', default,
+        if (groupBy === 'week') {
+          dateGroup = nthWeek;
+        }
+        if (groupBy === 'all') {
+          dateGroup = 'all';
+        }
 
         if (!accumulator[dateGroup]) {
           accumulator[dateGroup] = {
@@ -320,129 +259,75 @@ FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
     return resultList;
   }
 
-  public async getGroupedFromUser(
-    user: User,
-    args: ITicketRevenuesGetGrouped,
-    pagination: IPaginationOptions,
-  ): Promise<ITicketRevenuesGroup[]> {
-    if (!user.permitCode) {
-      throw new HttpException(
-        {
-          details: {
-            message: 'maybe your token has expired, try to get a new one',
-            user: {
-              permitCode: 'fieldIsEmpty',
-            },
-          },
-        },
-        HttpStatus.UNAUTHORIZED,
+  public async fetchTicketRevenues(
+    args?: IFetchTicketRevenues,
+  ): Promise<ITicketRevenue[]> {
+    let argsOffset = args?.offset;
+    const qWhere: string[] = [];
+
+    if (args?.offset !== undefined && args.limit === undefined) {
+      this.logger.warn(
+        "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
+          " 'offset' will be ignored to prevent query fail",
       );
+      argsOffset = undefined;
     }
 
-    // Get data
-    const ticketRevenuesResponse = await this.fetchTicketRevenues({
-      permitCode: user.permitCode,
-      ...(args.startDate && { startDate: args.startDate }),
-      ...(args.endDate && { endDate: args.endDate }),
-      ...(args.previousDays && { previousDays: args.previousDays }),
-    });
-
-    if (ticketRevenuesResponse.length === 0) {
-      this.logger.debug(
-        'getGroupedFromUser(): aborted because fetch got no results for permitCode.',
-      );
-      return [];
+    if (args?.startDate !== undefined) {
+      const startDate = args.startDate.toISOString().slice(0, 10);
+      qWhere.push(`DATE(data) >= DATE('${startDate}')`);
+    }
+    if (args?.endDate !== undefined) {
+      const endDate = args.endDate.toISOString().slice(0, 10);
+      qWhere.push(`DATE(data) <= DATE('${endDate}')`);
     }
 
-    const ticketRevenuesGroups = this.getTicketRevenuesGroups(
-      ticketRevenuesResponse,
-      args.groupBy,
-      args.startWeekday,
-    );
-
-    // Filter data
-    let filteredData = ticketRevenuesGroups.filter((group) => {
-      let previousDays: number = this.DEFAULT_PREVIOUS_DAYS;
-      if (args?.previousDays !== undefined) {
-        previousDays = args.previousDays;
-      }
-      let previousDaysDate: Date = new Date(Date.now());
-      previousDaysDate.setUTCDate(previousDaysDate.getUTCDate() - previousDays);
-      previousDaysDate.setUTCHours(0, 0, 0, 0);
-      if (args.ignorePreviousWeek) {
-        previousDaysDate = this.getIgnorePreviousWeek(
-          previousDaysDate,
-          new Date(Date.now()),
-          args.startWeekday,
+    if (args?.permitCode !== undefined) {
+      let permitCode = args.permitCode;
+      if (permitCode[0] === "'") {
+        this.logger.warn(
+          "permitCode contains ' character, removing it before query",
         );
+        permitCode = permitCode.replace("'", '');
       }
-      previousDaysDate.setUTCHours(0, 0, 0, 0);
-
-      const todayDate = new Date(Date.now());
-      const itemDate: Date = new Date(group.partitionDate);
-      let startDate: Date | null = args?.startDate
-        ? new Date(args.startDate)
-        : null;
-      const endDate: Date | null = args?.endDate
-        ? new Date(args.endDate)
-        : null;
-      if (endDate !== null) {
-        endDate.setUTCHours(23, 59, 59, 999);
-      }
-      if (args.ignorePreviousWeek && startDate !== null) {
-        const defaultEndDate = new Date(Date.now());
-        defaultEndDate.setUTCHours(23, 59, 59, 999);
-        startDate = this.getIgnorePreviousWeek(
-          startDate,
-          endDate || defaultEndDate,
-          args.startWeekday,
-        );
-        startDate.setUTCHours(0, 0, 0, 0);
-      }
-
-      const hasDateRange = Boolean(args?.startDate && args?.endDate);
-      const hasStartOrEnd = Boolean(args?.startDate || args?.endDate);
-      const isFromStart = startDate && itemDate >= startDate;
-      const isUntilEnd = endDate && itemDate <= endDate;
-      const isFromPreviousDays =
-        previousDaysDate &&
-        itemDate >= previousDaysDate &&
-        itemDate <= todayDate;
-
-      return (
-        (hasDateRange && isFromStart && isUntilEnd) ||
-        (!hasDateRange &&
-          ((hasStartOrEnd && (isFromStart || isUntilEnd)) ||
-            (!hasStartOrEnd && isFromPreviousDays)))
-      );
-    });
-
-    // Pagination
-    if (pagination) {
-      const sliceStart = pagination?.limit * (pagination?.page - 1);
-      filteredData = filteredData.slice(
-        sliceStart,
-        sliceStart + pagination.limit,
-      );
+      qWhere.push(`permissao = '${permitCode}'`);
     }
 
-    return filteredData;
-  }
+    const ticketRevenues: ITicketRevenue[] =
+      await this.bigqueryService.runQuery(
+        BigqueryServiceInstances.smtr,
+        `
+SELECT
+  CAST(data AS STRING) AS partitionDate,
+  hora AS processingHour,
+  CAST(datetime_transacao AS STRING) AS transactionDateTime,
+  CAST(datetime_processamento AS STRING) AS processingDateTime,
+  datetime_captura AS captureDateTime,
+  modo AS transportType,
+  permissao AS permitCode,
+  servico AS vehicleService,
+  sentido AS directionId,
+  id_veiculo AS vehicleId,
+  id_cliente AS clientId,
+  id_transacao AS transactionId,
+  id_tipo_pagamento AS paymentMediaType,
+  id_tipo_transacao AS transactionType,
+  id_tipo_integracao AS transportIntegrationType,
+  id_integracao AS integrationId,
+  latitude AS transactionLat,
+  longitude AS transactionLon,
+  stop_id AS stopId,
+  stop_lat AS stopLat,
+  stop_lon AS stopLon,
+  valor_transacao AS transactionValue,
+  versao AS bqDataVersion
+FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
+          (qWhere.length > 0 ? `\nWHERE ${qWhere.join(' AND ')}` : '') +
+          `\nORDER BY data DESC, hora DESC` +
+          (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
+          (argsOffset !== undefined ? `\nOFFSET ${argsOffset}` : ''),
+      );
 
-  private getIgnorePreviousWeek(
-    startDate: Date,
-    endDate: Date,
-    startWeekday: number,
-  ): Date {
-    const newStartDate = new Date(startDate);
-    const localEndDate = new Date(endDate);
-    if (
-      getDateNthWeek(localEndDate, startWeekday) >
-      getDateNthWeek(newStartDate, startWeekday)
-    ) {
-      const addDays = (startWeekday - startDate.getDay() + 7) % 7;
-      newStartDate.setDate(newStartDate.getDate() + addDays);
-    }
-    return newStartDate;
+    return ticketRevenues;
   }
 }

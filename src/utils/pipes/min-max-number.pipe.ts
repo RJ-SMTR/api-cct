@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  PipeTransform,
+  ArgumentMetadata,
+} from '@nestjs/common';
 
 /**
  * @param required default is `false`
@@ -9,14 +14,16 @@ export class MinMaxNumberPipe implements PipeTransform {
     private readonly args: { min?: number; max?: number; required?: boolean },
   ) {}
 
-  transform(value: any): number {
+  transform(value: any, metadata: ArgumentMetadata): number {
     const isMin = this.args?.min !== undefined;
     const isMax = this.args?.max !== undefined;
 
     if (value === undefined && !this.args.required) {
       return value;
     } else if (isNaN(value)) {
-      throw new BadRequestException(`Value should be a valid number ${value}`);
+      throw new BadRequestException(
+        `${metadata.data} should be a valid number ${value}`,
+      );
     }
     const numberValue = Number(value);
 
@@ -31,13 +38,13 @@ export class MinMaxNumberPipe implements PipeTransform {
       if (!isMin && isMax) {
         returnSubstring = `lower or equal than ${this.args.max as number}`;
       }
-      if (!isMin && isMax) {
+      if (isMin && isMax) {
         returnSubstring = `between ${this.args.min as number} and  ${
           this.args.max as number
         }`;
       }
       throw new BadRequestException(
-        `Value should be an integer ${returnSubstring}`,
+        `${metadata.data} should be an integer ${returnSubstring}`,
       );
     }
 

@@ -3,8 +3,9 @@ import { ICoreBankStatements } from '../interfaces/core-bank-statements.interfac
 import { ICoreBankProfile } from '../interfaces/core-bank-profile.interface';
 import { CoreBankStatusEnum } from '../enums/core-bank-status.enum';
 import { CoreBankStatusCodeEnum } from '../enums/core-bank-status-code.enum';
-import { getEnumKey } from 'src/utils/enum-utils';
+import { getEnumKey } from 'src/utils/enum.utils';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
+import { lastDayOfMonth, nextFriday } from 'date-fns';
 
 @Injectable()
 export class CoreBankDataService implements OnModuleInit {
@@ -17,6 +18,8 @@ export class CoreBankDataService implements OnModuleInit {
     weeks: 4 * 3,
     maxValue: 1500,
     minValue: 50,
+    paymentWeekday: WeekdayEnum._5_FRIDAY,
+    nextPaymentWeekday: (date: Date) => nextFriday(date),
   };
 
   private profiles: ICoreBankProfile[] = [
@@ -72,17 +75,15 @@ export class CoreBankDataService implements OnModuleInit {
   }): ICoreBankStatements {
     const { id, nthWeek, weekday, cpfCnpj, status } = args;
     const date = new Date(Date.now());
-
     date.setUTCDate(date.getUTCDate() - 7 * nthWeek);
     while (date.getUTCDay() !== weekday) {
       date.setUTCDate(date.getUTCDate() - 1);
     }
-    date.setUTCHours(0, 0, 0, 0);
 
     const { maxValue, minValue } = this.bankStatementsArgs;
     const statusObj = Object.keys(CoreBankStatusEnum);
     const randomStatusNumber = Math.floor(
-      this.generateRandomNumber(0, 2, 1, 0.8),
+      this.generateRandomNumber(1, 2, 1, 0.8),
     );
     const randomStatus = statusObj
       .slice(statusObj.length / 2, statusObj.length)
@@ -125,33 +126,16 @@ export class CoreBankDataService implements OnModuleInit {
     const now = new Date(Date.now());
     for (const cpf of this.bankStatementsArgs.cpfs) {
       let id = 1;
-      if (now.getUTCDay() === WeekdayEnum._3_THURSDAY) {
+      const { paymentWeekday, nextPaymentWeekday } = this.bankStatementsArgs;
+      if (
+        now.getUTCDay() !== paymentWeekday &&
+        nextPaymentWeekday(now) <= lastDayOfMonth(now)
+      ) {
         bankStatements.push(
           this.generateBankStatement({
             id: id,
-            nthWeek: 0,
-            weekday: WeekdayEnum._3_THURSDAY,
-            cpfCnpj: cpf,
-            status: CoreBankStatusEnum.accumulated,
-          }),
-        );
-        id++;
-        bankStatements.push(
-          this.generateBankStatement({
-            id: id,
-            nthWeek: 0,
-            weekday: WeekdayEnum._2_WEDNESDAY,
-            cpfCnpj: cpf,
-            status: CoreBankStatusEnum.accumulated,
-          }),
-        );
-        id++;
-      } else {
-        bankStatements.push(
-          this.generateBankStatement({
-            id: id,
-            nthWeek: 0,
-            weekday: now.getUTCDay(),
+            nthWeek: -1,
+            weekday: paymentWeekday,
             cpfCnpj: cpf,
             status: CoreBankStatusEnum.accumulated,
           }),
@@ -159,13 +143,11 @@ export class CoreBankDataService implements OnModuleInit {
         id++;
       }
       for (let week = 0; week < this.bankStatementsArgs.weeks; week++) {
-        if (week === 0) {
-        }
         bankStatements.push(
           this.generateBankStatement({
             id: week + id,
             nthWeek: week,
-            weekday: WeekdayEnum._3_THURSDAY,
+            weekday: paymentWeekday,
             cpfCnpj: cpf,
           }),
         );

@@ -1,11 +1,8 @@
 import {
   Controller,
-  DefaultValuePipe,
   Get,
   HttpCode,
   HttpStatus,
-  ParseBoolPipe,
-  ParseIntPipe,
   Query,
   Request,
   SerializeOptions,
@@ -15,16 +12,14 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UsersService } from 'src/users/users.service';
 import { TicketRevenuesService } from './ticket-revenues.service';
-import { MinMaxNumberPipe } from 'src/utils/pipes/min-max-number.pipe';
-import { InfinityPaginationResultType } from 'src/utils/types/infinity-pagination-result.type';
-import { infinityPagination } from 'src/utils/infinity-pagination';
-import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
-import { TicketRevenuesGroupByEnum } from './enums/ticket-revenues-group-by.enum';
-import { ValidateEnumPipe } from 'src/utils/pipes/validate-enum.pipe';
-import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
-import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
 import { DateApiParams } from 'src/utils/api-param/date.api-param';
+import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
+import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
+import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -42,127 +37,33 @@ export class TicketRevenuesController {
   })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('me/ungrouped')
-  @HttpCode(HttpStatus.OK)
-  @ApiQuery(PaginationApiParams.page)
-  @ApiQuery(PaginationApiParams.limit)
-  @ApiQuery(DateApiParams.startDate)
-  @ApiQuery(DateApiParams.endDate)
-  @ApiQuery(DateApiParams.previousDays)
-  @ApiQuery(DateApiParams.ignorePreviousWeek)
-  @ApiQuery(DateApiParams.startWeekday(WeekdayEnum._3_THURSDAY))
-  async getUngrouped(
-    @Request() request,
-
-    @Query('page', new DefaultValuePipe(1), new MinMaxNumberPipe({ min: 1 }))
-    page: number,
-    @Query(
-      'limit',
-      new DefaultValuePipe(500),
-      new MinMaxNumberPipe({ max: 500 }),
-    )
-    limit: number,
-    /**
-     * @type `boolean` in compile time
-     * @bug Type is set as `boolean | any` because if type is boolean the DefaultValuePipe will be always `false`.
-     */
-    @Query('ignorePreviousWeek', new DefaultValuePipe(true), ParseBoolPipe)
-    ignorePreviousWeek: boolean | any,
-    @Query(
-      'startWeekday',
-      new DefaultValuePipe(WeekdayEnum._3_THURSDAY),
-      new MinMaxNumberPipe({ min: 0, max: 6 }),
-      ParseIntPipe,
-    )
-    startWeekday: number,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-    @Query('previousDays', new MinMaxNumberPipe({ min: 0 }))
-    previousDays?: number | undefined,
-  ): Promise<InfinityPaginationResultType<ITicketRevenue>> {
-    const user = await this.usersService.getOneFromRequest(request);
-    return infinityPagination(
-      await this.ticketRevenuesService.getUngroupedFromUser(
-        user,
-        { startDate, endDate, previousDays, startWeekday, ignorePreviousWeek },
-        { limit, page },
-      ),
-      { limit, page },
-    );
-  }
-
-  @SerializeOptions({
-    groups: ['me'],
-  })
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
   @Get('/me/grouped')
   @HttpCode(HttpStatus.OK)
   @ApiQuery(PaginationApiParams.page)
   @ApiQuery(PaginationApiParams.limit)
   @ApiQuery(DateApiParams.startDate)
   @ApiQuery(DateApiParams.endDate)
-  @ApiQuery(DateApiParams.previousDays)
-  @ApiQuery(DateApiParams.ignorePreviousWeek)
-  @ApiQuery(DateApiParams.startWeekday(WeekdayEnum._3_THURSDAY))
-  @ApiQuery({
-    name: 'groupBy',
-    required: false,
-    description: `_Default_ : ${TicketRevenuesGroupByEnum.DAY}`,
-    enum: TicketRevenuesGroupByEnum,
-  })
+  @ApiQuery(DateApiParams.timeInterval)
   async getGrouped(
     @Request() request,
-
-    @Query('page', new DefaultValuePipe(1), new MinMaxNumberPipe({ min: 1 }))
-    page: number,
-    @Query(
-      'limit',
-      new DefaultValuePipe(500),
-      new MinMaxNumberPipe({ max: 500 }),
-    )
-    limit: number,
-    /**
-     * **Bug:** Type is set as `boolean | any` because if type is boolean
-     * the DefaultValuePipe will be always `false`.
-     *
-     * @type `boolean` in compile time
-     */
-    @Query('ignorePreviousWeek', new DefaultValuePipe(true), ParseBoolPipe)
-    ignorePreviousWeek: boolean | any,
-    @Query(
-      'startWeekday',
-      new DefaultValuePipe(WeekdayEnum._3_THURSDAY),
-      new MinMaxNumberPipe({ min: 0, max: 6 }),
-      ParseIntPipe,
-    )
-    startWeekday: number,
-    @Query(
-      'groupBy',
-      new DefaultValuePipe(TicketRevenuesGroupByEnum.DAY),
-      new ValidateEnumPipe(TicketRevenuesGroupByEnum),
-    )
-    groupBy: TicketRevenuesGroupByEnum,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-    @Query('previousDays', new MinMaxNumberPipe({ min: 0 }))
-    previousDays?: number | undefined,
-  ): Promise<InfinityPaginationResultType<ITicketRevenuesGroup>> {
+    @Query(...PaginationQueryParams.page) page: number,
+    @Query(...PaginationQueryParams.limit) limit: number,
+    @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query(...DateQueryParams.endDate) endDate?: string,
+    @Query(...DateQueryParams.timeInterval)
+    timeInterval?: TimeIntervalEnum | undefined,
+  ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.usersService.getOneFromRequest(request);
-    return infinityPagination(
-      await this.ticketRevenuesService.getGroupedFromUser(
-        user,
-        {
-          startDate,
-          endDate,
-          previousDays,
-          ignorePreviousWeek,
-          startWeekday,
-          groupBy,
-        },
-        { limit, page },
-      ),
-      { limit, page },
+    const args: ITicketRevenuesGetGrouped = {
+      startDate,
+      endDate,
+      timeInterval,
+    };
+    const pagination: IPaginationOptions = { limit, page };
+    return await this.ticketRevenuesService.getGroupedFromUser(
+      user,
+      args,
+      pagination,
     );
   }
 }

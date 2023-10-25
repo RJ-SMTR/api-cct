@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
 import { User } from 'src/users/entities/user.entity';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
+import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
+import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
+import { getStartEndDates } from 'src/utils/date-utils';
+import { nextPaymentWeekday } from 'src/utils/payment-date-utils';
 
 @Injectable()
 export class BankStatementsService {
@@ -12,8 +14,8 @@ export class BankStatementsService {
 
   public getBankStatementsFromUser(
     user: User,
-    args: BankStatementsGetDto,
-  ): ICoreBankStatements[] {
+    args: IBankStatementsGet,
+  ): IBankStatementsResponse {
     if (!user.cpfCnpj) {
       throw new HttpException(
         {
@@ -37,53 +39,35 @@ export class BankStatementsService {
         {
           error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
           details: {
-            cpfCnpj: 'emptyBankStatementsForProfile',
+            cpfCnpj: 'empty bankStatements for profile',
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
 
-    const filteredData = bankStatementsResponse.filter((item) => {
-      const DEFAULT_PREVIOUS_DAYS = 30;
-      const previousDays: number =
-        args?.previousDays !== undefined
-          ? args.previousDays
-          : DEFAULT_PREVIOUS_DAYS;
-      const previousDaysDate: Date | null = new Date(Date.now());
-      previousDaysDate.setDate(previousDaysDate.getDate() - previousDays);
-      previousDaysDate.setUTCHours(0, 0, 0, 0);
-
-      const todayDate = new Date();
-      const itemDate: Date = new Date(item.date);
-      const startDate: Date | null = args?.startDate
-        ? new Date(args.startDate)
-        : null;
-      const endDate: Date | null = args?.endDate
-        ? new Date(args.endDate)
-        : null;
-      if (endDate !== null) {
-        endDate.setUTCHours(23, 59, 59, 999);
-      }
-
-      const hasDateRange = Boolean(args?.startDate && args?.endDate);
-      const hasStartOrEnd = Boolean(args?.startDate || args?.endDate);
-      const isFromStart = startDate && itemDate >= startDate;
-      const isUntilEnd = endDate && itemDate <= endDate;
-      const isFromPreviousDays =
-        previousDaysDate &&
-        itemDate >= previousDaysDate &&
-        itemDate <= todayDate;
-
-      return (
-        item.cpfCnpj === user.cpfCnpj &&
-        ((hasDateRange && isFromStart && isUntilEnd) ||
-          (!hasDateRange &&
-            ((hasStartOrEnd && (isFromStart || isUntilEnd)) ||
-              (!hasStartOrEnd && isFromPreviousDays))))
-      );
+    const endDateStr =
+      args?.endDate ||
+      nextPaymentWeekday(new Date()).toISOString().slice(0, 10);
+    const { startDate, endDate } = getStartEndDates({
+      startDateStr: args?.startDate,
+      endDateStr: endDateStr,
+      timeInterval: args?.timeInterval,
     });
 
-    return filteredData;
+    const filteredData = bankStatementsResponse.filter((item) => {
+      const itemDate: Date = new Date(item.date);
+      return itemDate >= startDate && itemDate <= endDate;
+    });
+
+    const amountSum = filteredData.reduce((sum, item) => sum + item.amount, 0);
+
+    // const amountLastDay = filteredData.length > 0
+    //   ? filteredData[0].
+
+    return {
+      data: filteredData,
+      amountSum,
+    };
   }
 }

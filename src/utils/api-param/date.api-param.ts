@@ -1,5 +1,7 @@
 import { ApiParamOptions } from '@nestjs/swagger';
 import { WeekdayEnum } from '../enums/weekday.enum';
+import { DescriptionApiParam } from './description-api-param';
+import { TimeIntervalEnum } from '../enums/time-interval.enum';
 
 /**
  * @type `Record<string, ApiParamOptions>`
@@ -8,33 +10,44 @@ export const DateApiParams = {
   startDate: {
     name: 'startDate',
     required: false,
-    description: '_Hours_ : 00:00',
+    description: DescriptionApiParam({
+      hours: '00:00',
+    }),
   } as ApiParamOptions,
+
   endDate: {
     name: 'endDate',
     required: false,
-    description: '_Hours_ : 23:59:59.999',
+    description: DescriptionApiParam({ hours: '23:59:59.999' }),
   } as ApiParamOptions,
-  previousDays: {
-    name: 'previousDays',
+
+  timeInterval: {
+    name: 'timeInterval',
     required: false,
-    description: '_Default_ : 30' + '\n\n_Min_ : 0',
+    description: DescriptionApiParam({
+      default: TimeIntervalEnum.LAST_MONTH,
+    }),
+    example: TimeIntervalEnum.LAST_MONTH,
+    enum: TimeIntervalEnum,
   } as ApiParamOptions,
+
   ignorePreviousWeek: {
     name: 'ignorePreviousWeek',
     type: Boolean,
     required: false,
-    description: '_Default_ : true',
+    description: DescriptionApiParam({ default: true }),
   } as ApiParamOptions,
+
   startWeekday: (defaultValue: WeekdayEnum) =>
     ({
       name: 'startWeekday',
       required: false,
-      description:
-        `_Default_ : ${defaultValue}` +
-        '\n\n_Min_ : 0' +
-        '\n\n_Max_ : 6' +
-        '\n\n_Meaning_ : 0 = monday, 6 = sunday',
+      description: DescriptionApiParam({
+        default: defaultValue,
+        min: 0,
+        max: 6,
+        meaning: `0 = ${WeekdayEnum._0_SUNDAY}, 6 = ${WeekdayEnum._6_SATURNDAY}`,
+      }),
       enum: WeekdayEnum,
     } as ApiParamOptions),
 };

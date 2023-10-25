@@ -34,14 +34,14 @@ export class TicketRevenuesGetDto {
   previousDays?: number;
 
   @ApiProperty({
-    example: WeekdayEnum._3_THURSDAY,
-    default: WeekdayEnum._3_THURSDAY,
+    example: WeekdayEnum._4_THURSDAY,
+    default: WeekdayEnum._4_THURSDAY,
   })
   @IsOptional()
   startWeekday: number;
 
   @ApiProperty({
-    example: WeekdayEnum._3_THURSDAY,
+    example: WeekdayEnum._4_THURSDAY,
     default: true,
     description: 'ignore incomplete previous week in `startDate`',
   })

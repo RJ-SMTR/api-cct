@@ -1,7 +1,7 @@
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+
 export interface ITicketRevenuesGetUngrouped {
   startDate?: string;
   endDate?: string;
-  previousDays?: number;
-  startWeekday: number;
-  ignorePreviousWeek: boolean;
+  timeInterval?: TimeIntervalEnum;
 }

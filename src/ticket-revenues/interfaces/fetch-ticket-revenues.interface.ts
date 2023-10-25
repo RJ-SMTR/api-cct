@@ -1,8 +1,7 @@
 export interface IFetchTicketRevenues {
-  permitCode?: string | 'mock';
-  startDate?: string;
-  endDate?: string;
-  previousDays?: number;
+  permitCode?: string;
+  startDate?: Date;
+  endDate?: Date;
   limit?: number;
   offset?: number;
 }

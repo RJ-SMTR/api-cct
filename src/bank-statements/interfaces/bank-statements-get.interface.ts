@@ -1,6 +1,6 @@
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 
-export interface ITicketRevenuesGetGrouped {
+export class IBankStatementsGet {
   startDate?: string;
   endDate?: string;
   timeInterval?: TimeIntervalEnum;

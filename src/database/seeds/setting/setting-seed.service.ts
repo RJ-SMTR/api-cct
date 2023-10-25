@@ -4,7 +4,7 @@ import { IsNull, Repository } from 'typeorm';
 import { settingSeedData } from './setting-seed-data';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
 import { SettingTypeEnum } from 'src/setting-types/setting-type.enum';
-import { getEnumKey } from 'src/utils/enum-utils';
+import { getEnumKey } from 'src/utils/enum.utils';
 
 @Injectable()
 export class SettingSeedService {
