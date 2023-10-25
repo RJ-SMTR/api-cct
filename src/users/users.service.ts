@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { DeepPartial, Repository } from 'typeorm';
+import { DeepPartial, Like, Repository, FindOptionsWhere } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
 import { NullableType } from '../utils/types/nullable.type';
@@ -20,6 +20,9 @@ import { InviteService } from 'src/invite/invite.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
 import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
+import { Invite } from 'src/invite/entities/invite.entity';
+import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
+import { getEnumKey } from 'src/utils/get-enum-key';
 
 @Injectable()
 export class UsersService {
@@ -37,13 +40,63 @@ export class UsersService {
 
   async findManyWithPagination(
     paginationOptions: IPaginationOptions,
-    fields?: EntityCondition<User>,
+    fields?: IFindUserPaginated,
   ): Promise<User[]> {
-    const users = await this.usersRepository.find({
-      ...(fields ? { where: fields } : {}),
+    const isSgtuBlocked = fields?.isSgtuBlocked || fields?._anyField;
+
+    let inviteStatus: any = null;
+    if (fields?.inviteStatusName) {
+      inviteStatus = {
+        id: Number(InviteStatusEnum[fields?.inviteStatusName]),
+        name: getEnumKey(
+          InviteStatusEnum,
+          InviteStatusEnum[fields?.inviteStatusName],
+        ),
+      };
+    }
+    const where = [
+      ...(fields?.name || fields?._anyField
+        ? [
+            { fullName: Like(`%${fields?.name || fields?._anyField}%`) },
+            { firstName: Like(`%${fields?.name || fields?._anyField}%`) },
+            { lastName: Like(`%${fields?.name || fields?._anyField}%`) },
+          ]
+        : []),
+      ...(fields?.permitCode || fields?._anyField
+        ? [{ permitCode: Like(`%${fields?.permitCode || fields?._anyField}%`) }]
+        : []),
+      ...(fields?.email || fields?._anyField
+        ? [{ email: Like(`%${fields?.email || fields?._anyField}%`) }]
+        : []),
+      ...(fields?.cpfCnpj || fields?._anyField
+        ? [{ cpfCnpj: Like(`%${fields?.cpfCnpj || fields?._anyField}%`) }]
+        : []),
+      ...(isSgtuBlocked === 'true' || isSgtuBlocked === 'false'
+        ? [{ isSgtuBlocked: isSgtuBlocked === 'true' }]
+        : []),
+      ...(fields?.passValidatorId || fields?._anyField
+        ? [
+            {
+              passValidatorId: Like(
+                `%${fields?.passValidatorId || fields?._anyField}%`,
+              ),
+            },
+          ]
+        : []),
+    ] as FindOptionsWhere<User>[];
+    console.log({ where });
+
+    let users = await this.usersRepository.find({
+      ...(fields ? { where: where } : {}),
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
     });
+
+    let invites: NullableType<Invite[]> = null;
+    if (inviteStatus) {
+      invites = await this.inviteService.find({ inviteStatus });
+    }
+
     for (let i = 0; i < users.length; i++) {
       const user = users[i];
       if (user !== null) {
@@ -51,6 +104,14 @@ export class UsersService {
       }
       users[i] = user;
     }
+    users = users.filter((userItem) => {
+      return (
+        !invites ||
+        (invites.length > 0 &&
+          invites.some((inviteItem) => inviteItem.user.id === userItem.id))
+      );
+    });
+
     return users;
   }
 

@@ -38,7 +38,8 @@ import { NullableType } from '../utils/types/nullable.type';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { EntityCondition } from 'src/utils/types/entity-condition.type';
+import { InviteStatusNamesEnum } from 'src/invite-statuses/invite-status.enum';
+import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 
 @ApiBearerAuth()
 @Roles(RoleEnum.admin)
@@ -72,21 +73,67 @@ export class UsersController {
     description: '_default_ : 500 (max)',
   })
   @ApiQuery({
+    name: 'filter',
+    required: false,
+    description:
+      'filter user by fullName, firstName, lastName, permitCode, email or aux_inviteStatus',
+  })
+  @ApiQuery({
     name: 'name',
     required: false,
-    description: 'filter by user name',
+    description: 'filter user by fullName, firstName or lastName',
+  })
+  @ApiQuery({
+    name: 'permitCode',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'cpfCnpj',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'isSgtuBlocked',
+    required: false,
+    type: Boolean,
+  })
+  @ApiQuery({
+    name: 'passValidatorId',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'inviteStatus',
+    required: false,
+    enum: InviteStatusNamesEnum,
   })
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(500), ParseIntPipe) limit: number,
-    @Query('permitCode') permitCode: string,
+    @Query('filter') filter?: string,
+    @Query('name') name?: string,
+    @Query('permitCode') permitCode?: string,
+    @Query('email') email?: string,
+    @Query('cpfCnpj') cpfCnpj?: string,
+    @Query('isSgtuBlocked') isSgtuBlocked?: boolean,
+    @Query('passValidatorId') passValidatorId?: string,
+    @Query('inviteStatus') inviteStatusName?: string,
   ): Promise<InfinityPaginationResultType<User>> {
     if (limit > 500) {
       limit = 500;
     }
     const pagination: IPaginationOptions = { page, limit };
-    const fields: EntityCondition<User> = {
-      ...(permitCode ? { permitCode: permitCode } : {}),
+    const fields: IFindUserPaginated = {
+      _anyField: filter,
+      name,
+      permitCode,
+      email,
+      cpfCnpj,
+      isSgtuBlocked,
+      passValidatorId,
+      inviteStatusName,
     };
     return infinityPagination(
       await this.usersService.findManyWithPagination(pagination, fields),

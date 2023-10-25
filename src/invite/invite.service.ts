@@ -18,7 +18,7 @@ export class InviteService {
   }
 
   async find(
-    fields?: EntityCondition<Invite>,
+    fields?: EntityCondition<Invite> | EntityCondition<Invite>[],
   ): Promise<NullableType<Invite[]>> {
     return this.inviteRepository.find({
       where: fields,
