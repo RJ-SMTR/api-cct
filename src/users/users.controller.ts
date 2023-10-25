@@ -37,6 +37,9 @@ import { InfinityPaginationResultType } from '../utils/types/infinity-pagination
 import { NullableType } from '../utils/types/nullable.type';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { Like } from 'typeorm';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
 
 @ApiBearerAuth()
 @Roles(RoleEnum.admin)
@@ -67,22 +70,28 @@ export class UsersController {
   @ApiQuery({
     name: 'limit',
     required: false,
-    description: 'default: 500 (max)',
+    description: '_default_ : 500 (max)',
+  })
+  @ApiQuery({
+    name: 'name',
+    required: false,
+    description: 'filter by user name',
   })
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(500), ParseIntPipe) limit: number,
+    @Query('name') fullName: string,
   ): Promise<InfinityPaginationResultType<User>> {
     if (limit > 500) {
       limit = 500;
     }
-
+    const pagination: IPaginationOptions = { page, limit };
+    const fields: EntityCondition<User> = {
+      ...(fullName ? { fullName: Like(`%${fullName}%`) } : {}),
+    };
     return infinityPagination(
-      await this.usersService.findManyWithPagination({
-        page,
-        limit,
-      }),
-      { page, limit },
+      await this.usersService.findManyWithPagination(pagination, fields),
+      pagination,
     );
   }
 

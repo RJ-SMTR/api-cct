@@ -37,8 +37,10 @@ export class UsersService {
 
   async findManyWithPagination(
     paginationOptions: IPaginationOptions,
+    fields?: EntityCondition<User>,
   ): Promise<User[]> {
     const users = await this.usersRepository.find({
+      ...(fields ? { where: fields } : {}),
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
     });
