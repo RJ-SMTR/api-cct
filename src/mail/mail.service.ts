@@ -146,13 +146,13 @@ export class MailService {
         subject: resetPasswordTitle,
         text: `${this.configService.get('app.frontendDomain', {
           infer: true,
-        })}/password-change/${mailData.data.hash} ${resetPasswordTitle}`,
+        })}reset-password/${mailData.data.hash} ${resetPasswordTitle}`,
         template: 'reset-password',
         context: {
           title: resetPasswordTitle,
           url: `${this.configService.get('app.frontendDomain', {
             infer: true,
-          })}/password-change/${mailData.data.hash}`,
+          })}reset-password/${mailData.data.hash}`,
           actionTitle: resetPasswordTitle,
           app_name: this.configService.get('app.name', {
             infer: true,
