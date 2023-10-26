@@ -30,7 +30,7 @@ export class TicketRevenuesService {
     timestamp: true,
   });
 
-  constructor(private readonly bigqueryService: BigqueryService) {}
+  constructor(private readonly bigqueryService: BigqueryService) { }
 
   public async getGroupedFromUser(
     user: User,
@@ -169,7 +169,8 @@ export class TicketRevenuesService {
         }
 
         if (
-          accumulator[dateGroup].transportTypeCounts[
+          item.transportType !== null
+          && accumulator[dateGroup].transportTypeCounts[
             item.transportType as any
           ] === undefined
         ) {
@@ -177,15 +178,18 @@ export class TicketRevenuesService {
             item.transportType as any
           ] = 0;
         }
+
         if (
-          accumulator[dateGroup].directionIdCounts[item.directionId as any] ===
+          item.directionId !== null
+          && accumulator[dateGroup].directionIdCounts[item.directionId as any] ===
           undefined
         ) {
           accumulator[dateGroup].directionIdCounts[item.directionId as any] = 0;
         }
         if (
-          accumulator[dateGroup].paymentMediaTypeCounts[
-            item.paymentMediaType as any
+          item.paymentMediaType
+          && accumulator[dateGroup].paymentMediaTypeCounts[
+          item.paymentMediaType as any
           ] === undefined
         ) {
           accumulator[dateGroup].paymentMediaTypeCounts[
@@ -193,8 +197,9 @@ export class TicketRevenuesService {
           ] = 0;
         }
         if (
-          accumulator[dateGroup].transactionTypeCounts[
-            item.transactionType as any
+          item.transactionType
+          && accumulator[dateGroup].transactionTypeCounts[
+          item.transactionType as any
           ] === undefined
         ) {
           accumulator[dateGroup].transactionTypeCounts[
@@ -202,25 +207,28 @@ export class TicketRevenuesService {
           ] = 0;
         }
         if (
-          accumulator[dateGroup].stopIdCounts[item.stopId as any] === undefined
+          item.stopId !== null
+          && accumulator[dateGroup].stopIdCounts[item.stopId as any] === undefined
         ) {
           accumulator[dateGroup].stopIdCounts[item.stopId as any] = 0;
         }
         if (
-          accumulator[dateGroup].stopLatCounts[item.stopLat as any] ===
+          item.stopLat !== null
+          && accumulator[dateGroup].stopLatCounts[item.stopLat as any] ===
           undefined
         ) {
           accumulator[dateGroup].stopLatCounts[item.stopLat as any] = 0;
         }
         if (
-          accumulator[dateGroup].stopLonCounts[item.stopLon as any] ===
+          item.stopLon !== null
+          && accumulator[dateGroup].stopLonCounts[item.stopLon as any] ===
           undefined
         ) {
           accumulator[dateGroup].stopLonCounts[item.stopLon as any] = 0;
         }
         if (
           accumulator[dateGroup].transportIntegrationTypeCounts[
-            item.transportIntegrationType as any
+          item.transportIntegrationType as any
           ] === undefined
         ) {
           accumulator[dateGroup].transportIntegrationTypeCounts[
@@ -229,9 +237,13 @@ export class TicketRevenuesService {
         }
 
         accumulator[dateGroup].count += 1;
-        accumulator[dateGroup].transportTypeCounts[
-          item.transportType as any
-        ] += 1;
+
+        if (item.transportType !== null){
+          accumulator[dateGroup].transportTypeCounts[
+            item.transportType as any
+          ] += 1;
+        }
+
         accumulator[dateGroup].directionIdCounts[item.directionId as any] += 1;
         accumulator[dateGroup].paymentMediaTypeCounts[
           item.paymentMediaType as any
@@ -239,21 +251,29 @@ export class TicketRevenuesService {
         accumulator[dateGroup].transactionTypeCounts[
           item.transactionType as any
         ] += 1;
-        accumulator[dateGroup].stopIdCounts[item.stopId as any] += 1;
-        accumulator[dateGroup].stopLatCounts[item.stopLat as any] += 1;
-        accumulator[dateGroup].stopLonCounts[item.stopLon as any] += 1;
+        if (item.stopLat !== null){
+          accumulator[dateGroup].stopLatCounts[item.stopLat as any] += 1;
+        }
+        if (item.stopLon !== null){
+          accumulator[dateGroup].stopLonCounts[item.stopLon as any] += 1;
+        }
         accumulator[dateGroup].transactionValueSum = Number(
           (
             accumulator[dateGroup].transactionValueSum +
             (item.transactionValue || 0)
           ).toFixed(2),
         );
-        accumulator[dateGroup].transportIntegrationTypeCounts[
-          item.transportIntegrationType as any
-        ] += 1;
-        accumulator[dateGroup].paymentMediaTypeCounts[
-          item.paymentMediaType as any
-        ] += 1;
+        if (item.transportIntegrationType !== null) {
+          accumulator[dateGroup].transportIntegrationTypeCounts[
+            item.transportIntegrationType as any
+          ] += 1;
+        }
+        if (item.paymentMediaType !== null) {
+          accumulator[dateGroup].paymentMediaTypeCounts[
+            item.paymentMediaType as any
+          ] += 1;
+        }
+
         return accumulator;
       },
       {},
@@ -273,7 +293,7 @@ export class TicketRevenuesService {
     if (args?.offset !== undefined && args.limit === undefined) {
       this.logger.warn(
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-          " 'offset' will be ignored to prevent query fail",
+        " 'offset' will be ignored to prevent query fail",
       );
       argsOffset = undefined;
     }
@@ -355,7 +375,6 @@ FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
             : transactionType,
       };
     });
-
     return ticketRevenues;
   }
 }
