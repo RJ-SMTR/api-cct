@@ -27,10 +27,13 @@ import { getEnumKey } from 'src/utils/get-enum-key';
 @Injectable()
 export class UsersService {
   private expectedAnyFields = [
-    'name', 'email', 'cpfCnpj',
-    'isSgtuBlocked', 'passValidatorId',
+    'name',
+    'email',
+    'cpfCnpj',
+    'isSgtuBlocked',
+    'passValidatorId',
   ];
-  
+
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
