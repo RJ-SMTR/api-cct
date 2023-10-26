@@ -35,7 +35,7 @@ export class AuthService {
     private forgotService: ForgotService,
     private mailService: MailService,
     private coreBankService: CoreBankService,
-  ) { }
+  ) {}
 
   async validateLogin(
     loginDto: AuthEmailLoginDto,
