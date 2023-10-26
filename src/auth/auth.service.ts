@@ -24,6 +24,7 @@ import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
 import { MailData } from 'src/mail/interfaces/mail-data.interface';
 import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
+import { InviteService } from 'src/invite/invite.service';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +36,7 @@ export class AuthService {
     private forgotService: ForgotService,
     private mailService: MailService,
     private coreBankService: CoreBankService,
+    private inviteService: InviteService,
   ) {}
 
   async validateLogin(
@@ -170,14 +172,21 @@ export class AuthService {
   }
 
   async register(dto: AuthRegisterLoginDto): Promise<void | object> {
-    const hash = crypto
+    let hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
+    while (this.inviteService.findByHash(hash)) {
+      hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+    }
 
     await this.usersService.create({
       ...dto,
       email: dto.email,
+      fullName: dto.fullName,
       role: {
         id: RoleEnum.user,
       } as Role,
@@ -192,6 +201,7 @@ export class AuthService {
         to: dto.email,
         data: {
           hash,
+          userName: dto.fullName,
         },
       });
 
@@ -229,13 +239,15 @@ export class AuthService {
 
     await user.save();
     if (user.hash && user.email && user.hash) {
-      const mailData: MailData<{ hash: string; to: string }> = {
-        to: user.email,
-        data: {
-          hash: user.hash,
+      const mailData: MailData<{ hash: string; to: string; userName: string }> =
+        {
           to: user.email,
-        },
-      };
+          data: {
+            hash: user.hash,
+            to: user.email,
+            userName: user.fullName as string,
+          },
+        };
       await this.mailService.userConcludeRegistration(mailData);
     }
   }
@@ -275,10 +287,16 @@ export class AuthService {
       return returnMessage;
     }
 
-    const hash = crypto
+    let hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
+    while (this.inviteService.findByHash(hash)) {
+      hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+    }
 
     await this.forgotService.create({
       hash,

@@ -9,22 +9,31 @@
 
 <body style="margin:0;font-family:arial">
     <table style="border:0;width:100%">
-        <tr style="background:#eeeeee">
-            <td style="padding:20px;color:#808080;text-align:center;font-size:40px;font-weight:600">
-                {{app_name}}
+        <tr style="background:rgba(150,150,150,0.2)">
+            <td style="padding:20px;color:#004a80;text-align:left;font-size:30px;font-weight:600;">
+                <img src="{{logoSrc}}" alt="{{logoAlt}}" style="max-width: 300px; max-height: 86px;">
             </td>
         </tr>
         <tr>
             <td style="padding:20px;color:#808080;font-size:16px;font-weight:100">
-                {{text1}}<br>
-                {{text2}}<br>
-                {{text3}}
-            </td>
-        </tr>
-        <tr>
-            <td style="text-align:center">
-                <a href="{{url}}"
-                    style="display:inline-block;padding:20px;background:#00838f;text-decoration:none;color:#ffffff">{{actionTitle}}</a>
+                <p>Caro(a) {{userName}},</p>
+                <p>
+                    O processo de atualização dos dados bancários e cadastrais dos permissionários começou.
+                    <br />
+                    Para atualizar seu cadastro, é necessário acessar a plataforma de gestão dos repasses da nova
+                    Bilhetagem Digital, clicando <a href="{{url}}">aqui</a>, e verificando as informações disponíveis no
+                    campo “Perfil”.
+                </p>
+                <p>
+                    Em caso de dúvidas, entre em contato com o setor de Atendimento Digital da SMTR acessando <a
+                        href="{{supportLink}}">aqui</a>. No formulário de Atendimento Digital, na aba de serviços,
+                    escolha a opção “Operador”, marque o modal adequado e descreva sua dúvida.
+                </p>
+                <p>
+                    Atenciosamente,
+                    <br />
+                    SMTR - Secretaria Municipal de Transporte do Rio de Janeiro
+                </p>
             </td>
         </tr>
     </table>
