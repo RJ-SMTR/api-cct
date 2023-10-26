@@ -102,15 +102,30 @@ export class CronJobsService implements OnModuleInit {
     for (const invite of unsentInvites) {
       const newInvite = { ...invite } as Invite;
 
-      try {
-        const user = await this.usersService.findOne({ id: invite.user.id });
-        if (!user?.fullName) {
-          this.logger.warn('bulkSendInvites(): user name not found');
-        }
+      const user = await this.usersService.findOne({ id: invite.user.id });
+      if (!user?.fullName) {
+        this.logger.warn(
+          'bulkSendInvites(): valid user name not found, useing default name.',
+        );
+      }
 
+      // User mail error
+      if (!user?.email) {
+        this.logger.error(
+          'bulkSendInvites(): valid user email not found, this email cant be sent.',
+        );
+        this.inviteService.setInviteError(newInvite, {
+          httpErrorCode: HttpStatus.UNPROCESSABLE_ENTITY,
+          smtpErrorCode: null,
+        });
+        await this.inviteService.update(newInvite.id, newInvite);
+        continue;
+      }
+
+      try {
         const { mailSentInfo } =
           await this.mailService.userConcludeRegistration({
-            to: invite.email,
+            to: user.email,
             data: {
               hash: invite.hash,
               userName: user?.fullName as string,
