@@ -14,6 +14,7 @@ import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { IsValidBankCodeConstraint } from 'src/banks/validators/is-valid-bank-code.validator';
 import { CoreBankModule } from 'src/core-bank/core-bank.module';
+import { InviteModule } from 'src/invite/invite.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CoreBankModule } from 'src/core-bank/core-bank.module';
     PassportModule,
     MailModule,
     CoreBankModule,
+    InviteModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

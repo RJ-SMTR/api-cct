@@ -24,6 +24,7 @@ import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
 import { MailData } from 'src/mail/interfaces/mail-data.interface';
 import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
+import { InviteService } from 'src/invite/invite.service';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +36,7 @@ export class AuthService {
     private forgotService: ForgotService,
     private mailService: MailService,
     private coreBankService: CoreBankService,
+    private inviteService: InviteService,
   ) {}
 
   async validateLogin(
@@ -170,10 +172,16 @@ export class AuthService {
   }
 
   async register(dto: AuthRegisterLoginDto): Promise<void | object> {
-    const hash = crypto
+    let hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
+    while (this.inviteService.findByHash(hash)) {
+      hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+    }
 
     await this.usersService.create({
       ...dto,
@@ -279,10 +287,16 @@ export class AuthService {
       return returnMessage;
     }
 
-    const hash = crypto
+    let hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
+    while (this.inviteService.findByHash(hash)) {
+      hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+    }
 
     await this.forgotService.create({
       hash,

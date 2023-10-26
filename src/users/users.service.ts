@@ -237,10 +237,16 @@ export class UsersService {
     }
 
     for (const fileUser of fileUsers) {
-      const hash = crypto
+      let hash = crypto
         .createHash('sha256')
         .update(randomStringGenerator())
         .digest('hex');
+      while (this.inviteService.findByHash(hash)) {
+        hash = crypto
+          .createHash('sha256')
+          .update(randomStringGenerator())
+          .digest('hex');
+      }
       const createdUser = this.usersRepository.create({
         ...fileUser.user,
         hash: hash,
