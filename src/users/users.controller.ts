@@ -67,17 +67,21 @@ export class UsersController {
   })
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'page', required: false, description: 'default: 1' })
+  @ApiQuery({ name: 'page', required: false, description: '_Default_ : 1' })
   @ApiQuery({
     name: 'limit',
     required: false,
-    description: '_default_ : 500 (max)',
+    description: '_Default_ : 500 (max)',
   })
   @ApiQuery({
-    name: 'filter',
+    name: 'anyField',
     required: false,
     description:
-      'filter user by fullName, firstName, lastName, permitCode, email or aux_inviteStatus',
+      'Filter user, with OR operator, by fullName, firstName, lastName, permitCode, email or aux_inviteStatus',
+  })
+  @ApiQuery({
+    name: 'permitCode',
+    required: false,
   })
   @ApiQuery({
     name: 'name',
@@ -85,24 +89,7 @@ export class UsersController {
     description: 'filter user by fullName, firstName or lastName',
   })
   @ApiQuery({
-    name: 'permitCode',
-    required: false,
-  })
-  @ApiQuery({
     name: 'email',
-    required: false,
-  })
-  @ApiQuery({
-    name: 'cpfCnpj',
-    required: false,
-  })
-  @ApiQuery({
-    name: 'isSgtuBlocked',
-    required: false,
-    type: Boolean,
-  })
-  @ApiQuery({
-    name: 'passValidatorId',
     required: false,
   })
   @ApiQuery({
@@ -113,13 +100,10 @@ export class UsersController {
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(500), ParseIntPipe) limit: number,
-    @Query('filter') filter?: string,
-    @Query('name') name?: string,
+    @Query('anyField') anyField?: string,
     @Query('permitCode') permitCode?: string,
+    @Query('name') name?: string,
     @Query('email') email?: string,
-    @Query('cpfCnpj') cpfCnpj?: string,
-    @Query('isSgtuBlocked') isSgtuBlocked?: boolean,
-    @Query('passValidatorId') passValidatorId?: string,
     @Query(
       'inviteStatus',
       new EnumValidationPipe(InviteStatusNamesEnum, 'value'),
@@ -131,13 +115,13 @@ export class UsersController {
     }
     const pagination: IPaginationOptions = { page, limit };
     const fields: IFindUserPaginated = {
-      _anyField: filter,
-      name,
+      _anyField: {
+        value: anyField,
+        fields: ['permitCode', 'name', 'email', 'inviteStatus'],
+      },
       permitCode,
+      name,
       email,
-      cpfCnpj,
-      isSgtuBlocked,
-      passValidatorId,
       inviteStatusName,
     };
     return infinityPagination(

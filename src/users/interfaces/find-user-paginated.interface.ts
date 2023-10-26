@@ -1,5 +1,8 @@
 export interface IFindUserPaginated {
-  _anyField?: string;
+  _anyField?: {
+    value?: string;
+    fields: string[];
+  };
   name?: string;
   permitCode?: string;
   email?: string;

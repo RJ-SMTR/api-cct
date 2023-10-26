@@ -26,6 +26,11 @@ import { getEnumKey } from 'src/utils/get-enum-key';
 
 @Injectable()
 export class UsersService {
+  private expectedAnyFields = [
+    'name', 'email', 'cpfCnpj',
+    'isSgtuBlocked', 'passValidatorId',
+  ];
+  
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
@@ -42,7 +47,7 @@ export class UsersService {
     paginationOptions: IPaginationOptions,
     fields?: IFindUserPaginated,
   ): Promise<User[]> {
-    const isSgtuBlocked = fields?.isSgtuBlocked || fields?._anyField;
+    const isSgtuBlocked = fields?.isSgtuBlocked || fields?._anyField?.value;
 
     let inviteStatus: any = null;
     if (fields?.inviteStatusName) {
@@ -55,34 +60,48 @@ export class UsersService {
       };
     }
     const where = [
-      ...(fields?.name || fields?._anyField
-        ? [
-            { fullName: ILike(`%${fields?.name || fields?._anyField}%`) },
-            { firstName: ILike(`%${fields?.name || fields?._anyField}%`) },
-            { lastName: ILike(`%${fields?.name || fields?._anyField}%`) },
-          ]
-        : []),
-      ...(fields?.permitCode || fields?._anyField
+      ...(fields?.name || fields?._anyField?.value
         ? [
             {
-              permitCode: ILike(`%${fields?.permitCode || fields?._anyField}%`),
+              fullName: ILike(`%${fields?.name || fields?._anyField?.value}%`),
+            },
+            {
+              firstName: ILike(`%${fields?.name || fields?._anyField?.value}%`),
+            },
+            {
+              lastName: ILike(`%${fields?.name || fields?._anyField?.value}%`),
             },
           ]
         : []),
-      ...(fields?.email || fields?._anyField
-        ? [{ email: ILike(`%${fields?.email || fields?._anyField}%`) }]
+      ...(fields?.permitCode || fields?._anyField?.value
+        ? [
+            {
+              permitCode: ILike(
+                `%${fields?.permitCode || fields?._anyField?.value}%`,
+              ),
+            },
+          ]
         : []),
-      ...(fields?.cpfCnpj || fields?._anyField
-        ? [{ cpfCnpj: ILike(`%${fields?.cpfCnpj || fields?._anyField}%`) }]
+      ...(fields?.email || fields?._anyField?.value
+        ? [{ email: ILike(`%${fields?.email || fields?._anyField?.value}%`) }]
+        : []),
+      ...(fields?.cpfCnpj || fields?._anyField?.value
+        ? [
+            {
+              cpfCnpj: ILike(
+                `%${fields?.cpfCnpj || fields?._anyField?.value}%`,
+              ),
+            },
+          ]
         : []),
       ...(isSgtuBlocked === 'true' || isSgtuBlocked === 'false'
         ? [{ isSgtuBlocked: isSgtuBlocked === 'true' }]
         : []),
-      ...(fields?.passValidatorId || fields?._anyField
+      ...(fields?.passValidatorId || fields?._anyField?.value
         ? [
             {
               passValidatorId: ILike(
-                `%${fields?.passValidatorId || fields?._anyField}%`,
+                `%${fields?.passValidatorId || fields?._anyField?.value}%`,
               ),
             },
           ]
