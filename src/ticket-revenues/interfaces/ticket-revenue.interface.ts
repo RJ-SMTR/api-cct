@@ -128,9 +128,10 @@ export interface ITicketRevenue {
    * Represents `id_tipo_pagamento`
    *
    * @description Código do tipo de pagamento utilizado
-   * @example '3'
+   * @type `TicketRevenuesPaymentTypeMap`
+   * @example 'NFC' = 3
    */
-  paymentMediaType: string | null;
+  paymentMediaType: string;
 
   /**
    * **Important field**
@@ -138,7 +139,8 @@ export interface ITicketRevenue {
    * Represents `id_tipo_transacao`
    *
    * @description Tipo de transação realizada
-   * @example '3'
+   * @type `TicketRevenuesTransactionTypeMap`
+   * @example 'Riocard' = 98
    */
   transactionType: string | null;
 
@@ -148,7 +150,8 @@ export interface ITicketRevenue {
    * Represents `id_tipo_integracao`
    *
    * @description Tipo da integração realizada (identificador relacionado à matriz de integração)
-   * @example '3'
+   * @type `TicketRevenuesTransportIntegrationTypeMap`
+   * @example 'Transferência' = 1
    */
   transportIntegrationType: string | null;
 

@@ -17,6 +17,11 @@ import {
   PAYMENT_WEEKDAY,
   getPaymentStartEndDates,
 } from 'src/utils/payment-date-utils';
+import {
+  TicketRevenuesPaymentMediaTypeMap as PaymentType,
+  TicketRevenuesTransportIntegrationTypeMap as IntegrationType,
+  TicketRevenuesTransactionTypeMap as TransactionType,
+} from './maps/ticket-revenues.map';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -293,10 +298,8 @@ export class TicketRevenuesService {
       qWhere.push(`permissao = '${permitCode}'`);
     }
 
-    const ticketRevenues: ITicketRevenue[] =
-      await this.bigqueryService.runQuery(
-        BigqueryServiceInstances.smtr,
-        `
+    const query =
+      `
 SELECT
   CAST(data AS STRING) AS partitionDate,
   hora AS processingHour,
@@ -322,11 +325,36 @@ SELECT
   valor_transacao AS transactionValue,
   versao AS bqDataVersion
 FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
-          (qWhere.length > 0 ? `\nWHERE ${qWhere.join(' AND ')}` : '') +
-          `\nORDER BY data DESC, hora DESC` +
-          (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
-          (argsOffset !== undefined ? `\nOFFSET ${argsOffset}` : ''),
-      );
+      (qWhere.length > 0 ? `\nWHERE ${qWhere.join(' AND ')}` : '') +
+      `\nORDER BY data DESC, hora DESC` +
+      (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
+      (argsOffset !== undefined ? `\nOFFSET ${argsOffset}` : '');
+
+    let ticketRevenues: ITicketRevenue[] = await this.bigqueryService.runQuery(
+      BigqueryServiceInstances.smtr,
+      query,
+    );
+
+    ticketRevenues = ticketRevenues.map((item: ITicketRevenue) => {
+      const paymentType = item.paymentMediaType;
+      const integrationType = item.transportIntegrationType;
+      const transactionType = item.transactionType;
+      return {
+        ...item,
+        paymentMediaType:
+          paymentType !== null
+            ? PaymentType?.[paymentType] || paymentType
+            : paymentType,
+        transportIntegrationType:
+          integrationType !== null
+            ? IntegrationType?.[integrationType] || integrationType
+            : integrationType,
+        transactionType:
+          transactionType !== null
+            ? TransactionType[transactionType] || transactionType
+            : transactionType,
+      };
+    });
 
     return ticketRevenues;
   }
