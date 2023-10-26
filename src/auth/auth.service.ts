@@ -187,7 +187,7 @@ export class AuthService {
       hash,
     });
 
-    const { mailConfirmationLink: emailConfirmationLink } =
+    const { mailConfirmationLink } =
       await this.mailService.userConcludeRegistration({
         to: dto.email,
         data: {
@@ -195,7 +195,7 @@ export class AuthService {
         },
       });
 
-    return { link: emailConfirmationLink };
+    return { link: mailConfirmationLink };
   }
 
   async resendRegisterMail(obj: AuthResendEmailDto): Promise<void> {
@@ -284,13 +284,6 @@ export class AuthService {
       hash,
       user,
     });
-
-    if (process.env.NODE_ENV == 'development') {
-      return {
-        ...returnMessage,
-        hash: hash,
-      };
-    }
 
     await this.mailService.forgotPassword({
       to: email,
