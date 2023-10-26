@@ -60,28 +60,15 @@ export class MailService {
    * @throws `HttpException`
    */
   async userConcludeRegistration(
-    mailData: MailData<{ hash: string }>,
+    mailData: MailData<{ hash: string; userName: string }>,
   ): Promise<MailRegistrationInterface> {
     const i18n = I18nContext.current();
     let emailConfirmTitle: MaybeType<string>;
-    let text1: MaybeType<string>;
-    let text2: MaybeType<string>;
-    let text3: MaybeType<string>;
 
     if (i18n) {
-      [emailConfirmTitle, text1, text2, text3] = await Promise.all([
-        i18n.t('common.confirmEmail'),
-        i18n.t('confirm-email.text1'),
-        i18n.t('confirm-email.text2'),
-        i18n.t('confirm-email.text3'),
-      ]);
+      [emailConfirmTitle] = await Promise.all([i18n.t('common.confirmEmail')]);
     } else {
-      [emailConfirmTitle, text1, text2, text3] = [
-        'Confirme seu email',
-        'Olá!',
-        'Você recebeu este convite para se inscrever neste serviço.',
-        'Clique no botão abaixo para finalizar seu cadastro.',
-      ];
+      [emailConfirmTitle] = ['Confirme seu email'];
       this.logger.warn(
         'userConcludeRegistration(): i18n module not found message templates, using default',
       );
@@ -91,7 +78,7 @@ export class MailService {
       infer: true,
     });
     const emailConfirmLink = `${frontendDomain}conclude-registration/${mailData.data.hash}`;
-
+    console.log(mailData);
     try {
       const mailSentInfo = await this.safeSendMail({
         to: mailData.to,
@@ -100,12 +87,13 @@ export class MailService {
         template: 'activation',
         context: {
           title: emailConfirmTitle,
-          url: emailConfirmLink,
+          logoSrc: `${frontendDomain}/assets/icons/logoPrefeitura.png`,
+          logoAlt: 'Prefeitura do Rio',
+          userName: mailData.data.userName || 'cidadão',
+          supportLink:
+            'https://secretariamunicipaldetransportes.movidesk.com/form/6594/',
           actionTitle: emailConfirmTitle,
-          app_name: this.configService.get('app.name', { infer: true }),
-          text1,
-          text2,
-          text3,
+          url: emailConfirmLink,
         },
       });
       return {

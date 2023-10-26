@@ -12,6 +12,7 @@ import { getEnumKey } from 'src/utils/get-enum-key';
 import { Invite } from 'src/invite/entities/invite.entity';
 import { MailCount } from 'src/mail-count/entities/mail-count.entity';
 import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
+import { UsersService } from 'src/users/users.service';
 
 export enum CronJobsServiceJobs {
   bulkSendInvites = 'bulkSendInvites',
@@ -43,6 +44,7 @@ export class CronJobsService implements OnModuleInit {
     private inviteService: InviteService,
     private mailCountService: MailCountService,
     private mailService: MailService,
+    private usersService: UsersService,
   ) {}
 
   onModuleInit() {
@@ -101,11 +103,17 @@ export class CronJobsService implements OnModuleInit {
       const newInvite = { ...invite } as Invite;
 
       try {
+        const user = await this.usersService.findOne({ id: invite.user.id });
+        if (!user?.fullName) {
+          this.logger.warn('bulkSendInvites(): user name not found');
+        }
+
         const { mailSentInfo } =
           await this.mailService.userConcludeRegistration({
             to: invite.email,
             data: {
               hash: invite.hash,
+              userName: user?.fullName as string,
             },
           });
 

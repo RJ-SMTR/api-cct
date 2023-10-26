@@ -178,6 +178,7 @@ export class AuthService {
     await this.usersService.create({
       ...dto,
       email: dto.email,
+      fullName: dto.fullName,
       role: {
         id: RoleEnum.user,
       } as Role,
@@ -192,6 +193,7 @@ export class AuthService {
         to: dto.email,
         data: {
           hash,
+          userName: dto.fullName,
         },
       });
 
@@ -229,13 +231,15 @@ export class AuthService {
 
     await user.save();
     if (user.hash && user.email && user.hash) {
-      const mailData: MailData<{ hash: string; to: string }> = {
-        to: user.email,
-        data: {
-          hash: user.hash,
+      const mailData: MailData<{ hash: string; to: string; userName: string }> =
+        {
           to: user.email,
-        },
-      };
+          data: {
+            hash: user.hash,
+            to: user.email,
+            userName: user.fullName as string,
+          },
+        };
       await this.mailService.userConcludeRegistration(mailData);
     }
   }
