@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { DeepPartial, Like, Repository, FindOptionsWhere } from 'typeorm';
+import { DeepPartial, ILike, Repository, FindOptionsWhere } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
 import { NullableType } from '../utils/types/nullable.type';
@@ -57,19 +57,23 @@ export class UsersService {
     const where = [
       ...(fields?.name || fields?._anyField
         ? [
-            { fullName: Like(`%${fields?.name || fields?._anyField}%`) },
-            { firstName: Like(`%${fields?.name || fields?._anyField}%`) },
-            { lastName: Like(`%${fields?.name || fields?._anyField}%`) },
+            { fullName: ILike(`%${fields?.name || fields?._anyField}%`) },
+            { firstName: ILike(`%${fields?.name || fields?._anyField}%`) },
+            { lastName: ILike(`%${fields?.name || fields?._anyField}%`) },
           ]
         : []),
       ...(fields?.permitCode || fields?._anyField
-        ? [{ permitCode: Like(`%${fields?.permitCode || fields?._anyField}%`) }]
+        ? [
+            {
+              permitCode: ILike(`%${fields?.permitCode || fields?._anyField}%`),
+            },
+          ]
         : []),
       ...(fields?.email || fields?._anyField
-        ? [{ email: Like(`%${fields?.email || fields?._anyField}%`) }]
+        ? [{ email: ILike(`%${fields?.email || fields?._anyField}%`) }]
         : []),
       ...(fields?.cpfCnpj || fields?._anyField
-        ? [{ cpfCnpj: Like(`%${fields?.cpfCnpj || fields?._anyField}%`) }]
+        ? [{ cpfCnpj: ILike(`%${fields?.cpfCnpj || fields?._anyField}%`) }]
         : []),
       ...(isSgtuBlocked === 'true' || isSgtuBlocked === 'false'
         ? [{ isSgtuBlocked: isSgtuBlocked === 'true' }]
@@ -77,14 +81,13 @@ export class UsersService {
       ...(fields?.passValidatorId || fields?._anyField
         ? [
             {
-              passValidatorId: Like(
+              passValidatorId: ILike(
                 `%${fields?.passValidatorId || fields?._anyField}%`,
               ),
             },
           ]
         : []),
     ] as FindOptionsWhere<User>[];
-    console.log({ where });
 
     let users = await this.usersRepository.find({
       ...(fields ? { where: where } : {}),
