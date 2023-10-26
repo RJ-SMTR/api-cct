@@ -350,7 +350,7 @@ export class UsersService {
         hash: hash,
         email: createdUser.email as string,
         inviteStatus: {
-          id: InviteStatusEnum.created,
+          id: InviteStatusEnum.queued,
         },
       });
     }
