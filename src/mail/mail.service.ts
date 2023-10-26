@@ -9,6 +9,7 @@ import { MailRegistrationInterface } from './interfaces/mail-registration.interf
 import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interface';
 import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
+import { MailCountService } from 'src/mail-count/mail-count.service';
 
 @Injectable()
 export class MailService {
@@ -17,6 +18,7 @@ export class MailService {
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AllConfigType>,
+    private mailCountService: MailCountService,
   ) {}
 
   private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
@@ -111,6 +113,18 @@ export class MailService {
   async forgotPassword(
     mailData: MailData<{ hash: string }>,
   ): Promise<MailSentInfo> {
+    const senders = await this.mailCountService.getUpdatedMailCounts(true);
+    if ((await senders).length === 0) {
+      throw new HttpException(
+        {
+          error: HttpStatus.SERVICE_UNAVAILABLE,
+          message:
+            'Mailing service is unavailable. Wait 24 hours and try again.',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
     const i18n = I18nContext.current();
     let resetPasswordTitle: MaybeType<string>;
     let text1: MaybeType<string>;
@@ -150,6 +164,10 @@ export class MailService {
           text3,
           text4,
         },
+      });
+
+      await this.mailCountService.update(senders[0].id, {
+        recipientCount: senders[0].recipientCount + 1,
       });
     } catch (httpException) {
       throw httpException;
