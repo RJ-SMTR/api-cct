@@ -197,13 +197,16 @@ export class AuthService {
     });
 
     const { mailConfirmationLink } =
-      await this.mailService.userConcludeRegistration({
-        to: dto.email,
-        data: {
-          hash,
-          userName: dto.fullName,
+      await this.mailService.userConcludeRegistration(
+        {
+          to: dto.email,
+          data: {
+            hash,
+            userName: dto.fullName,
+          },
         },
-      });
+        true,
+      );
 
     return { link: mailConfirmationLink };
   }
@@ -248,7 +251,7 @@ export class AuthService {
             userName: user.fullName as string,
           },
         };
-      await this.mailService.userConcludeRegistration(mailData);
+      await this.mailService.userConcludeRegistration(mailData, true);
     }
   }
 

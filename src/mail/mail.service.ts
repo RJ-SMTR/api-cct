@@ -63,7 +63,19 @@ export class MailService {
    */
   async userConcludeRegistration(
     mailData: MailData<{ hash: string; userName: string }>,
+    handleSenders = false,
   ): Promise<MailRegistrationInterface> {
+    const senders = await this.mailCountService.getUpdatedMailCounts(true);
+    if (handleSenders && senders.length === 0) {
+      throw new HttpException(
+        {
+          error: HttpStatus.SERVICE_UNAVAILABLE,
+          message:
+            'Mailing service is unavailable. Wait 24 hours and try again.',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
     const i18n = I18nContext.current();
     let emailConfirmTitle: MaybeType<string>;
 
@@ -98,6 +110,11 @@ export class MailService {
           url: emailConfirmLink,
         },
       });
+      if (handleSenders) {
+        await this.mailCountService.update(senders[0].id, {
+          recipientCount: senders[0].recipientCount + 1,
+        });
+      }
       return {
         mailSentInfo: mailSentInfo,
         mailConfirmationLink: emailConfirmLink,
@@ -143,7 +160,7 @@ export class MailService {
     }
 
     try {
-      return await this.safeSendMail({
+      const response = await this.safeSendMail({
         to: mailData.to,
         subject: resetPasswordTitle,
         text: `${this.configService.get('app.frontendDomain', {
@@ -165,10 +182,10 @@ export class MailService {
           text4,
         },
       });
-
       await this.mailCountService.update(senders[0].id, {
         recipientCount: senders[0].recipientCount + 1,
       });
+      return response;
     } catch (httpException) {
       throw httpException;
     }

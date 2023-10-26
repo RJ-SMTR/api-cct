@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MailService } from './mail.service';
-import { MailCountService } from 'src/mail-count/mail-count.service';
+import { MailCountModule } from 'src/mail-count/mail-count.module';
 
 @Module({
-  imports: [ConfigModule, MailCountService],
+  imports: [ConfigModule, MailCountModule],
   providers: [MailService],
   exports: [MailService],
 })
