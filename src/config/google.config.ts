@@ -12,37 +12,26 @@ class EnvironmentVariablesValidator {
   @IsString()
   GOOGLE_CLIENT_SECRET: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_TYPE: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_PROJECT_ID: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_PRIVATE_KEY_ID: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_PRIVATE_KEY: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_CLIENT_EMAIL: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_CLIENT_ID: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_AUTH_URI: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_TOKEN_URI: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_AUTH_PROVIDER_X509_CERT_URL: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_CLIENT_X509_CERT_URL: string;
 
-  @IsString()
   GOOGLE_CLIENT_API_UNIVERSE_DOMAIN: string;
 }
 
