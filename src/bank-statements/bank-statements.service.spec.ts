@@ -7,9 +7,10 @@ import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
 import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
 
 const allBankStatements = [
-  { id: 0, cpfCnpj: 'cpfCnpj_1', date: '2023-01-20' },
-  { id: 1, cpfCnpj: 'cpfCnpj_1', date: '2023-01-13' },
-  { id: 2, cpfCnpj: 'cpfCnpj_1', date: '2023-01-06' },
+  { id: 0, cpfCnpj: 'cpfCnpj_1', date: '2023-01-27', amount: 1 },
+  { id: 1, cpfCnpj: 'cpfCnpj_1', date: '2023-01-20', amount: 2 },
+  { id: 2, cpfCnpj: 'cpfCnpj_1', date: '2023-01-13', amount: 3 },
+  { id: 3, cpfCnpj: 'cpfCnpj_1', date: '2023-01-06', amount: 4 },
 ] as Partial<ICoreBankStatements>[] as ICoreBankStatements[];
 
 describe('BankStatementsService', () => {
@@ -21,6 +22,7 @@ describe('BankStatementsService', () => {
       provide: CoreBankService,
       useValue: {
         getBankStatementsByCpfCnpj: jest.fn(),
+        getBankStatementsMocked: jest.fn(),
         getProfileByCpfCnpj: jest.fn(),
         update: jest.fn().mockReturnValue(undefined),
       },
@@ -48,14 +50,17 @@ describe('BankStatementsService', () => {
         cpfCnpj: allBankStatements[0].cpfCnpj,
       } as User;
       const args = {
-        previousDays: 14,
+        timeInterval: 'last2Weeks',
       } as BankStatementsGetDto;
 
-      const expectedResult = allBankStatements.slice(0, 2);
+      const expectedResult = {
+        amountSum: 6,
+        data: allBankStatements.slice(0, 3),
+      };
 
       jest
-        .spyOn(coreBankService, 'getBankStatementsByCpfCnpj')
-        .mockReturnValueOnce(allBankStatements);
+        .spyOn(coreBankService, 'getBankStatementsMocked')
+        .mockReturnValue(allBankStatements);
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() => new Date('2023-01-22').valueOf());
@@ -83,10 +88,13 @@ describe('BankStatementsService', () => {
       const bankStatementsByCpf = allBankStatements.filter(
         (i) => i.cpfCnpj === user.cpfCnpj,
       );
-      const expectedResult = bankStatementsByCpf.slice(1, 3);
+      const expectedResult = {
+        amountSum: 7,
+        data: bankStatementsByCpf.slice(2, 4),
+      };
 
       jest
-        .spyOn(coreBankService, 'getBankStatementsByCpfCnpj')
+        .spyOn(coreBankService, 'getBankStatementsMocked')
         .mockReturnValueOnce(bankStatementsByCpf);
       jest
         .spyOn(global.Date, 'now')

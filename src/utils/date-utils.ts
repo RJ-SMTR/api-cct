@@ -38,15 +38,13 @@ export function getStartEndDates(args: {
   endDateStr?: string;
   timeInterval?: TimeIntervalEnum;
 }): { startDate: Date; endDate: Date } {
-  const now = new Date();
+  const now = new Date(Date.now());
   let startDate: Date =
     args?.startDateStr !== undefined
       ? new Date(args.startDateStr)
       : new Date(now);
   let endDate: Date =
     args?.endDateStr !== undefined ? new Date(args.endDateStr) : new Date(now);
-
-  console.log({ args, startDate, endDate });
 
   if (args.timeInterval && !args?.startDateStr) {
     if (args.timeInterval === TimeIntervalEnum.LAST_WEEK) {

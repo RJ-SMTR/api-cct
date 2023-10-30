@@ -48,7 +48,7 @@ export class BankStatementsService {
 
     const endDateStr =
       args?.endDate ||
-      nextPaymentWeekday(new Date()).toISOString().slice(0, 10);
+      nextPaymentWeekday(new Date(Date.now())).toISOString().slice(0, 10);
     const { startDate, endDate } = getStartEndDates({
       startDateStr: args?.startDate,
       endDateStr: endDateStr,
