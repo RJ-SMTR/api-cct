@@ -25,6 +25,7 @@ import {
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroups from './utils/ticket-revenues-groups.utils';
+import { isToday, startOfDay } from 'date-fns';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -74,7 +75,7 @@ export class TicketRevenuesService {
       ticketRevenuesResponse,
     );
 
-    let ticketRevenuesSumGroup: ITicketRevenuesGroup = {
+    let ticketRevenuesGroupSum: ITicketRevenuesGroup = {
       count: 0,
       partitionDate: '',
       transportTypeCounts: {},
@@ -94,7 +95,7 @@ export class TicketRevenuesService {
     if (ticketRevenuesResponse.length === 0) {
       return {
         data: [],
-        ticketRevenuesGroupSum: ticketRevenuesSumGroup,
+        ticketRevenuesGroupSum: ticketRevenuesGroupSum,
         transactionValueLastDay: 0,
       };
     }
@@ -112,17 +113,29 @@ export class TicketRevenuesService {
       );
     }
 
-    const lastDayTransactionValue =
+    const transactionValueLastDay =
       ticketRevenuesGroups.length > 0
         ? ticketRevenuesGroups[0].transactionValueSum
         : 0;
+
+    const mostRecentResponseDate = startOfDay(
+      new Date(ticketRevenuesResponse[0].partitionDate),
+    );
+    if (getToday && mostRecentResponseDate > startOfDay(endDate)) {
+      ticketRevenuesResponse = this.removeTicketRevenueToday(
+        ticketRevenuesResponse,
+      ) as ITicketRevenue[];
+      ticketRevenuesGroups = this.removeTicketRevenueToday(
+        ticketRevenuesGroups,
+      ) as ITicketRevenuesGroup[];
+    }
 
     const ticketRevenuesSumGroups = this.getTicketRevenuesGroups(
       ticketRevenuesResponse,
       'all',
     );
     if (ticketRevenuesSumGroups.length === 1) {
-      ticketRevenuesSumGroup = ticketRevenuesSumGroups[0];
+      ticketRevenuesGroupSum = ticketRevenuesSumGroups[0];
     }
     if (ticketRevenuesSumGroups.length > 1) {
       this.logger.error(
@@ -132,9 +145,15 @@ export class TicketRevenuesService {
 
     return {
       data: ticketRevenuesGroups,
-      ticketRevenuesGroupSum: ticketRevenuesSumGroup,
-      transactionValueLastDay: lastDayTransactionValue,
+      ticketRevenuesGroupSum,
+      transactionValueLastDay,
     };
+  }
+
+  public removeTicketRevenueToday(
+    list: (ITicketRevenue | ITicketRevenuesGroup)[],
+  ): ITicketRevenue[] | (ITicketRevenue | ITicketRevenuesGroup)[] {
+    return list.filter((i) => !isToday(new Date(i.partitionDate)));
   }
 
   public getTicketRevenuesGroups(
