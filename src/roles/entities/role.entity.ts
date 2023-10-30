@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Allow } from 'class-validator';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { RoleEnum } from '../roles.enum';
-import { getEnumKey } from 'src/utils/enum.utils';
+import { Enum } from 'src/utils/enum';
 
 @Entity()
 export class Role extends EntityHelper {
@@ -20,7 +20,7 @@ export class Role extends EntityHelper {
     super();
     if (role !== undefined) {
       this.id = role;
-      this.name = getEnumKey(RoleEnum, role);
+      this.name = Enum.getKey(RoleEnum, role);
     }
   }
 }

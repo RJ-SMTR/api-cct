@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Allow } from 'class-validator';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { StatusEnum } from '../statuses.enum';
-import { getEnumKey } from 'src/utils/enum.utils';
+import { Enum } from 'src/utils/enum';
 
 @Entity()
 export class Status extends EntityHelper {
@@ -20,7 +20,7 @@ export class Status extends EntityHelper {
     super();
     if (status !== undefined) {
       this.id = status;
-      this.name = getEnumKey(StatusEnum, status);
+      this.name = Enum.getKey(StatusEnum, status);
     }
   }
 }

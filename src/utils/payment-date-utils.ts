@@ -1,80 +1,121 @@
-import { nextDay, previousDay } from 'date-fns';
+import {
+  endOfDay,
+  isSameMonth,
+  nextDay,
+  previousDay,
+  startOfDay,
+} from 'date-fns';
 import { WeekdayEnum } from './enums/weekday.enum';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
+import { DateIntervalType } from './types/date-interval.type';
 
 export const PAYMENT_WEEKDAY = WeekdayEnum._5_FRIDAY;
 export const PAYMENT_START_WEEKDAY = WeekdayEnum._4_THURSDAY;
 export const PAYMENT_END_WEEKDAY = WeekdayEnum._3_WEDNESDAY;
 
-export function nextPaymentWeekday(date: Date): Date {
-  return nextDay(date, PAYMENT_WEEKDAY);
+export function previousPaymentWeekday(
+  date: Date,
+  abortIfWeekday = false,
+): Date {
+  if (date.getDay() !== PAYMENT_WEEKDAY || !abortIfWeekday) {
+    return previousDay(date, PAYMENT_WEEKDAY);
+  }
+  return date;
 }
 
-export function getPaymentStartDate(date: Date): Date {
+export function nextPaymentWeekday(date: Date, abortIfWeekday = false): Date {
+  if (date.getDay() !== PAYMENT_WEEKDAY || !abortIfWeekday) {
+    return nextDay(date, PAYMENT_WEEKDAY);
+  }
+  return date;
+}
+
+export function previousPaymentStartDate(
+  date: Date,
+  abortIfPaymentStartWeekday = false,
+): Date {
   let newDate = new Date(date);
-  if (date.getUTCDay() !== PAYMENT_START_WEEKDAY) {
+  if (date.getDay() !== PAYMENT_START_WEEKDAY || !abortIfPaymentStartWeekday) {
     newDate = previousDay(newDate, PAYMENT_START_WEEKDAY);
   }
   return newDate;
 }
 
-export function getPaymentEndDate(date: Date): Date {
+export function previousPaymentEndDate(
+  date: Date,
+  args?: {
+    abortIfPaymentEndDate?: boolean;
+    abortIfPreviousMonth?: boolean;
+  },
+): Date {
   let newDate = new Date(date);
-  if (date.getUTCDay() !== PAYMENT_END_WEEKDAY) {
-    newDate = nextDay(newDate, PAYMENT_END_WEEKDAY);
+  if (date.getDay() !== PAYMENT_END_WEEKDAY || !args?.abortIfPaymentEndDate) {
+    newDate = previousDay(newDate, PAYMENT_END_WEEKDAY);
+  }
+  if (!isSameMonth(date, newDate) && args?.abortIfPreviousMonth) {
+    return date;
   }
   return newDate;
 }
 
-export function getPaymentStartEndDates(args: {
+export function nextPaymentEndDate(
+  date: Date,
+  args?: {
+    abortIfPaymentEndDate?: boolean;
+    goPreviousIfNextMonth?: boolean;
+  },
+): Date {
+  let newDate = new Date(date);
+  if (date.getDay() !== PAYMENT_END_WEEKDAY || !args?.abortIfPaymentEndDate) {
+    newDate = nextDay(newDate, PAYMENT_END_WEEKDAY);
+  }
+  if (!isSameMonth(date, newDate) && args?.goPreviousIfNextMonth) {
+    return previousPaymentEndDate(new Date(date), {
+      abortIfPaymentEndDate: args?.abortIfPaymentEndDate,
+    });
+  }
+  return newDate;
+}
+
+export function getDateIntervalFromStr(args: {
   startDateStr?: string;
   endDateStr?: string;
-  timeInterval?: TimeIntervalEnum;
-}): { startDate: Date; endDate: Date } {
+}): DateIntervalType {
   const now = new Date();
+
   let startDate: Date =
     args?.startDateStr !== undefined
       ? new Date(args.startDateStr)
-      : getPaymentStartDate(now);
+      : new Date(now);
+
   let endDate: Date =
-    args?.endDateStr !== undefined
-      ? new Date(args.endDateStr)
-      : getPaymentEndDate(now);
+    args?.endDateStr !== undefined ? new Date(args.endDateStr) : new Date(now);
 
-  if (startDate.getDay() !== PAYMENT_START_WEEKDAY) {
-    startDate = getPaymentStartDate(startDate);
-  }
-  if (endDate.getDay() !== PAYMENT_END_WEEKDAY) {
-    endDate = getPaymentEndDate(endDate);
-  }
+  startDate = startOfDay(startDate);
+  endDate = endOfDay(endDate);
 
-  if (args.timeInterval && (!args?.startDateStr || !args?.endDateStr)) {
-    if (args.timeInterval === TimeIntervalEnum.LAST_WEEK) {
-      if (!args?.startDateStr) {
-        startDate = getPaymentStartDate(now);
-      }
-      if (!args?.endDateStr) {
-        endDate = getPaymentEndDate(now);
-      }
-    }
-    if (args.timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
-      if (!args?.startDateStr) {
-        startDate = getPaymentStartDate(now);
-        startDate.setDate(startDate.getDate() - 7);
-      }
-      if (!args?.endDateStr) {
-        endDate = getPaymentEndDate(now);
-      }
-    }
-    if (args.timeInterval === TimeIntervalEnum.LAST_MONTH) {
-      if (!args?.startDateStr) {
-        startDate = getPaymentStartDate(now);
-        startDate.setDate(startDate.getDate() - 7 * 3);
-      }
-      if (!args?.endDateStr) {
-        endDate = getPaymentEndDate(now);
-      }
-    }
+  return { startDate, endDate };
+}
+
+export function getPaymentDateInterval(
+  timeInterval: TimeIntervalEnum,
+): DateIntervalType {
+  const now = new Date(Date.now());
+  let startDate: Date = previousPaymentStartDate(now, true);
+  let endDate: Date = nextPaymentEndDate(now, {
+    abortIfPaymentEndDate: false,
+    goPreviousIfNextMonth: true,
+  });
+
+  if (timeInterval === TimeIntervalEnum.LAST_WEEK) {
+    startDate.setDate(startDate.getDate() - 7);
+  } else if (timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
+    startDate.setDate(startDate.getDate() - 7 * 2);
+  } else if (timeInterval === TimeIntervalEnum.LAST_MONTH) {
+    startDate.setDate(startDate.getDate() - 7 * 4);
   }
+  startDate = startOfDay(startDate);
+  endDate = endOfDay(endDate);
+
   return { startDate, endDate };
 }

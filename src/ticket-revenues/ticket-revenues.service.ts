@@ -14,14 +14,17 @@ import { getDateNthWeek } from 'src/utils/date-utils';
 import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import {
   PAYMENT_START_WEEKDAY,
-  PAYMENT_WEEKDAY,
-  getPaymentStartEndDates,
+  getDateIntervalFromStr,
+  getPaymentDateInterval,
 } from 'src/utils/payment-date-utils';
 import {
   TicketRevenuesPaymentMediaTypeMap as PaymentType,
   TicketRevenuesTransportIntegrationTypeMap as IntegrationType,
   TicketRevenuesTransactionTypeMap as TransactionType,
 } from './maps/ticket-revenues.map';
+import { QueryBuilder } from 'src/utils/query-builder/query-builder';
+import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
+import * as TicketRevenuesGroups from './utils/ticket-revenues-groups.utils';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -51,18 +54,25 @@ export class TicketRevenuesService {
       );
     }
 
-    const { startDate, endDate } = getPaymentStartEndDates({
-      startDateStr: args.startDate,
-      endDateStr: args.endDate,
-      timeInterval: args.timeInterval,
-    });
+    const getToday = true;
+    const useTimeInterval = args?.startDate === undefined;
+    const { startDate, endDate } = !useTimeInterval
+      ? getDateIntervalFromStr({
+          startDateStr: args.startDate,
+          endDateStr: args.endDate,
+        })
+      : getPaymentDateInterval(args.timeInterval);
 
     // Get data
-    const ticketRevenuesResponse = await this.fetchTicketRevenues({
+    let ticketRevenuesResponse = await this.fetchTicketRevenues({
       permitCode: user.permitCode,
       startDate,
       endDate,
+      getToday,
     });
+    ticketRevenuesResponse = this.mapTicketRevenuesEnums(
+      ticketRevenuesResponse,
+    );
 
     let ticketRevenuesSumGroup: ITicketRevenuesGroup = {
       count: 0,
@@ -92,10 +102,8 @@ export class TicketRevenuesService {
     let ticketRevenuesGroups = this.getTicketRevenuesGroups(
       ticketRevenuesResponse,
       'day',
-    ).filter((group) => {
-      const itemDate: Date = new Date(group.partitionDate);
-      return itemDate.getUTCDay() !== PAYMENT_WEEKDAY;
-    });
+    );
+
     if (pagination) {
       const offset = pagination?.limit * (pagination?.page - 1);
       ticketRevenuesGroups = ticketRevenuesGroups.slice(
@@ -134,10 +142,7 @@ export class TicketRevenuesService {
     groupBy: 'day' | 'week' | 'all',
   ): ITicketRevenuesGroup[] {
     const result = ticketRevenues.reduce(
-      (
-        accumulator: Record<string, ITicketRevenuesGroup>,
-        item: ITicketRevenue,
-      ) => {
+      (accumulator: TicketRevenuesGroupsType, item: ITicketRevenue) => {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
         const itemDate = new Date(item.partitionDate);
         const nthWeek = getDateNthWeek(itemDate, startWeekday);
@@ -168,112 +173,7 @@ export class TicketRevenuesService {
           };
         }
 
-        if (
-          item.transportType !== null &&
-          accumulator[dateGroup].transportTypeCounts[
-            item.transportType as any
-          ] === undefined
-        ) {
-          accumulator[dateGroup].transportTypeCounts[
-            item.transportType as any
-          ] = 0;
-        }
-
-        if (
-          item.directionId !== null &&
-          accumulator[dateGroup].directionIdCounts[item.directionId as any] ===
-            undefined
-        ) {
-          accumulator[dateGroup].directionIdCounts[item.directionId as any] = 0;
-        }
-        if (
-          item.paymentMediaType &&
-          accumulator[dateGroup].paymentMediaTypeCounts[
-            item.paymentMediaType as any
-          ] === undefined
-        ) {
-          accumulator[dateGroup].paymentMediaTypeCounts[
-            item.paymentMediaType as any
-          ] = 0;
-        }
-        if (
-          item.transactionType &&
-          accumulator[dateGroup].transactionTypeCounts[
-            item.transactionType as any
-          ] === undefined
-        ) {
-          accumulator[dateGroup].transactionTypeCounts[
-            item.transactionType as any
-          ] = 0;
-        }
-        if (
-          item.stopId !== null &&
-          accumulator[dateGroup].stopIdCounts[item.stopId as any] === undefined
-        ) {
-          accumulator[dateGroup].stopIdCounts[item.stopId as any] = 0;
-        }
-        if (
-          item.stopLat !== null &&
-          accumulator[dateGroup].stopLatCounts[item.stopLat as any] ===
-            undefined
-        ) {
-          accumulator[dateGroup].stopLatCounts[item.stopLat as any] = 0;
-        }
-        if (
-          item.stopLon !== null &&
-          accumulator[dateGroup].stopLonCounts[item.stopLon as any] ===
-            undefined
-        ) {
-          accumulator[dateGroup].stopLonCounts[item.stopLon as any] = 0;
-        }
-        if (
-          accumulator[dateGroup].transportIntegrationTypeCounts[
-            item.transportIntegrationType as any
-          ] === undefined
-        ) {
-          accumulator[dateGroup].transportIntegrationTypeCounts[
-            item.transportIntegrationType as any
-          ] = 0;
-        }
-
-        accumulator[dateGroup].count += 1;
-
-        if (item.transportType !== null) {
-          accumulator[dateGroup].transportTypeCounts[
-            item.transportType as any
-          ] += 1;
-        }
-
-        accumulator[dateGroup].directionIdCounts[item.directionId as any] += 1;
-        accumulator[dateGroup].paymentMediaTypeCounts[
-          item.paymentMediaType as any
-        ] += 1;
-        accumulator[dateGroup].transactionTypeCounts[
-          item.transactionType as any
-        ] += 1;
-        if (item.stopLat !== null) {
-          accumulator[dateGroup].stopLatCounts[item.stopLat as any] += 1;
-        }
-        if (item.stopLon !== null) {
-          accumulator[dateGroup].stopLonCounts[item.stopLon as any] += 1;
-        }
-        accumulator[dateGroup].transactionValueSum = Number(
-          (
-            accumulator[dateGroup].transactionValueSum +
-            (item.transactionValue || 0)
-          ).toFixed(2),
-        );
-        if (item.transportIntegrationType !== null) {
-          accumulator[dateGroup].transportIntegrationTypeCounts[
-            item.transportIntegrationType as any
-          ] += 1;
-        }
-        if (item.paymentMediaType !== null) {
-          accumulator[dateGroup].paymentMediaTypeCounts[
-            item.paymentMediaType as any
-          ] += 1;
-        }
-
+        TicketRevenuesGroups.appendItem(accumulator[dateGroup], item, true);
         return accumulator;
       },
       {},
@@ -287,24 +187,25 @@ export class TicketRevenuesService {
   public async fetchTicketRevenues(
     args?: IFetchTicketRevenues,
   ): Promise<ITicketRevenue[]> {
-    let argsOffset = args?.offset;
-    const qWhere: string[] = [];
-
+    // Args
+    let offset = args?.offset;
+    const queryBuilder = new QueryBuilder();
+    queryBuilder.pushOR([]);
     if (args?.offset !== undefined && args.limit === undefined) {
       this.logger.warn(
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
           " 'offset' will be ignored to prevent query fail",
       );
-      argsOffset = undefined;
+      offset = undefined;
     }
 
     if (args?.startDate !== undefined) {
       const startDate = args.startDate.toISOString().slice(0, 10);
-      qWhere.push(`DATE(data) >= DATE('${startDate}')`);
+      queryBuilder.pushAND(`DATE(data) >= DATE('${startDate}')`);
     }
     if (args?.endDate !== undefined) {
       const endDate = args.endDate.toISOString().slice(0, 10);
-      qWhere.push(`DATE(data) <= DATE('${endDate}')`);
+      queryBuilder.pushAND(`DATE(data) <= DATE('${endDate}')`);
     }
 
     if (args?.permitCode !== undefined) {
@@ -315,9 +216,16 @@ export class TicketRevenuesService {
         );
         permitCode = permitCode.replace("'", '');
       }
-      qWhere.push(`permissao = '${permitCode}'`);
+      queryBuilder.pushAND(`permissao = '${permitCode}'`);
     }
 
+    queryBuilder.pushOR([]);
+    if (args?.getToday) {
+      const nowStr = new Date(Date.now()).toISOString().slice(0, 10);
+      queryBuilder.pushAND(`DATE(data) = DATE('${nowStr}')`);
+    }
+
+    // Query
     const query =
       `
 SELECT
@@ -345,17 +253,20 @@ SELECT
   valor_transacao AS transactionValue,
   versao AS bqDataVersion
 FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
-      (qWhere.length > 0 ? `\nWHERE ${qWhere.join(' AND ')}` : '') +
+      (queryBuilder.getQueryBuild() ? `\nWHERE ${queryBuilder.toSQL()}` : '') +
       `\nORDER BY data DESC, hora DESC` +
       (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
-      (argsOffset !== undefined ? `\nOFFSET ${argsOffset}` : '');
+      (offset !== undefined ? `\nOFFSET ${offset}` : '');
 
-    let ticketRevenues: ITicketRevenue[] = await this.bigqueryService.runQuery(
-      BigqueryServiceInstances.smtr,
-      query,
-    );
+    const ticketRevenues: ITicketRevenue[] =
+      await this.bigqueryService.runQuery(BigqueryServiceInstances.smtr, query);
+    return ticketRevenues;
+  }
 
-    ticketRevenues = ticketRevenues.map((item: ITicketRevenue) => {
+  public mapTicketRevenuesEnums(
+    ticketRevenues: ITicketRevenue[],
+  ): ITicketRevenue[] {
+    return ticketRevenues.map((item: ITicketRevenue) => {
       const paymentType = item.paymentMediaType;
       const integrationType = item.transportIntegrationType;
       const transactionType = item.transactionType;
@@ -375,6 +286,5 @@ FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
             : transactionType,
       };
     });
-    return ticketRevenues;
   }
 }

@@ -48,10 +48,9 @@ export class TicketRevenuesController {
     @Request() request,
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
+    @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query(...DateQueryParams.endDate) endDate?: string,
-    @Query(...DateQueryParams.timeInterval)
-    timeInterval?: TimeIntervalEnum | undefined,
   ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.usersService.getOneFromRequest(request);
     const args: ITicketRevenuesGetGrouped = {

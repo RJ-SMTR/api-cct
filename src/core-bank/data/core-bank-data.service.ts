@@ -3,9 +3,9 @@ import { ICoreBankStatements } from '../interfaces/core-bank-statements.interfac
 import { ICoreBankProfile } from '../interfaces/core-bank-profile.interface';
 import { CoreBankStatusEnum } from '../enums/core-bank-status.enum';
 import { CoreBankStatusCodeEnum } from '../enums/core-bank-status-code.enum';
-import { getEnumKey } from 'src/utils/enum.utils';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import { lastDayOfMonth, nextFriday } from 'date-fns';
+import { Enum } from 'src/utils/enum';
 
 @Injectable()
 export class CoreBankDataService implements OnModuleInit {
@@ -111,7 +111,7 @@ export class CoreBankDataService implements OnModuleInit {
       amount: randomInt + randomDecimal,
       status:
         status !== undefined
-          ? getEnumKey(CoreBankStatusEnum, status).toLowerCase()
+          ? Enum.getKey(CoreBankStatusEnum, status).toLowerCase()
           : randomStatus,
       statusCode: randomStatusCode,
     };
