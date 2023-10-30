@@ -25,7 +25,7 @@ import { Role } from 'src/roles/entities/role.entity';
 import { Status } from 'src/statuses/entities/status.entity';
 import { Invite } from 'src/invite/entities/invite.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
-import { getEnumKey } from 'src/utils/get-enum-key';
+import { Enum } from 'src/utils/enum';
 
 @Injectable()
 export class UsersService {
@@ -59,7 +59,7 @@ export class UsersService {
     if (fields?.inviteStatusName) {
       inviteStatus = {
         id: Number(InviteStatusEnum[fields?.inviteStatusName]),
-        name: getEnumKey(
+        name: Enum.getKey(
           InviteStatusEnum,
           InviteStatusEnum[fields?.inviteStatusName],
         ),
