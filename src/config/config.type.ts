@@ -54,7 +54,17 @@ export type FileConfig = {
 export type GoogleConfig = {
   clientId?: string;
   clientSecret?: string;
-  clientApiJson?: string;
+  clientApiType?: string;
+  clientApiProjectId?: string;
+  clientApiPrivateKeyId?: string;
+  clientApiPrivateKey?: string;
+  clientApiClientEmail?: string;
+  clientApiClientId?: string;
+  clientApiAuthUri?: string;
+  clientApiTokenUri?: string;
+  clientApiAuthProviderX509CertUrl?: string;
+  clientApiClientX509CertUrl?: string;
+  clientApiUniverseDomain?: string;
 };
 
 export type MailConfig = {
