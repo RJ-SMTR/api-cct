@@ -181,12 +181,12 @@ export class UsersService {
     if (!user) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpErrorMessages.NOT_FOUND,
           details: {
             ...(!user && { user: 'userNotFound' }),
           },
         },
-        HttpStatus.UNAUTHORIZED,
+        HttpStatus.NOT_FOUND,
       );
     }
     user.aux_inviteStatus = await this.getAux_inviteSatus(user);

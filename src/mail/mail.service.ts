@@ -63,15 +63,17 @@ export class MailService {
    */
   async userConcludeRegistration(
     mailData: MailData<{ hash: string; userName: string }>,
-    handleSenders = false,
   ): Promise<MailRegistrationInterface> {
     const senders = await this.mailCountService.getUpdatedMailCounts(true);
-    if (handleSenders && senders.length === 0) {
+    if (senders.length === 0) {
       throw new HttpException(
         {
           error: HttpStatus.SERVICE_UNAVAILABLE,
           message:
             'Mailing service is unavailable. Wait 24 hours and try again.',
+          details: {
+            error: 'quotaLimitReached',
+          },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
@@ -92,7 +94,6 @@ export class MailService {
       infer: true,
     });
     const emailConfirmLink = `${frontendDomain}conclude-registration/${mailData.data.hash}`;
-    console.log(mailData);
     try {
       const mailSentInfo = await this.safeSendMail({
         to: mailData.to,
@@ -110,11 +111,11 @@ export class MailService {
           url: emailConfirmLink,
         },
       });
-      if (handleSenders) {
-        await this.mailCountService.update(senders[0].id, {
-          recipientCount: senders[0].recipientCount + 1,
-        });
-      }
+
+      await this.mailCountService.update(senders[0].id, {
+        recipientCount: senders[0].recipientCount + 1,
+      });
+
       return {
         mailSentInfo: mailSentInfo,
         mailConfirmationLink: emailConfirmLink,
@@ -131,12 +132,15 @@ export class MailService {
     mailData: MailData<{ hash: string }>,
   ): Promise<MailSentInfo> {
     const senders = await this.mailCountService.getUpdatedMailCounts(true);
-    if ((await senders).length === 0) {
+    if (senders.length === 0) {
       throw new HttpException(
         {
           error: HttpStatus.SERVICE_UNAVAILABLE,
           message:
             'Mailing service is unavailable. Wait 24 hours and try again.',
+          details: {
+            error: 'quotaLimitReached',
+          },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
@@ -182,9 +186,11 @@ export class MailService {
           text4,
         },
       });
+
       await this.mailCountService.update(senders[0].id, {
         recipientCount: senders[0].recipientCount + 1,
       });
+
       return response;
     } catch (httpException) {
       throw httpException;

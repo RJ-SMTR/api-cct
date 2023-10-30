@@ -1,29 +1,32 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
-  Request,
-  Post,
-  UseGuards,
   Patch,
-  Delete,
+  Post,
+  Request,
   SerializeOptions,
+  UseGuards,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { User } from '../users/entities/user.entity';
+import { LoginResponseType } from '../utils/types/auth/login-response.type';
+import { NullableType } from '../utils/types/nullable.type';
+import { AuthService } from './auth.service';
+import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
-import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
+import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
+import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
-import { AuthGuard } from '@nestjs/passport';
-import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
-import { LoginResponseType } from '../utils/types/auth/login-response.type';
-import { User } from '../users/entities/user.entity';
-import { NullableType } from '../utils/types/nullable.type';
-import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
+import { Roles } from 'src/roles/roles.decorator';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
 
 @ApiTags('Auth')
 @Controller({
@@ -71,6 +74,12 @@ export class AuthController {
     return this.service.confirmEmail(confirmEmailDto.hash);
   }
 
+  @ApiBearerAuth()
+  @SerializeOptions({
+    groups: ['admin'],
+  })
+  @Roles(RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Post('email/resend')
   @HttpCode(HttpStatus.NO_CONTENT)
   async resendRegisterMail(
