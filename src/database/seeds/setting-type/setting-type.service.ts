@@ -13,7 +13,6 @@ export class SettingTypeSeedService {
 
   async run() {
     for (const value in SettingTypeEnum) {
-      console.log(value);
       if (isNaN(Number(value))) {
         continue;
       }

@@ -1,20 +1,22 @@
 import {
-  Body,
   Controller,
   HttpCode,
   HttpStatus,
-  Post,
+  Get,
   Request,
   SerializeOptions,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { BankStatementsService } from './bank-statements.service';
-import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
 import { UsersService } from 'src/users/users.service';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
-import { User } from 'src/users/entities/user.entity';
+import { DateApiParams } from 'src/utils/api-param/date.api-param';
+import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
+import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
+import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 
 @ApiTags('BankStatements')
 @Controller({
@@ -32,16 +34,20 @@ export class BankStatementsController {
   })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Post('me')
+  @Get('me')
+  @ApiQuery(DateApiParams.startDate)
+  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery(DateApiParams.timeInterval)
   @HttpCode(HttpStatus.OK)
   async getBankStatementsFromUser(
     @Request() request,
-    @Body() profileDto: BankStatementsGetDto,
-  ): Promise<CoreBankStatementsInterface[]> {
+    @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query(...DateQueryParams.endDate) endDate?: string,
+    @Query(...DateQueryParams.timeInterval)
+    timeInterval?: TimeIntervalEnum | undefined,
+  ): Promise<IBankStatementsResponse> {
     const user = await this.usersService.getOneFromRequest(request);
-    return this.bankStatementsService.getBankStatementsFromUser(
-      { ...user, cpfCnpj: 'cpfCnpj_mocked' } as User,
-      profileDto,
-    );
+    const args: IBankStatementsGet = { startDate, endDate, timeInterval };
+    return this.bankStatementsService.getBankStatementsFromUser(user, args);
   }
 }

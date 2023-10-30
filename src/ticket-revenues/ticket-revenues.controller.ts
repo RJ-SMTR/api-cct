@@ -1,19 +1,25 @@
 import {
-  Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
-  Post,
+  Query,
   Request,
   SerializeOptions,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { TicketRevenuesGetDto } from './dto/ticket-revenues-get.dto';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UsersService } from 'src/users/users.service';
 import { TicketRevenuesService } from './ticket-revenues.service';
-import { JaeTicketRevenueInterface } from 'src/jae/interfaces/jae-ticket-revenue.interface';
+import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
+import { DateApiParams } from 'src/utils/api-param/date.api-param';
+import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
+import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
+import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -31,13 +37,32 @@ export class TicketRevenuesController {
   })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Post('me')
+  @Get('/me/grouped')
   @HttpCode(HttpStatus.OK)
-  async getFromUser(
+  @ApiQuery(PaginationApiParams.page)
+  @ApiQuery(PaginationApiParams.limit)
+  @ApiQuery(DateApiParams.startDate)
+  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery(DateApiParams.timeInterval)
+  async getGrouped(
     @Request() request,
-    @Body() filterDto: TicketRevenuesGetDto,
-  ): Promise<JaeTicketRevenueInterface[]> {
+    @Query(...PaginationQueryParams.page) page: number,
+    @Query(...PaginationQueryParams.limit) limit: number,
+    @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
+    @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query(...DateQueryParams.endDate) endDate?: string,
+  ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.usersService.getOneFromRequest(request);
-    return await this.ticketRevenuesService.getDataFromUser(user, filterDto);
+    const args: ITicketRevenuesGetGrouped = {
+      startDate,
+      endDate,
+      timeInterval,
+    };
+    const pagination: IPaginationOptions = { limit, page };
+    return await this.ticketRevenuesService.getGroupedFromUser(
+      user,
+      args,
+      pagination,
+    );
   }
 }

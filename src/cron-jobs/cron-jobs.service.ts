@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { SchedulerRegistry } from '@nestjs/schedule';
+import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { InviteService } from 'src/invite/invite.service';
 import { MailService } from 'src/mail/mail.service';
 import { CronJob, CronJobParameters } from 'cron';
@@ -8,14 +8,17 @@ import { MailCountService } from 'src/mail-count/mail-count.service';
 import { SettingsService } from 'src/settings/settings.service';
 import { appSettings } from 'src/settings/app.settings';
 import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
-import { getEnumKey } from 'src/utils/get-enum-key';
 import { Invite } from 'src/invite/entities/invite.entity';
 import { MailCount } from 'src/mail-count/entities/mail-count.entity';
 import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
-import { UsersService } from 'src/users/users.service';
+import { JaeService } from 'src/jae/jae.service';
+import { CoreBankService } from 'src/core-bank/core-bank.service';
+import { Enum } from 'src/utils/enum';
 
 export enum CronJobsServiceJobs {
   bulkSendInvites = 'bulkSendInvites',
+  updateJaeMockedData = 'updateJaeMockedData',
+  updateCoreBankMockedData = 'updateCoreBankMockedData',
 }
 
 interface ICronJob {
@@ -35,6 +38,20 @@ export class CronJobsService implements OnModuleInit {
         onTick: async () => this.bulkSendInvites(),
       },
     },
+    {
+      name: CronJobsServiceJobs.updateJaeMockedData,
+      cronJobParameters: {
+        cronTime: CronExpression.EVERY_MINUTE,
+        onTick: async () => this.updateJaeMockedData(),
+      },
+    },
+    {
+      name: CronJobsServiceJobs.updateCoreBankMockedData,
+      cronJobParameters: {
+        cronTime: CronExpression.EVERY_DAY_AT_6AM,
+        onTick: () => this.coreBankService.updateDataIfNeeded(),
+      },
+    },
   ];
 
   constructor(
@@ -44,7 +61,8 @@ export class CronJobsService implements OnModuleInit {
     private inviteService: InviteService,
     private mailCountService: MailCountService,
     private mailService: MailService,
-    private usersService: UsersService,
+    private jaeService: JaeService,
+    private coreBankService: CoreBankService,
   ) {}
 
   onModuleInit() {
@@ -54,6 +72,16 @@ export class CronJobsService implements OnModuleInit {
       job.start();
       this.logger.log(`Job started: ${jobConfig.name}`);
     }
+  }
+
+  async updateJaeMockedData() {
+    this.logger.log(`updateJaeMockedData(): updating data if needed`);
+    await this.jaeService.updateDataIfNeeded();
+  }
+
+  updateCoreBankMockedData() {
+    this.logger.log(`updateCoreBankMockedData(): updating data if needed`);
+    this.coreBankService.updateDataIfNeeded();
   }
 
   async bulkSendInvites() {
@@ -73,11 +101,11 @@ export class CronJobsService implements OnModuleInit {
       inviteStatus: [
         {
           id: InviteStatusEnum.created,
-          name: getEnumKey(InviteStatusEnum, InviteStatusEnum.created),
+          name: Enum.getKey(InviteStatusEnum, InviteStatusEnum.created),
         },
         {
           id: InviteStatusEnum.queued,
-          name: getEnumKey(InviteStatusEnum, InviteStatusEnum.queued),
+          name: Enum.getKey(InviteStatusEnum, InviteStatusEnum.queued),
         },
       ],
     });

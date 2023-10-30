@@ -6,7 +6,7 @@ import { UsersService } from 'src/users/users.service';
 import { Request } from 'express';
 import { User } from 'src/users/entities/user.entity';
 import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
-import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
+import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
 
 describe('BankStatementsController', () => {
   let bankStatementsController: BankStatementsController;
@@ -61,7 +61,7 @@ describe('BankStatementsController', () => {
         { id: 0, cpfCnpj: 'cpfCnpj_1' },
         { id: 1, cpfCnpj: 'cpfCnpj_1' },
         { id: 2, cpfCnpj: 'cpfCnpj_1' },
-      ] as Partial<CoreBankStatementsInterface>[] as CoreBankStatementsInterface[];
+      ] as Partial<ICoreBankStatements>[] as ICoreBankStatements[];
       jest
         .spyOn(bankStatementsService, 'getBankStatementsFromUser')
         .mockReturnValueOnce(bankStatements);

@@ -4,7 +4,7 @@ import { IsNull, Repository } from 'typeorm';
 import { settingSeedData } from './setting-seed-data';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
 import { SettingTypeEnum } from 'src/setting-types/setting-type.enum';
-import { getEnumKey } from 'src/utils/get-enum-key';
+import { Enum } from 'src/utils/enum';
 
 @Injectable()
 export class SettingSeedService {
@@ -23,7 +23,7 @@ export class SettingSeedService {
           editable: item.editable,
           settingType: {
             id: item.settingType,
-            name: getEnumKey(SettingTypeEnum, item.settingType),
+            name: Enum.getKey(SettingTypeEnum, item.settingType),
           },
         },
       });
@@ -38,7 +38,7 @@ export class SettingSeedService {
             editable: item.editable,
             settingType: {
               id: item.settingType,
-              name: getEnumKey(SettingTypeEnum, item.settingType),
+              name: Enum.getKey(SettingTypeEnum, item.settingType),
             },
           }),
         );

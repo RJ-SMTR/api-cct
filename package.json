@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.350.0",
+    "@google-cloud/bigquery": "^7.3.0",
     "@nestjs-modules/mailer": "1.8.1",
     "@nestjs/axios": "^3.0.0",
     "@nestjs/common": "9.4.2",
@@ -47,8 +48,10 @@
     "aws-sdk": "^2.1470.0",
     "axios": "^1.4.0",
     "bcryptjs": "2.4.3",
+    "chalk": "^4.1.2",
     "class-transformer": "0.5.1",
     "class-validator": "0.14.0",
+    "date-fns": "^2.30.0",
     "fb": "2.0.0",
     "google-auth-library": "8.8.0",
     "handlebars": "4.7.7",

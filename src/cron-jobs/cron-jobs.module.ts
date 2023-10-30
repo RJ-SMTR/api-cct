@@ -6,7 +6,8 @@ import { MailModule } from 'src/mail/mail.module';
 import { SettingsModule } from 'src/settings/settings.module';
 import { MailCountModule } from 'src/mail-count/mail-count.module';
 import { ConfigModule } from '@nestjs/config';
-import { UsersModule } from 'src/users/users.module';
+import { JaeModule } from 'src/jae/jae.module';
+import { CoreBankModule } from 'src/core-bank/core-bank.module';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { UsersModule } from 'src/users/users.module';
     InviteModule,
     MailModule,
     MailCountModule,
-    UsersModule,
+    JaeModule,
+    CoreBankModule,
   ],
   providers: [CronJobsService],
 })

@@ -3,7 +3,7 @@ import { TicketRevenuesService } from './ticket-revenues.service';
 import { Provider } from '@nestjs/common';
 import { JaeService } from 'src/jae/jae.service';
 import { User } from 'src/users/entities/user.entity';
-import { JaeTicketRevenueInterface } from 'src/jae/interfaces/jae-ticket-revenue.interface';
+import { IJaeTicketRevenue } from 'src/jae/interfaces/jae-ticket-revenue.interface';
 
 describe('TicketRevenuesService', () => {
   let ticketRevenuesService: TicketRevenuesService;
@@ -36,13 +36,13 @@ describe('TicketRevenuesService', () => {
   describe('getDataFromUser', () => {
     it('should return a slice of data when successfull', async () => {
       // Arrange
-      const expectedResult: JaeTicketRevenueInterface[] = [];
+      const expectedResult: IJaeTicketRevenue[] = [];
       for (let day = 3; day >= 1; day--) {
         for (let i = 3; i >= 1; i--) {
           const dayStr = day.toString().padStart(2, '0');
           const hourStr = (i * 10).toString().padStart(2, '0');
           expectedResult.push({
-            id: i,
+            transactionId: i,
             paymentMediaType: `media_${i}`,
             transportIntegrationType: `integration_${i}`,
             transactionType: `transaction_${i}`,
@@ -56,7 +56,7 @@ describe('TicketRevenuesService', () => {
             clientId: `clientId_${i}`,
             integrationId: i,
             individualIntegrationId: i,
-            dateIndex: `dateIndex_${i}`,
+            partitionDate: `dateIndex_${i}`,
             processingDateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
             captureDateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
             vehicleService: i,
@@ -81,17 +81,21 @@ describe('TicketRevenuesService', () => {
         );
 
       // Act
-      const resultPreviousDays = await ticketRevenuesService.getDataFromUser(
-        user as unknown as User,
-        { previousDays: 1 },
-      );
-      const resultBetweenDates = await ticketRevenuesService.getDataFromUser(
-        user as unknown as User,
-        {
-          startDate: '2023-06-01',
-          endDate: '2023-06-03',
-        },
-      );
+      const resultPreviousDays =
+        await ticketRevenuesService.getUngroupedFromUser(
+          user as unknown as User,
+          { previousDays: 1 },
+          { limit: 9999, page: 1 },
+        );
+      const resultBetweenDates =
+        await ticketRevenuesService.getUngroupedFromUser(
+          user as unknown as User,
+          {
+            startDate: '2023-06-01',
+            endDate: '2023-06-03',
+          },
+          { limit: 9999, page: 1 },
+        );
       // Assert
       expect(resultPreviousDays).toEqual(expectedResult.slice(0, 6));
       expect(resultBetweenDates).toEqual(expectedResult.slice(3, 9));

@@ -20,6 +20,9 @@ import { InviteService } from 'src/invite/invite.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
 import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { Role } from 'src/roles/entities/role.entity';
+import { Status } from 'src/statuses/entities/status.entity';
 import { Invite } from 'src/invite/entities/invite.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { getEnumKey } from 'src/utils/get-enum-key';
@@ -248,25 +251,35 @@ export class UsersService {
     const expectedFileUserFields: string[] = expectedUserFields.map(
       (str) => FileUserMap[str] || str,
     );
-    const headers: any[] = [];
+    const receivedHeaders: any[] = [];
     for (const key in worksheet) {
       if (worksheet.hasOwnProperty(key)) {
         if (key.endsWith('1')) {
-          headers.push(worksheet[key].v);
+          receivedHeaders.push(worksheet[key].v);
         }
       }
     }
-    if (!headers.every((item1) => expectedFileUserFields.includes(item1))) {
+    if (
+      !receivedHeaders.every((item1) => expectedFileUserFields.includes(item1))
+    ) {
       throw new HttpException(
-        'Error parsing file user: invalid headers',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        {
+          error: {
+            file: {
+              message: 'inivalidHeaders',
+              receivedHeaders: receivedHeaders,
+              expectedHeaders: expectedFileUserFields,
+            },
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
 
     const fileData = xlsx.utils.sheet_to_json(worksheet);
     const fileUsers: FileUserInterface[] = fileData.map((item) => ({
       user: {
-        permitCode: (item as any).codigo_permissionario,
+        permitCode: (item as any).codigo_permissionario.replace("'", ''),
         email: (item as any).email,
       },
       errors: {},
@@ -338,9 +351,8 @@ export class UsersService {
       const createdUser = this.usersRepository.create({
         ...fileUser.user,
         hash: hash,
-        status: {
-          id: StatusEnum.register,
-        },
+        status: new Status(StatusEnum.register),
+        role: new Role(RoleEnum.user),
       } as DeepPartial<User>);
       console.log('CREATING USER', fileUser.user);
       await this.usersRepository.save(createdUser);

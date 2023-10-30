@@ -1,6 +1,6 @@
-export interface JaeTicketRevenueInterface {
+export interface IJaeTicketRevenue {
   /** id_transacao */
-  id: number;
+  transactionId: number;
 
   /** id_tipo_pagamento */
   paymentMediaType?: string;
@@ -41,7 +41,7 @@ export interface JaeTicketRevenueInterface {
   individualIntegrationId: number;
 
   /** data (partition, GMT0) */
-  dateIndex: string;
+  partitionDate: string;
 
   /** datetime_processamento */
   processingDateTime: string;

@@ -65,11 +65,11 @@ describe('JaeDataService', () => {
       expect(filteredResult[0] !== undefined).toBeTruthy();
       expect(filteredResult[1] !== undefined).toBeTruthy();
       expect(filteredResult[2] !== undefined).toBeTruthy();
-      expect(Number(filteredResult[0]?.id)).toBeLessThan(
-        Number(filteredResult[1]?.id),
+      expect(Number(filteredResult[0]?.transactionId)).toBeLessThan(
+        Number(filteredResult[1]?.transactionId),
       );
-      expect(Number(filteredResult[1]?.id)).toBeLessThan(
-        Number(filteredResult[2]?.id),
+      expect(Number(filteredResult[1]?.transactionId)).toBeLessThan(
+        Number(filteredResult[2]?.transactionId),
       );
     }, 10000);
 

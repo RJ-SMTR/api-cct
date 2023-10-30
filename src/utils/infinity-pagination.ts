@@ -6,6 +6,7 @@ export const infinityPagination = <T>(
   options: IPaginationOptions,
 ): InfinityPaginationResultType<T> => {
   return {
+    count: data.length,
     hasNextPage: data.length === options.limit,
     data,
   };

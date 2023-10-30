@@ -5,7 +5,7 @@ import { Provider } from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import { User } from 'src/users/entities/user.entity';
 import { TicketRevenuesGetDto } from './dto/ticket-revenues-get.dto';
-import { JaeTicketRevenueInterface } from 'src/jae/interfaces/jae-ticket-revenue.interface';
+import { IJaeTicketRevenue } from 'src/jae/interfaces/jae-ticket-revenue.interface';
 import { Request } from 'express';
 
 describe('TicketRevenuesController', () => {
@@ -57,22 +57,22 @@ describe('TicketRevenuesController', () => {
         },
       } as Partial<Request>;
       const args = { previousDays: 1 } as TicketRevenuesGetDto;
-      const expectedResult: Partial<JaeTicketRevenueInterface>[] = [
-        { id: 1 },
-        { id: 2 },
+      const expectedResult: Partial<IJaeTicketRevenue>[] = [
+        { transactionId: 1 },
+        { transactionId: 2 },
       ];
       jest
         .spyOn(usersService, 'getOneFromRequest')
         .mockResolvedValueOnce(user as User);
       jest
         .spyOn(ticketRevenuesService, 'getDataFromUser')
-        .mockResolvedValueOnce(expectedResult as JaeTicketRevenueInterface[]);
+        .mockResolvedValueOnce(expectedResult as IJaeTicketRevenue[]);
 
       // Act
-      const result = await ticketRevenuesController.getFromUser(request, args);
+      const result = await ticketRevenuesController.getGrouped(request, args);
 
       // Assert
-      expect(ticketRevenuesService.getDataFromUser).toBeCalledTimes(1);
+      expect(ticketRevenuesService.getUngroupedFromUser).toBeCalledTimes(1);
       expect(result).toEqual(expectedResult);
     });
   });
