@@ -18,13 +18,13 @@ export class AuthRegisterLoginDto {
   password: string;
 
   @ApiProperty({ example: 'John' })
-  firstName: string;
+  firstName?: string;
 
   @ApiProperty({ example: 'Doe' })
-  lastName: string;
+  lastName?: string;
 
   @ApiProperty({ example: 'John' })
-  fullName?: string;
+  fullName: string;
 
   @ApiProperty({ example: '213890329890312' })
   permitCode?: string;

@@ -22,6 +22,9 @@ import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
+import { MailData } from 'src/mail/interfaces/mail-data.interface';
+import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
+import { InviteService } from 'src/invite/invite.service';
 
 @Injectable()
 export class AuthService {
@@ -33,6 +36,7 @@ export class AuthService {
     private forgotService: ForgotService,
     private mailService: MailService,
     private coreBankService: CoreBankService,
+    private inviteService: InviteService,
   ) {}
 
   async validateLogin(
@@ -168,14 +172,21 @@ export class AuthService {
   }
 
   async register(dto: AuthRegisterLoginDto): Promise<void | object> {
-    const hash = crypto
+    let hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
+    while (this.inviteService.findByHash(hash)) {
+      hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+    }
 
     await this.usersService.create({
       ...dto,
       email: dto.email,
+      fullName: dto.fullName,
       role: {
         id: RoleEnum.user,
       } as Role,
@@ -185,15 +196,60 @@ export class AuthService {
       hash,
     });
 
-    const { mailConfirmationLink: emailConfirmationLink } =
+    const { mailConfirmationLink } =
       await this.mailService.userConcludeRegistration({
         to: dto.email,
         data: {
           hash,
+          userName: dto.fullName,
         },
       });
 
-    return { link: emailConfirmationLink };
+    return { link: mailConfirmationLink };
+  }
+
+  async resendRegisterMail(obj: AuthResendEmailDto): Promise<void> {
+    if (!obj) {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.USER_NOT_FOUND,
+          details: {
+            error: `user not found`,
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const user = await this.usersService.findOne({
+      id: obj.id,
+    });
+
+    if (!user) {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.USER_NOT_FOUND,
+          details: {
+            error: `User not found`,
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    await user.save();
+    if (user.hash && user.email && user.hash) {
+      const mailData: MailData<{ hash: string; to: string; userName: string }> =
+        {
+          to: user.email,
+          data: {
+            hash: user.hash,
+            to: user.email,
+            userName: user.fullName as string,
+          },
+        };
+      await this.mailService.userConcludeRegistration(mailData);
+    }
   }
 
   async confirmEmail(hash: string): Promise<void> {
@@ -231,22 +287,21 @@ export class AuthService {
       return returnMessage;
     }
 
-    const hash = crypto
+    let hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
+    while (this.inviteService.findByHash(hash)) {
+      hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+    }
 
     await this.forgotService.create({
       hash,
       user,
     });
-
-    if (process.env.NODE_ENV == 'development') {
-      return {
-        ...returnMessage,
-        hash: hash,
-      };
-    }
 
     await this.mailService.forgotPassword({
       to: email,
