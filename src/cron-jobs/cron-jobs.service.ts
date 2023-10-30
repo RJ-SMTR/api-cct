@@ -14,6 +14,7 @@ import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity'
 import { JaeService } from 'src/jae/jae.service';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { Enum } from 'src/utils/enum';
+import { UsersService } from 'src/users/users.service';
 
 export enum CronJobsServiceJobs {
   bulkSendInvites = 'bulkSendInvites',
@@ -63,6 +64,7 @@ export class CronJobsService implements OnModuleInit {
     private mailService: MailService,
     private jaeService: JaeService,
     private coreBankService: CoreBankService,
+    private usersService: UsersService,
   ) {}
 
   onModuleInit() {
