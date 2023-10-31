@@ -329,7 +329,7 @@ export class UsersService {
         .createHash('sha256')
         .update(randomStringGenerator())
         .digest('hex');
-      while (this.inviteService.findByHash(hash)) {
+      while (await this.inviteService.findByHash(hash)) {
         hash = crypto
           .createHash('sha256')
           .update(randomStringGenerator())
