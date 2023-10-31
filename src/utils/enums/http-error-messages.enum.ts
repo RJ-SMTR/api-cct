@@ -6,7 +6,6 @@ export enum HttpErrorMessages {
   SETTING_NOT_FOUND = 'SettingNotFound',
   NOT_FOUND = 'NotFound',
   USER_NOT_FOUND = 'UserNotFound',
-  NOT_FOUND = 'NotFound',
   UNAUTHORIZED = 'Unauthorized',
   UNPROCESSABLE_ENTITY = 'UnprocessableEntity',
 }
