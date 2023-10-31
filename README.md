@@ -1,43 +1,38 @@
-# NestJS REST API boilerplate 🇺🇦
+# API CCT
 
-![github action status](https://github.com/brocoders/nestjs-boilerplate/actions/workflows/docker-e2e.yml/badge.svg)
+![github action status](https://github.com/RJ-SMTR/api-cct/actions/workflows/docker-e2e.yml/badge.svg)
 
-## Description
+## Descrição
 
-NestJS REST API boilerplate for typical project
+*API do aplicativo CCT*  
+(Centro de Compensação Tarifária)
 
-[Full documentation here](https://github.com/brocoders/nestjs-boilerplate/blob/main/docs/readme.md)
+
+[Documentação completa](https://github.com/RJ-SMTR/api-cct/blob/main/docs/readme.md)
+
+Este projeto foi baseado no template [Nestjs Boilerplate](https://github.com/brocoders/nestjs-boilerplate/)
+
+O [Projeto do App CCT](https://github.com/RJ-SMTR/app-cct) consome esta API.
 
 ## Table of Contents
 
-- [Features](#features)
-- [Quick run](#quick-run)
-- [Comfortable development](#comfortable-development)
-- [Links](#links)
-- [Automatic update of dependencies](#automatic-update-of-dependencies)
-- [Database utils](#database-utils)
-- [Tests](#tests)
-
-## Features
-
-- [x] Database ([typeorm](https://www.npmjs.com/package/typeorm)).
-- [x] Seeding.
-- [x] Config Service ([@nestjs/config](https://www.npmjs.com/package/@nestjs/config)).
-- [x] Mailing ([nodemailer](https://www.npmjs.com/package/nodemailer), [@nestjs-modules/mailer](https://www.npmjs.com/package/@nestjs-modules/mailer)).
-- [x] Sign in and sign up via email.
-- [x] Social sign in (Apple, Facebook, Google, Twitter).
-- [x] Admin and User roles.
-- [x] I18N ([nestjs-i18n](https://www.npmjs.com/package/nestjs-i18n)).
-- [x] File uploads. Support local and Amazon S3 drivers.
-- [x] Swagger.
-- [x] E2E and units tests.
-- [x] Docker.
-- [x] CI (Github Actions).
+* [API CCT](#api-cct)
+  * [Descrição](#descrição)
+  * [Table of Contents](#table-of-contents)
+  * [Features](#features)
+  * [Quick run](#quick-run)
+  * [Comfortable development](#comfortable-development)
+  * [Links](#links)
+  * [Automatic update of dependencies](#automatic-update-of-dependencies)
+  * [Database utils](#database-utils)
+  * [Tests](#tests)
+  * [Tests in Docker](#tests-in-docker)
+  * [Test benchmarking](#test-benchmarking)
 
 ## Quick run
 
 ```bash
-git clone --depth 1 https://github.com/brocoders/nestjs-boilerplate.git my-app
+git clone --depth 1 .git my-app
 cd my-app/
 cp env-example .env
 docker compose up -d
@@ -52,7 +47,7 @@ docker compose logs
 ## Comfortable development
 
 ```bash
-git clone --depth 1 https://github.com/brocoders/nestjs-boilerplate.git my-app
+git clone --depth 1 .git my-app
 cd my-app/
 cp env-example .env
 ```

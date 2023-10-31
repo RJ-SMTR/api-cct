@@ -1,23 +1,30 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { JaeDataService } from './data/jae-data.service';
 import { JaeProfileInterface } from './interfaces/jae-profile.interface';
-import { JaeTicketRevenueInterface } from './interfaces/jae-ticket-revenue.interface';
+import { IJaeTicketRevenue } from './interfaces/jae-ticket-revenue.interface';
 import { User } from 'src/users/entities/user.entity';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
 
 @Injectable()
 export class JaeService {
   constructor(private jaeDataService: JaeDataService) {}
 
+  async updateDataIfNeeded(): Promise<void> {
+    return await this.jaeDataService.updateDataIfNeeded();
+  }
+
   public async getTicketRevenuesByPermitCode(
     ticketValidatorId: string,
-  ): Promise<JaeTicketRevenueInterface[]> {
+  ): Promise<IJaeTicketRevenue[]> {
     return await this.jaeDataService.getTicketRevenuesByPermitCode(
       ticketValidatorId,
     );
   }
 
-  async getTicketRevenuesMocked(): Promise<JaeTicketRevenueInterface[]> {
-    return await this.jaeDataService.getTicketRevenuesMocked();
+  async getTicketRevenuesMocked(
+    pagination?: IPaginationOptions,
+  ): Promise<IJaeTicketRevenue[]> {
+    return await this.jaeDataService.getTicketRevenuesMocked(pagination);
   }
 
   public getProfileByPermitCode(permitCode: string): JaeProfileInterface {

@@ -1,12 +1,13 @@
+import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Request } from 'express';
+import { User } from 'src/users/entities/user.entity';
+import { UsersService } from 'src/users/users.service';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
+import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import { TicketRevenuesController } from './ticket-revenues.controller';
 import { TicketRevenuesService } from './ticket-revenues.service';
-import { Provider } from '@nestjs/common';
-import { UsersService } from 'src/users/users.service';
-import { User } from 'src/users/entities/user.entity';
-import { TicketRevenuesGetDto } from './dto/ticket-revenues-get.dto';
-import { JaeTicketRevenueInterface } from 'src/jae/interfaces/jae-ticket-revenue.interface';
-import { Request } from 'express';
 
 describe('TicketRevenuesController', () => {
   let ticketRevenuesController: TicketRevenuesController;
@@ -17,7 +18,7 @@ describe('TicketRevenuesController', () => {
     const ticketRevenuesServiceMock = {
       provide: TicketRevenuesService,
       useValue: {
-        getDataFromUser: jest.fn(),
+        getGroupedFromUser: jest.fn(),
       },
     } as Provider;
     const usersServiceMock = {
@@ -56,24 +57,34 @@ describe('TicketRevenuesController', () => {
           id: user.id,
         },
       } as Partial<Request>;
-      const args = { previousDays: 1 } as TicketRevenuesGetDto;
-      const expectedResult: Partial<JaeTicketRevenueInterface>[] = [
-        { id: 1 },
-        { id: 2 },
+
+      const dataResponse: Partial<ITicketRevenuesGroup>[] = [
+        { partitionDate: '2023-10-31' },
+        { partitionDate: '2023-10-30' },
       ];
+      const expectedResponse: ITicketRevenuesGroupedResponse = {
+        data: dataResponse as ITicketRevenuesGroup[],
+        ticketRevenuesGroupSum: dataResponse[0] as ITicketRevenuesGroup,
+        transactionValueLastDay: 10,
+      };
       jest
         .spyOn(usersService, 'getOneFromRequest')
         .mockResolvedValueOnce(user as User);
       jest
-        .spyOn(ticketRevenuesService, 'getDataFromUser')
-        .mockResolvedValueOnce(expectedResult as JaeTicketRevenueInterface[]);
+        .spyOn(ticketRevenuesService, 'getGroupedFromUser')
+        .mockResolvedValueOnce(expectedResponse);
 
       // Act
-      const result = await ticketRevenuesController.getFromUser(request, args);
+      const result = await ticketRevenuesController.getGrouped(
+        request,
+        1, // page
+        2, // limit
+        TimeIntervalEnum.LAST_WEEK, // timeInterval
+      );
 
       // Assert
-      expect(ticketRevenuesService.getDataFromUser).toBeCalledTimes(1);
-      expect(result).toEqual(expectedResult);
+      expect(ticketRevenuesService.getGroupedFromUser).toBeCalledTimes(1);
+      expect(result).toEqual(dataResponse);
     });
   });
 });

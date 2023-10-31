@@ -58,6 +58,21 @@ export class AuthLicenseeService {
       );
     }
 
+    if (
+      user?.status?.id === undefined ||
+      user?.status?.id !== StatusEnum.active
+    ) {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
+            status: 'notActive',
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
     if (user.provider !== AuthProvidersEnum.email) {
       throw new HttpException(
         {

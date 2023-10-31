@@ -13,7 +13,6 @@ export class InviteStatusSeedService {
 
   async run() {
     for (const value in InviteStatusEnum) {
-      console.log(value);
       if (isNaN(Number(value))) {
         continue;
       }

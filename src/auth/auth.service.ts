@@ -28,7 +28,7 @@ import { InviteService } from 'src/invite/invite.service';
 
 @Injectable()
 export class AuthService {
-  private logger: Logger = new Logger('AuthService');
+  private logger: Logger = new Logger('AuthService', { timestamp: true });
 
   constructor(
     private jwtService: JwtService,

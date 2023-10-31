@@ -1,19 +1,27 @@
 import {
-  Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
-  Post,
+  Query,
   Request,
   SerializeOptions,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { TicketRevenuesGetDto } from './dto/ticket-revenues-get.dto';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UsersService } from 'src/users/users.service';
+import { DateApiParams } from 'src/utils/api-param/date.api-param';
+import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
+import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import { TicketRevenuesService } from './ticket-revenues.service';
-import { JaeTicketRevenueInterface } from 'src/jae/interfaces/jae-ticket-revenue.interface';
+import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
+import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
+import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -31,13 +39,40 @@ export class TicketRevenuesController {
   })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Post('me')
+  @Get('/me/grouped')
   @HttpCode(HttpStatus.OK)
-  async getFromUser(
+  @ApiQuery(PaginationApiParams.page)
+  @ApiQuery(PaginationApiParams.limit)
+  @ApiQuery(DateApiParams.startDate)
+  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery(DateApiParams.timeInterval)
+  @ApiQuery({
+    name: 'userId',
+    type: Number,
+    required: false,
+    description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
+  })
+  async getGrouped(
     @Request() request,
-    @Body() filterDto: TicketRevenuesGetDto,
-  ): Promise<JaeTicketRevenueInterface[]> {
-    const user = await this.usersService.getOneFromRequest(request);
-    return await this.ticketRevenuesService.getDataFromUser(user, filterDto);
+    @Query(...PaginationQueryParams.page) page: number,
+    @Query(...PaginationQueryParams.limit) limit: number,
+    @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
+    @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query(...DateQueryParams.endDate) endDate?: string,
+    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    userId?: number | null,
+  ): Promise<ITicketRevenuesGroupedResponse> {
+    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    const args: ITicketRevenuesGetGrouped = {
+      startDate,
+      endDate,
+      timeInterval,
+      userId: isUserIdNumber ? userId : request.user.id,
+    };
+    const pagination: IPaginationOptions = { limit, page };
+    return await this.ticketRevenuesService.getGroupedFromUser(
+      args,
+      pagination,
+    );
   }
 }

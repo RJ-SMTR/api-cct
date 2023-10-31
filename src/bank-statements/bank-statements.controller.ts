@@ -1,20 +1,24 @@
 import {
-  Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
-  Post,
+  Query,
   Request,
   SerializeOptions,
   UseGuards,
 } from '@nestjs/common';
-import { BankStatementsService } from './bank-statements.service';
-import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
-import { UsersService } from 'src/users/users.service';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { CoreBankStatementsInterface } from 'src/core-bank/interfaces/core-bank-statements.interface';
-import { User } from 'src/users/entities/user.entity';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { UsersService } from 'src/users/users.service';
+import { DateApiParams } from 'src/utils/api-param/date.api-param';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
+import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
+import { BankStatementsService } from './bank-statements.service';
+import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
+import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
+import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 
 @ApiTags('BankStatements')
 @Controller({
@@ -32,16 +36,33 @@ export class BankStatementsController {
   })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Post('me')
+  @Get('me')
+  @ApiQuery(DateApiParams.startDate)
+  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery(DateApiParams.timeInterval)
+  @ApiQuery({
+    name: 'userId',
+    type: Number,
+    required: false,
+    description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
+  })
   @HttpCode(HttpStatus.OK)
   async getBankStatementsFromUser(
     @Request() request,
-    @Body() profileDto: BankStatementsGetDto,
-  ): Promise<CoreBankStatementsInterface[]> {
-    const user = await this.usersService.getOneFromRequest(request);
-    return this.bankStatementsService.getBankStatementsFromUser(
-      { ...user, cpfCnpj: 'cpfCnpj_mocked' } as User,
-      profileDto,
-    );
+    @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query(...DateQueryParams.endDate) endDate?: string,
+    @Query(...DateQueryParams.timeInterval)
+    timeInterval?: TimeIntervalEnum | undefined,
+    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    userId?: number | null,
+  ): Promise<IBankStatementsResponse> {
+    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    const args: IBankStatementsGet = {
+      startDate,
+      endDate,
+      timeInterval,
+      userId: isUserIdNumber ? userId : request.user.id,
+    };
+    return this.bankStatementsService.getBankStatementsFromUser(args);
   }
 }
