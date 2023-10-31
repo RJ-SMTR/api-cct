@@ -69,8 +69,6 @@ export class TicketRevenuesService {
       );
     }
 
-    console.log({ arg: args?.userId, user });
-
     const getToday = true;
     const useTimeInterval = args?.startDate === undefined;
     const { startDate, endDate } = !useTimeInterval

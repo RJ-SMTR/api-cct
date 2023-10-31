@@ -59,7 +59,6 @@ describe('MailCountService', () => {
         .spyOn(mailCountRepository, 'find')
         .mockResolvedValue(findResult as MailCount[]);
       function mockDate(date: string) {
-        console.log('mockDate', date);
         jest
           .spyOn(global.Date, 'now')
           .mockImplementation(() => new Date(date).valueOf());

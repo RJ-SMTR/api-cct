@@ -357,7 +357,6 @@ export class UsersService {
         status: new Status(StatusEnum.register),
         role: new Role(RoleEnum.user),
       } as DeepPartial<User>);
-      console.log('CREATING USER', fileUser.user);
       await this.usersRepository.save(createdUser);
 
       await this.inviteService.create({

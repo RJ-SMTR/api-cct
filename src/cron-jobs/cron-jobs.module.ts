@@ -17,6 +17,8 @@ import { UsersModule } from 'src/users/users.module';
     InviteModule,
     MailModule,
     UsersModule,
+    JaeModule,
+    CoreBankModule,
   ],
   providers: [CronJobsService],
 })
