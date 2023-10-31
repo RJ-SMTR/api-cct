@@ -4,12 +4,10 @@ import { InviteService } from 'src/invite/invite.service';
 import { MailService } from 'src/mail/mail.service';
 import { CronJob, CronJobParameters } from 'cron';
 import { ConfigService } from '@nestjs/config';
-import { MailCountService } from 'src/mail-count/mail-count.service';
 import { SettingsService } from 'src/settings/settings.service';
 import { appSettings } from 'src/settings/app.settings';
 import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
 import { Invite } from 'src/invite/entities/invite.entity';
-import { MailCount } from 'src/mail-count/entities/mail-count.entity';
 import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
 import { JaeService } from 'src/jae/jae.service';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
@@ -60,7 +58,6 @@ export class CronJobsService implements OnModuleInit {
     private settingsService: SettingsService,
     private schedulerRegistry: SchedulerRegistry,
     private inviteService: InviteService,
-    private mailCountService: MailCountService,
     private mailService: MailService,
     private jaeService: JaeService,
     private coreBankService: CoreBankService,
@@ -112,23 +109,10 @@ export class CronJobsService implements OnModuleInit {
       ],
     });
     if (unsentInvites === null || unsentInvites.length === 0) {
-      this.logger.log(
-        `bulkSendInvites(): job finished, no invites to send (created/queued)`,
-      );
+      this.logger.log(`bulkSendInvites(): job finished, no invites to send`);
       return;
     }
 
-    const mailSenders = await this.mailCountService.getUpdatedMailCounts(true);
-    if (mailSenders.length === 0) {
-      this.logger.warn(
-        `bulkSendInvites(): job aborted, no available daily mail senders quota`,
-      );
-      return;
-    }
-
-    // bulk send mail
-    let mailSenderIndex = 0;
-    let mailSender = { ...mailSenders[mailSenderIndex] } as MailCount;
     for (const invite of unsentInvites) {
       const newInvite = { ...invite } as Invite;
 
@@ -169,10 +153,6 @@ export class CronJobsService implements OnModuleInit {
             smtpErrorCode: null,
           });
           newInvite.inviteStatus = new InviteStatus(InviteStatusEnum.sent);
-          mailSender.recipientCount++;
-          await this.mailCountService.update(mailSender.id, {
-            recipientCount: mailSender.recipientCount,
-          });
           this.logger.log('bulkSendInvites(): invite sent successfully.');
         }
 
@@ -193,35 +173,32 @@ export class CronJobsService implements OnModuleInit {
 
         // API error
       } catch (httpException) {
-        this.logger.error(
-          'bulkSendInvites(): invite failed to send' +
-            '\n    - Message: ' +
-            JSON.stringify(httpException) +
-            '\n    - Traceback:\n' +
-            (httpException as Error).stack,
-        );
-        newInvite.httpErrorCode = httpException.statusCode;
-        this.inviteService.setInviteError(newInvite, {
-          httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          smtpErrorCode: null,
-        });
+        // Quota limit reached
+        if (httpException?.response?.details?.error === 'quotaLimitReached') {
+          this.logger.log(
+            'bulkSendInvites(): no available mail senders with quota, aborting...',
+          );
+          break;
+        }
+
+        // Other error
+        else {
+          this.logger.error(
+            'bulkSendInvites(): invite failed to send' +
+              '\n    - Message: ' +
+              JSON.stringify(httpException) +
+              '\n    - Traceback:\n' +
+              (httpException as Error).stack,
+          );
+          newInvite.httpErrorCode = httpException.statusCode;
+          this.inviteService.setInviteError(newInvite, {
+            httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
+            smtpErrorCode: null,
+          });
+        }
       }
 
       await this.inviteService.update(newInvite.id, newInvite);
-
-      // Quota limit reached
-      if (mailSender.recipientCount === mailSender.maxRecipients) {
-        this.logger.log(
-          'bulkSendInvites(): mailSender ' +
-            String(mailSenderIndex) +
-            ' has reached daily sending quota',
-        );
-        mailSenderIndex++;
-        if (mailSenderIndex >= mailSenders.length) {
-          break;
-        }
-        mailSender = { ...mailSenders[mailSenderIndex] } as MailCount;
-      }
     }
     this.logger.log('bulkSendInvites(): job finished');
   }

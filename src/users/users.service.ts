@@ -187,12 +187,12 @@ export class UsersService {
     if (!user) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpErrorMessages.NOT_FOUND,
           details: {
             ...(!user && { user: 'userNotFound' }),
           },
         },
-        HttpStatus.UNAUTHORIZED,
+        HttpStatus.NOT_FOUND,
       );
     }
     user.aux_inviteStatus = await this.getAux_inviteSatus(user);
@@ -345,7 +345,7 @@ export class UsersService {
         .createHash('sha256')
         .update(randomStringGenerator())
         .digest('hex');
-      while (this.inviteService.findByHash(hash)) {
+      while (await this.inviteService.findByHash(hash)) {
         hash = crypto
           .createHash('sha256')
           .update(randomStringGenerator())
