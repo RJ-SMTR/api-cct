@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { BankStatementsService } from './bank-statements.service';
 import { Provider } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { User } from 'src/users/entities/user.entity';
-import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
 import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
+import { User } from 'src/users/entities/user.entity';
+import { BankStatementsService } from './bank-statements.service';
+import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
 
 const allBankStatements = [
   { id: 0, cpfCnpj: 'cpfCnpj_1', date: '2023-01-27', amount: 1 },
@@ -46,12 +46,10 @@ describe('BankStatementsService', () => {
   describe('getBankStatementsFromUser', () => {
     it('should return statements for previous days when user fetched successfully', () => {
       // Arrange
-      const user = {
-        cpfCnpj: allBankStatements[0].cpfCnpj,
-      } as User;
       const args = {
         timeInterval: 'last2Weeks',
-      } as BankStatementsGetDto;
+        userId: 1,
+      } as IBankStatementsGet;
 
       const expectedResult = {
         amountSum: 6,
@@ -66,10 +64,7 @@ describe('BankStatementsService', () => {
         .mockImplementation(() => new Date('2023-01-22').valueOf());
 
       // Act
-      const result = bankStatementsService.getBankStatementsFromUser(
-        user,
-        args,
-      );
+      const result = bankStatementsService.getBankStatementsFromUser(args);
 
       // Assert
       expect(result).toEqual(expectedResult);
@@ -83,7 +78,8 @@ describe('BankStatementsService', () => {
       const args = {
         startDate: '2023-01-06',
         endDate: '2023-01-13',
-      } as BankStatementsGetDto;
+        userId: 1,
+      } as IBankStatementsGet;
 
       const bankStatementsByCpf = allBankStatements.filter(
         (i) => i.cpfCnpj === user.cpfCnpj,
@@ -101,10 +97,7 @@ describe('BankStatementsService', () => {
         .mockImplementation(() => new Date('2023-01-22').valueOf());
 
       // Act
-      const result = bankStatementsService.getBankStatementsFromUser(
-        user,
-        args,
-      );
+      const result = bankStatementsService.getBankStatementsFromUser(args);
 
       // Assert
       expect(result).toEqual(expectedResult);
@@ -117,7 +110,7 @@ describe('BankStatementsService', () => {
       } as User;
       const args = {
         previousDays: 14,
-      } as BankStatementsGetDto;
+      } as IBankStatementsGet;
 
       jest
         .spyOn(coreBankService, 'getBankStatementsByCpfCnpj')
