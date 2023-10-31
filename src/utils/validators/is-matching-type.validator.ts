@@ -27,7 +27,6 @@ export class IsMatchingTypeConstraint implements ValidatorConstraintInterface {
       .getRepository(refTable)
       .findOne({ where: { id: args.object[fkField] } });
     if (!entity) {
-      console.log('ENTIT NOT FOUND');
       return false;
     }
     const expectedType = entity?.['name'];

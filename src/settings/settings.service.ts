@@ -84,8 +84,6 @@ export class SettingsService {
       payload.version,
     );
     setting.value = payload.value;
-    console.log('payload', payload);
-    console.log('new setting', setting);
     return this.settingsRepository.save(setting);
   }
 }

@@ -64,7 +64,8 @@ export class CoreBankService {
   update(cpfCnpj: string, coreBankProfile: UpdateCoreBankInterface) {
     // TODO: PATCH bank data to core bank API
     console.log(
-      `PATCH core bank:\n` +
+      `CoreBankService.update():\n` +
+        `PATCH core bank:\n` +
         `\tcpfCnpj ${cpfCnpj}\n` +
         `\tProfile: ${JSON.stringify(coreBankProfile)}`,
     );

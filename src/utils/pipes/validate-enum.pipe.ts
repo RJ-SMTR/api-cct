@@ -14,7 +14,6 @@ export class ValidateEnumPipe implements PipeTransform {
 
   transform(value: any, metadata: ArgumentMetadata) {
     if (!this.isEnumValue(value, this.enumType)) {
-      console.log('notEnumValue');
       if (value === undefined && !this.required) {
         return value;
       }

@@ -38,7 +38,6 @@ export class SettingsController {
   @Patch()
   @HttpCode(HttpStatus.OK)
   update(@Body() updateSettingDto: UpdateSettingsDto): Promise<SettingEntity> {
-    console.log('controller', updateSettingDto);
     return this.settingsService.update(updateSettingDto);
   }
 }

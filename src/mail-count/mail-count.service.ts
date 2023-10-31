@@ -18,7 +18,6 @@ export class MailCountService {
       const hoursDifference =
         (new Date(Date.now()).getTime() - mailCount.updatedAt.getTime()) /
         (1000 * 60 * 60);
-      console.log({ hoursDifference });
       if (hoursDifference >= 24) {
         mailCount.recipientCount = 0;
         await this.update(mailCount.id, mailCount);

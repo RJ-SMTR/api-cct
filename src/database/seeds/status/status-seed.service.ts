@@ -13,7 +13,6 @@ export class StatusSeedService {
 
   async run() {
     for (const value in StatusEnum) {
-      console.log(value);
       if (isNaN(Number(value))) {
         continue;
       }
