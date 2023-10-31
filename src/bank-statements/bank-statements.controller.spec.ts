@@ -1,11 +1,12 @@
-import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Request } from 'express';
-import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
-import { User } from 'src/users/entities/user.entity';
-import { UsersService } from 'src/users/users.service';
 import { BankStatementsController } from './bank-statements.controller';
 import { BankStatementsService } from './bank-statements.service';
+import { Provider } from '@nestjs/common';
+import { UsersService } from 'src/users/users.service';
+import { Request } from 'express';
+import { User } from 'src/users/entities/user.entity';
+import { BankStatementsGetDto } from './dto/bank-statements-get.dto';
+import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
 
 describe('BankStatementsController', () => {
   let bankStatementsController: BankStatementsController;
@@ -55,24 +56,21 @@ describe('BankStatementsController', () => {
           id: user.id,
         },
       } as unknown as Request;
-      const args = [];
+      const args = {} as BankStatementsGetDto;
       const bankStatements = [
-        { id: 0, cpfCnpj: 'cpfCnpj_1', amount: 10 },
-        { id: 1, cpfCnpj: 'cpfCnpj_1', amount: 10 },
-        { id: 2, cpfCnpj: 'cpfCnpj_1', amount: 10 },
+        { id: 0, cpfCnpj: 'cpfCnpj_1' },
+        { id: 1, cpfCnpj: 'cpfCnpj_1' },
+        { id: 2, cpfCnpj: 'cpfCnpj_1' },
       ] as Partial<ICoreBankStatements>[] as ICoreBankStatements[];
       jest
         .spyOn(bankStatementsService, 'getBankStatementsFromUser')
-        .mockResolvedValue({
-          data: bankStatements,
-          amountSum: 30,
-        });
+        .mockReturnValueOnce(bankStatements);
       jest.spyOn(usersService, 'getOneFromRequest').mockResolvedValueOnce(user);
 
       // Act
       const result = await bankStatementsController.getBankStatementsFromUser(
         request,
-        ...args,
+        args,
       );
 
       // Assert
@@ -88,7 +86,7 @@ describe('BankStatementsController', () => {
           id: inexistentUser.id,
         },
       } as unknown as Request;
-      const args = [];
+      const args = {} as BankStatementsGetDto;
       jest
         .spyOn(bankStatementsService, 'getBankStatementsFromUser')
         .mockImplementationOnce(() => {
@@ -100,7 +98,7 @@ describe('BankStatementsController', () => {
 
       // Assert
       await expect(
-        bankStatementsController.getBankStatementsFromUser(request, ...args),
+        bankStatementsController.getBankStatementsFromUser(request, args),
       ).rejects.toThrowError();
     });
   });

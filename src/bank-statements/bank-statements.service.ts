@@ -1,37 +1,50 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { User } from 'src/users/entities/user.entity';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
+import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
+import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
 import { getStartEndDates } from 'src/utils/date-utils';
 import { nextPaymentWeekday } from 'src/utils/payment-date-utils';
-import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
-import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
-import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class BankStatementsService {
-  constructor(
-    private readonly coreBankService: CoreBankService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly coreBankService: CoreBankService) {}
 
-  public async getBankStatementsFromUser(
+  public getBankStatementsFromUser(
+    user: User,
     args: IBankStatementsGet,
-  ): Promise<IBankStatementsResponse> {
-    if (isNaN(args?.userId as number)) {
+  ): IBankStatementsResponse {
+    if (!user.cpfCnpj) {
       throw new HttpException(
         {
+          error: HttpErrorMessages.UNAUTHORIZED,
           details: {
-            userId: `field is ${args?.userId}`,
+            user: {
+              cpfCnpj: 'fieldIsEmpty',
+            },
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
-    // For now it validates if user exists
-    await this.usersService.getOne({ id: args?.userId });
 
     // TODO: fetch instead of mockup
+    // TODO: get by user.cpfCnpj
     const bankStatementsResponse =
       this.coreBankService.getBankStatementsMocked();
+    if (bankStatementsResponse.length === 0) {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          details: {
+            cpfCnpj: 'empty bankStatements for profile',
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
 
     const endDateStr =
       args?.endDate ||
@@ -48,6 +61,9 @@ export class BankStatementsService {
     });
 
     const amountSum = filteredData.reduce((sum, item) => sum + item.amount, 0);
+
+    // const amountLastDay = filteredData.length > 0
+    //   ? filteredData[0].
 
     return {
       data: filteredData,

@@ -11,17 +11,15 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UsersService } from 'src/users/users.service';
-import { DateApiParams } from 'src/utils/api-param/date.api-param';
-import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
-import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
-import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
-import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import { TicketRevenuesService } from './ticket-revenues.service';
+import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
+import { DateApiParams } from 'src/utils/api-param/date.api-param';
+import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
-import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
+import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -46,12 +44,6 @@ export class TicketRevenuesController {
   @ApiQuery(DateApiParams.startDate)
   @ApiQuery(DateApiParams.endDate)
   @ApiQuery(DateApiParams.timeInterval)
-  @ApiQuery({
-    name: 'userId',
-    type: Number,
-    required: false,
-    description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
-  })
   async getGrouped(
     @Request() request,
     @Query(...PaginationQueryParams.page) page: number,
@@ -59,18 +51,16 @@ export class TicketRevenuesController {
     @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query(...DateQueryParams.endDate) endDate?: string,
-    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
-    userId?: number | null,
   ): Promise<ITicketRevenuesGroupedResponse> {
-    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    const user = await this.usersService.getOneFromRequest(request);
     const args: ITicketRevenuesGetGrouped = {
       startDate,
       endDate,
       timeInterval,
-      userId: isUserIdNumber ? userId : request.user.id,
     };
     const pagination: IPaginationOptions = { limit, page };
     return await this.ticketRevenuesService.getGroupedFromUser(
+      user,
       args,
       pagination,
     );

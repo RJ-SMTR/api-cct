@@ -1,63 +1,49 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { isToday, startOfDay } from 'date-fns';
+import { User } from 'src/users/entities/user.entity';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
+import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import {
   BigqueryService,
   BigqueryServiceInstances,
 } from 'src/bigquery/bigquery.service';
-import { UsersService } from 'src/users/users.service';
+import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
+import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
+import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
 import { getDateNthWeek } from 'src/utils/date-utils';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
+import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import {
   PAYMENT_START_WEEKDAY,
   getDateIntervalFromStr,
   getPaymentDateInterval,
 } from 'src/utils/payment-date-utils';
-import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
-import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
-import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
-import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
-import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import {
-  TicketRevenuesTransportIntegrationTypeMap as IntegrationType,
   TicketRevenuesPaymentMediaTypeMap as PaymentType,
+  TicketRevenuesTransportIntegrationTypeMap as IntegrationType,
   TicketRevenuesTransactionTypeMap as TransactionType,
 } from './maps/ticket-revenues.map';
+import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroups from './utils/ticket-revenues-groups.utils';
+import { isToday, startOfDay } from 'date-fns';
 
 @Injectable()
 export class TicketRevenuesService {
+  public readonly DEFAULT_PREVIOUS_DAYS = 30;
   private logger: Logger = new Logger('TicketRevenuesService', {
     timestamp: true,
   });
 
-  constructor(
-    private readonly bigqueryService: BigqueryService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly bigqueryService: BigqueryService) {}
 
   public async getGroupedFromUser(
+    user: User,
     args: ITicketRevenuesGetGrouped,
     pagination: IPaginationOptions,
   ): Promise<ITicketRevenuesGroupedResponse> {
-    if (isNaN(args?.userId as number)) {
-      throw new HttpException(
-        {
-          details: {
-            userId: `field is ${args?.userId}`,
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
-    const user = await this.usersService.getOne({ id: args?.userId });
     if (!user.permitCode) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
           details: {
             message: 'Maybe your token has expired, try to get a new one',
             user: {
@@ -68,8 +54,6 @@ export class TicketRevenuesService {
         HttpStatus.UNAUTHORIZED,
       );
     }
-
-    console.log({ arg: args?.userId, user });
 
     const getToday = true;
     const useTimeInterval = args?.startDate === undefined;

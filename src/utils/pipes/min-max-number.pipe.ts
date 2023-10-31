@@ -9,25 +9,23 @@ import {
  * @param required default is `false`
  */
 @Injectable()
-export class ParseNumberPipe implements PipeTransform {
+export class MinMaxNumberPipe implements PipeTransform {
   constructor(
     private readonly args: { min?: number; max?: number; required?: boolean },
   ) {}
 
-  transform(value: any | undefined, metadata: ArgumentMetadata): number {
+  transform(value: any, metadata: ArgumentMetadata): number {
     const isMin = this.args?.min !== undefined;
     const isMax = this.args?.max !== undefined;
-    const field = metadata.data;
 
-    const numberValue = Number(value);
-
-    if (!this.args.required && (value === undefined || field === undefined)) {
-      return numberValue;
-    } else if (value !== undefined && isNaN(numberValue)) {
+    if (value === undefined && !this.args.required) {
+      return value;
+    } else if (isNaN(value)) {
       throw new BadRequestException(
-        `${field} should be a valid number: ${value}`,
+        `${metadata.data} should be a valid number ${value}`,
       );
     }
+    const numberValue = Number(value);
 
     if (
       (isMin && numberValue < (this.args?.min as number)) ||
@@ -49,6 +47,7 @@ export class ParseNumberPipe implements PipeTransform {
         `${metadata.data} should be an integer ${returnSubstring}`,
       );
     }
+
     return numberValue;
   }
 }

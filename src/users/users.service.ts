@@ -179,9 +179,6 @@ export class UsersService {
     await this.usersRepository.softDelete(id);
   }
 
-  /**
-   * @throws `HttpException`
-   */
   async getOne(fields: EntityCondition<User>): Promise<User> {
     const user = await this.findOne(fields);
     if (!user) {

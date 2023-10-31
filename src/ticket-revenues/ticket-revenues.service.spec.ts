@@ -1,9 +1,9 @@
-import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { IJaeTicketRevenue } from 'src/jae/interfaces/jae-ticket-revenue.interface';
-import { JaeService } from 'src/jae/jae.service';
-import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { TicketRevenuesService } from './ticket-revenues.service';
+import { Provider } from '@nestjs/common';
+import { JaeService } from 'src/jae/jae.service';
+import { User } from 'src/users/entities/user.entity';
+import { IJaeTicketRevenue } from 'src/jae/interfaces/jae-ticket-revenue.interface';
 
 describe('TicketRevenuesService', () => {
   let ticketRevenuesService: TicketRevenuesService;
@@ -67,7 +67,10 @@ describe('TicketRevenuesService', () => {
           });
         }
       }
-      const userId = 1;
+      const user = {
+        id: 1,
+        permitCode: 'permitCode_1',
+      } as Partial<User>;
       jest
         .spyOn(jaeService, 'getTicketRevenuesByPermitCode')
         .mockResolvedValue(expectedResult);
@@ -78,19 +81,21 @@ describe('TicketRevenuesService', () => {
         );
 
       // Act
-      const resultPreviousDays = await ticketRevenuesService.getGroupedFromUser(
-        { timeInterval: TimeIntervalEnum.LAST_WEEK },
-        { limit: 9999, page: 1 },
-      );
-      const resultBetweenDates = await ticketRevenuesService.getGroupedFromUser(
-        {
-          startDate: '2023-06-01',
-          endDate: '2023-06-03',
-          timeInterval: TimeIntervalEnum.LAST_MONTH,
-          userId,
-        },
-        { limit: 9999, page: 1 },
-      );
+      const resultPreviousDays =
+        await ticketRevenuesService.getUngroupedFromUser(
+          user as unknown as User,
+          { previousDays: 1 },
+          { limit: 9999, page: 1 },
+        );
+      const resultBetweenDates =
+        await ticketRevenuesService.getUngroupedFromUser(
+          user as unknown as User,
+          {
+            startDate: '2023-06-01',
+            endDate: '2023-06-03',
+          },
+          { limit: 9999, page: 1 },
+        );
       // Assert
       expect(resultPreviousDays).toEqual(expectedResult.slice(0, 6));
       expect(resultBetweenDates).toEqual(expectedResult.slice(3, 9));
