@@ -7,7 +7,6 @@ import { StatusEnum } from 'src/statuses/statuses.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { BaseValidator } from 'src/utils/validators/base-validator';
 import { SgtuDto } from 'src/sgtu/dto/sgtu.dto';
-import { InviteService } from 'src/invite/invite.service';
 import { AuthLicenseeInviteProfileInterface } from './interfaces/auth-licensee-invite-profile.interface';
 import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
 import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
@@ -19,6 +18,7 @@ import { JaeService } from 'src/jae/jae.service';
 import { JaeProfileInterface } from 'src/jae/interfaces/jae-profile.interface';
 import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
 import { MailService } from 'src/mail/mail.service';
+import { MailHistoryService } from 'src/invite/mail-history.service';
 
 @Injectable()
 export class AuthLicenseeService {
@@ -27,7 +27,7 @@ export class AuthLicenseeService {
     private usersService: UsersService,
     private sgtuService: SgtuService,
     private jaeService: JaeService,
-    private inviteService: InviteService,
+    private inviteService: MailHistoryService,
     private baseValidator: BaseValidator,
     private mailService: MailService,
   ) {}
@@ -113,7 +113,7 @@ export class AuthLicenseeService {
   async getInviteProfile(
     hash: string,
   ): Promise<AuthLicenseeInviteProfileInterface> {
-    const invite = await this.inviteService.findByHash(hash);
+    const invite = await this.inviteService.findOne({ hash });
 
     if (!invite) {
       throw new HttpException(
@@ -195,7 +195,7 @@ export class AuthLicenseeService {
     registerDto: AuthRegisterLicenseeDto,
     hash: string,
   ): Promise<void | object> {
-    const invite = await this.inviteService.findByHash(hash);
+    const invite = await this.inviteService.findOne({ hash });
     if (!invite) {
       throw new HttpException(
         {

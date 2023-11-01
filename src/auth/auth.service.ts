@@ -1,30 +1,31 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { User } from '../users/entities/user.entity';
-import * as bcrypt from 'bcryptjs';
-import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
-import { AuthUpdateDto } from './dto/auth-update.dto';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
-import { RoleEnum } from 'src/roles/roles.enum';
-import { StatusEnum } from 'src/statuses/statuses.enum';
-import * as crypto from 'crypto';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcryptjs';
 import { plainToClass } from 'class-transformer';
-import { Status } from 'src/statuses/entities/status.entity';
-import { Role } from 'src/roles/entities/role.entity';
-import { AuthProvidersEnum } from './auth-providers.enum';
-import { SocialInterface } from 'src/social/interfaces/social.interface';
-import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
-import { UsersService } from 'src/users/users.service';
-import { ForgotService } from 'src/forgot/forgot.service';
-import { MailService } from 'src/mail/mail.service';
-import { NullableType } from '../utils/types/nullable.type';
-import { LoginResponseType } from '../utils/types/auth/login-response.type';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import * as crypto from 'crypto';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
+import { ForgotService } from 'src/forgot/forgot.service';
+import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
+import { MailHistory } from 'src/invite/entities/invite.entity';
+import { MailHistoryService } from 'src/invite/mail-history.service';
 import { MailData } from 'src/mail/interfaces/mail-data.interface';
-import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
-import { InviteService } from 'src/invite/invite.service';
+import { MailService } from 'src/mail/mail.service';
+import { Role } from 'src/roles/entities/role.entity';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { SocialInterface } from 'src/social/interfaces/social.interface';
+import { Status } from 'src/statuses/entities/status.entity';
+import { StatusEnum } from 'src/statuses/statuses.enum';
+import { UsersService } from 'src/users/users.service';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { User } from '../users/entities/user.entity';
+import { LoginResponseType } from '../utils/types/auth/login-response.type';
+import { NullableType } from '../utils/types/nullable.type';
+import { AuthProvidersEnum } from './auth-providers.enum';
+import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
+import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
+import { AuthUpdateDto } from './dto/auth-update.dto';
 
 @Injectable()
 export class AuthService {
@@ -36,7 +37,7 @@ export class AuthService {
     private forgotService: ForgotService,
     private mailService: MailService,
     private coreBankService: CoreBankService,
-    private inviteService: InviteService,
+    private mailHistoryService: MailHistoryService,
   ) {}
 
   async validateLogin(
@@ -176,7 +177,7 @@ export class AuthService {
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
-    while (await this.inviteService.findByHash(hash)) {
+    while (await this.mailHistoryService.findOne({ hash })) {
       hash = crypto
         .createHash('sha256')
         .update(randomStringGenerator())
@@ -208,48 +209,110 @@ export class AuthService {
     return { link: mailConfirmationLink };
   }
 
-  async resendRegisterMail(obj: AuthResendEmailDto): Promise<void> {
-    if (!obj) {
+  /**
+   * @throws `HttpException`
+   */
+  private async getUser(email): Promise<User> {
+    const user = await this.usersService.getOne({ email });
+    if (!user?.email || !user?.hash) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.USER_NOT_FOUND,
           details: {
-            error: `user not found`,
+            user: {
+              ...(!user.email ? { email: 'field is empty' } : {}),
+              ...(!user.hash ? { hash: 'field is empty' } : {}),
+            },
           },
         },
-        HttpStatus.UNAUTHORIZED,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+    return user;
+  }
 
-    const user = await this.usersService.findOne({
-      id: obj.id,
+  /**
+   * @throws `HttpException`
+   */
+  private async getMailHistory(user: User): Promise<MailHistory> {
+    const invite = await this.mailHistoryService.findOne({
+      user: { id: user.id },
     });
-
-    if (!user) {
+    if (!invite) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.USER_NOT_FOUND,
+          error: 'invite not found',
           details: {
-            error: `User not found`,
+            userId: user.id,
           },
         },
-        HttpStatus.UNAUTHORIZED,
+        HttpStatus.NOT_FOUND,
       );
     }
+    return invite;
+  }
 
-    await user.save();
-    if (user.hash && user.email && user.hash) {
+  /**
+   * @throws `HttpException`
+   */
+  async sendRegisterEmail(user: User, userMailHistory: MailHistory) {
+    if (userMailHistory.getInviteStatus() === InviteStatusEnum.queued) {
       const mailData: MailData<{ hash: string; to: string; userName: string }> =
         {
-          to: user.email,
+          to: user.email as string,
           data: {
-            hash: user.hash,
-            to: user.email,
+            hash: user.hash as string,
+            to: user.email as string,
             userName: user.fullName as string,
           },
         };
-      await this.mailService.userConcludeRegistration(mailData);
+      const mailResponse = await this.mailService.userConcludeRegistration(
+        mailData,
+      );
+      if (mailResponse.mailSentInfo.success === true) {
+        userMailHistory.setInviteStatus(InviteStatusEnum.sent);
+        userMailHistory.sentAt = new Date(Date.now());
+        await this.mailHistoryService.update(
+          userMailHistory.id,
+          userMailHistory,
+        );
+      } else {
+        throw new HttpException(
+          {
+            error: HttpStatus.UNPROCESSABLE_ENTITY,
+            message: `User's mailStatus is not 'queued'. Cannot proceed with resending the email.`,
+            details: {
+              mailResponse: mailResponse,
+            },
+          },
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
+      }
+    } else {
+      throw new HttpException(
+        {
+          error: `User's mailStatus is not 'queued'. Cannot proceed with resending the email.`,
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
     }
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  async resendRegisterMail(email: string): Promise<void> {
+    const user = await this.getUser(email);
+    const userMailHsitory = await this.getMailHistory(user);
+    const quota = await this.mailHistoryService.getRemainingQuota();
+    if (quota <= 0) {
+      throw new HttpException(
+        {
+          error: 'no daily quota available to resend email',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    await this.sendRegisterEmail(user, userMailHsitory);
   }
 
   async confirmEmail(hash: string): Promise<void> {
@@ -291,7 +354,7 @@ export class AuthService {
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
-    while (await this.inviteService.findByHash(hash)) {
+    while (await this.mailHistoryService.findOne({ hash })) {
       hash = crypto
         .createHash('sha256')
         .update(randomStringGenerator())
@@ -366,29 +429,18 @@ export class AuthService {
       );
     }
 
-    await this.usersService.update(user.id, userDto);
-    const newUserProfile = await this.usersService.findOne({
-      id: user.id,
-    });
-    if (!newUserProfile) {
-      throw new HttpException(
-        {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          detail: 'updatedUserNotFound',
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+    userProfile.update(userDto);
+    await this.usersService.update(user.id, userProfile);
 
     const coreBankProfile: UpdateCoreBankInterface = {
-      bankAccountCode: newUserProfile.bankAccount,
-      bankAccountDigit: newUserProfile.bankAccountDigit,
-      bankAgencyCode: newUserProfile.bankAgency,
-      bankCode: newUserProfile.bankCode,
+      bankAccountCode: userProfile.bankAccount,
+      bankAccountDigit: userProfile.bankAccountDigit,
+      bankAgencyCode: userProfile.bankAgency,
+      bankCode: userProfile.bankCode,
     };
     this.coreBankService.update(userProfile.cpfCnpj, coreBankProfile);
 
-    return newUserProfile;
+    return userProfile;
   }
 
   async softDelete(user: User): Promise<void> {

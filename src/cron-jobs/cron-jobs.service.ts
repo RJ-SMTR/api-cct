@@ -1,17 +1,15 @@
 import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
-import { InviteService } from 'src/invite/invite.service';
-import { MailService } from 'src/mail/mail.service';
-import { CronJob, CronJobParameters } from 'cron';
 import { ConfigService } from '@nestjs/config';
-import { SettingsService } from 'src/settings/settings.service';
-import { appSettings } from 'src/settings/app.settings';
-import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
-import { Invite } from 'src/invite/entities/invite.entity';
-import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
-import { JaeService } from 'src/jae/jae.service';
+import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { CronJob, CronJobParameters } from 'cron';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { Enum } from 'src/utils/enum';
+import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
+import { MailHistory } from 'src/invite/entities/invite.entity';
+import { MailHistoryService } from 'src/invite/mail-history.service';
+import { JaeService } from 'src/jae/jae.service';
+import { MailService } from 'src/mail/mail.service';
+import { appSettings } from 'src/settings/app.settings';
+import { SettingsService } from 'src/settings/settings.service';
 import { UsersService } from 'src/users/users.service';
 
 export enum CronJobsServiceJobs {
@@ -57,8 +55,8 @@ export class CronJobsService implements OnModuleInit {
     private configService: ConfigService,
     private settingsService: SettingsService,
     private schedulerRegistry: SchedulerRegistry,
-    private inviteService: InviteService,
     private mailService: MailService,
+    private mailHistoryService: MailHistoryService,
     private jaeService: JaeService,
     private coreBankService: CoreBankService,
     private usersService: UsersService,
@@ -96,46 +94,37 @@ export class CronJobsService implements OnModuleInit {
     }
 
     // get data
-    const unsentInvites = await this.inviteService.find({
-      inviteStatus: [
-        {
-          id: InviteStatusEnum.created,
-          name: Enum.getKey(InviteStatusEnum, InviteStatusEnum.created),
-        },
-        {
-          id: InviteStatusEnum.queued,
-          name: Enum.getKey(InviteStatusEnum, InviteStatusEnum.queued),
-        },
-      ],
-    });
-    if (unsentInvites === null || unsentInvites.length === 0) {
-      this.logger.log(`bulkSendInvites(): job finished, no invites to send`);
-      return;
-    }
+    const sentToday = (await this.mailHistoryService.findSentToday()) || [];
+    const unsent = (await this.mailHistoryService.findUnsent()) || [];
+    const remainingQuota = await this.mailHistoryService.getRemainingQuota();
 
-    for (const invite of unsentInvites) {
-      const newInvite = { ...invite } as Invite;
+    this.logger.log(
+      `bulkSendInvites(): starting job. unsent: ${unsent.length}, sent: ${sentToday.length}/500`,
+    );
+
+    for (
+      let i = sentToday.length;
+      i < remainingQuota && i < unsent.length;
+      i++
+    ) {
+      const invite = new MailHistory(unsent[i]);
 
       const user = await this.usersService.findOne({ id: invite.user.id });
-      if (!user?.fullName) {
-        this.logger.warn(
-          'bulkSendInvites(): valid user name not found, useing default name.',
-        );
-      }
 
       // User mail error
       if (!user?.email) {
         this.logger.error(
           'bulkSendInvites(): valid user email not found, this email cant be sent.',
         );
-        this.inviteService.setInviteError(newInvite, {
+        invite.setInviteError({
           httpErrorCode: HttpStatus.UNPROCESSABLE_ENTITY,
           smtpErrorCode: null,
         });
-        await this.inviteService.update(newInvite.id, newInvite);
+        await this.mailHistoryService.update(invite.id, invite);
         continue;
       }
 
+      // Send mail
       try {
         const { mailSentInfo } =
           await this.mailService.userConcludeRegistration({
@@ -147,12 +136,14 @@ export class CronJobsService implements OnModuleInit {
           });
 
         // Success
-        if (mailSentInfo.response.code === 250) {
-          this.inviteService.setInviteError(newInvite, {
+        if (mailSentInfo.success === true) {
+          invite.setInviteError({
             httpErrorCode: null,
             smtpErrorCode: null,
           });
-          newInvite.inviteStatus = new InviteStatus(InviteStatusEnum.sent);
+          invite.setInviteStatus(InviteStatusEnum.sent);
+          invite.sentAt = new Date(Date.now());
+          await this.mailHistoryService.update(invite.id, invite);
           this.logger.log('bulkSendInvites(): invite sent successfully.');
         }
 
@@ -165,40 +156,29 @@ export class CronJobsService implements OnModuleInit {
               '\n    - Traceback:\n' +
               new Error().stack,
           );
-          this.inviteService.setInviteError(newInvite, {
+          invite.setInviteError({
             httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
             smtpErrorCode: mailSentInfo.response.code,
           });
+          await this.mailHistoryService.update(invite.id, invite);
         }
 
         // API error
       } catch (httpException) {
-        // Quota limit reached
-        if (httpException?.response?.details?.error === 'quotaLimitReached') {
-          this.logger.log(
-            'bulkSendInvites(): no available mail senders with quota, aborting...',
-          );
-          break;
-        }
-
-        // Other error
-        else {
-          this.logger.error(
-            'bulkSendInvites(): invite failed to send' +
-              '\n    - Message: ' +
-              JSON.stringify(httpException) +
-              '\n    - Traceback:\n' +
-              (httpException as Error).stack,
-          );
-          newInvite.httpErrorCode = httpException.statusCode;
-          this.inviteService.setInviteError(newInvite, {
-            httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            smtpErrorCode: null,
-          });
-        }
+        this.logger.error(
+          'bulkSendInvites(): invite failed to send' +
+            '\n    - Message: ' +
+            JSON.stringify(httpException) +
+            '\n    - Traceback:\n' +
+            (httpException as Error).stack,
+        );
+        invite.httpErrorCode = httpException.statusCode;
+        invite.setInviteError({
+          httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          smtpErrorCode: null,
+        });
+        await this.mailHistoryService.update(invite.id, invite);
       }
-
-      await this.inviteService.update(newInvite.id, newInvite);
     }
     this.logger.log('bulkSendInvites(): job finished');
   }

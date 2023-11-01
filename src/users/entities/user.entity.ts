@@ -10,6 +10,7 @@ import {
   UpdateDateColumn,
   BeforeInsert,
   BeforeUpdate,
+  DeepPartial,
 } from 'typeorm';
 import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
@@ -22,6 +23,13 @@ import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity'
 
 @Entity()
 export class User extends EntityHelper {
+  constructor(user?: User | DeepPartial<User>) {
+    super();
+    if (user !== undefined) {
+      Object.assign(this, user);
+    }
+  }
+
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -179,4 +187,8 @@ export class User extends EntityHelper {
   }
 
   aux_inviteStatus?: InviteStatus | null;
+
+  update(userProps: DeepPartial<User>) {
+    Object.assign(this, userProps);
+  }
 }

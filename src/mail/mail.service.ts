@@ -10,6 +10,7 @@ import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interf
 import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { EhloStatus } from './enums/ehlo-status.enum';
 import { MailCountService } from 'src/mail-count/mail-count.service';
+import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
 
 @Injectable()
 export class MailService {
@@ -22,13 +23,15 @@ export class MailService {
   ) {}
 
   private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
+    const code = Number(sentMessageInfo.response?.split(' ')?.[0] || '0');
     return {
       ...sentMessageInfo,
       ehlo: sentMessageInfo.ehlo as EhloStatus[],
       response: {
-        code: Number(sentMessageInfo.response?.split(' ')?.[0] || '0'),
+        code,
         message: sentMessageInfo.response,
       },
+      success: code === SmtpStatus.COMPLETED,
     };
   }
 
@@ -64,20 +67,6 @@ export class MailService {
   async userConcludeRegistration(
     mailData: MailData<{ hash: string; userName: string }>,
   ): Promise<MailRegistrationInterface> {
-    const senders = await this.mailCountService.getUpdatedMailCounts(true);
-    if (senders.length === 0) {
-      throw new HttpException(
-        {
-          error: HttpStatus.SERVICE_UNAVAILABLE,
-          message:
-            'Mailing service is unavailable. Wait 24 hours and try again.',
-          details: {
-            error: 'quotaLimitReached',
-          },
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
     const i18n = I18nContext.current();
     let emailConfirmTitle: MaybeType<string>;
 
@@ -94,6 +83,11 @@ export class MailService {
       infer: true,
     });
     const emailConfirmLink = `${frontendDomain}conclude-registration/${mailData.data.hash}`;
+    if (!mailData.data.userName) {
+      this.logger.warn(
+        'userConcludeRegistration(): valid user name not found, useing default name.',
+      );
+    }
     try {
       const mailSentInfo = await this.safeSendMail({
         to: mailData.to,
@@ -112,9 +106,7 @@ export class MailService {
         },
       });
 
-      await this.mailCountService.update(senders[0].id, {
-        recipientCount: senders[0].recipientCount + 1,
-      });
+      // await this.mailCountService.addCount(senders[0]);
 
       return {
         mailSentInfo: mailSentInfo,
@@ -131,20 +123,20 @@ export class MailService {
   async forgotPassword(
     mailData: MailData<{ hash: string }>,
   ): Promise<MailSentInfo> {
-    const senders = await this.mailCountService.getUpdatedMailCounts(true);
-    if (senders.length === 0) {
-      throw new HttpException(
-        {
-          error: HttpStatus.SERVICE_UNAVAILABLE,
-          message:
-            'Mailing service is unavailable. Wait 24 hours and try again.',
-          details: {
-            error: 'quotaLimitReached',
-          },
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+    // const senders = await this.mailCountService.getUpdatedMailCounts(true);
+    // if (senders.length === 0) {
+    //   throw new HttpException(
+    //     {
+    //       error: HttpStatus.SERVICE_UNAVAILABLE,
+    //       message:
+    //         'Mailing service is unavailable. Wait 24 hours and try again.',
+    //       details: {
+    //         error: 'quotaLimitReached',
+    //       },
+    //     },
+    //     HttpStatus.INTERNAL_SERVER_ERROR,
+    //   );
+    // }
 
     const i18n = I18nContext.current();
     let resetPasswordTitle: MaybeType<string>;
@@ -187,9 +179,7 @@ export class MailService {
         },
       });
 
-      await this.mailCountService.update(senders[0].id, {
-        recipientCount: senders[0].recipientCount + 1,
-      });
+      // await this.mailCountService.addCount(senders[0]);
 
       return response;
     } catch (httpException) {

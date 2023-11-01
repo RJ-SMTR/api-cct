@@ -6,14 +6,6 @@ import { Enum } from 'src/utils/enum';
 
 @Entity()
 export class InviteStatus extends EntityHelper {
-  @ApiProperty({ example: 1 })
-  @PrimaryColumn()
-  id: number;
-
-  @ApiProperty({ example: 'register' })
-  @Column({ unique: true, nullable: false })
-  name: string;
-
   constructor(inviteStatus?: InviteStatusEnum) {
     super();
     if (inviteStatus) {
@@ -21,4 +13,12 @@ export class InviteStatus extends EntityHelper {
       this.name = Enum.getKey(InviteStatusEnum, inviteStatus);
     }
   }
+
+  @ApiProperty({ example: 1 })
+  @PrimaryColumn()
+  id: number;
+
+  @ApiProperty({ example: 'register' })
+  @Column({ unique: true, nullable: false })
+  name: string;
 }

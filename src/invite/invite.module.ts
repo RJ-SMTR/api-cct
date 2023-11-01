@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { InviteService } from './invite.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Invite } from './entities/invite.entity';
+import { MailHistory } from './entities/invite.entity';
+import { MailHistoryService } from './mail-history.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Invite])],
-  providers: [InviteService],
-  exports: [InviteService],
+  imports: [TypeOrmModule.forFeature([MailHistory])],
+  providers: [MailHistoryService],
+  exports: [MailHistoryService],
 })
 export class InviteModule {}
