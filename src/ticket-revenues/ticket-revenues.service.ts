@@ -1,19 +1,25 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { isToday, startOfDay } from 'date-fns';
+import { isFriday, isSameDay, isToday, startOfDay } from 'date-fns';
 import {
   BigqueryService,
   BigqueryServiceInstances,
 } from 'src/bigquery/bigquery.service';
+import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import { getDateNthWeek } from 'src/utils/date-utils';
+import { getDateNthWeek, safeCastDates } from 'src/utils/date-utils';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import {
   PAYMENT_START_WEEKDAY,
-  getDateIntervalFromStr,
-  getPaymentDateInterval,
+  previousPaymentEndDate,
+  previousPaymentStartDate,
 } from 'src/utils/payment-date-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
+import {
+  DateIntervalType,
+  NullableDateIntervalStrType,
+} from 'src/utils/types/date-interval.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
@@ -25,10 +31,9 @@ import {
   TicketRevenuesPaymentMediaTypeMap as PaymentType,
   TicketRevenuesTransactionTypeMap as TransactionType,
 } from './maps/ticket-revenues.map';
+import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
-import { User } from 'src/users/entities/user.entity';
-import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -46,13 +51,7 @@ export class TicketRevenuesService {
   ): Promise<ITicketRevenuesGroup> {
     // Args
     const user = await this.getUser(args);
-    const useTimeInterval = args?.startDate === undefined;
-    const { startDate, endDate } = !useTimeInterval
-      ? getDateIntervalFromStr({
-          startDateStr: args.startDate,
-          endDateStr: args.endDate,
-        })
-      : getPaymentDateInterval(args.timeInterval);
+    const { startDate, endDate } = this.getDates(args);
 
     // Get data
     let ticketRevenuesResponse = await this.fetchTicketRevenues({
@@ -72,19 +71,99 @@ export class TicketRevenuesService {
     return ticketRevenuesGroupSum;
   }
 
+  /**
+   * @param args Is assumed that `startDate` is already at last_week
+   */
+  private getDatesFromTimeInterval(args: {
+    startDate: Date;
+    endDate: Date;
+    timeInterval?: TimeIntervalEnum | null;
+  }): DateIntervalType {
+    const { startDate, endDate } = args;
+    if (args.timeInterval === TimeIntervalEnum.LAST_WEEK) {
+      startDate.setDate(startDate.getDate());
+    }
+    if (args.timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
+      startDate.setDate(startDate.getDate() - 7);
+    }
+    if (args.timeInterval === TimeIntervalEnum.LAST_MONTH) {
+      startDate.setDate(startDate.getDate() - 7 * 3);
+    }
+    return { startDate, endDate };
+  }
+
+  private getPaymentDates(args: {
+    timeInterval?: TimeIntervalEnum;
+    endDateStr: string;
+    startDateStr?: string;
+  }): DateIntervalType {
+    if (args?.timeInterval !== undefined) {
+      return this.goPreviousDays(args);
+    } else if (
+      args?.startDateStr !== undefined &&
+      args?.endDateStr !== undefined
+    ) {
+      return safeCastDates(args);
+    } else if (
+      args?.endDateStr !== undefined &&
+      !isFriday(new Date(args.endDateStr))
+    ) {
+      throw new HttpException(
+        {
+          error: 'endDate is not Friday.',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    } else if (args?.endDateStr !== undefined) {
+      return this.goPreviousDays(args);
+    } else {
+      throw new HttpException(
+        {
+          error: 'invalid request.',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return this.goPreviousDays(args);
+  }
+
+  private goPreviousDays(args: NullableDateIntervalStrType): {
+    startDate: Date;
+    endDate: Date;
+  } {
+    let { startDate, endDate } = safeCastDates(args);
+    if (isSameDay(startDate, endDate)) {
+      startDate = previousPaymentStartDate(startDate);
+      startDate = previousPaymentStartDate(startDate);
+      endDate = previousPaymentEndDate(endDate);
+    }
+    return { startDate, endDate };
+  }
+
+  private getDates(args: ITicketRevenuesGetGrouped): DateIntervalType {
+    let { startDate, endDate } = this.getPaymentDates({
+      startDateStr: args.startDate,
+      endDateStr: args.endDate,
+      timeInterval: args.timeInterval,
+    });
+    const dates = this.getDatesFromTimeInterval({
+      startDate,
+      endDate,
+      timeInterval: args.timeInterval,
+    });
+    startDate = dates.startDate;
+    endDate = dates.endDate;
+    return { startDate, endDate };
+  }
+
   public async getMeFromUser(
     args: ITicketRevenuesGetGrouped,
     pagination: IPaginationOptions,
   ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.getUser(args);
     const getToday = true;
-    const useTimeInterval = args?.startDate === undefined;
-    const { startDate, endDate } = !useTimeInterval
-      ? getDateIntervalFromStr({
-          startDateStr: args.startDate,
-          endDateStr: args.endDate,
-        })
-      : getPaymentDateInterval(args.timeInterval);
+    const { startDate, endDate } = this.getDates(args);
 
     // Get data
     let ticketRevenuesResponse = await this.fetchTicketRevenues({

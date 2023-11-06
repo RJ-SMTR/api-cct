@@ -20,8 +20,8 @@ import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-pa
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
 import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
-import { TicketRevenuesService } from './ticket-revenues.service';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
+import { TicketRevenuesService } from './ticket-revenues.service';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -29,7 +29,7 @@ import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
   version: '1',
 })
 export class TicketRevenuesController {
-  constructor(private readonly ticketRevenuesService: TicketRevenuesService) {}
+  constructor(private readonly ticketRevenuesService: TicketRevenuesService) { }
 
   @SerializeOptions({
     groups: ['me'],
@@ -53,9 +53,9 @@ export class TicketRevenuesController {
     @Request() request,
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
-    @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
+    @Query('timeInterval') timeInterval: TimeIntervalEnum,
+    @Query(...DateQueryParams.endDate) endDate: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
-    @Query(...DateQueryParams.endDate) endDate?: string,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
     userId?: number | null,
   ): Promise<ITicketRevenuesGroupedResponse> {
@@ -88,9 +88,9 @@ export class TicketRevenuesController {
   })
   async getMeGrouped(
     @Request() request,
-    @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
+    @Query(...DateQueryParams.endDate) endDate: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
-    @Query(...DateQueryParams.endDate) endDate?: string,
+    @Query('timeInterval') timeInterval?: TimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
     userId?: number | null,
   ): Promise<TicketRevenuesGroup> {

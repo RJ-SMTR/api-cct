@@ -17,7 +17,7 @@ export const DateApiParams = {
 
   endDate: {
     name: 'endDate',
-    required: false,
+    required: true,
     description: DescriptionApiParam({ hours: '23:59:59.999' }),
   } as ApiParamOptions,
 
