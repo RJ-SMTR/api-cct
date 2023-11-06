@@ -22,6 +22,7 @@ import { TicketRevenuesService } from './ticket-revenues.service';
 import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
+import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -39,7 +40,7 @@ export class TicketRevenuesController {
   })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('/me/grouped')
+  @Get('/me')
   @HttpCode(HttpStatus.OK)
   @ApiQuery(PaginationApiParams.page)
   @ApiQuery(PaginationApiParams.limit)
@@ -52,7 +53,7 @@ export class TicketRevenuesController {
     required: false,
     description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
   })
-  async getGrouped(
+  async getMe(
     @Request() request,
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
@@ -70,9 +71,40 @@ export class TicketRevenuesController {
       userId: isUserIdNumber ? userId : request.user.id,
     };
     const pagination: IPaginationOptions = { limit, page };
-    return await this.ticketRevenuesService.getGroupedFromUser(
-      args,
-      pagination,
-    );
+    return await this.ticketRevenuesService.getMeFromUser(args, pagination);
+  }
+
+  @SerializeOptions({
+    groups: ['me'],
+  })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('/me/grouped')
+  @HttpCode(HttpStatus.OK)
+  @ApiQuery(DateApiParams.startDate)
+  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery(DateApiParams.timeInterval)
+  @ApiQuery({
+    name: 'userId',
+    type: Number,
+    required: false,
+    description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
+  })
+  async getMeGrouped(
+    @Request() request,
+    @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
+    @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query(...DateQueryParams.endDate) endDate?: string,
+    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    userId?: number | null,
+  ): Promise<TicketRevenuesGroup> {
+    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    const args: ITicketRevenuesGetGrouped = {
+      startDate,
+      endDate,
+      timeInterval,
+      userId: isUserIdNumber ? userId : request.user.id,
+    };
+    return await this.ticketRevenuesService.getMeGroupedFromUser(args);
   }
 }
