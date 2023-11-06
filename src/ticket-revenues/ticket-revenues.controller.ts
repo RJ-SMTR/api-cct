@@ -10,18 +10,17 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { UsersService } from 'src/users/users.service';
 import { DateApiParams } from 'src/utils/api-param/date.api-param';
+import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
 import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import { TicketRevenuesService } from './ticket-revenues.service';
-import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
-import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 
 @ApiTags('TicketRevenues')
@@ -30,10 +29,7 @@ import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
   version: '1',
 })
 export class TicketRevenuesController {
-  constructor(
-    private readonly ticketRevenuesService: TicketRevenuesService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly ticketRevenuesService: TicketRevenuesService) {}
 
   @SerializeOptions({
     groups: ['me'],

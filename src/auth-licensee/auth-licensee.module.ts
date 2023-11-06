@@ -7,7 +7,7 @@ import { AuthModule } from 'src/auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailModule } from 'src/mail/mail.module';
 import { BaseValidator } from 'src/utils/validators/base-validator';
-import { InviteModule } from 'src/invite/invite.module';
+import { MailHistoryModule } from 'src/mail-history/mail-history.module';
 import { JwtModule } from '@nestjs/jwt';
 import { JaeModule } from 'src/jae/jae.module';
 import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
@@ -19,7 +19,7 @@ import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
     SgtuModule,
     UsersModule,
     MailModule,
-    InviteModule,
+    MailHistoryModule,
     JaeModule,
 
     JwtModule.registerAsync({

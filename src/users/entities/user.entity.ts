@@ -10,6 +10,7 @@ import {
   UpdateDateColumn,
   BeforeInsert,
   BeforeUpdate,
+  DeepPartial,
 } from 'typeorm';
 import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
@@ -18,10 +19,17 @@ import * as bcrypt from 'bcryptjs';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { Exclude, Expose } from 'class-transformer';
-import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 
 @Entity()
 export class User extends EntityHelper {
+  constructor(user?: User | DeepPartial<User>) {
+    super();
+    if (user !== undefined) {
+      Object.assign(this, user);
+    }
+  }
+
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -179,4 +187,8 @@ export class User extends EntityHelper {
   }
 
   aux_inviteStatus?: InviteStatus | null;
+
+  update(userProps: DeepPartial<User>) {
+    Object.assign(this, userProps);
+  }
 }

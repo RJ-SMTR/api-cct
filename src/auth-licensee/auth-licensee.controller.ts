@@ -10,8 +10,8 @@ import {
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthLicenseeService } from './auth-licensee.service';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
-import { InviteHashExistsPipe } from 'src/invite/pipes/invite-hash-exists.pipe';
-import { InviteApiParams } from 'src/invite/api-param/invite.api-param';
+import { MailHistoryHashExistsPipe } from 'src/mail-history/pipes/mail-history-hash-exists.pipe';
+import { MailHistoryApiParams } from 'src/mail-history/api-param/mail-history.api-param';
 import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
 import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
 
@@ -37,9 +37,9 @@ export class AuthLicenseeController {
 
   @Post('invite/:hash')
   @HttpCode(HttpStatus.OK)
-  @ApiParam(InviteApiParams.hash)
+  @ApiParam(MailHistoryApiParams.hash)
   async invite(
-    @Param('hash', InviteHashExistsPipe)
+    @Param('hash', MailHistoryHashExistsPipe)
     hash: string,
   ): Promise<void | object> {
     return await this.authLicenseeService.getInviteProfile(hash);
@@ -47,9 +47,9 @@ export class AuthLicenseeController {
 
   @Post('register/:hash')
   @HttpCode(HttpStatus.OK)
-  @ApiParam(InviteApiParams.hash)
+  @ApiParam(MailHistoryApiParams.hash)
   async register(
-    @Param('hash', InviteHashExistsPipe)
+    @Param('hash', MailHistoryHashExistsPipe)
     hash: string,
     @Body() data: AuthRegisterLicenseeDto,
   ): Promise<void | object> {

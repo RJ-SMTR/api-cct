@@ -38,7 +38,7 @@ import { NullableType } from '../utils/types/nullable.type';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { InviteStatusNamesEnum } from 'src/invite-statuses/invite-status.enum';
+import { InviteStatusNamesEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { EnumValidationPipe } from 'src/utils/pipes/enum-validation.pipe';
 
