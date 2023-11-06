@@ -12,17 +12,17 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UsersService } from 'src/users/users.service';
 import { DateApiParams } from 'src/utils/api-param/date.api-param';
+import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
-import { TicketRevenuesService } from './ticket-revenues.service';
 import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
-import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
+import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
+import { TicketRevenuesService } from './ticket-revenues.service';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -57,7 +57,7 @@ export class TicketRevenuesController {
     @Request() request,
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
-    @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
+    @Query('timeInterval') timeInterval: TimeIntervalEnum,
     @Query(...DateQueryParams.endDate) endDate: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
@@ -92,9 +92,9 @@ export class TicketRevenuesController {
   })
   async getMeGrouped(
     @Request() request,
-    @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
     @Query(...DateQueryParams.endDate) endDate: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query('timeInterval') timeInterval?: TimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
     userId?: number | null,
   ): Promise<TicketRevenuesGroup> {
