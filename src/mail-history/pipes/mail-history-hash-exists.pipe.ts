@@ -10,7 +10,7 @@ import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { MailHistoryService } from '../mail-history.service';
 
 @Injectable()
-export class InviteHashExistsPipe extends ValidationPipe {
+export class MailHistoryHashExistsPipe extends ValidationPipe {
   constructor(private readonly inviteService: MailHistoryService) {
     const options: ValidationPipeOptions = {
       transform: true,
