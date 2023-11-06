@@ -75,7 +75,7 @@ describe('TicketRevenuesController', () => {
         .mockResolvedValueOnce(expectedResponse);
 
       // Act
-      const result = await ticketRevenuesController.getGrouped(
+      const result = await ticketRevenuesController.getMe(
         request,
         1, // page
         2, // limit
@@ -83,7 +83,7 @@ describe('TicketRevenuesController', () => {
       );
 
       // Assert
-      expect(ticketRevenuesService.getGroupedFromUser).toBeCalledTimes(1);
+      expect(ticketRevenuesService.getMeFromUser).toBeCalledTimes(1);
       expect(result).toEqual(dataResponse);
     });
   });

@@ -78,11 +78,11 @@ describe('TicketRevenuesService', () => {
         );
 
       // Act
-      const resultPreviousDays = await ticketRevenuesService.getGroupedFromUser(
+      const resultPreviousDays = await ticketRevenuesService.getMeFromUser(
         { timeInterval: TimeIntervalEnum.LAST_WEEK },
         { limit: 9999, page: 1 },
       );
-      const resultBetweenDates = await ticketRevenuesService.getGroupedFromUser(
+      const resultBetweenDates = await ticketRevenuesService.getMeFromUser(
         {
           startDate: '2023-06-01',
           endDate: '2023-06-03',
