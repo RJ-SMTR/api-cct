@@ -32,7 +32,7 @@ import { InfoModule } from './info/info.module';
 import { AuthLicenseeModule } from './auth-licensee/auth-licensee.module';
 import { SgtuModule } from './sgtu/sgtu.module';
 import { CoreBankModule } from './core-bank/core-bank.module';
-import { InviteModule } from './invite/invite.module';
+import { MailHistoryModule } from './mail-history/mail-history.module';
 import { JaeModule } from './jae/jae.module';
 import { BanksModule } from './banks/banks.module';
 import { BankStatementsModule } from './bank-statements/bank-statements.module';
@@ -101,7 +101,7 @@ import { BigqueryModule } from './bigquery/bigquery.module';
     AuthLicenseeModule,
     SgtuModule,
     CoreBankModule,
-    InviteModule,
+    MailHistoryModule,
     JaeModule,
     BanksModule,
     BankStatementsModule,

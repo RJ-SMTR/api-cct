@@ -46,6 +46,12 @@ class EnvironmentVariablesValidator {
 
   @IsString()
   MAIL_INVITE_CRONJOB: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(65535)
+  @IsOptional()
+  MAIL_DAILY_QUOTA: number;
 }
 
 export default registerAs<MailConfig>('mail', () => {
@@ -62,5 +68,6 @@ export default registerAs<MailConfig>('mail', () => {
     secure: process.env.MAIL_SECURE === 'true',
     requireTLS: process.env.MAIL_REQUIRE_TLS === 'true',
     inviteCronjob: process.env.MAIL_INVITE_CRONJOB,
+    dailyQuota: process.env.MAIL_DAILY_QUOTA,
   };
 });

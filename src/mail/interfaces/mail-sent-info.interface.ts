@@ -20,4 +20,5 @@ export interface MailSentInfo {
     to: string[];
   };
   messageId: string;
+  success: boolean;
 }

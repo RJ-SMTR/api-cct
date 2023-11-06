@@ -5,7 +5,7 @@ import { StatusSeedService } from './status/status-seed.service';
 import { UserSeedService } from './user/user-seed.service';
 import { BankSeedService } from './bank/bank-seed.service';
 import { InfoSeedService } from './info/info-seed.service';
-import { InviteStatusSeedService } from './invite-status/invite-status-seed.service';
+import { InviteStatusSeedService } from './mail-history-status/mail-history-status-seed.service';
 import { SettingTypeSeedService } from './setting-type/setting-type.service';
 import { SettingSeedService } from './setting/setting-seed.service';
 import { MailCountSeedService } from './mail-count/mail-count-seed.service';

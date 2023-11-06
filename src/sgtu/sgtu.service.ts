@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { sgtuResponseMockup } from './data/sgtu-response-mockup';
 import { SgtuDto } from './dto/sgtu.dto';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { Invite } from 'src/invite/entities/invite.entity';
+import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 
 @Injectable()
 export class SgtuService {
@@ -58,7 +58,7 @@ export class SgtuService {
   /**
    * Mock successfull request to SGTU service
    */
-  public async getGeneratedProfile(invite: Invite): Promise<SgtuDto> {
+  public async getGeneratedProfile(invite: MailHistory): Promise<SgtuDto> {
     const sgtuResponseObject = await JSON.parse(sgtuResponseMockup);
     const sgtuProfile: SgtuDto = sgtuResponseObject.data.map((item) => ({
       id: item.id,

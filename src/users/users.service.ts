@@ -1,46 +1,36 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { plainToClass } from 'class-transformer';
+import { validate } from 'class-validator';
+import { Request } from 'express';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
+import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { Role } from 'src/roles/entities/role.entity';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { Status } from 'src/statuses/entities/status.entity';
+import { StatusEnum } from 'src/statuses/statuses.enum';
+import { Enum } from 'src/utils/enum';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { DeepPartial, ILike, Repository, FindOptionsWhere } from 'typeorm';
+import { DeepPartial, FindOptionsWhere, ILike, Repository } from 'typeorm';
+import * as xlsx from 'xlsx';
+import { NullableType } from '../utils/types/nullable.type';
+import { CreateFileUserDto } from './dto/create-file-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
-import { NullableType } from '../utils/types/nullable.type';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { Request } from 'express';
-import * as xlsx from 'xlsx';
-import * as crypto from 'crypto';
-import { CreateFileUserDto } from './dto/create-file-user.dto';
-import { validate } from 'class-validator';
-import { plainToClass } from 'class-transformer';
 import { FileUserInterface } from './interfaces/file-user.interface';
-import { FileUserMap } from './mappings/file-user.map';
-import { StatusEnum } from 'src/statuses/statuses.enum';
-import { InviteService } from 'src/invite/invite.service';
-import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
-import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
-import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
-import { RoleEnum } from 'src/roles/roles.enum';
-import { Role } from 'src/roles/entities/role.entity';
-import { Status } from 'src/statuses/entities/status.entity';
-import { Invite } from 'src/invite/entities/invite.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
-import { Enum } from 'src/utils/enum';
+import { FileUserMap } from './mappings/file-user.map';
 
 @Injectable()
 export class UsersService {
-  private expectedAnyFields = [
-    'name',
-    'email',
-    'cpfCnpj',
-    'isSgtuBlocked',
-    'passValidatorId',
-  ];
-
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-    private inviteService: InviteService,
+    private inviteService: MailHistoryService,
   ) {}
 
   create(createProfileDto: CreateUserDto): Promise<User> {
@@ -120,7 +110,7 @@ export class UsersService {
       take: paginationOptions.limit,
     });
 
-    let invites: NullableType<Invite[]> = null;
+    let invites: NullableType<MailHistory[]> = null;
     if (inviteStatus) {
       invites = await this.inviteService.find({ inviteStatus });
     }
@@ -165,14 +155,43 @@ export class UsersService {
   }
 
   async update(id: number, payload: DeepPartial<User>): Promise<User> {
-    const user = await this.usersRepository.save(
-      this.usersRepository.create({
-        id,
-        ...payload,
-      }),
-    );
-    user.aux_inviteStatus = await this.getAux_inviteSatus(user);
-    return user;
+    const oldUser = await this.getOne({ id });
+    const newUser = new User(oldUser);
+    newUser.update(payload);
+
+    if (newUser.email !== oldUser.email) {
+      const inviteFound = await this.inviteService.findOne({
+        email: newUser.email as string,
+      });
+      if (!inviteFound) {
+        const hash = await this.inviteService.generateHash();
+        await this.inviteService.create({
+          user: newUser,
+          hash,
+          email: newUser.email as string,
+          inviteStatus: {
+            id: InviteStatusEnum.queued,
+          },
+        });
+      } else if (inviteFound.user.id !== newUser.id) {
+        const inviteUser = await this.getOne({ id: inviteFound.user.id });
+        throw new HttpException(
+          {
+            error: `invite email already exists:. ${JSON.stringify({
+              permitCode: inviteUser.permitCode,
+              email: inviteUser.email,
+              fullName: inviteUser.fullName,
+            })})`,
+          },
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
+      }
+
+      await this.usersRepository.save(this.usersRepository.create(newUser));
+      newUser.aux_inviteStatus = await this.getAux_inviteSatus(newUser);
+    }
+
+    return newUser;
   }
 
   async softDelete(id: number): Promise<void> {
@@ -341,16 +360,7 @@ export class UsersService {
     }
 
     for (const fileUser of fileUsers) {
-      let hash = crypto
-        .createHash('sha256')
-        .update(randomStringGenerator())
-        .digest('hex');
-      while (await this.inviteService.findByHash(hash)) {
-        hash = crypto
-          .createHash('sha256')
-          .update(randomStringGenerator())
-          .digest('hex');
-      }
+      const hash = await this.inviteService.generateHash();
       const createdUser = this.usersRepository.create({
         ...fileUser.user,
         hash: hash,

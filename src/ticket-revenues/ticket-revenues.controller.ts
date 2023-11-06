@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { UsersService } from 'src/users/users.service';
 import { DateApiParams } from 'src/utils/api-param/date.api-param';
 import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
@@ -30,10 +29,7 @@ import { TicketRevenuesService } from './ticket-revenues.service';
   version: '1',
 })
 export class TicketRevenuesController {
-  constructor(
-    private readonly ticketRevenuesService: TicketRevenuesService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly ticketRevenuesService: TicketRevenuesService) { }
 
   @SerializeOptions({
     groups: ['me'],

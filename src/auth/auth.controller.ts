@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Patch,
   Post,
   Request,
@@ -13,6 +14,9 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Roles } from 'src/roles/roles.decorator';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
 import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { NullableType } from '../utils/types/nullable.type';
@@ -21,12 +25,8 @@ import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
-import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
-import { Roles } from 'src/roles/roles.decorator';
-import { RoleEnum } from 'src/roles/roles.enum';
-import { RolesGuard } from 'src/roles/roles.guard';
 
 @ApiTags('Auth')
 @Controller({
@@ -80,12 +80,10 @@ export class AuthController {
   })
   @Roles(RoleEnum.admin)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Post('email/resend')
+  @Post('email/resend/:email')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async resendRegisterMail(
-    @Body() resendEmailDto: AuthResendEmailDto,
-  ): Promise<void> {
-    return this.service.resendRegisterMail(resendEmailDto);
+  async resendRegisterMail(@Param('email') email: string): Promise<void> {
+    return this.service.resendRegisterMail(email);
   }
 
   @Post('forgot/password')
