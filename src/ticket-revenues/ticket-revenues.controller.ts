@@ -21,6 +21,7 @@ import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
 import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import { TicketRevenuesService } from './ticket-revenues.service';
+import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -28,7 +29,7 @@ import { TicketRevenuesService } from './ticket-revenues.service';
   version: '1',
 })
 export class TicketRevenuesController {
-  constructor(private readonly ticketRevenuesService: TicketRevenuesService) { }
+  constructor(private readonly ticketRevenuesService: TicketRevenuesService) {}
 
   @SerializeOptions({
     groups: ['me'],
@@ -59,9 +60,7 @@ export class TicketRevenuesController {
     userId?: number | null,
   ): Promise<ITicketRevenuesGroupedResponse> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
-    const args: 
-    
-    = {
+    const args: ITicketRevenuesGetGrouped = {
       startDate,
       endDate,
       timeInterval,
