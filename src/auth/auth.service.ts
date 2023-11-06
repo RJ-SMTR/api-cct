@@ -308,6 +308,9 @@ export class AuthService {
       throw new HttpException(
         {
           error: 'no daily quota available to resend email',
+          details: {
+            remainingQuota: quota,
+          },
         },
         HttpStatus.NOT_FOUND,
       );
