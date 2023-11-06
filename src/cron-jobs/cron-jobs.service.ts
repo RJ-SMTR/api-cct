@@ -99,11 +99,12 @@ export class CronJobsService implements OnModuleInit {
     const remainingQuota = await this.mailHistoryService.getRemainingQuota();
 
     this.logger.log(
-      `bulkSendInvites(): starting job. unsent: ${unsent.length}, sent: ${sentToday.length}/500`,
+      `bulkSendInvites(): starting job. unsent: ${unsent.length}, sent: ${sentToday.length}/N, `
+      + `remaining: ${remainingQuota}`,
     );
 
     for (
-      let i = sentToday.length;
+      let i = 0;
       i < remainingQuota && i < unsent.length;
       i++
     ) {
