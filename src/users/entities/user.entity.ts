@@ -19,7 +19,7 @@ import * as bcrypt from 'bcryptjs';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { Exclude, Expose } from 'class-transformer';
-import { InviteStatus } from 'src/invite-statuses/entities/invite-status.entity';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 
 @Entity()
 export class User extends EntityHelper {

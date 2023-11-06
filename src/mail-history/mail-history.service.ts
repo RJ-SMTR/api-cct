@@ -2,13 +2,13 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { startOfDay } from 'date-fns';
-import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { User } from 'src/users/entities/user.entity';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import { DeepPartial, Equal, MoreThanOrEqual, Repository } from 'typeorm';
-import { MailHistory } from './entities/invite.entity';
+import { MailHistory } from './entities/mail-history.entity';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { ConfigService } from '@nestjs/config';
 

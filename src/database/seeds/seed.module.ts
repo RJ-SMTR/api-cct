@@ -10,7 +10,7 @@ import { StatusSeedModule } from './status/status-seed.module';
 import { UserSeedModule } from './user/user-seed.module';
 import { InfoSeedModule } from './info/info-seed.module';
 import { BankSeedModule } from './bank/bank-seed.module';
-import { InviteStatusSeedModule } from './invite-status/invite-status-seed.module';
+import { InviteStatusSeedModule } from './mail-history-status/mail-history-status-seed.module';
 import { SettingTypeSeedModule } from './setting-type/setting-type.module';
 import { SettingSeedModule } from './setting/setting-seed.module';
 import { MailCountSeedModule } from './mail-count/mail-count-seed.module';

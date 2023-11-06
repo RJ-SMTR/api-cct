@@ -10,8 +10,8 @@ import {
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthLicenseeService } from './auth-licensee.service';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
-import { InviteHashExistsPipe } from 'src/invite/pipes/invite-hash-exists.pipe';
-import { InviteApiParams } from 'src/invite/api-param/invite.api-param';
+import { InviteHashExistsPipe } from 'src/mail-history/pipes/mail-history-hash-exists.pipe';
+import { InviteApiParams } from 'src/mail-history/api-param/mail-history.api-param';
 import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
 import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
 

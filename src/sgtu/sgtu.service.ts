@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { sgtuResponseMockup } from './data/sgtu-response-mockup';
 import { SgtuDto } from './dto/sgtu.dto';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { MailHistory } from 'src/invite/entities/invite.entity';
+import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 
 @Injectable()
 export class SgtuService {

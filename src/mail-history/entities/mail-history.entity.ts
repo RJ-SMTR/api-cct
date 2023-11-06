@@ -1,3 +1,9 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { Exclude, Expose } from 'class-transformer';
+import { Allow } from 'class-validator';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { User } from 'src/users/entities/user.entity';
 import {
   BaseEntity,
   Column,
@@ -7,12 +13,6 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
-import { Allow } from 'class-validator';
-import { User } from 'src/users/entities/user.entity';
-import { Exclude, Expose } from 'class-transformer';
-import { InviteStatus } from '../../invite-statuses/entities/invite-status.entity';
-import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
 
 @Entity('invite')
 export class MailHistory extends BaseEntity {

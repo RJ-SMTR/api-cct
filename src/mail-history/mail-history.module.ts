@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MailHistory } from './entities/invite.entity';
+import { MailHistory } from './entities/mail-history.entity';
 import { MailHistoryService } from './mail-history.service';
 
 @Module({
@@ -8,4 +8,4 @@ import { MailHistoryService } from './mail-history.service';
   providers: [MailHistoryService],
   exports: [MailHistoryService],
 })
-export class InviteModule {}
+export class MailHistoryModule {}

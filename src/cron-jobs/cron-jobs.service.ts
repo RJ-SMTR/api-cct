@@ -3,9 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
-import { MailHistory } from 'src/invite/entities/invite.entity';
-import { MailHistoryService } from 'src/invite/mail-history.service';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
+import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { JaeService } from 'src/jae/jae.service';
 import { MailService } from 'src/mail/mail.service';
 import { appSettings } from 'src/settings/app.settings';
@@ -99,15 +99,11 @@ export class CronJobsService implements OnModuleInit {
     const remainingQuota = await this.mailHistoryService.getRemainingQuota();
 
     this.logger.log(
-      `bulkSendInvites(): starting job. unsent: ${unsent.length}, sent: ${sentToday.length}/N, `
-      + `remaining: ${remainingQuota}`,
+      `bulkSendInvites(): starting job. unsent: ${unsent.length}, sent: ${sentToday.length}/N, ` +
+        `remaining: ${remainingQuota}`,
     );
 
-    for (
-      let i = 0;
-      i < remainingQuota && i < unsent.length;
-      i++
-    ) {
+    for (let i = 0; i < remainingQuota && i < unsent.length; i++) {
       const invite = new MailHistory(unsent[i]);
 
       const user = await this.usersService.findOne({ id: invite.user.id });

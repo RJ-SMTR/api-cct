@@ -16,9 +16,9 @@ import { JwtService } from '@nestjs/jwt';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { JaeService } from 'src/jae/jae.service';
 import { JaeProfileInterface } from 'src/jae/interfaces/jae-profile.interface';
-import { InviteStatusEnum } from 'src/invite-statuses/invite-status.enum';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailService } from 'src/mail/mail.service';
-import { MailHistoryService } from 'src/invite/mail-history.service';
+import { MailHistoryService } from 'src/mail-history/mail-history.service';
 
 @Injectable()
 export class AuthLicenseeService {
