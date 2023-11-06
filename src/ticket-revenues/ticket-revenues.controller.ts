@@ -58,8 +58,8 @@ export class TicketRevenuesController {
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
     @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
+    @Query(...DateQueryParams.endDate) endDate: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
-    @Query(...DateQueryParams.endDate) endDate?: string,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
     userId?: number | null,
   ): Promise<ITicketRevenuesGroupedResponse> {
@@ -93,8 +93,8 @@ export class TicketRevenuesController {
   async getMeGrouped(
     @Request() request,
     @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
+    @Query(...DateQueryParams.endDate) endDate: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
-    @Query(...DateQueryParams.endDate) endDate?: string,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
     userId?: number | null,
   ): Promise<TicketRevenuesGroup> {

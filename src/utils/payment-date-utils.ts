@@ -1,13 +1,19 @@
+import { HttpException, HttpStatus } from '@nestjs/common';
 import {
   endOfDay,
+  isFriday,
+  isSameDay,
   isSameMonth,
   nextDay,
   previousDay,
   startOfDay,
 } from 'date-fns';
-import { WeekdayEnum } from './enums/weekday.enum';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
-import { DateIntervalType } from './types/date-interval.type';
+import { WeekdayEnum } from './enums/weekday.enum';
+import {
+  DateIntervalType,
+  NullableDateIntervalStrType,
+} from './types/date-interval.type';
 
 export const PAYMENT_WEEKDAY = WeekdayEnum._5_FRIDAY;
 export const PAYMENT_START_WEEKDAY = WeekdayEnum._4_THURSDAY;
@@ -97,7 +103,52 @@ export function getDateIntervalFromStr(args: {
   return { startDate, endDate };
 }
 
-export function getPaymentDateInterval(
+export function getPaymentDates(args: {
+  startDateStr?: string;
+  endDateStr: string;
+}): DateIntervalType {
+  if (args?.startDateStr !== undefined) {
+    return safeCastDates(args);
+  } else if (isFriday(new Date(args.endDateStr)) == false) {
+    throw new HttpException(
+      {
+        error: 'endDate is not Friday.',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+  let { startDate, endDate } = safeCastDates(args);
+  if (isSameDay(startDate, endDate)) {
+    startDate = previousPaymentStartDate(startDate);
+    startDate = previousPaymentStartDate(startDate);
+    endDate = previousPaymentEndDate(endDate);
+  }
+
+  return { startDate, endDate };
+}
+
+function safeCastDates(args: NullableDateIntervalStrType) {
+  const now = new Date();
+  let endDate: Date = new Date(now);
+  if (args?.endDateStr !== undefined) {
+    endDate = new Date(args.endDateStr);
+  }
+
+  let startDate: Date = new Date(now);
+  if (args?.startDateStr) {
+    startDate = new Date(args.startDateStr);
+  }
+  if (startDate > endDate) {
+    startDate = new Date(endDate);
+  }
+
+  startDate = startOfDay(startDate);
+  endDate = endOfDay(endDate);
+
+  return { startDate, endDate };
+}
+
+export function getPaymentDatesFromTimeInterval(
   timeInterval: TimeIntervalEnum,
 ): DateIntervalType {
   const now = new Date(Date.now());
@@ -118,4 +169,12 @@ export function getPaymentDateInterval(
   endDate = endOfDay(endDate);
 
   return { startDate, endDate };
+}
+
+if (require.main === module) {
+  process.env.TZ = 'UTC';
+  const ret = getPaymentDates({
+    endDateStr: '2023-11-03',
+  });
+  console.log(ret);
 }

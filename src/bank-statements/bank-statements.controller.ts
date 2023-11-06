@@ -10,15 +10,14 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { UsersService } from 'src/users/users.service';
 import { DateApiParams } from 'src/utils/api-param/date.api-param';
+import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
 import { BankStatementsService } from './bank-statements.service';
 import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
 import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
-import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 
 @ApiTags('BankStatements')
 @Controller({
@@ -26,10 +25,7 @@ import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
   version: '1',
 })
 export class BankStatementsController {
-  constructor(
-    private readonly bankStatementsService: BankStatementsService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly bankStatementsService: BankStatementsService) {}
 
   @SerializeOptions({
     groups: ['me'],
@@ -38,7 +34,11 @@ export class BankStatementsController {
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
   @ApiQuery(DateApiParams.startDate)
-  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: DescriptionApiParam({ hours: '23:59:59.999' }),
+  })
   @ApiQuery(DateApiParams.timeInterval)
   @ApiQuery({
     name: 'userId',

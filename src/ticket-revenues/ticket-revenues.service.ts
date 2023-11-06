@@ -11,7 +11,8 @@ import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import {
   PAYMENT_START_WEEKDAY,
   getDateIntervalFromStr,
-  getPaymentDateInterval,
+  getPaymentDatesFromTimeInterval,
+  getPaymentDates,
 } from 'src/utils/payment-date-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
@@ -52,7 +53,7 @@ export class TicketRevenuesService {
           startDateStr: args.startDate,
           endDateStr: args.endDate,
         })
-      : getPaymentDateInterval(args.timeInterval);
+      : getPaymentDatesFromTimeInterval(args.timeInterval);
 
     // Get data
     let ticketRevenuesResponse = await this.fetchTicketRevenues({
@@ -78,13 +79,10 @@ export class TicketRevenuesService {
   ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.getUser(args);
     const getToday = true;
-    const useTimeInterval = args?.startDate === undefined;
-    const { startDate, endDate } = !useTimeInterval
-      ? getDateIntervalFromStr({
-          startDateStr: args.startDate,
-          endDateStr: args.endDate,
-        })
-      : getPaymentDateInterval(args.timeInterval);
+    const { startDate, endDate } = getPaymentDates({
+      startDateStr: args.startDate,
+      endDateStr: args.endDate,
+    });
 
     // Get data
     let ticketRevenuesResponse = await this.fetchTicketRevenues({
