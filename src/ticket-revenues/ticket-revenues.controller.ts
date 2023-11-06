@@ -28,7 +28,7 @@ import { TicketRevenuesService } from './ticket-revenues.service';
   version: '1',
 })
 export class TicketRevenuesController {
-  constructor(private readonly ticketRevenuesService: TicketRevenuesService) {}
+  constructor(private readonly ticketRevenuesService: TicketRevenuesService) { }
 
   @SerializeOptions({
     groups: ['me'],
@@ -48,7 +48,7 @@ export class TicketRevenuesController {
     required: false,
     description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
   })
-  async getGrouped(
+  async getMe(
     @Request() request,
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
@@ -59,16 +59,49 @@ export class TicketRevenuesController {
     userId?: number | null,
   ): Promise<ITicketRevenuesGroupedResponse> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
-    const args: ITicketRevenuesGetGrouped = {
+    const args: 
+    
+    = {
       startDate,
       endDate,
       timeInterval,
       userId: isUserIdNumber ? userId : request.user.id,
     };
     const pagination: IPaginationOptions = { limit, page };
-    return await this.ticketRevenuesService.getGroupedFromUser(
-      args,
-      pagination,
-    );
+    return await this.ticketRevenuesService.getMeFromUser(args, pagination);
+  }
+
+  @SerializeOptions({
+    groups: ['me'],
+  })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('/me/grouped')
+  @HttpCode(HttpStatus.OK)
+  @ApiQuery(DateApiParams.startDate)
+  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery(DateApiParams.timeInterval)
+  @ApiQuery({
+    name: 'userId',
+    type: Number,
+    required: false,
+    description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
+  })
+  async getMeGrouped(
+    @Request() request,
+    @Query(...DateQueryParams.timeInterval) timeInterval: TimeIntervalEnum,
+    @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query(...DateQueryParams.endDate) endDate?: string,
+    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    userId?: number | null,
+  ): Promise<TicketRevenuesGroup> {
+    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    const args: ITicketRevenuesGetGrouped = {
+      startDate,
+      endDate,
+      timeInterval,
+      userId: isUserIdNumber ? userId : request.user.id,
+    };
+    return await this.ticketRevenuesService.getMeGroupedFromUser(args);
   }
 }

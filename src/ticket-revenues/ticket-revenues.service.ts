@@ -26,7 +26,9 @@ import {
   TicketRevenuesTransactionTypeMap as TransactionType,
 } from './maps/ticket-revenues.map';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
-import * as TicketRevenuesGroups from './utils/ticket-revenues-groups.utils';
+import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
+import { User } from 'src/users/entities/user.entity';
+import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -39,36 +41,42 @@ export class TicketRevenuesService {
     private readonly usersService: UsersService,
   ) {}
 
-  public async getGroupedFromUser(
+  public async getMeGroupedFromUser(
+    args: ITicketRevenuesGetGrouped,
+  ): Promise<ITicketRevenuesGroup> {
+    // Args
+    const user = await this.getUser(args);
+    const useTimeInterval = args?.startDate === undefined;
+    const { startDate, endDate } = !useTimeInterval
+      ? getDateIntervalFromStr({
+          startDateStr: args.startDate,
+          endDateStr: args.endDate,
+        })
+      : getPaymentDateInterval(args.timeInterval);
+
+    // Get data
+    let ticketRevenuesResponse = await this.fetchTicketRevenues({
+      permitCode: user.permitCode,
+      startDate,
+      endDate,
+    });
+    ticketRevenuesResponse = this.mapTicketRevenuesEnums(
+      ticketRevenuesResponse,
+    );
+
+    if (ticketRevenuesResponse.length === 0) {
+      return new TicketRevenuesGroup();
+    }
+    const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
+
+    return ticketRevenuesGroupSum;
+  }
+
+  public async getMeFromUser(
     args: ITicketRevenuesGetGrouped,
     pagination: IPaginationOptions,
   ): Promise<ITicketRevenuesGroupedResponse> {
-    if (isNaN(args?.userId as number)) {
-      throw new HttpException(
-        {
-          details: {
-            userId: `field is ${args?.userId}`,
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
-    const user = await this.usersService.getOne({ id: args?.userId });
-    if (!user.permitCode) {
-      throw new HttpException(
-        {
-          error: HttpErrorMessages.UNAUTHORIZED,
-          details: {
-            message: 'Maybe your token has expired, try to get a new one',
-            user: {
-              permitCode: 'fieldIsEmpty',
-            },
-          },
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-
+    const user = await this.getUser(args);
     const getToday = true;
     const useTimeInterval = args?.startDate === undefined;
     const { startDate, endDate } = !useTimeInterval
@@ -89,27 +97,9 @@ export class TicketRevenuesService {
       ticketRevenuesResponse,
     );
 
-    let ticketRevenuesGroupSum: ITicketRevenuesGroup = {
-      count: 0,
-      partitionDate: '',
-      transportTypeCounts: {},
-      permitCode: '',
-      directionIdCounts: {},
-      paymentMediaTypeCounts: {},
-      transactionTypeCounts: {},
-      transportIntegrationTypeCounts: {},
-      stopIdCounts: {},
-      stopLatCounts: {},
-      stopLonCounts: {},
-      transactionValueSum: 0,
-      aux_epochWeek: 0,
-      aux_groupDateTime: '',
-    };
-
     if (ticketRevenuesResponse.length === 0) {
       return {
         data: [],
-        ticketRevenuesGroupSum: ticketRevenuesGroupSum,
         transactionValueLastDay: 0,
       };
     }
@@ -144,33 +134,62 @@ export class TicketRevenuesService {
       ) as ITicketRevenuesGroup[];
     }
 
-    const ticketRevenuesSumGroups = this.getTicketRevenuesGroups(
-      ticketRevenuesResponse,
-      'all',
-    );
-    if (ticketRevenuesSumGroups.length === 1) {
-      ticketRevenuesGroupSum = ticketRevenuesSumGroups[0];
-    }
-    if (ticketRevenuesSumGroups.length > 1) {
-      this.logger.error(
-        'getGroupedFromUser(): ticketRevenuesSumGroups should have 0-1 items',
-      );
-    }
-
     return {
       data: ticketRevenuesGroups,
-      ticketRevenuesGroupSum,
       transactionValueLastDay,
     };
   }
 
-  public removeTicketRevenueToday(
+  private getGroupSum(data: ITicketRevenue[]): TicketRevenuesGroup {
+    let groupSum = new TicketRevenuesGroup();
+    const groupSums = this.getTicketRevenuesGroups(data, 'all');
+    if (groupSums.length >= 1) {
+      groupSum = groupSums[0];
+    }
+    if (groupSums.length > 1) {
+      this.logger.error(
+        'getGroupedFromUser(): ticketRevenuesSumGroups should have 0-1 items, getting first one.',
+      );
+    }
+    return groupSum;
+  }
+
+  private async getUser(args: ITicketRevenuesGetGrouped): Promise<User> {
+    if (isNaN(args?.userId as number)) {
+      throw new HttpException(
+        {
+          details: {
+            userId: `field is ${args?.userId}`,
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+    const user = await this.usersService.getOne({ id: args?.userId });
+    if (!user.permitCode) {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
+            message: 'Maybe your token has expired, try to get a new one',
+            user: {
+              permitCode: 'fieldIsEmpty',
+            },
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    return user;
+  }
+
+  private removeTicketRevenueToday(
     list: (ITicketRevenue | ITicketRevenuesGroup)[],
   ): ITicketRevenue[] | (ITicketRevenue | ITicketRevenuesGroup)[] {
     return list.filter((i) => !isToday(new Date(i.partitionDate)));
   }
 
-  public getTicketRevenuesGroups(
+  private getTicketRevenuesGroups(
     ticketRevenues: ITicketRevenue[],
     groupBy: 'day' | 'week' | 'all',
   ): ITicketRevenuesGroup[] {
@@ -206,7 +225,7 @@ export class TicketRevenuesService {
           };
         }
 
-        TicketRevenuesGroups.appendItem(accumulator[dateGroup], item, true);
+        TicketRevenuesGroupList.appendItem(accumulator[dateGroup], item, true);
         return accumulator;
       },
       {},
@@ -217,7 +236,7 @@ export class TicketRevenuesService {
     return resultList;
   }
 
-  public async fetchTicketRevenues(
+  private async fetchTicketRevenues(
     args?: IFetchTicketRevenues,
   ): Promise<ITicketRevenue[]> {
     // Args
@@ -296,7 +315,7 @@ FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
     return ticketRevenues;
   }
 
-  public mapTicketRevenuesEnums(
+  private mapTicketRevenuesEnums(
     ticketRevenues: ITicketRevenue[],
   ): ITicketRevenue[] {
     return ticketRevenues.map((item: ITicketRevenue) => {
