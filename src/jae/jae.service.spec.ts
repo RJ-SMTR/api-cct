@@ -1,9 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { JaeService } from './jae.service';
 import { Provider } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
 import { JaeDataService } from './data/jae-data.service';
-import { IJaeTicketRevenue } from './interfaces/jae-ticket-revenue.interface';
 import { JaeProfileInterface } from './interfaces/jae-profile.interface';
+import { IJaeTicketRevenue } from './interfaces/jae-ticket-revenue.interface';
+import { JaeService } from './jae.service';
 
 describe('JaeService', () => {
   let jaeService: JaeService;
@@ -71,9 +71,7 @@ describe('JaeService', () => {
         .mockResolvedValueOnce(ticketRevenues);
 
       // Assert
-      const response = await jaeService.getTicketRevenues(
-        permitCode,
-      );
+      const response = await jaeService.getTicketRevenues(permitCode);
 
       // Act
       expect(response).toEqual(ticketRevenues);

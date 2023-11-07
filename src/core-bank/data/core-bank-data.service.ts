@@ -1,11 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ICoreBankStatements } from '../interfaces/core-bank-statements.interface';
-import { ICoreBankProfile } from '../interfaces/core-bank-profile.interface';
-import { CoreBankStatusEnum } from '../enums/core-bank-status.enum';
-import { CoreBankStatusCodeEnum } from '../enums/core-bank-status-code.enum';
-import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import { lastDayOfMonth, nextFriday } from 'date-fns';
 import { Enum } from 'src/utils/enum';
+import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
+import { CoreBankStatusCodeEnum } from '../enums/core-bank-status-code.enum';
+import { CoreBankStatusEnum } from '../enums/core-bank-status.enum';
+import { ICoreBankProfile } from '../interfaces/core-bank-profile.interface';
+import { ICoreBankStatements } from '../interfaces/core-bank-statements.interface';
 
 @Injectable()
 export class CoreBankDataService implements OnModuleInit {
@@ -22,7 +22,8 @@ export class CoreBankDataService implements OnModuleInit {
   };
 
   private profiles: ICoreBankProfile[] = [
-    { // Henrique
+    {
+      // Henrique
       id: 1,
       permitCode: '213890329890312',
       cpfCnpj: 'cpf1',
@@ -34,7 +35,8 @@ export class CoreBankDataService implements OnModuleInit {
       rg: '04034484000140',
       bankAgencyName: 'RIO DE JANEIRO (CAP)',
     },
-    { // Outro usuário
+    {
+      // Outro usuário
       id: 2,
       permitCode: '319274392832023',
       cpfCnpj: 'cpf2',

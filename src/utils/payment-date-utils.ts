@@ -4,7 +4,7 @@ import {
   isSameDay,
   isSameMonth,
   nextDay,
-  previousDay
+  previousDay,
 } from 'date-fns';
 import { safeCastDates } from './date-utils';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
@@ -89,8 +89,8 @@ export function nextPaymentEndDate(
 // #region dateInterval
 
 /**
-* @param args Is assumed that `startDate` is already at last_week
-*/
+ * @param args Is assumed that `startDate` is already at last_week
+ */
 export function getDatesFromTimeInterval(args: {
   startDate: Date;
   endDate: Date;
@@ -146,7 +146,9 @@ export function getPaymentDates(args: {
   }
 }
 
-export function goPreviousDays(args: Partial<DateIntervalStrType>): DateIntervalType {
+export function goPreviousDays(
+  args: Partial<DateIntervalStrType>,
+): DateIntervalType {
   let { startDate, endDate } = safeCastDates(args);
   if (isSameDay(startDate, endDate)) {
     startDate = previousPaymentStartDate(startDate);

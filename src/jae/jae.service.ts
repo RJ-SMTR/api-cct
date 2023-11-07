@@ -1,14 +1,14 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { IFetchTicketRevenues } from 'src/ticket-revenues/interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from 'src/ticket-revenues/interfaces/ticket-revenue.interface';
 import { User } from 'src/users/entities/user.entity';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { JaeDataService } from './data/jae-data.service';
 import { JaeProfileInterface } from './interfaces/jae-profile.interface';
-import { IFetchTicketRevenues } from 'src/ticket-revenues/interfaces/fetch-ticket-revenues.interface';
 
 @Injectable()
 export class JaeService {
-  constructor(private jaeDataService: JaeDataService) { }
+  constructor(private jaeDataService: JaeDataService) {}
 
   async updateDataIfNeeded(): Promise<void> {
     return await this.jaeDataService.updateDataIfNeeded();
@@ -71,6 +71,10 @@ export class JaeService {
   }
 
   public isPermitCodeExists(permitCode?: string): boolean {
-    return this.jaeDataService.getProfiles().find(i => i.permitCode === permitCode) !== undefined;
+    return (
+      this.jaeDataService
+        .getProfiles()
+        .find((i) => i.permitCode === permitCode) !== undefined
+    );
   }
 }

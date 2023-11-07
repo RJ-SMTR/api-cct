@@ -16,9 +16,7 @@ import {
   getPaymentDates,
 } from 'src/utils/payment-date-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import {
-  DateIntervalType
-} from 'src/utils/types/date-interval.type';
+import { DateIntervalType } from 'src/utils/types/date-interval.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
@@ -44,7 +42,7 @@ export class TicketRevenuesService {
     private readonly bigqueryService: BigqueryService,
     private readonly usersService: UsersService,
     private jaeService: JaeService,
-  ) { }
+  ) {}
 
   public async getMeGroupedFromUser(
     args: ITicketRevenuesGetGrouped,
@@ -59,19 +57,16 @@ export class TicketRevenuesService {
       permitCode: user.permitCode,
       startDate,
       endDate,
-    }
+    };
     if (this.jaeService.isPermitCodeExists(user.permitCode)) {
-      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(fetchArgs);
-    }
-    else {
+      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
+        fetchArgs,
+      );
+    } else {
       ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
     }
-    ticketRevenuesResponse = this.mapTicketRevenues(
-      ticketRevenuesResponse,
-    );
-    ticketRevenuesResponse = this.mapTicketRevenues(
-      ticketRevenuesResponse,
-    );
+    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
+    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
       return new TicketRevenuesGroup();
@@ -108,6 +103,7 @@ export class TicketRevenuesService {
     const user = await this.getUser(args);
     const getToday = true;
     const { startDate, endDate } = this.getDates(args);
+    const groupBy = args?.groupBy || 'day';
 
     // Get data
     let ticketRevenuesResponse: ITicketRevenue[] = [];
@@ -118,14 +114,13 @@ export class TicketRevenuesService {
       getToday,
     };
     if (this.jaeService.isPermitCodeExists(user.permitCode)) {
-      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(fetchArgs);
-    }
-    else {
+      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
+        fetchArgs,
+      );
+    } else {
       ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
     }
-    ticketRevenuesResponse = this.mapTicketRevenues(
-      ticketRevenuesResponse,
-    );
+    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
       return {
@@ -136,7 +131,7 @@ export class TicketRevenuesService {
 
     let ticketRevenuesGroups = this.getTicketRevenuesGroups(
       ticketRevenuesResponse,
-      'day',
+      groupBy,
     );
 
     if (pagination) {
@@ -219,18 +214,23 @@ export class TicketRevenuesService {
     return list.filter((i) => !isToday(new Date(i.partitionDate)));
   }
 
-  private getTicketRevenuesGroups(
+  public getTicketRevenuesGroups(
     ticketRevenues: ITicketRevenue[],
-    groupBy: 'day' | 'week' | 'all',
+    groupBy: 'day' | 'week' | 'month' | 'all' | string,
   ): ITicketRevenuesGroup[] {
     const result = ticketRevenues.reduce(
       (accumulator: TicketRevenuesGroupsType, item: ITicketRevenue) => {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
         const itemDate = new Date(item.partitionDate);
         const nthWeek = getDateNthWeek(itemDate, startWeekday);
-        let dateGroup: string | number = item.partitionDate; // 'day', default,
+
+        // 'day', default,
+        let dateGroup: string | number = item.partitionDate;
         if (groupBy === 'week') {
           dateGroup = nthWeek;
+        }
+        if (groupBy === 'month') {
+          dateGroup = itemDate.toISOString().slice(0, 7);
         }
         if (groupBy === 'all') {
           dateGroup = 'all';
@@ -276,7 +276,7 @@ export class TicketRevenuesService {
     if (args?.offset !== undefined && args.limit === undefined) {
       this.logger.warn(
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-        " 'offset' will be ignored to prevent query fail",
+          " 'offset' will be ignored to prevent query fail",
       );
       offset = undefined;
     }

@@ -13,11 +13,21 @@ export class CoreBankService {
     this.coreBankDataService.updateDataIfNeeded();
   }
 
+  public isPermitCodeExists(permitCode?: string): boolean {
+    return (
+      this.coreBankDataService
+        .getProfiles()
+        .find((i) => i.permitCode === permitCode) !== undefined
+    );
+  }
+
   public getProfileByPermitCode(permitCode?: string): ICoreBankProfile {
     // TODO: fetch instead of mockup
 
     const profiles = this.coreBankDataService.getProfiles();
-    const filteredData = profiles.filter((item) => item.permitCode === permitCode);
+    const filteredData = profiles.filter(
+      (item) => item.permitCode === permitCode,
+    );
 
     if (filteredData.length === 1) {
       return filteredData[0];
@@ -44,7 +54,9 @@ export class CoreBankService {
     }
   }
 
-  public getBankStatementsByPermitCode(permitCode?: string): ICoreBankStatements[] {
+  public getBankStatementsByPermitCode(
+    permitCode?: string,
+  ): ICoreBankStatements[] {
     // TODO: fetch instead of mockup
     return this.coreBankDataService
       .getBankStatements()
