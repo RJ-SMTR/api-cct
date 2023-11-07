@@ -1,106 +1,151 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { IJaeTicketRevenue } from '../interfaces/jae-ticket-revenue.interface';
+import { isToday, startOfDay } from 'date-fns';
+import { IFetchTicketRevenues } from 'src/ticket-revenues/interfaces/fetch-ticket-revenues.interface';
+import { ITicketRevenue } from 'src/ticket-revenues/interfaces/ticket-revenue.interface';
+import { getDateISOString } from 'src/utils/date-utils';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { IMockProbability } from '../../utils/interfaces/mock-probability.interface';
+import { JaeProfileInterface } from '../interfaces/jae-profile.interface';
 import { JaeStopTimesInterface } from '../interfaces/jae-stop-times.interface';
 import { JaeValidatorGtfsDataInterface } from '../interfaces/jae-validator-gtfs-data.interface';
-import { JaeProfileInterface } from '../interfaces/jae-profile.interface';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
-
-interface ProbabilityInterface {
-  name: string | null;
-  probability: number;
-  bigqueryName: string | null;
-  id: number;
-}
 
 @Injectable()
 export class JaeDataService implements OnModuleInit {
   private logger: Logger = new Logger('JaeDataService', { timestamp: true });
-  private ticketRevenues: IJaeTicketRevenue[] = [];
+  private ticketRevenues: ITicketRevenue[] = [];
   private ticketRevenuesArgs = {
-    startHour: 6 + 3,
-    endHour: 12 + 3,
-    minutesInterval: 30,
+    startHour: 6,
+    endHour: 12,
+    minutesInterval: 60,
     weeks: 4 * 3,
     highDemandProbability: 0.2,
     ticketTransactionValue: 4.3,
     tripsPerLicensee: 1,
     jaeProfiles: [
-      {
-        id: 2,
-        permitCode: 'permitCode_mock',
-        vehiclePlate: 'GHI8901',
-        passValidatorId: '187103490390',
-        vehicleOrderNumberId: 102373242,
-      },
-      {
+      { // Henrique
         id: 1,
         permitCode: '213890329890312',
         vehiclePlate: 'ABC1234',
         passValidatorId: '19003842273',
-        vehicleOrderNumberId: 102373241,
+        vehicleId: '102373241',
+      },
+      { // Outro usuário
+        id: 2,
+        permitCode: '319274392832023',
+        vehiclePlate: 'GHI8901',
+        passValidatorId: '187103490390',
+        vehicleId: '102373242',
       },
     ] as JaeProfileInterface[],
     ticketTransactionTypes: [
       {
-        name: 'full',
-        probability: 0.6,
-        bigqueryName: 'inteira',
         id: 1,
+        bigqueryName: 'Débito',
+        name: 'debit',
+        probability: 0.125
       },
       {
-        name: 'half',
-        probability: 0.2,
-        bigqueryName: 'meia',
         id: 2,
+        name: 'recharge',
+        bigqueryName: 'Recarga',
+        probability: 0.125
       },
       {
+        id: 98,
+        bigqueryName: 'Riocard',
+        name: 'riocard',
+        probability: 0.125
+      },
+      {
+        id: 6,
+        bigqueryName: 'Bloqueio',
+        name: 'blocked',
+        probability: 0.125
+      },
+      {
+        id: 99,
+        bigqueryName: 'Botoeria',
+        name: 'button',
+        probability: 0.125
+      },
+      {
+        id: 21,
+        bigqueryName: 'Gratuidade',
         name: 'free',
-        probability: 0.2,
-        bigqueryName: 'gratuidade',
+        probability: 0.125
+      },
+      {
         id: 3,
+        bigqueryName: 'Cancelamento',
+        name: 'cancelled',
+        probability: 0.125
       },
-    ] as ProbabilityInterface[],
-    ticketPaymentMediaTypes: [
       {
-        name: 'phone',
-        probability: 0.8,
-        bigqueryName: 'telefone',
+        id: 4,
+        bigqueryName: 'Integração',
+        name: 'integration',
+        probability: 0.125
+      }
+    ] as IMockProbability[],
+    ticketPaymentTypes: [
+      {
         id: 1,
+        bigqueryName: 'Cartão',
+        name: 'card',
+        probability: 0.33,
       },
       {
-        name: 'card',
-        probability: 0.2,
-        bigqueryName: 'cartao',
         id: 2,
+        bigqueryName: 'QRCode',
+        name: 'qrcode',
+        probability: 0.33,
       },
-    ] as ProbabilityInterface[],
+      {
+        id: 3,
+        bigqueryName: 'NFC',
+        name: 'nfc',
+        probability: 0.33,
+      },
+    ] as IMockProbability[],
     transportIntegrationTypes: [
       {
-        name: null,
-        probability: 0.5,
-        bigqueryName: null,
-        id: 1,
-      },
-      {
-        name: 'van',
-        probability: 0.3,
-        bigqueryName: 'van',
-        id: 2,
-      },
-      {
-        name: 'bus_supervia',
-        probability: 0.2,
-        bigqueryName: 'supervia',
         id: 3,
+        bigqueryName: 'Bu municipal',
+        name: 'bu municipal',
+        probability: 0.2,
       },
-    ] as ProbabilityInterface[],
+      {
+        id: 2,
+        bigqueryName: 'Integração',
+        name: 'integration',
+        probability: 0.2,
+      },
+      {
+        id: 1,
+        bigqueryName: 'Transferência',
+        name: 'transfer',
+        probability: 0.2,
+      },
+      {
+        id: 0,
+        bigqueryName: 'Sem integração',
+        name: 'no integration',
+        probability: 0.2,
+      },
+      {
+        id: 4,
+        bigqueryName: 'Bu intermunicipal',
+        name: 'bu municipal',
+        probability: 0.2,
+      },
+    ] as IMockProbability[],
   };
   private readonly baseUrlMobilidade = 'https://api.mobilidade.rio';
   private stopTimes: JaeStopTimesInterface[] = [];
   private vehicleData: JaeValidatorGtfsDataInterface[] = [];
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(private readonly httpService: HttpService) { }
 
   onModuleInit() {
     async () => {
@@ -109,13 +154,13 @@ export class JaeDataService implements OnModuleInit {
     };
   }
 
-  private generateRandomNumber(probabilityHighValue: number): number {
-    return Math.random() > probabilityHighValue
-      ? Math.floor(Math.random() * 20)
-      : 20 + Math.floor(Math.random() * 81);
-  }
+  // private generateRandomNumber(probabilityHighValue: number): number {
+  //   return Math.random() > probabilityHighValue
+  //     ? Math.floor(Math.random() * 20)
+  //     : 20 + Math.floor(Math.random() * 81);
+  // }
 
-  private getItemByProbability(probabilities: ProbabilityInterface[]): any {
+  private getItemByProbability(probabilities: IMockProbability[]): any {
     const totalWeight = probabilities.reduce(
       (total, object) => total + object.probability,
       0,
@@ -185,15 +230,15 @@ export class JaeDataService implements OnModuleInit {
       minutesInterval,
       weeks,
       ticketTransactionValue,
-      highDemandProbability,
+      // highDemandProbability,
       startHour,
       endHour,
       jaeProfiles,
       ticketTransactionTypes,
-      ticketPaymentMediaTypes,
+      ticketPaymentTypes,
       transportIntegrationTypes,
     } = this.getTicketRevenuesArgs();
-    const ticketRevenues: IJaeTicketRevenue[] = [];
+    const ticketRevenues: ITicketRevenue[] = [];
     this.vehicleData = [];
     const uniqueTripsList: string[] = [
       ...new Set(this.stopTimes.map((i) => i.trip_id.trip_id)),
@@ -231,44 +276,40 @@ export class JaeDataService implements OnModuleInit {
           const stopTime = stopTimes[stopTimesCycleIndex];
           const date = new Date(now);
           const currentMinute = minutesInterval * minuteStep;
+          const currentHour = Math.floor(currentMinute / 60);
           date.setUTCDate(date.getUTCDate() - day);
           date.setUTCHours(startHour, totalMinutes - currentMinute);
-          const newTripIncome: IJaeTicketRevenue = {
-            transactionId: ticketRevenues.length,
+          let newTripIncome: ITicketRevenue = {
+            transactionId: ticketRevenues.length.toString(),
             transactionDateTime: date.toISOString(),
             transactionValue: ticketTransactionValue,
             transactionLat: stopTime.stop_id.stop_lat,
             transactionLon: stopTime.stop_id.stop_lon,
-            vehicleOrderNumberId: profile.vehicleOrderNumberId,
+            vehicleId: profile.vehicleId,
             permitCode: profile.permitCode,
+            transactionType: this.getItemByProbability(ticketTransactionTypes).id,
+            paymentMediaType: this.getItemByProbability(ticketPaymentTypes).id,
+            transportIntegrationType: this.getItemByProbability(transportIntegrationTypes,).id,
+            bqDataVersion: '0',
+            processingHour: currentHour,
+            transportType: this.getItemByProbability(
+              transportIntegrationTypes,
+            ).id,
 
             // Not needed fields
             clientId: `${ticketRevenues.length}`,
-            stopId: stopTime.stop_id.stop_id,
-            integrationId: 0,
-            individualIntegrationId: 0,
-            partitionDate: date.toISOString(),
+            stopId: Number(stopTime.stop_id.stop_id),
+            integrationId: '0',
+            partitionDate: getDateISOString(date),
             processingDateTime: date.toISOString(),
             captureDateTime: date.toISOString(),
-            vehicleService: 0,
+            vehicleService: '0',
             directionId: 0,
             stopLat: stopTime.stop_id.stop_lat,
             stopLon: stopTime.stop_id.stop_lon,
           };
-          const transactions = this.generateRandomNumber(highDemandProbability);
-          for (let i = 0; i < transactions; i++) {
-            ticketRevenues.push({
-              ...newTripIncome,
-              transactionType: this.getItemByProbability(ticketTransactionTypes)
-                .name,
-              paymentMediaType: this.getItemByProbability(
-                ticketPaymentMediaTypes,
-              ).name,
-              transportIntegrationType: this.getItemByProbability(
-                transportIntegrationTypes,
-              ).name,
-            });
-          }
+          // const transactions = this.generateRandomNumber(highDemandProbability);
+          ticketRevenues.push(newTripIncome);
         }
       }
     }
@@ -277,20 +318,24 @@ export class JaeDataService implements OnModuleInit {
   }
 
   async updateDataIfNeeded() {
+
     if (this.stopTimes.length === 0) {
       await this.setStopTimes();
       this.logger.debug(
         'updateDataIfNeeded(): generating mocked data - no stopTimes',
       );
       this.setTicketRevenues();
+
     } else if (this.ticketRevenues.length === 0) {
       this.logger.debug(
         'updateDataIfNeeded(): generating mocked data - no ticketRevenues',
       );
       this.setTicketRevenues();
-    } else {
+    }
+
+    else {
       const now = new Date(Date.now());
-      const lastDate = new Date(this.ticketRevenues[0].transactionDateTime);
+      const lastDate = new Date(this.ticketRevenues[0].transactionDateTime as string);
       const minutesDifference =
         (now.getTime() - lastDate.getTime()) / (1000 * 60);
       const { minutesInterval, startHour, endHour } =
@@ -308,18 +353,35 @@ export class JaeDataService implements OnModuleInit {
       }
     }
   }
-  public async getTicketRevenuesByPermitCode(
-    permitCode?: string,
-  ): Promise<IJaeTicketRevenue[]> {
+  public async getTicketRevenues(
+    args?: IFetchTicketRevenues
+  ): Promise<ITicketRevenue[]> {
+    const permitCode = args?.permitCode;
+    const startDate = args?.startDate;
+    const endDate = args?.endDate;
+    const getToday = args?.getToday;
+
     await this.updateDataIfNeeded();
     const filteredTicketRevenues = this.ticketRevenues.filter(
-      (i) => i.permitCode === permitCode,
+      (i) => {
+        const itemDate = startOfDay(new Date(i.partitionDate));
+        const hasPermitCode: boolean = i.permitCode === permitCode;
+        const isFromStartDateIfExists: boolean = !startDate || itemDate >= startDate;
+        const isToEndDateIfExists: boolean = !endDate || itemDate <= endDate;
+        const isTodayIfEnabled: boolean = !getToday || isToday(itemDate);
+        return (
+          hasPermitCode && (
+            (isFromStartDateIfExists && isToEndDateIfExists)
+            || isTodayIfEnabled
+          )
+        );
+      },
     );
     return filteredTicketRevenues;
   }
   public async getTicketRevenuesMocked(
     pagination?: IPaginationOptions,
-  ): Promise<IJaeTicketRevenue[]> {
+  ): Promise<ITicketRevenue[]> {
     await this.updateDataIfNeeded();
     const profiles = this.getTicketRevenuesArgs().jaeProfiles;
     let filteredTicketRevenues = this.ticketRevenues.filter(

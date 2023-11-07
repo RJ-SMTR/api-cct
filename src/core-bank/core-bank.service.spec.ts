@@ -87,7 +87,7 @@ describe('CoreBankService', () => {
       const cpf = expectedResult.cpfCnpj;
 
       // Act
-      const result = await coreBankService.getProfileByCpfCnpj(cpf);
+      const result = await coreBankService.getProfileByPermitCode(cpf);
 
       // Assert
       expect(result).toEqual(expectedResult);
@@ -99,7 +99,7 @@ describe('CoreBankService', () => {
 
       // Assert
       await expect(
-        coreBankService.getProfileByCpfCnpj(cpf),
+        coreBankService.getProfileByPermitCode(cpf),
       ).rejects.toThrowError();
     });
   });
@@ -112,7 +112,7 @@ describe('CoreBankService', () => {
       const expectedResult = statements.filter((i) => i.cpfCnpj === cpfCnpj);
 
       // Act
-      const result = coreBankService.getBankStatementsByCpfCnpj(cpfCnpj);
+      const result = coreBankService.getBankStatementsByPermitCode(cpfCnpj);
 
       // Assert
       expect(result).toEqual(expectedResult);
@@ -123,7 +123,7 @@ describe('CoreBankService', () => {
       const cpf = 'inexistent-cpf';
 
       // Act
-      const response = coreBankService.getBankStatementsByCpfCnpj(cpf);
+      const response = coreBankService.getBankStatementsByPermitCode(cpf);
 
       // Assert
       expect(response.length).toEqual(0);

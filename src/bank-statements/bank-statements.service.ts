@@ -1,17 +1,18 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { getStartEndDates } from 'src/utils/date-utils';
-import { nextPaymentWeekday } from 'src/utils/payment-date-utils';
+import { getDatesFromTimeInterval, getPaymentDates, nextPaymentWeekday } from 'src/utils/payment-date-utils';
 import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
 import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
 import { UsersService } from 'src/users/users.service';
+import { DateIntervalType } from 'src/utils/types/date-interval.type';
 
 @Injectable()
 export class BankStatementsService {
   constructor(
     private readonly coreBankService: CoreBankService,
     private readonly usersService: UsersService,
-  ) {}
+  ) { }
 
   public async getBankStatementsFromUser(
     args: IBankStatementsGet,
@@ -27,20 +28,31 @@ export class BankStatementsService {
       );
     }
     // For now it validates if user exists
-    await this.usersService.getOne({ id: args?.userId });
+    const user = await this.usersService.getOne({ id: args?.userId });
 
     // TODO: fetch instead of mockup
     const bankStatementsResponse =
-      this.coreBankService.getBankStatementsMocked();
+      this.coreBankService.getBankStatementsByPermitCode(user.permitCode);
 
+    let startDate = new Date();
+    let endDate = new Date();
+    // if (args?.startDate && args.endDate) {
+    //   const dates = this.getDates(args);
+    //   startDate = dates.startDate;
+    //   endDate = dates.endDate;
+    // }
+    // else {
     const endDateStr =
       args?.endDate ||
       nextPaymentWeekday(new Date(Date.now())).toISOString().slice(0, 10);
-    const { startDate, endDate } = getStartEndDates({
+    const dates = getStartEndDates({
       startDateStr: args?.startDate,
       endDateStr: endDateStr,
       timeInterval: args?.timeInterval,
     });
+    startDate = dates.startDate;
+    endDate = dates.endDate;
+    // }
 
     const filteredData = bankStatementsResponse.filter((item) => {
       const itemDate: Date = new Date(item.date);
@@ -54,4 +66,25 @@ export class BankStatementsService {
       amountSum,
     };
   }
+
+  //#region dates
+
+  private getDates(args: Partial<IBankStatementsGet>): DateIntervalType {
+    let { startDate, endDate } = getPaymentDates({
+      startDateStr: args.startDate,
+      endDateStr: args?.endDate || '',
+      timeInterval: args.timeInterval,
+    });
+    const dates = getDatesFromTimeInterval({
+      startDate,
+      endDate,
+      timeInterval: args.timeInterval,
+    });
+    startDate = dates.startDate;
+    endDate = dates.endDate;
+    return { startDate, endDate };
+  }
+
+  //#endregion dates
+
 }

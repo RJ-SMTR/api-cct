@@ -1,29 +1,28 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { JaeDataService } from './data/jae-data.service';
-import { JaeProfileInterface } from './interfaces/jae-profile.interface';
-import { IJaeTicketRevenue } from './interfaces/jae-ticket-revenue.interface';
+import { ITicketRevenue } from 'src/ticket-revenues/interfaces/ticket-revenue.interface';
 import { User } from 'src/users/entities/user.entity';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { JaeDataService } from './data/jae-data.service';
+import { JaeProfileInterface } from './interfaces/jae-profile.interface';
+import { IFetchTicketRevenues } from 'src/ticket-revenues/interfaces/fetch-ticket-revenues.interface';
 
 @Injectable()
 export class JaeService {
-  constructor(private jaeDataService: JaeDataService) {}
+  constructor(private jaeDataService: JaeDataService) { }
 
   async updateDataIfNeeded(): Promise<void> {
     return await this.jaeDataService.updateDataIfNeeded();
   }
 
-  public async getTicketRevenuesByPermitCode(
-    ticketValidatorId: string,
-  ): Promise<IJaeTicketRevenue[]> {
-    return await this.jaeDataService.getTicketRevenuesByPermitCode(
-      ticketValidatorId,
-    );
+  public async getTicketRevenues(
+    args?: IFetchTicketRevenues,
+  ): Promise<ITicketRevenue[]> {
+    return await this.jaeDataService.getTicketRevenues(args);
   }
 
   async getTicketRevenuesMocked(
     pagination?: IPaginationOptions,
-  ): Promise<IJaeTicketRevenue[]> {
+  ): Promise<ITicketRevenue[]> {
     return await this.jaeDataService.getTicketRevenuesMocked(pagination);
   }
 
@@ -64,10 +63,14 @@ export class JaeService {
   public getGeneratedProfileByUser(user: User): JaeProfileInterface {
     return {
       id: 1,
-      vehicleOrderNumberId: 1,
+      vehicleId: '1',
       passValidatorId: String(user.passValidatorId),
       permitCode: Math.floor(Math.random() * 1e15).toString(),
       vehiclePlate: 'ABC123',
     };
+  }
+
+  public isPermitCodeExists(permitCode?: string): boolean {
+    return this.jaeDataService.getProfiles().find(i => i.permitCode === permitCode) !== undefined;
   }
 }

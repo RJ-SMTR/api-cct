@@ -24,7 +24,7 @@ export function sumOneCountsKey(
   ) {
     const oldValue = group[groupKey][countsKey as any];
     if (oldValue === undefined) {
-      group[groupKey][countsKey as any] = 0;
+      group[groupKey][countsKey as any] = 1;
     } else {
       group[groupKey][countsKey as any] += 1;
     }

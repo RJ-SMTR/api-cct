@@ -42,7 +42,7 @@ describe('JaeDataService', () => {
         .mockResolvedValueOnce(stopTimesList);
 
       // Act
-      const result = await jaeDataService.getTicketRevenuesByPermitCode(
+      const result = await jaeDataService.getTicketRevenues(
         permitCode,
       );
 
@@ -81,7 +81,7 @@ describe('JaeDataService', () => {
         .mockResolvedValueOnce(stopTimesList);
 
       // Act
-      const result = await jaeDataService.getTicketRevenuesByPermitCode(
+      const result = await jaeDataService.getTicketRevenues(
         passValidatorId,
       );
 
@@ -102,7 +102,7 @@ describe('JaeDataService', () => {
           .spyOn(global.Date, 'now')
           .mockImplementation(() => new Date(dateString).valueOf());
       const getResult = async () =>
-        await jaeDataService.getTicketRevenuesByPermitCode(permitCode);
+        await jaeDataService.getTicketRevenues(permitCode);
 
       // Act
       mockDate('2023-06-30T06:10:00.000Z');

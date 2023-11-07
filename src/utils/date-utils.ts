@@ -1,6 +1,6 @@
 import { endOfDay, startOfDay, startOfMonth } from 'date-fns';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
-import { NullableDateIntervalStrType } from './types/date-interval.type';
+import { DateIntervalStrType } from './types/date-interval.type';
 
 export function getDateWithTimezone(
   date: Date,
@@ -62,15 +62,15 @@ export function getStartEndDates(args: {
   return { startDate, endDate };
 }
 
-export function safeCastDates(args: NullableDateIntervalStrType) {
+export function safeCastDates(args: Partial<DateIntervalStrType>) {
   const now = new Date();
   let endDate: Date = new Date(now);
   if (args?.endDateStr !== undefined) {
     endDate = new Date(args.endDateStr);
   }
 
-  let startDate: Date = new Date(now);
-  if (args?.startDateStr) {
+  let startDate: Date = new Date(endDate);
+  if (args?.startDateStr !== undefined) {
     startDate = new Date(args.startDateStr);
   }
   if (startDate > endDate) {
@@ -81,4 +81,8 @@ export function safeCastDates(args: NullableDateIntervalStrType) {
   endDate = endOfDay(endDate);
 
   return { startDate, endDate };
+}
+
+export function getDateISOString(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }

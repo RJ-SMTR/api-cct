@@ -14,7 +14,6 @@ export class CoreBankDataService implements OnModuleInit {
   });
   private bankStatements: ICoreBankStatements[] = [];
   public bankStatementsArgs: any = {
-    cpfs: ['cpfCnpj_mocked', '98765432100'],
     weeks: 4 * 3,
     maxValue: 1500,
     minValue: 50,
@@ -23,9 +22,10 @@ export class CoreBankDataService implements OnModuleInit {
   };
 
   private profiles: ICoreBankProfile[] = [
-    {
+    { // Henrique
       id: 1,
-      cpfCnpj: 'cpfCnpj_mocked',
+      permitCode: '213890329890312',
+      cpfCnpj: 'cpf1',
       bankCode: 1,
       bankAgencyCode: '2234',
       bankAgencyDigit: '9',
@@ -34,9 +34,10 @@ export class CoreBankDataService implements OnModuleInit {
       rg: '04034484000140',
       bankAgencyName: 'RIO DE JANEIRO (CAP)',
     },
-    {
+    { // Outro usuário
       id: 2,
-      cpfCnpj: '98765432100',
+      permitCode: '319274392832023',
+      cpfCnpj: 'cpf2',
       bankCode: 10,
       bankAgencyCode: '72',
       bankAgencyDigit: '8',
@@ -70,10 +71,11 @@ export class CoreBankDataService implements OnModuleInit {
     id: number;
     nthWeek: number;
     weekday: number;
+    permitCode: string;
     cpfCnpj: string;
     status?: CoreBankStatusEnum;
   }): ICoreBankStatements {
-    const { id, nthWeek, weekday, cpfCnpj, status } = args;
+    const { id, permitCode, nthWeek, weekday, cpfCnpj, status } = args;
     const date = new Date(Date.now());
     date.setUTCDate(date.getUTCDate() - 7 * nthWeek);
     while (date.getUTCDay() !== weekday) {
@@ -106,8 +108,9 @@ export class CoreBankDataService implements OnModuleInit {
     const dayString = date.getUTCDate().toString().padStart(2, '0');
     return {
       id: id,
+      permitCode,
+      cpfCnpj,
       date: `${yearString}-${monthString}-${dayString}`,
-      cpfCnpj: cpfCnpj,
       amount: randomInt + randomDecimal,
       status:
         status !== undefined
@@ -124,9 +127,9 @@ export class CoreBankDataService implements OnModuleInit {
   private setBankStatements() {
     const bankStatements: ICoreBankStatements[] = [];
     const now = new Date(Date.now());
-    for (const cpf of this.bankStatementsArgs.cpfs) {
+    const { paymentWeekday, nextPaymentWeekday } = this.bankStatementsArgs;
+    for (const profile of this.getProfiles()) {
       let id = 1;
-      const { paymentWeekday, nextPaymentWeekday } = this.bankStatementsArgs;
       if (
         now.getUTCDay() !== paymentWeekday &&
         nextPaymentWeekday(now) <= lastDayOfMonth(now)
@@ -136,7 +139,8 @@ export class CoreBankDataService implements OnModuleInit {
             id: id,
             nthWeek: -1,
             weekday: paymentWeekday,
-            cpfCnpj: cpf,
+            permitCode: profile.permitCode,
+            cpfCnpj: profile.cpfCnpj,
             status: CoreBankStatusEnum.accumulated,
           }),
         );
@@ -148,7 +152,8 @@ export class CoreBankDataService implements OnModuleInit {
             id: week + id,
             nthWeek: week,
             weekday: paymentWeekday,
-            cpfCnpj: cpf,
+            permitCode: profile.permitCode,
+            cpfCnpj: profile.cpfCnpj,
           }),
         );
       }

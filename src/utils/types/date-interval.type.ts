@@ -7,7 +7,7 @@ export type DateIntervalArgsType = {
 };
 export type DateIntervalType = { startDate: Date; endDate: Date };
 export type NullableDateIntervalType = { startDate?: Date; endDate?: Date };
-export type NullableDateIntervalStrType = {
+export type DateIntervalStrType = {
   startDateStr?: string;
   endDateStr?: string;
 };

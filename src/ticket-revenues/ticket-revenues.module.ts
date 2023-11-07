@@ -6,7 +6,7 @@ import { UsersModule } from 'src/users/users.module';
 import { BigqueryModule } from 'src/bigquery/bigquery.module';
 
 @Module({
-  imports: [JaeModule, UsersModule, BigqueryModule, UsersModule],
+  imports: [JaeModule, UsersModule, BigqueryModule, UsersModule, JaeModule],
   providers: [TicketRevenuesService],
   controllers: [TicketRevenuesController],
 })

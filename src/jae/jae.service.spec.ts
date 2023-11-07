@@ -71,7 +71,7 @@ describe('JaeService', () => {
         .mockResolvedValueOnce(ticketRevenues);
 
       // Assert
-      const response = await jaeService.getTicketRevenuesByPermitCode(
+      const response = await jaeService.getTicketRevenues(
         permitCode,
       );
 
