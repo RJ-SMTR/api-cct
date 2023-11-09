@@ -70,7 +70,6 @@ export class TicketRevenuesService {
       ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
     }
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
-    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
       return new TicketRevenuesGroup();
@@ -86,7 +85,7 @@ export class TicketRevenuesService {
     endpoint: string,
   ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.getUser(args);
-    const getToday = true;
+    const GET_TODAY = true;
     const { startDate, endDate } = getPaymentDates(
       endpoint,
       args.startDate,
@@ -101,7 +100,7 @@ export class TicketRevenuesService {
       permitCode: user.permitCode,
       startDate,
       endDate,
-      getToday,
+      getToday: GET_TODAY,
     };
     if (this.jaeService.isPermitCodeExists(user.permitCode)) {
       ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
@@ -110,6 +109,7 @@ export class TicketRevenuesService {
     } else {
       ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
     }
+
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
@@ -133,15 +133,14 @@ export class TicketRevenuesService {
       );
     }
 
-    const transactionValueLastDay =
-      ticketRevenuesGroups.length > 0
-        ? ticketRevenuesGroups[0].transactionValueSum
-        : 0;
+    const transactionValueLastDay = ticketRevenuesResponse
+      .filter((i) => isToday(new Date(i.partitionDate)))
+      .reduce((sum, i) => sum + (i?.transactionValue || 0), 0);
 
     const mostRecentResponseDate = startOfDay(
       new Date(ticketRevenuesResponse[0].partitionDate),
     );
-    if (getToday && mostRecentResponseDate > startOfDay(endDate)) {
+    if (GET_TODAY && mostRecentResponseDate > startOfDay(endDate)) {
       ticketRevenuesResponse = this.removeTicketRevenueToday(
         ticketRevenuesResponse,
       ) as ITicketRevenue[];
@@ -150,9 +149,10 @@ export class TicketRevenuesService {
       ) as ITicketRevenuesGroup[];
     }
 
-    const amountSum = ticketRevenuesGroups.reduce(
-      (sum, i) => sum + (i?.transactionValueSum || 0),
-      0,
+    const amountSum = Number(
+      ticketRevenuesGroups
+        .reduce((sum, i) => sum + (i?.transactionValueSum || 0), 0)
+        .toFixed(2),
     );
 
     return {
@@ -252,7 +252,7 @@ export class TicketRevenuesService {
           };
         }
 
-        TicketRevenuesGroupList.appendItem(accumulator[dateGroup], item, true);
+        TicketRevenuesGroupList.appendItem(accumulator[dateGroup], item);
         return accumulator;
       },
       {},
