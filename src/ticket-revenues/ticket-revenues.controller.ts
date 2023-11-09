@@ -70,6 +70,7 @@ export class TicketRevenuesController {
     const response = await this.ticketRevenuesService.getMeFromUser(
       args,
       pagination,
+      'ticket-revenues',
     );
     return response;
   }
@@ -105,6 +106,9 @@ export class TicketRevenuesController {
       timeInterval,
       userId: isUserIdNumber ? userId : request.user.id,
     };
-    return await this.ticketRevenuesService.getMeGroupedFromUser(args);
+    return await this.ticketRevenuesService.getMeGroupedFromUser(
+      args,
+      'ticket-revenues',
+    );
   }
 }

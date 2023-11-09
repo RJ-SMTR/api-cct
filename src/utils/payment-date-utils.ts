@@ -1,18 +1,16 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
+  endOfMonth,
   isFriday,
-  isSameDay,
   isSameMonth,
   nextDay,
+  nextFriday,
   previousDay,
+  startOfMonth,
 } from 'date-fns';
-import { safeCastDates } from './date-utils';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
 import { WeekdayEnum } from './enums/weekday.enum';
-import {
-  DateIntervalStrType,
-  DateIntervalType,
-} from './types/date-interval.type';
+import { DateIntervalType } from './types/date-interval.type';
 
 export const PAYMENT_WEEKDAY = WeekdayEnum._5_FRIDAY;
 export const PAYMENT_START_WEEKDAY = WeekdayEnum._4_THURSDAY;
@@ -86,57 +84,67 @@ export function nextPaymentEndDate(
 
 // #endregion nextPrevious
 
-// #region dateInterval
+//#region refactor
 
-/**
- * @param args Is assumed that `startDate` is already at last_week
- */
-export function getDatesFromTimeInterval(args: {
+export function validateDateArgs(
+  startDateStr?: string,
+  endDateStr?: string,
+  timeInterval?: TimeIntervalEnum,
+): boolean {
+  if (
+    startDateStr === undefined &&
+    endDateStr === undefined &&
+    timeInterval === undefined
+  ) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+export function getPaymentWeek(fridayDate: Date): {
   startDate: Date;
   endDate: Date;
-  timeInterval?: TimeIntervalEnum | null;
-}): DateIntervalType {
-  const { startDate, endDate } = args;
-  if (args.timeInterval === TimeIntervalEnum.LAST_WEEK) {
-    startDate.setDate(startDate.getDate());
-  }
-  if (args.timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
-    startDate.setDate(startDate.getDate() - 7);
-  }
-  if (args.timeInterval === TimeIntervalEnum.LAST_MONTH) {
-    startDate.setDate(startDate.getDate() - 7 * 3);
-  }
+} {
+  const startDate = new Date(fridayDate);
+  const endDate = new Date(fridayDate);
+  startDate.setDate(startDate.getDate() - 8);
+  endDate.setDate(endDate.getDate() - 2);
   return { startDate, endDate };
 }
 
-export function getPaymentDates(args: {
-  timeInterval?: TimeIntervalEnum;
-  endDateStr: string;
-  startDateStr?: string;
-}): DateIntervalType {
-  if (args?.timeInterval !== undefined) {
-    return goPreviousDays(args);
-  } else if (
-    args?.startDateStr !== undefined &&
-    args?.endDateStr !== undefined
-  ) {
-    return safeCastDates(args);
-  } else if (
-    args?.endDateStr !== undefined &&
-    !isFriday(new Date(args.endDateStr))
-  ) {
-    throw new HttpException(
-      {
-        error: 'endDate is not Friday.',
-      },
-      HttpStatus.BAD_REQUEST,
-    );
-  } else if (args?.endDateStr !== undefined) {
-    return goPreviousDays({
-      ...args,
-      ...safeCastDates(args),
-    });
-  } else {
+export function getPayment2Weeks(fridayDate: Date): {
+  startDate: Date;
+  endDate: Date;
+} {
+  const startDate = new Date(fridayDate);
+  const endDate = new Date(fridayDate);
+  startDate.setDate(startDate.getDate() - 8 - 7);
+  endDate.setDate(endDate.getDate() - 2);
+  return { startDate, endDate };
+}
+
+export function getPaymentMonth(fridayDate: Date): {
+  startDate: Date;
+  endDate: Date;
+} {
+  // let endDate = new Date(fridayDate);
+  // if (!isFriday(endDate)) {
+  //   endDate = nextFriday(endDate);
+  // }
+  return {
+    startDate: startOfMonth(fridayDate),
+    endDate: endOfMonth(fridayDate),
+  };
+}
+
+export function getPaymentDates(
+  endpoint: string,
+  startDateStr?: string,
+  endDateStr?: string,
+  timeInterval?: TimeIntervalEnum,
+): DateIntervalType {
+  if (!validateDate(startDateStr, endDateStr, timeInterval)) {
     throw new HttpException(
       {
         error: 'invalid request.',
@@ -144,21 +152,63 @@ export function getPaymentDates(args: {
       HttpStatus.BAD_REQUEST,
     );
   }
-}
 
-export function goPreviousDays(
-  args: Partial<DateIntervalStrType>,
-): DateIntervalType {
-  let { startDate, endDate } = safeCastDates(args);
-  if (isSameDay(startDate, endDate)) {
-    startDate = previousPaymentStartDate(startDate);
-    startDate = previousPaymentStartDate(startDate);
-    endDate = previousPaymentEndDate(endDate);
+  if (endDateStr && startDateStr) {
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+    return { startDate, endDate };
+  } else if (endDateStr && !startDateStr && !timeInterval) {
+    let endDate = new Date(endDateStr);
+    if (!isFriday(endDate)) {
+      endDate = nextFriday(endDate);
+    }
+    return getPaymentWeek(endDate);
+  } else if (timeInterval) {
+    let endDate = new Date(endDateStr ? endDateStr : Date.now());
+    if (!isFriday(endDate)) {
+      endDate = nextFriday(endDate);
+    }
+    if (timeInterval === TimeIntervalEnum.LAST_WEEK) {
+      return getPaymentWeek(endDate);
+    } else if (timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
+      return getPayment2Weeks(endDate);
+    } else if (timeInterval === TimeIntervalEnum.LAST_MONTH) {
+      return getPaymentMonth(endDate);
+    }
   }
-  return { startDate, endDate };
+
+  //
+  else {
+    throw new HttpException(
+      {
+        errors: {
+          message: 'invalid request - unhandled combination',
+          args: { startDateStr, endDateStr, timeInterval },
+        },
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+  return { startDate: new Date(), endDate: new Date() };
 }
 
-// #endregion dateInterval
+export function validateDate(
+  startDateStr?: string,
+  endDateStr?: string,
+  timeInterval?: TimeIntervalEnum,
+): boolean {
+  if (
+    startDateStr === undefined &&
+    endDateStr === undefined &&
+    timeInterval === undefined
+  ) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+//#endregion refactor
 
 if (require.main === module) {
   process.env.TZ = 'UTC';

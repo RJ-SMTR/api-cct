@@ -42,52 +42,22 @@ export class JaeDataService implements OnModuleInit {
     ] as JaeProfileInterface[],
     ticketTransactionTypes: [
       {
-        id: 1,
-        bigqueryName: 'Débito',
-        name: 'debit',
-        probability: 0.125,
-      },
-      {
-        id: 2,
-        name: 'recharge',
-        bigqueryName: 'Recarga',
-        probability: 0.125,
-      },
-      {
         id: 98,
-        bigqueryName: 'Riocard',
-        name: 'riocard',
-        probability: 0.125,
-      },
-      {
-        id: 6,
-        bigqueryName: 'Bloqueio',
-        name: 'blocked',
-        probability: 0.125,
-      },
-      {
-        id: 99,
-        bigqueryName: 'Botoeria',
-        name: 'button',
-        probability: 0.125,
+        bigqueryName: 'Integral',
+        name: 'full',
+        probability: 0.33,
       },
       {
         id: 21,
         bigqueryName: 'Gratuidade',
         name: 'free',
-        probability: 0.125,
-      },
-      {
-        id: 3,
-        bigqueryName: 'Cancelamento',
-        name: 'cancelled',
-        probability: 0.125,
+        probability: 0.33,
       },
       {
         id: 4,
         bigqueryName: 'Integração',
         name: 'integration',
-        probability: 0.125,
+        probability: 0.33,
       },
     ] as IMockProbability[],
     ticketPaymentTypes: [
@@ -289,8 +259,7 @@ export class JaeDataService implements OnModuleInit {
             transactionLon: stopTime.stop_id.stop_lon,
             vehicleId: profile.vehicleId,
             permitCode: profile.permitCode,
-            transactionType: this.getItemByProbability(ticketTransactionTypes)
-              .id,
+            transactionType: ticketTransactionTypes[0].bigqueryName,
             paymentMediaType: this.getItemByProbability(ticketPaymentTypes).id,
             transportIntegrationType: this.getItemByProbability(
               transportIntegrationTypes,
@@ -314,6 +283,13 @@ export class JaeDataService implements OnModuleInit {
           };
           const transactions = this.generateRandomNumber(highDemandProbability);
           for (let i = 0; i < transactions; i++) {
+            const transactionType = this.getItemByProbability(
+              ticketTransactionTypes,
+            );
+            let transactionValue = ticketTransactionValue;
+            if (transactionType.bigqueryName === 'Gratuidade') {
+              transactionValue = 0;
+            }
             ticketRevenues.push({
               ...newTripIncome,
               transactionType: this.getItemByProbability(ticketTransactionTypes)
@@ -323,6 +299,7 @@ export class JaeDataService implements OnModuleInit {
               transportIntegrationType: this.getItemByProbability(
                 transportIntegrationTypes,
               ).bigqueryName,
+              transactionValue,
             });
           }
           ticketRevenues.push(newTripIncome);

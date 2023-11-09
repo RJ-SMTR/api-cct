@@ -12,11 +12,9 @@ import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import {
   PAYMENT_START_WEEKDAY,
-  getDatesFromTimeInterval,
   getPaymentDates,
 } from 'src/utils/payment-date-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import { DateIntervalType } from 'src/utils/types/date-interval.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
@@ -46,10 +44,16 @@ export class TicketRevenuesService {
 
   public async getMeGroupedFromUser(
     args: ITicketRevenuesGetGrouped,
+    endpoint: string,
   ): Promise<ITicketRevenuesGroup> {
     // Args
     const user = await this.getUser(args);
-    const { startDate, endDate } = this.getDates(args);
+    const { startDate, endDate } = getPaymentDates(
+      endpoint,
+      args.startDate,
+      args.endDate,
+      args.timeInterval,
+    );
 
     // Get data
     let ticketRevenuesResponse: ITicketRevenue[] = [];
@@ -76,33 +80,19 @@ export class TicketRevenuesService {
     return ticketRevenuesGroupSum;
   }
 
-  //#region dates
-
-  private getDates(args: ITicketRevenuesGetGrouped): DateIntervalType {
-    let { startDate, endDate } = getPaymentDates({
-      startDateStr: args.startDate,
-      endDateStr: args.endDate,
-      timeInterval: args.timeInterval,
-    });
-    const dates = getDatesFromTimeInterval({
-      startDate,
-      endDate,
-      timeInterval: args.timeInterval,
-    });
-    startDate = dates.startDate;
-    endDate = dates.endDate;
-    return { startDate, endDate };
-  }
-
-  //#endregion dates
-
   public async getMeFromUser(
     args: ITicketRevenuesGetGrouped,
     pagination: IPaginationOptions,
+    endpoint: string,
   ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.getUser(args);
     const getToday = true;
-    const { startDate, endDate } = this.getDates(args);
+    const { startDate, endDate } = getPaymentDates(
+      endpoint,
+      args.startDate,
+      args.endDate,
+      args.timeInterval,
+    );
     const groupBy = args?.groupBy || 'day';
 
     // Get data
@@ -125,6 +115,7 @@ export class TicketRevenuesService {
     if (ticketRevenuesResponse.length === 0) {
       return {
         data: [],
+        amountSum: 0,
         transactionValueLastDay: 0,
       };
     }
@@ -159,8 +150,14 @@ export class TicketRevenuesService {
       ) as ITicketRevenuesGroup[];
     }
 
+    const amountSum = ticketRevenuesGroups.reduce(
+      (sum, i) => sum + (i?.transactionValueSum || 0),
+      0,
+    );
+
     return {
       data: ticketRevenuesGroups,
+      amountSum,
       transactionValueLastDay,
     };
   }
