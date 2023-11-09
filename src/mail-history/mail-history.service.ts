@@ -1,4 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { startOfDay } from 'date-fns';
@@ -9,8 +11,6 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import { DeepPartial, Equal, MoreThanOrEqual, Repository } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
-import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
-import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MailHistoryService {
@@ -92,6 +92,25 @@ export class MailHistoryService {
     return this.inviteRepository.findOne({
       where: fields,
     });
+  }
+
+  async getOne(fields: EntityCondition<MailHistory>): Promise<MailHistory> {
+    const mailHistory = await this.inviteRepository.findOne({
+      where: fields,
+    });
+    if (!mailHistory) {
+      throw new HttpException(
+        {
+          details: {
+            message: 'invite not found',
+            mailHistory,
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } else {
+      return mailHistory;
+    }
   }
 
   update(id: number, payload: DeepPartial<MailHistory>): Promise<MailHistory> {
