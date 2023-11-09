@@ -1,20 +1,24 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { getStartEndDates } from 'src/utils/date-utils';
-import { nextPaymentWeekday } from 'src/utils/payment-date-utils';
+import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
+import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
+import { UsersService } from 'src/users/users.service';
+import { getDateYMDString } from 'src/utils/date-utils';
+import { getPaymentDates, getPaymentWeek } from 'src/utils/payment-date-utils';
 import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
 import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
-import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class BankStatementsService {
   constructor(
     private readonly coreBankService: CoreBankService,
     private readonly usersService: UsersService,
+    private readonly ticketRevenuesService: TicketRevenuesService,
   ) {}
 
   public async getBankStatementsFromUser(
     args: IBankStatementsGet,
+    endpoint: string,
   ): Promise<IBankStatementsResponse> {
     if (isNaN(args?.userId as number)) {
       throw new HttpException(
@@ -27,31 +31,104 @@ export class BankStatementsService {
       );
     }
     // For now it validates if user exists
-    await this.usersService.getOne({ id: args?.userId });
+    const user = await this.usersService.getOne({ id: args?.userId });
 
     // TODO: fetch instead of mockup
-    const bankStatementsResponse =
-      this.coreBankService.getBankStatementsMocked();
+    let bankStatementsResponse: ICoreBankStatements[] = [];
+    if (this.coreBankService.isPermitCodeExists(user.permitCode)) {
+      bankStatementsResponse =
+        this.coreBankService.getBankStatementsByPermitCode(user.permitCode);
+    } else {
+      bankStatementsResponse = this.coreBankService.getBankStatementsMocked();
+    }
 
-    const endDateStr =
-      args?.endDate ||
-      nextPaymentWeekday(new Date(Date.now())).toISOString().slice(0, 10);
-    const { startDate, endDate } = getStartEndDates({
-      startDateStr: args?.startDate,
-      endDateStr: endDateStr,
-      timeInterval: args?.timeInterval,
-    });
+    const { startDate, endDate } = getPaymentDates(
+      endpoint,
+      args?.startDate,
+      args?.endDate,
+      args?.timeInterval,
+    );
 
-    const filteredData = bankStatementsResponse.filter((item) => {
+    let treatedData = bankStatementsResponse.filter((item) => {
       const itemDate: Date = new Date(item.date);
       return itemDate >= startDate && itemDate <= endDate;
     });
 
-    const amountSum = filteredData.reduce((sum, item) => sum + item.amount, 0);
+    let sumToday = 0;
+    const insertedData = await this.insertTicketData(treatedData, {
+      endDate: args?.endDate,
+      timeInterval: args?.timeInterval,
+      userId: args?.userId,
+    });
+    treatedData = insertedData.statements;
+    sumToday = insertedData.sumToday;
+    // }
+    const amountSum = treatedData.reduce((sum, item) => sum + item.amount, 0);
 
     return {
-      data: filteredData,
+      data: treatedData,
       amountSum,
+      todaySum: sumToday,
     };
   }
+
+  //#region mockData
+
+  private async insertTicketData(
+    statements: ICoreBankStatements[],
+    args: IBankStatementsGet,
+  ): Promise<{
+    statements: ICoreBankStatements[];
+    sumToday: number;
+    allSum: number;
+  }> {
+    const statementFirstDate = statements[statements.length - 1].date;
+    const revenueStartDate = getDateYMDString(
+      getPaymentWeek(new Date(statementFirstDate)).startDate,
+    );
+    const statementLastDate = statements[0].date;
+    const revenueEndDate = getDateYMDString(
+      getPaymentWeek(new Date(statementLastDate)).endDate,
+    );
+
+    // Get daily data form tickets/me
+    const revenuesResponse = await this.ticketRevenuesService.getMeFromUser(
+      {
+        startDate: revenueStartDate,
+        endDate: revenueEndDate,
+        userId: args?.userId,
+        groupBy: 'day',
+      },
+      { limit: 9999, page: 1 },
+      'ticket-revenues',
+    );
+
+    const sumToday = revenuesResponse.transactionValueLastDay;
+    let sumAll = 0;
+    const newStatements: ICoreBankStatements[] = [];
+
+    // for each week in month (bank-statements)
+    for (let i = 0; i < statements.length; i++) {
+      const statement = statements[i];
+      const weekInterval = getPaymentWeek(new Date(statement.date));
+
+      // for each day in ticket revenues
+      const newAmount = revenuesResponse.data
+        .filter(
+          (i) =>
+            new Date(i.partitionDate) >= weekInterval.startDate &&
+            new Date(i.partitionDate) <= weekInterval.endDate,
+        )
+        .reduce((sum, i) => sum + i.transactionValueSum, 0);
+
+      newStatements.push({
+        ...statement,
+        amount: newAmount,
+      });
+      sumAll += newAmount;
+    }
+    return { sumToday, allSum: sumAll, statements: newStatements };
+  }
+
+  //#endregion mockData
 }

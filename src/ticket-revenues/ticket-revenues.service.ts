@@ -1,25 +1,20 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { isFriday, isSameDay, isToday, startOfDay } from 'date-fns';
+import { isToday, startOfDay } from 'date-fns';
 import {
   BigqueryService,
   BigqueryServiceInstances,
 } from 'src/bigquery/bigquery.service';
+import { JaeService } from 'src/jae/jae.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import { getDateNthWeek, safeCastDates } from 'src/utils/date-utils';
+import { getDateNthWeek } from 'src/utils/date-utils';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import {
   PAYMENT_START_WEEKDAY,
-  previousPaymentEndDate,
-  previousPaymentStartDate,
+  getPaymentDates,
 } from 'src/utils/payment-date-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import {
-  DateIntervalType,
-  NullableDateIntervalStrType,
-} from 'src/utils/types/date-interval.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
@@ -27,9 +22,9 @@ import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grou
 import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
 import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
 import {
-  TicketRevenuesTransportIntegrationTypeMap as IntegrationType,
-  TicketRevenuesPaymentMediaTypeMap as PaymentType,
-  TicketRevenuesTransactionTypeMap as TransactionType,
+  TRIntegrationTypeMap as IntegrationType,
+  TRPaymentTypeMap as PaymentType,
+  TRTransactionTypeMap as TransactionType,
 } from './maps/ticket-revenues.map';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
@@ -44,24 +39,38 @@ export class TicketRevenuesService {
   constructor(
     private readonly bigqueryService: BigqueryService,
     private readonly usersService: UsersService,
+    private jaeService: JaeService,
   ) {}
 
   public async getMeGroupedFromUser(
     args: ITicketRevenuesGetGrouped,
+    endpoint: string,
   ): Promise<ITicketRevenuesGroup> {
     // Args
     const user = await this.getUser(args);
-    const { startDate, endDate } = this.getDates(args);
+    const { startDate, endDate } = getPaymentDates(
+      endpoint,
+      args.startDate,
+      args.endDate,
+      args.timeInterval,
+    );
 
     // Get data
-    let ticketRevenuesResponse = await this.fetchTicketRevenues({
+    let ticketRevenuesResponse: ITicketRevenue[] = [];
+    const fetchArgs: IFetchTicketRevenues = {
       permitCode: user.permitCode,
       startDate,
       endDate,
-    });
-    ticketRevenuesResponse = this.mapTicketRevenuesEnums(
-      ticketRevenuesResponse,
-    );
+    };
+    if (this.jaeService.isPermitCodeExists(user.permitCode)) {
+      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
+        fetchArgs,
+      );
+    } else {
+      ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
+    }
+    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
+    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
       return new TicketRevenuesGroup();
@@ -71,121 +80,49 @@ export class TicketRevenuesService {
     return ticketRevenuesGroupSum;
   }
 
-  /**
-   * @param args Is assumed that `startDate` is already at last_week
-   */
-  private getDatesFromTimeInterval(args: {
-    startDate: Date;
-    endDate: Date;
-    timeInterval?: TimeIntervalEnum | null;
-  }): DateIntervalType {
-    const { startDate, endDate } = args;
-    if (args.timeInterval === TimeIntervalEnum.LAST_WEEK) {
-      startDate.setDate(startDate.getDate());
-    }
-    if (args.timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
-      startDate.setDate(startDate.getDate() - 7);
-    }
-    if (args.timeInterval === TimeIntervalEnum.LAST_MONTH) {
-      startDate.setDate(startDate.getDate() - 7 * 3);
-    }
-    return { startDate, endDate };
-  }
-
-  private getPaymentDates(args: {
-    timeInterval?: TimeIntervalEnum;
-    endDateStr: string;
-    startDateStr?: string;
-  }): DateIntervalType {
-    if (args?.timeInterval !== undefined) {
-      return this.goPreviousDays(args);
-    } else if (
-      args?.startDateStr !== undefined &&
-      args?.endDateStr !== undefined
-    ) {
-      return safeCastDates(args);
-    } else if (
-      args?.endDateStr !== undefined &&
-      !isFriday(new Date(args.endDateStr))
-    ) {
-      throw new HttpException(
-        {
-          error: 'endDate is not Friday.',
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    } else if (args?.endDateStr !== undefined) {
-      return this.goPreviousDays(args);
-    } else {
-      throw new HttpException(
-        {
-          error: 'invalid request.',
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    return this.goPreviousDays(args);
-  }
-
-  private goPreviousDays(args: NullableDateIntervalStrType): {
-    startDate: Date;
-    endDate: Date;
-  } {
-    let { startDate, endDate } = safeCastDates(args);
-    if (isSameDay(startDate, endDate)) {
-      startDate = previousPaymentStartDate(startDate);
-      startDate = previousPaymentStartDate(startDate);
-      endDate = previousPaymentEndDate(endDate);
-    }
-    return { startDate, endDate };
-  }
-
-  private getDates(args: ITicketRevenuesGetGrouped): DateIntervalType {
-    let { startDate, endDate } = this.getPaymentDates({
-      startDateStr: args.startDate,
-      endDateStr: args.endDate,
-      timeInterval: args.timeInterval,
-    });
-    const dates = this.getDatesFromTimeInterval({
-      startDate,
-      endDate,
-      timeInterval: args.timeInterval,
-    });
-    startDate = dates.startDate;
-    endDate = dates.endDate;
-    return { startDate, endDate };
-  }
-
   public async getMeFromUser(
     args: ITicketRevenuesGetGrouped,
     pagination: IPaginationOptions,
+    endpoint: string,
   ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.getUser(args);
     const getToday = true;
-    const { startDate, endDate } = this.getDates(args);
+    const { startDate, endDate } = getPaymentDates(
+      endpoint,
+      args.startDate,
+      args.endDate,
+      args.timeInterval,
+    );
+    const groupBy = args?.groupBy || 'day';
 
     // Get data
-    let ticketRevenuesResponse = await this.fetchTicketRevenues({
+    let ticketRevenuesResponse: ITicketRevenue[] = [];
+    const fetchArgs: IFetchTicketRevenues = {
       permitCode: user.permitCode,
       startDate,
       endDate,
       getToday,
-    });
-    ticketRevenuesResponse = this.mapTicketRevenuesEnums(
-      ticketRevenuesResponse,
-    );
+    };
+    if (this.jaeService.isPermitCodeExists(user.permitCode)) {
+      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
+        fetchArgs,
+      );
+    } else {
+      ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
+    }
+    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
       return {
         data: [],
+        amountSum: 0,
         transactionValueLastDay: 0,
       };
     }
 
     let ticketRevenuesGroups = this.getTicketRevenuesGroups(
       ticketRevenuesResponse,
-      'day',
+      groupBy,
     );
 
     if (pagination) {
@@ -213,8 +150,14 @@ export class TicketRevenuesService {
       ) as ITicketRevenuesGroup[];
     }
 
+    const amountSum = ticketRevenuesGroups.reduce(
+      (sum, i) => sum + (i?.transactionValueSum || 0),
+      0,
+    );
+
     return {
       data: ticketRevenuesGroups,
+      amountSum,
       transactionValueLastDay,
     };
   }
@@ -268,18 +211,23 @@ export class TicketRevenuesService {
     return list.filter((i) => !isToday(new Date(i.partitionDate)));
   }
 
-  private getTicketRevenuesGroups(
+  public getTicketRevenuesGroups(
     ticketRevenues: ITicketRevenue[],
-    groupBy: 'day' | 'week' | 'all',
+    groupBy: 'day' | 'week' | 'month' | 'all' | string,
   ): ITicketRevenuesGroup[] {
     const result = ticketRevenues.reduce(
       (accumulator: TicketRevenuesGroupsType, item: ITicketRevenue) => {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
         const itemDate = new Date(item.partitionDate);
         const nthWeek = getDateNthWeek(itemDate, startWeekday);
-        let dateGroup: string | number = item.partitionDate; // 'day', default,
+
+        // 'day', default,
+        let dateGroup: string | number = item.partitionDate;
         if (groupBy === 'week') {
           dateGroup = nthWeek;
+        }
+        if (groupBy === 'month') {
+          dateGroup = itemDate.toISOString().slice(0, 7);
         }
         if (groupBy === 'all') {
           dateGroup = 'all';
@@ -394,7 +342,7 @@ FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
     return ticketRevenues;
   }
 
-  private mapTicketRevenuesEnums(
+  private mapTicketRevenues(
     ticketRevenues: ITicketRevenue[],
   ): ITicketRevenue[] {
     return ticketRevenues.map((item: ITicketRevenue) => {
@@ -408,6 +356,10 @@ FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
             ? PaymentType?.[paymentType] || paymentType
             : paymentType,
         transportIntegrationType:
+          integrationType !== null
+            ? IntegrationType?.[integrationType] || integrationType
+            : integrationType,
+        transportType:
           integrationType !== null
             ? IntegrationType?.[integrationType] || integrationType
             : integrationType,

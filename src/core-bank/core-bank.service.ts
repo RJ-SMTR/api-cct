@@ -13,11 +13,21 @@ export class CoreBankService {
     this.coreBankDataService.updateDataIfNeeded();
   }
 
-  public getProfileByCpfCnpj(cpfCnpj: string): ICoreBankProfile {
+  public isPermitCodeExists(permitCode?: string): boolean {
+    return (
+      this.coreBankDataService
+        .getProfiles()
+        .find((i) => i.permitCode === permitCode) !== undefined
+    );
+  }
+
+  public getProfileByPermitCode(permitCode?: string): ICoreBankProfile {
     // TODO: fetch instead of mockup
 
     const profiles = this.coreBankDataService.getProfiles();
-    const filteredData = profiles.filter((item) => item.cpfCnpj === cpfCnpj);
+    const filteredData = profiles.filter(
+      (item) => item.permitCode === permitCode,
+    );
 
     if (filteredData.length === 1) {
       return filteredData[0];
@@ -44,11 +54,13 @@ export class CoreBankService {
     }
   }
 
-  public getBankStatementsByCpfCnpj(cpfCnpj: string): ICoreBankStatements[] {
+  public getBankStatementsByPermitCode(
+    permitCode?: string,
+  ): ICoreBankStatements[] {
     // TODO: fetch instead of mockup
     return this.coreBankDataService
       .getBankStatements()
-      .filter((i) => i.cpfCnpj === cpfCnpj);
+      .filter((i) => i.permitCode === permitCode);
   }
 
   public getBankStatementsMocked(): ICoreBankStatements[] {
@@ -56,7 +68,7 @@ export class CoreBankService {
     const profiles = this.coreBankDataService.getProfiles();
     const statements = this.coreBankDataService.getBankStatements();
     const filteredData = statements.filter(
-      (i) => i.cpfCnpj === profiles[0].cpfCnpj,
+      (i) => i.permitCode === profiles[0].permitCode,
     );
     return filteredData;
   }

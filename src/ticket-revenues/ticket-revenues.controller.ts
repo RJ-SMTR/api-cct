@@ -29,7 +29,7 @@ import { TicketRevenuesService } from './ticket-revenues.service';
   version: '1',
 })
 export class TicketRevenuesController {
-  constructor(private readonly ticketRevenuesService: TicketRevenuesService) { }
+  constructor(private readonly ticketRevenuesService: TicketRevenuesService) {}
 
   @SerializeOptions({
     groups: ['me'],
@@ -67,7 +67,12 @@ export class TicketRevenuesController {
       userId: isUserIdNumber ? userId : request.user.id,
     };
     const pagination: IPaginationOptions = { limit, page };
-    return await this.ticketRevenuesService.getMeFromUser(args, pagination);
+    const response = await this.ticketRevenuesService.getMeFromUser(
+      args,
+      pagination,
+      'ticket-revenues',
+    );
+    return response;
   }
 
   @SerializeOptions({
@@ -101,6 +106,9 @@ export class TicketRevenuesController {
       timeInterval,
       userId: isUserIdNumber ? userId : request.user.id,
     };
-    return await this.ticketRevenuesService.getMeGroupedFromUser(args);
+    return await this.ticketRevenuesService.getMeGroupedFromUser(
+      args,
+      'ticket-revenues',
+    );
   }
 }

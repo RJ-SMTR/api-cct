@@ -5,4 +5,5 @@ export interface ITicketRevenuesGetGrouped {
   endDate: string;
   timeInterval?: TimeIntervalEnum;
   userId?: number;
+  groupBy?: string;
 }

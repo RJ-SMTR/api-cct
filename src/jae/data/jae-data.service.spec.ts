@@ -1,7 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { JaeDataService } from './jae-data.service';
 import { HttpModule } from '@nestjs/axios';
+import { Test, TestingModule } from '@nestjs/testing';
 import { readFileSync } from 'fs';
+import { JaeDataService } from './jae-data.service';
 
 const stopTimesList = JSON.parse(
   readFileSync(__dirname + '/test/stopTimes.txt', { encoding: 'utf-8' }),
@@ -42,9 +42,7 @@ describe('JaeDataService', () => {
         .mockResolvedValueOnce(stopTimesList);
 
       // Act
-      const result = await jaeDataService.getTicketRevenuesByPermitCode(
-        permitCode,
-      );
+      const result = await jaeDataService.getTicketRevenues(permitCode);
 
       // Assert
       expect(typeof permitCode !== 'undefined').toBeTruthy();
@@ -81,9 +79,7 @@ describe('JaeDataService', () => {
         .mockResolvedValueOnce(stopTimesList);
 
       // Act
-      const result = await jaeDataService.getTicketRevenuesByPermitCode(
-        passValidatorId,
-      );
+      const result = await jaeDataService.getTicketRevenues(passValidatorId);
 
       // Assert
       expect(Array.isArray(result)).toBeTruthy();
@@ -102,7 +98,7 @@ describe('JaeDataService', () => {
           .spyOn(global.Date, 'now')
           .mockImplementation(() => new Date(dateString).valueOf());
       const getResult = async () =>
-        await jaeDataService.getTicketRevenuesByPermitCode(permitCode);
+        await jaeDataService.getTicketRevenues(permitCode);
 
       // Act
       mockDate('2023-06-30T06:10:00.000Z');

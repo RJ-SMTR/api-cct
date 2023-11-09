@@ -1,10 +1,10 @@
-export const TicketRevenuesPaymentMediaTypeMap = {
+export const TRPaymentTypeMap = {
   1: 'Cartão',
   2: 'QRCode',
   3: 'NFC',
 };
 
-export const TicketRevenuesTransactionTypeMap = {
+export const TRTransactionTypeMap = {
   1: 'Débito',
   2: 'Recarga',
   98: 'Riocard',
@@ -15,7 +15,7 @@ export const TicketRevenuesTransactionTypeMap = {
   4: 'Integração',
 };
 
-export const TicketRevenuesTransportIntegrationTypeMap = {
+export const TRIntegrationTypeMap = {
   3: 'Bu municipal',
   2: 'Integração',
   1: 'Transferência',

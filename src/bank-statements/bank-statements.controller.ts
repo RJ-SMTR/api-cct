@@ -63,6 +63,9 @@ export class BankStatementsController {
       timeInterval,
       userId: isUserIdNumber ? userId : request.user.id,
     };
-    return this.bankStatementsService.getBankStatementsFromUser(args);
+    return this.bankStatementsService.getBankStatementsFromUser(
+      args,
+      'bank-statements',
+    );
   }
 }
