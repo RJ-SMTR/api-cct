@@ -5,7 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
+  Logger,
   Patch,
   Post,
   Request,
@@ -25,6 +25,7 @@ import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
+import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
 
@@ -34,6 +35,8 @@ import { AuthUpdateDto } from './dto/auth-update.dto';
   version: '1',
 })
 export class AuthController {
+  private logger: Logger = new Logger('AuthController', { timestamp: true });
+
   constructor(private readonly service: AuthService) {}
 
   @SerializeOptions({
@@ -80,10 +83,13 @@ export class AuthController {
   })
   @Roles(RoleEnum.admin)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Post('email/resend/:email')
+  @Post('email/resend')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async resendRegisterMail(@Param('email') email: string): Promise<void> {
-    return this.service.resendRegisterMail(email);
+  async resendRegisterMail(
+    @Body() resendEmailDto: AuthResendEmailDto,
+  ): Promise<void> {
+    this.logger.debug(`$Resending email for body: ${resendEmailDto}`);
+    return this.service.resendRegisterMail(resendEmailDto);
   }
 
   @Post('forgot/password')

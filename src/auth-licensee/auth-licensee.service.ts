@@ -1,24 +1,24 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { SgtuService } from 'src/sgtu/sgtu.service';
-import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
-import { UsersService } from 'src/users/users.service';
-import { RoleEnum } from 'src/roles/roles.enum';
-import { StatusEnum } from 'src/statuses/statuses.enum';
-import { Status } from 'src/statuses/entities/status.entity';
-import { BaseValidator } from 'src/utils/validators/base-validator';
-import { SgtuDto } from 'src/sgtu/dto/sgtu.dto';
-import { AuthLicenseeInviteProfileInterface } from './interfaces/auth-licensee-invite-profile.interface';
-import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
-import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
-import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
-import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { JaeService } from 'src/jae/jae.service';
+import * as bcrypt from 'bcryptjs';
+import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { JaeProfileInterface } from 'src/jae/interfaces/jae-profile.interface';
+import { JaeService } from 'src/jae/jae.service';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
-import { MailService } from 'src/mail/mail.service';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { MailService } from 'src/mail/mail.service';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { SgtuDto } from 'src/sgtu/dto/sgtu.dto';
+import { SgtuService } from 'src/sgtu/sgtu.service';
+import { Status } from 'src/statuses/entities/status.entity';
+import { StatusEnum } from 'src/statuses/statuses.enum';
+import { UsersService } from 'src/users/users.service';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
+import { BaseValidator } from 'src/utils/validators/base-validator';
+import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
+import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
+import { AuthLicenseeInviteProfileInterface } from './interfaces/auth-licensee-invite-profile.interface';
 
 @Injectable()
 export class AuthLicenseeService {
@@ -27,7 +27,7 @@ export class AuthLicenseeService {
     private usersService: UsersService,
     private sgtuService: SgtuService,
     private jaeService: JaeService,
-    private inviteService: MailHistoryService,
+    private mailHistoryService: MailHistoryService,
     private baseValidator: BaseValidator,
     private mailService: MailService,
   ) {}
@@ -113,14 +113,16 @@ export class AuthLicenseeService {
   async getInviteProfile(
     hash: string,
   ): Promise<AuthLicenseeInviteProfileInterface> {
-    const invite = await this.inviteService.findOne({ hash });
+    const invite = await this.mailHistoryService.getOne({ hash });
 
-    if (!invite) {
+    if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
       throw new HttpException(
         {
           error: HttpErrorMessages.UNAUTHORIZED,
           details: {
-            permitCode: 'inviteHashNotFound',
+            invite: {
+              inviteStatus: `Invite is not 'sent' yet`,
+            },
           },
         },
         HttpStatus.UNAUTHORIZED,
@@ -195,7 +197,7 @@ export class AuthLicenseeService {
     registerDto: AuthRegisterLicenseeDto,
     hash: string,
   ): Promise<void | object> {
-    const invite = await this.inviteService.findOne({ hash });
+    const invite = await this.mailHistoryService.findOne({ hash });
     if (!invite) {
       throw new HttpException(
         {
@@ -210,7 +212,7 @@ export class AuthLicenseeService {
       );
     }
 
-    if (invite.inviteStatus.id === InviteStatusEnum.used) {
+    if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
       throw new HttpException(
         {
           error: HttpErrorMessages.UNAUTHORIZED,
@@ -266,7 +268,7 @@ export class AuthLicenseeService {
 
     const email = user.email;
 
-    await this.inviteService.update(invite.id, {
+    await this.mailHistoryService.update(invite.id, {
       inviteStatus: {
         id: InviteStatusEnum.used,
       },

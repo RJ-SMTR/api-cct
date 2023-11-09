@@ -25,6 +25,7 @@ import { NullableType } from '../utils/types/nullable.type';
 import { AuthProvidersEnum } from './auth-providers.enum';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
+import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
 
 @Injectable()
@@ -212,12 +213,13 @@ export class AuthService {
   /**
    * @throws `HttpException`
    */
-  private async getUser(email): Promise<User> {
-    const user = await this.usersService.getOne({ email });
+  private async getUser(id: number): Promise<User> {
+    const user = await this.usersService.getOne({ id });
     if (!user?.email || !user?.hash) {
       throw new HttpException(
         {
           details: {
+            message: 'user fields must be filled in database',
             user: {
               ...(!user.email ? { email: 'field is empty' } : {}),
               ...(!user.hash ? { hash: 'field is empty' } : {}),
@@ -255,12 +257,12 @@ export class AuthService {
    * @throws `HttpException`
    */
   async sendRegisterEmail(user: User, userMailHistory: MailHistory) {
-    if (userMailHistory.getInviteStatus() === InviteStatusEnum.queued) {
+    if (userMailHistory.getMailStatus() === InviteStatusEnum.queued) {
       const mailData: MailData<{ hash: string; to: string; userName: string }> =
         {
           to: user.email as string,
           data: {
-            hash: user.hash as string,
+            hash: userMailHistory.hash as string,
             to: user.email as string,
             userName: user.fullName as string,
           },
@@ -278,19 +280,21 @@ export class AuthService {
       } else {
         throw new HttpException(
           {
-            error: HttpStatus.UNPROCESSABLE_ENTITY,
-            message: `User's mailStatus is not 'queued'. Cannot proceed with resending the email.`,
+            error: HttpStatus.INTERNAL_SERVER_ERROR,
             details: {
               mailResponse: mailResponse,
             },
           },
-          HttpStatus.UNPROCESSABLE_ENTITY,
+          HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
     } else {
       throw new HttpException(
         {
           error: `User's mailStatus is not 'queued'. Cannot proceed with resending the email.`,
+          details: {
+            userMailHistory,
+          },
         },
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
@@ -300,8 +304,8 @@ export class AuthService {
   /**
    * @throws `HttpException`
    */
-  async resendRegisterMail(email: string): Promise<void> {
-    const user = await this.getUser(email);
+  async resendRegisterMail(args: AuthResendEmailDto): Promise<void> {
+    const user = await this.getUser(args.id);
     const userMailHsitory = await this.getMailHistory(user);
     const quota = await this.mailHistoryService.getRemainingQuota();
     if (quota <= 0) {
