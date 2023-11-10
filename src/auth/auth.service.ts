@@ -271,7 +271,7 @@ export class AuthService {
         mailData,
       );
       if (mailResponse.mailSentInfo.success === true) {
-        userMailHistory.setInviteStatus(InviteStatusEnum.sent);
+        userMailHistory.setInviteStatus(InviteStatusEnum.queued);
         userMailHistory.sentAt = new Date(Date.now());
         await this.mailHistoryService.update(
           userMailHistory.id,

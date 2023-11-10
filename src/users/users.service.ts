@@ -30,7 +30,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-    private inviteService: MailHistoryService,
+    private mailHistoryService: MailHistoryService,
   ) {}
 
   create(createProfileDto: CreateUserDto): Promise<User> {
@@ -112,7 +112,7 @@ export class UsersService {
 
     let invites: NullableType<MailHistory[]> = null;
     if (inviteStatus) {
-      invites = await this.inviteService.find({ inviteStatus });
+      invites = await this.mailHistoryService.find({ inviteStatus });
     }
 
     for (let i = 0; i < users.length; i++) {
@@ -136,7 +136,7 @@ export class UsersService {
   private async getAux_inviteSatus(
     user: User | null,
   ): Promise<InviteStatus | null> {
-    const invite = await this.inviteService.findRecentByUser(user);
+    const invite = await this.mailHistoryService.findRecentByUser(user);
     let inviteStatus: InviteStatus | null = null;
     if (invite?.inviteStatus !== undefined) {
       inviteStatus = invite.inviteStatus;
@@ -156,42 +156,34 @@ export class UsersService {
 
   async update(id: number, payload: DeepPartial<User>): Promise<User> {
     const oldUser = await this.getOne({ id });
+    const history = await this.mailHistoryService.getOne({
+      user: { id: oldUser.id },
+    });
     const newUser = new User(oldUser);
-    newUser.update(payload);
 
-    if (newUser.email !== oldUser.email) {
-      const inviteFound = await this.inviteService.findOne({
-        email: newUser.email as string,
-      });
-      if (!inviteFound) {
-        const hash = await this.inviteService.generateHash();
-        await this.inviteService.create({
-          user: newUser,
-          hash,
-          email: newUser.email as string,
-          inviteStatus: {
-            id: InviteStatusEnum.queued,
-          },
-        });
-      } else if (inviteFound.user.id !== newUser.id) {
-        const inviteUser = await this.getOne({ id: inviteFound.user.id });
+    if (payload.email !== null && payload.email !== undefined) {
+      const userBD = await this.findOne({ email: payload.email });
+      if (userBD !== null && userBD.id != oldUser.id) {
         throw new HttpException(
           {
-            error: `invite email already exists:. ${JSON.stringify({
-              permitCode: inviteUser.permitCode,
-              email: inviteUser.email,
-              fullName: inviteUser.fullName,
-            })})`,
+            error: 'user email already exists',
           },
           HttpStatus.UNPROCESSABLE_ENTITY,
         );
+      } else if (oldUser.email !== payload.email) {
+        history.setInviteStatus(InviteStatusEnum.queued);
+        history.email = payload.email;
+        history.hash = await this.mailHistoryService.generateHash();
+        await this.mailHistoryService.update(history.id, history);
       }
-
-      await this.usersRepository.save(this.usersRepository.create(newUser));
-      newUser.aux_inviteStatus = await this.getAux_inviteSatus(newUser);
     }
 
-    return newUser;
+    newUser.update(payload);
+    const createPayload = await this.usersRepository.save(
+      this.usersRepository.create(newUser),
+    );
+    createPayload.aux_inviteStatus = await this.getAux_inviteSatus(newUser);
+    return createPayload;
   }
 
   async softDelete(id: number): Promise<void> {
@@ -360,7 +352,7 @@ export class UsersService {
     }
 
     for (const fileUser of fileUsers) {
-      const hash = await this.inviteService.generateHash();
+      const hash = await this.mailHistoryService.generateHash();
       const createdUser = this.usersRepository.create({
         ...fileUser.user,
         hash: hash,
@@ -369,7 +361,7 @@ export class UsersService {
       } as DeepPartial<User>);
       await this.usersRepository.save(createdUser);
 
-      await this.inviteService.create({
+      await this.mailHistoryService.create({
         user: createdUser,
         hash: hash,
         email: createdUser.email as string,

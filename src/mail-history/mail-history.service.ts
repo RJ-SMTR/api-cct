@@ -19,7 +19,6 @@ export class MailHistoryService {
     private inviteRepository: Repository<MailHistory>,
     private configService: ConfigService,
   ) {}
-  f;
 
   create(data: DeepPartial<MailHistory>): Promise<MailHistory> {
     return this.inviteRepository.save(this.inviteRepository.create(data));
