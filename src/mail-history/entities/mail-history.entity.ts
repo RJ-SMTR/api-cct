@@ -16,10 +16,10 @@ import {
 
 @Entity('invite')
 export class MailHistory extends BaseEntity {
-  constructor(invite?: MailHistory) {
+  constructor(mailHistory?: MailHistory) {
     super();
-    if (invite !== undefined) {
-      Object.assign(this, invite);
+    if (mailHistory !== undefined) {
+      Object.assign(this, mailHistory);
     }
   }
 
