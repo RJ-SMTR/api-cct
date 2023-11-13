@@ -17,7 +17,7 @@ export class JaeDataService implements OnModuleInit {
   private ticketRevenuesArgs = {
     startHour: 6,
     endHour: 12,
-    minutesInterval: 60,
+    minutesInterval: 30,
     weeks: 4 * 3,
     highDemandProbability: 0.2,
     ticketTransactionValue: 4.3,
@@ -251,7 +251,8 @@ export class JaeDataService implements OnModuleInit {
           const currentHour = Math.floor(currentMinute / 60);
           date.setUTCDate(date.getUTCDate() - day);
           date.setUTCHours(startHour, totalMinutes - currentMinute);
-          const newTripIncome: ITicketRevenue = {
+
+          const newTicketRevenue: ITicketRevenue = {
             transactionId: ticketRevenues.length.toString(),
             transactionDateTime: date.toISOString(),
             transactionValue: ticketTransactionValue,
@@ -289,11 +290,12 @@ export class JaeDataService implements OnModuleInit {
             let transactionValue = ticketTransactionValue;
             if (transactionType.bigqueryName === 'Gratuidade') {
               transactionValue = 0;
+            } else if (transactionType.bigqueryName === 'Integração') {
+              transactionValue = ticketTransactionValue / 2;
             }
             ticketRevenues.push({
-              ...newTripIncome,
-              transactionType: this.getItemByProbability(ticketTransactionTypes)
-                .bigqueryName,
+              ...newTicketRevenue,
+              transactionType: transactionType.bigqueryName,
               paymentMediaType:
                 this.getItemByProbability(ticketPaymentTypes).bigqueryName,
               transportIntegrationType: this.getItemByProbability(
@@ -302,7 +304,6 @@ export class JaeDataService implements OnModuleInit {
               transactionValue,
             });
           }
-          ticketRevenues.push(newTripIncome);
         }
       }
     }
@@ -344,6 +345,7 @@ export class JaeDataService implements OnModuleInit {
       }
     }
   }
+
   public async getTicketRevenues(
     args?: IFetchTicketRevenues,
   ): Promise<ITicketRevenue[]> {
@@ -359,14 +361,15 @@ export class JaeDataService implements OnModuleInit {
       const isFromStartDateIfExists: boolean =
         !startDate || itemDate >= startDate;
       const isToEndDateIfExists: boolean = !endDate || itemDate <= endDate;
-      const isTodayIfEnabled: boolean = !getToday || isToday(itemDate);
       return (
         hasPermitCode &&
-        ((isFromStartDateIfExists && isToEndDateIfExists) || isTodayIfEnabled)
+        ((isFromStartDateIfExists && isToEndDateIfExists) ||
+          (getToday && isToday(itemDate)))
       );
     });
     return filteredTicketRevenues;
   }
+
   public async getTicketRevenuesMocked(
     pagination?: IPaginationOptions,
   ): Promise<ITicketRevenue[]> {

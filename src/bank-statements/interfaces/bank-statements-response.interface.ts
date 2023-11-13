@@ -3,5 +3,6 @@ import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statemen
 export interface IBankStatementsResponse {
   amountSum: number;
   todaySum: number;
+  count: number;
   data: ICoreBankStatements[];
 }

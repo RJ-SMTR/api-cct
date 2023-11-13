@@ -15,6 +15,7 @@ import { SettingTypeSeedModule } from './setting-type/setting-type.module';
 import { SettingSeedModule } from './setting/setting-seed.module';
 import { MailCountSeedModule } from './mail-count/mail-count-seed.module';
 import mailConfig from 'src/config/mail.config';
+import { MailHistorySeedModule } from './mail-history/mail-history-seed.module';
 
 @Module({
   imports: [
@@ -27,6 +28,8 @@ import mailConfig from 'src/config/mail.config';
     SettingTypeSeedModule,
     SettingSeedModule,
     MailCountSeedModule,
+    UserSeedModule,
+    MailHistorySeedModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, appConfig, mailConfig],

@@ -70,10 +70,9 @@ export class TicketRevenuesService {
       ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
     }
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
-    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
-      return new TicketRevenuesGroup();
+      return new TicketRevenuesGroup().getInterface();
     }
     const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
 
@@ -86,7 +85,7 @@ export class TicketRevenuesService {
     endpoint: string,
   ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.getUser(args);
-    const getToday = true;
+    const GET_TODAY = true;
     const { startDate, endDate } = getPaymentDates(
       endpoint,
       args.startDate,
@@ -101,7 +100,7 @@ export class TicketRevenuesService {
       permitCode: user.permitCode,
       startDate,
       endDate,
-      getToday,
+      getToday: GET_TODAY,
     };
     if (this.jaeService.isPermitCodeExists(user.permitCode)) {
       ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
@@ -110,13 +109,15 @@ export class TicketRevenuesService {
     } else {
       ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
     }
+
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
       return {
-        data: [],
         amountSum: 0,
-        transactionValueLastDay: 0,
+        todaySum: 0,
+        count: 0,
+        data: [],
       };
     }
 
@@ -133,15 +134,17 @@ export class TicketRevenuesService {
       );
     }
 
-    const transactionValueLastDay =
-      ticketRevenuesGroups.length > 0
-        ? ticketRevenuesGroups[0].transactionValueSum
-        : 0;
+    const transactionValueLastDay = Number(
+      ticketRevenuesResponse
+        .filter((i) => isToday(new Date(i.partitionDate)))
+        .reduce((sum, i) => sum + (i?.transactionValue || 0), 0)
+        .toFixed(2),
+    );
 
     const mostRecentResponseDate = startOfDay(
       new Date(ticketRevenuesResponse[0].partitionDate),
     );
-    if (getToday && mostRecentResponseDate > startOfDay(endDate)) {
+    if (GET_TODAY && mostRecentResponseDate > startOfDay(endDate)) {
       ticketRevenuesResponse = this.removeTicketRevenueToday(
         ticketRevenuesResponse,
       ) as ITicketRevenue[];
@@ -150,30 +153,39 @@ export class TicketRevenuesService {
       ) as ITicketRevenuesGroup[];
     }
 
-    const amountSum = ticketRevenuesGroups.reduce(
-      (sum, i) => sum + (i?.transactionValueSum || 0),
-      0,
+    const amountSum = Number(
+      ticketRevenuesGroups
+        .reduce((sum, i) => sum + (i?.transactionValueSum || 0), 0)
+        .toFixed(2),
     );
 
     return {
-      data: ticketRevenuesGroups,
       amountSum,
-      transactionValueLastDay,
+      todaySum: transactionValueLastDay,
+      count: ticketRevenuesGroups.length,
+      data: ticketRevenuesGroups,
     };
   }
 
-  private getGroupSum(data: ITicketRevenue[]): TicketRevenuesGroup {
-    let groupSum = new TicketRevenuesGroup();
+  private getGroupSum(data: ITicketRevenue[]): ITicketRevenuesGroup {
     const groupSums = this.getTicketRevenuesGroups(data, 'all');
     if (groupSums.length >= 1) {
-      groupSum = groupSums[0];
-    }
-    if (groupSums.length > 1) {
-      this.logger.error(
-        'getGroupedFromUser(): ticketRevenuesSumGroups should have 0-1 items, getting first one.',
+      if (groupSums.length > 1) {
+        this.logger.error(
+          'getGroupedFromUser(): ticketRevenuesGroupSum should have 0-1 items, getting first one.',
+        );
+      }
+      return groupSums[0];
+    } else {
+      throw new HttpException(
+        {
+          details: {
+            groupSum: `length should not be 0`,
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-    return groupSum;
   }
 
   private async getUser(args: ITicketRevenuesGetGrouped): Promise<User> {
@@ -252,7 +264,7 @@ export class TicketRevenuesService {
           };
         }
 
-        TicketRevenuesGroupList.appendItem(accumulator[dateGroup], item, true);
+        TicketRevenuesGroupList.appendItem(accumulator[dateGroup], item);
         return accumulator;
       },
       {},

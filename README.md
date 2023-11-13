@@ -19,15 +19,15 @@ O [Projeto do App CCT](https://github.com/RJ-SMTR/app-cct) consome esta API.
 * [API CCT](#api-cct)
   * [Descrição](#descrição)
   * [Table of Contents](#table-of-contents)
-  * [Features](#features)
   * [Quick run](#quick-run)
   * [Comfortable development](#comfortable-development)
   * [Links](#links)
   * [Automatic update of dependencies](#automatic-update-of-dependencies)
-  * [Database utils](#database-utils)
-  * [Tests](#tests)
-  * [Tests in Docker](#tests-in-docker)
-  * [Test benchmarking](#test-benchmarking)
+  * [Banco de dados](#banco-de-dados)
+  * [Testes](#testes)
+    * [Depurando testes](#depurando-testes)
+  * [Testes no Docker](#testes-no-docker)
+  * [Benchmarking de testes](#benchmarking-de-testes)
 
 ## Quick run
 
@@ -82,7 +82,7 @@ npm run start:dev
 
 If you want to automatically update dependencies, you can connect [Renovate](https://github.com/marketplace/renovate) for your project.
 
-## Database utils
+## Banco de dados
 
 Generate migration
 
@@ -114,7 +114,7 @@ Run seed
 npm run seed:run
 ```
 
-## Tests
+## Testes
 
 ```bash
 # unit tests
@@ -124,13 +124,63 @@ npm run test
 npm run test:e2e
 ```
 
-## Tests in Docker
+### Depurando testes
+
+Exemplo de configuração no VSCode:
+
+.vscode/launch.json
+```jsonc
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Jest test: Arquivo Atual",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceFolder}/node_modules/jest/bin/jest.js",
+                "${fileBasenameNoExtension}"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "attachSimplePort": 9229,
+        },
+        {
+            "name": "Jest e2e: Arquivo Atual",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${workspaceFolder}/api-cct",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceFolder}/node_modules/jest/bin/jest.js",
+                "--config",
+                "${workspaceFolder}/test/jest-e2e.json",
+                "${fileBasenameNoExtension}"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "attachSimplePort": 9229,
+        }
+    ]
+}
+```
+
+
+## Testes no Docker
 
 ```bash
 docker compose -f docker-compose.ci.yaml --env-file env-example -p ci up --build --exit-code-from api && docker compose -p ci rm -svf
 ```
 
-## Test benchmarking
+## Benchmarking de testes
 
 ```bash
 docker run --rm jordi/ab -n 100 -c 100 -T application/json -H "Authorization: Bearer USER_TOKEN" -v 2 http://<server_ip>:3000/api/v1/users
