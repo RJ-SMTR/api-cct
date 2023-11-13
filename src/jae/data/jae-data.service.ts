@@ -17,7 +17,7 @@ export class JaeDataService implements OnModuleInit {
   private ticketRevenuesArgs = {
     startHour: 6,
     endHour: 12,
-    minutesInterval: 60,
+    minutesInterval: 30,
     weeks: 4 * 3,
     highDemandProbability: 0.2,
     ticketTransactionValue: 4.3,
@@ -290,6 +290,8 @@ export class JaeDataService implements OnModuleInit {
             let transactionValue = ticketTransactionValue;
             if (transactionType.bigqueryName === 'Gratuidade') {
               transactionValue = 0;
+            } else if (transactionType.bigqueryName === 'Integração') {
+              transactionValue = ticketTransactionValue / 2;
             }
             ticketRevenues.push({
               ...newTicketRevenue,

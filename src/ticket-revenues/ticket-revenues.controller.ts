@@ -19,8 +19,8 @@ import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
+import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
 import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
-import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesService } from './ticket-revenues.service';
 
 @ApiTags('TicketRevenues')
@@ -98,7 +98,7 @@ export class TicketRevenuesController {
     @Query('timeInterval') timeInterval?: TimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
     userId?: number | null,
-  ): Promise<TicketRevenuesGroup> {
+  ): Promise<ITicketRevenuesGroup> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     const args: ITicketRevenuesGetGrouped = {
       startDate,

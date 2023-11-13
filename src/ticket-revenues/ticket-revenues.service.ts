@@ -72,7 +72,7 @@ export class TicketRevenuesService {
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
-      return new TicketRevenuesGroup();
+      return new TicketRevenuesGroup().getInterface();
     }
     const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
 
@@ -162,18 +162,25 @@ export class TicketRevenuesService {
     };
   }
 
-  private getGroupSum(data: ITicketRevenue[]): TicketRevenuesGroup {
-    let groupSum = new TicketRevenuesGroup();
+  private getGroupSum(data: ITicketRevenue[]): ITicketRevenuesGroup {
     const groupSums = this.getTicketRevenuesGroups(data, 'all');
     if (groupSums.length >= 1) {
-      groupSum = groupSums[0];
-    }
-    if (groupSums.length > 1) {
-      this.logger.error(
-        'getGroupedFromUser(): ticketRevenuesSumGroups should have 0-1 items, getting first one.',
+      if (groupSums.length > 1) {
+        this.logger.error(
+          'getGroupedFromUser(): ticketRevenuesGroupSum should have 0-1 items, getting first one.',
+        );
+      }
+      return groupSums[0];
+    } else {
+      throw new HttpException(
+        {
+          details: {
+            groupSum: `length should not be 0`,
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-    return groupSum;
   }
 
   private async getUser(args: ITicketRevenuesGetGrouped): Promise<User> {

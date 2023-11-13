@@ -1,3 +1,5 @@
+import { ITRCounts } from './tr-count-content.interface';
+
 /**
  * This object represents a group of `IBqTicketRevenues`
  *
@@ -33,7 +35,7 @@ export interface ITicketRevenuesGroup {
    * @type JSON
    * @example {'SPPO': 123, 'STPL': 45}
    */
-  transportTypeCounts: Record<string, number>;
+  transportTypeCounts: Record<string, ITRCounts>;
 
   /**
    *  **Grouping primary key**
@@ -55,7 +57,7 @@ export interface ITicketRevenuesGroup {
    * @type JSON
    * @example = {'0': 13, '1': 32}
    */
-  directionIdCounts: Record<string, number>;
+  directionIdCounts: Record<string, ITRCounts>;
 
   /**
    * **Important field**
@@ -65,7 +67,7 @@ export interface ITicketRevenuesGroup {
    * @description Código do tipo de pagamento utilizado
    * @example {'0': 13, '1': 32}
    */
-  paymentMediaTypeCounts: Record<string, number>;
+  paymentMediaTypeCounts: Record<string, ITRCounts>;
 
   /**
    * **Important field**
@@ -75,7 +77,7 @@ export interface ITicketRevenuesGroup {
    * @description Tipo de transação realizada
    * @example {'0': 13, '1': 32}
    */
-  transactionTypeCounts: Record<string, number>;
+  transactionTypeCounts: Record<string, ITRCounts>;
 
   /**
    * Represents counts for `transportIntegrationType` (`id_tipo_integracao`)
@@ -83,7 +85,7 @@ export interface ITicketRevenuesGroup {
    * @description Tipo da integração realizada (identificador relacionado à matriz de integração)
    * @example {'0': 13, '1': 32}
    */
-  transportIntegrationTypeCounts: Record<string, number>;
+  transportIntegrationTypeCounts: Record<string, ITRCounts>;
 
   /**
    * **Important field**
@@ -93,7 +95,7 @@ export interface ITicketRevenuesGroup {
    * @description Código identificador do ponto de embarque (GTFS)
    * @type `Record<integer, number>`
    */
-  stopIdCounts: Record<number, number>;
+  stopIdCounts: Record<number, ITRCounts>;
 
   /**
    * **Important field**
@@ -103,7 +105,7 @@ export interface ITicketRevenuesGroup {
    * @description Latitude do ponto de embarque (GTFS)
    * @type `Record<float, number>`
    */
-  stopLatCounts: Record<number, number>;
+  stopLatCounts: Record<number, ITRCounts>;
 
   /**
    * **Important field**
@@ -113,7 +115,7 @@ export interface ITicketRevenuesGroup {
    * @description Longitude do ponto de embarque (GTFS)
    * @type `Record<float, number>`
    */
-  stopLonCounts: Record<number, number>;
+  stopLonCounts: Record<number, ITRCounts>;
 
   /**
    * **Important field**
