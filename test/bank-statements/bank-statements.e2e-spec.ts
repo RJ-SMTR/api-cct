@@ -116,7 +116,7 @@ describe('Bank statements (e2e)', () => {
     expect(bankStatements.amountSum).toEqual(ticketRevenuesMe.amountSum);
   }, 60000);
 
-  it('Should /bank-statements week match /ticket-revenues/me amountSum of same week', async () => {
+  it('Should match amountSum in /bank-statements and /ticket-revenues/me of same week', async () => {
     // Arrange
     let friday = new Date();
     if (!isFriday(friday)) {

@@ -116,13 +116,16 @@ export class BankStatementsService {
       const weekInterval = getPaymentWeek(new Date(statement.date));
 
       // for each day in ticket revenues
-      const newAmount = revenuesResponse.data
-        .filter(
-          (i) =>
-            new Date(i.partitionDate) >= weekInterval.startDate &&
-            new Date(i.partitionDate) <= weekInterval.endDate,
-        )
-        .reduce((sum, i) => sum + i.transactionValueSum, 0);
+      const newAmount = Number(
+        revenuesResponse.data
+          .filter(
+            (i) =>
+              new Date(i.partitionDate) >= weekInterval.startDate &&
+              new Date(i.partitionDate) <= weekInterval.endDate,
+          )
+          .reduce((sum, i) => sum + i.transactionValueSum, 0)
+          .toFixed(2),
+      );
 
       newStatements.push({
         ...statement,
