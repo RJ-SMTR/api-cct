@@ -114,9 +114,10 @@ export class TicketRevenuesService {
 
     if (ticketRevenuesResponse.length === 0) {
       return {
-        data: [],
         amountSum: 0,
-        transactionValueLastDay: 0,
+        todaySum: 0,
+        count: 0,
+        data: [],
       };
     }
 
@@ -133,9 +134,12 @@ export class TicketRevenuesService {
       );
     }
 
-    const transactionValueLastDay = ticketRevenuesResponse
-      .filter((i) => isToday(new Date(i.partitionDate)))
-      .reduce((sum, i) => sum + (i?.transactionValue || 0), 0);
+    const transactionValueLastDay = Number(
+      ticketRevenuesResponse
+        .filter((i) => isToday(new Date(i.partitionDate)))
+        .reduce((sum, i) => sum + (i?.transactionValue || 0), 0)
+        .toFixed(2),
+    );
 
     const mostRecentResponseDate = startOfDay(
       new Date(ticketRevenuesResponse[0].partitionDate),
@@ -156,9 +160,10 @@ export class TicketRevenuesService {
     );
 
     return {
-      data: ticketRevenuesGroups,
       amountSum,
-      transactionValueLastDay,
+      todaySum: transactionValueLastDay,
+      count: ticketRevenuesGroups.length,
+      data: ticketRevenuesGroups,
     };
   }
 

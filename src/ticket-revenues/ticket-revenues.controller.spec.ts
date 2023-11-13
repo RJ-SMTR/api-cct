@@ -65,7 +65,7 @@ describe('TicketRevenuesController', () => {
       const expectedResponse: ITicketRevenuesGroupedResponse = {
         data: dataResponse as ITicketRevenuesGroup[],
         ticketRevenuesGroupSum: dataResponse[0] as ITicketRevenuesGroup,
-        transactionValueLastDay: 10,
+        todaySum: 10,
       };
       jest
         .spyOn(usersService, 'getOneFromRequest')

@@ -54,21 +54,24 @@ export class BankStatementsService {
       return itemDate >= startDate && itemDate <= endDate;
     });
 
-    let sumToday = 0;
+    let todaySum = 0;
     const insertedData = await this.insertTicketData(treatedData, {
       endDate: args?.endDate,
       timeInterval: args?.timeInterval,
       userId: args?.userId,
     });
     treatedData = insertedData.statements;
-    sumToday = insertedData.sumToday;
+    todaySum = insertedData.todaySum;
     // }
-    const amountSum = treatedData.reduce((sum, item) => sum + item.amount, 0);
+    const amountSum = Number(
+      treatedData.reduce((sum, item) => sum + item.amount, 0).toFixed(2),
+    );
 
     return {
-      data: treatedData,
       amountSum,
-      todaySum: sumToday,
+      todaySum,
+      count: treatedData.length,
+      data: treatedData,
     };
   }
 
@@ -79,7 +82,7 @@ export class BankStatementsService {
     args: IBankStatementsGet,
   ): Promise<{
     statements: ICoreBankStatements[];
-    sumToday: number;
+    todaySum: number;
     allSum: number;
   }> {
     const statementFirstDate = statements[statements.length - 1].date;
@@ -103,7 +106,7 @@ export class BankStatementsService {
       'ticket-revenues',
     );
 
-    const sumToday = revenuesResponse.transactionValueLastDay;
+    const todaySum = revenuesResponse.todaySum;
     let sumAll = 0;
     const newStatements: ICoreBankStatements[] = [];
 
@@ -127,7 +130,7 @@ export class BankStatementsService {
       });
       sumAll += newAmount;
     }
-    return { sumToday, allSum: sumAll, statements: newStatements };
+    return { todaySum, allSum: sumAll, statements: newStatements };
   }
 
   //#endregion mockData
