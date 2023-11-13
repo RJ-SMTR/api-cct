@@ -1,56 +1,143 @@
-import { MailerService } from '@nestjs-modules/mailer';
-import { Injectable } from '@nestjs/common';
+import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { MailData } from './interfaces/mail-data.interface';
 import { AllConfigType } from 'src/config/config.type';
 import { MaybeType } from '../utils/types/maybe.type';
+import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
+import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interface';
+import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
+import { EhloStatus } from './enums/ehlo-status.enum';
+import { MailCountService } from 'src/mail-count/mail-count.service';
+import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
 
 @Injectable()
 export class MailService {
+  private logger = new Logger('MailService', { timestamp: true });
+
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AllConfigType>,
+    private mailCountService: MailCountService,
   ) {}
 
-  async userSignUp(mailData: MailData<{ hash: string }>): Promise<void> {
-    const i18n = I18nContext.current();
-    let emailConfirmTitle: MaybeType<string>;
-    let text1: MaybeType<string>;
-    let text2: MaybeType<string>;
-    let text3: MaybeType<string>;
-
-    if (i18n) {
-      [emailConfirmTitle, text1, text2, text3] = await Promise.all([
-        i18n.t('common.confirmEmail'),
-        i18n.t('confirm-email.text1'),
-        i18n.t('confirm-email.text2'),
-        i18n.t('confirm-email.text3'),
-      ]);
-    }
-
-    await this.mailerService.sendMail({
-      to: mailData.to,
-      subject: emailConfirmTitle,
-      text: `${this.configService.get('app.frontendDomain', {
-        infer: true,
-      })}/confirm-email/${mailData.data.hash} ${emailConfirmTitle}`,
-      template: 'activation',
-      context: {
-        title: emailConfirmTitle,
-        url: `${this.configService.get('app.frontendDomain', {
-          infer: true,
-        })}/confirm-email/${mailData.data.hash}`,
-        actionTitle: emailConfirmTitle,
-        app_name: this.configService.get('app.name', { infer: true }),
-        text1,
-        text2,
-        text3,
+  private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
+    const code = Number(sentMessageInfo.response?.split(' ')?.[0] || '0');
+    return {
+      ...sentMessageInfo,
+      ehlo: sentMessageInfo.ehlo as EhloStatus[],
+      response: {
+        code,
+        message: sentMessageInfo.response,
       },
-    });
+      success: code === SmtpStatus.COMPLETED,
+    };
   }
 
-  async forgotPassword(mailData: MailData<{ hash: string }>): Promise<void> {
+  /**
+   * @throws `HttpException`
+   */
+  private async safeSendMail(
+    sendMailOptions: ISendMailOptions,
+  ): Promise<MailSentInfo> {
+    try {
+      return this.getMailSentInfo(
+        await this.mailerService.sendMail(sendMailOptions),
+      );
+    } catch (error) {
+      throw new HttpException(
+        {
+          error: HttpStatus.INTERNAL_SERVER_ERROR,
+          details: {
+            node: {
+              message: String(error),
+              ...error,
+            },
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  async userConcludeRegistration(
+    mailData: MailData<{ hash: string; userName: string }>,
+  ): Promise<MailRegistrationInterface> {
+    const i18n = I18nContext.current();
+    let emailConfirmTitle: MaybeType<string>;
+
+    if (i18n) {
+      [emailConfirmTitle] = await Promise.all([i18n.t('common.confirmEmail')]);
+    } else {
+      [emailConfirmTitle] = ['Confirme seu email'];
+      this.logger.warn(
+        'userConcludeRegistration(): i18n module not found message templates, using default',
+      );
+    }
+
+    const frontendDomain = this.configService.get('app.frontendDomain', {
+      infer: true,
+    });
+    const emailConfirmLink = `${frontendDomain}conclude-registration/${mailData.data.hash}`;
+    if (!mailData.data.userName) {
+      this.logger.warn(
+        'userConcludeRegistration(): valid user name not found, useing default name.',
+      );
+    }
+    try {
+      const mailSentInfo = await this.safeSendMail({
+        to: mailData.to,
+        subject: emailConfirmTitle,
+        text: `${emailConfirmLink} ${emailConfirmTitle}`,
+        template: 'activation',
+        context: {
+          title: emailConfirmTitle,
+          logoSrc: `${frontendDomain}/assets/icons/logoPrefeitura.png`,
+          logoAlt: 'Prefeitura do Rio',
+          userName: mailData.data.userName || 'cidadão',
+          supportLink:
+            'https://secretariamunicipaldetransportes.movidesk.com/form/6594/',
+          actionTitle: emailConfirmTitle,
+          url: emailConfirmLink,
+        },
+      });
+
+      // await this.mailCountService.addCount(senders[0]);
+
+      return {
+        mailSentInfo: mailSentInfo,
+        mailConfirmationLink: emailConfirmLink,
+      };
+    } catch (httpException) {
+      throw httpException;
+    }
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  async forgotPassword(
+    mailData: MailData<{ hash: string }>,
+  ): Promise<MailSentInfo> {
+    // const senders = await this.mailCountService.getUpdatedMailCounts(true);
+    // if (senders.length === 0) {
+    //   throw new HttpException(
+    //     {
+    //       error: HttpStatus.SERVICE_UNAVAILABLE,
+    //       message:
+    //         'Mailing service is unavailable. Wait 24 hours and try again.',
+    //       details: {
+    //         error: 'quotaLimitReached',
+    //       },
+    //     },
+    //     HttpStatus.INTERNAL_SERVER_ERROR,
+    //   );
+    // }
+
     const i18n = I18nContext.current();
     let resetPasswordTitle: MaybeType<string>;
     let text1: MaybeType<string>;
@@ -68,27 +155,35 @@ export class MailService {
       ]);
     }
 
-    await this.mailerService.sendMail({
-      to: mailData.to,
-      subject: resetPasswordTitle,
-      text: `${this.configService.get('app.frontendDomain', {
-        infer: true,
-      })}/password-change/${mailData.data.hash} ${resetPasswordTitle}`,
-      template: 'reset-password',
-      context: {
-        title: resetPasswordTitle,
-        url: `${this.configService.get('app.frontendDomain', {
+    try {
+      const response = await this.safeSendMail({
+        to: mailData.to,
+        subject: resetPasswordTitle,
+        text: `${this.configService.get('app.frontendDomain', {
           infer: true,
-        })}/password-change/${mailData.data.hash}`,
-        actionTitle: resetPasswordTitle,
-        app_name: this.configService.get('app.name', {
-          infer: true,
-        }),
-        text1,
-        text2,
-        text3,
-        text4,
-      },
-    });
+        })}reset-password/${mailData.data.hash} ${resetPasswordTitle}`,
+        template: 'reset-password',
+        context: {
+          title: resetPasswordTitle,
+          url: `${this.configService.get('app.frontendDomain', {
+            infer: true,
+          })}reset-password/${mailData.data.hash}`,
+          actionTitle: resetPasswordTitle,
+          app_name: this.configService.get('app.name', {
+            infer: true,
+          }),
+          text1,
+          text2,
+          text3,
+          text4,
+        },
+      });
+
+      // await this.mailCountService.addCount(senders[0]);
+
+      return response;
+    } catch (httpException) {
+      throw httpException;
+    }
   }
 }

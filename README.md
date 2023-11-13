@@ -1,43 +1,38 @@
-# NestJS REST API boilerplate 🇺🇦
+# API CCT
 
-![github action status](https://github.com/brocoders/nestjs-boilerplate/actions/workflows/docker-e2e.yml/badge.svg)
+![github action status](https://github.com/RJ-SMTR/api-cct/actions/workflows/docker-e2e.yml/badge.svg)
 
-## Description
+## Descrição
 
-NestJS REST API boilerplate for typical project
+*API do aplicativo CCT*  
+(Centro de Compensação Tarifária)
 
-[Full documentation here](https://github.com/brocoders/nestjs-boilerplate/blob/main/docs/readme.md)
+
+[Documentação completa](https://github.com/RJ-SMTR/api-cct/blob/main/docs/readme.md)
+
+Este projeto foi baseado no template [Nestjs Boilerplate](https://github.com/brocoders/nestjs-boilerplate/)
+
+O [Projeto do App CCT](https://github.com/RJ-SMTR/app-cct) consome esta API.
 
 ## Table of Contents
 
-- [Features](#features)
-- [Quick run](#quick-run)
-- [Comfortable development](#comfortable-development)
-- [Links](#links)
-- [Automatic update of dependencies](#automatic-update-of-dependencies)
-- [Database utils](#database-utils)
-- [Tests](#tests)
-
-## Features
-
-- [x] Database ([typeorm](https://www.npmjs.com/package/typeorm)).
-- [x] Seeding.
-- [x] Config Service ([@nestjs/config](https://www.npmjs.com/package/@nestjs/config)).
-- [x] Mailing ([nodemailer](https://www.npmjs.com/package/nodemailer), [@nestjs-modules/mailer](https://www.npmjs.com/package/@nestjs-modules/mailer)).
-- [x] Sign in and sign up via email.
-- [x] Social sign in (Apple, Facebook, Google, Twitter).
-- [x] Admin and User roles.
-- [x] I18N ([nestjs-i18n](https://www.npmjs.com/package/nestjs-i18n)).
-- [x] File uploads. Support local and Amazon S3 drivers.
-- [x] Swagger.
-- [x] E2E and units tests.
-- [x] Docker.
-- [x] CI (Github Actions).
+* [API CCT](#api-cct)
+  * [Descrição](#descrição)
+  * [Table of Contents](#table-of-contents)
+  * [Quick run](#quick-run)
+  * [Comfortable development](#comfortable-development)
+  * [Links](#links)
+  * [Automatic update of dependencies](#automatic-update-of-dependencies)
+  * [Banco de dados](#banco-de-dados)
+  * [Testes](#testes)
+    * [Depurando testes](#depurando-testes)
+  * [Testes no Docker](#testes-no-docker)
+  * [Benchmarking de testes](#benchmarking-de-testes)
 
 ## Quick run
 
 ```bash
-git clone --depth 1 https://github.com/brocoders/nestjs-boilerplate.git my-app
+git clone --depth 1 .git my-app
 cd my-app/
 cp env-example .env
 docker compose up -d
@@ -52,7 +47,7 @@ docker compose logs
 ## Comfortable development
 
 ```bash
-git clone --depth 1 https://github.com/brocoders/nestjs-boilerplate.git my-app
+git clone --depth 1 .git my-app
 cd my-app/
 cp env-example .env
 ```
@@ -87,7 +82,7 @@ npm run start:dev
 
 If you want to automatically update dependencies, you can connect [Renovate](https://github.com/marketplace/renovate) for your project.
 
-## Database utils
+## Banco de dados
 
 Generate migration
 
@@ -119,7 +114,7 @@ Run seed
 npm run seed:run
 ```
 
-## Tests
+## Testes
 
 ```bash
 # unit tests
@@ -129,13 +124,63 @@ npm run test
 npm run test:e2e
 ```
 
-## Tests in Docker
+### Depurando testes
+
+Exemplo de configuração no VSCode:
+
+.vscode/launch.json
+```jsonc
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Jest test: Arquivo Atual",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceFolder}/node_modules/jest/bin/jest.js",
+                "${fileBasenameNoExtension}"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "attachSimplePort": 9229,
+        },
+        {
+            "name": "Jest e2e: Arquivo Atual",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${workspaceFolder}/api-cct",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceFolder}/node_modules/jest/bin/jest.js",
+                "--config",
+                "${workspaceFolder}/test/jest-e2e.json",
+                "${fileBasenameNoExtension}"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "attachSimplePort": 9229,
+        }
+    ]
+}
+```
+
+
+## Testes no Docker
 
 ```bash
 docker compose -f docker-compose.ci.yaml --env-file env-example -p ci up --build --exit-code-from api && docker compose -p ci rm -svf
 ```
 
-## Test benchmarking
+## Benchmarking de testes
 
 ```bash
 docker run --rm jordi/ab -n 100 -c 100 -T application/json -H "Authorization: Bearer USER_TOKEN" -v 2 http://<server_ip>:3000/api/v1/users

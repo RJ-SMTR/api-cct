@@ -9,6 +9,13 @@ import { RoleSeedModule } from './role/role-seed.module';
 import { StatusSeedModule } from './status/status-seed.module';
 import { UserSeedModule } from './user/user-seed.module';
 import { InfoSeedModule } from './info/info-seed.module';
+import { BankSeedModule } from './bank/bank-seed.module';
+import { InviteStatusSeedModule } from './mail-history-status/mail-history-status-seed.module';
+import { SettingTypeSeedModule } from './setting-type/setting-type.module';
+import { SettingSeedModule } from './setting/setting-seed.module';
+import { MailCountSeedModule } from './mail-count/mail-count-seed.module';
+import mailConfig from 'src/config/mail.config';
+import { MailHistorySeedModule } from './mail-history/mail-history-seed.module';
 
 @Module({
   imports: [
@@ -16,9 +23,16 @@ import { InfoSeedModule } from './info/info-seed.module';
     StatusSeedModule,
     UserSeedModule,
     InfoSeedModule,
+    BankSeedModule,
+    InviteStatusSeedModule,
+    SettingTypeSeedModule,
+    SettingSeedModule,
+    MailCountSeedModule,
+    UserSeedModule,
+    MailHistorySeedModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, appConfig],
+      load: [databaseConfig, appConfig, mailConfig],
       envFilePath: ['.env'],
     }),
     TypeOrmModule.forRootAsync({

@@ -1,28 +1,33 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
-  Request,
-  Post,
-  UseGuards,
+  Logger,
   Patch,
-  Delete,
+  Post,
+  Request,
   SerializeOptions,
+  UseGuards,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Roles } from 'src/roles/roles.decorator';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
+import { User } from '../users/entities/user.entity';
+import { LoginResponseType } from '../utils/types/auth/login-response.type';
+import { NullableType } from '../utils/types/nullable.type';
+import { AuthService } from './auth.service';
+import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
-import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
+import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
+import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
-import { AuthGuard } from '@nestjs/passport';
-import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
-import { LoginResponseType } from '../utils/types/auth/login-response.type';
-import { User } from '../users/entities/user.entity';
-import { NullableType } from '../utils/types/nullable.type';
 
 @ApiTags('Auth')
 @Controller({
@@ -30,6 +35,8 @@ import { NullableType } from '../utils/types/nullable.type';
   version: '1',
 })
 export class AuthController {
+  private logger: Logger = new Logger('AuthController', { timestamp: true });
+
   constructor(private readonly service: AuthService) {}
 
   @SerializeOptions({
@@ -55,9 +62,11 @@ export class AuthController {
   }
 
   @Post('email/register')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async register(@Body() createUserDto: AuthRegisterLoginDto): Promise<void> {
-    return this.service.register(createUserDto);
+  @HttpCode(HttpStatus.OK)
+  async register(
+    @Body() createUserDto: AuthRegisterLoginDto,
+  ): Promise<void | object> {
+    return await this.service.register(createUserDto);
   }
 
   @Post('email/confirm')
@@ -68,11 +77,26 @@ export class AuthController {
     return this.service.confirmEmail(confirmEmailDto.hash);
   }
 
-  @Post('forgot/password')
+  @ApiBearerAuth()
+  @SerializeOptions({
+    groups: ['admin'],
+  })
+  @Roles(RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Post('email/resend')
   @HttpCode(HttpStatus.NO_CONTENT)
+  async resendRegisterMail(
+    @Body() resendEmailDto: AuthResendEmailDto,
+  ): Promise<void> {
+    this.logger.debug(`$Resending email for body: ${resendEmailDto}`);
+    return this.service.resendRegisterMail(resendEmailDto);
+  }
+
+  @Post('forgot/password')
+  @HttpCode(HttpStatus.ACCEPTED)
   async forgotPassword(
     @Body() forgotPasswordDto: AuthForgotPasswordDto,
-  ): Promise<void> {
+  ): Promise<void | object> {
     return this.service.forgotPassword(forgotPasswordDto.email);
   }
 

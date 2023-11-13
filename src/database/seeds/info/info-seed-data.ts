@@ -1,6 +1,6 @@
-import { InfoData } from 'src/info/info-data.interface';
+import { InfoDataInterface } from 'src/info/interfaces/info-data.interface';
 
-export const infoData: InfoData[] = [
+export const infoSeedData: InfoDataInterface[] = [
   // settings for any api version
   { name: 'maintenance', value: 'false' },
 

@@ -12,19 +12,25 @@ export class StatusSeedService {
   ) {}
 
   async run() {
-    const count = await this.repository.count();
+    for (const value in StatusEnum) {
+      if (isNaN(Number(value))) {
+        continue;
+      }
 
-    if (!count) {
-      await this.repository.save([
-        this.repository.create({
-          id: StatusEnum.active,
-          name: 'Active',
-        }),
-        this.repository.create({
-          id: StatusEnum.inactive,
-          name: 'Inactive',
-        }),
-      ]);
+      const count = await this.repository.count({
+        where: {
+          name: value,
+        },
+      });
+
+      if (!count) {
+        await this.repository.save(
+          this.repository.create({
+            id: Number(value),
+            name: StatusEnum[value],
+          }),
+        );
+      }
     }
   }
 }

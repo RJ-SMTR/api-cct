@@ -1,32 +1,44 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { User } from '../users/entities/user.entity';
-import * as bcrypt from 'bcryptjs';
-import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
-import { AuthUpdateDto } from './dto/auth-update.dto';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
-import { RoleEnum } from 'src/roles/roles.enum';
-import { StatusEnum } from 'src/statuses/statuses.enum';
-import * as crypto from 'crypto';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcryptjs';
 import { plainToClass } from 'class-transformer';
-import { Status } from 'src/statuses/entities/status.entity';
-import { Role } from 'src/roles/entities/role.entity';
-import { AuthProvidersEnum } from './auth-providers.enum';
-import { SocialInterface } from 'src/social/interfaces/social.interface';
-import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
-import { UsersService } from 'src/users/users.service';
+import * as crypto from 'crypto';
+import { CoreBankService } from 'src/core-bank/core-bank.service';
+import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
 import { ForgotService } from 'src/forgot/forgot.service';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
+import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { MailData } from 'src/mail/interfaces/mail-data.interface';
 import { MailService } from 'src/mail/mail.service';
-import { NullableType } from '../utils/types/nullable.type';
+import { Role } from 'src/roles/entities/role.entity';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { SocialInterface } from 'src/social/interfaces/social.interface';
+import { Status } from 'src/statuses/entities/status.entity';
+import { StatusEnum } from 'src/statuses/statuses.enum';
+import { UsersService } from 'src/users/users.service';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
+import { NullableType } from '../utils/types/nullable.type';
+import { AuthProvidersEnum } from './auth-providers.enum';
+import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
+import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
+import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
+import { AuthUpdateDto } from './dto/auth-update.dto';
 
 @Injectable()
 export class AuthService {
+  private logger: Logger = new Logger('AuthService', { timestamp: true });
+
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
     private forgotService: ForgotService,
     private mailService: MailService,
+    private coreBankService: CoreBankService,
+    private mailHistoryService: MailHistoryService,
   ) {}
 
   async validateLogin(
@@ -46,24 +58,24 @@ export class AuthService {
     ) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             email: 'notFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
     if (user.provider !== AuthProvidersEnum.email) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             email: `needLoginViaProvider:${user.provider}`,
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -75,12 +87,12 @@ export class AuthService {
     if (!isValidPassword) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             password: 'incorrectPassword',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -141,12 +153,12 @@ export class AuthService {
     if (!user) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             user: 'userNotFound',
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -161,15 +173,22 @@ export class AuthService {
     };
   }
 
-  async register(dto: AuthRegisterLoginDto): Promise<void> {
-    const hash = crypto
+  async register(dto: AuthRegisterLoginDto): Promise<void | object> {
+    let hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
+    while (await this.mailHistoryService.findOne({ hash })) {
+      hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+    }
 
     await this.usersService.create({
       ...dto,
       email: dto.email,
+      fullName: dto.fullName,
       role: {
         id: RoleEnum.user,
       } as Role,
@@ -179,12 +198,128 @@ export class AuthService {
       hash,
     });
 
-    // await this.mailService.userSignUp({
-    //   to: dto.email,
-    //   data: {
-    //     hash,
-    //   },
-    // });
+    const { mailConfirmationLink } =
+      await this.mailService.userConcludeRegistration({
+        to: dto.email,
+        data: {
+          hash,
+          userName: dto.fullName,
+        },
+      });
+
+    return { link: mailConfirmationLink };
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  private async getUser(id: number): Promise<User> {
+    const user = await this.usersService.getOne({ id });
+    if (!user?.email || !user?.hash) {
+      throw new HttpException(
+        {
+          details: {
+            message: 'user fields must be filled in database',
+            user: {
+              ...(!user.email ? { email: 'field is empty' } : {}),
+              ...(!user.hash ? { hash: 'field is empty' } : {}),
+            },
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+    return user;
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  private async getMailHistory(user: User): Promise<MailHistory> {
+    const invite = await this.mailHistoryService.findOne({
+      user: { id: user.id },
+    });
+    if (!invite) {
+      throw new HttpException(
+        {
+          error: 'invite not found',
+          details: {
+            userId: user.id,
+          },
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return invite;
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  async sendRegisterEmail(user: User, userMailHistory: MailHistory) {
+    if (userMailHistory.getMailStatus() === InviteStatusEnum.queued) {
+      const mailData: MailData<{ hash: string; to: string; userName: string }> =
+        {
+          to: user.email as string,
+          data: {
+            hash: userMailHistory.hash as string,
+            to: user.email as string,
+            userName: user.fullName as string,
+          },
+        };
+      const mailResponse = await this.mailService.userConcludeRegistration(
+        mailData,
+      );
+      if (mailResponse.mailSentInfo.success === true) {
+        userMailHistory.setInviteStatus(InviteStatusEnum.queued);
+        userMailHistory.sentAt = new Date(Date.now());
+        await this.mailHistoryService.update(
+          userMailHistory.id,
+          userMailHistory,
+        );
+      } else {
+        throw new HttpException(
+          {
+            error: HttpStatus.INTERNAL_SERVER_ERROR,
+            details: {
+              mailResponse: mailResponse,
+            },
+          },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    } else {
+      throw new HttpException(
+        {
+          error: `User's mailStatus is not 'queued'. Cannot proceed with resending the email.`,
+          details: {
+            userMailHistory,
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  async resendRegisterMail(args: AuthResendEmailDto): Promise<void> {
+    const user = await this.getUser(args.id);
+    const userMailHsitory = await this.getMailHistory(user);
+    const quota = await this.mailHistoryService.getRemainingQuota();
+    if (quota <= 0) {
+      throw new HttpException(
+        {
+          error: 'no daily quota available to resend email',
+          details: {
+            remainingQuota: quota,
+          },
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    await this.sendRegisterEmail(user, userMailHsitory);
   }
 
   async confirmEmail(hash: string): Promise<void> {
@@ -195,7 +330,6 @@ export class AuthService {
     if (!user) {
       throw new HttpException(
         {
-          status: HttpStatus.NOT_FOUND,
           error: `notFound`,
         },
         HttpStatus.NOT_FOUND,
@@ -209,27 +343,31 @@ export class AuthService {
     await user.save();
   }
 
-  async forgotPassword(email: string): Promise<void> {
+  async forgotPassword(email: string): Promise<void | object> {
     const user = await this.usersService.findOne({
       email,
     });
 
+    const returnMessage = {
+      info: 'if email exists, an email should be sent.',
+    };
+
     if (!user) {
-      throw new HttpException(
-        {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
-            email: 'emailNotExists',
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      this.logger.warn(`forgotPassword(): email '${email}' does not exists`);
+      return returnMessage;
     }
 
-    const hash = crypto
+    let hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
+    while (await this.mailHistoryService.findOne({ hash })) {
+      hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+    }
+
     await this.forgotService.create({
       hash,
       user,
@@ -241,6 +379,8 @@ export class AuthService {
         hash,
       },
     });
+
+    return returnMessage;
   }
 
   async resetPassword(hash: string, password: string): Promise<void> {
@@ -253,12 +393,12 @@ export class AuthService {
     if (!forgot) {
       throw new HttpException(
         {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
+          error: HttpErrorMessages.UNAUTHORIZED,
+          details: {
             hash: `notFound`,
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.UNAUTHORIZED,
       );
     }
 
@@ -279,58 +419,35 @@ export class AuthService {
     user: User,
     userDto: AuthUpdateDto,
   ): Promise<NullableType<User>> {
-    if (userDto.password) {
-      if (userDto.oldPassword) {
-        const currentUser = await this.usersService.findOne({
-          id: user.id,
-        });
+    const userProfile = await this.usersService.findOne({ id: user.id });
 
-        if (!currentUser) {
-          throw new HttpException(
-            {
-              status: HttpStatus.UNPROCESSABLE_ENTITY,
-              errors: {
-                user: 'userNotFound',
-              },
-            },
-            HttpStatus.UNPROCESSABLE_ENTITY,
-          );
-        }
-
-        const isValidOldPassword = await bcrypt.compare(
-          userDto.oldPassword,
-          currentUser.password,
-        );
-
-        if (!isValidOldPassword) {
-          throw new HttpException(
-            {
-              status: HttpStatus.UNPROCESSABLE_ENTITY,
-              errors: {
-                oldPassword: 'incorrectOldPassword',
-              },
-            },
-            HttpStatus.UNPROCESSABLE_ENTITY,
-          );
-        }
-      } else {
-        throw new HttpException(
-          {
-            status: HttpStatus.UNPROCESSABLE_ENTITY,
-            errors: {
-              oldPassword: 'missingOldPassword',
-            },
+    if (!userProfile || !(userProfile && userProfile?.cpfCnpj)) {
+      throw new HttpException(
+        {
+          details: {
+            token: 'valid token but decoded user data is invalid',
+            ...(!userProfile && { id: 'userNotExists' }),
+            ...(!(userProfile && userProfile?.cpfCnpj) && {
+              cpfCnpj: 'invalidCpfCnpj',
+            }),
           },
-          HttpStatus.UNPROCESSABLE_ENTITY,
-        );
-      }
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
-    await this.usersService.update(user.id, userDto);
+    userProfile.update(userDto);
+    await this.usersService.update(user.id, userProfile);
 
-    return this.usersService.findOne({
-      id: user.id,
-    });
+    const coreBankProfile: UpdateCoreBankInterface = {
+      bankAccountCode: userProfile.bankAccount,
+      bankAccountDigit: userProfile.bankAccountDigit,
+      bankAgencyCode: userProfile.bankAgency,
+      bankCode: userProfile.bankCode,
+    };
+    this.coreBankService.update(userProfile.cpfCnpj, coreBankProfile);
+
+    return userProfile;
   }
 
   async softDelete(user: User): Promise<void> {
