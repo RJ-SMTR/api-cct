@@ -6,6 +6,7 @@ import {
   nextDay,
   nextFriday,
   previousDay,
+  previousFriday,
   startOfMonth,
 } from 'date-fns';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
@@ -124,18 +125,37 @@ export function getPayment2Weeks(fridayDate: Date): {
   return { startDate, endDate };
 }
 
-export function getPaymentMonth(fridayDate: Date): {
+export function getPaymentMonth(
+  fridayDate: Date,
+  endpoint: string,
+): {
   startDate: Date;
   endDate: Date;
 } {
-  // let endDate = new Date(fridayDate);
-  // if (!isFriday(endDate)) {
-  //   endDate = nextFriday(endDate);
-  // }
-  return {
-    startDate: startOfMonth(fridayDate),
-    endDate: endOfMonth(fridayDate),
-  };
+  if (endpoint === 'bank-statements') {
+    return {
+      startDate: startOfMonth(fridayDate),
+      endDate: endOfMonth(fridayDate),
+    };
+  } else {
+    // get first and last friday of month
+    let startDate = startOfMonth(new Date(fridayDate));
+    if (!isFriday(startDate)) {
+      startDate = nextFriday(startDate);
+    }
+    let endDate = endOfMonth(new Date(fridayDate));
+    if (!isFriday(endDate) && isSameMonth(endDate, nextFriday(endDate))) {
+      endDate = nextFriday(endDate);
+    } else if (!isFriday(endDate)) {
+      endDate = previousFriday(endDate);
+    }
+
+    // get start end dates from each week
+    startDate.setDate(startDate.getDate() - 8);
+    endDate.setDate(endDate.getDate() - 2);
+
+    return { startDate, endDate };
+  }
 }
 
 export function getPaymentDates(
@@ -173,7 +193,7 @@ export function getPaymentDates(
     } else if (timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
       return getPayment2Weeks(endDate);
     } else if (timeInterval === TimeIntervalEnum.LAST_MONTH) {
-      return getPaymentMonth(endDate);
+      return getPaymentMonth(endDate, endpoint);
     }
   }
 

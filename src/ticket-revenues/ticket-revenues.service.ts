@@ -72,7 +72,7 @@ export class TicketRevenuesService {
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
-      return new TicketRevenuesGroup().getInterface();
+      return new TicketRevenuesGroup().toInterface();
     }
     const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
 

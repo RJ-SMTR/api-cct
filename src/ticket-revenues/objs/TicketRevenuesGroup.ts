@@ -17,7 +17,7 @@ export class TicketRevenuesGroup implements ITicketRevenuesGroup {
   public transportIntegrationTypeCounts: Record<string, ITRCounts> = {};
   public transportTypeCounts: Record<string, ITRCounts> = {};
 
-  public getInterface(): ITicketRevenuesGroup {
+  public toInterface(): ITicketRevenuesGroup {
     return {
       aux_epochWeek: this.aux_epochWeek,
       aux_groupDateTime: this.aux_groupDateTime,

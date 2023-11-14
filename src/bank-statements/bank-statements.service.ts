@@ -7,6 +7,7 @@ import { getDateYMDString } from 'src/utils/date-utils';
 import { getPaymentDates, getPaymentWeek } from 'src/utils/payment-date-utils';
 import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
 import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 
 @Injectable()
 export class BankStatementsService {
@@ -85,20 +86,18 @@ export class BankStatementsService {
     todaySum: number;
     allSum: number;
   }> {
-    const statementFirstDate = statements[statements.length - 1].date;
-    const revenueStartDate = getDateYMDString(
-      getPaymentWeek(new Date(statementFirstDate)).startDate,
-    );
-    const statementLastDate = statements[0].date;
-    const revenueEndDate = getDateYMDString(
-      getPaymentWeek(new Date(statementLastDate)).endDate,
+    const statementsDates = getPaymentDates(
+      'ticket-revenues',
+      undefined,
+      undefined,
+      TimeIntervalEnum.LAST_MONTH,
     );
 
     // Get daily data form tickets/me
     const revenuesResponse = await this.ticketRevenuesService.getMeFromUser(
       {
-        startDate: revenueStartDate,
-        endDate: revenueEndDate,
+        startDate: getDateYMDString(statementsDates.startDate),
+        endDate: getDateYMDString(statementsDates.endDate),
         userId: args?.userId,
         groupBy: 'day',
       },
