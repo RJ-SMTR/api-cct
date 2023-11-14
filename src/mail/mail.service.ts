@@ -2,15 +2,14 @@ import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
-import { MailData } from './interfaces/mail-data.interface';
 import { AllConfigType } from 'src/config/config.type';
-import { MaybeType } from '../utils/types/maybe.type';
-import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
-import { MailSentInfo as MailSentInfo } from './interfaces/mail-sent-info.interface';
-import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
-import { EhloStatus } from './enums/ehlo-status.enum';
-import { MailCountService } from 'src/mail-count/mail-count.service';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
+import { MaybeType } from '../utils/types/maybe.type';
+import { EhloStatus } from './enums/ehlo-status.enum';
+import { MailData } from './interfaces/mail-data.interface';
+import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
+import { MailSentInfo } from './interfaces/mail-sent-info.interface';
+import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 
 @Injectable()
 export class MailService {
@@ -19,7 +18,6 @@ export class MailService {
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AllConfigType>,
-    private mailCountService: MailCountService,
   ) {}
 
   private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
@@ -106,8 +104,6 @@ export class MailService {
         },
       });
 
-      // await this.mailCountService.addCount(senders[0]);
-
       return {
         mailSentInfo: mailSentInfo,
         mailConfirmationLink: emailConfirmLink,
@@ -123,39 +119,12 @@ export class MailService {
   async forgotPassword(
     mailData: MailData<{ hash: string }>,
   ): Promise<MailSentInfo> {
-    // const senders = await this.mailCountService.getUpdatedMailCounts(true);
-    // if (senders.length === 0) {
-    //   throw new HttpException(
-    //     {
-    //       error: HttpStatus.SERVICE_UNAVAILABLE,
-    //       message:
-    //         'Mailing service is unavailable. Wait 24 hours and try again.',
-    //       details: {
-    //         error: 'quotaLimitReached',
-    //       },
-    //     },
-    //     HttpStatus.INTERNAL_SERVER_ERROR,
-    //   );
-    // }
-
-    const i18n = I18nContext.current();
-    let resetPasswordTitle: MaybeType<string>;
-    let text1: MaybeType<string>;
-    let text2: MaybeType<string>;
-    let text3: MaybeType<string>;
-    let text4: MaybeType<string>;
-
-    if (i18n) {
-      [resetPasswordTitle, text1, text2, text3, text4] = await Promise.all([
-        i18n.t('common.resetPassword'),
-        i18n.t('reset-password.text1'),
-        i18n.t('reset-password.text2'),
-        i18n.t('reset-password.text3'),
-        i18n.t('reset-password.text4'),
-      ]);
-    }
+    const resetPasswordTitle = 'Refedinir senha';
 
     try {
+      const frontendDomain = this.configService.get('app.frontendDomain', {
+        infer: true,
+      });
       const response = await this.safeSendMail({
         to: mailData.to,
         subject: resetPasswordTitle,
@@ -169,17 +138,13 @@ export class MailService {
             infer: true,
           })}reset-password/${mailData.data.hash}`,
           actionTitle: resetPasswordTitle,
-          app_name: this.configService.get('app.name', {
-            infer: true,
-          }),
-          text1,
-          text2,
-          text3,
-          text4,
+          logoSrc: `${frontendDomain}/assets/icons/logoPrefeitura.png`,
+          logoAlt: 'Prefeitura do Rio',
+          bodyText: 'Redefina sua senha clicando no botão abaixo!',
+          buttonText: 'Redefinir senha.',
+          footerText: 'Caso você não tenha solicitado este email, ignore.',
         },
       });
-
-      // await this.mailCountService.addCount(senders[0]);
 
       return response;
     } catch (httpException) {
