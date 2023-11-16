@@ -26,7 +26,7 @@ describe('Bank statements (e2e)', () => {
         apiToken = body.token;
       });
   });
-  it('Should /bank-statements todaySum match in /ticket-revenues/me', async () => {
+  it('Should match todaySum in /bank-statements with /ticket-revenues/me', async () => {
     // Arrange
     let friday = new Date();
     if (!isFriday(friday)) {
@@ -69,7 +69,7 @@ describe('Bank statements (e2e)', () => {
     expect(bankStatements.todaySum).toEqual(ticketRevenuesMe.todaySum);
   }, 60000);
 
-  it('Should /bank-statements amountSum match /ticket-revenues/me in the same month', async () => {
+  it('Should match amountSum in /bank-statements with /ticket-revenues/me in the same month', async () => {
     // Arrange
     let friday = new Date();
     if (!isFriday(friday)) {
@@ -116,7 +116,7 @@ describe('Bank statements (e2e)', () => {
     expect(bankStatements.amountSum).toEqual(ticketRevenuesMe.amountSum);
   }, 60000);
 
-  it('Should match amountSum in /bank-statements and /ticket-revenues/me of same week', async () => {
+  it('Should match amountSum in /bank-statements with /ticket-revenues/me in the same week', async () => {
     // Arrange
     let friday = new Date();
     if (!isFriday(friday)) {
@@ -160,5 +160,42 @@ describe('Bank statements (e2e)', () => {
       (i: any) => i.date === fridayStr,
     )?.[0];
     expect(bsFriday.amount).toEqual(ticketRevenuesMe.amountSum);
+  }, 60000);
+
+  it('Should match amountSum in /bank-statements with transactionValueSum in ticket-revenues/grouped/me', async () => {
+    // Arrange
+    const requestArgs = {
+      timeInterval: 'lastMonth',
+    };
+
+    // Act
+    let bankStatements;
+    await request(app)
+      .get('/api/v1/bank-statements/me')
+      .auth(apiToken, {
+        type: 'bearer',
+      })
+      .query(requestArgs)
+      .expect(200)
+      .then(({ body }) => {
+        bankStatements = body;
+      });
+
+    let revenuesMeGrouped;
+    await request(app)
+      .get('/api/v1/ticket-revenues/me/grouped')
+      .auth(apiToken, {
+        type: 'bearer',
+      })
+      .query(requestArgs)
+      .expect(200)
+      .then(({ body }) => {
+        revenuesMeGrouped = body;
+      });
+
+    // Assert
+    expect(bankStatements.amountSum).toEqual(
+      revenuesMeGrouped.transactionValueSum,
+    );
   }, 60000);
 });
