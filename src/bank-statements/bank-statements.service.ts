@@ -132,6 +132,12 @@ export class BankStatementsService {
       });
       sumAll += newAmount;
     }
+    console.log({
+      message: 'GET BANK 1',
+      sum: revenuesResponse.amountSum,
+      sumAll,
+      statementsDates,
+    });
     return { todaySum, allSum: sumAll, statements: newStatements };
   }
 
