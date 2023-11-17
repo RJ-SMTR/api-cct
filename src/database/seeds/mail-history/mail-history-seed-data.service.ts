@@ -33,7 +33,7 @@ export class MailHistorySeedDataService {
       },
       {
         user: { email: 'carolkingma2013@gmail.com' } as User,
-        email: 'carolkingma2013 @gmail.com',
+        email: 'carolkingma2013@gmail.com',
         inviteStatus: { id: InviteStatusEnum.used } as InviteStatus,
       },
       {
