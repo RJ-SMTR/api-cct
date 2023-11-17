@@ -67,11 +67,13 @@ export class BankStatementsService {
     const amountSum = Number(
       treatedData.reduce((sum, item) => sum + item.amount, 0).toFixed(2),
     );
+    const ticketCount = insertedData.countSum;
 
     return {
       amountSum,
       todaySum,
       count: treatedData.length,
+      ticketCount,
       data: treatedData,
     };
   }
@@ -85,6 +87,7 @@ export class BankStatementsService {
     statements: ICoreBankStatements[];
     todaySum: number;
     allSum: number;
+    countSum: number;
   }> {
     const statementsDates = getPaymentDates(
       'ticket-revenues',
@@ -106,7 +109,7 @@ export class BankStatementsService {
     );
 
     const todaySum = revenuesResponse.todaySum;
-    let sumAll = 0;
+    let allSum = 0;
     const newStatements: ICoreBankStatements[] = [];
 
     // for each week in month (bank-statements)
@@ -130,9 +133,10 @@ export class BankStatementsService {
         ...statement,
         amount: newAmount,
       });
-      sumAll += newAmount;
+      allSum += newAmount;
     }
-    return { todaySum, allSum: sumAll, statements: newStatements };
+    const countSum = revenuesResponse.ticketCount;
+    return { todaySum, allSum, countSum, statements: newStatements };
   }
 
   //#endregion mockData

@@ -132,10 +132,7 @@ export class CoreBankDataService implements OnModuleInit {
     const { paymentWeekday, nextPaymentWeekday } = this.bankStatementsArgs;
     for (const profile of this.getProfiles()) {
       let id = 1;
-      if (
-        now.getUTCDay() !== paymentWeekday &&
-        nextPaymentWeekday(now) <= lastDayOfMonth(now)
-      ) {
+      if (nextPaymentWeekday(now) <= lastDayOfMonth(now)) {
         bankStatements.push(
           this.generateBankStatement({
             id: id,
