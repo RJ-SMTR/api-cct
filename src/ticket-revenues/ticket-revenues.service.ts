@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { isToday, startOfDay } from 'date-fns';
+import { endOfDay, isToday, startOfDay } from 'date-fns';
 import {
   BigqueryService,
   BigqueryServiceInstances,
@@ -75,6 +75,15 @@ export class TicketRevenuesService {
       return new TicketRevenuesGroup().toInterface();
     }
     const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
+    console.log({
+      message: 'GET GROUPED',
+      groupSum: ticketRevenuesGroupSum.transactionValueSum,
+      individualSum: Number(
+        ticketRevenuesResponse
+          .reduce((sum, i) => sum + (i?.transactionValue || 0), 0)
+          .toFixed(2),
+      ),
+    });
 
     return ticketRevenuesGroupSum;
   }
@@ -144,7 +153,7 @@ export class TicketRevenuesService {
     const mostRecentResponseDate = startOfDay(
       new Date(ticketRevenuesResponse[0].partitionDate),
     );
-    if (GET_TODAY && mostRecentResponseDate > startOfDay(endDate)) {
+    if (GET_TODAY && mostRecentResponseDate > endOfDay(endDate)) {
       ticketRevenuesResponse = this.removeTicketRevenueToday(
         ticketRevenuesResponse,
       ) as ITicketRevenue[];
