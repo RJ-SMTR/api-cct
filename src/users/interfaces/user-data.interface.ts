@@ -3,7 +3,7 @@ import { Status } from 'src/statuses/entities/status.entity';
 
 export interface UserDataInterface {
   id?: number;
-  permitCode: string;
+  permitCode?: string;
   fullName: string;
   email: string;
   password: string;
