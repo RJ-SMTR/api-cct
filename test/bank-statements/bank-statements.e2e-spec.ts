@@ -1,4 +1,4 @@
-import { isFriday, nextFriday } from 'date-fns';
+import { isFriday, isSameMonth, nextFriday, previousFriday } from 'date-fns';
 import * as request from 'supertest';
 import { getDateYMDString } from '../../src/utils/date-utils';
 import { configE2E } from '../utils/config';
@@ -119,10 +119,11 @@ describe('Bank statements (e2e)', () => {
   it('Should match amountSum in /bank-statements with /ticket-revenues/me in the same week', async () => {
     // Arrange
     let friday = new Date();
-    if (!isFriday(friday)) {
+    if (isSameMonth(friday, nextFriday(friday))) {
       friday = nextFriday(friday);
+    } else {
+      friday = previousFriday(friday);
     }
-    friday.setDate(friday.getDate() - 7);
     const fridayStr = getDateYMDString(friday);
 
     // Act
@@ -156,13 +157,14 @@ describe('Bank statements (e2e)', () => {
       });
 
     // Assert
-    const bsFriday = bankStatements.data.filter(
+    const bankStatementsFriday = bankStatements.data.filter(
       (i: any) => i.date === fridayStr,
     )?.[0];
-    expect(bsFriday.amount).toEqual(ticketRevenuesMe.amountSum);
+    expect(bankStatements.data[0].date).toEqual(fridayStr);
+    expect(bankStatementsFriday.amount).toEqual(ticketRevenuesMe.amountSum);
   }, 60000);
 
-  it('Should match amountSum in /bank-statements with transactionValueSum in ticket-revenues/grouped/me', async () => {
+  it('Should match amountSum in /bank-statements/me with transactionValueSum in ticket-revenues/grouped/me', async () => {
     // Arrange
     const requestArgs = {
       timeInterval: 'lastMonth',
@@ -197,5 +199,40 @@ describe('Bank statements (e2e)', () => {
     expect(bankStatements.amountSum).toEqual(
       revenuesMeGrouped.transactionValueSum,
     );
+  }, 60000);
+
+  it('Should match ticketCounts in /bank-statements with counts in ticket-revenues/grouped/me', async () => {
+    // Arrange
+    const requestArgs = {
+      timeInterval: 'lastMonth',
+    };
+
+    // Act
+    let bankStatements;
+    await request(app)
+      .get('/api/v1/bank-statements/me')
+      .auth(apiToken, {
+        type: 'bearer',
+      })
+      .query(requestArgs)
+      .expect(200)
+      .then(({ body }) => {
+        bankStatements = body;
+      });
+
+    let revenuesMeGrouped;
+    await request(app)
+      .get('/api/v1/ticket-revenues/me/grouped')
+      .auth(apiToken, {
+        type: 'bearer',
+      })
+      .query(requestArgs)
+      .expect(200)
+      .then(({ body }) => {
+        revenuesMeGrouped = body;
+      });
+
+    // Assert
+    expect(bankStatements.ticketCount).toEqual(revenuesMeGrouped.count);
   }, 60000);
 });
