@@ -16,6 +16,31 @@ export class MailHistorySeedDataService {
         user: { id: 3, email: 'marcia@example.com' } as User,
         inviteStatus: { id: InviteStatusEnum.used } as InviteStatus,
       },
+      {
+        user: { email: 'jessicasimas.smtr@gmail.com ' } as User,
+        email: 'jessicasimas.smtr@gmail.com ',
+        inviteStatus: { id: InviteStatusEnum.used } as InviteStatus,
+      },
+      {
+        user: { email: 'leandro.smtr@gmail.com' } as User,
+        email: 'leandro.smtr@gmail.com',
+        inviteStatus: { id: InviteStatusEnum.used } as InviteStatus,
+      },
+      {
+        user: { email: 'cms.smtr@gmail.com' } as User,
+        email: 'cms.smtr@gmail.com',
+        inviteStatus: { id: InviteStatusEnum.used } as InviteStatus,
+      },
+      {
+        user: { email: 'carolkingma2013@gmail.com' } as User,
+        email: 'carolkingma2013@gmail.com',
+        inviteStatus: { id: InviteStatusEnum.used } as InviteStatus,
+      },
+      {
+        user: { email: 'laurosilvestre.smtr@gmail.com' } as User,
+        email: 'laurosilvestre.smtr@gmail.com',
+        inviteStatus: { id: InviteStatusEnum.used } as InviteStatus,
+      },
     ];
   }
 }
