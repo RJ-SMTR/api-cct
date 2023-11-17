@@ -126,6 +126,7 @@ export class TicketRevenuesService {
         amountSum: 0,
         todaySum: 0,
         count: 0,
+        ticketCount: 0,
         data: [],
       };
     }
@@ -168,10 +169,16 @@ export class TicketRevenuesService {
         .toFixed(2),
     );
 
+    const ticketCount = ticketRevenuesGroups.reduce(
+      (sum, i) => sum + i.count,
+      0,
+    );
+
     return {
       amountSum,
       todaySum: transactionValueLastDay,
       count: ticketRevenuesGroups.length,
+      ticketCount,
       data: ticketRevenuesGroups,
     };
   }

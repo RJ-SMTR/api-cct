@@ -138,15 +138,14 @@ export function getPaymentMonth(
       endDate: endOfMonth(fridayDate),
     };
   } else {
+    // if ticket-revenues
     // get first friday of month and friday
     let startDate = startOfMonth(new Date(fridayDate));
-    if (!isFriday(startDate)) {
-      startDate = nextFriday(startDate);
-    }
+    startDate = nextFriday(startDate);
     let endDate = new Date(fridayDate);
-    if (!isFriday(endDate) && isSameMonth(endDate, nextFriday(endDate))) {
+    if (isSameMonth(endDate, nextFriday(endDate))) {
       endDate = nextFriday(endDate);
-    } else if (!isFriday(endDate)) {
+    } else {
       endDate = previousFriday(endDate);
     }
 
