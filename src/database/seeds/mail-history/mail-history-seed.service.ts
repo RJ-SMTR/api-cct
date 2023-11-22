@@ -28,22 +28,13 @@ export class MailHistorySeedService {
         },
       });
 
-      if (foundItem) {
-        item.id = foundItem.id;
-      }
-      if (!item?.email && itemUser?.email) {
-        item.email = item.user.email as string;
-      }
-      if (!item?.hash && foundItem?.hash) {
-        item.hash = foundItem.hash;
-      } else if (!item?.hash) {
-        item.hash = await this.generateHash();
-      }
       if (!foundItem) {
+        item.email = item.user.email as string;
+        item.hash = await this.generateHash();
+        await this.mailHistoryRepository.save(
+          this.mailHistoryRepository.create(item),
+        );
       }
-      await this.mailHistoryRepository.save(
-        this.mailHistoryRepository.create(item),
-      );
     }
   }
 

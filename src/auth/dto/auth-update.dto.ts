@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumberString, IsOptional, Length, Max, Min } from 'class-validator';
-import { IsPhoneBr } from '../validators/is-phone-br.validator';
+import { IsPhoneBr } from '../../utils/validators/is-phone-br.validator';
 import { IsNotNumberString } from 'src/utils/validators/is-not-number-string.validator';
 import { IsValidBankCode } from '../../banks/validators/is-valid-bank-code.validator';
 

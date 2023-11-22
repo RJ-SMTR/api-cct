@@ -1,4 +1,4 @@
-export abstract class Enum {
+export class Enum {
   public static getKey<T>(e: T, value: any): string {
     const valueIndex = Object.values(e as any).indexOf(value);
     const key = Object.keys(e as any)[valueIndex];
@@ -12,7 +12,7 @@ export abstract class Enum {
     ) as (keyof T)[];
   }
 
-  static getValues<T>(enumType: T): T[keyof T][] {
+  public static getValues<T>(enumType: T): T[keyof T][] {
     return this.getKeys(enumType).map((key) => enumType[key]);
   }
 }
