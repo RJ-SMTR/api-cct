@@ -11,6 +11,7 @@ import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
+import { isArrayContainEqual } from 'src/utils/array-utils';
 import { Enum } from 'src/utils/enum';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
@@ -18,12 +19,15 @@ import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { DeepPartial, FindOptionsWhere, ILike, Repository } from 'typeorm';
 import * as xlsx from 'xlsx';
 import { NullableType } from '../utils/types/nullable.type';
-import { CreateFileUserDto } from './dto/create-file-user.dto';
+import { CreateUserFileDto } from './dto/create-user-file.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
-import { FileUserInterface } from './interfaces/file-user.interface';
+import { IFileUser } from './interfaces/file-user.interface';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
-import { FileUserMap } from './mappings/file-user.map';
+import { FileUserMap } from './mappings/user-file.map';
+import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
+import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
+import { ICreateUserFile } from './interfaces/create-user-file.interface';
 
 @Injectable()
 export class UsersService {
@@ -37,6 +41,28 @@ export class UsersService {
     return this.usersRepository.save(
       this.usersRepository.create(createProfileDto),
     );
+  }
+
+  async setAux_inviteStatus(users: User[]): Promise<User[]> {
+    const newUsers: User[] = [];
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i];
+      if (user !== null) {
+        user.aux_inviteStatus = await this.getAux_inviteSatus(user);
+      }
+      newUsers.push(user);
+    }
+    return newUsers;
+  }
+
+  async findMany(
+    fields: EntityCondition<User> | EntityCondition<User>[],
+  ): Promise<User[]> {
+    let users = await this.usersRepository.find({
+      where: fields,
+    });
+    users = await this.setAux_inviteStatus(users);
+    return users;
   }
 
   async findManyWithPagination(
@@ -115,13 +141,8 @@ export class UsersService {
       invites = await this.mailHistoryService.find({ inviteStatus });
     }
 
-    for (let i = 0; i < users.length; i++) {
-      const user = users[i];
-      if (user !== null) {
-        user.aux_inviteStatus = await this.getAux_inviteSatus(user);
-      }
-      users[i] = user;
-    }
+    users = await this.setAux_inviteStatus(users);
+
     users = users.filter((userItem) => {
       return (
         !invites ||
@@ -144,7 +165,9 @@ export class UsersService {
     return inviteStatus;
   }
 
-  async findOne(fields: EntityCondition<User>): Promise<NullableType<User>> {
+  async findOne(
+    fields: EntityCondition<User> | EntityCondition<User>[],
+  ): Promise<NullableType<User>> {
     const user = await this.usersRepository.findOne({
       where: fields,
     });
@@ -245,7 +268,10 @@ export class UsersService {
     let worksheet: xlsx.WorkSheet | undefined = undefined;
 
     try {
-      const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+      const workbook = xlsx.read(file.buffer, {
+        type: 'buffer',
+        codepage: 65001 /* UTF8 */,
+      });
       const sheetName = workbook.SheetNames[0];
       worksheet = workbook.Sheets[sheetName];
     } catch (error) {
@@ -257,14 +283,8 @@ export class UsersService {
     return worksheet;
   }
 
-  async getFileUsersFromWorksheet(
-    worksheet: xlsx.WorkSheet,
-    expectedUserFields: string[],
-    validatorDto,
-  ): Promise<FileUserInterface[]> {
-    const expectedFileUserFields: string[] = expectedUserFields.map(
-      (str) => FileUserMap[str] || str,
-    );
+  private validateFileHeaders(worksheet: xlsx.WorkSheet) {
+    const expectedFileUserFields: string[] = Object.values(FileUserMap);
     const receivedHeaders: any[] = [];
     for (const key in worksheet) {
       if (worksheet.hasOwnProperty(key)) {
@@ -273,9 +293,7 @@ export class UsersService {
         }
       }
     }
-    if (
-      !receivedHeaders.every((item1) => expectedFileUserFields.includes(item1))
-    ) {
+    if (!isArrayContainEqual(expectedFileUserFields, receivedHeaders)) {
       throw new HttpException(
         {
           error: {
@@ -289,31 +307,106 @@ export class UsersService {
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
+  }
+
+  async validateFileValues(
+    userFile: IFileUser,
+    fileUsers: IFileUser[],
+    validatorDto,
+  ): Promise<InvalidRowsType> {
+    const schema = plainToClass(validatorDto, userFile.user);
+    const errors = await validate(schema as Record<string, any>, {
+      stopAtFirstError: true,
+    });
+    const SEPARATOR = '; ';
+    const errorDictionary: InvalidRowsType = errors.reduce((result, error) => {
+      const { property, constraints } = error;
+      if (property && constraints) {
+        result[property] = Object.values(constraints).join(SEPARATOR);
+      }
+      return result;
+    }, {});
+    const fields = ['email', 'permitCode', 'cpfCnpj', 'fullName'];
+
+    // If has another user in DB with same email OR permitCode OR cpfCnpj
+    if (
+      userFile.user.email ||
+      userFile.user.codigo_permissionario ||
+      userFile.user.cpf
+    ) {
+      const dbFoundUsers = await this.findMany([
+        ...(userFile.user.email ? [{ email: userFile.user.email }] : []),
+        ...(userFile.user.codigo_permissionario
+          ? [{ permitCode: userFile.user.codigo_permissionario }]
+          : []),
+        ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : []),
+      ]);
+      if (dbFoundUsers.length > 0) {
+        for (const dbField of fields) {
+          const dtoField = FileUserMap[dbField];
+          if (
+            dbFoundUsers.find((i) => i[dbField] === userFile.user[dtoField])
+          ) {
+            if (!errorDictionary.hasOwnProperty(dtoField)) {
+              errorDictionary[dtoField] = '';
+            }
+            if (errorDictionary[dtoField].length > 0) {
+              errorDictionary[dtoField] += SEPARATOR;
+            }
+            errorDictionary[dtoField] += `field exists in database`;
+          }
+        }
+      }
+    }
+
+    // If has another user in upload with same email OR permitCode OR cpfCnpj
+    const existingFileUser = fileUsers.filter(
+      (i) =>
+        i.user.email === userFile.user.email ||
+        i.user.codigo_permissionario === userFile.user.codigo_permissionario ||
+        i.user.cpf === userFile.user.cpf,
+    );
+    if (existingFileUser.length > 1) {
+      for (const dbField of fields) {
+        const dtoField = FileUserMap[dbField];
+        const existingFUserByField = existingFileUser.filter(
+          (i) => i.user[dbField] === userFile.user[dbField],
+        );
+        if (existingFUserByField.length > 1) {
+          if (!errorDictionary.hasOwnProperty(dtoField)) {
+            errorDictionary[dtoField] = '';
+          }
+          if (errorDictionary[dtoField].length > 0) {
+            errorDictionary[dtoField] += SEPARATOR;
+          }
+          errorDictionary[dtoField] += `duplicated field in upload file`;
+        }
+      }
+    }
+
+    return errorDictionary;
+  }
+
+  async getUserFilesFromWorksheet(
+    worksheet: xlsx.WorkSheet,
+    validatorDto,
+  ): Promise<IFileUser[]> {
+    this.validateFileHeaders(worksheet);
 
     const fileData = xlsx.utils.sheet_to_json(worksheet);
-    const fileUsers: FileUserInterface[] = fileData.map((item) => ({
-      user: {
-        permitCode: (item as any).codigo_permissionario.replace("'", ''),
-        email: (item as any).email,
-      },
-      errors: {},
-    }));
+    const fileUsers: IFileUser[] = fileData.map(
+      (item: Partial<ICreateUserFile>) => ({
+        user: item,
+        errors: {},
+      }),
+    );
     let row = 2;
     for (let i = 0; i < fileUsers.length; i++) {
       const fileUser = fileUsers[i];
-      const schema = plainToClass(validatorDto, fileUser.user);
-      const errors = await validate(schema as Record<string, any>, {
-        stopAtFirstError: true,
-      });
-      const errorDictionary: { [field: string]: string[] } = errors.reduce(
-        (result, error) => {
-          const { property, constraints } = error;
-          if (property && constraints) {
-            result[property] = Object.values(constraints)[0];
-          }
-          return result;
-        },
-        {},
+      const errorDictionary = await this.validateFileValues(
+        fileUser,
+        fileUsers,
+        validatorDto,
       );
       fileUsers[i] = {
         row: row,
@@ -325,36 +418,32 @@ export class UsersService {
     return fileUsers;
   }
 
-  async createFromFile(file: Express.Multer.File): Promise<any> {
+  async createFromFile(
+    file: Express.Multer.File,
+  ): Promise<IUserUploadResponse> {
     const worksheet = this.getWorksheetFromFile(file);
-    const expectedUserFields = ['permitCode', 'email'];
-    const fileUsers = await this.getFileUsersFromWorksheet(
+    const fileUsers = await this.getUserFilesFromWorksheet(
       worksheet,
-      expectedUserFields,
-      CreateFileUserDto,
+      CreateUserFileDto,
     );
     const invalidUsers = fileUsers.filter(
       (i) => Object.keys(i.errors).length > 0,
     );
-    if (invalidUsers.length > 0) {
-      throw new HttpException(
-        {
-          error: {
-            file: {
-              message: 'invalidRows',
-              headerMap: FileUserMap,
-              invalidRows: invalidUsers,
-            },
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
+    const validUsers = fileUsers.filter(
+      (i) => Object.keys(i.errors).length === 0,
+    );
 
-    for (const fileUser of fileUsers) {
+    for (const fileUser of validUsers) {
       const hash = await this.mailHistoryService.generateHash();
       const createdUser = this.usersRepository.create({
-        ...fileUser.user,
+        permitCode: String(fileUser.user.codigo_permissionario).replace(
+          "'",
+          '',
+        ),
+        email: fileUser.user.email,
+        phone: fileUser.user.telefone,
+        fullName: fileUser.user.nome,
+        cpfCnpj: fileUser.user.cpf,
         hash: hash,
         status: new Status(StatusEnum.register),
         role: new Role(RoleEnum.user),
@@ -370,6 +459,11 @@ export class UsersService {
         },
       });
     }
-    return HttpStatus.CREATED;
+    return {
+      headerMap: FileUserMap,
+      uploadedUsers: validUsers.length,
+      invalidUsers: invalidUsers.length,
+      invalidRows: invalidUsers,
+    };
   }
 }

@@ -5,8 +5,8 @@ import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { Provider } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { FileUserInterface } from './interfaces/file-user.interface';
-import { CreateFileUserDto } from './dto/create-file-user.dto';
+import { IFileUser } from './interfaces/file-user.interface';
+import { CreateFileUserDto } from './dto/create-user-file.dto';
 import * as CLASS_VALIDATOR from 'class-validator';
 import * as XLSX from 'xlsx';
 
@@ -65,7 +65,7 @@ describe('UsersService', () => {
         buffer: {},
       } as Express.Multer.File;
 
-      const expectedFileUsers = [] as FileUserInterface[];
+      const expectedFileUsers = [] as IFileUser[];
       for (let i = 0; i < 3; i++) {
         expectedFileUsers.push({
           row: i + 2,
@@ -73,7 +73,7 @@ describe('UsersService', () => {
             email: `email_${i}@example.com`,
           },
           errors: {},
-        } as FileUserInterface);
+        } as IFileUser);
       }
       jest
         .spyOn(usersService, 'getExcelUsersFromWorksheet')
@@ -83,7 +83,7 @@ describe('UsersService', () => {
       await usersService.createFromFile(fileMock);
 
       // Assert
-      expect(usersService.getFileUsersFromWorksheet).toHaveBeenCalledWith(
+      expect(usersService.getUserFilesFromWorksheet).toHaveBeenCalledWith(
         expect.any(Object),
         expect.any(Array),
         expect.any(Function),
@@ -97,7 +97,7 @@ describe('UsersService', () => {
         buffer: {},
       } as Express.Multer.File;
 
-      const expectedFileUsers = [] as FileUserInterface[];
+      const expectedFileUsers = [] as IFileUser[];
       for (let i = 0; i < 3; i++) {
         expectedFileUsers.push({
           row: i + 2,
@@ -107,7 +107,7 @@ describe('UsersService', () => {
           errors: {
             email: 'invalid',
           },
-        } as FileUserInterface);
+        } as IFileUser);
       }
       jest
         .spyOn(usersService, 'getExcelUsersFromWorksheet')
@@ -141,10 +141,10 @@ describe('UsersService', () => {
           },
           errors: {},
         },
-      ] as FileUserInterface[];
+      ] as IFileUser[];
 
       // Act
-      const result = await usersService.getFileUsersFromWorksheet(
+      const result = await usersService.getUserFilesFromWorksheet(
         worksheetMock,
         expectedUserFields,
         CreateFileUserDto,
