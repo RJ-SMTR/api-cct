@@ -433,6 +433,23 @@ export class UsersService {
       (i) => Object.keys(i.errors).length === 0,
     );
 
+    if (invalidUsers.length > 0) {
+      throw new HttpException(
+        {
+          error: {
+            file: {
+              message: 'invalidRows',
+              headerMap: FileUserMap,
+              uploadedUsers: validUsers.length,
+              invalidUsers: invalidUsers.length,
+              invalidRows: invalidUsers,
+            },
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
     for (const fileUser of validUsers) {
       const hash = await this.mailHistoryService.generateHash();
       const createdUser = this.usersRepository.create({
