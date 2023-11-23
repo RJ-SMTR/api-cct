@@ -29,6 +29,11 @@ import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 import { ICreateUserFile } from './interfaces/create-user-file.interface';
 
+export enum userUploadEnum {
+  DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
+  FIELD_EXISTS = 'Campo existe no banco de dados',
+}
+
 @Injectable()
 export class UsersService {
   private logger: Logger = new Logger('UsersService', { timestamp: true });
@@ -328,7 +333,7 @@ export class UsersService {
       }
       return result;
     }, {});
-    const fields = ['email', 'permitCode', 'cpfCnpj', 'fullName'];
+    const fields = ['email', 'permitCode', 'cpfCnpj'];
 
     // If has another user in DB with same email OR permitCode OR cpfCnpj
     if (
@@ -355,7 +360,7 @@ export class UsersService {
             if (errorDictionary[dtoField].length > 0) {
               errorDictionary[dtoField] += SEPARATOR;
             }
-            errorDictionary[dtoField] += `campo existe no banco de dados`;
+            errorDictionary[dtoField] += userUploadEnum.FIELD_EXISTS;
           }
         }
       }
@@ -381,7 +386,7 @@ export class UsersService {
           if (errorDictionary[dtoField].length > 0) {
             errorDictionary[dtoField] += SEPARATOR;
           }
-          errorDictionary[dtoField] += `duplicated field in upload file`;
+          errorDictionary[dtoField] += userUploadEnum.DUPLICATED_FIELD;
         }
       }
     }
@@ -480,7 +485,7 @@ export class UsersService {
       });
       this.logger.log(
         `Created mailHistory: ${JSON.stringify({
-          ...createdMailHistory,
+          email: createdMailHistory.email,
           status: Enum.getKey(
             InviteStatusEnum,
             createdMailHistory.inviteStatus.id,
