@@ -24,7 +24,6 @@ interface RegexMapInterface {
   phoneDigits?: string;
 }
 
-
 /**
  * Validates Brazillian phones.
  * The format must be a numeric or formatted string like '+xx(xx)9xxxx-xxxx'

@@ -355,7 +355,7 @@ export class UsersService {
             if (errorDictionary[dtoField].length > 0) {
               errorDictionary[dtoField] += SEPARATOR;
             }
-            errorDictionary[dtoField] += `field exists in database`;
+            errorDictionary[dtoField] += `campo existe no banco de dados`;
           }
         }
       }
