@@ -24,6 +24,7 @@ interface RegexMapInterface {
   phoneDigits?: string;
 }
 
+
 /**
  * Validates Brazillian phones.
  * The format must be a numeric or formatted string like '+xx(xx)9xxxx-xxxx'
@@ -115,11 +116,21 @@ export class IsPhoneBrConstraint implements ValidatorConstraintInterface {
     return isPhoneValid;
   }
 
-  defaultMessage() {
+  defaultMessage(args: ValidationArguments) {
+    const { numeric = 'optional' }: IsPhoneOptions = args.constraints[0];
+    const validationsMap = {
+      isCountryCodeValid: 'código de país',
+      isStateCodeValid: 'código de estado',
+      isMobileDigitValid: 'dígito 9',
+      matchesNumeric: `deve ser ${
+        numeric === true ? 'números' : 'números com formatação'
+      }`,
+      isDddValid: 'DDD',
+    };
     const falseKeys = Object.entries(this.validations)
       .filter((item) => item[1] === false)
-      .map(([key]) => `${key}: false`);
-    return `invalid phone - ${falseKeys.join(', ')}`;
+      .map(([key]) => validationsMap[key]);
+    return `Telefone inválido (${falseKeys.join(', ')})`;
   }
 }
 
