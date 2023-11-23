@@ -15,7 +15,7 @@ import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
+import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';

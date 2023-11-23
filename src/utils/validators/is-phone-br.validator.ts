@@ -32,6 +32,8 @@ interface RegexMapInterface {
  */
 @ValidatorConstraint({ async: false })
 export class IsPhoneBrConstraint implements ValidatorConstraintInterface {
+  private validations: any = {};
+
   validate(value: any, args: ValidationArguments) {
     const valueStr = String(value);
     const {
@@ -104,6 +106,7 @@ export class IsPhoneBrConstraint implements ValidatorConstraintInterface {
         Number(resultMap.stateCode) >= 11 &&
         Number(resultMap.stateCode) <= 99,
     };
+    this.validations = validations;
 
     const isPhoneValid = Object.values(validations).every(
       (value) => value === true,
@@ -111,8 +114,12 @@ export class IsPhoneBrConstraint implements ValidatorConstraintInterface {
 
     return isPhoneValid;
   }
+
   defaultMessage() {
-    return 'invalidPhone';
+    const falseKeys = Object.entries(this.validations)
+      .filter((item) => item[1] === false)
+      .map(([key]) => `${key}: false`);
+    return `invalid phone - ${falseKeys.join(', ')}`;
   }
 }
 

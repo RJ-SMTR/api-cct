@@ -19,7 +19,6 @@ export class CreateUserFileDto {
   /**
    * User field: `permitCode`
    */
-  @IsString()
   @ApiProperty({ example: '213890329890312' })
   @IsNotEmpty()
   nome: string;
