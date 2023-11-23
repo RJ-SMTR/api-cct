@@ -41,6 +41,7 @@ import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { InviteStatusNamesEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { EnumValidationPipe } from 'src/utils/pipes/enum-validation.pipe';
+import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 
 @ApiBearerAuth()
 @Roles(RoleEnum.admin)
@@ -180,7 +181,7 @@ export class UsersController {
   @UsePipes(new FileTypeValidationPipe(['spreadsheet', 'csv']))
   async uploadFile(
     @UploadedFile() file: Express.Multer.File | Express.MulterS3.File,
-  ) {
+  ): Promise<IUserUploadResponse> {
     return this.usersService.createFromFile(file);
   }
 }

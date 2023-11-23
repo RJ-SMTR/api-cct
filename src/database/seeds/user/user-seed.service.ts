@@ -8,7 +8,7 @@ import { UserSeedDataService } from './user-seed-data.service';
 @Injectable()
 export class UserSeedService {
   private logger = new Logger('UserSeedService', { timestamp: true });
-  private savedUsers: UserDataInterface[] = [];
+  private newUsers: Partial<UserDataInterface>[] = [];
 
   constructor(
     @InjectRepository(User)
@@ -29,22 +29,28 @@ export class UserSeedService {
         if (item.password !== 'secret') {
           item.password = foundItem.password;
         }
+      } else {
+        this.newUsers.push({
+          fullName: item.fullName,
+          email: item.email,
+          password: item.password,
+        });
       }
-
-      this.savedUsers.push(item);
 
       await this.repository.save(this.repository.create(item));
     }
-    this.printPasswords();
+    if (this.newUsers.length) {
+      this.printPasswords();
+    }
   }
 
   printPasswords() {
-    this.logger.log('SEED USER CREDENTIALS:');
+    this.logger.log('NEW USERS:');
     this.logger.warn(
       'The passwords shown are always new but if user exists the current password in DB wont be updated.\n' +
         'Save these passwords in the first run or remove these users before seed',
     );
-    for (const item of this.dataService.getDataFromConfig()) {
+    for (const item of this.newUsers) {
       this.logger.log({
         name: item.fullName,
         email: item.email,

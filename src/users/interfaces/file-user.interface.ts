@@ -1,7 +1,7 @@
-import { User } from '../entities/user.entity';
+import { ICreateUserFile } from './create-user-file.interface';
 
-export interface FileUserInterface {
+export interface IFileUser {
   row?: number;
-  user: Partial<User>;
-  errors: Partial<User>;
+  user: Partial<ICreateUserFile>;
+  errors: Partial<ICreateUserFile>;
 }

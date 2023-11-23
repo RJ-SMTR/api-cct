@@ -10,6 +10,8 @@ export interface IsPhoneOptions {
   countryCode?: boolean | 'optional';
   stateCode?: boolean | 'optional';
   mobileDigit?: boolean | 'optional';
+  numeric?: boolean | 'optional';
+  mandatory?: boolean;
 }
 
 interface RegexMapInterface {
@@ -30,12 +32,19 @@ interface RegexMapInterface {
  */
 @ValidatorConstraint({ async: false })
 export class IsPhoneBrConstraint implements ValidatorConstraintInterface {
-  validate(value: string, args: ValidationArguments) {
+  validate(value: any, args: ValidationArguments) {
+    const valueStr = String(value);
     const {
       countryCode = 'optional',
       stateCode = 'optional',
       mobileDigit = 'optional',
+      numeric = 'optional',
+      mandatory = false,
     }: IsPhoneOptions = args.constraints[0];
+
+    if (value === undefined && !mandatory) {
+      return true;
+    }
 
     const regexMasks = {
       numeric: `^(\\d{2})?(\\d{2})?(9)?(\\d{4})(\\d{4})$`,
@@ -44,10 +53,10 @@ export class IsPhoneBrConstraint implements ValidatorConstraintInterface {
 
     const regexResult = {
       clearNumeric: new RegExp(regexMasks.numeric).exec(
-        value.replace(/[^\d]+/g, ''),
+        valueStr.replace(/[^\d]+/g, ''),
       ),
-      numeric: new RegExp(regexMasks.numeric).exec(value),
-      formatted: new RegExp(regexMasks.formatted).exec(value),
+      numeric: new RegExp(regexMasks.numeric).exec(valueStr),
+      formatted: new RegExp(regexMasks.formatted).exec(valueStr),
     };
 
     let resultMap: RegexMapInterface = {};
@@ -83,6 +92,10 @@ export class IsPhoneBrConstraint implements ValidatorConstraintInterface {
       isMobileDigitValid:
         mobileDigit === 'optional' ||
         mobileDigit === Boolean(resultMap.mobileDigit),
+      matchesNumeric:
+        numeric === 'optional' ||
+        (numeric === true && regexResult.numeric !== null) ||
+        (numeric === false && regexResult.formatted !== null),
     };
     validations = {
       ...validations,
