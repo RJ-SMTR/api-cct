@@ -24,8 +24,11 @@ import { Bank } from 'src/banks/entities/bank.entity';
 
 @Entity()
 export class User extends EntityHelper {
+  newUser: User[];
   constructor(user?: User | DeepPartial<User>) {
     super();
+    this.aux_bank = null;
+    this.aux_inviteStatus = null;
     if (user !== undefined) {
       Object.assign(this, user);
     }

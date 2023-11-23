@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
@@ -10,6 +10,8 @@ import { MailHistorySeedDataService } from './mail-history-seed-data.service';
 
 @Injectable()
 export class MailHistorySeedService {
+  private logger = new Logger('MailHistorySeedService', { timestamp: true });
+
   constructor(
     @InjectRepository(MailHistory)
     private mailHistoryRepository: Repository<MailHistory>,
@@ -19,6 +21,7 @@ export class MailHistorySeedService {
   ) {}
 
   async run() {
+    this.logger.log('run()');
     for (const item of this.dataService.getDataFromConfig()) {
       const itemUser = await this.getHistoryUser(item);
       item.user = itemUser;
@@ -30,15 +33,17 @@ export class MailHistorySeedService {
 
       if (!foundItem) {
         item.email = item.user.email as string;
-        item.hash = await this.generateHash();
+        item.hash = await this.generateInviteHash();
         await this.mailHistoryRepository.save(
           this.mailHistoryRepository.create(item),
         );
+        itemUser.hash = item.hash;
+        await this.usersRepository.save(this.usersRepository.create(itemUser));
       }
     }
   }
 
-  async generateHash(): Promise<string> {
+  async generateInviteHash(): Promise<string> {
     let hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())

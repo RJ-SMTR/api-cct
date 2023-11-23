@@ -53,44 +53,22 @@ export class UsersService {
     );
   }
 
-  async setAux_inviteStatus(users: User[]): Promise<User[]> {
-    const newUsers: User[] = [];
-    for (let i = 0; i < users.length; i++) {
-      const user = users[i];
-      if (user !== null) {
-        user.aux_inviteStatus = await this.getAux_inviteSatus(user);
-      }
-      newUsers.push(user);
-    }
-    return newUsers;
-  }
-
-  async setAux_bank(users: User[]): Promise<User[]> {
-    const newUsers: User[] = [];
-    for (let i = 0; i < users.length; i++) {
-      const user = users[i];
-      if (user !== null) {
-        user.aux_bank = await this.getAux_bank(user);
-      }
-      newUsers.push(user);
-    }
-    return newUsers;
-  }
-
-  async setAuxColumns(users: User[]): Promise<User[]> {
-    let newUsers: User[] = [...users];
-    newUsers = await this.setAux_inviteStatus(newUsers);
-    newUsers = await this.setAux_bank(newUsers);
-    return newUsers;
+  async setUserAuxColumns(user: User): Promise<User> {
+    const newUser = new User(user);
+    newUser.aux_bank = await this.getAux_bank(user);
+    user.aux_inviteStatus = await this.getAux_inviteSatus(user);
+    return newUser;
   }
 
   async findMany(
     fields: EntityCondition<User> | EntityCondition<User>[],
   ): Promise<User[]> {
-    let users = await this.usersRepository.find({
+    const users = await this.usersRepository.find({
       where: fields,
     });
-    users = await this.setAuxColumns(users);
+    for (const i in users) {
+      users[i] = await this.setUserAuxColumns(users[i]);
+    }
     return users;
   }
 
@@ -170,7 +148,9 @@ export class UsersService {
       invites = await this.mailHistoryService.find({ inviteStatus });
     }
 
-    users = await this.setAux_inviteStatus(users);
+    for (const i in users) {
+      users[i] = await this.setUserAuxColumns(users[i]);
+    }
 
     users = users.filter((userItem) => {
       return (
@@ -206,7 +186,7 @@ export class UsersService {
       where: fields,
     });
     if (user !== null) {
-      user = (await this.setAuxColumns([user]))[0];
+      user = await this.setUserAuxColumns(user);
     }
     return user;
   }
@@ -239,7 +219,7 @@ export class UsersService {
     let createPayload = await this.usersRepository.save(
       this.usersRepository.create(newUser),
     );
-    createPayload = await this.setAuxColumns([createPayload])[0];
+    createPayload = await this.setUserAuxColumns(createPayload);
     return createPayload;
   }
 
@@ -263,7 +243,7 @@ export class UsersService {
         HttpStatus.NOT_FOUND,
       );
     }
-    (user as User) = await this.setAuxColumns([user])[0];
+    user = await this.setUserAuxColumns(user);
     return user;
   }
 

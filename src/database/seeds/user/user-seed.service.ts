@@ -4,6 +4,8 @@ import { User } from 'src/users/entities/user.entity';
 import { UserDataInterface } from 'src/users/interfaces/user-data.interface';
 import { Repository } from 'typeorm';
 import { UserSeedDataService } from './user-seed-data.service';
+import * as crypto from 'crypto';
+import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 
 @Injectable()
 export class UserSeedService {
@@ -12,13 +14,14 @@ export class UserSeedService {
 
   constructor(
     @InjectRepository(User)
-    private repository: Repository<User>,
+    private usersRepository: Repository<User>,
     private dataService: UserSeedDataService,
   ) {}
 
   async run() {
+    this.logger.log('run()');
     for (const item of this.dataService.getDataFromConfig()) {
-      const foundItem = await this.repository.findOne({
+      const foundItem = await this.usersRepository.findOne({
         where: {
           email: item.email,
         },
@@ -29,7 +32,11 @@ export class UserSeedService {
         if (item.password !== 'secret') {
           item.password = foundItem.password;
         }
+        if (!item.hash) {
+          item.hash = await this.generateHash();
+        }
       } else {
+        item.hash = await this.generateHash();
         this.newUsers.push({
           fullName: item.fullName,
           email: item.email,
@@ -37,7 +44,7 @@ export class UserSeedService {
         });
       }
 
-      await this.repository.save(this.repository.create(item));
+      await this.usersRepository.save(this.usersRepository.create(item));
     }
     if (this.newUsers.length) {
       this.printPasswords();
@@ -57,5 +64,19 @@ export class UserSeedService {
         password: item.password,
       });
     }
+  }
+
+  async generateHash(): Promise<string> {
+    let hash = crypto
+      .createHash('sha256')
+      .update(randomStringGenerator())
+      .digest('hex');
+    while (await this.usersRepository.findOne({ where: { hash } })) {
+      hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+    }
+    return hash;
   }
 }
