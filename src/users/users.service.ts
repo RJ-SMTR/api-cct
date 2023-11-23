@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
 import { Request } from 'express';
+import { BanksService } from 'src/banks/banks.service';
+import { Bank } from 'src/banks/entities/bank.entity';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -15,6 +17,7 @@ import { isArrayContainEqual } from 'src/utils/array-utils';
 import { Enum } from 'src/utils/enum';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
+import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { DeepPartial, FindOptionsWhere, ILike, Repository } from 'typeorm';
 import * as xlsx from 'xlsx';
@@ -22,12 +25,11 @@ import { NullableType } from '../utils/types/nullable.type';
 import { CreateUserFileDto } from './dto/create-user-file.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
+import { ICreateUserFile } from './interfaces/create-user-file.interface';
 import { IFileUser } from './interfaces/file-user.interface';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
-import { FileUserMap } from './mappings/user-file.map';
-import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
-import { ICreateUserFile } from './interfaces/create-user-file.interface';
+import { FileUserMap } from './mappings/user-file.map';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -42,6 +44,7 @@ export class UsersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     private mailHistoryService: MailHistoryService,
+    private banksService: BanksService,
   ) {}
 
   create(createProfileDto: CreateUserDto): Promise<User> {
@@ -62,13 +65,32 @@ export class UsersService {
     return newUsers;
   }
 
+  async setAux_bank(users: User[]): Promise<User[]> {
+    const newUsers: User[] = [];
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i];
+      if (user !== null) {
+        user.aux_bank = await this.getAux_bank(user);
+      }
+      newUsers.push(user);
+    }
+    return newUsers;
+  }
+
+  async setAuxColumns(users: User[]): Promise<User[]> {
+    let newUsers: User[] = [...users];
+    newUsers = await this.setAux_inviteStatus(newUsers);
+    newUsers = await this.setAux_bank(newUsers);
+    return newUsers;
+  }
+
   async findMany(
     fields: EntityCondition<User> | EntityCondition<User>[],
   ): Promise<User[]> {
     let users = await this.usersRepository.find({
       where: fields,
     });
-    users = await this.setAux_inviteStatus(users);
+    users = await this.setAuxColumns(users);
     return users;
   }
 
@@ -161,9 +183,7 @@ export class UsersService {
     return users;
   }
 
-  private async getAux_inviteSatus(
-    user: User | null,
-  ): Promise<InviteStatus | null> {
+  private async getAux_inviteSatus(user: User): Promise<InviteStatus | null> {
     const invite = await this.mailHistoryService.findRecentByUser(user);
     let inviteStatus: InviteStatus | null = null;
     if (invite?.inviteStatus !== undefined) {
@@ -172,14 +192,21 @@ export class UsersService {
     return inviteStatus;
   }
 
+  private async getAux_bank(user: User): Promise<Bank | null> {
+    if (user?.bankCode === undefined || user?.bankCode === null) {
+      return null;
+    }
+    return await this.banksService.findOne({ code: user?.bankCode });
+  }
+
   async findOne(
     fields: EntityCondition<User> | EntityCondition<User>[],
   ): Promise<NullableType<User>> {
-    const user = await this.usersRepository.findOne({
+    let user = await this.usersRepository.findOne({
       where: fields,
     });
     if (user !== null) {
-      user.aux_inviteStatus = await this.getAux_inviteSatus(user);
+      user = (await this.setAuxColumns([user]))[0];
     }
     return user;
   }
@@ -209,10 +236,10 @@ export class UsersService {
     }
 
     newUser.update(payload);
-    const createPayload = await this.usersRepository.save(
+    let createPayload = await this.usersRepository.save(
       this.usersRepository.create(newUser),
     );
-    createPayload.aux_inviteStatus = await this.getAux_inviteSatus(newUser);
+    createPayload = await this.setAuxColumns([createPayload])[0];
     return createPayload;
   }
 
@@ -224,7 +251,7 @@ export class UsersService {
    * @throws `HttpException`
    */
   async getOne(fields: EntityCondition<User>): Promise<User> {
-    const user = await this.findOne(fields);
+    let user = await this.findOne(fields);
     if (!user) {
       throw new HttpException(
         {
@@ -236,7 +263,7 @@ export class UsersService {
         HttpStatus.NOT_FOUND,
       );
     }
-    user.aux_inviteStatus = await this.getAux_inviteSatus(user);
+    (user as User) = await this.setAuxColumns([user])[0];
     return user;
   }
 
