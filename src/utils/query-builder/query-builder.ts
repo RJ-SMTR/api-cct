@@ -36,6 +36,9 @@ export class QueryBuilder {
    * ```
    */
   public toSQL(): string {
+    if (!this.getQueryBuild()) {
+      return '';
+    }
     return this.queryBuild
       .filter((conditions) => conditions.length > 0)
       .map((conditions, index) => {

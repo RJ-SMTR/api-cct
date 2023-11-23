@@ -88,7 +88,6 @@ export class AuthController {
   async resendRegisterMail(
     @Body() resendEmailDto: AuthResendEmailDto,
   ): Promise<void> {
-    this.logger.debug(`$Resending email for body: ${resendEmailDto}`);
     return this.service.resendRegisterMail(resendEmailDto);
   }
 

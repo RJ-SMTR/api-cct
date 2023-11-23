@@ -315,6 +315,13 @@ export class TicketRevenuesService {
       queryBuilder.pushAND(`DATE(data) <= DATE('${endDate}')`);
     }
 
+    queryBuilder.pushOR([]);
+    if (args?.getToday) {
+      const nowStr = new Date(Date.now()).toISOString().slice(0, 10);
+      queryBuilder.pushAND(`DATE(data) = DATE('${nowStr}')`);
+    }
+
+    let queryBuilderStr = queryBuilder.toSQL();
     if (args?.permitCode !== undefined) {
       let permitCode = args.permitCode;
       if (permitCode[0] === "'") {
@@ -323,13 +330,7 @@ export class TicketRevenuesService {
         );
         permitCode = permitCode.replace("'", '');
       }
-      queryBuilder.pushAND(`permissao = '${permitCode}'`);
-    }
-
-    queryBuilder.pushOR([]);
-    if (args?.getToday) {
-      const nowStr = new Date(Date.now()).toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(data) = DATE('${nowStr}')`);
+      queryBuilderStr = `permissao = '${permitCode}' AND (${queryBuilderStr})`;
     }
 
     // Query
@@ -360,7 +361,7 @@ SELECT
   valor_transacao AS transactionValue,
   versao AS bqDataVersion
 FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
-      (queryBuilder.getQueryBuild() ? `\nWHERE ${queryBuilder.toSQL()}` : '') +
+      (queryBuilderStr.length ? `\nWHERE ${queryBuilderStr}` : '') +
       `\nORDER BY data DESC, hora DESC` +
       (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
       (offset !== undefined ? `\nOFFSET ${offset}` : '');

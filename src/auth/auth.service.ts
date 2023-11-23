@@ -215,18 +215,19 @@ export class AuthService {
    */
   private async getUser(id: number): Promise<User> {
     const user = await this.usersService.getOne({ id });
-    if (!user?.email || !user?.hash) {
+    if (!user || !user?.email || !user?.hash) {
       throw new HttpException(
         {
-          details: {
-            message: 'user fields must be filled in database',
+          error: {
+            expectedUserId: id,
             user: {
-              ...(!user.email ? { email: 'field is empty' } : {}),
-              ...(!user.hash ? { hash: 'field is empty' } : {}),
+              ...(!user ? { id: 'not found' } : {}),
+              ...(user && !user.email ? { email: 'field is empty' } : {}),
+              ...(user && !user.hash ? { hash: 'field is empty' } : {}),
             },
           },
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.BAD_REQUEST,
       );
     }
     return user;
