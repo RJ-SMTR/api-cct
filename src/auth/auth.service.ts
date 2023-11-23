@@ -277,6 +277,14 @@ export class AuthService {
           userMailHistory.id,
           userMailHistory,
         );
+        this.logger.log(
+          `sendRegisterEmail(): register email sent successfully (${JSON.stringify(
+            {
+              email: userMailHistory.email,
+              inviteStatus: userMailHistory.inviteStatus,
+            },
+          )})`,
+        );
       } else {
         throw new HttpException(
           {

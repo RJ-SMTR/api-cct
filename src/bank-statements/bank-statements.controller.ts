@@ -14,7 +14,7 @@ import { DateApiParams } from 'src/utils/api-param/date.api-param';
 import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { DateQueryParams } from 'src/utils/query-param/date.query-param copy';
+import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { BankStatementsService } from './bank-statements.service';
 import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
 import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';

@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -31,6 +31,8 @@ import { ICreateUserFile } from './interfaces/create-user-file.interface';
 
 @Injectable()
 export class UsersService {
+  private logger: Logger = new Logger('UsersService', { timestamp: true });
+
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
@@ -353,7 +355,7 @@ export class UsersService {
             if (errorDictionary[dtoField].length > 0) {
               errorDictionary[dtoField] += SEPARATOR;
             }
-            errorDictionary[dtoField] += `field exists in database`;
+            errorDictionary[dtoField] += `campo existe no banco de dados`;
           }
         }
       }
@@ -433,6 +435,23 @@ export class UsersService {
       (i) => Object.keys(i.errors).length === 0,
     );
 
+    if (invalidUsers.length > 0) {
+      throw new HttpException(
+        {
+          error: {
+            file: {
+              message: 'invalidRows',
+              headerMap: FileUserMap,
+              uploadedUsers: validUsers.length,
+              invalidUsers: invalidUsers.length,
+              invalidRows: invalidUsers,
+            },
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
     for (const fileUser of validUsers) {
       const hash = await this.mailHistoryService.generateHash();
       const createdUser = this.usersRepository.create({
@@ -449,8 +468,9 @@ export class UsersService {
         role: new Role(RoleEnum.user),
       } as DeepPartial<User>);
       await this.usersRepository.save(createdUser);
+      this.logger.log(`Created user: ${JSON.stringify(fileUser)}`);
 
-      await this.mailHistoryService.create({
+      const createdMailHistory = await this.mailHistoryService.create({
         user: createdUser,
         hash: hash,
         email: createdUser.email as string,
@@ -458,6 +478,15 @@ export class UsersService {
           id: InviteStatusEnum.queued,
         },
       });
+      this.logger.log(
+        `Created mailHistory: ${JSON.stringify({
+          ...createdMailHistory,
+          status: Enum.getKey(
+            InviteStatusEnum,
+            createdMailHistory.inviteStatus.id,
+          ),
+        })}`,
+      );
     }
     return {
       headerMap: FileUserMap,

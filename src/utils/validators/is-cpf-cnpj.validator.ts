@@ -52,7 +52,7 @@ export class IsCpfCnpjConstraint implements ValidatorConstraintInterface {
       cpfCnpj.push('CNPJ');
     }
 
-    return `invalid ${cpfCnpj.join('/')}`;
+    return `${cpfCnpj.join('/')} inválido`;
   }
 }
 
