@@ -20,11 +20,15 @@ import { EntityHelper } from 'src/utils/entity-helper';
 import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { Exclude, Expose } from 'class-transformer';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { Bank } from 'src/banks/entities/bank.entity';
 
 @Entity()
 export class User extends EntityHelper {
+  newUser: User[];
   constructor(user?: User | DeepPartial<User>) {
     super();
+    this.aux_bank = null;
+    this.aux_inviteStatus = null;
     if (user !== undefined) {
       Object.assign(this, user);
     }
@@ -187,6 +191,8 @@ export class User extends EntityHelper {
   }
 
   aux_inviteStatus?: InviteStatus | null;
+
+  aux_bank?: Bank | null;
 
   update(userProps: DeepPartial<User>) {
     Object.assign(this, userProps);

@@ -4,10 +4,10 @@ import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statemen
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { UsersService } from 'src/users/users.service';
 import { getDateYMDString } from 'src/utils/date-utils';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPaymentDates, getPaymentWeek } from 'src/utils/payment-date-utils';
 import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
 import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
-import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 
 @Injectable()
 export class BankStatementsService {
@@ -33,6 +33,19 @@ export class BankStatementsService {
     }
     // For now it validates if user exists
     const user = await this.usersService.getOne({ id: args?.userId });
+    if (!user.permitCode) {
+      throw new HttpException(
+        {
+          error: {
+            message: 'User not found',
+            user: {
+              permitCode: 'fieldIsEmpty',
+            },
+          },
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
 
     // TODO: fetch instead of mockup
     let bankStatementsResponse: ICoreBankStatements[] = [];
