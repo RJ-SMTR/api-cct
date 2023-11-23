@@ -12,7 +12,6 @@ export class CreateUserFileDto {
    */
   @ApiProperty({ example: 'test1@example.com' })
   @IsNotEmpty()
-  @IsString()
   @Transform(lowerCaseTransformer)
   codigo_permissionario: string;
 
@@ -20,6 +19,7 @@ export class CreateUserFileDto {
    * User field: `permitCode`
    */
   @ApiProperty({ example: '213890329890312' })
+  @IsString()
   @IsNotEmpty()
   nome: string;
 
