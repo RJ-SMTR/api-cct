@@ -135,6 +135,13 @@ export class UsersService {
             },
           ]
         : []),
+      ...(fields?.role
+        ? [
+            {
+              role: { id: fields.role.id },
+            },
+          ]
+        : []),
     ] as FindOptionsWhere<User>[];
 
     let users = await this.usersRepository.find({

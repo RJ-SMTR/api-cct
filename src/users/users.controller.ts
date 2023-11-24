@@ -39,6 +39,8 @@ import { User } from './entities/user.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 import { UsersService } from './users.service';
+import { Role } from 'src/roles/entities/role.entity';
+import { RoleEnum } from 'src/roles/roles.enum';
 
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'))
@@ -55,7 +57,7 @@ export class UsersController {
   })
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createProfileDto: CreateUserDto): Promise<User> {
+  post(@Body() createProfileDto: CreateUserDto): Promise<User> {
     return this.usersService.create(createProfileDto);
   }
 
@@ -94,7 +96,7 @@ export class UsersController {
     required: false,
     enum: InviteStatusNamesEnum,
   })
-  async findAll(
+  async get(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(500), ParseIntPipe) limit: number,
     @Query('anyField') anyField?: string,
@@ -120,6 +122,7 @@ export class UsersController {
       name,
       email,
       inviteStatusName,
+      role: new Role(RoleEnum.user),
     };
     return infinityPagination(
       await this.usersService.findManyWithPagination(pagination, fields),
@@ -132,7 +135,7 @@ export class UsersController {
   })
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string): Promise<NullableType<User>> {
+  getId(@Param('id') id: string): Promise<NullableType<User>> {
     return this.usersService.findOne({ id: +id });
   }
 
@@ -141,7 +144,7 @@ export class UsersController {
   })
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
-  update(
+  patchId(
     @Param('id') id: number,
     @Body() updateProfileDto: UpdateUserDto,
   ): Promise<User> {
@@ -150,7 +153,7 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: number): Promise<void> {
+  deleteId(@Param('id') id: number): Promise<void> {
     return this.usersService.softDelete(id);
   }
 
@@ -175,7 +178,7 @@ export class UsersController {
   })
   @UseInterceptors(FileInterceptor('file'))
   @UsePipes(new FileTypeValidationPipe(['spreadsheet', 'csv']))
-  async uploadFile(
+  async postUpload(
     @UploadedFile() file: Express.Multer.File | Express.MulterS3.File,
   ): Promise<IUserUploadResponse> {
     return this.usersService.createFromFile(file);

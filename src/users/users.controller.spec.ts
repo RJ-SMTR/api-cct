@@ -43,7 +43,7 @@ describe('UsersController', () => {
         .mockResolvedValue(expectedResult);
 
       // Act
-      const result = await usersController.uploadFile(fileMock);
+      const result = await usersController.postUpload(fileMock);
 
       // Assert
       expect(usersService.createFromFile).toHaveBeenCalledWith(fileMock);
@@ -61,7 +61,7 @@ describe('UsersController', () => {
       jest.spyOn(usersService, 'createFromFile').mockRejectedValue(new Error());
 
       // Assert
-      await expect(usersController.uploadFile(fileMock)).rejects.toThrowError();
+      await expect(usersController.postUpload(fileMock)).rejects.toThrowError();
     });
   });
 });
