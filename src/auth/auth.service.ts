@@ -435,10 +435,14 @@ export class AuthService {
         {
           details: {
             token: 'valid token but decoded user data is invalid',
-            ...(!userProfile && { id: 'userNotExists' }),
-            ...(!(userProfile && userProfile?.cpfCnpj) && {
-              cpfCnpj: 'invalidCpfCnpj',
-            }),
+            user: {
+              ...(!userProfile?.id
+                ? { id: user?.id }
+                : { id: 'userNotExists' }),
+              ...(!(userProfile && userProfile?.cpfCnpj) && {
+                cpfCnpj: 'invalidCpfCnpj',
+              }),
+            },
           },
         },
         HttpStatus.UNAUTHORIZED,

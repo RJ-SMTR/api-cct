@@ -1,25 +1,24 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  Query,
+  Controller,
   DefaultValuePipe,
-  ParseIntPipe,
-  HttpStatus,
+  Delete,
+  Get,
   HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
   SerializeOptions,
-  UseInterceptors,
   UploadedFile,
+  UseGuards,
+  UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -27,25 +26,22 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { Roles } from 'src/roles/roles.decorator';
-import { RoleEnum } from 'src/roles/roles.enum';
-import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from 'src/roles/roles.guard';
+import { InviteStatusNamesEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
 import { infinityPagination } from 'src/utils/infinity-pagination';
-import { User } from './entities/user.entity';
+import { EnumValidationPipe } from 'src/utils/pipes/enum-validation.pipe';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { InfinityPaginationResultType } from '../utils/types/infinity-pagination-result.type';
 import { NullableType } from '../utils/types/nullable.type';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { InviteStatusNamesEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { User } from './entities/user.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
-import { EnumValidationPipe } from 'src/utils/pipes/enum-validation.pipe';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
+import { UsersService } from './users.service';
 
 @ApiBearerAuth()
-@Roles(RoleEnum.admin)
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'))
 @ApiTags('Users')
 @Controller({
   path: 'users',
@@ -132,7 +128,7 @@ export class UsersController {
   }
 
   @SerializeOptions({
-    groups: ['admin'],
+    groups: ['admin', 'me'],
   })
   @Get(':id')
   @HttpCode(HttpStatus.OK)
@@ -141,7 +137,7 @@ export class UsersController {
   }
 
   @SerializeOptions({
-    groups: ['admin'],
+    groups: ['admin', 'me'],
   })
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
