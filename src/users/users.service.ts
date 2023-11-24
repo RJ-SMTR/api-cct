@@ -56,7 +56,7 @@ export class UsersService {
   async setUserAuxColumns(user: User): Promise<User> {
     const newUser = new User(user);
     newUser.aux_bank = await this.getAux_bank(user);
-    user.aux_inviteStatus = await this.getAux_inviteSatus(user);
+    newUser.aux_inviteStatus = await this.getAux_inviteSatus(user);
     return newUser;
   }
 
