@@ -1,3 +1,5 @@
+import { Role } from '../../roles/entities/role.entity';
+
 export interface IFindUserPaginated {
   _anyField?: {
     value?: string;
@@ -10,4 +12,5 @@ export interface IFindUserPaginated {
   isSgtuBlocked?: boolean;
   passValidatorId?: string;
   inviteStatusName?: string;
+  role?: Role;
 }
