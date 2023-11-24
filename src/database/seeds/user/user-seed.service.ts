@@ -27,24 +27,15 @@ export class UserSeedService {
         },
       });
 
-      if (foundItem) {
-        item.id = foundItem.id;
-        if (item.password !== 'secret') {
-          item.password = foundItem.password;
-        }
-        if (!item.hash) {
-          item.hash = await this.generateHash();
-        }
-      } else {
+      if (!foundItem) {
         item.hash = await this.generateHash();
         this.newUsers.push({
           fullName: item.fullName,
           email: item.email,
-          password: item.password,
+          ...(item.password ? { password: item.password } : {}),
         });
+        await this.usersRepository.save(this.usersRepository.create(item));
       }
-
-      await this.usersRepository.save(this.usersRepository.create(item));
     }
     if (this.newUsers.length) {
       this.printPasswords();

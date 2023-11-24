@@ -10,6 +10,7 @@ import { SettingTypeSeedService } from './setting-type/setting-type.service';
 import { SettingSeedService } from './setting/setting-seed.service';
 import { StatusSeedService } from './status/status-seed.service';
 import { UserSeedService } from './user/user-seed.service';
+import { InitSeedService } from './init/init-seed.service';
 
 const runSeed = async () => {
   const app = await NestFactory.create(SeedModule);
@@ -37,8 +38,12 @@ const runSeed = async () => {
   }
 
   // run
-  for (const module of services) {
-    await app.get(module).run();
+  if (await app.get(InitSeedService).isDbEmpty()) {
+    for (const module of services) {
+      await app.get(module).run();
+    }
+  } else {
+    console.log('Database is not empty. Aborting seed...');
   }
 
   await app.close();
