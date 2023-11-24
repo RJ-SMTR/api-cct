@@ -29,24 +29,28 @@ export class UserSeedDataService {
       this.configService.getOrThrow('app.nodeEnv', { infer: true });
     return [
       // Test
-      {
-        id: 2,
-        fullName: 'Henrique Santos Template',
-        email: 'henrique@example.com',
-        password: 'secret',
-        permitCode: '213890329890312',
-        role: { id: RoleEnum.user } as Role,
-        status: { id: StatusEnum.active } as Status,
-      },
-      {
-        id: 3,
-        fullName: 'Márcia Clara Template',
-        email: 'marcia@example.com',
-        password: 'secret',
-        permitCode: '319274392832023',
-        role: { id: RoleEnum.user } as Role,
-        status: { id: StatusEnum.active } as Status,
-      },
+      ...(nodeEnv() !== 'production'
+        ? [
+            {
+              id: 2,
+              fullName: 'Henrique Santos Template',
+              email: 'henrique@example.com',
+              password: 'secret',
+              permitCode: '213890329890312',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+            },
+            {
+              id: 3,
+              fullName: 'Márcia Clara Template',
+              email: 'marcia@example.com',
+              password: 'secret',
+              permitCode: '319274392832023',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+            },
+          ]
+        : []),
 
       // Dev team
       {
@@ -122,7 +126,7 @@ export class UserSeedDataService {
         status: new Status(StatusEnum.active),
       },
 
-      ...(nodeEnv() === 'local' || nodeEnv() !== 'test'
+      ...(nodeEnv() === 'local' || nodeEnv() === 'test'
         ? [
             {
               id: 1,
