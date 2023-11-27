@@ -88,7 +88,7 @@ export class CronJobsService implements OnModuleInit {
       );
     if (activateAutoSendInvite.value === String(false)) {
       this.logger.log(
-        `bulkSendInvites(): job finished because ${appSettings.any__activate_auto_send_invite.name} = 'false'`,
+        `bulkSendInvites(): job aborted because ${appSettings.any__activate_auto_send_invite.name} = 'false'`,
       );
       return;
     }
@@ -185,7 +185,7 @@ export class CronJobsService implements OnModuleInit {
         ...(remainingQuota == 0 ? ['no remaining quota'] : []),
       ];
       this.logger.log(
-        `bulkSendInvites(): job finished because ${reasons.join(' and ')}.`,
+        `bulkSendInvites(): job aborted because ${reasons.join(' and ')}.`,
       );
     } else {
       this.logger.log('bulkSendInvites(): job finished');
