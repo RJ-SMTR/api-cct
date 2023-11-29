@@ -309,7 +309,7 @@ export class UsersService {
     const receivedHeaders: any[] = [];
     for (const key in worksheet) {
       if (worksheet.hasOwnProperty(key)) {
-        if (key.endsWith('1')) {
+        if (key.endsWith('1') && key.length === 2) {
           receivedHeaders.push(worksheet[key].v);
         }
       }
