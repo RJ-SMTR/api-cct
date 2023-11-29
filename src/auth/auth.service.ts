@@ -258,54 +258,38 @@ export class AuthService {
    * @throws `HttpException`
    */
   async sendRegisterEmail(user: User, userMailHistory: MailHistory) {
-    if (userMailHistory.getMailStatus() === InviteStatusEnum.queued) {
-      const mailData: MailData<{ hash: string; to: string; userName: string }> =
-        {
-          to: user.email as string,
-          data: {
-            hash: userMailHistory.hash as string,
-            to: user.email as string,
-            userName: user.fullName as string,
-          },
-        };
-      const mailResponse = await this.mailService.userConcludeRegistration(
-        mailData,
-      );
-      if (mailResponse.mailSentInfo.success === true) {
-        userMailHistory.setInviteStatus(InviteStatusEnum.sent);
-        userMailHistory.sentAt = new Date(Date.now());
-        await this.mailHistoryService.update(
-          userMailHistory.id,
-          userMailHistory,
-        );
-        this.logger.log(
-          `sendRegisterEmail(): register email sent successfully (${JSON.stringify(
-            {
-              email: userMailHistory.email,
-              inviteStatus: userMailHistory.inviteStatus,
-            },
-          )})`,
-        );
-      } else {
-        throw new HttpException(
+    const mailData: MailData<{ hash: string; to: string; userName: string }> = {
+      to: user.email as string,
+      data: {
+        hash: userMailHistory.hash as string,
+        to: user.email as string,
+        userName: user.fullName as string,
+      },
+    };
+    const mailResponse = await this.mailService.userConcludeRegistration(
+      mailData,
+    );
+    if (mailResponse.mailSentInfo.success === true) {
+      userMailHistory.setInviteStatus(InviteStatusEnum.sent);
+      userMailHistory.sentAt = new Date(Date.now());
+      await this.mailHistoryService.update(userMailHistory.id, userMailHistory);
+      this.logger.log(
+        `sendRegisterEmail(): register email sent successfully (${JSON.stringify(
           {
-            error: HttpStatus.INTERNAL_SERVER_ERROR,
-            details: {
-              mailResponse: mailResponse,
-            },
+            email: userMailHistory.email,
+            inviteStatus: userMailHistory.inviteStatus,
           },
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
+        )})`,
+      );
     } else {
       throw new HttpException(
         {
-          error: `User's mailStatus is not 'queued'. Cannot proceed with resending the email.`,
+          error: HttpStatus.INTERNAL_SERVER_ERROR,
           details: {
-            userMailHistory,
+            mailResponse: mailResponse,
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
