@@ -95,7 +95,7 @@ export class CronJobsService implements OnModuleInit {
 
     // get data
     const sentToday = (await this.mailHistoryService.findSentToday()) || [];
-    const unsent = (await this.mailHistoryService.findUnsent()) || [];
+    const unsent = (await this.mailHistoryService.findQueued()) || [];
     const remainingQuota = await this.mailHistoryService.getRemainingQuota();
     const dailyQuota = () => this.configService.getOrThrow('mail.dailyQuota');
 
@@ -143,18 +143,19 @@ export class CronJobsService implements OnModuleInit {
           invite.setInviteStatus(InviteStatusEnum.sent);
           invite.sentAt = new Date(Date.now());
           await this.mailHistoryService.update(invite.id, invite);
-          this.logger.log('bulkSendInvites(): invite sent successfully.');
+          this.logger.log('bulkSendInvites(): mail sent successfully.');
         }
 
         // SMTP error
         else {
           this.logger.error(
-            'bulkSendInvites(): invite sent returned error' +
+            'bulkSendInvites(): mail sent returned error' +
               '\n    - Message: ' +
               JSON.stringify(mailSentInfo) +
               '\n    - Traceback:\n' +
               new Error().stack,
           );
+          invite.sentAt = null;
           invite.setInviteError({
             httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
             smtpErrorCode: mailSentInfo.response.code,
@@ -165,13 +166,13 @@ export class CronJobsService implements OnModuleInit {
         // API error
       } catch (httpException) {
         this.logger.error(
-          'bulkSendInvites(): invite failed to send' +
+          'bulkSendInvites(): mail failed to send' +
             '\n    - Message: ' +
             JSON.stringify(httpException) +
             '\n    - Traceback:\n' +
             (httpException as Error).stack,
         );
-        invite.httpErrorCode = httpException.statusCode;
+        invite.sentAt = null;
         invite.setInviteError({
           httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
           smtpErrorCode: null,

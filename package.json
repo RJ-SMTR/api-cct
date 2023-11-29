@@ -126,7 +126,8 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "globalSetup": "./global-setup.js"
   },
   "engines": {
     "node": ">=16.0.0"

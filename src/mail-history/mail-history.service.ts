@@ -9,25 +9,27 @@ import { User } from 'src/users/entities/user.entity';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
-import { DeepPartial, Equal, MoreThanOrEqual, Repository } from 'typeorm';
+import { DeepPartial, Equal, MoreThanOrEqual, Repository, Not } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
 
 @Injectable()
 export class MailHistoryService {
   constructor(
     @InjectRepository(MailHistory)
-    private inviteRepository: Repository<MailHistory>,
+    private mailHistoryRepository: Repository<MailHistory>,
     private configService: ConfigService,
   ) {}
 
   create(data: DeepPartial<MailHistory>): Promise<MailHistory> {
-    return this.inviteRepository.save(this.inviteRepository.create(data));
+    return this.mailHistoryRepository.save(
+      this.mailHistoryRepository.create(data),
+    );
   }
 
   async find(
     fields?: EntityCondition<MailHistory> | EntityCondition<MailHistory>[],
   ): Promise<NullableType<MailHistory[]>> {
-    return this.inviteRepository.find({
+    return this.mailHistoryRepository.find({
       where: fields,
       order: {
         createdAt: 'ASC',
@@ -36,7 +38,7 @@ export class MailHistoryService {
   }
 
   async findSentToday(): Promise<NullableType<MailHistory[]>> {
-    return this.inviteRepository.find({
+    return this.mailHistoryRepository.find({
       where: {
         sentAt: MoreThanOrEqual(startOfDay(new Date(Date.now()))),
       },
@@ -46,10 +48,21 @@ export class MailHistoryService {
     });
   }
 
-  async findUnsent(): Promise<NullableType<MailHistory[]>> {
-    return this.inviteRepository.find({
+  async findQueued(): Promise<NullableType<MailHistory[]>> {
+    return this.mailHistoryRepository.find({
       where: {
         inviteStatus: { id: InviteStatusEnum.queued },
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+  }
+
+  async findNotUsed(): Promise<MailHistory[]> {
+    return this.mailHistoryRepository.find({
+      where: {
+        inviteStatus: { id: Not(InviteStatusEnum.used) },
       },
       order: {
         createdAt: 'ASC',
@@ -75,7 +88,7 @@ export class MailHistoryService {
     if (user === null) {
       return new Promise(() => null);
     }
-    return this.inviteRepository.findOne({
+    return this.mailHistoryRepository.findOne({
       where: {
         user: Equal(user?.id),
       },
@@ -88,13 +101,13 @@ export class MailHistoryService {
   findOne(
     fields: EntityCondition<MailHistory>,
   ): Promise<NullableType<MailHistory>> {
-    return this.inviteRepository.findOne({
+    return this.mailHistoryRepository.findOne({
       where: fields,
     });
   }
 
   async getOne(fields: EntityCondition<MailHistory>): Promise<MailHistory> {
-    const mailHistory = await this.inviteRepository.findOne({
+    const mailHistory = await this.mailHistoryRepository.findOne({
       where: fields,
     });
     if (!mailHistory) {
@@ -113,8 +126,8 @@ export class MailHistoryService {
   }
 
   update(id: number, payload: DeepPartial<MailHistory>): Promise<MailHistory> {
-    return this.inviteRepository.save(
-      this.inviteRepository.create({
+    return this.mailHistoryRepository.save(
+      this.mailHistoryRepository.create({
         id,
         ...payload,
       }),
@@ -122,11 +135,11 @@ export class MailHistoryService {
   }
 
   async softDelete(id: number): Promise<void> {
-    await this.inviteRepository.softDelete(id);
+    await this.mailHistoryRepository.softDelete(id);
   }
 
   async getLine(inviteId: number): Promise<MailHistory> {
-    const invite = await this.inviteRepository.findOne({
+    const invite = await this.mailHistoryRepository.findOne({
       where: {
         id: inviteId,
       },
@@ -144,7 +157,7 @@ export class MailHistoryService {
 
   async getRemainingQuota(): Promise<number> {
     const dailyQuota = () => this.configService.getOrThrow('mail.dailyQuota');
-    const sentToday = await this.inviteRepository
+    const sentToday = await this.mailHistoryRepository
       .createQueryBuilder()
       .where({ sentAt: MoreThanOrEqual(startOfDay(new Date())) })
       .orderBy({ createdAt: 'ASC' })

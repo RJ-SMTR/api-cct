@@ -12,11 +12,12 @@ import {
   Entity,
   ManyToOne,
   PrimaryGeneratedColumn,
+  DeepPartial,
 } from 'typeorm';
 
 @Entity('invite')
 export class MailHistory extends BaseEntity {
-  constructor(mailHistory?: MailHistory) {
+  constructor(mailHistory?: MailHistory | DeepPartial<MailHistory>) {
     super();
     if (mailHistory !== undefined) {
       Object.assign(this, mailHistory);
@@ -61,7 +62,7 @@ export class MailHistory extends BaseEntity {
   failedAt?: Date | null;
 
   @Column({ type: Date, nullable: true })
-  sentAt?: Date;
+  sentAt?: Date | null;
 
   @DeleteDateColumn()
   @Exclude()

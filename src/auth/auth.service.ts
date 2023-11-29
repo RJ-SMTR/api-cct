@@ -27,6 +27,9 @@ import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
+import { ConfigService } from '@nestjs/config';
+import { MailSentInfo } from 'src/mail/interfaces/mail-sent-info.interface';
+import { IResendAllResponse } from './interfaces/resend-all-response.interface';
 
 @Injectable()
 export class AuthService {
@@ -39,6 +42,7 @@ export class AuthService {
     private mailService: MailService,
     private coreBankService: CoreBankService,
     private mailHistoryService: MailHistoryService,
+    private configService: ConfigService,
   ) {}
 
   async validateLogin(
@@ -255,33 +259,56 @@ export class AuthService {
   }
 
   /**
+   * Try to resend register email.
+   *
+   * If success, update mail status ant other properties.
+   *
+   * If error, throw exception.
+   *
    * @throws `HttpException`
    */
-  async sendRegisterEmail(user: User, userMailHistory: MailHistory) {
+  async resendRegisterEmail(user: User, userMail: MailHistory) {
     const mailData: MailData<{ hash: string; to: string; userName: string }> = {
       to: user.email as string,
       data: {
-        hash: userMailHistory.hash as string,
+        hash: userMail.hash as string,
         to: user.email as string,
         userName: user.fullName as string,
       },
     };
+
+    // Throws HttpException if needed
     const mailResponse = await this.mailService.userConcludeRegistration(
       mailData,
     );
+
+    // Success
     if (mailResponse.mailSentInfo.success === true) {
-      userMailHistory.setInviteStatus(InviteStatusEnum.sent);
-      userMailHistory.sentAt = new Date(Date.now());
-      await this.mailHistoryService.update(userMailHistory.id, userMailHistory);
+      const newUserMail = new MailHistory(userMail);
+      newUserMail.setInviteError({
+        httpErrorCode: null,
+        smtpErrorCode: null,
+      });
+      if (newUserMail.getMailStatus() == InviteStatusEnum.queued) {
+        newUserMail.setInviteStatus(InviteStatusEnum.sent);
+      } else {
+        newUserMail.setInviteStatus(InviteStatusEnum.resent);
+      }
+      newUserMail.sentAt = new Date(Date.now());
+      newUserMail.failedAt = null;
+      await this.mailHistoryService.update(newUserMail.id, newUserMail);
       this.logger.log(
         `sendRegisterEmail(): register email sent successfully (${JSON.stringify(
           {
-            email: userMailHistory.email,
-            inviteStatus: userMailHistory.inviteStatus,
+            email: newUserMail.email,
+            inviteStatus: newUserMail.inviteStatus,
           },
         )})`,
       );
-    } else {
+    }
+
+    // SMTP error
+    else {
       throw new HttpException(
         {
           error: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -312,7 +339,137 @@ export class AuthService {
         HttpStatus.NOT_FOUND,
       );
     }
-    await this.sendRegisterEmail(user, userMailHsitory);
+    await this.resendRegisterEmail(user, userMailHsitory);
+  }
+
+  /**
+   * Resend all register mails within remaining daily quota.
+   * @throws `HttpException`
+   */
+  async resendAllRegisterMails(): Promise<IResendAllResponse> {
+    const dailyQuota = () => this.configService.getOrThrow('mail.dailyQuota');
+    const quota = await this.mailHistoryService.getRemainingQuota();
+    const notUsedMails = await this.mailHistoryService.findNotUsed();
+    const resendMails = notUsedMails.slice(0, quota);
+    const mailsToResendStr = `${resendMails.length}/${notUsedMails.length}`;
+    const remainingQuotaStr = `${quota}/${dailyQuota()}`;
+
+    if (quota <= 0) {
+      throw new HttpException(
+        {
+          error: 'Não há quota diária para reenviar emails!',
+          details: {
+            remainingQuota: remainingQuotaStr,
+            mailsToResend: mailsToResendStr,
+          },
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (resendMails.length === 0) {
+      throw new HttpException(
+        {
+          error:
+            'Não há emails para enviar! (emails com status diferente de USED)',
+          details: {
+            remainingQuota: remainingQuotaStr,
+            mailsToResend: mailsToResendStr,
+          },
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    this.logger.log(
+      `resending all mails within remaining quota. ` +
+        `(quota: ${remainingQuotaStr}, sending: ${mailsToResendStr})`,
+    );
+
+    const response: IResendAllResponse = {
+      total: resendMails.length,
+      sent: 0,
+      failed: 0,
+      sentMailData: [],
+      failedMailData: [],
+    };
+
+    for (const mailHistory of resendMails) {
+      const newMailHistory = new MailHistory(mailHistory);
+      const user = mailHistory.user;
+      this.usersService;
+
+      // Success
+      try {
+        await this.resendRegisterEmail(user, mailHistory);
+        response.sentMailData.push({
+          id: newMailHistory.id,
+          user: {
+            id: user.id,
+            email: user.email,
+            fullName: user.fullName,
+          },
+        });
+      } catch (httpException) {
+        // Error
+        response.failedMailData.push({
+          id: newMailHistory.id,
+          user: {
+            id: user.id,
+            email: user.email,
+            fullName: user.fullName,
+          },
+        });
+
+        // SMTP error
+        if (httpException?.details?.mailResponse) {
+          const mailSentInfo = httpException.details.mailResponse
+            .mailSentInfo as MailSentInfo;
+          this.logger.error(
+            'resendAllRegisterMail(): mail sent returned error' +
+              '\n    - Message: ' +
+              JSON.stringify(mailSentInfo) +
+              '\n    - Traceback:\n' +
+              new Error().stack,
+          );
+          newMailHistory.sentAt = null;
+          newMailHistory.failedAt = new Date(Date.now());
+          newMailHistory.setInviteError({
+            httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
+            smtpErrorCode: mailSentInfo.response.code,
+          });
+          await this.mailHistoryService.update(
+            newMailHistory.id,
+            newMailHistory,
+          );
+        }
+
+        // API error
+        else {
+          this.logger.error(
+            'resendAllRegisterMail(): mail failed to send' +
+              '\n    - Message: ' +
+              JSON.stringify(httpException) +
+              '\n    - Traceback:\n' +
+              (httpException as Error).stack,
+          );
+          newMailHistory.sentAt = null;
+          newMailHistory.failedAt = new Date(Date.now());
+          newMailHistory.setInviteError({
+            httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
+            smtpErrorCode: null,
+          });
+          await this.mailHistoryService.update(
+            newMailHistory.id,
+            newMailHistory,
+          );
+        }
+      }
+    }
+
+    response.sent = response.sentMailData.length;
+    response.failed = response.failedMailData.length;
+    return response;
   }
 
   async confirmEmail(hash: string): Promise<void> {

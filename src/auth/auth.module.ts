@@ -24,6 +24,7 @@ import { MailHistoryModule } from 'src/mail-history/mail-history.module';
     MailModule,
     CoreBankModule,
     MailHistoryModule,
+    ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

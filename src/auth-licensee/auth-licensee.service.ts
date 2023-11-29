@@ -115,7 +115,10 @@ export class AuthLicenseeService {
   ): Promise<AuthLicenseeInviteProfileInterface> {
     const invite = await this.mailHistoryService.getOne({ hash });
 
-    if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
+    if (
+      invite.getMailStatus() !== InviteStatusEnum.sent ||
+      invite.getMailStatus() !== InviteStatusEnum.resent
+    ) {
       throw new HttpException(
         {
           error: HttpErrorMessages.UNAUTHORIZED,
@@ -212,7 +215,10 @@ export class AuthLicenseeService {
       );
     }
 
-    if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
+    if (
+      invite.getMailStatus() !== InviteStatusEnum.sent ||
+      invite.getMailStatus() !== InviteStatusEnum.resent
+    ) {
       throw new HttpException(
         {
           error: HttpErrorMessages.UNAUTHORIZED,

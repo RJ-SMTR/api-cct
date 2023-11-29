@@ -1,26 +1,26 @@
+import * as bcrypt from 'bcryptjs';
+import { Exclude, Expose } from 'class-transformer';
+import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
+import { Bank } from 'src/banks/entities/bank.entity';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { EntityHelper } from 'src/utils/entity-helper';
 import {
-  Column,
   AfterLoad,
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
   CreateDateColumn,
+  DeepPartial,
   DeleteDateColumn,
   Entity,
   Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-  BeforeInsert,
-  BeforeUpdate,
-  DeepPartial,
 } from 'typeorm';
+import { FileEntity } from '../../files/entities/file.entity';
 import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
-import { FileEntity } from '../../files/entities/file.entity';
-import * as bcrypt from 'bcryptjs';
-import { EntityHelper } from 'src/utils/entity-helper';
-import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
-import { Exclude, Expose } from 'class-transformer';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
-import { Bank } from 'src/banks/entities/bank.entity';
 
 @Entity()
 export class User extends EntityHelper {
