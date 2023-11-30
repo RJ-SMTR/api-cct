@@ -28,7 +28,7 @@ export class UserSeedDataService {
     const nodeEnv = () =>
       this.configService.getOrThrow('app.nodeEnv', { infer: true });
     return [
-      // Test
+      // // Test
       ...(nodeEnv() !== 'production'
         ? [
             {

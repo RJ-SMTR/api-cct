@@ -359,12 +359,12 @@ export class JaeDataService implements OnModuleInit {
       const itemDate = startOfDay(new Date(i.partitionDate));
       const hasPermitCode: boolean = i.permitCode === permitCode;
       const isFromStartDateIfExists: boolean =
-        !startDate || itemDate >= startDate;
-      const isToEndDateIfExists: boolean = !endDate || itemDate <= endDate;
+        startDate === undefined || itemDate >= startDate;
+      const isToEndDateIfExists = endDate === undefined || itemDate <= endDate;
+      const isTodayValid: boolean = getToday === true && isToday(itemDate);
       return (
         hasPermitCode &&
-        ((isFromStartDateIfExists && isToEndDateIfExists) ||
-          (getToday && isToday(itemDate)))
+        ((isFromStartDateIfExists && isToEndDateIfExists) || isTodayValid)
       );
     });
     return filteredTicketRevenues;

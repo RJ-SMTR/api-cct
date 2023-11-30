@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { UserDataInterface } from 'src/users/interfaces/user-data.interface';
 import { Repository } from 'typeorm';
 import { UserSeedDataService } from './user-seed-data.service';
 import * as crypto from 'crypto';
@@ -10,7 +9,7 @@ import { randomStringGenerator } from '@nestjs/common/utils/random-string-genera
 @Injectable()
 export class UserSeedService {
   private logger = new Logger('UserSeedService', { timestamp: true });
-  private newUsers: Partial<UserDataInterface>[] = [];
+  private newUsers: any[] = [];
 
   constructor(
     @InjectRepository(User)
@@ -19,7 +18,9 @@ export class UserSeedService {
   ) {}
 
   async run() {
-    this.logger.log('run()');
+    this.logger.log(
+      `run() ${this.dataService.getDataFromConfig().length} items`,
+    );
     for (const item of this.dataService.getDataFromConfig()) {
       const foundItem = await this.usersRepository.findOne({
         where: {
@@ -27,18 +28,34 @@ export class UserSeedService {
         },
       });
 
-      if (!foundItem) {
-        item.hash = await this.generateHash();
-        this.newUsers.push({
-          fullName: item.fullName,
-          email: item.email,
-          ...(item.password ? { password: item.password } : {}),
-        });
-        await this.usersRepository.save(this.usersRepository.create(item));
+      let createdItem: User;
+      if (foundItem) {
+        const newItem = new User(foundItem);
+        newItem.update(item);
+        await this.usersRepository.save(this.usersRepository.create(newItem));
+        createdItem = (await this.usersRepository.findOne({
+          where: {
+            email: newItem.email as string,
+          },
+        })) as User;
+      } else {
+        createdItem = await this.usersRepository.save(
+          this.usersRepository.create(item),
+        );
       }
+      item.hash = await this.generateHash();
+      this.newUsers.push({
+        status: foundItem ? 'updated' : 'created',
+        fullName: item.fullName,
+        email: item.email,
+        password: item.password,
+        hashedPassword: createdItem.password,
+      });
     }
     if (this.newUsers.length) {
       this.printPasswords();
+    } else {
+      this.logger.log('No new users created.');
     }
   }
 
@@ -49,11 +66,7 @@ export class UserSeedService {
         'Save these passwords in the first run or remove these users before seed',
     );
     for (const item of this.newUsers) {
-      this.logger.log({
-        name: item.fullName,
-        email: item.email,
-        password: item.password,
-      });
+      this.logger.log(item);
     }
   }
 

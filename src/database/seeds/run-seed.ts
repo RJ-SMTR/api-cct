@@ -13,13 +13,10 @@ import { UserSeedService } from './user/user-seed.service';
 import { InitSeedService } from './init/init-seed.service';
 
 const runSeed = async () => {
-  const app = await NestFactory.create(SeedModule);
-
   // filter
   let services = [
     RoleSeedService,
     StatusSeedService,
-    UserSeedService,
     InfoSeedService,
     BankSeedService,
     InviteStatusSeedService,
@@ -30,15 +27,23 @@ const runSeed = async () => {
     MailHistorySeedService,
   ];
 
-  const nameFilter = process.argv.slice(2)[0];
-  if (nameFilter) {
-    services = services.filter((module) =>
-      module.name.toLowerCase().includes(nameFilter.toLowerCase()),
+  const FORCE_PARAM = '__force';
+  const force = process.argv.slice(2).includes(FORCE_PARAM);
+  const nameFilters = process.argv.slice(2).filter((i) => i !== FORCE_PARAM);
+  if (nameFilters.length > 0) {
+    services = services.filter((s) =>
+      nameFilters.some((j) => s.name.toLowerCase().includes(j.toLowerCase())),
     );
   }
 
   // run
-  if (await app.get(InitSeedService).isDbEmpty()) {
+  const app = await NestFactory.create(SeedModule);
+  if (force || (await app.get(InitSeedService).isDbEmpty())) {
+    console.log(
+      `Running modules: ${services
+        .reduce((str: string[], i) => [...str, i.name], [])
+        .join(', ')}`,
+    );
     for (const module of services) {
       await app.get(module).run();
     }

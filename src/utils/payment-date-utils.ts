@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
+  endOfDay,
   endOfMonth,
   isFriday,
   isSameMonth,
@@ -7,6 +8,7 @@ import {
   nextFriday,
   previousDay,
   previousFriday,
+  startOfDay,
   startOfMonth,
 } from 'date-fns';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
@@ -107,8 +109,8 @@ export function getPaymentWeek(fridayDate: Date): {
   startDate: Date;
   endDate: Date;
 } {
-  const startDate = new Date(fridayDate);
-  const endDate = new Date(fridayDate);
+  const startDate = startOfDay(new Date(fridayDate));
+  const endDate = endOfDay(new Date(fridayDate));
   startDate.setDate(startDate.getDate() - 8);
   endDate.setDate(endDate.getDate() - 2);
   return { startDate, endDate };
@@ -118,8 +120,8 @@ export function getPayment2Weeks(fridayDate: Date): {
   startDate: Date;
   endDate: Date;
 } {
-  const startDate = new Date(fridayDate);
-  const endDate = new Date(fridayDate);
+  const startDate = startOfDay(new Date(fridayDate));
+  const endDate = endOfDay(new Date(fridayDate));
   startDate.setDate(startDate.getDate() - 8 - 7);
   endDate.setDate(endDate.getDate() - 2);
   return { startDate, endDate };
@@ -139,15 +141,12 @@ export function getPaymentMonth(
     };
   } else {
     // if ticket-revenues
-    // get first friday of month and friday
+    // get first and last fridays of month
     let startDate = startOfMonth(new Date(fridayDate));
-    startDate = nextFriday(startDate);
-    let endDate = new Date(fridayDate);
-    if (isSameMonth(endDate, nextFriday(endDate))) {
-      endDate = nextFriday(endDate);
-    } else {
-      endDate = previousFriday(endDate);
+    if (!isFriday(startDate)) {
+      startDate = nextFriday(startDate);
     }
+    const endDate = new Date(fridayDate);
 
     // get start end dates from each week
     startDate.setDate(startDate.getDate() - 8);
@@ -185,7 +184,11 @@ export function getPaymentDates(
   } else if (timeInterval) {
     let endDate = new Date(endDateStr ? endDateStr : Date.now());
     if (!isFriday(endDate)) {
-      endDate = nextFriday(endDate);
+      if (isSameMonth(endDate, nextFriday(endDate))) {
+        endDate = nextFriday(endDate);
+      } else {
+        endDate = previousFriday(endDate);
+      }
     }
     if (timeInterval === TimeIntervalEnum.LAST_WEEK) {
       return getPaymentWeek(endDate);

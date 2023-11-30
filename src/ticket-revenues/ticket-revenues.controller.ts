@@ -54,7 +54,7 @@ export class TicketRevenuesController {
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
     @Query('timeInterval') timeInterval: TimeIntervalEnum,
-    @Query(...DateQueryParams.endDate) endDate: string,
+    @Query(...DateQueryParams.endDate) endDate?: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
     userId?: number | null,
@@ -67,6 +67,7 @@ export class TicketRevenuesController {
       userId: isUserIdNumber ? userId : request.user.id,
     };
     const pagination: IPaginationOptions = { limit, page };
+    console.log({ args });
     const response = await this.ticketRevenuesService.getMeFromUser(
       args,
       pagination,

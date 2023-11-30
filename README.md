@@ -44,7 +44,7 @@ For check status run
 docker compose logs
 ```
 
-## Comfortable development
+## Desenvolvimento confortável
 
 ```bash
 git clone --depth 1 .git my-app
@@ -52,15 +52,17 @@ cd my-app/
 cp env-example .env
 ```
 
-Change `DATABASE_HOST=postgres` to `DATABASE_HOST=localhost`
+Mude `DATABASE_HOST=postgres` para `DATABASE_HOST=localhost`
 
-Change `MAIL_HOST=maildev` to `MAIL_HOST=localhost`
+Mude `MAIL_HOST=maildev` para `MAIL_HOST=localhost`
 
-Run additional container:
+Executar contêiner adicional:
 
 ```bash
 docker compose up -d postgres adminer maildev
 ```
+
+Configurar projeto:
 
 ```bash
 npm install
@@ -70,6 +72,16 @@ npm run migration:run
 npm run seed:run
 
 npm run start:dev
+```
+
+Rodar seed caso o banco não esteja vazio:
+```
+npm run seed:run __force
+```
+
+Rodar seed apenas de alguns módulos
+```
+npm run seed:run user mailhistory
 ```
 
 ## Links
