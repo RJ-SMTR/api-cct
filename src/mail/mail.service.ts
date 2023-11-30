@@ -10,6 +10,7 @@ import { MailData } from './interfaces/mail-data.interface';
 import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
 import { MailSentInfo } from './interfaces/mail-sent-info.interface';
 import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
+import { formatLog } from 'src/utils/logging';
 
 @Injectable()
 export class MailService {
@@ -73,7 +74,10 @@ export class MailService {
     } else {
       [emailConfirmTitle] = ['Confirme seu email'];
       this.logger.warn(
-        'userConcludeRegistration(): i18n module not found message templates, using default',
+        formatLog(
+          'módulo i18n não encontrou templates de email, usando valores padrão',
+          'userConcludeRegistration()',
+        ),
       );
     }
 
@@ -83,7 +87,10 @@ export class MailService {
     const emailConfirmLink = `${frontendDomain}conclude-registration/${mailData.data.hash}`;
     if (!mailData.data.userName) {
       this.logger.warn(
-        'userConcludeRegistration(): valid user name not found, useing default name.',
+        formatLog(
+          'user.fullName não encontrado, usando nome padrão.',
+          'userConcludeRegistration()',
+        ),
       );
     }
     try {

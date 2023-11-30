@@ -11,6 +11,10 @@ import { MailService } from 'src/mail/mail.service';
 import { appSettings } from 'src/settings/app.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { UsersService } from 'src/users/users.service';
+import {
+  formatErrorMessage as formatErrorLog,
+  formatLog,
+} from 'src/utils/logging';
 
 export enum CronJobsServiceJobs {
   bulkSendInvites = 'bulkSendInvites',
@@ -67,17 +71,19 @@ export class CronJobsService implements OnModuleInit {
       const job = new CronJob(jobConfig.cronJobParameters);
       this.schedulerRegistry.addCronJob(jobConfig.name, job);
       job.start();
-      this.logger.log(`Job started: ${jobConfig.name}`);
+      this.logger.log(`Tarefa iniciada: ${jobConfig.name}`);
     }
   }
 
   async updateJaeMockedData() {
-    this.logger.log(`updateJaeMockedData(): updating data if needed`);
+    this.logger.log(`updateJaeMockedData(): Atualizando dados se necessário`);
     await this.jaeService.updateDataIfNeeded();
   }
 
   updateCoreBankMockedData() {
-    this.logger.log(`updateCoreBankMockedData(): updating data if needed`);
+    this.logger.log(
+      `updateCoreBankMockedData(): Atualizando dados se necessário`,
+    );
     this.coreBankService.updateDataIfNeeded();
   }
 
@@ -88,7 +94,8 @@ export class CronJobsService implements OnModuleInit {
       );
     if (activateAutoSendInvite.value === String(false)) {
       this.logger.log(
-        `bulkSendInvites(): job aborted because ${appSettings.any__activate_auto_send_invite.name} = 'false'`,
+        `bulkSendInvites(): Tarefa cancelada pois ${appSettings.any__activate_auto_send_invite.name} = 'false'.` +
+          ` Para ativar, altere na tabela 'setting'`,
       );
       return;
     }
@@ -100,9 +107,10 @@ export class CronJobsService implements OnModuleInit {
     const dailyQuota = () => this.configService.getOrThrow('mail.dailyQuota');
 
     this.logger.log(
-      `bulkSendInvites(): starting job. unsent: ${unsent.length}, sent: ${
-        sentToday.length
-      }/${dailyQuota()}, ` + `remaining: ${remainingQuota}`,
+      `bulkSendInvites(): iniciando tarefa: a enviar: ${
+        unsent.length
+      }, enviado: ${sentToday.length}/${dailyQuota()}, ` +
+        `falta enviar: ${remainingQuota}`,
     );
 
     for (let i = 0; i < remainingQuota && i < unsent.length; i++) {
@@ -113,13 +121,27 @@ export class CronJobsService implements OnModuleInit {
       // User mail error
       if (!user?.email) {
         this.logger.error(
-          'bulkSendInvites(): valid user email not found, this email cant be sent.',
+          formatLog(
+            `Usuário não tem email válido (${user?.email}), este email não será enviado.`,
+            'bulkSendInvites()',
+          ),
         );
         invite.setInviteError({
           httpErrorCode: HttpStatus.UNPROCESSABLE_ENTITY,
           smtpErrorCode: null,
         });
-        await this.mailHistoryService.update(invite.id, invite);
+        invite.sentAt = null;
+        invite.failedAt = new Date(Date.now());
+        await this.mailHistoryService.update(
+          invite.id,
+          {
+            httpErrorCode: invite.httpErrorCode,
+            smtpErrorCode: invite.smtpErrorCode,
+            sentAt: invite.sentAt,
+            failedAt: invite.failedAt,
+          },
+          'CronJobsService.bulkSendInvites()',
+        );
         continue;
       }
 
@@ -142,41 +164,78 @@ export class CronJobsService implements OnModuleInit {
           });
           invite.setInviteStatus(InviteStatusEnum.sent);
           invite.sentAt = new Date(Date.now());
-          await this.mailHistoryService.update(invite.id, invite);
-          this.logger.log('bulkSendInvites(): invite sent successfully.');
+          invite.failedAt = null;
+          await this.mailHistoryService.update(
+            invite.id,
+            {
+              inviteStatus: invite.inviteStatus,
+              httpErrorCode: invite.httpErrorCode,
+              smtpErrorCode: invite.smtpErrorCode,
+              sentAt: invite.sentAt,
+              failedAt: invite.failedAt,
+            },
+            'CronJobsService.bulkSendInvites()',
+          );
+          this.logger.log(
+            formatLog('Email enviado com sucesso.', 'bulkSendInvites()'),
+          );
         }
 
         // SMTP error
         else {
           this.logger.error(
-            'bulkSendInvites(): invite sent returned error' +
-              '\n    - Message: ' +
-              JSON.stringify(mailSentInfo) +
-              '\n    - Traceback:\n' +
-              new Error().stack,
+            formatErrorLog(
+              'Email enviado retornou erro.',
+              mailSentInfo,
+              new Error(),
+              'bulkSendInvites()',
+            ),
           );
           invite.setInviteError({
             httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
             smtpErrorCode: mailSentInfo.response.code,
           });
-          await this.mailHistoryService.update(invite.id, invite);
+          invite.sentAt = null;
+          invite.failedAt = new Date(Date.now());
+          await this.mailHistoryService.update(
+            invite.id,
+            {
+              httpErrorCode: invite.httpErrorCode,
+              smtpErrorCode: invite.smtpErrorCode,
+              sentAt: invite.sentAt,
+              failedAt: invite.failedAt,
+            },
+            'CronJobsService.bulkSendInvites()',
+          );
         }
 
         // API error
       } catch (httpException) {
         this.logger.error(
-          'bulkSendInvites(): invite failed to send' +
-            '\n    - Message: ' +
-            JSON.stringify(httpException) +
-            '\n    - Traceback:\n' +
-            (httpException as Error).stack,
+          formatErrorLog(
+            'Email falhou ao enviar.',
+            httpException,
+            httpException as Error,
+            'bulkSendInvites()',
+          ),
         );
         invite.httpErrorCode = httpException.statusCode;
         invite.setInviteError({
           httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
           smtpErrorCode: null,
         });
-        await this.mailHistoryService.update(invite.id, invite);
+        invite.sentAt = null;
+        invite.failedAt = new Date(Date.now());
+        await this.mailHistoryService.update(
+          invite.id,
+          {
+            httpErrorCode: invite.httpErrorCode,
+            smtpErrorCode: invite.smtpErrorCode,
+            sentAt: invite.sentAt,
+            failedAt: invite.failedAt,
+          },
+          'CronJobsService.bulkSendInvites()',
+        );
       }
     }
     if (unsent.length == 0 || remainingQuota == 0) {
@@ -185,10 +244,15 @@ export class CronJobsService implements OnModuleInit {
         ...(remainingQuota == 0 ? ['no remaining quota'] : []),
       ];
       this.logger.log(
-        `bulkSendInvites(): job aborted because ${reasons.join(' and ')}.`,
+        formatLog(
+          `Tarefa cancelada pois ${reasons.join(' e ')}`,
+          'bulkSendInvites()',
+        ),
       );
     } else {
-      this.logger.log('bulkSendInvites(): job finished');
+      this.logger.log(
+        formatLog('Tarefa finalizada com sucesso.', 'bulkSendInvites()'),
+      );
     }
   }
 }
