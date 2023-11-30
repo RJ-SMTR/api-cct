@@ -123,6 +123,8 @@ export class TicketRevenuesService {
 
     if (ticketRevenuesResponse.length === 0) {
       return {
+        startDate: null,
+        endDate: null,
         amountSum: 0,
         todaySum: 0,
         count: 0,
@@ -175,6 +177,9 @@ export class TicketRevenuesService {
     );
 
     return {
+      startDate:
+        ticketRevenuesResponse[ticketRevenuesResponse.length - 1].partitionDate,
+      endDate: ticketRevenuesResponse[0].partitionDate,
       amountSum,
       todaySum: transactionValueLastDay,
       count: ticketRevenuesGroups.length,

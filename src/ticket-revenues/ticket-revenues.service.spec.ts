@@ -51,6 +51,12 @@ describe('TicketRevenuesService', () => {
     usersService = module.get<UsersService>(UsersService);
   });
 
+  describe('Setup tests', () => {
+    test('timezone should be UTC', () => {
+      expect(new Date().getTimezoneOffset()).toBe(0);
+    });
+  });
+
   it('should be defined', () => {
     expect(ticketRevenuesService).toBeDefined();
   });
@@ -246,67 +252,4 @@ describe('TicketRevenuesService', () => {
       expect(result.transactionValueSum).toEqual(expectedTransactionValueSum);
     });
   });
-  // describe('getDataFromUser', () => {
-  //   it('should return a slice of data when successfull', async () => {
-  //     // Arrange
-  //     const expectedResult: IJaeTicketRevenue[] = [];
-  //     for (let day = 3; day >= 1; day--) {
-  //       for (let i = 3; i >= 1; i--) {
-  //         const dayStr = day.toString().padStart(2, '0');
-  //         const hourStr = (i * 10).toString().padStart(2, '0');
-  //         expectedResult.push({
-  //           transactionId: i,
-  //           paymentMediaType: `media_${i}`,
-  //           transportIntegrationType: `integration_${i}`,
-  //           transactionType: `transaction_${i}`,
-  //           transactionDateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
-  //           transactionValue: i,
-  //           transactionLat: i,
-  //           transactionLon: i,
-  //           vehicleOrderNumberId: i,
-  //           permitCode: `permitCode_${i}`,
-  //           // Extra fields
-  //           clientId: `clientId_${i}`,
-  //           integrationId: i,
-  //           individualIntegrationId: i,
-  //           partitionDate: `dateIndex_${i}`,
-  //           processingDateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
-  //           captureDateTime: `2023-06-${dayStr}T06:${hourStr}:00.000Z`,
-  //           vehicleService: i,
-  //           directionId: i,
-  //           stopId: `stopId_${i}`,
-  //           stopLat: i,
-  //           stopLon: i,
-  //         });
-  //       }
-  //     }
-  //     const userId = 1;
-  //     jest
-  //       .spyOn(jaeService, 'getTicketRevenuesByPermitCode')
-  //       .mockResolvedValue(expectedResult);
-  //     jest
-  //       .spyOn(global.Date, 'now')
-  //       .mockImplementation(() =>
-  //         new Date('2023-06-03T06:30:00.000Z').valueOf(),
-  //       );
-
-  //     // Act
-  //     const resultPreviousDays = await ticketRevenuesService.getMeFromUser(
-  //       { timeInterval: TimeIntervalEnum.LAST_WEEK },
-  //       { limit: 9999, page: 1 },
-  //     );
-  //     const resultBetweenDates = await ticketRevenuesService.getMeFromUser(
-  //       {
-  //         startDate: '2023-06-01',
-  //         endDate: '2023-06-03',
-  //         timeInterval: TimeIntervalEnum.LAST_MONTH,
-  //         userId,
-  //       },
-  //       { limit: 9999, page: 1 },
-  //     );
-  //     // Assert
-  //     expect(resultPreviousDays).toEqual(expectedResult.slice(0, 6));
-  //     expect(resultBetweenDates).toEqual(expectedResult.slice(3, 9));
-  //   });
-  // });
 });

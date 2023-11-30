@@ -1,14 +1,11 @@
 import { isFriday, isSameMonth, nextFriday, previousFriday } from 'date-fns';
 import * as request from 'supertest';
 import { getDateYMDString } from '../../src/utils/date-utils';
-import { configE2E } from '../utils/config';
 import {
   APP_URL,
   LICENSEE_PASSWORD,
   LICENSEE_PERMIT_CODE,
 } from '../utils/constants';
-
-configE2E();
 
 /**
  * @see {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 Requirements - GitHub}
@@ -26,6 +23,13 @@ describe('Bank statements (e2e)', () => {
         apiToken = body.token;
       });
   });
+
+  describe('Setup tests', () => {
+    test('timezone should be UTC', () => {
+      expect(new Date().getTimezoneOffset()).toBe(0);
+    });
+  });
+
   it('Should match todaySum in /bank-statements with /ticket-revenues/me', async () => {
     // Arrange
     let friday = new Date();
