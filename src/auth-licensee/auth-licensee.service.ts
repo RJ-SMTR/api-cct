@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
@@ -22,6 +22,10 @@ import { AuthLicenseeInviteProfileInterface } from './interfaces/auth-licensee-i
 
 @Injectable()
 export class AuthLicenseeService {
+  private logger: Logger = new Logger('AuthLicenseeService', {
+    timestamp: true,
+  });
+
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
@@ -268,25 +272,33 @@ export class AuthLicenseeService {
 
     const email = user.email;
 
-    await this.mailHistoryService.update(invite.id, {
-      inviteStatus: {
-        id: InviteStatusEnum.used,
+    await this.mailHistoryService.update(
+      invite.id,
+      {
+        inviteStatus: {
+          id: InviteStatusEnum.used,
+        },
       },
-    });
+      'AuthLicenseeService.concludeRegistration()',
+    );
 
-    const updatedUser = await this.usersService.update(user.id, {
-      password: registerDto.password,
-      hash: hash,
-      email: email,
-      fullName: sgtuProfile.fullName,
-      cpfCnpj: sgtuProfile.cpfCnpj,
-      permitCode: sgtuProfile.permitCode,
-      isSgtuBlocked: sgtuProfile.isSgtuBlocked,
-      passValidatorId: jaeProfile.passValidatorId,
-      status: {
-        id: StatusEnum.active,
-      } as Status,
-    });
+    const updatedUser = await this.usersService.update(
+      user.id,
+      {
+        password: registerDto.password,
+        hash: hash,
+        email: email,
+        fullName: sgtuProfile.fullName,
+        cpfCnpj: sgtuProfile.cpfCnpj,
+        permitCode: sgtuProfile.permitCode,
+        isSgtuBlocked: sgtuProfile.isSgtuBlocked,
+        passValidatorId: jaeProfile.passValidatorId,
+        status: {
+          id: StatusEnum.active,
+        } as Status,
+      },
+      'AuthLicenseeService.concludeRegistration()',
+    );
 
     const token = this.jwtService.sign({
       id: updatedUser.id,

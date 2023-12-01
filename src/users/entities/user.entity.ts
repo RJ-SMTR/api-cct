@@ -197,4 +197,24 @@ export class User extends EntityHelper {
   update(userProps: DeepPartial<User>) {
     Object.assign(this, userProps);
   }
+
+  getLogInfo(showRole?: boolean): string {
+    if (showRole === undefined) {
+      showRole = true;
+    }
+    let response = '';
+    if (this?.permitCode) {
+      response += `#${this.permitCode}`;
+    } else if (this?.email) {
+      response += `'${this.email}'`;
+    } else if (this?.id) {
+      response += `#${this.id.toString()}`;
+    } else {
+      response += '[VAZIO]';
+    }
+    if (this?.role && showRole) {
+      response += ` (${this.role.name})`;
+    }
+    return response;
+  }
 }

@@ -6,6 +6,7 @@ import { CoreBankStatusCodeEnum } from '../enums/core-bank-status-code.enum';
 import { CoreBankStatusEnum } from '../enums/core-bank-status.enum';
 import { ICoreBankProfile } from '../interfaces/core-bank-profile.interface';
 import { ICoreBankStatements } from '../interfaces/core-bank-statements.interface';
+import { formatLog } from 'src/utils/logging';
 
 @Injectable()
 export class CoreBankDataService implements OnModuleInit {
@@ -51,7 +52,7 @@ export class CoreBankDataService implements OnModuleInit {
   ];
 
   onModuleInit() {
-    this.logger.log('onModuleInit(): initializing mocked data');
+    this.logger.log('onModuleInit(): Inicializando dados simulados.');
     this.updateDataIfNeeded();
   }
 
@@ -157,7 +158,9 @@ export class CoreBankDataService implements OnModuleInit {
         );
       }
     }
-    this.logger.log('setBankStatements(): mocked data generated');
+    this.logger.log(
+      'setBankStatements(): Dados simulados gerados com sucesso.',
+    );
     this.bankStatements = bankStatements;
   }
 
@@ -165,7 +168,7 @@ export class CoreBankDataService implements OnModuleInit {
     if (this.bankStatements.length === 0) {
       this.setBankStatements();
       this.logger.debug(
-        'updateDataIfNeeded(): generating mocked data - bankStatements is empty',
+        'updateDataIfNeeded(): Gerando dados simulados, pois bankStatements está vazio',
       );
     } else {
       const lastDate = new Date(this.bankStatements?.[0]?.date);
@@ -174,7 +177,10 @@ export class CoreBankDataService implements OnModuleInit {
         (1000 * 60 * 60);
       if (hoursDifference >= 24 * 7) {
         this.logger.debug(
-          'updateDataIfNeeded(): generating mocked data - time has passed',
+          formatLog(
+            `Gerando dados simulados, pois se passou pelo menos ${hoursDifference} h`,
+            'updateDataIfNeeded()',
+          ),
         );
         this.setBankStatements();
       }

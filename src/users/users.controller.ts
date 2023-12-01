@@ -11,6 +11,7 @@ import {
   Patch,
   Post,
   Query,
+  Request,
   SerializeOptions,
   UploadedFile,
   UseGuards,
@@ -41,6 +42,7 @@ import { IUserUploadResponse } from './interfaces/user-upload-response.interface
 import { UsersService } from './users.service';
 import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
+import { IRequest } from 'src/utils/interfaces/request.interface';
 
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'))
@@ -145,16 +147,21 @@ export class UsersController {
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   patchId(
+    @Request() request: IRequest,
     @Param('id') id: number,
     @Body() updateProfileDto: UpdateUserDto,
   ): Promise<User> {
-    return this.usersService.update(id, updateProfileDto);
+    return this.usersService.update(
+      id,
+      updateProfileDto,
+      'UsersController.patchId()',
+    );
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteId(@Param('id') id: number): Promise<void> {
-    return this.usersService.softDelete(id);
+    return this.usersService.softDelete(id, 'UsersController.deleteId()');
   }
 
   @SerializeOptions({
@@ -179,8 +186,9 @@ export class UsersController {
   @UseInterceptors(FileInterceptor('file'))
   @UsePipes(new FileTypeValidationPipe(['spreadsheet', 'csv']))
   async postUpload(
+    @Request() request: IRequest,
     @UploadedFile() file: Express.Multer.File | Express.MulterS3.File,
   ): Promise<IUserUploadResponse> {
-    return this.usersService.createFromFile(file);
+    return this.usersService.createFromFile(file, request.user);
   }
 }
