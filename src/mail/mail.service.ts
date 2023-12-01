@@ -165,17 +165,32 @@ export class MailService {
    */
   async sendStatusReport(
     mailData: MailData<{
-      userName: string;
       statusCount: IMailHistoryStatusCount;
     }>,
   ): Promise<MailSentInfo> {
     const resetPasswordTitle = 'Relatório diário';
+    const from = this.configService.get('mail.senderNotification', {
+      infer: true,
+    });
+
+    if (!from) {
+      throw new HttpException(
+        {
+          error: HttpStatus.INTERNAL_SERVER_ERROR,
+          details: {
+            env: `Env 'MAIL_SENDER_NOTIFICATION' not found (got: '${from}')`,
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
 
     try {
       const frontendDomain = this.configService.get('app.frontendDomain', {
         infer: true,
       });
       const response = await this.safeSendMail({
+        from,
         to: mailData.to,
         subject: resetPasswordTitle,
         text: `${this.configService.get('app.frontendDomain', {
@@ -189,7 +204,6 @@ export class MailService {
           })}reset-password/${'mailData.data.hash'}`,
           logoSrc: `${frontendDomain}/assets/icons/logoPrefeitura.png`,
           logoAlt: 'Prefeitura do Rio',
-          userName: mailData.data.userName,
           mailQueued: mailData.data.statusCount.queued,
           mailSent: mailData.data.statusCount.sent,
           mailUsed: mailData.data.statusCount.used,

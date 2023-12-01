@@ -52,8 +52,6 @@ class EnvironmentVariablesValidator {
   @Max(65535)
   @IsOptional()
   MAIL_DAILY_QUOTA: number;
-
-  MAIL_RECIPIENT_STATUS_REPORT: string;
 }
 
 export default registerAs<MailConfig>('mail', () => {
@@ -71,6 +69,7 @@ export default registerAs<MailConfig>('mail', () => {
     requireTLS: process.env.MAIL_REQUIRE_TLS === 'true',
     inviteCronjob: process.env.MAIL_INVITE_CRONJOB,
     dailyQuota: process.env.MAIL_DAILY_QUOTA,
-    recipientStatusReport: process.env.MAIL_RECIPIENT_STATUS_REPORT,
+    recipientStatusReport: 'bernardo.marcos64@gmail.com',
+    senderNotification: 'notificacao.smtr@gmail.com',
   };
 });

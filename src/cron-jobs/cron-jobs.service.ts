@@ -58,7 +58,7 @@ export class CronJobsService implements OnModuleInit {
     {
       name: CronJobsServiceJobs.sendStatusReport,
       cronJobParameters: {
-        cronTime: CronExpression.EVERY_DAY_AT_MIDNIGHT,
+        cronTime: CronExpression.EVERY_DAY_AT_6AM,
         onTick: () => this.sendStatusReport(),
       },
     },
@@ -295,7 +295,6 @@ export class CronJobsService implements OnModuleInit {
         to: recipientMail,
         data: {
           statusCount: await this.mailHistoryService.getStatusCount(),
-          userName: 'cidadão',
         },
       });
 
