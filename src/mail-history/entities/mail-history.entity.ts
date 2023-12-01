@@ -67,6 +67,12 @@ export class MailHistory extends BaseEntity {
   @Exclude()
   deletedAt: Date;
 
+  public static getColumns() {
+    return {
+      inviteStatus: 'inviteStatusId',
+    };
+  }
+
   public getMailStatus(): InviteStatusEnum {
     return InviteStatusEnum[this.inviteStatus.name as keyof InviteStatusEnum];
   }

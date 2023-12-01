@@ -12,6 +12,7 @@ import { NullableType } from 'src/utils/types/nullable.type';
 import { DeepPartial, Equal, MoreThanOrEqual, Repository } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
 import { formatLog } from 'src/utils/logging';
+import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 
 @Injectable()
 export class MailHistoryService {
@@ -182,5 +183,31 @@ export class MailHistoryService {
       .orderBy({ createdAt: 'ASC' })
       .getCount();
     return dailyQuota() - sentToday;
+  }
+
+  async getStatusCount(): Promise<IMailHistoryStatusCount> {
+    const inviteStatus = MailHistory.getColumns().inviteStatus;
+    const result = await this.inviteRepository
+      .createQueryBuilder('mh')
+      .select(
+        'SUM(CASE WHEN mh.' + inviteStatus + ' = 2 THEN 1 ELSE 0 END)',
+        'queued',
+      )
+      .addSelect(
+        'SUM(CASE WHEN mh.' + inviteStatus + ' = 3 THEN 1 ELSE 0 END)',
+        'sent',
+      )
+      .addSelect(
+        'SUM(CASE WHEN mh.' + inviteStatus + ' = 4 THEN 1 ELSE 0 END)',
+        'used',
+      )
+      .addSelect('COUNT(mh.' + inviteStatus + ')', 'total')
+      .getRawOne();
+    return {
+      queued: parseInt(result.queued, 10),
+      sent: parseInt(result.sent, 10),
+      used: parseInt(result.used, 10),
+      total: parseInt(result.total, 10),
+    };
   }
 }

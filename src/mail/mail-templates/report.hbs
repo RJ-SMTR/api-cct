@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=">
+    <title>{{title}}</title>
+    <style>
+        #tableStyle,
+        #tableStyle td,
+        #tableStyle th {
+            border: 1px solid;
+            border-collapse: collapse;
+            color: #505050;
+        }
+
+        #tableStyle th,
+        #tableStyle td {
+            padding: 5px;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body style="margin:0;font-family:arial">
+    <table style="border:0;width:100%">
+        <tr style="background:rgba(150,150,150,0.2)">
+            <td style="padding:20px;color:#004a80;text-align:left;font-size:30px;font-weight:600;">
+                <img src="{{logoSrc}}" alt="{{logoAlt}}" style="max-width: 300px; max-height: 86px;">
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:20px;color:#505050;font-size:16px;font-weight:100">
+                <p>Caro(a) {{userName}}</p>
+                <p>
+                    Segue o relatório diário com o status de email dos usuários:
+                </p>
+                <table id="tableStyle">
+                    <thead style="text-align: left;">
+                        <tr>
+                            <th>Status</th>
+                            <th>Contagem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>NA FILA</td>
+                            <td>{{mailQueued}}</td>
+                        </tr>
+                        <tr>
+                            <td>ENVIADO</td>
+                            <td>{{mailSent}}</td>
+                        </tr>
+                        <tr>
+                            <td>ACESSADO</td>
+                            <td>{{mailUsed}}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-style: italic;">Total</td>
+                            <td>{{mailTotal}}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p>
+                    Atenciosamente,
+                    <br />
+                    SMTR - Secretaria Municipal de Transporte do Rio de Janeiro
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>

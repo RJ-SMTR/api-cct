@@ -38,7 +38,7 @@ export class ValidateEnumPipe implements PipeTransform {
 // export class ValidateEnumPipe implements PipeTransform {
 //     constructor(
 //         private readonly args: any,
-//     ) { }
+//     ) {}
 
 //     transform(value: any): number {
 //         return value;
