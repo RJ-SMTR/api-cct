@@ -186,7 +186,7 @@ export class MailService {
     }
 
     try {
-      const frontendDomain = this.configService.get('app.frontendDomain', {
+      const appName = this.configService.get('app.name', {
         infer: true,
       });
       const response = await this.safeSendMail({
@@ -202,8 +202,7 @@ export class MailService {
           url: `${this.configService.get('app.frontendDomain', {
             infer: true,
           })}reset-password/${'mailData.data.hash'}`,
-          logoSrc: `${frontendDomain}/assets/icons/logoPrefeitura.png`,
-          logoAlt: 'Prefeitura do Rio',
+          headerTitle: appName,
           mailQueued: mailData.data.statusCount.queued,
           mailSent: mailData.data.statusCount.sent,
           mailUsed: mailData.data.statusCount.used,
