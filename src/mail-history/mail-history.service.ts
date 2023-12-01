@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,17 +11,36 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import { DeepPartial, Equal, MoreThanOrEqual, Repository } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
+import { formatLog } from 'src/utils/logging';
 
 @Injectable()
 export class MailHistoryService {
+  private logger: Logger = new Logger('MailHistoryService', {
+    timestamp: true,
+  });
+
   constructor(
     @InjectRepository(MailHistory)
     private inviteRepository: Repository<MailHistory>,
     private configService: ConfigService,
   ) {}
 
-  create(data: DeepPartial<MailHistory>): Promise<MailHistory> {
-    return this.inviteRepository.save(this.inviteRepository.create(data));
+  async create(
+    data: DeepPartial<MailHistory>,
+    logContext?: string,
+  ): Promise<MailHistory> {
+    const createdMail = await this.inviteRepository.save(
+      this.inviteRepository.create(data),
+    );
+    this.logger.log(
+      formatLog(
+        `Histórico de email ${createdMail.getLogInfoStr()}` +
+          ` criado com sucesso.`,
+        'create()',
+        logContext,
+      ),
+    );
+    return createdMail;
   }
 
   async find(
@@ -112,13 +131,26 @@ export class MailHistoryService {
     }
   }
 
-  update(id: number, payload: DeepPartial<MailHistory>): Promise<MailHistory> {
-    return this.inviteRepository.save(
+  async update(
+    id: number,
+    payload: DeepPartial<MailHistory>,
+    logContext?: string,
+  ): Promise<MailHistory> {
+    const updatedMail = await this.inviteRepository.save(
       this.inviteRepository.create({
         id,
         ...payload,
       }),
     );
+    this.logger.log(
+      formatLog(
+        `Histórico de email ${updatedMail.getLogInfoStr()}` +
+          ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
+        'update()',
+        logContext,
+      ),
+    );
+    return updatedMail;
   }
 
   async softDelete(id: number): Promise<void> {

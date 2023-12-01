@@ -19,6 +19,7 @@ import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { formatLog } from 'src/utils/logging';
 import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { NullableType } from '../utils/types/nullable.type';
@@ -124,7 +125,11 @@ export class AuthService {
       if (socialEmail && !userByEmail) {
         user.email = socialEmail;
       }
-      await this.usersService.update(user.id, user);
+      await this.usersService.update(
+        user.id,
+        user,
+        'AuthService.validateSocialLogin()',
+      );
     } else if (userByEmail) {
       user = userByEmail;
     } else {
@@ -276,15 +281,17 @@ export class AuthService {
         userMailHistory.sentAt = new Date(Date.now());
         await this.mailHistoryService.update(
           userMailHistory.id,
-          userMailHistory,
+          {
+            inviteStatus: userMailHistory.inviteStatus,
+            sentAt: userMailHistory.sentAt,
+          },
+          'AuthService.sendRegisterEmail()',
         );
         this.logger.log(
-          `sendRegisterEmail(): register email sent successfully (${JSON.stringify(
-            {
-              email: userMailHistory.email,
-              inviteStatus: userMailHistory.inviteStatus,
-            },
-          )})`,
+          formatLog(
+            `Email de cadastro enviado com sucesso (${userMailHistory.getLogInfoStr()})`,
+            'sendRegisterEmail()',
+          ),
         );
       } else {
         throw new HttpException(
@@ -302,7 +309,8 @@ export class AuthService {
         {
           error: `User's mailStatus is not 'queued'. Cannot proceed with resending the email.`,
           details: {
-            userMailHistory,
+            userMailStatus: userMailHistory.getMailStatus(),
+            userMail: userMailHistory.getLogInfoStr(),
           },
         },
         HttpStatus.UNPROCESSABLE_ENTITY,
@@ -382,14 +390,42 @@ export class AuthService {
       user,
     });
 
-    await this.mailService.forgotPassword({
-      to: email,
-      data: {
-        hash,
-      },
-    });
+    try {
+      const mailSentInfo = await this.mailService.forgotPassword({
+        to: email,
+        data: {
+          hash,
+        },
+      });
 
-    return returnMessage;
+      // Success
+      if (mailSentInfo.success === true) {
+        this.logger.log(
+          formatLog(
+            'Email redefinir senha enviado com sucesso.' +
+              `\n    - Detalhes: ${JSON.stringify({ mailSentInfo })}`,
+            'forgotPassword()',
+          ),
+        );
+        return returnMessage;
+      }
+
+      // SMTP error
+      else {
+        throw new HttpException(
+          {
+            error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+            details: {
+              mailSentInfo: mailSentInfo,
+            },
+          },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    } catch (httpException) {
+      // API error
+      throw httpException;
+    }
   }
 
   async resetPassword(hash: string, password: string): Promise<void> {
@@ -450,7 +486,11 @@ export class AuthService {
     }
 
     userProfile.update(userDto);
-    await this.usersService.update(user.id, userProfile);
+    await this.usersService.update(
+      user.id,
+      userProfile,
+      'AuthService.update()',
+    );
 
     const coreBankProfile: UpdateCoreBankInterface = {
       bankAccountCode: userProfile.bankAccount,
@@ -464,6 +504,6 @@ export class AuthService {
   }
 
   async softDelete(user: User): Promise<void> {
-    await this.usersService.softDelete(user.id);
+    await this.usersService.softDelete(user.id, 'AuthService.softDelete()');
   }
 }

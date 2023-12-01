@@ -30,6 +30,7 @@ import { IFileUser } from './interfaces/file-user.interface';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 import { FileUserMap } from './mappings/user-file.map';
+import { formatLog } from 'src/utils/logging';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -47,10 +48,12 @@ export class UsersService {
     private banksService: BanksService,
   ) {}
 
-  create(createProfileDto: CreateUserDto): Promise<User> {
-    return this.usersRepository.save(
+  async create(createProfileDto: CreateUserDto): Promise<User> {
+    const createdUser = await this.usersRepository.save(
       this.usersRepository.create(createProfileDto),
     );
+    this.logger.log(`Usuário criado: ${createdUser.getLogInfo()}`);
+    return createdUser;
   }
 
   async setUserAuxColumns(user: User): Promise<User> {
@@ -198,7 +201,12 @@ export class UsersService {
     return user;
   }
 
-  async update(id: number, payload: DeepPartial<User>): Promise<User> {
+  async update(
+    id: number,
+    payload: DeepPartial<User>,
+    logContext?: string,
+    logUser?: DeepPartial<User>,
+  ): Promise<User> {
     const oldUser = await this.getOne({ id });
     const history = await this.mailHistoryService.getOne({
       user: { id: oldUser.id },
@@ -218,7 +226,11 @@ export class UsersService {
         history.setInviteStatus(InviteStatusEnum.queued);
         history.email = payload.email;
         history.hash = await this.mailHistoryService.generateHash();
-        await this.mailHistoryService.update(history.id, history);
+        await this.mailHistoryService.update(
+          history.id,
+          history,
+          'UsersService.update()',
+        );
       }
     }
 
@@ -227,11 +239,38 @@ export class UsersService {
       this.usersRepository.create(newUser),
     );
     createPayload = await this.setUserAuxColumns(createPayload);
+
+    // Log
+    const reqUser = new User(logUser);
+    let logMsg = `Usuário ${oldUser.getLogInfo()} teve seus campos atualizados: [ ${Object.keys(
+      payload,
+    )} ]`;
+    if (reqUser.id === oldUser.id) {
+      logMsg = `Usuário ${oldUser.getLogInfo()} atualizou seus campos: [ ${Object.keys(
+        payload,
+      )} ]`;
+    }
+    if (reqUser.getLogInfo() !== '[VAZIO]') {
+      logMsg =
+        `Usuário ${reqUser.getLogInfo()}` +
+        ` atualizou os campos de ${oldUser.getLogInfo()}: [${Object.keys(
+          payload,
+        )}]`;
+    }
+    this.logger.log(formatLog(logMsg, 'update()', logContext));
+
     return createPayload;
   }
 
-  async softDelete(id: number): Promise<void> {
+  async softDelete(id: number, logContext?: string): Promise<void> {
     await this.usersRepository.softDelete(id);
+    this.logger.log(
+      formatLog(
+        `Usuário ${{ id }} desativado com sucesso.`,
+        'softDelete()',
+        logContext,
+      ),
+    );
   }
 
   /**
@@ -441,7 +480,9 @@ export class UsersService {
 
   async createFromFile(
     file: Express.Multer.File,
+    requestUser?: DeepPartial<User>,
   ): Promise<IUserUploadResponse> {
+    const reqUser = new User(requestUser);
     const worksheet = this.getWorksheetFromFile(file);
     const fileUsers = await this.getUserFilesFromWorksheet(
       worksheet,
@@ -458,6 +499,7 @@ export class UsersService {
       throw new HttpException(
         {
           error: {
+            requestUser: reqUser.getLogInfo(),
             file: {
               message: 'invalidRows',
               headerMap: FileUserMap,
@@ -487,31 +529,54 @@ export class UsersService {
         role: new Role(RoleEnum.user),
       } as DeepPartial<User>);
       await this.usersRepository.save(createdUser);
-      this.logger.log(`Created user: ${JSON.stringify(fileUser)}`);
-
-      const createdMailHistory = await this.mailHistoryService.create({
-        user: createdUser,
-        hash: hash,
-        email: createdUser.email as string,
-        inviteStatus: {
-          id: InviteStatusEnum.queued,
-        },
-      });
       this.logger.log(
-        `Created mailHistory: ${JSON.stringify({
-          email: createdMailHistory.email,
-          status: Enum.getKey(
-            InviteStatusEnum,
-            createdMailHistory.inviteStatus.id,
-          ),
-        })}`,
+        formatLog(
+          `Usuario: ${createdUser.getLogInfo()} criado.`,
+          'createFromFile()',
+        ),
+      );
+
+      await this.mailHistoryService.create(
+        {
+          user: createdUser,
+          hash: hash,
+          email: createdUser.email as string,
+          inviteStatus: {
+            id: InviteStatusEnum.queued,
+          },
+        },
+        'UsersService.createFromFile()',
       );
     }
-    return {
+
+    const uploadedRows = validUsers.reduce(
+      (part: DeepPartial<IFileUser>[], i) => [
+        ...part,
+        {
+          row: i.row,
+          user: { codigo_permissionario: i.user.codigo_permissionario },
+        },
+      ],
+      [],
+    );
+
+    const result: IUserUploadResponse = {
       headerMap: FileUserMap,
       uploadedUsers: validUsers.length,
       invalidUsers: invalidUsers.length,
       invalidRows: invalidUsers,
+      uploadedRows: uploadedRows,
     };
+    this.logger.log(
+      formatLog(
+        'Tarefa finalizada, resultado:\n' +
+          JSON.stringify({
+            requestUser: reqUser.getLogInfo(),
+            ...result,
+          }),
+        'createFromFile()',
+      ),
+    );
+    return result;
   }
 }

@@ -9,6 +9,7 @@ import { IMockProbability } from '../../utils/interfaces/mock-probability.interf
 import { JaeProfileInterface } from '../interfaces/jae-profile.interface';
 import { JaeStopTimesInterface } from '../interfaces/jae-stop-times.interface';
 import { JaeValidatorGtfsDataInterface } from '../interfaces/jae-validator-gtfs-data.interface';
+import { formatLog } from 'src/utils/logging';
 
 @Injectable()
 export class JaeDataService implements OnModuleInit {
@@ -121,7 +122,7 @@ export class JaeDataService implements OnModuleInit {
 
   onModuleInit() {
     async () => {
-      this.logger.log('onModuleInit(): initializing mocked data');
+      this.logger.log('onModuleInit(): Inicializando dados simulados.');
       await this.updateDataIfNeeded();
     };
   }
@@ -308,19 +309,27 @@ export class JaeDataService implements OnModuleInit {
       }
     }
     this.ticketRevenues = ticketRevenues;
-    this.logger.log('setTicketRevenues(): mocked data generated');
+    this.logger.log(
+      'setTicketRevenues(): Dados simulados gerados com sucesso.',
+    );
   }
 
   async updateDataIfNeeded() {
     if (this.stopTimes.length === 0) {
       await this.setStopTimes();
       this.logger.debug(
-        'updateDataIfNeeded(): generating mocked data - no stopTimes',
+        formatLog(
+          'Gerando dados simulados, pois stopTimes está vazio',
+          'updateDataIfNeeded()',
+        ),
       );
       this.setTicketRevenues();
     } else if (this.ticketRevenues.length === 0) {
       this.logger.debug(
-        'updateDataIfNeeded(): generating mocked data - no ticketRevenues',
+        formatLog(
+          'Gerando dados simulados, pois ticketRevenues está vazio',
+          'updateDataIfNeeded()',
+        ),
       );
       this.setTicketRevenues();
     } else {
@@ -339,7 +348,10 @@ export class JaeDataService implements OnModuleInit {
         currentMinute <= endHour * 60
       ) {
         this.logger.debug(
-          'updateDataIfNeeded(): generating mocked data - time has passed',
+          formatLog(
+            `Gerando dados simulados, pois se passou no mínimo ${minutesInterval} min`,
+            'updateDataIfNeeded()',
+          ),
         );
         this.setTicketRevenues();
       }

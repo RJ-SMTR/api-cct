@@ -61,7 +61,7 @@ export class MailHistory extends BaseEntity {
   failedAt?: Date | null;
 
   @Column({ type: Date, nullable: true })
-  sentAt?: Date;
+  sentAt?: Date | null;
 
   @DeleteDateColumn()
   @Exclude()
@@ -100,5 +100,27 @@ export class MailHistory extends BaseEntity {
 
   public getUpdatedAt(): Date {
     return this.failedAt ? this.failedAt : this.createdAt;
+  }
+
+  getLogInfoStr(): string {
+    let response = '';
+    if (this?.email) {
+      response += `'${this.email}'`;
+    } else if (this?.id) {
+      response += `#${this.id.toString()}`;
+    } else {
+      response += '[VAZIO]';
+    }
+    const details: any = {};
+    if (this?.user) {
+      details.user = new User(this.user).getLogInfo(false);
+    }
+    if (this?.inviteStatus) {
+      details.inviteStatus = new InviteStatus(this.inviteStatus).name;
+    }
+    if (Object.keys(details).length > 0) {
+      response += ` ${JSON.stringify(details)}`;
+    }
+    return response;
   }
 }
