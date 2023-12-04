@@ -16,7 +16,7 @@ import {
 
 @Entity('invite')
 export class MailHistory extends BaseEntity {
-  constructor(mailHistory?: MailHistory) {
+  constructor(mailHistory?: MailHistory | Partial<MailHistory>) {
     super();
     if (mailHistory !== undefined) {
       Object.assign(this, mailHistory);
@@ -82,7 +82,7 @@ export class MailHistory extends BaseEntity {
   }
 
   /**
-   * Sets errors and updates `failedAt`
+   * Set errors and updates `failedAt`
    */
   public setInviteError(args: {
     smtpErrorCode?: number | null;

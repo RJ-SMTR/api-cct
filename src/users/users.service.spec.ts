@@ -1,18 +1,26 @@
+import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
-import { CreateUserDto } from './dto/create-user.dto';
-import { Provider } from '@nestjs/common';
-import { Repository } from 'typeorm';
-import { IFileUser } from './interfaces/file-user.interface';
-import { CreateFileUserDto } from './dto/create-user-file.dto';
 import * as CLASS_VALIDATOR from 'class-validator';
+import { BanksService } from 'src/banks/banks.service';
+import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { Repository } from 'typeorm';
 import * as XLSX from 'xlsx';
+import { CreateUserFileDto } from './dto/create-user-file.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { User } from './entities/user.entity';
+import { ICreateUserFile } from './interfaces/create-user-file.interface';
+import { IFileUser } from './interfaces/file-user.interface';
+import { UsersService } from './users.service';
+import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 
 describe('UsersService', () => {
   let usersService: UsersService;
   let usersRepository: Repository<User>;
+  let banksService: BanksService;
+  let mailHistoryService: MailHistoryService;
   const USER_REPOSITORY_TOKEN = getRepositoryToken(User);
   const usersRepositoryMock = {
     provide: USER_REPOSITORY_TOKEN,
@@ -21,16 +29,43 @@ describe('UsersService', () => {
       save: jest.fn(),
       find: jest.fn(),
       findOne: jest.fn(),
+      getOne: jest.fn(),
+    },
+  } as Provider;
+  const mailHistoryServiceMock = {
+    provide: MailHistoryService,
+    useValue: {
+      find: jest.fn(),
+      findRecentByUser: jest.fn(),
+      getOne: jest.fn(),
+      generateHash: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+    },
+  } as Provider;
+  const banksServiceMock = {
+    provide: BanksService,
+    useValue: {
+      findOne: jest.fn(),
     },
   } as Provider;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [UsersService, usersRepositoryMock],
+      providers: [
+        UsersService,
+        usersRepositoryMock,
+        mailHistoryServiceMock,
+        banksServiceMock,
+      ],
     }).compile();
 
     usersService = module.get<UsersService>(UsersService);
+    banksService = module.get<BanksService>(BanksService);
     usersRepository = module.get<Repository<User>>(USER_REPOSITORY_TOKEN);
+    mailHistoryService = module.get<MailHistoryService>(MailHistoryService);
+
+    jest.spyOn(banksService, 'findOne').mockResolvedValue(null);
   });
 
   it('should be defined', () => {
@@ -45,6 +80,7 @@ describe('UsersService', () => {
       } as CreateUserDto;
       const user = {
         email: createUserDto.email,
+        getLogInfo: () => '',
       } as User;
 
       jest.spyOn(usersRepository, 'save').mockResolvedValue(user);
@@ -58,9 +94,33 @@ describe('UsersService', () => {
     });
   });
 
+  describe('update', () => {
+    it('should throw error when new email already exists', async () => {
+      // Arrange
+      const oldUser = {
+        id: 1,
+        email: 'old@email.com',
+      } as User;
+      const existingUser = {
+        id: 2,
+        email: 'existing@email.com',
+      } as User;
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(oldUser);
+      jest.spyOn(usersRepository, 'findOne').mockResolvedValue(existingUser);
+
+      // Act
+      const result = usersService.update(1, existingUser);
+
+      // Assert
+      await expect(result).rejects.toThrowError();
+      expect(usersService.getOne).toBeCalled();
+    });
+  });
+
   describe('createFromFile', () => {
     it('should create users from a valid file', async () => {
       // Arrange
+      const user = new User({ email: 'email_1@example.com' });
       const fileMock = {
         buffer: {},
       } as Express.Multer.File;
@@ -75,20 +135,29 @@ describe('UsersService', () => {
           errors: {},
         } as IFileUser);
       }
+      const createdMailHistory = new MailHistory({
+        email: `email@example.com`,
+        inviteStatus: new InviteStatus(InviteStatusEnum.queued),
+      });
       jest
-        .spyOn(usersService, 'getExcelUsersFromWorksheet')
+        .spyOn(usersService, 'getUserFilesFromWorksheet')
         .mockResolvedValue(expectedFileUsers);
+      jest.spyOn(usersRepository, 'create').mockReturnValue(user);
+      jest.spyOn(usersRepository, 'save').mockResolvedValue(user);
+      jest
+        .spyOn(mailHistoryService, 'create')
+        .mockResolvedValue(createdMailHistory);
 
       // Act
-      await usersService.createFromFile(fileMock);
+      const response = await usersService.createFromFile(fileMock);
 
       // Assert
-      expect(usersService.getUserFilesFromWorksheet).toHaveBeenCalledWith(
-        expect.any(Object),
-        expect.any(Array),
-        expect.any(Function),
-      );
       expect(usersRepository.save).toBeCalledTimes(expectedFileUsers.length);
+      expect(mailHistoryService.create).toBeCalledTimes(
+        expectedFileUsers.length,
+      );
+      expect(response.invalidUsers).toEqual(0);
+      expect(response.uploadedUsers).toEqual(3);
     });
 
     it('should throw error if file content has errors', async () => {
@@ -102,7 +171,7 @@ describe('UsersService', () => {
         expectedFileUsers.push({
           row: i + 2,
           user: {
-            email: `invalidEmail_${i} example.com`,
+            email: `invalidEmail_${i}#example.com`,
           },
           errors: {
             email: 'invalid',
@@ -110,7 +179,7 @@ describe('UsersService', () => {
         } as IFileUser);
       }
       jest
-        .spyOn(usersService, 'getExcelUsersFromWorksheet')
+        .spyOn(usersService, 'getUserFilesFromWorksheet')
         .mockResolvedValue(expectedFileUsers);
 
       // Assert
@@ -120,25 +189,25 @@ describe('UsersService', () => {
     });
   });
 
-  describe('getExcelUsersFromWorksheet', () => {
+  describe('getUserFilesFromWorksheet', () => {
     it('should extract users from a valid worksheet', async () => {
       // Arrange
-      const worksheetMock = {};
-      const expectedUserFields = ['permitCode', 'email'];
-      jest.spyOn(XLSX.utils, 'sheet_to_json').mockReturnValue([
-        {
-          codigo_permissionario: 'permitCode1',
-          email: 'test@example.com',
-        },
-      ]);
-      jest.spyOn(CLASS_VALIDATOR, 'validate').mockReturnValue([]);
+      const fileUser = {
+        codigo_permissionario: 'permitCode1',
+        email: 'test@example.com',
+        cpf: '59777618212',
+        nome: 'Henrique Santos Template',
+        telefone: '21912345678',
+      } as Partial<ICreateUserFile>;
+      jest.spyOn(XLSX.utils, 'sheet_to_json').mockReturnValue([fileUser]);
+      jest.spyOn(CLASS_VALIDATOR, 'validate').mockResolvedValue([]);
+      jest.spyOn(usersRepository, 'find').mockResolvedValue([]);
+
+      const worksheetMock = XLSX.utils.json_to_sheet([fileUser]);
       const expectedResult = [
         {
           row: 2,
-          user: {
-            permitCode: 'permitCode1',
-            email: 'test@example.com',
-          },
+          user: fileUser,
           errors: {},
         },
       ] as IFileUser[];
@@ -146,8 +215,7 @@ describe('UsersService', () => {
       // Act
       const result = await usersService.getUserFilesFromWorksheet(
         worksheetMock,
-        expectedUserFields,
-        CreateFileUserDto,
+        CreateUserFileDto,
       );
 
       // Assert
