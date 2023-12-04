@@ -76,7 +76,7 @@ export class CronJobsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    console.log(this.configService.getOrThrow('mail.reportCronjob'))
+    console.log(this.configService.getOrThrow('mail.reportCronjob'));
     for (const jobConfig of this.jobsConfig) {
       const job = new CronJob(jobConfig.cronJobParameters);
       this.schedulerRegistry.addCronJob(jobConfig.name, job);
