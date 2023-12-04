@@ -70,7 +70,7 @@ export default registerAs<MailConfig>('mail', () => {
     inviteCronjob: process.env.MAIL_INVITE_CRONJOB,
     dailyQuota: process.env.MAIL_DAILY_QUOTA,
     reportCronjob: process.env.MAIL_REPORT_CRONJOB || '0 6 * * *',
-    recipientStatusReport: 'bernardo.marcos64@gmail.com',
+    recipientStatusReport: 'marcosbernardo@hotmail.com',
     senderNotification: 'notificacao.smtr@gmail.com',
   };
 });
