@@ -80,7 +80,7 @@ describe('UsersService', () => {
       } as CreateUserDto;
       const user = {
         email: createUserDto.email,
-        getLogInfo: () => '',
+        getLogInfo: () => 'log info',
       } as User;
 
       jest.spyOn(usersRepository, 'save').mockResolvedValue(user);
@@ -160,7 +160,7 @@ describe('UsersService', () => {
       expect(response.uploadedUsers).toEqual(3);
     });
 
-    it('should throw error if file content has errors', async () => {
+    it('should throw error if field value has errors', async () => {
       // Arrange
       const fileMock = {
         buffer: {},
@@ -220,6 +220,84 @@ describe('UsersService', () => {
 
       // Assert
       expect(result).toEqual(expectedResult);
+    });
+
+    it('should throw error invalid headers', async () => {
+      // Arrange
+      function testHeader(fileUser): Promise<IFileUser[]> {
+        jest.spyOn(XLSX.utils, 'sheet_to_json').mockReturnValue([fileUser]);
+        jest.spyOn(CLASS_VALIDATOR, 'validate').mockResolvedValue([]);
+        jest.spyOn(usersRepository, 'find').mockResolvedValue([]);
+        return usersService.getUserFilesFromWorksheet(
+          XLSX.utils.json_to_sheet([fileUser]),
+          CreateUserFileDto,
+        );
+      }
+
+      // Act
+      const resultLessHeaders = testHeader({
+        codigo_permissionario: 'permitCode1',
+        email: 'test@example.com',
+        cpf: '59777618212',
+        nome: 'Henrique Santos Template',
+      });
+      const resultMoreHeaders = testHeader({
+        codigo_permissionario: 'permitCode1',
+        email: 'test@example.com',
+        cpf: '59777618212',
+        nome: 'Henrique Santos Template',
+        telefone: '21912345678',
+        telefone2: '21912345678',
+      });
+
+      // Assert
+      await expect(resultLessHeaders).rejects.toThrowError();
+      await expect(resultMoreHeaders).rejects.toThrowError();
+    });
+
+    it('should extract users when valid content even if headers are unsorted', async () => {
+      // Arrange
+      async function testFile(fileUser: any): Promise<{
+        result: IFileUser[];
+        expectedResult: any;
+      }> {
+        jest.spyOn(XLSX.utils, 'sheet_to_json').mockReturnValue([fileUser]);
+        jest.spyOn(CLASS_VALIDATOR, 'validate').mockResolvedValue([]);
+        jest.spyOn(usersRepository, 'find').mockResolvedValue([]);
+        const worksheetMock = XLSX.utils.json_to_sheet([fileUser]);
+        const expectedResult = [
+          {
+            row: 2,
+            user: fileUser,
+            errors: {},
+          },
+        ] as IFileUser[];
+        const result = await usersService.getUserFilesFromWorksheet(
+          worksheetMock,
+          CreateUserFileDto,
+        );
+        return { result, expectedResult };
+      }
+
+      // Act
+      const resultSorted = await testFile({
+        codigo_permissionario: 'permitCode1',
+        email: 'test@example.com',
+        telefone: '21912345678',
+        nome: 'Henrique Santos Template',
+        cpf: '59777618212',
+      });
+      const resultUnsorted = await testFile({
+        email: 'test@example.com',
+        codigo_permissionario: 'permitCode1',
+        cpf: '59777618212',
+        nome: 'Henrique Santos Template',
+        telefone: '21912345678',
+      });
+
+      // Assert
+      expect(resultSorted.result).toEqual(resultSorted.expectedResult);
+      expect(resultUnsorted.result).toEqual(resultUnsorted.expectedResult);
     });
   });
 
