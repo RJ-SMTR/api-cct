@@ -77,6 +77,7 @@ export type MailConfig = {
   ignoreTLS: boolean;
   secure: boolean;
   requireTLS: boolean;
+  reportCronjob: string;
   inviteCronjob?: string;
   senderNotification?: string;
   recipientStatusReport?: string;

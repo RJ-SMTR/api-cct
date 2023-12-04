@@ -58,7 +58,7 @@ export class CronJobsService implements OnModuleInit {
     {
       name: CronJobsServiceJobs.sendStatusReport,
       cronJobParameters: {
-        cronTime: CronExpression.EVERY_DAY_AT_6AM,
+        cronTime: this.configService.getOrThrow('mail.reportCronjob'),
         onTick: () => this.sendStatusReport(),
       },
     },
@@ -76,6 +76,7 @@ export class CronJobsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    console.log(this.configService.getOrThrow('mail.reportCronjob'))
     for (const jobConfig of this.jobsConfig) {
       const job = new CronJob(jobConfig.cronJobParameters);
       this.schedulerRegistry.addCronJob(jobConfig.name, job);
