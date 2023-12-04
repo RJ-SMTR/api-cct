@@ -4,7 +4,7 @@ import { EntityHelper } from 'src/utils/entity-helper';
 import { InviteStatusEnum } from '../mail-history-status.enum';
 import { Enum } from 'src/utils/enum';
 
-@Entity()
+@Entity('invite_status')
 export class InviteStatus extends EntityHelper {
   constructor(inviteStatus?: InviteStatusEnum | DeepPartial<InviteStatus>) {
     super();

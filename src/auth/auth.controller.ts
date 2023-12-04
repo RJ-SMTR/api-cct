@@ -28,6 +28,7 @@ import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
+import { MailHistoryService } from 'src/mail-history/mail-history.service';
 
 @ApiTags('Auth')
 @Controller({
@@ -37,7 +38,10 @@ import { AuthUpdateDto } from './dto/auth-update.dto';
 export class AuthController {
   private logger: Logger = new Logger('AuthController', { timestamp: true });
 
-  constructor(private readonly service: AuthService) {}
+  constructor(
+    private readonly service: AuthService,
+    private readonly mailHistoryService: MailHistoryService,
+  ) {}
 
   @SerializeOptions({
     groups: ['me'],

@@ -11,6 +11,7 @@ import { MailRegistrationInterface } from './interfaces/mail-registration.interf
 import { MailSentInfo } from './interfaces/mail-sent-info.interface';
 import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
 import { formatLog } from 'src/utils/logging';
+import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 
 @Injectable()
 export class MailService {
@@ -63,7 +64,7 @@ export class MailService {
   /**
    * @throws `HttpException`
    */
-  async userConcludeRegistration(
+  async sendConcludeRegistration(
     mailData: MailData<{ hash: string; userName: string }>,
   ): Promise<MailRegistrationInterface> {
     const i18n = I18nContext.current();
@@ -123,7 +124,7 @@ export class MailService {
   /**
    * @throws `HttpException`
    */
-  async forgotPassword(
+  async sendForgotPassword(
     mailData: MailData<{ hash: string }>,
   ): Promise<MailSentInfo> {
     const resetPasswordTitle = 'Refedinir senha';
@@ -150,6 +151,62 @@ export class MailService {
           bodyText: 'Redefina sua senha clicando no botão abaixo!',
           buttonText: 'Redefinir senha.',
           footerText: 'Caso você não tenha solicitado este email, ignore.',
+        },
+      });
+
+      return response;
+    } catch (httpException) {
+      throw httpException;
+    }
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  async sendStatusReport(
+    mailData: MailData<{
+      statusCount: IMailHistoryStatusCount;
+    }>,
+  ): Promise<MailSentInfo> {
+    const resetPasswordTitle = 'Relatório diário';
+    const from = this.configService.get('mail.senderNotification', {
+      infer: true,
+    });
+
+    if (!from) {
+      throw new HttpException(
+        {
+          error: HttpStatus.INTERNAL_SERVER_ERROR,
+          details: {
+            env: `Env 'MAIL_SENDER_NOTIFICATION' not found (got: '${from}')`,
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    try {
+      const appName = this.configService.get('app.name', {
+        infer: true,
+      });
+      const response = await this.safeSendMail({
+        from,
+        to: mailData.to,
+        subject: resetPasswordTitle,
+        text: `${this.configService.get('app.frontendDomain', {
+          infer: true,
+        })}reset-password/${'mailData.data.hash'} ${resetPasswordTitle}`,
+        template: 'report',
+        context: {
+          title: resetPasswordTitle,
+          url: `${this.configService.get('app.frontendDomain', {
+            infer: true,
+          })}reset-password/${'mailData.data.hash'}`,
+          headerTitle: appName,
+          mailQueued: mailData.data.statusCount.queued,
+          mailSent: mailData.data.statusCount.sent,
+          mailUsed: mailData.data.statusCount.used,
+          mailTotal: mailData.data.statusCount.total,
         },
       });
 
