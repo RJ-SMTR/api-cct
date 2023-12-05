@@ -3,10 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
+import { JaeService } from 'src/jae/jae.service';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
-import { JaeService } from 'src/jae/jae.service';
 import { MailService } from 'src/mail/mail.service';
 import { appSettings } from 'src/settings/app.settings';
 import { SettingsService } from 'src/settings/settings.service';
@@ -15,11 +15,13 @@ import {
   formatErrorMessage as formatErrorLog,
   formatLog,
 } from 'src/utils/logging';
+import { validateEmail } from 'validations-br';
 
 export enum CronJobsServiceJobs {
   bulkSendInvites = 'bulkSendInvites',
   updateJaeMockedData = 'updateJaeMockedData',
   updateCoreBankMockedData = 'updateCoreBankMockedData',
+  sendStatusReport = 'sendStatusReport',
 }
 
 interface ICronJob {
@@ -49,8 +51,15 @@ export class CronJobsService implements OnModuleInit {
     {
       name: CronJobsServiceJobs.updateCoreBankMockedData,
       cronJobParameters: {
-        cronTime: CronExpression.EVERY_DAY_AT_6AM,
+        cronTime: CronExpression.EVERY_HOUR,
         onTick: () => this.coreBankService.updateDataIfNeeded(),
+      },
+    },
+    {
+      name: CronJobsServiceJobs.sendStatusReport,
+      cronJobParameters: {
+        cronTime: this.configService.getOrThrow('mail.reportCronjob'),
+        onTick: () => this.sendStatusReport(),
       },
     },
   ];
@@ -88,6 +97,8 @@ export class CronJobsService implements OnModuleInit {
   }
 
   async bulkSendInvites() {
+    const THIS_METHOD = `${this.sendStatusReport.name}()`;
+    const THIS_CLASS_AND_METHOD = `${CronJobsService}.${this.sendStatusReport.name}()`;
     const activateAutoSendInvite =
       await this.settingsService.getOneBySettingData(
         appSettings.any__activate_auto_send_invite,
@@ -107,10 +118,12 @@ export class CronJobsService implements OnModuleInit {
     const dailyQuota = () => this.configService.getOrThrow('mail.dailyQuota');
 
     this.logger.log(
-      `bulkSendInvites(): iniciando tarefa: a enviar: ${
-        unsent.length
-      }, enviado: ${sentToday.length}/${dailyQuota()}, ` +
-        `falta enviar: ${remainingQuota}`,
+      formatLog(
+        `Iniciando tarefa - a enviar: ${unsent.length},` +
+          ` enviado: ${sentToday.length}/${dailyQuota()},` +
+          ` falta enviar: ${remainingQuota}`,
+        THIS_METHOD,
+      ),
     );
 
     for (let i = 0; i < remainingQuota && i < unsent.length; i++) {
@@ -123,7 +136,7 @@ export class CronJobsService implements OnModuleInit {
         this.logger.error(
           formatLog(
             `Usuário não tem email válido (${user?.email}), este email não será enviado.`,
-            'bulkSendInvites()',
+            THIS_METHOD,
           ),
         );
         invite.setInviteError({
@@ -140,7 +153,7 @@ export class CronJobsService implements OnModuleInit {
             sentAt: invite.sentAt,
             failedAt: invite.failedAt,
           },
-          'CronJobsService.bulkSendInvites()',
+          THIS_CLASS_AND_METHOD,
         );
         continue;
       }
@@ -148,7 +161,7 @@ export class CronJobsService implements OnModuleInit {
       // Send mail
       try {
         const { mailSentInfo } =
-          await this.mailService.userConcludeRegistration({
+          await this.mailService.sendConcludeRegistration({
             to: user.email,
             data: {
               hash: invite.hash,
@@ -174,11 +187,9 @@ export class CronJobsService implements OnModuleInit {
               sentAt: invite.sentAt,
               failedAt: invite.failedAt,
             },
-            'CronJobsService.bulkSendInvites()',
+            THIS_CLASS_AND_METHOD,
           );
-          this.logger.log(
-            formatLog('Email enviado com sucesso.', 'bulkSendInvites()'),
-          );
+          this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
         }
 
         // SMTP error
@@ -188,7 +199,7 @@ export class CronJobsService implements OnModuleInit {
               'Email enviado retornou erro.',
               mailSentInfo,
               new Error(),
-              'bulkSendInvites()',
+              THIS_METHOD,
             ),
           );
           invite.setInviteError({
@@ -205,7 +216,7 @@ export class CronJobsService implements OnModuleInit {
               sentAt: invite.sentAt,
               failedAt: invite.failedAt,
             },
-            'CronJobsService.bulkSendInvites()',
+            THIS_CLASS_AND_METHOD,
           );
         }
 
@@ -216,7 +227,7 @@ export class CronJobsService implements OnModuleInit {
             'Email falhou ao enviar.',
             httpException,
             httpException as Error,
-            'bulkSendInvites()',
+            THIS_METHOD,
           ),
         );
         invite.httpErrorCode = httpException.statusCode;
@@ -234,7 +245,7 @@ export class CronJobsService implements OnModuleInit {
             sentAt: invite.sentAt,
             failedAt: invite.failedAt,
           },
-          'CronJobsService.bulkSendInvites()',
+          THIS_CLASS_AND_METHOD,
         );
       }
     }
@@ -244,15 +255,77 @@ export class CronJobsService implements OnModuleInit {
         ...(remainingQuota == 0 ? ['no remaining quota'] : []),
       ];
       this.logger.log(
-        formatLog(
-          `Tarefa cancelada pois ${reasons.join(' e ')}`,
-          'bulkSendInvites()',
-        ),
+        formatLog(`Tarefa cancelada pois ${reasons.join(' e ')}`, THIS_METHOD),
       );
     } else {
-      this.logger.log(
-        formatLog('Tarefa finalizada com sucesso.', 'bulkSendInvites()'),
+      this.logger.log(formatLog('Tarefa finalizada com sucesso.', THIS_METHOD));
+    }
+  }
+
+  async sendStatusReport() {
+    this.logger.log(formatLog('Iniciando tarefa.', 'sendStatusReport()'));
+    const THIS_METHOD = `${this.sendStatusReport.name}()`;
+    const recipientMail = await this.configService.get(
+      'mail.recipientStatusReport',
+    );
+
+    if (!recipientMail) {
+      this.logger.error(
+        formatLog(
+          `Tarefa cancelada pois a variável de ambiente 'MAIL_RECIPIENT_STATUS_REPORT'` +
+            ` não foi encontrada (retornou: ${recipientMail}).`,
+          'sendStatusReport()',
+        ),
+      );
+      return;
+    } else if (!validateEmail(recipientMail)) {
+      this.logger.error(
+        formatLog(
+          `Tarefa cancelada pois a variável de ambiente 'MAIL_RECIPIENT_STATUS_REPORT'` +
+            ` não é um email válido (retornou: ${recipientMail}).`,
+          THIS_METHOD,
+        ),
+      );
+      return;
+    }
+
+    // Send mail
+    try {
+      const mailSentInfo = await this.mailService.sendStatusReport({
+        to: recipientMail,
+        data: {
+          statusCount: await this.mailHistoryService.getStatusCount(),
+        },
+      });
+
+      // Success
+      if (mailSentInfo.success === true) {
+        this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+      }
+
+      // SMTP error
+      else {
+        this.logger.error(
+          formatErrorLog(
+            'Email enviado retornou erro.',
+            mailSentInfo,
+            new Error(),
+            THIS_METHOD,
+          ),
+        );
+      }
+
+      // API error
+    } catch (httpException) {
+      this.logger.error(
+        formatErrorLog(
+          'Email falhou ao enviar.',
+          httpException,
+          httpException as Error,
+          THIS_METHOD,
+        ),
       );
     }
+    this.logger.log(formatLog('Tarefa finalizada.', THIS_METHOD));
   }
 }

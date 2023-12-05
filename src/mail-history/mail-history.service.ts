@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { startOfDay } from 'date-fns';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
@@ -9,9 +9,16 @@ import { User } from 'src/users/entities/user.entity';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
-import { DeepPartial, Equal, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  DeepPartial,
+  Equal,
+  MoreThanOrEqual,
+  Repository,
+  DataSource,
+} from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
 import { formatLog } from 'src/utils/logging';
+import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 
 @Injectable()
 export class MailHistoryService {
@@ -23,6 +30,8 @@ export class MailHistoryService {
     @InjectRepository(MailHistory)
     private inviteRepository: Repository<MailHistory>,
     private configService: ConfigService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(
@@ -182,5 +191,23 @@ export class MailHistoryService {
       .orderBy({ createdAt: 'ASC' })
       .getCount();
     return dailyQuota() - sentToday;
+  }
+
+  async getStatusCount(): Promise<IMailHistoryStatusCount> {
+    const result: any[] = await this.dataSource.query(
+      `SELECT  n."name" status,count(*) qtde
+FROM public.invite i left join
+public.invite_status n on i."inviteStatusId" = n.id 
+group by n."name"`,
+    );
+    const resultReturn = {
+      queued: Number(result.filter((i) => i.status === 'queued')[0]?.qtde) || 0,
+      sent: Number(result.filter((i) => i.status === 'sent')[0]?.qtde) || 0,
+      used: Number(result.filter((i) => i.status === 'used')[0]?.qtde) || 0,
+      total: 0,
+    };
+    resultReturn.total =
+      resultReturn.queued + resultReturn.sent + resultReturn.used;
+    return resultReturn;
   }
 }

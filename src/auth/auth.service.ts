@@ -204,7 +204,7 @@ export class AuthService {
     });
 
     const { mailConfirmationLink } =
-      await this.mailService.userConcludeRegistration({
+      await this.mailService.sendConcludeRegistration({
         to: dto.email,
         data: {
           hash,
@@ -273,7 +273,7 @@ export class AuthService {
             userName: user.fullName as string,
           },
         };
-      const mailResponse = await this.mailService.userConcludeRegistration(
+      const mailResponse = await this.mailService.sendConcludeRegistration(
         mailData,
       );
       if (mailResponse.mailSentInfo.success === true) {
@@ -391,7 +391,7 @@ export class AuthService {
     });
 
     try {
-      const mailSentInfo = await this.mailService.forgotPassword({
+      const mailSentInfo = await this.mailService.sendForgotPassword({
         to: email,
         data: {
           hash,
