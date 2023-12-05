@@ -315,12 +315,13 @@ export class JaeDataService implements OnModuleInit {
   }
 
   async updateDataIfNeeded() {
+    const THIS_METHOD = `${this.updateDataIfNeeded.name}()`;
     if (this.stopTimes.length === 0) {
       await this.setStopTimes();
       this.logger.debug(
         formatLog(
           'Gerando dados simulados, pois stopTimes está vazio',
-          'updateDataIfNeeded()',
+          THIS_METHOD,
         ),
       );
       this.setTicketRevenues();
@@ -328,7 +329,7 @@ export class JaeDataService implements OnModuleInit {
       this.logger.debug(
         formatLog(
           'Gerando dados simulados, pois ticketRevenues está vazio',
-          'updateDataIfNeeded()',
+          THIS_METHOD,
         ),
       );
       this.setTicketRevenues();
@@ -350,7 +351,7 @@ export class JaeDataService implements OnModuleInit {
         this.logger.debug(
           formatLog(
             `Gerando dados simulados, pois se passou no mínimo ${minutesInterval} min`,
-            'updateDataIfNeeded()',
+            THIS_METHOD,
           ),
         );
         this.setTicketRevenues();
