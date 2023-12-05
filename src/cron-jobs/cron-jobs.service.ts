@@ -38,22 +38,7 @@ interface ICronJob {
 export class CronJobsService implements OnModuleInit {
   private logger = new Logger('CronJobsService', { timestamp: true });
 
-  public jobsConfig: ICronJob[] = [
-    {
-      name: CronJobsSJobsEnum.updateJaeMockedData,
-      cronJobParameters: {
-        cronTime: CronExpression.EVERY_MINUTE,
-        onTick: async () => this.updateJaeMockedData(),
-      },
-    },
-    {
-      name: CronJobsSJobsEnum.updateCoreBankMockedData,
-      cronJobParameters: {
-        cronTime: CronExpression.EVERY_HOUR,
-        onTick: () => this.coreBankService.updateDataIfNeeded(),
-      },
-    },
-  ];
+  public jobsConfig: ICronJob[] = [];
 
   constructor(
     private configService: ConfigService,
@@ -69,6 +54,20 @@ export class CronJobsService implements OnModuleInit {
   onModuleInit() {
     (async () => {
       this.jobsConfig.push(
+        {
+          name: CronJobsSJobsEnum.updateJaeMockedData,
+          cronJobParameters: {
+            cronTime: CronExpression.EVERY_MINUTE,
+            onTick: async () => this.updateJaeMockedData(),
+          },
+        },
+        {
+          name: CronJobsSJobsEnum.updateCoreBankMockedData,
+          cronJobParameters: {
+            cronTime: CronExpression.EVERY_HOUR,
+            onTick: () => this.coreBankService.updateDataIfNeeded(),
+          },
+        },
         {
           name: CronJobsSJobsEnum.bulkSendInvites,
           cronJobParameters: {
