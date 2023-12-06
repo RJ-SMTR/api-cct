@@ -4,21 +4,22 @@ import { ConfigService } from '@nestjs/config';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { startOfDay } from 'date-fns';
+import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { formatLog } from 'src/utils/logging';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import {
+  DataSource,
   DeepPartial,
   Equal,
   MoreThanOrEqual,
   Repository,
-  DataSource,
 } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
-import { formatLog } from 'src/utils/logging';
-import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 
 @Injectable()
 export class MailHistoryService {
@@ -194,16 +195,34 @@ export class MailHistoryService {
   }
 
   async getStatusCount(): Promise<IMailHistoryStatusCount> {
-    const result: any[] = await this.dataSource.query(
-      `SELECT  n."name" status,count(*) qtde
-FROM public.invite i left join
-public.invite_status n on i."inviteStatusId" = n.id 
-group by n."name"`,
-    );
+    const result: any[] = await this.inviteRepository
+      .createQueryBuilder('invite')
+      .select([
+        'invite.inviteStatus as status_id',
+        'COUNT(invite.inviteStatus) as status_count',
+      ])
+      .leftJoin('invite.user', 'user')
+      .leftJoin('user.role', 'role')
+      .where('role.id = :roleId', { roleId: RoleEnum.user })
+      .groupBy('invite.inviteStatusId')
+      .getRawMany();
+
     const resultReturn = {
-      queued: Number(result.filter((i) => i.status === 'queued')[0]?.qtde) || 0,
-      sent: Number(result.filter((i) => i.status === 'sent')[0]?.qtde) || 0,
-      used: Number(result.filter((i) => i.status === 'used')[0]?.qtde) || 0,
+      queued:
+        Number(
+          result.filter((i) => i.status_id === InviteStatusEnum.queued)[0]
+            ?.status_count,
+        ) || 0,
+      sent:
+        Number(
+          result.filter((i) => i.status_id === InviteStatusEnum.sent)[0]
+            ?.status_count,
+        ) || 0,
+      used:
+        Number(
+          result.filter((i) => i.status_id === InviteStatusEnum.used)[0]
+            ?.status_count,
+        ) || 0,
       total: 0,
     };
     resultReturn.total =
