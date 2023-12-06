@@ -9,6 +9,7 @@ import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { MailService } from 'src/mail/mail.service';
 import { appSettings } from 'src/settings/app.settings';
+import { SettingDataInterface } from 'src/settings/interfaces/setting-data.interface';
 import { SettingsService } from 'src/settings/settings.service';
 import { UsersService } from 'src/users/users.service';
 import {
@@ -17,11 +18,15 @@ import {
 } from 'src/utils/logging';
 import { validateEmail } from 'validations-br';
 
-export enum CronJobsServiceJobs {
+/**
+ * Enum CronJobServicesJobs
+ */
+export enum CronJobsSJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
   updateJaeMockedData = 'updateJaeMockedData',
   updateCoreBankMockedData = 'updateCoreBankMockedData',
   sendStatusReport = 'sendStatusReport',
+  pollDb = 'pollDb',
 }
 
 interface ICronJob {
@@ -33,36 +38,7 @@ interface ICronJob {
 export class CronJobsService implements OnModuleInit {
   private logger = new Logger('CronJobsService', { timestamp: true });
 
-  public jobsConfig: ICronJob[] = [
-    {
-      name: CronJobsServiceJobs.bulkSendInvites,
-      cronJobParameters: {
-        cronTime: this.configService.getOrThrow('mail.inviteCronjob'),
-        onTick: async () => this.bulkSendInvites(),
-      },
-    },
-    {
-      name: CronJobsServiceJobs.updateJaeMockedData,
-      cronJobParameters: {
-        cronTime: CronExpression.EVERY_MINUTE,
-        onTick: async () => this.updateJaeMockedData(),
-      },
-    },
-    {
-      name: CronJobsServiceJobs.updateCoreBankMockedData,
-      cronJobParameters: {
-        cronTime: CronExpression.EVERY_HOUR,
-        onTick: () => this.coreBankService.updateDataIfNeeded(),
-      },
-    },
-    {
-      name: CronJobsServiceJobs.sendStatusReport,
-      cronJobParameters: {
-        cronTime: this.configService.getOrThrow('mail.reportCronjob'),
-        onTick: () => this.sendStatusReport(),
-      },
-    },
-  ];
+  public jobsConfig: ICronJob[] = [];
 
   constructor(
     private configService: ConfigService,
@@ -76,12 +52,76 @@ export class CronJobsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    for (const jobConfig of this.jobsConfig) {
-      const job = new CronJob(jobConfig.cronJobParameters);
-      this.schedulerRegistry.addCronJob(jobConfig.name, job);
-      job.start();
-      this.logger.log(`Tarefa iniciada: ${jobConfig.name}`);
-    }
+    (async () => {
+      this.jobsConfig.push(
+        {
+          name: CronJobsSJobsEnum.updateJaeMockedData,
+          cronJobParameters: {
+            cronTime: CronExpression.EVERY_MINUTE,
+            onTick: async () => this.updateJaeMockedData(),
+          },
+        },
+        {
+          name: CronJobsSJobsEnum.updateCoreBankMockedData,
+          cronJobParameters: {
+            cronTime: CronExpression.EVERY_HOUR,
+            onTick: () => this.coreBankService.updateDataIfNeeded(),
+          },
+        },
+        {
+          name: CronJobsSJobsEnum.bulkSendInvites,
+          cronJobParameters: {
+            cronTime: (
+              await this.settingsService.getOneBySettingData(
+                appSettings.any__mail_invite_cronjob,
+              )
+            ).getValueAsString(),
+            onTick: async () => this.bulkSendInvites(),
+          },
+        },
+        {
+          name: CronJobsSJobsEnum.sendStatusReport,
+          cronJobParameters: {
+            cronTime: (
+              await this.settingsService.getOneBySettingData(
+                appSettings.any__mail_report_cronjob,
+              )
+            ).getValueAsString(),
+            onTick: () => this.sendStatusReport(),
+          },
+        },
+        {
+          name: CronJobsSJobsEnum.pollDb,
+          cronJobParameters: {
+            cronTime: (
+              await this.settingsService.getOneBySettingData(
+                appSettings.any__poll_db_cronjob,
+              )
+            ).getValueAsString(),
+            onTick: () => this.pollDb(),
+          },
+        },
+      );
+
+      for (const jobConfig of this.jobsConfig) {
+        this.startCron(jobConfig);
+        this.logger.log(
+          `Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`,
+        );
+      }
+    })().catch((error: Error) => {
+      throw error;
+    });
+  }
+
+  startCron(jobConfig: ICronJob) {
+    const job = new CronJob(jobConfig.cronJobParameters);
+    this.schedulerRegistry.addCronJob(jobConfig.name, job);
+    job.start();
+  }
+
+  deleteCron(jobConfig: ICronJob) {
+    this.schedulerRegistry.deleteCronJob(jobConfig.name);
   }
 
   async updateJaeMockedData() {
@@ -97,15 +137,15 @@ export class CronJobsService implements OnModuleInit {
   }
 
   async bulkSendInvites() {
-    const THIS_METHOD = `${this.sendStatusReport.name}()`;
-    const THIS_CLASS_AND_METHOD = `${CronJobsService}.${this.sendStatusReport.name}()`;
+    const THIS_METHOD = `${this.bulkSendInvites.name}()`;
+    const THIS_CLASS_AND_METHOD = `${CronJobsService}.${this.bulkSendInvites.name}()`;
     const activateAutoSendInvite =
       await this.settingsService.getOneBySettingData(
         appSettings.any__activate_auto_send_invite,
       );
     if (activateAutoSendInvite.value === String(false)) {
       this.logger.log(
-        `bulkSendInvites(): Tarefa cancelada pois ${appSettings.any__activate_auto_send_invite.name} = 'false'.` +
+        `bulkSendInvites(): Tarefa cancelada pois setting.${appSettings.any__activate_auto_send_invite.name} = 'false'.` +
           ` Para ativar, altere na tabela 'setting'`,
       );
       return;
@@ -327,5 +367,86 @@ export class CronJobsService implements OnModuleInit {
       );
     }
     this.logger.log(formatLog('Tarefa finalizada.', THIS_METHOD));
+  }
+
+  async pollDb() {
+    const THIS_METHOD = `${this.pollDb.name}()`;
+    const pollDbActive = (
+      await this.settingsService.getOneBySettingData(
+        appSettings.any__poll_db_enabled,
+      )
+    ).getValueAsBoolean();
+    if (!pollDbActive) {
+      this.logger.log(
+        formatLog(
+          `Tarefa cancelada pois setting.${appSettings.any__poll_db_enabled.name}' = 'false'` +
+            ` Para ativar, altere na tabela 'setting'`,
+          THIS_METHOD,
+        ),
+      );
+      return;
+    }
+
+    let hasDbChanges = false;
+
+    const cronjobSettings: [SettingDataInterface, CronJobsSJobsEnum][] = [
+      [appSettings.any__poll_db_cronjob, CronJobsSJobsEnum.pollDb],
+      [appSettings.any__mail_invite_cronjob, CronJobsSJobsEnum.bulkSendInvites],
+      [
+        appSettings.any__mail_report_cronjob,
+        CronJobsSJobsEnum.sendStatusReport,
+      ],
+    ];
+    for (const setting of cronjobSettings) {
+      const dbChanged = await this.handleCronjobDbSettings(
+        ...setting,
+        THIS_METHOD,
+      );
+      if (dbChanged) {
+        hasDbChanges = true;
+      }
+    }
+
+    if (hasDbChanges) {
+      this.logger.log(formatLog('Tarefa finalizada.', THIS_METHOD));
+    } else {
+      this.logger.log(
+        formatLog('Tarefa finalizada, sem alterações no banco.', THIS_METHOD),
+      );
+    }
+  }
+
+  async handleCronjobDbSettings(
+    settingData: SettingDataInterface,
+    cronjobEnum: CronJobsSJobsEnum,
+    thisMethod: string,
+  ): Promise<boolean> {
+    const setting = (
+      await this.settingsService.getOneBySettingData(settingData)
+    ).getValueAsString();
+    const jobIndex = this.jobsConfig.findIndex((i) => i.name === cronjobEnum);
+    const job = this.jobsConfig[jobIndex];
+    if (job.cronJobParameters.cronTime !== setting) {
+      this.logger.log(
+        formatLog(
+          `Alteração encontrada em` +
+            ` setting.'${appSettings.any__mail_invite_cronjob.name}': ` +
+            `${job?.cronJobParameters.cronTime} --> ${setting}.`,
+          thisMethod,
+        ),
+      );
+      job.cronJobParameters.cronTime = setting;
+      this.jobsConfig[jobIndex] = job;
+      this.deleteCron(job);
+      this.startCron(job);
+      this.logger.log(
+        formatLog(
+          `Tarefa reagendada: ${job.name}, ${job.cronJobParameters.cronTime}`,
+          thisMethod,
+        ),
+      );
+      return true;
+    }
+    return false;
   }
 }

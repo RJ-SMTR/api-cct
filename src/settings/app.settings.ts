@@ -1,5 +1,6 @@
 import { SettingTypeEnum } from 'src/setting-types/setting-type.enum';
 import { SettingDataInterface } from './interfaces/setting-data.interface';
+import { CronExpression } from '@nestjs/schedule';
 
 /**
  * Helper for default settings
@@ -23,6 +24,38 @@ export const appSettings = {
     version: null,
     editable: false,
     settingType: SettingTypeEnum.number,
+  } as SettingDataInterface,
+
+  any__poll_db_enabled: {
+    name: 'poll_db_enabled',
+    value: 'true',
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.boolean,
+  } as SettingDataInterface,
+
+  any__poll_db_cronjob: {
+    name: 'poll_db_cronjob',
+    value: CronExpression.EVERY_MINUTE,
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.string,
+  } as SettingDataInterface,
+
+  any__mail_invite_cronjob: {
+    name: 'mail_invite_cronjob',
+    value: CronExpression.EVERY_DAY_AT_10PM,
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.string,
+  } as SettingDataInterface,
+
+  any__mail_report_cronjob: {
+    name: 'mail_report_cronjob',
+    value: CronExpression.EVERY_DAY_AT_3AM,
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.string,
   } as SettingDataInterface,
 
   // v1
