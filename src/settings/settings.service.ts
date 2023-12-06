@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
@@ -6,9 +6,12 @@ import { IsNull, Repository } from 'typeorm';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { SettingEntity } from './entities/setting.entity';
 import { SettingDataInterface } from './interfaces/setting-data.interface';
+import { formatLog } from 'src/utils/logging';
 
 @Injectable()
 export class SettingsService {
+  private logger = new Logger(SettingsService.name, { timestamp: true });
+
   constructor(
     @InjectRepository(SettingEntity)
     private readonly settingsRepository: Repository<SettingEntity>,
@@ -56,8 +59,38 @@ export class SettingsService {
 
   async getOneBySettingData(
     setting: SettingDataInterface,
+    defaultValueIfNotFound?: boolean,
+    logContext?: string,
   ): Promise<SettingEntity> {
-    return this.getOneByNameVersion(setting.name, setting.version);
+    const dbSetting = await this.findOneBySettingData(setting);
+    if (defaultValueIfNotFound && !dbSetting) {
+      this.logger.warn(
+        formatLog(
+          `Configuração 'setting.${setting.name}' não encontrada. Usando valor padrão.`,
+          `${this.getOneBySettingData.name}()`,
+          logContext,
+        ),
+      );
+      return new SettingEntity(setting);
+    } else {
+      return this.getOneByNameVersion(setting.name, setting.version);
+    }
+  }
+
+  async findOneBySettingData(
+    setting: SettingDataInterface,
+  ): Promise<SettingEntity | null> {
+    const settings = await this.settingsRepository.find({
+      where: {
+        name: setting.name,
+        version: setting.version === null ? IsNull() : setting.version,
+      },
+    });
+    if (settings.length === 0) {
+      return null;
+    } else {
+      return settings[0];
+    }
   }
 
   async findByVersion(version: string): Promise<SettingEntity[]> {

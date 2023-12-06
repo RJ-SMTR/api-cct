@@ -52,6 +52,7 @@ export class CronJobsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
     (async () => {
       this.jobsConfig.push(
         {
@@ -74,6 +75,8 @@ export class CronJobsService implements OnModuleInit {
             cronTime: (
               await this.settingsService.getOneBySettingData(
                 appSettings.any__mail_invite_cronjob,
+                true,
+                THIS_CLASS_WITH_METHOD,
               )
             ).getValueAsString(),
             onTick: async () => this.bulkSendInvites(),
@@ -85,6 +88,8 @@ export class CronJobsService implements OnModuleInit {
             cronTime: (
               await this.settingsService.getOneBySettingData(
                 appSettings.any__mail_report_cronjob,
+                true,
+                THIS_CLASS_WITH_METHOD,
               )
             ).getValueAsString(),
             onTick: () => this.sendStatusReport(),
@@ -96,6 +101,8 @@ export class CronJobsService implements OnModuleInit {
             cronTime: (
               await this.settingsService.getOneBySettingData(
                 appSettings.any__poll_db_cronjob,
+                true,
+                THIS_CLASS_WITH_METHOD,
               )
             ).getValueAsString(),
             onTick: () => this.pollDb(),
@@ -140,12 +147,20 @@ export class CronJobsService implements OnModuleInit {
     const THIS_METHOD = `${this.bulkSendInvites.name}()`;
     const THIS_CLASS_AND_METHOD = `${CronJobsService}.${this.bulkSendInvites.name}()`;
     const activateAutoSendInvite =
-      await this.settingsService.getOneBySettingData(
+      await this.settingsService.findOneBySettingData(
         appSettings.any__activate_auto_send_invite,
       );
-    if (activateAutoSendInvite.value === String(false)) {
+    if (!activateAutoSendInvite) {
+      this.logger.error(
+        formatLog(
+          `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' não foi encontrado no banco.`,
+          THIS_METHOD,
+        ),
+      );
+      return;
+    } else if (activateAutoSendInvite.value === String(false)) {
       this.logger.log(
-        `bulkSendInvites(): Tarefa cancelada pois setting.${appSettings.any__activate_auto_send_invite.name} = 'false'.` +
+        `bulkSendInvites(): Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` +
           ` Para ativar, altere na tabela 'setting'`,
       );
       return;
@@ -371,12 +386,19 @@ export class CronJobsService implements OnModuleInit {
 
   async pollDb() {
     const THIS_METHOD = `${this.pollDb.name}()`;
-    const pollDbActive = (
-      await this.settingsService.getOneBySettingData(
-        appSettings.any__poll_db_enabled,
-      )
-    ).getValueAsBoolean();
-    if (!pollDbActive) {
+    const settingPollDbActive = await this.settingsService.findOneBySettingData(
+      appSettings.any__poll_db_enabled,
+    );
+    if (!settingPollDbActive) {
+      this.logger.error(
+        formatLog(
+          `Tarefa cancelada pois 'setting.${appSettings.any__poll_db_enabled.name}' não foi encontrado no banco.`,
+          THIS_METHOD,
+        ),
+      );
+      return;
+    }
+    if (!settingPollDbActive.getValueAsBoolean()) {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois setting.${appSettings.any__poll_db_enabled.name}' = 'false'` +
@@ -421,16 +443,26 @@ export class CronJobsService implements OnModuleInit {
     cronjobEnum: CronJobsSJobsEnum,
     thisMethod: string,
   ): Promise<boolean> {
-    const setting = (
-      await this.settingsService.getOneBySettingData(settingData)
-    ).getValueAsString();
+    const settingFound = await this.settingsService.findOneBySettingData(
+      settingData,
+    );
+    if (!settingFound) {
+      this.logger.error(
+        formatLog(
+          `Tarefa cancelada pois 'setting.${settingData.name}' não foi encontrado no banco.`,
+          thisMethod,
+        ),
+      );
+      return false;
+    }
+    const setting = settingFound.getValueAsString();
     const jobIndex = this.jobsConfig.findIndex((i) => i.name === cronjobEnum);
     const job = this.jobsConfig[jobIndex];
     if (job.cronJobParameters.cronTime !== setting) {
       this.logger.log(
         formatLog(
           `Alteração encontrada em` +
-            ` setting.'${appSettings.any__mail_invite_cronjob.name}': ` +
+            ` setting.'${settingData.name}': ` +
             `${job?.cronJobParameters.cronTime} --> ${setting}.`,
           thisMethod,
         ),

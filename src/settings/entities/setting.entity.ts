@@ -11,10 +11,21 @@ import { Exclude } from 'class-transformer';
 import { SettingType } from 'src/setting-types/entities/setting-type.entity';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { SettingDataInterface } from '../interfaces/setting-data.interface';
 
 @Entity({ name: 'setting' })
 @Unique(['name', 'version'])
 export class SettingEntity extends BaseEntity {
+  constructor(data?: SettingDataInterface) {
+    super();
+    if (data) {
+      this.name = data.name;
+      this.value = data.value;
+      this.version = data.version;
+      this.settingType = new SettingType(data.settingType);
+      this.editable = data.editable;
+    }
+  }
   @Exclude()
   @ApiProperty({ example: 1 })
   @PrimaryColumn({ insert: true })
