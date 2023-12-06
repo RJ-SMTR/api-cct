@@ -12,27 +12,19 @@ export class BankSeedService {
   ) {}
 
   async run() {
-    let id = 1;
-    for (const item of bankData) {
-      const count = await this.repository.count({
-        where: {
+    const items = bankData
+      .filter((i) => !isNaN(i.ispb))
+      .map((item, index) =>
+        this.repository.create({
+          id: index + 1,
           ispb: item.ispb,
-        },
-      });
-
-      if (!count) {
-        await this.repository.save(
-          this.repository.create({
-            id: id,
-            ispb: item.ispb,
-            code: item.code,
-            name: item.name,
-            fullName: item.fullName,
-            isAllowed: true,
-          }),
-        );
-      }
-      id++;
-    }
+          code: item.code,
+          name: item.name,
+          fullName: item.fullName,
+          isAllowed: true,
+        }),
+      );
+    await this.repository.clear();
+    await this.repository.insert(items);
   }
 }

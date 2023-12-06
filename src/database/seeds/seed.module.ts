@@ -8,7 +8,6 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { TypeOrmConfigService } from '../typeorm-config.service';
 import { BankSeedModule } from './bank/bank-seed.module';
 import { InfoSeedModule } from './info/info-seed.module';
-import { InitSeedModule } from './init/init-seed.module';
 import { MailCountSeedModule } from './mail-count/mail-count-seed.module';
 import { InviteStatusSeedModule } from './mail-history-status/mail-history-status-seed.module';
 import { MailHistorySeedModule } from './mail-history/mail-history-seed.module';
@@ -20,10 +19,8 @@ import { UserSeedModule } from './user/user-seed.module';
 
 @Module({
   imports: [
-    InitSeedModule,
     RoleSeedModule,
     StatusSeedModule,
-    UserSeedModule,
     InfoSeedModule,
     BankSeedModule,
     InviteStatusSeedModule,

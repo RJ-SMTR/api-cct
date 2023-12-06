@@ -21,6 +21,10 @@ export class MailHistorySeedService {
   ) {}
 
   async run() {
+    if (!(await this.validateRun())) {
+      this.logger.log('Database is not empty. Aborting seed...');
+      return;
+    }
     this.logger.log('run()');
     for (const item of this.dataService.getDataFromConfig()) {
       const itemUser = await this.getHistoryUser(item);
@@ -62,5 +66,9 @@ export class MailHistorySeedService {
       where: { email: item.user.email as string },
     });
     return users[0];
+  }
+
+  async validateRun() {
+    return global.force || (await this.usersRepository.count()) === 0;
   }
 }

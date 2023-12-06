@@ -20,7 +20,6 @@ export class SettingSeedService {
         where: {
           name: item.name,
           version: item.version === null ? IsNull() : item.version,
-          editable: item.editable,
           settingType: {
             id: item.settingType,
             name: Enum.getKey(SettingTypeEnum, item.settingType),
