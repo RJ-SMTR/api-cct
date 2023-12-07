@@ -44,9 +44,6 @@ class EnvironmentVariablesValidator {
   @IsBoolean()
   MAIL_REQUIRE_TLS: boolean;
 
-  @IsString()
-  MAIL_INVITE_CRONJOB: string;
-
   @IsInt()
   @Min(0)
   @Max(65535)
@@ -67,9 +64,7 @@ export default registerAs<MailConfig>('mail', () => {
     ignoreTLS: process.env.MAIL_IGNORE_TLS === 'true',
     secure: process.env.MAIL_SECURE === 'true',
     requireTLS: process.env.MAIL_REQUIRE_TLS === 'true',
-    inviteCronjob: process.env.MAIL_INVITE_CRONJOB,
     dailyQuota: process.env.MAIL_DAILY_QUOTA,
-    reportCronjob: process.env.MAIL_REPORT_CRONJOB || '0 6 * * *',
     recipientStatusReport: 'marcosbernardo@hotmail.com',
     senderNotification: 'notificacao.smtr@gmail.com',
   };

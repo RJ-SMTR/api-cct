@@ -18,6 +18,10 @@ export class UserSeedService {
   ) {}
 
   async run() {
+    if (!(await this.validateRun())) {
+      this.logger.log('Database is not empty. Aborting seed...');
+      return;
+    }
     this.logger.log(
       `run() ${this.dataService.getDataFromConfig().length} items`,
     );
@@ -82,5 +86,9 @@ export class UserSeedService {
         .digest('hex');
     }
     return hash;
+  }
+
+  async validateRun() {
+    return global.force || (await this.usersRepository.count()) === 0;
   }
 }

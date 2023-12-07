@@ -10,7 +10,6 @@ import { SettingTypeSeedService } from './setting-type/setting-type.service';
 import { SettingSeedService } from './setting/setting-seed.service';
 import { StatusSeedService } from './status/status-seed.service';
 import { UserSeedService } from './user/user-seed.service';
-import { InitSeedService } from './init/init-seed.service';
 
 const runSeed = async () => {
   // filter
@@ -29,6 +28,7 @@ const runSeed = async () => {
 
   const FORCE_PARAM = '__force';
   const force = process.argv.slice(2).includes(FORCE_PARAM);
+  global.force = force;
   const nameFilters = process.argv.slice(2).filter((i) => i !== FORCE_PARAM);
   if (nameFilters.length > 0) {
     services = services.filter((s) =>
@@ -38,17 +38,13 @@ const runSeed = async () => {
 
   // run
   const app = await NestFactory.create(SeedModule);
-  if (force || (await app.get(InitSeedService).isDbEmpty())) {
-    console.log(
-      `Running modules: ${services
-        .reduce((str: string[], i) => [...str, i.name], [])
-        .join(', ')}`,
-    );
-    for (const module of services) {
-      await app.get(module).run();
-    }
-  } else {
-    console.log('Database is not empty. Aborting seed...');
+  console.log(
+    `Running modules: ${services
+      .reduce((str: string[], i) => [...str, i.name], [])
+      .join(', ')}`,
+  );
+  for (const module of services) {
+    await app.get(module).run();
   }
 
   await app.close();
