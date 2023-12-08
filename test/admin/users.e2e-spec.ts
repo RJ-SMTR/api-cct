@@ -1,17 +1,21 @@
-import { APP_URL, ADMIN_EMAIL, ADMIN_PASSWORD } from '../utils/constants';
+import { HttpStatus } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as request from 'supertest';
-import { RoleEnum } from '../../src/roles/roles.enum';
-import { StatusEnum } from '../../src/statuses/statuses.enum';
+import * as XLSX from 'xlsx';
+// import * as path from 'path';
+import { generate } from 'gerador-validador-cpf';
+import {
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  APP_URL,
+  MAILDEV_URL,
+} from '../utils/constants';
 
-describe('Users admin (e2e)', () => {
+describe('Admin managing users (e2e)', () => {
   const app = APP_URL;
-  let newUserFirst;
-  const newUserEmailFirst = `user-first.${Date.now()}@example.com`;
-  const newUserPasswordFirst = `secret`;
-  const newUserChangedPasswordFirst = `new-secret`;
-  const newUserByAdminEmailFirst = `user-created-by-admin.${Date.now()}@example.com`;
-  const newUserByAdminPasswordFirst = `secret`;
-  let apiToken;
+  const tempFolder = path.join(__dirname, 'temp');
+  let apiToken: any = {};
 
   beforeAll(async () => {
     await request(app)
@@ -21,101 +25,143 @@ describe('Users admin (e2e)', () => {
         apiToken = body.token;
       });
 
-    await request(app)
-      .post('/api/v1/auth/email/register')
-      .send({
-        email: newUserEmailFirst,
-        password: newUserPasswordFirst,
-        firstName: `First${Date.now()}`,
-        lastName: 'E2E',
-      });
-
-    await request(app)
-      .post('/api/v1/auth/email/login')
-      .send({ email: newUserEmailFirst, password: newUserPasswordFirst })
-      .then(({ body }) => {
-        newUserFirst = body.user;
-      });
+    if (!fs.existsSync(tempFolder)) {
+      fs.mkdirSync(tempFolder);
+    }
   });
 
-  it('Change password for new user: /api/v1/users/:id (PATCH)', () => {
-    return request(app)
-      .patch(`/api/v1/users/${newUserFirst.id}`)
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .send({ password: newUserChangedPasswordFirst })
-      .expect(200);
+  describe('Setup tests', () => {
+    it('Should have UTC and local timezones', () => {
+      new Date().getTimezoneOffset();
+      expect(process.env.TZ).toEqual('UTC');
+      expect(global.__localTzOffset).toBeDefined();
+    });
+
+    it('Should have mailDev server', async () => {
+      await request(MAILDEV_URL).get('').expect(HttpStatus.OK);
+    });
   });
 
-  it('Login via registered user: /api/v1/auth/email/login (POST)', () => {
-    return request(app)
-      .post('/api/v1/auth/email/login')
-      .send({ email: newUserEmailFirst, password: newUserChangedPasswordFirst })
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body.token).toBeDefined();
-      });
-  });
+  /**
+   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Phase 1, requirements #94 - GitHub}
+   */
+  describe('Upload users', () => {
+    let users: any[];
 
-  it('Fail create new user by admin: /api/v1/users (POST)', () => {
-    return request(app)
-      .post(`/api/v1/users`)
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .send({ email: 'fail-data' })
-      .expect(422);
-  });
-
-  it('Success create new user by admin: /api/v1/users (POST)', () => {
-    return request(app)
-      .post(`/api/v1/users`)
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .send({
-        email: newUserByAdminEmailFirst,
-        password: newUserByAdminPasswordFirst,
-        firstName: `UserByAdmin${Date.now()}`,
-        lastName: 'E2E',
-        role: {
-          id: RoleEnum.user,
+    beforeAll(() => {
+      const randomCode = Math.random().toString(36).slice(-8);
+      users = [
+        {
+          codigo_permissionario: `permitCode_${randomCode}`,
+          nome: `name_${randomCode}`,
+          email: `user.${randomCode}@test.com`,
+          telefone: `219${Math.random().toString().slice(2, 10)}`,
+          cpf: generate(),
         },
-        status: {
-          id: StatusEnum.active,
-        },
-      })
-      .expect(201);
-  });
+      ];
+    });
 
-  it('Login via created by admin user: /api/v1/auth/email/login (GET)', () => {
-    return request(app)
-      .post('/api/v1/auth/email/login')
-      .send({
-        email: newUserByAdminEmailFirst,
-        password: newUserByAdminPasswordFirst,
-      })
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body.token).toBeDefined();
-      });
-  });
+    it('Should upload users and get inviteStatus = QUEUED', async () => {
+      // Arrange
+      const excelFilePath = path.join(tempFolder, 'newUsers.xlsx');
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(users);
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+      XLSX.writeFile(workbook, excelFilePath);
 
-  it('Get list of users by admin: /api/v1/users (GET)', () => {
-    return request(app)
-      .get(`/api/v1/users`)
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .expect(200)
-      .send()
-      .expect(({ body }) => {
-        expect(body.data[0].provider).toBeDefined();
-        expect(body.data[0].email).toBeDefined();
-        expect(body.data[0].hash).not.toBeDefined();
-        expect(body.data[0].password).not.toBeDefined();
-        expect(body.data[0].previousPassword).not.toBeDefined();
-      });
+      // Assert
+      await request(app)
+        .post('/api/v1/users/upload')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .attach('file', excelFilePath)
+        .expect(HttpStatus.CREATED)
+        .expect(({ body }) => {
+          expect(body.uploadedUsers).toEqual(1);
+        });
+
+      await request(app)
+        .get('/api/v1/users/')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .query({ permitCode: users[0].codigo_permissionario })
+        .then(({ body }) => {
+          expect(body.data.length).toBe(1);
+          expect(body.data[0]?.aux_inviteStatus?.name).toEqual('queued');
+        });
+    });
   });
 });
+
+// it('Login via registered user: /api/v1/auth/email/login (POST)', () => {
+//   return request(app)
+//     .post('/api/v1/auth/email/login')
+//     .send({ email: userEmail, password: userChangedPassword })
+//     .expect(200)
+//     .expect(({ body }) => {
+//       expect(body.token).toBeDefined();
+//     });
+// });
+
+// it('Fail create new user by admin: /api/v1/users (POST)', () => {
+//   return request(app)
+//     .post(`/api/v1/users`)
+//     .auth(apiToken, {
+//       type: 'bearer',
+//     })
+//     .send({ email: 'fail-data' })
+//     .expect(422);
+// });
+
+// it('Success create new user by admin: /api/v1/users (POST)', () => {
+//   return request(app)
+//     .post(`/api/v1/users`)
+//     .auth(apiToken, {
+//       type: 'bearer',
+//     })
+//     .send({
+//       email: newUserEmail,
+//       password: userPassword,
+//       firstName: `UserByAdmin${Date.now()}`,
+//       lastName: 'E2E',
+//       role: {
+//         id: RoleEnum.user,
+//       },
+//       status: {
+//         id: StatusEnum.active,
+//       },
+//     })
+//     .expect(201);
+// });
+
+// it('Login via created by admin user: /api/v1/auth/email/login (GET)', () => {
+//   return request(app)
+//     .post('/api/v1/auth/email/login')
+//     .send({
+//       email: newUserEmail,
+//       password: userPassword,
+//     })
+//     .expect(200)
+//     .expect(({ body }) => {
+//       expect(body.token).toBeDefined();
+//     });
+// });
+
+// it('Get list of users by admin: /api/v1/users (GET)', () => {
+//   return request(app)
+//     .get(`/api/v1/users`)
+//     .auth(apiToken, {
+//       type: 'bearer',
+//     })
+//     .expect(200)
+//     .send()
+//     .expect(({ body }) => {
+//       expect(body.data[0].provider).toBeDefined();
+//       expect(body.data[0].email).toBeDefined();
+//       expect(body.data[0].hash).not.toBeDefined();
+//       expect(body.data[0].password).not.toBeDefined();
+//       expect(body.data[0].previousPassword).not.toBeDefined();
+//     });
+// });

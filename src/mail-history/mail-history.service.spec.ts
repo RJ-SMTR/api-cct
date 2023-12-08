@@ -53,7 +53,7 @@ describe('InviteService', () => {
   });
 
   /**
-   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements - GitHub}
+   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
    */
   describe('getUpdatedMailCounts', () => {
     it('should return quota as max value after midnight', async () => {

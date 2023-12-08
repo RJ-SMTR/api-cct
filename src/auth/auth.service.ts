@@ -381,16 +381,7 @@ export class AuthService {
       return returnMessage;
     }
 
-    let hash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
-    while (await this.mailHistoryService.findOne({ hash })) {
-      hash = crypto
-        .createHash('sha256')
-        .update(randomStringGenerator())
-        .digest('hex');
-    }
+    const hash = await this.forgotService.generateHash();
 
     await this.forgotService.create({
       hash,
@@ -447,7 +438,8 @@ export class AuthService {
         {
           error: HttpErrorMessages.UNAUTHORIZED,
           details: {
-            hash: `notFound`,
+            error: 'hash not found',
+            hash,
           },
         },
         HttpStatus.UNAUTHORIZED,

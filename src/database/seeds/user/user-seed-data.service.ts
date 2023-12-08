@@ -137,6 +137,14 @@ export class UserSeedDataService {
               role: { id: RoleEnum.admin } as Role,
               status: { id: StatusEnum.active } as Status,
             },
+            {
+              fullName: 'Administrador Teste',
+              email: 'admin.test@example.com',
+              password: 'secret',
+              permitCode: '',
+              role: { id: RoleEnum.admin } as Role,
+              status: { id: StatusEnum.active } as Status,
+            },
           ]
         : []),
     ];

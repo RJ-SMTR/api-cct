@@ -21,7 +21,7 @@ import { BaseValidator } from 'src/utils/validators/base-validator';
 
 /**
  * All tests below were based on the requirements on GitHub.
- * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements - GitHub}
+ * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
  */
 describe('AuthLicenseeService', () => {
   let authLicenseeService: AuthLicenseeService;

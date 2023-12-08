@@ -79,6 +79,7 @@ export class UsersService {
     paginationOptions: IPaginationOptions,
     fields?: IFindUserPaginated,
   ): Promise<User[]> {
+    console.log('findManyWithPagination');
     const isSgtuBlocked = fields?.isSgtuBlocked || fields?._anyField?.value;
 
     let inviteStatus: any = null;
@@ -91,6 +92,15 @@ export class UsersService {
         ),
       };
     }
+
+    const andWhere = {
+      ...(fields?.role
+        ? {
+            role: { id: fields.role.id },
+          }
+        : {}),
+    } as FindOptionsWhere<User>;
+
     const where = [
       ...(fields?.name || fields?._anyField?.value
         ? [
@@ -138,20 +148,13 @@ export class UsersService {
             },
           ]
         : []),
-      ...(fields?.role
-        ? [
-            {
-              role: { id: fields.role.id },
-            },
-          ]
-        : []),
     ] as FindOptionsWhere<User>[];
 
-    let users = await this.usersRepository.find({
-      ...(fields ? { where: where } : {}),
-      skip: (paginationOptions.page - 1) * paginationOptions.limit,
-      take: paginationOptions.limit,
-    });
+    let users = await this.usersRepository
+      .createQueryBuilder()
+      .where(where)
+      .andWhere(andWhere)
+      .getMany();
 
     let invites: NullableType<MailHistory[]> = null;
     if (inviteStatus) {

@@ -2373,6 +2373,13 @@
     "@types/tough-cookie" "*"
     "form-data" "^2.5.0"
 
+"@types/selenium-webdriver@^4.1.21":
+  "integrity" "sha512-QGURnImvxYlIQz5DVhvHdqpYNLBjhJ2Vm+cnQI2G9QZzkWlZm0LkLcvDcHp+qE6N2KBz4CeuvXgPO7W3XQ0Tyw=="
+  "resolved" "https://registry.npmjs.org/@types/selenium-webdriver/-/selenium-webdriver-4.1.21.tgz"
+  "version" "4.1.21"
+  dependencies:
+    "@types/ws" "*"
+
 "@types/semver@^7.3.12":
   "integrity" "sha512-G8hZ6XJiHnuhQKR7ZmysCeJWE08o8T0AXtk5darsCaTVsYZhhgUrq53jizaR2FvsoeCwJhlmwTjkXBY5Pn/ZHw=="
   "resolved" "https://registry.npmjs.org/@types/semver/-/semver-7.5.0.tgz"
@@ -2423,6 +2430,13 @@
   "integrity" "sha512-t1yxFAR2n0+VO6hd/FJ9F2uezAZVWHLmpmlJzm1eX03+H7+HsuTAp7L8QJs+2pQCfWkP1+EXsGK9Z9v7o/qPVQ=="
   "resolved" "https://registry.npmjs.org/@types/validator/-/validator-13.7.10.tgz"
   "version" "13.7.10"
+
+"@types/ws@*":
+  "integrity" "sha512-vmQSUcfalpIq0R9q7uTo2lXs6eGIpt9wtnLdMv9LVpIjCA/+ufZRozlVoVelIYixx1ugCBKDhn89vnsEGOCx9A=="
+  "resolved" "https://registry.npmjs.org/@types/ws/-/ws-8.5.10.tgz"
+  "version" "8.5.10"
+  dependencies:
+    "@types/node" "*"
 
 "@types/yargs-parser@*":
   "integrity" "sha512-iO9ZQHkZxHn4mSakYV0vFHAVDyEOIJQrV2uZ06HxEPcx+mt8swXoZHIbaaJ2crJYFfErySgktuTZ3BeLz+XmFA=="
@@ -4989,6 +5003,11 @@
   "integrity" "sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg=="
   "resolved" "https://registry.npmjs.org/gensync/-/gensync-1.0.0-beta.2.tgz"
   "version" "1.0.0-beta.2"
+
+"gerador-validador-cpf@^5.0.2":
+  "integrity" "sha512-7nqJilkfIv3HIbB50uP32SOxe/A3TyvVS3AXxwU6cqHq7jMTnkp0WGPaGytY3Yc36RjzysVQ6xhlwcCt70CnOw=="
+  "resolved" "https://registry.npmjs.org/gerador-validador-cpf/-/gerador-validador-cpf-5.0.2.tgz"
+  "version" "5.0.2"
 
 "get-caller-file@^2.0.5":
   "integrity" "sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg=="

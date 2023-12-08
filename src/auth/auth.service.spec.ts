@@ -19,7 +19,7 @@ process.env.TZ = 'UTC';
 
 /**
  * All tests below were based on the requirements on GitHub.
- * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements - GitHub}
+ * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
  */
 describe('AuthService', () => {
   let authService: AuthService;
