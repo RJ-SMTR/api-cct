@@ -9,6 +9,7 @@ import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { MailService } from 'src/mail/mail.service';
 import { appSettings } from 'src/settings/app.settings';
+import { SettingEntity } from 'src/settings/entities/setting.entity';
 import { SettingDataInterface } from 'src/settings/interfaces/setting-data.interface';
 import { SettingsService } from 'src/settings/settings.service';
 import { UsersService } from 'src/users/users.service';
@@ -21,7 +22,7 @@ import { validateEmail } from 'validations-br';
 /**
  * Enum CronJobServicesJobs
  */
-export enum CronJobsSJobsEnum {
+export enum CrobJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
   updateJaeMockedData = 'updateJaeMockedData',
   updateCoreBankMockedData = 'updateCoreBankMockedData',
@@ -32,6 +33,12 @@ export enum CronJobsSJobsEnum {
 interface ICronJob {
   name: string;
   cronJobParameters: CronJobParameters;
+}
+
+interface ICronJobSetting {
+  setting: SettingDataInterface;
+  cronJob: CrobJobsEnum;
+  isEnabledFlag?: SettingDataInterface;
 }
 
 @Injectable()
@@ -56,21 +63,21 @@ export class CronJobsService implements OnModuleInit {
     (async () => {
       this.jobsConfig.push(
         {
-          name: CronJobsSJobsEnum.updateJaeMockedData,
+          name: CrobJobsEnum.updateJaeMockedData,
           cronJobParameters: {
             cronTime: CronExpression.EVERY_MINUTE,
             onTick: async () => this.updateJaeMockedData(),
           },
         },
         {
-          name: CronJobsSJobsEnum.updateCoreBankMockedData,
+          name: CrobJobsEnum.updateCoreBankMockedData,
           cronJobParameters: {
             cronTime: CronExpression.EVERY_HOUR,
             onTick: () => this.coreBankService.updateDataIfNeeded(),
           },
         },
         {
-          name: CronJobsSJobsEnum.bulkSendInvites,
+          name: CrobJobsEnum.bulkSendInvites,
           cronJobParameters: {
             cronTime: (
               await this.settingsService.getOneBySettingData(
@@ -83,7 +90,7 @@ export class CronJobsService implements OnModuleInit {
           },
         },
         {
-          name: CronJobsSJobsEnum.sendStatusReport,
+          name: CrobJobsEnum.sendStatusReport,
           cronJobParameters: {
             cronTime: (
               await this.settingsService.getOneBySettingData(
@@ -96,7 +103,7 @@ export class CronJobsService implements OnModuleInit {
           },
         },
         {
-          name: CronJobsSJobsEnum.pollDb,
+          name: CrobJobsEnum.pollDb,
           cronJobParameters: {
             cronTime: (
               await this.settingsService.getOneBySettingData(
@@ -158,10 +165,13 @@ export class CronJobsService implements OnModuleInit {
         ),
       );
       return;
-    } else if (activateAutoSendInvite.value === String(false)) {
+    } else if (activateAutoSendInvite.getValueAsBoolean() === false) {
       this.logger.log(
-        `bulkSendInvites(): Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` +
-          ` Para ativar, altere na tabela 'setting'`,
+        formatLog(
+          `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` +
+            ` Para ativar, altere na tabela 'setting'`,
+          THIS_METHOD,
+        ),
       );
       return;
     }
@@ -320,6 +330,29 @@ export class CronJobsService implements OnModuleInit {
   async sendStatusReport() {
     this.logger.log(formatLog('Iniciando tarefa.', 'sendStatusReport()'));
     const THIS_METHOD = `${this.sendStatusReport.name}()`;
+
+    const isEnabledFlag = await this.settingsService.findOneBySettingData(
+      appSettings.any__mail_report_enabled,
+    );
+    if (!isEnabledFlag) {
+      this.logger.error(
+        formatLog(
+          `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' não foi encontrado no banco.`,
+          THIS_METHOD,
+        ),
+      );
+      return;
+    } else if (isEnabledFlag.getValueAsBoolean() === false) {
+      this.logger.log(
+        formatLog(
+          `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
+            ` Para ativar, altere na tabela 'setting'`,
+          THIS_METHOD,
+        ),
+      );
+      return;
+    }
+
     const recipientMail = await this.configService.get(
       'mail.recipientStatusReport',
     );
@@ -411,19 +444,22 @@ export class CronJobsService implements OnModuleInit {
 
     let hasDbChanges = false;
 
-    const cronjobSettings: [SettingDataInterface, CronJobsSJobsEnum][] = [
-      [appSettings.any__poll_db_cronjob, CronJobsSJobsEnum.pollDb],
-      [appSettings.any__mail_invite_cronjob, CronJobsSJobsEnum.bulkSendInvites],
-      [
-        appSettings.any__mail_report_cronjob,
-        CronJobsSJobsEnum.sendStatusReport,
-      ],
+    const cronjobSettings: ICronJobSetting[] = [
+      {
+        setting: appSettings.any__poll_db_cronjob,
+        cronJob: CrobJobsEnum.pollDb,
+      },
+      {
+        setting: appSettings.any__mail_invite_cronjob,
+        cronJob: CrobJobsEnum.bulkSendInvites,
+      },
+      {
+        setting: appSettings.any__mail_report_cronjob,
+        cronJob: CrobJobsEnum.sendStatusReport,
+      },
     ];
     for (const setting of cronjobSettings) {
-      const dbChanged = await this.handleCronjobDbSettings(
-        ...setting,
-        THIS_METHOD,
-      );
+      const dbChanged = await this.handleCronjobSettings(setting, THIS_METHOD);
       if (dbChanged) {
         hasDbChanges = true;
       }
@@ -438,31 +474,25 @@ export class CronJobsService implements OnModuleInit {
     }
   }
 
-  async handleCronjobDbSettings(
-    settingData: SettingDataInterface,
-    cronjobEnum: CronJobsSJobsEnum,
+  async handleCronjobSettings(
+    args: ICronJobSetting,
     thisMethod: string,
   ): Promise<boolean> {
-    const settingFound = await this.settingsService.findOneBySettingData(
-      settingData,
+    const { settingFound, isSettingValid } = await this.validateCronjobSetting(
+      args,
+      thisMethod,
     );
-    if (!settingFound) {
-      this.logger.error(
-        formatLog(
-          `Tarefa cancelada pois 'setting.${settingData.name}' não foi encontrado no banco.`,
-          thisMethod,
-        ),
-      );
+    if (!settingFound || !isSettingValid) {
       return false;
     }
     const setting = settingFound.getValueAsString();
-    const jobIndex = this.jobsConfig.findIndex((i) => i.name === cronjobEnum);
+    const jobIndex = this.jobsConfig.findIndex((i) => i.name === args.cronJob);
     const job = this.jobsConfig[jobIndex];
     if (job.cronJobParameters.cronTime !== setting) {
       this.logger.log(
         formatLog(
           `Alteração encontrada em` +
-            ` setting.'${settingData.name}': ` +
+            ` setting.'${args.setting.name}': ` +
             `${job?.cronJobParameters.cronTime} --> ${setting}.`,
           thisMethod,
         ),
@@ -480,5 +510,51 @@ export class CronJobsService implements OnModuleInit {
       return true;
     }
     return false;
+  }
+
+  async validateCronjobSetting(
+    args: ICronJobSetting,
+    thisMethod: string,
+  ): Promise<{
+    settingFound: SettingEntity | null;
+    isEnabledSetting: SettingEntity | null;
+    isSettingValid: boolean;
+  }> {
+    const settingFound = await this.settingsService.findOneBySettingData(
+      args.setting,
+    );
+    if (!settingFound) {
+      return {
+        settingFound: null,
+        isEnabledSetting: null,
+        isSettingValid: false,
+      };
+    }
+    if (!args?.isEnabledFlag) {
+      return {
+        settingFound: settingFound,
+        isEnabledSetting: null,
+        isSettingValid: true,
+      };
+    }
+
+    const isEnabledFlag = await this.settingsService.getOneBySettingData(
+      args.isEnabledFlag,
+      true,
+      thisMethod,
+    );
+    if (!isEnabledFlag.getValueAsBoolean()) {
+      return {
+        settingFound: settingFound,
+        isEnabledSetting: isEnabledFlag,
+        isSettingValid: false,
+      };
+    }
+
+    return {
+      settingFound: settingFound,
+      isEnabledSetting: isEnabledFlag,
+      isSettingValid: true,
+    };
   }
 }
