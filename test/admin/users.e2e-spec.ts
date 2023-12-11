@@ -1,10 +1,10 @@
 import { HttpStatus } from '@nestjs/common';
+import { differenceInSeconds } from 'date-fns';
 import * as fs from 'fs';
+import { generate } from 'gerador-validador-cpf';
 import * as path from 'path';
 import * as request from 'supertest';
 import * as XLSX from 'xlsx';
-// import * as path from 'path';
-import { generate } from 'gerador-validador-cpf';
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
@@ -45,12 +45,13 @@ describe('Admin managing users (e2e)', () => {
   /**
    * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Phase 1, requirements #94 - GitHub}
    */
-  describe('Upload users', () => {
-    let users: any[];
+  describe('Phase 1: Upload users', () => {
+    let uploadUsers: any[];
+    let users: any[] = [];
 
     beforeAll(() => {
       const randomCode = Math.random().toString(36).slice(-8);
-      users = [
+      uploadUsers = [
         {
           codigo_permissionario: `permitCode_${randomCode}`,
           nome: `name_${randomCode}`,
@@ -61,11 +62,11 @@ describe('Admin managing users (e2e)', () => {
       ];
     });
 
-    it('Should upload users and get inviteStatus = QUEUED', async () => {
+    test(`Upload users, status = 'queued'`, async () => {
       // Arrange
       const excelFilePath = path.join(tempFolder, 'newUsers.xlsx');
       const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(users);
+      const worksheet = XLSX.utils.json_to_sheet(uploadUsers);
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
       XLSX.writeFile(workbook, excelFilePath);
 
@@ -81,87 +82,91 @@ describe('Admin managing users (e2e)', () => {
           expect(body.uploadedUsers).toEqual(1);
         });
 
-      await request(app)
+      users = await request(app)
         .get('/api/v1/users/')
         .auth(apiToken, {
           type: 'bearer',
         })
-        .query({ permitCode: users[0].codigo_permissionario })
+        .query({ permitCode: uploadUsers[0].codigo_permissionario })
         .then(({ body }) => {
           expect(body.data.length).toBe(1);
           expect(body.data[0]?.aux_inviteStatus?.name).toEqual('queued');
+          return body.data;
+        });
+    });
+
+    test(`Resend new user invite, status = 'sent'`, async () => {
+      const newUser = users[0];
+      expect(newUser?.id).toBeDefined();
+
+      await request(APP_URL)
+        .post('/api/v1/auth/email/resend')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .send({
+          id: newUser.id,
+        })
+        .expect(HttpStatus.NO_CONTENT);
+      const forgotLocalDate = new Date();
+      forgotLocalDate.setMinutes(
+        forgotLocalDate.getMinutes() + global.__localTzOffset,
+      );
+
+      newUser.hash = await request(MAILDEV_URL)
+        .get('/email')
+        .then(({ body }) =>
+          (body as any[])
+            .filter(
+              (letter: any) =>
+                letter.to[0].address.toLowerCase() ===
+                  newUser.email.toLowerCase() &&
+                /.*conclude\-registration\/(\w+).*/g.test(letter.text) &&
+                differenceInSeconds(forgotLocalDate, new Date(letter.date)) <=
+                  10,
+            )
+            .pop()
+            ?.text.replace(/.*conclude\-registration\/(\w+).*/g, '$1'),
+        );
+
+      await request(APP_URL)
+        .post(`/api/v1/auth/licensee/invite/${newUser.hash}`)
+        .expect(HttpStatus.OK)
+        .then(({ body }) => {
+          expect(body.email).toEqual(newUser.email);
+          expect(body?.inviteStatus?.name).toEqual('sent');
+        });
+
+      users[0] = newUser;
+    });
+
+    test(`New user conclude registration, status = 'used'`, async () => {
+      const newUser = users[0];
+      expect(newUser?.hash).toBeDefined();
+
+      const newPassword = Math.random().toString(36).slice(-8);
+      await request(APP_URL)
+        .post(`/api/v1/auth/licensee/register/${newUser.hash}`)
+        .send({ password: newPassword })
+        .expect(HttpStatus.OK)
+        .then(({ body }) => {
+          expect(body.user.aux_inviteStatus?.name).toEqual('used');
+          expect(body.token).toBeDefined();
+        });
+
+      newUser.password = newPassword;
+      users[0] = newUser;
+    });
+
+    test('New user login', async () => {
+      const newUser = users[0];
+      await request(APP_URL)
+        .post(`/api/v1/auth/licensee/login`)
+        .send({ permitCode: newUser.permitCode, password: newUser.password })
+        .expect(HttpStatus.OK)
+        .then(({ body }) => {
+          expect(body.token).toBeDefined();
         });
     });
   });
 });
-
-// it('Login via registered user: /api/v1/auth/email/login (POST)', () => {
-//   return request(app)
-//     .post('/api/v1/auth/email/login')
-//     .send({ email: userEmail, password: userChangedPassword })
-//     .expect(200)
-//     .expect(({ body }) => {
-//       expect(body.token).toBeDefined();
-//     });
-// });
-
-// it('Fail create new user by admin: /api/v1/users (POST)', () => {
-//   return request(app)
-//     .post(`/api/v1/users`)
-//     .auth(apiToken, {
-//       type: 'bearer',
-//     })
-//     .send({ email: 'fail-data' })
-//     .expect(422);
-// });
-
-// it('Success create new user by admin: /api/v1/users (POST)', () => {
-//   return request(app)
-//     .post(`/api/v1/users`)
-//     .auth(apiToken, {
-//       type: 'bearer',
-//     })
-//     .send({
-//       email: newUserEmail,
-//       password: userPassword,
-//       firstName: `UserByAdmin${Date.now()}`,
-//       lastName: 'E2E',
-//       role: {
-//         id: RoleEnum.user,
-//       },
-//       status: {
-//         id: StatusEnum.active,
-//       },
-//     })
-//     .expect(201);
-// });
-
-// it('Login via created by admin user: /api/v1/auth/email/login (GET)', () => {
-//   return request(app)
-//     .post('/api/v1/auth/email/login')
-//     .send({
-//       email: newUserEmail,
-//       password: userPassword,
-//     })
-//     .expect(200)
-//     .expect(({ body }) => {
-//       expect(body.token).toBeDefined();
-//     });
-// });
-
-// it('Get list of users by admin: /api/v1/users (GET)', () => {
-//   return request(app)
-//     .get(`/api/v1/users`)
-//     .auth(apiToken, {
-//       type: 'bearer',
-//     })
-//     .expect(200)
-//     .send()
-//     .expect(({ body }) => {
-//       expect(body.data[0].provider).toBeDefined();
-//       expect(body.data[0].email).toBeDefined();
-//       expect(body.data[0].hash).not.toBeDefined();
-//       expect(body.data[0].password).not.toBeDefined();
-//       expect(body.data[0].previousPassword).not.toBeDefined();
-//     });
-// });

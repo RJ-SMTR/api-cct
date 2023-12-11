@@ -23,7 +23,7 @@ describe('Admin auth (e2e)', () => {
   });
 
   /**
-   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
+   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Phase 1, requirements #94 - GitHub}
    */
   describe('Phase 1: Admin basics and user management', () => {
     test('Login admin: POST /api/v1/auth/admin/email/login', () => {
