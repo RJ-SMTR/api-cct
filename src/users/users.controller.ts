@@ -28,8 +28,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { InviteStatusNamesEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { Role } from 'src/roles/entities/role.entity';
+import { RoleEnum } from 'src/roles/roles.enum';
 import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
 import { infinityPagination } from 'src/utils/infinity-pagination';
+import { IRequest } from 'src/utils/interfaces/request.interface';
 import { EnumValidationPipe } from 'src/utils/pipes/enum-validation.pipe';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { InfinityPaginationResultType } from '../utils/types/infinity-pagination-result.type';
@@ -40,9 +43,6 @@ import { User } from './entities/user.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 import { UsersService } from './users.service';
-import { Role } from 'src/roles/entities/role.entity';
-import { RoleEnum } from 'src/roles/roles.enum';
-import { IRequest } from 'src/utils/interfaces/request.interface';
 
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'))
@@ -138,6 +138,7 @@ export class UsersController {
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   getId(@Param('id') id: string): Promise<NullableType<User>> {
+    this.usersService.validateUserId(id);
     return this.usersService.findOne({ id: +id });
   }
 
@@ -147,21 +148,24 @@ export class UsersController {
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   patchId(
-    @Request() request: IRequest,
-    @Param('id') id: number,
+    @Param('id') id: string,
     @Body() updateProfileDto: UpdateUserDto,
   ): Promise<User> {
+    const THIS_CLASS_WITH_METHOD = `${UsersController.name}.${this.patchId.name}()`;
+    this.usersService.validateUserId(id);
     return this.usersService.update(
-      id,
+      +id,
       updateProfileDto,
-      'UsersController.patchId()',
+      THIS_CLASS_WITH_METHOD,
     );
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteId(@Param('id') id: number): Promise<void> {
-    return this.usersService.softDelete(id, 'UsersController.deleteId()');
+  deleteId(@Param('id') id: string): Promise<void> {
+    const THIS_CLASS_WITH_METHOD = `${UsersController.name}.${this.deleteId.name}()`;
+    this.usersService.validateUserId(id);
+    return this.usersService.softDelete(+id, THIS_CLASS_WITH_METHOD);
   }
 
   @SerializeOptions({

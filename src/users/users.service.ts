@@ -579,4 +579,15 @@ export class UsersService {
     );
     return result;
   }
+
+  validateUserId(id: string) {
+    if (isNaN(+id) || +id === 0) {
+      throw new HttpException(
+        {
+          error: `id should be a number between 1-n, it got ${id}`,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
 }
