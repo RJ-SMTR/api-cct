@@ -2373,13 +2373,6 @@
     "@types/tough-cookie" "*"
     "form-data" "^2.5.0"
 
-"@types/selenium-webdriver@^4.1.21":
-  "integrity" "sha512-QGURnImvxYlIQz5DVhvHdqpYNLBjhJ2Vm+cnQI2G9QZzkWlZm0LkLcvDcHp+qE6N2KBz4CeuvXgPO7W3XQ0Tyw=="
-  "resolved" "https://registry.npmjs.org/@types/selenium-webdriver/-/selenium-webdriver-4.1.21.tgz"
-  "version" "4.1.21"
-  dependencies:
-    "@types/ws" "*"
-
 "@types/semver@^7.3.12":
   "integrity" "sha512-G8hZ6XJiHnuhQKR7ZmysCeJWE08o8T0AXtk5darsCaTVsYZhhgUrq53jizaR2FvsoeCwJhlmwTjkXBY5Pn/ZHw=="
   "resolved" "https://registry.npmjs.org/@types/semver/-/semver-7.5.0.tgz"
