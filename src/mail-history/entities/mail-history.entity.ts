@@ -16,7 +16,7 @@ import {
 
 @Entity('invite')
 export class MailHistory extends BaseEntity {
-  constructor(mailHistory?: MailHistory | Partial<MailHistory>) {
+  constructor(mailHistory?: Partial<MailHistory>) {
     super();
     if (mailHistory !== undefined) {
       Object.assign(this, mailHistory);

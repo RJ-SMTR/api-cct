@@ -7,6 +7,7 @@ import { IMailSeedData } from 'src/mail-history/interfaces/mail-history-data.int
 import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { MailHistorySeedDataService } from './mail-history-seed-data.service';
+import { UserSeedDataService } from '../user/user-seed-data.service';
 
 @Injectable()
 export class MailHistorySeedService {
@@ -17,7 +18,8 @@ export class MailHistorySeedService {
     private mailHistoryRepository: Repository<MailHistory>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-    private dataService: MailHistorySeedDataService,
+    private mhSeedDataService: MailHistorySeedDataService,
+    private userSeedDataService: UserSeedDataService,
   ) {}
 
   async run() {
@@ -26,22 +28,30 @@ export class MailHistorySeedService {
       return;
     }
     this.logger.log('run()');
-    for (const item of this.dataService.getDataFromConfig()) {
+    for (const item of this.mhSeedDataService.getDataFromConfig()) {
       const itemUser = await this.getHistoryUser(item);
-      item.user = itemUser;
+      const itemSeedUser = this.userSeedDataService
+        .getDataFromConfig()
+        .find((i) => i.email === itemUser.email);
       const foundItem = await this.mailHistoryRepository.findOne({
         where: {
-          user: { id: itemUser.id },
+          user: { email: itemUser.email as string },
         },
       });
 
       if (!foundItem) {
-        item.email = item.user.email as string;
-        item.hash = await this.generateInviteHash();
+        const newItem = { ...item };
+        newItem.user = itemUser;
+        newItem.email = itemUser.email as string;
+        newItem.hash = await this.generateInviteHash();
+        if (itemSeedUser?.inviteStatus) {
+          newItem.inviteStatus = itemSeedUser.inviteStatus;
+        }
+        this.logger.log(`Creating user: ${JSON.stringify(newItem)}`);
         await this.mailHistoryRepository.save(
-          this.mailHistoryRepository.create(item),
+          this.mailHistoryRepository.create(newItem),
         );
-        itemUser.hash = item.hash;
+        itemUser.hash = newItem.hash;
         await this.usersRepository.save(this.usersRepository.create(itemUser));
       }
     }

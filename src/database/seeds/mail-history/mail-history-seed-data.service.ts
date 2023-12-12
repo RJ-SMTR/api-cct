@@ -19,7 +19,7 @@ export class MailHistorySeedDataService {
               ...(i.id ? { id: i.id } : {}),
               ...(i.email ? { email: i.email } : {}),
             },
-            inviteStatus: { id: InviteStatusEnum.used } as InviteStatus,
+            inviteStatus: new InviteStatus(InviteStatusEnum.used),
           } as IMailSeedData),
       );
     return mailSeedData;

@@ -13,8 +13,8 @@ export class UserSeedService {
 
   constructor(
     @InjectRepository(User)
-    private usersRepository: Repository<User>,
-    private dataService: UserSeedDataService,
+    private userSeedRepository: Repository<User>,
+    private userSeedDataService: UserSeedDataService,
   ) {}
 
   async run() {
@@ -23,10 +23,10 @@ export class UserSeedService {
       return;
     }
     this.logger.log(
-      `run() ${this.dataService.getDataFromConfig().length} items`,
+      `run() ${this.userSeedDataService.getDataFromConfig().length} items`,
     );
-    for (const item of this.dataService.getDataFromConfig()) {
-      const foundItem = await this.usersRepository.findOne({
+    for (const item of this.userSeedDataService.getDataFromConfig()) {
+      const foundItem = await this.userSeedRepository.findOne({
         where: {
           email: item.email,
         },
@@ -36,15 +36,17 @@ export class UserSeedService {
       if (foundItem) {
         const newItem = new User(foundItem);
         newItem.update(item);
-        await this.usersRepository.save(this.usersRepository.create(newItem));
-        createdItem = (await this.usersRepository.findOne({
+        await this.userSeedRepository.save(
+          this.userSeedRepository.create(newItem),
+        );
+        createdItem = (await this.userSeedRepository.findOne({
           where: {
             email: newItem.email as string,
           },
         })) as User;
       } else {
-        createdItem = await this.usersRepository.save(
-          this.usersRepository.create(item),
+        createdItem = await this.userSeedRepository.save(
+          this.userSeedRepository.create(item),
         );
       }
       item.hash = await this.generateHash();
@@ -79,7 +81,7 @@ export class UserSeedService {
       .createHash('sha256')
       .update(randomStringGenerator())
       .digest('hex');
-    while (await this.usersRepository.findOne({ where: { hash } })) {
+    while (await this.userSeedRepository.findOne({ where: { hash } })) {
       hash = crypto
         .createHash('sha256')
         .update(randomStringGenerator())
@@ -89,6 +91,6 @@ export class UserSeedService {
   }
 
   async validateRun() {
-    return global.force || (await this.usersRepository.count()) === 0;
+    return global.force || (await this.userSeedRepository.count()) === 0;
   }
 }

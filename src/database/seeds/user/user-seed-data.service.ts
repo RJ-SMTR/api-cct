@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { Status } from 'src/statuses/entities/status.entity';
@@ -8,29 +10,15 @@ import { UserDataInterface } from 'src/users/interfaces/user-data.interface';
 
 @Injectable()
 export class UserSeedDataService {
-  private generateRandomPassword(): string {
-    const length = 10;
-    const charset =
-      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let password = '';
-
-    for (let i = 0; i < length; i++) {
-      const randomIndex = Math.floor(Math.random() * charset.length);
-      password += charset.charAt(randomIndex);
-    }
-
-    return password;
-  }
-
   constructor(private configService: ConfigService) {}
 
   getDataFromConfig(): UserDataInterface[] {
     const nodeEnv = () =>
       this.configService.getOrThrow('app.nodeEnv', { infer: true });
     return [
-      // // Test
+      // Test
       ...(nodeEnv() !== 'production'
-        ? [
+        ? ([
             {
               id: 2,
               fullName: 'Henrique Santos Template',
@@ -49,7 +37,7 @@ export class UserSeedDataService {
               role: { id: RoleEnum.user } as Role,
               status: { id: StatusEnum.active } as Status,
             },
-          ]
+          ] as UserDataInterface[])
         : []),
 
       // Dev team
@@ -127,7 +115,7 @@ export class UserSeedDataService {
       },
 
       ...(nodeEnv() === 'local' || nodeEnv() === 'test'
-        ? [
+        ? ([
             {
               id: 1,
               fullName: 'Administrador',
@@ -145,8 +133,49 @@ export class UserSeedDataService {
               role: { id: RoleEnum.admin } as Role,
               status: { id: StatusEnum.active } as Status,
             },
-          ]
+            {
+              fullName: 'Queued user',
+              email: 'queued.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832024',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.queued),
+            },
+            {
+              fullName: 'Sent user',
+              email: 'sent.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832024',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+            },
+            {
+              fullName: 'Used user',
+              email: 'used.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832024',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.used),
+            },
+          ] as UserDataInterface[])
         : []),
     ];
+  }
+
+  private generateRandomPassword(): string {
+    const length = 10;
+    const charset =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let password = '';
+
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * charset.length);
+      password += charset.charAt(randomIndex);
+    }
+
+    return password;
   }
 }

@@ -9,6 +9,7 @@ import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
   APP_URL,
+  LICENSEE_PERMIT_CODE,
   MAILDEV_URL,
 } from '../utils/constants';
 
@@ -43,9 +44,90 @@ describe('Admin managing users (e2e)', () => {
   });
 
   /**
-   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Phase 1, requirements #94 - GitHub}
+   * Phase 1: manage users
+   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
    */
-  describe('Phase 1: Upload users', () => {
+  describe('Manage users', () => {
+    test('Filter users', async () => {
+      // Arrange
+      const licensee = await request(app)
+        .get('/api/v1/users/')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .query({ permitCode: LICENSEE_PERMIT_CODE })
+        .then(({ body }) => {
+          expect(body.data.length).toBe(1);
+          return body.data;
+        });
+      const licenseePartOfName = 'user';
+      const args = [
+        {
+          filter: { permitCode: licensee.permitCode },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+            ).toBeTruthy(),
+        },
+        {
+          filter: { name: licensee.fullName },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+            ).toBeTruthy(),
+        },
+        {
+          filter: { email: licensee.email },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+            ).toBeTruthy(),
+        },
+        {
+          filter: { name: licenseePartOfName, inviteStatus: 'queued' },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.fullName === 'Queued user'),
+            ).toBeTruthy(),
+        },
+        {
+          filter: { name: licenseePartOfName, inviteStatus: 'sent' },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.fullName === 'Sent user'),
+            ).toBeTruthy(),
+        },
+        {
+          filter: { name: licenseePartOfName, inviteStatus: 'used' },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.fullName === 'Used user'),
+            ).toBeTruthy(),
+        },
+      ];
+
+      // Assert
+      for (const arg of args) {
+        await request(app)
+          .get('/api/v1/users/')
+          .auth(apiToken, {
+            type: 'bearer',
+          })
+          .query(arg.filter)
+          .expect(HttpStatus.OK)
+          .then(({ body }) => {
+            arg.expect(body);
+            return body.data;
+          });
+      }
+    }, 12000);
+  });
+
+  /**
+   * Phase 1: upload users
+   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
+   */
+  describe('Upload users', () => {
     let uploadUsers: any[];
     let users: any[] = [];
 
