@@ -9,10 +9,10 @@ import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
   APP_URL,
-  LICENSEE_CASE_ACCENT,
   LICENSEE_PERMIT_CODE,
   MAILDEV_URL,
 } from '../utils/constants';
+import { stringUppercaseUnaccent } from 'src/utils/string-utils';
 
 describe('Admin managing users (e2e)', () => {
   const app = APP_URL;
@@ -26,8 +26,6 @@ describe('Admin managing users (e2e)', () => {
       .then(({ body }) => {
         apiToken = body.token;
       });
-
-    run1();
 
     if (!fs.existsSync(tempFolder)) {
       fs.mkdirSync(tempFolder);
@@ -59,14 +57,11 @@ describe('Admin managing users (e2e)', () => {
           type: 'bearer',
         })
         .query({ permitCode: LICENSEE_PERMIT_CODE })
-        .then(({ body }) => {
+        .expect(({ body }) => {
           expect(body.data.length).toBe(1);
-          return body.data;
-        });
+        })
+        .then(({ body }) => body.data);
       const licenseePartOfName = 'user';
-      const licenseeUnaccentLower = LICENSEE_CASE_ACCENT.normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
       const args = [
         {
           filter: { permitCode: licensee.permitCode },
@@ -110,15 +105,6 @@ describe('Admin managing users (e2e)', () => {
               body.data.some((i: any) => i.fullName === 'Used user'),
             ).toBeTruthy(),
         },
-        {
-          filter: { name: licenseeUnaccentLower },
-          expect: (body: any) => {
-            expect(body.data.length()).toEqual(0);
-            expect(
-              (body.data[0].fullName as string).includes(LICENSEE_CASE_ACCENT),
-            ).toBeTruthy();
-          },
-        },
       ];
 
       // Assert
@@ -135,7 +121,7 @@ describe('Admin managing users (e2e)', () => {
             return body.data;
           });
       }
-    }, 12000);
+    }, 20000);
   });
 
   /**
@@ -151,7 +137,7 @@ describe('Admin managing users (e2e)', () => {
       uploadUsers = [
         {
           codigo_permissionario: `permitCode_${randomCode}`,
-          nome: `name_${randomCode}`,
+          nome: `Café_${randomCode}`,
           email: `user.${randomCode}@test.com`,
           telefone: `219${Math.random().toString().slice(2, 10)}`,
           cpf: generate(),
@@ -185,11 +171,14 @@ describe('Admin managing users (e2e)', () => {
           type: 'bearer',
         })
         .query({ permitCode: uploadUsers[0].codigo_permissionario })
-        .then(({ body }) => {
+        .expect(({ body }) => {
           expect(body.data.length).toBe(1);
+          expect(body.data[0]?.fullName).toEqual(
+            stringUppercaseUnaccent(uploadUsers[0].nome),
+          );
           expect(body.data[0]?.aux_inviteStatus?.name).toEqual('queued');
-          return body.data;
-        });
+        })
+        .then(({ body }) => body.data);
     });
 
     test(`Resend new user invite, status = 'sent'`, async () => {
@@ -229,7 +218,7 @@ describe('Admin managing users (e2e)', () => {
       await request(APP_URL)
         .post(`/api/v1/auth/licensee/invite/${newUser.hash}`)
         .expect(HttpStatus.OK)
-        .then(({ body }) => {
+        .expect(({ body }) => {
           expect(body.email).toEqual(newUser.email);
           expect(body?.inviteStatus?.name).toEqual('sent');
         });
@@ -246,7 +235,7 @@ describe('Admin managing users (e2e)', () => {
         .post(`/api/v1/auth/licensee/register/${newUser.hash}`)
         .send({ password: newPassword })
         .expect(HttpStatus.OK)
-        .then(({ body }) => {
+        .expect(({ body }) => {
           expect(body.user.aux_inviteStatus?.name).toEqual('used');
           expect(body.token).toBeDefined();
         });
@@ -261,7 +250,7 @@ describe('Admin managing users (e2e)', () => {
         .post(`/api/v1/auth/licensee/login`)
         .send({ permitCode: newUser.permitCode, password: newUser.password })
         .expect(HttpStatus.OK)
-        .then(({ body }) => {
+        .expect(({ body }) => {
           expect(body.token).toBeDefined();
         });
     });

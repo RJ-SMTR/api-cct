@@ -26,6 +26,7 @@ describe('AuthService', () => {
   let usersService: UsersService;
   let mailService: MailService;
   let mailHistoryService: MailHistoryService;
+  let forgotService: ForgotService;
 
   beforeEach(async () => {
     const usersServiceMock = {
@@ -43,6 +44,7 @@ describe('AuthService', () => {
       useValue: {
         findOne: jest.fn(),
         create: jest.fn(),
+        generateHash: jest.fn(),
       },
     } as Provider;
     const mailServiceMock = {
@@ -65,7 +67,6 @@ describe('AuthService', () => {
         getOne: jest.fn(),
         getRemainingQuota: jest.fn(),
         update: jest.fn(),
-        generateHash: jest.fn(),
       },
     } as Provider;
     const jwtServiceMock = {
@@ -89,6 +90,7 @@ describe('AuthService', () => {
 
     authService = module.get<AuthService>(AuthService);
     mailHistoryService = module.get<MailHistoryService>(MailHistoryService);
+    forgotService = module.get<ForgotService>(ForgotService);
     mailService = module.get<MailService>(MailService);
     usersService = module.get<UsersService>(UsersService);
   });
@@ -224,7 +226,7 @@ describe('AuthService', () => {
 
       jest.spyOn(usersService, 'findOne').mockResolvedValue(user);
       jest
-        .spyOn(mailHistoryService, 'generateHash')
+        .spyOn(forgotService, 'generateHash')
         .mockResolvedValue('unique_hash');
       jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
       jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);

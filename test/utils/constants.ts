@@ -16,6 +16,8 @@ export const LICENSEE_2_EMAIL =
   process.env.TEST_LICENSEE_2_EMAIL || 'marcia@example.com';
 export const LICENSEE_2_PERMIT_CODE =
   process.env.TEST_LICENSEE_2_PERMIT_CODE || '319274392832023';
+export const LICENSEE_CASE_ACCENT =
+  process.env.TEST_LICENSEE_CASE_ACCENT || 'Márcia Clara Template';
 export const LICENSEE_PERMIT_CODE =
   process.env.TEST_LICENSEE_PERMIT_CODE || '213890329890312';
 export const LICENSEE_PASSWORD = process.env.TEST_LICENSEE_PASSWORD || 'secret';

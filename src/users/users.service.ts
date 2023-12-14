@@ -38,6 +38,7 @@ import { IFileUser } from './interfaces/file-user.interface';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 import { FileUserMap } from './mappings/user-file.map';
+import { stringUppercaseUnaccent } from 'src/utils/string-utils';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -549,7 +550,7 @@ export class UsersService {
         ),
         email: fileUser.user.email,
         phone: fileUser.user.telefone,
-        fullName: fileUser.user.nome,
+        fullName: stringUppercaseUnaccent(fileUser.user.nome as string),
         cpfCnpj: fileUser.user.cpf,
         hash: hash,
         status: new Status(StatusEnum.register),

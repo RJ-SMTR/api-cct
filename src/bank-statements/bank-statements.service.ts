@@ -33,13 +33,14 @@ export class BankStatementsService {
     }
     // For now it validates if user exists
     const user = await this.usersService.getOne({ id: args?.userId });
-    if (!user.permitCode) {
+    if (!user.permitCode || !user.id) {
       throw new HttpException(
         {
           error: {
             message: 'User not found',
             user: {
-              permitCode: 'fieldIsEmpty',
+              ...(!user.permitCode ? { permitCode: 'fieldIsEmpty' } : {}),
+              ...(!user.id ? { id: 'fieldIsEmpty' } : {}),
             },
           },
         },
@@ -47,7 +48,6 @@ export class BankStatementsService {
       );
     }
 
-    // TODO: fetch instead of mockup
     let bankStatementsResponse: ICoreBankStatements[] = [];
     if (this.coreBankService.isPermitCodeExists(user.permitCode)) {
       bankStatementsResponse =
@@ -90,8 +90,6 @@ export class BankStatementsService {
       data: treatedData,
     };
   }
-
-  //#region mockData
 
   private async insertTicketData(
     statements: ICoreBankStatements[],
@@ -151,6 +149,4 @@ export class BankStatementsService {
     const countSum = revenuesResponse.ticketCount;
     return { todaySum, allSum, countSum, statements: newStatements };
   }
-
-  //#endregion mockData
 }
