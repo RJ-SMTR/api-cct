@@ -9,6 +9,7 @@ import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
   APP_URL,
+  LICENSEE_CASE_ACCENT,
   LICENSEE_PERMIT_CODE,
   MAILDEV_URL,
 } from '../utils/constants';
@@ -25,6 +26,8 @@ describe('Admin managing users (e2e)', () => {
       .then(({ body }) => {
         apiToken = body.token;
       });
+
+    run1();
 
     if (!fs.existsSync(tempFolder)) {
       fs.mkdirSync(tempFolder);
@@ -61,6 +64,9 @@ describe('Admin managing users (e2e)', () => {
           return body.data;
         });
       const licenseePartOfName = 'user';
+      const licenseeUnaccentLower = LICENSEE_CASE_ACCENT.normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
       const args = [
         {
           filter: { permitCode: licensee.permitCode },
@@ -103,6 +109,15 @@ describe('Admin managing users (e2e)', () => {
             expect(
               body.data.some((i: any) => i.fullName === 'Used user'),
             ).toBeTruthy(),
+        },
+        {
+          filter: { name: licenseeUnaccentLower },
+          expect: (body: any) => {
+            expect(body.data.length()).toEqual(0);
+            expect(
+              (body.data[0].fullName as string).includes(LICENSEE_CASE_ACCENT),
+            ).toBeTruthy();
+          },
         },
       ];
 
