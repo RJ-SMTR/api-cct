@@ -18,7 +18,8 @@ import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
 import { BaseValidator } from 'src/utils/validators/base-validator';
 import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
-import { AuthLicenseeInviteProfileInterface } from './interfaces/auth-licensee-invite-profile.interface';
+import { IALInviteProfile } from './interfaces/al-invite-profile.interface';
+import { IALConcludeRegistration } from './interfaces/al-conclude-registration.interface';
 
 @Injectable()
 export class AuthLicenseeService {
@@ -114,9 +115,7 @@ export class AuthLicenseeService {
     return { token, user };
   }
 
-  async getInviteProfile(
-    hash: string,
-  ): Promise<AuthLicenseeInviteProfileInterface> {
+  async getInviteProfile(hash: string): Promise<IALInviteProfile> {
     const invite = await this.mailHistoryService.getOne({ hash });
 
     if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
@@ -187,11 +186,12 @@ export class AuthLicenseeService {
       );
     }
 
-    const inviteResponse: AuthLicenseeInviteProfileInterface = {
+    const inviteResponse: IALInviteProfile = {
       fullName: sgtuProfile.fullName,
       permitCode: sgtuProfile.permitCode,
       email: sgtuProfile.email,
       hash: invite.hash,
+      inviteStatus: invite.inviteStatus,
     };
 
     return inviteResponse;
@@ -200,7 +200,7 @@ export class AuthLicenseeService {
   async concludeRegistration(
     registerDto: AuthRegisterLicenseeDto,
     hash: string,
-  ): Promise<void | object> {
+  ): Promise<IALConcludeRegistration> {
     const invite = await this.mailHistoryService.findOne({ hash });
     if (!invite) {
       throw new HttpException(

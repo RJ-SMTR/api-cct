@@ -14,6 +14,8 @@ import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
 import { AuthLicenseeService } from './auth-licensee.service';
 import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
+import { IALConcludeRegistration } from './interfaces/al-conclude-registration.interface';
+import { IALInviteProfile } from './interfaces/al-invite-profile.interface';
 
 @ApiTags('Auth')
 @Controller({
@@ -41,7 +43,7 @@ export class AuthLicenseeController {
   async invite(
     @Param('hash', MailHistoryValidationPipe)
     hash: string,
-  ): Promise<void | object> {
+  ): Promise<IALInviteProfile> {
     return await this.authLicenseeService.getInviteProfile(hash);
   }
 
@@ -52,7 +54,7 @@ export class AuthLicenseeController {
     @Param('hash', MailHistoryValidationPipe)
     hash: string,
     @Body() data: AuthRegisterLicenseeDto,
-  ): Promise<void | object> {
+  ): Promise<IALConcludeRegistration> {
     return await this.authLicenseeService.concludeRegistration(data, hash);
   }
 }

@@ -20,7 +20,7 @@ O [Projeto do App CCT](https://github.com/RJ-SMTR/app-cct) consome esta API.
   * [Descrição](#descrição)
   * [Table of Contents](#table-of-contents)
   * [Quick run](#quick-run)
-  * [Comfortable development](#comfortable-development)
+  * [Desenvolvimento confortável](#desenvolvimento-confortável)
   * [Links](#links)
   * [Automatic update of dependencies](#automatic-update-of-dependencies)
   * [Banco de dados](#banco-de-dados)

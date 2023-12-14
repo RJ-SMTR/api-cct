@@ -4990,6 +4990,11 @@
   "resolved" "https://registry.npmjs.org/gensync/-/gensync-1.0.0-beta.2.tgz"
   "version" "1.0.0-beta.2"
 
+"gerador-validador-cpf@^5.0.2":
+  "integrity" "sha512-7nqJilkfIv3HIbB50uP32SOxe/A3TyvVS3AXxwU6cqHq7jMTnkp0WGPaGytY3Yc36RjzysVQ6xhlwcCt70CnOw=="
+  "resolved" "https://registry.npmjs.org/gerador-validador-cpf/-/gerador-validador-cpf-5.0.2.tgz"
+  "version" "5.0.2"
+
 "get-caller-file@^2.0.5":
   "integrity" "sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg=="
   "resolved" "https://registry.npmjs.org/get-caller-file/-/get-caller-file-2.0.5.tgz"
