@@ -127,7 +127,7 @@ export class MailService {
   async sendForgotPassword(
     mailData: MailData<{ hash: string }>,
   ): Promise<MailSentInfo> {
-    const resetPasswordTitle = 'Refedinir senha';
+    const mailTitle = 'Redefinir senha';
 
     try {
       const frontendDomain = this.configService.get('app.frontendDomain', {
@@ -135,17 +135,17 @@ export class MailService {
       });
       const response = await this.safeSendMail({
         to: mailData.to,
-        subject: resetPasswordTitle,
+        subject: mailTitle,
         text: `${this.configService.get('app.frontendDomain', {
           infer: true,
-        })}reset-password/${mailData.data.hash} ${resetPasswordTitle}`,
+        })}reset-password/${mailData.data.hash} ${mailTitle}`,
         template: 'reset-password',
         context: {
-          title: resetPasswordTitle,
+          title: mailTitle,
           url: `${this.configService.get('app.frontendDomain', {
             infer: true,
           })}reset-password/${mailData.data.hash}`,
-          actionTitle: resetPasswordTitle,
+          actionTitle: mailTitle,
           logoSrc: `${frontendDomain}/assets/icons/logoPrefeitura.png`,
           logoAlt: 'Prefeitura do Rio',
           bodyText: 'Redefina sua senha clicando no botão abaixo!',
@@ -168,7 +168,7 @@ export class MailService {
       statusCount: IMailHistoryStatusCount;
     }>,
   ): Promise<MailSentInfo> {
-    const resetPasswordTitle = 'Relatório diário';
+    const mailTitle = 'Relatório diário';
     const from = this.configService.get('mail.senderNotification', {
       infer: true,
     });
@@ -192,16 +192,11 @@ export class MailService {
       const response = await this.safeSendMail({
         from,
         to: mailData.to,
-        subject: resetPasswordTitle,
-        text: `${this.configService.get('app.frontendDomain', {
-          infer: true,
-        })}reset-password/${'mailData.data.hash'} ${resetPasswordTitle}`,
+        subject: mailTitle,
+        text: mailTitle,
         template: 'report',
         context: {
-          title: resetPasswordTitle,
-          url: `${this.configService.get('app.frontendDomain', {
-            infer: true,
-          })}reset-password/${'mailData.data.hash'}`,
+          title: mailTitle,
           headerTitle: appName,
           mailQueued: mailData.data.statusCount.queued,
           mailSent: mailData.data.statusCount.sent,

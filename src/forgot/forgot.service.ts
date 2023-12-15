@@ -1,3 +1,5 @@
+import * as crypto from 'crypto';
+import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptions } from 'src/utils/types/find-options.type';
@@ -30,5 +32,19 @@ export class ForgotService {
 
   async softDelete(id: number): Promise<void> {
     await this.forgotRepository.softDelete(id);
+  }
+
+  async generateHash(): Promise<string> {
+    let hash = crypto
+      .createHash('sha256')
+      .update(randomStringGenerator())
+      .digest('hex');
+    while (await this.findOne({ where: { hash } })) {
+      hash = crypto
+        .createHash('sha256')
+        .update(randomStringGenerator())
+        .digest('hex');
+    }
+    return hash;
   }
 }

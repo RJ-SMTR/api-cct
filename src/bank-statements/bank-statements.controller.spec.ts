@@ -64,8 +64,11 @@ describe('BankStatementsController', () => {
       jest
         .spyOn(bankStatementsService, 'getBankStatementsFromUser')
         .mockResolvedValue({
-          data: bankStatements,
           amountSum: 30,
+          todaySum: 10,
+          ticketCount: 10,
+          count: bankStatements.length,
+          data: bankStatements,
         });
       jest.spyOn(usersService, 'getOneFromRequest').mockResolvedValueOnce(user);
 
@@ -76,7 +79,7 @@ describe('BankStatementsController', () => {
       );
 
       // Assert
-      expect(result).toEqual(bankStatements);
+      expect(result?.data).toEqual(bankStatements);
     });
     it('should throw an exception when user is not found', async () => {
       // Arrange

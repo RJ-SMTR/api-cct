@@ -318,12 +318,7 @@ export class AuthService {
     }
   }
 
-  /**
-   * @throws `HttpException`
-   */
-  async resendRegisterMail(args: AuthResendEmailDto): Promise<void> {
-    const user = await this.getUser(args.id);
-    const userMailHsitory = await this.getMailHistory(user);
+  async validateQuota(): Promise<number> {
     const quota = await this.mailHistoryService.getRemainingQuota();
     if (quota <= 0) {
       throw new HttpException(
@@ -335,7 +330,18 @@ export class AuthService {
         },
         HttpStatus.NOT_FOUND,
       );
+    } else {
+      return quota;
     }
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  async resendRegisterMail(args: AuthResendEmailDto): Promise<void> {
+    const user = await this.getUser(args.id);
+    const userMailHsitory = await this.getMailHistory(user);
+    await this.validateQuota();
     await this.sendRegisterEmail(user, userMailHsitory);
   }
 
@@ -361,6 +367,7 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void | object> {
+    await this.validateQuota();
     const user = await this.usersService.findOne({
       email,
     });
@@ -374,16 +381,7 @@ export class AuthService {
       return returnMessage;
     }
 
-    let hash = crypto
-      .createHash('sha256')
-      .update(randomStringGenerator())
-      .digest('hex');
-    while (await this.mailHistoryService.findOne({ hash })) {
-      hash = crypto
-        .createHash('sha256')
-        .update(randomStringGenerator())
-        .digest('hex');
-    }
+    const hash = await this.forgotService.generateHash();
 
     await this.forgotService.create({
       hash,
@@ -440,7 +438,8 @@ export class AuthService {
         {
           error: HttpErrorMessages.UNAUTHORIZED,
           details: {
-            hash: `notFound`,
+            error: 'hash not found',
+            hash,
           },
         },
         HttpStatus.UNAUTHORIZED,

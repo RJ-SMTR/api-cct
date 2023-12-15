@@ -16,10 +16,18 @@ import { StatusEnum } from 'src/statuses/statuses.enum';
 import { isArrayContainEqual } from 'src/utils/array-utils';
 import { Enum } from 'src/utils/enum';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { formatLog } from 'src/utils/logging';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { DeepPartial, FindOptionsWhere, ILike, Repository } from 'typeorm';
+import {
+  Brackets,
+  DeepPartial,
+  FindOptionsWhere,
+  ILike,
+  Repository,
+  WhereExpressionBuilder,
+} from 'typeorm';
 import * as xlsx from 'xlsx';
 import { NullableType } from '../utils/types/nullable.type';
 import { CreateUserFileDto } from './dto/create-user-file.dto';
@@ -30,7 +38,7 @@ import { IFileUser } from './interfaces/file-user.interface';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 import { FileUserMap } from './mappings/user-file.map';
-import { formatLog } from 'src/utils/logging';
+import { stringUppercaseUnaccent } from 'src/utils/string-utils';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -79,6 +87,7 @@ export class UsersService {
     paginationOptions: IPaginationOptions,
     fields?: IFindUserPaginated,
   ): Promise<User[]> {
+    console.log('findManyWithPagination');
     const isSgtuBlocked = fields?.isSgtuBlocked || fields?._anyField?.value;
 
     let inviteStatus: any = null;
@@ -91,67 +100,86 @@ export class UsersService {
         ),
       };
     }
-    const where = [
-      ...(fields?.name || fields?._anyField?.value
-        ? [
-            {
-              fullName: ILike(`%${fields?.name || fields?._anyField?.value}%`),
-            },
-            {
-              firstName: ILike(`%${fields?.name || fields?._anyField?.value}%`),
-            },
-            {
-              lastName: ILike(`%${fields?.name || fields?._anyField?.value}%`),
-            },
-          ]
-        : []),
-      ...(fields?.permitCode || fields?._anyField?.value
-        ? [
-            {
-              permitCode: ILike(
-                `%${fields?.permitCode || fields?._anyField?.value}%`,
-              ),
-            },
-          ]
-        : []),
-      ...(fields?.email || fields?._anyField?.value
-        ? [{ email: ILike(`%${fields?.email || fields?._anyField?.value}%`) }]
-        : []),
-      ...(fields?.cpfCnpj || fields?._anyField?.value
-        ? [
-            {
-              cpfCnpj: ILike(
-                `%${fields?.cpfCnpj || fields?._anyField?.value}%`,
-              ),
-            },
-          ]
-        : []),
-      ...(isSgtuBlocked === 'true' || isSgtuBlocked === 'false'
-        ? [{ isSgtuBlocked: isSgtuBlocked === 'true' }]
-        : []),
-      ...(fields?.passValidatorId || fields?._anyField?.value
-        ? [
-            {
-              passValidatorId: ILike(
-                `%${fields?.passValidatorId || fields?._anyField?.value}%`,
-              ),
-            },
-          ]
-        : []),
-      ...(fields?.role
-        ? [
-            {
-              role: { id: fields.role.id },
-            },
-          ]
-        : []),
-    ] as FindOptionsWhere<User>[];
 
-    let users = await this.usersRepository.find({
-      ...(fields ? { where: where } : {}),
-      skip: (paginationOptions.page - 1) * paginationOptions.limit,
-      take: paginationOptions.limit,
-    });
+    const andWhere = {
+      ...(fields?.role
+        ? {
+            role: { id: fields.role.id },
+          }
+        : {}),
+    } as FindOptionsWhere<User>;
+
+    const where = (qb: WhereExpressionBuilder) => {
+      const whereFields = [
+        ...(fields?.permitCode || fields?._anyField?.value
+          ? [
+              {
+                permitCode: ILike(
+                  `%${fields?.permitCode || fields?._anyField?.value}%`,
+                ),
+              },
+            ]
+          : []),
+
+        ...(fields?.email || fields?._anyField?.value
+          ? [{ email: ILike(`%${fields?.email || fields?._anyField?.value}%`) }]
+          : []),
+
+        ...(fields?.cpfCnpj || fields?._anyField?.value
+          ? [
+              {
+                cpfCnpj: ILike(
+                  `%${fields?.cpfCnpj || fields?._anyField?.value}%`,
+                ),
+              },
+            ]
+          : []),
+
+        ...(isSgtuBlocked === 'true' || isSgtuBlocked === 'false'
+          ? [{ isSgtuBlocked: isSgtuBlocked === 'true' }]
+          : []),
+
+        ...(fields?.passValidatorId || fields?._anyField?.value
+          ? [
+              {
+                passValidatorId: ILike(
+                  `%${fields?.passValidatorId || fields?._anyField?.value}%`,
+                ),
+              },
+            ]
+          : []),
+      ] as FindOptionsWhere<User>[];
+
+      if (fields?.name || fields?._anyField?.value) {
+        const fieldName = fields?.name || fields?._anyField?.value;
+        return qb
+          .where(() => (whereFields.length > 0 ? whereFields : '1 = 0'))
+          .orWhere(
+            'unaccent(UPPER("user"."fullName")) ILIKE unaccent(UPPER(:name))',
+            { name: `%${fieldName}%` },
+          )
+          .orWhere(
+            'unaccent(UPPER("user"."firstName")) ILIKE unaccent(UPPER(:name))',
+            { name: `%${fieldName}%` },
+          )
+          .orWhere(
+            'unaccent(UPPER("user"."lastName")) ILIKE unaccent(UPPER(:name))',
+            { name: `%${fieldName}%` },
+          );
+      } else {
+        return qb.where(whereFields);
+      }
+    };
+
+    let users = await this.usersRepository
+      .createQueryBuilder('user')
+      .where(
+        new Brackets((qb) => {
+          where(qb);
+        }),
+      )
+      .andWhere(andWhere)
+      .getMany();
 
     let invites: NullableType<MailHistory[]> = null;
     if (inviteStatus) {
@@ -522,7 +550,7 @@ export class UsersService {
         ),
         email: fileUser.user.email,
         phone: fileUser.user.telefone,
-        fullName: fileUser.user.nome,
+        fullName: stringUppercaseUnaccent(fileUser.user.nome as string),
         cpfCnpj: fileUser.user.cpf,
         hash: hash,
         status: new Status(StatusEnum.register),

@@ -1,17 +1,24 @@
-import { APP_URL, ADMIN_EMAIL, ADMIN_PASSWORD } from '../utils/constants';
+import { HttpStatus } from '@nestjs/common';
+import { differenceInSeconds } from 'date-fns';
+import * as fs from 'fs';
+import { generate } from 'gerador-validador-cpf';
+import * as path from 'path';
 import * as request from 'supertest';
-import { RoleEnum } from '../../src/roles/roles.enum';
-import { StatusEnum } from '../../src/statuses/statuses.enum';
+import * as XLSX from 'xlsx';
+import {
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  APP_URL,
+  LICENSEE_CASE_ACCENT,
+  LICENSEE_PERMIT_CODE,
+  MAILDEV_URL,
+} from '../utils/constants';
+import { stringUppercaseUnaccent } from 'src/utils/string-utils';
 
-describe('Users admin (e2e)', () => {
+describe('Admin managing users (e2e)', () => {
   const app = APP_URL;
-  let newUserFirst;
-  const newUserEmailFirst = `user-first.${Date.now()}@example.com`;
-  const newUserPasswordFirst = `secret`;
-  const newUserChangedPasswordFirst = `new-secret`;
-  const newUserByAdminEmailFirst = `user-created-by-admin.${Date.now()}@example.com`;
-  const newUserByAdminPasswordFirst = `secret`;
-  let apiToken;
+  const tempFolder = path.join(__dirname, 'temp');
+  let apiToken: any = {};
 
   beforeAll(async () => {
     await request(app)
@@ -21,101 +28,239 @@ describe('Users admin (e2e)', () => {
         apiToken = body.token;
       });
 
-    await request(app)
-      .post('/api/v1/auth/email/register')
-      .send({
-        email: newUserEmailFirst,
-        password: newUserPasswordFirst,
-        firstName: `First${Date.now()}`,
-        lastName: 'E2E',
-      });
-
-    await request(app)
-      .post('/api/v1/auth/email/login')
-      .send({ email: newUserEmailFirst, password: newUserPasswordFirst })
-      .then(({ body }) => {
-        newUserFirst = body.user;
-      });
+    if (!fs.existsSync(tempFolder)) {
+      fs.mkdirSync(tempFolder);
+    }
   });
 
-  it('Change password for new user: /api/v1/users/:id (PATCH)', () => {
-    return request(app)
-      .patch(`/api/v1/users/${newUserFirst.id}`)
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .send({ password: newUserChangedPasswordFirst })
-      .expect(200);
+  describe('Setup tests', () => {
+    it('Should have UTC and local timezones', () => {
+      new Date().getTimezoneOffset();
+      expect(process.env.TZ).toEqual('UTC');
+      expect(global.__localTzOffset).toBeDefined();
+    });
+
+    it('Should have mailDev server', async () => {
+      await request(MAILDEV_URL).get('').expect(HttpStatus.OK);
+    });
   });
 
-  it('Login via registered user: /api/v1/auth/email/login (POST)', () => {
-    return request(app)
-      .post('/api/v1/auth/email/login')
-      .send({ email: newUserEmailFirst, password: newUserChangedPasswordFirst })
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body.token).toBeDefined();
-      });
-  });
-
-  it('Fail create new user by admin: /api/v1/users (POST)', () => {
-    return request(app)
-      .post(`/api/v1/users`)
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .send({ email: 'fail-data' })
-      .expect(422);
-  });
-
-  it('Success create new user by admin: /api/v1/users (POST)', () => {
-    return request(app)
-      .post(`/api/v1/users`)
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .send({
-        email: newUserByAdminEmailFirst,
-        password: newUserByAdminPasswordFirst,
-        firstName: `UserByAdmin${Date.now()}`,
-        lastName: 'E2E',
-        role: {
-          id: RoleEnum.user,
+  /**
+   * Phase 1: manage users
+   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
+   */
+  describe('Manage users', () => {
+    test('Filter users', async () => {
+      // Arrange
+      const licensee = await request(app)
+        .get('/api/v1/users/')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .query({ permitCode: LICENSEE_PERMIT_CODE })
+        .expect(({ body }) => {
+          expect(body.data.length).toBe(1);
+        })
+        .then(({ body }) => body.data);
+      const licenseePartOfName = 'user';
+      const args = [
+        {
+          filter: { name: stringUppercaseUnaccent(LICENSEE_CASE_ACCENT) },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.fullName === LICENSEE_CASE_ACCENT),
+            ).toBeTruthy(),
         },
-        status: {
-          id: StatusEnum.active,
+        {
+          filter: { permitCode: licensee.permitCode },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+            ).toBeTruthy(),
         },
-      })
-      .expect(201);
+        {
+          filter: { name: licensee.fullName },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+            ).toBeTruthy(),
+        },
+        {
+          filter: { email: licensee.email },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+            ).toBeTruthy(),
+        },
+        {
+          filter: { name: licenseePartOfName, inviteStatus: 'queued' },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.fullName === 'Queued user'),
+            ).toBeTruthy(),
+        },
+        {
+          filter: { name: licenseePartOfName, inviteStatus: 'sent' },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.fullName === 'Sent user'),
+            ).toBeTruthy(),
+        },
+        {
+          filter: { name: licenseePartOfName, inviteStatus: 'used' },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.fullName === 'Used user'),
+            ).toBeTruthy(),
+        },
+      ];
+
+      // Assert
+      for (const arg of args) {
+        await request(app)
+          .get('/api/v1/users/')
+          .auth(apiToken, {
+            type: 'bearer',
+          })
+          .query(arg.filter)
+          .expect(HttpStatus.OK)
+          .then(({ body }) => {
+            arg.expect(body);
+            return body.data;
+          });
+      }
+    }, 20000);
   });
 
-  it('Login via created by admin user: /api/v1/auth/email/login (GET)', () => {
-    return request(app)
-      .post('/api/v1/auth/email/login')
-      .send({
-        email: newUserByAdminEmailFirst,
-        password: newUserByAdminPasswordFirst,
-      })
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body.token).toBeDefined();
-      });
-  });
+  /**
+   * Phase 1: upload users
+   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
+   */
+  describe('Upload users', () => {
+    let uploadUsers: any[];
+    let users: any[] = [];
 
-  it('Get list of users by admin: /api/v1/users (GET)', () => {
-    return request(app)
-      .get(`/api/v1/users`)
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .expect(200)
-      .send()
-      .expect(({ body }) => {
-        expect(body.data[0].provider).toBeDefined();
-        expect(body.data[0].email).toBeDefined();
-        expect(body.data[0].hash).not.toBeDefined();
-        expect(body.data[0].password).not.toBeDefined();
-        expect(body.data[0].previousPassword).not.toBeDefined();
-      });
+    beforeAll(() => {
+      const randomCode = Math.random().toString(36).slice(-8);
+      uploadUsers = [
+        {
+          codigo_permissionario: `permitCode_${randomCode}`,
+          nome: `Café_${randomCode}`,
+          email: `user.${randomCode}@test.com`,
+          telefone: `219${Math.random().toString().slice(2, 10)}`,
+          cpf: generate(),
+        },
+      ];
+    });
+
+    test(`Upload users, status = 'queued'`, async () => {
+      // Arrange
+      const excelFilePath = path.join(tempFolder, 'newUsers.xlsx');
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(uploadUsers);
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+      XLSX.writeFile(workbook, excelFilePath);
+
+      // Assert
+      await request(app)
+        .post('/api/v1/users/upload')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .attach('file', excelFilePath)
+        .expect(HttpStatus.CREATED)
+        .expect(({ body }) => {
+          expect(body.uploadedUsers).toEqual(1);
+        });
+
+      users = await request(app)
+        .get('/api/v1/users/')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .query({ permitCode: uploadUsers[0].codigo_permissionario })
+        .expect(({ body }) => {
+          expect(body.data.length).toBe(1);
+          expect(body.data[0]?.fullName).toEqual(
+            stringUppercaseUnaccent(uploadUsers[0].nome),
+          );
+          expect(body.data[0]?.aux_inviteStatus?.name).toEqual('queued');
+        })
+        .then(({ body }) => body.data);
+    });
+
+    test(`Resend new user invite, status = 'sent'`, async () => {
+      const newUser = users[0];
+      expect(newUser?.id).toBeDefined();
+
+      await request(APP_URL)
+        .post('/api/v1/auth/email/resend')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .send({
+          id: newUser.id,
+        })
+        .expect(HttpStatus.NO_CONTENT);
+      const forgotLocalDate = new Date();
+      forgotLocalDate.setMinutes(
+        forgotLocalDate.getMinutes() + global.__localTzOffset,
+      );
+
+      newUser.hash = await request(MAILDEV_URL)
+        .get('/email')
+        .then(({ body }) =>
+          (body as any[])
+            .filter(
+              (letter: any) =>
+                letter.to[0].address.toLowerCase() ===
+                  newUser.email.toLowerCase() &&
+                /.*conclude\-registration\/(\w+).*/g.test(letter.text) &&
+                differenceInSeconds(forgotLocalDate, new Date(letter.date)) <=
+                  10,
+            )
+            .pop()
+            ?.text.replace(/.*conclude\-registration\/(\w+).*/g, '$1'),
+        );
+
+      await request(APP_URL)
+        .post(`/api/v1/auth/licensee/invite/${newUser.hash}`)
+        .expect(HttpStatus.OK)
+        .expect(({ body }) => {
+          expect(body.email).toEqual(newUser.email);
+          expect(body?.inviteStatus?.name).toEqual('sent');
+        });
+
+      users[0] = newUser;
+    });
+
+    test(`New user conclude registration, status = 'used'`, async () => {
+      const newUser = users[0];
+      expect(newUser?.hash).toBeDefined();
+
+      const newPassword = Math.random().toString(36).slice(-8);
+      await request(APP_URL)
+        .post(`/api/v1/auth/licensee/register/${newUser.hash}`)
+        .send({ password: newPassword })
+        .expect(HttpStatus.OK)
+        .expect(({ body }) => {
+          expect(body.user.aux_inviteStatus?.name).toEqual('used');
+          expect(body.token).toBeDefined();
+        });
+
+      newUser.password = newPassword;
+      users[0] = newUser;
+    });
+
+    test('New user login', async () => {
+      const newUser = users[0];
+      await request(APP_URL)
+        .post(`/api/v1/auth/licensee/login`)
+        .send({ permitCode: newUser.permitCode, password: newUser.password })
+        .expect(HttpStatus.OK)
+        .expect(({ body }) => {
+          expect(body.token).toBeDefined();
+        });
+    });
   });
 });
