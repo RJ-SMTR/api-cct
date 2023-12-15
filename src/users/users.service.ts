@@ -155,15 +155,15 @@ export class UsersService {
         return qb
           .where(() => (whereFields.length > 0 ? whereFields : '1 = 0'))
           .orWhere(
-            'unaccent(LOWER("user"."fullName")) ILIKE unaccent(LOWER(:name))',
+            'unaccent(UPPER("user"."fullName")) ILIKE unaccent(UPPER(:name))',
             { name: `%${fieldName}%` },
           )
           .orWhere(
-            'unaccent(LOWER("user"."firstName")) ILIKE unaccent(LOWER(:name))',
+            'unaccent(UPPER("user"."firstName")) ILIKE unaccent(UPPER(:name))',
             { name: `%${fieldName}%` },
           )
           .orWhere(
-            'unaccent(LOWER("user"."lastName")) ILIKE unaccent(LOWER(:name))',
+            'unaccent(UPPER("user"."lastName")) ILIKE unaccent(UPPER(:name))',
             { name: `%${fieldName}%` },
           );
       } else {
