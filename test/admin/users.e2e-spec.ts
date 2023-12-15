@@ -9,6 +9,7 @@ import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
   APP_URL,
+  LICENSEE_CASE_ACCENT,
   LICENSEE_PERMIT_CODE,
   MAILDEV_URL,
 } from '../utils/constants';
@@ -63,6 +64,13 @@ describe('Admin managing users (e2e)', () => {
         .then(({ body }) => body.data);
       const licenseePartOfName = 'user';
       const args = [
+        {
+          filter: { name: stringUppercaseUnaccent(LICENSEE_CASE_ACCENT) },
+          expect: (body: any) =>
+            expect(
+              body.data.some((i: any) => i.fullName === LICENSEE_CASE_ACCENT),
+            ).toBeTruthy(),
+        },
         {
           filter: { permitCode: licensee.permitCode },
           expect: (body: any) =>
