@@ -207,8 +207,6 @@ export class MailHistoryService {
           `"user"."cpfCnpj" IS NOT NULL AND "user"."cpfCnpj" != '' AND ` +
           `"user"."permitCode" IS NOT NULL AND "user"."permitCode" != '' AND ` +
           `"user"."email" IS NOT NULL AND "user"."email" != '' AND ` +
-          `"user"."passValidatorId" IS NOT NULL AND "user"."passValidatorId" != '' AND ` +
-          `"user"."isSgtuBlocked" = TRUE AND ` +
           `"user"."phone" IS NOT NULL AND "user"."phone" != '' AND ` +
           `"user"."bankCode" IS NOT NULL AND ` +
           `"user"."bankAgency" IS NOT NULL AND "user"."bankAgency" != '' AND ` +
