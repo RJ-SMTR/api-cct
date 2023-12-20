@@ -381,49 +381,50 @@ export class CronJobsService implements OnModuleInit {
     }
 
     // Send mail
-    for (const mailRecipient of mailRecipients) {
-      const email = mailRecipient.getValueAsString();
-      try {
-        const mailSentInfo = await this.mailService.sendStatusReport({
-          to: email,
-          data: {
-            statusCount: await this.mailHistoryService.getStatusCount(),
-          },
-        });
+    const emails = mailRecipients.reduce(
+      (l: string[], i) => [...l, i.getValueAsString()],
+      [],
+    );
+    try {
+      const mailSentInfo = await this.mailService.sendStatusReport({
+        to: emails,
+        data: {
+          statusCount: await this.mailHistoryService.getStatusCount(),
+        },
+      } as any);
 
-        // Success
-        if (mailSentInfo.success === true) {
-          this.logger.log(
-            formatLog(
-              `Relatório enviado com sucesso para o email '${email}'`,
-              THIS_METHOD,
-            ),
-          );
-        }
-
-        // SMTP error
-        else {
-          this.logger.error(
-            formatErrorLog(
-              `Relatório enviado para o email '${email}' retornou erro`,
-              mailSentInfo,
-              new Error(),
-              THIS_METHOD,
-            ),
-          );
-        }
-
-        // API error
-      } catch (httpException) {
-        this.logger.error(
-          formatErrorLog(
-            `Email falhou ao enviar para '${email}'`,
-            httpException,
-            httpException as Error,
+      // Success
+      if (mailSentInfo.success === true) {
+        this.logger.log(
+          formatLog(
+            `Relatório enviado com sucesso para os emails ${emails}`,
             THIS_METHOD,
           ),
         );
       }
+
+      // SMTP error
+      else {
+        this.logger.error(
+          formatErrorLog(
+            `Relatório enviado para os emails ${emails} retornou erro`,
+            mailSentInfo,
+            new Error(),
+            THIS_METHOD,
+          ),
+        );
+      }
+
+      // API error
+    } catch (httpException) {
+      this.logger.error(
+        formatErrorLog(
+          `Email falhou ao enviar para ${emails}`,
+          httpException,
+          httpException as Error,
+          THIS_METHOD,
+        ),
+      );
     }
     this.logger.log(formatLog('Tarefa finalizada.', THIS_METHOD));
   }
