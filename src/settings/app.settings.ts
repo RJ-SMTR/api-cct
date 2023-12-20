@@ -1,6 +1,7 @@
-import { SettingTypeEnum } from 'src/setting-types/setting-type.enum';
-import { SettingDataInterface } from './interfaces/setting-data.interface';
 import { CronExpression } from '@nestjs/schedule';
+import { SettingTypeEnum } from 'src/setting-types/setting-type.enum';
+import { ISettingDataGroup } from './interfaces/setting-data-group.interface';
+import { ISettingData } from './interfaces/setting-data.interface';
 
 /**
  * Helper for default settings
@@ -15,7 +16,7 @@ export const appSettings = {
     version: null,
     editable: true,
     settingType: SettingTypeEnum.boolean,
-  } as SettingDataInterface,
+  } as ISettingData,
 
   /** Hours in UTC */
   any__auto_send_invite_schedule_hours: {
@@ -24,7 +25,7 @@ export const appSettings = {
     version: null,
     editable: false,
     settingType: SettingTypeEnum.number,
-  } as SettingDataInterface,
+  } as ISettingData,
 
   any__poll_db_enabled: {
     name: 'poll_db_enabled',
@@ -32,7 +33,7 @@ export const appSettings = {
     version: null,
     editable: false,
     settingType: SettingTypeEnum.boolean,
-  } as SettingDataInterface,
+  } as ISettingData,
 
   any__poll_db_cronjob: {
     name: 'poll_db_cronjob',
@@ -40,7 +41,7 @@ export const appSettings = {
     version: null,
     editable: false,
     settingType: SettingTypeEnum.string,
-  } as SettingDataInterface,
+  } as ISettingData,
 
   any__mail_invite_cronjob: {
     name: 'mail_invite_cronjob',
@@ -48,7 +49,7 @@ export const appSettings = {
     version: null,
     editable: false,
     settingType: SettingTypeEnum.string,
-  } as SettingDataInterface,
+  } as ISettingData,
 
   any__mail_report_cronjob: {
     name: 'mail_report_cronjob',
@@ -56,7 +57,7 @@ export const appSettings = {
     version: null,
     editable: false,
     settingType: SettingTypeEnum.string,
-  } as SettingDataInterface,
+  } as ISettingData,
 
   any__mail_report_enabled: {
     name: 'mail_report_enabled',
@@ -64,7 +65,28 @@ export const appSettings = {
     version: null,
     editable: false,
     settingType: SettingTypeEnum.boolean,
-  } as SettingDataInterface,
+  } as ISettingData,
+
+  any__mail_report_recipient: {
+    baseName: 'mail_report_recipient',
+    baseVersion: null,
+    data: [
+      {
+        name: 'mail_report_recipient_1',
+        value: 'marcosbernardo@hotmail.com',
+        version: null,
+        editable: false,
+        settingType: SettingTypeEnum.string,
+      } as ISettingData,
+      {
+        name: 'mail_report_recipient_2',
+        value: 'laurosilvestre.smtr@gmail.com',
+        version: null,
+        editable: false,
+        settingType: SettingTypeEnum.string,
+      } as ISettingData,
+    ],
+  } as ISettingDataGroup,
 
   // v1
 
@@ -74,12 +96,12 @@ export const appSettings = {
     version: '1',
     editable: false,
     settingType: SettingTypeEnum.boolean,
-  } as SettingDataInterface,
+  } as ISettingData,
   v1__user_file_max_upload_size: {
     name: 'user_file_max_upload_size',
     value: '10MB',
     version: '1',
     editable: false,
     settingType: SettingTypeEnum.string,
-  } as SettingDataInterface,
+  } as ISettingData,
 };

@@ -1,3 +1,8 @@
+import { HttpException, HttpStatus } from '@nestjs/common';
+import { ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
+import { SettingType } from 'src/setting-types/entities/setting-type.entity';
+import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import {
   BaseEntity,
   Column,
@@ -6,17 +11,12 @@ import {
   PrimaryColumn,
   Unique,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
-import { Exclude } from 'class-transformer';
-import { SettingType } from 'src/setting-types/entities/setting-type.entity';
-import { HttpException, HttpStatus } from '@nestjs/common';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { SettingDataInterface } from '../interfaces/setting-data.interface';
+import { ISettingData } from '../interfaces/setting-data.interface';
 
 @Entity({ name: 'setting' })
 @Unique(['name', 'version'])
 export class SettingEntity extends BaseEntity {
-  constructor(data?: SettingDataInterface) {
+  constructor(data?: ISettingData) {
     super();
     if (data) {
       this.name = data.name;
@@ -53,11 +53,46 @@ export class SettingEntity extends BaseEntity {
   })
   settingType: SettingType;
 
+  getValueAsNullableJson(): any | null {
+    if (!this.value) {
+      return null;
+    } else
+      try {
+        return JSON.parse(this.value);
+      } catch (error) {
+        throw new HttpException(
+          {
+            error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+            details: {
+              value: `should be valid JSON, received '${this.value}' instead`,
+            },
+          },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+  }
+
+  getValueAsJson(): any {
+    const value = this.getValueAsNullableJson();
+    if (value !== null) {
+      return value;
+    } else {
+      throw new HttpException(
+        {
+          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          details: {
+            value: 'should not be null',
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   getValueAsNullableBoolean(): boolean | null {
     if (!this?.value) {
       return null;
-    }
-    if (this.value === 'true') {
+    } else if (this.value === 'true') {
       return true;
     } else if (this.value === 'false') {
       return false;

@@ -3,15 +3,15 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { AllConfigType } from 'src/config/config.type';
+import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
+import { formatLog } from 'src/utils/logging';
 import { MaybeType } from '../utils/types/maybe.type';
 import { EhloStatus } from './enums/ehlo-status.enum';
 import { MailData } from './interfaces/mail-data.interface';
 import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
 import { MailSentInfo } from './interfaces/mail-sent-info.interface';
 import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
-import { formatLog } from 'src/utils/logging';
-import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 
 @Injectable()
 export class MailService {
@@ -201,6 +201,8 @@ export class MailService {
           mailQueued: mailData.data.statusCount.queued,
           mailSent: mailData.data.statusCount.sent,
           mailUsed: mailData.data.statusCount.used,
+          mailUsedIncomplete: mailData.data.statusCount.usedIncomplete,
+          mailUsedComplete: mailData.data.statusCount.usedComplete,
           mailTotal: mailData.data.statusCount.total,
         },
       });
