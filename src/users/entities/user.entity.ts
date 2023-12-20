@@ -156,8 +156,6 @@ export class User extends EntityHelper {
       Boolean(this.cpfCnpj) &&
       Boolean(this.permitCode) &&
       Boolean(this.email) &&
-      Boolean(this.passValidatorId) &&
-      this.isSgtuBlocked !== undefined &&
       // editable
       Boolean(this.phone) &&
       Boolean(this.bankCode) &&
