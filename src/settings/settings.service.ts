@@ -1,12 +1,13 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { formatLog } from 'src/utils/logging';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, Like, Repository } from 'typeorm';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { SettingEntity } from './entities/setting.entity';
-import { SettingDataInterface } from './interfaces/setting-data.interface';
-import { formatLog } from 'src/utils/logging';
+import { ISettingDataGroup } from './interfaces/setting-data-group.interface';
+import { ISettingData } from './interfaces/setting-data.interface';
 
 @Injectable()
 export class SettingsService {
@@ -58,7 +59,7 @@ export class SettingsService {
   }
 
   async getOneBySettingData(
-    setting: SettingDataInterface,
+    setting: ISettingData,
     defaultValueIfNotFound?: boolean,
     logContext?: string,
   ): Promise<SettingEntity> {
@@ -78,7 +79,7 @@ export class SettingsService {
   }
 
   async findOneBySettingData(
-    setting: SettingDataInterface,
+    setting: ISettingData,
   ): Promise<SettingEntity | null> {
     const settings = await this.settingsRepository.find({
       where: {
@@ -91,6 +92,17 @@ export class SettingsService {
     } else {
       return settings[0];
     }
+  }
+
+  async findManyBySettingDataGroup(
+    setting: ISettingDataGroup,
+  ): Promise<SettingEntity[]> {
+    return await this.settingsRepository.find({
+      where: {
+        name: Like(`%${setting.baseName}%`),
+        version: setting.baseVersion === null ? IsNull() : setting.baseVersion,
+      },
+    });
   }
 
   async findByVersion(version: string): Promise<SettingEntity[]> {

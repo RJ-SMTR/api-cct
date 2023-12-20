@@ -65,7 +65,6 @@ export default registerAs<MailConfig>('mail', () => {
     secure: process.env.MAIL_SECURE === 'true',
     requireTLS: process.env.MAIL_REQUIRE_TLS === 'true',
     dailyQuota: process.env.MAIL_DAILY_QUOTA,
-    recipientStatusReport: 'marcosbernardo@hotmail.com',
     senderNotification: 'notificacao.smtr@gmail.com',
   };
 });

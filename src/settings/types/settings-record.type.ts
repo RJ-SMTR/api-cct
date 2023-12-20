@@ -1,3 +1,7 @@
-import { SettingDataInterface } from '../interfaces/setting-data.interface';
+import { ISettingDataGroup } from '../interfaces/setting-data-group.interface';
+import { ISettingData } from '../interfaces/setting-data.interface';
 
-export type SettingsRecordType = Record<string, SettingDataInterface>;
+export type SettingsRecordType = Record<
+  string,
+  ISettingData | ISettingDataGroup
+>;

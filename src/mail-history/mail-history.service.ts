@@ -195,34 +195,73 @@ export class MailHistoryService {
   }
 
   async getStatusCount(): Promise<IMailHistoryStatusCount> {
+    console.log('getStatusCount');
     const result: any[] = await this.inviteRepository
       .createQueryBuilder('invite')
       .select([
         'invite.inviteStatus as status_id',
         'COUNT(invite.inviteStatus) as status_count',
+        `CASE ` +
+          `WHEN ( ` +
+          `"user"."fullName" IS NOT NULL AND "user"."fullName" != '' AND ` +
+          `"user"."cpfCnpj" IS NOT NULL AND "user"."cpfCnpj" != '' AND ` +
+          `"user"."permitCode" IS NOT NULL AND "user"."permitCode" != '' AND ` +
+          `"user"."email" IS NOT NULL AND "user"."email" != '' AND ` +
+          `"user"."passValidatorId" IS NOT NULL AND "user"."passValidatorId" != '' AND ` +
+          `"user"."isSgtuBlocked" = TRUE AND ` +
+          `"user"."phone" IS NOT NULL AND "user"."phone" != '' AND ` +
+          `"user"."bankCode" IS NOT NULL AND ` +
+          `"user"."bankAgency" IS NOT NULL AND "user"."bankAgency" != '' AND ` +
+          `"user"."bankAccount" IS NOT NULL AND "user"."bankAccount" != '' AND ` +
+          `"user"."bankAccountDigit" IS NOT NULL AND "user"."bankAccountDigit" != '' ` +
+          ')' +
+          'THEN true ' +
+          'ELSE false ' +
+          'END AS is_filled',
       ])
       .leftJoin('invite.user', 'user')
       .leftJoin('user.role', 'role')
       .where('role.id = :roleId', { roleId: RoleEnum.user })
       .groupBy('invite.inviteStatusId')
+      .addGroupBy('is_filled')
       .getRawMany();
 
     const resultReturn = {
-      queued:
-        Number(
-          result.filter((i) => i.status_id === InviteStatusEnum.queued)[0]
-            ?.status_count,
-        ) || 0,
-      sent:
-        Number(
-          result.filter((i) => i.status_id === InviteStatusEnum.sent)[0]
-            ?.status_count,
-        ) || 0,
-      used:
-        Number(
-          result.filter((i) => i.status_id === InviteStatusEnum.used)[0]
-            ?.status_count,
-        ) || 0,
+      queued: result.reduce(
+        (sum, i) =>
+          i.status_id === InviteStatusEnum.queued
+            ? sum + Number(i.status_count)
+            : sum,
+        0,
+      ),
+      sent: result.reduce(
+        (sum, i) =>
+          i.status_id === InviteStatusEnum.sent
+            ? sum + Number(i.status_count)
+            : sum,
+        0,
+      ),
+      used: result.reduce(
+        (sum, i) =>
+          i.status_id === InviteStatusEnum.used
+            ? sum + Number(i.status_count)
+            : sum,
+        0,
+      ),
+      usedIncomplete: result.reduce(
+        (sum, i) =>
+          i.status_id === InviteStatusEnum.used && i.is_filled === false
+            ? sum + Number(i.status_count)
+            : sum,
+        0,
+      ),
+      usedComplete: result.reduce(
+        (sum, i) =>
+          i.status_id === InviteStatusEnum.used && i.is_filled === true
+            ? sum + Number(i.status_count)
+            : sum,
+        0,
+      ),
       total: 0,
     };
     resultReturn.total =
