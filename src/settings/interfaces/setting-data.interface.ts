@@ -1,6 +1,6 @@
 import { SettingTypeEnum } from '../../setting-types/setting-type.enum';
 
-export interface SettingDataInterface {
+export interface ISettingData {
   name: string;
   value: string;
   version: string | null;

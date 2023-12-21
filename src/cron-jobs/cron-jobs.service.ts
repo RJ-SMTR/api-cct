@@ -10,7 +10,7 @@ import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { MailService } from 'src/mail/mail.service';
 import { appSettings } from 'src/settings/app.settings';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
-import { SettingDataInterface } from 'src/settings/interfaces/setting-data.interface';
+import { ISettingData } from 'src/settings/interfaces/setting-data.interface';
 import { SettingsService } from 'src/settings/settings.service';
 import { UsersService } from 'src/users/users.service';
 import {
@@ -36,9 +36,9 @@ interface ICronJob {
 }
 
 interface ICronJobSetting {
-  setting: SettingDataInterface;
+  setting: ISettingData;
   cronJob: CrobJobsEnum;
-  isEnabledFlag?: SettingDataInterface;
+  isEnabledFlag?: ISettingData;
 }
 
 @Injectable()
@@ -356,21 +356,46 @@ export class CronJobsService implements OnModuleInit {
     const recipientMail = await this.configService.get(
       'mail.recipientStatusReport',
     );
-
-    if (!recipientMail) {
+    if (!isEnabledFlag) {
       this.logger.error(
         formatLog(
-          `Tarefa cancelada pois a variável de ambiente 'MAIL_RECIPIENT_STATUS_REPORT'` +
-            ` não foi encontrada (retornou: ${recipientMail}).`,
+          `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' não foi encontrado no banco.`,
+          THIS_METHOD,
+        ),
+      );
+      return;
+    } else if (isEnabledFlag.getValueAsBoolean() === false) {
+      this.logger.log(
+        formatLog(
+          `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
+            ` Para ativar, altere na tabela 'setting'`,
+          THIS_METHOD,
+        ),
+      );
+      return;
+    }
+
+    const mailRecipients =
+      await this.settingsService.findManyBySettingDataGroup(
+        appSettings.any__mail_report_recipient,
+      );
+
+    if (!mailRecipients) {
+      this.logger.error(
+        formatLog(
+          `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
+            ` não foi encontrada (retornou: ${mailRecipients}).`,
           'sendStatusReport()',
         ),
       );
       return;
-    } else if (!validateEmail(recipientMail)) {
+    } else if (
+      mailRecipients.some((i) => !validateEmail(i.getValueAsString()))
+    ) {
       this.logger.error(
         formatLog(
-          `Tarefa cancelada pois a variável de ambiente 'MAIL_RECIPIENT_STATUS_REPORT'` +
-            ` não é um email válido (retornou: ${recipientMail}).`,
+          `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
+            ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
           THIS_METHOD,
         ),
       );
@@ -378,24 +403,33 @@ export class CronJobsService implements OnModuleInit {
     }
 
     // Send mail
+    const emails = mailRecipients.reduce(
+      (l: string[], i) => [...l, i.getValueAsString()],
+      [],
+    );
     try {
       const mailSentInfo = await this.mailService.sendStatusReport({
-        to: recipientMail,
+        to: emails,
         data: {
           statusCount: await this.mailHistoryService.getStatusCount(),
         },
-      });
+      } as any);
 
       // Success
       if (mailSentInfo.success === true) {
-        this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+        this.logger.log(
+          formatLog(
+            `Relatório enviado com sucesso para os emails ${emails}`,
+            THIS_METHOD,
+          ),
+        );
       }
 
       // SMTP error
       else {
         this.logger.error(
           formatErrorLog(
-            'Email enviado retornou erro.',
+            `Relatório enviado para os emails ${emails} retornou erro`,
             mailSentInfo,
             new Error(),
             THIS_METHOD,
@@ -407,7 +441,7 @@ export class CronJobsService implements OnModuleInit {
     } catch (httpException) {
       this.logger.error(
         formatErrorLog(
-          'Email falhou ao enviar.',
+          `Email falhou ao enviar para ${emails}`,
           httpException,
           httpException as Error,
           THIS_METHOD,
