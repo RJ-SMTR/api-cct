@@ -353,6 +353,25 @@ export class CronJobsService implements OnModuleInit {
       return;
     }
 
+    if (!isEnabledFlag) {
+      this.logger.error(
+        formatLog(
+          `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' não foi encontrado no banco.`,
+          THIS_METHOD,
+        ),
+      );
+      return;
+    } else if (isEnabledFlag.getValueAsBoolean() === false) {
+      this.logger.log(
+        formatLog(
+          `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
+            ` Para ativar, altere na tabela 'setting'`,
+          THIS_METHOD,
+        ),
+      );
+      return;
+    }
+
     const mailRecipients =
       await this.settingsService.findManyBySettingDataGroup(
         appSettings.any__mail_report_recipient,
