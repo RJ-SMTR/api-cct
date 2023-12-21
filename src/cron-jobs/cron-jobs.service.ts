@@ -353,9 +353,6 @@ export class CronJobsService implements OnModuleInit {
       return;
     }
 
-    const recipientMail = await this.configService.get(
-      'mail.recipientStatusReport',
-    );
     if (!isEnabledFlag) {
       this.logger.error(
         formatLog(

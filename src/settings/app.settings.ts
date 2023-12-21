@@ -88,14 +88,6 @@ export const appSettings = {
     ],
   } as ISettingDataGroup,
 
-  any__mail_report_enabled: {
-    name: 'mail_report_enabled',
-    value: 'false',
-    version: null,
-    editable: false,
-    settingType: SettingTypeEnum.boolean,
-  } as SettingDataInterface,
-
   // v1
 
   v1__ab_test_enabled: {
