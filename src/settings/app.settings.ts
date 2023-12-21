@@ -80,7 +80,7 @@ export const appSettings = {
       } as ISettingData,
       {
         name: 'mail_report_recipient_2',
-        value: 'laurosilvestre.smtr@gmail.com',
+        value: 'raphaelrivasbra@gmail.com',
         version: null,
         editable: false,
         settingType: SettingTypeEnum.string,
