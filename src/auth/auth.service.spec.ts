@@ -150,46 +150,62 @@ describe('AuthService', () => {
       );
     });
 
-    it('should consume the quota when available', async () => {
+    /**
+     *@see {@link https://github.com/RJ-SMTR/api-cct/issues/164 Requirements #164 - GitHub}
+     */
+    it('should return success regardless of quota status', async () => {
       // Arrange
-      const user = new User({ id: 1, email: 'user1@mail.com', hash: 'hash_1' });
+      const users = [
+        new User({ id: 1, email: 'user1@mail.com', hash: 'hash_1' }),
+        new User({ id: 2, email: 'user2@mail.com', hash: 'hash_2' }),
+        new User({ id: 3, email: 'user3@mail.com', hash: 'hash_3' }),
+      ];
       const mailResponse = {
         mailConfirmationLink: 'link',
         mailSentInfo: {
           success: true,
         },
       } as MailRegistrationInterface;
-      const mailHistory = new MailHistory({
-        id: 1,
-        user: user,
-        hash: 'hash_1',
-      });
-      mailHistory.setInviteStatus(InviteStatusEnum.queued);
+      const mailHistories = [
+        new MailHistory({ id: 1, user: users[0], hash: 'hash_1' }),
+        new MailHistory({ id: 2, user: users[1], hash: 'hash_2' }),
+        new MailHistory({ id: 3, user: users[2], hash: 'hash_3' }),
+      ];
+      mailHistories[0].setInviteStatus(InviteStatusEnum.queued);
+      mailHistories[1].setInviteStatus(InviteStatusEnum.sent);
+      mailHistories[2].setInviteStatus(InviteStatusEnum.used);
       const dateNow = new Date('2023-01-01T10:00:00');
       const updatedMailHistory = {
         sentAt: dateNow,
         inviteStatus: new InviteStatus(InviteStatusEnum.sent),
       } as DeepPartial<MailHistory>;
 
-      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
-      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
-      jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
-      jest
-        .spyOn(mailService, 'sendConcludeRegistration')
-        .mockResolvedValue(mailResponse);
-      jest
-        .spyOn(global.Date, 'now')
-        .mockImplementation(() => dateNow.valueOf());
+      for (let i = 0; i < 3; i++) {
+        jest.spyOn(usersService, 'getOne').mockResolvedValue(users[i]);
+        jest
+          .spyOn(mailHistoryService, 'findOne')
+          .mockResolvedValue(mailHistories[i]);
+        jest
+          .spyOn(mailHistoryService, 'getRemainingQuota')
+          .mockResolvedValue(1);
+        jest
+          .spyOn(mailService, 'sendConcludeRegistration')
+          .mockResolvedValue(mailResponse);
+        jest
+          .spyOn(global.Date, 'now')
+          .mockImplementation(() => dateNow.valueOf());
 
-      // Act
-      await authService.resendRegisterMail(user);
+        // Act
+        const responsePromise = authService.resendRegisterMail(users[i]);
 
-      // Assert
-      expect(mailHistoryService.update).toBeCalledWith(
-        1,
-        updatedMailHistory,
-        expect.any(String),
-      );
+        // Assert
+        await expect(responsePromise).resolves.not.toThrowError();
+        expect(mailHistoryService.update).toBeCalledWith(
+          i + 1,
+          updatedMailHistory,
+          expect.any(String),
+        );
+      }
     });
   });
 
@@ -199,10 +215,10 @@ describe('AuthService', () => {
       jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(0);
 
       // Act
-      const response = authService.forgotPassword('user@mail.com');
+      const responsePromise = authService.forgotPassword('user@mail.com');
 
       // Assert
-      await expect(response).rejects.toThrowError();
+      await expect(responsePromise).rejects.toThrowError();
     });
 
     it('should not consume the quota when available', async () => {
