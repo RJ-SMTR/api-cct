@@ -39,7 +39,7 @@ export class AuthController {
   private logger: Logger = new Logger('AuthController', { timestamp: true });
 
   constructor(
-    private readonly service: AuthService,
+    private readonly authService: AuthService,
     private readonly mailHistoryService: MailHistoryService,
   ) {}
 
@@ -51,7 +51,7 @@ export class AuthController {
   public login(
     @Body() loginDto: AuthEmailLoginDto,
   ): Promise<LoginResponseType> {
-    return this.service.validateLogin(loginDto, false);
+    return this.authService.validateLogin(loginDto, false);
   }
 
   @SerializeOptions({
@@ -62,7 +62,7 @@ export class AuthController {
   public adminLogin(
     @Body() loginDTO: AuthEmailLoginDto,
   ): Promise<LoginResponseType> {
-    return this.service.validateLogin(loginDTO, true);
+    return this.authService.validateLogin(loginDTO, true);
   }
 
   @Post('email/register')
@@ -70,7 +70,7 @@ export class AuthController {
   async register(
     @Body() createUserDto: AuthRegisterLoginDto,
   ): Promise<void | object> {
-    return await this.service.register(createUserDto);
+    return await this.authService.register(createUserDto);
   }
 
   @Post('email/confirm')
@@ -78,7 +78,7 @@ export class AuthController {
   async confirmEmail(
     @Body() confirmEmailDto: AuthConfirmEmailDto,
   ): Promise<void> {
-    return this.service.confirmEmail(confirmEmailDto.hash);
+    return this.authService.confirmEmail(confirmEmailDto.hash);
   }
 
   @ApiBearerAuth()
@@ -92,7 +92,7 @@ export class AuthController {
   async resendRegisterMail(
     @Body() resendEmailDto: AuthResendEmailDto,
   ): Promise<void> {
-    return this.service.resendRegisterMail(resendEmailDto);
+    return this.authService.resendRegisterMail(resendEmailDto);
   }
 
   @Post('forgot/password')
@@ -100,13 +100,13 @@ export class AuthController {
   async forgotPassword(
     @Body() forgotPasswordDto: AuthForgotPasswordDto,
   ): Promise<void | object> {
-    return this.service.forgotPassword(forgotPasswordDto.email);
+    return this.authService.forgotPassword(forgotPasswordDto.email);
   }
 
   @Post('reset/password')
   @HttpCode(HttpStatus.NO_CONTENT)
   resetPassword(@Body() resetPasswordDto: AuthResetPasswordDto): Promise<void> {
-    return this.service.resetPassword(
+    return this.authService.resetPassword(
       resetPasswordDto.hash,
       resetPasswordDto.password,
     );
@@ -120,7 +120,7 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
   public me(@Request() request): Promise<NullableType<User>> {
-    return this.service.me(request.user);
+    return this.authService.me(request.user);
   }
 
   @ApiBearerAuth()
@@ -134,7 +134,7 @@ export class AuthController {
     @Request() request,
     @Body() userDto: AuthUpdateDto,
   ): Promise<NullableType<User>> {
-    return this.service.update(request.user, userDto);
+    return this.authService.update(request.user, userDto);
   }
 
   @ApiBearerAuth()
@@ -142,6 +142,6 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.NO_CONTENT)
   public async delete(@Request() request): Promise<void> {
-    return this.service.softDelete(request.user);
+    return this.authService.softDelete(request.user);
   }
 }

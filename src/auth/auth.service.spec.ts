@@ -1,7 +1,6 @@
 import { Provider } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { ForgotService } from 'src/forgot/forgot.service';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -54,12 +53,6 @@ describe('AuthService', () => {
         sendForgotPassword: jest.fn(),
       },
     } as Provider;
-    const coreBankServiceMock = {
-      provide: CoreBankService,
-      useValue: {
-        updateDataIfNeeded: jest.fn(),
-      },
-    } as Provider;
     const mailHistoryServiceMock = {
       provide: MailHistoryService,
       useValue: {
@@ -83,7 +76,6 @@ describe('AuthService', () => {
         usersServiceMock,
         forgotServiceMock,
         mailServiceMock,
-        coreBankServiceMock,
         mailHistoryServiceMock,
       ],
     }).compile();

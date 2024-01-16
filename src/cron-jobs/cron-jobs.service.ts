@@ -2,7 +2,6 @@ import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { JaeService } from 'src/jae/jae.service';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -25,7 +24,6 @@ import { validateEmail } from 'validations-br';
 export enum CrobJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
   updateJaeMockedData = 'updateJaeMockedData',
-  updateCoreBankMockedData = 'updateCoreBankMockedData',
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
 }
@@ -54,7 +52,6 @@ export class CronJobsService implements OnModuleInit {
     private mailService: MailService,
     private mailHistoryService: MailHistoryService,
     private jaeService: JaeService,
-    private coreBankService: CoreBankService,
     private usersService: UsersService,
   ) {}
 
@@ -67,13 +64,6 @@ export class CronJobsService implements OnModuleInit {
           cronJobParameters: {
             cronTime: CronExpression.EVERY_MINUTE,
             onTick: async () => this.updateJaeMockedData(),
-          },
-        },
-        {
-          name: CrobJobsEnum.updateCoreBankMockedData,
-          cronJobParameters: {
-            cronTime: CronExpression.EVERY_HOUR,
-            onTick: () => this.coreBankService.updateDataIfNeeded(),
           },
         },
         {
@@ -141,13 +131,6 @@ export class CronJobsService implements OnModuleInit {
   async updateJaeMockedData() {
     this.logger.log(`updateJaeMockedData(): Atualizando dados se necessário`);
     await this.jaeService.updateDataIfNeeded();
-  }
-
-  updateCoreBankMockedData() {
-    this.logger.log(
-      `updateCoreBankMockedData(): Atualizando dados se necessário`,
-    );
-    this.coreBankService.updateDataIfNeeded();
   }
 
   async bulkSendInvites() {
