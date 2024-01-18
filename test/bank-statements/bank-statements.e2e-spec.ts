@@ -9,7 +9,7 @@ import {
 
 describe('Bank statements (e2e)', () => {
   const app = APP_URL;
-  let apiToken;
+  let apiToken: any;
 
   beforeAll(async () => {
     await request(app)
@@ -40,7 +40,7 @@ describe('Bank statements (e2e)', () => {
     const requestArgs = {
       timeInterval: 'lastMonth',
     };
-    let bankStatements;
+    let bankStatements: any;
     await request(app)
       .get('/api/v1/bank-statements/me')
       .auth(apiToken, {
@@ -52,7 +52,7 @@ describe('Bank statements (e2e)', () => {
         bankStatements = body;
       });
 
-    let ticketRevenuesMe;
+    let ticketRevenuesMe: any;
     await request(app)
       .get('/api/v1/ticket-revenues/me')
       .auth(apiToken, {

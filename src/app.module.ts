@@ -30,7 +30,6 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { AllConfigType } from './config/config.type';
 import { InfoModule } from './info/info.module';
 import { AuthLicenseeModule } from './auth-licensee/auth-licensee.module';
-import { SgtuModule } from './sgtu/sgtu.module';
 import { MailHistoryModule } from './mail-history/mail-history.module';
 import { BanksModule } from './banks/banks.module';
 import { BankStatementsModule } from './bank-statements/bank-statements.module';
@@ -97,7 +96,6 @@ import { BigqueryModule } from './bigquery/bigquery.module';
     HomeModule,
     InfoModule,
     AuthLicenseeModule,
-    SgtuModule,
     MailHistoryModule,
     BanksModule,
     BankStatementsModule,

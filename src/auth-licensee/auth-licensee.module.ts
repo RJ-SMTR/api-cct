@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthLicenseeController } from './auth-licensee.controller';
 import { AuthLicenseeService } from './auth-licensee.service';
-import { SgtuModule } from 'src/sgtu/sgtu.module';
 import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -15,7 +14,6 @@ import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
   imports: [
     ConfigModule,
     AuthModule,
-    SgtuModule,
     UsersModule,
     MailModule,
     MailHistoryModule,

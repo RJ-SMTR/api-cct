@@ -6,8 +6,6 @@ import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { MailService } from 'src/mail/mail.service';
 import { RoleEnum } from 'src/roles/roles.enum';
-import { SgtuDto } from 'src/sgtu/dto/sgtu.dto';
-import { SgtuService } from 'src/sgtu/sgtu.service';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
@@ -28,11 +26,10 @@ export class AuthLicenseeService {
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
-    private sgtuService: SgtuService,
     private mailHistoryService: MailHistoryService,
     private baseValidator: BaseValidator,
     private mailService: MailService,
-  ) {}
+  ) { }
 
   async validateLogin(
     loginDto: AuthLicenseeLoginDto,
@@ -131,7 +128,10 @@ export class AuthLicenseeService {
 
     const user = await this.usersService.getOne({ id: invite.user.id });
 
-    if (user.id !== invite.user.id || typeof user.permitCode !== 'string') {
+    if (
+      user.id !== invite.user.id
+      || !user.permitCode || !user.fullName || !user.email
+    ) {
       throw new HttpException(
         {
           error: HttpErrorMessages.UNAUTHORIZED,
@@ -140,42 +140,9 @@ export class AuthLicenseeService {
               ...(user.id !== invite.user.id && {
                 id: 'invalidUserForInviteHash',
               }),
-              ...(typeof user.permitCode !== 'string' && {
-                permitCode: 'cantBeEmpty',
-              }),
-            },
-          },
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-
-    const sgtuProfile: SgtuDto = await this.sgtuService.getGeneratedProfile(
-      invite,
-    );
-
-    await this.baseValidator.validateOrReject(
-      sgtuProfile,
-      SgtuDto,
-      HttpStatus.UNAUTHORIZED,
-      HttpErrorMessages.UNAUTHORIZED,
-    );
-
-    if (
-      sgtuProfile.permitCode !== user.permitCode ||
-      sgtuProfile.email !== user.email
-    ) {
-      throw new HttpException(
-        {
-          error: HttpErrorMessages.UNAUTHORIZED,
-          details: {
-            user: {
-              ...(sgtuProfile.permitCode !== user.permitCode && {
-                id: 'differentPermitCodeFound',
-              }),
-              ...(sgtuProfile.email !== user.email && {
-                permitCode: 'differentEmailFound',
-              }),
+              ...(!user.permitCode && { permitCode: 'campoNulo' }),
+              ...(!user.fullName && { fullName: 'campoNulo' }),
+              ...(!user.email && { email: 'campoNulo' }),
             },
           },
         },
@@ -184,9 +151,9 @@ export class AuthLicenseeService {
     }
 
     const inviteResponse: IALInviteProfile = {
-      fullName: sgtuProfile.fullName,
-      permitCode: sgtuProfile.permitCode,
-      email: sgtuProfile.email,
+      fullName: user.fullName as string,
+      permitCode: user.permitCode,
+      email: user.email,
       hash: invite.hash,
       inviteStatus: invite.inviteStatus,
     };
@@ -253,17 +220,6 @@ export class AuthLicenseeService {
       );
     }
 
-    const sgtuProfile: SgtuDto = await this.sgtuService.getGeneratedProfile(
-      invite,
-    );
-
-    await this.baseValidator.validateOrReject(
-      sgtuProfile,
-      SgtuDto,
-      HttpStatus.UNAUTHORIZED,
-      HttpErrorMessages.UNAUTHORIZED,
-    );
-
     await this.mailHistoryService.update(
       invite.id,
       {
@@ -279,10 +235,6 @@ export class AuthLicenseeService {
       {
         password: registerDto.password,
         hash: hash,
-        fullName: sgtuProfile.fullName,
-        cpfCnpj: sgtuProfile.cpfCnpj,
-        permitCode: sgtuProfile.permitCode,
-        isSgtuBlocked: sgtuProfile.isSgtuBlocked,
         status: {
           id: StatusEnum.active,
         } as Status,

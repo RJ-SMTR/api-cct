@@ -173,7 +173,6 @@ export class User extends EntityHelper {
       'permitCode',
       'email',
       'passValidatorId',
-      'isSgtuBlocked',
       // editable
       'phone',
       'bankCode',

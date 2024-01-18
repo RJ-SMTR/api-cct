@@ -9,8 +9,6 @@ import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { MailService } from 'src/mail/mail.service';
 import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
-import { SgtuDto } from 'src/sgtu/dto/sgtu.dto';
-import { SgtuService } from 'src/sgtu/sgtu.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { BaseValidator } from 'src/utils/validators/base-validator';
@@ -25,7 +23,6 @@ describe('AuthLicenseeService', () => {
   let jwtService: JwtService;
   let usersService: UsersService;
   let mailHistoryService: MailHistoryService;
-  let sgtuService: SgtuService;
   let baseValidator: BaseValidator;
 
   beforeEach(async () => {
@@ -69,12 +66,6 @@ describe('AuthLicenseeService', () => {
         sign: jest.fn(),
       },
     } as Provider;
-    const sgtuServiceMock = {
-      provide: SgtuService,
-      useValue: {
-        getGeneratedProfile: jest.fn(),
-      },
-    } as Provider;
     const BaseValidatorMock = {
       provide: BaseValidator,
       useValue: {
@@ -90,7 +81,6 @@ describe('AuthLicenseeService', () => {
         forgotServiceMock,
         mailServiceMock,
         mailHistoryServiceMock,
-        sgtuServiceMock,
         BaseValidatorMock,
       ],
     }).compile();
@@ -98,7 +88,6 @@ describe('AuthLicenseeService', () => {
     authLicenseeService = module.get<AuthLicenseeService>(AuthLicenseeService);
     usersService = module.get<UsersService>(UsersService);
     mailHistoryService = module.get<MailHistoryService>(MailHistoryService);
-    sgtuService = module.get<SgtuService>(SgtuService);
     jwtService = module.get<JwtService>(JwtService);
     jwtService = module.get<JwtService>(JwtService);
     baseValidator = module.get<BaseValidator>(BaseValidator);
@@ -152,17 +141,9 @@ describe('AuthLicenseeService', () => {
         inviteStatus: new InviteStatus(InviteStatusEnum.sent),
         sentAt: dateNow,
       } as MailHistory;
-      const sgtuProfile = {
-        cpfCnpj: 'cpf1',
-        permitCode: 'permitCode1',
-        email: user.email,
-      } as SgtuDto;
       jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
       jest.spyOn(usersService, 'update').mockResolvedValue(user);
-      jest
-        .spyOn(sgtuService, 'getGeneratedProfile')
-        .mockResolvedValue(sgtuProfile);
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() => dateNow.valueOf());
