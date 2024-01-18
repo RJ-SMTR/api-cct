@@ -5,7 +5,6 @@ import { MailHistoryModule } from 'src/mail-history/mail-history.module';
 import { MailModule } from 'src/mail/mail.module';
 import { SettingsModule } from 'src/settings/settings.module';
 import { ConfigModule } from '@nestjs/config';
-import { JaeModule } from 'src/jae/jae.module';
 import { UsersModule } from 'src/users/users.module';
 import { MailCountModule } from 'src/mail-count/mail-count.module';
 
@@ -17,7 +16,6 @@ import { MailCountModule } from 'src/mail-count/mail-count.module';
     MailHistoryModule,
     MailModule,
     UsersModule,
-    JaeModule,
     MailCountModule,
   ],
   providers: [CronJobsService],

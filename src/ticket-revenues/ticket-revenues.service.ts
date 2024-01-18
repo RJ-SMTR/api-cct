@@ -4,7 +4,6 @@ import {
   BigqueryService,
   BigqueryServiceInstances,
 } from 'src/bigquery/bigquery.service';
-import { JaeService } from 'src/jae/jae.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
@@ -40,7 +39,6 @@ export class TicketRevenuesService {
   constructor(
     private readonly bigqueryService: BigqueryService,
     private readonly usersService: UsersService,
-    private jaeService: JaeService,
   ) {}
 
   public async getMeGroupedFromUser(
@@ -63,13 +61,8 @@ export class TicketRevenuesService {
       startDate,
       endDate,
     };
-    if (this.jaeService.isPermitCodeExists(user.permitCode)) {
-      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
-        fetchArgs,
-      );
-    } else {
-      ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
-    }
+
+    ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
@@ -112,13 +105,8 @@ export class TicketRevenuesService {
       endDate,
       getToday: GET_TODAY,
     };
-    if (this.jaeService.isPermitCodeExists(user.permitCode)) {
-      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
-        fetchArgs,
-      );
-    } else {
-      ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
-    }
+
+    ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
 
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
