@@ -6,7 +6,6 @@ import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { UsersService } from 'src/users/users.service';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { JaeService } from 'src/jae/jae.service';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { MailService } from 'src/mail/mail.service';
 import { SettingsService } from 'src/settings/settings.service';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
@@ -77,12 +76,6 @@ describe('CronJobsService', () => {
         updateDataIfNeeded: jest.fn(),
       },
     } as Provider;
-    const coreBankServiceMock = {
-      provide: CoreBankService,
-      useValue: {
-        updateDataIfNeeded: jest.fn(),
-      },
-    } as Provider;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -94,7 +87,6 @@ describe('CronJobsService', () => {
         usersServiceMock,
         schedulerRegistryMock,
         jaeServiceMock,
-        coreBankServiceMock,
       ],
     }).compile();
 

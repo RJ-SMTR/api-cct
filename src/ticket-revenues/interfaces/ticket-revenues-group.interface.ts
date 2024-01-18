@@ -31,9 +31,18 @@ export interface ITicketRevenuesGroup {
   /**
    * Represents counts of `transportType` (`modo`)
    *
-   * @description Tipo de transporte (SPPO = ônibus, STPL = van, BRT)
+   * @description Tipo de transporte
    * @type JSON
-   * @example {'SPPO': 123, 'STPL': 45}
+   * @example {
+   *    'Ônibus': {
+   *        'count': 12,
+   *        'transactionValue': 4.9
+   *    },
+   *    'VLT': {
+   *        'count': 45,
+   *        'transactionValue': 4.9
+   *    }
+   * }
    */
   transportTypeCounts: Record<string, ITRCounts>;
 

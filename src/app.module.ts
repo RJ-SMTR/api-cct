@@ -31,7 +31,6 @@ import { AllConfigType } from './config/config.type';
 import { InfoModule } from './info/info.module';
 import { AuthLicenseeModule } from './auth-licensee/auth-licensee.module';
 import { SgtuModule } from './sgtu/sgtu.module';
-import { CoreBankModule } from './core-bank/core-bank.module';
 import { MailHistoryModule } from './mail-history/mail-history.module';
 import { JaeModule } from './jae/jae.module';
 import { BanksModule } from './banks/banks.module';
@@ -100,7 +99,6 @@ import { BigqueryModule } from './bigquery/bigquery.module';
     InfoModule,
     AuthLicenseeModule,
     SgtuModule,
-    CoreBankModule,
     MailHistoryModule,
     JaeModule,
     BanksModule,

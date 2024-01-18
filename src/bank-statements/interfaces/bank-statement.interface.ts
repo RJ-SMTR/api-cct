@@ -1,4 +1,4 @@
-export interface ICoreBankStatements {
+export interface IBankStatement {
   id: number;
   permitCode: string;
   cpfCnpj: string;

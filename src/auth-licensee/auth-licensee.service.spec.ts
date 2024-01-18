@@ -1,7 +1,6 @@
 import { Provider } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { ForgotService } from 'src/forgot/forgot.service';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
@@ -57,12 +56,6 @@ describe('AuthLicenseeService', () => {
         forgotPassword: jest.fn(),
       },
     } as Provider;
-    const coreBankServiceMock = {
-      provide: CoreBankService,
-      useValue: {
-        updateDataIfNeeded: jest.fn(),
-      },
-    } as Provider;
     const mailHistoryServiceMock = {
       provide: MailHistoryService,
       useValue: {
@@ -105,7 +98,6 @@ describe('AuthLicenseeService', () => {
         usersServiceMock,
         forgotServiceMock,
         mailServiceMock,
-        coreBankServiceMock,
         mailHistoryServiceMock,
         sgtuServiceMock,
         jaeServiceMock,

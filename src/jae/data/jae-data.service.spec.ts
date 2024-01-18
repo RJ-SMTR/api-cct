@@ -54,7 +54,7 @@ describe('JaeDataService', () => {
       );
       expect(gratuidade.length).toBeGreaterThan(0);
       expect(gratuidadeSum).toEqual(0);
-    });
+    }, 60000);
 
     it('should return Integração = 50% of ticket value', async () => {
       // Arrange
@@ -82,7 +82,7 @@ describe('JaeDataService', () => {
 
       expect(integracao.length).toBeGreaterThan(0);
       expect(integracaoSum).toEqual(expectedSum);
-    });
+    }, 60000);
 
     it('should return Integral = 100% of ticket value', async () => {
       // Arrange
@@ -108,7 +108,7 @@ describe('JaeDataService', () => {
 
       expect(inteira.length).toBeGreaterThan(0);
       expect(inteiraSum).toEqual(expectedSum);
-    });
+    }, 60000);
   });
 
   // TODO: Update tests

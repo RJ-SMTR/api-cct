@@ -156,7 +156,7 @@ describe('TicketRevenuesService', () => {
       ).toEqual(0);
     });
 
-    it('should count and transactionValueSum match sum of transactionType properties', async () => {
+    it('should count and match transactionValueSum with sum of transactionType properties', async () => {
       // Arrange
       const revenues: ITicketRevenue[] = [];
       for (let day = 3; day >= 1; day--) {

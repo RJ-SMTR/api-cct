@@ -12,6 +12,7 @@ import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import {
   PAYMENT_START_WEEKDAY,
+  PaymentEndpointType,
   getPaymentDates,
 } from 'src/utils/payment-date-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
@@ -44,7 +45,7 @@ export class TicketRevenuesService {
 
   public async getMeGroupedFromUser(
     args: ITicketRevenuesGetGrouped,
-    endpoint: string,
+    endpoint: PaymentEndpointType,
   ): Promise<ITicketRevenuesGroup> {
     // Args
     const user = await this.getUser(args);
@@ -91,7 +92,7 @@ export class TicketRevenuesService {
   public async getMeFromUser(
     args: ITicketRevenuesGetGrouped,
     pagination: IPaginationOptions,
-    endpoint: string,
+    endpoint: PaymentEndpointType,
   ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.getUser(args);
     const GET_TODAY = true;
@@ -341,31 +342,31 @@ export class TicketRevenuesService {
     // Query
     const query =
       `
-SELECT
-  CAST(data AS STRING) AS partitionDate,
-  hora AS processingHour,
-  CAST(datetime_transacao AS STRING) AS transactionDateTime,
-  CAST(datetime_processamento AS STRING) AS processingDateTime,
-  datetime_captura AS captureDateTime,
-  modo AS transportType,
-  permissao AS permitCode,
-  servico AS vehicleService,
-  sentido AS directionId,
-  id_veiculo AS vehicleId,
-  id_cliente AS clientId,
-  id_transacao AS transactionId,
-  id_tipo_pagamento AS paymentMediaType,
-  id_tipo_transacao AS transactionType,
-  id_tipo_integracao AS transportIntegrationType,
-  id_integracao AS integrationId,
-  latitude AS transactionLat,
-  longitude AS transactionLon,
-  stop_id AS stopId,
-  stop_lat AS stopLat,
-  stop_lon AS stopLon,
-  valor_transacao AS transactionValue,
-  versao AS bqDataVersion
-FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
+      SELECT
+        CAST(data AS STRING) AS partitionDate,
+        hora AS processingHour,
+        CAST(datetime_transacao AS STRING) AS transactionDateTime,
+        CAST(datetime_processamento AS STRING) AS processingDateTime,
+        datetime_captura AS captureDateTime,
+        modo AS transportType,
+        permissao AS permitCode,
+        servico AS vehicleService,
+        sentido AS directionId,
+        id_veiculo AS vehicleId,
+        id_cliente AS clientId,
+        id_transacao AS transactionId,
+        id_tipo_pagamento AS paymentMediaType,
+        id_tipo_transacao AS transactionType,
+        id_tipo_integracao AS transportIntegrationType,
+        id_integracao AS integrationId,
+        latitude AS transactionLat,
+        longitude AS transactionLon,
+        stop_id AS stopId,
+        stop_lat AS stopLat,
+        stop_lon AS stopLon,
+        valor_transacao AS transactionValue,
+        versao AS bqDataVersion
+      FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
       (queryBuilderStr.length ? `\nWHERE ${queryBuilderStr}` : '') +
       `\nORDER BY data DESC, hora DESC` +
       (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
@@ -390,10 +391,6 @@ FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
             ? PaymentType?.[paymentType] || paymentType
             : paymentType,
         transportIntegrationType:
-          integrationType !== null
-            ? IntegrationType?.[integrationType] || integrationType
-            : integrationType,
-        transportType:
           integrationType !== null
             ? IntegrationType?.[integrationType] || integrationType
             : integrationType,

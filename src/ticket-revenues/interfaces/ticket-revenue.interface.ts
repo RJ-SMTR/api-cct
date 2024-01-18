@@ -1,5 +1,3 @@
-import { BqApiTicketRevenuesTransportTypeEnum } from 'src/bigquery/enums/bq-api-ticket-revenues-transport-type.enum';
-
 /**
  * Internal representation of `IBqApiTicketRevenues`
  *
@@ -62,10 +60,10 @@ export interface ITicketRevenue {
   /**
    * Represents `modo`
    *
-   * @description Tipo de transporte (SPPO = ônibus, STPL = van, BRT)
-   * @example 'SPPO', 'STPL'
+   * @description Tipo de transporte
+   * @options 'BRT', 'Ônibus', 'Van', 'VLT'
    */
-  transportType: BqApiTicketRevenuesTransportTypeEnum | string | null;
+  transportType: string | null;
 
   /**
    * **Important field**

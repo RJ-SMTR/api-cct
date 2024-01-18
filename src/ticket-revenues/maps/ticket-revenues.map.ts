@@ -1,9 +1,15 @@
+/**
+ * Ticket revenues payment type map
+ */
 export const TRPaymentTypeMap = {
   1: 'Cartão',
   2: 'QRCode',
   3: 'NFC',
 };
 
+/**
+ * Ticket revenues transaction type map
+ */
 export const TRTransactionTypeMap = {
   1: 'Débito',
   2: 'Recarga',
@@ -15,6 +21,9 @@ export const TRTransactionTypeMap = {
   4: 'Integração',
 };
 
+/**
+ * Ticket revenues integration type map
+ */
 export const TRIntegrationTypeMap = {
   3: 'Bu municipal',
   2: 'Integração',

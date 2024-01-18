@@ -7,9 +7,6 @@ import {
   LICENSEE_PERMIT_CODE,
 } from '../utils/constants';
 
-/**
- * @see {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 Requirements - GitHub}
- */
 describe('Bank statements (e2e)', () => {
   const app = APP_URL;
   let apiToken;
@@ -73,7 +70,10 @@ describe('Bank statements (e2e)', () => {
     expect(bankStatements.todaySum).toEqual(ticketRevenuesMe.todaySum);
   }, 60000);
 
-  it('Should match amountSum in /bank-statements with /ticket-revenues/me in the same month', async () => {
+  it('Should match amountSum in /bank-statements with /ticket-revenues/me in the same month', /**
+   * Requirements:
+   * - 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 8 - GitHub}
+   */ async () => {
     // Arrange
     let friday = new Date();
     if (!isFriday(friday)) {
@@ -81,7 +81,7 @@ describe('Bank statements (e2e)', () => {
     }
 
     // Act
-    let bankStatements;
+    let bankStatements: any;
     await request(app)
       .get('/api/v1/bank-statements/me')
       .auth(apiToken, {
@@ -100,7 +100,7 @@ describe('Bank statements (e2e)', () => {
     const bsEndDate = new Date(bankStatements.data[0].date);
     bsEndDate.setDate(bsEndDate.getDate() - 2);
 
-    let ticketRevenuesMe;
+    let ticketRevenuesMe: any;
     await request(app)
       .get('/api/v1/ticket-revenues/me')
       .auth(apiToken, {
@@ -120,7 +120,10 @@ describe('Bank statements (e2e)', () => {
     expect(bankStatements.amountSum).toEqual(ticketRevenuesMe.amountSum);
   }, 60000);
 
-  it('Should match amountSum in /bank-statements with /ticket-revenues/me in the same week', async () => {
+  it('Should match amountSum in /bank-statements with /ticket-revenues/me in the same week', /**
+   * Requirements:
+   * - 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 7 - GitHub}
+   */ async () => {
     // Arrange
     let friday = new Date();
     if (isSameMonth(friday, nextFriday(friday))) {
@@ -168,7 +171,87 @@ describe('Bank statements (e2e)', () => {
     expect(bankStatementsFriday.amount).toEqual(ticketRevenuesMe.amountSum);
   }, 60000);
 
-  it('Should match amountSum in /bank-statements/me with transactionValueSum in ticket-revenues/grouped/me', async () => {
+  it('Should match amounts per category in /ticket-revenues/me vs ticket-revenues/grouped/me', /**
+   * Requirements:
+   * - 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 9 - GitHub}
+   */ async () => {
+    // Arrange
+    const requestArgs = {
+      timeInterval: 'lastWeek',
+    };
+
+    // Act
+    let revenuesMe: any;
+    await request(app)
+      .get('/api/v1/ticket-revenues/me')
+      .auth(apiToken, {
+        type: 'bearer',
+      })
+      .query(requestArgs)
+      .expect(200)
+      .then(({ body }) => {
+        revenuesMe = body;
+      });
+
+    let revenuesMeGrouped: any;
+    await request(app)
+      .get('/api/v1/ticket-revenues/me/grouped')
+      .auth(apiToken, {
+        type: 'bearer',
+      })
+      .query(requestArgs)
+      .expect(200)
+      .then(({ body }) => {
+        revenuesMeGrouped = body;
+      });
+
+    // Assert
+    const transactionTypeSum = Number(
+      (revenuesMe.data as [])
+        .reduce(
+          (sum, i: any) =>
+            sum + i?.transactionTypeCounts?.['Integração']?.transactionValue ||
+            0,
+          0,
+        )
+        .toFixed(2),
+    );
+    const transportTypeSum = Number(
+      (revenuesMe.data as [])
+        .reduce(
+          (sum, i: any) =>
+            sum + i?.transportTypeCounts?.['1']?.transactionValue || 0,
+          0,
+        )
+        .toFixed(2),
+    );
+    const transportIntegrationSum = Number(
+      (revenuesMe.data as [])
+        .reduce(
+          (sum, i: any) =>
+            sum +
+              i?.transportIntegrationTypeCounts?.['BRT']?.transactionValue || 0,
+          0,
+        )
+        .toFixed(2),
+    );
+    expect(
+      revenuesMeGrouped.transactionTypeCounts?.['Integração']
+        ?.transactionValue || 0,
+    ).toEqual(transactionTypeSum);
+    expect(
+      revenuesMeGrouped.transportTypeCounts?.['1']?.transactionValue || 0,
+    ).toEqual(transportTypeSum);
+    expect(
+      revenuesMeGrouped.transportIntegrationTypeCounts?.['BRT']
+        ?.transactionValue || 0,
+    ).toEqual(transportIntegrationSum);
+  }, 60000);
+
+  it('Should match amountSum in /bank-statements/me with transactionValueSum in ticket-revenues/grouped/me', /**
+   * Requirements:
+   * - 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 10 - GitHub}
+   */ async () => {
     // Arrange
     const requestArgs = {
       timeInterval: 'lastMonth',
@@ -205,14 +288,17 @@ describe('Bank statements (e2e)', () => {
     );
   }, 60000);
 
-  it('Should match ticketCounts in /bank-statements with counts in ticket-revenues/grouped/me', async () => {
+  it('Should match ticketCounts in /bank-statements with counts in ticket-revenues/grouped/me', /**
+   * Requirements:
+   * - 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item ?? - GitHub}
+   */ async () => {
     // Arrange
     const requestArgs = {
       timeInterval: 'lastMonth',
     };
 
     // Act
-    let bankStatements;
+    let bankStatements: any;
     await request(app)
       .get('/api/v1/bank-statements/me')
       .auth(apiToken, {
@@ -224,7 +310,7 @@ describe('Bank statements (e2e)', () => {
         bankStatements = body;
       });
 
-    let revenuesMeGrouped;
+    let revenuesMeGrouped: any;
     await request(app)
       .get('/api/v1/ticket-revenues/me/grouped')
       .auth(apiToken, {
