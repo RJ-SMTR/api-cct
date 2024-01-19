@@ -67,7 +67,6 @@ export class TicketRevenuesController {
       userId: isUserIdNumber ? userId : request.user.id,
     };
     const pagination: IPaginationOptions = { limit, page };
-    console.log({ args });
     const response = await this.ticketRevenuesService.getMeFromUser(
       args,
       pagination,

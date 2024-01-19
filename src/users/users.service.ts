@@ -87,7 +87,6 @@ export class UsersService {
     paginationOptions: IPaginationOptions,
     fields?: IFindUserPaginated,
   ): Promise<User[]> {
-    console.log('findManyWithPagination');
     const isSgtuBlocked = fields?.isSgtuBlocked || fields?._anyField?.value;
 
     let inviteStatus: any = null;
