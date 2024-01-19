@@ -24,7 +24,6 @@ import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-gro
 import {
   TRIntegrationTypeMap as IntegrationType,
   TRPaymentTypeMap as PaymentType,
-  TRTransactionTypeMap as TransactionType,
 } from './maps/ticket-revenues.map';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
@@ -70,15 +69,6 @@ export class TicketRevenuesService {
       return new TicketRevenuesGroup().toInterface();
     }
     const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
-    console.log({
-      message: 'GET GROUPED',
-      groupSum: ticketRevenuesGroupSum.transactionValueSum,
-      individualSum: Number(
-        ticketRevenuesResponse
-          .reduce((sum, i) => sum + (i?.transactionValue || 0), 0)
-          .toFixed(2),
-      ),
-    });
 
     return ticketRevenuesGroupSum;
   }
@@ -348,7 +338,7 @@ export class TicketRevenuesService {
         id_cliente AS clientId,
         id_transacao AS transactionId,
         id_tipo_pagamento AS paymentMediaType,
-        id_tipo_transacao AS transactionType,
+        tipo_transacao AS transactionType,
         id_tipo_integracao AS transportIntegrationType,
         id_integracao AS integrationId,
         latitude AS transactionLat,
@@ -369,13 +359,15 @@ export class TicketRevenuesService {
     return ticketRevenues;
   }
 
+  /**
+   * Convert id values into string values
+   */
   private mapTicketRevenues(
     ticketRevenues: ITicketRevenue[],
   ): ITicketRevenue[] {
     return ticketRevenues.map((item: ITicketRevenue) => {
       const paymentType = item.paymentMediaType;
       const integrationType = item.transportIntegrationType;
-      const transactionType = item.transactionType;
       return {
         ...item,
         paymentMediaType:
@@ -386,10 +378,6 @@ export class TicketRevenuesService {
           integrationType !== null
             ? IntegrationType?.[integrationType] || integrationType
             : integrationType,
-        transactionType:
-          transactionType !== null
-            ? TransactionType[transactionType] || transactionType
-            : transactionType,
       };
     });
   }

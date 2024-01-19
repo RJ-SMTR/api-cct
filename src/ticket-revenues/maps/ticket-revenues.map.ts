@@ -8,20 +8,6 @@ export const TRPaymentTypeMap = {
 };
 
 /**
- * Ticket revenues transaction type map
- */
-export const TRTransactionTypeMap = {
-  1: 'Débito',
-  2: 'Recarga',
-  98: 'Riocard',
-  6: 'Bloqueio',
-  99: 'Botoeria',
-  21: 'Gratuidade',
-  3: 'Cancelamento',
-  4: 'Integração',
-};
-
-/**
  * Ticket revenues integration type map
  */
 export const TRIntegrationTypeMap = {

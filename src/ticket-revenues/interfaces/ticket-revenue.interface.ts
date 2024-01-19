@@ -134,11 +134,10 @@ export interface ITicketRevenue {
   /**
    * **Important field**
    *
-   * Represents `id_tipo_transacao`
+   * Represents `tipo_transacao`
    *
    * @description Tipo de transação realizada
-   * @type `TicketRevenuesTransactionTypeMap`
-   * @example 'Riocard' = 98
+   * @example 'Débito', 'Recarga', 'Riocard', 'Bloqueio', 'Botoeria', 'Gratuidade', 'Cancelamento', 'Integração'
    */
   transactionType: string | null;
 
