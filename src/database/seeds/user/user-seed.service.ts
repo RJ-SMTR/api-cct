@@ -17,11 +17,11 @@ export class UserSeedService {
     private userSeedDataService: UserSeedDataService,
   ) {}
 
+  async validateRun() {
+    return global.force || (await this.userSeedRepository.count()) === 0;
+  }
+
   async run() {
-    if (!(await this.validateRun())) {
-      this.logger.log('Database is not empty. Aborting seed...');
-      return;
-    }
     this.logger.log(
       `run() ${this.userSeedDataService.getDataFromConfig().length} items`,
     );
@@ -35,7 +35,7 @@ export class UserSeedService {
       let createdItem: User;
       if (foundItem) {
         const newItem = new User(foundItem);
-        newItem.update(item);
+        newItem.update(item, true);
         await this.userSeedRepository.save(
           this.userSeedRepository.create(newItem),
         );
@@ -88,9 +88,5 @@ export class UserSeedService {
         .digest('hex');
     }
     return hash;
-  }
-
-  async validateRun() {
-    return global.force || (await this.userSeedRepository.count()) === 0;
   }
 }

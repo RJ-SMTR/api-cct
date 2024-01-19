@@ -29,7 +29,7 @@ export class AuthLicenseeService {
     private mailHistoryService: MailHistoryService,
     private baseValidator: BaseValidator,
     private mailService: MailService,
-  ) { }
+  ) {}
 
   async validateLogin(
     loginDto: AuthLicenseeLoginDto,
@@ -129,8 +129,10 @@ export class AuthLicenseeService {
     const user = await this.usersService.getOne({ id: invite.user.id });
 
     if (
-      user.id !== invite.user.id
-      || !user.permitCode || !user.fullName || !user.email
+      user.id !== invite.user.id ||
+      !user.permitCode ||
+      !user.fullName ||
+      !user.email
     ) {
       throw new HttpException(
         {

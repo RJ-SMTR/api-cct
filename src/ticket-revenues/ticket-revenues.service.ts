@@ -29,6 +29,7 @@ import {
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
+import { formatLog } from 'src/utils/logging';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -182,7 +183,10 @@ export class TicketRevenuesService {
     if (groupSums.length >= 1) {
       if (groupSums.length > 1) {
         this.logger.error(
-          'getGroupedFromUser(): ticketRevenuesGroupSum should have 0-1 items, getting first one.',
+          formatLog(
+            'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
+            `${this.getMeGroupedFromUser.name}() -> ${this.getGroupSum.name}()`,
+          ),
         );
       }
       return groupSums[0];

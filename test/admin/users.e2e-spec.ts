@@ -34,13 +34,13 @@ describe('Admin managing users (e2e)', () => {
   });
 
   describe('Setup tests', () => {
-    it('Should have UTC and local timezones', () => {
+    it('should have UTC and local timezones', () => {
       new Date().getTimezoneOffset();
       expect(process.env.TZ).toEqual('UTC');
       expect(global.__localTzOffset).toBeDefined();
     });
 
-    it('Should have mailDev server', async () => {
+    it('should have mailDev server', async () => {
       await request(MAILDEV_URL).get('').expect(HttpStatus.OK);
     });
   });
@@ -59,7 +59,7 @@ describe('Admin managing users (e2e)', () => {
         })
         .query({ permitCode: LICENSEE_PERMIT_CODE })
         .expect(({ body }) => {
-          expect(body.data.length).toBe(1);
+          expect(body.data?.length).toBe(1);
         })
         .then(({ body }) => body.data);
       const licenseePartOfName = 'user';
@@ -180,7 +180,7 @@ describe('Admin managing users (e2e)', () => {
         })
         .query({ permitCode: uploadUsers[0].codigo_permissionario })
         .expect(({ body }) => {
-          expect(body.data.length).toBe(1);
+          expect(body.data?.length).toBe(1);
           expect(body.data[0]?.fullName).toEqual(
             stringUppercaseUnaccent(uploadUsers[0].nome),
           );

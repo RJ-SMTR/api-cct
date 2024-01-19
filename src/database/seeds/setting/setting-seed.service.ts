@@ -14,6 +14,10 @@ export class SettingSeedService {
     private repository: Repository<SettingEntity>,
   ) {}
 
+  async validateRun() {
+    return Promise.resolve(true);
+  }
+
   async run() {
     let id = 1;
     for (const item of settingSeedData) {

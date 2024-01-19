@@ -67,7 +67,7 @@ export interface ITicketRevenue {
 
   /**
    * **Important field**
-   * 
+   *
    * Represents `permissao`
    *
    * @description Número da permissão do operador

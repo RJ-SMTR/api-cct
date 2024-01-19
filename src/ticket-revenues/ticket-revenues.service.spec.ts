@@ -36,6 +36,10 @@ describe('TicketRevenuesService', () => {
     usersService = module.get<UsersService>(UsersService);
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('Setup tests', () => {
     test('timezone should be UTC', () => {
       expect(new Date().getTimezoneOffset()).toBe(0);
@@ -50,7 +54,7 @@ describe('TicketRevenuesService', () => {
   /**
    * @see {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 Requirements - GitHub}
    */
-  xdescribe('getMeGroupedFromUser', () => {
+  describe('getMeGroupedFromUser', () => {
     it('should return Gratuidade = R$ 0.00', async () => {
       // Arrange
       const revenues: ITicketRevenue[] = [];
@@ -123,6 +127,9 @@ describe('TicketRevenuesService', () => {
       user.id = 1;
       user.permitCode = 'permitCode_1';
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest
+        .spyOn(ticketRevenuesService as any, 'fetchTicketRevenues')
+        .mockResolvedValue(revenues);
 
       // Act
       const result = await ticketRevenuesService.getMeGroupedFromUser(
@@ -212,6 +219,9 @@ describe('TicketRevenuesService', () => {
       user.id = 1;
       user.permitCode = 'permitCode_1';
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest
+        .spyOn(ticketRevenuesService as any, 'fetchTicketRevenues')
+        .mockResolvedValue(revenues);
 
       // Act
       const result = await ticketRevenuesService.getMeGroupedFromUser(

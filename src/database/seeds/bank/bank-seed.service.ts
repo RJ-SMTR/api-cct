@@ -11,6 +11,10 @@ export class BankSeedService {
     private repository: Repository<Bank>,
   ) {}
 
+  async validateRun() {
+    return Promise.resolve(true);
+  }
+
   async run() {
     const items = bankData
       .filter((i) => !isNaN(i.ispb))

@@ -117,8 +117,23 @@ export class UserSeedDataService {
       ...(nodeEnv() === 'local' || nodeEnv() === 'test'
         ? ([
             {
-              id: 1,
-              fullName: 'Administrador',
+              fullName: 'Henrique Santos Template',
+              email: 'henrique@example.com',
+              password: 'secret',
+              permitCode: '213890329890312',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+            },
+            {
+              fullName: 'Márcia Clara Template',
+              email: 'marcia@example.com',
+              password: 'secret',
+              permitCode: '319274392832023',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+            },
+            {
+              fullName: 'Administrador Teste',
               email: 'admin@example.com',
               password: 'secret',
               permitCode: '',
@@ -126,8 +141,8 @@ export class UserSeedDataService {
               status: { id: StatusEnum.active } as Status,
             },
             {
-              fullName: 'Administrador Teste',
-              email: 'admin.test@example.com',
+              fullName: 'Administrador Teste 2',
+              email: 'admin2@example.com',
               password: 'secret',
               permitCode: '',
               role: { id: RoleEnum.admin } as Role,

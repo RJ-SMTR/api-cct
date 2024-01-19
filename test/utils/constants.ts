@@ -6,7 +6,7 @@ export const MAILDEV_URL = `http://${process.env.MAIL_HOST}:${process.env.MAIL_C
 
 export const ADMIN_EMAIL = process.env.TEST_ADMIN_EMAIL || 'admin@example.com';
 export const ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD || 'secret';
-export const ADMIN_2_EMAIL = 'admin.test@example.com';
+export const ADMIN_2_EMAIL = 'admin2@example.com';
 export const ADMIN_2_PASSWORD = 'secret';
 
 export const LICENSEE_EMAIL = 'henrique@example.com';

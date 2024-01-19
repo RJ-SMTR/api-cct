@@ -27,7 +27,7 @@ describe('Bank statements (e2e)', () => {
     });
   });
 
-  it('Should match todaySum in /bank-statements with /ticket-revenues/me', async () => {
+  it('should match todaySum in /bank-statements with /ticket-revenues/me', async () => {
     // Arrange
     let friday = new Date();
     if (!isFriday(friday)) {
@@ -70,7 +70,7 @@ describe('Bank statements (e2e)', () => {
     expect(bankStatements.todaySum).toEqual(ticketRevenuesMe.todaySum);
   }, 60000);
 
-  it('Should match amountSum in /bank-statements with /ticket-revenues/me in the same month', /**
+  it('should match amountSum in /bank-statements with /ticket-revenues/me in the same month', /**
    * Requirements:
    * - 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 8 - GitHub}
    */ async () => {
@@ -120,7 +120,7 @@ describe('Bank statements (e2e)', () => {
     expect(bankStatements.amountSum).toEqual(ticketRevenuesMe.amountSum);
   }, 60000);
 
-  it('Should match amountSum in /bank-statements with /ticket-revenues/me in the same week', /**
+  it('should match amountSum in /bank-statements with /ticket-revenues/me in the same week', /**
    * Requirements:
    * - 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 7 - GitHub}
    */ async () => {
@@ -171,7 +171,7 @@ describe('Bank statements (e2e)', () => {
     expect(bankStatementsFriday.amount).toEqual(ticketRevenuesMe.amountSum);
   }, 60000);
 
-  it('Should match amounts per category in /ticket-revenues/me vs ticket-revenues/grouped/me', /**
+  it('should match amounts per category in /ticket-revenues/me vs ticket-revenues/grouped/me', /**
    * Requirements:
    * - 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 9 - GitHub}
    */ async () => {
@@ -248,7 +248,7 @@ describe('Bank statements (e2e)', () => {
     ).toEqual(transportIntegrationSum);
   }, 60000);
 
-  it('Should match amountSum in /bank-statements/me with transactionValueSum in ticket-revenues/grouped/me', /**
+  it('should match amountSum in /bank-statements/me with transactionValueSum in ticket-revenues/grouped/me', /**
    * Requirements:
    * - 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 10 - GitHub}
    */ async () => {
@@ -288,7 +288,7 @@ describe('Bank statements (e2e)', () => {
     );
   }, 60000);
 
-  it('Should match ticketCounts in /bank-statements with counts in ticket-revenues/grouped/me', /**
+  it('should match ticketCounts in /bank-statements with counts in ticket-revenues/grouped/me', /**
    * Requirements:
    * - 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item ?? - GitHub}
    */ async () => {
