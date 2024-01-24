@@ -119,7 +119,7 @@ export class CronJobsService implements OnModuleInit {
         {
           name: CrobJobsEnum.bulkReSendInvites,
           cronJobParameters: {
-            cronTime: '30 22 * * *',  // 22:30 GMT = 19:30 BRT (GMT-3)
+            cronTime: '10 22 * * *',  // 22:10 GMT = 19:10 BRT (GMT-3)
             onTick: async () => this.bulkReSendInvites(),
           },
         },
