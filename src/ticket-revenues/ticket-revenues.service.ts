@@ -337,8 +337,9 @@ export class TicketRevenuesService {
         t.stop_lon AS stopLon,
         t.valor_transacao AS transactionValue,
         t.versao AS bqDataVersion
-      FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t` +
-      `\nLEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.operadora ` +
+      FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+      LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora` +
+      ' ' +
       (queryBuilderStr.length ? `\nWHERE ${queryBuilderStr}` : '') +
       `\nORDER BY data DESC, hora DESC` +
       (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
