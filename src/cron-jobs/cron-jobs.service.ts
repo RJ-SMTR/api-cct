@@ -28,7 +28,7 @@ export enum CrobJobsEnum {
   updateCoreBankMockedData = 'updateCoreBankMockedData',
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
-  resendEmails = 'bulkReSendInvites'
+  bulkReSendInvites = 'bulkReSendInvites',
 }
 
 interface ICronJob {
@@ -117,9 +117,9 @@ export class CronJobsService implements OnModuleInit {
           },
         },
         {
-          name: CrobJobsEnum.resendEmails,
+          name: CrobJobsEnum.bulkReSendInvites,
           cronJobParameters: {
-            cronTime: CronExpression.EVERY_DAY_AT_10AM,
+            cronTime: CronExpression.EVERY_MINUTE,
             onTick: async () => this.bulkReSendInvites(),
           },
         },
@@ -597,26 +597,55 @@ export class CronJobsService implements OnModuleInit {
     };
   }
 
-  async getEmail(){
+  async getEmail() {
     return await this.mailHistoryService.emailsNaoCadastrados();
-  } 
-
-  async enviarEmail(){    
-    const mailSentInfo = await this.mailService.reSendEmailBank({
-      to: await this.getEmail(),
-      data: {
-        statusCount: await this.mailHistoryService.getStatusCount(),
-      },
-    } as any);
   }
 
   async bulkReSendInvites() {
     const THIS_METHOD = `${this.bulkReSendInvites.name}()`;
-    const users = this.mailHistoryService.emailsNaoCadastrados;
+    const emails = (
+      await this.mailHistoryService.emailsNaoCadastrados()
+    ).reduce((emails: string[], user) => [...emails, String(user.email)], []);
 
-    for (let index = 0; index < users.length; index++) {
-      this.mailService.reSendEmailBank( users[index].email);
-      this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
-    }; 
+    if (emails.length === 0) {
+      this.logger.log(
+        formatLog('Não há usuários para enviar, abortando...', THIS_METHOD),
+      );
+      return;
+    }
+
+    try {
+      const mailSentInfo = await this.mailService.reSendEmailBank({
+        to: emails,
+        data: null,
+      });
+
+      // Success
+      if (mailSentInfo.success) {
+        this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+      }
+
+      // SMTP error
+      else {
+        this.logger.error(
+          formatErrorLog(
+            'Email enviado retornou erro.',
+            mailSentInfo,
+            new Error(),
+            THIS_METHOD,
+          ),
+        );
+      }
+    } catch (httpException) {
+      // API error
+      this.logger.error(
+        formatErrorLog(
+          'Email falhou ao enviar.',
+          httpException,
+          httpException as Error,
+          THIS_METHOD,
+        ),
+      );
+    }
   }
 }
