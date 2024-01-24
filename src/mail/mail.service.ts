@@ -218,12 +218,10 @@ export class MailService {
    */
   async reSendEmailBank(mailData: MailData<null>): Promise<MailSentInfo> {
     const mailTitle =
-      'PREFEITURA DO MUNICIPIO DO RIO DE JANEIRO - COMUNICADO IMPORTANTE!';
+      'PREFEITURA DO RIO DE JANEIRO - COMUNICADO IMPORTANTE!';
     const from = this.configService.get('mail.senderNotification', {
       infer: true,
     });
-    let testRecipient = mailData.to; // Avoid tslint error
-    testRecipient = 'bernardo.marcos64@gmail.com';
     if (!from) {
       throw new HttpException(
         {
@@ -242,7 +240,7 @@ export class MailService {
       });
       const response = await this.safeSendMail({
         from,
-        to: testRecipient,
+        to: mailData.to,
         subject: mailTitle,
         text: mailTitle,
         template: 'report_resent_email',
