@@ -217,7 +217,7 @@ export class MailService {
    * @throws `HttpException`
    */
   async reSendEmailBank(mailData: MailData<null>): Promise<MailSentInfo> {
-    const mailTitle = 'SMTR RJ - CADASTRAMENTO DADOS BANCÁRIOS';
+    const mailTitle = 'PREFEITURA DO MUNICIPIO DO RIO DE JANEIRO - COMUNICADO IMPORTANTE!';
     const from = this.configService.get('mail.senderNotification', {
       infer: true,
     });
