@@ -212,4 +212,48 @@ export class MailService {
       throw httpException;
     }
   }
+
+
+  /**
+   * @throws `HttpException`
+   */
+  async reSendEmailBank(
+    mailData: MailData): Promise<MailSentInfo> {
+    const mailTitle = 'SMTR RJ - CADASTRAMENTO DADOS BANCÁRIOS';
+    const from = this.configService.get('mail.senderNotification', {
+      infer: true,
+    });
+
+    if (!from) {
+      throw new HttpException(
+        {
+          error: HttpStatus.INTERNAL_SERVER_ERROR,
+          details: {
+            env: `Env 'MAIL_SENDER_NOTIFICATION' not found (got: '${from}')`,
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    try {
+      const appName = this.configService.get('app.name', {
+        infer: true,
+      });
+      const response = await this.safeSendMail({
+        from,
+        to: mailData.to,
+        subject: mailTitle,
+        text: mailTitle,
+        template: 'report_resent_email',
+        context: {          
+          headerTitle: appName
+        },
+      });
+
+      return response;
+    } catch (httpException) {
+      throw httpException;
+    }
+  }
 }

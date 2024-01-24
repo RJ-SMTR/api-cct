@@ -28,6 +28,7 @@ export enum CrobJobsEnum {
   updateCoreBankMockedData = 'updateCoreBankMockedData',
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
+  resendEmails = 'bulkReSendInvites'
 }
 
 interface ICronJob {
@@ -113,6 +114,13 @@ export class CronJobsService implements OnModuleInit {
               )
             ).getValueAsString(),
             onTick: () => this.pollDb(),
+          },
+        },
+        {
+          name: CrobJobsEnum.resendEmails,
+          cronJobParameters: {
+            cronTime: CronExpression.EVERY_DAY_AT_10AM,
+            onTick: async () => this.bulkReSendInvites(),
           },
         },
       );
@@ -587,5 +595,28 @@ export class CronJobsService implements OnModuleInit {
       isEnabledSetting: isEnabledFlag,
       isSettingValid: true,
     };
+  }
+
+  async getEmail(){
+    return await this.mailHistoryService.emailsNaoCadastrados();
+  } 
+
+  async enviarEmail(){    
+    const mailSentInfo = await this.mailService.reSendEmailBank({
+      to: await this.getEmail(),
+      data: {
+        statusCount: await this.mailHistoryService.getStatusCount(),
+      },
+    } as any);
+  }
+
+  async bulkReSendInvites() {
+    const THIS_METHOD = `${this.bulkReSendInvites.name}()`;
+    const users = this.mailHistoryService.emailsNaoCadastrados;
+
+    for (let index = 0; index < users.length; index++) {
+      this.mailService.reSendEmailBank( users[index].email);
+      this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+    }; 
   }
 }
