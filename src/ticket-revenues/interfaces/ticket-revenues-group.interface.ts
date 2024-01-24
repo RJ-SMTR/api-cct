@@ -47,17 +47,6 @@ export interface ITicketRevenuesGroup {
   transportTypeCounts: Record<string, ITRCounts>;
 
   /**
-   *  **Grouping primary key**
-   *
-   * Represents `permissao`
-   *
-   * @description Número da permissão do operador
-   * @type string | null
-   * @example 'abcde123.ab12.abcde'
-   */
-  permitCode: string;
-
-  /**
    * Represents `sentido`
    *
    * GTFS `direction_id`

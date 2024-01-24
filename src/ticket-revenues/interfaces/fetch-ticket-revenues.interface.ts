@@ -1,5 +1,5 @@
 export interface IFetchTicketRevenues {
-  permitCode?: string;
+  cpfCnpj?: string;
   startDate?: Date;
   endDate?: Date;
   limit?: number;

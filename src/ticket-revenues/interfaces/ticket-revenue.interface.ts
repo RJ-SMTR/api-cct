@@ -66,16 +66,6 @@ export interface ITicketRevenue {
   transportType: string | null;
 
   /**
-   * **Important field**
-   *
-   * Represents `permissao`
-   *
-   * @description Número da permissão do operador
-   * @example 'abcde123.ab12.abcde'
-   */
-  permitCode: string;
-
-  /**
    * Represents `servico`
    *
    * @description Nome curto da linha operada pelo veículo com variação de serviço (ex: 010, 011SN, ...)

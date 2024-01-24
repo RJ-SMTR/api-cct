@@ -48,13 +48,13 @@ export class BankStatementsService {
 
     // For now it validates if user exists
     const user = await this.usersService.getOne({ id: args?.userId });
-    if (!user.permitCode || !user.id) {
+    if (!user.cpfCnpj || !user.id) {
       throw new HttpException(
         {
           error: {
             message: 'User not found',
             user: {
-              ...(!user.permitCode ? { permitCode: 'fieldIsEmpty' } : {}),
+              ...(!user.cpfCnpj ? { cpfCnpj: 'fieldIsEmpty' } : {}),
               ...(!user.id ? { id: 'fieldIsEmpty' } : {}),
             },
           },

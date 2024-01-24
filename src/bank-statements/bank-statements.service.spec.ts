@@ -134,7 +134,6 @@ describe('BankStatementsService', () => {
             [`Integração`]: { count: 1, transactionValue: 10 },
           },
           transactionValueSum: 10,
-          permitCode: `pc_1`,
           directionIdCounts: { 0: { count: 1, transactionValue: 10 } },
           stopIdCounts: {
             [day.toString()]: { count: 1, transactionValue: 10 },
@@ -255,7 +254,7 @@ describe('BankStatementsService', () => {
      */ async () => {
       // Arrange
       const bankStatements = allBankStatements.filter(
-        (i) => i.permitCode === 'pc_1',
+        (i) => i.cpfCnpj === 'cc_1',
       );
 
       const revenuesGroup: ITicketRevenuesGroup[] = [];
@@ -279,7 +278,6 @@ describe('BankStatementsService', () => {
             [`Integração`]: { count: 1, transactionValue: 10 },
           },
           transactionValueSum: 10,
-          permitCode: `pc_1`,
           directionIdCounts: { 0: { count: 1, transactionValue: 10 } },
           stopIdCounts: {
             [day.toString()]: { count: 1, transactionValue: 10 },
@@ -397,7 +395,7 @@ describe('BankStatementsService', () => {
      */ async () => {
       // Arrange
       const bankStatements = allBankStatements.filter(
-        (i) => i.permitCode === 'pc_1',
+        (i) => i.cpfCnpj === 'cc_1',
       );
 
       const revenuesGroup: ITicketRevenuesGroup[] = [];
@@ -421,7 +419,6 @@ describe('BankStatementsService', () => {
             ['Integração']: { count: 1, transactionValue: 10 },
           },
           transactionValueSum: 10,
-          permitCode: `pc_1`,
           directionIdCounts: { 0: { count: 1, transactionValue: 10 } },
           stopIdCounts: {
             [day.toString()]: { count: 1, transactionValue: 10 },

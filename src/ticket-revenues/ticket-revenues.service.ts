@@ -1,9 +1,6 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { endOfDay, isToday, startOfDay } from 'date-fns';
-import {
-  BigqueryService,
-  BigqueryServiceInstances,
-} from 'src/bigquery/bigquery.service';
+import { BigqueryService, BQSInstances } from 'src/bigquery/bigquery.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
@@ -57,7 +54,7 @@ export class TicketRevenuesService {
     // Get data
     let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
-      permitCode: user.permitCode,
+      cpfCnpj: user.cpfCnpj,
       startDate,
       endDate,
     };
@@ -91,7 +88,7 @@ export class TicketRevenuesService {
     // Get data
     let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
-      permitCode: user.permitCode,
+      cpfCnpj: user.cpfCnpj,
       startDate,
       endDate,
       getToday: GET_TODAY,
@@ -204,14 +201,14 @@ export class TicketRevenuesService {
       );
     }
     const user = await this.usersService.getOne({ id: args?.userId });
-    if (!user.permitCode) {
+    if (!user.cpfCnpj) {
       throw new HttpException(
         {
           error: HttpErrorMessages.UNAUTHORIZED,
           details: {
             message: 'Maybe your token has expired, try to get a new one',
             user: {
-              permitCode: 'fieldIsEmpty',
+              cpfCnpj: 'fieldIsEmpty',
             },
           },
         },
@@ -254,7 +251,6 @@ export class TicketRevenuesService {
             count: 0,
             partitionDate: item.partitionDate,
             transportTypeCounts: {},
-            permitCode: item.permitCode,
             directionIdCounts: {},
             paymentMediaTypeCounts: {},
             transactionTypeCounts: {},
@@ -310,52 +306,46 @@ export class TicketRevenuesService {
     }
 
     let queryBuilderStr = queryBuilder.toSQL();
-    if (args?.permitCode !== undefined) {
-      let permitCode = args.permitCode;
-      if (permitCode[0] === "'") {
-        this.logger.warn(
-          "permitCode contains ' character, removing it before query",
-        );
-        permitCode = permitCode.replace("'", '');
-      }
-      queryBuilderStr = `permissao = '${permitCode}' AND (${queryBuilderStr})`;
+    if (args?.cpfCnpj !== undefined) {
+      const cpfCnpj = args.cpfCnpj;
+      queryBuilderStr = `o.documento = '${cpfCnpj}' AND (${queryBuilderStr})`;
     }
 
     // Query
     const query =
       `
       SELECT
-        CAST(data AS STRING) AS partitionDate,
-        hora AS processingHour,
-        CAST(datetime_transacao AS STRING) AS transactionDateTime,
-        CAST(datetime_processamento AS STRING) AS processingDateTime,
-        datetime_captura AS captureDateTime,
-        modo AS transportType,
-        permissao AS permitCode,
-        servico AS vehicleService,
-        sentido AS directionId,
-        id_veiculo AS vehicleId,
-        id_cliente AS clientId,
-        id_transacao AS transactionId,
-        id_tipo_pagamento AS paymentMediaType,
-        tipo_transacao AS transactionType,
-        id_tipo_integracao AS transportIntegrationType,
-        id_integracao AS integrationId,
-        latitude AS transactionLat,
-        longitude AS transactionLon,
-        stop_id AS stopId,
-        stop_lat AS stopLat,
-        stop_lon AS stopLon,
-        valor_transacao AS transactionValue,
-        versao AS bqDataVersion
-      FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
+        CAST(t.data AS STRING) AS partitionDate,
+        t.hora AS processingHour,
+        CAST(t.datetime_transacao AS STRING) AS transactionDateTime,
+        CAST(t.datetime_processamento AS STRING) AS processingDateTime,
+        t.datetime_captura AS captureDateTime,
+        t.modo AS transportType,
+        t.servico AS vehicleService,
+        t.sentido AS directionId,
+        t.id_veiculo AS vehicleId,
+        t.id_cliente AS clientId,
+        t.id_transacao AS transactionId,
+        t.id_tipo_pagamento AS paymentMediaType,
+        t.tipo_transacao AS transactionType,
+        t.id_tipo_integracao AS transportIntegrationType,
+        t.id_integracao AS integrationId,
+        t.latitude AS transactionLat,
+        t.longitude AS transactionLon,
+        t.stop_id AS stopId,
+        t.stop_lat AS stopLat,
+        t.stop_lon AS stopLon,
+        t.valor_transacao AS transactionValue,
+        t.versao AS bqDataVersion
+      FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t` +
+      `\nLEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.operadora ` +
       (queryBuilderStr.length ? `\nWHERE ${queryBuilderStr}` : '') +
       `\nORDER BY data DESC, hora DESC` +
       (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
       (offset !== undefined ? `\nOFFSET ${offset}` : '');
 
     const ticketRevenues: ITicketRevenue[] =
-      await this.bigqueryService.runQuery(BigqueryServiceInstances.smtr, query);
+      await this.bigqueryService.runQuery(BQSInstances.smtr, query);
     return ticketRevenues;
   }
 

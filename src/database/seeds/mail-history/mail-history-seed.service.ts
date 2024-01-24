@@ -27,11 +27,11 @@ export class MailHistorySeedService {
   }
 
   async run() {
-    for (const item of this.mhSeedDataService.getDataFromConfig()) {
+    for (const item of await this.mhSeedDataService.getDataFromConfig()) {
       const itemUser = await this.getHistoryUser(item);
-      const itemSeedUser = this.userSeedDataService
-        .getDataFromConfig()
-        .find((i) => i.email === itemUser.email);
+      const itemSeedUser = (
+        await this.userSeedDataService.getDataFromConfig()
+      ).find((i) => i.email === itemUser.email);
       const foundItem = await this.mailHistoryRepository.findOne({
         where: {
           user: { email: itemUser.email as string },

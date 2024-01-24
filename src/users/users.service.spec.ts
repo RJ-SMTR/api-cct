@@ -131,6 +131,7 @@ describe('UsersService', () => {
           row: i + 2,
           user: {
             email: `email_${i}@example.com`,
+            nome: `fullName_${i}`,
           },
           errors: {},
         } as IFileUser);

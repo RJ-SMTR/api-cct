@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { BQSInstances, BigqueryService } from 'src/bigquery/bigquery.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { Role } from 'src/roles/entities/role.entity';
@@ -10,36 +11,36 @@ import { UserDataInterface } from 'src/users/interfaces/user-data.interface';
 
 @Injectable()
 export class UserSeedDataService {
-  constructor(private configService: ConfigService) {}
+  nodeEnv = (): string => '';
 
-  getDataFromConfig(): UserDataInterface[] {
-    const nodeEnv = () =>
+  constructor(
+    private configService: ConfigService,
+    private bigqueryService: BigqueryService,
+  ) {
+    this.nodeEnv = () =>
       this.configService.getOrThrow('app.nodeEnv', { infer: true });
-    return [
-      // Test
-      ...(nodeEnv() !== 'production'
-        ? ([
-            {
-              id: 2,
-              fullName: 'Henrique Santos Template',
-              email: 'henrique@example.com',
-              password: 'secret',
-              permitCode: '213890329890312',
-              role: { id: RoleEnum.user } as Role,
-              status: { id: StatusEnum.active } as Status,
-            },
-            {
-              id: 3,
-              fullName: 'Márcia Clara Template',
-              email: 'marcia@example.com',
-              password: 'secret',
-              permitCode: '319274392832023',
-              role: { id: RoleEnum.user } as Role,
-              status: { id: StatusEnum.active } as Status,
-            },
-          ] as UserDataInterface[])
-        : []),
+  }
 
+  async getDataFromConfig(): Promise<UserDataInterface[]> {
+    let cpfCnpjSamples: string[] = [];
+
+    if (this.nodeEnv() === 'local' || this.nodeEnv() === 'test') {
+      cpfCnpjSamples = (
+        await this.bigqueryService.runQuery(
+          BQSInstances.smtr,
+          `
+          SELECT
+            DISTINCT o.documento,
+          FROM \`rj-smtr.cadastro.operadoras\` o
+          LEFT JOIN \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t ON t.id_operadora = o.id_operadora
+          WHERE t.modo = 'Van'
+          LIMIT 10
+        `,
+        )
+      ).reduce((l: string[], i) => [...l, i['documento']], []);
+    }
+
+    return [
       // Dev team
       {
         fullName: 'Alexander Rivail Ruiz',
@@ -114,13 +115,15 @@ export class UserSeedDataService {
         status: new Status(StatusEnum.active),
       },
 
-      ...(nodeEnv() === 'local' || nodeEnv() === 'test'
+      // Development only
+      ...(this.nodeEnv() === 'local' || this.nodeEnv() === 'test'
         ? ([
             {
               fullName: 'Henrique Santos Template',
               email: 'henrique@example.com',
               password: 'secret',
               permitCode: '213890329890312',
+              cpfCnpj: cpfCnpjSamples.pop(),
               role: { id: RoleEnum.user } as Role,
               status: { id: StatusEnum.active } as Status,
             },
@@ -129,6 +132,7 @@ export class UserSeedDataService {
               email: 'marcia@example.com',
               password: 'secret',
               permitCode: '319274392832023',
+              cpfCnpj: cpfCnpjSamples.pop(),
               role: { id: RoleEnum.user } as Role,
               status: { id: StatusEnum.active } as Status,
             },
@@ -136,7 +140,7 @@ export class UserSeedDataService {
               fullName: 'Administrador Teste',
               email: 'admin@example.com',
               password: 'secret',
-              permitCode: '',
+              permitCode: 'permitCode_admin',
               role: { id: RoleEnum.admin } as Role,
               status: { id: StatusEnum.active } as Status,
             },
@@ -144,7 +148,7 @@ export class UserSeedDataService {
               fullName: 'Administrador Teste 2',
               email: 'admin2@example.com',
               password: 'secret',
-              permitCode: '',
+              permitCode: 'permitCode_admin2',
               role: { id: RoleEnum.admin } as Role,
               status: { id: StatusEnum.active } as Status,
             },

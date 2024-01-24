@@ -9,19 +9,19 @@ import { UserSeedDataService } from '../user/user-seed-data.service';
 export class MailHistorySeedDataService {
   constructor(private userSeedDataService: UserSeedDataService) {}
 
-  getDataFromConfig(): IMailSeedData[] {
-    const mailSeedData: IMailSeedData[] = this.userSeedDataService
-      .getDataFromConfig()
-      .map(
-        (i: UserDataInterface) =>
-          ({
-            user: {
-              ...(i.id ? { id: i.id } : {}),
-              ...(i.email ? { email: i.email } : {}),
-            },
-            inviteStatus: new InviteStatus(InviteStatusEnum.used),
-          } as IMailSeedData),
-      );
+  async getDataFromConfig(): Promise<IMailSeedData[]> {
+    const mailSeedData: IMailSeedData[] = (
+      await this.userSeedDataService.getDataFromConfig()
+    ).map(
+      (i: UserDataInterface) =>
+        ({
+          user: {
+            ...(i.id ? { id: i.id } : {}),
+            ...(i.email ? { email: i.email } : {}),
+          },
+          inviteStatus: new InviteStatus(InviteStatusEnum.used),
+        } as IMailSeedData),
+    );
     return mailSeedData;
   }
 }

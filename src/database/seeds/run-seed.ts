@@ -47,7 +47,9 @@ const runSeed = async () => {
   for (const module of services) {
     if (!(await app.get(module).validateRun()) && !force) {
       console.log(`[${module.name}]: Database is not empty, aborting seed...`);
-      console.log(`Tip: Use '__force' parameter to ignore this message.`);
+      console.log(
+        `Tip: Use '${FORCE_PARAM}' parameter to ignore this message.`,
+      );
       await app.close();
       return;
     }

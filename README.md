@@ -7,7 +7,6 @@
 *API do aplicativo CCT*  
 (Centro de Compensação Tarifária)
 
-
 [Documentação completa](https://github.com/RJ-SMTR/api-cct/blob/main/docs/readme.md)
 
 Este projeto foi baseado no template [Nestjs Boilerplate](https://github.com/brocoders/nestjs-boilerplate/)
@@ -90,6 +89,7 @@ Rodar seed apenas de alguns módulos
 ```
 npm run seed:run user mailhistory
 ```
+> O comando não diferencia maiúsculas de minúsculas
 
 ## Links
 
@@ -144,7 +144,7 @@ npm run test:e2e
 **Exemplo de configuração no VSCode:**
 
 Requisitos
-- Extensão [Command Variable](ttps://marketplace.visualstudio.com/items?itemName=rioj7.command-variable)
+- Extensão [Command Variable](https://marketplace.visualstudio.com/items?itemName=rioj7.command-variable)
 
 .vscode/launch.json
 ```jsonc

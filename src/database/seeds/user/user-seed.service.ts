@@ -22,10 +22,9 @@ export class UserSeedService {
   }
 
   async run() {
-    this.logger.log(
-      `run() ${this.userSeedDataService.getDataFromConfig().length} items`,
-    );
-    for (const item of this.userSeedDataService.getDataFromConfig()) {
+    const userFixtures = await this.userSeedDataService.getDataFromConfig();
+    this.logger.log(`run() ${userFixtures.length} items`);
+    for (const item of userFixtures) {
       const foundItem = await this.userSeedRepository.findOne({
         where: {
           email: item.email,
@@ -55,6 +54,7 @@ export class UserSeedService {
         fullName: item.fullName,
         email: item.email,
         password: item.password,
+        cpfCnpj: item.cpfCnpj,
         hashedPassword: createdItem.password,
       });
     }

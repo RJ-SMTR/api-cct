@@ -75,7 +75,6 @@ describe('TicketRevenuesService', () => {
           transactionLat: i,
           transactionLon: i,
           vehicleId: i.toString(),
-          permitCode: `permitCode_1`,
           // Extra fields
           clientId: `clientId_${i}`,
           integrationId: i.toString(),
@@ -104,7 +103,6 @@ describe('TicketRevenuesService', () => {
           transactionLat: i,
           transactionLon: i,
           vehicleId: i.toString(),
-          permitCode: `permitCode_1`,
           // Extra fields
           clientId: `clientId_${i}`,
           integrationId: i.toString(),
@@ -125,7 +123,7 @@ describe('TicketRevenuesService', () => {
         );
       const user = new User();
       user.id = 1;
-      user.permitCode = 'permitCode_1';
+      user.cpfCnpj = 'cpfCnpj_1';
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
       jest
         .spyOn(ticketRevenuesService as any, 'fetchTicketRevenues')
@@ -167,7 +165,6 @@ describe('TicketRevenuesService', () => {
           transactionLat: i,
           transactionLon: i,
           vehicleId: i.toString(),
-          permitCode: `permitCode_1`,
           // Extra fields
           clientId: `clientId_${i}`,
           integrationId: i.toString(),
@@ -196,7 +193,6 @@ describe('TicketRevenuesService', () => {
           transactionLat: i,
           transactionLon: i,
           vehicleId: i.toString(),
-          permitCode: `permitCode_1`,
           // Extra fields
           clientId: `clientId_${i}`,
           integrationId: i.toString(),
@@ -217,7 +213,7 @@ describe('TicketRevenuesService', () => {
         );
       const user = new User();
       user.id = 1;
-      user.permitCode = 'permitCode_1';
+      user.cpfCnpj = 'cpfCnpj_1';
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
       jest
         .spyOn(ticketRevenuesService as any, 'fetchTicketRevenues')
