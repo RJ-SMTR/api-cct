@@ -213,12 +213,10 @@ export class MailService {
     }
   }
 
-
   /**
    * @throws `HttpException`
    */
-  async reSendEmailBank(
-    mailData: MailData): Promise<MailSentInfo> {
+  async reSendEmailBank(mailData: MailData<null>): Promise<MailSentInfo> {
     const mailTitle = 'SMTR RJ - CADASTRAMENTO DADOS BANCÁRIOS';
     const from = this.configService.get('mail.senderNotification', {
       infer: true,
@@ -246,8 +244,9 @@ export class MailService {
         subject: mailTitle,
         text: mailTitle,
         template: 'report_resent_email',
-        context: {          
-          headerTitle: appName
+        context: {
+          title: 'Confirme seu email',
+          headerTitle: appName,
         },
       });
 
