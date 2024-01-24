@@ -119,7 +119,7 @@ export class CronJobsService implements OnModuleInit {
         {
           name: CrobJobsEnum.bulkReSendInvites,
           cronJobParameters: {
-            cronTime: CronExpression.EVERY_MINUTE,
+            cronTime: CronExpression.EVERY_DAY_AT_10AM,
             onTick: async () => this.bulkReSendInvites(),
           },
         },
