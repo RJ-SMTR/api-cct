@@ -6,6 +6,7 @@ export interface UserDataInterface {
   id?: number;
   hash?: string;
   permitCode?: string;
+  cpfCnpj?: string;
   fullName: string;
   email: string;
   password?: string;

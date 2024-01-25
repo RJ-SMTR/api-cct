@@ -1,9 +1,7 @@
 import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { JaeService } from 'src/jae/jae.service';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
@@ -24,8 +22,6 @@ import { validateEmail } from 'validations-br';
  */
 export enum CrobJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
-  updateJaeMockedData = 'updateJaeMockedData',
-  updateCoreBankMockedData = 'updateCoreBankMockedData',
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
 }
@@ -53,8 +49,6 @@ export class CronJobsService implements OnModuleInit {
     private schedulerRegistry: SchedulerRegistry,
     private mailService: MailService,
     private mailHistoryService: MailHistoryService,
-    private jaeService: JaeService,
-    private coreBankService: CoreBankService,
     private usersService: UsersService,
   ) {}
 
@@ -62,20 +56,6 @@ export class CronJobsService implements OnModuleInit {
     const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
     (async () => {
       this.jobsConfig.push(
-        {
-          name: CrobJobsEnum.updateJaeMockedData,
-          cronJobParameters: {
-            cronTime: CronExpression.EVERY_MINUTE,
-            onTick: async () => this.updateJaeMockedData(),
-          },
-        },
-        {
-          name: CrobJobsEnum.updateCoreBankMockedData,
-          cronJobParameters: {
-            cronTime: CronExpression.EVERY_HOUR,
-            onTick: () => this.coreBankService.updateDataIfNeeded(),
-          },
-        },
         {
           name: CrobJobsEnum.bulkSendInvites,
           cronJobParameters: {
@@ -136,18 +116,6 @@ export class CronJobsService implements OnModuleInit {
 
   deleteCron(jobConfig: ICronJob) {
     this.schedulerRegistry.deleteCronJob(jobConfig.name);
-  }
-
-  async updateJaeMockedData() {
-    this.logger.log(`updateJaeMockedData(): Atualizando dados se necessário`);
-    await this.jaeService.updateDataIfNeeded();
-  }
-
-  updateCoreBankMockedData() {
-    this.logger.log(
-      `updateCoreBankMockedData(): Atualizando dados se necessário`,
-    );
-    this.coreBankService.updateDataIfNeeded();
   }
 
   async bulkSendInvites() {

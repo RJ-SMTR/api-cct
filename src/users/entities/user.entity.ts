@@ -173,7 +173,6 @@ export class User extends EntityHelper {
       'permitCode',
       'email',
       'passValidatorId',
-      'isSgtuBlocked',
       // editable
       'phone',
       'bankCode',
@@ -192,8 +191,17 @@ export class User extends EntityHelper {
 
   aux_bank?: Bank | null;
 
-  update(userProps: DeepPartial<User>) {
-    Object.assign(this, userProps);
+  /**
+   *
+   * @param userProps Properties to update
+   * @param removeConstraintKeys remove redundant keys to avoid database update
+   */
+  update(userProps: DeepPartial<User>, removeUniqueKeys = false) {
+    const props = new User(userProps);
+    if (removeUniqueKeys && props?.email === this?.email) {
+      (props.email as any) = undefined;
+    }
+    Object.assign(this, props);
   }
 
   getLogInfo(showRole?: boolean): string {

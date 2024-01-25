@@ -26,7 +26,3 @@ export function formatErrorMessage(
   }
   return formattedString;
 }
-
-if (require.main === module) {
-  console.log(formatErrorMessage('mensagem', {}, new Error()));
-}

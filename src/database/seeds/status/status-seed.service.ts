@@ -11,6 +11,10 @@ export class StatusSeedService {
     private repository: Repository<Status>,
   ) {}
 
+  async validateRun() {
+    return Promise.resolve(true);
+  }
+
   async run() {
     for (const value in StatusEnum) {
       if (isNaN(Number(value))) {

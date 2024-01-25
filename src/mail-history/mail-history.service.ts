@@ -195,7 +195,6 @@ export class MailHistoryService {
   }
 
   async getStatusCount(): Promise<IMailHistoryStatusCount> {
-    console.log('getStatusCount');
     const result: any[] = await this.inviteRepository
       .createQueryBuilder('invite')
       .select([

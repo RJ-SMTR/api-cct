@@ -25,7 +25,6 @@ export class TicketRevenuesGroup implements ITicketRevenuesGroup {
       directionIdCounts: this.directionIdCounts,
       partitionDate: this.partitionDate,
       paymentMediaTypeCounts: this.paymentMediaTypeCounts,
-      permitCode: this.permitCode,
       stopIdCounts: this.stopIdCounts,
       stopLatCounts: this.stopLatCounts,
       stopLonCounts: this.stopLonCounts,

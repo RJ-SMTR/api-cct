@@ -4,8 +4,6 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { plainToClass } from 'class-transformer';
 import * as crypto from 'crypto';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
 import { ForgotService } from 'src/forgot/forgot.service';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -38,7 +36,6 @@ export class AuthService {
     private usersService: UsersService,
     private forgotService: ForgotService,
     private mailService: MailService,
-    private coreBankService: CoreBankService,
     private mailHistoryService: MailHistoryService,
   ) {}
 
@@ -489,14 +486,6 @@ export class AuthService {
       userProfile,
       'AuthService.update()',
     );
-
-    const coreBankProfile: UpdateCoreBankInterface = {
-      bankAccountCode: userProfile.bankAccount,
-      bankAccountDigit: userProfile.bankAccountDigit,
-      bankAgencyCode: userProfile.bankAgency,
-      bankCode: userProfile.bankCode,
-    };
-    this.coreBankService.update(userProfile.cpfCnpj, coreBankProfile);
 
     return userProfile;
   }

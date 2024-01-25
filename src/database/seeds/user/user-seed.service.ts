@@ -17,15 +17,14 @@ export class UserSeedService {
     private userSeedDataService: UserSeedDataService,
   ) {}
 
+  async validateRun() {
+    return global.force || (await this.userSeedRepository.count()) === 0;
+  }
+
   async run() {
-    if (!(await this.validateRun())) {
-      this.logger.log('Database is not empty. Aborting seed...');
-      return;
-    }
-    this.logger.log(
-      `run() ${this.userSeedDataService.getDataFromConfig().length} items`,
-    );
-    for (const item of this.userSeedDataService.getDataFromConfig()) {
+    const userFixtures = await this.userSeedDataService.getDataFromConfig();
+    this.logger.log(`run() ${userFixtures.length} items`);
+    for (const item of userFixtures) {
       const foundItem = await this.userSeedRepository.findOne({
         where: {
           email: item.email,
@@ -35,7 +34,7 @@ export class UserSeedService {
       let createdItem: User;
       if (foundItem) {
         const newItem = new User(foundItem);
-        newItem.update(item);
+        newItem.update(item, true);
         await this.userSeedRepository.save(
           this.userSeedRepository.create(newItem),
         );
@@ -55,6 +54,7 @@ export class UserSeedService {
         fullName: item.fullName,
         email: item.email,
         password: item.password,
+        cpfCnpj: item.cpfCnpj,
         hashedPassword: createdItem.password,
       });
     }
@@ -88,9 +88,5 @@ export class UserSeedService {
         .digest('hex');
     }
     return hash;
-  }
-
-  async validateRun() {
-    return global.force || (await this.userSeedRepository.count()) === 0;
   }
 }

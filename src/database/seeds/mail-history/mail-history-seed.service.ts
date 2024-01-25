@@ -22,17 +22,16 @@ export class MailHistorySeedService {
     private userSeedDataService: UserSeedDataService,
   ) {}
 
+  async validateRun() {
+    return global.force || (await this.usersRepository.count()) === 0;
+  }
+
   async run() {
-    if (!(await this.validateRun())) {
-      this.logger.log('Database is not empty. Aborting seed...');
-      return;
-    }
-    this.logger.log('run()');
-    for (const item of this.mhSeedDataService.getDataFromConfig()) {
+    for (const item of await this.mhSeedDataService.getDataFromConfig()) {
       const itemUser = await this.getHistoryUser(item);
-      const itemSeedUser = this.userSeedDataService
-        .getDataFromConfig()
-        .find((i) => i.email === itemUser.email);
+      const itemSeedUser = (
+        await this.userSeedDataService.getDataFromConfig()
+      ).find((i) => i.email === itemUser.email);
       const foundItem = await this.mailHistoryRepository.findOne({
         where: {
           user: { email: itemUser.email as string },
@@ -47,7 +46,7 @@ export class MailHistorySeedService {
         if (itemSeedUser?.inviteStatus) {
           newItem.inviteStatus = itemSeedUser.inviteStatus;
         }
-        this.logger.log(`Creating user: ${JSON.stringify(newItem)}`);
+        this.logger.log(`Creating mail history: ${JSON.stringify(newItem)}`);
         await this.mailHistoryRepository.save(
           this.mailHistoryRepository.create(newItem),
         );
@@ -76,9 +75,5 @@ export class MailHistorySeedService {
       where: { email: item.user.email as string },
     });
     return users[0];
-  }
-
-  async validateRun() {
-    return global.force || (await this.usersRepository.count()) === 0;
   }
 }

@@ -11,6 +11,10 @@ export class SettingTypeSeedService {
     private repository: Repository<SettingType>,
   ) {}
 
+  async validateRun() {
+    return Promise.resolve(true);
+  }
+
   async run() {
     for (const value in SettingTypeEnum) {
       if (isNaN(Number(value))) {

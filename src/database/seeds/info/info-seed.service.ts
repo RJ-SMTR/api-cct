@@ -11,6 +11,10 @@ export class InfoSeedService {
     private repository: Repository<Info>,
   ) {}
 
+  async validateRun() {
+    return Promise.resolve(true);
+  }
+
   async run() {
     let id = 1;
     for (const item of infoSeedData) {

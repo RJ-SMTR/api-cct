@@ -7,7 +7,6 @@
 *API do aplicativo CCT*  
 (Centro de Compensação Tarifária)
 
-
 [Documentação completa](https://github.com/RJ-SMTR/api-cct/blob/main/docs/readme.md)
 
 Este projeto foi baseado no template [Nestjs Boilerplate](https://github.com/brocoders/nestjs-boilerplate/)
@@ -19,17 +18,16 @@ O [Projeto do App CCT](https://github.com/RJ-SMTR/app-cct) consome esta API.
 * [API CCT](#api-cct)
   * [Descrição](#descrição)
   * [Table of Contents](#table-of-contents)
-  * [Quick run](#quick-run)
+  * [Executar rapidamente](#executar-rapidamente)
   * [Desenvolvimento confortável](#desenvolvimento-confortável)
   * [Links](#links)
-  * [Automatic update of dependencies](#automatic-update-of-dependencies)
   * [Banco de dados](#banco-de-dados)
   * [Testes](#testes)
     * [Depurando testes](#depurando-testes)
   * [Testes no Docker](#testes-no-docker)
   * [Benchmarking de testes](#benchmarking-de-testes)
 
-## Quick run
+## Executar rapidamente
 
 ```bash
 git clone --depth 1 .git my-app
@@ -38,7 +36,7 @@ cp env-example .env
 docker compose up -d
 ```
 
-For check status run
+Para verificar status:
 
 ```bash
 docker compose logs
@@ -62,6 +60,14 @@ Executar contêiner adicional:
 docker compose up -d postgres adminer maildev
 ```
 
+Login no adminer (login de exemplo):
+
+- Sistema: `PostgreSQL`
+- Servidor: `postgres`
+- Usuário: `root`
+- Senha: `secret`
+- Base de dados: `api`
+
 Configurar projeto:
 
 ```bash
@@ -83,16 +89,13 @@ Rodar seed apenas de alguns módulos
 ```
 npm run seed:run user mailhistory
 ```
+> O comando não diferencia maiúsculas de minúsculas
 
 ## Links
 
 - Swagger: http://localhost:3000/docs
 - Adminer (client for DB): http://localhost:8080
 - Maildev: http://localhost:1080
-
-## Automatic update of dependencies
-
-If you want to automatically update dependencies, you can connect [Renovate](https://github.com/marketplace/renovate) for your project.
 
 ## Banco de dados
 
@@ -136,9 +139,27 @@ npm run test
 npm run test:e2e
 ```
 
+### Testando scripts localmente
+
+Para testar scripts que fazem uso das mesmas boblioitecas e componentes deste projeto basta criar a seguinte pasta:
+```bash
+api-cct
+📂 src
+    📂 local_dev    # não sincornizado
+        seus-scripts.ts
+```
+
+Para executar basta rodar:
+```bash
+ts-node "diretório do script"
+```
+
 ### Depurando testes
 
-Exemplo de configuração no VSCode:
+**Exemplo de configuração no VSCode:**
+
+Requisitos
+- Extensão [Command Variable](https://marketplace.visualstudio.com/items?itemName=rioj7.command-variable)
 
 .vscode/launch.json
 ```jsonc
@@ -152,11 +173,30 @@ Exemplo de configuração no VSCode:
             "args": [
                 "--runInBand"
             ],
-            "cwd": "${workspaceFolder}",
+            "cwd": "${fileDirname}",
             "runtimeArgs": [
                 "--inspect-brk",
                 "${workspaceFolder}/node_modules/jest/bin/jest.js",
                 "${fileBasenameNoExtension}"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "attachSimplePort": 9229,
+        },
+        {
+            "name": "Jest test: Teste específico",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${fileDirname}",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceFolder}/node_modules/jest/bin/jest.js",
+                "${fileBasenameNoExtension}",
+                "--testNamePattern",
+                "\".*${selectedText}\""
             ],
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
@@ -169,22 +209,42 @@ Exemplo de configuração no VSCode:
             "args": [
                 "--runInBand"
             ],
-            "cwd": "${workspaceFolder}/api-cct",
+            "cwd": "${workspaceFolder}",
             "runtimeArgs": [
                 "--inspect-brk",
                 "${workspaceFolder}/node_modules/jest/bin/jest.js",
                 "--config",
                 "${workspaceFolder}/test/jest-e2e.json",
-                "${fileBasenameNoExtension}"
+                "${command:extension.commandvariable.file.relativeFilePosix}"
             ],
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
             "attachSimplePort": 9229,
+        },
+        {
+            "name": "Jest e2e: Teste específico",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceFolder}/node_modules/jest/bin/jest.js",
+                "--config",
+                "${workspaceFolder}/test/jest-e2e.json",
+                "${command:extension.commandvariable.file.relativeFilePosix}",
+                "--testNamePattern",
+                "\".*${selectedText}\""
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "attachSimplePort": 9229
         }
-    ]
+    ],
 }
 ```
-
 
 ## Testes no Docker
 

@@ -8,34 +8,38 @@ import { Repository } from 'typeorm';
 export class RoleSeedService {
   constructor(
     @InjectRepository(Role)
-    private repository: Repository<Role>,
+    private roleRepository: Repository<Role>,
   ) {}
 
+  async validateRun() {
+    return Promise.resolve(true);
+  }
+
   async run() {
-    const countUser = await this.repository.count({
+    const countUser = await this.roleRepository.count({
       where: {
         id: RoleEnum.user,
       },
     });
 
     if (!countUser) {
-      await this.repository.save(
-        this.repository.create({
+      await this.roleRepository.save(
+        this.roleRepository.create({
           id: RoleEnum.user,
           name: 'User',
         }),
       );
     }
 
-    const countAdmin = await this.repository.count({
+    const countAdmin = await this.roleRepository.count({
       where: {
         id: RoleEnum.admin,
       },
     });
 
     if (!countAdmin) {
-      await this.repository.save(
-        this.repository.create({
+      await this.roleRepository.save(
+        this.roleRepository.create({
           id: RoleEnum.admin,
           name: 'Admin',
         }),

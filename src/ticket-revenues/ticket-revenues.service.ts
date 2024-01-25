@@ -1,10 +1,6 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { endOfDay, isToday, startOfDay } from 'date-fns';
-import {
-  BigqueryService,
-  BigqueryServiceInstances,
-} from 'src/bigquery/bigquery.service';
-import { JaeService } from 'src/jae/jae.service';
+import { BigqueryService, BQSInstances } from 'src/bigquery/bigquery.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
@@ -12,6 +8,7 @@ import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import {
   PAYMENT_START_WEEKDAY,
+  PaymentEndpointType,
   getPaymentDates,
 } from 'src/utils/payment-date-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
@@ -24,11 +21,11 @@ import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-gro
 import {
   TRIntegrationTypeMap as IntegrationType,
   TRPaymentTypeMap as PaymentType,
-  TRTransactionTypeMap as TransactionType,
 } from './maps/ticket-revenues.map';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
+import { formatLog } from 'src/utils/logging';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -39,12 +36,11 @@ export class TicketRevenuesService {
   constructor(
     private readonly bigqueryService: BigqueryService,
     private readonly usersService: UsersService,
-    private jaeService: JaeService,
   ) {}
 
   public async getMeGroupedFromUser(
     args: ITicketRevenuesGetGrouped,
-    endpoint: string,
+    endpoint: PaymentEndpointType,
   ): Promise<ITicketRevenuesGroup> {
     // Args
     const user = await this.getUser(args);
@@ -58,32 +54,18 @@ export class TicketRevenuesService {
     // Get data
     let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
-      permitCode: user.permitCode,
+      cpfCnpj: user.cpfCnpj,
       startDate,
       endDate,
     };
-    if (this.jaeService.isPermitCodeExists(user.permitCode)) {
-      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
-        fetchArgs,
-      );
-    } else {
-      ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
-    }
+
+    ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
       return new TicketRevenuesGroup().toInterface();
     }
     const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
-    console.log({
-      message: 'GET GROUPED',
-      groupSum: ticketRevenuesGroupSum.transactionValueSum,
-      individualSum: Number(
-        ticketRevenuesResponse
-          .reduce((sum, i) => sum + (i?.transactionValue || 0), 0)
-          .toFixed(2),
-      ),
-    });
 
     return ticketRevenuesGroupSum;
   }
@@ -91,7 +73,7 @@ export class TicketRevenuesService {
   public async getMeFromUser(
     args: ITicketRevenuesGetGrouped,
     pagination: IPaginationOptions,
-    endpoint: string,
+    endpoint: PaymentEndpointType,
   ): Promise<ITicketRevenuesGroupedResponse> {
     const user = await this.getUser(args);
     const GET_TODAY = true;
@@ -106,18 +88,13 @@ export class TicketRevenuesService {
     // Get data
     let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
-      permitCode: user.permitCode,
+      cpfCnpj: user.cpfCnpj,
       startDate,
       endDate,
       getToday: GET_TODAY,
     };
-    if (this.jaeService.isPermitCodeExists(user.permitCode)) {
-      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
-        fetchArgs,
-      );
-    } else {
-      ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
-    }
+
+    ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
 
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
@@ -193,7 +170,10 @@ export class TicketRevenuesService {
     if (groupSums.length >= 1) {
       if (groupSums.length > 1) {
         this.logger.error(
-          'getGroupedFromUser(): ticketRevenuesGroupSum should have 0-1 items, getting first one.',
+          formatLog(
+            'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
+            `${this.getMeGroupedFromUser.name}() -> ${this.getGroupSum.name}()`,
+          ),
         );
       }
       return groupSums[0];
@@ -221,14 +201,14 @@ export class TicketRevenuesService {
       );
     }
     const user = await this.usersService.getOne({ id: args?.userId });
-    if (!user.permitCode) {
+    if (!user.cpfCnpj) {
       throw new HttpException(
         {
           error: HttpErrorMessages.UNAUTHORIZED,
           details: {
             message: 'Maybe your token has expired, try to get a new one',
             user: {
-              permitCode: 'fieldIsEmpty',
+              cpfCnpj: 'fieldIsEmpty',
             },
           },
         },
@@ -271,7 +251,6 @@ export class TicketRevenuesService {
             count: 0,
             partitionDate: item.partitionDate,
             transportTypeCounts: {},
-            permitCode: item.permitCode,
             directionIdCounts: {},
             paymentMediaTypeCounts: {},
             transactionTypeCounts: {},
@@ -327,62 +306,59 @@ export class TicketRevenuesService {
     }
 
     let queryBuilderStr = queryBuilder.toSQL();
-    if (args?.permitCode !== undefined) {
-      let permitCode = args.permitCode;
-      if (permitCode[0] === "'") {
-        this.logger.warn(
-          "permitCode contains ' character, removing it before query",
-        );
-        permitCode = permitCode.replace("'", '');
-      }
-      queryBuilderStr = `permissao = '${permitCode}' AND (${queryBuilderStr})`;
+    if (args?.cpfCnpj !== undefined) {
+      const cpfCnpj = args.cpfCnpj;
+      queryBuilderStr = `o.documento = '${cpfCnpj}' AND (${queryBuilderStr})`;
     }
 
     // Query
     const query =
       `
-SELECT
-  CAST(data AS STRING) AS partitionDate,
-  hora AS processingHour,
-  CAST(datetime_transacao AS STRING) AS transactionDateTime,
-  CAST(datetime_processamento AS STRING) AS processingDateTime,
-  datetime_captura AS captureDateTime,
-  modo AS transportType,
-  permissao AS permitCode,
-  servico AS vehicleService,
-  sentido AS directionId,
-  id_veiculo AS vehicleId,
-  id_cliente AS clientId,
-  id_transacao AS transactionId,
-  id_tipo_pagamento AS paymentMediaType,
-  id_tipo_transacao AS transactionType,
-  id_tipo_integracao AS transportIntegrationType,
-  id_integracao AS integrationId,
-  latitude AS transactionLat,
-  longitude AS transactionLon,
-  stop_id AS stopId,
-  stop_lat AS stopLat,
-  stop_lon AS stopLon,
-  valor_transacao AS transactionValue,
-  versao AS bqDataVersion
-FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
+      SELECT
+        CAST(t.data AS STRING) AS partitionDate,
+        t.hora AS processingHour,
+        CAST(t.datetime_transacao AS STRING) AS transactionDateTime,
+        CAST(t.datetime_processamento AS STRING) AS processingDateTime,
+        t.datetime_captura AS captureDateTime,
+        t.modo AS transportType,
+        t.servico AS vehicleService,
+        t.sentido AS directionId,
+        t.id_veiculo AS vehicleId,
+        t.id_cliente AS clientId,
+        t.id_transacao AS transactionId,
+        t.id_tipo_pagamento AS paymentMediaType,
+        t.tipo_transacao AS transactionType,
+        t.id_tipo_integracao AS transportIntegrationType,
+        t.id_integracao AS integrationId,
+        t.latitude AS transactionLat,
+        t.longitude AS transactionLon,
+        t.stop_id AS stopId,
+        t.stop_lat AS stopLat,
+        t.stop_lon AS stopLon,
+        t.valor_transacao AS transactionValue,
+        t.versao AS bqDataVersion
+      FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+      LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora` +
+      ' ' +
       (queryBuilderStr.length ? `\nWHERE ${queryBuilderStr}` : '') +
       `\nORDER BY data DESC, hora DESC` +
       (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
       (offset !== undefined ? `\nOFFSET ${offset}` : '');
 
     const ticketRevenues: ITicketRevenue[] =
-      await this.bigqueryService.runQuery(BigqueryServiceInstances.smtr, query);
+      await this.bigqueryService.runQuery(BQSInstances.smtr, query);
     return ticketRevenues;
   }
 
+  /**
+   * Convert id values into string values
+   */
   private mapTicketRevenues(
     ticketRevenues: ITicketRevenue[],
   ): ITicketRevenue[] {
     return ticketRevenues.map((item: ITicketRevenue) => {
       const paymentType = item.paymentMediaType;
       const integrationType = item.transportIntegrationType;
-      const transactionType = item.transactionType;
       return {
         ...item,
         paymentMediaType:
@@ -393,14 +369,6 @@ FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
           integrationType !== null
             ? IntegrationType?.[integrationType] || integrationType
             : integrationType,
-        transportType:
-          integrationType !== null
-            ? IntegrationType?.[integrationType] || integrationType
-            : integrationType,
-        transactionType:
-          transactionType !== null
-            ? TransactionType[transactionType] || transactionType
-            : transactionType,
       };
     });
   }

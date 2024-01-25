@@ -14,13 +14,13 @@ describe('User auth (e2e)', () => {
   const app = APP_URL;
 
   describe('Setup tests', () => {
-    it('Should have UTC and local timezones', () => {
+    it('should have UTC and local timezones', () => {
       new Date().getTimezoneOffset();
       expect(process.env.TZ).toEqual('UTC');
       expect(global.__localTzOffset).toBeDefined();
     });
 
-    it('Should have mailDev server', async () => {
+    it('should have mailDev server', async () => {
       await request(MAILDEV_URL).get('').expect(HttpStatus.OK);
     });
   });

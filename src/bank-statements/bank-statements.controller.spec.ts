@@ -1,11 +1,11 @@
 import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
-import { ICoreBankStatements } from 'src/core-bank/interfaces/core-bank-statements.interface';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { BankStatementsController } from './bank-statements.controller';
 import { BankStatementsService } from './bank-statements.service';
+import { IBankStatement } from './interfaces/bank-statement.interface';
 
 describe('BankStatementsController', () => {
   let bankStatementsController: BankStatementsController;
@@ -60,7 +60,7 @@ describe('BankStatementsController', () => {
         { id: 0, cpfCnpj: 'cpfCnpj_1', amount: 10 },
         { id: 1, cpfCnpj: 'cpfCnpj_1', amount: 10 },
         { id: 2, cpfCnpj: 'cpfCnpj_1', amount: 10 },
-      ] as Partial<ICoreBankStatements>[] as ICoreBankStatements[];
+      ] as Partial<IBankStatement>[] as IBankStatement[];
       jest
         .spyOn(bankStatementsService, 'getBankStatementsFromUser')
         .mockResolvedValue({

@@ -36,8 +36,26 @@ const runSeed = async () => {
     );
   }
 
-  // run
   const app = await NestFactory.create(SeedModule);
+
+  // validate
+  console.log(
+    `Validating modules before run: ${services
+      .reduce((str: string[], i) => [...str, i.name], [])
+      .join(', ')}`,
+  );
+  for (const module of services) {
+    if (!(await app.get(module).validateRun()) && !force) {
+      console.log(`[${module.name}]: Database is not empty, aborting seed...`);
+      console.log(
+        `Tip: Use '${FORCE_PARAM}' parameter to ignore this message.`,
+      );
+      await app.close();
+      return;
+    }
+  }
+
+  // run
   console.log(
     `Running modules: ${services
       .reduce((str: string[], i) => [...str, i.name], [])
