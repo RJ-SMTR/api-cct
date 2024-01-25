@@ -119,7 +119,7 @@ export class CronJobsService implements OnModuleInit {
         {
           name: CrobJobsEnum.bulkReSendInvites,
           cronJobParameters: {
-            cronTime: '21 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+            cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
             onTick: async () => this.bulkReSendInvites(),
           },
         },
@@ -603,10 +603,9 @@ export class CronJobsService implements OnModuleInit {
 
   async bulkReSendInvites() {
     const THIS_METHOD = `${this.bulkReSendInvites.name}()`;
-    // const emails: string[] = (
-    //   await this.mailHistoryService.emailsNaoCadastrados()
-    // ).reduce((emails: string[], user) => [...emails, String(user.email)], []);
-    const emails = ['bernardo.marcos64@gmail.com', 'raphaelrivasbra@gmail.com'];
+    const emails: string[] = (
+      await this.mailHistoryService.emailsNaoCadastrados()
+    ).reduce((emails: string[], user) => [...emails, String(user.email)], []);
 
     if (emails.length === 0) {
       this.logger.log(
