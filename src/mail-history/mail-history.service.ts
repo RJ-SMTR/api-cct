@@ -18,6 +18,7 @@ import {
   Equal,
   MoreThanOrEqual,
   Repository,
+  EntityManager,
 } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
 
@@ -33,6 +34,7 @@ export class MailHistoryService {
     private configService: ConfigService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly entityManager: EntityManager,
   ) {}
 
   async create(
@@ -265,5 +267,16 @@ export class MailHistoryService {
     resultReturn.total =
       resultReturn.queued + resultReturn.sent + resultReturn.used;
     return resultReturn;
+  }
+
+  async emailsNaoCadastrados(): Promise<User[]> {
+    return await this.entityManager.query(
+      ' SELECT u.* FROM public."user" u ' +
+        ' INNER JOIN invite i ON u.id = i."userId" ' +
+        ' WHERE "bankCode" IS NULL	' +
+        ' AND i."sentAt" IS NOT NULL ' +
+        ' AND i."sentAt" < now() - INTERVAL \'10 DAYS\' ' +
+        ' ORDER BY i."sentAt","fullName" ',
+    );
   }
 }

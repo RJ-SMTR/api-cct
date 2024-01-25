@@ -262,60 +262,58 @@ export class AuthService {
   /**
    * @throws `HttpException`
    */
-  async sendRegisterEmail(user: User, userMailHistory: MailHistory) {
-    if (userMailHistory.getMailStatus() === InviteStatusEnum.queued) {
-      const mailData: MailData<{ hash: string; to: string; userName: string }> =
+  async performSendRegisterEmail(
+    user: User,
+    userMailHistory: MailHistory,
+    logContext: string,
+  ) {
+    const mailData: MailData<{ hash: string; to: string; userName: string }> = {
+      to: user.email as string,
+      data: {
+        hash: userMailHistory.hash as string,
+        to: user.email as string,
+        userName: user.fullName as string,
+      },
+    };
+    const mailResponse = await this.mailService.sendConcludeRegistration(
+      mailData,
+    );
+    if (mailResponse.mailSentInfo.success === true) {
+      userMailHistory.setInviteStatus(InviteStatusEnum.sent);
+      userMailHistory.sentAt = new Date(Date.now());
+      await this.mailHistoryService.update(
+        userMailHistory.id,
         {
-          to: user.email as string,
-          data: {
-            hash: userMailHistory.hash as string,
-            to: user.email as string,
-            userName: user.fullName as string,
-          },
-        };
-      const mailResponse = await this.mailService.sendConcludeRegistration(
-        mailData,
+          inviteStatus: userMailHistory.inviteStatus,
+          sentAt: userMailHistory.sentAt,
+        },
+        `AuthService.${logContext}`,
       );
-      if (mailResponse.mailSentInfo.success === true) {
-        userMailHistory.setInviteStatus(InviteStatusEnum.sent);
-        userMailHistory.sentAt = new Date(Date.now());
-        await this.mailHistoryService.update(
-          userMailHistory.id,
-          {
-            inviteStatus: userMailHistory.inviteStatus,
-            sentAt: userMailHistory.sentAt,
-          },
-          'AuthService.sendRegisterEmail()',
-        );
-        this.logger.log(
-          formatLog(
-            `Email de cadastro enviado com sucesso (${userMailHistory.getLogInfoStr()})`,
-            'sendRegisterEmail()',
-          ),
-        );
-      } else {
-        throw new HttpException(
-          {
-            error: HttpStatus.INTERNAL_SERVER_ERROR,
-            details: {
-              mailResponse: mailResponse,
-            },
-          },
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
+      this.logger.log(
+        formatLog(
+          `Email de cadastro enviado com sucesso (${userMailHistory.getLogInfoStr()})`,
+          logContext,
+        ),
+      );
     } else {
       throw new HttpException(
         {
-          error: `User's mailStatus is not 'queued'. Cannot proceed with resending the email.`,
+          error: HttpStatus.INTERNAL_SERVER_ERROR,
           details: {
-            userMailStatus: userMailHistory.getMailStatus(),
-            userMail: userMailHistory.getLogInfoStr(),
+            mailResponse: mailResponse,
           },
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  async sendRegisterEmail(user: User, userMailHistory: MailHistory) {
+    const THIS_METHOD = this.sendRegisterEmail.name;
+    await this.performSendRegisterEmail(user, userMailHistory, THIS_METHOD);
   }
 
   async validateQuota(): Promise<number> {
@@ -339,10 +337,11 @@ export class AuthService {
    * @throws `HttpException`
    */
   async resendRegisterMail(args: AuthResendEmailDto): Promise<void> {
+    const THIS_METHOD = this.resendRegisterMail.name;
     const user = await this.getUser(args.id);
     const userMailHsitory = await this.getMailHistory(user);
     await this.validateQuota();
-    await this.sendRegisterEmail(user, userMailHsitory);
+    await this.performSendRegisterEmail(user, userMailHsitory, THIS_METHOD);
   }
 
   async confirmEmail(hash: string): Promise<void> {
