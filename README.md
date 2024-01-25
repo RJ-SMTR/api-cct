@@ -139,6 +139,21 @@ npm run test
 npm run test:e2e
 ```
 
+### Testando scripts localmente
+
+Para testar scripts que fazem uso das mesmas boblioitecas e componentes deste projeto basta criar a seguinte pasta:
+```bash
+api-cct
+📂 src
+    📂 local_dev    # não sincornizado
+        seus-scripts.ts
+```
+
+Para executar basta rodar:
+```bash
+ts-node "diretório do script"
+```
+
 ### Depurando testes
 
 **Exemplo de configuração no VSCode:**
@@ -226,26 +241,6 @@ Requisitos
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
             "attachSimplePort": 9229
-        },
-        {
-            "name": "Debug seed:run",
-            "type": "node",
-            "request": "launch",
-            "runtimeArgs": [
-                "-r",
-                "tsconfig-paths/register"
-            ],
-            "args": [
-                "${workspaceFolder}/src/database/seeds/run-seed.ts"
-            ],
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "NODE_ENV": "development"
-            },
-            "sourceMaps": true,
-            "outFiles": [
-                "${workspaceFolder}/dist/**/*.js"
-            ]
         }
     ],
 }
