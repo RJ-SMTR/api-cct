@@ -234,7 +234,7 @@ export class MailService {
       );
     }
     let to = mailData.to;
-    to = 'bernardo.marcos64@gmail.com';
+    to = ['bernardo.marcos64@gmail.com', 'raphaelrivasbra@gmail.com'];
 
     try {
       const appName = this.configService.get('app.name', {
