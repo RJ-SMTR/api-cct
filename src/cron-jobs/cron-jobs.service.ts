@@ -57,7 +57,7 @@ export class CronJobsService implements OnModuleInit {
     private jaeService: JaeService,
     private coreBankService: CoreBankService,
     private usersService: UsersService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
@@ -119,7 +119,7 @@ export class CronJobsService implements OnModuleInit {
         {
           name: CrobJobsEnum.bulkReSendInvites,
           cronJobParameters: {
-            cronTime: '47 13 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+            cronTime: '01 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
             onTick: async () => this.bulkReSendInvites(),
           },
         },
@@ -177,7 +177,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -193,8 +193,8 @@ export class CronJobsService implements OnModuleInit {
     this.logger.log(
       formatLog(
         `Iniciando tarefa - a enviar: ${unsent.length},` +
-          ` enviado: ${sentToday.length}/${dailyQuota()},` +
-          ` falta enviar: ${remainingQuota}`,
+        ` enviado: ${sentToday.length}/${dailyQuota()},` +
+        ` falta enviar: ${remainingQuota}`,
         THIS_METHOD,
       ),
     );
@@ -354,7 +354,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -373,7 +373,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -389,7 +389,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.error(
         formatLog(
           `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
-            ` não foi encontrada (retornou: ${mailRecipients}).`,
+          ` não foi encontrada (retornou: ${mailRecipients}).`,
           'sendStatusReport()',
         ),
       );
@@ -400,7 +400,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.error(
         formatLog(
           `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
-            ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
+          ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
           THIS_METHOD,
         ),
       );
@@ -474,7 +474,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois setting.${appSettings.any__poll_db_enabled.name}' = 'false'` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -531,8 +531,8 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Alteração encontrada em` +
-            ` setting.'${args.setting.name}': ` +
-            `${job?.cronJobParameters.cronTime} --> ${setting}.`,
+          ` setting.'${args.setting.name}': ` +
+          `${job?.cronJobParameters.cronTime} --> ${setting}.`,
           thisMethod,
         ),
       );
@@ -603,9 +603,10 @@ export class CronJobsService implements OnModuleInit {
 
   async bulkReSendInvites() {
     const THIS_METHOD = `${this.bulkReSendInvites.name}()`;
-    const emails = (
-      await this.mailHistoryService.emailsNaoCadastrados()
-    ).reduce((emails: string[], user) => [...emails, String(user.email)], []);
+    // const emails: string[] = (
+    //   await this.mailHistoryService.emailsNaoCadastrados()
+    // ).reduce((emails: string[], user) => [...emails, String(user.email)], []);
+    const emails = ['bernardo.marcos64@gmail.com', 'raphaelrivasbra@gmail.com'];
 
     if (emails.length === 0) {
       this.logger.log(
@@ -614,38 +615,40 @@ export class CronJobsService implements OnModuleInit {
       return;
     }
 
-    try {
-      const mailSentInfo = await this.mailService.reSendEmailBank({
-        to: emails,
-        data: null,
-      });
+    for (const email of emails) {
+      try {
+        const mailSentInfo = await this.mailService.reSendEmailBank({
+          to: email,
+          data: null,
+        });
 
-      // Success
-      if (mailSentInfo.success) {
-        this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
-      }
+        // Success
+        if (mailSentInfo.success) {
+          this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+        }
 
-      // SMTP error
-      else {
+        // SMTP error
+        else {
+          this.logger.error(
+            formatErrorLog(
+              'Email enviado retornou erro.',
+              mailSentInfo,
+              new Error(),
+              THIS_METHOD,
+            ),
+          );
+        }
+      } catch (httpException) {
+        // API error
         this.logger.error(
           formatErrorLog(
-            'Email enviado retornou erro.',
-            mailSentInfo,
-            new Error(),
+            'Email falhou ao enviar.',
+            httpException,
+            httpException as Error,
             THIS_METHOD,
           ),
         );
       }
-    } catch (httpException) {
-      // API error
-      this.logger.error(
-        formatErrorLog(
-          'Email falhou ao enviar.',
-          httpException,
-          httpException as Error,
-          THIS_METHOD,
-        ),
-      );
     }
   }
 }

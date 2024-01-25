@@ -233,8 +233,6 @@ export class MailService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-    let to = mailData.to;
-    to = ['bernardo.marcos64@gmail.com', 'raphaelrivasbra@gmail.com'];
 
     try {
       const appName = this.configService.get('app.name', {
@@ -242,7 +240,7 @@ export class MailService {
       });
       const response = await this.safeSendMail({
         from,
-        to, // to: mailData.to,
+        to: mailData.to,
         subject: mailTitle,
         text: mailTitle,
         template: 'report_resent_email',
