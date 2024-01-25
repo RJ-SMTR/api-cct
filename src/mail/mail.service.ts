@@ -218,7 +218,7 @@ export class MailService {
    */
   async reSendEmailBank(mailData: MailData<null>): Promise<MailSentInfo> {
     const mailTitle =
-      'PREFEITURA DO RIO DE JANEIRO - COMUNICADO IMPORTANTE!';
+      'SMTR - Prefeitura do Município do Rio de Janeiro - Comunicado Importante!';
     const from = this.configService.get('mail.senderNotification', {
       infer: true,
     });
