@@ -46,20 +46,13 @@ describe('BankStatementsController', () => {
   describe('getBankStatementsFromUser', () => {
     it('should return bank statements list when profile found', async () => {
       // Arrange
-      const user = {
-        id: 1,
-        cpfCnpj: 'cpfCnpj_1',
-      } as User;
       const request = {
         user: {
-          id: user.id,
+          id: 1,
         },
       } as unknown as Request;
-      const args = [];
       const bankStatements = [
         { id: 0, cpfCnpj: 'cpfCnpj_1', amount: 10 },
-        { id: 1, cpfCnpj: 'cpfCnpj_1', amount: 10 },
-        { id: 2, cpfCnpj: 'cpfCnpj_1', amount: 10 },
       ] as Partial<IBankStatement>[] as IBankStatement[];
       jest
         .spyOn(bankStatementsService, 'getBankStatementsFromUser')
@@ -70,17 +63,16 @@ describe('BankStatementsController', () => {
           count: bankStatements.length,
           data: bankStatements,
         });
-      jest.spyOn(usersService, 'getOneFromRequest').mockResolvedValueOnce(user);
 
       // Act
       const result = await bankStatementsController.getBankStatementsFromUser(
         request,
-        ...args,
       );
 
       // Assert
       expect(result?.data).toEqual(bankStatements);
     });
+
     it('should throw an exception when user is not found', async () => {
       // Arrange
       const inexistentUser = {
