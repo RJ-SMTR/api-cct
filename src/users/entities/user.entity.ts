@@ -1,26 +1,28 @@
+import { HttpStatus } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
+import { Exclude, Expose } from 'class-transformer';
+import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
+import { Bank } from 'src/banks/entities/bank.entity';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { EntityHelper } from 'src/utils/entity-helper';
+import { UserHttpException } from 'src/utils/http-exception/user-http-exception';
 import {
-  Column,
   AfterLoad,
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
   CreateDateColumn,
+  DeepPartial,
   DeleteDateColumn,
   Entity,
   Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-  BeforeInsert,
-  BeforeUpdate,
-  DeepPartial,
 } from 'typeorm';
+import { FileEntity } from '../../files/entities/file.entity';
 import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
-import { FileEntity } from '../../files/entities/file.entity';
-import * as bcrypt from 'bcryptjs';
-import { EntityHelper } from 'src/utils/entity-helper';
-import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
-import { Exclude, Expose } from 'class-transformer';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
-import { Bank } from 'src/banks/entities/bank.entity';
 
 @Entity()
 export class User extends EntityHelper {
@@ -222,5 +224,31 @@ export class User extends EntityHelper {
       response += ` (${this.role.name})`;
     }
     return response;
+  }
+
+  getCpfCnpj(args?: {
+    errorMessage?: string;
+    httpStatusCode?: HttpStatus;
+  }): string {
+    if (!this.cpfCnpj) {
+      throw UserHttpException.invalidField('cpfCnpj', {
+        errorMessage: args?.errorMessage,
+        httpStatusCode: args?.httpStatusCode,
+      });
+    }
+    return this.cpfCnpj;
+  }
+
+  getPermitCode(args?: {
+    errorMessage?: string;
+    httpStatusCode?: HttpStatus;
+  }): string {
+    if (!this.permitCode) {
+      throw UserHttpException.invalidField('permitCode', {
+        errorMessage: args?.errorMessage,
+        httpStatusCode: args?.httpStatusCode,
+      });
+    }
+    return this.permitCode;
   }
 }

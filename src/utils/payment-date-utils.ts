@@ -3,14 +3,13 @@ import {
   endOfDay,
   isFriday,
   isSameMonth,
-  isThursday,
   nextFriday,
   previousFriday,
   startOfDay,
   startOfMonth,
   subDays,
 } from 'date-fns';
-import { TimeIntervalEnum } from './enums/time-interval.enum';
+import { BSTimeIntervalEnum } from './enums/time-interval.enum';
 import { WeekdayEnum } from './enums/weekday.enum';
 import { DateIntervalType } from './types/date-interval.type';
 
@@ -18,19 +17,6 @@ export const PAYMENT_WEEKDAY = WeekdayEnum._5_FRIDAY;
 export const PAYMENT_START_WEEKDAY = WeekdayEnum._4_THURSDAY;
 export const PAYMENT_END_WEEKDAY = WeekdayEnum._3_WEDNESDAY;
 export type PaymentEndpointType = 'bank-statements' | 'ticket-revenues';
-
-/**
- * Go to payment day (friday)
- */
-export function getPaymentDay(date: Date): Date {
-  if (isThursday(date)) {
-    const newDate = new Date(date);
-    newDate.setDate(newDate.getDate() + 8);
-    return newDate;
-  } else {
-    return nextFriday(date);
-  }
-}
 
 export function getPaymentWeek(
   fridayDate: Date,
@@ -104,7 +90,7 @@ export function getPaymentDates(
   endpoint: PaymentEndpointType,
   startDateStr?: string,
   endDateStr?: string,
-  timeInterval?: TimeIntervalEnum,
+  timeInterval?: BSTimeIntervalEnum,
 ): DateIntervalType {
   if (!validateDate(startDateStr, endDateStr, timeInterval)) {
     throw new HttpException(
@@ -143,11 +129,11 @@ export function getPaymentDates(
       }
     }
 
-    if (timeInterval === TimeIntervalEnum.LAST_WEEK) {
+    if (timeInterval === BSTimeIntervalEnum.LAST_WEEK) {
       return getPaymentWeek(endDate, endpoint);
-    } else if (timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
+    } else if (timeInterval === BSTimeIntervalEnum.LAST_2_WEEKS) {
       return getPayment2Weeks(endDate, endpoint);
-    } else if (timeInterval === TimeIntervalEnum.LAST_MONTH) {
+    } else if (timeInterval === BSTimeIntervalEnum.LAST_MONTH) {
       return getPaymentMonth(endDate, endpoint);
     }
   } else {
@@ -167,7 +153,7 @@ export function getPaymentDates(
 export function validateDate(
   startDateStr?: string,
   endDateStr?: string,
-  timeInterval?: TimeIntervalEnum,
+  timeInterval?: BSTimeIntervalEnum,
 ): boolean {
   if (
     startDateStr === undefined &&

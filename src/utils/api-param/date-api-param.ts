@@ -1,7 +1,7 @@
 import { ApiParamOptions } from '@nestjs/swagger';
 import { WeekdayEnum } from '../enums/weekday.enum';
 import { DescriptionApiParam } from './description-api-param';
-import { TimeIntervalEnum } from '../enums/time-interval.enum';
+import { BSTimeIntervalEnum } from '../enums/time-interval.enum';
 
 /**
  * @type `Record<string, ApiParamOptions>`
@@ -21,14 +21,21 @@ export const DateApiParams = {
     description: DescriptionApiParam({ hours: '23:59:59.999' }),
   } as ApiParamOptions,
 
+  getEndDate: (required = false) =>
+    ({
+      name: 'endDate',
+      required: required,
+      description: DescriptionApiParam({ hours: '23:59:59.999' }),
+    } as ApiParamOptions),
+
   timeInterval: {
     name: 'timeInterval',
     required: false,
     description: DescriptionApiParam({
-      default: TimeIntervalEnum.LAST_MONTH,
+      default: BSTimeIntervalEnum.LAST_MONTH,
     }),
-    example: TimeIntervalEnum.LAST_MONTH,
-    enum: TimeIntervalEnum,
+    example: BSTimeIntervalEnum.LAST_MONTH,
+    enum: BSTimeIntervalEnum,
   } as ApiParamOptions,
 
   ignorePreviousWeek: {

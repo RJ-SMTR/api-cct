@@ -1,4 +1,4 @@
-import { TimeIntervalEnum } from '../enums/time-interval.enum';
+import { BSTimeIntervalEnum } from '../enums/time-interval.enum';
 import { DefaultValuePipe } from '@nestjs/common';
 import { QueryParamsType } from '../types/query-params.type';
 import { ParseDatePipe } from '../pipes/parse-date.pipe';
@@ -19,6 +19,6 @@ export const DateQueryParams = {
 
   timeInterval: [
     'timeInterval',
-    new DefaultValuePipe(TimeIntervalEnum.LAST_MONTH),
+    new DefaultValuePipe(BSTimeIntervalEnum.LAST_MONTH),
   ] as QueryParamsType,
 };

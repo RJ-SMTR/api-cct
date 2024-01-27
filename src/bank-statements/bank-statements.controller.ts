@@ -3,21 +3,27 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Query,
   Request,
   SerializeOptions,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { DateApiParams } from 'src/utils/api-param/date.api-param';
-import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
-import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { User } from 'src/users/entities/user.entity';
+import { CommonApiParams } from 'src/utils/api-param/common-api-params';
+import { DateApiParams } from 'src/utils/api-param/date-api-param';
+import {
+  BSMeTimeIntervalEnum,
+  BSTimeIntervalEnum,
+} from 'src/utils/enums/time-interval.enum';
+import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { BankStatementsService } from './bank-statements.service';
-import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
-import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
+import { IBSGetMeDayResponse } from './interfaces/bs-get-me-day-response.interface';
+import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
 
 @ApiTags('BankStatements')
 @Controller({
@@ -34,35 +40,49 @@ export class BankStatementsController {
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
   @ApiQuery(DateApiParams.startDate)
-  @ApiQuery({
-    name: 'endDate',
-    required: false,
-    description: DescriptionApiParam({ hours: '23:59:59.999' }),
-  })
+  @ApiQuery(DateApiParams.endDate)
   @ApiQuery(DateApiParams.timeInterval)
-  @ApiQuery({
-    name: 'userId',
-    type: Number,
-    required: false,
-    description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
-  })
+  @ApiQuery(CommonApiParams.userId)
   @HttpCode(HttpStatus.OK)
-  async getBankStatementsFromUser(
+  async getMe(
     @Request() request,
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query(...DateQueryParams.endDate) endDate?: string,
     @Query(...DateQueryParams.timeInterval)
-    timeInterval?: TimeIntervalEnum | undefined,
+    timeInterval?: BSMeTimeIntervalEnum | undefined,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
     userId?: number | null,
-  ): Promise<IBankStatementsResponse> {
+  ): Promise<IBSGetMeResponse> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
-    const args: IBankStatementsGet = {
+    return this.bankStatementsService.getMe({
       startDate,
       endDate,
-      timeInterval,
+      timeInterval: timeInterval
+        ? (timeInterval as unknown as BSTimeIntervalEnum)
+        : undefined,
       userId: isUserIdNumber ? userId : request.user.id,
-    };
-    return this.bankStatementsService.getBankStatementsFromUser(args);
+    });
+  }
+
+  @SerializeOptions({
+    groups: ['me'],
+  })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('me/day/:date')
+  @ApiParam({ name: 'date', example: '2023-01-12' })
+  @ApiQuery(CommonApiParams.userId)
+  @HttpCode(HttpStatus.OK)
+  async getMeDayDate(
+    @Request() request: IRequest,
+    @Param('date') date: string,
+    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    userId?: number | null,
+  ): Promise<IBSGetMeDayResponse> {
+    const isUserIdParam = userId !== null && !isNaN(Number(userId));
+    return this.bankStatementsService.getMeDay({
+      endDate: date,
+      userId: isUserIdParam ? userId : (request.user as User).id,
+    });
   }
 }

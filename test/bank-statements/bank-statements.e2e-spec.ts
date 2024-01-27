@@ -5,7 +5,6 @@ import { getDateYMDString } from '../../src/utils/date-utils';
 import {
   APP_URL,
   BQ_JSON_CREDENTIALS,
-  // BQ_JSON_CREDENTIALS,
   LICENSEE_PASSWORD,
   LICENSEE_PERMIT_CODE,
 } from '../utils/constants';

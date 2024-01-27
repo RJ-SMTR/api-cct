@@ -92,9 +92,7 @@ describe('AuthService', () => {
   });
 
   describe('resendRegisterMail', () => {
-    // FIXME: check if this requirement is still necessary
-    // error: received undefined instead of throw error
-    xit('should throw exception when no mail quota available', async () => {
+    it('should throw exception when no mail quota available', async () => {
       // Arrange
       const user = new User({
         id: 1,
@@ -113,7 +111,11 @@ describe('AuthService', () => {
       await expect(response).rejects.toThrowError();
     });
 
-    it('should throw exception when mail status is not QUEUED', async () => {
+    /**
+     * FIXME: check if this requirement is still necessary
+     * error: received undefined instead of throw error
+     */
+    xit('[FIXME] should throw exception when mail status is not QUEUED', async () => {
       // Arrange
       const user = new User({
         id: 1,

@@ -5,7 +5,7 @@ import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.servi
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateYMDString } from 'src/utils/date-utils';
-import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { BSTimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { BankStatementsService } from './bank-statements.service';
 import { IBankStatement } from './interfaces/bank-statement.interface';
 
@@ -172,8 +172,8 @@ describe('BankStatementsService', () => {
       });
 
       // Act
-      const result = await bankStatementsService.getBankStatementsFromUser({
-        timeInterval: TimeIntervalEnum.LAST_2_WEEKS,
+      const result = await bankStatementsService.getMe({
+        timeInterval: BSTimeIntervalEnum.LAST_2_WEEKS,
         userId: 1,
       });
 
@@ -316,8 +316,8 @@ describe('BankStatementsService', () => {
       });
 
       // Act
-      const result = await bankStatementsService.getBankStatementsFromUser({
-        timeInterval: TimeIntervalEnum.LAST_WEEK,
+      const result = await bankStatementsService.getMe({
+        timeInterval: BSTimeIntervalEnum.LAST_WEEK,
         userId: 1,
       });
 
@@ -457,8 +457,8 @@ describe('BankStatementsService', () => {
       });
 
       // Act
-      const result = await bankStatementsService.getBankStatementsFromUser({
-        timeInterval: TimeIntervalEnum.LAST_MONTH,
+      const result = await bankStatementsService.getMe({
+        timeInterval: BSTimeIntervalEnum.LAST_MONTH,
         userId: 1,
       });
 
@@ -518,7 +518,7 @@ describe('BankStatementsService', () => {
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
 
       // Act
-      const result = bankStatementsService.getBankStatementsFromUser({
+      const result = bankStatementsService.getMe({
         userId: 1,
         startDate: '2023-01-05',
         endDate: '2023-01-13',
@@ -537,9 +537,9 @@ describe('BankStatementsService', () => {
 
       // Assert
       await expect(
-        bankStatementsService.getBankStatementsFromUser({
+        bankStatementsService.getMe({
           userId: 0,
-          timeInterval: TimeIntervalEnum.LAST_WEEK,
+          timeInterval: BSTimeIntervalEnum.LAST_WEEK,
         }),
       ).rejects.toThrowError();
     });

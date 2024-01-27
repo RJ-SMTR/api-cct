@@ -1,5 +1,5 @@
 import { endOfDay, startOfDay, startOfMonth } from 'date-fns';
-import { TimeIntervalEnum } from './enums/time-interval.enum';
+import { BSTimeIntervalEnum } from './enums/time-interval.enum';
 import { DateIntervalStrType } from './types/date-interval.type';
 
 export function getDateWithTimezone(
@@ -37,7 +37,7 @@ export function getDateNthWeek(dateInput: Date, startWeekday: number): number {
 export function getStartEndDates(args: {
   startDateStr?: string;
   endDateStr?: string;
-  timeInterval?: TimeIntervalEnum;
+  timeInterval?: BSTimeIntervalEnum;
 }): { startDate: Date; endDate: Date } {
   const now = new Date(Date.now());
   let startDate: Date =
@@ -48,13 +48,13 @@ export function getStartEndDates(args: {
     args?.endDateStr !== undefined ? new Date(args.endDateStr) : new Date(now);
 
   if (args.timeInterval && !args?.startDateStr) {
-    if (args.timeInterval === TimeIntervalEnum.LAST_WEEK) {
+    if (args.timeInterval === BSTimeIntervalEnum.LAST_WEEK) {
       startDate.setDate(startDate.getDate() - 7);
     }
-    if (args.timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
+    if (args.timeInterval === BSTimeIntervalEnum.LAST_2_WEEKS) {
       startDate.setDate(startDate.getDate() - 14);
     }
-    if (args.timeInterval === TimeIntervalEnum.LAST_MONTH) {
+    if (args.timeInterval === BSTimeIntervalEnum.LAST_MONTH) {
       startDate = startOfMonth(startDate);
     }
   }

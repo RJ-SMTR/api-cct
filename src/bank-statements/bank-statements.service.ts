@@ -4,10 +4,14 @@ import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.servi
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateYMDString } from 'src/utils/date-utils';
+import { BSTimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPaymentDates, getPaymentWeek } from 'src/utils/payment-date-utils';
 import { IBankStatement } from './interfaces/bank-statement.interface';
-import { IBankStatementsGet } from './interfaces/bank-statements-get.interface';
-import { IBankStatementsResponse } from './interfaces/bank-statements-response.interface';
+import { IBSGetMeArgs } from './interfaces/bs-get-me-args.interface';
+import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
+import { IBSGetMeDayArgs } from './interfaces/bs-get-me-day-args.interface';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { IBSGetMeDayResponse } from './interfaces/bs-get-me-day-response.interface';
 
 /**
  * Get weekly statements
@@ -19,9 +23,42 @@ export class BankStatementsService {
     private readonly ticketRevenuesService: TicketRevenuesService,
   ) {}
 
-  public async getBankStatementsFromUser(
-    args: IBankStatementsGet,
-  ): Promise<IBankStatementsResponse> {
+  public async getMe(args: IBSGetMeArgs): Promise<IBSGetMeResponse> {
+    const validArgs = await this.validateGetMe(args);
+    let todaySum = 0;
+    const insertedData = await this.getBankStatements(
+      {
+        groupBy: 'week',
+        startDate: validArgs.startDate,
+        endDate: validArgs.endDate,
+        timeInterval: validArgs.timeInterval,
+        userId: validArgs.user.id,
+      },
+      validArgs.user,
+    );
+    todaySum = insertedData.todaySum;
+    const amountSum = Number(
+      insertedData.statements
+        .reduce((sum, item) => sum + item.amount, 0)
+        .toFixed(2),
+    );
+    const ticketCount = insertedData.countSum;
+
+    return {
+      amountSum,
+      todaySum,
+      count: insertedData.statements.length,
+      ticketCount,
+      data: insertedData.statements,
+    };
+  }
+
+  private async validateGetMe(args: IBSGetMeArgs): Promise<{
+    startDate: undefined;
+    endDate?: string;
+    timeInterval?: BSTimeIntervalEnum;
+    user: User;
+  }> {
     if (isNaN(args?.userId as number)) {
       throw new HttpException(
         {
@@ -48,51 +85,27 @@ export class BankStatementsService {
 
     // For now it validates if user exists
     const user = await this.usersService.getOne({ id: args?.userId });
-    if (!user.cpfCnpj || !user.id) {
-      throw new HttpException(
-        {
-          error: {
-            message: 'User not found',
-            user: {
-              ...(!user.cpfCnpj ? { cpfCnpj: 'fieldIsEmpty' } : {}),
-              ...(!user.id ? { id: 'fieldIsEmpty' } : {}),
-            },
-          },
-        },
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    let todaySum = 0;
-    const insertedData = await this.getBankStatements(
-      {
-        startDate: args?.startDate,
-        endDate: args?.endDate,
-        timeInterval: args?.timeInterval,
-        userId: args?.userId,
-      },
-      user,
-    );
-    todaySum = insertedData.todaySum;
-    // }
-    const amountSum = Number(
-      insertedData.statements
-        .reduce((sum, item) => sum + item.amount, 0)
-        .toFixed(2),
-    );
-    const ticketCount = insertedData.countSum;
 
     return {
-      amountSum,
-      todaySum,
-      count: insertedData.statements.length,
-      ticketCount,
-      data: insertedData.statements,
+      startDate: undefined,
+      endDate: args?.endDate,
+      timeInterval: args?.timeInterval,
+      user: user,
     };
   }
 
+  /**
+   * Get grouped bank statements
+   * @throws `HttpException`
+   */
   private async getBankStatements(
-    args: IBankStatementsGet,
+    args: {
+      groupBy: 'day' | 'week';
+      startDate?: string;
+      endDate?: string;
+      timeInterval?: BSTimeIntervalEnum;
+      userId?: number;
+    },
     user: User,
   ): Promise<{
     todaySum: number;
@@ -100,13 +113,13 @@ export class BankStatementsService {
     countSum: number;
     statements: IBankStatement[];
   }> {
-    const weekBStatementDates = getPaymentDates(
+    const intervalBSDates = getPaymentDates(
       'bank-statements',
       args?.startDate,
       args?.endDate,
       args?.timeInterval,
     );
-    const dailyTRevenueDates = getPaymentDates(
+    const dailyTRDates = getPaymentDates(
       'ticket-revenues',
       args?.startDate,
       args?.endDate,
@@ -116,8 +129,8 @@ export class BankStatementsService {
     // Get daily data form tickets/me
     const revenuesResponse = await this.ticketRevenuesService.getMeFromUser(
       {
-        startDate: getDateYMDString(dailyTRevenueDates.startDate),
-        endDate: getDateYMDString(dailyTRevenueDates.endDate),
+        startDate: getDateYMDString(dailyTRDates.startDate),
+        endDate: getDateYMDString(dailyTRDates.endDate),
         userId: args?.userId,
         groupBy: 'day',
       },
@@ -130,24 +143,27 @@ export class BankStatementsService {
     const newStatements: IBankStatement[] = [];
 
     // for each week in interval (bankStatements)
+    const dayDiff = args.groupBy === 'week' ? 7 : 1;
     const maxId =
       Math.ceil(
-        differenceInDays(
-          weekBStatementDates.endDate,
-          weekBStatementDates.startDate,
-        ) / 7,
+        differenceInDays(intervalBSDates.endDate, intervalBSDates.startDate) /
+          dayDiff,
       ) + 1;
     let id = 0;
     for (
-      let week = weekBStatementDates.endDate;
-      week >= weekBStatementDates.startDate;
-      week = subDays(week, 7)
+      let endDate = intervalBSDates.endDate;
+      endDate >= intervalBSDates.startDate;
+      endDate = subDays(endDate, dayDiff)
     ) {
-      const weekInterval = getPaymentWeek(week);
+      const dateInterval =
+        args.groupBy === 'week'
+          ? getPaymentWeek(endDate)
+          : { startDate: endDate, endDate };
+
       const revenuesWeek = revenuesResponse.data.filter(
         (i) =>
-          new Date(i.partitionDate) >= weekInterval.startDate &&
-          new Date(i.partitionDate) <= weekInterval.endDate,
+          new Date(i.partitionDate) >= dateInterval.startDate &&
+          new Date(i.partitionDate) <= dateInterval.endDate,
       );
       const weekAmount = revenuesWeek.reduce(
         (sum, i) => sum + i.transactionValueSum,
@@ -156,9 +172,9 @@ export class BankStatementsService {
       newStatements.push({
         id: maxId - id,
         amount: Number(weekAmount.toFixed(2)),
-        cpfCnpj: user.cpfCnpj as string,
-        date: getDateYMDString(week),
-        permitCode: user.permitCode as string,
+        cpfCnpj: user.getCpfCnpj(),
+        date: getDateYMDString(endDate),
+        permitCode: user.getPermitCode(),
         status: '',
         statusCode: '',
       });
@@ -167,5 +183,67 @@ export class BankStatementsService {
     }
     const countSum = revenuesResponse.ticketCount;
     return { todaySum, allSum, countSum, statements: newStatements };
+  }
+
+  public async getMeDay(args: IBSGetMeDayArgs): Promise<IBSGetMeDayResponse> {
+    // const validArgs =
+    await this.validateGetMeDay(args);
+    // const insertedData = await this.getBankStatements(
+    //   {
+    //     groupBy: 'day',
+    //     endDate: validArgs.endDate,
+    //     timeInterval: BSTimeIntervalEnum.LAST_DAY,
+    //     userId: validArgs.user.id,
+    //   },
+    //   validArgs.user,
+    // );
+    // const amountSum = Number(
+    //   insertedData.statements
+    //     .reduce((sum, item) => sum + item.amount, 0)
+    //     .toFixed(2),
+    // );
+
+    return {
+      valueToReceive: 0,
+    };
+  }
+
+  private async validateGetMeDay(args: IBSGetMeDayArgs): Promise<{
+    endDate: string;
+    user: User;
+  }> {
+    if (isNaN(args?.userId as number)) {
+      throw CommonHttpException.argNotType('userId', 'number', args?.userId);
+    }
+    const user = await this.usersService.getOne({ id: args?.userId });
+    return {
+      endDate: args?.endDate,
+      user: user,
+    };
+  }
+
+  public async getMePreviousDays(
+    args: IBSGetMeDayArgs,
+  ): Promise<IBSGetMeDayResponse> {
+    // const validArgs =
+    await this.validateGetMeDay(args);
+    // const insertedData = await this.getBankStatements(
+    //   {
+    //     groupBy: 'day',
+    //     endDate: validArgs.endDate,
+    //     timeInterval: BSTimeIntervalEnum.LAST_DAY,
+    //     userId: validArgs.user.id,
+    //   },
+    //   validArgs.user,
+    // );
+    // const amountSum = Number(
+    //   insertedData.statements
+    //     .reduce((sum, item) => sum + item.amount, 0)
+    //     .toFixed(2),
+    // );
+
+    return {
+      valueToReceive: 0,
+    };
   }
 }
