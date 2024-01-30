@@ -1,9 +1,9 @@
-import { BSTimeIntervalEnum } from '../enums/time-interval.enum';
+import { TimeIntervalEnum } from '../enums/time-interval.enum';
 
 export type DateIntervalArgsType = {
   startDate: Date;
   endDate: Date;
-  timeInterval: BSTimeIntervalEnum;
+  timeInterval: TimeIntervalEnum;
 };
 export type DateIntervalType = { startDate: Date; endDate: Date };
 export type NullableDateIntervalType = { startDate?: Date; endDate?: Date };

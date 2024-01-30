@@ -14,15 +14,19 @@ import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { User } from 'src/users/entities/user.entity';
 import { CommonApiParams } from 'src/utils/api-param/common-api-params';
 import { DateApiParams } from 'src/utils/api-param/date-api-param';
-import {
-  BSMeTimeIntervalEnum,
-  BSTimeIntervalEnum,
-} from 'src/utils/enums/time-interval.enum';
+import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { IRequest } from 'src/utils/interfaces/request.interface';
+import { pagination as getPaginationResult } from 'src/utils/pagination';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
+import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
+import { PaginationResultType as PaginationResult } from 'src/utils/types/pagination-result.type';
 import { BankStatementsService } from './bank-statements.service';
+import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-interval.enum';
+import { BSMeTimeIntervalEnum } from './enums/bs-me-time-interval.enum';
 import { IBSGetMeDayResponse } from './interfaces/bs-get-me-day-response.interface';
+import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
 import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
 
 @ApiTags('BankStatements')
@@ -58,7 +62,7 @@ export class BankStatementsController {
       startDate,
       endDate,
       timeInterval: timeInterval
-        ? (timeInterval as unknown as BSTimeIntervalEnum)
+        ? (timeInterval as unknown as TimeIntervalEnum)
         : undefined,
       userId: isUserIdNumber ? userId : request.user.id,
     });
@@ -83,6 +87,45 @@ export class BankStatementsController {
     return this.bankStatementsService.getMeDay({
       endDate: date,
       userId: isUserIdParam ? userId : (request.user as User).id,
+    });
+  }
+
+  @SerializeOptions({
+    groups: ['me'],
+  })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('me/previous-days')
+  @ApiQuery(PaginationApiParams.page)
+  @ApiQuery(PaginationApiParams.limit)
+  @ApiQuery(DateApiParams.startDate)
+  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery(
+    DateApiParams.getTimeInterval(
+      BSMePrevDaysTimeIntervalEnum,
+      BSMePrevDaysTimeIntervalEnum.LAST_WEEK,
+    ),
+  )
+  @ApiQuery(CommonApiParams.userId)
+  @HttpCode(HttpStatus.OK)
+  async getMePreviousDays(
+    @Request() request: IRequest,
+    @Query(...PaginationQueryParams.page) page: number,
+    @Query(...PaginationQueryParams.limit) limit: number,
+    @Query(...DateQueryParams.getDate('endDate', true)) endDate: string,
+    @Query('timeInterval') timeInterval: BSMePrevDaysTimeIntervalEnum,
+    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    userId?: number | null,
+  ): Promise<PaginationResult<IBSGetMePreviousDaysResponse>> {
+    const isUserIdParam = userId !== null && !isNaN(Number(userId));
+    const result = await this.bankStatementsService.getMePreviousDays({
+      endDate: endDate,
+      timeInterval: timeInterval,
+      userId: isUserIdParam ? userId : (request.user as User).id,
+    });
+    return getPaginationResult(result, result.data.length, result.data.length, {
+      limit,
+      page,
     });
   }
 }

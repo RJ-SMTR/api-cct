@@ -1,9 +1,9 @@
-import { BSTimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 
 export interface ITicketRevenuesGetGrouped {
   startDate?: string;
   endDate?: string;
-  timeInterval?: BSTimeIntervalEnum;
+  timeInterval?: TimeIntervalEnum;
   userId?: number;
   groupBy?: string;
 }

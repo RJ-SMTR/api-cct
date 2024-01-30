@@ -226,6 +226,10 @@ export class User extends EntityHelper {
     return response;
   }
 
+  /**
+   * Get field validated
+   * @throws `HttpException`
+   */
   getCpfCnpj(args?: {
     errorMessage?: string;
     httpStatusCode?: HttpStatus;
@@ -239,6 +243,10 @@ export class User extends EntityHelper {
     return this.cpfCnpj;
   }
 
+  /**
+   * Get field validated
+   * @throws `HttpException`
+   */
   getPermitCode(args?: {
     errorMessage?: string;
     httpStatusCode?: HttpStatus;

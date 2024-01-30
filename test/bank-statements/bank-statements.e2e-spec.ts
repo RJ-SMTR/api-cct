@@ -46,7 +46,7 @@ describe('Bank statements (e2e)', () => {
         licenseeMaxDate = new Date(value[0][0]?.['partitionDate']);
       });
     expect(Number(licenseeMaxDate)).not.toBeNaN();
-  });
+  }, 60000);
 
   it('should match todaySum in /bank-statements with /ticket-revenues/me', async () => {
     // Arrange

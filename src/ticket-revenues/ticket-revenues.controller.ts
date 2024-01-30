@@ -13,7 +13,7 @@ import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { DateApiParams } from 'src/utils/api-param/date-api-param';
 import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
-import { BSTimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
@@ -53,7 +53,7 @@ export class TicketRevenuesController {
     @Request() request,
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
-    @Query('timeInterval') timeInterval: BSTimeIntervalEnum,
+    @Query('timeInterval') timeInterval: TimeIntervalEnum,
     @Query(...DateQueryParams.endDate) endDate?: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
@@ -95,7 +95,7 @@ export class TicketRevenuesController {
     @Request() request,
     @Query(...DateQueryParams.endDate) endDate: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
-    @Query('timeInterval') timeInterval?: BSTimeIntervalEnum,
+    @Query('timeInterval') timeInterval?: TimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
     userId?: number | null,
   ): Promise<ITicketRevenuesGroup> {

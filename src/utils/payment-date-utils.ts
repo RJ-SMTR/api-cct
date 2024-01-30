@@ -9,7 +9,7 @@ import {
   startOfMonth,
   subDays,
 } from 'date-fns';
-import { BSTimeIntervalEnum } from './enums/time-interval.enum';
+import { TimeIntervalEnum } from './enums/time-interval.enum';
 import { WeekdayEnum } from './enums/weekday.enum';
 import { DateIntervalType } from './types/date-interval.type';
 
@@ -90,7 +90,7 @@ export function getPaymentDates(
   endpoint: PaymentEndpointType,
   startDateStr?: string,
   endDateStr?: string,
-  timeInterval?: BSTimeIntervalEnum,
+  timeInterval?: TimeIntervalEnum,
 ): DateIntervalType {
   if (!validateDate(startDateStr, endDateStr, timeInterval)) {
     throw new HttpException(
@@ -129,11 +129,11 @@ export function getPaymentDates(
       }
     }
 
-    if (timeInterval === BSTimeIntervalEnum.LAST_WEEK) {
+    if (timeInterval === TimeIntervalEnum.LAST_WEEK) {
       return getPaymentWeek(endDate, endpoint);
-    } else if (timeInterval === BSTimeIntervalEnum.LAST_2_WEEKS) {
+    } else if (timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
       return getPayment2Weeks(endDate, endpoint);
-    } else if (timeInterval === BSTimeIntervalEnum.LAST_MONTH) {
+    } else if (timeInterval === TimeIntervalEnum.LAST_MONTH) {
       return getPaymentMonth(endDate, endpoint);
     }
   } else {
@@ -153,7 +153,7 @@ export function getPaymentDates(
 export function validateDate(
   startDateStr?: string,
   endDateStr?: string,
-  timeInterval?: BSTimeIntervalEnum,
+  timeInterval?: TimeIntervalEnum,
 ): boolean {
   if (
     startDateStr === undefined &&

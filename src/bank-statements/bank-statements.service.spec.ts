@@ -5,16 +5,20 @@ import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.servi
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateYMDString } from 'src/utils/date-utils';
-import { BSTimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { BankStatementsService } from './bank-statements.service';
 import { IBankStatement } from './interfaces/bank-statement.interface';
 
 const allBankStatements = [
-  { id: 1, cpfCnpj: 'cc_1', permitCode: 'pc_1', date: '2023-01-27', amount: 1 },
-  { id: 2, cpfCnpj: 'cc_1', permitCode: 'pc_1', date: '2023-01-20', amount: 2 },
-  { id: 3, cpfCnpj: 'cc_1', permitCode: 'pc_1', date: '2023-01-13', amount: 3 },
-  { id: 4, cpfCnpj: 'cc_1', permitCode: 'pc_1', date: '2023-01-06', amount: 4 },
-] as Partial<IBankStatement>[] as IBankStatement[];
+  { id: 1, date: '2023-01-27', amount: 1 },
+  { id: 2, date: '2023-01-20', amount: 2 },
+  { id: 3, date: '2023-01-13', amount: 3 },
+  { id: 4, date: '2023-01-06', amount: 4 },
+].map((i) => ({
+  ...i,
+  cpfCnpj: 'cc_1',
+  permitCode: 'pc_1',
+})) as Partial<IBankStatement>[] as IBankStatement[];
 
 describe('BankStatementsService', () => {
   let bankStatementsService: BankStatementsService;
@@ -173,7 +177,7 @@ describe('BankStatementsService', () => {
 
       // Act
       const result = await bankStatementsService.getMe({
-        timeInterval: BSTimeIntervalEnum.LAST_2_WEEKS,
+        timeInterval: TimeIntervalEnum.LAST_2_WEEKS,
         userId: 1,
       });
 
@@ -186,23 +190,27 @@ describe('BankStatementsService', () => {
         data: [
           {
             id: 2,
-            cpfCnpj: 'cc_1',
-            permitCode: 'pc_1',
             date: '2023-01-27',
             amount: 40,
-            status: '',
-            statusCode: '',
           },
           {
             id: 1,
-            cpfCnpj: 'cc_1',
-            permitCode: 'pc_1',
             date: '2023-01-20',
             amount: 70,
-            status: '',
-            statusCode: '',
           },
-        ],
+        ].map((i) => ({
+          ...i,
+          cpfCnpj: 'cc_1',
+          paymentOrderDate: i.date,
+          permitCode: 'pc_1',
+          status: '',
+          statusCode: '',
+          error: null,
+          errorCode: null,
+          bankStatus: null,
+          bankStatusCode: null,
+          effectivePaymentDate: null,
+        })),
       });
     });
 
@@ -317,7 +325,7 @@ describe('BankStatementsService', () => {
 
       // Act
       const result = await bankStatementsService.getMe({
-        timeInterval: BSTimeIntervalEnum.LAST_WEEK,
+        timeInterval: TimeIntervalEnum.LAST_WEEK,
         userId: 1,
       });
 
@@ -333,9 +341,15 @@ describe('BankStatementsService', () => {
             cpfCnpj: 'cc_1',
             permitCode: 'pc_1',
             date: '2023-01-27',
+            paymentOrderDate: '2023-01-27',
             amount: 70,
             status: '',
             statusCode: '',
+            error: null,
+            errorCode: null,
+            bankStatus: null,
+            bankStatusCode: null,
+            effectivePaymentDate: null,
           },
         ],
       });
@@ -458,7 +472,7 @@ describe('BankStatementsService', () => {
 
       // Act
       const result = await bankStatementsService.getMe({
-        timeInterval: BSTimeIntervalEnum.LAST_MONTH,
+        timeInterval: TimeIntervalEnum.LAST_MONTH,
         userId: 1,
       });
 
@@ -471,32 +485,32 @@ describe('BankStatementsService', () => {
         data: [
           {
             id: 3,
-            cpfCnpj: 'cc_1',
-            permitCode: 'pc_1',
             date: '2023-01-20',
             amount: 60,
-            status: '',
-            statusCode: '',
           },
           {
             id: 2,
-            cpfCnpj: 'cc_1',
-            permitCode: 'pc_1',
             date: '2023-01-13',
             amount: 70,
-            status: '',
-            statusCode: '',
           },
           {
             id: 1,
-            cpfCnpj: 'cc_1',
-            permitCode: 'pc_1',
             date: '2023-01-06',
             amount: 70,
-            status: '',
-            statusCode: '',
           },
-        ],
+        ].map((i) => ({
+          ...i,
+          cpfCnpj: 'cc_1',
+          permitCode: 'pc_1',
+          paymentOrderDate: i.date,
+          error: null,
+          errorCode: null,
+          bankStatus: null,
+          bankStatusCode: null,
+          status: '',
+          statusCode: '',
+          effectivePaymentDate: null,
+        })),
       });
     });
 
@@ -539,7 +553,7 @@ describe('BankStatementsService', () => {
       await expect(
         bankStatementsService.getMe({
           userId: 0,
-          timeInterval: BSTimeIntervalEnum.LAST_WEEK,
+          timeInterval: TimeIntervalEnum.LAST_WEEK,
         }),
       ).rejects.toThrowError();
     });
