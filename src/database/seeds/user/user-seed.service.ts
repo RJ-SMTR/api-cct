@@ -40,7 +40,7 @@ export class UserSeedService {
         );
         createdItem = (await this.userSeedRepository.findOne({
           where: {
-            email: newItem.email as string,
+            email: item.email as string,
           },
         })) as User;
       } else {

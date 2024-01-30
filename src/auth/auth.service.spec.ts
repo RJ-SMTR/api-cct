@@ -16,10 +16,6 @@ import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-st
 
 process.env.TZ = 'UTC';
 
-/**
- * All tests below were based on the requirements on GitHub.
- * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
- */
 describe('AuthService', () => {
   let authService: AuthService;
   let usersService: UsersService;
@@ -92,7 +88,9 @@ describe('AuthService', () => {
   });
 
   describe('resendRegisterMail', () => {
-    it('should throw exception when no mail quota available', async () => {
+    it('should throw exception when no mail quota available', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 13 - GitHub}
+     */ async () => {
       // Arrange
       const user = new User({
         id: 1,
@@ -111,11 +109,12 @@ describe('AuthService', () => {
       await expect(response).rejects.toThrowError();
     });
 
-    /**
+    xit('[FIXME] should throw exception when mail status is not QUEUED', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 15 - GitHub}
+     *
      * FIXME: check if this requirement is still necessary
      * error: received undefined instead of throw error
-     */
-    xit('[FIXME] should throw exception when mail status is not QUEUED', async () => {
+     */ async () => {
       // Arrange
       const user = new User({
         id: 1,
@@ -146,10 +145,9 @@ describe('AuthService', () => {
       );
     });
 
-    /**
-     *@see {@link https://github.com/RJ-SMTR/api-cct/issues/164 Requirements #164 - GitHub}
-     */
-    it('should return success regardless of quota status', async () => {
+    it('should return success regardless of quota status', /**
+     * Requirement: 2023/12/28 {@link https://github.com/RJ-SMTR/api-cct/issues/164 #164 - GitHub}
+     */ async () => {
       // Arrange
       const users = [
         new User({ id: 1, email: 'user1@mail.com', hash: 'hash_1' }),
@@ -206,7 +204,9 @@ describe('AuthService', () => {
   });
 
   describe('forgotPassword', () => {
-    it('should throw exception when no mail quota available', async () => {
+    it('should throw exception when no mail quota available', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 16 - GitHub}
+     */ async () => {
       // Arrange
       jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(0);
 
@@ -217,7 +217,9 @@ describe('AuthService', () => {
       await expect(responsePromise).rejects.toThrowError();
     });
 
-    it('should not consume the quota when available', async () => {
+    it('should not consume the quota when available', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 17 - GitHub}
+     */ async () => {
       // Arrange
       const user = new User({ id: 1, email: 'user1@mail.com', hash: 'hash_1' });
       const mailSentInfo = {

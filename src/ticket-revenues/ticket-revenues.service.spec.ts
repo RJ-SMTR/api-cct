@@ -50,12 +50,10 @@ describe('TicketRevenuesService', () => {
     expect(ticketRevenuesService).toBeDefined();
   });
 
-  // TODO: FIXME
-  /**
-   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 Requirements - GitHub}
-   */
   describe('getMeGroupedFromUser', () => {
-    it('should return Gratuidade = R$ 0.00', async () => {
+    it('should return Gratuidade = R$ 0.00', /**
+     * Requirement: 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 4 - GitHub}
+     */ async () => {
       // Arrange
       const revenues: ITicketRevenue[] = [];
       for (let day = 3; day >= 1; day--) {
@@ -145,7 +143,9 @@ describe('TicketRevenuesService', () => {
       ).toEqual(0);
     });
 
-    it('should count and match transactionValueSum with sum of transactionType properties', async () => {
+    it('should count and match transactionValueSum with sum of transactionType properties', /**
+     * Requirement: 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 6 - GitHub}
+     */ async () => {
       // Arrange
       const revenues: ITicketRevenue[] = [];
       for (let day = 3; day >= 1; day--) {

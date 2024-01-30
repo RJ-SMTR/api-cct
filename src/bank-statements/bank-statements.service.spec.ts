@@ -67,8 +67,7 @@ describe('BankStatementsService', () => {
 
   describe('getBankStatementsFromUser', () => {
     it('should filter last 2 weeks', /**
-     * Requirements:
-     * - 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 1 - GitHub}
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 1 - GitHub}
      *
      * Mocked today: 2023/01/22
      *
@@ -215,8 +214,7 @@ describe('BankStatementsService', () => {
     });
 
     it('should filter last week', /**
-     * Requirements:
-     * - 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 2 - GitHub}
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 2 - GitHub}
      *
      * Mocked today: 2023/01/22
      *
@@ -356,8 +354,7 @@ describe('BankStatementsService', () => {
     });
 
     it('should filter last month', /**
-     * Requirements:
-     * - 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 3 - GitHub}
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 3 - GitHub}
      *
      * Mocked today: 2023/01/17
      *
@@ -515,8 +512,7 @@ describe('BankStatementsService', () => {
     });
 
     it('should throw exception when filtering by start-end dates', /**
-     * Requirements:
-     * - 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 4 - GitHub}
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 4 - GitHub}
      */ async () => {
       // Arrange
       const bankStatements = allBankStatements.filter(
@@ -543,8 +539,7 @@ describe('BankStatementsService', () => {
     });
 
     it('should throw exception when profile is not found', /**
-     * Requirements:
-     * - 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 5 - GitHub}
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 5 - GitHub}
      */ async () => {
       // Arrange
       jest.spyOn(usersService, 'getOne').mockRejectedValue(new Error());

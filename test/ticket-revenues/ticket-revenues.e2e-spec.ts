@@ -22,8 +22,7 @@ describe('Ticket revenues (e2e)', () => {
   });
 
   it('should match result in /ticket-revenues/me with /ticket-revenues/me/individual', /**
-   * Requirements:
-   * - 2024/01/26 {@link https://github.com/RJ-SMTR/api-cct/issues/167#issuecomment-1912764312 #167, item 3 - GitHub}
+   * Requirement: 2024/01/26 {@link https://github.com/RJ-SMTR/api-cct/issues/167#issuecomment-1912764312 #167, item 3 - GitHub}
    */ async () => {
     // Arrange
     const startDate = subDays(new Date(), 366);

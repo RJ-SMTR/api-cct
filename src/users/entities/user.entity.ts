@@ -198,10 +198,15 @@ export class User extends EntityHelper {
    * @param userProps Properties to update
    * @param removeConstraintKeys remove redundant keys to avoid database update
    */
-  update(userProps: DeepPartial<User>, removeUniqueKeys = false) {
+  update(userProps: DeepPartial<User>, asUpdateObject = false) {
     const props = new User(userProps);
-    if (removeUniqueKeys && props?.email === this?.email) {
-      (props.email as any) = undefined;
+    if (asUpdateObject) {
+      if (props?.email === this?.email) {
+        (props.email as any) = undefined;
+      }
+      if (props?.password === undefined || props?.password === this.password) {
+        (props.password as any) = undefined;
+      }
     }
     Object.assign(this, props);
   }
