@@ -106,18 +106,18 @@ export class BankStatementsService {
     timeInterval?: TimeIntervalEnum;
     user: User;
   }): Promise<IGetBSResponse> {
-    const intervalBSDates = getPaymentDates(
-      'bank-statements',
-      args?.startDate,
-      args?.endDate,
-      args?.timeInterval,
-    );
-    const dailyTRDates = getPaymentDates(
-      'ticket-revenues',
-      args?.startDate,
-      args?.endDate,
-      args?.timeInterval,
-    );
+    const intervalBSDates = getPaymentDates({
+      endpoint: 'bank-statements',
+      startDateStr: args?.startDate,
+      endDateStr: args?.endDate,
+      timeInterval: args?.timeInterval,
+    });
+    const dailyTRDates = getPaymentDates({
+      endpoint: 'ticket-revenues',
+      startDateStr: args?.startDate,
+      endDateStr: args?.endDate,
+      timeInterval: args?.timeInterval,
+    });
 
     // Get daily data form tickets/me
     const revenuesResponse = await this.ticketRevenuesService.getMe(
@@ -246,12 +246,12 @@ export class BankStatementsService {
     endDate?: string;
     timeInterval?: TimeIntervalEnum;
   }): IBankStatement[] {
-    const intervalBSDates = getPaymentDates(
-      'bank-statements',
-      undefined,
-      validArgs?.endDate,
-      validArgs?.timeInterval,
-    );
+    const intervalBSDates = getPaymentDates({
+      endpoint: 'bank-statements',
+      startDateStr: undefined,
+      endDateStr: validArgs?.endDate,
+      timeInterval: validArgs?.timeInterval,
+    });
     // This data is mocked for development
     return [
       {

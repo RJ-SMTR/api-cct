@@ -57,7 +57,7 @@ export class TicketRevenuesController {
     @Query('timeInterval') timeInterval: TimeIntervalEnum,
     @Query(...DateQueryParams.endDate) endDate?: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
-    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<ITRGetMeGroupedResponse> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
@@ -94,7 +94,7 @@ export class TicketRevenuesController {
     @Query(...DateQueryParams.endDate) endDate: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query('timeInterval') timeInterval?: TimeIntervalEnum,
-    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<ITicketRevenuesGroup> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
@@ -136,7 +136,7 @@ export class TicketRevenuesController {
     @Query(...DateQueryParams.endDate) endDate: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query('timeInterval') timeInterval?: TRTimeIntervalEnum,
-    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<Pagination<ITRGetMeIndividualResponse>> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));

@@ -4,11 +4,10 @@ import { BQSInstances, BigqueryService } from 'src/bigquery/bigquery.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
-import { formatLog } from 'src/utils/logging';
 import { getPagination } from 'src/utils/get-pagination';
+import { formatLog } from 'src/utils/logging';
 import {
   PAYMENT_START_WEEKDAY,
   PaymentEndpointType,
@@ -47,18 +46,18 @@ export class TicketRevenuesService {
     args: ITRGetMeGroupedArgs,
   ): Promise<ITicketRevenuesGroup> {
     // Args
-    const user = await this.getUser(args);
-    const { startDate, endDate } = getPaymentDates(
-      'ticket-revenues',
-      args.startDate,
-      args.endDate,
-      args.timeInterval,
-    );
+    const user = await this.validateUser(args);
+    const { startDate, endDate } = getPaymentDates({
+      endpoint: 'ticket-revenues',
+      startDateStr: args.startDate,
+      endDateStr: args.endDate,
+      timeInterval: args.timeInterval,
+    });
 
     // Get data
     let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
-      cpfCnpj: user.cpfCnpj,
+      cpfCnpj: user.getCpfCnpj(),
       startDate,
       endDate,
     };
@@ -80,20 +79,20 @@ export class TicketRevenuesService {
     pagination: IPaginationOptions,
     endpoint: PaymentEndpointType,
   ): Promise<ITRGetMeGroupedResponse> {
-    const user = await this.getUser(args);
+    const user = await this.validateUser(args);
     const GET_TODAY = true;
-    const { startDate, endDate } = getPaymentDates(
-      endpoint,
-      args.startDate,
-      args.endDate,
-      args.timeInterval,
-    );
+    const { startDate, endDate } = getPaymentDates({
+      endpoint: endpoint,
+      startDateStr: args.startDate,
+      endDateStr: args.endDate,
+      timeInterval: args.timeInterval,
+    });
     const groupBy = args?.groupBy || 'day';
 
     // Get data
     let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
-      cpfCnpj: user.cpfCnpj,
+      cpfCnpj: user.getCpfCnpj(),
       startDate,
       endDate,
       getToday: GET_TODAY,
@@ -195,32 +194,8 @@ export class TicketRevenuesService {
     }
   }
 
-  private async getUser(args: ITRGetMeGroupedArgs): Promise<User> {
-    if (isNaN(args?.userId as number)) {
-      throw new HttpException(
-        {
-          details: {
-            userId: `field is ${args?.userId}`,
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
+  private async validateUser(args: ITRGetMeGroupedArgs): Promise<User> {
     const user = await this.usersService.getOne({ id: args?.userId });
-    if (!user.cpfCnpj) {
-      throw new HttpException(
-        {
-          error: HttpErrorMessages.UNAUTHORIZED,
-          details: {
-            message: 'Maybe your token has expired, try to get a new one',
-            user: {
-              cpfCnpj: 'fieldIsEmpty',
-            },
-          },
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
     return user;
   }
 
@@ -395,12 +370,12 @@ export class TicketRevenuesService {
   ): Promise<Pagination<ITRGetMeIndividualResponse>> {
     const GET_TODAY = true;
     const validArgs = await this.validateGetMeIndividualArgs(args);
-    const { startDate, endDate } = getPaymentDates(
-      'ticket-revenues',
-      validArgs.startDate,
-      validArgs.endDate,
-      validArgs.timeInterval,
-    );
+    const { startDate, endDate } = getPaymentDates({
+      endpoint: 'ticket-revenues',
+      startDateStr: validArgs.startDate,
+      endDateStr: validArgs.endDate,
+      timeInterval: validArgs.timeInterval,
+    });
 
     const result = await this.fetchTicketRevenues({
       cpfCnpj: validArgs.user.getCpfCnpj(),
@@ -464,31 +439,7 @@ export class TicketRevenuesService {
     endDate?: string;
     timeInterval?: TimeIntervalEnum;
   }> {
-    if (isNaN(args?.userId as number)) {
-      throw new HttpException(
-        {
-          details: {
-            userId: `field is ${args?.userId}`,
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
     const user = await this.usersService.getOne({ id: args?.userId });
-    if (!user.cpfCnpj) {
-      throw new HttpException(
-        {
-          error: HttpErrorMessages.UNAUTHORIZED,
-          details: {
-            message: 'Maybe your token has expired, try to get a new one',
-            user: {
-              cpfCnpj: 'fieldIsEmpty',
-            },
-          },
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
     return {
       startDate: args?.startDate,
       endDate: args?.endDate,

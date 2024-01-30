@@ -86,16 +86,17 @@ export function getPaymentMonth(
   }
 }
 
-export function getPaymentDates(
-  endpoint: PaymentEndpointType,
-  startDateStr?: string,
-  endDateStr?: string,
-  timeInterval?: TimeIntervalEnum,
-): DateIntervalType {
+export function getPaymentDates(args: {
+  endpoint: PaymentEndpointType;
+  startDateStr?: string;
+  endDateStr?: string;
+  timeInterval?: TimeIntervalEnum;
+}): DateIntervalType {
+  const { endpoint, endDateStr, startDateStr, timeInterval } = args;
   if (!validateDate(startDateStr, endDateStr, timeInterval)) {
     throw new HttpException(
       {
-        error: 'invalid request.',
+        error: 'Invalid request.',
       },
       HttpStatus.BAD_REQUEST,
     );

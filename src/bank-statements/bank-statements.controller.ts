@@ -54,7 +54,7 @@ export class BankStatementsController {
     @Query(...DateQueryParams.endDate) endDate?: string,
     @Query(...DateQueryParams.timeInterval)
     timeInterval?: BSMeTimeIntervalEnum | undefined,
-    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<IBSGetMeResponse> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
@@ -80,7 +80,7 @@ export class BankStatementsController {
   async getMeDayDate(
     @Request() request: IRequest,
     @Param('date') date: string,
-    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<IBSGetMeDayResponse> {
     const isUserIdParam = userId !== null && !isNaN(Number(userId));
@@ -114,7 +114,7 @@ export class BankStatementsController {
     @Query(...PaginationQueryParams.limit) limit: number,
     @Query(...DateQueryParams.getDate('endDate', true)) endDate: string,
     @Query('timeInterval') timeInterval: BSMePrevDaysTimeIntervalEnum,
-    @Query('userId', new ParseNumberPipe({ min: 0, required: false }))
+    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<Pagination<IBSGetMePreviousDaysResponse>> {
     const isUserIdParam = userId !== null && !isNaN(Number(userId));
