@@ -40,7 +40,7 @@ describe('BankStatementsService', () => {
       provide: TicketRevenuesService,
       useValue: {
         getGroupedFromUser: jest.fn(),
-        getMeFromUser: jest.fn(),
+        getMe: jest.fn(),
       },
     } as Provider;
 
@@ -165,7 +165,7 @@ describe('BankStatementsService', () => {
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() => new Date('2023-01-22').valueOf());
-      jest.spyOn(ticketRevenuesService, 'getMeFromUser').mockResolvedValue({
+      jest.spyOn(ticketRevenuesService, 'getMe').mockResolvedValue({
         startDate: '2023-01-12',
         endDate: '2023-01-22',
         amountSum: 110,
@@ -313,7 +313,7 @@ describe('BankStatementsService', () => {
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() => new Date('2023-01-25').valueOf());
-      jest.spyOn(ticketRevenuesService, 'getMeFromUser').mockResolvedValue({
+      jest.spyOn(ticketRevenuesService, 'getMe').mockResolvedValue({
         startDate: null,
         endDate: '2023-01-25',
         amountSum: 70,
@@ -460,7 +460,7 @@ describe('BankStatementsService', () => {
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() => new Date('2023-01-17').valueOf());
-      jest.spyOn(ticketRevenuesService, 'getMeFromUser').mockResolvedValue({
+      jest.spyOn(ticketRevenuesService, 'getMe').mockResolvedValue({
         startDate: null,
         endDate: '2023-01-25',
         amountSum: 200,

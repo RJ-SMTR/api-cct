@@ -1,4 +1,4 @@
-export type PaginationResultType<T> = Readonly<
+export type Pagination<T> = Readonly<
   {
     count: number;
     nextPage: number | null;

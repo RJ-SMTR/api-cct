@@ -1,6 +1,6 @@
 import { ITicketRevenuesGroup } from './ticket-revenues-group.interface';
 
-export interface ITicketRevenuesGroupedResponse {
+export interface ITRGetMeGroupedResponse {
   startDate: string | null;
   endDate: string | null;
   amountSum: number;

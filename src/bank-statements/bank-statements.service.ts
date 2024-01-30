@@ -120,7 +120,7 @@ export class BankStatementsService {
     );
 
     // Get daily data form tickets/me
-    const revenuesResponse = await this.ticketRevenuesService.getMeFromUser(
+    const revenuesResponse = await this.ticketRevenuesService.getMe(
       {
         startDate: getDateYMDString(dailyTRDates.startDate),
         endDate: getDateYMDString(dailyTRDates.endDate),

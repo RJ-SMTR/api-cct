@@ -127,17 +127,17 @@ describe('TicketRevenuesService', () => {
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
       jest
         .spyOn(ticketRevenuesService as any, 'fetchTicketRevenues')
-        .mockResolvedValue(revenues);
+        .mockResolvedValue({
+          ticketRevenuesResponse: revenues,
+          countAll: revenues.length,
+        });
 
       // Act
-      const result = await ticketRevenuesService.getMeGroupedFromUser(
-        {
-          startDate: '2023-06-01',
-          endDate: '2023-06-01',
-          userId: 1,
-        },
-        'ticket-revenues',
-      );
+      const result = await ticketRevenuesService.getMeGrouped({
+        startDate: '2023-06-01',
+        endDate: '2023-06-01',
+        userId: 1,
+      });
 
       // Assert
       expect(
@@ -217,17 +217,17 @@ describe('TicketRevenuesService', () => {
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
       jest
         .spyOn(ticketRevenuesService as any, 'fetchTicketRevenues')
-        .mockResolvedValue(revenues);
+        .mockResolvedValue({
+          ticketRevenuesResponse: revenues,
+          countAll: revenues.length,
+        });
 
       // Act
-      const result = await ticketRevenuesService.getMeGroupedFromUser(
-        {
-          startDate: '2023-06-01',
-          endDate: '2023-06-01',
-          userId: 1,
-        },
-        'ticket-revenues',
-      );
+      const result = await ticketRevenuesService.getMeGrouped({
+        startDate: '2023-06-01',
+        endDate: '2023-06-01',
+        userId: 1,
+      });
 
       // Assert
       const transactionTypeCountsSum = Object.values(
