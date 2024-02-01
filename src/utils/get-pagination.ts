@@ -1,4 +1,4 @@
-import { IPaginationOptions } from './types/pagination-options';
+import { PaginationOptions } from './types/pagination-options';
 import { Pagination } from './types/pagination.type';
 
 export const getPagination = <T>(
@@ -7,7 +7,7 @@ export const getPagination = <T>(
     dataLenght: number;
     maxCount: number;
   },
-  options: IPaginationOptions,
+  options: PaginationOptions,
 ): Pagination<T> => {
   const { dataLenght, maxCount } = args;
   return {

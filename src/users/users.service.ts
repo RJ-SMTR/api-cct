@@ -19,7 +19,7 @@ import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { formatLog } from 'src/utils/logging';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { PaginationOptions } from 'src/utils/types/pagination-options';
 import {
   Brackets,
   DeepPartial,
@@ -84,7 +84,7 @@ export class UsersService {
   }
 
   async findManyWithPagination(
-    paginationOptions: IPaginationOptions,
+    paginationOptions: PaginationOptions,
     fields?: IFindUserPaginated,
   ): Promise<User[]> {
     const isSgtuBlocked = fields?.isSgtuBlocked || fields?._anyField?.value;

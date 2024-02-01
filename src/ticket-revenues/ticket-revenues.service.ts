@@ -14,7 +14,7 @@ import {
   getPaymentDates,
 } from 'src/utils/payment-date-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
@@ -76,7 +76,7 @@ export class TicketRevenuesService {
 
   public async getMe(
     args: ITRGetMeGroupedArgs,
-    pagination: IPaginationOptions,
+    pagination: PaginationOptions,
     endpoint: PaymentEndpointType,
   ): Promise<ITRGetMeGroupedResponse> {
     const user = await this.validateUser(args);
@@ -293,6 +293,12 @@ export class TicketRevenuesService {
     }
 
     // Query
+
+    const countQuery =
+      'SELECT COUNT(*) AS count ' +
+      'FROM `rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao` t ' +
+      'LEFT JOIN `rj-smtr.cadastro.operadoras` o ON o.id_operadora = t.id_operadora ' +
+      (queryBuilderStr.length ? ` WHERE ${queryBuilderStr}` : '');
     const query =
       `
       SELECT
@@ -317,28 +323,36 @@ export class TicketRevenuesService {
         t.stop_lat AS stopLat,
         t.stop_lon AS stopLon,
         t.valor_transacao AS transactionValue,
-        t.versao AS bqDataVersion
+        t.versao AS bqDataVersion,
+        (${countQuery}) AS count,
+        'ok' AS status
       FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
-      LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora` +
-      ' ' +
+      LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora ` +
       (queryBuilderStr.length ? `\nWHERE ${queryBuilderStr}` : '') +
-      `\nORDER BY data DESC, hora DESC` +
-      (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
+      ` UNION ALL
+      SELECT ${'null, '.repeat(22)}
+      (${countQuery}) AS count, 'empty' AS status` +
+      `\nORDER BY partitionDate DESC, processingHour DESC` +
+      (args?.limit !== undefined ? `\nLIMIT ${args.limit + 1}` : '') +
       (offset !== undefined ? `\nOFFSET ${offset}` : '');
+    const queryResult = await this.bigqueryService.runQuery(
+      BQSInstances.smtr,
+      query,
+    );
 
-    const ticketRevenues: ITicketRevenue[] =
-      await this.bigqueryService.runQuery(BQSInstances.smtr, query);
+    const count: number = queryResult[0].count;
+    // Remove unwanted keys and remove last item (all null if empty)
+    const ticketRevenues: ITicketRevenue[] = queryResult.map((i) => {
+      delete i.status;
+      delete i.count;
+      return i;
+    });
+    ticketRevenues.pop();
 
-    const countQuery =
-      `
-    SELECT COUNT(*) AS count
-    FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
-    LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora ` +
-      (queryBuilderStr.length ? `\nWHERE ${queryBuilderStr}` : '');
-    const countAll: number = (
-      await this.bigqueryService.runQuery(BQSInstances.smtr, countQuery)
-    )[0].count;
-    return { ticketRevenuesResponse: ticketRevenues, countAll };
+    return {
+      ticketRevenuesResponse: ticketRevenues,
+      countAll: count,
+    };
   }
 
   /**
@@ -366,7 +380,7 @@ export class TicketRevenuesService {
 
   public async getMeIndividual(
     args: ITRGetMeIndividualArgs,
-    paginationArgs: IPaginationOptions,
+    paginationArgs: PaginationOptions,
   ): Promise<Pagination<ITRGetMeIndividualResponse>> {
     const GET_TODAY = true;
     const validArgs = await this.validateGetMeIndividualArgs(args);

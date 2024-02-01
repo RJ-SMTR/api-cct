@@ -2,6 +2,7 @@ import { Provider } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForgotService } from 'src/forgot/forgot.service';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
@@ -10,9 +11,8 @@ import { MailSentInfo } from 'src/mail/interfaces/mail-sent-info.interface';
 import { MailService } from 'src/mail/mail.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import { AuthService } from './auth.service';
 import { DeepPartial } from 'typeorm';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { AuthService } from './auth.service';
 
 process.env.TZ = 'UTC';
 
@@ -109,44 +109,8 @@ describe('AuthService', () => {
       await expect(response).rejects.toThrowError();
     });
 
-    xit('[FIXME] should throw exception when mail status is not QUEUED', /**
-     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 15 - GitHub}
-     *
-     * FIXME: check if this requirement is still necessary
-     * error: received undefined instead of throw error
-     */ async () => {
-      // Arrange
-      const user = new User({
-        id: 1,
-        email: 'user1@example.com',
-        hash: 'hash_1',
-      });
-      const mailHistory = new MailHistory({
-        id: 1,
-        user: user,
-        hash: 'hash_1',
-      });
-      mailHistory.setInviteStatus(InviteStatusEnum.sent);
-      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
-      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
-      jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
-
-      // Act
-      const response = authService.resendRegisterMail({ id: 1 });
-      let error: any;
-      await response.catch((httpException) => {
-        error = httpException;
-      });
-
-      // Assert
-      await expect(response).rejects.toThrowError();
-      await expect(error?.response?.error).toContain(
-        "User's mailStatus is not 'queued'",
-      );
-    });
-
     it('should return success regardless of quota status', /**
-     * Requirement: 2023/12/28 {@link https://github.com/RJ-SMTR/api-cct/issues/164 #164 - GitHub}
+     * Requirement: 2023/12/28 {@link https://github.com/RJ-SMTR/api-cct/issues/164#issuecomment-1871504885 #164 - GitHub}
      */ async () => {
       // Arrange
       const users = [
