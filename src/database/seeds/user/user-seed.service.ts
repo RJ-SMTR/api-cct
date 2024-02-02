@@ -18,14 +18,8 @@ export class UserSeedService {
   ) {}
 
   async run() {
-    if (!(await this.validateRun())) {
-      this.logger.log('Database is not empty. Aborting seed...');
-      return;
-    }
-    this.logger.log(
-      `run() ${this.userSeedDataService.getDataFromConfig().length} items`,
-    );
-    for (const item of this.userSeedDataService.getDataFromConfig()) {
+    const userFixtures = await this.userSeedDataService.getDataFromConfig();
+    for (const item of userFixtures) {
       const foundItem = await this.userSeedRepository.findOne({
         where: {
           email: item.email,
@@ -35,13 +29,13 @@ export class UserSeedService {
       let createdItem: User;
       if (foundItem) {
         const newItem = new User(foundItem);
-        newItem.update(item);
+        newItem.update(item, true);
         await this.userSeedRepository.save(
           this.userSeedRepository.create(newItem),
         );
         createdItem = (await this.userSeedRepository.findOne({
           where: {
-            email: newItem.email as string,
+            email: item.email as string,
           },
         })) as User;
       } else {
@@ -88,9 +82,5 @@ export class UserSeedService {
         .digest('hex');
     }
     return hash;
-  }
-
-  async validateRun() {
-    return global.force || (await this.userSeedRepository.count()) === 0;
   }
 }

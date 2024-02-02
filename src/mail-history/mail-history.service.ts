@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { ConfigService } from '@nestjs/config';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { startOfDay } from 'date-fns';
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
@@ -13,12 +13,11 @@ import { formatLog } from 'src/utils/logging';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import {
-  DataSource,
   DeepPartial,
+  EntityManager,
   Equal,
   MoreThanOrEqual,
   Repository,
-  EntityManager,
 } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
 
@@ -32,10 +31,8 @@ export class MailHistoryService {
     @InjectRepository(MailHistory)
     private inviteRepository: Repository<MailHistory>,
     private configService: ConfigService,
-    @InjectDataSource()
-    private readonly dataSource: DataSource,
     private readonly entityManager: EntityManager,
-  ) { }
+  ) {}
 
   async create(
     data: DeepPartial<MailHistory>,
@@ -47,7 +44,7 @@ export class MailHistoryService {
     this.logger.log(
       formatLog(
         `Histórico de email ${createdMail.getLogInfoStr()}` +
-        ` criado com sucesso.`,
+          ` criado com sucesso.`,
         'create()',
         logContext,
       ),
@@ -157,7 +154,7 @@ export class MailHistoryService {
     this.logger.log(
       formatLog(
         `Histórico de email ${updatedMail.getLogInfoStr()}` +
-        ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
+          ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
         'update()',
         logContext,
       ),
@@ -204,20 +201,20 @@ export class MailHistoryService {
         'invite.inviteStatus as status_id',
         'COUNT(invite.inviteStatus) as status_count',
         `CASE ` +
-        `WHEN ( ` +
-        `"user"."fullName" IS NOT NULL AND "user"."fullName" != '' AND ` +
-        `"user"."cpfCnpj" IS NOT NULL AND "user"."cpfCnpj" != '' AND ` +
-        `"user"."permitCode" IS NOT NULL AND "user"."permitCode" != '' AND ` +
-        `"user"."email" IS NOT NULL AND "user"."email" != '' AND ` +
-        `"user"."phone" IS NOT NULL AND "user"."phone" != '' AND ` +
-        `"user"."bankCode" IS NOT NULL AND ` +
-        `"user"."bankAgency" IS NOT NULL AND "user"."bankAgency" != '' AND ` +
-        `"user"."bankAccount" IS NOT NULL AND "user"."bankAccount" != '' AND ` +
-        `"user"."bankAccountDigit" IS NOT NULL AND "user"."bankAccountDigit" != '' ` +
-        ')' +
-        'THEN true ' +
-        'ELSE false ' +
-        'END AS is_filled',
+          `WHEN ( ` +
+          `"user"."fullName" IS NOT NULL AND "user"."fullName" != '' AND ` +
+          `"user"."cpfCnpj" IS NOT NULL AND "user"."cpfCnpj" != '' AND ` +
+          `"user"."permitCode" IS NOT NULL AND "user"."permitCode" != '' AND ` +
+          `"user"."email" IS NOT NULL AND "user"."email" != '' AND ` +
+          `"user"."phone" IS NOT NULL AND "user"."phone" != '' AND ` +
+          `"user"."bankCode" IS NOT NULL AND ` +
+          `"user"."bankAgency" IS NOT NULL AND "user"."bankAgency" != '' AND ` +
+          `"user"."bankAccount" IS NOT NULL AND "user"."bankAccount" != '' AND ` +
+          `"user"."bankAccountDigit" IS NOT NULL AND "user"."bankAccountDigit" != '' ` +
+          ')' +
+          'THEN true ' +
+          'ELSE false ' +
+          'END AS is_filled',
       ])
       .leftJoin('invite.user', 'user')
       .leftJoin('user.role', 'role')
@@ -267,17 +264,5 @@ export class MailHistoryService {
     resultReturn.total =
       resultReturn.queued + resultReturn.sent + resultReturn.used;
     return resultReturn;
-  }
-
-  async emailsNaoCadastrados(): Promise<User[]> {
-    return await this.entityManager.query(
-      ' SELECT u.* FROM public."user" u ' +
-      ' INNER JOIN invite i ON u.id = i."userId" ' +
-      ' WHERE "bankCode" IS NULL	' +
-      ' AND i."sentAt" IS NOT NULL ' +
-      ' AND i."sentAt" < now() - INTERVAL \'10 DAYS\' ' +
-      ' AND u."roleId" = 2' +
-      ' ORDER BY i."sentAt","fullName" ',
-    );
   }
 }

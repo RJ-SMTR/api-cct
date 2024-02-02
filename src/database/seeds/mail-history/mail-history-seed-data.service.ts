@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { subDays } from 'date-fns';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { IMailSeedData } from 'src/mail-history/interfaces/mail-history-data.interface';
@@ -22,6 +23,15 @@ export class MailHistorySeedDataService {
             inviteStatus: new InviteStatus(InviteStatusEnum.used),
           } as IMailSeedData),
       );
+    for (let i = 0; i < mailSeedData.length; i++) {
+      const mail = mailSeedData[i];
+      if (mail.email === 'registered.user@example.com') {
+        mail[i] = {
+          ...mail,
+          sentAt: subDays(new Date(), 16),
+        } as IMailSeedData;
+      }
+    }
     return mailSeedData;
   }
 }

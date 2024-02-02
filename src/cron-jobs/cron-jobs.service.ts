@@ -4,6 +4,7 @@ import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { JaeService } from 'src/jae/jae.service';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
@@ -12,6 +13,7 @@ import { appSettings } from 'src/settings/app.settings';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
 import { ISettingData } from 'src/settings/interfaces/setting-data.interface';
 import { SettingsService } from 'src/settings/settings.service';
+import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import {
   formatErrorMessage as formatErrorLog,
@@ -28,7 +30,7 @@ export enum CrobJobsEnum {
   updateCoreBankMockedData = 'updateCoreBankMockedData',
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
-  bulkReSendInvites = 'bulkReSendInvites',
+  bulkResendInvites = 'bulkResendInvites',
 }
 
 interface ICronJob {
@@ -57,7 +59,7 @@ export class CronJobsService implements OnModuleInit {
     private jaeService: JaeService,
     private coreBankService: CoreBankService,
     private usersService: UsersService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
@@ -117,10 +119,10 @@ export class CronJobsService implements OnModuleInit {
           },
         },
         {
-          name: CrobJobsEnum.bulkReSendInvites,
+          name: CrobJobsEnum.bulkResendInvites,
           cronJobParameters: {
-            cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
-            onTick: async () => this.bulkReSendInvites(),
+            cronTime: '* * * * *', //'45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+            onTick: async () => this.bulkResendInvites(),
           },
         },
       );
@@ -177,7 +179,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` +
-          ` Para ativar, altere na tabela 'setting'`,
+            ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -193,8 +195,8 @@ export class CronJobsService implements OnModuleInit {
     this.logger.log(
       formatLog(
         `Iniciando tarefa - a enviar: ${unsent.length},` +
-        ` enviado: ${sentToday.length}/${dailyQuota()},` +
-        ` falta enviar: ${remainingQuota}`,
+          ` enviado: ${sentToday.length}/${dailyQuota()},` +
+          ` falta enviar: ${remainingQuota}`,
         THIS_METHOD,
       ),
     );
@@ -354,7 +356,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
-          ` Para ativar, altere na tabela 'setting'`,
+            ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -373,7 +375,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
-          ` Para ativar, altere na tabela 'setting'`,
+            ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -389,7 +391,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.error(
         formatLog(
           `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
-          ` não foi encontrada (retornou: ${mailRecipients}).`,
+            ` não foi encontrada (retornou: ${mailRecipients}).`,
           'sendStatusReport()',
         ),
       );
@@ -400,7 +402,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.error(
         formatLog(
           `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
-          ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
+            ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
           THIS_METHOD,
         ),
       );
@@ -474,7 +476,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois setting.${appSettings.any__poll_db_enabled.name}' = 'false'` +
-          ` Para ativar, altere na tabela 'setting'`,
+            ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -531,8 +533,8 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Alteração encontrada em` +
-          ` setting.'${args.setting.name}': ` +
-          `${job?.cronJobParameters.cronTime} --> ${setting}.`,
+            ` setting.'${args.setting.name}': ` +
+            `${job?.cronJobParameters.cronTime} --> ${setting}.`,
           thisMethod,
         ),
       );
@@ -597,57 +599,67 @@ export class CronJobsService implements OnModuleInit {
     };
   }
 
-  async getEmail() {
-    return await this.mailHistoryService.emailsNaoCadastrados();
-  }
+  async bulkResendInvites() {
+    const THIS_METHOD = `${this.bulkResendInvites.name}()`;
+    const notRegisteredUsers = await this.usersService.getNotRegisteredUsers();
 
-  async bulkReSendInvites() {
-    const THIS_METHOD = `${this.bulkReSendInvites.name}()`;
-    const emails: string[] = (
-      await this.mailHistoryService.emailsNaoCadastrados()
-    ).reduce((emails: string[], user) => [...emails, String(user.email)], []);
-
-    if (emails.length === 0) {
+    if (notRegisteredUsers.length === 0) {
       this.logger.log(
         formatLog('Não há usuários para enviar, abortando...', THIS_METHOD),
       );
       return;
     }
+    this.logger.log(
+      formatLog(
+        String(
+          'Enviando emails específicos para ' +
+            `${notRegisteredUsers.length} usuários não totalmente registrados`,
+        ),
+        THIS_METHOD,
+      ),
+    );
+    for (const user of notRegisteredUsers) {
+      await this.resendInvite(user, THIS_METHOD);
+    }
+  }
 
-    for (const email of emails) {
-      try {
-        const mailSentInfo = await this.mailService.reSendEmailBank({
-          to: email,
-          data: null,
-        });
+  async resendInvite(user: User, outerMethod: string) {
+    const THIS_METHOD = `${outerMethod} > ${this.resendInvite.name}`;
+    try {
+      const mailSentInfo = await this.mailService.reSendEmailBank({
+        to: user.email as string,
+        data: {
+          hash: user.aux_inviteHash as string,
+          inviteStatus: user.aux_inviteStatus as InviteStatus,
+        },
+      });
 
-        // Success
-        if (mailSentInfo.success) {
-          this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
-        }
+      // Success
+      if (mailSentInfo.success) {
+        this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+      }
 
-        // SMTP error
-        else {
-          this.logger.error(
-            formatErrorLog(
-              'Email enviado retornou erro.',
-              mailSentInfo,
-              new Error(),
-              THIS_METHOD,
-            ),
-          );
-        }
-      } catch (httpException) {
-        // API error
+      // SMTP error
+      else {
         this.logger.error(
           formatErrorLog(
-            'Email falhou ao enviar.',
-            httpException,
-            httpException as Error,
+            'Email enviado retornou erro.',
+            mailSentInfo,
+            new Error(),
             THIS_METHOD,
           ),
         );
       }
+    } catch (httpException) {
+      // API error
+      this.logger.error(
+        formatErrorLog(
+          'Email falhou ao enviar.',
+          httpException,
+          httpException as Error,
+          THIS_METHOD,
+        ),
+      );
     }
   }
 }
