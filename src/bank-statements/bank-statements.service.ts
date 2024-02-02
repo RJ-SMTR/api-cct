@@ -167,6 +167,8 @@ export class BankStatementsService {
         amount: Number(weekAmount.toFixed(2)),
         cpfCnpj: args.user.getCpfCnpj(),
         date: getDateYMDString(endDate),
+        processingDate: getDateYMDString(endDate),
+        transactionDate: getDateYMDString(endDate),
         paymentOrderDate: getDateYMDString(endDate),
         effectivePaymentDate: null,
         permitCode: args.user.getPermitCode(),
@@ -257,6 +259,8 @@ export class BankStatementsService {
       {
         id: 1,
         date: getDateYMDString(new Date(intervalBSDates.endDate)),
+        processingDate: getDateYMDString(new Date(intervalBSDates.endDate)),
+        transactionDate: getDateYMDString(new Date(intervalBSDates.endDate)),
         paymentOrderDate: getDateYMDString(new Date(intervalBSDates.endDate)),
         effectivePaymentDate: null,
         cpfCnpj: validArgs.user.getCpfCnpj(),
@@ -272,6 +276,8 @@ export class BankStatementsService {
       {
         id: 2,
         date: getDateYMDString(new Date(intervalBSDates.endDate)),
+        processingDate: getDateYMDString(new Date(intervalBSDates.endDate)),
+        transactionDate: getDateYMDString(new Date(intervalBSDates.endDate)),
         paymentOrderDate: getDateYMDString(new Date(intervalBSDates.endDate)),
         effectivePaymentDate: null,
         cpfCnpj: validArgs.user.getCpfCnpj(),

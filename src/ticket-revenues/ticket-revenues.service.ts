@@ -30,6 +30,7 @@ import {
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
+import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -286,19 +287,26 @@ export class TicketRevenuesService {
       queryBuilder.pushAND(`DATE(data) = DATE('${nowStr}')`);
     }
 
-    let queryBuilderStr = queryBuilder.toSQL();
+    let qWhere = queryBuilder.toSQL();
     if (args?.cpfCnpj !== undefined) {
       const cpfCnpj = args.cpfCnpj;
-      queryBuilderStr = `o.documento = '${cpfCnpj}' AND (${queryBuilderStr})`;
+      qWhere =
+        isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
+          ? `b.documento = '${cpfCnpj}' AND (${qWhere})`
+          : `b.cnpj = '${cpfCnpj}' AND (${qWhere})`;
     }
 
     // Query
+    const joinCpfCnpj =
+      isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
+        ? 'LEFT JOIN `rj-smtr.cadastro.operadoras` b ON b.id_operadora = t.id_operadora '
+        : 'LEFT JOIN `rj-smtr.cadastro.consorcios` b ON b.id_consorcio = t.id_consorcio ';
 
     const countQuery =
       'SELECT COUNT(*) AS count ' +
       'FROM `rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao` t ' +
-      'LEFT JOIN `rj-smtr.cadastro.operadoras` o ON o.id_operadora = t.id_operadora ' +
-      (queryBuilderStr.length ? ` WHERE ${queryBuilderStr}` : '');
+      joinCpfCnpj +
+      (qWhere.length ? ` WHERE ${qWhere}` : '');
     const query =
       `
       SELECT
@@ -326,9 +334,9 @@ export class TicketRevenuesService {
         t.versao AS bqDataVersion,
         (${countQuery}) AS count,
         'ok' AS status
-      FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
-      LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora ` +
-      (queryBuilderStr.length ? `\nWHERE ${queryBuilderStr}` : '') +
+      FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t\n` +
+      joinCpfCnpj +
+      (qWhere.length ? `\nWHERE ${qWhere}` : '') +
       ` UNION ALL
       SELECT ${'null, '.repeat(22)}
       (${countQuery}) AS count, 'empty' AS status` +

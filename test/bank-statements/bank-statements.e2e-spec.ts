@@ -5,8 +5,8 @@ import { getDateYMDString } from '../../src/utils/date-utils';
 import {
   APP_URL,
   BQ_JSON_CREDENTIALS,
-  LICENSEE_PASSWORD,
-  LICENSEE_PERMIT_CODE,
+  LICENSEE_CPF_PASSWORD,
+  LICENSEE_CPF_PERMIT_CODE,
 } from '../utils/constants';
 
 describe('Bank statements (e2e)', () => {
@@ -24,7 +24,10 @@ describe('Bank statements (e2e)', () => {
   beforeAll(async () => {
     await request(app)
       .post('/api/v1/auth/licensee/login')
-      .send({ permitCode: LICENSEE_PERMIT_CODE, password: LICENSEE_PASSWORD })
+      .send({
+        permitCode: LICENSEE_CPF_PERMIT_CODE,
+        password: LICENSEE_CPF_PASSWORD,
+      })
       .expect(200)
       .then(({ body }) => {
         apiToken = body.token;

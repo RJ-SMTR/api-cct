@@ -7,6 +7,21 @@ export interface IBankStatement {
    */
 
   date: string;
+
+  /**
+   * Date of ticket transaction.
+   *
+   * Format: `yyyy-mm-dd`
+   */
+  transactionDate: string;
+
+  /**
+   * Date of reading this data. The same as `date` field.
+   *
+   * Format: `yyyy-mm-dd`
+   */
+  processingDate: string;
+
   /**
    * Date of scheduled payment.
    *
@@ -15,7 +30,7 @@ export interface IBankStatement {
   paymentOrderDate: string;
 
   /**
-   * Date when payment was made.
+   * Date when payment was made in bank.
    *
    * Format: `yyyy-mm-dd`
    */

@@ -200,7 +200,10 @@ describe('BankStatementsService', () => {
         ].map((i) => ({
           ...i,
           cpfCnpj: 'cc_1',
+
           paymentOrderDate: i.date,
+          processingDate: i.date,
+          transactionDate: i.date,
           permitCode: 'pc_1',
           status: '',
           statusCode: '',
@@ -340,6 +343,8 @@ describe('BankStatementsService', () => {
             permitCode: 'pc_1',
             date: '2023-01-27',
             paymentOrderDate: '2023-01-27',
+            processingDate: '2023-01-27',
+            transactionDate: '2023-01-27',
             amount: 70,
             status: '',
             statusCode: '',
@@ -500,6 +505,8 @@ describe('BankStatementsService', () => {
           cpfCnpj: 'cc_1',
           permitCode: 'pc_1',
           paymentOrderDate: i.date,
+          processingDate: i.date,
+          transactionDate: i.date,
           error: null,
           errorCode: null,
           bankStatus: null,

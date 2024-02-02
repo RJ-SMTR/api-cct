@@ -10,7 +10,7 @@ import {
   ADMIN_PASSWORD,
   APP_URL,
   LICENSEE_CASE_ACCENT,
-  LICENSEE_PERMIT_CODE,
+  LICENSEE_CPF_PERMIT_CODE,
   MAILDEV_URL,
 } from '../utils/constants';
 import { stringUppercaseUnaccent } from 'src/utils/string-utils';
@@ -55,7 +55,7 @@ describe('Admin managing users (e2e)', () => {
         .auth(apiToken, {
           type: 'bearer',
         })
-        .query({ permitCode: LICENSEE_PERMIT_CODE })
+        .query({ permitCode: LICENSEE_CPF_PERMIT_CODE })
         .expect(({ body }) => {
           expect(body.data?.length).toBe(1);
         })
@@ -73,21 +73,27 @@ describe('Admin managing users (e2e)', () => {
           filter: { permitCode: licensee.permitCode },
           expect: (body: any) =>
             expect(
-              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+              body.data.some(
+                (i: any) => i.permitCode === LICENSEE_CPF_PERMIT_CODE,
+              ),
             ).toBeTruthy(),
         },
         {
           filter: { name: licensee.fullName },
           expect: (body: any) =>
             expect(
-              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+              body.data.some(
+                (i: any) => i.permitCode === LICENSEE_CPF_PERMIT_CODE,
+              ),
             ).toBeTruthy(),
         },
         {
           filter: { email: licensee.email },
           expect: (body: any) =>
             expect(
-              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+              body.data.some(
+                (i: any) => i.permitCode === LICENSEE_CPF_PERMIT_CODE,
+              ),
             ).toBeTruthy(),
         },
         {
