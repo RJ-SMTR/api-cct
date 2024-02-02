@@ -3,7 +3,9 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { AllConfigType } from 'src/config/config.type';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
 import { formatLog } from 'src/utils/logging';
 import { MaybeType } from '../utils/types/maybe.type';
@@ -216,12 +218,21 @@ export class MailService {
   /**
    * @throws `HttpException`
    */
-  async reSendEmailBank(mailData: MailData<null>): Promise<MailSentInfo> {
+  async reSendEmailBank(
+    mailData: MailData<{
+      inviteStatus: InviteStatus;
+      hash?: string;
+    }>,
+  ): Promise<MailSentInfo> {
     const mailTitle =
       'SMTR - Prefeitura do Município do Rio de Janeiro - Comunicado Importante!';
     const from = this.configService.get('mail.senderNotification', {
       infer: true,
     });
+    const frontendDomain = this.configService.get('app.frontendDomain', {
+      infer: true,
+    });
+    const inviteStatus = mailData.data.inviteStatus;
     if (!from) {
       throw new HttpException(
         {
@@ -243,9 +254,13 @@ export class MailService {
         to: mailData.to,
         subject: mailTitle,
         text: mailTitle,
-        template: 'report_resent_email',
+        template: 'user-daily-conclude',
         context: {
           title: 'Confirme seu email',
+          userLink:
+            inviteStatus.id === InviteStatusEnum.used
+              ? `${frontendDomain}sign-in`
+              : `${frontendDomain}conclude-registration/${mailData.data.hash}`,
           headerTitle: appName,
         },
       });

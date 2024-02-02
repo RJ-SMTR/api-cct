@@ -17,12 +17,14 @@ import { isArrayContainEqual } from 'src/utils/array-utils';
 import { Enum } from 'src/utils/enum';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { formatLog } from 'src/utils/logging';
+import { stringUppercaseUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import {
   Brackets,
   DeepPartial,
+  EntityManager,
   FindOptionsWhere,
   ILike,
   Repository,
@@ -38,7 +40,6 @@ import { IFileUser } from './interfaces/file-user.interface';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 import { FileUserMap } from './mappings/user-file.map';
-import { stringUppercaseUnaccent } from 'src/utils/string-utils';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -54,6 +55,7 @@ export class UsersService {
     private usersRepository: Repository<User>,
     private mailHistoryService: MailHistoryService,
     private banksService: BanksService,
+    private readonly entityManager: EntityManager,
   ) {}
 
   async create(createProfileDto: CreateUserDto): Promise<User> {
@@ -606,5 +608,62 @@ export class UsersService {
       ),
     );
     return result;
+  }
+
+  /**
+   * Get users with status = SENT who didn't create login/password
+   */
+  async getUnregisteredUsers(): Promise<User[]> {
+    const results: any[] = await this.entityManager.query(
+      'SELECT u."fullName", u."email", u."phone", i."sentAt", i."inviteStatusId", i."hash" ' +
+        'FROM public."user" u ' +
+        'INNER JOIN invite i ON u.id = i."userId" ' +
+        `WHERE i."inviteStatusId" = ${InviteStatusEnum.sent} ` +
+        'AND i."sentAt" <= NOW() - INTERVAL \'15 DAYS\' ' +
+        `AND u."roleId" = ${RoleEnum.user} ` +
+        'ORDER BY U."fullName", i."sentAt"',
+    );
+    const users: User[] = [];
+    for (const result of results) {
+      users.push(
+        new User({
+          fullName: result.fullName,
+          email: result.email,
+          phone: result.phone,
+          aux_inviteStatus: new InviteStatus(Number(result.inviteStatusId)),
+          aux_inviteHash: result.hash,
+        }),
+      );
+    }
+    return users;
+  }
+
+  /**
+   * Get users with status = USED who created login/password but didn't fill bank fields
+   */
+  async getNotRegisteredUsers(): Promise<User[]> {
+    const results: any[] = await this.entityManager.query(
+      'SELECT U."fullName", u.email, u.phone, iv."name", i."sentAt", i."inviteStatusId", i."hash" ' +
+        'FROM public."user" U inner join invite i on  U.id = i."userId" ' +
+        'inner join invite_status iv on iv.id = i."inviteStatusId" ' +
+        'where u."bankCode" is null ' +
+        'and i."sentAt" <= now() - INTERVAL \'15 DAYS\' ' +
+        'and "roleId" <> 1 ' +
+        'and i."inviteStatusId" != 2 ' +
+        'order by U."fullName", i."sentAt" ',
+    );
+    const users: User[] = [];
+    for (const result of results) {
+      users.push(
+        new User({
+          fullName: result.fullName,
+          email: result.email,
+          phone: result.phone,
+          aux_inviteStatus: new InviteStatus(Number(result.inviteStatusId)),
+          aux_inviteHash: result.hash,
+        }),
+      );
+    }
+    return users;
   }
 }
