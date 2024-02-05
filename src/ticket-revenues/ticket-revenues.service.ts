@@ -260,6 +260,14 @@ export class TicketRevenuesService {
   private async fetchTicketRevenues(
     args?: IFetchTicketRevenues,
   ): Promise<{ ticketRevenuesResponse: ITicketRevenue[]; countAll: number }> {
+    const IS_PROD = process.env.NODE_ENV === 'production';
+    const Q_CONSTS = {
+      bucket: IS_PROD ? 'rj-smtr' : 'rj-smtr-dev',
+      transacao: IS_PROD
+        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao'
+        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao',
+      tTipoPgto: IS_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
+    };
     // Args
     let offset = args?.offset;
     const queryBuilder = new QueryBuilder();
@@ -299,12 +307,12 @@ export class TicketRevenuesService {
     // Query
     const joinCpfCnpj =
       isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
-        ? 'LEFT JOIN `rj-smtr.cadastro.operadoras` b ON b.id_operadora = t.id_operadora '
-        : 'LEFT JOIN `rj-smtr.cadastro.consorcios` b ON b.id_consorcio = t.id_consorcio ';
+        ? `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.operadoras\` b ON b.id_operadora = t.id_operadora `
+        : `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.consorcios\` b ON b.id_consorcio = t.id_consorcio `;
 
     const countQuery =
       'SELECT COUNT(*) AS count ' +
-      'FROM `rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao` t ' +
+      `FROM \`${Q_CONSTS.transacao}\` t ` +
       joinCpfCnpj +
       (qWhere.length ? ` WHERE ${qWhere}` : '');
     const query =
@@ -321,7 +329,7 @@ export class TicketRevenuesService {
         t.id_veiculo AS vehicleId,
         t.id_cliente AS clientId,
         t.id_transacao AS transactionId,
-        t.id_tipo_pagamento AS paymentMediaType,
+        t.${Q_CONSTS.tTipoPgto} AS paymentMediaType,
         t.tipo_transacao AS transactionType,
         t.id_tipo_integracao AS transportIntegrationType,
         t.id_integracao AS integrationId,
@@ -334,7 +342,7 @@ export class TicketRevenuesService {
         t.versao AS bqDataVersion,
         (${countQuery}) AS count,
         'ok' AS status
-      FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t\n` +
+      FROM \`${Q_CONSTS.transacao}\` t\n` +
       joinCpfCnpj +
       (qWhere.length ? `\nWHERE ${qWhere}` : '') +
       ` UNION ALL
