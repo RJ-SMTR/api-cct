@@ -158,11 +158,13 @@ export class TicketRevenuesService {
       (sum, i) => sum + i.count,
       0,
     );
+    console.log('TR response', ticketRevenuesResponse.length);
 
     return {
       startDate:
-        ticketRevenuesResponse[ticketRevenuesResponse.length - 1].partitionDate,
-      endDate: ticketRevenuesResponse[0].partitionDate,
+        ticketRevenuesResponse[ticketRevenuesResponse.length - 1]
+          ?.partitionDate || null,
+      endDate: ticketRevenuesResponse[0]?.partitionDate || null,
       amountSum,
       todaySum: transactionValueLastDay,
       count: ticketRevenuesGroups.length,
@@ -266,6 +268,9 @@ export class TicketRevenuesService {
       transacao: IS_PROD
         ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao'
         : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao',
+      integracao: IS_PROD
+        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.integracao'
+        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.integracao',
       tTipoPgto: IS_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
     };
     // Args
@@ -282,17 +287,17 @@ export class TicketRevenuesService {
 
     if (args?.startDate !== undefined) {
       const startDate = args.startDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(data) >= DATE('${startDate}')`);
+      queryBuilder.pushAND(`DATE(t.data) >= DATE('${startDate}')`);
     }
     if (args?.endDate !== undefined) {
       const endDate = args.endDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(data) <= DATE('${endDate}')`);
+      queryBuilder.pushAND(`DATE(t.data) <= DATE('${endDate}')`);
     }
 
     queryBuilder.pushOR([]);
     if (args?.getToday) {
       const nowStr = new Date(Date.now()).toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(data) = DATE('${nowStr}')`);
+      queryBuilder.pushAND(`DATE(t.data) = DATE('${nowStr}')`);
     }
 
     let qWhere = queryBuilder.toSQL();
@@ -309,12 +314,16 @@ export class TicketRevenuesService {
       isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
         ? `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.operadoras\` b ON b.id_operadora = t.id_operadora `
         : `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.consorcios\` b ON b.id_consorcio = t.id_consorcio `;
+    const joinIntegracao = `INNER JOIN ${Q_CONSTS.integracao} i ON i.id_transacao = t.id_transacao`;
 
     const countQuery =
       'SELECT COUNT(*) AS count ' +
-      `FROM \`${Q_CONSTS.transacao}\` t ` +
+      `FROM \`${Q_CONSTS.transacao}\` t\n` +
       joinCpfCnpj +
-      (qWhere.length ? ` WHERE ${qWhere}` : '');
+      '\n' +
+      joinIntegracao +
+      '\n' +
+      (qWhere.length ? ` WHERE ${qWhere}\n` : '');
     const query =
       `
       SELECT
@@ -338,14 +347,17 @@ export class TicketRevenuesService {
         t.stop_id AS stopId,
         t.stop_lat AS stopLat,
         t.stop_lon AS stopLon,
-        t.valor_transacao AS transactionValue,
+        CASE WHEN t.tipo_transacao = 'Integração' THEN i.valor_transacao_total ELSE t.valor_transacao END AS transactionValue,
         t.versao AS bqDataVersion,
         (${countQuery}) AS count,
         'ok' AS status
       FROM \`${Q_CONSTS.transacao}\` t\n` +
       joinCpfCnpj +
-      (qWhere.length ? `\nWHERE ${qWhere}` : '') +
-      ` UNION ALL
+      '\n' +
+      joinIntegracao +
+      '\n' +
+      (qWhere.length ? `WHERE ${qWhere}\n` : '') +
+      `UNION ALL
       SELECT ${'null, '.repeat(22)}
       (${countQuery}) AS count, 'empty' AS status` +
       `\nORDER BY partitionDate DESC, processingHour DESC` +
