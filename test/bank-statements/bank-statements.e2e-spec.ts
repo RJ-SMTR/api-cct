@@ -1,5 +1,5 @@
 import { BigQuery } from '@google-cloud/bigquery';
-import { isFriday, previousFriday } from 'date-fns';
+import { isFriday, nextFriday, previousFriday } from 'date-fns';
 import * as request from 'supertest';
 import { getDateYMDString } from '../../src/utils/date-utils';
 import {
@@ -38,11 +38,11 @@ describe('Bank statements (e2e)', () => {
     await bq
       .query(
         `
-      SELECT
-          CAST(t.data AS STRING) AS partitionDate,
-          FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
-          LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
-      WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
+SELECT
+  CAST(t.data AS STRING) AS partitionDate,
+  FROM \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t
+  LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
+WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
     `,
       )
       .then((value) => {
@@ -55,7 +55,7 @@ describe('Bank statements (e2e)', () => {
     // Arrange
     let friday = new Date(licenseeMaxDate);
     if (!isFriday(friday)) {
-      friday = previousFriday(friday);
+      friday = nextFriday(friday);
     }
     const fridayStr = getDateYMDString(friday);
 
@@ -90,9 +90,9 @@ describe('Bank statements (e2e)', () => {
       });
 
     // Assert
+    expect(bankStatements.todaySum).toEqual(ticketRevenuesMe.todaySum);
     expect(bankStatements.data.length).toBeGreaterThan(0);
     expect(ticketRevenuesMe.data.length).toBeGreaterThan(0);
-    expect(bankStatements.todaySum).toEqual(ticketRevenuesMe.todaySum);
   }, 60000);
 
   it('should match amountSum in /bank-statements with /ticket-revenues/me in the same month', /**
@@ -101,7 +101,7 @@ describe('Bank statements (e2e)', () => {
     // Arrange
     let friday = new Date(licenseeMaxDate);
     if (!isFriday(friday)) {
-      friday = previousFriday(friday);
+      friday = nextFriday(friday);
     }
 
     // Act
@@ -143,12 +143,11 @@ describe('Bank statements (e2e)', () => {
       });
 
     // Assert
-    friday.setDate(friday.getDate());
+    expect(bankStatements.amountSum).toEqual(ticketRevenuesMe.amountSum);
     expect(bankStatements.data.length).toBeGreaterThan(0);
     expect(ticketRevenuesMe.data.length).toBeGreaterThan(0);
     expect(bankStatements.amountSum).toBeGreaterThan(0);
     expect(ticketRevenuesMe.amountSum).toBeGreaterThan(0);
-    expect(bankStatements.amountSum).toEqual(ticketRevenuesMe.amountSum);
   }, 60000);
 
   it('should match amountSum in /bank-statements with /ticket-revenues/me in the same week', /**
@@ -157,7 +156,7 @@ describe('Bank statements (e2e)', () => {
     // Arrange
     let friday = new Date(licenseeMaxDate);
     if (!isFriday(friday)) {
-      friday = previousFriday(friday);
+      friday = nextFriday(friday);
     }
     const fridayStr = getDateYMDString(friday);
 
@@ -293,7 +292,7 @@ describe('Bank statements (e2e)', () => {
     // Arrange
     let friday = new Date(licenseeMaxDate);
     if (!isFriday(friday)) {
-      friday = previousFriday(friday);
+      friday = nextFriday(friday);
     }
 
     // Act
@@ -341,7 +340,7 @@ describe('Bank statements (e2e)', () => {
     // Arrange
     let friday = new Date(licenseeMaxDate);
     if (!isFriday(friday)) {
-      friday = previousFriday(friday);
+      friday = nextFriday(friday);
     }
 
     // Act
