@@ -18,9 +18,6 @@ import { MailRegistrationInterface } from 'src/mail/interfaces/mail-registration
 import { DeepPartial } from 'typeorm';
 
 /**
- * All tests below were based on the requirements on GitHub.
- * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
- *
  * FIXME: 'imports: [ < the Module containing BankRepository > ]'
  */
 xdescribe('CronJobsService', () => {
@@ -96,7 +93,9 @@ xdescribe('CronJobsService', () => {
   });
 
   describe('bulkSendInvites', () => {
-    xit('[FIXME] should abort if no mail quota available', async () => {
+    xit('[FIXME] should abort if no mail quota available', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 11 - GitHub}
+     */ async () => {
       // Arrange
       jest
         .spyOn(settingsService, 'findOneBySettingData')
@@ -118,7 +117,9 @@ xdescribe('CronJobsService', () => {
       expect(mailService.sendConcludeRegistration).toBeCalledTimes(0);
     });
 
-    xit('[FIXME] should set mail status to SENT when succeeded', async () => {
+    xit('[FIXME] should set mail status to SENT when succeeded', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 12 - GitHub}
+     */ async () => {
       // Arrange
       const dateNow = new Date('2023-01-01T10:00:00');
       const user = new User({

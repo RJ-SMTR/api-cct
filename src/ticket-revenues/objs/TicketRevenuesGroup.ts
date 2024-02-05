@@ -1,5 +1,5 @@
 import { ITicketRevenuesGroup } from '../interfaces/ticket-revenues-group.interface';
-import { ITRCounts } from '../interfaces/tr-count-content.interface';
+import { ITRCounts } from '../interfaces/tr-counts.interface';
 
 export class TicketRevenuesGroup implements ITicketRevenuesGroup {
   public aux_epochWeek = 0;

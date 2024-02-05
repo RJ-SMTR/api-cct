@@ -3,7 +3,6 @@ import {
   endOfDay,
   isFriday,
   isSameMonth,
-  isThursday,
   nextFriday,
   previousFriday,
   startOfDay,
@@ -18,19 +17,6 @@ export const PAYMENT_WEEKDAY = WeekdayEnum._5_FRIDAY;
 export const PAYMENT_START_WEEKDAY = WeekdayEnum._4_THURSDAY;
 export const PAYMENT_END_WEEKDAY = WeekdayEnum._3_WEDNESDAY;
 export type PaymentEndpointType = 'bank-statements' | 'ticket-revenues';
-
-/**
- * Go to payment day (friday)
- */
-export function getPaymentDay(date: Date): Date {
-  if (isThursday(date)) {
-    const newDate = new Date(date);
-    newDate.setDate(newDate.getDate() + 8);
-    return newDate;
-  } else {
-    return nextFriday(date);
-  }
-}
 
 export function getPaymentWeek(
   fridayDate: Date,
@@ -100,16 +86,17 @@ export function getPaymentMonth(
   }
 }
 
-export function getPaymentDates(
-  endpoint: PaymentEndpointType,
-  startDateStr?: string,
-  endDateStr?: string,
-  timeInterval?: TimeIntervalEnum,
-): DateIntervalType {
+export function getPaymentDates(args: {
+  endpoint: PaymentEndpointType;
+  startDateStr?: string;
+  endDateStr?: string;
+  timeInterval?: TimeIntervalEnum;
+}): DateIntervalType {
+  const { endpoint, endDateStr, startDateStr, timeInterval } = args;
   if (!validateDate(startDateStr, endDateStr, timeInterval)) {
     throw new HttpException(
       {
-        error: 'invalid request.',
+        error: 'Invalid request.',
       },
       HttpStatus.BAD_REQUEST,
     );

@@ -21,6 +21,13 @@ export const DateApiParams = {
     description: DescriptionApiParam({ hours: '23:59:59.999' }),
   } as ApiParamOptions,
 
+  getEndDate: (required = false) =>
+    ({
+      name: 'endDate',
+      required: required,
+      description: DescriptionApiParam({ hours: '23:59:59.999' }),
+    } as ApiParamOptions),
+
   timeInterval: {
     name: 'timeInterval',
     required: false,
@@ -30,6 +37,17 @@ export const DateApiParams = {
     example: TimeIntervalEnum.LAST_MONTH,
     enum: TimeIntervalEnum,
   } as ApiParamOptions,
+
+  getTimeInterval: (enumType: any, defaultEnumValue: any, required = false) =>
+    ({
+      name: 'timeInterval',
+      required: required,
+      description: DescriptionApiParam({
+        default: defaultEnumValue,
+      }),
+      example: defaultEnumValue,
+      enum: enumType,
+    } as ApiParamOptions),
 
   ignorePreviousWeek: {
     name: 'ignorePreviousWeek',

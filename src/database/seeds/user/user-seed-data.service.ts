@@ -12,6 +12,8 @@ import { UserDataInterface } from 'src/users/interfaces/user-data.interface';
 @Injectable()
 export class UserSeedDataService {
   nodeEnv = (): string => '';
+  cpfSamples: string[] = [];
+  cnpjSamples: string[] = [];
 
   constructor(
     private configService: ConfigService,
@@ -22,22 +24,37 @@ export class UserSeedDataService {
   }
 
   async getDataFromConfig(): Promise<UserDataInterface[]> {
-    let cpfCnpjSamples: string[] = [];
-
     if (this.nodeEnv() === 'local' || this.nodeEnv() === 'test') {
-      cpfCnpjSamples = (
-        await this.bigqueryService.runQuery(
-          BQSInstances.smtr,
-          `
-          SELECT
-            DISTINCT o.documento,
-          FROM \`rj-smtr.cadastro.operadoras\` o
-          LEFT JOIN \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t ON t.id_operadora = o.id_operadora
-          WHERE t.modo = 'Van'
-          LIMIT 10
-        `,
-        )
-      ).reduce((l: string[], i) => [...l, i['documento']], []);
+      if (this.cpfSamples.length === 0) {
+        this.cpfSamples = (
+          await this.bigqueryService.runQuery(
+            BQSInstances.smtr,
+            `
+            SELECT
+              DISTINCT o.documento,
+            FROM \`rj-smtr.cadastro.operadoras\` o
+            LEFT JOIN \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t ON t.id_operadora = o.id_operadora
+            WHERE t.modo = 'Van'
+            LIMIT 5
+          `,
+          )
+        ).reduce((l: string[], i) => [...l, i['documento']], []);
+      }
+      if (this.cnpjSamples.length === 0) {
+        this.cnpjSamples = (
+          await this.bigqueryService.runQuery(
+            BQSInstances.smtr,
+            `
+            SELECT
+              DISTINCT c.cnpj,
+            FROM \`rj-smtr.cadastro.consorcios\` c
+            LEFT JOIN \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t ON t.id_consorcio = c.id_consorcio
+            WHERE t.modo != 'Van' AND c.cnpj IS NOT NULL
+            LIMIT 5
+          `,
+          )
+        ).reduce((l: string[], i) => [...l, i['cnpj']], []);
+      }
     }
 
     return [
@@ -119,20 +136,29 @@ export class UserSeedDataService {
       ...(this.nodeEnv() === 'local' || this.nodeEnv() === 'test'
         ? ([
             {
-              fullName: 'Henrique Santos Template',
+              fullName: 'Henrique Santos Template Cpf Van',
               email: 'henrique@example.com',
               password: 'secret',
               permitCode: '213890329890312',
-              cpfCnpj: cpfCnpjSamples.pop(),
+              cpfCnpj: this.cpfSamples?.[0],
               role: { id: RoleEnum.user } as Role,
               status: { id: StatusEnum.active } as Status,
             },
             {
-              fullName: 'Márcia Clara Template',
+              fullName: 'Márcia Clara Template Cnpj Brt etc',
               email: 'marcia@example.com',
               password: 'secret',
               permitCode: '319274392832023',
-              cpfCnpj: cpfCnpjSamples.pop(),
+              cpfCnpj: this.cnpjSamples?.[0],
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+            },
+            {
+              fullName: 'Usuário Teste dos Santos Oliveira',
+              email: 'user@example.com',
+              password: 'secret',
+              permitCode: '213890329890749',
+              cpfCnpj: this.cpfSamples?.[0],
               role: { id: RoleEnum.user } as Role,
               status: { id: StatusEnum.active } as Status,
             },

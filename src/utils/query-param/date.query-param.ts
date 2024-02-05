@@ -1,7 +1,7 @@
-import { TimeIntervalEnum } from '../enums/time-interval.enum';
 import { DefaultValuePipe } from '@nestjs/common';
-import { QueryParamsType } from '../types/query-params.type';
+import { TimeIntervalEnum } from '../enums/time-interval.enum';
 import { ParseDatePipe } from '../pipes/parse-date.pipe';
+import { QueryParamsType } from '../types/query-params.type';
 
 /**
  * @type `Record<string, QueryParamsType>`
@@ -16,6 +16,12 @@ export const DateQueryParams = {
     'endDate',
     new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/),
   ] as QueryParamsType,
+
+  getDate: (name: string, mandatory = false) =>
+    [
+      name,
+      new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/, !mandatory),
+    ] as QueryParamsType,
 
   timeInterval: [
     'timeInterval',

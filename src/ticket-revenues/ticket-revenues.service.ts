@@ -1,23 +1,28 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { endOfDay, isToday, startOfDay } from 'date-fns';
-import { BigqueryService, BQSInstances } from 'src/bigquery/bigquery.service';
+import { BQSInstances, BigqueryService } from 'src/bigquery/bigquery.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
+import { getPagination } from 'src/utils/get-pagination';
+import { formatLog } from 'src/utils/logging';
 import {
   PAYMENT_START_WEEKDAY,
   PaymentEndpointType,
   getPaymentDates,
 } from 'src/utils/payment-date-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { PaginationOptions } from 'src/utils/types/pagination-options';
+import { Pagination } from 'src/utils/types/pagination.type';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
-import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
 import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
-import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
+import { ITRGetMeGroupedArgs } from './interfaces/tr-get-me-grouped-args.interface';
+import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response.interface';
+import { ITRGetMeIndividualArgs } from './interfaces/tr-get-me-individual-args.interface';
+import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import {
   TRIntegrationTypeMap as IntegrationType,
   TRPaymentTypeMap as PaymentType,
@@ -25,7 +30,7 @@ import {
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
-import { formatLog } from 'src/utils/logging';
+import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -38,28 +43,28 @@ export class TicketRevenuesService {
     private readonly usersService: UsersService,
   ) {}
 
-  public async getMeGroupedFromUser(
-    args: ITicketRevenuesGetGrouped,
-    endpoint: PaymentEndpointType,
+  public async getMeGrouped(
+    args: ITRGetMeGroupedArgs,
   ): Promise<ITicketRevenuesGroup> {
     // Args
-    const user = await this.getUser(args);
-    const { startDate, endDate } = getPaymentDates(
-      endpoint,
-      args.startDate,
-      args.endDate,
-      args.timeInterval,
-    );
+    const user = await this.validateUser(args);
+    const { startDate, endDate } = getPaymentDates({
+      endpoint: 'ticket-revenues',
+      startDateStr: args.startDate,
+      endDateStr: args.endDate,
+      timeInterval: args.timeInterval,
+    });
 
     // Get data
     let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
-      cpfCnpj: user.cpfCnpj,
+      cpfCnpj: user.getCpfCnpj(),
       startDate,
       endDate,
     };
 
-    ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
+    ticketRevenuesResponse = (await this.fetchTicketRevenues(fetchArgs))
+      .ticketRevenuesResponse;
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
     if (ticketRevenuesResponse.length === 0) {
@@ -70,31 +75,32 @@ export class TicketRevenuesService {
     return ticketRevenuesGroupSum;
   }
 
-  public async getMeFromUser(
-    args: ITicketRevenuesGetGrouped,
-    pagination: IPaginationOptions,
+  public async getMe(
+    args: ITRGetMeGroupedArgs,
+    pagination: PaginationOptions,
     endpoint: PaymentEndpointType,
-  ): Promise<ITicketRevenuesGroupedResponse> {
-    const user = await this.getUser(args);
+  ): Promise<ITRGetMeGroupedResponse> {
+    const user = await this.validateUser(args);
     const GET_TODAY = true;
-    const { startDate, endDate } = getPaymentDates(
-      endpoint,
-      args.startDate,
-      args.endDate,
-      args.timeInterval,
-    );
+    const { startDate, endDate } = getPaymentDates({
+      endpoint: endpoint,
+      startDateStr: args.startDate,
+      endDateStr: args.endDate,
+      timeInterval: args.timeInterval,
+    });
     const groupBy = args?.groupBy || 'day';
 
     // Get data
     let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
-      cpfCnpj: user.cpfCnpj,
+      cpfCnpj: user.getCpfCnpj(),
       startDate,
       endDate,
       getToday: GET_TODAY,
     };
 
-    ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
+    ticketRevenuesResponse = (await this.fetchTicketRevenues(fetchArgs))
+      .ticketRevenuesResponse;
 
     ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
 
@@ -172,7 +178,7 @@ export class TicketRevenuesService {
         this.logger.error(
           formatLog(
             'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
-            `${this.getMeGroupedFromUser.name}() -> ${this.getGroupSum.name}()`,
+            `${this.getMeGrouped.name}() -> ${this.getGroupSum.name}()`,
           ),
         );
       }
@@ -189,32 +195,8 @@ export class TicketRevenuesService {
     }
   }
 
-  private async getUser(args: ITicketRevenuesGetGrouped): Promise<User> {
-    if (isNaN(args?.userId as number)) {
-      throw new HttpException(
-        {
-          details: {
-            userId: `field is ${args?.userId}`,
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
+  private async validateUser(args: ITRGetMeGroupedArgs): Promise<User> {
     const user = await this.usersService.getOne({ id: args?.userId });
-    if (!user.cpfCnpj) {
-      throw new HttpException(
-        {
-          error: HttpErrorMessages.UNAUTHORIZED,
-          details: {
-            message: 'Maybe your token has expired, try to get a new one',
-            user: {
-              cpfCnpj: 'fieldIsEmpty',
-            },
-          },
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
     return user;
   }
 
@@ -224,7 +206,7 @@ export class TicketRevenuesService {
     return list.filter((i) => !isToday(new Date(i.partitionDate)));
   }
 
-  public getTicketRevenuesGroups(
+  private getTicketRevenuesGroups(
     ticketRevenues: ITicketRevenue[],
     groupBy: 'day' | 'week' | 'month' | 'all' | string,
   ): ITicketRevenuesGroup[] {
@@ -277,7 +259,15 @@ export class TicketRevenuesService {
 
   private async fetchTicketRevenues(
     args?: IFetchTicketRevenues,
-  ): Promise<ITicketRevenue[]> {
+  ): Promise<{ ticketRevenuesResponse: ITicketRevenue[]; countAll: number }> {
+    const IS_PROD = process.env.NODE_ENV === 'production';
+    const Q_CONSTS = {
+      bucket: IS_PROD ? 'rj-smtr' : 'rj-smtr-dev',
+      transacao: IS_PROD
+        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao'
+        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao',
+      tTipoPgto: IS_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
+    };
     // Args
     let offset = args?.offset;
     const queryBuilder = new QueryBuilder();
@@ -305,13 +295,26 @@ export class TicketRevenuesService {
       queryBuilder.pushAND(`DATE(data) = DATE('${nowStr}')`);
     }
 
-    let queryBuilderStr = queryBuilder.toSQL();
+    let qWhere = queryBuilder.toSQL();
     if (args?.cpfCnpj !== undefined) {
       const cpfCnpj = args.cpfCnpj;
-      queryBuilderStr = `o.documento = '${cpfCnpj}' AND (${queryBuilderStr})`;
+      qWhere =
+        isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
+          ? `b.documento = '${cpfCnpj}' AND (${qWhere})`
+          : `b.cnpj = '${cpfCnpj}' AND (${qWhere})`;
     }
 
     // Query
+    const joinCpfCnpj =
+      isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
+        ? `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.operadoras\` b ON b.id_operadora = t.id_operadora `
+        : `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.consorcios\` b ON b.id_consorcio = t.id_consorcio `;
+
+    const countQuery =
+      'SELECT COUNT(*) AS count ' +
+      `FROM \`${Q_CONSTS.transacao}\` t ` +
+      joinCpfCnpj +
+      (qWhere.length ? ` WHERE ${qWhere}` : '');
     const query =
       `
       SELECT
@@ -326,7 +329,7 @@ export class TicketRevenuesService {
         t.id_veiculo AS vehicleId,
         t.id_cliente AS clientId,
         t.id_transacao AS transactionId,
-        t.id_tipo_pagamento AS paymentMediaType,
+        t.${Q_CONSTS.tTipoPgto} AS paymentMediaType,
         t.tipo_transacao AS transactionType,
         t.id_tipo_integracao AS transportIntegrationType,
         t.id_integracao AS integrationId,
@@ -336,18 +339,36 @@ export class TicketRevenuesService {
         t.stop_lat AS stopLat,
         t.stop_lon AS stopLon,
         t.valor_transacao AS transactionValue,
-        t.versao AS bqDataVersion
-      FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
-      LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora` +
-      ' ' +
-      (queryBuilderStr.length ? `\nWHERE ${queryBuilderStr}` : '') +
-      `\nORDER BY data DESC, hora DESC` +
-      (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
+        t.versao AS bqDataVersion,
+        (${countQuery}) AS count,
+        'ok' AS status
+      FROM \`${Q_CONSTS.transacao}\` t\n` +
+      joinCpfCnpj +
+      (qWhere.length ? `\nWHERE ${qWhere}` : '') +
+      ` UNION ALL
+      SELECT ${'null, '.repeat(22)}
+      (${countQuery}) AS count, 'empty' AS status` +
+      `\nORDER BY partitionDate DESC, processingHour DESC` +
+      (args?.limit !== undefined ? `\nLIMIT ${args.limit + 1}` : '') +
       (offset !== undefined ? `\nOFFSET ${offset}` : '');
+    const queryResult = await this.bigqueryService.runQuery(
+      BQSInstances.smtr,
+      query,
+    );
 
-    const ticketRevenues: ITicketRevenue[] =
-      await this.bigqueryService.runQuery(BQSInstances.smtr, query);
-    return ticketRevenues;
+    const count: number = queryResult[0].count;
+    // Remove unwanted keys and remove last item (all null if empty)
+    const ticketRevenues: ITicketRevenue[] = queryResult.map((i) => {
+      delete i.status;
+      delete i.count;
+      return i;
+    });
+    ticketRevenues.pop();
+
+    return {
+      ticketRevenuesResponse: ticketRevenues,
+      countAll: count,
+    };
   }
 
   /**
@@ -371,5 +392,89 @@ export class TicketRevenuesService {
             : integrationType,
       };
     });
+  }
+
+  public async getMeIndividual(
+    args: ITRGetMeIndividualArgs,
+    paginationArgs: PaginationOptions,
+  ): Promise<Pagination<ITRGetMeIndividualResponse>> {
+    const GET_TODAY = true;
+    const validArgs = await this.validateGetMeIndividualArgs(args);
+    const { startDate, endDate } = getPaymentDates({
+      endpoint: 'ticket-revenues',
+      startDateStr: validArgs.startDate,
+      endDateStr: validArgs.endDate,
+      timeInterval: validArgs.timeInterval,
+    });
+
+    const result = await this.fetchTicketRevenues({
+      cpfCnpj: validArgs.user.getCpfCnpj(),
+      startDate,
+      endDate,
+      getToday: GET_TODAY,
+      limit: paginationArgs.limit,
+      offset: (paginationArgs.page - 1) * paginationArgs.limit,
+    });
+    let ticketRevenuesResponse = result.ticketRevenuesResponse;
+
+    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
+
+    if (ticketRevenuesResponse.length === 0) {
+      return getPagination<ITRGetMeIndividualResponse>(
+        {
+          amountSum: 0,
+          data: [],
+        },
+        {
+          dataLenght: 0,
+          maxCount: 0,
+        },
+        paginationArgs,
+      );
+    }
+
+    const mostRecentResponseDate = startOfDay(
+      new Date(ticketRevenuesResponse[0].partitionDate),
+    );
+    if (GET_TODAY && mostRecentResponseDate > endOfDay(endDate)) {
+      ticketRevenuesResponse = this.removeTicketRevenueToday(
+        ticketRevenuesResponse,
+      ) as ITicketRevenue[];
+    }
+
+    return getPagination<ITRGetMeIndividualResponse>(
+      {
+        amountSum: this.getAmountSum(ticketRevenuesResponse),
+        data: ticketRevenuesResponse,
+      },
+      {
+        dataLenght: ticketRevenuesResponse.length,
+        maxCount: result.countAll,
+      },
+      paginationArgs,
+    );
+  }
+
+  private getAmountSum(data: ITicketRevenue[]): number {
+    return Number(
+      data.reduce((sum, i) => sum + (i?.transactionValue || 0), 0).toFixed(2),
+    );
+  }
+
+  private async validateGetMeIndividualArgs(
+    args: ITRGetMeIndividualArgs,
+  ): Promise<{
+    user: User;
+    startDate?: string;
+    endDate?: string;
+    timeInterval?: TimeIntervalEnum;
+  }> {
+    const user = await this.usersService.getOne({ id: args?.userId });
+    return {
+      startDate: args?.startDate,
+      endDate: args?.endDate,
+      timeInterval: args?.timeInterval as unknown as TimeIntervalEnum,
+      user,
+    };
   }
 }

@@ -14,10 +14,6 @@ import { UsersService } from 'src/users/users.service';
 import { BaseValidator } from 'src/utils/validators/base-validator';
 import { AuthLicenseeService } from './auth-licensee.service';
 
-/**
- * All tests below were based on the requirements on GitHub.
- * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
- */
 describe('AuthLicenseeService', () => {
   let authLicenseeService: AuthLicenseeService;
   let jwtService: JwtService;
@@ -98,7 +94,9 @@ describe('AuthLicenseeService', () => {
   });
 
   describe('getInviteProfile', () => {
-    it('should throw exception when mail status is not SENT', async () => {
+    it('should throw exception when mail status is not SENT', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 18 - GitHub}
+     */ async () => {
       // Arrange
       const user = new User({
         id: 1,
@@ -124,7 +122,9 @@ describe('AuthLicenseeService', () => {
   });
 
   describe('concludeRegistration', () => {
-    it('should set mail status to SENT when succeeded', async () => {
+    it('should set mail status to SENT when succeeded', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 19 - GitHub}
+     */ async () => {
       // Arrange
       const dateNow = new Date('2023-01-01T10:00:00');
       const user = new User({

@@ -10,11 +10,15 @@ import { BankStatementsService } from './bank-statements.service';
 import { IBankStatement } from './interfaces/bank-statement.interface';
 
 const allBankStatements = [
-  { id: 1, cpfCnpj: 'cc_1', permitCode: 'pc_1', date: '2023-01-27', amount: 1 },
-  { id: 2, cpfCnpj: 'cc_1', permitCode: 'pc_1', date: '2023-01-20', amount: 2 },
-  { id: 3, cpfCnpj: 'cc_1', permitCode: 'pc_1', date: '2023-01-13', amount: 3 },
-  { id: 4, cpfCnpj: 'cc_1', permitCode: 'pc_1', date: '2023-01-06', amount: 4 },
-] as Partial<IBankStatement>[] as IBankStatement[];
+  { id: 1, date: '2023-01-27', amount: 1 },
+  { id: 2, date: '2023-01-20', amount: 2 },
+  { id: 3, date: '2023-01-13', amount: 3 },
+  { id: 4, date: '2023-01-06', amount: 4 },
+].map((i) => ({
+  ...i,
+  cpfCnpj: 'cc_1',
+  permitCode: 'pc_1',
+})) as Partial<IBankStatement>[] as IBankStatement[];
 
 describe('BankStatementsService', () => {
   let bankStatementsService: BankStatementsService;
@@ -36,7 +40,7 @@ describe('BankStatementsService', () => {
       provide: TicketRevenuesService,
       useValue: {
         getGroupedFromUser: jest.fn(),
-        getMeFromUser: jest.fn(),
+        getMe: jest.fn(),
       },
     } as Provider;
 
@@ -63,8 +67,7 @@ describe('BankStatementsService', () => {
 
   describe('getBankStatementsFromUser', () => {
     it('should filter last 2 weeks', /**
-     * Requirements:
-     * - 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 1 - GitHub}
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 1 - GitHub}
      *
      * Mocked today: 2023/01/22
      *
@@ -161,7 +164,7 @@ describe('BankStatementsService', () => {
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() => new Date('2023-01-22').valueOf());
-      jest.spyOn(ticketRevenuesService, 'getMeFromUser').mockResolvedValue({
+      jest.spyOn(ticketRevenuesService, 'getMe').mockResolvedValue({
         startDate: '2023-01-12',
         endDate: '2023-01-22',
         amountSum: 110,
@@ -172,7 +175,7 @@ describe('BankStatementsService', () => {
       });
 
       // Act
-      const result = await bankStatementsService.getBankStatementsFromUser({
+      const result = await bankStatementsService.getMe({
         timeInterval: TimeIntervalEnum.LAST_2_WEEKS,
         userId: 1,
       });
@@ -186,29 +189,35 @@ describe('BankStatementsService', () => {
         data: [
           {
             id: 2,
-            cpfCnpj: 'cc_1',
-            permitCode: 'pc_1',
             date: '2023-01-27',
             amount: 40,
-            status: '',
-            statusCode: '',
           },
           {
             id: 1,
-            cpfCnpj: 'cc_1',
-            permitCode: 'pc_1',
             date: '2023-01-20',
             amount: 70,
-            status: '',
-            statusCode: '',
           },
-        ],
+        ].map((i) => ({
+          ...i,
+          cpfCnpj: 'cc_1',
+
+          paymentOrderDate: i.date,
+          processingDate: i.date,
+          transactionDate: i.date,
+          permitCode: 'pc_1',
+          status: '',
+          statusCode: '',
+          error: null,
+          errorCode: null,
+          bankStatus: null,
+          bankStatusCode: null,
+          effectivePaymentDate: null,
+        })),
       });
     });
 
     it('should filter last week', /**
-     * Requirements:
-     * - 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 2 - GitHub}
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 2 - GitHub}
      *
      * Mocked today: 2023/01/22
      *
@@ -305,7 +314,7 @@ describe('BankStatementsService', () => {
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() => new Date('2023-01-25').valueOf());
-      jest.spyOn(ticketRevenuesService, 'getMeFromUser').mockResolvedValue({
+      jest.spyOn(ticketRevenuesService, 'getMe').mockResolvedValue({
         startDate: null,
         endDate: '2023-01-25',
         amountSum: 70,
@@ -316,7 +325,7 @@ describe('BankStatementsService', () => {
       });
 
       // Act
-      const result = await bankStatementsService.getBankStatementsFromUser({
+      const result = await bankStatementsService.getMe({
         timeInterval: TimeIntervalEnum.LAST_WEEK,
         userId: 1,
       });
@@ -333,17 +342,24 @@ describe('BankStatementsService', () => {
             cpfCnpj: 'cc_1',
             permitCode: 'pc_1',
             date: '2023-01-27',
+            paymentOrderDate: '2023-01-27',
+            processingDate: '2023-01-27',
+            transactionDate: '2023-01-27',
             amount: 70,
             status: '',
             statusCode: '',
+            error: null,
+            errorCode: null,
+            bankStatus: null,
+            bankStatusCode: null,
+            effectivePaymentDate: null,
           },
         ],
       });
     });
 
     it('should filter last month', /**
-     * Requirements:
-     * - 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 3 - GitHub}
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 3 - GitHub}
      *
      * Mocked today: 2023/01/17
      *
@@ -446,7 +462,7 @@ describe('BankStatementsService', () => {
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() => new Date('2023-01-17').valueOf());
-      jest.spyOn(ticketRevenuesService, 'getMeFromUser').mockResolvedValue({
+      jest.spyOn(ticketRevenuesService, 'getMe').mockResolvedValue({
         startDate: null,
         endDate: '2023-01-25',
         amountSum: 200,
@@ -457,7 +473,7 @@ describe('BankStatementsService', () => {
       });
 
       // Act
-      const result = await bankStatementsService.getBankStatementsFromUser({
+      const result = await bankStatementsService.getMe({
         timeInterval: TimeIntervalEnum.LAST_MONTH,
         userId: 1,
       });
@@ -471,38 +487,39 @@ describe('BankStatementsService', () => {
         data: [
           {
             id: 3,
-            cpfCnpj: 'cc_1',
-            permitCode: 'pc_1',
             date: '2023-01-20',
             amount: 60,
-            status: '',
-            statusCode: '',
           },
           {
             id: 2,
-            cpfCnpj: 'cc_1',
-            permitCode: 'pc_1',
             date: '2023-01-13',
             amount: 70,
-            status: '',
-            statusCode: '',
           },
           {
             id: 1,
-            cpfCnpj: 'cc_1',
-            permitCode: 'pc_1',
             date: '2023-01-06',
             amount: 70,
-            status: '',
-            statusCode: '',
           },
-        ],
+        ].map((i) => ({
+          ...i,
+          cpfCnpj: 'cc_1',
+          permitCode: 'pc_1',
+          paymentOrderDate: i.date,
+          processingDate: i.date,
+          transactionDate: i.date,
+          error: null,
+          errorCode: null,
+          bankStatus: null,
+          bankStatusCode: null,
+          status: '',
+          statusCode: '',
+          effectivePaymentDate: null,
+        })),
       });
     });
 
     it('should throw exception when filtering by start-end dates', /**
-     * Requirements:
-     * - 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 4 - GitHub}
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 4 - GitHub}
      */ async () => {
       // Arrange
       const bankStatements = allBankStatements.filter(
@@ -518,7 +535,7 @@ describe('BankStatementsService', () => {
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
 
       // Act
-      const result = bankStatementsService.getBankStatementsFromUser({
+      const result = bankStatementsService.getMe({
         userId: 1,
         startDate: '2023-01-05',
         endDate: '2023-01-13',
@@ -529,15 +546,14 @@ describe('BankStatementsService', () => {
     });
 
     it('should throw exception when profile is not found', /**
-     * Requirements:
-     * - 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 5 - GitHub}
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 5 - GitHub}
      */ async () => {
       // Arrange
       jest.spyOn(usersService, 'getOne').mockRejectedValue(new Error());
 
       // Assert
       await expect(
-        bankStatementsService.getBankStatementsFromUser({
+        bankStatementsService.getMe({
           userId: 0,
           timeInterval: TimeIntervalEnum.LAST_WEEK,
         }),

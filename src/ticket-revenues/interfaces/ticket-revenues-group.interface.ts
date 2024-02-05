@@ -1,4 +1,4 @@
-import { ITRCounts } from './tr-count-content.interface';
+import { ITRCounts } from './tr-counts.interface';
 
 /**
  * This object represents a group of `IBqTicketRevenues`
