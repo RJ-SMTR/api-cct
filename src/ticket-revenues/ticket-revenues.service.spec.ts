@@ -4,10 +4,12 @@ import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
+import { TicketRevenuesRepositoryService } from './ticket-revenues-repository.service';
 import { TicketRevenuesService } from './ticket-revenues.service';
 
 describe('TicketRevenuesService', () => {
   let ticketRevenuesService: TicketRevenuesService;
+  let ticketRevenuesRepository: TicketRevenuesRepositoryService;
   let usersService: UsersService;
 
   beforeEach(async () => {
@@ -24,7 +26,12 @@ describe('TicketRevenuesService', () => {
       },
     } as Provider;
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TicketRevenuesService, usersServiceMock, bigqueryServiceMock],
+      providers: [
+        TicketRevenuesService,
+        TicketRevenuesRepositoryService,
+        usersServiceMock,
+        bigqueryServiceMock,
+      ],
     }).compile();
     jest
       .spyOn(global.Date, 'now')
@@ -32,6 +39,9 @@ describe('TicketRevenuesService', () => {
 
     ticketRevenuesService = module.get<TicketRevenuesService>(
       TicketRevenuesService,
+    );
+    ticketRevenuesRepository = module.get<TicketRevenuesRepositoryService>(
+      TicketRevenuesRepositoryService,
     );
     usersService = module.get<UsersService>(UsersService);
   });
@@ -124,7 +134,7 @@ describe('TicketRevenuesService', () => {
       user.cpfCnpj = 'cpfCnpj_1';
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
       jest
-        .spyOn(ticketRevenuesService as any, 'fetchTicketRevenues')
+        .spyOn(ticketRevenuesRepository as any, 'fetchTicketRevenues')
         .mockResolvedValue({
           data: revenues,
           countAll: revenues.length,
@@ -216,7 +226,7 @@ describe('TicketRevenuesService', () => {
       user.cpfCnpj = 'cpfCnpj_1';
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
       jest
-        .spyOn(ticketRevenuesService as any, 'fetchTicketRevenues')
+        .spyOn(ticketRevenuesRepository as any, 'fetchTicketRevenues')
         .mockResolvedValue({
           data: revenues,
           countAll: revenues.length,
