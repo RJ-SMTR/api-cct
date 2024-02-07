@@ -27,12 +27,19 @@ const runSeed = async () => {
   ];
 
   const FORCE_PARAM = '__force';
-  const force = process.argv.slice(2).includes(FORCE_PARAM);
-  global.force = force;
-  const nameFilters = process.argv.slice(2).filter((i) => i !== FORCE_PARAM);
+  const EXCLUDE_PARAM = '__exclude';
+  const isForce = process.argv.slice(2).includes(FORCE_PARAM);
+  const isExclude = process.argv.slice(2).includes(EXCLUDE_PARAM);
+  global.force = isForce;
+  const nameFilters = process.argv
+    .slice(2)
+    .filter((i) => ![FORCE_PARAM, EXCLUDE_PARAM].includes(i));
   if (nameFilters.length > 0) {
-    services = services.filter((s) =>
-      nameFilters.some((j) => s.name.toLowerCase().includes(j.toLowerCase())),
+    services = services.filter(
+      (s) =>
+        nameFilters.some((n) =>
+          s.name.toLowerCase().includes(n.toLowerCase()),
+        ) !== isExclude,
     );
   }
 
@@ -45,7 +52,7 @@ const runSeed = async () => {
       .join(', ')}`,
   );
   for (const module of services) {
-    if (!(await app.get(module).validateRun()) && !force) {
+    if (!(await app.get(module).validateRun()) && !isForce) {
       console.log(`[${module.name}]: Database is not empty, aborting seed...`);
       console.log(
         `Tip: Use '${FORCE_PARAM}' parameter to ignore this message.`,

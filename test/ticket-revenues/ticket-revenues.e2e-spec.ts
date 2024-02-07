@@ -3,18 +3,24 @@ import * as request from 'supertest';
 import { getDateYMDString } from '../../src/utils/date-utils';
 import {
   APP_URL,
+  BQ_JSON_CREDENTIALS,
   LICENSEE_CNPJ_PASSWORD,
   LICENSEE_CNPJ_PERMIT_CODE,
   LICENSEE_CPF_PASSWORD,
   LICENSEE_CPF_PERMIT_CODE,
 } from '../utils/constants';
+import { BigQuery } from '@google-cloud/bigquery';
 
 describe('Ticket revenues (e2e)', () => {
   const app = APP_URL;
+  let bq: BigQuery;
   let cpfApiToken: any;
   let cnpjApiToken: any;
+  let licenseeCnpj: string;
+  let licenseeCnpjMaxDate: Date;
 
   beforeAll(async () => {
+    // Login CPF and CNPJ users
     await request(app)
       .post('/api/v1/auth/licensee/login')
       .send({
@@ -25,6 +31,7 @@ describe('Ticket revenues (e2e)', () => {
       .then(({ body }) => {
         cpfApiToken = body.token;
       });
+
     await request(app)
       .post('/api/v1/auth/licensee/login')
       .send({
@@ -34,7 +41,25 @@ describe('Ticket revenues (e2e)', () => {
       .expect(200)
       .then(({ body }) => {
         cnpjApiToken = body.token;
+        licenseeCnpj = body.user.cpfCnpj;
       });
+
+    // get licenseeMaxDate
+    bq = new BigQuery({ credentials: BQ_JSON_CREDENTIALS() });
+    await bq
+      .query(
+        `
+SELECT
+  CAST(t.data AS STRING) AS partitionDate,
+  FROM \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t
+  LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
+    `,
+      )
+      .then((value) => {
+        licenseeCnpjMaxDate = new Date(value[0][0]?.['partitionDate']);
+      });
+    expect(Number(licenseeCnpjMaxDate)).not.toBeNaN();
   });
 
   it('should match result in /ticket-revenues/me with /ticket-revenues/me/individual', /**
@@ -86,7 +111,7 @@ describe('Ticket revenues (e2e)', () => {
    * Requirement: 2024/01/26 {@link https://github.com/RJ-SMTR/api-cct/issues/167#issuecomment-1912764312 #167, item 4 - GitHub}
    */ async () => {
     // Arrange
-    const startDate = subDays(new Date(), 366);
+    const startDate = subDays(licenseeCnpjMaxDate, 366);
 
     // Act
     let ticketRevenuesMe: any;
@@ -97,7 +122,7 @@ describe('Ticket revenues (e2e)', () => {
       })
       .query({
         startDate: getDateYMDString(startDate),
-        endDate: getDateYMDString(new Date()),
+        endDate: getDateYMDString(licenseeCnpjMaxDate),
       })
       .expect(200)
       .then(({ body }) => {
