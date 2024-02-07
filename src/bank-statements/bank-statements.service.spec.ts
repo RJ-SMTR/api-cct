@@ -1,6 +1,8 @@
 import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { ITicketRevenuesGroup } from 'src/ticket-revenues/interfaces/ticket-revenues-group.interface';
+import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository.service';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
@@ -27,6 +29,12 @@ describe('BankStatementsService', () => {
   let ticketRevenuesService: TicketRevenuesService;
 
   beforeEach(async () => {
+    // class TicketRevenuesRepositoryMock {
+    //   async fetchTicketRevenues(): any[] {
+    //     return [];
+    //   }
+    // }
+
     const usersServiceMock = {
       provide: UsersService,
       useValue: {
@@ -35,6 +43,12 @@ describe('BankStatementsService', () => {
         findOne: jest.fn(),
         update: jest.fn(),
         softDelete: jest.fn(),
+      },
+    } as Provider;
+    const bigqueryServiceMock = {
+      provide: BigqueryService,
+      useValue: {
+        runQuery: jest.fn(),
       },
     } as Provider;
     const ticketRevenuesServiceMock = {
@@ -49,6 +63,8 @@ describe('BankStatementsService', () => {
       providers: [
         BankStatementsService,
         BankStatementsRepositoryService,
+        TicketRevenuesRepositoryService,
+        bigqueryServiceMock,
         usersServiceMock,
         ticketRevenuesServiceMock,
       ],

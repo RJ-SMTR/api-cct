@@ -1,19 +1,16 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { endOfDay, isToday, startOfDay } from 'date-fns';
-import { BQSInstances, BigqueryService } from 'src/bigquery/bigquery.service';
+import { isToday } from 'date-fns';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
-import { getPagination } from 'src/utils/get-pagination';
 import { formatLog } from 'src/utils/logging';
 import {
   PAYMENT_START_WEEKDAY,
   PaymentEndpointType,
   getPaymentDates,
 } from 'src/utils/payment-date-utils';
-import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
@@ -23,14 +20,10 @@ import { ITRGetMeGroupedArgs } from './interfaces/tr-get-me-grouped-args.interfa
 import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response.interface';
 import { ITRGetMeIndividualArgs } from './interfaces/tr-get-me-individual-args.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
-import {
-  TRIntegrationTypeMap as IntegrationType,
-  TRPaymentTypeMap as PaymentType,
-} from './maps/ticket-revenues.map';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
+import { TicketRevenuesRepositoryService } from './ticket-revenues-repository.service';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
-import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -39,8 +32,8 @@ export class TicketRevenuesService {
   });
 
   constructor(
-    private readonly bigqueryService: BigqueryService,
     private readonly usersService: UsersService,
+    private readonly ticketRevenuesRepository: TicketRevenuesRepositoryService,
   ) {}
 
   public async getMeGrouped(
@@ -63,7 +56,7 @@ export class TicketRevenuesService {
     };
 
     const ticketRevenuesResponse: ITicketRevenue[] = (
-      await this.fetchTicketRevenues(fetchArgs)
+      await this.ticketRevenuesRepository.fetchTicketRevenues(fetchArgs)
     ).data;
 
     if (ticketRevenuesResponse.length === 0) {
@@ -80,7 +73,6 @@ export class TicketRevenuesService {
     endpoint: PaymentEndpointType,
   ): Promise<ITRGetMeGroupedResponse> {
     const user = await this.validateUser(args);
-    const GET_TODAY = true;
     const { startDate, endDate } = getPaymentDates({
       endpoint: endpoint,
       startDateStr: args.startDate,
@@ -95,10 +87,12 @@ export class TicketRevenuesService {
       cpfCnpj: user.getCpfCnpj(),
       startDate,
       endDate,
-      getToday: GET_TODAY,
+      getToday: true,
     };
 
-    ticketRevenuesResponse = (await this.fetchTicketRevenues(fetchArgs)).data;
+    ticketRevenuesResponse = (
+      await this.ticketRevenuesRepository.fetchTicketRevenues(fetchArgs)
+    ).data;
 
     if (ticketRevenuesResponse.length === 0) {
       return {
@@ -132,29 +126,22 @@ export class TicketRevenuesService {
         .toFixed(2),
     );
 
-    const mostRecentResponseDate = startOfDay(
-      new Date(ticketRevenuesResponse[0].partitionDate),
+    ticketRevenuesResponse = this.ticketRevenuesRepository.removeTodayData(
+      ticketRevenuesResponse,
+      endDate,
     );
-    if (GET_TODAY && mostRecentResponseDate > endOfDay(endDate)) {
-      ticketRevenuesResponse = this.removeTicketRevenueToday(
-        ticketRevenuesResponse,
-      ) as ITicketRevenue[];
-      ticketRevenuesGroups = this.removeTicketRevenueToday(
-        ticketRevenuesGroups,
-      ) as ITicketRevenuesGroup[];
-    }
+    ticketRevenuesGroups = this.ticketRevenuesRepository.removeTodayData(
+      ticketRevenuesGroups,
+      endDate,
+    );
 
-    const amountSum = Number(
-      ticketRevenuesGroups
-        .reduce((sum, i) => sum + (i?.transactionValueSum || 0), 0)
-        .toFixed(2),
-    );
+    const amountSum =
+      this.ticketRevenuesRepository.getAmountSum(ticketRevenuesGroups);
 
     const ticketCount = ticketRevenuesGroups.reduce(
       (sum, i) => sum + i.count,
       0,
     );
-    console.log('TR response', ticketRevenuesResponse.length);
 
     return {
       startDate:
@@ -196,12 +183,6 @@ export class TicketRevenuesService {
   private async validateUser(args: ITRGetMeGroupedArgs): Promise<User> {
     const user = await this.usersService.getOne({ id: args?.userId });
     return user;
-  }
-
-  private removeTicketRevenueToday(
-    list: (ITicketRevenue | ITicketRevenuesGroup)[],
-  ): ITicketRevenue[] | (ITicketRevenue | ITicketRevenuesGroup)[] {
-    return list.filter((i) => !isToday(new Date(i.partitionDate)));
   }
 
   private getTicketRevenuesGroups(
@@ -256,253 +237,16 @@ export class TicketRevenuesService {
   }
 
   /**
-   * TODO: refactor
-   *
-   * Repository: query `ITicketRevenue[]` with pagination
-   *
-   * Used by:
-   * - ticket-revenues/me/individual
-   * - ticket-revenues/me               (day gorup)
-   * - ticket-revenues/me/grouped       (sum all group)
-   * - bank-statements/me/previous-days
-   */
-  async fetchTicketRevenues(
-    args?: IFetchTicketRevenues,
-  ): Promise<{ data: ITicketRevenue[]; countAll: number }> {
-    const IS_PROD = process.env.NODE_ENV === 'production';
-    const Q_CONSTS = {
-      bucket: IS_PROD ? 'rj-smtr' : 'rj-smtr-dev',
-      transacao: IS_PROD
-        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao'
-        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao',
-      integracao: IS_PROD
-        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.integracao'
-        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.integracao',
-      tTipoPgto: IS_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
-    };
-    // Args
-    let offset = args?.offset;
-    const queryBuilder = new QueryBuilder();
-    queryBuilder.pushOR([]);
-    if (args?.offset !== undefined && args.limit === undefined) {
-      this.logger.warn(
-        "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-          " 'offset' will be ignored to prevent query fail",
-      );
-      offset = undefined;
-    }
-
-    if (args?.startDate !== undefined) {
-      const startDate = args.startDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) >= DATE('${startDate}')`,
-      );
-    }
-    if (args?.endDate !== undefined) {
-      const endDate = args.endDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) <= DATE('${endDate}')`,
-      );
-    }
-    if (args?.previousDays === true) {
-      queryBuilder.pushAND(
-        'DATE(t.datetime_processamento) > DATE(t.datetime_transacao)',
-      );
-    }
-
-    queryBuilder.pushOR([]);
-    if (args?.getToday) {
-      const nowStr = new Date(Date.now()).toISOString().slice(0, 10);
-      queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) = DATE('${nowStr}')`,
-      );
-    }
-
-    let qWhere = queryBuilder.toSQL();
-    if (args?.cpfCnpj !== undefined) {
-      const cpfCnpj = args.cpfCnpj;
-      qWhere =
-        isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
-          ? `b.documento = '${cpfCnpj}' AND (${qWhere})`
-          : `b.cnpj = '${cpfCnpj}' AND (${qWhere})`;
-    }
-
-    // Query
-    const joinCpfCnpj =
-      isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
-        ? `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.operadoras\` b ON b.id_operadora = t.id_operadora `
-        : `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.consorcios\` b ON b.id_consorcio = t.id_consorcio `;
-    const joinIntegracao = `INNER JOIN ${Q_CONSTS.integracao} i ON i.id_transacao = t.id_transacao`;
-
-    const countQuery =
-      'SELECT COUNT(*) AS count ' +
-      `FROM \`${Q_CONSTS.transacao}\` t\n` +
-      joinCpfCnpj +
-      '\n' +
-      joinIntegracao +
-      '\n' +
-      (qWhere.length ? ` WHERE ${qWhere}\n` : '');
-    const query =
-      `
-      SELECT
-        CAST(t.data AS STRING) AS partitionDate,
-        t.hora AS processingHour,
-        CAST(t.datetime_transacao AS STRING) AS transactionDateTime,
-        CAST(t.datetime_processamento AS STRING) AS processingDateTime,
-        t.datetime_captura AS captureDateTime,
-        t.modo AS transportType,
-        t.servico AS vehicleService,
-        t.sentido AS directionId,
-        t.id_veiculo AS vehicleId,
-        t.id_cliente AS clientId,
-        t.id_transacao AS transactionId,
-        t.${Q_CONSTS.tTipoPgto} AS paymentMediaType,
-        t.tipo_transacao AS transactionType,
-        t.id_tipo_integracao AS transportIntegrationType,
-        t.id_integracao AS integrationId,
-        t.latitude AS transactionLat,
-        t.longitude AS transactionLon,
-        t.stop_id AS stopId,
-        t.stop_lat AS stopLat,
-        t.stop_lon AS stopLon,
-        CASE WHEN t.tipo_transacao = 'Integração' THEN i.valor_transacao_total ELSE t.valor_transacao END AS transactionValue,
-        t.versao AS bqDataVersion,
-        (${countQuery}) AS count,
-        'ok' AS status
-      FROM \`${Q_CONSTS.transacao}\` t\n` +
-      joinCpfCnpj +
-      '\n' +
-      joinIntegracao +
-      '\n' +
-      (qWhere.length ? `WHERE ${qWhere}\n` : '') +
-      `UNION ALL
-      SELECT ${'null, '.repeat(22)}
-      (${countQuery}) AS count, 'empty' AS status` +
-      `\nORDER BY partitionDate DESC, processingHour DESC` +
-      (args?.limit !== undefined ? `\nLIMIT ${args.limit + 1}` : '') +
-      (offset !== undefined ? `\nOFFSET ${offset}` : '');
-    const queryResult = await this.bigqueryService.runQuery(
-      BQSInstances.smtr,
-      query,
-    );
-
-    const count: number = queryResult[0].count;
-    // Remove unwanted keys and remove last item (all null if empty)
-    let ticketRevenues: ITicketRevenue[] = queryResult.map((i) => {
-      delete i.status;
-      delete i.count;
-      return i;
-    });
-    ticketRevenues.pop();
-    ticketRevenues = this.mapTicketRevenues(ticketRevenues);
-
-    return {
-      data: ticketRevenues,
-      countAll: count,
-    };
-  }
-
-  /**
-   * Convert id values into string values
-   */
-  private mapTicketRevenues(
-    ticketRevenues: ITicketRevenue[],
-  ): ITicketRevenue[] {
-    return ticketRevenues.map((item: ITicketRevenue) => {
-      const paymentType = item.paymentMediaType;
-      const integrationType = item.transportIntegrationType;
-      return {
-        ...item,
-        paymentMediaType:
-          paymentType !== null
-            ? PaymentType?.[paymentType] || paymentType
-            : paymentType,
-        transportIntegrationType:
-          integrationType !== null
-            ? IntegrationType?.[integrationType] || integrationType
-            : integrationType,
-      };
-    });
-  }
-
-  /**
    * Service method: ticket-revenues/me
    */
   public async getMeIndividual(
     args: ITRGetMeIndividualArgs,
-    paginationArgs: PaginationOptions,
+    paginationOptions: PaginationOptions,
   ): Promise<Pagination<ITRGetMeIndividualResponse>> {
-    const GET_TODAY = true;
     const validArgs = await this.validateGetMeIndividualArgs(args);
-    const { startDate, endDate } = getPaymentDates({
-      endpoint: 'ticket-revenues',
-      startDateStr: validArgs.startDate,
-      endDateStr: validArgs.endDate,
-      timeInterval: validArgs.timeInterval,
-    });
-
-    const result = await this.fetchTicketRevenues({
-      cpfCnpj: validArgs.user.getCpfCnpj(),
-      startDate,
-      endDate,
-      getToday: GET_TODAY,
-      limit: paginationArgs.limit,
-      offset: (paginationArgs.page - 1) * paginationArgs.limit,
-    });
-    let ticketRevenuesResponse = result.data;
-
-    if (ticketRevenuesResponse.length === 0) {
-      return getPagination<ITRGetMeIndividualResponse>(
-        {
-          amountSum: 0,
-          data: [],
-        },
-        {
-          dataLenght: 0,
-          maxCount: 0,
-        },
-        paginationArgs,
-      );
-    }
-
-    const mostRecentResponseDate = startOfDay(
-      new Date(ticketRevenuesResponse[0].partitionDate),
-    );
-    if (GET_TODAY && mostRecentResponseDate > endOfDay(endDate)) {
-      ticketRevenuesResponse = this.removeTicketRevenueToday(
-        ticketRevenuesResponse,
-      ) as ITicketRevenue[];
-    }
-
-    return getPagination<ITRGetMeIndividualResponse>(
-      {
-        amountSum: this.getAmountSum(ticketRevenuesResponse),
-        data: ticketRevenuesResponse,
-      },
-      {
-        dataLenght: ticketRevenuesResponse.length,
-        maxCount: result.countAll,
-      },
-      paginationArgs,
-    );
-  }
-
-  private renoveTodayIfNecessary(
-    getToday: boolean,
-    mostRecentResponseDate: Date,
-    endDate: Date,
-    data: ITicketRevenue[],
-  ): ITicketRevenue[] {
-    if (getToday && mostRecentResponseDate > endOfDay(endDate)) {
-      return this.removeTicketRevenueToday(data) as ITicketRevenue[];
-    } else {
-      return data;
-    }
-  }
-
-  private getAmountSum(data: ITicketRevenue[]): number {
-    return Number(
-      data.reduce((sum, i) => sum + (i?.transactionValue || 0), 0).toFixed(2),
+    return await this.ticketRevenuesRepository.getMeIndividual(
+      validArgs,
+      paginationOptions,
     );
   }
 

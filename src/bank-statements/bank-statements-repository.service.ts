@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { nextFriday } from 'date-fns';
-import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
+import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository.service';
 import { User } from 'src/users/entities/user.entity';
 import { getDateYMDString, isPaymentWeekComplete } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
@@ -17,7 +17,9 @@ import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-da
  */
 @Injectable()
 export class BankStatementsRepositoryService {
-  constructor(private readonly ticketRevenuesService: TicketRevenuesService) {}
+  constructor(
+    private readonly ticketRevenuesRepository: TicketRevenuesRepositoryService,
+  ) {}
 
   public async getPreviousDays(
     validArgs: IBSGetMePreviousDaysValidArgs,
@@ -53,7 +55,7 @@ export class BankStatementsRepositoryService {
     const pagination = validArgs.paginationArgs
       ? validArgs.paginationArgs
       : { limit: 9999, page: 1 };
-    const revenues = await this.ticketRevenuesService.fetchTicketRevenues({
+    const revenues = await this.ticketRevenuesRepository.fetchTicketRevenues({
       startDate: new Date(validArgs.endDate),
       endDate: new Date(validArgs.endDate),
       cpfCnpj: validArgs.user.getCpfCnpj(),
