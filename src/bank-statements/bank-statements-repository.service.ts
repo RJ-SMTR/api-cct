@@ -11,6 +11,7 @@ import { IBankStatement } from './interfaces/bank-statement.interface';
 import { IBSCounts } from './interfaces/bs-counts.interface';
 import { IBSGetMePreviousDaysValidArgs } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
+import { IBSGetMeDayValidArgs } from './interfaces/bs-get-me-day-args.interface';
 
 /**
  * Get weekly statements
@@ -121,5 +122,19 @@ export class BankStatementsRepositoryService {
       }
     }
     return statusCounts;
+  }
+
+  async getMeDay(validArgs: IBSGetMeDayValidArgs): Promise<number> {
+    const revenues = await this.ticketRevenuesService.getMe(
+      {
+        startDate: validArgs.endDate,
+        endDate: validArgs.endDate,
+        userId: validArgs.user.id,
+        groupBy: 'day',
+      },
+      { limit: 9999, page: 1 },
+      'ticket-revenues',
+    );
+    return revenues.amountSum;
   }
 }
