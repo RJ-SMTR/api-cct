@@ -12,6 +12,7 @@ import { IBSCounts } from './interfaces/bs-counts.interface';
 import { IBSGetMePreviousDaysValidArgs } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
 import { IBSGetMeDayValidArgs } from './interfaces/bs-get-me-day-args.interface';
+import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 
 /**
  * Get weekly statements
@@ -20,6 +21,7 @@ import { IBSGetMeDayValidArgs } from './interfaces/bs-get-me-day-args.interface'
 export class BankStatementsRepositoryService {
   constructor(
     private readonly ticketRevenuesRepository: TicketRevenuesRepositoryService,
+    private readonly ticketRevenuesService: TicketRevenuesService,
   ) {}
 
   public async getPreviousDays(
