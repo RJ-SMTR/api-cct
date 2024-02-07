@@ -13,11 +13,6 @@ import { BankStatementsRepositoryService } from './bank-statements-repository.se
 import { IBankStatement } from './interfaces/bank-statement.interface';
 import { IBSGetMeArgs } from './interfaces/bs-get-me-args.interface';
 import {
-  IBSGetMeDayArgs,
-  IBSGetMeDayValidArgs,
-} from './interfaces/bs-get-me-day-args.interface';
-import { IBSGetMeDayResponse } from './interfaces/bs-get-me-day-response.interface';
-import {
   IBSGetMePreviousDaysArgs,
   IBSGetMePreviousDaysValidArgs,
 } from './interfaces/bs-get-me-previous-days-args.interface';
@@ -192,27 +187,6 @@ export class BankStatementsService {
     }
     const countSum = revenuesResponse.ticketCount;
     return { todaySum, allSum, countSum, statements: newStatements };
-  }
-
-  public async getMeDay(args: IBSGetMeDayArgs): Promise<IBSGetMeDayResponse> {
-    const validArgs = await this.validateGetMeDay(args);
-    const amount = await this.bankStatementsRepository.getMeDay(validArgs);
-    return {
-      valueToReceive: amount,
-    };
-  }
-
-  private async validateGetMeDay(
-    args: IBSGetMeDayArgs,
-  ): Promise<IBSGetMeDayValidArgs> {
-    if (isNaN(args?.userId as number)) {
-      throw CommonHttpException.argNotType('userId', 'number', args?.userId);
-    }
-    const user = await this.usersService.getOne({ id: args?.userId });
-    return {
-      endDate: args?.endDate,
-      user: user,
-    };
   }
 
   public async getMePreviousDays(
