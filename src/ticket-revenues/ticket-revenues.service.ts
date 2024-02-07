@@ -56,16 +56,15 @@ export class TicketRevenuesService {
     });
 
     // Get data
-    let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
       cpfCnpj: user.getCpfCnpj(),
       startDate,
       endDate,
     };
 
-    ticketRevenuesResponse = (await this.fetchTicketRevenues(fetchArgs))
-      .ticketRevenuesResponse;
-    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
+    const ticketRevenuesResponse: ITicketRevenue[] = (
+      await this.fetchTicketRevenues(fetchArgs)
+    ).data;
 
     if (ticketRevenuesResponse.length === 0) {
       return new TicketRevenuesGroup().toInterface();
@@ -99,10 +98,7 @@ export class TicketRevenuesService {
       getToday: GET_TODAY,
     };
 
-    ticketRevenuesResponse = (await this.fetchTicketRevenues(fetchArgs))
-      .ticketRevenuesResponse;
-
-    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
+    ticketRevenuesResponse = (await this.fetchTicketRevenues(fetchArgs)).data;
 
     if (ticketRevenuesResponse.length === 0) {
       return {
@@ -259,9 +255,20 @@ export class TicketRevenuesService {
     return resultList;
   }
 
-  private async fetchTicketRevenues(
+  /**
+   * TODO: refactor
+   * 
+   * Repository: query `ITicketRevenue[]` with pagination
+   *
+   * Used by:
+   * - ticket-revenues/me/individual
+   * - ticket-revenues/me               (day gorup)
+   * - ticket-revenues/me/grouped       (sum all group)
+   * - bank-statements/me/previous-days
+   */
+  async fetchTicketRevenues(
     args?: IFetchTicketRevenues,
-  ): Promise<{ ticketRevenuesResponse: ITicketRevenue[]; countAll: number }> {
+  ): Promise<{ data: ITicketRevenue[]; countAll: number }> {
     const IS_PROD = process.env.NODE_ENV === 'production';
     const Q_CONSTS = {
       bucket: IS_PROD ? 'rj-smtr' : 'rj-smtr-dev',
@@ -287,17 +294,28 @@ export class TicketRevenuesService {
 
     if (args?.startDate !== undefined) {
       const startDate = args.startDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(t.data) >= DATE('${startDate}')`);
+      queryBuilder.pushAND(
+        `DATE(t.datetime_processamento) >= DATE('${startDate}')`,
+      );
     }
     if (args?.endDate !== undefined) {
       const endDate = args.endDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(t.data) <= DATE('${endDate}')`);
+      queryBuilder.pushAND(
+        `DATE(t.datetime_processamento) <= DATE('${endDate}')`,
+      );
+    }
+    if (args?.previousDays === true) {
+      queryBuilder.pushAND(
+        'DATE(t.datetime_processamento) > DATE(t.datetime_transacao)',
+      );
     }
 
     queryBuilder.pushOR([]);
     if (args?.getToday) {
       const nowStr = new Date(Date.now()).toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(t.data) = DATE('${nowStr}')`);
+      queryBuilder.pushAND(
+        `DATE(t.datetime_processamento) = DATE('${nowStr}')`,
+      );
     }
 
     let qWhere = queryBuilder.toSQL();
@@ -370,15 +388,16 @@ export class TicketRevenuesService {
 
     const count: number = queryResult[0].count;
     // Remove unwanted keys and remove last item (all null if empty)
-    const ticketRevenues: ITicketRevenue[] = queryResult.map((i) => {
+    let ticketRevenues: ITicketRevenue[] = queryResult.map((i) => {
       delete i.status;
       delete i.count;
       return i;
     });
     ticketRevenues.pop();
+    ticketRevenues = this.mapTicketRevenues(ticketRevenues);
 
     return {
-      ticketRevenuesResponse: ticketRevenues,
+      data: ticketRevenues,
       countAll: count,
     };
   }
@@ -406,6 +425,9 @@ export class TicketRevenuesService {
     });
   }
 
+  /**
+   * Service method: ticket-revenues/me
+   */
   public async getMeIndividual(
     args: ITRGetMeIndividualArgs,
     paginationArgs: PaginationOptions,
@@ -427,9 +449,7 @@ export class TicketRevenuesService {
       limit: paginationArgs.limit,
       offset: (paginationArgs.page - 1) * paginationArgs.limit,
     });
-    let ticketRevenuesResponse = result.ticketRevenuesResponse;
-
-    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
+    let ticketRevenuesResponse = result.data;
 
     if (ticketRevenuesResponse.length === 0) {
       return getPagination<ITRGetMeIndividualResponse>(
@@ -465,6 +485,19 @@ export class TicketRevenuesService {
       },
       paginationArgs,
     );
+  }
+
+  private renoveTodayIfNecessary(
+    getToday: boolean,
+    mostRecentResponseDate: Date,
+    endDate: Date,
+    data: ITicketRevenue[],
+  ): ITicketRevenue[] {
+    if (getToday && mostRecentResponseDate > endOfDay(endDate)) {
+      return this.removeTicketRevenueToday(data) as ITicketRevenue[];
+    } else {
+      return data;
+    }
   }
 
   private getAmountSum(data: ITicketRevenue[]): number {

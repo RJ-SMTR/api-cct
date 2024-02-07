@@ -190,28 +190,32 @@ describe('BankStatementsService', () => {
           {
             id: 2,
             date: '2023-01-27',
+            effectivePaymentDate: null,
             amount: 40,
+            status: 'A pagar',
+            statusCode: 'toPay',
+            bankStatus: null,
+            bankStatusCode: null,
           },
           {
             id: 1,
             date: '2023-01-20',
+            effectivePaymentDate: '2023-01-20',
             amount: 70,
+            status: 'Pago',
+            statusCode: 'paid',
+            bankStatus: '00',
+            bankStatusCode: 'Crédito ou Débito Efetivado',
           },
         ].map((i) => ({
           ...i,
           cpfCnpj: 'cc_1',
-
-          paymentOrderDate: i.date,
-          processingDate: i.date,
           transactionDate: i.date,
+          processingDate: i.date,
+          paymentOrderDate: i.date,
           permitCode: 'pc_1',
-          status: '',
-          statusCode: '',
           error: null,
           errorCode: null,
-          bankStatus: null,
-          bankStatusCode: null,
-          effectivePaymentDate: null,
         })),
       });
     });
@@ -219,7 +223,7 @@ describe('BankStatementsService', () => {
     it('should filter last week', /**
      * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 2 - GitHub}
      *
-     * Mocked today: 2023/01/22
+     * Mocked today: 2023/01/25
      *
      * bank-statements time interval (last week):
      * ```
@@ -346,8 +350,8 @@ describe('BankStatementsService', () => {
             processingDate: '2023-01-27',
             transactionDate: '2023-01-27',
             amount: 70,
-            status: '',
-            statusCode: '',
+            status: 'A pagar',
+            statusCode: 'toPay',
             error: null,
             errorCode: null,
             bankStatus: null,
@@ -489,16 +493,31 @@ describe('BankStatementsService', () => {
             id: 3,
             date: '2023-01-20',
             amount: 60,
+            effectivePaymentDate: null,
+            status: 'A pagar',
+            statusCode: 'toPay',
+            bankStatus: null,
+            bankStatusCode: null,
           },
           {
             id: 2,
             date: '2023-01-13',
             amount: 70,
+            effectivePaymentDate: '2023-01-13',
+            status: 'Pago',
+            statusCode: 'paid',
+            bankStatus: '00',
+            bankStatusCode: 'Crédito ou Débito Efetivado',
           },
           {
             id: 1,
             date: '2023-01-06',
             amount: 70,
+            effectivePaymentDate: '2023-01-06',
+            status: 'Pago',
+            statusCode: 'paid',
+            bankStatus: '00',
+            bankStatusCode: 'Crédito ou Débito Efetivado',
           },
         ].map((i) => ({
           ...i,
@@ -509,11 +528,6 @@ describe('BankStatementsService', () => {
           transactionDate: i.date,
           error: null,
           errorCode: null,
-          bankStatus: null,
-          bankStatusCode: null,
-          status: '',
-          statusCode: '',
-          effectivePaymentDate: null,
         })),
       });
     });

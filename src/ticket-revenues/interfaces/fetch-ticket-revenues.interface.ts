@@ -5,4 +5,5 @@ export interface IFetchTicketRevenues {
   limit?: number;
   offset?: number;
   getToday?: boolean;
+  previousDays?: boolean;
 }
