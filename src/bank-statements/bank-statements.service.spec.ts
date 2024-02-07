@@ -6,6 +6,7 @@ import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateYMDString } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { BankStatementsRepositoryService } from './bank-statements-repository.service';
 import { BankStatementsService } from './bank-statements.service';
 import { IBankStatement } from './interfaces/bank-statement.interface';
 
@@ -47,6 +48,7 @@ describe('BankStatementsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BankStatementsService,
+        BankStatementsRepositoryService,
         usersServiceMock,
         ticketRevenuesServiceMock,
       ],
