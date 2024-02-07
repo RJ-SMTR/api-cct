@@ -126,7 +126,7 @@ describe('TicketRevenuesService', () => {
       jest
         .spyOn(ticketRevenuesService as any, 'fetchTicketRevenues')
         .mockResolvedValue({
-          ticketRevenuesResponse: revenues,
+          data: revenues,
           countAll: revenues.length,
         });
 
@@ -218,7 +218,7 @@ describe('TicketRevenuesService', () => {
       jest
         .spyOn(ticketRevenuesService as any, 'fetchTicketRevenues')
         .mockResolvedValue({
-          ticketRevenuesResponse: revenues,
+          data: revenues,
           countAll: revenues.length,
         });
 

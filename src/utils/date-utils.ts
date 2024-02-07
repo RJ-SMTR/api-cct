@@ -1,4 +1,4 @@
-import { endOfDay, startOfDay, startOfMonth } from 'date-fns';
+import { endOfDay, nextFriday, startOfDay, startOfMonth } from 'date-fns';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
 import { DateIntervalStrType } from './types/date-interval.type';
 
@@ -60,6 +60,12 @@ export function getStartEndDates(args: {
   }
   endDate = endOfDay(endDate);
   return { startDate, endDate };
+}
+
+export function isPaymentWeekComplete(date: Date) {
+  const paymentDate = nextFriday(date);
+  const currentPaymentDate = nextFriday(new Date(Date.now()));
+  return paymentDate < currentPaymentDate;
 }
 
 export function safeCastDates(args: Partial<DateIntervalStrType>) {

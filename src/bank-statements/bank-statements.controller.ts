@@ -99,7 +99,7 @@ export class BankStatementsController {
   @ApiQuery(PaginationApiParams.page)
   @ApiQuery(PaginationApiParams.limit)
   @ApiQuery(DateApiParams.startDate)
-  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery(DateApiParams.getEndDate(true))
   @ApiQuery(
     DateApiParams.getTimeInterval(
       BSMePrevDaysTimeIntervalEnum,
@@ -118,11 +118,14 @@ export class BankStatementsController {
     userId?: number | null,
   ): Promise<Pagination<IBSGetMePreviousDaysResponse>> {
     const isUserIdParam = userId !== null && !isNaN(Number(userId));
-    const result = await this.bankStatementsService.getMePreviousDays({
-      endDate: endDate,
-      timeInterval: timeInterval,
-      userId: isUserIdParam ? userId : (request.user as User).id,
-    });
+    const result = await this.bankStatementsService.getMePreviousDays(
+      {
+        endDate: endDate,
+        timeInterval: timeInterval,
+        userId: isUserIdParam ? userId : (request.user as User).id,
+      },
+      { limit, page },
+    );
     return getPagination(
       result,
       {
