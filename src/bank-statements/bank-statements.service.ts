@@ -12,7 +12,10 @@ import { Pagination } from 'src/utils/types/pagination.type';
 import { BankStatementsRepositoryService } from './bank-statements-repository.service';
 import { IBankStatement } from './interfaces/bank-statement.interface';
 import { IBSGetMeArgs } from './interfaces/bs-get-me-args.interface';
-import { IBSGetMeDayArgs } from './interfaces/bs-get-me-day-args.interface';
+import {
+  IBSGetMeDayArgs,
+  IBSGetMeDayValidArgs,
+} from './interfaces/bs-get-me-day-args.interface';
 import { IBSGetMeDayResponse } from './interfaces/bs-get-me-day-response.interface';
 import {
   IBSGetMePreviousDaysArgs,
@@ -29,7 +32,7 @@ import { IGetBSResponse } from './interfaces/get-bs-response.interface';
 export class BankStatementsService {
   constructor(
     private readonly usersService: UsersService,
-    private readonly bankStatementsRepositoryService: BankStatementsRepositoryService,
+    private readonly bankStatementsRepository: BankStatementsRepositoryService,
     private readonly ticketRevenuesService: TicketRevenuesService,
   ) {}
 
@@ -192,17 +195,16 @@ export class BankStatementsService {
   }
 
   public async getMeDay(args: IBSGetMeDayArgs): Promise<IBSGetMeDayResponse> {
-    await this.validateGetMeDay(args);
-    // This data is mocked for development
+    const validArgs = await this.validateGetMeDay(args);
+    const amount = await this.bankStatementsRepository.getMeDay(validArgs);
     return {
-      valueToReceive: 4.9,
+      valueToReceive: amount,
     };
   }
 
-  private async validateGetMeDay(args: IBSGetMeDayArgs): Promise<{
-    endDate: string;
-    user: User;
-  }> {
+  private async validateGetMeDay(
+    args: IBSGetMeDayArgs,
+  ): Promise<IBSGetMeDayValidArgs> {
     if (isNaN(args?.userId as number)) {
       throw CommonHttpException.argNotType('userId', 'number', args?.userId);
     }
@@ -213,17 +215,12 @@ export class BankStatementsService {
     };
   }
 
-  /**
-   * TODO: refactor
-   *
-   * Service: previous-days
-   */
   public async getMePreviousDays(
     args: IBSGetMePreviousDaysArgs,
     paginationOptions: PaginationOptions,
   ): Promise<Pagination<IBSGetMePreviousDaysResponse>> {
     const validArgs = await this.validateGetMePreviousDays(args);
-    return await this.bankStatementsRepositoryService.getPreviousDays(
+    return await this.bankStatementsRepository.getPreviousDays(
       validArgs,
       paginationOptions,
     );
