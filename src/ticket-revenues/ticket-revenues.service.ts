@@ -36,11 +36,18 @@ export class TicketRevenuesService {
     private readonly ticketRevenuesRepository: TicketRevenuesRepositoryService,
   ) {}
 
+  /**
+   * TODO: refactor - use repository method
+   *
+   * Service method
+   */
   public async getMeGrouped(
     args: ITRGetMeGroupedArgs,
   ): Promise<ITicketRevenuesGroup> {
     // Args
-    const user = await this.validateUser(args);
+    const user = await this.validateGetMeGrouped(args);
+
+    // Repository tasks
     const { startDate, endDate } = getPaymentDates({
       endpoint: 'ticket-revenues',
       startDateStr: args.startDate,
@@ -67,12 +74,23 @@ export class TicketRevenuesService {
     return ticketRevenuesGroupSum;
   }
 
+  private async validateGetMeGrouped(args: ITRGetMeGroupedArgs): Promise<User> {
+    const user = await this.usersService.getOne({ id: args?.userId });
+    return user;
+  }
+
+  /**
+   * TODO: refactor - use repository method
+   *
+   * Service method
+   */
   public async getMe(
     args: ITRGetMeGroupedArgs,
     pagination: PaginationOptions,
     endpoint: PaymentEndpointType,
   ): Promise<ITRGetMeGroupedResponse> {
-    const user = await this.validateUser(args);
+    // TODO: set groupBy as validation response
+    const user = await this.validateGetMe(args);
     const { startDate, endDate } = getPaymentDates({
       endpoint: endpoint,
       startDateStr: args.startDate,
@@ -81,7 +99,7 @@ export class TicketRevenuesService {
     });
     const groupBy = args?.groupBy || 'day';
 
-    // Get data
+    // Repository tasks
     let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
       cpfCnpj: user.getCpfCnpj(),
@@ -156,6 +174,11 @@ export class TicketRevenuesService {
     };
   }
 
+  private async validateGetMe(args: ITRGetMeGroupedArgs): Promise<User> {
+    const user = await this.usersService.getOne({ id: args?.userId });
+    return user;
+  }
+
   private getGroupSum(data: ITicketRevenue[]): ITicketRevenuesGroup {
     const groupSums = this.getTicketRevenuesGroups(data, 'all');
     if (groupSums.length >= 1) {
@@ -180,11 +203,11 @@ export class TicketRevenuesService {
     }
   }
 
-  private async validateUser(args: ITRGetMeGroupedArgs): Promise<User> {
-    const user = await this.usersService.getOne({ id: args?.userId });
-    return user;
-  }
-
+  /**
+   * TODO: refactor - use it in repository
+   *
+   * Filter method: ticket-revenues/me
+   */
   private getTicketRevenuesGroups(
     ticketRevenues: ITicketRevenue[],
     groupBy: 'day' | 'week' | 'month' | 'all' | string,
@@ -236,23 +259,18 @@ export class TicketRevenuesService {
     return resultList;
   }
 
-  /**
-   * Service method: ticket-revenues/me
-   */
   public async getMeIndividual(
     args: ITRGetMeIndividualArgs,
     paginationOptions: PaginationOptions,
   ): Promise<Pagination<ITRGetMeIndividualResponse>> {
-    const validArgs = await this.validateGetMeIndividualArgs(args);
+    const validArgs = await this.validateGetMeIndividual(args);
     return await this.ticketRevenuesRepository.getMeIndividual(
       validArgs,
       paginationOptions,
     );
   }
 
-  private async validateGetMeIndividualArgs(
-    args: ITRGetMeIndividualArgs,
-  ): Promise<{
+  private async validateGetMeIndividual(args: ITRGetMeIndividualArgs): Promise<{
     user: User;
     startDate?: string;
     endDate?: string;
