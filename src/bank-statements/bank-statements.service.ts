@@ -212,7 +212,7 @@ export class BankStatementsService {
 
   /**
    * TODO: refactor
-   * 
+   *
    * Service: previous-days
    */
   public async getMePreviousDays(
@@ -243,7 +243,7 @@ export class BankStatementsService {
 
   /**
    * TODO: refactor
-   * 
+   *
    * Service: previous-days
    */
   private async validateGetMePreviousDays(
@@ -268,7 +268,7 @@ export class BankStatementsService {
 
   /**
    * TODO: refactor
-   * 
+   *
    * Filter: previous-days
    */
   private async buildPreviousDays(validArgs: {
@@ -337,7 +337,7 @@ export class BankStatementsService {
 
   /**
    * TODO: refactor
-   * 
+   *
    * Filter: previous-days
    */
   private generateStatusCounts(

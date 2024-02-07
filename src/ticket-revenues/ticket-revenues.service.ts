@@ -257,7 +257,7 @@ export class TicketRevenuesService {
 
   /**
    * TODO: refactor
-   * 
+   *
    * Repository: query `ITicketRevenue[]` with pagination
    *
    * Used by:
