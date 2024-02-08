@@ -32,8 +32,8 @@ export class UserSeedDataService {
             `
             SELECT
               DISTINCT o.documento,
-            FROM \`rj-smtr.cadastro.operadoras\` o
-            LEFT JOIN \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t ON t.id_operadora = o.id_operadora
+            FROM \`rj-smtr-dev.cadastro.operadoras\` o
+            LEFT JOIN \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t ON t.id_operadora = o.id_operadora
             WHERE t.modo = 'Van'
             LIMIT 5
           `,
@@ -47,8 +47,8 @@ export class UserSeedDataService {
             `
             SELECT
               DISTINCT c.cnpj,
-            FROM \`rj-smtr.cadastro.consorcios\` c
-            LEFT JOIN \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t ON t.id_consorcio = c.id_consorcio
+            FROM \`rj-smtr-dev.cadastro.consorcios\` c
+            LEFT JOIN \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t ON t.id_consorcio = c.id_consorcio
             WHERE t.modo != 'Van' AND c.cnpj IS NOT NULL
             LIMIT 5
           `,

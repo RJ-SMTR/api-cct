@@ -3,21 +3,20 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
   Query,
   Request,
   SerializeOptions,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { User } from 'src/users/entities/user.entity';
 import { CommonApiParams } from 'src/utils/api-param/common-api-params';
 import { DateApiParams } from 'src/utils/api-param/date-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
-import { IRequest } from 'src/utils/interfaces/request.interface';
 import { getPagination } from 'src/utils/get-pagination';
+import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
@@ -25,7 +24,6 @@ import { Pagination } from 'src/utils/types/pagination.type';
 import { BankStatementsService } from './bank-statements.service';
 import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-interval.enum';
 import { BSMeTimeIntervalEnum } from './enums/bs-me-time-interval.enum';
-import { IBSGetMeDayResponse } from './interfaces/bs-get-me-day-response.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
 import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
 
@@ -65,28 +63,6 @@ export class BankStatementsController {
         ? (timeInterval as unknown as TimeIntervalEnum)
         : undefined,
       userId: isUserIdNumber ? userId : request.user.id,
-    });
-  }
-
-  @SerializeOptions({
-    groups: ['me'],
-  })
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
-  @Get('me/day/:date')
-  @ApiParam({ name: 'date', example: '2023-01-12' })
-  @ApiQuery(CommonApiParams.userId)
-  @HttpCode(HttpStatus.OK)
-  async getMeDayDate(
-    @Request() request: IRequest,
-    @Param('date') date: string,
-    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
-    userId?: number | null,
-  ): Promise<IBSGetMeDayResponse> {
-    const isUserIdParam = userId !== null && !isNaN(Number(userId));
-    return this.bankStatementsService.getMeDay({
-      endDate: date,
-      userId: isUserIdParam ? userId : (request.user as User).id,
     });
   }
 

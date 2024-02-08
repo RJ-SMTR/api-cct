@@ -50,8 +50,12 @@ export class MailHistorySeedService {
         await this.mailHistoryRepository.save(
           this.mailHistoryRepository.create(newItem),
         );
-        itemUser.hash = newItem.hash;
-        await this.usersRepository.save(this.usersRepository.create(itemUser));
+        await this.usersRepository.save(
+          this.usersRepository.create({
+            id: itemUser.id,
+            hash: newItem.hash,
+          }),
+        );
       }
     }
   }
