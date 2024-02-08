@@ -2,6 +2,7 @@ import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
@@ -10,6 +11,7 @@ import { appSettings } from 'src/settings/app.settings';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
 import { ISettingData } from 'src/settings/interfaces/setting-data.interface';
 import { SettingsService } from 'src/settings/settings.service';
+import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import {
   formatErrorMessage as formatErrorLog,
@@ -24,6 +26,7 @@ export enum CrobJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
+  bulkResendInvites = 'bulkResendInvites',
 }
 
 interface ICronJob {
@@ -93,6 +96,13 @@ export class CronJobsService implements OnModuleInit {
               )
             ).getValueAsString(),
             onTick: () => this.pollDb(),
+          },
+        },
+        {
+          name: CrobJobsEnum.bulkResendInvites,
+          cronJobParameters: {
+            cronTime: '* * * * *', //'45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+            onTick: async () => this.bulkResendInvites(),
           },
         },
       );
@@ -555,5 +565,69 @@ export class CronJobsService implements OnModuleInit {
       isEnabledSetting: isEnabledFlag,
       isSettingValid: true,
     };
+  }
+
+  async bulkResendInvites() {
+    const THIS_METHOD = `${this.bulkResendInvites.name}()`;
+    const notRegisteredUsers = await this.usersService.getNotRegisteredUsers();
+
+    if (notRegisteredUsers.length === 0) {
+      this.logger.log(
+        formatLog('Não há usuários para enviar, abortando...', THIS_METHOD),
+      );
+      return;
+    }
+    this.logger.log(
+      formatLog(
+        String(
+          'Enviando emails específicos para ' +
+            `${notRegisteredUsers.length} usuários não totalmente registrados`,
+        ),
+        THIS_METHOD,
+      ),
+    );
+    for (const user of notRegisteredUsers) {
+      await this.resendInvite(user, THIS_METHOD);
+    }
+  }
+
+  async resendInvite(user: User, outerMethod: string) {
+    const THIS_METHOD = `${outerMethod} > ${this.resendInvite.name}`;
+    try {
+      const mailSentInfo = await this.mailService.reSendEmailBank({
+        to: user.email as string,
+        data: {
+          hash: user.aux_inviteHash as string,
+          inviteStatus: user.aux_inviteStatus as InviteStatus,
+        },
+      });
+
+      // Success
+      if (mailSentInfo.success) {
+        this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+      }
+
+      // SMTP error
+      else {
+        this.logger.error(
+          formatErrorLog(
+            'Email enviado retornou erro.',
+            mailSentInfo,
+            new Error(),
+            THIS_METHOD,
+          ),
+        );
+      }
+    } catch (httpException) {
+      // API error
+      this.logger.error(
+        formatErrorLog(
+          'Email falhou ao enviar.',
+          httpException,
+          httpException as Error,
+          THIS_METHOD,
+        ),
+      );
+    }
   }
 }

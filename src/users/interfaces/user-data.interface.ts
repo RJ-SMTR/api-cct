@@ -13,4 +13,8 @@ export interface UserDataInterface {
   role: Role;
   status: Status;
   inviteStatus?: InviteStatus;
+  bankCode?: number;
+  bankAgency?: string;
+  bankAccount?: string;
+  bankAccountDigit?: string;
 }

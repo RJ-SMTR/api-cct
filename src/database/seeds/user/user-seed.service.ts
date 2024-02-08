@@ -23,7 +23,6 @@ export class UserSeedService {
 
   async run() {
     const userFixtures = await this.userSeedDataService.getDataFromConfig();
-    this.logger.log(`run() ${userFixtures.length} items`);
     for (const item of userFixtures) {
       const foundItem = await this.userSeedRepository.findOne({
         where: {

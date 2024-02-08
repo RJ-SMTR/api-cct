@@ -205,6 +205,19 @@ export class UserSeedDataService {
               status: { id: StatusEnum.active } as Status,
               inviteStatus: new InviteStatus(InviteStatusEnum.used),
             },
+            {
+              fullName: 'Used registered user',
+              email: 'registered.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832024',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.used),
+              bankCode: 104,
+              bankAgency: '1234',
+              bankAccount: '12345',
+              bankAccountDigit: '1',
+            },
           ] as UserDataInterface[])
         : []),
     ];

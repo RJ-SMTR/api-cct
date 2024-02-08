@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { ConfigService } from '@nestjs/config';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { startOfDay } from 'date-fns';
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
@@ -13,8 +13,8 @@ import { formatLog } from 'src/utils/logging';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import {
-  DataSource,
   DeepPartial,
+  EntityManager,
   Equal,
   MoreThanOrEqual,
   Repository,
@@ -31,8 +31,7 @@ export class MailHistoryService {
     @InjectRepository(MailHistory)
     private inviteRepository: Repository<MailHistory>,
     private configService: ConfigService,
-    @InjectDataSource()
-    private readonly dataSource: DataSource,
+    private readonly entityManager: EntityManager,
   ) {}
 
   async create(

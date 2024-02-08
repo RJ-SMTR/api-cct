@@ -2,7 +2,7 @@ import { Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
 import { MailHistoryService } from './mail-history.service';
 
@@ -32,12 +32,20 @@ describe('InviteService', () => {
         query: jest.fn(),
       },
     } as Provider;
+    const entityManagerMock = {
+      provide: EntityManager,
+      useValue: {
+        createQueryBuilder: jest.fn(),
+        transaction: jest.fn(),
+      },
+    } as Provider;
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MailHistoryService,
         mailHistoryRepositoryMock,
         configServiceMock,
         dataSourceMock,
+        entityManagerMock,
       ],
     }).compile();
 
