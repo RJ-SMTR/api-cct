@@ -13,8 +13,9 @@ import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interfa
 import { ITRGetMeIndividualValidArgs } from './interfaces/tr-get-me-individual-args.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import {
-  TRIntegrationTypeMap as IntegrationType,
-  TRPaymentTypeMap as PaymentType,
+  TRIntegrationTypeMap,
+  TRPaymentTypeMap,
+  TRTransactionTypeMap,
 } from './maps/ticket-revenues.map';
 
 @Injectable()
@@ -57,6 +58,79 @@ export class TicketRevenuesRepositoryService {
   async fetchTicketRevenues(
     args?: IFetchTicketRevenues,
   ): Promise<{ data: ITicketRevenue[]; countAll: number }> {
+    const qArgs = this.getQueryArgs(args);
+    const query =
+      `
+      SELECT
+        CAST(t.data AS STRING) AS partitionDate,
+        t.hora AS processingHour,
+        CAST(t.datetime_transacao AS STRING) AS transactionDateTime,
+        CAST(t.datetime_processamento AS STRING) AS processingDateTime,
+        t.datetime_captura AS captureDateTime,
+        t.modo AS transportType,
+        t.servico AS vehicleService,
+        t.sentido AS directionId,
+        t.id_veiculo AS vehicleId,
+        t.id_cliente AS clientId,
+        t.id_transacao AS transactionId,
+        t.${qArgs.tTipoPgto} AS paymentMediaType,
+        t.tipo_transacao AS transactionType,
+        t.id_tipo_integracao AS transportIntegrationType,
+        t.id_integracao AS integrationId,
+        t.latitude AS transactionLat,
+        t.longitude AS transactionLon,
+        t.stop_id AS stopId,
+        t.stop_lat AS stopLat,
+        t.stop_lon AS stopLon,
+        CASE WHEN t.tipo_transacao = 'Integração' THEN i.valor_transacao_total ELSE t.valor_transacao END AS transactionValue,
+        t.versao AS bqDataVersion,
+        (${qArgs.countQuery}) AS count,
+        'ok' AS status
+      FROM \`${qArgs.transacao}\` t\n` +
+      qArgs.joinCpfCnpj +
+      '\n' +
+      qArgs.joinIntegracao +
+      '\n' +
+      (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
+      `UNION ALL
+      SELECT ${'null, '.repeat(22)}
+      (${qArgs.countQuery}) AS count, 'empty' AS status` +
+      `\nORDER BY partitionDate DESC, processingHour DESC` +
+      (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
+      (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
+    const queryResult = await this.bigqueryService.runQuery(
+      BQSInstances.smtr,
+      query,
+    );
+
+    const count: number = queryResult[0].count;
+    // Remove unwanted keys and remove last item (all null if empty)
+    let ticketRevenues: ITicketRevenue[] = queryResult.map((i) => {
+      delete i.status;
+      delete i.count;
+      return i;
+    });
+    ticketRevenues.pop();
+    ticketRevenues = this.mapTicketRevenues(ticketRevenues);
+
+    return {
+      data: ticketRevenues,
+      countAll: count,
+    };
+  }
+
+  private getQueryArgs(args?: IFetchTicketRevenues): {
+    qWhere: string;
+    bucket: string;
+    transacao: string;
+    integracao: string;
+    tTipoPgto: string;
+    joinCpfCnpj: string;
+    joinIntegracao: string;
+    countQuery: string;
+    offset?: number;
+    limit?: number;
+  } {
     const IS_PROD = process.env.NODE_ENV === 'production';
     const Q_CONSTS = {
       bucket: IS_PROD ? 'rj-smtr' : 'rj-smtr-dev',
@@ -80,13 +154,13 @@ export class TicketRevenuesRepositoryService {
       offset = undefined;
     }
 
-    if (args?.startDate !== undefined) {
+    if (args?.startDate) {
       const startDate = args.startDate.toISOString().slice(0, 10);
       queryBuilder.pushAND(
         `DATE(t.datetime_processamento) >= DATE('${startDate}')`,
       );
     }
-    if (args?.endDate !== undefined) {
+    if (args?.endDate) {
       const endDate = args.endDate.toISOString().slice(0, 10);
       queryBuilder.pushAND(
         `DATE(t.datetime_processamento) <= DATE('${endDate}')`,
@@ -130,63 +204,17 @@ export class TicketRevenuesRepositoryService {
       joinIntegracao +
       '\n' +
       (qWhere.length ? ` WHERE ${qWhere}\n` : '');
-    const query =
-      `
-      SELECT
-        CAST(t.data AS STRING) AS partitionDate,
-        t.hora AS processingHour,
-        CAST(t.datetime_transacao AS STRING) AS transactionDateTime,
-        CAST(t.datetime_processamento AS STRING) AS processingDateTime,
-        t.datetime_captura AS captureDateTime,
-        t.modo AS transportType,
-        t.servico AS vehicleService,
-        t.sentido AS directionId,
-        t.id_veiculo AS vehicleId,
-        t.id_cliente AS clientId,
-        t.id_transacao AS transactionId,
-        t.${Q_CONSTS.tTipoPgto} AS paymentMediaType,
-        t.tipo_transacao AS transactionType,
-        t.id_tipo_integracao AS transportIntegrationType,
-        t.id_integracao AS integrationId,
-        t.latitude AS transactionLat,
-        t.longitude AS transactionLon,
-        t.stop_id AS stopId,
-        t.stop_lat AS stopLat,
-        t.stop_lon AS stopLon,
-        CASE WHEN t.tipo_transacao = 'Integração' THEN i.valor_transacao_total ELSE t.valor_transacao END AS transactionValue,
-        t.versao AS bqDataVersion,
-        (${countQuery}) AS count,
-        'ok' AS status
-      FROM \`${Q_CONSTS.transacao}\` t\n` +
-      joinCpfCnpj +
-      '\n' +
-      joinIntegracao +
-      '\n' +
-      (qWhere.length ? `WHERE ${qWhere}\n` : '') +
-      `UNION ALL
-      SELECT ${'null, '.repeat(22)}
-      (${countQuery}) AS count, 'empty' AS status` +
-      `\nORDER BY partitionDate DESC, processingHour DESC` +
-      (args?.limit !== undefined ? `\nLIMIT ${args.limit + 1}` : '') +
-      (offset !== undefined ? `\nOFFSET ${offset}` : '');
-    const queryResult = await this.bigqueryService.runQuery(
-      BQSInstances.smtr,
-      query,
-    );
-
-    const count: number = queryResult[0].count;
-    // Remove unwanted keys and remove last item (all null if empty)
-    let ticketRevenues: ITicketRevenue[] = queryResult.map((i) => {
-      delete i.status;
-      delete i.count;
-      return i;
-    });
-    ticketRevenues.pop();
-    ticketRevenues = this.mapTicketRevenues(ticketRevenues);
-
     return {
-      data: ticketRevenues,
-      countAll: count,
+      qWhere,
+      bucket: Q_CONSTS.bucket,
+      transacao: Q_CONSTS.transacao,
+      integracao: Q_CONSTS.integracao,
+      tTipoPgto: Q_CONSTS.tTipoPgto,
+      joinCpfCnpj,
+      joinIntegracao,
+      countQuery,
+      offset,
+      limit: args?.limit,
     };
   }
 
@@ -197,18 +225,24 @@ export class TicketRevenuesRepositoryService {
     ticketRevenues: ITicketRevenue[],
   ): ITicketRevenue[] {
     return ticketRevenues.map((item: ITicketRevenue) => {
+      const transactionType = item.transactionType;
       const paymentType = item.paymentMediaType;
       const integrationType = item.transportIntegrationType;
+      Object.values(TRIntegrationTypeMap[0]);
       return {
         ...item,
         paymentMediaType:
           paymentType !== null
-            ? PaymentType?.[paymentType] || paymentType
+            ? TRPaymentTypeMap?.[paymentType] || paymentType
             : paymentType,
         transportIntegrationType:
           integrationType !== null
-            ? IntegrationType?.[integrationType] || integrationType
+            ? TRIntegrationTypeMap?.[integrationType] || integrationType
             : integrationType,
+        transactionType:
+          transactionType !== null
+            ? TRTransactionTypeMap?.[transactionType] || transactionType
+            : transactionType,
       };
     });
   }
