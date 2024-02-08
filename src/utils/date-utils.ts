@@ -63,9 +63,10 @@ export function getStartEndDates(args: {
 }
 
 export function isPaymentWeekComplete(date: Date) {
+  const today = new Date(Date.now());
   const paymentDate = nextFriday(date);
-  const currentPaymentDate = nextFriday(new Date(Date.now()));
-  return paymentDate < currentPaymentDate;
+  const currentPaymentDate = nextFriday(today);
+  return paymentDate < currentPaymentDate && today >= paymentDate;
 }
 
 export function safeCastDates(args: Partial<DateIntervalStrType>) {
