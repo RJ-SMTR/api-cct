@@ -12,8 +12,9 @@ import {
 } from 'class-validator';
 
 export enum Environment {
-  Development = 'development',
   Production = 'production',
+  Homologation = 'homologation',
+  Development = 'development',
   Local = 'local',
   Test = 'test',
 }
