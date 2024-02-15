@@ -30,12 +30,12 @@ export class UserSeedDataService {
           await this.bigqueryService.runQuery(
             BQSInstances.smtr,
             `
-            SELECT
-              DISTINCT o.documento,
-            FROM \`rj-smtr-dev.cadastro.operadoras\` o
-            LEFT JOIN \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t ON t.id_operadora = o.id_operadora
-            WHERE t.modo = 'Van'
-            LIMIT 5
+SELECT
+  DISTINCT o.documento,
+FROM \`rj-smtr-dev.cadastro.operadoras\` o
+LEFT JOIN \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t ON t.id_operadora = o.id_operadora
+WHERE t.modo = 'Van'
+LIMIT 5
           `,
           )
         ).reduce((l: string[], i) => [...l, i['documento']], []);
@@ -45,12 +45,12 @@ export class UserSeedDataService {
           await this.bigqueryService.runQuery(
             BQSInstances.smtr,
             `
-            SELECT
-              DISTINCT c.cnpj,
-            FROM \`rj-smtr-dev.cadastro.consorcios\` c
-            LEFT JOIN \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t ON t.id_consorcio = c.id_consorcio
-            WHERE t.modo != 'Van' AND c.cnpj IS NOT NULL
-            LIMIT 5
+SELECT
+  DISTINCT c.cnpj,
+FROM \`rj-smtr-dev.cadastro.consorcios\` c
+LEFT JOIN \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t ON t.id_consorcio = c.id_consorcio
+WHERE t.modo != 'Van' AND c.cnpj IS NOT NULL
+LIMIT 5
           `,
           )
         ).reduce((l: string[], i) => [...l, i['cnpj']], []);

@@ -101,8 +101,10 @@ export class CronJobsService implements OnModuleInit {
         {
           name: CrobJobsEnum.bulkResendInvites,
           cronJobParameters: {
-            cronTime: '* * * * *', //'45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
-            onTick: async () => this.bulkResendInvites(),
+            cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+            onTick: async () => {
+              await this.bulkResendInvites();
+            },
           },
         },
       );
@@ -567,7 +569,7 @@ export class CronJobsService implements OnModuleInit {
     };
   }
 
-  async bulkResendInvites() {
+  async bulkResendInvites(): Promise<HttpStatus> {
     const THIS_METHOD = `${this.bulkResendInvites.name}()`;
     const notRegisteredUsers = await this.usersService.getNotRegisteredUsers();
 
@@ -575,7 +577,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog('Não há usuários para enviar, abortando...', THIS_METHOD),
       );
-      return;
+      return HttpStatus.NOT_FOUND;
     }
     this.logger.log(
       formatLog(
@@ -589,6 +591,7 @@ export class CronJobsService implements OnModuleInit {
     for (const user of notRegisteredUsers) {
       await this.resendInvite(user, THIS_METHOD);
     }
+    return HttpStatus.OK;
   }
 
   async resendInvite(user: User, outerMethod: string) {
@@ -604,7 +607,12 @@ export class CronJobsService implements OnModuleInit {
 
       // Success
       if (mailSentInfo.success) {
-        this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+        this.logger.log(
+          formatLog(
+            `Email enviado com sucesso para ${mailSentInfo.envelope.to}.`,
+            THIS_METHOD,
+          ),
+        );
       }
 
       // SMTP error

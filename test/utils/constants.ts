@@ -21,6 +21,11 @@ export const LICENSEE_CNPJ_EMAIL = 'marcia@example.com';
 export const LICENSEE_CNPJ_PERMIT_CODE = '319274392832023';
 export const LICENSEE_CNPJ_PASSWORD = 'secret';
 
+export const LICENSEE_REGISTERED_EMAIL = 'registered.user@example.com';
+export const LICENSEE_USED_EMAIL = 'used.user@example.com';
+export const LICENSEE_SENT_EMAIL = 'sent.user@example.com';
+export const LICENSEE_QUEUED_EMAIL = 'queued.user@example.com';
+
 export const MAIL_HOST = process.env.MAIL_HOST;
 export const MAIL_PORT = process.env.MAIL_CLIENT_PORT;
 

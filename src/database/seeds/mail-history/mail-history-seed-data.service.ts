@@ -25,7 +25,13 @@ export class MailHistorySeedDataService {
     );
     for (let i = 0; i < mailSeedData.length; i++) {
       const mail = mailSeedData[i];
-      if (mail.email === 'registered.user@example.com') {
+      if (
+        [
+          'sent.user@example.com',
+          'used.user@example.com',
+          'registered.user@example.com',
+        ].includes(mail.email as string)
+      ) {
         mail[i] = {
           ...mail,
           sentAt: subDays(new Date(), 16),

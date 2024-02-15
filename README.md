@@ -91,6 +91,12 @@ npm run seed:run user mailhistory
 ```
 > O comando não diferencia maiúsculas de minúsculas
 
+Rodar seed com todos os módulos exceto alguns
+```
+npm run seed:run __exclude user mailhistory
+> A ordem dos parâmetros não influencia a execução
+```
+
 ## Links
 
 - Swagger: http://localhost:3000/docs

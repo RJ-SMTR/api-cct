@@ -38,6 +38,7 @@ import { SettingsModule } from './settings/settings.module';
 import { MailCountModule } from './mail-count/mail-count.module';
 import { CronJobsModule } from './cron-jobs/cron-jobs.module';
 import { BigqueryModule } from './bigquery/bigquery.module';
+import { TestModule } from './test/test.module';
 
 @Module({
   imports: [
@@ -104,6 +105,7 @@ import { BigqueryModule } from './bigquery/bigquery.module';
     MailCountModule,
     CronJobsModule,
     BigqueryModule,
+    TestModule,
   ],
 })
 export class AppModule {}

@@ -249,18 +249,19 @@ export class MailService {
       const appName = this.configService.get('app.name', {
         infer: true,
       });
+      const userLink =
+        inviteStatus.id === InviteStatusEnum.used
+          ? `${frontendDomain}sign-in`
+          : `${frontendDomain}conclude-registration/${mailData.data.hash}`;
       const response = await this.safeSendMail({
         from,
         to: mailData.to,
         subject: mailTitle,
-        text: mailTitle,
+        text: `reminder-complete-registration ${userLink} ${mailTitle}`,
         template: 'user-daily-conclude',
         context: {
           title: 'Confirme seu email',
-          userLink:
-            inviteStatus.id === InviteStatusEnum.used
-              ? `${frontendDomain}sign-in`
-              : `${frontendDomain}conclude-registration/${mailData.data.hash}`,
+          userLink,
           headerTitle: appName,
         },
       });
