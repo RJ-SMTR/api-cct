@@ -30,12 +30,12 @@ export class UserSeedDataService {
           await this.bigqueryService.runQuery(
             BQSInstances.smtr,
             `
-            SELECT
-              DISTINCT o.documento,
-            FROM \`rj-smtr-dev.cadastro.operadoras\` o
-            LEFT JOIN \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t ON t.id_operadora = o.id_operadora
-            WHERE t.modo = 'Van'
-            LIMIT 5
+SELECT
+  DISTINCT o.documento,
+FROM \`rj-smtr-dev.cadastro.operadoras\` o
+LEFT JOIN \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t ON t.id_operadora = o.id_operadora
+WHERE t.modo = 'Van'
+LIMIT 5
           `,
           )
         ).reduce((l: string[], i) => [...l, i['documento']], []);
@@ -45,12 +45,12 @@ export class UserSeedDataService {
           await this.bigqueryService.runQuery(
             BQSInstances.smtr,
             `
-            SELECT
-              DISTINCT c.cnpj,
-            FROM \`rj-smtr-dev.cadastro.consorcios\` c
-            LEFT JOIN \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t ON t.id_consorcio = c.id_consorcio
-            WHERE t.modo != 'Van' AND c.cnpj IS NOT NULL
-            LIMIT 5
+SELECT
+  DISTINCT c.cnpj,
+FROM \`rj-smtr-dev.cadastro.consorcios\` c
+LEFT JOIN \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t ON t.id_consorcio = c.id_consorcio
+WHERE t.modo != 'Van' AND c.cnpj IS NOT NULL
+LIMIT 5
           `,
           )
         ).reduce((l: string[], i) => [...l, i['cnpj']], []);
@@ -204,6 +204,19 @@ export class UserSeedDataService {
               role: { id: RoleEnum.user } as Role,
               status: { id: StatusEnum.active } as Status,
               inviteStatus: new InviteStatus(InviteStatusEnum.used),
+            },
+            {
+              fullName: 'Used registered user',
+              email: 'registered.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832024',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.used),
+              bankCode: 104,
+              bankAgency: '1234',
+              bankAccount: '12345',
+              bankAccountDigit: '1',
             },
           ] as UserDataInterface[])
         : []),

@@ -191,6 +191,9 @@ export class User extends EntityHelper {
 
   aux_inviteStatus?: InviteStatus | null;
 
+  @Exclude()
+  aux_inviteHash?: string | null;
+
   aux_bank?: Bank | null;
 
   /**

@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { UserSeedDataService } from './user-seed-data.service';
 import * as crypto from 'crypto';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+import { UserDataInterface } from 'src/users/interfaces/user-data.interface';
 
 @Injectable()
 export class UserSeedService {
@@ -23,49 +24,57 @@ export class UserSeedService {
 
   async run() {
     const userFixtures = await this.userSeedDataService.getDataFromConfig();
-    this.logger.log(`run() ${userFixtures.length} items`);
-    for (const item of userFixtures) {
-      const foundItem = await this.userSeedRepository.findOne({
+    for (const userFixture of userFixtures) {
+      const foundUserFixture = await this.userSeedRepository.findOne({
         where: {
-          email: item.email,
+          email: userFixture.email,
         },
       });
 
       let createdItem: User;
-      if (foundItem) {
-        const newItem = new User(foundItem);
-        newItem.update(item, true);
+      if (foundUserFixture) {
+        const newUser = new User(foundUserFixture);
+        newUser.update(userFixture, true);
         await this.userSeedRepository.save(
-          this.userSeedRepository.create(newItem),
+          this.userSeedRepository.create(newUser),
         );
         createdItem = (await this.userSeedRepository.findOne({
           where: {
-            email: item.email as string,
+            email: userFixture.email as string,
           },
         })) as User;
       } else {
         createdItem = await this.userSeedRepository.save(
-          this.userSeedRepository.create(item),
+          this.userSeedRepository.create(userFixture),
         );
       }
-      item.hash = await this.generateHash();
-      this.newUsers.push({
-        status: foundItem ? 'updated' : 'created',
-        fullName: item.fullName,
-        email: item.email,
-        password: item.password,
-        cpfCnpj: item.cpfCnpj,
-        hashedPassword: createdItem.password,
-      });
+      userFixture.hash = await this.generateHash();
+      this.pushNewUser(userFixture, foundUserFixture, createdItem);
     }
+
     if (this.newUsers.length) {
-      this.printPasswords();
+      this.printResults();
     } else {
-      this.logger.log('No new users created.');
+      this.logger.log('No new users changed.');
     }
   }
 
-  printPasswords() {
+  pushNewUser(
+    userFixture: UserDataInterface,
+    foundUserFixture: User | null,
+    createdItem: User,
+  ) {
+    this.newUsers.push({
+      status: foundUserFixture ? 'updated' : 'created',
+      fullName: userFixture.fullName,
+      email: userFixture.email,
+      password: userFixture.password,
+      cpfCnpj: userFixture.cpfCnpj,
+      hashedPassword: createdItem.password,
+    });
+  }
+
+  printResults() {
     this.logger.log('NEW USERS:');
     this.logger.warn(
       'The passwords shown are always new but if user exists the current password in DB wont be updated.\n' +

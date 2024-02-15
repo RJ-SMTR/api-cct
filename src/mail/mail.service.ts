@@ -3,7 +3,9 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { AllConfigType } from 'src/config/config.type';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
 import { formatLog } from 'src/utils/logging';
 import { MaybeType } from '../utils/types/maybe.type';
@@ -204,6 +206,63 @@ export class MailService {
           mailUsedIncomplete: mailData.data.statusCount.usedIncomplete,
           mailUsedComplete: mailData.data.statusCount.usedComplete,
           mailTotal: mailData.data.statusCount.total,
+        },
+      });
+
+      return response;
+    } catch (httpException) {
+      throw httpException;
+    }
+  }
+
+  /**
+   * @throws `HttpException`
+   */
+  async reSendEmailBank(
+    mailData: MailData<{
+      inviteStatus: InviteStatus;
+      hash?: string;
+    }>,
+  ): Promise<MailSentInfo> {
+    const mailTitle =
+      'SMTR - Prefeitura do Município do Rio de Janeiro - Comunicado Importante!';
+    const from = this.configService.get('mail.senderNotification', {
+      infer: true,
+    });
+    const frontendDomain = this.configService.get('app.frontendDomain', {
+      infer: true,
+    });
+    const inviteStatus = mailData.data.inviteStatus;
+    if (!from) {
+      throw new HttpException(
+        {
+          error: HttpStatus.INTERNAL_SERVER_ERROR,
+          details: {
+            env: `Env 'MAIL_SENDER_NOTIFICATION' not found (got: '${from}')`,
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    try {
+      const appName = this.configService.get('app.name', {
+        infer: true,
+      });
+      const userLink =
+        inviteStatus.id === InviteStatusEnum.used
+          ? `${frontendDomain}sign-in`
+          : `${frontendDomain}conclude-registration/${mailData.data.hash}`;
+      const response = await this.safeSendMail({
+        from,
+        to: mailData.to,
+        subject: mailTitle,
+        text: `reminder-complete-registration ${userLink} ${mailTitle}`,
+        template: 'user-daily-conclude',
+        context: {
+          title: 'Confirme seu email',
+          userLink,
+          headerTitle: appName,
         },
       });
 

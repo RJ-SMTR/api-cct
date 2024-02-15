@@ -3,8 +3,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as CLASS_VALIDATOR from 'class-validator';
 import { BanksService } from 'src/banks/banks.service';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { CreateUserFileDto } from './dto/create-user-file.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -12,9 +15,6 @@ import { User } from './entities/user.entity';
 import { ICreateUserFile } from './interfaces/create-user-file.interface';
 import { IFileUser } from './interfaces/file-user.interface';
 import { UsersService } from './users.service';
-import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
-import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 
 describe('UsersService', () => {
   let usersService: UsersService;
@@ -49,6 +49,13 @@ describe('UsersService', () => {
       findOne: jest.fn(),
     },
   } as Provider;
+  const entityManagerMock = {
+    provide: EntityManager,
+    useValue: {
+      createQueryBuilder: jest.fn(),
+      transaction: jest.fn(),
+    },
+  } as Provider;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -57,6 +64,7 @@ describe('UsersService', () => {
         usersRepositoryMock,
         mailHistoryServiceMock,
         banksServiceMock,
+        entityManagerMock,
       ],
     }).compile();
 
