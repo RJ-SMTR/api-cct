@@ -6,6 +6,7 @@ import { UsersService } from 'src/users/users.service';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
 import { TicketRevenuesRepositoryService } from './ticket-revenues-repository.service';
 import { TicketRevenuesService } from './ticket-revenues.service';
+import { SettingsService } from 'src/settings/settings.service';
 
 describe('TicketRevenuesService', () => {
   let ticketRevenuesService: TicketRevenuesService;
@@ -25,12 +26,20 @@ describe('TicketRevenuesService', () => {
         runQuery: jest.fn(),
       },
     } as Provider;
+    const settingsServiceMock = {
+      provide: SettingsService,
+      useValue: {
+        getOneBySettingData: jest.fn(),
+        findOneBySettingData: jest.fn(),
+      },
+    } as Provider;
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TicketRevenuesService,
         TicketRevenuesRepositoryService,
         usersServiceMock,
         bigqueryServiceMock,
+        settingsServiceMock,
       ],
     }).compile();
     jest

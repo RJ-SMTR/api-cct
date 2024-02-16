@@ -67,7 +67,7 @@ export class SettingsService {
     if (defaultValueIfNotFound && !dbSetting) {
       this.logger.warn(
         formatLog(
-          `Configuração 'setting.${setting.name}' não encontrada. Usando valor padrão.`,
+          `Configuração 'setting.${setting.name}' não encontrada. Usando valor padrão: '${setting.value}'.`,
           `${this.getOneBySettingData.name}()`,
           logContext,
         ),

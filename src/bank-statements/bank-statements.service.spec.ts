@@ -11,6 +11,7 @@ import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { BankStatementsRepositoryService } from './bank-statements-repository.service';
 import { BankStatementsService } from './bank-statements.service';
 import { IBankStatement } from './interfaces/bank-statement.interface';
+import { SettingsService } from 'src/settings/settings.service';
 
 const allBankStatements = [
   { id: 1, date: '2023-01-27', amount: 1 },
@@ -58,6 +59,13 @@ describe('BankStatementsService', () => {
         getMe: jest.fn(),
       },
     } as Provider;
+    const settingsServiceMock = {
+      provide: SettingsService,
+      useValue: {
+        getOneBySettingData: jest.fn(),
+        findOneBySettingData: jest.fn(),
+      },
+    } as Provider;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -67,6 +75,7 @@ describe('BankStatementsService', () => {
         bigqueryServiceMock,
         usersServiceMock,
         ticketRevenuesServiceMock,
+        settingsServiceMock,
       ],
     }).compile();
 
