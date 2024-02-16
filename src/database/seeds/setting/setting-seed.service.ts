@@ -6,6 +6,8 @@ import { ISettingData } from 'src/settings/interfaces/setting-data.interface';
 import { Enum } from 'src/utils/enum';
 import { IsNull, Repository } from 'typeorm';
 import { settingSeedData } from './setting-seed-data';
+import { Environment } from 'src/config/app.config';
+import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 
 @Injectable()
 export class SettingSeedService {
@@ -20,6 +22,14 @@ export class SettingSeedService {
 
   async run() {
     let id = 1;
+    console.log('SEED', process.env.NODE_ENV);
+    console.log(
+      'VALUE',
+      process.env.NODE_ENV === Environment.Local ||
+        process.env.NODE_ENV === Environment.Test
+        ? BigqueryEnvironment.Development
+        : BigqueryEnvironment.Production,
+    );
     for (const item of settingSeedData) {
       const settings: ISettingData[] = (item as any)?.data || [item];
       for (const setting of settings) {

@@ -17,6 +17,9 @@ import {
   TRPaymentTypeMap,
   TRTransactionTypeMap,
 } from './maps/ticket-revenues.map';
+import { SettingsService } from 'src/settings/settings.service';
+import { appSettings } from 'src/settings/app.settings';
+import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 
 @Injectable()
 export class TicketRevenuesRepositoryService {
@@ -24,7 +27,10 @@ export class TicketRevenuesRepositoryService {
     timestamp: true,
   });
 
-  constructor(private readonly bigqueryService: BigqueryService) {}
+  constructor(
+    private readonly bigqueryService: BigqueryService,
+    private readonly settingsService: SettingsService,
+  ) {}
 
   /**
    * TODO: use it only for repository services
@@ -58,7 +64,7 @@ export class TicketRevenuesRepositoryService {
   async fetchTicketRevenues(
     args?: IFetchTicketRevenues,
   ): Promise<{ data: ITicketRevenue[]; countAll: number }> {
-    const qArgs = this.getQueryArgs(args);
+    const qArgs = await this.getQueryArgs(args);
     const query =
       `
       SELECT
@@ -119,7 +125,7 @@ export class TicketRevenuesRepositoryService {
     };
   }
 
-  private getQueryArgs(args?: IFetchTicketRevenues): {
+  private async getQueryArgs(args?: IFetchTicketRevenues): Promise<{
     qWhere: string;
     bucket: string;
     transacao: string;
@@ -130,17 +136,23 @@ export class TicketRevenuesRepositoryService {
     countQuery: string;
     offset?: number;
     limit?: number;
-  } {
-    const IS_PROD = process.env.NODE_ENV === 'production';
+  }> {
+    const IS_BQ_PROD =
+      (
+        await this.settingsService.getOneBySettingData(
+          appSettings.any__bigquery_env,
+          true,
+        )
+      ).getValueAsString() === BigqueryEnvironment.Production;
     const Q_CONSTS = {
-      bucket: IS_PROD ? 'rj-smtr' : 'rj-smtr-dev',
-      transacao: IS_PROD
+      bucket: IS_BQ_PROD ? 'rj-smtr' : 'rj-smtr-dev',
+      transacao: IS_BQ_PROD
         ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao'
         : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao',
-      integracao: IS_PROD
+      integracao: IS_BQ_PROD
         ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.integracao'
         : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.integracao',
-      tTipoPgto: IS_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
+      tTipoPgto: IS_BQ_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
     };
     // Args
     let offset = args?.offset;

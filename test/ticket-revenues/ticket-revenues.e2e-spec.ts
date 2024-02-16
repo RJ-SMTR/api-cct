@@ -52,7 +52,7 @@ describe('Ticket revenues (e2e)', () => {
 SELECT
   CAST(t.data AS STRING) AS partitionDate,
   FROM \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t
-  LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+  LEFT JOIN \`rj-smtr-dev.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
 WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
     `,
       )

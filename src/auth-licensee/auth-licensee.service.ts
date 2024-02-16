@@ -4,14 +4,15 @@ import * as bcrypt from 'bcryptjs';
 import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
-import { MailService } from 'src/mail/mail.service';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
+import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
-import { BaseValidator } from 'src/utils/validators/base-validator';
+import { NullableType } from '../utils/types/nullable.type';
 import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
 import { IALConcludeRegistration } from './interfaces/al-conclude-registration.interface';
@@ -27,35 +28,18 @@ export class AuthLicenseeService {
     private jwtService: JwtService,
     private usersService: UsersService,
     private mailHistoryService: MailHistoryService,
-    private baseValidator: BaseValidator,
-    private mailService: MailService,
   ) {}
 
   async validateLogin(
     loginDto: AuthLicenseeLoginDto,
-    onlyAdmin: boolean,
+    role: RoleEnum,
   ): Promise<LoginResponseType> {
-    const user = await this.usersService.findOne({
+    const user = await this.usersService.getOne({
       permitCode: loginDto.permitCode,
     });
 
-    if (
-      !user ||
-      (user?.role &&
-        !(onlyAdmin ? [RoleEnum.admin] : [RoleEnum.user]).includes(
-          user.role.id,
-        ))
-    ) {
-      throw new HttpException(
-        {
-          error: HttpErrorMessages.UNAUTHORIZED,
-          details: {
-            email: 'notFound',
-          },
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
+    await this.validateDuplicatedUser(user);
+    this.validateRole(user, role);
 
     if (
       user?.status?.id === undefined ||
@@ -63,7 +47,7 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             status: 'notActive',
           },
@@ -75,7 +59,7 @@ export class AuthLicenseeService {
     if (user.provider !== AuthProvidersEnum.email) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             email: `needLoginViaProvider:${user.provider}`,
           },
@@ -90,13 +74,9 @@ export class AuthLicenseeService {
     );
 
     if (!isValidPassword) {
-      throw new HttpException(
-        {
-          error: HttpErrorMessages.UNAUTHORIZED,
-          details: {
-            password: 'incorrectPassword',
-          },
-        },
+      throw CommonHttpException.simpleDetail(
+        'password',
+        'incorrectPassword',
         HttpStatus.UNAUTHORIZED,
       );
     }
@@ -109,13 +89,62 @@ export class AuthLicenseeService {
     return { token, user };
   }
 
+  validateRole(user: User, role: RoleEnum) {
+    if (!user?.role || user.role.id !== role) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            user: {
+              error: 'invalidRole',
+              role: user?.role?.id,
+              expectedRole: role,
+            },
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+  }
+
+  async validateDuplicatedUser(user: NullableType<User>) {
+    if (!user) {
+      return;
+    }
+    const duplicatedMail = user.email
+      ? await this.usersService.findMany({ email: user.email })
+      : [];
+    const duplicatedPermitCode = user.permitCode
+      ? await this.usersService.findMany({ permitCode: user.permitCode })
+      : [];
+    if (duplicatedMail.length > 1 || duplicatedPermitCode.length > 1) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            ...(duplicatedMail.length > 1
+              ? { email: 'duplicated', emailValue: duplicatedMail[0]?.email }
+              : {}),
+            ...(duplicatedPermitCode.length > 1
+              ? {
+                  permitCode: 'duplicated',
+                  permitCodeValue: duplicatedPermitCode[0]?.permitCode,
+                }
+              : {}),
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+  }
+
   async getInviteProfile(hash: string): Promise<IALInviteProfile> {
     const invite = await this.mailHistoryService.getOne({ hash });
 
     if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             invite: {
               inviteStatus: `Invite is not 'sent' yet`,
@@ -136,7 +165,7 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             user: {
               ...(user.id !== invite.user.id && {
@@ -171,7 +200,7 @@ export class AuthLicenseeService {
     if (!invite) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             invite: {
               hash: 'inviteHashNotFound',
@@ -185,7 +214,7 @@ export class AuthLicenseeService {
     if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             invite: {
               inviteStatus: `inviteAlreadyUsed'`,
@@ -205,7 +234,7 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             user: {
               ...(user.id !== invite.user.id && {

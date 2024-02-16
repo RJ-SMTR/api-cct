@@ -16,7 +16,7 @@ import { SocialInterface } from 'src/social/interfaces/social.interface';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { formatLog } from 'src/utils/logging';
 import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
@@ -56,7 +56,7 @@ export class AuthService {
     ) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             email: 'notFound',
           },
@@ -68,7 +68,7 @@ export class AuthService {
     if (user.provider !== AuthProvidersEnum.email) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             email: `needLoginViaProvider:${user.provider}`,
           },
@@ -85,7 +85,7 @@ export class AuthService {
     if (!isValidPassword) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             password: 'incorrectPassword',
           },
@@ -155,7 +155,7 @@ export class AuthService {
     if (!user) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             user: 'userNotFound',
           },
@@ -408,7 +408,7 @@ export class AuthService {
       else {
         throw new HttpException(
           {
-            error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+            error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
             details: {
               mailSentInfo: mailSentInfo,
             },
@@ -432,7 +432,7 @@ export class AuthService {
     if (!forgot) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             error: 'hash not found',
             hash,

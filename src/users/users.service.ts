@@ -15,7 +15,7 @@ import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { isArrayContainEqual } from 'src/utils/array-utils';
 import { Enum } from 'src/utils/enum';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { formatLog } from 'src/utils/logging';
 import { stringUppercaseUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
@@ -310,7 +310,7 @@ export class UsersService {
     if (!user) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.NOT_FOUND,
+          error: HttpStatusMessage.NOT_FOUND,
           details: {
             ...(!user && { user: 'userNotFound' }),
           },
@@ -327,7 +327,7 @@ export class UsersService {
     if (!userId) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             ...(!request.user && { loggedUser: 'loggedUserNotExists' }),
             ...(!userId && { loggedUser: 'loggedUserIdNotExists' }),

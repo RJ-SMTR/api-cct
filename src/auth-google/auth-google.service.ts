@@ -4,7 +4,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { SocialInterface } from '../social/interfaces/social.interface';
 import { AuthGoogleLoginDto } from './dto/auth-google-login.dto';
 import { AllConfigType } from 'src/config/config.type';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 
 @Injectable()
 export class AuthGoogleService {
@@ -32,7 +32,7 @@ export class AuthGoogleService {
     if (!data) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             user: 'wrongToken',
           },
