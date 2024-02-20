@@ -1,30 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { CnabFile } from './types/cnab-file.type';
-import { CnabRegistro } from './types/cnab-registro.type';
-import { Cnab } from './cnab';
+import { getPlainRegistros, getRegistroLine } from './cnab-utils';
 
 @Injectable()
 export class CnabRemessaService {
   /**
-   * Gerar arquivo remessa
+   * Generate CNAB Remessa text content from CnabFile
    */
-  generateRemessaCnab(cnab: CnabFile) {
-    const plainCnab: CnabRegistro[] = [
-      cnab.headerArquivo,
-      ...cnab.lotes.reduce(
-        (l: CnabRegistro[], i) => [
-          ...l,
-          i.headerLote,
-          ...i.registros,
-          i.trailerLote,
-        ],
-        [],
-      ),
-      cnab.trailerArquivo,
-    ];
+  generateRemessaCnab(cnab: CnabFile): string {
+    const plainCnab = getPlainRegistros(cnab);
     const cnabTextList: string[] = [];
     for (const registro of plainCnab) {
-      cnabTextList.push(Cnab.getRegistroLine(registro));
+      cnabTextList.push(getRegistroLine(registro));
     }
     const CNAB_EOL = '\r\n';
     return cnabTextList.join(CNAB_EOL);

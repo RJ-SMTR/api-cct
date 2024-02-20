@@ -1,3 +1,6 @@
+/**
+ * Returns if two arrays are equal ignoring the order.
+ */
 export function isArrayContainEqual(arr1: any[], arr2: any[]): boolean {
   const arr1_ = arr1;
   arr1_.sort();

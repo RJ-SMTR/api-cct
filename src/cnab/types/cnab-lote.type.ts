@@ -1,3 +1,4 @@
+import { isArrayContainEqual } from 'src/utils/array-utils';
 import { CnabRegistro } from './cnab-registro.type';
 
 export type CnabLote = {
@@ -5,3 +6,14 @@ export type CnabLote = {
   registros: CnabRegistro[];
   trailerLote: CnabRegistro;
 };
+
+export function isCnabLote(value: any) {
+  return (
+    typeof value === 'object' &&
+    isArrayContainEqual(Object.keys(value), [
+      'headerLote',
+      'registros',
+      'trailerLote',
+    ])
+  );
+}

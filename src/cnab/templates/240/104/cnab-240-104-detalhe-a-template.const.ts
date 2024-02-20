@@ -58,7 +58,7 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
   valorRealEfetivado: {
     pos: [163, 177],
     picture: '9(013)V99',
-    value: '              ',
+    value: '0000000000000',
   },
   informacao2: {
     pos: [178, 217],

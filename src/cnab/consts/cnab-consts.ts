@@ -1,9 +1,9 @@
-import { cnab240_104DetalheATemplate } from './caixa/240/cnab-240-104-detalhe-a-template.const';
-import { cnab240_104DetalheBTemplate } from './caixa/240/cnab-240-104-detalhe-b-template.const';
-import { cnab240_104HeaderArquivoTemplate } from './caixa/240/cnab-240-104-header-arquivo-template.const';
-import { cnab240_104HeaderLoteTemplate } from './caixa/240/cnab-240-104-header-lote-template.const';
-import { cnab240_104TrailerArquivoTemplate } from './caixa/240/cnab-240-104-trailer-arquivo-template.const';
-import { cnab240_104TrailerLoteTemplate } from './caixa/240/cnab-240-104-trailer-lote-template.const';
+import { cnab240_104DetalheATemplate } from '../templates/240/104/cnab-240-104-detalhe-a-template.const';
+import { cnab240_104DetalheBTemplate } from '../templates/240/104/cnab-240-104-detalhe-b-template.const';
+import { cnab240_104HeaderArquivoTemplate } from '../templates/240/104/cnab-240-104-header-arquivo-template.const';
+import { cnab240_104HeaderLoteTemplate } from '../templates/240/104/cnab-240-104-header-lote-template.const';
+import { cnab240_104TrailerArquivoTemplate } from '../templates/240/104/cnab-240-104-trailer-arquivo-template.const';
+import { cnab240_104TrailerLoteTemplate } from '../templates/240/104/cnab-240-104-trailer-lote-template.const';
 
 export const CNAB_YAML_DIR = './yaml';
 export const CNAB_BANK = {
