@@ -1,6 +1,6 @@
 export enum CnabFieldType {
   Date = 'date',
-  Currency = 'currency',
   Text = 'text',
+  /** Integer or decimal number */
   Number = 'number',
 }
