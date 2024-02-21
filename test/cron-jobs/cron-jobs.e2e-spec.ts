@@ -21,10 +21,7 @@ describe('CronJobs (e2e)', () => {
       await request(app)
         .get('/api/v1/test/cron-jobs/bulk-resend-invites')
         .expect(200);
-      const resendInvitesLocalDate = new Date();
-      resendInvitesLocalDate.setMinutes(
-        resendInvitesLocalDate.getMinutes() + global.__localTzOffset,
-      );
+      const resendInvitesDate = new Date();
 
       const mails = await request(MAILDEV_URL)
         .get('/email')
@@ -32,15 +29,14 @@ describe('CronJobs (e2e)', () => {
           (body as IMaildevEmail[])
             .filter(
               (mail) =>
-                differenceInSeconds(
-                  resendInvitesLocalDate,
-                  new Date(mail.date),
-                ) <= 10,
+                differenceInSeconds(resendInvitesDate, new Date(mail.date)) <=
+                10,
             )
             .map((mail) => ({
               purpose: mail.text.split(' ')?.[0],
               URL: mail.text.split(' ')?.[1],
               to: mail.headers.to,
+              date: mail.date,
             })),
         );
 

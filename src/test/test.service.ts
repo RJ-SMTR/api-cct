@@ -23,7 +23,6 @@ export class TestService {
     const testMails =
       (await this.mailHistoryService.find({
         email: In([
-          'queued.user@example.com',
           'sent.user@example.com',
           'used.user@example.com',
           'registered.user@example.com',
