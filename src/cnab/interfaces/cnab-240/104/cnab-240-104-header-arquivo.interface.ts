@@ -15,6 +15,7 @@ export interface ICnab240CaixaHeaderArquivo {
   numeroVersao: CnabField;
   filler2: CnabField;
   agenciaContaCorrente: CnabField;
+  numeroConta: CnabField;
   dvAgencia: CnabField;
   dvConta: CnabField;
   dvAgenciaConta: CnabField;

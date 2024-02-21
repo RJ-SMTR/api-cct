@@ -2,7 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { getHttpStatusMessage } from './http-exception-utils';
 
 export const CommonHttpException = {
-  simpleDetail: (
+  detailField: (
     field: string,
     message: string,
     httpStatusCode: HttpStatus = 500,
@@ -16,18 +16,11 @@ export const CommonHttpException = {
       },
       httpStatusCode,
     ),
-  errDetail: (
-    error: string,
-    detailField: string,
-    detailMessage: string,
-    httpStatusCode: HttpStatus = 500,
-  ) =>
+  simpleDetail: (details: any, httpStatusCode: HttpStatus = 500) =>
     new HttpException(
       {
-        error,
-        details: {
-          [detailField]: detailMessage,
-        },
+        error: getHttpStatusMessage(httpStatusCode),
+        details,
       },
       httpStatusCode,
     ),

@@ -76,6 +76,11 @@ export const cnab240_104HeaderArquivoTemplate: ICnab240CaixaHeaderArquivo = {
     picture: '9(001)',
     value: '0',
   },
+  numeroConta: {
+    pos: [59, 70],
+    picture: '9(012)',
+    value: '000000000000',
+  },
   dvConta: {
     pos: [71, 71],
     picture: 'X(001)',
@@ -109,17 +114,17 @@ export const cnab240_104HeaderArquivoTemplate: ICnab240CaixaHeaderArquivo = {
   dataGeracaoArquivo: {
     pos: [144, 151],
     picture: '9(008)',
-    value: '',
+    value: '00000000',
   },
   horaGeracaoArquivo: {
     pos: [152, 157],
     picture: '9(006)',
-    value: '',
+    value: '000000',
   },
   nsa: {
     pos: [158, 163],
     picture: '9(006)',
-    value: '',
+    value: '000000',
   },
   versaoLeiauteArquivo: {
     pos: [164, 166],
@@ -154,7 +159,7 @@ export const cnab240_104HeaderArquivoTemplate: ICnab240CaixaHeaderArquivo = {
   usoExclusivoVan: {
     pos: [226, 228],
     picture: '9(003)',
-    value: '00',
+    value: '000',
   },
   tipoServico: {
     pos: [229, 230],

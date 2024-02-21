@@ -1,29 +1,45 @@
 import { format, isDate } from 'date-fns';
 import { stringToDate } from 'src/utils/date-utils';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import {
+  getStringNoSpecials,
+  getStringUpperUnaccent,
+} from 'src/utils/string-utils';
+import {
+  validateCnabFieldPositionSize,
+  validateCnabText,
+  validateRegistroPosition,
+} from './cnab-validations';
 import { CnabFieldType } from './enums/cnab-field-type.enum';
 import { CnabField } from './types/cnab-field.type';
 import { CnabLote, isCnabLote } from './types/cnab-lote.type';
 import { CnabRegistro } from './types/cnab-registro.type';
-import {
-  getStringNoSpecials,
-  getStringUppercaseUnaccent,
-} from 'src/utils/string-utils';
 
 /**
  * Convert CNAB Registro into CNAB file line
  */
 export function getRegistroLine(registro: CnabRegistro) {
   let line = '';
-  for (const value of Object.values(registro)) {
-    line += getCnabPictureValue(value);
+  const registros = Object.values(registro);
+  for (const i in registros) {
+    const current = registros[i];
+    validateRegistroPosition(
+      current,
+      registros[Number(i) - 1],
+      Boolean(registros[Number(i) + 1]),
+    );
+    line += getCnabPictureValue(current);
   }
   return line;
 }
 
 /**
- * From CnabField get formatted value applying Picture
+ * From CnabField get formatted value applying Picture.
+ *
+ * And validate Cnab.
  */
 export function getCnabPictureValue(item: CnabField) {
+  validateCnabFieldPositionSize(item);
   if (getCnabFieldType(item) === CnabFieldType.Date) {
     return formatDate(item);
   } else if (getCnabFieldType(item) === CnabFieldType.Number) {
@@ -33,6 +49,7 @@ export function getCnabPictureValue(item: CnabField) {
     return formatText(item);
   }
 }
+
 export function getCnabFieldType(item: CnabField): CnabFieldType {
   let result: CnabFieldType | undefined = undefined;
   if (item.picture.startsWith('9')) {
@@ -48,48 +65,44 @@ export function getCnabFieldType(item: CnabField): CnabFieldType {
   if (!result) {
     throw new Error(`Cant recognize picture for ${item.picture}`);
   }
-  validateFieldFormat(item);
+  validateCnabFieldType(item);
 
   return result;
 }
 
-export function validateFieldFormat(item: CnabField) {
+export function validateCnabFieldType(item: CnabField) {
   if (item.value === null) {
     throw new Error('No formats allow null item value');
-  } else if (isNaN(Number(item.value))) {
-    throw new Error('Number format cant represent NaN value');
   }
-}
-
-export function regexPicture(exp: any, picture: any) {
-  const regexResult = new RegExp(exp).exec(picture) || [];
-  const lengthResult = [
-    Number(regexResult[1]) || 0,
-    Number(regexResult[3]) || 0,
-  ];
-  return lengthResult;
 }
 
 /**
  * Integer: `9(<size number>)`.
  *
  * Decimal: There are two formats for decimal:
- * 1. "V9" + 9999... The number of characters "9 after "V9" is the length of decimal;
+ * 1. "V" + 9999... The number of characters "9 after "V" is the length of decimal;
  * 2. `V9(<size number>)`.
  *
- * If regex doesn't find anything, the value is 0.
+ * @throws `HttpException` if picture is invalid (regex has no matches).
  */
 export function getPictureNumberSize(picture: string): {
   integer: number;
   decimal: number;
 } {
-  const regexResult =
-    new RegExp(/9\((\d+)\)(V9(9+|\((\d+)\)))?/g).exec(picture) || [];
+  const regexResult = new RegExp(/^9\((\d+)\)(V(9+$|9\((\d+)\)))?$/g).exec(
+    picture,
+  );
+  if (!regexResult) {
+    throw CommonHttpException.detailField(
+      'error',
+      `Picture "${picture}" returned no matches.`,
+    );
+  }
   return {
     integer: Number(regexResult[1]) || 0,
     decimal:
       Number(regexResult[4]) ||
-      ((i = regexResult[2] || '') => (/^V999*$/g.test(i) ? i.length - 2 : 0))(),
+      (regexResult[3] ? String(regexResult[3]).length : 0),
   };
 }
 
@@ -97,9 +110,17 @@ export function getPictureNumberSize(picture: string): {
  * Text size: `X(<sie number>)`.
  *
  * If regex doesn't find anything, the value is 0.
+ *
+ * @throws `HttpException` if picture is invalid (regex has no matches).
  */
 export function getPictureTextSize(picture: string): number {
-  const regexResult = new RegExp(/X\((\d+?)\)/g).exec(picture) || [];
+  const regexResult = new RegExp(/^X\((\d+?)\)$/g).exec(picture);
+  if (!regexResult) {
+    throw CommonHttpException.detailField(
+      'error',
+      `Picture "${picture}" returned no matches.`,
+    );
+  }
   return Number(regexResult[1]) || 0;
 }
 
@@ -130,6 +151,8 @@ export function cropFillCnabField(
 }
 
 /**
+ * Formar original value to CNAB text.
+ *
  * Alphanumeric (picture X): text on the left, fill spaces on the right, uppercase only.
  *
  * - Any lowercase characters ("a", "c" etc) will be converted to uppercase ones;
@@ -141,14 +164,29 @@ export function cropFillCnabField(
 export function formatText(
   item: CnabField,
   onCrop: CropFillOnCrop = 'cropRight',
+  throwIfInvalid = false,
 ) {
+  validateFormatText(item);
+  validateCnabText(item, throwIfInvalid);
   const size = getPictureTextSize(item.picture);
   return cropFillCnabField(
-    getStringNoSpecials(getStringUppercaseUnaccent(item.value)),
+    getStringNoSpecials(getStringUpperUnaccent(item.value)),
     size,
     CnabFieldType.Text,
     onCrop,
   );
+}
+
+/**
+ * Performs basic validation before formatting.
+ */
+function validateFormatText(item: CnabField) {
+  if (typeof item.value !== 'string') {
+    throw CommonHttpException.detailField(
+      'error',
+      `CnabField value (${item.value}) is not string.`,
+    );
+  }
 }
 
 /**
@@ -170,12 +208,31 @@ export function formatDate(
   item: CnabField,
   onCrop: CropFillOnCrop = 'cropRight',
 ): string {
+  validateFormatDate(item);
   const { integer } = getPictureNumberSize(item.picture);
   const value =
     !isDate(item.value) && !item.dateFormat
       ? String(item.value)
       : String(format(stringToDate(item.value), item.dateFormat || 'yymmdd'));
   return cropFillCnabField(value, integer, CnabFieldType.Date, onCrop);
+}
+
+/**
+ * Performs basic validation before formatting.
+ */
+function validateFormatDate(item: CnabField) {
+  if (!item.dateFormat) {
+    throw CommonHttpException.detailField(
+      'error',
+      `CnabField must have dateFormat.`,
+    );
+  }
+  if (isNaN(stringToDate(item.value).getDate())) {
+    throw CommonHttpException.detailField(
+      'error',
+      `CnabField value (${item.value}) is not a valid date.`,
+    );
+  }
 }
 
 /**
@@ -189,6 +246,7 @@ export function formatNumber(
   item: CnabField,
   onCrop: CropFillOnCrop = 'cropRight',
 ): string {
+  validateFormatNumber(item);
   const { integer, decimal } = getPictureNumberSize(item.picture);
   const result = Number(item.value).toFixed(decimal).replace('.', '');
   return cropFillCnabField(
@@ -197,6 +255,18 @@ export function formatNumber(
     CnabFieldType.Number,
     onCrop,
   );
+}
+
+/**
+ * Performs basic validation before formatting.
+ */
+function validateFormatNumber(item: CnabField) {
+  if (item.value === null || isNaN(Number(item.value))) {
+    throw CommonHttpException.detailField(
+      'error',
+      `CnabField value (${item.value}) is not a valid number value.`,
+    );
+  }
 }
 
 export function getPlainRegistros(

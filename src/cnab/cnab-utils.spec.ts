@@ -3,24 +3,61 @@ import {
   formatDate,
   formatNumber,
   formatText,
+  getCnabFieldType,
   getPictureNumberSize,
   getPictureTextSize,
+  getRegistroLine,
 } from './cnab-utils';
 import { CnabFieldType } from './enums/cnab-field-type.enum';
 import { CnabField } from './types/cnab-field.type';
+import { CnabRegistro } from './types/cnab-registro.type';
 
 process.env.TZ = 'UTC';
 
 describe('cnab-utils.ts', () => {
+  describe('getRegistroLine()', () => {
+    it('should return text version of Registro accordingly', () => {
+      // Arrange
+      const registro: CnabRegistro = {
+        codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
+        loteServico: { pos: [4, 7], picture: '9(004)', value: 1 },
+        codigoRegistro: { pos: [8, 8], picture: '9(001)', value: '3' },
+        nsr: { pos: [9, 240], picture: 'X(232)', value: 'A' },
+      };
+
+      // Act
+      const result = getRegistroLine(registro);
+
+      // Assert
+      expect(result).toEqual('10400013A' + ' '.repeat(231));
+    });
+
+    it('should throw exception when position doesnt match picture', () => {
+      // Arrange
+      const registro: CnabRegistro = {
+        codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
+        loteServico: { pos: [4, 7], picture: '9(004)', value: 1 },
+        codigoRegistro: { pos: [8, 8], picture: '9(001)', value: '3' },
+        nsr: { pos: [9, 14], picture: '9(005)', value: 1 },
+      };
+
+      // Act
+      const result = () => getRegistroLine(registro);
+
+      // Assert
+      expect(result).toThrowError();
+    });
+  });
+
   describe('getPictureNumberSize()', () => {
     it('should return correct integer and decimal', () => {
       // Act
       const result9Num = getPictureNumberSize('9(15)');
       const result9NumV9Num = getPictureNumberSize('9(3)V9(8)');
-      const result9NumInvalidDecimal = getPictureNumberSize('9(3)V');
-      const result9NumV9 = getPictureNumberSize('9(4)V99');
-      const result9NumV99 = getPictureNumberSize('9(5)V999');
-      const resultInvalid = getPictureNumberSize('9()');
+      const result9NumInvalidDecimal = () => getPictureNumberSize('9(3)V');
+      const result9NumV9 = getPictureNumberSize('9(4)V9');
+      const result9NumV99 = getPictureNumberSize('9(5)V99');
+      const resultInvalid = () => getPictureNumberSize('9()');
 
       // Assert
       expect(result9Num).toEqual({
@@ -31,10 +68,7 @@ describe('cnab-utils.ts', () => {
         integer: 3,
         decimal: 8,
       });
-      expect(result9NumInvalidDecimal).toEqual({
-        integer: 3,
-        decimal: 0,
-      });
+      expect(result9NumInvalidDecimal).toThrowError();
       expect(result9NumV9).toEqual({
         integer: 4,
         decimal: 1,
@@ -43,10 +77,7 @@ describe('cnab-utils.ts', () => {
         integer: 5,
         decimal: 2,
       });
-      expect(resultInvalid).toEqual({
-        integer: 0,
-        decimal: 0,
-      });
+      expect(resultInvalid).toThrowError();
     });
   });
 
@@ -54,11 +85,11 @@ describe('cnab-utils.ts', () => {
     it('should return correct text size', () => {
       // Act
       const resultValid = getPictureTextSize('X(15)');
-      const resultInvalid = getPictureTextSize('X()');
+      const resultInvalid = () => getPictureTextSize('X()');
 
       // Assert
       expect(resultValid).toEqual(15);
-      expect(resultInvalid).toEqual(0);
+      expect(resultInvalid).toThrowError();
     });
   });
 
@@ -265,17 +296,25 @@ describe('cnab-utils.ts', () => {
         value: '2024-01-03',
         dateFormat: 'ddMMyyyy',
       });
-      const resultNoFormat = formatDate({
-        picture: '9(8)',
-        pos: [0, 0],
-        value: '15032024',
-      });
+      const resultNoFormat = () =>
+        formatDate({
+          picture: '9(8)',
+          pos: [0, 0],
+          value: '2024-03-15',
+        });
+      const resultInvalid = () =>
+        formatDate({
+          picture: '9(8)',
+          pos: [0, 0],
+          value: '20240315',
+        });
 
       // Assert
       expect(resultIsoToHms).toEqual('101112');
       expect(resultHmsToHms).toEqual('132057');
       expect(resultDateToDate).toEqual('03012024');
-      expect(resultNoFormat).toEqual('15032024');
+      expect(resultNoFormat).toThrowError();
+      expect(resultInvalid).toThrowError();
     });
   });
 
@@ -293,12 +332,12 @@ describe('cnab-utils.ts', () => {
       const resultIntegerCropRight = runFormatNumber(12345678, '9(6)');
       const resultIntegerFillLeft = runFormatNumber(123456, '9(10)');
       const resultIntegerExact = runFormatNumber(123456, '9(6)');
-      const resultDecimalCropRight = runFormatNumber(1234567.8, '9(5)V99');
-      const resultDecimalFillLeft = runFormatNumber(12345.6, '9(9)V99');
-      const resultDecimalExact = runFormatNumber(12345.6, '9(5)V99');
-      const resultFillDecimal = runFormatNumber(1234.56, '9(4)V99999');
-      const resultCropDecimal = runFormatNumber(1234.5111, '9(4)V999');
-      const resultCropDecimalFillLeft = runFormatNumber(1234.5111, '9(8)V999');
+      const resultDecimalCropRight = runFormatNumber(1234567.8, '9(5)V9');
+      const resultDecimalFillLeft = runFormatNumber(12345.6, '9(9)V9');
+      const resultDecimalExact = runFormatNumber(12345.6, '9(5)V9');
+      const resultFillDecimal = runFormatNumber(1234.56, '9(4)V9999');
+      const resultCropDecimal = runFormatNumber(1234.5111, '9(4)V99');
+      const resultCropDecimalFillLeft = runFormatNumber(1234.5111, '9(8)V99');
 
       // Assert
       expect(resultIntegerCropRight).toEqual('123456');
@@ -323,11 +362,8 @@ describe('cnab-utils.ts', () => {
 
       // Act
       const resultIntegerCropRight = runFormatNumber('12345678', '9(6)');
-      const resultDecimalCropRight = runFormatNumber('1234567.8', '9(5)V99');
-      const resultCropDecimalFillLeft = runFormatNumber(
-        '1234.5111',
-        '9(8)V999',
-      );
+      const resultDecimalCropRight = runFormatNumber('1234567.8', '9(5)V9');
+      const resultCropDecimalFillLeft = runFormatNumber('1234.5111', '9(8)V99');
 
       // Assert
       expect(resultIntegerCropRight).toEqual('123456');
@@ -336,7 +372,7 @@ describe('cnab-utils.ts', () => {
     });
   });
 
-  describe('formatText', () => {
+  describe('formatText()', () => {
     it('should crop or fill text accordingly', () => {
       // Act
       const resultCropped = formatText({
@@ -365,6 +401,40 @@ describe('cnab-utils.ts', () => {
 
       // Assert
       expect(resultLowerAccent).toEqual('HELLO ACAI          ');
+    });
+  });
+
+  describe('getCnabFieldType()', () => {
+    it('should CnabFieldType accordingly', () => {
+      // Act
+      const resultText = getCnabFieldType({
+        picture: 'X(1)',
+        pos: [0, 0],
+        value: ' ',
+      });
+      const resultNumber = getCnabFieldType({
+        picture: '9(1)',
+        pos: [0, 0],
+        value: '0',
+      });
+      const resultDate = getCnabFieldType({
+        picture: '9(1)',
+        pos: [0, 0],
+        value: '0',
+        dateFormat: 'ddMMyyyy',
+      });
+      const resultInvalid = () =>
+        getCnabFieldType({
+          picture: '(1)',
+          pos: [0, 0],
+          value: ' ',
+        });
+
+      // Assert
+      expect(resultText).toEqual(CnabFieldType.Text);
+      expect(resultNumber).toEqual(CnabFieldType.Number);
+      expect(resultDate).toEqual(CnabFieldType.Date);
+      expect(resultInvalid).toThrowError();
     });
   });
 });
