@@ -476,4 +476,16 @@ describe('cnab-utils.ts', () => {
       expect(result).toThrowError();
     });
   });
+
+  // describe('parseField()', () => {
+  //   it('should parse text from index 0', () => {
+  //     // Arrange
+  //     const text = '123       1234567890' + ' '.repeat(220);
+  //     const registro: CnabRegistro = {
+  //       a: { picture: '9(2)V9', pos: [1, 3], value: '' },
+  //     };
+
+  //     // Act
+  //   });
+  // });
 });

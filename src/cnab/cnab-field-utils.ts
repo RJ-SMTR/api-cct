@@ -275,8 +275,27 @@ export function validateCnabFieldPositionSize(item: CnabField) {
   }
 }
 
-function getPictureTotalSize(item: CnabField) {
+export function getPictureTotalSize(item: CnabField) {
   return getCnabFieldType(item) === CnabFieldType.Text
     ? getPictureTextSize(item.picture)
     : ((i = getPictureNumberSize(item.picture)) => i.decimal + i.integer)();
+}
+
+/**
+ * Remember:
+ * - CnabField position start starts counting from 1, not zero.
+ * - To represent size = 1 the position must be [1,1], [8,8] etc.
+ * - To represent size = 2 the position must be [1,2], [8,9] etc.
+ */
+export function parseField(
+  cnab: string,
+  field: CnabField,
+  textStart = 0,
+): CnabField {
+  const start = textStart + field.pos[0] - 1;
+  const end = textStart + field.pos[0] + field.pos[1];
+  return {
+    ...field,
+    value: cnab.slice(start, end),
+  };
 }

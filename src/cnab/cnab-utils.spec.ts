@@ -1,6 +1,6 @@
 import {
-  getPlainRegistros,
-  getRegistroLine,
+  getCnabRegistros,
+  stringifyRegistro,
   validateRegistroPosition,
 } from './cnab-utils';
 import { ICnabRegistroFieldMap } from './interfaces/cnab-registro-field-map.interface';
@@ -15,7 +15,14 @@ import { CnabRegistro } from './types/cnab-registro.type';
 process.env.TZ = 'UTC';
 
 describe('cnab-utils.ts', () => {
-  describe('getRegistroLine()', () => {
+  // describe('stringifyCnabFile()', () => {
+  //   it('should return text version of CnabFile accordingly', () => {
+  //     // Arrange
+  //     const cnab: CnabFile
+  //   });
+  // });
+
+  describe('stringifyRegistro()', () => {
     it('should return text version of Registro accordingly', () => {
       // Arrange
       const registro: CnabRegistro = {
@@ -26,7 +33,7 @@ describe('cnab-utils.ts', () => {
       };
 
       // Act
-      const result = getRegistroLine(registro);
+      const result = stringifyRegistro(registro);
 
       // Assert
       expect(result).toEqual('10400013A' + ' '.repeat(231));
@@ -42,7 +49,7 @@ describe('cnab-utils.ts', () => {
       };
 
       // Act
-      const result = () => getRegistroLine(registro);
+      const result = () => stringifyRegistro(registro);
 
       // Assert
       expect(result).toThrowError();
@@ -195,7 +202,7 @@ describe('cnab-utils.ts', () => {
     });
   });
 
-  describe('getPlainRegistros()', () => {
+  describe('getCnabRegistros()', () => {
     const fields: Record<string, CnabField>[] = [
       { a: { picture: 'X(1)', pos: [1, 1], value: ' ' } },
       { b: { picture: 'X(2)', pos: [1, 2], value: ' ' } },
@@ -242,7 +249,7 @@ describe('cnab-utils.ts', () => {
       };
 
       // Act
-      const result = getPlainRegistros(lote);
+      const result = getCnabRegistros(lote);
 
       // Assert
       expect(result).toEqual(registros);
@@ -275,7 +282,7 @@ describe('cnab-utils.ts', () => {
       };
 
       // Act
-      const result = getPlainRegistros(lote);
+      const result = getCnabRegistros(lote);
 
       // Assert
       expect(result).toEqual([
@@ -319,7 +326,7 @@ describe('cnab-utils.ts', () => {
       };
 
       // Act
-      const result = getPlainRegistros(file);
+      const result = getCnabRegistros(file);
 
       // Assert
       expect(result).toEqual(registros);
@@ -359,7 +366,7 @@ describe('cnab-utils.ts', () => {
       };
 
       // Act
-      const result = getPlainRegistros(file);
+      const result = getCnabRegistros(file);
 
       // Assert
       expect(result).toEqual([
