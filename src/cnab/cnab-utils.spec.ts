@@ -1,4 +1,15 @@
-import { getRegistroLine, validateRegistroPosition } from './cnab-utils';
+import {
+  getPlainRegistros,
+  getRegistroLine,
+  validateRegistroPosition,
+} from './cnab-utils';
+import { ICnabRegistroFieldMap } from './interfaces/cnab-registro-field-map.interface';
+import { CnabField } from './types/cnab-field.type';
+import { CnabFileMapped } from './types/cnab-file-mapped.type';
+import { CnabFile } from './types/cnab-file.type';
+import { CnabLoteMapped } from './types/cnab-lote-mapped.type';
+import { CnabLote } from './types/cnab-lote.type';
+import { CnabRegistroMapped } from './types/cnab-registro-mapped.type';
 import { CnabRegistro } from './types/cnab-registro.type';
 
 process.env.TZ = 'UTC';
@@ -181,6 +192,188 @@ describe('cnab-utils.ts', () => {
       expect(resultEqual).toThrowError();
       expect(resultLower).toThrowError();
       expect(resultGreather).toThrowError();
+    });
+  });
+
+  describe('getPlainRegistros()', () => {
+    const fields: Record<string, CnabField>[] = [
+      { a: { picture: 'X(1)', pos: [1, 1], value: ' ' } },
+      { b: { picture: 'X(2)', pos: [1, 2], value: ' ' } },
+      { c: { picture: 'X(3)', pos: [1, 3], value: ' ' } },
+      { d: { picture: 'X(4)', pos: [1, 4], value: ' ' } },
+      { e: { picture: 'X(5)', pos: [1, 5], value: ' ' } },
+      { f: { picture: 'X(6)', pos: [1, 6], value: ' ' } },
+      { g: { picture: 'X(7)', pos: [1, 7], value: ' ' } },
+      { h: { picture: 'X(8)', pos: [1, 8], value: ' ' } },
+      { i: { picture: 'X(9)', pos: [1, 9], value: ' ' } },
+      { j: { picture: 'X(10)', pos: [1, 10], value: ' ' } },
+      { k: { picture: 'X(11)', pos: [1, 11], value: ' ' } },
+      { l: { picture: 'X(12)', pos: [1, 12], value: ' ' } },
+      { m: { picture: 'X(13)', pos: [1, 13], value: ' ' } },
+      { n: { picture: 'X(14)', pos: [1, 14], value: ' ' } },
+      { o: { picture: 'X(15)', pos: [1, 15], value: ' ' } },
+      { p: { picture: 'X(16)', pos: [1, 16], value: ' ' } },
+      { q: { picture: 'X(17)', pos: [1, 17], value: ' ' } },
+      { r: { picture: 'X(18)', pos: [1, 18], value: ' ' } },
+      { s: { picture: 'X(19)', pos: [1, 19], value: ' ' } },
+      { t: { picture: 'X(20)', pos: [1, 20], value: ' ' } },
+      { u: { picture: 'X(21)', pos: [1, 21], value: ' ' } },
+      { v: { picture: 'X(22)', pos: [1, 22], value: ' ' } },
+      { w: { picture: 'X(23)', pos: [1, 23], value: ' ' } },
+      { x: { picture: 'X(24)', pos: [1, 24], value: ' ' } },
+    ];
+    const mapping: ICnabRegistroFieldMap = {
+      registroCodigoField: '',
+      registroLoteField: '',
+    };
+
+    it('should convert CnabLote record', () => {
+      // Arrange
+      const registros: CnabRegistro[] = [
+        { ...fields[0], ...fields[1] },
+        { ...fields[2], ...fields[3] },
+        { ...fields[4], ...fields[5] },
+        { ...fields[6], ...fields[7] },
+      ];
+      const lote: CnabLote = {
+        headerLote: registros[0],
+        registros: [registros[1], registros[2]],
+        trailerLote: registros[3],
+      };
+
+      // Act
+      const result = getPlainRegistros(lote);
+
+      // Assert
+      expect(result).toEqual(registros);
+    });
+
+    it('should convert CnabLoteMapped record', () => {
+      // Arrange
+      const registros: CnabRegistroMapped[] = [
+        {
+          registro: { ...fields[0], ...fields[1] },
+          fieldMap: mapping,
+        },
+        {
+          registro: { ...fields[2], ...fields[3] },
+          fieldMap: mapping,
+        },
+        {
+          registro: { ...fields[4], ...fields[5] },
+          fieldMap: mapping,
+        },
+        {
+          registro: { ...fields[6], ...fields[7] },
+          fieldMap: mapping,
+        },
+      ];
+      const lote: CnabLoteMapped = {
+        headerLote: registros[0],
+        registros: [registros[1], registros[2]],
+        trailerLote: registros[3],
+      };
+
+      // Act
+      const result = getPlainRegistros(lote);
+
+      // Assert
+      expect(result).toEqual([
+        { ...fields[0], ...fields[1] },
+        { ...fields[2], ...fields[3] },
+        { ...fields[4], ...fields[5] },
+        { ...fields[6], ...fields[7] },
+      ]);
+    });
+
+    it('should convert CnabFile record', () => {
+      // Arrange
+      const registros: CnabRegistro[] = [
+        { ...fields[0], ...fields[1] },
+        { ...fields[2], ...fields[3] },
+        { ...fields[4], ...fields[5] },
+        { ...fields[6], ...fields[7] },
+        { ...fields[8], ...fields[9] },
+        { ...fields[10], ...fields[11] },
+        { ...fields[12], ...fields[13] },
+        { ...fields[14], ...fields[15] },
+        { ...fields[16], ...fields[27] },
+        { ...fields[18], ...fields[19] },
+      ];
+      const lotes: CnabLote[] = [
+        {
+          headerLote: registros[1],
+          registros: [registros[2], registros[3]],
+          trailerLote: registros[4],
+        },
+        {
+          headerLote: registros[5],
+          registros: [registros[6], registros[7]],
+          trailerLote: registros[8],
+        },
+      ];
+      const file: CnabFile = {
+        headerArquivo: registros[0],
+        lotes,
+        trailerArquivo: registros[9],
+      };
+
+      // Act
+      const result = getPlainRegistros(file);
+
+      // Assert
+      expect(result).toEqual(registros);
+    });
+
+    it('should convert CnabFileMapped record', () => {
+      // Arrange
+      const registros: CnabRegistroMapped[] = [
+        { registro: { ...fields[0], ...fields[1] }, fieldMap: mapping },
+        { registro: { ...fields[2], ...fields[3] }, fieldMap: mapping },
+        { registro: { ...fields[4], ...fields[5] }, fieldMap: mapping },
+        { registro: { ...fields[6], ...fields[7] }, fieldMap: mapping },
+        { registro: { ...fields[8], ...fields[9] }, fieldMap: mapping },
+        { registro: { ...fields[10], ...fields[11] }, fieldMap: mapping },
+        { registro: { ...fields[12], ...fields[13] }, fieldMap: mapping },
+        { registro: { ...fields[14], ...fields[15] }, fieldMap: mapping },
+        { registro: { ...fields[16], ...fields[17] }, fieldMap: mapping },
+        { registro: { ...fields[18], ...fields[19] }, fieldMap: mapping },
+      ];
+
+      const lotes: CnabLoteMapped[] = [
+        {
+          headerLote: registros[1],
+          registros: [registros[2], registros[3]],
+          trailerLote: registros[4],
+        },
+        {
+          headerLote: registros[5],
+          registros: [registros[6], registros[7]],
+          trailerLote: registros[8],
+        },
+      ];
+      const file: CnabFileMapped = {
+        headerArquivo: registros[0],
+        lotes,
+        trailerArquivo: registros[9],
+      };
+
+      // Act
+      const result = getPlainRegistros(file);
+
+      // Assert
+      expect(result).toEqual([
+        { ...fields[0], ...fields[1] },
+        { ...fields[2], ...fields[3] },
+        { ...fields[4], ...fields[5] },
+        { ...fields[6], ...fields[7] },
+        { ...fields[8], ...fields[9] },
+        { ...fields[10], ...fields[11] },
+        { ...fields[12], ...fields[13] },
+        { ...fields[14], ...fields[15] },
+        { ...fields[16], ...fields[17] },
+        { ...fields[18], ...fields[19] },
+      ]);
     });
   });
 });

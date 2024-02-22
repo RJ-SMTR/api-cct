@@ -6,10 +6,5 @@ export function isArrayContainEqual(arr1: any[], arr2: any[]): boolean {
   arr1_.sort();
   const arr2_ = arr2;
   arr2_.sort();
-  return (
-    arr1_.length == arr2_.length &&
-    arr1_.every(function (u, i) {
-      return u === arr2_[i];
-    })
-  );
+  return arr1_.length == arr2_.length && arr1_.every((u, i) => u === arr2_[i]);
 }

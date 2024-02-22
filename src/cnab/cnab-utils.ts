@@ -1,6 +1,16 @@
+import { Exception } from 'handlebars';
 import { CNAB_SUPPORTED_FORMATS } from './cnab-consts';
 import { getCnabPictureValue } from './cnab-field-utils';
 import { CnabField } from './types/cnab-field.type';
+import {
+  CnabFileMapped,
+  isCnabFileMapped,
+} from './types/cnab-file-mapped.type';
+import { CnabFile, isCnabFile } from './types/cnab-file.type';
+import {
+  CnabLoteMapped,
+  isCnabLoteMapped,
+} from './types/cnab-lote-mapped.type';
 import { CnabLote, isCnabLote } from './types/cnab-lote.type';
 import { CnabRegistro } from './types/cnab-registro.type';
 
@@ -50,22 +60,57 @@ export function validateRegistroPosition(
 }
 
 export function getPlainRegistros(
-  cnab: Record<string, CnabRegistro | CnabRegistro[] | CnabLote[]>,
+  cnab: CnabFile | CnabFileMapped | CnabLote | CnabLoteMapped,
 ): CnabRegistro[] {
-  // return
-  const plainCnab: CnabRegistro[] = [];
-  for (const value of Object.values(cnab)) {
-    if (Array.isArray(value)) {
-      if (isCnabLote(value)) {
-        for (const lote of value as CnabLote[]) {
-          plainCnab.push(...getPlainRegistros(lote));
-        }
-      } else {
-        plainCnab.push(...(value as CnabRegistro[]));
-      }
-    } else {
-      plainCnab.push(value);
-    }
+  const plainRegistros: CnabRegistro[] = [];
+
+  if (isCnabLote(cnab)) {
+    plainRegistros.push(...getPlainRegistrosFromLote(cnab as CnabLote));
+  } else if (isCnabLoteMapped(cnab)) {
+    plainRegistros.push(
+      ...getPlainRegistrosFromLoteMapped(cnab as CnabLoteMapped),
+    );
+  } else if (isCnabFile(cnab)) {
+    plainRegistros.push(...getPlainRegistrosFromCnabFile(cnab as CnabFile));
+  } else if (isCnabFileMapped(cnab)) {
+    plainRegistros.push(
+      ...getPlainRegistrosFromCnabFileMapped(cnab as CnabFileMapped),
+    );
+  } else {
+    throw new Exception('Unsupported object type.');
   }
-  return plainCnab;
+  return plainRegistros;
+}
+
+function getPlainRegistrosFromCnabFile(file: CnabFile): CnabRegistro[] {
+  return [
+    file.headerArquivo,
+    ...file.lotes.reduce((l, i) => [...l, ...getPlainRegistrosFromLote(i)], []),
+    file.trailerArquivo,
+  ];
+}
+
+function getPlainRegistrosFromCnabFileMapped(
+  file: CnabFileMapped,
+): CnabRegistro[] {
+  return [
+    file.headerArquivo.registro,
+    ...file.lotes.reduce(
+      (l, i) => [...l, ...getPlainRegistrosFromLoteMapped(i)],
+      [],
+    ),
+    file.trailerArquivo.registro,
+  ];
+}
+
+function getPlainRegistrosFromLote(lote: CnabLote): CnabRegistro[] {
+  return [lote.headerLote, ...lote.registros, lote.trailerLote];
+}
+
+function getPlainRegistrosFromLoteMapped(lote: CnabLoteMapped): CnabRegistro[] {
+  return [
+    lote.headerLote.registro,
+    ...lote.registros.reduce((l, i) => [...l, i.registro], []),
+    lote.trailerLote.registro,
+  ];
 }
