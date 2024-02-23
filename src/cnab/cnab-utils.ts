@@ -2,15 +2,7 @@ import { Exception } from 'handlebars';
 import { CNAB_SUPPORTED_FORMATS } from './cnab-consts';
 import { getCnabPictureValue, parseField } from './cnab-field-utils';
 import { CnabField } from './types/cnab-field.type';
-import {
-  CnabFileMapped,
-  isCnabFileMapped,
-} from './types/cnab-file-mapped.type';
 import { CnabFile, isCnabFile } from './types/cnab-file.type';
-import {
-  CnabLoteMapped,
-  isCnabLoteMapped,
-} from './types/cnab-lote-mapped.type';
 import { CnabLote, isCnabLote } from './types/cnab-lote.type';
 import { CnabRegistro } from './types/cnab-registro.type';
 
@@ -19,7 +11,7 @@ import { CnabRegistro } from './types/cnab-registro.type';
  */
 export function stringifyRegistro(registro: CnabRegistro) {
   let line = '';
-  const registros = Object.values(registro);
+  const registros = Object.values(registro.fields);
   for (const i in registros) {
     const current = registros[i];
     validateRegistroPosition(
@@ -37,8 +29,8 @@ export function parseRegistro(
   registro: CnabRegistro,
   textStart = 0,
 ): CnabRegistro {
-  const regEntries = Object.entries(registro);
-  const newRegistro: CnabRegistro = {};
+  const regEntries = Object.entries(registro.fields);
+  const newRegistro: CnabRegistro = { fields: {} };
   for (let i = 0; i < regEntries.length; i++) {
     const [key, field] = regEntries[i];
     validateRegistroPosition(
@@ -78,23 +70,13 @@ export function validateRegistroPosition(
   }
 }
 
-export function getCnabRegistros(
-  cnab: CnabFile | CnabFileMapped | CnabLote | CnabLoteMapped,
-): CnabRegistro[] {
+export function getCnabRegistros(cnab: CnabFile | CnabLote): CnabRegistro[] {
   const plainRegistros: CnabRegistro[] = [];
 
   if (isCnabLote(cnab)) {
     plainRegistros.push(...getCnabRegistrosFromLote(cnab as CnabLote));
-  } else if (isCnabLoteMapped(cnab)) {
-    plainRegistros.push(
-      ...getCnabRegistrosFromLoteMapped(cnab as CnabLoteMapped),
-    );
   } else if (isCnabFile(cnab)) {
     plainRegistros.push(...getCnabRegistrosFromCnabFile(cnab as CnabFile));
-  } else if (isCnabFileMapped(cnab)) {
-    plainRegistros.push(
-      ...getCnabRegistrosFromCnabFileMapped(cnab as CnabFileMapped),
-    );
   } else {
     throw new Exception('Unsupported object type.');
   }
@@ -109,32 +91,11 @@ function getCnabRegistrosFromCnabFile(file: CnabFile): CnabRegistro[] {
   ];
 }
 
-function getCnabRegistrosFromCnabFileMapped(
-  file: CnabFileMapped,
-): CnabRegistro[] {
-  return [
-    file.headerArquivo.registro,
-    ...file.lotes.reduce(
-      (l, i) => [...l, ...getCnabRegistrosFromLoteMapped(i)],
-      [],
-    ),
-    file.trailerArquivo.registro,
-  ];
-}
-
 function getCnabRegistrosFromLote(lote: CnabLote): CnabRegistro[] {
   return [lote.headerLote, ...lote.registros, lote.trailerLote];
 }
 
-function getCnabRegistrosFromLoteMapped(lote: CnabLoteMapped): CnabRegistro[] {
-  return [
-    lote.headerLote.registro,
-    ...lote.registros.reduce((l, i) => [...l, i.registro], []),
-    lote.trailerLote.registro,
-  ];
-}
-
-export function stringifyCnab(cnab: CnabFile | CnabFileMapped): string {
+export function stringifyCnab(cnab: CnabFile): string {
   return getCnabRegistros(cnab)
     .reduce((l, i) => [...l, stringifyRegistro(i)], [])
     .join('\r\n');
