@@ -12,6 +12,8 @@ export type CnabField = {
   dateFormat?: string;
 };
 
+export type CnabFields = Record<string, CnabField>;
+
 export function isCnabField(value: any) {
   return (
     typeof value === 'object' &&

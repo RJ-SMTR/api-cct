@@ -1,14 +1,14 @@
 import { isArrayContainEqual } from 'src/utils/array-utils';
 import { ICnabRegistroFieldMap } from '../interfaces/cnab-registro-field-map.interface';
-import { CnabField } from './cnab-field.type';
+import { CnabFields } from './cnab-field.type';
 
 export type CnabRegistro = {
-  fields: Record<string, CnabField>;
+  fields: CnabFields;
   fieldMap?: ICnabRegistroFieldMap;
 };
 
 export type CnabRegistroMapped = {
-  fields: Record<string, CnabField>;
+  fields: CnabFields;
   fieldMap: ICnabRegistroFieldMap;
 };
 

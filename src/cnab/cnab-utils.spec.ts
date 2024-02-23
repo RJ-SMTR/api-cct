@@ -1,9 +1,10 @@
 import {
   getCnabRegistros,
+  stringifyCnab,
   stringifyRegistro,
   validateRegistroPosition,
 } from './cnab-utils';
-import { CnabField } from './types/cnab-field.type';
+import { CnabFields } from './types/cnab-field.type';
 import { CnabFile } from './types/cnab-file.type';
 import { CnabLote } from './types/cnab-lote.type';
 import { CnabRegistro } from './types/cnab-registro.type';
@@ -11,12 +12,45 @@ import { CnabRegistro } from './types/cnab-registro.type';
 process.env.TZ = 'UTC';
 
 describe('cnab-utils.ts', () => {
-  // describe('stringifyCnabFile()', () => {
-  //   it('should return text version of CnabFile accordingly', () => {
-  //     // Arrange
-  //     const cnab: CnabFile
-  //   });
-  // });
+  describe('stringifyCnab()', () => {
+    it('should return text version of CnabFile accordingly', () => {
+      // Arrange
+      const fieldsBase: CnabFields = {
+        a: { pos: [1, 100], picture: '9(98)V99', value: '1' },
+        b: { pos: [101, 200], picture: 'X(100)', value: ' ' },
+        c: { pos: [201, 240], picture: 'X(40)', value: ' ' },
+      };
+      const cnab: CnabFile = {
+        headerArquivo: { fields: fieldsBase },
+        lotes: [
+          {
+            headerLote: { fields: fieldsBase },
+            registros: [{ fields: fieldsBase }],
+            trailerLote: { fields: fieldsBase },
+          },
+        ],
+        trailerArquivo: { fields: fieldsBase },
+      };
+
+      // Act
+      const response = stringifyCnab(cnab);
+
+      // Assert
+      const responseLine = '0'.repeat(97) + '100' + ' '.repeat(140);
+      const expectedResponse =
+        responseLine +
+        '\r\n' +
+        responseLine +
+        '\r\n' +
+        responseLine +
+        '\r\n' +
+        responseLine +
+        '\r\n' +
+        responseLine;
+      expect(response.length).toEqual(expectedResponse.length);
+      expect(response).toEqual(expectedResponse);
+    });
+  });
 
   describe('stringifyRegistro()', () => {
     it('should return text version of Registro accordingly', () => {
@@ -203,7 +237,7 @@ describe('cnab-utils.ts', () => {
   });
 
   describe('getCnabRegistros()', () => {
-    const fields: Record<string, CnabField>[] = [
+    const fields: CnabFields[] = [
       { a: { picture: 'X(1)', pos: [1, 1], value: ' ' } },
       { b: { picture: 'X(2)', pos: [1, 2], value: ' ' } },
       { c: { picture: 'X(3)', pos: [1, 3], value: ' ' } },
