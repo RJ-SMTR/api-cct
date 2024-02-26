@@ -12,7 +12,6 @@ export class RoleSeedService {
   ) {}
 
   async run() {
-
     const master = await this.repository.count({
       where: {
         id: RoleEnum.master,
