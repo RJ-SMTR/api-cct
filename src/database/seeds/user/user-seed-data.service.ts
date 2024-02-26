@@ -154,16 +154,18 @@ export class UserSeedDataService {
         fullName: 'Simone Costa',
         email: 'simonecosta.smtr@gmail.com',
         password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.lancador_financeiro),
+        role: new Role(RoleEnum.admin_finan),
         status: new Status(StatusEnum.active),
       },
       {
         fullName: 'Luciana Fernandes',
         email: 'lucianafernandes.smtr@gmail.com',
         password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.lancador_financeiro),
+        role: new Role(RoleEnum.admin_finan),
         status: new Status(StatusEnum.active),
       },
+
+      // Usuários aprovadores financeiros
 
       ...(nodeEnv() === 'local' || nodeEnv() === 'test'
         ? ([

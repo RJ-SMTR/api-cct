@@ -56,7 +56,7 @@ export class RoleSeedService {
         }),
       );
     }
-    
+
     const countAprovador = await this.repository.count({
       where: {
         id: RoleEnum.aprovador_financeiro,
@@ -68,6 +68,21 @@ export class RoleSeedService {
         this.repository.create({
           id: RoleEnum.aprovador_financeiro,
           name: 'Aprovador financeiro',
+        }),
+      );
+    }
+    
+    const admin_finan = await this.repository.count({
+      where: {
+        id: RoleEnum.admin_finan,
+      },
+    });
+
+    if (!admin_finan) {
+      await this.repository.save(
+        this.repository.create({
+          id: RoleEnum.admin_finan,
+          name: 'Admin Finan',
         }),
       );
     }
