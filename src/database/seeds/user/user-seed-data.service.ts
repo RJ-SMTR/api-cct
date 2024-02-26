@@ -114,6 +114,16 @@ export class UserSeedDataService {
         status: new Status(StatusEnum.active),
       },
 
+      // Usuários lançamento financeiro
+
+      {
+        fullName: 'Usuário lançamento',
+        email: 'ruizalexander@id.uff.br',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+
       ...(nodeEnv() === 'local' || nodeEnv() === 'test'
         ? ([
             {

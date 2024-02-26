@@ -41,5 +41,20 @@ export class RoleSeedService {
         }),
       );
     }
+
+    const countLancador = await this.repository.count({
+      where: {
+        id: RoleEnum.lancador_financeiro,
+      },
+    });
+
+    if (!countLancador) {
+      await this.repository.save(
+        this.repository.create({
+          id: RoleEnum.lancador_financeiro,
+          name: 'Lançador financeiro',
+        }),
+      );
+    }
   }
 }
