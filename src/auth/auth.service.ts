@@ -53,7 +53,12 @@ export class AuthService {
     if (
       !user ||
       (user?.role &&
-        !(onlyAdmin ? [RoleEnum.admin] : [RoleEnum.user]).includes(
+        !(onlyAdmin ? [
+            RoleEnum.master, 
+            RoleEnum.admin, 
+            RoleEnum.aprovador_financeiro, 
+            RoleEnum.lancador_financeiro
+          ] : [RoleEnum.user]).includes(
           user.role.id,
         ))
     ) {
