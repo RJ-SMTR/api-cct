@@ -115,10 +115,51 @@ export class UserSeedDataService {
       },
 
       // Usuários lançamento financeiro
-
       {
         fullName: 'Usuário lançamento',
         email: 'ruizalexander@id.uff.br',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'João Victor Spala',
+        email: 'jvspala.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Marcia Marques',
+        email: 'marques.mcc@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Letícia Correa',
+        email: 'leticiacorrea.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Louise Sanglard',
+        email: 'louise.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Simone Costa',
+        email: 'simonecosta.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Luciana Fernandes',
+        email: 'lucianafernandes.smtr@gmail.com',
         password: this.generateRandomPassword(),
         role: new Role(RoleEnum.lancador_financeiro),
         status: new Status(StatusEnum.active),

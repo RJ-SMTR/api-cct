@@ -56,5 +56,20 @@ export class RoleSeedService {
         }),
       );
     }
+    
+    const countAprovador = await this.repository.count({
+      where: {
+        id: RoleEnum.aprovador_financeiro,
+      },
+    });
+
+    if (!countAprovador) {
+      await this.repository.save(
+        this.repository.create({
+          id: RoleEnum.aprovador_financeiro,
+          name: 'Aprovador financeiro',
+        }),
+      );
+    }
   }
 }
