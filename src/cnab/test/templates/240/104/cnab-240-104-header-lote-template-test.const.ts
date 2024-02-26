@@ -1,9 +1,14 @@
-import { ICnab240CaixaHeaderLote } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-header-lote.interface';
+import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
+import { ICnab240_104HeaderLote } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-header-lote.interface';
 
-export const cnab240_104HeaderLoteTemplateTest: ICnab240CaixaHeaderLote = {
+export const cnab240_104HeaderLoteTemplateTest: ICnab240_104HeaderLote = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
   loteServico: { pos: [4, 7], picture: '9(004)', value: '0001' },
-  codigoRegistro: { pos: [8, 8], picture: '9(001)', value: '1' },
+  codigoRegistro: {
+    pos: [8, 8],
+    picture: '9(001)',
+    value: CnabAllCodigoRegistro.HeaderLote,
+  },
   tipoOperacao: { pos: [9, 9], picture: 'X(001)', value: 'C' },
   tipoServico: { pos: [10, 11], picture: '9(002)', value: '30' },
   formaLancamento: { pos: [12, 13], picture: '9(002)', value: '01' },

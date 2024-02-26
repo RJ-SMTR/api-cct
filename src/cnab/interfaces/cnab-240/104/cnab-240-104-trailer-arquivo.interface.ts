@@ -1,9 +1,14 @@
-import { CnabField } from '../../../types/cnab-field.type';
+import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
+import {
+  CnabField,
+  CnabFieldAs,
+  CnabFields,
+} from '../../../types/cnab-field.type';
 
-export interface ICnab240CaixaTrailerArquivo {
+export interface ICnab240_104TrailerArquivo extends CnabFields {
   codigoBanco: CnabField;
   loteServico: CnabField;
-  codigoRegistro: CnabField;
+  codigoRegistro: CnabFieldAs<CnabAllCodigoRegistro>;
   usoExclusivoFebraban: CnabField;
   quantidadeLotesArquivo: CnabField;
   quantidadeRegistrosArquivo: CnabField;

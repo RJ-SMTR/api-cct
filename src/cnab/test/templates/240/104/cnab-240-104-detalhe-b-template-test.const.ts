@@ -1,11 +1,21 @@
-import { ICnab240CaixaDetalheB } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-detalhe-b.interface';
+import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
+import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
+import { ICnab240_104DetalheB } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-detalhe-b.interface';
 
-export const cnab240_104DetalheBTemplateTest: ICnab240CaixaDetalheB = {
+export const cnab240_104DetalheBTemplateTest: ICnab240_104DetalheB = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
   loteServico: { pos: [4, 7], picture: '9(004)', value: '0001' },
-  codigoRegistro: { pos: [8, 8], picture: '9(001)', value: '3' },
+  codigoRegistro: {
+    pos: [8, 8],
+    picture: '9(001)',
+    value: CnabAllCodigoRegistro.DetalheSegmento,
+  },
   nsr: { pos: [9, 13], picture: '9(005)', value: '00002' },
-  codigoSegmento: { pos: [14, 14], picture: 'X(001)', value: 'B' },
+  codigoSegmento: {
+    pos: [14, 14],
+    picture: 'X(001)',
+    value: Cnab104CodigoSegmento.B,
+  },
   usoExclusivoFebraban: { pos: [15, 17], picture: 'X(003)', value: '   ' },
   tipoInscricao: { pos: [18, 18], picture: '9(001)', value: ' ' },
   numeroInscricao: {
@@ -29,12 +39,12 @@ export const cnab240_104DetalheBTemplateTest: ICnab240CaixaDetalheB = {
     pos: [128, 135],
     picture: '9(008)',
     value: '06022023',
-    dateFormat: 'ddMMyyyy',
+    dateFormat: { input: 'ddMMyyyy', output: 'ddMMyyyy' },
   },
   valorDocumento: {
     pos: [136, 150],
     picture: '9(013)V99',
-    value: '000000001347272',
+    value: 1200.12,
   },
   valorAbatimento: {
     pos: [151, 165],

@@ -1,11 +1,17 @@
-import { CnabField } from '../../../types/cnab-field.type';
+import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
+import {
+  CnabField,
+  CnabFieldAs,
+  CnabFields,
+} from '../../../types/cnab-field.type';
+import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
 
-export interface ICnab240_104DetalheA {
+export interface ICnab240_104DetalheA extends CnabFields {
   codigoBanco: CnabField;
   loteServico: CnabField;
-  codigoRegistro: CnabField;
+  codigoRegistro: CnabFieldAs<CnabAllCodigoRegistro>;
   nsr: CnabField;
-  codigoSegmento: CnabField;
+  codigoSegmento: CnabFieldAs<Cnab104CodigoSegmento>;
   tipoMovimento: CnabField;
   codigoInstrucaoMovimento: CnabField;
   camaraCompensacao: CnabField;
@@ -34,7 +40,7 @@ export interface ICnab240_104DetalheA {
   valorRealEfetivado: CnabField;
   informacao2: CnabField;
   finalidadeDOC: CnabField;
-  usoFebraban: CnabField;
+  usoExclusivoFebraban: CnabField;
   avisoAoFavorecido: CnabField;
   /** Status do retorno CNAB */
   ocorrencias: CnabField;

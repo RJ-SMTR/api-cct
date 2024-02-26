@@ -1,10 +1,17 @@
 import { CnabFields } from 'src/cnab/types/cnab-field.type';
 
 export const cnab240GenericHeaderArquivoTemplateTest: CnabFields = {
-  codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
-  loteServico: { pos: [4, 7], picture: '9(004)', value: '0090' },
-  codigoRegistro: { pos: [8, 8], picture: '9(001)', value: '0' },
-  filler: { pos: [9, 17], picture: 'X(009)', value: '         ' },
-  nsa: { pos: [158, 163], picture: '9(006)', value: '000101' },
-  filler2: { pos: [164, 240], picture: 'X(077)', value: ' ' },
+  codigoRegistro: { pos: [1, 1], picture: '9(001)', value: '0' },
+  loteServico: { pos: [2, 5], picture: '9(004)', value: '' },
+  quantidadeRegistrosLote: { pos: [6, 11], picture: '9(006)', value: '0' },
+  codigoSegmento: { pos: [12, 12], picture: 'X(001)', value: ' ' },
+  nsr: { pos: [13, 17], picture: '9(005)', value: '' },
+  quantidadeLotesArquivo: { pos: [18, 23], picture: '9(006)', value: '' },
+  quantidadeRegistrosArquivo: {
+    pos: [24, 29],
+    picture: '9(006)',
+    value: '',
+  },
+  info: { pos: [30, 39], picture: 'X(010)', value: ' ' },
+  filler: { pos: [40, 240], picture: 'X(201)', value: ' ' },
 };

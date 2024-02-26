@@ -1,9 +1,14 @@
-import { CnabField } from '../../../types/cnab-field.type';
+import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
+import {
+  CnabField,
+  CnabFieldAs,
+  CnabFields,
+} from '../../../types/cnab-field.type';
 
-export interface ICnab240CaixaHeaderArquivo {
+export interface ICnab240_104HeaderArquivo extends CnabFields {
   codigoBanco: CnabField;
   loteServico: CnabField;
-  codigoRegistro: CnabField;
+  codigoRegistro: CnabFieldAs<CnabAllCodigoRegistro>;
   filler: CnabField;
   tipoInscricao: CnabField;
   numeroInscricao: CnabField;

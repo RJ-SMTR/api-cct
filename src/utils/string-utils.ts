@@ -6,7 +6,7 @@ export function getStringUpperUnaccent(str: string): string {
 }
 
 export function getStringNoSpecials(str: string) {
-  return str.replace(/[^a-zA-Z ]/g, '');
+  return str.replace(/[^a-zA-Z0-9 ]/g, '');
 }
 
 /**

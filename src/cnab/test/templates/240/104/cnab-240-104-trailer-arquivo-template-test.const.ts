@@ -1,10 +1,15 @@
-import { ICnab240CaixaTrailerArquivo } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-trailer-arquivo.interface';
+import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
+import { ICnab240_104TrailerArquivo } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-trailer-arquivo.interface';
 
-export const cnab240_104TrailerArquivoTemplateTest: ICnab240CaixaTrailerArquivo =
+export const cnab240_104TrailerArquivoTemplateTest: ICnab240_104TrailerArquivo =
   {
     codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
     loteServico: { pos: [4, 7], picture: '9(004)', value: '9999' },
-    codigoRegistro: { pos: [8, 8], picture: '9(001)', value: '5' },
+    codigoRegistro: {
+      pos: [8, 8],
+      picture: '9(001)',
+      value: CnabAllCodigoRegistro.TrailerArquivo,
+    },
     usoExclusivoFebraban: {
       pos: [9, 17],
       picture: 'X(009)',

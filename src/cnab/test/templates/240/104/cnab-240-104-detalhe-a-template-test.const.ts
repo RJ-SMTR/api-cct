@@ -1,11 +1,21 @@
+import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
+import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
 import { ICnab240_104DetalheA } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-detalhe-a.interface';
 
 export const cnab240_104DetalheATemplateTest: ICnab240_104DetalheA = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
   loteServico: { pos: [4, 7], picture: '9(004)', value: '0001' },
-  codigoRegistro: { pos: [8, 8], picture: '9(001)', value: '3' },
+  codigoRegistro: {
+    pos: [8, 8],
+    picture: '9(001)',
+    value: CnabAllCodigoRegistro.DetalheSegmento,
+  },
   nsr: { pos: [9, 13], picture: '9(005)', value: '00001' },
-  codigoSegmento: { pos: [14, 14], picture: 'X(001)', value: 'A' },
+  codigoSegmento: {
+    pos: [14, 14],
+    picture: 'X(001)',
+    value: Cnab104CodigoSegmento.A,
+  },
   tipoMovimento: { pos: [15, 15], picture: '9(001)', value: '0' },
   codigoInstrucaoMovimento: { pos: [16, 17], picture: '9(002)', value: '00' },
   camaraCompensacao: { pos: [18, 20], picture: '9(003)', value: '000' },
@@ -31,7 +41,7 @@ export const cnab240_104DetalheATemplateTest: ICnab240_104DetalheA = {
     pos: [94, 101],
     picture: '9(008)',
     value: '05022023',
-    dateFormat: 'ddMMyyyy',
+    dateFormat: { input: 'ddMMyyyy', output: 'ddMMyyyy' },
   },
   tipoMoeda: { pos: [102, 104], picture: 'X(003)', value: 'BRL' },
   quantidadeMoeda: {
@@ -42,7 +52,7 @@ export const cnab240_104DetalheATemplateTest: ICnab240_104DetalheA = {
   valorLancamento: {
     pos: [120, 134],
     picture: '9(013)V99',
-    value: '000000001347272',
+    value: 1200.12,
   },
   numeroDocumentoBanco: {
     pos: [135, 143],
@@ -71,7 +81,11 @@ export const cnab240_104DetalheATemplateTest: ICnab240_104DetalheA = {
     value: '                                        ',
   },
   finalidadeDOC: { pos: [218, 219], picture: '9(002)', value: '01' },
-  usoFebraban: { pos: [220, 229], picture: 'X(010)', value: '          ' },
+  usoExclusivoFebraban: {
+    pos: [220, 229],
+    picture: 'X(010)',
+    value: '          ',
+  },
   avisoAoFavorecido: { pos: [230, 230], picture: '9(001)', value: '0' },
   ocorrencias: { pos: [231, 240], picture: 'X(010)', value: '          ' },
 };

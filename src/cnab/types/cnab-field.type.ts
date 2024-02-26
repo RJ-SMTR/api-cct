@@ -4,13 +4,33 @@ export type CnabField = {
   pos: [number, number];
   picture: string;
   value: any;
-  default?: any;
+  /** Will use date-fns or new Date() date format */
+  dateFormat?: ICnabFieldDateFormat;
+};
+
+export type CnabFieldAs<T> = {
+  pos: [number, number];
+  picture: string;
+  value: T;
   /**
    * date-fns date format
    * @see{@link https://date-fns.org/v3.3.1/docs/format}
    */
-  dateFormat?: string;
 };
+
+/**
+ * Input: optional.
+ * - `undefined`: Current date will be used as input of new Date()
+ * - `string`: Will use date-fns date format
+ *
+ * Output: mandatory. Desired string output format. Will use date-fns date format
+ *
+ * @see{@link https://date-fns.org/v3.3.1/docs/format}
+ */
+export interface ICnabFieldDateFormat {
+  input?: string;
+  output: string;
+}
 
 export type CnabFields = Record<string, CnabField>;
 
