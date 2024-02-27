@@ -44,7 +44,7 @@ export class UserSeedDataService {
       {
         fullName: 'Alexander Rivail Ruiz',
         email: 'ruiz.smtr@gmail.com',
-        password: this.generateRandomPassword(),
+        password: '0014d1c03e',
         role: new Role(RoleEnum.admin),
         status: new Status(StatusEnum.active),
       },
