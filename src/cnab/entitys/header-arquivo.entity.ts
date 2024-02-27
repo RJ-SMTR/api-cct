@@ -1,4 +1,7 @@
-class HeaderArquivo{
+import { EntityHelper } from "src/utils/entity-helper";
+
+@Entity()
+class HeaderArquivo extends EntityHelper{
     id_header_arquivo:number;
     tipo_arquivo :string;
     cod_banco :string;
@@ -12,12 +15,13 @@ class HeaderArquivo{
     dv_conta:string;
     nome_empresa:string;
     dt_geracao: Date;
-    @Column({ type: 'timestamp' })
+    @Column({ arg0: { type: 'timestamp' } })
     hr_geracao: Date;
     id_transacao:number;
-
 }
 
-function Column(arg0: { type: string; }): (target: HeaderArquivo, propertyKey: "hr_geracao") => void {
+
+function Entity(): (target: typeof HeaderArquivo) => void | typeof HeaderArquivo {
     throw new Error("Function not implemented.");
 }
+

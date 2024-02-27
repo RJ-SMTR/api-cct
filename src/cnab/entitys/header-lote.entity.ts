@@ -1,5 +1,9 @@
-class HeaderLote{
-    id_header_lote:number;id_header_arquivo:number;
+import { EntityHelper } from "src/utils/entity-helper";
+
+@Entity()
+class HeaderLote extends EntityHelper{
+    id_header_lote:number;
+    id_header_arquivo:number;
     lote_servico:string;
     tipo_inscricao:string;
     num_inscricao:string;
@@ -7,4 +11,8 @@ class HeaderLote{
     tipo_compromisso:string;    
     param_transmissao:string;
     id_pagadora:number;
+}
+
+function Entity(): (target: typeof HeaderLote) => void | typeof HeaderLote {
+    throw new Error("Function not implemented.");
 }
