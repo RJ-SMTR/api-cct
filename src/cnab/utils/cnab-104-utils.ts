@@ -1,6 +1,6 @@
-import { ICnab240_104File } from '../interfaces/cnab-240/104/cnab-240-104-file.interface';
-import { ICnab240_104Lote } from '../interfaces/cnab-240/104/cnab-240-104-lote.interface';
-import { ICnab240_104Registro } from '../interfaces/cnab-240/104/cnab-240-104-registro.interface';
+import { ICnab240_104File } from '../dto/Cnab240FileDTO';
+import { ICnab240_104Lote } from '../dto/Cnab240LoteDTO';
+import { ICnab240_104Registro } from '../dto/Cnab240RegistroDTO';
 import { cnabAll104FieldMapTemplate as fieldMapTemplate } from '../templates/cnab-all/cnab-all-104-registro-field-map-template';
 import { CnabFile } from '../types/cnab-file.type';
 import { CnabLote } from '../types/cnab-lote.type';

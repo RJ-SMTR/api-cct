@@ -1,6 +1,6 @@
 import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
-import { ICnab240_104DetalheB } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-detalhe-b.interface';
+import { ICnab240_104DetalheB } from 'src/cnab/dto/Cnab240DetalheBDTO';
 
 export const cnab240_104DetalheBTemplateTest: ICnab240_104DetalheB = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },

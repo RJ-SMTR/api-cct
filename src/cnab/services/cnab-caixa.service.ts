@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { CnabFile } from './types/cnab-file.type';
-import { getCnabRegistros, stringifyCnabRegistro } from './utils/cnab-utils';
+import { CnabFile } from '../types/cnab-file.type';
+import { getCnabRegistros, stringifyCnabRegistro } from '../utils/cnab-utils';
 import { CNAB_EOL } from './cnab-consts';
 
 @Injectable()

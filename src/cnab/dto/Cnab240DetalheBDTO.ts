@@ -3,10 +3,10 @@ import {
   CnabField,
   CnabFieldAs,
   CnabFields,
-} from '../../../types/cnab-field.type';
+} from '../types/cnab-field.type';
 import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
 
-export interface ICnab240_104DetalheB extends CnabFields {
+export class Cnab240DetalheBDTO{
   codigoBanco: CnabField;
   loteServico: CnabField;
   codigoRegistro: CnabFieldAs<CnabAllCodigoRegistro>;

@@ -39,7 +39,7 @@ import { MailCountModule } from './mail-count/mail-count.module';
 import { CronJobsModule } from './cron-jobs/cron-jobs.module';
 import { BigqueryModule } from './bigquery/bigquery.module';
 import { TestModule } from './test/test.module';
-import { CnabModule } from './cnab/cnab.module';
+import { CnabModule } from './cnab/services/cnab.module';
 
 @Module({
   imports: [

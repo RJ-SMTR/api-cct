@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ICnab240_104DetalheA } from '../interfaces/cnab-240/104/cnab-240-104-detalhe-a.interface';
-import { ICnab240_104DetalheB } from '../interfaces/cnab-240/104/cnab-240-104-detalhe-b.interface';
-import { ICnab240_104File } from '../interfaces/cnab-240/104/cnab-240-104-file.interface';
-import { ICnab240_104Lote } from '../interfaces/cnab-240/104/cnab-240-104-lote.interface';
+import { ICnab240_104DetalheA } from '../dto/Cnab240DetalheADTO';
+import { ICnab240_104DetalheB } from '../dto/Cnab240DetalheBDTO';
+import { ICnab240_104File } from '../dto/Cnab240FileDTO';
+import { ICnab240_104Lote } from '../dto/Cnab240LoteDTO';
 import { cnab240_104DetalheATemplateTest } from '../test/templates/240/104/cnab-240-104-detalhe-a-template-test.const';
 import { cnab240_104DetalheBTemplateTest } from '../test/templates/240/104/cnab-240-104-detalhe-b-template-test.const';
 import { cnab240_104HeaderArquivoTemplateTest } from '../test/templates/240/104/cnab-240-104-header-arquivo-template-test.const';

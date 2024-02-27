@@ -1,4 +1,4 @@
-export interface IInputRemessaCaixa {
+export class RemessaCaixaDTO {
   fileId: string;
   fileCreationDatetime?: Date;
 

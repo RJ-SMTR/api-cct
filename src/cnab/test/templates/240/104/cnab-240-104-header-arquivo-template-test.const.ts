@@ -1,5 +1,5 @@
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
-import { ICnab240_104HeaderArquivo } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-header-arquivo.interface';
+import { ICnab240_104HeaderArquivo } from 'src/cnab/dto/Cnab240HeaderArquivoDTO';
 
 export const cnab240_104HeaderArquivoTemplateTest: ICnab240_104HeaderArquivo = {
   codigoBanco: {

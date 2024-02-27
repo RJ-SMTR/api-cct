@@ -1,5 +1,5 @@
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
-import { ICnab240_104TrailerArquivo } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-trailer-arquivo.interface';
+import { ICnab240_104TrailerArquivo } from 'src/cnab/dto/Cnab240TrailerArquivoDTO';
 
 export const cnab240_104TrailerArquivoTemplate: ICnab240_104TrailerArquivo = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },

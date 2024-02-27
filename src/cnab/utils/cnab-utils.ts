@@ -1,12 +1,35 @@
 import { Exception } from 'handlebars';
-import { CNAB_EOL, CNAB_SUPPORTED_FORMATS } from '../cnab-consts';
+import { CNAB_EOL, CNAB_SUPPORTED_FORMATS } from '../services/cnab-consts';
 import { CnabAllCodigoRegistro } from '../enums/all/cnab-all-codigo-registro.enum';
-import { ICnabFieldMap } from '../interfaces/cnab-field-map.interface';
+import { ICnabFieldMap } from '../dto/CnabFieldMapDTO';
 import { CnabField } from '../types/cnab-field.type';
 import { CnabFile, isCnabFile } from '../types/cnab-file.type';
 import { CnabLote, isCnabLote } from '../types/cnab-lote.type';
 import { CnabRegistro } from '../types/cnab-registro.type';
 import { parseField, stringifyCnabField } from './cnab-field-utils';
+
+//Header do Arquivo
+function getCnabRegistrosFromCnabFile(file: CnabFile): CnabRegistro[] {
+  return [
+    file.headerArquivo,
+    ...file.lotes.reduce((l, i) => [...l, ...getCnabRegistrosFromLote(i)], []),
+    file.trailerArquivo,
+  ];
+}
+
+//Monta Header do Lote - Detalhes A e B - Trailer do Lote(rodapé)
+function getCnabRegistrosFromLote(lote: CnabLote): CnabRegistro[] {
+  return [lote.headerLote, ...lote.registros, lote.trailerLote];
+}
+
+/**
+ * Process data in CnabFile, like sums, countings etc
+ */
+export function processCnabFile(cnab: CnabFile) {
+  processCnabHeaderArquivo(cnab);
+  processCnabLotes(cnab.lotes);
+  processCnabTrailerArquivo(cnab);
+}
 
 /**
  * Validate and stringify Registro
@@ -102,33 +125,12 @@ export function getCnabRegistros(cnab: CnabFile | CnabLote): CnabRegistro[] {
   return plainRegistros;
 }
 
-function getCnabRegistrosFromCnabFile(file: CnabFile): CnabRegistro[] {
-  return [
-    file.headerArquivo,
-    ...file.lotes.reduce((l, i) => [...l, ...getCnabRegistrosFromLote(i)], []),
-    file.trailerArquivo,
-  ];
-}
-
-function getCnabRegistrosFromLote(lote: CnabLote): CnabRegistro[] {
-  return [lote.headerLote, ...lote.registros, lote.trailerLote];
-}
-
 export function stringifyCnabFile(cnab: CnabFile): string {
   const treatedCnab = structuredClone(cnab);
   processCnabFile(treatedCnab);
   return getCnabRegistros(treatedCnab)
     .reduce((l, i) => [...l, stringifyCnabRegistro(i)], [])
     .join(CNAB_EOL);
-}
-
-/**
- * Process data in CnabFile, like sums, countings etc
- */
-export function processCnabFile(cnab: CnabFile) {
-  processCnabHeaderArquivo(cnab);
-  processCnabLotes(cnab.lotes);
-  processCnabTrailerArquivo(cnab);
 }
 
 function processCnabHeaderArquivo(cnab: CnabFile) {

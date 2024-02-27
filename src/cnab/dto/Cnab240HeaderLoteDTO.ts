@@ -3,9 +3,9 @@ import {
   CnabField,
   CnabFieldAs,
   CnabFields,
-} from '../../../types/cnab-field.type';
+} from '../types/cnab-field.type';
 
-export interface ICnab240_104HeaderLote extends CnabFields {
+export class Cnab240HeaderLoteDTO{
   codigoBanco: CnabField;
   loteServico: CnabField;
   codigoRegistro: CnabFieldAs<CnabAllCodigoRegistro>;

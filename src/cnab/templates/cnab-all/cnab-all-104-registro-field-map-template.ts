@@ -1,7 +1,7 @@
-import { ICnabFieldMapDetalhe } from 'src/cnab/interfaces/cnab-field-map-detalhe.interface';
-import { ICnabFieldMapTrailerArquivo } from 'src/cnab/interfaces/cnab-field-map-trailer-arquivo.interface';
-import { ICnabFieldMapTrailerLote } from 'src/cnab/interfaces/cnab-field-map-trailer-lote.interface';
-import { ICnabFieldMap } from 'src/cnab/interfaces/cnab-field-map.interface';
+import { ICnabFieldMapDetalhe } from 'src/cnab/dto/CnabFieldMapDetalheDTO';
+import { ICnabFieldMapTrailerArquivo } from 'src/cnab/dto/CnabFieldMapTrailerArquivoDTO';
+import { ICnabFieldMapTrailerLote } from 'src/cnab/dto/CnabFieldMapTrailerLoteDTO';
+import { ICnabFieldMap } from 'src/cnab/dto/CnabFieldMapDTO';
 
 const registro: ICnabFieldMap = {
   registroIdField: 'codigoRegistro',

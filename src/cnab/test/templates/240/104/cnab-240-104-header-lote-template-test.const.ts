@@ -1,5 +1,5 @@
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
-import { ICnab240_104HeaderLote } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-header-lote.interface';
+import { ICnab240_104HeaderLote } from 'src/cnab/dto/Cnab240HeaderLoteDTO';
 
 export const cnab240_104HeaderLoteTemplateTest: ICnab240_104HeaderLote = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },

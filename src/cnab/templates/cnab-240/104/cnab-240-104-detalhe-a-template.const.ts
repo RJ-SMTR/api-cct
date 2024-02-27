@@ -1,5 +1,5 @@
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
-import { ICnab240_104DetalheA } from '../../../interfaces/cnab-240/104/cnab-240-104-detalhe-a.interface';
+import { ICnab240_104DetalheA } from '../../../dto/Cnab240DetalheADTO';
 import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
 
 export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {

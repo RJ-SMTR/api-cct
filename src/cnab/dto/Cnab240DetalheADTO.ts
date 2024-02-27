@@ -1,12 +1,11 @@
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
 import {
   CnabField,
-  CnabFieldAs,
-  CnabFields,
-} from '../../../types/cnab-field.type';
+  CnabFieldAs
+} from '../types/cnab-field.type';
 import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
 
-export interface ICnab240_104DetalheA extends CnabFields {
+export class Cnab240DetalheADTO{
   codigoBanco: CnabField;
   loteServico: CnabField;
   codigoRegistro: CnabFieldAs<CnabAllCodigoRegistro>;
@@ -42,6 +41,6 @@ export interface ICnab240_104DetalheA extends CnabFields {
   finalidadeDOC: CnabField;
   usoExclusivoFebraban: CnabField;
   avisoAoFavorecido: CnabField;
-  /** Status do retorno CNAB */
+  /** Status do retorno CNAB */  
   ocorrencias: CnabField;
 }
