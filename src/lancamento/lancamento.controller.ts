@@ -14,6 +14,9 @@ import { LancamentoService } from './lancamento.service';
 import { Body } from '@nestjs/common';
 import { ItfLancamento } from './interfaces/lancamento.interface';
 import { CreateLancamentoDto } from './createLancamentoDto';
+import { Roles } from 'src/roles/roles.decorator';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
 
 @ApiTags('Lancamento')
 @Controller({
@@ -24,7 +27,13 @@ export class LancamentoController {
   constructor(private readonly lancamentoService: LancamentoService) {}
 
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.admin_finan,
+    RoleEnum.master,
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro
+  )
   @Get('/')
   @ApiQuery({
     name: 'mes',
@@ -36,6 +45,12 @@ export class LancamentoController {
     required: true,
     description:
       'Período do lançamento. primeira quinzena ou segunda quinzena.',
+  })
+  @ApiQuery({
+    name: 'ano',
+    required: true,
+    description:
+      'Ano do lançamento.',
   })
   @HttpCode(HttpStatus.OK)
   async getLancamento(
