@@ -13,7 +13,7 @@ import {
   LICENSEE_CPF_PERMIT_CODE,
   MAILDEV_URL,
 } from '../utils/constants';
-import { stringUppercaseUnaccent } from 'src/utils/string-utils';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
 
 describe('Admin managing users (e2e)', () => {
   const app = APP_URL;
@@ -50,6 +50,9 @@ describe('Admin managing users (e2e)', () => {
      * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 7 - GitHub}
      */ async () => {
       // Arrange
+      await request(app)
+        .get('/api/v1/test/users/reset-testing-users')
+        .expect(200);
       const licensee = await request(app)
         .get('/api/v1/users/')
         .auth(apiToken, {
@@ -63,7 +66,7 @@ describe('Admin managing users (e2e)', () => {
       const licenseePartOfName = 'user';
       const args = [
         {
-          filter: { name: stringUppercaseUnaccent(LICENSEE_CASE_ACCENT) },
+          filter: { name: getStringUpperUnaccent(LICENSEE_CASE_ACCENT) },
           expect: (body: any) =>
             expect(
               body.data.some((i: any) => i.fullName === LICENSEE_CASE_ACCENT),
@@ -184,7 +187,7 @@ describe('Admin managing users (e2e)', () => {
         .expect(({ body }) => {
           expect(body.data?.length).toBe(1);
           expect(body.data[0]?.fullName).toEqual(
-            stringUppercaseUnaccent(uploadUsers[0].nome),
+            getStringUpperUnaccent(uploadUsers[0].nome),
           );
           expect(body.data[0]?.aux_inviteStatus?.name).toEqual('queued');
         })

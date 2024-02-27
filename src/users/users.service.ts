@@ -17,7 +17,7 @@ import { isArrayContainEqual } from 'src/utils/array-utils';
 import { Enum } from 'src/utils/enum';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { formatLog } from 'src/utils/logging';
-import { stringUppercaseUnaccent } from 'src/utils/string-utils';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
@@ -551,7 +551,7 @@ export class UsersService {
         ),
         email: fileUser.user.email,
         phone: fileUser.user.telefone,
-        fullName: stringUppercaseUnaccent(fileUser.user.nome as string),
+        fullName: getStringUpperUnaccent(fileUser.user.nome as string),
         cpfCnpj: fileUser.user.cpf,
         hash: hash,
         status: new Status(StatusEnum.register),

@@ -41,4 +41,14 @@ export class TestController {
   async getCronJobsBulkResendInvites() {
     await this.testService.getCronJobsBulkResendInvites();
   }
+
+  @Get('users/reset-testing-users')
+  @ApiOperation({
+    description:
+      'Only available in test environments.' +
+      "\n\nUsed by e2e tests to reset example users' state before testing.",
+  })
+  async getUsersResetTestUsers() {
+    await this.testService.getResetTestingUsers();
+  }
 }

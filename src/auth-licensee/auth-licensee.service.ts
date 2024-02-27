@@ -74,7 +74,7 @@ export class AuthLicenseeService {
     );
 
     if (!isValidPassword) {
-      throw CommonHttpException.simpleDetail(
+      throw CommonHttpException.detailField(
         'password',
         'incorrectPassword',
         HttpStatus.UNAUTHORIZED,

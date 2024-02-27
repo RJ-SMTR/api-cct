@@ -1,4 +1,12 @@
-import { endOfDay, nextFriday, startOfDay, startOfMonth } from 'date-fns';
+import { HttpException, HttpStatus } from '@nestjs/common';
+import {
+  endOfDay,
+  format,
+  parse,
+  nextFriday,
+  startOfDay,
+  startOfMonth,
+} from 'date-fns';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
 import { DateIntervalStrType } from './types/date-interval.type';
 
@@ -95,4 +103,31 @@ export function safeCastDates(args: Partial<DateIntervalStrType>) {
  */
 export function getDateYMDString(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns new Date() using allowed date string values.
+ *
+ * And also allows "hh:mm:ss" ( year, month, day values are from now() );
+ *
+ * @param inputFormat date-fns date format. (see {@link https://date-fns.org/v3.3.1/docs/format})
+ */
+export function stringToDate(
+  value: string,
+  inputFormat?: string,
+  throwIfInvalid = true,
+): Date {
+  let date = inputFormat
+    ? parse(value, inputFormat, new Date())
+    : new Date(value);
+  if (isNaN(date.getDate())) {
+    date = new Date(`${format(new Date(), 'yyyy-MM-dd')} ${value}`);
+  }
+  if (throwIfInvalid && isNaN(date.getDate())) {
+    throw new HttpException(
+      `Invalid date format (${value})`,
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+  return date;
 }
