@@ -29,10 +29,10 @@ export class LancamentoController {
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
-    RoleEnum.admin_finan,
     RoleEnum.master,
+    RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
-    RoleEnum.aprovador_financeiro
+    RoleEnum.aprovador_financeiro,
   )
   @Get('/')
   @ApiQuery({
@@ -49,8 +49,7 @@ export class LancamentoController {
   @ApiQuery({
     name: 'ano',
     required: true,
-    description:
-      'Ano do lançamento.',
+    description: 'Ano do lançamento.',
   })
   @HttpCode(HttpStatus.OK)
   async getLancamento(
@@ -63,6 +62,13 @@ export class LancamentoController {
   }
 
   @Post('/')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.master,
+    RoleEnum.admin_finan,
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro,
+  )
   @ApiBody({ type: CreateLancamentoDto })
   @HttpCode(HttpStatus.CREATED)
   async createLancamento(
