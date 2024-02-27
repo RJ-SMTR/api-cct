@@ -15,14 +15,12 @@ class HeaderArquivo extends EntityHelper{
     dv_conta:string;
     nome_empresa:string;
     dt_geracao: Date;
-    @Column({ type: 'timestamp' })
+    @Column({ arg0: { type: 'timestamp' } })
     hr_geracao: Date;
     id_transacao:number;
 }
 
-function Column(arg0: { type: string; }): (target: HeaderArquivo, propertyKey: "hr_geracao") => void {
-    throw new Error("Function not implemented.");
-}
+
 function Entity(): (target: typeof HeaderArquivo) => void | typeof HeaderArquivo {
     throw new Error("Function not implemented.");
 }
