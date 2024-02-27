@@ -1,6 +1,8 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { subDays } from 'date-fns';
 import { CronJobsService } from 'src/cron-jobs/cron-jobs.service';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { In } from 'typeorm/find-options/operator/In';
 
@@ -34,5 +36,16 @@ export class TestService {
         sentAt: subDays(now, 16),
       });
     }
+  }
+
+  async getResetTestingUsers() {
+    const queuedMailName = 'queued.user@example.com';
+    const queuedMail = await this.mailHistoryService.getOne({
+      email: queuedMailName,
+    });
+    await this.mailHistoryService.update(queuedMail.id, {
+      sentAt: null,
+      inviteStatus: new InviteStatus(InviteStatusEnum.queued),
+    });
   }
 }

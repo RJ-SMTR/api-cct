@@ -6,8 +6,11 @@ export interface ICnabFieldMap {
    *
    * Represents"LoteServico" or similar fields.
    *
-   * Each **Lote** has one unique combination of `tipoCompromisso` and `formaLancamento`.
+   * Each **Lote** has one unique combination of
+   * 1. `tipoCompromisso` ("serviceType"; e.g. payments, debit, collection etc); and
+   * 2. `formaLancamento` ("transactionType"; e.g. TED, DOC etc).
    *
+   * The values must be:
    * - **For Header Arquivo:** value is 0000.
    * - **For Header/Trailer Lote and Detalhes:** Count current Lote. Example: (1, 2, 3).
    * - **For Trailer Arquivo:** value is 9999.

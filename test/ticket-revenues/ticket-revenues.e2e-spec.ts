@@ -46,19 +46,16 @@ describe('Ticket revenues (e2e)', () => {
 
     // get licenseeMaxDate
     bq = new BigQuery({ credentials: BQ_JSON_CREDENTIALS() });
-    await bq
-      .query(
-        `
+    const query = `
 SELECT
   CAST(t.data AS STRING) AS partitionDate,
   FROM \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t
   LEFT JOIN \`rj-smtr-dev.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
 WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
-    `,
-      )
-      .then((value) => {
-        licenseeCnpjMaxDate = new Date(value[0][0]?.['partitionDate']);
-      });
+    `;
+    await bq.query(query).then((value) => {
+      licenseeCnpjMaxDate = new Date(value[0][0]?.['partitionDate']);
+    });
     expect(Number(licenseeCnpjMaxDate)).not.toBeNaN();
   });
 

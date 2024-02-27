@@ -194,7 +194,7 @@ function processCnabTrailerLote(lotes: CnabLote[], loteIndex: number) {
   setCnabMappedValue(
     lotes[loteIndex].trailerLote,
     'trailerLoteRegistroCountField',
-    lotes[loteIndex].registros.length,
+    getCnabRegistros(lotes[loteIndex]).length,
   );
 }
 

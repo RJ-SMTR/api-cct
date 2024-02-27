@@ -50,6 +50,9 @@ describe('Admin managing users (e2e)', () => {
      * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 7 - GitHub}
      */ async () => {
       // Arrange
+      await request(app)
+        .get('/api/v1/test/users/reset-testing-users')
+        .expect(200);
       const licensee = await request(app)
         .get('/api/v1/users/')
         .auth(apiToken, {

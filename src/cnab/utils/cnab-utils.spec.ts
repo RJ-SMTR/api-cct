@@ -427,7 +427,7 @@ describe('cnab-utils.ts', () => {
       );
       expect(
         response.lotes[0].trailerLote.fields.quantidadeRegistrosLote.value,
-      ).toEqual(2);
+      ).toEqual(4);
       expect(
         response.trailerArquivo.fields.quantidadeLotesArquivo.value,
       ).toEqual(3);
