@@ -24,7 +24,9 @@ describe('cnab-104-utils.ts', () => {
   const detalheB = cnab240_104DetalheBTemplateTest;
 
   describe('stringifyCnab104File()', () => {
-    it('should return string version correctly', () => {
+    it('should return string version correctly', /**
+     * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 7 - GitHub}
+     */ () => {
       // Arrange
       const lote: ICnab240_104Lote = {
         headerLote: sc(headerLote),

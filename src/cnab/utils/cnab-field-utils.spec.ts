@@ -213,7 +213,9 @@ describe('cnab-utils.ts', () => {
     });
   });
 
-  describe('formatDate()', () => {
+  describe('formatDate()', /**
+   * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 2b - GitHub}
+   */ () => {
     it('should format Date as string correctly', () => {
       // Act
       const resultDdmmyyyy = formatDate({
@@ -283,7 +285,9 @@ describe('cnab-utils.ts', () => {
     });
   });
 
-  describe('formatNumber()', () => {
+  describe('formatNumber()', /**
+   * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 2c - GitHub}
+   */ () => {
     it('should format Number as string correctly', () => {
       // Arrange
       function setCnabField(value: number, picture: string): CnabField {
@@ -337,7 +341,9 @@ describe('cnab-utils.ts', () => {
     });
   });
 
-  describe('formatText()', () => {
+  describe('formatText()', /**
+   * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 2a - GitHub}
+   */ () => {
     it('should crop or fill text accordingly', () => {
       // Act
       const resultCropped = formatText({
@@ -370,7 +376,9 @@ describe('cnab-utils.ts', () => {
   });
 
   describe('getCnabFieldType()', () => {
-    it('should CnabFieldType accordingly', () => {
+    it('should CnabFieldType accordingly', /**
+     * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 2d - GitHub}
+     */ () => {
       // Act
       const resultText = getCnabFieldType({
         picture: 'X(1)',
@@ -437,7 +445,9 @@ describe('cnab-utils.ts', () => {
       expect(result).toThrowError();
     });
 
-    it('should throw exception when position start is invalid', () => {
+    it('should throw exception when position start is invalid', /**
+     * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 3 - GitHub}
+     */ () => {
       // Act
       const result = () =>
         validateCnabFieldPositionSize({
@@ -450,7 +460,9 @@ describe('cnab-utils.ts', () => {
       expect(result).toThrowError();
     });
 
-    it('should throw exception when position end < start', () => {
+    it('should throw exception when position end < start', /**
+     * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 5 - GitHub}
+     */ () => {
       // Act
       const result = () =>
         validateCnabFieldPositionSize({
@@ -463,7 +475,9 @@ describe('cnab-utils.ts', () => {
       expect(result).toThrowError();
     });
 
-    it('should throw exception when picture size < 1', () => {
+    it('should throw exception when picture size < 1', /**
+     * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 4 - GitHub}
+     */ () => {
       // Act
       const result = () =>
         validateCnabFieldPositionSize({
@@ -476,16 +490,4 @@ describe('cnab-utils.ts', () => {
       expect(result).toThrowError();
     });
   });
-
-  // describe('parseField()', () => {
-  //   it('should parse text from index 0', () => {
-  //     // Arrange
-  //     const text = '123       1234567890' + ' '.repeat(220);
-  //     const registro: CnabRegistro = {
-  //       a: { picture: '9(2)V9', pos: [1, 3], value: '' },
-  //     };
-
-  //     // Act
-  //   });
-  // });
 });
