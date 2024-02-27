@@ -1,4 +1,4 @@
-import { EntityHelper } from './../../utils/entity-helper';
+import { EntityHelper } from '../../utils/entity-helper';
 
 @Entity()
 class DetalheA extends EntityHelper{
