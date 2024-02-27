@@ -8,10 +8,44 @@ import { CnabRegistro } from '../types/cnab-registro.type';
 import { stringifyCnabFile } from './cnab-utils';
 
 export function stringifyCnab104File(cnab104: ICnab240_104File): string {
+  validateCnab104File(cnab104);
   const newCnab104 = structuredClone(cnab104);
   processCnab104File(newCnab104);
   const cnab = getCnabFileFrom104(newCnab104);
   return stringifyCnabFile(cnab);
+}
+
+export function validateCnab104File(cnab: ICnab240_104File) {
+  validateUniqueCnab104Lotes(cnab.lotes);
+}
+
+export function validateUniqueCnab104Lotes(lotes: ICnab240_104Lote[]) {
+  const loteTypesDict = lotes.reduce(
+    (l, i) => [
+      ...l,
+      {
+        tipoCompromisso: i.headerLote.tipoCompromisso.value,
+        formaLancamento: i.headerLote.formaLancamento.value,
+      },
+    ],
+    [],
+  );
+  const loteTypes = lotes.reduce(
+    (l, i) => [
+      ...l,
+      String(i.headerLote.tipoCompromisso.value) +
+        String(i.headerLote.formaLancamento.value),
+    ],
+    [],
+  );
+  const uniqueLoteTypes = [...new Set(loteTypes)];
+  if (loteTypes.length !== uniqueLoteTypes.length) {
+    throw new Error(
+      'Each headerLote must have unique combination of ' +
+        "`tipoCompromisso` and 'formaLancamento' but there are repeated ones " +
+        `(${JSON.stringify(loteTypesDict)})`,
+    );
+  }
 }
 
 /**

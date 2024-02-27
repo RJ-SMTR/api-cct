@@ -29,6 +29,17 @@ export interface ICnabFieldMap {
    */
   registroIdField: string;
 
+  // FOR HEADER LOTE
+
+  /**
+   * For Header Lote
+   *
+   * Dpen
+   */
+  headerLotePaymentTypeField?: string;
+
+  headerLoteServiceTypeField?: string;
+
   // FOR TRAILER LOTE
 
   /**

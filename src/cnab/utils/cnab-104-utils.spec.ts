@@ -11,6 +11,7 @@ import { cnab240_104HeaderLoteTemplateTest } from '../test/templates/240/104/cna
 import { cnab240_104TrailerArquivoTemplateTest } from '../test/templates/240/104/cnab-240-104-trailer-arquivo-template-test.const';
 import { cnab240_104TrailerLoteTemplateTest } from '../test/templates/240/104/cnab-240-104-trailer-lote-template-test.const';
 import { getCnabFileFrom104, stringifyCnab104File } from './cnab-104-utils';
+import { Cnab104FormaLancamento } from '../enums/104/cnab-104-forma-lancamento.enum';
 
 describe('cnab-104-utils.ts', () => {
   const sc = structuredClone;
@@ -39,10 +40,14 @@ describe('cnab-104-utils.ts', () => {
         ],
         trailerLote: sc(trailerLote),
       };
+      const lote0 = sc(lote);
+      lote0.headerLote.formaLancamento.value = Cnab104FormaLancamento.DOC;
+      const lote1 = sc(lote);
+      lote0.headerLote.formaLancamento.value = Cnab104FormaLancamento.TED;
 
       const file: ICnab240_104File = {
         headerArquivo: sc(headerArquivo),
-        lotes: [sc(lote), sc(lote)],
+        lotes: [sc(lote0), sc(lote1)],
         trailerArquivo: sc(trailerArquivo),
       };
       file.lotes[1].registros.push({
