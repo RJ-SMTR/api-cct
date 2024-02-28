@@ -25,3 +25,7 @@ function Entity(): (target: typeof HeaderArquivo) => void | typeof HeaderArquivo
     throw new Error("Function not implemented.");
 }
 
+function Column(arg0: { arg0: { type: string; }; }): (target: HeaderArquivo, propertyKey: "hr_geracao") => void {
+    throw new Error("Function not implemented.");
+}
+
