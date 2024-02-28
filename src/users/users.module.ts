@@ -12,6 +12,6 @@ import { BanksModule } from 'src/banks/banks.module';
   imports: [TypeOrmModule.forFeature([User]), MailHistoryModule, BanksModule],
   controllers: [UsersController],
   providers: [IsExist, IsNotExist, UsersService],
-  exports: [UsersService],
+  exports: [UsersService,TypeOrmModule],
 })
 export class UsersModule {}

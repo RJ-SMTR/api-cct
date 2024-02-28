@@ -6,6 +6,7 @@ import {
   Query,
   // SerializeOptions,
   UseGuards,
+  Put,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Request, HttpStatus } from '@nestjs/common';
@@ -61,16 +62,17 @@ export class LancamentoController {
     return await this.lancamentoService.findByPeriod(mes, periodo, ano);
   }
 
-  @Post('/')
+  @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master,
     RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
-  )
-  @ApiBody({ type: CreateLancamentoDto })
-  @HttpCode(HttpStatus.CREATED)
+    )
+    @ApiBody({ type: CreateLancamentoDto })
+    @HttpCode(HttpStatus.CREATED)
+  @Post('/')
   async createLancamento(
     @Body() lancamentoData: ItfLancamento,
   ): Promise<ItfLancamento> {
@@ -78,5 +80,28 @@ export class LancamentoController {
       lancamentoData,
     );
     return createdLancamento;
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.master,
+    RoleEnum.admin_finan,
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro,
+  )
+  @Put('/')
+  @ApiQuery({
+    name: 'lancamentoId',
+    required: true,
+    description: 'Id do lançamento',
+  })
+  @HttpCode(HttpStatus.OK)
+  async autorizarPagamento(
+    @Request() req,
+  ) {
+    const userId = req.user.id;
+    const lancamentoId = req.query.lancamentoId;
+    return await this.lancamentoService.autorizarPagamento(userId, lancamentoId);
   }
 }

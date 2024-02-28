@@ -4,12 +4,16 @@ import { Repository } from 'typeorm';
 import { ItfLancamento } from './interfaces/lancamento.interface';
 import { LancamentoEntity } from './lancamento.entity';
 import { Between } from 'typeorm';
+import { User } from 'src/users/entities/user.entity';
+import { In } from 'typeorm';
 
 @Injectable()
 export class LancamentoService {
   constructor(
     @InjectRepository(LancamentoEntity)
     private readonly lancamentoRepository: Repository<LancamentoEntity>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
   async findByPeriod(
@@ -18,16 +22,55 @@ export class LancamentoService {
     year: number,
   ): Promise<ItfLancamento[]> {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
-    return await this.lancamentoRepository.find({
+    const lancamentos = await this.lancamentoRepository.find({
       where: {
         data_ordem: Between(startDate, endDate),
-      },
+      }, 
+      relations: ['user'],
     });
+
+    const allUserIds = new Set<number>();
+    lancamentos.forEach(lancamento => {
+      if (lancamento.auth_usersIds) {
+        lancamento.auth_usersIds.split(',').forEach(id => allUserIds.add(Number(id)));
+      }
+    });
+
+    let usersMap = new Map<number, any>();
+    if (allUserIds.size > 0) {
+      const users = await this.userRepository.findBy({ id: In([...allUserIds]) });
+      usersMap = new Map(users.map(user => [user.id, user]));
+    }
+
+    const lancamentosComUsuarios = lancamentos.map(lancamento => {
+      const userIds = lancamento.auth_usersIds ? lancamento.auth_usersIds.split(',').map(Number) : [];
+      const autorizadopor = userIds.map(id => usersMap.get(id)).filter(user => user !== undefined);
+      return { ...lancamento, autorizadopor }; 
+    });
+
+    return lancamentosComUsuarios;
+    
   }
 
   async create(lancamentoData: ItfLancamento): Promise<ItfLancamento> {
     const newLancamento = this.lancamentoRepository.create(lancamentoData);
     return await this.lancamentoRepository.save(newLancamento);
+  }
+
+  async autorizarPagamento(userId: number, lancamentoId): Promise<ItfLancamento> {
+    const lancamento = await this.lancamentoRepository.findOne({ where: { id: parseInt(lancamentoId) }});
+    console.log
+    
+    if (!lancamento) {
+      throw new Error('Lançamento não encontrado.');
+    }
+  
+    const userIds = new Set(lancamento.auth_usersIds ? lancamento.auth_usersIds.split(',').map(Number) : []);
+    userIds.add(userId);
+    
+    lancamento.auth_usersIds = Array.from(userIds).join(',');
+    return await this.lancamentoRepository.save(lancamento);
+
   }
 
   //   async update(id: number, updatedData: ItfLancamento): Promise<ItfLancamento> {
