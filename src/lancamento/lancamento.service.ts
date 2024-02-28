@@ -60,8 +60,12 @@ export class LancamentoService {
     return lancamentosComUsuarios;
   }
 
-  async create(lancamentoData: ItfLancamento): Promise<ItfLancamento> {
+  async create(
+    lancamentoData: ItfLancamento,
+    userId: number,
+  ): Promise<ItfLancamento> {
     const newLancamento = this.lancamentoRepository.create(lancamentoData);
+    newLancamento.userId = userId;
     return await this.lancamentoRepository.save(newLancamento);
   }
 
@@ -89,17 +93,36 @@ export class LancamentoService {
     return await this.lancamentoRepository.save(lancamento);
   }
 
-    async update(id: number, updatedData: ItfLancamento): Promise<ItfLancamento> {
-      const lancamento = await this.lancamentoRepository.update(id, updatedData);
-      if (!lancamento) {
-        throw new NotFoundException('Lançamento não encontrado.');
-      }
-      return await this.lancamentoRepository.findOne({where: {id}}) ?? {} as ItfLancamento;
+  async update(
+    id: number,
+    updatedData: ItfLancamento,
+    userId: number,
+  ): Promise<ItfLancamento> {
+    let lancamento = await this.lancamentoRepository.findOne({ where: { id } });
+    if (!lancamento) {
+      throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
 
-    async delete(id: number): Promise<void> {
-      await this.lancamentoRepository.delete(id);
+    lancamento = { ...lancamento, ...updatedData, userId, auth_usersIds: '' };
+
+    await this.lancamentoRepository.save(lancamento);
+
+    return lancamento;
+  }
+
+  async getById(id: number): Promise<ItfLancamento> {
+    const lancamento = await this.lancamentoRepository.findOne({
+      where: { id },
+    });
+    if (!lancamento) {
+      throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
+    return lancamento;
+  }
+
+  async delete(id: number): Promise<void> {
+    await this.lancamentoRepository.delete(id);
+  }
 
   getMonthDateRange(year: number, month: number, period: number): [Date, Date] {
     let startDate: Date;

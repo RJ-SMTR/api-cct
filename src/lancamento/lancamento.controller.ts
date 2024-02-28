@@ -7,6 +7,7 @@ import {
   // SerializeOptions,
   UseGuards,
   Put,
+  Param,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Request, HttpStatus } from '@nestjs/common';
@@ -74,10 +75,14 @@ export class LancamentoController {
   @HttpCode(HttpStatus.CREATED)
   @Post('/create')
   async createLancamento(
+    @Request() req,
     @Body() lancamentoData: ItfLancamento,
   ): Promise<ItfLancamento> {
+    console.log('/create');
+    const userId = req.user.id;
     const createdLancamento = await this.lancamentoService.create(
       lancamentoData,
+      userId,
     );
     return createdLancamento;
   }
@@ -108,27 +113,31 @@ export class LancamentoController {
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(
-    RoleEnum.master,
-    RoleEnum.admin_finan,
-    RoleEnum.lancador_financeiro,
-  )
+  @Roles(RoleEnum.master, RoleEnum.admin_finan, RoleEnum.lancador_financeiro)
   @Put('/')
   @ApiBody({ type: CreateLancamentoDto })
   @HttpCode(HttpStatus.OK)
   @ApiQuery({
-    name: 'id',
+    name: 'lancamentoId',
     required: true,
     description: 'Id do lançamento',
   })
   async atualizaLancamento(
     @Request() req,
     @Body() lancamentoData: ItfLancamento,
-    ) {
-    const id = req.id;
-    return await this.lancamentoService.update(
-      id,
-      lancamentoData,
-    );
+  ) {
+    const id = req.query.lancamentoId;
+    const userId = req.user.id;
+    return await this.lancamentoService.update(id, lancamentoData, userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.master, RoleEnum.admin_finan, RoleEnum.lancador_financeiro)
+  @Get('/:id')
+  @HttpCode(HttpStatus.OK)
+  async getById(@Param('id') id: number) {
+    console.log('GET BY ID', id);
+    return await this.lancamentoService.getById(id);
   }
 }

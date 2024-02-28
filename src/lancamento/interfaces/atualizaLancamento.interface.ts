@@ -1,4 +1,4 @@
-export interface ItfLancamento {
+export interface ItfAtualizaLancamento {
   id: number;
   descricao: string;
   valor: number;
