@@ -6,6 +6,7 @@ import { LancamentoEntity } from './lancamento.entity';
 import { Between } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { In } from 'typeorm';
+import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class LancamentoService {
@@ -88,14 +89,17 @@ export class LancamentoService {
     return await this.lancamentoRepository.save(lancamento);
   }
 
-  //   async update(id: number, updatedData: ItfLancamento): Promise<ItfLancamento> {
-  //     await this.lancamentoRepository.update(id, updatedData);
-  //     return await this.findById(id);
-  //   }
+    async update(id: number, updatedData: ItfLancamento): Promise<ItfLancamento> {
+      const lancamento = await this.lancamentoRepository.update(id, updatedData);
+      if (!lancamento) {
+        throw new NotFoundException('Lançamento não encontrado.');
+      }
+      return await this.lancamentoRepository.findOne({where: {id}}) ?? {} as ItfLancamento;
+    }
 
-  async delete(id: number): Promise<void> {
-    await this.lancamentoRepository.delete(id);
-  }
+    async delete(id: number): Promise<void> {
+      await this.lancamentoRepository.delete(id);
+    }
 
   getMonthDateRange(year: number, month: number, period: number): [Date, Date] {
     let startDate: Date;

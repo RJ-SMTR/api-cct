@@ -105,4 +105,30 @@ export class LancamentoController {
       lancamentoId,
     );
   }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.master,
+    RoleEnum.admin_finan,
+    RoleEnum.lancador_financeiro,
+  )
+  @Put('/')
+  @ApiBody({ type: CreateLancamentoDto })
+  @HttpCode(HttpStatus.OK)
+  @ApiQuery({
+    name: 'id',
+    required: true,
+    description: 'Id do lançamento',
+  })
+  async atualizaLancamento(
+    @Request() req,
+    @Body() lancamentoData: ItfLancamento,
+    ) {
+    const id = req.id;
+    return await this.lancamentoService.update(
+      id,
+      lancamentoData,
+    );
+  }
 }
