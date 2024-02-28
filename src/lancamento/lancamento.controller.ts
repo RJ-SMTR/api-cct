@@ -72,7 +72,7 @@ export class LancamentoController {
   )
   @ApiBody({ type: CreateLancamentoDto })
   @HttpCode(HttpStatus.CREATED)
-  @Post('/')
+  @Post('/create')
   async createLancamento(
     @Body() lancamentoData: ItfLancamento,
   ): Promise<ItfLancamento> {
@@ -90,7 +90,7 @@ export class LancamentoController {
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
-  @Put('/')
+  @Put('/authorize')
   @ApiQuery({
     name: 'lancamentoId',
     required: true,
