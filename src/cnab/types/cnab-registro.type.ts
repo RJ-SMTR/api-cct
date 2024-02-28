@@ -1,5 +1,5 @@
 import { isArrayContainEqual } from 'src/utils/array-utils';
-import { ICnabFieldMap } from '../interfaces/cnab-field-map.interface';
+import { ICnabFieldMap } from '../interfaces/cnab-all/cnab-field-map.interface';
 import { CnabFields } from './cnab-field.type';
 
 export type CnabRegistro = {

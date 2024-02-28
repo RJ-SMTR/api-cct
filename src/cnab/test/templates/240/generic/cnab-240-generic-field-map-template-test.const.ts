@@ -1,4 +1,4 @@
-import { ICnabFieldMap } from 'src/cnab/interfaces/cnab-field-map.interface';
+import { ICnabFieldMap } from 'src/cnab/interfaces/cnab-all/cnab-field-map.interface';
 
 const base: ICnabFieldMap = {
   registroIdField: 'codigoRegistro',

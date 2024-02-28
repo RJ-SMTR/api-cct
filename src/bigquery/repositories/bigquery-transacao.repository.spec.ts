@@ -2,16 +2,16 @@ import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { SettingsService } from 'src/settings/settings.service';
-import { BqTransacaoRepositoryService } from './bq-transacao.repository.service';
+import { BigqueryTransacaoRepository } from './bigquery-transacao.repository';
 import { ConfigService } from '@nestjs/config';
 import { resolve } from 'path';
 import { config } from 'dotenv';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
 
-describe('BqTransacaoRepositoryService', () => {
+describe('BigqueryTransacaoRepositoryService', () => {
   let settingsService: SettingsService;
-  let bqTransacaoRepository: BqTransacaoRepositoryService;
+  let bqTransacaoRepository: BigqueryTransacaoRepository;
   const mockBqGoogleCredentials = () => ({
     'google.clientApiType': process.env.GOOGLE_CLIENT_API_TYPE,
     'google.clientApiProjectId': process.env.GOOGLE_CLIENT_API_PROJECT_ID,
@@ -51,14 +51,14 @@ describe('BqTransacaoRepositoryService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BigqueryService,
-        BqTransacaoRepositoryService,
+        BigqueryTransacaoRepository,
         settingsServiceMock,
         configServiceMock,
       ],
     }).compile();
 
     settingsService = module.get(SettingsService);
-    bqTransacaoRepository = module.get(BqTransacaoRepositoryService);
+    bqTransacaoRepository = module.get(BigqueryTransacaoRepository);
   });
 
   afterEach(() => {

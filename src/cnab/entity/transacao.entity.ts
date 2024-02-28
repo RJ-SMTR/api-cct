@@ -102,4 +102,9 @@ export class Transacao extends EntityHelper {
 
   @Column({ type: Number, unique: false, nullable: true })
   id_pagador: number;
+
+  public getLogInfo(): string {
+    const response = `#${this.id_transacao}`;
+    return response;
+  }
 }

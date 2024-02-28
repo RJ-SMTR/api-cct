@@ -59,4 +59,12 @@ export class ClienteFavorecido extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   uf: string;
+
+  public getLogInfo(showName?: boolean): string {
+    if (showName === undefined) {
+      showName = false;
+    }
+    const response = `#${this.cpf_cnpj}` + showName ? ` '${this.nome}'` : '';
+    return response;
+  }
 }

@@ -25,17 +25,17 @@ export const CommonHttpException = {
       httpStatusCode,
     ),
   notFound: (
-    notFoundField: string,
+    notFoundItem: string,
     httpStatusCode: HttpStatus = HttpStatus.NOT_FOUND,
     error?: string,
   ) =>
     new HttpException(
       {
         error: error || getHttpStatusMessage(httpStatusCode),
-        ...(notFoundField
+        ...(notFoundItem
           ? {
               details: {
-                [notFoundField]: 'not found',
+                [notFoundItem]: 'not found',
               },
             }
           : {}),

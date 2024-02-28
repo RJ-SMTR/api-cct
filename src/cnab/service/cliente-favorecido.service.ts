@@ -1,30 +1,59 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import { ClienteFavorecido } from './../entitys/cliente-favorecido.entity';
+import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
+import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
 
-class ClienteFavorecidoService{
+@Injectable()
+export class ClienteFavorecidoService {
+  private logger: Logger = new Logger('ClienteFavorecidoService', {
+    timestamp: true,
+  });
 
-    private clienteFavorecido: ClienteFavorecidoRepository;
+  constructor(
+    private usersService: UsersService,
+    private clienteFavorecidoRepository: ClienteFavorecidoRepository,
+  ) {}
 
-    private userService: UsersService;
+  /**
+   * All ClienteFavoecidos will be created or updated from users based of cpfCnpj.
+   * @returns All favorecidos after update
+   */
+  public async updateAllFromUsers(): Promise<ClienteFavorecido[]> {
+    const allUsers = await this.usersService.findMany({});
+    for (const user of allUsers) {
+      const favorecido = await this.clienteFavorecidoRepository.findOne({
+        cpf_cnpj: user.getCpfCnpj(),
+      });
+      await this.saveFavorecidoFromUser(
+        user,
+        favorecido?.id_cliente_favorecido,
+      );
+    }
+    return await this.clienteFavorecidoRepository.findMany({});
+  }
 
-    function insertClienteFavorecido(){
-         
-       // userService.get
-
-        for{
-        //veirificar se o usuario já existe na base
-            ClienteFavorecido.findByCpfCnj(cpf_cnpj);
-
-            
-            // de/para  ->  user / Cliente   
-            
-            //se não existir 
-
-            clienteFavorecido.insere();
-
-            //Se exitir 
-            ClienteFavorecido.atualiza();
-        }
-    } 
-
+  private async saveFavorecidoFromUser(
+    user: User,
+    existingId_facorecido?: number,
+  ): Promise<ClienteFavorecido> {
+    return await this.clienteFavorecidoRepository.create({
+      id_cliente_favorecido: existingId_facorecido,
+      nome: user.getFullName(),
+      cpf_cnpj: user.getCpfCnpj(),
+      cod_banco: String(user.getBankCode()),
+      agencia: user.getBankAgencyWithoutDigit(),
+      dv_agencia: user.getBankAgencyDigit(),
+      conta_corrente: user.getBankAccount(),
+      dv_conta_corrente: user.getBankAccountDigit(),
+      logradouro: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      cep: '',
+      complemento_cep: '',
+      uf: '',
+    });
+  }
 }

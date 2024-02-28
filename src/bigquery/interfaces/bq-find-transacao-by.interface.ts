@@ -5,5 +5,5 @@ export interface IBqFetchTransacao {
   limit?: number;
   offset?: number;
   getToday?: boolean;
-  previousDays?: boolean;
+  previousDaysOnly?: boolean;
 }

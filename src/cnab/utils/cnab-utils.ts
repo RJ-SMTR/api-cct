@@ -1,7 +1,7 @@
 import { Exception } from 'handlebars';
 import { CNAB_EOL, CNAB_SUPPORTED_FORMATS } from '../cnab-consts';
 import { CnabAllCodigoRegistro } from '../enums/all/cnab-all-codigo-registro.enum';
-import { ICnabFieldMap } from '../interfaces/cnab-field-map.interface';
+import { ICnabFieldMap } from '../interfaces/cnab-all/cnab-field-map.interface';
 import { CnabField } from '../types/cnab-field.type';
 import { CnabFile, isCnabFile } from '../types/cnab-file.type';
 import { CnabLote, isCnabLote } from '../types/cnab-lote.type';

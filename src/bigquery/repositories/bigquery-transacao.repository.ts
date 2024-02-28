@@ -6,15 +6,15 @@ import { TRIntegrationTypeMap } from 'src/ticket-revenues/maps/ticket-revenues.m
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BQSInstances, BigqueryService } from '../bigquery.service';
-import { BqTransacao } from '../entities/transacao.bq-entity';
+import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { IBqFetchTransacao } from '../interfaces/bq-find-transacao-by.interface';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
 import { BqTransacaoTipoTransacaoMap } from '../maps/bq-transacao-tipo-transacao.map';
 
 @Injectable()
-export class BqTransacaoRepositoryService {
-  private logger: Logger = new Logger('BqTransacaoRepositoryService', {
+export class BigqueryTransacaoRepository {
+  private logger: Logger = new Logger('BigqueryTransacaoRepository', {
     timestamp: true,
   });
 
@@ -25,14 +25,15 @@ export class BqTransacaoRepositoryService {
 
   public async findTransacaoBy(
     filter?: IBqFetchTransacao,
-  ): Promise<BqTransacao[]> {
-    const transacoes: BqTransacao[] = (await this.fetchTransacao(filter)).data;
+  ): Promise<BigqueryTransacao[]> {
+    const transacoes: BigqueryTransacao[] = (await this.fetchTransacao(filter))
+      .data;
     return transacoes;
   }
 
   private async fetchTransacao(
     args?: IBqFetchTransacao,
-  ): Promise<{ data: BqTransacao[]; countAll: number }> {
+  ): Promise<{ data: BigqueryTransacao[]; countAll: number }> {
     const qArgs = await this.getQueryArgs(args);
     const query =
       `
@@ -80,7 +81,7 @@ export class BqTransacaoRepositoryService {
 
     const count: number = queryResult[0].count;
     // Remove unwanted keys and remove last item (all null if empty)
-    let transacoes: BqTransacao[] = queryResult.map((i) => {
+    let transacoes: BigqueryTransacao[] = queryResult.map((i) => {
       delete i.status;
       delete i.count;
       return i;
@@ -147,7 +148,7 @@ export class BqTransacaoRepositoryService {
         `DATE(t.datetime_processamento) <= DATE('${endDate}')`,
       );
     }
-    if (args?.previousDays === true) {
+    if (args?.previousDaysOnly === true) {
       queryBuilder.pushAND(
         'DATE(t.datetime_processamento) > DATE(t.datetime_transacao)',
       );
@@ -202,8 +203,8 @@ export class BqTransacaoRepositoryService {
   /**
    * Convert id or some values into desired string values
    */
-  private mapBqTransacao(transacoes: BqTransacao[]): BqTransacao[] {
-    return transacoes.map((item: BqTransacao) => {
+  private mapBqTransacao(transacoes: BigqueryTransacao[]): BigqueryTransacao[] {
+    return transacoes.map((item: BigqueryTransacao) => {
       const tipo_transacao = item.tipo_transacao;
       const tipo_pagamento = item.tipo_pagamento;
       const tipo_integracao = item.tipo_integracao;
