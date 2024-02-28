@@ -104,7 +104,7 @@ export class TicketRevenuesRepositoryService {
       `\nORDER BY partitionDate DESC, processingHour DESC` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
-    const queryResult = await this.bigqueryService.runQuery(
+    const queryResult = await this.bigqueryService.query(
       BQSInstances.smtr,
       query,
     );
