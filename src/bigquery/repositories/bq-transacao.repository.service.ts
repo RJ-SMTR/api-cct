@@ -1,16 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { appSettings } from 'src/settings/app.settings';
+import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
+import { SettingsService } from 'src/settings/settings.service';
+import { TRIntegrationTypeMap } from 'src/ticket-revenues/maps/ticket-revenues.map';
+import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
+import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BQSInstances, BigqueryService } from '../bigquery.service';
 import { BqTransacao } from '../entities/transacao.bq-entity';
 import { IBqFetchTransacao } from '../interfaces/bq-find-transacao-by.interface';
-import { SettingsService } from 'src/settings/settings.service';
-import { appSettings } from 'src/settings/app.settings';
-import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
-import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
-import { TRIntegrationTypeMap } from 'src/ticket-revenues/maps/ticket-revenues.map';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
-import { BqTransacaoTipoTransacaoMap } from '../maps/bq-transacao-tipo-transacao.map';
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
+import { BqTransacaoTipoTransacaoMap } from '../maps/bq-transacao-tipo-transacao.map';
 
 @Injectable()
 export class BqTransacaoRepositoryService {
@@ -37,8 +37,8 @@ export class BqTransacaoRepositoryService {
     const query =
       `
       SELECT
-        CAST(t.data AS STRING) AS partitionDate,
-        t.hora AS processingHour,
+        CAST(t.data AS STRING) AS \`data\`,
+        t.hora AS hora,
         CAST(t.datetime_transacao AS STRING) AS datetime_transacao,
         CAST(t.datetime_processamento AS STRING) AS datetime_processamento,
         t.datetime_captura AS captureDateTime,
@@ -70,7 +70,7 @@ export class BqTransacaoRepositoryService {
       `UNION ALL
       SELECT ${'null, '.repeat(22)}
       (${qArgs.countQuery}) AS count, 'empty' AS status` +
-      `\nORDER BY t.data DESC, t.hora DESC` +
+      `\nORDER BY \`data\` DESC, hora DESC` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
     const queryResult = await this.bigqueryService.query(
