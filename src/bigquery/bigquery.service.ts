@@ -90,7 +90,7 @@ export class BigqueryService {
    * Run bigquery query with complete log and error handling
    * @throws `HttpException`
    */
-  public async runQuery(bqInstance: BQSInstances, query: string) {
+  public async query(bqInstance: BQSInstances, query: string) {
     this.logger.debug('Query fetch started');
     console.log('bigquery:', query);
     try {

@@ -27,7 +27,7 @@ export class UserSeedDataService {
     if (this.nodeEnv() === 'local' || this.nodeEnv() === 'test') {
       if (this.cpfSamples.length === 0) {
         this.cpfSamples = (
-          await this.bigqueryService.runQuery(
+          await this.bigqueryService.query(
             BQSInstances.smtr,
             `
 SELECT
@@ -42,7 +42,7 @@ LIMIT 5
       }
       if (this.cnpjSamples.length === 0) {
         this.cnpjSamples = (
-          await this.bigqueryService.runQuery(
+          await this.bigqueryService.query(
             BQSInstances.smtr,
             `
 SELECT
