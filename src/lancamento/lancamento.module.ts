@@ -6,10 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from 'src/users/users.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([LancamentoEntity]),
-    UsersModule
-  ],
+  imports: [TypeOrmModule.forFeature([LancamentoEntity]), UsersModule],
   controllers: [LancamentoController],
   providers: [LancamentoService],
   exports: [],

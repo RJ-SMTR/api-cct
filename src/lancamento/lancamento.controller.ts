@@ -69,9 +69,9 @@ export class LancamentoController {
     RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
-    )
-    @ApiBody({ type: CreateLancamentoDto })
-    @HttpCode(HttpStatus.CREATED)
+  )
+  @ApiBody({ type: CreateLancamentoDto })
+  @HttpCode(HttpStatus.CREATED)
   @Post('/')
   async createLancamento(
     @Body() lancamentoData: ItfLancamento,
@@ -97,11 +97,12 @@ export class LancamentoController {
     description: 'Id do lançamento',
   })
   @HttpCode(HttpStatus.OK)
-  async autorizarPagamento(
-    @Request() req,
-  ) {
+  async autorizarPagamento(@Request() req) {
     const userId = req.user.id;
     const lancamentoId = req.query.lancamentoId;
-    return await this.lancamentoService.autorizarPagamento(userId, lancamentoId);
+    return await this.lancamentoService.autorizarPagamento(
+      userId,
+      lancamentoId,
+    );
   }
 }
