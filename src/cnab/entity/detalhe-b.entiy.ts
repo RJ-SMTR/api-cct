@@ -1,13 +1,22 @@
-import { EntityHelper } from "src/utils/entity-helper";
+import { EntityHelper } from 'src/utils/entity-helper';
+import { DeepPartial, Entity } from 'typeorm';
 
 @Entity()
-class DetalheB extends EntityHelper{
-    id_detalhe_b:number;
-    id_detalhe_a :number;
-    nsr:string; 
-    data_vencimento: Date;
-}
+export class DetalheB extends EntityHelper {
+  constructor(detalheB?: DetalheB | DeepPartial<DetalheB>) {
+    super();
+    if (detalheB !== undefined) {
+      Object.assign(this, detalheB);
+    }
+  }
 
-function Entity(): (target: typeof DetalheB) => void | typeof DetalheB {
-    throw new Error("Function not implemented.");
+  id_detalhe_b: number;
+  id_detalhe_a: number;
+  nsr: string;
+  data_vencimento: Date;
+
+  public getLogInfo(): string {
+    const response = `#${this.id_detalhe_b}`;
+    return response;
+  }
 }

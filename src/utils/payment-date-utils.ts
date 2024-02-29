@@ -18,6 +18,9 @@ export const PAYMENT_START_WEEKDAY = WeekdayEnum._4_THURSDAY;
 export const PAYMENT_END_WEEKDAY = WeekdayEnum._3_WEDNESDAY;
 export type PaymentEndpointType = 'bank-statements' | 'ticket-revenues';
 
+/**
+ * From friday get starting thursday and ending wednesday
+ */
 export function getPaymentWeek(
   fridayDate: Date,
   endpoint: PaymentEndpointType = 'ticket-revenues',

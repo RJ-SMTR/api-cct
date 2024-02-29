@@ -1,14 +1,16 @@
-export class BqTransacao {
+export class BigqueryTransacao {
   id: number;
-  data: Date;
+  data: string;
   hora: number;
-  datetime_transacao: Date;
-  datetime_processamento: Date;
-  datetime_captura: Date;
+  datetime_transacao: string;
+  datetime_processamento: string;
+  datetime_captura: string;
   modo: string;
   id_consorcio: string;
+  /** Nome do consórcio */
   consorcio: string;
   id_operadora: string;
+  /** Nome da operadora */
   operadora: string;
   servico: string;
   sentido: string;
@@ -27,4 +29,6 @@ export class BqTransacao {
   stop_lon: number;
   valor_transacao: number;
   versao: string;
+
+  aux_nextFriday: string;
 }
