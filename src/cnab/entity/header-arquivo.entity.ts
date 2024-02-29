@@ -1,31 +1,38 @@
 import { EntityHelper } from "src/utils/entity-helper";
+import { Column,  Entity , PrimaryGeneratedColumn} from 'typeorm';
 
 @Entity()
-class HeaderArquivo extends EntityHelper{
+export class HeaderArquivo extends EntityHelper{
+    @PrimaryGeneratedColumn()
     id_header_arquivo:number;
+    @Column({ type: Number, unique: false, nullable: true })
     tipo_arquivo :string;
+    @Column({ type: String, unique: false, nullable: true })
     cod_banco :string;
+    @Column({ type: String, unique: false, nullable: true })
     tipo_inscricao:string;
+    @Column({ type: String, unique: false, nullable: true })
     num_inscricao :string;
+    @Column({ type: String, unique: false, nullable: true })
     cod_convenio :string;
+    @Column({ type: String, unique: false, nullable: true })
     param_transmissao :string;    
+    @Column({ type: String, unique: false, nullable: true })
     agencia :string;
+    @Column({ type: String, unique: false, nullable: true })
     dv_agencia:string;
+    @Column({ type: String, unique: false, nullable: true })
     num_conta :string;
+    @Column({ type: String, unique: false, nullable: true })
     dv_conta:string;
+    @Column({ type: String, unique: false, nullable: true })
     nome_empresa:string;
+    @Column({ type: String, unique: false, nullable: true })
     dt_geracao: Date;
-    @Column({ arg0: { type: 'timestamp' } })
+    @Column({ type: String, unique: false, nullable: true })
     hr_geracao: Date;
+    @Column({ type: Number, unique: false, nullable: true })
     id_transacao:number;
 }
 
-
-function Entity(): (target: typeof HeaderArquivo) => void | typeof HeaderArquivo {
-    throw new Error("Function not implemented.");
-}
-
-function Column(arg0: { arg0: { type: string; }; }): (target: HeaderArquivo, propertyKey: "hr_geracao") => void {
-    throw new Error("Function not implemented.");
-}
 
