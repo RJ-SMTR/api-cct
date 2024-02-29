@@ -1,11 +1,11 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 
 @Entity()
-class ItemTransacao extends EntityHelper {
+export class ItemTransacao extends EntityHelper {
   id_item_transacao: number;
   dt_transacao: Date;
-  dt_processamentoDate;
-  dt_capturaDate;
+  dt_processamento;
+  dt_captura;
   modo: string;
   nome_consorcio: string;
   id_tipo_pagamento: number;

@@ -1,5 +1,4 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { UsersService } from 'src/users/users.service';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { Pagador } from '../entity/pagador.entity';
 import { PagadorContaEnum } from '../enums/pagador/pagador.enum';
@@ -9,21 +8,19 @@ import { PagadorRepository } from '../repository/pagador.repository';
 export class PagadorService {
   private logger: Logger = new Logger('PagadorService', { timestamp: true });
 
-  constructor(
-    private usersService: UsersService,
-    private pagadorRepository: PagadorRepository,
-  ) {}
+  constructor(private pagadorRepository: PagadorRepository) {}
 
-  public async findById(id: PagadorContaEnum | number) {
-    return await this.pagadorRepository.findOne({ id_pagador: id });
+  public async findByConta(conta: PagadorContaEnum | string) {
+    return await this.pagadorRepository.findOne({ conta: conta });
   }
 
-  public async getOneById(id: PagadorContaEnum | number): Promise<Pagador> {
-    const pagador = await this.pagadorRepository.findOne({ id_pagador: id });
+  public async getOneById(conta: PagadorContaEnum | string): Promise<Pagador> {
+    const pagador = await this.pagadorRepository.findOne({ conta: conta });
     if (!pagador) {
-      throw CommonHttpException.notFound(
-        'Pagador.pagador_id',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+      throw CommonHttpException.errorDetails(
+        'Pagador.conta not found',
+        { pagadorConta: conta },
+        HttpStatus.NOT_FOUND,
       );
     } else {
       return pagador;

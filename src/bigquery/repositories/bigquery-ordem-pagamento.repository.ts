@@ -6,15 +6,15 @@ import { TRIntegrationTypeMap } from 'src/ticket-revenues/maps/ticket-revenues.m
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BQSInstances, BigqueryService } from '../bigquery.service';
-import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { IBqFetchTransacao } from '../interfaces/bq-find-transacao-by.interface';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
 import { BqTransacaoTipoTransacaoMap } from '../maps/bq-transacao-tipo-transacao.map';
+import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
 
 @Injectable()
-export class BigqueryTransacaoRepository {
-  private logger: Logger = new Logger('BigqueryTransacaoRepository', {
+export class BigqueryOrdemPagamentoRepository {
+  private logger: Logger = new Logger('BigqueryOrdemPagamentoRepository', {
     timestamp: true,
   });
 
@@ -25,15 +25,16 @@ export class BigqueryTransacaoRepository {
 
   public async findTransacaoBy(
     filter?: IBqFetchTransacao,
-  ): Promise<BigqueryTransacao[]> {
-    const transacoes: BigqueryTransacao[] = (await this.fetchTransacao(filter))
-      .data;
+  ): Promise<BigqueryOrdemPagamento[]> {
+    const transacoes: BigqueryOrdemPagamento[] = (
+      await this.fetchTransacao(filter)
+    ).data;
     return transacoes;
   }
 
   private async fetchTransacao(
     args?: IBqFetchTransacao,
-  ): Promise<{ data: BigqueryTransacao[]; countAll: number }> {
+  ): Promise<{ data: BigqueryOrdemPagamento[]; countAll: number }> {
     const qArgs = await this.getQueryArgs(args);
     const query =
       `
@@ -60,7 +61,7 @@ export class BigqueryTransacaoRepository {
         t.stop_lon AS stop_lon,
         CASE WHEN t.tipo_transacao = 'Integração' THEN i.valor_transacao_total ELSE t.valor_transacao END AS valor_transacao,
         t.versao AS bqDataVersion,
-        CAST(DATE_ADD(t.data, INTERVAL MOD(6 - EXTRACT(DAYOFWEEK FROM t.data) + 7, 7) DAY) AS STRING) AS aux_nextFriday,
+        DATE_ADD(t.data, INTERVAL MOD(6 - EXTRACT(DAYOFWEEK FROM t.data) + 7, 7) DAY) AS aux_nextFriday,
         (${qArgs.countQuery}) AS count,
         'ok' AS status
       FROM \`${qArgs.transacao}\` t\n` +
@@ -82,7 +83,7 @@ export class BigqueryTransacaoRepository {
 
     const count: number = queryResult[0].count;
     // Remove unwanted keys and remove last item (all null if empty)
-    let transacoes: BigqueryTransacao[] = queryResult.map((i) => {
+    let transacoes: BigqueryOrdemPagamento[] = queryResult.map((i) => {
       delete i.status;
       delete i.count;
       return i;
@@ -204,8 +205,10 @@ export class BigqueryTransacaoRepository {
   /**
    * Convert id or some values into desired string values
    */
-  private mapBqTransacao(transacoes: BigqueryTransacao[]): BigqueryTransacao[] {
-    return transacoes.map((item: BigqueryTransacao) => {
+  private mapBqTransacao(
+    transacoes: BigqueryOrdemPagamento[],
+  ): BigqueryOrdemPagamento[] {
+    return transacoes.map((item: BigqueryOrdemPagamento) => {
       const tipo_transacao = item.tipo_transacao;
       const tipo_pagamento = item.tipo_pagamento;
       const tipo_integracao = item.tipo_integracao;

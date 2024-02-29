@@ -4,8 +4,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { TransacaoClienteItem } from '../entity/transacao-cliente-item.entity';
-import { CreateTransacaoClienteItemDto } from '../interfaces/transacao-cliente-item/create-transacao-cliente-item.dto';
-import { UpdateTransacaoClienteItemDto } from '../interfaces/transacao-cliente-item/update-transacao-cliente-item.dto';
+import { SaveTransacaoClienteItemDTO } from '../dto/save-transacao-cliente-item.dto';
 
 @Injectable()
 export class TransacaoClienteItemRepository {
@@ -15,14 +14,22 @@ export class TransacaoClienteItemRepository {
 
   constructor(
     @InjectRepository(TransacaoClienteItem)
-    private TransacaoClienteItemRepository: Repository<TransacaoClienteItem>,
+    private transacaoClienteItemRepository: Repository<TransacaoClienteItem>,
   ) {}
 
+  public async save(dto: SaveTransacaoClienteItemDTO): Promise<void> {
+    if (dto.id === undefined) {
+      await this.create(dto);
+    } else {
+      await this.update(dto.id, dto);
+    }
+  }
+
   public async create(
-    createProfileDto: CreateTransacaoClienteItemDto,
+    createProfileDto: SaveTransacaoClienteItemDTO,
   ): Promise<TransacaoClienteItem> {
-    const createdItem = await this.TransacaoClienteItemRepository.save(
-      this.TransacaoClienteItemRepository.create(createProfileDto),
+    const createdItem = await this.transacaoClienteItemRepository.save(
+      this.transacaoClienteItemRepository.create(createProfileDto),
     );
     this.logger.log(`TransacaoClienteItem criado: ${createdItem.getLogInfo()}`);
     return createdItem;
@@ -30,11 +37,15 @@ export class TransacaoClienteItemRepository {
 
   public async update(
     id: number,
-    updateDto: UpdateTransacaoClienteItemDto,
+    updateDto: SaveTransacaoClienteItemDTO,
   ): Promise<UpdateResult> {
-    const updatePayload = await this.TransacaoClienteItemRepository.update(
+    const updatePayload = await this.transacaoClienteItemRepository.update(
       { id_cliente_favorecido: id },
       updateDto,
+    );
+    const updatedItem = new TransacaoClienteItem({ id: id, ...updateDto });
+    this.logger.log(
+      `TransacaoClienteItem atualizado: ${updatedItem.getLogInfo()}`,
     );
     return updatePayload;
   }
@@ -44,7 +55,7 @@ export class TransacaoClienteItemRepository {
       | EntityCondition<TransacaoClienteItem>
       | EntityCondition<TransacaoClienteItem>[],
   ): Promise<NullableType<TransacaoClienteItem>> {
-    return await this.TransacaoClienteItemRepository.findOne({
+    return await this.transacaoClienteItemRepository.findOne({
       where: fields,
     });
   }
@@ -54,7 +65,7 @@ export class TransacaoClienteItemRepository {
       | EntityCondition<TransacaoClienteItem>
       | EntityCondition<TransacaoClienteItem>[],
   ): Promise<TransacaoClienteItem[]> {
-    return await this.TransacaoClienteItemRepository.find({
+    return await this.transacaoClienteItemRepository.find({
       where: fields,
     });
   }

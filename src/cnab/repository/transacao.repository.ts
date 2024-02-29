@@ -4,8 +4,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { Transacao } from '../entity/transacao.entity';
-import { CreateTransacaoDto } from '../interfaces/transacao/create-transacao.dto';
-import { UpdateTransacaoDto } from '../interfaces/transacao/update-transacao.dto';
+import { SaveTransacaoDTO } from '../dto/save-transacao.dto';
 
 @Injectable()
 export class TransacaoRepository {
@@ -15,34 +14,42 @@ export class TransacaoRepository {
 
   constructor(
     @InjectRepository(Transacao)
-    private TransacaoRepository: Repository<Transacao>,
+    private transacaoRepository: Repository<Transacao>,
   ) {}
 
-  public async create(
-    createProfileDto: CreateTransacaoDto,
-  ): Promise<Transacao> {
-    const createdItem = await this.TransacaoRepository.save(
-      this.TransacaoRepository.create(createProfileDto),
+  public async save(dto: SaveTransacaoDTO): Promise<void> {
+    if (dto.id_transacao === undefined) {
+      await this.create(dto);
+    } else {
+      await this.update(dto.id_transacao, dto);
+    }
+  }
+
+  private async create(createProfileDto: SaveTransacaoDTO): Promise<Transacao> {
+    const createdItem = await this.transacaoRepository.save(
+      this.transacaoRepository.create(createProfileDto),
     );
     this.logger.log(`Transacao criado: ${createdItem.getLogInfo()}`);
     return createdItem;
   }
 
-  public async update(
+  private async update(
     id: number,
-    updateDto: UpdateTransacaoDto,
+    updateDto: SaveTransacaoDTO,
   ): Promise<UpdateResult> {
-    const updatePayload = await this.TransacaoRepository.update(
+    const updatePayload = await this.transacaoRepository.update(
       { id_transacao: id },
       updateDto,
     );
+    const updatedItem = new Transacao({ id_transacao: id, ...updateDto });
+    this.logger.log(`Transacao atualizado: ${updatedItem.getLogInfo()}`);
     return updatePayload;
   }
 
   public async findOne(
     fields: EntityCondition<Transacao> | EntityCondition<Transacao>[],
   ): Promise<NullableType<Transacao>> {
-    return await this.TransacaoRepository.findOne({
+    return await this.transacaoRepository.findOne({
       where: fields,
     });
   }
@@ -50,7 +57,7 @@ export class TransacaoRepository {
   public async findMany(
     fields: EntityCondition<Transacao> | EntityCondition<Transacao>[],
   ): Promise<Transacao[]> {
-    return await this.TransacaoRepository.find({
+    return await this.transacaoRepository.find({
       where: fields,
     });
   }

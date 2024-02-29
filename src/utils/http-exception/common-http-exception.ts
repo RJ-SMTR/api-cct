@@ -16,7 +16,19 @@ export const CommonHttpException = {
       },
       httpStatusCode,
     ),
-  simpleDetail: (details: any, httpStatusCode: HttpStatus = 500) =>
+  errorDetails: (
+    error: string,
+    details: object,
+    httpStatusCode: HttpStatus = 500,
+  ) =>
+    new HttpException(
+      {
+        error: getHttpStatusMessage(httpStatusCode),
+        details,
+      },
+      httpStatusCode,
+    ),
+  simpleDetails: (details: any, httpStatusCode: HttpStatus = 500) =>
     new HttpException(
       {
         error: getHttpStatusMessage(httpStatusCode),

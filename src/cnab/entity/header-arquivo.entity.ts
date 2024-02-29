@@ -1,5 +1,6 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { Entity } from 'typeorm';
+
 @Entity()
 export class HeaderArquivo extends EntityHelper {
   id_header_arquivo: number;

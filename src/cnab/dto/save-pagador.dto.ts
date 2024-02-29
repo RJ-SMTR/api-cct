@@ -1,69 +1,61 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
 
-function isCreate(object: SaveClienteFavorecidoDTO): boolean {
-  return object.id_cliente_favorecido === undefined;
+function isCreate(object: SavePagadorDTO): boolean {
+  return object.id_pagador === undefined;
 }
 
-export class SaveClienteFavorecidoDTO {
-  id_cliente_favorecido?: number;
+export class SavePagadorDTO {
+  id_pagador?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  nome?: string;
+  nome_empresa: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cpf_cnpj?: string;
+  agencia: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cod_banco?: string;
+  dv_agencia: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  agencia?: string;
+  conta: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dv_agencia?: string;
+  dv_conta: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  conta_corrente?: string;
+  logradouro: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dv_conta_corrente?: string;
+  numero: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  logradouro?: string;
+  complemento: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numero?: string;
+  bairro: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  complemento?: string;
+  cidade: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  bairro?: string;
+  cep: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cidade?: string;
+  complemento_cep: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cep?: string;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  complemento_cep?: string;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  uf?: string;
+  uf: string;
 }

@@ -3,6 +3,8 @@ import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
+import { SaveClienteFavorecidoDTO } from '../dto/save-cliente-favorecido.dto';
+import { validateDTO } from 'src/utils/validation-utils';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -36,8 +38,8 @@ export class ClienteFavorecidoService {
   private async saveFavorecidoFromUser(
     user: User,
     existingId_facorecido?: number,
-  ): Promise<ClienteFavorecido> {
-    return await this.clienteFavorecidoRepository.create({
+  ): Promise<void> {
+    const saveObject: SaveClienteFavorecidoDTO = {
       id_cliente_favorecido: existingId_facorecido,
       nome: user.getFullName(),
       cpf_cnpj: user.getCpfCnpj(),
@@ -54,6 +56,8 @@ export class ClienteFavorecidoService {
       cep: '',
       complemento_cep: '',
       uf: '',
-    });
+    };
+    await validateDTO(SaveClienteFavorecidoDTO, saveObject);
+    await this.clienteFavorecidoRepository.save(saveObject);
   }
 }

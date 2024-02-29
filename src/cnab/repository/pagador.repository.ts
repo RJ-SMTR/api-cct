@@ -4,8 +4,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { Pagador } from '../entity/pagador.entity';
-import { CreatePagadorDto } from '../interfaces/pagador/create-pagador.dto';
-import { UpdatePagadorDto } from '../interfaces/pagador/update-pagador.dto';
+import { SavePagadorDTO } from '../dto/save-pagador.dto';
 
 @Injectable()
 export class PagadorRepository {
@@ -16,22 +15,32 @@ export class PagadorRepository {
     private PagadorRepository: Repository<Pagador>,
   ) {}
 
-  public async create(createProfileDto: CreatePagadorDto): Promise<Pagador> {
+  public async save(dto: SavePagadorDTO): Promise<void> {
+    if (dto.id_pagador === undefined) {
+      await this.create(dto);
+    } else {
+      await this.update(dto.id_pagador, dto);
+    }
+  }
+
+  public async create(createProfileDto: SavePagadorDTO): Promise<Pagador> {
     const createdItem = await this.PagadorRepository.save(
       this.PagadorRepository.create(createProfileDto),
     );
     this.logger.log(`Pagador criado: ${createdItem[0].getLogInfo()}`);
-    return createdItem[0];
+    return createdItem;
   }
 
   public async update(
     id: number,
-    updateDto: UpdatePagadorDto,
+    updateDto: SavePagadorDTO,
   ): Promise<UpdateResult> {
     const updatePayload = await this.PagadorRepository.update(
       { id_pagador: id },
       updateDto,
     );
+    const updatedItem = new Pagador({ id_pagador: id, ...updateDto });
+    this.logger.log(`Pagador atualizado: ${updatedItem.getLogInfo()}`);
     return updatePayload;
   }
 

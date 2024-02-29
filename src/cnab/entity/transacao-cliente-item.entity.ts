@@ -1,8 +1,17 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class TransacaoClienteItem extends EntityHelper {
+  constructor(
+    entity?: TransacaoClienteItem | DeepPartial<TransacaoClienteItem>,
+  ) {
+    super();
+    if (entity !== undefined) {
+      Object.assign(this, entity);
+    }
+  }
+
   @PrimaryGeneratedColumn()
   id?: number;
 

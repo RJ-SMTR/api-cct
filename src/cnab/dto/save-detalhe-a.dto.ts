@@ -1,69 +1,73 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
 
-function isCreate(object: SaveClienteFavorecidoDTO): boolean {
-  return object.id_cliente_favorecido === undefined;
+function isCreate(object: SaveDetalheADTO): boolean {
+  return object.id_detalhe_a === undefined;
 }
 
-export class SaveClienteFavorecidoDTO {
+export class SaveDetalheADTO {
+  id_detalhe_a?: number;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  id_header_lote?: number;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  lote_servico?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
   id_cliente_favorecido?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  nome?: string;
+  tipo_finalidade_conta?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cpf_cnpj?: string;
+  dt_vencimento?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cod_banco?: string;
+  tipo_moeda?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  agencia?: string;
+  qtde_moeda?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dv_agencia?: string;
+  valor_lancamento?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  conta_corrente?: string;
+  num_doc_lancamento?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dv_conta_corrente?: string;
+  qtde_parcelas?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  logradouro?: string;
+  indicador_bloqueio?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numero?: string;
+  indicador_forma_parcelamento?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  complemento?: string;
+  periodo_vencimento?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  bairro?: string;
+  num_parcela?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cidade?: string;
+  data_efetivacao?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cep?: string;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  complemento_cep?: string;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  uf?: string;
+  valor_real_efetivado?: number;
 }

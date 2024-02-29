@@ -1,7 +1,7 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 
 @Entity()
-class HeaderLote extends EntityHelper {
+export class HeaderLote extends EntityHelper {
   id_header_lote: number;
   id_header_arquivo: number;
   lote_servico: string;
