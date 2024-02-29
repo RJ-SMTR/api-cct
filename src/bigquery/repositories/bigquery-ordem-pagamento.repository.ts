@@ -83,13 +83,13 @@ export class BigqueryOrdemPagamentoRepository {
 
     const count: number = queryResult[0].count;
     // Remove unwanted keys and remove last item (all null if empty)
-    let transacoes: BigqueryOrdemPagamento[] = queryResult.map((i) => {
+    const transacoes: BigqueryOrdemPagamento[] = queryResult.map((i) => {
       delete i.status;
       delete i.count;
       return i;
     });
     transacoes.pop();
-    transacoes = this.mapBqTransacao(transacoes);
+    // transacoes = this.mapBqTransacao(transacoes);
 
     return {
       data: transacoes,
@@ -205,29 +205,29 @@ export class BigqueryOrdemPagamentoRepository {
   /**
    * Convert id or some values into desired string values
    */
-  private mapBqTransacao(
-    transacoes: BigqueryOrdemPagamento[],
-  ): BigqueryOrdemPagamento[] {
-    return transacoes.map((item: BigqueryOrdemPagamento) => {
-      const tipo_transacao = item.tipo_transacao;
-      const tipo_pagamento = item.tipo_pagamento;
-      const tipo_integracao = item.tipo_integracao;
-      Object.values(TRIntegrationTypeMap[0]);
-      return {
-        ...item,
-        paymentMediaType:
-          tipo_pagamento !== null
-            ? BqTransacaoTipoPagamentoMap?.[tipo_pagamento] || tipo_pagamento
-            : tipo_pagamento,
-        transportIntegrationType:
-          tipo_integracao !== null
-            ? BqTsansacaoTipoIntegracaoMap?.[tipo_integracao] || tipo_integracao
-            : tipo_integracao,
-        transactionType:
-          tipo_transacao !== null
-            ? BqTransacaoTipoTransacaoMap?.[tipo_transacao] || tipo_transacao
-            : tipo_transacao,
-      };
-    });
-  }
+  // private mapBqTransacao(
+  //   transacoes: BigqueryOrdemPagamento[],
+  // ): BigqueryOrdemPagamento[] {
+  //   return transacoes.map((item: BigqueryOrdemPagamento) => {
+  //     const tipo_transacao = item.tipo_transacao;
+  //     const tipo_pagamento = item.tipo_pagamento;
+  //     const tipo_integracao = item.tipo_integracao;
+  //     Object.values(TRIntegrationTypeMap[0]);
+  //     return {
+  //       ...item,
+  //       paymentMediaType:
+  //         tipo_pagamento !== null
+  //           ? BqTransacaoTipoPagamentoMap?.[tipo_pagamento] || tipo_pagamento
+  //           : tipo_pagamento,
+  //       transportIntegrationType:
+  //         tipo_integracao !== null
+  //           ? BqTsansacaoTipoIntegracaoMap?.[tipo_integracao] || tipo_integracao
+  //           : tipo_integracao,
+  //       transactionType:
+  //         tipo_transacao !== null
+  //           ? BqTransacaoTipoTransacaoMap?.[tipo_transacao] || tipo_transacao
+  //           : tipo_transacao,
+  //     };
+  //   });
+  // }
 }
