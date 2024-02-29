@@ -2,15 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { appSettings } from 'src/settings/app.settings';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 import { SettingsService } from 'src/settings/settings.service';
-import { TRIntegrationTypeMap } from 'src/ticket-revenues/maps/ticket-revenues.map';
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BQSInstances, BigqueryService } from '../bigquery.service';
-import { IBqFetchTransacao } from '../interfaces/bq-find-transacao-by.interface';
-import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
-import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
-import { BqTransacaoTipoTransacaoMap } from '../maps/bq-transacao-tipo-transacao.map';
 import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
+import { IBqFetchTransacao } from '../interfaces/bq-find-transacao-by.interface';
 
 @Injectable()
 export class BigqueryOrdemPagamentoRepository {
