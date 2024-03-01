@@ -57,13 +57,13 @@ export class ClienteFavorecidoRepository {
     fields:
       | EntityCondition<ClienteFavorecido>
       | EntityCondition<ClienteFavorecido>[],
-  ): Promise<Nullable<ClienteFavorecido>> {
+  ): Promise<ClienteFavorecido> {
     return await this.clienteFavorecidoRepository.findOne({
       where: fields,
     });
   }
 
-  public async findMany(
+  public async findAll(
     fields:
       | EntityCondition<ClienteFavorecido>
       | EntityCondition<ClienteFavorecido>[],

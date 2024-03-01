@@ -4,12 +4,11 @@ import { UsersService } from 'src/users/users.service';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
 import { SaveClienteFavorecidoDTO } from '../dto/save-cliente-favorecido.dto';
-import { validateDTO } from 'src/utils/validation-utils';
 
 @Injectable()
 export class ClienteFavorecidoService {
   private logger: Logger = new Logger('ClienteFavorecidoService', {
-    timestamp: true,
+    timestamp: true
   });
 
   constructor(
@@ -34,8 +33,14 @@ export class ClienteFavorecidoService {
     }
   }
 
+  
+  public async findCpfCnpj(cpf_cnpj:string):Promise<ClienteFavorecido> {
+    return await this.clienteFavorecidoRepository.findOne(cpf_cnpj);
+  }
+
+
   public async getAll(): Promise<ClienteFavorecido[]> {
-    return await this.clienteFavorecidoRepository.findMany({});
+    return await this.clienteFavorecidoRepository.findAll({});
   }
 
   private async saveFavorecidoFromUser(
