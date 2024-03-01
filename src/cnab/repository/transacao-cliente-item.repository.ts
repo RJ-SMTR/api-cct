@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { TransacaoClienteItem } from '../entity/transacao-cliente-item.entity';
 import { SaveTransacaoClienteItemDTO } from '../dto/save-transacao-cliente-item.dto';
@@ -54,7 +54,7 @@ export class TransacaoClienteItemRepository {
     fields:
       | EntityCondition<TransacaoClienteItem>
       | EntityCondition<TransacaoClienteItem>[],
-  ): Promise<NullableType<TransacaoClienteItem>> {
+  ): Promise<Nullable<TransacaoClienteItem>> {
     return await this.transacaoClienteItemRepository.findOne({
       where: fields,
     });

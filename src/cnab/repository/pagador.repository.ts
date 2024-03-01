@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { Pagador } from '../entity/pagador.entity';
 import { SavePagadorDTO } from '../dto/save-pagador.dto';
@@ -46,7 +46,7 @@ export class PagadorRepository {
 
   public async findOne(
     fields: EntityCondition<Pagador> | EntityCondition<Pagador>[],
-  ): Promise<NullableType<Pagador>> {
+  ): Promise<Nullable<Pagador>> {
     return await this.PagadorRepository.findOne({
       where: fields,
     });

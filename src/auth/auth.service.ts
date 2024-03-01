@@ -20,7 +20,7 @@ import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { formatLog } from 'src/utils/logging';
 import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
-import { NullableType } from '../utils/types/nullable.type';
+import { Nullable } from '../utils/types/nullable.type';
 import { AuthProvidersEnum } from './auth-providers.enum';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
@@ -106,7 +106,7 @@ export class AuthService {
     authProvider: string,
     socialData: SocialInterface,
   ): Promise<LoginResponseType> {
-    let user: NullableType<User>;
+    let user: Nullable<User>;
     const socialEmail = socialData.email?.toLowerCase();
 
     const userByEmail = await this.usersService.findOne({
@@ -449,16 +449,13 @@ export class AuthService {
     await this.forgotService.softDelete(forgot.id);
   }
 
-  async me(user: User): Promise<NullableType<User>> {
+  async me(user: User): Promise<Nullable<User>> {
     return this.usersService.findOne({
       id: user.id,
     });
   }
 
-  async update(
-    user: User,
-    userDto: AuthUpdateDto,
-  ): Promise<NullableType<User>> {
+  async update(user: User, userDto: AuthUpdateDto): Promise<Nullable<User>> {
     const userProfile = await this.usersService.findOne({ id: user.id });
 
     if (!userProfile || !(userProfile && userProfile?.cpfCnpj)) {

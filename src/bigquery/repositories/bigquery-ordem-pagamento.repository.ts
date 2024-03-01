@@ -7,6 +7,7 @@ import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BQSInstances, BigqueryService } from '../bigquery.service';
 import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
 import { IBqFetchTransacao } from '../interfaces/bq-find-transacao-by.interface';
+import { IBigqueryQueryEntity } from '../interfaces/bq-query-entity.interface';
 
 @Injectable()
 export class BigqueryOrdemPagamentoRepository {
@@ -19,57 +20,60 @@ export class BigqueryOrdemPagamentoRepository {
     private readonly settingsService: SettingsService,
   ) {}
 
-  public async findTransacaoBy(
-    filter?: IBqFetchTransacao,
+  public async findMany(
+    filter?: IBigqueryQueryEntity,
   ): Promise<BigqueryOrdemPagamento[]> {
-    const transacoes: BigqueryOrdemPagamento[] = (
-      await this.fetchTransacao(filter)
-    ).data;
+    const transacoes: BigqueryOrdemPagamento[] = (await this.queryData(filter))
+      .data;
     return transacoes;
   }
 
-  private async fetchTransacao(
-    args?: IBqFetchTransacao,
+  private async queryData(
+    args?: IBigqueryQueryEntity,
   ): Promise<{ data: BigqueryOrdemPagamento[]; countAll: number }> {
     const qArgs = await this.getQueryArgs(args);
     const query =
       `
       SELECT
-        CAST(t.data AS STRING) AS \`data\`,
-        t.hora AS hora,
-        CAST(t.datetime_transacao AS STRING) AS datetime_transacao,
-        CAST(t.datetime_processamento AS STRING) AS datetime_processamento,
-        t.datetime_captura AS captureDateTime,
-        t.modo AS modo,
+        CAST(t.data_ordem AS STRING) AS data_ordem,
+        CAST(t.data_pagamento AS STRING) AS data_pagamento,
+        t.id_consorcio AS id_consorcio,
+        t.consorcio AS consorcio,
+        t.id_operadora AS id_operadora,
+        t.operadora AS operadora,
         t.servico AS servico,
-        t.sentido AS sentido,
-        t.id_veiculo AS id_veiculo,
-        t.id_cliente AS id_cliente,
-        t.id_transacao AS id_transacao,
-        t.${qArgs.tTipoPgto} AS tipo_pagamento,
-        t.tipo_transacao AS tipo_transacao,
-        t.id_tipo_integracao AS id_tipo_integracao,
-        t.id_integracao AS id_integracao,
-        t.latitude AS latitude,
-        t.longitude AS longitude,
-        t.stop_id AS stop_id,
-        t.stop_lat AS stop_lat,
-        t.stop_lon AS stop_lon,
-        CASE WHEN t.tipo_transacao = 'Integração' THEN i.valor_transacao_total ELSE t.valor_transacao END AS valor_transacao,
-        t.versao AS bqDataVersion,
-        DATE_ADD(t.data, INTERVAL MOD(6 - EXTRACT(DAYOFWEEK FROM t.data) + 7, 7) DAY) AS aux_nextFriday,
+        t.id_ordem_pagamento AS id_ordem_pagamento,
+        t.id_ordem_ressarcimento AS id_ordem_ressarcimento,
+        CAST(t.quantidade_transacao_debito AS STRING) AS quantidade_transacao_debito,
+        CAST(t.valor_debito AS STRING) AS valor_debito,
+        CAST(t.quantidade_transacao_especie AS STRING) AS quantidade_transacao_especie,
+        CAST(t.valor_especie AS STRING) AS valor_especie,
+        CAST(t.quantidade_transacao_gratuidade AS STRING) AS quantidade_transacao_gratuidade,
+        CAST(t.valor_gratuidade AS STRING) AS valor_gratuidade,
+        CAST(t.quantidade_transacao_integracao AS STRING) AS quantidade_transacao_integracao,
+        CAST(t.valor_integracao AS STRING) AS valor_integracao,
+        CAST(t.quantidade_transacao_rateio_credito AS STRING) AS quantidade_transacao_rateio_credito,
+        CAST(t.valor_rateio_credito AS STRING) AS valor_rateio_credito,
+        CAST(t.quantidade_transacao_rateio_debito AS STRING) AS quantidade_transacao_rateio_debito,
+        CAST(t.valor_rateio_debito AS STRING) AS valor_rateio_debito,
+        CAST(t.quantidade_total_transacao AS STRING) AS quantidade_total_transacao,
+        CAST(t.valor_total_transacao_bruto AS STRING) AS valor_total_transacao_bruto,
+        CAST(t.valor_desconto_taxa AS STRING) AS valor_desconto_taxa,
+        CAST(t.valor_total_transacao_liquido AS STRING) AS valor_total_transacao_liquido,
+        CAST(t.quantidade_total_transacao_captura AS STRING) AS quantidade_total_transacao_captura,
+        CAST(t.valor_total_transacao_captura AS STRING) AS valor_total_transacao_captura,
+        t.indicador_ordem_valida AS indicador_ordem_valida,
+        t.versao AS versao,
+        -- aux columns
         (${qArgs.countQuery}) AS count,
         'ok' AS status
-      FROM \`${qArgs.transacao}\` t\n` +
+      FROM \`${qArgs.ordemPagamento}\` t\n` +
       qArgs.joinCpfCnpj +
-      '\n' +
-      qArgs.joinIntegracao +
       '\n' +
       (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
       `UNION ALL
-      SELECT ${'null, '.repeat(23)}
+      SELECT ${'null, '.repeat(29)}
       (${qArgs.countQuery}) AS count, 'empty' AS status` +
-      `\nORDER BY \`data\` DESC, hora DESC` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
     const queryResult = await this.bigqueryService.query(
@@ -96,11 +100,9 @@ export class BigqueryOrdemPagamentoRepository {
   private async getQueryArgs(args?: IBqFetchTransacao): Promise<{
     qWhere: string;
     bucket: string;
-    transacao: string;
-    integracao: string;
+    ordemPagamento: string;
     tTipoPgto: string;
     joinCpfCnpj: string;
-    joinIntegracao: string;
     countQuery: string;
     offset?: number;
     limit?: number;
@@ -114,12 +116,9 @@ export class BigqueryOrdemPagamentoRepository {
       ).getValueAsString() === BigqueryEnvironment.Production;
     const Q_CONSTS = {
       bucket: IS_BQ_PROD ? 'rj-smtr' : 'rj-smtr-dev',
-      transacao: IS_BQ_PROD
-        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao'
-        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao',
-      integracao: IS_BQ_PROD
-        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.integracao'
-        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.integracao',
+      ordemPagamento: IS_BQ_PROD
+        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento'
+        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.ordem_pagamento',
       tTipoPgto: IS_BQ_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
     };
     // Args
@@ -136,28 +135,20 @@ export class BigqueryOrdemPagamentoRepository {
 
     if (args?.startDate) {
       const startDate = args.startDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) >= DATE('${startDate}')`,
-      );
+      queryBuilder.pushAND(`DATE(t.data_ordem) >= DATE('${startDate}')`);
     }
     if (args?.endDate) {
       const endDate = args.endDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) <= DATE('${endDate}')`,
-      );
+      queryBuilder.pushAND(`DATE(t.data_ordem) <= DATE('${endDate}')`);
     }
     if (args?.previousDaysOnly === true) {
-      queryBuilder.pushAND(
-        'DATE(t.datetime_processamento) > DATE(t.datetime_transacao)',
-      );
+      queryBuilder.pushAND('DATE(t.data_ordem) > DATE(t.datetime_transacao)');
     }
 
     queryBuilder.pushOR([]);
     if (args?.getToday) {
       const nowStr = new Date(Date.now()).toISOString().slice(0, 10);
-      queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) = DATE('${nowStr}')`,
-      );
+      queryBuilder.pushAND(`DATE(t.data_ordem) = DATE('${nowStr}')`);
     }
 
     let qWhere = queryBuilder.toSQL();
@@ -174,56 +165,22 @@ export class BigqueryOrdemPagamentoRepository {
       isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
         ? `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.operadoras\` b ON b.id_operadora = t.id_operadora `
         : `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.consorcios\` b ON b.id_consorcio = t.id_consorcio `;
-    const joinIntegracao = `INNER JOIN ${Q_CONSTS.integracao} i ON i.id_transacao = t.id_transacao`;
 
     const countQuery =
       'SELECT COUNT(*) AS count ' +
-      `FROM \`${Q_CONSTS.transacao}\` t\n` +
+      `FROM \`${Q_CONSTS.ordemPagamento}\` t\n` +
       joinCpfCnpj +
-      '\n' +
-      joinIntegracao +
       '\n' +
       (qWhere.length ? ` WHERE ${qWhere}\n` : '');
     return {
       qWhere,
       bucket: Q_CONSTS.bucket,
-      transacao: Q_CONSTS.transacao,
-      integracao: Q_CONSTS.integracao,
+      ordemPagamento: Q_CONSTS.ordemPagamento,
       tTipoPgto: Q_CONSTS.tTipoPgto,
       joinCpfCnpj,
-      joinIntegracao,
       countQuery,
       offset,
       limit: args?.limit,
     };
   }
-
-  /**
-   * Convert id or some values into desired string values
-   */
-  // private mapBqTransacao(
-  //   transacoes: BigqueryOrdemPagamento[],
-  // ): BigqueryOrdemPagamento[] {
-  //   return transacoes.map((item: BigqueryOrdemPagamento) => {
-  //     const tipo_transacao = item.tipo_transacao;
-  //     const tipo_pagamento = item.tipo_pagamento;
-  //     const tipo_integracao = item.tipo_integracao;
-  //     Object.values(TRIntegrationTypeMap[0]);
-  //     return {
-  //       ...item,
-  //       paymentMediaType:
-  //         tipo_pagamento !== null
-  //           ? BqTransacaoTipoPagamentoMap?.[tipo_pagamento] || tipo_pagamento
-  //           : tipo_pagamento,
-  //       transportIntegrationType:
-  //         tipo_integracao !== null
-  //           ? BqTsansacaoTipoIntegracaoMap?.[tipo_integracao] || tipo_integracao
-  //           : tipo_integracao,
-  //       transactionType:
-  //         tipo_transacao !== null
-  //           ? BqTransacaoTipoTransacaoMap?.[tipo_transacao] || tipo_transacao
-  //           : tipo_transacao,
-  //     };
-  //   });
-  // }
 }

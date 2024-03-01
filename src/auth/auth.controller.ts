@@ -19,7 +19,7 @@ import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
-import { NullableType } from '../utils/types/nullable.type';
+import { Nullable } from '../utils/types/nullable.type';
 import { AuthService } from './auth.service';
 import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
@@ -119,7 +119,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
-  public me(@Request() request): Promise<NullableType<User>> {
+  public me(@Request() request): Promise<Nullable<User>> {
     return this.authService.me(request.user);
   }
 
@@ -133,7 +133,7 @@ export class AuthController {
   public update(
     @Request() request,
     @Body() userDto: AuthUpdateDto,
-  ): Promise<NullableType<User>> {
+  ): Promise<Nullable<User>> {
     return this.authService.update(request.user, userDto);
   }
 

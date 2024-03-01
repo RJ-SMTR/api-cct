@@ -14,7 +14,9 @@ export class PagadorService {
     return await this.pagadorRepository.findOne({ conta: conta });
   }
 
-  public async getOneById(conta: PagadorContaEnum | string): Promise<Pagador> {
+  public async getOneByConta(
+    conta: PagadorContaEnum | string,
+  ): Promise<Pagador> {
     const pagador = await this.pagadorRepository.findOne({ conta: conta });
     if (!pagador) {
       throw CommonHttpException.errorDetails(

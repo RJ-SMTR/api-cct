@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { Transacao } from '../entity/transacao.entity';
 import { SaveTransacaoDTO } from '../dto/save-transacao.dto';
@@ -17,11 +17,13 @@ export class TransacaoRepository {
     private transacaoRepository: Repository<Transacao>,
   ) {}
 
-  public async save(dto: SaveTransacaoDTO): Promise<void> {
+  public async save(dto: SaveTransacaoDTO): Promise<number> {
     if (dto.id_transacao === undefined) {
-      await this.create(dto);
+      const createdItem = await this.create(dto);
+      return createdItem.id_transacao;
     } else {
       await this.update(dto.id_transacao, dto);
+      return dto.id_transacao;
     }
   }
 
@@ -48,7 +50,7 @@ export class TransacaoRepository {
 
   public async findOne(
     fields: EntityCondition<Transacao> | EntityCondition<Transacao>[],
-  ): Promise<NullableType<Transacao>> {
+  ): Promise<Nullable<Transacao>> {
     return await this.transacaoRepository.findOne({
       where: fields,
     });

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { SaveDetalheADTO } from '../dto/save-detalhe-a.dto';
 import { DetalheA } from '../entity/detalhe-a.entity';
@@ -48,7 +48,7 @@ export class DetalheARepository {
 
   public async findOne(
     fields: EntityCondition<DetalheA> | EntityCondition<DetalheA>[],
-  ): Promise<NullableType<DetalheA>> {
+  ): Promise<Nullable<DetalheA>> {
     return await this.DetalheARepository.findOne({
       where: fields,
     });

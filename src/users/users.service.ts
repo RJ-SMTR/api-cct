@@ -31,7 +31,7 @@ import {
   WhereExpressionBuilder,
 } from 'typeorm';
 import * as xlsx from 'xlsx';
-import { NullableType } from '../utils/types/nullable.type';
+import { Nullable } from '../utils/types/nullable.type';
 import { CreateUserFileDto } from './dto/create-user-file.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
@@ -182,7 +182,7 @@ export class UsersService {
       .andWhere(andWhere)
       .getMany();
 
-    let invites: NullableType<MailHistory[]> = null;
+    let invites: Nullable<MailHistory[]> = null;
     if (inviteStatus) {
       invites = await this.mailHistoryService.find({ inviteStatus });
     }
@@ -220,7 +220,7 @@ export class UsersService {
 
   async findOne(
     fields: EntityCondition<User> | EntityCondition<User>[],
-  ): Promise<NullableType<User>> {
+  ): Promise<Nullable<User>> {
     let user = await this.usersRepository.findOne({
       where: fields,
     });
