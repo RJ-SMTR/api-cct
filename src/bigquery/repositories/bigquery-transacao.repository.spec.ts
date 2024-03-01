@@ -9,7 +9,7 @@ import { config } from 'dotenv';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
 
-describe('BigqueryTransacaoRepositoryService', () => {
+describe('BigqueryTransacaoRepository', () => {
   let settingsService: SettingsService;
   let bqTransacaoRepository: BigqueryTransacaoRepository;
   const mockBqGoogleCredentials = () => ({
@@ -80,6 +80,7 @@ describe('BigqueryTransacaoRepositoryService', () => {
       const result = await bqTransacaoRepository.findTransacaoBy({
         startDate: new Date('2023-06-01'),
         endDate: new Date('2024-06-01'),
+        limit: 50,
       });
 
       // Assert

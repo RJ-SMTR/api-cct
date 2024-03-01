@@ -29,7 +29,7 @@ export class SaveTransacaoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  id_ordem_ressarcimento?: number;
+  id_ordem_ressarcimento?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

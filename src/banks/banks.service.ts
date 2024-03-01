@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Bank } from './entities/bank.entity';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 
 @Injectable()
@@ -16,7 +16,7 @@ export class BanksService {
     return this.banksRepository.find({ where: { isAllowed: true } });
   }
 
-  findOne(fields: EntityCondition<Bank>): Promise<NullableType<Bank>> {
+  findOne(fields: EntityCondition<Bank>): Promise<Nullable<Bank>> {
     return this.banksRepository.findOne({
       where: fields,
     });

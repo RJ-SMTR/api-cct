@@ -12,7 +12,7 @@ import { UsersService } from 'src/users/users.service';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
-import { NullableType } from '../utils/types/nullable.type';
+import { Nullable } from '../utils/types/nullable.type';
 import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
 import { IALConcludeRegistration } from './interfaces/al-conclude-registration.interface';
@@ -107,7 +107,7 @@ export class AuthLicenseeService {
     }
   }
 
-  async validateDuplicatedUser(user: NullableType<User>) {
+  async validateDuplicatedUser(user: Nullable<User>) {
     if (!user) {
       return;
     }

@@ -3,9 +3,9 @@ import { EntityHelper } from 'src/utils/entity-helper';
 @Entity()
 export class ItemTransacao extends EntityHelper {
   id_item_transacao: number;
-  dt_transacao: Date;
-  dt_processamento;
-  dt_captura;
+  dt_transacao: string;
+  dt_processamento: string;
+  dt_captura: string;
   modo: string;
   nome_consorcio: string;
   id_tipo_pagamento: number;
