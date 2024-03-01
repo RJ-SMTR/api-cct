@@ -34,5 +34,3 @@ export class HeaderArquivo extends EntityHelper{
     @Column({ type: Number, unique: false, nullable: true })
     id_transacao:number;
 }
-
-

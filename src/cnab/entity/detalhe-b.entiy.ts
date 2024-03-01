@@ -1,14 +1,22 @@
-import { EntityHelper } from "src/utils/entity-helper";
-import { Column,  Entity , PrimaryGeneratedColumn} from 'typeorm';
+import { EntityHelper } from 'src/utils/entity-helper';
+import { DeepPartial, Entity } from 'typeorm';
 
 @Entity()
-export class DetalheB extends EntityHelper{
-    @PrimaryGeneratedColumn()
-    id_detalhe_b:number;
-    @Column({ type: Number, unique: false, nullable: true })
-    id_detalhe_a :number;
-    @Column({ type: String, unique: false, nullable: true })
-    nsr:string; 
-    @Column({ type: Date, unique: false, nullable: true })
-    data_vencimento: Date;
+export class DetalheB extends EntityHelper {
+  constructor(detalheB?: DetalheB | DeepPartial<DetalheB>) {
+    super();
+    if (detalheB !== undefined) {
+      Object.assign(this, detalheB);
+    }
+  }
+
+  id_detalhe_b: number;
+  id_detalhe_a: number;
+  nsr: string;
+  data_vencimento: Date;
+
+  public getLogInfo(): string {
+    const response = `#${this.id_detalhe_b}`;
+    return response;
+  }
 }

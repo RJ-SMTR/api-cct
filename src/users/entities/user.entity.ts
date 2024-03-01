@@ -238,6 +238,115 @@ export class User extends EntityHelper {
    * Get field validated
    * @throws `HttpException`
    */
+  getBankAgency(args?: {
+    errorMessage?: string;
+    httpStatusCode?: HttpStatus;
+  }): string {
+    if (!this.bankAgency) {
+      throw UserHttpException.invalidField('bankAgency', {
+        errorMessage: args?.errorMessage,
+        httpStatusCode: args?.httpStatusCode,
+      });
+    }
+    return this.bankAgency;
+  }
+
+  /**
+   * Get field validated
+   * @throws `HttpException`
+   */
+  getBankAgencyWithoutDigit(args?: {
+    errorMessage?: string;
+    httpStatusCode?: HttpStatus;
+  }): string {
+    const agency = this.getBankAgency(args);
+    return agency.substring(0, agency.length - 1);
+  }
+
+  /**
+   * Get field validated
+   * @throws `HttpException`
+   */
+  getBankAgencyDigit(args?: {
+    errorMessage?: string;
+    httpStatusCode?: HttpStatus;
+  }): string {
+    const agency = this.getBankAgency(args);
+    return agency.substring(agency.length - 1);
+  }
+
+  /**
+   * Get field validated
+   * @throws `HttpException`
+   */
+  getBankAccount(args?: {
+    errorMessage?: string;
+    httpStatusCode?: HttpStatus;
+  }): string {
+    if (!this.bankAccount) {
+      throw UserHttpException.invalidField('bankAgency', {
+        errorMessage: args?.errorMessage,
+        httpStatusCode: args?.httpStatusCode,
+      });
+    }
+    return this.bankAccount;
+  }
+
+  /**
+   * Get field validated
+   * @throws `HttpException`
+   */
+  getBankAccountDigit(args?: {
+    errorMessage?: string;
+    httpStatusCode?: HttpStatus;
+  }): string {
+    if (!this.bankAccountDigit) {
+      throw UserHttpException.invalidField('bankAgency', {
+        errorMessage: args?.errorMessage,
+        httpStatusCode: args?.httpStatusCode,
+      });
+    }
+    return this.bankAccountDigit;
+  }
+
+  /**
+   * Get field validated
+   * @throws `HttpException`
+   */
+  getBankCode(args?: {
+    errorMessage?: string;
+    httpStatusCode?: HttpStatus;
+  }): number {
+    if (!this.bankCode) {
+      throw UserHttpException.invalidField('bankAgency', {
+        errorMessage: args?.errorMessage,
+        httpStatusCode: args?.httpStatusCode,
+      });
+    }
+    return this.bankCode;
+  }
+
+  /**
+   * Get field validated
+   * @throws `HttpException`
+   */
+  getFullName(args?: {
+    errorMessage?: string;
+    httpStatusCode?: HttpStatus;
+  }): string {
+    if (!this.fullName) {
+      throw UserHttpException.invalidField('bankAgency', {
+        errorMessage: args?.errorMessage,
+        httpStatusCode: args?.httpStatusCode,
+      });
+    }
+    return this.fullName;
+  }
+
+  /**
+   * Get field validated
+   * @throws `HttpException`
+   */
   getCpfCnpj(args?: {
     errorMessage?: string;
     httpStatusCode?: HttpStatus;

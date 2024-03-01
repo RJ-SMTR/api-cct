@@ -9,7 +9,7 @@ import { CnabFields } from '../types/cnab-field.type';
 import { CnabFile } from '../types/cnab-file.type';
 import { CnabLote } from '../types/cnab-lote.type';
 import { CnabRegistro } from '../types/cnab-registro.type';
-import { ICnabFieldMap } from '../interfaces/cnab-field-map.interface';
+import { ICnabFieldMap } from '../interfaces/cnab-all/cnab-field-map.interface';
 import * as path from 'path';
 import * as fs from 'fs';
 import { cnab240GenericFieldMapTemplateTest } from '../test/templates/240/generic/cnab-240-generic-field-map-template-test.const';

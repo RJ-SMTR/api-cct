@@ -3,8 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import {
-    Repository,
-    UpdateResult
+    Repository
 } from 'typeorm';
 import { HeaderArquivo } from '../entity/header-arquivo.entity';
 import { HeaderArquivoDTO } from '../dto/header-arquivo.dto';
@@ -12,6 +11,7 @@ import { HeaderArquivoDTO } from '../dto/header-arquivo.dto';
 
 @Injectable()
 export class HeaderArquivoRepository {
+    [x: string]: any;
     private logger: Logger = new Logger('HeaderArquivoRepository', { timestamp: true });
 
     constructor(
@@ -19,7 +19,7 @@ export class HeaderArquivoRepository {
         private HeaderArquivoRepository: Repository<HeaderArquivo>,
     ) { }
 
-    public async save(dto: HeaderArquivoDto): Promise<HeaderArquivo> {
+    public async save(dto: HeaderArquivoDTO): Promise<HeaderArquivo> {
        return await this.HeaderArquivoRepository.save(dto);               
     }  
 
@@ -31,12 +31,7 @@ export class HeaderArquivoRepository {
         });
     }
 
-    public async findMany(
-        fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[],
-    ): Promise<HeaderArquivo[]> {
-        return await this.HeaderArquivoRepository.find({
-            where: fields,
-        });
+    public async findAll(): Promise<HeaderArquivo[]> {
+        return await this.HeaderArquivoRepository.find();
     }
-
 }

@@ -12,8 +12,7 @@ export class HeaderArquivoDTO{
     num_conta :string;
     dv_conta:string;
     nome_empresa:string;
-    dt_geracao: Date;
-    @Column({ arg0: { type: 'timestamp' } })
+    dt_geracao: Date; 
     hr_geracao: Date;
     id_transacao:number;
 }

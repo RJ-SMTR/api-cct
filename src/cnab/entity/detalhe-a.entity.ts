@@ -16,9 +16,7 @@ export class DetalheA extends EntityHelper{
     @Column({ type: Date, unique: false, nullable: true })
     dt_vencimento: Date;
     @Column({ type: String, unique: false, nullable: true })
-    tipo_moeda :string;
-    @Column({ type: String, unique: false, nullable: true })
-    qtde_moeda :number;
+    tipo_moeda :string;   
     @Column({ type: String, unique: false, nullable: true })
     valor_lancamento: number;
     @Column({ type: String, unique: false, nullable: true })
@@ -36,7 +34,5 @@ export class DetalheA extends EntityHelper{
     @Column({ type: Date, unique: false, nullable: true })
     data_efetivacao: Date;
     @Column({ type: Number, unique: false, nullable: true })
-    valor_real_efetivado:number
+    valor_real_efetivado:number;
 }
-
-

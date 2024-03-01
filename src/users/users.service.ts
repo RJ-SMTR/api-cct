@@ -19,7 +19,7 @@ import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { formatLog } from 'src/utils/logging';
 import { getStringUpperUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
+import { InvalidRows } from 'src/utils/types/invalid-rows.type';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import {
   Brackets,
@@ -401,14 +401,14 @@ export class UsersService {
   async validateFileValues(
     userFile: IFileUser,
     fileUsers: IFileUser[],
-    validatorDto,
-  ): Promise<InvalidRowsType> {
+    validatorDto: any,
+  ): Promise<InvalidRows> {
     const schema = plainToClass(validatorDto, userFile.user);
     const errors = await validate(schema as Record<string, any>, {
       stopAtFirstError: true,
     });
     const SEPARATOR = '; ';
-    const errorDictionary: InvalidRowsType = errors.reduce((result, error) => {
+    const errorDictionary: InvalidRows = errors.reduce((result, error) => {
       const { property, constraints } = error;
       if (property && constraints) {
         result[property] = Object.values(constraints).join(SEPARATOR);

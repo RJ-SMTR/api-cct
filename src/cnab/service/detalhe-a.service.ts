@@ -20,8 +20,8 @@ export class DetalheAService {
         private detalheARepository: DetalheARepository
     ) { }
 
-    public async save(dto: DetalheADTO): Promise<void> {        
-       await this.detalheARepository.save(dto);       
+    public async save(dto: DetalheADTO): Promise<DetalheA> {        
+       return await this.detalheARepository.save(dto);       
     }  
 
 
