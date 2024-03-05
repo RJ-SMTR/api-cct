@@ -2,6 +2,7 @@ import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
+import { CnabService } from 'src/cnab/service/cnab.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -27,6 +28,8 @@ export enum CrobJobsEnum {
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
+  updateTransacaoFromJae = 'updateTransacaoFromJae',
+  sendNewCNABs = 'sendNewCNABs',
 }
 
 interface ICronJob {
@@ -53,7 +56,8 @@ export class CronJobsService implements OnModuleInit {
     private mailService: MailService,
     private mailHistoryService: MailHistoryService,
     private usersService: UsersService,
-  ) {}
+    private cnabService: CnabService,
+  ) { }
 
   onModuleInit() {
     const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
@@ -107,6 +111,24 @@ export class CronJobsService implements OnModuleInit {
             },
           },
         },
+        {
+          name: CrobJobsEnum.updateTransacaoFromJae,
+          cronJobParameters: {
+            cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+            onTick: async () => {
+              await this.bulkResendInvites();
+            },
+          },
+        },
+        {
+          name: CrobJobsEnum.sendNewCNABs,
+          cronJobParameters: {
+            cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+            onTick: async () => {
+              await this.sendNewCNABs();
+            },
+          },
+        },
       );
 
       for (const jobConfig of this.jobsConfig) {
@@ -149,7 +171,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -165,8 +187,8 @@ export class CronJobsService implements OnModuleInit {
     this.logger.log(
       formatLog(
         `Iniciando tarefa - a enviar: ${unsent.length},` +
-          ` enviado: ${sentToday.length}/${dailyQuota()},` +
-          ` falta enviar: ${remainingQuota}`,
+        ` enviado: ${sentToday.length}/${dailyQuota()},` +
+        ` falta enviar: ${remainingQuota}`,
         THIS_METHOD,
       ),
     );
@@ -326,7 +348,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -345,7 +367,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -361,7 +383,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.error(
         formatLog(
           `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
-            ` não foi encontrada (retornou: ${mailRecipients}).`,
+          ` não foi encontrada (retornou: ${mailRecipients}).`,
           'sendStatusReport()',
         ),
       );
@@ -372,7 +394,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.error(
         formatLog(
           `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
-            ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
+          ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
           THIS_METHOD,
         ),
       );
@@ -446,7 +468,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois setting.${appSettings.any__poll_db_enabled.name}' = 'false'` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -503,8 +525,8 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Alteração encontrada em` +
-            ` setting.'${args.setting.name}': ` +
-            `${job?.cronJobParameters.cronTime} --> ${setting}.`,
+          ` setting.'${args.setting.name}': ` +
+          `${job?.cronJobParameters.cronTime} --> ${setting}.`,
           thisMethod,
         ),
       );
@@ -583,7 +605,7 @@ export class CronJobsService implements OnModuleInit {
       formatLog(
         String(
           'Enviando emails específicos para ' +
-            `${notRegisteredUsers.length} usuários não totalmente registrados`,
+          `${notRegisteredUsers.length} usuários não totalmente registrados`,
         ),
         THIS_METHOD,
       ),
@@ -637,5 +659,13 @@ export class CronJobsService implements OnModuleInit {
         ),
       );
     }
+  }
+
+  async updateTransacaoFromJae() {
+    await this.cnabService.updateTransacaoFromJae();
+  }
+
+  async sendNewCNABs() {
+   await  this.cnabService.sendNewCNABs();
   }
 }

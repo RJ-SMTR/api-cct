@@ -15,7 +15,7 @@ export class ClienteFavorecidoService {
   constructor(
     private usersService: UsersService,
     private clienteFavorecidoRepository: ClienteFavorecidoRepository,
-  ) {}
+  ) { }
 
   /**
    * All ClienteFavoecidos will be created or updated from users based of cpfCnpj.
@@ -24,7 +24,7 @@ export class ClienteFavorecidoService {
   public async updateAllFromUsers(): Promise<void> {
     const allUsers = await this.usersService.findMany({});
     for (const user of allUsers) {
-      const favorecido = await this.clienteFavorecidoRepository.findOne({
+      const favorecido = await this.clienteFavorecidoRepository.getOne({
         cpf_cnpj: user.getCpfCnpj(),
       });
       await this.saveFavorecidoFromUser(
@@ -34,9 +34,9 @@ export class ClienteFavorecidoService {
     }
   }
 
-  
-  public async findCpfCnpj(cpf_cnpj:string):Promise<ClienteFavorecido> {
-    return await this.clienteFavorecidoRepository.findOne(cpf_cnpj);
+
+  public async getCpfCnpj(cpf_cnpj: string): Promise<ClienteFavorecido> {
+    return await this.clienteFavorecidoRepository.getOne({ cpf_cnpj: cpf_cnpj });
   }
 
 

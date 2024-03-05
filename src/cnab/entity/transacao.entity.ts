@@ -28,10 +28,10 @@ export class Transacao extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 150 })
   servico: string;
 
-  @Column({ type: Number, unique: true, nullable: true, length: 150 })
-  id_ordem_ressarcimento: number;
+  @Column({ type: String, unique: true, nullable: true, length: 150 })
+  id_ordem_ressarcimento: string;
 
-  @Column({ type: Number, unique: false, nullable: true, length: 150 })
+  @Column({ type: Number, unique: false, nullable: true })
   qtde_transacao_rateio_credito: number;
 
   @Column({
@@ -97,8 +97,8 @@ export class Transacao extends EntityHelper {
   })
   vlr_total_transacao_captura: number;
 
-  @Column({ type: String, unique: false, nullable: true, length: 100 })
-  indicador_ordem_valida: string;
+  @Column({ type: Boolean, unique: false, nullable: true, length: 100 })
+  indicador_ordem_valida: boolean;
 
   @Column({ type: Number, unique: false, nullable: true })
   id_pagador: number;

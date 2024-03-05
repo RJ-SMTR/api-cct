@@ -3,7 +3,6 @@ import { CommonHttpException } from 'src/utils/http-exception/common-http-except
 import { Pagador } from '../entity/pagador.entity';
 import { PagadorContaEnum } from '../enums/pagador/pagador.enum';
 import { PagadorRepository } from '../repository/pagador.repository';
-import { Nullable } from 'src/utils/types/nullable.type';
 
 @Injectable()
 export class PagadorService {
@@ -23,6 +22,21 @@ export class PagadorService {
       throw CommonHttpException.errorDetails(
         'Pagador.conta not found',
         { pagadorConta: conta },
+        HttpStatus.NOT_FOUND,
+      );
+    } else {
+      return pagador;
+    }
+  }
+
+  public async getOneByIdPagador(
+    id_pagador: number,
+  ): Promise<Pagador> {
+    const pagador = await this.pagadorRepository.findOne({ id_pagador: id_pagador });
+    if (!pagador) {
+      throw CommonHttpException.errorDetails(
+        'Pagador.conta not found',
+        { pagadorConta: id_pagador },
         HttpStatus.NOT_FOUND,
       );
     } else {
