@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/save-cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
