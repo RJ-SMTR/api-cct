@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { CnabService } from './cnab.service';
+import { CnabService } from './service/cnab.service';
 
 @Module({
   providers: [CnabService],
 })
-export class CnabModule {}
+export class CnabModule { }

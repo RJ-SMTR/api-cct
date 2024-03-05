@@ -20,7 +20,7 @@ export class TransacaoService {
     private pagadorService: PagadorService,
     private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
   ) { }
-  public async insereTransacoes() {
+  public async updateTransacaoFromJae() {
     //Atualiza todos os favorecidos
     await this.clienteFavorecidoService.updateAllFromUsers();
 
