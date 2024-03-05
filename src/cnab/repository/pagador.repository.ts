@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { Pagador } from '../entity/pagador.entity';
-import { SavePagadorDTO } from '../dto/save-pagador.dto';
+import { PagadorDTO } from '../dto/pagador.dto';
 
 @Injectable()
 export class PagadorRepository {
@@ -15,7 +15,7 @@ export class PagadorRepository {
     private PagadorRepository: Repository<Pagador>,
   ) {}
 
-  public async save(dto: SavePagadorDTO): Promise<void> {
+  public async save(dto: PagadorDTO): Promise<void> {
     if (dto.id_pagador === undefined) {
       await this.create(dto);
     } else {
@@ -23,7 +23,7 @@ export class PagadorRepository {
     }
   }
 
-  public async create(createProfileDto: SavePagadorDTO): Promise<Pagador> {
+  public async create(createProfileDto: PagadorDTO): Promise<Pagador> {
     const createdItem = await this.PagadorRepository.save(
       this.PagadorRepository.create(createProfileDto),
     );
@@ -33,7 +33,7 @@ export class PagadorRepository {
 
   public async update(
     id: number,
-    updateDto: SavePagadorDTO,
+    updateDto: PagadorDTO,
   ): Promise<UpdateResult> {
     const updatePayload = await this.PagadorRepository.update(
       { id_pagador: id },
@@ -46,7 +46,7 @@ export class PagadorRepository {
 
   public async findOne(
     fields: EntityCondition<Pagador> | EntityCondition<Pagador>[],
-  ): Promise<NullableType<Pagador>> {
+  ): Promise<Nullable<Pagador>> {
     return await this.PagadorRepository.findOne({
       where: fields,
     });

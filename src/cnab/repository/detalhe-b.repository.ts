@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { DetalheB } from '../entity/detalhe-b.entiy';
 import { SaveDetalheBDTO } from '../dto/save-detalhe-b.dto';
+import { DetalheBDTO } from '../dto/detalhe-b.dto';
 
 @Injectable()
 export class DetalheBRepository {
@@ -17,35 +18,13 @@ export class DetalheBRepository {
     private DetalheBRepository: Repository<DetalheB>,
   ) {}
 
-  async save(dto: SaveDetalheBDTO): Promise<void> {
-    if (dto.id_detalhe_a === undefined) {
-      await this.create(dto);
-    } else {
-      await this.update(dto.id_detalhe_a, dto);
-    }
-  }
-
-  async create(createProfileDto: SaveDetalheBDTO): Promise<DetalheB> {
-    const createdUser = await this.DetalheBRepository.save(
-      this.DetalheBRepository.create(createProfileDto),
-    );
-    this.logger.log(`DetalheB criado: ${createdUser.getLogInfo()}`);
-    return createdUser;
-  }
-
-  async update(id: number, updateDto: SaveDetalheBDTO): Promise<UpdateResult> {
-    const updatePayload = await this.DetalheBRepository.update(
-      { id_detalhe_b: id },
-      updateDto,
-    );
-    const updatedItem = new DetalheB({ id_detalhe_b: id, ...updateDto });
-    this.logger.log(`DetalheB atualizado: ${updatedItem.getLogInfo()}`);
-    return updatePayload;
+  public async save(dto: DetalheBDTO): Promise<DetalheB> {
+    return await this.DetalheBRepository.save(dto);
   }
 
   public async findOne(
     fields: EntityCondition<DetalheB> | EntityCondition<DetalheB>[],
-  ): Promise<NullableType<DetalheB>> {
+  ): Promise<Nullable<DetalheB>> {
     return await this.DetalheBRepository.findOne({
       where: fields,
     });
@@ -57,5 +36,15 @@ export class DetalheBRepository {
     return await this.DetalheBRepository.find({
       where: fields,
     });
+  }
+
+  async update(id: number, updateDto: SaveDetalheBDTO): Promise<UpdateResult> {
+    const updatePayload = await this.DetalheBRepository.update(
+      { id_detalhe_b: id },
+      updateDto,
+    );
+    const updatedItem = new DetalheB({ id_detalhe_b: id, ...updateDto });
+    this.logger.log(`DetalheB atualizado: ${updatedItem.getLogInfo()}`);
+    return updatePayload;
   }
 }

@@ -1,10 +1,10 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
 
-function isCreate(object: SavePagadorDTO): boolean {
+function isCreate(object: PagadorDTO): boolean {
   return object.id_pagador === undefined;
 }
 
-export class SavePagadorDTO {
+export class PagadorDTO {
   id_pagador?: number;
 
   @ValidateIf(isCreate)
@@ -58,4 +58,8 @@ export class SavePagadorDTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   uf: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  cpf_cnpj: string;
 }

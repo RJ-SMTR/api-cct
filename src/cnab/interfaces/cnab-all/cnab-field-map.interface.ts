@@ -69,7 +69,7 @@ export interface ICnabFieldMap {
    *
    * @example "A", "B", "J"
    */
-  detalheSegmentoField?: string;
+  detalheSegmentoNameField?: string;
 
   // TRAILER ARQUIVO FIELDS
 

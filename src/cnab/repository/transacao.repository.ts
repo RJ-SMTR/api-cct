@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
-import { Repository, UpdateResult } from 'typeorm';
+import { Nullable } from 'src/utils/types/nullable.type';
+import { DeepPartial, Repository, UpdateResult } from 'typeorm';
 import { Transacao } from '../entity/transacao.entity';
-import { SaveTransacaoDTO } from '../dto/save-transacao.dto';
+import { TransacaoDTO } from '../dto/transacao.dto';
 
 @Injectable()
 export class TransacaoRepository {
@@ -17,38 +17,40 @@ export class TransacaoRepository {
     private transacaoRepository: Repository<Transacao>,
   ) {}
 
-  public async save(dto: SaveTransacaoDTO): Promise<void> {
+  public async save(dto: TransacaoDTO): Promise<number> {
     if (dto.id_transacao === undefined) {
-      await this.create(dto);
+      const createdItem = await this.create(dto);
+      return createdItem.id_transacao;
     } else {
       await this.update(dto.id_transacao, dto);
+      return dto.id_transacao;
     }
   }
 
-  private async create(createProfileDto: SaveTransacaoDTO): Promise<Transacao> {
+  private async create(dto: TransacaoDTO): Promise<Transacao> {
     const createdItem = await this.transacaoRepository.save(
-      this.transacaoRepository.create(createProfileDto),
+      this.transacaoRepository.create(dto as DeepPartial<Transacao>),
     );
     this.logger.log(`Transacao criado: ${createdItem.getLogInfo()}`);
     return createdItem;
   }
 
-  private async update(
-    id: number,
-    updateDto: SaveTransacaoDTO,
-  ): Promise<UpdateResult> {
+  private async update(id: number, dto: TransacaoDTO): Promise<UpdateResult> {
     const updatePayload = await this.transacaoRepository.update(
       { id_transacao: id },
-      updateDto,
+      dto as DeepPartial<Transacao>,
     );
-    const updatedItem = new Transacao({ id_transacao: id, ...updateDto });
+    const updatedItem = new Transacao({
+      id_transacao: id,
+      ...(dto as DeepPartial<Transacao>),
+    });
     this.logger.log(`Transacao atualizado: ${updatedItem.getLogInfo()}`);
     return updatePayload;
   }
 
   public async findOne(
     fields: EntityCondition<Transacao> | EntityCondition<Transacao>[],
-  ): Promise<NullableType<Transacao>> {
+  ): Promise<Nullable<Transacao>> {
     return await this.transacaoRepository.findOne({
       where: fields,
     });
@@ -60,5 +62,9 @@ export class TransacaoRepository {
     return await this.transacaoRepository.find({
       where: fields,
     });
+  }
+
+  public async getAll(): Promise<Transacao[]> {
+    return await this.transacaoRepository.find({});
   }
 }

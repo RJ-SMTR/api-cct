@@ -25,22 +25,22 @@ export const cnab240_104HeaderArquivoTemplate: ICnab240_104HeaderArquivo = {
   tipoInscricao: {
     pos: [18, 18],
     picture: '9(001)',
-    value: '0',
+    value: '2',
   },
   numeroInscricao: {
     pos: [19, 32],
     picture: '9(014)',
-    value: '00000000000000',
+    value: '546037000110',
   },
   codigoConvenioBanco: {
     pos: [33, 38],
     picture: '9(006)',
-    value: '000000',
+    value: '444773',
   },
   parametroTransmissao: {
     pos: [39, 40],
     picture: '9(002)',
-    value: '00',
+    value: '01',
   },
   ambienteCliente: {
     pos: [41, 41],

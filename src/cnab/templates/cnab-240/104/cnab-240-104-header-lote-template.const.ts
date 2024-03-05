@@ -1,3 +1,4 @@
+import { Cnab104TipoCompromisso } from 'src/cnab/enums/104/cnab-104-tipo-compromisso.enum';
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
 import { ICnab240_104HeaderLote } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-header-lote.interface';
 
@@ -21,7 +22,11 @@ export const cnab240_104HeaderLoteTemplate: ICnab240_104HeaderLote = {
     value: '00000000000000',
   },
   codigoConvenioBanco: { pos: [33, 38], picture: '9(006)', value: '000000' },
-  tipoCompromisso: { pos: [39, 40], picture: '9(002)', value: '00' },
+  tipoCompromisso: {
+    pos: [39, 40],
+    picture: '9(002)',
+    value: Cnab104TipoCompromisso.PagamentoFornecedores,
+  },
   codigoCompromisso: { pos: [41, 44], picture: '9(004)', value: '0000' },
   parametroTransmissao: { pos: [45, 46], picture: 'X(002)', value: '  ' },
   filler2: { pos: [47, 52], picture: 'X(006)', value: '      ' },

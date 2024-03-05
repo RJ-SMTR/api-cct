@@ -11,7 +11,7 @@ import { User } from 'src/users/entities/user.entity';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { formatLog } from 'src/utils/logging';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import {
   DeepPartial,
   EntityManager,
@@ -54,7 +54,7 @@ export class MailHistoryService {
 
   async find(
     fields?: EntityCondition<MailHistory> | EntityCondition<MailHistory>[],
-  ): Promise<NullableType<MailHistory[]>> {
+  ): Promise<Nullable<MailHistory[]>> {
     return this.inviteRepository.find({
       where: fields,
       order: {
@@ -63,7 +63,7 @@ export class MailHistoryService {
     });
   }
 
-  async findSentToday(): Promise<NullableType<MailHistory[]>> {
+  async findSentToday(): Promise<Nullable<MailHistory[]>> {
     return this.inviteRepository.find({
       where: {
         sentAt: MoreThanOrEqual(startOfDay(new Date(Date.now()))),
@@ -74,7 +74,7 @@ export class MailHistoryService {
     });
   }
 
-  async findUnsent(): Promise<NullableType<MailHistory[]>> {
+  async findUnsent(): Promise<Nullable<MailHistory[]>> {
     return this.inviteRepository.find({
       where: {
         inviteStatus: { id: InviteStatusEnum.queued },
@@ -115,7 +115,7 @@ export class MailHistoryService {
 
   findOne(
     fields: EntityCondition<MailHistory>,
-  ): Promise<NullableType<MailHistory>> {
+  ): Promise<Nullable<MailHistory>> {
     return this.inviteRepository.findOne({
       where: fields,
     });

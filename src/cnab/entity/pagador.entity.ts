@@ -52,6 +52,9 @@ export class Pagador extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   uf: string;
 
+  @Column({ type: String, unique: false, nullable: true, length: 2 })
+  cpf_cnpj: string;
+
   public getLogInfo(): string {
     const response =
       `#${this.id_pagador}` + ` '${this.nome_empresa.substring(0, 15)}...'`;

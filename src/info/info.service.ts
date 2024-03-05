@@ -3,7 +3,7 @@ import { IsNull, Repository } from 'typeorm';
 import { Info } from './entities/info.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 
 @Injectable()
 export class InfoService {
@@ -12,7 +12,7 @@ export class InfoService {
     private readonly infoRepository: Repository<Info>,
   ) {}
 
-  async find(fields?: EntityCondition<Info>): Promise<NullableType<Info[]>> {
+  async find(fields?: EntityCondition<Info>): Promise<Nullable<Info[]>> {
     return this.infoRepository.find({
       where: fields,
     });

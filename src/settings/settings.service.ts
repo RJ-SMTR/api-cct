@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { formatLog } from 'src/utils/logging';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { IsNull, Like, Repository } from 'typeorm';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { SettingEntity } from './entities/setting.entity';
@@ -20,7 +20,7 @@ export class SettingsService {
 
   async find(
     fields?: EntityCondition<SettingEntity>,
-  ): Promise<NullableType<SettingEntity[]>> {
+  ): Promise<Nullable<SettingEntity[]>> {
     return this.settingsRepository.find({
       where: fields,
     });

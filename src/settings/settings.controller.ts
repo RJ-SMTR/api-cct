@@ -13,7 +13,7 @@ import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { SettingEntity } from './entities/setting.entity';
 import { SettingsService } from './settings.service';
@@ -26,7 +26,7 @@ export class SettingsController {
   @Get()
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  async getAll(): Promise<NullableType<SettingEntity[]>> {
+  async getAll(): Promise<Nullable<SettingEntity[]>> {
     return this.settingsService.find();
   }
 
@@ -36,7 +36,7 @@ export class SettingsController {
   @ApiParam({ name: 'version', example: '1' })
   getByVersion(
     @Param('version') version: string,
-  ): Promise<NullableType<SettingEntity[]>> {
+  ): Promise<Nullable<SettingEntity[]>> {
     return this.settingsService.findByVersion(version);
   }
 

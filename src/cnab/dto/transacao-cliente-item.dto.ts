@@ -1,10 +1,10 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
 
-function isCreate(object: SaveTransacaoClienteItemDTO): boolean {
+function isCreate(object: TransacaoClienteItemDTO): boolean {
   return object.id === undefined;
 }
 
-export class SaveTransacaoClienteItemDTO {
+export class TransacaoClienteItemDTO {
   id?: number;
 
   @ValidateIf(isCreate)
