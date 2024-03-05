@@ -1,11 +1,31 @@
+import { Cnab104CodigoSegmento } from '../enums/104/cnab-104-codigo-segmento.enum';
 import { ICnab240_104File } from '../interfaces/cnab-240/104/cnab-240-104-file.interface';
+import { ICnab240_104HeaderArquivo } from '../interfaces/cnab-240/104/cnab-240-104-header-arquivo.interface';
+import { ICnab240_104HeaderLote } from '../interfaces/cnab-240/104/cnab-240-104-header-lote.interface';
 import { ICnab240_104Lote } from '../interfaces/cnab-240/104/cnab-240-104-lote.interface';
 import { ICnab240_104Registro } from '../interfaces/cnab-240/104/cnab-240-104-registro.interface';
+import { ICnab240_104TrailerArquivo } from '../interfaces/cnab-240/104/cnab-240-104-trailer-arquivo.interface';
+import { ICnab240_104TrailerLote } from '../interfaces/cnab-240/104/cnab-240-104-trailer-lote.interface';
 import { cnabAll104FieldMapTemplate as fieldMapTemplate } from '../templates/cnab-all/cnab-all-104-registro-field-map-template';
 import { CnabFile } from '../types/cnab-file.type';
 import { CnabLote } from '../types/cnab-lote.type';
 import { CnabRegistro } from '../types/cnab-registro.type';
-import { stringifyCnabFile } from './cnab-utils';
+import {
+  getCnabMappedValue,
+  processCnabFile,
+  stringifyCnabFile,
+} from './cnab-utils';
+
+export function getProcessedCnab104(
+  cnab104: ICnab240_104File,
+): ICnab240_104File {
+  validateCnab104File(cnab104);
+  const newCnab104 = structuredClone(cnab104);
+  processCnab104File(newCnab104);
+  const cnab = getCnabFileFrom104(newCnab104);
+  processCnabFile(cnab);
+  return getCnab104FromFile(cnab);
+}
 
 export function stringifyCnab104File(cnab104: ICnab240_104File): string {
   validateCnab104File(cnab104);
@@ -73,6 +93,77 @@ function getSomarioValoresCnabLote(lote: ICnab240_104Lote): number {
     0,
   );
 }
+
+// #region getCnab104FromFile
+
+export function getCnab104FromFile(cnab: CnabFile): ICnab240_104File {
+  return {
+    headerArquivo: cnab.headerArquivo.fields as ICnab240_104HeaderArquivo,
+    lotes: getCnab104Lotes(cnab.lotes),
+    trailerArquivo: cnab.trailerArquivo.fields as ICnab240_104TrailerArquivo,
+  };
+}
+
+function getCnab104Lotes(lotes: CnabLote[]): ICnab240_104Lote[] {
+  const newLotes: ICnab240_104Lote[] = [];
+  for (const lote of lotes) {
+    newLotes.push({
+      headerLote: lote.headerLote.fields as ICnab240_104HeaderLote,
+      registros: getCnab104Registros(lote),
+      trailerLote: lote.trailerLote.fields as ICnab240_104TrailerLote,
+    });
+  }
+  return newLotes;
+}
+
+/**
+ * From list of CnabLote return a list of sets of Detalhes.
+ *
+ * For example: We have input of `[detalheA, deatalheB, detalheA, deatalheB]`,
+ * it returns `[{detalheA: {...}, detalheB: {...}}, {detalheA: {...}, detalheB: {...}}]`
+ */
+function getCnab104Registros(lote: CnabLote): ICnab240_104Registro[] {
+  const newRegistros: ICnab240_104Registro[] = [];
+  let newRegistro: ICnab240_104Registro = {};
+  for (const registro of lote.registros) {
+    // reset / push new registro set
+    if (isNewCnab104RegistroSet(registro)) {
+      if (Object.values(newRegistro).some((i) => i)) {
+        newRegistros.push(newRegistro);
+      }
+      newRegistro = {};
+    }
+    // add detalhe to registro set
+    const codSegmento = getCnabMappedValue(
+      registro,
+      'detalheSegmentoNameField',
+    );
+    newRegistro[`detalhe${codSegmento}`] = registro.fields;
+  }
+  // push new registro set
+  if (Object.values(newRegistro).some((i) => i)) {
+    newRegistros.push(newRegistro);
+  }
+
+  return newRegistros;
+}
+
+/**
+ * Each registro follows this order: A,B,A,B...
+ * There is no "B,A", "A,A" or "B,B", for example.
+ *
+ * In Cnab104 we have interface Registro = { detalheA: {...}, detalheB: {...} }.
+ * So we expect to transform each CnabRegistro into a list of of sets (detalheA, detalheB).
+ *
+ * There are other combinations but for now we just need to deal with these.
+ */
+function isNewCnab104RegistroSet(registro: CnabRegistro): boolean {
+  return [Cnab104CodigoSegmento.A].includes(
+    getCnabMappedValue(registro, 'detalheSegmentoNameField'),
+  );
+}
+
+// #endregion
 
 export function getCnabFileFrom104(cnab: ICnab240_104File): CnabFile {
   return {

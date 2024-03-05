@@ -1,5 +1,3 @@
-// WIP
-
 import { Injectable } from '@nestjs/common';
 import { BigqueryOrdemPagamento } from 'src/bigquery/entities/ordem-pagamento.bigquery-entity';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
@@ -7,6 +5,7 @@ import { PagadorContaEnum } from '../enums/pagador/pagador.enum';
 import { TransacaoRepository } from '../repository/transacao.repository';
 import { ClienteFavorecidoService } from './cliente-favorecido.service';
 import { PagadorService } from './pagador.service';
+import { Transacao } from '../entity/transacao.entity';
 // import { TransacaoClienteItemService } from './transacao-cliente-item.service';
 
 @Injectable()
@@ -82,5 +81,9 @@ export class TransacaoService {
         bqOrdemPagamento.valor_total_transacao_captura as number,
       indicador_ordem_valida: String(bqOrdemPagamento.indicador_ordem_valida),
     });
+  }
+
+  public async getAll(): Promise<Transacao[]> {
+    return await this.transacaoRepository.getAll();
   }
 }

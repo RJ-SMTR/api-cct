@@ -373,7 +373,7 @@ describe('cnab-utils.ts', () => {
         registroIdField: 'codigoRegistro',
         registroLoteSequenceField: 'loteServico',
         trailerLoteRegistroCountField: 'quantidadeRegistrosLote',
-        detalheSegmentoField: 'codigoSegmento',
+        detalheSegmentoNameField: 'codigoSegmento',
         detalheLoteRegistroSequenceField: 'nsr',
         trailerArquivoLoteCountField: 'quantidadeLotesArquivo',
         trailerArquivoRegistroCountField: 'quantidadeRegistrosArquivo',

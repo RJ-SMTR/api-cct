@@ -22,7 +22,7 @@ const trailerLote: ICnabFieldMapTrailerLote = {
 const detalheLote: ICnabFieldMapDetalhe = {
   ...registro,
   detalheLoteRegistroSequenceField: 'nsr',
-  detalheSegmentoField: 'codigoSegmento',
+  detalheSegmentoNameField: 'codigoSegmento',
 };
 
 export const cnabAll104FieldMapTemplate = {
