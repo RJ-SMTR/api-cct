@@ -1,18 +1,11 @@
-// WIP
-
-import { Injectable } from '@nestjs/common';
 import { ItemTransacaoRepository } from '../repository/item-transacao.repository';
-import { ItemTransacaoDTO } from '../dto/item-transacao.dto';
-import { ItemTransacao } from '../entity/item-transacao.entity';
-
-
-@Injectable()
+import { ItemTransacao } from './../entity/item-transacao.entity';
 export class ItemTransacaoService {
-  constructor(
-    private itemtransacaoRepository: ItemTransacaoRepository   
-  ) {}
-  
-  public async save(itemTransacaoDTO:ItemTransacaoDTO): Promise<ItemTransacao> {   
-     return await this.itemtransacaoRepository.save(itemTransacaoDTO);
+  constructor(private itemTransacaoRepository: ItemTransacaoRepository) {}
+
+  public async getByIdTransacao(
+    id_transacao: number,
+  ): Promise<ItemTransacao[]> {
+    return await this.itemTransacaoRepository.find(id_transacao);
   }
 }

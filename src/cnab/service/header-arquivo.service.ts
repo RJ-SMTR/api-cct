@@ -27,7 +27,7 @@ import {
 } from '../utils/cnab-104-utils';
 import { HeaderLoteDTO } from './../dto/header-lote.dto';
 import { HeaderArquivo } from './../entity/header-arquivo.entity';
-import { ItemTransacaoService } from './Item-transacao.service';
+import { ItemTransacaoService } from './item-transacao.service';
 import { Cnab104Service } from './cnab-104.service';
 import { DetalheAService } from './detalhe-a.service';
 import { DetalheBService } from './detalhe-b.service';
@@ -51,7 +51,7 @@ export class HeaderArquivoService {
     private detalheBService: DetalheBService,
     private cnab104Service: Cnab104Service,
     private banksService: BanksService,
-  ) {}
+  ) { }
 
   public async saveRemessa(): Promise<void> {
     // gerarCnab()
