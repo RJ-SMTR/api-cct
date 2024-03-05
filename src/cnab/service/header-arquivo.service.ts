@@ -34,6 +34,7 @@ import { DetalheBService } from './detalhe-b.service';
 import { HeaderLoteService } from './header-lote.service';
 import { PagadorService } from './pagador.service';
 import { TransacaoService } from './transacao.service';
+import { SftpService } from '../sftp/sftp.service';
 
 @Injectable()
 export class HeaderArquivoService {
@@ -51,17 +52,22 @@ export class HeaderArquivoService {
     private detalheBService: DetalheBService,
     private cnab104Service: Cnab104Service,
     private banksService: BanksService,
+    private sftpService: SftpService,
   ) { }
 
   public async saveRemessa(): Promise<void> {
     const listAllTransacao = await this.transacaoService.getAll();
     for (const transacao of listAllTransacao) {
       if (!this.headerArquivoExists(transacao.id_transacao)) {
-        const { cnabTables } = await this.generateCnab(transacao);
+        const { cnabString, cnabTables } = await this.generateCnab(transacao);
         await this.performSaveRemessa(cnabTables);
-        // await sendCnabSFTP(cnabString);
+        await this.sendCnabSFTP(cnabString);
       }
     }
+  }
+
+  private async sendCnabSFTP(cnabString: string) {
+    await this.sftpService.submitFromString(cnabString, 'arquivo/123-wip-rem.txt');
   }
 
   private async performSaveRemessa(cnabTables: ICnabTables) {
