@@ -13,9 +13,10 @@ export class DetalheBDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  nsr?: string;
+  nsr?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
   data_vencimento?: Date;
 }
+

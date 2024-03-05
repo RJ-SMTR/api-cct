@@ -4,6 +4,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 
 @Injectable()
 export class ClienteFavorecidoRepository {
@@ -14,7 +15,7 @@ export class ClienteFavorecidoRepository {
   constructor(
     @InjectRepository(ClienteFavorecido)
     private clienteFavorecidoRepository: Repository<ClienteFavorecido>,
-  ) {}
+  ) { }
 
   async save(dto: SaveClienteFavorecidoDTO): Promise<void> {
     if (dto.id_cliente_favorecido === undefined) {
@@ -52,14 +53,16 @@ export class ClienteFavorecidoRepository {
     return updatePayload;
   }
 
-  public async findOne(
-    fields:
-      | EntityCondition<ClienteFavorecido>
-      | EntityCondition<ClienteFavorecido>[],
+  public async getOne(
+    fields: EntityCondition<ClienteFavorecido> | EntityCondition<ClienteFavorecido>[],
   ): Promise<ClienteFavorecido> {
-    return await this.clienteFavorecidoRepository.findOne({
+    const result = await this.clienteFavorecidoRepository.findOne({
       where: fields,
     });
+    if (!result) {
+      throw CommonHttpException.notFound(Object.keys(fields).join(','));
+    }
+    else return result;
   }
 
   public async findAll(

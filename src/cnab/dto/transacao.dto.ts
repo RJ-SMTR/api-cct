@@ -9,11 +9,11 @@ export class TransacaoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dt_ordem?: string;
+  dt_ordem?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dt_pagamento?: string;
+  dt_pagamento?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -72,7 +72,7 @@ export class TransacaoDTO {
   vlr_total_transacao_captura?: number;
 
   @ValidateIf(isCreate)
-  indicador_ordem_valida?: string;
+  indicador_ordem_valida?: boolean;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

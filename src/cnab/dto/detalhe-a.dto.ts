@@ -41,7 +41,7 @@ export class DetalheADTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  num_doc_lancamento?: string;
+  num_doc_lancamento?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

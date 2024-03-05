@@ -2,10 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { Repository, UpdateResult } from 'typeorm';
-import { DetalheB } from '../entity/detalhe-b.entiy';
-import { SaveDetalheBDTO } from '../dto/save-detalhe-b.dto';
+import { Repository } from 'typeorm';
 import { DetalheBDTO } from '../dto/detalhe-b.dto';
+import { DetalheB } from '../entity/detalhe-b.entiy';
 
 @Injectable()
 export class DetalheBRepository {
@@ -36,15 +35,5 @@ export class DetalheBRepository {
     return await this.DetalheBRepository.find({
       where: fields,
     });
-  }
-
-  async update(id: number, updateDto: SaveDetalheBDTO): Promise<UpdateResult> {
-    const updatePayload = await this.DetalheBRepository.update(
-      { id_detalhe_b: id },
-      updateDto,
-    );
-    const updatedItem = new DetalheB({ id_detalhe_b: id, ...updateDto });
-    this.logger.log(`DetalheB atualizado: ${updatedItem.getLogInfo()}`);
-    return updatePayload;
   }
 }

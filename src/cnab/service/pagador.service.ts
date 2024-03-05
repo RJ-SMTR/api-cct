@@ -28,4 +28,19 @@ export class PagadorService {
       return pagador;
     }
   }
+
+  public async getOneByIdPagador(
+    id_pagador: number,
+  ): Promise<Pagador> {
+    const pagador = await this.pagadorRepository.findOne({ id_pagador: id_pagador });
+    if (!pagador) {
+      throw CommonHttpException.errorDetails(
+        'Pagador.conta not found',
+        { pagadorConta: id_pagador },
+        HttpStatus.NOT_FOUND,
+      );
+    } else {
+      return pagador;
+    }
+  }
 }

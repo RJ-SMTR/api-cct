@@ -17,8 +17,8 @@ export class TransacaoRepository {
     private transacaoRepository: Repository<Transacao>,
   ) {}
 
-  public async save(transacaoDTO: TransacaoDTO): Promise<Transacao> {
-    return this.transacaoRepository.save(transacaoDTO);
+  public async save(dto: TransacaoDTO): Promise<Transacao> {
+    return this.transacaoRepository.save(dto);
 
   }
 

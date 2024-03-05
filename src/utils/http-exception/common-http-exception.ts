@@ -16,6 +16,25 @@ export const CommonHttpException = {
       },
       httpStatusCode,
     ),
+  invalidField: (
+    entity: string,
+    fieldName: string,
+    args?: {
+      errorMessage?: string;
+      httpStatusCode?: HttpStatus;
+    },
+  ) =>
+    new HttpException(
+      {
+        error: {
+          message: `${entity} tem o campo '${fieldName}' vazio`,
+          user: {
+            [fieldName]: args?.errorMessage || 'Campo vazio',
+          },
+        },
+      },
+      args?.httpStatusCode || HttpStatus.UNPROCESSABLE_ENTITY,
+    ),
   errorDetails: (
     error: string,
     details: object,
@@ -37,17 +56,17 @@ export const CommonHttpException = {
       httpStatusCode,
     ),
   notFound: (
-    notFoundItem: string,
+    notFoundProp: string,
     httpStatusCode: HttpStatus = HttpStatus.NOT_FOUND,
     error?: string,
   ) =>
     new HttpException(
       {
         error: error || getHttpStatusMessage(httpStatusCode),
-        ...(notFoundItem
+        ...(notFoundProp
           ? {
               details: {
-                [notFoundItem]: 'not found',
+                [notFoundProp]: 'not found',
               },
             }
           : {}),
