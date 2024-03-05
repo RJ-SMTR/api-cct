@@ -8,33 +8,30 @@ import { ItemTransacaoDTO } from '../dto/item-transacao.dto';
 
 @Injectable()
 export class ItemTransacaoRepository {
-  [x: string]: any;
+  
   private logger: Logger = new Logger('ItemTransacaoRepository', {
     timestamp: true,
   });
 
   constructor(
     @InjectRepository(ItemTransacao)
-    private ItemTransacaoRepository: Repository<ItemTransacao>,
+    private itemtransacaoRepository: Repository<ItemTransacao>,
   ) {}
 
-  public async save(dto: ItemTransacaoDTO): Promise<ItemTransacao> {
-    return await this.ItemTransacaoRepository.save(dto);
+  public async save(itemTransacao: ItemTransacaoDTO): Promise<ItemTransacao> {
+    return await this.itemtransacaoRepository.save(itemTransacao);
   }
 
   public async findOne(
     fields: EntityCondition<ItemTransacao> | EntityCondition<ItemTransacao>[],
   ): Promise<Nullable<ItemTransacao>> {
-    return await this.ItemTransacaoRepository.findOne({
+    return await this.itemtransacaoRepository.findOne({
       where: fields,
     });
   }
 
-  public async findAll(
-    fields: EntityCondition<ItemTransacao> | EntityCondition<ItemTransacao>[],
-  ): Promise<ItemTransacao[]> {
-    return await this.ItemTransacaoRepository.find({
-      where: fields,
-    });
+
+  public async findAll(): Promise<ItemTransacao[]> {
+    return await this.itemtransacaoRepository.find();
   }
 }

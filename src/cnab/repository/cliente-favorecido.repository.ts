@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository, UpdateResult } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
@@ -57,13 +56,13 @@ export class ClienteFavorecidoRepository {
     fields:
       | EntityCondition<ClienteFavorecido>
       | EntityCondition<ClienteFavorecido>[],
-  ): Promise<Nullable<ClienteFavorecido>> {
+  ): Promise<ClienteFavorecido> {
     return await this.clienteFavorecidoRepository.findOne({
       where: fields,
     });
   }
 
-  public async findMany(
+  public async findAll(
     fields:
       | EntityCondition<ClienteFavorecido>
       | EntityCondition<ClienteFavorecido>[],

@@ -29,21 +29,4 @@ export class PagadorService {
       return pagador;
     }
   }
-
-  public async getOneById(id: number): Promise<Pagador> {
-    const pagador = await this.pagadorRepository.findOne({ id_pagador: id });
-    if (!pagador) {
-      throw CommonHttpException.errorDetails(
-        `Pagador.conta #${id} não encontrado.`,
-        { pagadorConta: id },
-        HttpStatus.NOT_FOUND,
-      );
-    } else {
-      return pagador;
-    }
-  }
-
-  public async findById(id_pagador: number): Promise<Nullable<Pagador>> {
-    return await this.pagadorRepository.findOne({ id_pagador: id_pagador });
-  }
 }

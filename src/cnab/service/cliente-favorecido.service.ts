@@ -9,7 +9,7 @@ import { validateDTO } from 'src/utils/validation-utils';
 @Injectable()
 export class ClienteFavorecidoService {
   private logger: Logger = new Logger('ClienteFavorecidoService', {
-    timestamp: true,
+    timestamp: true
   });
 
   constructor(
@@ -34,8 +34,14 @@ export class ClienteFavorecidoService {
     }
   }
 
+  
+  public async findCpfCnpj(cpf_cnpj:string):Promise<ClienteFavorecido> {
+    return await this.clienteFavorecidoRepository.findOne(cpf_cnpj);
+  }
+
+
   public async getAll(): Promise<ClienteFavorecido[]> {
-    return await this.clienteFavorecidoRepository.findMany({});
+    return await this.clienteFavorecidoRepository.findAll({});
   }
 
   private async saveFavorecidoFromUser(
