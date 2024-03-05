@@ -77,4 +77,5 @@ export class TransacaoDTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   id_pagador?: number;
+
 }

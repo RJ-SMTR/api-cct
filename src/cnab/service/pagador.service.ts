@@ -3,6 +3,7 @@ import { CommonHttpException } from 'src/utils/http-exception/common-http-except
 import { Pagador } from '../entity/pagador.entity';
 import { PagadorContaEnum } from '../enums/pagador/pagador.enum';
 import { PagadorRepository } from '../repository/pagador.repository';
+import { Nullable } from 'src/utils/types/nullable.type';
 
 @Injectable()
 export class PagadorService {

@@ -1,3 +1,4 @@
+
 import { TransacaoDTO } from './../dto/transacao.dto';
 import { Injectable } from '@nestjs/common';
 import { BigqueryOrdemPagamento } from 'src/bigquery/entities/ordem-pagamento.bigquery-entity';
@@ -86,4 +87,3 @@ export class TransacaoService {
   }
 
 }
-

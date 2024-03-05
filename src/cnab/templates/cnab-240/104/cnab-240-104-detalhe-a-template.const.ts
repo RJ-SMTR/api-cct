@@ -1,6 +1,10 @@
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
 import { ICnab240_104DetalheA } from '../../../interfaces/cnab-240/104/cnab-240-104-detalhe-a.interface';
 import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
+import { Cnab104FormaParcelamento } from 'src/cnab/enums/104/cnab-104-forma-parcelamento.enum';
+import { Cnab104IndicadorBloqueio } from 'src/cnab/enums/104/cnab-104-indicador-bloqueio.enum';
+import { Cnab104FinalidadeDoc } from 'src/cnab/enums/104/cnab-104-finalidade-doc.enum';
+import { Cnab104TipoMoeda } from 'src/cnab/enums/104/cnab-104-tipo-moeda.enum';
 
 export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
@@ -38,7 +42,11 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
   filler: { pos: [80, 92], picture: 'X(013)', value: '             ' },
   tipoContaFinalidadeTed: { pos: [93, 93], picture: 'X(001)', value: ' ' },
   dataVencimento: { pos: [94, 101], picture: '9(008)', value: '00000000' },
-  tipoMoeda: { pos: [102, 104], picture: 'X(003)', value: '   ' },
+  tipoMoeda: {
+    pos: [102, 104],
+    picture: 'X(003)',
+    value: Cnab104TipoMoeda.Real,
+  },
   quantidadeMoeda: {
     pos: [105, 119],
     picture: '9(010)V99999',
@@ -55,16 +63,21 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
     value: '000000000',
   },
   filler2: { pos: [144, 146], picture: 'X(003)', value: '   ' },
-  quantidadeParcelas: { pos: [147, 148], picture: '9(002)', value: '  ' },
-  indicadorBloqueio: { pos: [149, 149], picture: 'X(001)', value: ' ' },
+  quantidadeParcelas: { pos: [147, 148], picture: '9(002)', value: 1 },
+  indicadorBloqueio: {
+    pos: [149, 149],
+    picture: 'X(001)',
+    value: Cnab104IndicadorBloqueio.Nao,
+  },
   indicadorFormaParcelamento: {
     pos: [150, 150],
     picture: '9(001)',
-    value: '0',
+    value: Cnab104FormaParcelamento.DataFixa,
   },
+  /** Data fixa, Periódico ou Dia útil */
   periodoDiaVencimento: { pos: [151, 152], picture: 'X(002)', value: '  ' },
-  numeroParcela: { pos: [153, 154], picture: '9(002)', value: '  ' },
-  dataEfetivacao: { pos: [155, 162], picture: '9(008)', value: '        ' },
+  numeroParcela: { pos: [153, 154], picture: '9(002)', value: 1 },
+  dataEfetivacao: { pos: [155, 162], picture: '9(008)', value: '00000000' },
   valorRealEfetivado: {
     pos: [163, 177],
     picture: '9(013)V99',
@@ -75,7 +88,11 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
     picture: 'X(040)',
     value: '                                        ',
   },
-  finalidadeDOC: { pos: [218, 219], picture: '9(002)', value: '00' },
+  finalidadeDOC: {
+    pos: [218, 219],
+    picture: '9(002)',
+    value: Cnab104FinalidadeDoc.CreditoConta,
+  },
   usoExclusivoFebraban: {
     pos: [220, 229],
     picture: 'X(010)',

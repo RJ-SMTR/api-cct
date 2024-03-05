@@ -31,6 +31,7 @@ export interface ICnab240_104DetalheA extends CnabFields {
   valorLancamento: CnabField;
   numeroDocumentoBanco: CnabField;
   filler2: CnabField;
+  /** `1` = à vista */
   quantidadeParcelas: CnabField;
   indicadorBloqueio: CnabField;
   indicadorFormaParcelamento: CnabField;

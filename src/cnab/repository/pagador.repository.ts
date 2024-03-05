@@ -16,7 +16,7 @@ export class PagadorRepository {
   ) {}
 
   
-  public async create(pagadorDTO: PagadorDTO): Promise<Pagador> {
+   public async create(pagadorDTO: PagadorDTO): Promise<Pagador> {
     return  await this.PagadorRepository.save(pagadorDTO);
    }
 

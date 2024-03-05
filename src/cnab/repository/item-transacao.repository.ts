@@ -8,6 +8,7 @@ import { ItemTransacaoDTO } from '../dto/item-transacao.dto';
 
 @Injectable()
 export class ItemTransacaoRepository {
+  
   private logger: Logger = new Logger('ItemTransacaoRepository', {
     timestamp: true,
   });
@@ -28,6 +29,7 @@ export class ItemTransacaoRepository {
       where: fields,
     });
   }
+
 
   public async findAll(): Promise<ItemTransacao[]> {
     return await this.itemtransacaoRepository.find();

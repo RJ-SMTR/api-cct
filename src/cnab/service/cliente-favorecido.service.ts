@@ -3,7 +3,7 @@ import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
-import { SaveClienteFavorecidoDTO } from '../dto/save-cliente-favorecido.dto';
+import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { validateDTO } from 'src/utils/validation-utils';
 
 @Injectable()

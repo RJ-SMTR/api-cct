@@ -13,11 +13,11 @@ export class Transacao extends EntityHelper {
   @PrimaryGeneratedColumn()
   id_transacao: number;
 
-  @Column({ type: String, unique: false, nullable: true })
-  dt_ordem: string;
+  @Column({ type: Date, unique: false, nullable: true })
+  dt_ordem: Date;
 
-  @Column({ type: String, unique: false, nullable: true })
-  dt_pagamento: string;
+  @Column({ type: Date, unique: false, nullable: true })
+  dt_pagamento: Date;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   nome_consorcio: string;

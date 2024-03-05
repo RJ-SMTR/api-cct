@@ -58,4 +58,8 @@ export class PagadorDTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   uf: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  cpf_cnpj: string;
 }

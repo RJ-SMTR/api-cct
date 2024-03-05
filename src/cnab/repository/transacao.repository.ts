@@ -19,6 +19,7 @@ export class TransacaoRepository {
 
   public async save(transacaoDTO: TransacaoDTO): Promise<Transacao> {
     return this.transacaoRepository.save(transacaoDTO);
+
   }
 
   public async findOne(
@@ -31,5 +32,9 @@ export class TransacaoRepository {
 
   public async findAll(): Promise<Transacao[]> {
     return await this.transacaoRepository.find();
+  }
+
+  public async getAll(): Promise<Transacao[]> {
+    return await this.transacaoRepository.find({});
   }
 }
