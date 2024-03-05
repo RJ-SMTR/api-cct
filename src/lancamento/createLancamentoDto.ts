@@ -26,4 +26,24 @@ export class CreateLancamentoDto {
   @IsNotEmpty()
   @IsDateString()
   data_pgto: Date;
+  
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsDateString()
+  algoritmo: number;
+  
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsDateString()
+  glosa: number;
+  
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsDateString()
+  recurso: number;
+  
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsDateString()
+  valor_a_pagar: number;
 }

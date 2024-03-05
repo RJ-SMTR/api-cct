@@ -33,4 +33,18 @@ export class LancamentoEntity {
   @ManyToOne(() => User)
   @JoinColumn({ name: 'userId' })
   user: User;
+
+
+  @Column({ type: 'int', nullable: false })
+  algoritmo: number;
+  
+  @Column({ type: 'int', nullable: false })
+  glosa: number;
+  
+  @Column({ type: 'int', nullable: false })
+  recurso: number;
+  
+  @Column({ type: 'int', nullable: false })
+  valor_a_pagar: number;
+
 }

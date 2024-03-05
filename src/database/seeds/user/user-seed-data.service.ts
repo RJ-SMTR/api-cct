@@ -118,7 +118,7 @@ export class UserSeedDataService {
       {
         fullName: 'Usuário lançamento',
         email: 'ruizalexander@id.uff.br',
-        password: this.generateRandomPassword(),
+        password: '0014d1c03e',
         role: new Role(RoleEnum.lancador_financeiro),
         status: new Status(StatusEnum.active),
       },
