@@ -23,7 +23,7 @@ import {
   stringifyCnabFile,
 } from './cnab-utils';
 
-export function parseCnab104(cnabString: string): ICnab240_104File {
+export function parseCnab240_104(cnabString: string): ICnab240_104File {
   const fileDTO = getCnabFileFrom104({
     headerArquivo: structuredClone(cnab240_104HeaderArquivoTemplate),
     lotes: [{

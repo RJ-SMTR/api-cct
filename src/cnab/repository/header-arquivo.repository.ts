@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { Repository } from 'typeorm';
+import { FindOptionsOrder, Repository } from 'typeorm';
 import { HeaderArquivo } from '../entity/header-arquivo.entity';
 import { HeaderArquivoDTO } from '../dto/header-arquivo.dto';
 
@@ -24,9 +24,11 @@ export class HeaderArquivoRepository {
 
   public async findOne(
     fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[],
+    order?: FindOptionsOrder<HeaderArquivo>
   ): Promise<Nullable<HeaderArquivo>> {
     return await this.HeaderArquivoRepository.findOne({
       where: fields,
+      order: order,
     });
   }
 

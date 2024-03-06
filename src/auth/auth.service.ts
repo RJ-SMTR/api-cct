@@ -17,7 +17,7 @@ import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
-import { formatLog } from 'src/utils/logging';
+import { formatLog } from 'src/utils/log-utils';
 import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { Nullable } from '../utils/types/nullable.type';
@@ -37,7 +37,7 @@ export class AuthService {
     private forgotService: ForgotService,
     private mailService: MailService,
     private mailHistoryService: MailHistoryService,
-  ) {}
+  ) { }
 
   async validateLogin(
     loginDto: AuthEmailLoginDto,
@@ -397,7 +397,7 @@ export class AuthService {
         this.logger.log(
           formatLog(
             'Email redefinir senha enviado com sucesso.' +
-              `\n    - Detalhes: ${JSON.stringify({ mailSentInfo })}`,
+            `\n    - Detalhes: ${JSON.stringify({ mailSentInfo })}`,
             'forgotPassword()',
           ),
         );

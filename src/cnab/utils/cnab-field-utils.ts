@@ -10,6 +10,8 @@ import { CnabField } from '../types/cnab-field.type';
 
 export type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';
 
+// #region stringifyCnabField
+
 /**
  * From CnabField get formatted value applying Picture.
  *
@@ -313,6 +315,10 @@ export function getPictureTotalSize(field: CnabField) {
     : ((i = getPictureNumberSize(field.picture)) => i.decimal + i.integer)();
 }
 
+// #endregion
+
+// #region parseCnabField
+
 export function parseCnabField(
   cnabStringLine: string,
   fieldDTO: CnabField,
@@ -359,4 +365,6 @@ export function validateParseCnabField(
  */
 export function validateCnabFieldValue(field: CnabField) {
   getStringFromCnabField(field);
+
+  // #endregion
 }

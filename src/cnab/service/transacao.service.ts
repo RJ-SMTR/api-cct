@@ -20,12 +20,10 @@ export class TransacaoService {
     private pagadorService: PagadorService,
     private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
   ) { }
+
   public async updateTransacaoFromJae() {
-    //Atualiza todos os favorecidos
     await this.clienteFavorecidoService.updateAllFromUsers();
-
     const ordensPagamento = await this.bigqueryOrdemPagamentoService.getCurrentWeek();
-
     const pagador = await this.pagadorService.getOneByConta(PagadorContaEnum.JAE);
     let idOrdemAux = "";
 

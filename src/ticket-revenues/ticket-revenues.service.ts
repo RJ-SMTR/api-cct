@@ -5,7 +5,7 @@ import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
-import { formatLog } from 'src/utils/logging';
+import { formatLog } from 'src/utils/log-utils';
 import {
   PAYMENT_START_WEEKDAY,
   PaymentEndpointType,
@@ -34,7 +34,7 @@ export class TicketRevenuesService {
   constructor(
     private readonly usersService: UsersService,
     private readonly ticketRevenuesRepository: TicketRevenuesRepositoryService,
-  ) {}
+  ) { }
 
   /**
    * TODO: refactor - use repository method
