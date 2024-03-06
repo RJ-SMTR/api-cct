@@ -45,7 +45,7 @@ export class LancamentoEntity {
 
   @Column({ type: 'int', nullable: false })
   valor_a_pagar: number;
-  
+
   @Column({ type: 'int', nullable: false })
   numero_processo: number;
 }

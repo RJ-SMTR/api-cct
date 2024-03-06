@@ -41,7 +41,7 @@ export class CreateLancamentoDto {
   @IsNotEmpty()
   @IsDateString()
   valor_a_pagar: number;
-  
+
   @ApiProperty()
   @IsNotEmpty()
   @IsDateString()
