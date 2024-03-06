@@ -17,6 +17,7 @@ export class CreateLancamento1708975174260 implements MigrationInterface {
                 "glosa" integer NOT NULL,
                 "recurso" integer NOT NULL,
                 "valor_a_pagar" integer NOT NULL,
+                "numero_processo" integer NOT NULL,
                 CONSTRAINT "PK_133f2e1e4c9e3e9f2f6b1b0b345" PRIMARY KEY ("id"),
                 CONSTRAINT "FK_lancamento_usuario" FOREIGN KEY ("userId") REFERENCES "user" ("id")
             )`,
