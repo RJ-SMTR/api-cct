@@ -34,7 +34,7 @@ import { DetalheBService } from './detalhe-b.service';
 import { HeaderLoteService } from './header-lote.service';
 import { PagadorService } from './pagador.service';
 import { TransacaoService } from './transacao.service';
-import { SftpService } from '../sftp/sftp.service';
+import { SftpService } from 'src/sftp/sftp.service';
 
 @Injectable()
 export class HeaderArquivoService {

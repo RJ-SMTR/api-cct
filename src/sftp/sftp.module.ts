@@ -3,9 +3,10 @@ import * as SftpClient from 'ssh2-sftp-client';
 import { SftpClientService } from './sftp-client/sftp-client.service';
 
 import { ConnectConfig } from './interfaces/connect-config.interface';
+import { SftpService } from './sftp.service';
 
 @Module({
-  providers: [SftpClientService]
+  providers: [SftpClientService, SftpService]
 })
 export class SftpModule {
   static forRoot(

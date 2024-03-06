@@ -1,13 +1,13 @@
 /**
  * @throws exception if value not exists in enum and there is no defaultValue
  */
-function getValue<T>(e: T, value: any, defaultValue?: keyof T): any {
-  const valueIndex = Object.values(e as any).indexOf(value);
+function getValue<T>(e: T, key: any, defaultValue?: keyof T): any {
+  const keyIndex = Object.keys(e as any).indexOf(key);
   const valueIndexDefault = Object.values(e as any).indexOf(defaultValue);
-  if (valueIndex === -1 || valueIndexDefault === -1) {
-    throw new Error(`Value '${value}' does not exist in Enum ${e}.`);
+  if (keyIndex === -1 || valueIndexDefault === -1) {
+    throw new Error(`Value '${key}' does not exist in Enum ${e}.`);
   }
-  return e[valueIndex] || e[valueIndexDefault];
+  return e[keyIndex] || e[valueIndexDefault];
 }
 
 function getKey<T>(e: T, value: any): string {
