@@ -19,7 +19,6 @@ export class TransacaoRepository {
 
   public async save(dto: TransacaoDTO): Promise<Transacao> {
     return this.transacaoRepository.save(dto);
-
   }
 
   public async findOne(

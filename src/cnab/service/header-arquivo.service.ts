@@ -1,3 +1,6 @@
+import { ArquivoPublicacaoRepository } from './../repository/arquivo-publicacao.repository';
+import { ClienteFavorecidoService } from './cliente-favorecido.service';
+import { ArquivoPublicacaoDTO } from './../dto/arquivo-publicacao.dto';
 import { Injectable, Logger } from '@nestjs/common';
 import { BanksService } from 'src/banks/banks.service';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
@@ -44,15 +47,17 @@ export class HeaderArquivoService {
 
   constructor(
     private headerArquivoRepository: HeaderArquivoRepository,
+    private arquivoPublicacaoRepository: ArquivoPublicacaoRepository,
     private transacaoService: TransacaoService,
     private headerLoteService: HeaderLoteService,
     private itemTransacaoService: ItemTransacaoService,
     private pagadorService: PagadorService,
     private detalheAService: DetalheAService,
     private detalheBService: DetalheBService,
+    private clienteFavorecidoService: ClienteFavorecidoService,
     private cnab104Service: Cnab104Service,
     private banksService: BanksService,
-    private sftpService: SftpService,
+    private sftpService: SftpService
   ) { }
 
   public async saveRemessa(): Promise<void> {
@@ -330,5 +335,52 @@ export class HeaderArquivoService {
       return false;
     }
     return true;
+  }
+
+  public async compareRemessaToRetorno():Promise<void>{
+    const arquivos = await this.headerArquivoRepository.findAll();
+    
+    arquivos.forEach(headerArquivo => {
+      const arquivoPublicacao = new ArquivoPublicacaoDTO();
+      arquivoPublicacao.id_header_arquivo = headerArquivo.id_header_arquivo
+      arquivoPublicacao.id_transacao = headerArquivo.id_transacao;      
+
+      const headersLote = 
+      this.headerLoteService.findMany({id_header_arquivo: headerArquivo.id_header_arquivo});
+      headersLote.forEach(async headerLote=> {
+        arquivoPublicacao.id_header_lote = headerLote.id_header_lote;           
+        arquivoPublicacao.dt_geracao_remessa = headerLote.dt_geracao;
+        arquivoPublicacao.hr_geracao_remessa = headerLote.hr_geracao; 
+        arquivoPublicacao.dt_geracao_retorno = headerLote.dt_geracao;
+        arquivoPublicacao.hr_geracao_retorno = headerLote.hr_geracao;
+        arquivoPublicacao.lote_servico = headerLote.lote_servico;
+        const pagador = await this.pagadorService.getOneByIdPagador(headerLote.id_pagador);
+
+        arquivoPublicacao.nome_pagador = pagador.nome_empresa;
+        arquivoPublicacao.agencia_pagador = pagador.agencia;
+        arquivoPublicacao.dv_agencia_pagador = pagador.dv_agencia;
+        arquivoPublicacao.conta_pagador = pagador.conta;
+        arquivoPublicacao.dv_conta_pagador = pagador.dv_conta; 
+          
+        const detalhesA = await this.detalheAService.findMany({ id_header_lote: headerLote.id_header_lote });
+          detalhesA.forEach( async detalheA => {
+            arquivoPublicacao.dt_vencimento = detalheA.dt_vencimento;            
+            arquivoPublicacao.valor_lancamento = detalheA.valor_lancamento;
+            arquivoPublicacao.data_efetivacao = detalheA.data_efetivacao;
+            arquivoPublicacao.valor_real_efetivado = detalheA.valor_real_efetivado;
+            arquivoPublicacao.ocorrencias = detalheA.ocorrencias;
+            const clienteFavorecido = 
+              await this.clienteFavorecidoService.getOneByIdClienteFavorecido(detalheA.id_cliente_favorecido);   
+              arquivoPublicacao.nome_cliente = clienteFavorecido.nome ;
+              arquivoPublicacao.cpf_cnpj_cliente = clienteFavorecido.cpf_cnpj;
+              arquivoPublicacao.cod_banco_cliente = clienteFavorecido.cod_banco ;
+              arquivoPublicacao.agencia_cliente = clienteFavorecido.agencia;
+              arquivoPublicacao.dv_agencia_cliente = clienteFavorecido.dv_agencia;
+              arquivoPublicacao.conta_corrente_cliente = clienteFavorecido.conta_corrente;
+              arquivoPublicacao.dv_conta_corrente_cliente = clienteFavorecido.dv_conta_corrente;
+              void this.arquivoPublicacaoRepository.save(arquivoPublicacao);
+        });
+      });
+    });    
   }
 }

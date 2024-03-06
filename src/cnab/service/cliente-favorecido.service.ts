@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { validateDTO } from 'src/utils/validation-utils';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -42,6 +43,22 @@ export class ClienteFavorecidoService {
 
   public async getAll(): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.findAll({});
+  }
+
+  public async getOneByIdClienteFavorecido(
+    id_cliente_favorecido: number,
+  ): Promise<ClienteFavorecido> {
+    const cliente_favorecido = 
+    await this.clienteFavorecidoRepository.getOne({ id_cliente_favorecido: id_cliente_favorecido });
+    if (!cliente_favorecido) {
+      throw CommonHttpException.errorDetails(
+        'cliente_favorecido.conta not found',
+        { pagadorConta: id_cliente_favorecido },
+        HttpStatus.NOT_FOUND,
+      );
+    } else {
+      return cliente_favorecido;
+    }
   }
 
   private async saveFavorecidoFromUser(

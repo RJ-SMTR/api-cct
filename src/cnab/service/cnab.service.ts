@@ -16,4 +16,5 @@ export class CnabService {
   public async sendNewCNABs() {
     await this.headerArquivoService.saveRemessa()
   }
+
 }
