@@ -19,46 +19,46 @@ export class ClienteFavorecido extends EntityHelper {
   nome: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 14 })
-  cpf_cnpj: string;
+  cpf_cnpj: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 10 })
-  cod_banco: string;
+  cod_banco: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
-  agencia: string;
+  agencia: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  dv_agencia: string;
+  dv_agencia: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 12 })
-  conta_corrente: string;
+  conta_corrente: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  dv_conta_corrente: string;
+  dv_conta_corrente: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
-  logradouro: string;
+  logradouro: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 15 })
-  numero: string;
+  numero: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 100 })
-  complemento: string;
+  complemento: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 150 })
-  bairro: string;
+  bairro: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 150 })
-  cidade: string;
+  cidade: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
-  cep: string;
+  cep: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 3 })
-  complemento_cep: string;
+  complemento_cep: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  uf: string;
+  uf: string | null;
 
   public getLogInfo(showName?: boolean): string {
     if (showName === undefined) {

@@ -21,10 +21,20 @@ export class TransacaoService {
     private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
   ) { }
 
+  /**
+   * This task will:
+   * 1. Update ClienteFavorecidos from Users
+   * 2. Fetch ordemPgto from this week
+   * 3. For every id_ordem not in table, add Transacao and 
+   * 
+   * Assumptions:
+   * 1. Every
+   */
   public async updateTransacaoFromJae() {
     await this.clienteFavorecidoService.updateAllFromUsers();
     const ordensPagamento = await this.bigqueryOrdemPagamentoService.getCurrentWeek();
     const pagador = await this.pagadorService.getOneByConta(PagadorContaEnum.JAE);
+    // WIP: idOrdemAux
     let idOrdemAux = "";
 
     for (const ordemPagamento of ordensPagamento) {

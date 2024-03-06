@@ -1,6 +1,11 @@
 import { HttpStatus } from "@nestjs/common";
 import { CommonHttpException } from "src/utils/http-exception/common-http-exception";
 
+/**
+ * Logic:
+ * - It has 1 `id_ordem_pagamento` per day.
+ * - id_ordem_pagamento repeats by combination of id_consorcio (CNPJ), id_operadora (CPF), servico (vehicle)
+ */
 export class BigqueryOrdemPagamento {
   /** Data da ordem de pagamento (partição) */
   data_ordem: string | null;
@@ -8,13 +13,21 @@ export class BigqueryOrdemPagamento {
   /** Data de pagamento da ordem */
   data_pagamento: string | null;
 
-  /** Nome  cadastro.consorcios */
+  /**
+   *  Id de cadastro.consorcios
+   * 
+   * id_consorcio.cnpj = CNPJ
+   */
   id_consorcio: string | null;
 
   /** Nome do consórcio */
   consorcio: string | null;
 
-  /** Identificador da operadora na tabela cadastro.operadoras */
+  /** 
+   * Identificador da operadora na tabela cadastro.operadoras
+   * 
+   * id_operadora.documento = CPF
+   */
   id_operadora: string | null;
 
   /** Nome da operadora */
