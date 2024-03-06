@@ -30,6 +30,7 @@ export enum CrobJobsEnum {
   bulkResendInvites = 'bulkResendInvites',
   updateTransacaoFromJae = 'updateTransacaoFromJae',
   sendNewCNABs = 'sendNewCNABs',
+  getRetornoCNAB = 'getRetornoCNAB',
 }
 
 interface ICronJob {
@@ -129,6 +130,16 @@ export class CronJobsService implements OnModuleInit {
             },
           },
         },
+        {
+          name: CrobJobsEnum.getRetornoCNAB,
+          cronJobParameters: {
+            cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+            onTick: async () => {
+              await this.getRetornoCNAB();
+            },
+          },
+        }
+        
       );
 
       for (const jobConfig of this.jobsConfig) {
@@ -666,6 +677,10 @@ export class CronJobsService implements OnModuleInit {
   }
 
   async sendNewCNABs() {
-   await  this.cnabService.sendNewCNABs();
+   await this.cnabService.sendNewCNABs();
+  }
+
+  async getRetornoCNAB(){
+    await this.cnabService.getArquivoRetornoCNAB();
   }
 }

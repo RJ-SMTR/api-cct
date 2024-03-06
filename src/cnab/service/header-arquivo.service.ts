@@ -338,49 +338,48 @@ export class HeaderArquivoService {
   }
 
   public async compareRemessaToRetorno():Promise<void>{
-    const arquivos = await this.headerArquivoRepository.findAll();
+    const arquivosRemessa = await this.headerArquivoRepository.findAll({tipo_arquivo: "remessa"});
     
-    arquivos.forEach(headerArquivo => {
+    arquivosRemessa.forEach(async headerArquivo => {
       const arquivoPublicacao = new ArquivoPublicacaoDTO();
       arquivoPublicacao.id_header_arquivo = headerArquivo.id_header_arquivo
       arquivoPublicacao.id_transacao = headerArquivo.id_transacao;      
-
-      const headersLote = 
-      this.headerLoteService.findMany({id_header_arquivo: headerArquivo.id_header_arquivo});
-      headersLote.forEach(async headerLote=> {
-        arquivoPublicacao.id_header_lote = headerLote.id_header_lote;           
-        arquivoPublicacao.dt_geracao_remessa = headerLote.dt_geracao;
-        arquivoPublicacao.hr_geracao_remessa = headerLote.hr_geracao; 
-        arquivoPublicacao.dt_geracao_retorno = headerLote.dt_geracao;
-        arquivoPublicacao.hr_geracao_retorno = headerLote.hr_geracao;
-        arquivoPublicacao.lote_servico = headerLote.lote_servico;
-        const pagador = await this.pagadorService.getOneByIdPagador(headerLote.id_pagador);
-
-        arquivoPublicacao.nome_pagador = pagador.nome_empresa;
-        arquivoPublicacao.agencia_pagador = pagador.agencia;
-        arquivoPublicacao.dv_agencia_pagador = pagador.dv_agencia;
-        arquivoPublicacao.conta_pagador = pagador.conta;
-        arquivoPublicacao.dv_conta_pagador = pagador.dv_conta; 
-          
-        const detalhesA = await this.detalheAService.findMany({ id_header_lote: headerLote.id_header_lote });
-          detalhesA.forEach( async detalheA => {
-            arquivoPublicacao.dt_vencimento = detalheA.dt_vencimento;            
-            arquivoPublicacao.valor_lancamento = detalheA.valor_lancamento;
-            arquivoPublicacao.data_efetivacao = detalheA.data_efetivacao;
-            arquivoPublicacao.valor_real_efetivado = detalheA.valor_real_efetivado;
-            arquivoPublicacao.ocorrencias = detalheA.ocorrencias;
-            const clienteFavorecido = 
-              await this.clienteFavorecidoService.getOneByIdClienteFavorecido(detalheA.id_cliente_favorecido);   
-              arquivoPublicacao.nome_cliente = clienteFavorecido.nome ;
-              arquivoPublicacao.cpf_cnpj_cliente = clienteFavorecido.cpf_cnpj;
-              arquivoPublicacao.cod_banco_cliente = clienteFavorecido.cod_banco ;
-              arquivoPublicacao.agencia_cliente = clienteFavorecido.agencia;
-              arquivoPublicacao.dv_agencia_cliente = clienteFavorecido.dv_agencia;
-              arquivoPublicacao.conta_corrente_cliente = clienteFavorecido.conta_corrente;
-              arquivoPublicacao.dv_conta_corrente_cliente = clienteFavorecido.dv_conta_corrente;
-              void this.arquivoPublicacaoRepository.save(arquivoPublicacao);
+      arquivoPublicacao.dt_geracao_remessa = headerArquivo.dt_geracao;
+      arquivoPublicacao.hr_geracao_remessa = headerArquivo.hr_geracao;
+      const arquivosRetorno = 
+         await this.headerArquivoRepository.findAll({tipo_arquivo:"retorno", nsa: headerArquivo.nsa}) ;
+      if (arquivosRetorno !=null){
+        //Header Arquivo Retorno
+        arquivosRetorno.forEach(async arquivoRetorno=> {        
+            const headersLoteRetorno = 
+                await this.headerLoteService.findMany({ id_header_arquivo: arquivoRetorno.id_header_arquivo });
+          arquivoPublicacao.dt_geracao_retorno = arquivoRetorno.dt_geracao;
+          arquivoPublicacao.hr_geracao_retorno = arquivoRetorno.hr_geracao;
+          //Header lote Retorno
+          headersLoteRetorno.forEach(async headerLoteRetorno => {
+            //DetalheA Retorno
+            const detalhesA = await this.detalheAService.findMany({ id_header_lote: headerLoteRetorno.id_header_lote});
+            detalhesA.forEach( async detalheA => {
+              arquivoPublicacao.dt_vencimento = detalheA.dt_vencimento;            
+              arquivoPublicacao.valor_lancamento = detalheA.valor_lancamento;
+              arquivoPublicacao.data_efetivacao = detalheA.data_efetivacao;
+              arquivoPublicacao.valor_real_efetivado = detalheA.valor_real_efetivado;
+              arquivoPublicacao.ocorrencias = detalheA.ocorrencias;
+                const clienteFavorecido = 
+                await this.clienteFavorecidoService.getOneByIdClienteFavorecido(detalheA.id_cliente_favorecido);   
+                arquivoPublicacao.nome_cliente = clienteFavorecido.nome ;
+                arquivoPublicacao.cpf_cnpj_cliente = clienteFavorecido.cpf_cnpj;
+                arquivoPublicacao.cod_banco_cliente = clienteFavorecido.cod_banco ;
+                arquivoPublicacao.agencia_cliente = clienteFavorecido.agencia;
+                arquivoPublicacao.dv_agencia_cliente = clienteFavorecido.dv_agencia;
+                arquivoPublicacao.conta_corrente_cliente = clienteFavorecido.conta_corrente;
+                arquivoPublicacao.dv_conta_corrente_cliente = clienteFavorecido.dv_conta_corrente;
+                arquivoPublicacao.ocorrencias = detalheA.ocorrencias;
+                void this.arquivoPublicacaoRepository.save(arquivoPublicacao);
+            });
+          });
         });
-      });
+      }
     });    
   }
 }

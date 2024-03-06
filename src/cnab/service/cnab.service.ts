@@ -17,4 +17,8 @@ export class CnabService {
     await this.headerArquivoService.saveRemessa()
   }
 
+  public async getArquivoRetornoCNAB(){
+    await this.headerArquivoService.compareRemessaToRetorno();
+  }
+
 }

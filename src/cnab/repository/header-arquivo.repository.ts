@@ -30,7 +30,9 @@ export class HeaderArquivoRepository {
     });
   }
 
-  public async findAll(): Promise<HeaderArquivo[]> {
-    return await this.HeaderArquivoRepository.find();
+  public async findAll(fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[]): Promise<HeaderArquivo[]> {
+    return await this.HeaderArquivoRepository.find({
+      where: fields
+    });
   }
 }
