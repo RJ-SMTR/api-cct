@@ -678,13 +678,9 @@ export class CronJobsService implements OnModuleInit {
     await this.cnabService.updateTransacaoFromJae();
   }
 
-
-  async sendNewCNABs() {
-   await this.cnabService.sendNewCNABs();
-  }
-
   async getRetornoCNAB(){
     await this.cnabService.getArquivoRetornoCNAB();
+  }
 
   async updateRemessa() {
     const METHOD = 'updateRemessa()';

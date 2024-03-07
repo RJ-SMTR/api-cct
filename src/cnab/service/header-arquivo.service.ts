@@ -427,12 +427,12 @@ export class HeaderArquivoService {
                 const clienteFavorecido = 
                 await this.clienteFavorecidoService.getOneByIdClienteFavorecido(detalheA.id_cliente_favorecido);   
                 arquivoPublicacao.nome_cliente = clienteFavorecido.nome ;
-                arquivoPublicacao.cpf_cnpj_cliente = clienteFavorecido.cpf_cnpj;
-                arquivoPublicacao.cod_banco_cliente = clienteFavorecido.cod_banco ;
-                arquivoPublicacao.agencia_cliente = clienteFavorecido.agencia;
-                arquivoPublicacao.dv_agencia_cliente = clienteFavorecido.dv_agencia;
-                arquivoPublicacao.conta_corrente_cliente = clienteFavorecido.conta_corrente;
-                arquivoPublicacao.dv_conta_corrente_cliente = clienteFavorecido.dv_conta_corrente;
+                arquivoPublicacao.cpf_cnpj_cliente = String(clienteFavorecido.cpf_cnpj);
+                arquivoPublicacao.cod_banco_cliente = String(clienteFavorecido.cod_banco) ;
+                arquivoPublicacao.agencia_cliente = String(clienteFavorecido.agencia);
+                arquivoPublicacao.dv_agencia_cliente = String(clienteFavorecido.dv_agencia);
+                arquivoPublicacao.conta_corrente_cliente = String(clienteFavorecido.conta_corrente);
+                arquivoPublicacao.dv_conta_corrente_cliente = String(clienteFavorecido.dv_conta_corrente);
                 arquivoPublicacao.ocorrencias = detalheA.ocorrencias; 
                 void this.arquivoPublicacaoRepository.save(arquivoPublicacao);
             });
