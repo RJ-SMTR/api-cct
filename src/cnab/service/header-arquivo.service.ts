@@ -37,7 +37,8 @@ import { DetalheBService } from './detalhe-b.service';
 import { HeaderLoteService } from './header-lote.service';
 import { PagadorService } from './pagador.service';
 import { TransacaoService } from './transacao.service';
-import { SftpService } from '../sftp/sftp.service';
+import { SftpService } from 'src/sftp/sftp.service';
+import { HeaderArquivoTipoArquivo } from '../enums/header-arquivo/header-arquivo-tipo-arquivo.enum';
 
 @Injectable()
 export class HeaderArquivoService {
@@ -60,22 +61,7 @@ export class HeaderArquivoService {
     private sftpService: SftpService
   ) { }
 
-  public async saveRemessa(): Promise<void> {
-    const listAllTransacao = await this.transacaoService.getAll();
-    for (const transacao of listAllTransacao) {
-      if (!this.headerArquivoExists(transacao.id_transacao)) {
-        const { cnabString, cnabTables } = await this.generateCnab(transacao);
-        await this.performSaveRemessa(cnabTables);
-        await this.sendCnabSFTP(cnabString);
-      }
-    }
-  }
-
-  private async sendCnabSFTP(cnabString: string) {
-    await this.sftpService.submitFromString(cnabString, 'arquivo/123-wip-rem.txt');
-  }
-
-  private async performSaveRemessa(cnabTables: ICnabTables) {
+  public async saveRemessa(cnabTables: ICnabTables) {
     const headerLote = cnabTables.lotes[0].headerLote;
     const detalhes = cnabTables.lotes[0].detalhes;
     await this.headerArquivoRepository.save(cnabTables.headerArquivo);
@@ -90,9 +76,9 @@ export class HeaderArquivoService {
     cnabTables: ICnabTables;
   }> {
     // get variables
-    const headerArquivoDTO = await this.transacaoToHeaderArquivoDTO(
+    const headerArquivoDTO = await this.getHeaderArquivoDTOFromTransacao(
       transacao,
-      'remessa',
+      HeaderArquivoTipoArquivo.Remessa,
     );
     const headerLoteDTO = this.transacaoToHeaderLoteDTO(
       transacao,
@@ -237,9 +223,9 @@ export class HeaderArquivoService {
     return await this.headerArquivoRepository.findAll({});
   }
 
-  private async transacaoToHeaderArquivoDTO(
+  private async getHeaderArquivoDTOFromTransacao(
     transacao: Transacao,
-    tipo_arquivo: string,
+    tipo_arquivo: HeaderArquivoTipoArquivo,
   ): Promise<HeaderArquivoDTO> {
     const dto = new HeaderArquivoDTO();
     const pagador = await this.pagadorService.getOneByIdPagador(transacao.id_pagador);
@@ -285,7 +271,7 @@ export class HeaderArquivoService {
     return dto;
   }
 
-  private async saveDetalhes(
+  public async saveDetalhes(
     itemTransacao: ItemTransacao,
     headerLoteDTO: HeaderLoteDTO,
     registroAB: ICnab240_104RegistroAB,
@@ -326,8 +312,7 @@ export class HeaderArquivoService {
     detalheB.id_detalhe_a = (await saveDetalheA).id_detalhe_a;
     await this.detalheBService.save(detalheB);
   }
-
-  private async headerArquivoExists(id_transacao: number): Promise<boolean> {
+  public async headerArquivoExists(id_transacao: number): Promise<boolean> {
     const ret = await this.headerArquivoRepository.findOne({
       id_transacao: id_transacao,
     });
@@ -336,7 +321,6 @@ export class HeaderArquivoService {
     }
     return true;
   }
-
 
   public async saveArquivoRetorno(_cnab240:ICnab240_104File):Promise<void>{
     const headerArquivo = new HeaderArquivo();
@@ -457,4 +441,16 @@ export class HeaderArquivoService {
       }
     });    
   }
+
+  /**
+   * Get the most recent CNAB Retorno Date saved in database.
+   */
+  public async getMostRecentRetornoDate(): Promise<Date> {
+    const retorno = await this.headerArquivoRepository.findOne(
+      { tipo_arquivo: HeaderArquivoTipoArquivo.Retorno },
+      { createdAt: 'DESC' }
+    );
+    return retorno?.createdAt || new Date(0);
+  }
 }
+

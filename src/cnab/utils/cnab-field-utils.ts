@@ -10,6 +10,8 @@ import { CnabField } from '../types/cnab-field.type';
 
 export type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';
 
+// #region stringifyCnabField
+
 /**
  * From CnabField get formatted value applying Picture.
  *
@@ -17,7 +19,7 @@ export type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';
  */
 export function stringifyCnabField(field: CnabField): string {
   validateCnabField(field);
-  return getCnabFieldToString(field);
+  return getStringFromCnabField(field);
 }
 
 /**
@@ -25,40 +27,40 @@ export function stringifyCnabField(field: CnabField): string {
  *
  * With necessary validation.
  */
-export function getCnabFieldToString(item: CnabField): string {
-  const cnabFieldType = getCnabFieldType(item);
+export function getStringFromCnabField(field: CnabField): string {
+  const cnabFieldType = getCnabFieldType(field);
   if (cnabFieldType === CnabFieldType.Date) {
-    return formatDate(item);
+    return formatDate(field);
   } else if (cnabFieldType === CnabFieldType.Number) {
-    return formatNumber(item);
+    return formatNumber(field);
   } else {
     // Text
-    return formatText(item);
+    return formatText(field);
   }
 }
 
-export function getCnabFieldType(item: CnabField): CnabFieldType {
+export function getCnabFieldType(field: CnabField): CnabFieldType {
   let result: CnabFieldType | undefined = undefined;
-  if (item.picture.startsWith('9')) {
-    if (item.dateFormat) {
+  if (field.picture.startsWith('9')) {
+    if (field.dateFormat) {
       result = CnabFieldType.Date;
     } else {
       result = CnabFieldType.Number;
     }
-  } else if (item.picture.startsWith('X')) {
+  } else if (field.picture.startsWith('X')) {
     result = CnabFieldType.Text;
   }
 
   if (!result) {
-    throw new Error(`Cant recognize picture for ${item.picture}`);
+    throw new Error(`Cant recognize picture for ${field.picture}`);
   }
-  validateCnabFieldType(item);
+  validateCnabFieldType(field);
 
   return result;
 }
 
-export function validateCnabFieldType(item: CnabField) {
-  if (item.value === null) {
+export function validateCnabFieldType(field: CnabField) {
+  if (field.value === null) {
     throw new Error('No formats allow null item value');
   }
 }
@@ -141,15 +143,15 @@ export function cropFillCnabField(
  * Unused fields must be filled with spaces.
  */
 export function formatText(
-  item: CnabField,
+  field: CnabField,
   onCrop: CropFillOnCrop = 'cropRight',
   throwIfInvalid = false,
 ) {
-  validateFormatText(item);
-  validateCnabText(item, throwIfInvalid);
-  const size = getPictureTextSize(item.picture);
+  validateFormatText(field);
+  validateCnabText(field, throwIfInvalid);
+  const size = getPictureTextSize(field.picture);
   return cropFillCnabField(
-    getStringNoSpecials(getStringUpperUnaccent(item.value)),
+    getStringNoSpecials(getStringUpperUnaccent(field.value)),
     size,
     CnabFieldType.Text,
     onCrop,
@@ -161,16 +163,16 @@ export function formatText(
  *
  * @throws `Error` if field value is invalid
  */
-function validateFormatText(item: CnabField) {
-  if (typeof item.value !== 'string') {
-    throw new Error(`CnabField value (${item.value}) is not string.`);
+function validateFormatText(field: CnabField) {
+  if (typeof field.value !== 'string') {
+    throw new Error(`CnabField value (${field.value}) is not string.`);
   }
 }
 
 /**
  * Format cnab field as date string
  *
- * @param item for string date, dateFormat must folow these examples:
+ * @param field for string date, dateFormat must folow these examples:
  * - `kkmmss` =  "992359"
  * - `ddMMyyyy` = "31122024"
  * - `ddMMyy` =  "311230"
@@ -185,36 +187,36 @@ function validateFormatText(item: CnabField) {
  * @throws `Error` if field value is invalid
  */
 export function formatDate(
-  item: CnabField,
+  field: CnabField,
   onCrop: CropFillOnCrop = 'cropRight',
 ): string {
-  validateFormatDate(item);
-  const { integer } = getPictureNumberSize(item.picture);
+  validateFormatDate(field);
+  const { integer } = getPictureNumberSize(field.picture);
   const value =
-    !isDate(item.value) && !item.dateFormat
-      ? String(item.value)
+    !isDate(field.value) && !field.dateFormat
+      ? String(field.value)
       : String(
-          format(
-            stringToDate(item.value, item.dateFormat?.input),
-            item.dateFormat?.output || 'yymmdd',
-          ),
-        );
+        format(
+          stringToDate(field.value, field.dateFormat?.input),
+          field.dateFormat?.output || 'yymmdd',
+        ),
+      );
   return cropFillCnabField(value, integer, CnabFieldType.Date, onCrop);
 }
 
 /**
  * Performs basic validation before formatting.
  */
-function validateFormatDate(item: CnabField) {
-  if (!item.dateFormat) {
+function validateFormatDate(field: CnabField) {
+  if (!field.dateFormat) {
     throw new Error(`CnabField must have dateFormat.`);
   }
-  if (isNaN(stringToDate(item.value, item.dateFormat.input).getDate())) {
-    const dateFormat = item.dateFormat
-      ? JSON.stringify(item.dateFormat)
+  if (isNaN(stringToDate(field.value, field.dateFormat.input).getDate())) {
+    const dateFormat = field.dateFormat
+      ? JSON.stringify(field.dateFormat)
       : 'undefined';
     throw new Error(
-      `CnabField value: ${item.value}, dateFormat: ${dateFormat} got an invalid date.`,
+      `CnabField value: ${field.value}, dateFormat: ${dateFormat} got an invalid date.`,
     );
   }
 }
@@ -227,12 +229,12 @@ function validateFormatDate(item: CnabField) {
  * Example: if picture is "9(5)V9(2)" or "9(5)V999" the number "876,5432" must be "0087654".
  */
 export function formatNumber(
-  item: CnabField,
+  field: CnabField,
   onCrop: CropFillOnCrop = 'cropRight',
 ): string {
-  validateFormatNumber(item);
-  const { integer, decimal } = getPictureNumberSize(item.picture);
-  const result = Number(item.value).toFixed(decimal).replace('.', '');
+  validateFormatNumber(field);
+  const { integer, decimal } = getPictureNumberSize(field.picture);
+  const result = Number(field.value).toFixed(decimal).replace('.', '');
   return cropFillCnabField(
     result,
     integer + decimal,
@@ -244,10 +246,10 @@ export function formatNumber(
 /**
  * Performs basic validation before formatting.
  */
-function validateFormatNumber(item: CnabField) {
-  if (item.value === null || isNaN(Number(item.value))) {
+function validateFormatNumber(field: CnabField) {
+  if (field.value === null || isNaN(Number(field.value))) {
     throw new Error(
-      `CnabField value (${item.value}) is not a valid number value.`,
+      `CnabField value (${field.value}) is not a valid number value.`,
     );
   }
 }
@@ -257,14 +259,14 @@ function validateFormatNumber(item: CnabField) {
  * - All characters must be UPPERCASE, Alphanumeric (A-z 0-9) and no Accent (no "á", "ê" etc).
  */
 export function validateCnabText(
-  item: CnabField,
+  field: CnabField,
   throwOnError = false,
 ): boolean {
   const isCnabTextValid =
-    typeof item.value === 'string' && isStringBasicAlnumUpper(item.value);
+    typeof field.value === 'string' && isStringBasicAlnumUpper(field.value);
   if (isCnabTextValid && throwOnError) {
     throw new Error(
-      `CnabField value "${item.value}" formatting has invalid Text format.`,
+      `CnabField value "${field.value}" formatting has invalid Text format.`,
     );
   }
   return isCnabTextValid;
@@ -273,44 +275,57 @@ export function validateCnabText(
 /**
  * Run all validations of CnabField
  */
-export function validateCnabField(item: CnabField) {
-  validateCnabFieldPositionSize(item);
+export function validateCnabField(field: CnabField) {
+  validateCnabFieldPositionSize(field);
 }
 
 /**
  * Validates if position matches Picture
  */
-export function validateCnabFieldPositionSize(item: CnabField) {
-  const pictureSize = getPictureTotalSize(item);
-  const start = item.pos[0];
-  const end = item.pos[1];
+export function validateCnabFieldPositionSize(field: CnabField) {
+  const pictureSize = getPictureTotalSize(field);
+  const start = field.pos[0];
+  const end = field.pos[1];
   const posSize = end + 1 - start;
   if (pictureSize < 1) {
     throw new Error(`CnabField picture should be >= 1 but is ${pictureSize}`);
   }
   if (start < 1) {
     throw new Error(
-      `CnabField position start should be >= 1 but is ${item.pos[0]}`,
+      `CnabField position start should be >= 1 but is ${field.pos[0]}`,
     );
   }
   if (end < start) {
     throw new Error(
-      `CnabField position end should be >= start but positions are ${item.pos}`,
+      `CnabField position end should be >= start but positions are ${field.pos}`,
     );
   }
   if (pictureSize !== posSize) {
     throw new Error(
       `CnabField picture and position doesnt match ` +
-        `(positionSize: ${posSize}, pictureSize: ${pictureSize}),` +
-        `CnabField: ${JSON.stringify(item)}`,
+      `(positionSize: ${posSize}, pictureSize: ${pictureSize}),` +
+      `CnabField: ${JSON.stringify(field)}`,
     );
   }
 }
 
-export function getPictureTotalSize(item: CnabField) {
-  return getCnabFieldType(item) === CnabFieldType.Text
-    ? getPictureTextSize(item.picture)
-    : ((i = getPictureNumberSize(item.picture)) => i.decimal + i.integer)();
+export function getPictureTotalSize(field: CnabField) {
+  return getCnabFieldType(field) === CnabFieldType.Text
+    ? getPictureTextSize(field.picture)
+    : ((i = getPictureNumberSize(field.picture)) => i.decimal + i.integer)();
+}
+
+// #endregion
+
+// #region parseCnabField
+
+export function parseCnabField(
+  cnabStringLine: string,
+  fieldDTO: CnabField,
+): CnabField {
+  const field = getCnabFieldFromString(cnabStringLine, fieldDTO);
+  validateParseCnabField(field);
+  return field;
 }
 
 /**
@@ -319,15 +334,37 @@ export function getPictureTotalSize(item: CnabField) {
  * - To represent size = 1 the position must be [1,1], [8,8] etc.
  * - To represent size = 2 the position must be [1,2], [8,9] etc.
  */
-export function parseField(
-  cnab: string,
-  field: CnabField,
-  textStart = 0,
+export function getCnabFieldFromString(
+  cnabStringLine: string,
+  fieldDTO: CnabField,
 ): CnabField {
-  const start = textStart + field.pos[0] - 1;
-  const end = textStart + field.pos[0] + field.pos[1];
-  return {
-    ...field,
-    value: cnab.slice(start, end),
-  };
+  const field = structuredClone(fieldDTO);
+  const start = fieldDTO.pos[0] - 1;
+  const end = fieldDTO.pos[0] + fieldDTO.pos[1];
+  field.value = cnabStringLine.slice(start, end);
+  return field;
+}
+
+/**
+ * Remember:
+ * - CnabField position start starts counting from 1, not zero.
+ * - To represent size = 1 the position must be [1,1], [8,8] etc.
+ * - To represent size = 2 the position must be [1,2], [8,9] etc.
+ */
+export function validateParseCnabField(
+  field: CnabField,
+) {
+  validateCnabField(field);
+  validateCnabFieldValue(field);
+}
+
+/**
+ * Check if CnabField value has expected formatting
+ * 
+ * Example: number, date, text
+ */
+export function validateCnabFieldValue(field: CnabField) {
+  getStringFromCnabField(field);
+
+  // #endregion
 }

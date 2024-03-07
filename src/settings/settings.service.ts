@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { formatLog } from 'src/utils/logging';
+import { formatLog } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { IsNull, Like, Repository } from 'typeorm';
@@ -16,7 +16,7 @@ export class SettingsService {
   constructor(
     @InjectRepository(SettingEntity)
     private readonly settingsRepository: Repository<SettingEntity>,
-  ) {}
+  ) { }
 
   async find(
     fields?: EntityCondition<SettingEntity>,

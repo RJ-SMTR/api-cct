@@ -1,5 +1,5 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class HeaderArquivo extends EntityHelper {
@@ -35,4 +35,6 @@ export class HeaderArquivo extends EntityHelper {
   hr_geracao: Date;
   @Column({ type: Number, unique: false, nullable: true })
   id_transacao: number;
+  @CreateDateColumn()
+  createdAt: Date;
 }

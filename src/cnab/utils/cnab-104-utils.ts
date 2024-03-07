@@ -6,16 +6,43 @@ import { ICnab240_104Lote } from '../interfaces/cnab-240/104/cnab-240-104-lote.i
 import { ICnab240_104Registro } from '../interfaces/cnab-240/104/cnab-240-104-registro.interface';
 import { ICnab240_104TrailerArquivo } from '../interfaces/cnab-240/104/cnab-240-104-trailer-arquivo.interface';
 import { ICnab240_104TrailerLote } from '../interfaces/cnab-240/104/cnab-240-104-trailer-lote.interface';
+import { cnab240_104DetalheATemplate } from '../templates/cnab-240/104/cnab-240-104-detalhe-a-template.const';
+import { cnab240_104DetalheBTemplate } from '../templates/cnab-240/104/cnab-240-104-detalhe-b-template.const';
+import { cnab240_104HeaderArquivoTemplate } from '../templates/cnab-240/104/cnab-240-104-header-arquivo-template.const';
+import { cnab240_104HeaderLoteTemplate } from '../templates/cnab-240/104/cnab-240-104-header-lote-template.const';
+import { cnab240_104TrailerArquivoTemplate } from '../templates/cnab-240/104/cnab-240-104-trailer-arquivo-template.const';
+import { cnab240_104TrailerLoteTemplate } from '../templates/cnab-240/104/cnab-240-104-trailer-lote-template.const';
 import { cnabAll104FieldMapTemplate as fieldMapTemplate } from '../templates/cnab-all/cnab-all-104-registro-field-map-template';
 import { CnabFile } from '../types/cnab-file.type';
 import { CnabLote } from '../types/cnab-lote.type';
 import { CnabRegistro } from '../types/cnab-registro.type';
 import {
   getCnabMappedValue,
+  parseCnabFile,
   processCnabFile,
   stringifyCnabFile,
 } from './cnab-utils';
 
+export function parseCnab240_104(cnabString: string): ICnab240_104File {
+  const fileDTO = getCnabFileFrom104({
+    headerArquivo: structuredClone(cnab240_104HeaderArquivoTemplate),
+    lotes: [{
+      headerLote: structuredClone(cnab240_104HeaderLoteTemplate),
+      registros: [{
+        detalheA: structuredClone(cnab240_104DetalheATemplate),
+        detalheB: structuredClone(cnab240_104DetalheBTemplate),
+      }],
+      trailerLote: structuredClone(cnab240_104TrailerLoteTemplate),
+    }],
+    trailerArquivo: structuredClone(cnab240_104TrailerArquivoTemplate),
+  })
+  const file = parseCnabFile(cnabString, fileDTO);
+  return getCnab104FromFile(file);
+}
+
+/**
+ * Validate and add Cnab 104 information
+ */
 export function getProcessedCnab104(
   cnab104: ICnab240_104File,
 ): ICnab240_104File {
@@ -27,6 +54,9 @@ export function getProcessedCnab104(
   return getCnab104FromFile(cnab);
 }
 
+/**
+ * Validate, process and transform into string
+ */
 export function stringifyCnab104File(cnab104: ICnab240_104File): string {
   validateCnab104File(cnab104);
   const newCnab104 = structuredClone(cnab104);
@@ -54,7 +84,7 @@ export function validateUniqueCnab104Lotes(lotes: ICnab240_104Lote[]) {
     (l, i) => [
       ...l,
       String(i.headerLote.tipoCompromisso.value) +
-        String(i.headerLote.formaLancamento.value),
+      String(i.headerLote.formaLancamento.value),
     ],
     [],
   );
@@ -62,8 +92,8 @@ export function validateUniqueCnab104Lotes(lotes: ICnab240_104Lote[]) {
   if (loteTypes.length !== uniqueLoteTypes.length) {
     throw new Error(
       'Each headerLote must have unique combination of ' +
-        "`tipoCompromisso` and 'formaLancamento' but there are repeated ones " +
-        `(${JSON.stringify(loteTypesDict)})`,
+      "`tipoCompromisso` and 'formaLancamento' but there are repeated ones " +
+      `(${JSON.stringify(loteTypesDict)})`,
     );
   }
 }
@@ -136,7 +166,7 @@ function getCnab104Registros(lote: CnabLote): ICnab240_104Registro[] {
     // add detalhe to registro set
     const codSegmento = getCnabMappedValue(
       registro,
-      'detalheSegmentoNameField',
+      'detalheSegmentoCodeField',
     );
     newRegistro[`detalhe${codSegmento}`] = registro.fields;
   }
@@ -159,7 +189,7 @@ function getCnab104Registros(lote: CnabLote): ICnab240_104Registro[] {
  */
 function isNewCnab104RegistroSet(registro: CnabRegistro): boolean {
   return [Cnab104CodigoSegmento.A].includes(
-    getCnabMappedValue(registro, 'detalheSegmentoNameField'),
+    getCnabMappedValue(registro, 'detalheSegmentoCodeField'),
   );
 }
 

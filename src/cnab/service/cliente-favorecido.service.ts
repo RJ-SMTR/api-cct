@@ -76,14 +76,14 @@ export class ClienteFavorecidoService {
       dv_agencia: user.getBankAgencyDigit(),
       conta_corrente: user.getBankAccount(),
       dv_conta_corrente: user.getBankAccountDigit(),
-      logradouro: '',
-      numero: '',
-      complemento: '',
-      bairro: '',
-      cidade: '',
-      cep: '',
-      complemento_cep: '',
-      uf: '',
+      logradouro: null,
+      numero: null,
+      complemento: null,
+      bairro: null,
+      cidade: null,
+      cep: null,
+      complemento_cep: null,
+      uf: null,
     };
     await validateDTO(SaveClienteFavorecidoDTO, saveObject);
     await this.clienteFavorecidoRepository.save(saveObject);
@@ -94,4 +94,5 @@ export class ClienteFavorecidoService {
   ): Promise<Nullable<ClienteFavorecido>> {
     return await this.clienteFavorecidoRepository.getOne(fields);
   }
+
 }
