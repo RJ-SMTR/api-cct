@@ -4,12 +4,14 @@ export const Cnab104Const = {
    * 
    * @example '18122000'
    */
-  dateOutput: 'ddMMyyyy',
+  cnabDateOutput: 'ddMMyyyy',
 
   /**
    * HHMMSS - hour is 0-23
    * 
    * @example '235911'
    */
-  hourOutput: 'HHmmss',
+  cnabHourOutput: 'HHmmss',
+
+  dateObjOutput: 'yyyy MM dd',
 }

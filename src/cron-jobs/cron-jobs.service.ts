@@ -29,8 +29,6 @@ export enum CrobJobsEnum {
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
   updateTransacaoFromJae = 'updateTransacaoFromJae',
-  sendNewCNABs = 'sendNewCNABs',
-  getRetornoCNAB = 'getRetornoCNAB',
   updateRemessa = 'updateRemessa',
   updateRetorno = 'updateRetorno'
 }
@@ -117,27 +115,27 @@ export class CronJobsService implements OnModuleInit {
         {
           name: CrobJobsEnum.updateTransacaoFromJae,
           cronJobParameters: {
-            cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+            cronTime: '* * * * *',
             onTick: async () => {
-              await this.bulkResendInvites();
+              await this.updateTransacaoFromJae();
             },
           },
         },
         {
           name: CrobJobsEnum.updateRemessa,
           cronJobParameters: {
-            cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+            cronTime: '45 14 * * *',
             onTick: async () => {
               await this.updateRemessa();
             },
           },
         },
         {
-          name: CrobJobsEnum.getRetornoCNAB,
+          name: CrobJobsEnum.updateRetorno,
           cronJobParameters: {
             cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
             onTick: async () => {
-              await this.getRetornoCNAB();
+              await this.updateRetorno();
             },
           },
         }

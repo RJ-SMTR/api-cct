@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { SftpClientService } from './sftp-client/sftp-client.service';
 import { ConnectConfig } from './interfaces/connect-config.interface';
 import { FileInfo } from './interfaces/file-info.interface';
+import { ConfigService } from '@nestjs/config';
+import { AllConfigType } from 'src/config/config.type';
 
 @Injectable()
 export class SftpService {
@@ -10,8 +12,24 @@ export class SftpService {
   private readonly RETORNO_FOLDER = '/retorno'
   private readonly BACKUP_REMESSA = '/backup/remessa'
   private readonly BACKUP_RETORNO_FOLDER = '/backup/retorno'
-  constructor(private readonly sftpClient: SftpClientService) {
+  constructor(
+    private readonly configService: ConfigService<AllConfigType>,
+    private readonly sftpClient: SftpClientService,
+  ) {
     this.logger = new Logger('SftpService', { timestamp: true });
+  }
+
+  private getClientCredentials(): ConnectConfig {
+    return {
+      host: this.configService.getOrThrow('sftp.host', { infer: true }),
+      port: this.configService.getOrThrow('sftp.port', { infer: true }),
+      username: this.configService.getOrThrow('sftp.username', { infer: true }),
+      password: this.configService.getOrThrow('sftp.password', { infer: true }),
+    }
+  }
+
+  private async connectClient() {
+    await this.sftpClient.connect(this.getClientCredentials());
   }
 
   public async download(
@@ -57,6 +75,7 @@ export class SftpService {
     cnabName: string | null,
     cnabString: string | null,
   }> {
+    await this.connectClient();
     const fileInfo: FileInfo = await this.sftpClient.list(
       this.RETORNO_FOLDER,
       this.getRegexForCnab('retorno'),
@@ -73,6 +92,7 @@ export class SftpService {
    * @param cnabName Name with extension. No folder path.
    */
   public async backupCnabRetorno(cnabName: string) {
+    await this.connectClient();
     await this.sftpClient.rename(
       `${this.RETORNO_FOLDER}/${cnabName}`,
       `${this.BACKUP_RETORNO_FOLDER}/${cnabName}`

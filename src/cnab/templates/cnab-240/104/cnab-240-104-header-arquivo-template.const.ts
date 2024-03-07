@@ -118,14 +118,14 @@ export const cnab240_104HeaderArquivoTemplate: ICnab240_104HeaderArquivo = {
     pos: [144, 151],
     picture: '9(008)',
     value: '00000000',
-    dateFormat: { output: Cnab104Const.dateOutput }
+    dateFormat: { output: Cnab104Const.cnabDateOutput }
   },
   /** HHMMSS */
   horaGeracaoArquivo: {
     pos: [152, 157],
     picture: '9(006)',
     value: '000000',
-    dateFormat: { output: Cnab104Const.hourOutput }
+    dateFormat: { output: Cnab104Const.cnabHourOutput }
   },
   nsa: {
     pos: [158, 163],

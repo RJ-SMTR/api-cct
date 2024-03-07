@@ -41,10 +41,16 @@ export class HeaderArquivo extends EntityHelper {
   nomeEmpresa: string | null;
 
   @Column({ type: String, unique: false, nullable: true })
-  dataHoraGeracao: Date | null;
+  dataGeracao: Date | null;
+
+  @Column({ type: 'time', unique: false, nullable: true })
+  horaGeracao: Date | null;
 
   @OneToOne(() => Transacao, { eager: true })
   transacao: Transacao;
+
+  @Column({ type: Number, unique: true, nullable: false })
+  nsa: number;
 
   @CreateDateColumn()
   createdAt: Date;

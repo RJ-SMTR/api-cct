@@ -16,7 +16,7 @@ export class DetalheADTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  loteServico?: string;
+  loteServico?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -24,55 +24,55 @@ export class DetalheADTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipoFinalidadeConta?: string;
+  tipoFinalidadeConta?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dataVencimento?: Date;
+  dataVencimento?: Date | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipoMoeda?: string;
+  tipoMoeda?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  quantidadeMoeda?: number;
+  quantidadeMoeda?: number | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  valorLancamento?: number;
+  valorLancamento?: number | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numeroDocumentoLancamento?: number;
+  numeroDocumentoLancamento?: number | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  quantidadeParcelas?: number;
+  quantidadeParcelas?: number | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  indicadorBloqueio?: string;
+  indicadorBloqueio?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  indicadorFormaParcelamento?: string;
+  indicadorFormaParcelamento?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  periodoVencimento?: Date;
+  periodoVencimento?: Date | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numeroParcela?: number;
+  numeroParcela?: number | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dataEfetivacao?: Date;
+  dataEfetivacao?: Date | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  valorRealEfetivado?: number;
+  valorRealEfetivado?: number | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -80,5 +80,5 @@ export class DetalheADTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  ocorrencias: string;
+  ocorrencias: string | null;
 }

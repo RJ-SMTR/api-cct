@@ -6,7 +6,8 @@ import { ConnectConfig } from './interfaces/connect-config.interface';
 import { SftpService } from './sftp.service';
 
 @Module({
-  providers: [SftpClientService, SftpService]
+  providers: [SftpClientService, SftpService],
+  exports: [SftpClientService, SftpService],
 })
 export class SftpModule {
   static forRoot(
@@ -28,7 +29,7 @@ export class SftpModule {
           },
         },
       ],
-      exports: [SftpClientService],
+      exports: [SftpClientService, SftpService],
     };
   }
 }

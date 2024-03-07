@@ -43,7 +43,7 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
   filler: { pos: [80, 92], picture: 'X(013)', value: '             ' },
   tipoContaFinalidadeTed: { pos: [93, 93], picture: 'X(001)', value: ' ' },
   /** DDMMAAAA */
-  dataVencimento: { pos: [94, 101], picture: '9(008)', value: '00000000', dateFormat: { output: Cnab104Const.dateOutput } },
+  dataVencimento: { pos: [94, 101], picture: '9(008)', value: '00000000', dateFormat: { output: Cnab104Const.cnabDateOutput } },
   tipoMoeda: {
     pos: [102, 104],
     picture: 'X(003)',

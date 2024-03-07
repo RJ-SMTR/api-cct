@@ -41,18 +41,10 @@ import { BigqueryModule } from './bigquery/bigquery.module';
 import { TestModule } from './test/test.module';
 import { CnabModule } from './cnab/cnab.module';
 import { SftpModule } from './sftp/sftp.module';
+import sftpConfig from './config/sftp.config';
 
 @Module({
   imports: [
-    SftpModule.forRoot(
-      {
-        host: '',
-        port: 0,
-        username: '',
-        password: '' 
-      },
-      false,
-    ),
     ConfigModule.forRoot({
       isGlobal: true,
       load: [
@@ -65,6 +57,7 @@ import { SftpModule } from './sftp/sftp.module';
         googleConfig,
         twitterConfig,
         appleConfig,
+        sftpConfig,
       ],
       envFilePath: ['.env'],
     }),
@@ -119,7 +112,6 @@ import { SftpModule } from './sftp/sftp.module';
     TestModule,
     CnabModule,
     SftpModule,
-    // SftpModule,
   ],
 })
 export class AppModule {}

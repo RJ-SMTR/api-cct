@@ -112,7 +112,7 @@ export function getDateYMDString(date: Date): string {
  *
  * @param inputFormat date-fns date format. (see {@link https://date-fns.org/v3.3.1/docs/format})
  */
-export function stringToDate(
+export function getDateFromString(
   value: string,
   inputFormat?: string,
   throwIfInvalid = true,

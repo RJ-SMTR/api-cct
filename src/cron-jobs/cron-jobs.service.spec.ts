@@ -17,9 +17,6 @@ import { RoleEnum } from 'src/roles/roles.enum';
 import { MailRegistrationInterface } from 'src/mail/interfaces/mail-registration.interface';
 import { DeepPartial } from 'typeorm';
 
-/**
- * FIXME: 'imports: [ < the Module containing BankRepository > ]'
- */
 xdescribe('CronJobsService', () => {
   let cronJobsService: CronJobsService;
   let settingsService: SettingsService;
