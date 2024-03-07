@@ -12,9 +12,9 @@ export class HeaderLoteService {
 
   constructor(private headerLoteRepository: HeaderLoteRepository) {}
 
-  public async save(dto: HeaderLoteDTO): Promise<void> {
+  public async save(dto: HeaderLoteDTO): Promise<HeaderLote> {
     await validateDTO(HeaderLoteDTO, dto);
-    await this.headerLoteRepository.save(dto);
+    return await this.headerLoteRepository.save(dto);
   }
 
   public async findOne(

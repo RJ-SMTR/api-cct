@@ -9,8 +9,9 @@ import { PagadorContaEnum } from '../enums/pagador/pagador.enum';
 import { TransacaoRepository } from '../repository/transacao.repository';
 import { TransacaoDTO } from './../dto/transacao.dto';
 import { ClienteFavorecidoService } from './cliente-favorecido.service';
-import { ItemTransacaoService } from './item-transacao.service';
+
 import { PagadorService } from './pagador.service';
+import { ItemTransacaoService } from './item-transacao.service';
 
 @Injectable()
 export class TransacaoService {

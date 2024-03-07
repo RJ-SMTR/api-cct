@@ -8,6 +8,7 @@ import { CommonHttpException } from 'src/utils/http-exception/common-http-except
 
 @Injectable()
 export class ClienteFavorecidoRepository {
+
   private logger: Logger = new Logger('ClienteFavorecidoRepository', {
     timestamp: true,
   });
