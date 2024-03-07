@@ -6,6 +6,8 @@ import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.re
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { validateDTO } from 'src/utils/validation-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -85,5 +87,11 @@ export class ClienteFavorecidoService {
     };
     await validateDTO(SaveClienteFavorecidoDTO, saveObject);
     await this.clienteFavorecidoRepository.save(saveObject);
+  }
+
+  public async findOne(
+    fields: EntityCondition<ClienteFavorecido> | EntityCondition<ClienteFavorecido>[],
+  ): Promise<Nullable<ClienteFavorecido>> {
+    return await this.clienteFavorecidoRepository.getOne(fields);
   }
 }

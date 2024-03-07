@@ -234,7 +234,7 @@ export class HeaderArquivoService {
   }
 
   public async findAll(): Promise<HeaderArquivo[]> {
-    return await this.headerArquivoRepository.findAll();
+    return await this.headerArquivoRepository.findAll({});
   }
 
   private async transacaoToHeaderArquivoDTO(
@@ -337,9 +337,84 @@ export class HeaderArquivoService {
     return true;
   }
 
+
+  public async saveArquivoRetorno(_cnab240:ICnab240_104File):Promise<void>{
+    const headerArquivo = new HeaderArquivo();
+    headerArquivo.cod_banco = String(_cnab240.headerArquivo.codigoBanco.value);
+    headerArquivo.agencia  =String( _cnab240.headerArquivo.agenciaContaCorrente.value );
+    headerArquivo.num_conta =String( _cnab240.headerArquivo.numeroConta.value );
+    headerArquivo.dv_conta =String( _cnab240.headerArquivo.dvConta.value );
+    headerArquivo.dt_geracao = new Date( _cnab240.headerArquivo.dataGeracaoArquivo.value);
+    headerArquivo.nome_empresa =String( _cnab240.headerArquivo.nomeEmpresa.value);
+    headerArquivo.nsa =String( _cnab240.headerArquivo.nsa.value);  
+    headerArquivo.param_transmissao =String( _cnab240.headerArquivo.parametroTransmissao.value);
+    headerArquivo.tipo_arquivo = "retorno";
+    headerArquivo.tipo_inscricao =String( _cnab240.headerArquivo.tipoInscricao.value);
+    headerArquivo.num_inscricao =String( _cnab240.headerArquivo.numeroInscricao.value);
+    
+    const headerArquivoRemessa = await this.headerArquivoRepository.findOne({
+      nsa: String(_cnab240.headerArquivo.nsa.value),
+      tipo_arquivo: "remessa"
+    });
+
+    headerArquivo.id_transacao = headerArquivoRemessa?.id_transacao as number;  
+    const headerArquivoSave = await this.headerArquivoRepository.save(headerArquivo);
+    _cnab240.lotes.forEach(async l=>{
+        const headerLote = new HeaderLoteDTO();
+        
+        headerLote.id_header_arquivo = headerArquivoSave.id_header_arquivo;
+        headerLote.lote_servico = l.headerLote.loteServico.value ;
+        headerLote.cod_convenio_banco = l.headerLote.codigoConvenioBanco.value;
+        headerLote.num_inscricao = l.headerLote.numeroInscricao.value;
+        headerLote.param_transmissao = l.headerLote.param_transmissao.value ;
+        headerLote.tipo_compromisso = l.headerLote.tipoCompromisso.value ;
+        headerLote.tipo_inscricao = l.headerLote.tipoInscricao.value ;
+        
+        const pagador = await this.pagadorService.findByConta(l.headerLote.numeroConta.value);
+        headerLote.id_pagador = Number(pagador?.id_pagador);
+
+        const headerLoteSave = await this.headerLoteService.save(headerLote);  
+        l.registros.forEach(async r=>{
+          const detalheA = new DetalheADTO();
+          detalheA.id_header_lote = headerLoteSave.id_header_lote;
+          detalheA.data_efetivacao = r.detalheA?.dataEfetivacao as unknown as Date;
+          detalheA.dt_vencimento = r.detalheA?.dataVencimento as unknown as Date;
+          detalheA.indicador_bloqueio = r.detalheA?.indicadorBloqueio.value ;
+          detalheA.indicador_forma_parcelamento = r.detalheA?.indicadorFormaParcelamento.value ;
+          detalheA.lote_servico = r.detalheA?.loteServico.value ;
+          detalheA.nsr = r.detalheA?.nsr.value;
+          detalheA.num_doc_lancamento = r.detalheA?.numeroDocumento.value;
+          detalheA.num_parcela = r.detalheA?.numeroParcela.value;
+          detalheA.periodo_vencimento = new Date(r.detalheA?.dataVencimento.value);
+          detalheA.qtde_moeda = r.detalheA?.quantidadeMoeda.value;
+          detalheA.qtde_parcelas = r.detalheA?.quantidadeMoeda.value;
+          detalheA.valor_lancamento = r.detalheA?.valor_lancamento.value;
+          detalheA.tipo_finalidade_conta = r.detalheA?.tipoContaFinalidade.value ;
+          detalheA.tipo_moeda = String(r.detalheA?.tipoMoeda.value) ;
+          detalheA.valor_real_efetivado = r.detalheA?.valorRealEfetivado.value;
+
+          const cliente =
+          await this.clienteFavorecidoService.findOne(
+            {conta_corrente: r.detalheA?.contaCorrenteDestino.value ,
+             dv_conta_corrente: r.detalheA?.dvContaDestino.value });
+
+            detalheA.id_cliente_favorecido = cliente?.id_cliente_favorecido;
+
+          const detalheASave = await this.detalheAService.save(detalheA);
+
+          const detalheB = new DetalheBDTO();
+          detalheB.id_detalhe_a = detalheASave.id_detalhe_a;
+          detalheB.nsr = r.detalheB?.nsr.value;
+          detalheB.data_vencimento = r.detalheB?.dataVencimento as unknown as Date;
+          await this.detalheBService.save(detalheB);
+        });  
+    })
+  }
+
+
   public async compareRemessaToRetorno():Promise<void>{
     const arquivosRemessa = await this.headerArquivoRepository.findAll({tipo_arquivo: "remessa"});
-    
+   
     arquivosRemessa.forEach(async headerArquivo => {
       const arquivoPublicacao = new ArquivoPublicacaoDTO();
       arquivoPublicacao.id_header_arquivo = headerArquivo.id_header_arquivo
@@ -360,11 +435,11 @@ export class HeaderArquivoService {
             //DetalheA Retorno
             const detalhesA = await this.detalheAService.findMany({ id_header_lote: headerLoteRetorno.id_header_lote});
             detalhesA.forEach( async detalheA => {
+              arquivoPublicacao.lote_servico = detalheA.lote_servico;
               arquivoPublicacao.dt_vencimento = detalheA.dt_vencimento;            
               arquivoPublicacao.valor_lancamento = detalheA.valor_lancamento;
-              arquivoPublicacao.data_efetivacao = detalheA.data_efetivacao;
-              arquivoPublicacao.valor_real_efetivado = detalheA.valor_real_efetivado;
-              arquivoPublicacao.ocorrencias = detalheA.ocorrencias;
+              arquivoPublicacao.data_efetivacao = detalheA.data_efetivacao; 
+              arquivoPublicacao.valor_real_efetivado = detalheA.valor_real_efetivado;            
                 const clienteFavorecido = 
                 await this.clienteFavorecidoService.getOneByIdClienteFavorecido(detalheA.id_cliente_favorecido);   
                 arquivoPublicacao.nome_cliente = clienteFavorecido.nome ;
@@ -374,7 +449,7 @@ export class HeaderArquivoService {
                 arquivoPublicacao.dv_agencia_cliente = clienteFavorecido.dv_agencia;
                 arquivoPublicacao.conta_corrente_cliente = clienteFavorecido.conta_corrente;
                 arquivoPublicacao.dv_conta_corrente_cliente = clienteFavorecido.dv_conta_corrente;
-                arquivoPublicacao.ocorrencias = detalheA.ocorrencias;
+                arquivoPublicacao.ocorrencias = detalheA.ocorrencias; 
                 void this.arquivoPublicacaoRepository.save(arquivoPublicacao);
             });
           });

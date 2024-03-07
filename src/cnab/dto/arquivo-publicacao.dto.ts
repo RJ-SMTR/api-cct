@@ -30,8 +30,8 @@ export class ArquivoPublicacaoDTO {
     dv_conta_corrente_cliente?: string;
 
     dt_vencimento?: Date;    
-    valor_lancamento?: number;
-    data_efetivacao?: Date;
+    valor_lancamento?: number; 
+    data_efetivacao?: Date; 
     valor_real_efetivado?: number;
-    ocorrencias: string;
+    ocorrencias: string; 
   }
