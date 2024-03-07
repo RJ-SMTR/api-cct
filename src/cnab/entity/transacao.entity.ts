@@ -1,5 +1,6 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Pagador } from './pagador.entity';
 
 @Entity()
 export class Transacao extends EntityHelper {
@@ -11,40 +12,31 @@ export class Transacao extends EntityHelper {
   }
 
   @PrimaryGeneratedColumn()
-  id_transacao: number;
+  id: number;
 
   @Column({ type: Date, unique: false, nullable: true })
-  dt_ordem: Date;
+  dataOrdem: Date | null;
 
   @Column({ type: Date, unique: false, nullable: true })
-  dt_pagamento: Date;
+  dataPagamento: Date | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
-  nome_consorcio: string;
+  nomeConsorcio: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
-  nome_operadora: string;
+  nomeOperadora: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 150 })
-  servico: string;
+  servico: string | null;
 
-  @Column({ type: String, unique: true, nullable: true, length: 150 })
-  id_ordem_ressarcimento: string;
+  @Column({ type: Number, unique: false, })
+  idOrdemPagamento: number | null;
 
-  @Column({ type: Number, unique: false, nullable: true })
-  qtde_transacao_rateio_credito: number;
-
-  @Column({
-    type: Number,
-    unique: false,
-    nullable: true,
-    precision: 10,
-    scale: 2,
-  })
-  vlr_rateio_credito: number;
+  @Column({ type: String, unique: false, nullable: true, length: 150 })
+  idOrdemRessarcimento: string | null;
 
   @Column({ type: Number, unique: false, nullable: true })
-  qtde_transacao_rateio_debito: number;
+  quantidadeTransacaoRateioCredito: number | null;
 
   @Column({
     type: Number,
@@ -53,19 +45,10 @@ export class Transacao extends EntityHelper {
     precision: 10,
     scale: 2,
   })
-  vlr_rateio_debito: number;
-
-  @Column({
-    type: Number,
-    unique: false,
-    nullable: true,
-    precision: 10,
-    scale: 2,
-  })
-  quantidade_total_transacao: number;
+  valorRateioCredito: number;
 
   @Column({ type: Number, unique: false, nullable: true })
-  vlr_total_transacao_bruto: number;
+  quantidadeTransacaoRateioDebito: number | null;
 
   @Column({
     type: Number,
@@ -74,7 +57,7 @@ export class Transacao extends EntityHelper {
     precision: 10,
     scale: 2,
   })
-  vlr_desconto_taxa: number;
+  valorRateioDebito: number | null;
 
   @Column({
     type: Number,
@@ -83,10 +66,10 @@ export class Transacao extends EntityHelper {
     precision: 10,
     scale: 2,
   })
-  vlr_total_transacao_liquido: number;
+  quantidadeTotalTransacao: number | null;
 
   @Column({ type: Number, unique: false, nullable: true })
-  qtde_total_transacao_captura: number;
+  valorTotalTransacaoBruto: number | null;
 
   @Column({
     type: Number,
@@ -95,16 +78,40 @@ export class Transacao extends EntityHelper {
     precision: 10,
     scale: 2,
   })
-  vlr_total_transacao_captura: number;
+  valorDescontoTaxa: number | null;
+
+  @Column({
+    type: Number,
+    unique: false,
+    nullable: true,
+    precision: 10,
+    scale: 2,
+  })
+  valorTotalTransacaoLiquido: number | null;
+
+  @Column({ type: Number, unique: false, nullable: true })
+  quantidadeTotalTransacaoCaptura: number | null;
+
+  @Column({
+    type: Number,
+    unique: false,
+    nullable: true,
+    precision: 10,
+    scale: 2,
+  })
+  valorTotalTransacaoCaptura: number | null;
 
   @Column({ type: Boolean, unique: false, nullable: true, length: 100 })
-  indicador_ordem_valida: boolean;
+  indicadorOrdemValida: boolean | null;
 
-  @Column({ type: Number, unique: false, nullable: true })
-  id_pagador: number;
+  @ManyToOne(() => Pagador, { eager: true })
+  pagador: Pagador;
+
+  @CreateDateColumn()
+  createdAt: Date;
 
   public getLogInfo(): string {
-    const response = `#${this.id_transacao}`;
+    const response = `#${this.id}`;
     return response;
   }
 }

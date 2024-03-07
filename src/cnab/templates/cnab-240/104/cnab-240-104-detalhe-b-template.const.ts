@@ -1,3 +1,4 @@
+import { Cnab104Const } from 'src/cnab/const/cnab-104.const';
 import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
 import { ICnab240_104DetalheB } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-detalhe-b.interface';
@@ -35,7 +36,11 @@ export const cnab240_104DetalheBTemplate: ICnab240_104DetalheB = {
   cep: { pos: [118, 122], picture: '9(005)', value: '00000' },
   complementoCep: { pos: [123, 125], picture: 'X(003)', value: '   ' },
   siglaEstado: { pos: [126, 127], picture: 'X(002)', value: '  ' },
-  dataVencimento: { pos: [128, 135], picture: '9(008)', value: '00000000' },
+  /** DDMMAAAA */
+  dataVencimento: {
+    pos: [128, 135], picture: '9(008)', value: '00000000',
+    dateFormat: { output: Cnab104Const.dateOutput }
+  },
   valorDocumento: {
     pos: [136, 150],
     picture: '9(013)V99',

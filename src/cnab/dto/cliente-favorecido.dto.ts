@@ -13,11 +13,11 @@ export class SaveClienteFavorecidoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cpf_cnpj?: string | null;
+  cpfCnpj?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cod_banco?: string | null;
+  codBanco?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -25,15 +25,15 @@ export class SaveClienteFavorecidoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dv_agencia?: string | null;
+  dvAgencia?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  conta_corrente?: string | null;
+  contaCorrente?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dv_conta_corrente?: string | null;
+  dvContaCorrente?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -61,7 +61,7 @@ export class SaveClienteFavorecidoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  complemento_cep?: string | null;
+  complementoCep?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

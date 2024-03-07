@@ -1,59 +1,64 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { ClienteFavorecido } from './cliente-favorecido.entity';
+import { HeaderLote } from './header-lote.entity';
 
-@Entity('detalhe_a')
+@Entity()
 export class DetalheA extends EntityHelper {
   @PrimaryGeneratedColumn()
-  id_detalhe_a: number;
+  id: number;
 
-  @Column({ type: Number, unique: false, nullable: true })
-  id_header_lote: number;
-
-  @Column({ type: String, unique: false, nullable: true })
-  lote_servico: string;
-
-  @Column({ type: Number, unique: false, nullable: true })
-  id_cliente_favorecido: number;
+  @ManyToOne(() => HeaderLote, {eager: true})
+  headerLote: HeaderLote;
 
   @Column({ type: String, unique: false, nullable: true })
-  tipo_finalidade_conta: string;
+  loteServico?: string;
+
+  @Column({ type: Number, unique: false, nullable: true })
+  clienteFavorecido?: ClienteFavorecido;
+
+  @Column({ type: String, unique: false, nullable: true })
+  tipoFinalidadeConta?: string;
 
   @Column({ type: Date, unique: false, nullable: true })
-  dt_vencimento: Date;
+  dataVencimento?: Date;
 
   @Column({ type: String, unique: false, nullable: true })
-  tipo_moeda: string;
+  tipoMoeda?: string;
 
   @Column({ type: Number, unique: false, nullable: true })
-  qtde_moeda: number;
+  quantidadeMoeda?: number;
 
   @Column({ type: String, unique: false, nullable: true })
-  valor_lancamento: number;
+  valorLancamento?: number;
 
   @Column({ type: String, unique: false, nullable: true })
-  num_doc_lancamento: number;
+  numeroDocumentoLancamento?: number;
 
   @Column({ type: String, unique: false, nullable: true })
-  qtde_parcelas: number;
+  quantidadeParcelas?: number;
 
   @Column({ type: String, unique: false, nullable: true })
-  indicador_bloqueio: string;
+  indicadorBloqueio?: string;
 
   @Column({ type: String, unique: false, nullable: true })
-  indicador_forma_parcelamento: string;
+  indicadorFormaParcelamento?: string;
 
   @Column({ type: Date, unique: false, nullable: true })
-  periodo_vencimento: Date;
+  periodoVencimento?: Date;
 
   @Column({ type: String, unique: false, nullable: true })
-  num_parcela: number;
+  numeroParcela?: number;
 
   @Column({ type: Date, unique: false, nullable: true })
-  data_efetivacao: Date;
-  
+  dataEfetivacao?: Date;
+
   @Column({ type: Number, unique: false, nullable: true })
-  valor_real_efetivado: number;
+  valorRealEfetivado?: number;
 
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
+
+  @Column({ type: String, length: 10, nullable: true })
+  ocorrencias?: string;
 }

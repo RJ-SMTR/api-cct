@@ -8,7 +8,7 @@ import { PagadorRepository } from '../repository/pagador.repository';
 export class PagadorService {
   private logger: Logger = new Logger('PagadorService', { timestamp: true });
 
-  constructor(private pagadorRepository: PagadorRepository) {}
+  constructor(private pagadorRepository: PagadorRepository) { }
 
   public async findByConta(conta: PagadorContaEnum | string) {
     return await this.pagadorRepository.findOne({ conta: conta });
@@ -32,7 +32,7 @@ export class PagadorService {
   public async getOneByIdPagador(
     id_pagador: number,
   ): Promise<Pagador> {
-    const pagador = await this.pagadorRepository.findOne({ id_pagador: id_pagador });
+    const pagador = await this.pagadorRepository.findOne({ id: id_pagador });
     if (!pagador) {
       throw CommonHttpException.errorDetails(
         'Pagador.conta not found',

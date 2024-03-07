@@ -25,18 +25,18 @@ export class ClienteFavorecidoService {
     const allUsers = await this.usersService.findMany({});
     for (const user of allUsers) {
       const favorecido = await this.clienteFavorecidoRepository.getOne({
-        cpf_cnpj: user.getCpfCnpj(),
+        cpfCnpj: user.getCpfCnpj(),
       });
       await this.saveFavorecidoFromUser(
         user,
-        favorecido?.id_cliente_favorecido,
+        favorecido?.id,
       );
     }
   }
 
 
   public async getCpfCnpj(cpf_cnpj: string): Promise<ClienteFavorecido> {
-    return await this.clienteFavorecidoRepository.getOne({ cpf_cnpj: cpf_cnpj });
+    return await this.clienteFavorecidoRepository.getOne({ cpfCnpj: cpf_cnpj });
   }
 
 
@@ -51,19 +51,19 @@ export class ClienteFavorecidoService {
     const saveObject: SaveClienteFavorecidoDTO = {
       id_cliente_favorecido: existingId_facorecido,
       nome: user.getFullName(),
-      cpf_cnpj: user.getCpfCnpj(),
-      cod_banco: String(user.getBankCode()),
+      cpfCnpj: user.getCpfCnpj(),
+      codBanco: String(user.getBankCode()),
       agencia: user.getBankAgencyWithoutDigit(),
-      dv_agencia: user.getBankAgencyDigit(),
-      conta_corrente: user.getBankAccount(),
-      dv_conta_corrente: user.getBankAccountDigit(),
+      dvAgencia: user.getBankAgencyDigit(),
+      contaCorrente: user.getBankAccount(),
+      dvContaCorrente: user.getBankAccountDigit(),
       logradouro: null,
       numero: null,
       complemento: null,
       bairro: null,
       cidade: null,
       cep: null,
-      complemento_cep: null,
+      complementoCep: null,
       uf: null,
     };
     await validateDTO(SaveClienteFavorecidoDTO, saveObject);

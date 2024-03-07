@@ -1,7 +1,9 @@
 import { IsNotEmpty, ValidateIf } from "class-validator";
+import { DeepPartial } from "typeorm";
+import { ClienteFavorecido } from "../entity/cliente-favorecido.entity";
 
 function isCreate(object: ItemTransacaoDTO): boolean {
-  return object.id_item_transacao === undefined;
+  return object.id === undefined;
 }
 
 export class ItemTransacaoDTO {
@@ -11,19 +13,19 @@ export class ItemTransacaoDTO {
     }
   }
 
-  id_item_transacao?: number;
+  id?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dt_transacao?: Date;
+  dataTransacao?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dt_processamento?: Date;
+  dataProcessamento?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dt_captura?: Date;
+  dataCaptura?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -31,5 +33,5 @@ export class ItemTransacaoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  id_cliente_favorecido?: number;
+  clienteFavorecido?: DeepPartial<ClienteFavorecido>;
 }

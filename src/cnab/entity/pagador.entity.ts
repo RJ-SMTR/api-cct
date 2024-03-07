@@ -1,7 +1,7 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { Column, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('Pagador')
+@Entity()
 export class Pagador extends EntityHelper {
   constructor(pagador?: Pagador | DeepPartial<Pagador>) {
     super();
@@ -11,53 +11,53 @@ export class Pagador extends EntityHelper {
   }
 
   @PrimaryGeneratedColumn()
-  id_pagador: number;
+  id: number;
 
   @Column({ type: String, unique: false, nullable: false, length: 150 })
-  nome_empresa: string;
+  nomeEmpresa: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
-  agencia: string;
+  agencia: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  dv_agencia: string;
+  dvAgencia: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 12 })
-  conta: string;
+  conta: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  dv_conta: string;
+  dvConta: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
-  logradouro: string;
+  logradouro: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 15 })
-  numero: string;
+  numero: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 100 })
-  complemento: string;
+  complemento: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 150 })
-  bairro: string;
+  bairro: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 150 })
-  cidade: string;
+  cidade: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
-  cep: string;
+  cep: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 3 })
-  complemento_cep: string;
+  complementoCep: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  uf: string;
+  uf: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  cpf_cnpj: string;
+  cpfCnpj: string | null;
 
   public getLogInfo(): string {
     const response =
-      `#${this.id_pagador}` + ` '${this.nome_empresa.substring(0, 15)}...'`;
+      `#${this.id}` + ` '${this.nomeEmpresa.substring(0, 10)}...'`;
     return response;
   }
 }

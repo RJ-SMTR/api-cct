@@ -40,11 +40,11 @@ export class ClienteFavorecidoRepository {
     updateDto: SaveClienteFavorecidoDTO,
   ): Promise<UpdateResult> {
     const updatePayload = await this.clienteFavorecidoRepository.update(
-      { id_cliente_favorecido: id },
+      { id: id },
       updateDto,
     );
     const updatedItem = new ClienteFavorecido({
-      id_cliente_favorecido: id,
+      id: id,
       ...updateDto,
     });
     this.logger.log(

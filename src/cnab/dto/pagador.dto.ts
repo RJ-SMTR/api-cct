@@ -1,65 +1,65 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
 
 function isCreate(object: PagadorDTO): boolean {
-  return object.id_pagador === undefined;
+  return object.id === undefined;
 }
 
 export class PagadorDTO {
-  id_pagador?: number;
+  id?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  nome_empresa: string;
+  nomeEmpresa?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  agencia: string;
+  agencia?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dv_agencia: string;
+  dvAgencia?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  conta: string;
+  conta?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dv_conta: string;
+  dvConta?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  logradouro: string;
+  logradouro?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numero: string;
+  numero?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  complemento: string;
+  complemento?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  bairro: string;
+  bairro?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cidade: string;
+  cidade?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cep: string;
+  cep?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  complemento_cep: string;
+  complementoCep?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  uf: string;
+  uf?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cpf_cnpj: string;
+  cpfCnpj?: string;
 }

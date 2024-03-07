@@ -1,38 +1,51 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Transacao } from './transacao.entity';
 
 @Entity()
 export class HeaderArquivo extends EntityHelper {
   @PrimaryGeneratedColumn()
-  id_header_arquivo: number;
-  @Column({ type: Number, unique: false, nullable: true })
-  tipo_arquivo: string;
+  id: number;
+
+  @Column({ type: Number, unique: false, nullable: true, length: 100 })
+  tipoArquivo: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 10 })
+  codigoBanco: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 2 })
+  tipoInscricao: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 14 })
+  numeroInscricao: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 6 })
+  codigoConvenio: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 2 })
+  parametroTransmissao: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 5 })
+  agencia: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 1 })
+  dvAgencia: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 12 })
+  numeroConta: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 1 })
+  dvConta: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 100 })
+  nomeEmpresa: string | null;
+
   @Column({ type: String, unique: false, nullable: true })
-  cod_banco: string;
-  @Column({ type: String, unique: false, nullable: true })
-  tipo_inscricao: string;
-  @Column({ type: String, unique: false, nullable: true })
-  num_inscricao: string;
-  @Column({ type: String, unique: false, nullable: true })
-  cod_convenio: string;
-  @Column({ type: String, unique: false, nullable: true })
-  param_transmissao: string;
-  @Column({ type: String, unique: false, nullable: true })
-  agencia: string;
-  @Column({ type: String, unique: false, nullable: true })
-  dv_agencia: string;
-  @Column({ type: String, unique: false, nullable: true })
-  num_conta: string;
-  @Column({ type: String, unique: false, nullable: true })
-  dv_conta: string;
-  @Column({ type: String, unique: false, nullable: true })
-  nome_empresa: string;
-  @Column({ type: String, unique: false, nullable: true })
-  dt_geracao: Date;
-  @Column({ type: String, unique: false, nullable: true })
-  hr_geracao: Date;
-  @Column({ type: Number, unique: false, nullable: true })
-  id_transacao: number;
+  dataHoraGeracao: Date | null;
+
+  @OneToOne(() => Transacao, { eager: true })
+  transacao: Transacao;
+
   @CreateDateColumn()
   createdAt: Date;
 }

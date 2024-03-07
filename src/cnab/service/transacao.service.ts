@@ -2,6 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { BigqueryOrdemPagamento } from 'src/bigquery/entities/ordem-pagamento.bigquery-entity';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
+import { asBoolean, asNumber, asString, asStringDate } from 'src/utils/pipe-utils';
 import { ItemTransacaoDTO } from '../dto/item-transacao.dto';
 import { Transacao } from '../entity/transacao.entity';
 import { PagadorContaEnum } from '../enums/pagador/pagador.enum';
@@ -38,14 +39,14 @@ export class TransacaoService {
     let idOrdemAux = "";
 
     for (const ordemPagamento of ordensPagamento) {
-      if ((ordemPagamento.id_ordem_pagamento as string) !== idOrdemAux) {
-        const transacaoDTO = this.ordemPagamentoToTransacao(ordemPagamento, pagador.id_pagador);
+      if ((ordemPagamento.idOrdemPagamento as string) !== idOrdemAux) {
+        const transacaoDTO = this.ordemPagamentoToTransacao(ordemPagamento, pagador.id);
         const saveTransacaoDTO = await this.transacaoRepository.save(transacaoDTO);
-        const favorecido = await this.clienteFavorecidoService.getCpfCnpj(ordemPagamento.id_operadora as string);
+        const favorecido = await this.clienteFavorecidoService.getCpfCnpj(ordemPagamento.idOperadora as string);
         const itemTransacaoDTO = this.ordemPagamentoToItemTransacaoDTO(ordemPagamento,
-          saveTransacaoDTO.id_transacao, favorecido.id_cliente_favorecido)
+          saveTransacaoDTO.id, favorecido.id)
         await this.itemTransacaoService.save(itemTransacaoDTO);
-        idOrdemAux = ordemPagamento.id_ordem_pagamento as string;
+        idOrdemAux = ordemPagamento.idOrdemPagamento as string;
       }
     }
   }
@@ -54,38 +55,38 @@ export class TransacaoService {
    * Para cada BigqueryOrdemPagamento insere em Transacao
    * @returns `id_transacao` do item criado
    */
-  public ordemPagamentoToTransacao(ordemPagamento: BigqueryOrdemPagamento, id_pagador: number,
+  public ordemPagamentoToTransacao(ordemPagamento: BigqueryOrdemPagamento, idPagador: number,
   ): TransacaoDTO {
     const transacao = new TransacaoDTO();
-    transacao.dt_ordem = new Date(ordemPagamento.getDataOrdem());
-    transacao.dt_pagamento = new Date(ordemPagamento.getDataPagamento());
-    transacao.nome_consorcio = ordemPagamento.getConsorcio();
-    transacao.nome_operadora = ordemPagamento.getOperadora();
-    transacao.servico = ordemPagamento.getServico();
-    transacao.id_ordem_ressarcimento = ordemPagamento.getIdOrdemRessarcimento();
-    transacao.qtde_transacao_rateio_credito = ordemPagamento.getQuantidadeTransacaoRateioCredito();
-    transacao.vlr_rateio_credito = ordemPagamento.getValorRateioCredito();
-    transacao.qtde_transacao_rateio_debito = ordemPagamento.getValorRateioDebito();
-    transacao.vlr_rateio_debito = ordemPagamento.getValorRateioDebito();
-    transacao.quantidade_total_transacao = ordemPagamento.getQuantidadeTotalTransacao();
-    transacao.vlr_total_transacao_bruto = ordemPagamento.getValorTotalTransacaoBruto();
-    transacao.vlr_desconto_taxa = ordemPagamento.getValorDescontoTaxa();
-    transacao.vlr_total_transacao_liquido = ordemPagamento.getValorTotalTransacaoLiquido();
-    transacao.qtde_total_transacao_captura = ordemPagamento.getQuantidadeTotalTransacaoCaptura();
-    transacao.vlr_total_transacao_captura = ordemPagamento.getValorTotalTransacaoCaptura();
-    transacao.indicador_ordem_valida = ordemPagamento.getIndicadorOrdemValida();
-    transacao.id_pagador = id_pagador;
+    transacao.dataOrdem = asStringDate(ordemPagamento.dataOrdem);
+    transacao.dataPagamento = asStringDate(ordemPagamento.dataPagamento);
+    transacao.nomeConsorcio = asString(ordemPagamento.consorcio);
+    transacao.nomeOperadora = asString(ordemPagamento.operadora);
+    transacao.servico = asString(ordemPagamento.servico);
+    transacao.idOrdemRessarcimento = asString(ordemPagamento.idOrdemRessarcimento);
+    transacao.quantidadeTransacaoRateioCredito = asNumber(ordemPagamento.quantidadeTransacaoRateioCredito);
+    transacao.valorRateioCredito = asNumber(ordemPagamento.valorRateioCredito);
+    transacao.quantidadeTransacaoRateioDebito = asNumber(ordemPagamento.quantidadeTransacaoRateioDebito);
+    transacao.valorRateioDebito = asNumber(ordemPagamento.valorRateioDebito);
+    transacao.quantidadeTotalTransacao = asNumber(ordemPagamento.quantidadeTotalTransacao);
+    transacao.valorTotalTransacaoBruto = asNumber(ordemPagamento.valorTotalTransacaoBruto);
+    transacao.valorDescontoTaxa = asNumber(ordemPagamento.valorDescontoTaxa);
+    transacao.valorTotalTransacaoLiquido = asNumber(ordemPagamento.valorTotalTransacaoLiquido);
+    transacao.quantidadeTotalTransacaoCaptura = asNumber(ordemPagamento.quantidadeTotalTransacaoCaptura);
+    transacao.valorTotalTransacaoCaptura = asNumber(ordemPagamento.valorTotalTransacaoCaptura);
+    transacao.indicadorOrdemValida = asBoolean(ordemPagamento.indicadorOrdemValida);
+    transacao.pagador = { id: idPagador };
     return transacao;
   }
 
   public ordemPagamentoToItemTransacaoDTO(ordemPagamento: BigqueryOrdemPagamento, id_transacao: number,
-    id_cliente_favorecido: number): ItemTransacaoDTO {
+    idClienteFavorecido: number): ItemTransacaoDTO {
     const itemTransacao = new ItemTransacaoDTO({
-      dt_captura: new Date(ordemPagamento.getDataOrdem()),
-      dt_processamento: new Date(ordemPagamento.getDataPagamento()),
-      dt_transacao: new Date(ordemPagamento.getDataPagamento()),
-      id_cliente_favorecido: id_cliente_favorecido,
-      id_item_transacao: id_transacao,
+      dataCaptura: asStringDate(ordemPagamento.dataOrdem),
+      dataProcessamento: asStringDate(ordemPagamento.dataPagamento),
+      dataTransacao: asStringDate(ordemPagamento.dataPagamento),
+      clienteFavorecido: { id: idClienteFavorecido },
+      id: id_transacao,
       modo: 'WIP: incluir coluna "modo" no resultado de BigqueryOrdemPagamento',
     });
     return itemTransacao;

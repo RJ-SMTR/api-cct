@@ -1,5 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { CommonHttpException } from "src/utils/http-exception/common-http-exception";
 
 /**
  * Logic:
@@ -8,17 +6,17 @@ import { CommonHttpException } from "src/utils/http-exception/common-http-except
  */
 export class BigqueryOrdemPagamento {
   /** Data da ordem de pagamento (partição) */
-  data_ordem: string | null;
+  dataOrdem: string | null;
 
   /** Data de pagamento da ordem */
-  data_pagamento: string | null;
+  dataPagamento: string | null;
 
   /**
    *  Id de cadastro.consorcios
    * 
    * id_consorcio.cnpj = CNPJ
    */
-  id_consorcio: string | null;
+  idConsorcio: string | null;
 
   /** Nome do consórcio */
   consorcio: string | null;
@@ -28,7 +26,7 @@ export class BigqueryOrdemPagamento {
    * 
    * id_operadora.documento = CPF
    */
-  id_operadora: string | null;
+  idOperadora: string | null;
 
   /** Nome da operadora */
   operadora: string | null;
@@ -37,339 +35,68 @@ export class BigqueryOrdemPagamento {
   servico: string | null;
 
   /** Identificador da ordem pagamento no banco de dados da Jaé */
-  id_ordem_pagamento: string | null;
+  idOrdemPagamento: string | null;
 
   /** Identificador da ordem ressarcimento no banco de dados da Jaé */
-  id_ordem_ressarcimento: string | null;
+  idOrdemRessarcimento: string | null;
 
   /** Quantidade de transações feitas na modalidade débito */
-  quantidade_transacao_debito: number | null;
+  quantidadeTransacaoDebito: number | null;
 
   /** Valor total das transações feitas na modalidade débito (R$) */
-  valor_debito: number | null;
+  valorDebito: number | null;
 
   /** Quantidade de transações feitas em espécie */
-  quantidade_transacao_especie: number | null;
+  quantidadeTransacaoEspecie: number | null;
 
   /** Valor total das transações feitas em espécie (R$) */
-  valor_especie: number | null;
+  valorEspecie: number | null;
 
   /** Quantidade de transações feitas com gratuidade */
-  quantidade_transacao_gratuidade: number | null;
+  quantidadeTransacaoGratuidade: number | null;
 
   /** Valor total das transações feitas com gratuidade (R$) */
   valor_gratuidade: number | null;
 
   /** Quantidade de transações feitas com integração */
-  quantidade_transacao_integracao: number | null;
+  quantidadeTransacaoIntegracao: number | null;
 
   /** Valor total das transações feitas com integração (R$) */
   valor_integracao: number | null;
 
   /** Número de transações com rateio de crédito */
-  quantidade_transacao_rateio_credito: number | null;
+  quantidadeTransacaoRateioCredito: number | null;
 
   /** Valor total das transações com rateio de crédito (R$) */
-  valor_rateio_credito: number | null;
+  valorRateioCredito: number | null;
 
   /** Número de transações com rateio de débito */
-  quantidade_transacao_rateio_debito: number | null;
+  quantidadeTransacaoRateioDebito: number | null;
 
   /** Valor total das transações com rateio de débito (R$) */
-  valor_rateio_debito: number | null;
+  valorRateioDebito: number | null;
 
   /** Quantidade total de transações realizadas */
-  quantidade_total_transacao: number | null;
+  quantidadeTotalTransacao: number | null;
 
   /** Valor total das transações realizadas (R$) */
-  valor_total_transacao_bruto: number | null;
+  valorTotalTransacaoBruto: number | null;
 
   /** Valor da taxa descontado do valor total (R$) */
-  valor_desconto_taxa: number | null;
+  valorDescontoTaxa: number | null;
 
   /** Valor total das transações menos o valor_desconto_taxa (R$) */
-  valor_total_transacao_liquido: number | null;
+  valorTotalTransacaoLiquido: number | null;
 
   /** Quantidade total de transações calculada pela captura de transações */
-  quantidade_total_transacao_captura: number | null;
+  quantidadeTotalTransacaoCaptura: number | null;
 
   /** Valor total das transações realizadas calculada pela captura de transações (R$) */
-  valor_total_transacao_captura: number | null;
+  valorTotalTransacaoCaptura: number | null;
 
   /** Indicador de validação da ordem de pagamento */
-  indicador_ordem_valida: boolean | null;
+  indicadorOrdemValida: boolean | null;
 
   /** Código de controle de versão do dado (SHA Github) */
   versao: string | null;
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getDataOrdem(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
-    if (!this.data_ordem) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'data_ordem', args);
-    }
-    return this.data_ordem;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getDataPagamento(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
-    if (!this.data_pagamento) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'data_pagamento', args);
-    }
-    return this.data_pagamento;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getConsorcio(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
-    if (!this.consorcio) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'consorcio', args);
-    }
-    return this.consorcio;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getOperadora(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
-    if (!this.operadora) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'operadora', args);
-    }
-    return this.operadora;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getServico(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
-    if (!this.servico) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'servico', args);
-    }
-    return this.servico;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getIdOrdemRessarcimento(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
-    if (!this.id_ordem_ressarcimento) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'id_ordem_ressarcimento', args);
-    }
-    return this.id_ordem_ressarcimento;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getQuantidadeTransacaoRateioCredito(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
-    if (this.quantidade_transacao_rateio_credito === null
-      || this.quantidade_transacao_rateio_credito === undefined) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'quantidade_transacao_rateio_credito', args);
-    }
-    return this.quantidade_transacao_rateio_credito;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getValorRateioCredito(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
-    if (this.valor_rateio_credito === null
-      || this.valor_rateio_credito === undefined) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'valor_rateio_credito', args);
-    }
-    return this.valor_rateio_credito;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getQuantidadeTransacaoRateioDebito(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
-    if (this.quantidade_transacao_rateio_debito === null
-      || this.quantidade_transacao_rateio_debito === undefined) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'quantidade_transacao_rateio_debito', args);
-    }
-    return this.quantidade_transacao_rateio_debito;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getValorRateioDebito(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
-    if (this.valor_rateio_debito === null
-      || this.valor_rateio_debito === undefined) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'valor_rateio_debito', args);
-    }
-    return this.valor_rateio_debito;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getQuantidadeTotalTransacao(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
-    if (this.quantidade_total_transacao === null
-      || this.quantidade_total_transacao === undefined) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'quantidade_total_transacao', args);
-    }
-    return this.quantidade_total_transacao;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getValorTotalTransacaoBruto(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
-    if (this.valor_total_transacao_bruto === null
-      || this.valor_total_transacao_bruto === undefined) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'valor_total_transacao_bruto', args);
-    }
-    return this.valor_total_transacao_bruto;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getValorDescontoTaxa(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
-    if (this.valor_desconto_taxa === null
-      || this.valor_desconto_taxa === undefined) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'valor_desconto_taxa', args);
-    }
-    return this.valor_desconto_taxa;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getValorTotalTransacaoLiquido(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
-    if (this.valor_total_transacao_liquido === null
-      || this.valor_total_transacao_liquido === undefined) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento', 'valor_total_transacao_liquido', args);
-    }
-    return this.valor_total_transacao_liquido;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getQuantidadeTotalTransacaoCaptura(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
-    if (this.quantidade_total_transacao_captura === null
-      || this.quantidade_total_transacao_captura === undefined) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento',
-        'quantidade_total_transacao_captura',
-        args);
-    }
-    return this.quantidade_total_transacao_captura;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getValorTotalTransacaoCaptura(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
-    if (this.valor_total_transacao_captura === null
-      || this.valor_total_transacao_captura === undefined) {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento',
-        'valor_total_transacao_captura',
-        args);
-    }
-    return this.valor_total_transacao_captura;
-  }
-
-  /**
-   * Get field validated
-   * @throws `HttpException`
-   */
-  getIndicadorOrdemValida(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): boolean {
-    if (typeof this.indicador_ordem_valida !== 'boolean') {
-      throw CommonHttpException.invalidField(
-        'BigqueryOrdemPagamento',
-        'indicador_ordem_valida',
-        args);
-    }
-    return this.indicador_ordem_valida;
-  }
 }

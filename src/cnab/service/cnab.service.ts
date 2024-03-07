@@ -34,7 +34,7 @@ export class CnabService {
   public async updateRemessa() {
     const listAllTransacao = await this.transacaoService.getAll();
     for (const transacao of listAllTransacao) {
-      if (!this.headerArquivoService.headerArquivoExists(transacao.id_transacao)) {
+      if (!this.headerArquivoService.headerArquivoExists(transacao.id)) {
         const { cnabString, cnabTables } = await this.headerArquivoService.generateCnab(transacao);
         await this.headerArquivoService.saveRemessa(cnabTables);
         await this.sftpService.submitFromString(cnabString, 'arquivo/123-wip-rem.txt');
