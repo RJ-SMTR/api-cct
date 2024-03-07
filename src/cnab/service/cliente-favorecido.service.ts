@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
@@ -24,7 +25,9 @@ export class ClienteFavorecidoService {
    * @returns All favorecidos after update
    */
   public async updateAllFromUsers(): Promise<void> {
-    const allUsers = await this.usersService.findMany({});
+    const allUsers = await this.usersService.findMany({
+      role: { id: RoleEnum.user }
+    });
     for (const user of allUsers) {
       const favorecido = await this.clienteFavorecidoRepository.getOne({
         cpfCnpj: user.getCpfCnpj(),
@@ -49,8 +52,8 @@ export class ClienteFavorecidoService {
   public async getOneByIdClienteFavorecido(
     idClienteFavorecido: number,
   ): Promise<ClienteFavorecido> {
-    const cliente_favorecido = 
-    await this.clienteFavorecidoRepository.getOne({ id: idClienteFavorecido });
+    const cliente_favorecido =
+      await this.clienteFavorecidoRepository.getOne({ id: idClienteFavorecido });
     if (!cliente_favorecido) {
       throw CommonHttpException.errorDetails(
         'cliente_favorecido.conta not found',
