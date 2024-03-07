@@ -45,7 +45,7 @@ export class ItemTransacao extends EntityHelper {
    * Monetary value
    */
   @Column({
-    type: Number,
+    type: 'decimal',
     unique: false,
     nullable: true,
     precision: 10,

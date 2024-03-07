@@ -7,7 +7,7 @@ export class HeaderArquivo extends EntityHelper {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: Number, unique: false, nullable: true, length: 100 })
+  @Column({ type: String, unique: false, nullable: true, length: 100 })
   tipoArquivo: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 10 })

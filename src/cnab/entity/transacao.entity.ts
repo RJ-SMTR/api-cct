@@ -39,7 +39,7 @@ export class Transacao extends EntityHelper {
   quantidadeTransacaoRateioCredito: number | null;
 
   @Column({
-    type: Number,
+    type: 'decimal',
     unique: false,
     nullable: true,
     precision: 10,
@@ -51,7 +51,7 @@ export class Transacao extends EntityHelper {
   quantidadeTransacaoRateioDebito: number | null;
 
   @Column({
-    type: Number,
+    type: 'decimal',
     unique: false,
     nullable: true,
     precision: 10,
@@ -60,7 +60,7 @@ export class Transacao extends EntityHelper {
   valorRateioDebito: number | null;
 
   @Column({
-    type: Number,
+    type: 'decimal',
     unique: false,
     nullable: true,
     precision: 10,
@@ -72,7 +72,7 @@ export class Transacao extends EntityHelper {
   valorTotalTransacaoBruto: number | null;
 
   @Column({
-    type: Number,
+    type: 'decimal',
     unique: false,
     nullable: true,
     precision: 10,
@@ -81,7 +81,7 @@ export class Transacao extends EntityHelper {
   valorDescontoTaxa: number | null;
 
   @Column({
-    type: Number,
+    type: 'decimal',
     unique: false,
     nullable: true,
     precision: 10,
@@ -93,7 +93,7 @@ export class Transacao extends EntityHelper {
   quantidadeTotalTransacaoCaptura: number | null;
 
   @Column({
-    type: Number,
+    type: 'decimal',
     unique: false,
     nullable: true,
     precision: 10,
@@ -101,7 +101,7 @@ export class Transacao extends EntityHelper {
   })
   valorTotalTransacaoCaptura: number | null;
 
-  @Column({ type: Boolean, unique: false, nullable: true, length: 100 })
+  @Column({ type: Boolean, unique: false, nullable: true })
   indicadorOrdemValida: boolean | null;
 
   @ManyToOne(() => Pagador, { eager: true })
