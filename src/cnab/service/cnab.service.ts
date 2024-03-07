@@ -71,4 +71,10 @@ export class CnabService {
     console.log(a);
     return true;
   }
+
+  public async getArquivoRetornoCNAB(){
+    await this.headerArquivoService.saveArquivoRetorno();
+    await this.headerArquivoService.compareRemessaToRetorno();
+  }
+
 }

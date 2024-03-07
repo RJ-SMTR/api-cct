@@ -56,4 +56,8 @@ export class DetalheA extends EntityHelper {
 
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
+
+  @Column({ type: String, unique: false, nullable: false })
+  ocorrencias: string;
+  
 }

@@ -70,4 +70,11 @@ export class DetalheADTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   valor_real_efetivado?: number;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  nsr: number;
+
+  ocorrencias?: string;
+
 }

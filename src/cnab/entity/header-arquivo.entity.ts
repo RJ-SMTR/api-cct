@@ -5,7 +5,9 @@ import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeor
 export class HeaderArquivo extends EntityHelper {
   @PrimaryGeneratedColumn()
   id_header_arquivo: number;
-  @Column({ type: Number, unique: false, nullable: true })
+  @Column({ type: String, unique: false, nullable: true })
+  nsa: string;
+  @Column({ type: String, unique: false, nullable: true })
   tipo_arquivo: string;
   @Column({ type: String, unique: false, nullable: true })
   cod_banco: string;
