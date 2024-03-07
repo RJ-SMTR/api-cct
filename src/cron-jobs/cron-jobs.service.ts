@@ -112,33 +112,33 @@ export class CronJobsService implements OnModuleInit {
             },
           },
         },
-        {
-          name: CrobJobsEnum.updateTransacaoFromJae,
-          cronJobParameters: {
-            cronTime: '* * * * *',
-            onTick: async () => {
-              await this.updateTransacaoFromJae();
-            },
-          },
-        },
-        {
-          name: CrobJobsEnum.updateRemessa,
-          cronJobParameters: {
-            cronTime: '45 14 * * *',
-            onTick: async () => {
-              await this.updateRemessa();
-            },
-          },
-        },
-        {
-          name: CrobJobsEnum.updateRetorno,
-          cronJobParameters: {
-            cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
-            onTick: async () => {
-              await this.updateRetorno();
-            },
-          },
-        }
+        // {
+        //   name: CrobJobsEnum.updateTransacaoFromJae,
+        //   cronJobParameters: {
+        //     cronTime: '* * * * *',
+        //     onTick: async () => {
+        //       await this.updateTransacaoFromJae();
+        //     },
+        //   },
+        // },
+        // {
+        //   name: CrobJobsEnum.updateRemessa,
+        //   cronJobParameters: {
+        //     cronTime: '45 14 * * *',
+        //     onTick: async () => {
+        //       await this.updateRemessa();
+        //     },
+        //   },
+        // },
+        // {
+        //   name: CrobJobsEnum.updateRetorno,
+        //   cronJobParameters: {
+        //     cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+        //     onTick: async () => {
+        //       await this.updateRetorno();
+        //     },
+        //   },
+        // }
         
       );
 
