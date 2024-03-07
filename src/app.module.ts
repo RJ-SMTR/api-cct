@@ -46,10 +46,10 @@ import { SftpModule } from './sftp/sftp.module';
   imports: [
     SftpModule.forRoot(
       {
-        host: '34.123.217.7',
-        port: 23,
-        username: 'cct_devs',
-        password: 'EzKWSiqqchX3xdF' 
+        host: '',
+        port: 0,
+        username: '',
+        password: '' 
       },
       false,
     ),
