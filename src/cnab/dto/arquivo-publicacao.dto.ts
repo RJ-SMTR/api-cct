@@ -1,37 +1,78 @@
+import { IsNotEmpty, ValidateIf } from "class-validator";
+
+function isCreate(object: ArquivoPublicacaoDTO): boolean {
+  return object.id === undefined;
+}
+
 export class ArquivoPublicacaoDTO {
-    constructor(dto?: ArquivoPublicacaoDTO) {
-      if (dto) {
-        Object.assign(this, dto);
-      }
+  constructor(dto?: ArquivoPublicacaoDTO) {
+    if (dto) {
+      Object.assign(this, dto);
     }
-    id_arquivo_publicacao: number; 
-  
-    id_header_arquivo: number;    
-    id_transacao: number;
-    id_header_lote: number;           
-    dt_geracao_remessa: Date;
-    hr_geracao_remessa: Date;    
-    dt_geracao_retorno: Date;
-    hr_geracao_retorno: Date;
-
-    lote_servico: string;
-    nome_pagador: string;
-    agencia_pagador: string;
-    dv_agencia_pagador: string;
-    conta_pagador: string;
-    dv_conta_pagador: string; 
-    
-    nome_cliente?: string;
-    cpf_cnpj_cliente?: string;
-    cod_banco_cliente?: string;
-    agencia_cliente?: string;
-    dv_agencia_cliente?: string;
-    conta_corrente_cliente?: string;
-    dv_conta_corrente_cliente?: string;
-
-    dt_vencimento?: Date;    
-    valor_lancamento?: number; 
-    data_efetivacao?: Date; 
-    valor_real_efetivado?: number;
-    ocorrencias: string; 
   }
+  id: number;
+
+  idHeaderArquivo: number;
+  idTransacao: number;
+  idHeaderLote: number;
+  dataGeracaoRemessa: Date;
+  horaGeracaoRemessa: Date;
+  dataGeracaoRetorno: Date;
+  horaGeracaoRetorno: Date;
+
+
+  loteServico: string;
+  nomePagador: string;
+  agenciaPagador: string;
+  dvAgenciaPagador: string;
+  contaPagador: string;
+  dvContaPagador: string;
+
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  nomeCliente?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  cpfCnpjCliente?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  codBancoCliente?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  agenciaCliente?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  dvAgenciaCliente?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  contaCorrenteCliente?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  dvContaCorrenteCliente?: string;
+
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  dataVencimento?: Date;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  valorLancamento?: number;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  dataEfetivacao?: Date;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  valorRealEfetivado?: number;
+
+  ocorrencias: string;
+}

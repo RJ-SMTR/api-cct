@@ -4,3 +4,7 @@ export interface MailData<T = never> {
   to: string | Address | Array<string | Address>;
   data: T;
 }
+
+export interface MailDataMinimal {
+  to: string | Address | Array<string | Address>;
+}

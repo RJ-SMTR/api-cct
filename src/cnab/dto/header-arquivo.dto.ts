@@ -17,51 +17,55 @@ export class HeaderArquivoDTO {
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipoArquivo?: string;
+  tipoArquivo?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  codigoBanco?: string;
+  codigoBanco?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipoInscricao?: string;
+  tipoInscricao?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numeroInscricao?: string;
+  numeroInscricao?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  codigoConvenio?: string;
+  codigoConvenio?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  parametroTransmissao?: string;
+  parametroTransmissao?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  agencia?: string;
+  agencia?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dvAgencia?: string;
+  dvAgencia?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numeroConta?: string;
+  numeroConta?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dvConta?: string;
+  dvConta?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  nomeEmpresa?: string;
+  nomeEmpresa?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dataHoraGeracao?: Date;
+  dataGeracao?: Date | null;
+  
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  horaGeracao?: Date | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()

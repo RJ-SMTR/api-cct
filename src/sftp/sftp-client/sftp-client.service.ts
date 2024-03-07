@@ -5,10 +5,10 @@ import { ConnectConfig } from '../interfaces/connect-config.interface';
 @Injectable()
 export class SftpClientService {
   private readonly logger: Logger;
-  constructor(
-    private readonly sftpClient: SftpClient
-  ) {
-    this.logger = new Logger(SftpClientService.name);
+  private sftpClient: SftpClient;
+  constructor() {
+    this.logger = new Logger('SftpClientService');
+    this.sftpClient = new SftpClient();
   }
 
   client() {

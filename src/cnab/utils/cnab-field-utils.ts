@@ -1,5 +1,5 @@
 import { format, isDate } from 'date-fns';
-import { stringToDate } from 'src/utils/date-utils';
+import { getDateFromString } from 'src/utils/date-utils';
 import {
   getStringNoSpecials,
   getStringUpperUnaccent,
@@ -197,7 +197,7 @@ export function formatDate(
       ? String(field.value)
       : String(
         format(
-          stringToDate(field.value, field.dateFormat?.input),
+          getDateFromString(field.value, field.dateFormat?.input),
           field.dateFormat?.output || 'yymmdd',
         ),
       );
@@ -211,7 +211,7 @@ function validateFormatDate(field: CnabField) {
   if (!field.dateFormat) {
     throw new Error(`CnabField must have dateFormat.`);
   }
-  if (isNaN(stringToDate(field.value, field.dateFormat.input).getDate())) {
+  if (isNaN(getDateFromString(field.value, field.dateFormat.input).getDate())) {
     const dateFormat = field.dateFormat
       ? JSON.stringify(field.dateFormat)
       : 'undefined';

@@ -22,27 +22,27 @@ export class HeaderLoteDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  loteServico?: string;
+  loteServico?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipoInscricao?: string;
+  tipoInscricao?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numeroInscricao?: string;
+  numeroInscricao?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  codigoConvenioBanco?: string;
+  codigoConvenioBanco?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipoCompromisso?: string;
+  tipoCompromisso?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  parametroTransmissao?: string;
+  parametroTransmissao?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
