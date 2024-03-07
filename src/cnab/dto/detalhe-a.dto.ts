@@ -1,80 +1,84 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
+import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
+import { DeepPartial } from 'typeorm';
+import { HeaderLote } from '../entity/header-lote.entity';
 
 function isCreate(object: DetalheADTO): boolean {
-  return object.id_detalhe_a === undefined;
+  return object.id === undefined;
 }
 
 export class DetalheADTO {
-  id_detalhe_a?: number;
+  id?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  id_header_lote?: number;
+  headerLote?: DeepPartial<HeaderLote>;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  lote_servico?: string;
+  loteServico?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  id_cliente_favorecido?: number;
+  clienteFavorecido?: DeepPartial<ClienteFavorecido>;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipo_finalidade_conta?: string;
+  tipoFinalidadeConta?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dt_vencimento?: Date;
+  dataVencimento?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipo_moeda?: string;
+  tipoMoeda?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  qtde_moeda?: number;
+  quantidadeMoeda?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  valor_lancamento?: number;
+  valorLancamento?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  num_doc_lancamento?: number;
+  numeroDocumentoLancamento?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  qtde_parcelas?: number;
+  quantidadeParcelas?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  indicador_bloqueio?: string;
+  indicadorBloqueio?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  indicador_forma_parcelamento?: string;
+  indicadorFormaParcelamento?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  periodo_vencimento?: Date;
+  periodoVencimento?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  num_parcela?: number;
+  numeroParcela?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  data_efetivacao?: Date;
+  dataEfetivacao?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  valor_real_efetivado?: number;
+  valorRealEfetivado?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  nsr: number;
+  nsr?: number;
 
-  ocorrencias?: string;
-
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  ocorrencias: string;
 }

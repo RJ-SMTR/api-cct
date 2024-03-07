@@ -12,7 +12,7 @@ export class ItemTransacaoService {
   ): Promise<ItemTransacao[]> {
     return await this.itemTransacaoRepository.findMany({
       transacao: {
-        id_transacao: id_transacao
+        id: id_transacao
       }
     });
   }

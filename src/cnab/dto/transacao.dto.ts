@@ -1,81 +1,83 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
+import { Pagador } from '../entity/pagador.entity';
+import { DeepPartial } from 'typeorm';
 
 function isCreate(object: TransacaoDTO): boolean {
-  return object.id_transacao === undefined;
+  return object.id === undefined;
 }
 
 export class TransacaoDTO {
-  id_transacao?: number;
+  id?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dt_ordem?: Date;
+  dataOrdem?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dt_pagamento?: Date;
+  dataPagamento?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  nome_consorcio?: string;
+  nomeConsorcio?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  nome_operadora?: string;
+  nomeOperadora?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
   servico?: string;
+  
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  idOrdemRessarcimento?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  id_ordem_ressarcimento?: string;
+  quantidadeTransacaoRateioCredito?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  qtde_transacao_rateio_credito?: number;
+  valorRateioCredito?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  vlr_rateio_credito?: number;
+  quantidadeTransacaoRateioDebito?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  qtde_transacao_rateio_debito?: number;
+  valorRateioDebito?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  vlr_rateio_debito?: number;
+  quantidadeTotalTransacao?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  quantidade_total_transacao?: number;
+  valorTotalTransacaoBruto?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  vlr_total_transacao_bruto?: number;
+  valorDescontoTaxa?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  vlr_desconto_taxa?: number;
+  valorTotalTransacaoLiquido?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  vlr_total_transacao_liquido?: number;
+  quantidadeTotalTransacaoCaptura?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  qtde_total_transacao_captura?: number;
+  valorTotalTransacaoCaptura?: number;
+
+  @ValidateIf(isCreate)
+  indicadorOrdemValida?: boolean;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  vlr_total_transacao_captura?: number;
-
-  @ValidateIf(isCreate)
-  indicador_ordem_valida?: boolean;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  id_pagador?: number;
+  pagador?: DeepPartial<Pagador>;
 
 }

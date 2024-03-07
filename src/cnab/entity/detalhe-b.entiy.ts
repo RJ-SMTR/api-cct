@@ -1,6 +1,7 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, DeepPartial, Entity, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { DetalheBDTO } from '../dto/detalhe-b.dto';
+import { DetalheA } from './detalhe-a.entity';
 
 @Entity()
 export class DetalheB extends EntityHelper {
@@ -12,18 +13,19 @@ export class DetalheB extends EntityHelper {
   }
 
   @PrimaryGeneratedColumn()
-  id_detalhe_b: number;
+  id: number;
   
-  id_detalhe_a: number;
+  @OneToOne(() => DetalheA, {eager: true})
+  detalheA: DetalheA;
 
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
   
   @Column({ type: Date, unique: false, nullable: false })
-  data_vencimento: Date;
+  dataVencimento: Date;
 
   public getLogInfo(): string {
-    const response = `#${this.id_detalhe_b}`;
+    const response = `#${this.id}`;
     return response;
   }
 }

@@ -1,7 +1,7 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { Column, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('Cliente_Favorecido')
+@Entity()
 export class ClienteFavorecido extends EntityHelper {
   constructor(
     clienteFavorecido?: ClienteFavorecido | DeepPartial<ClienteFavorecido>,
@@ -13,28 +13,28 @@ export class ClienteFavorecido extends EntityHelper {
   }
 
   @PrimaryGeneratedColumn()
-  id_cliente_favorecido: number;
+  id: number;
 
   @Column({ type: String, unique: false, nullable: false, length: 150 })
   nome: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 14 })
-  cpf_cnpj: string | null;
+  cpfCnpj: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 10 })
-  cod_banco: string | null;
+  codigoBanco: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
   agencia: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  dv_agencia: string | null;
+  dvAgencia: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 12 })
-  conta_corrente: string | null;
+  contaCorrente: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  dv_conta_corrente: string | null;
+  dvContaCorrente: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   logradouro: string | null;
@@ -55,7 +55,7 @@ export class ClienteFavorecido extends EntityHelper {
   cep: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 3 })
-  complemento_cep: string | null;
+  complementoCep: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   uf: string | null;
@@ -64,7 +64,7 @@ export class ClienteFavorecido extends EntityHelper {
     if (showName === undefined) {
       showName = false;
     }
-    const response = `#${this.cpf_cnpj}` + showName ? ` '${this.nome}'` : '';
+    const response = `#${this.cpfCnpj}` + showName ? ` '${this.nome}'` : '';
     return response;
   }
 }

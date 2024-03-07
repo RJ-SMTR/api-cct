@@ -1,14 +1,12 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { ItemTransacaoDTO } from '../dto/item-transacao.dto';
+import { Column, DeepPartial, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { ClienteFavorecido } from './cliente-favorecido.entity';
 import { Transacao } from './transacao.entity';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { HttpStatus } from 'aws-sdk/clients/lambda';
 
 @Entity()
 export class ItemTransacao extends EntityHelper {
 
-  constructor(dto?: ItemTransacaoDTO) {
+  constructor(dto?: DeepPartial<ItemTransacao>) {
     super();
     if (dto) {
       Object.assign(this, dto);
@@ -16,47 +14,43 @@ export class ItemTransacao extends EntityHelper {
   }
 
   @PrimaryGeneratedColumn()
-  id_item_transacao: number;
+  id: number;
 
   @ManyToOne(() => Transacao, {
-    eager: true
+    eager: true,
   })
   transacao: Transacao;
 
-  @Column({ type: String, unique: false, nullable: true })
-  dt_transacao: string;
+  @Column({ type: Date, unique: false, nullable: false })
+  dataTransacao: Date;
 
   @Column({ type: Date, unique: false, nullable: true })
-  dt_processamento: Date;
-  
-  @Column({ type: Date, unique: false, nullable: true })
-  dt_captura: Date;
-  
-  @Column({ type: String, unique: false, nullable: true })
-  modo: string;
-  
-  @Column({ type: String, unique: false, nullable: true })
-  id_cliente_favorecido: number;
-  
-  @Column({ type: Number, unique: false, nullable: true })
-  valor_item_transacao: number;
+  dataProcessamento: Date | null;
 
+  @Column({ type: Date, unique: false, nullable: true })
+  dataCaptura: Date | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 10 })
+  modo: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 200 })
+  nomeConsorcio: string | null;
+
+  @ManyToOne(() => ClienteFavorecido, {
+    eager: true
+  })
+  clienteFavorecido: ClienteFavorecido;
 
   /**
-   * Get field validated
-   * @throws `HttpException`
+   * Monetary value
    */
-  getDtTransacao(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
-    if (!this.dt_transacao) {
-      throw CommonHttpException.invalidField(
-        'ItemTransacao',
-        'dt_transacao',
-        args);
-    }
-    return this.dt_transacao;
-  }
-  
+  @Column({
+    type: 'decimal',
+    unique: false,
+    nullable: true,
+    precision: 10,
+    scale: 5,
+  })
+  valor: number | null;
+
 }

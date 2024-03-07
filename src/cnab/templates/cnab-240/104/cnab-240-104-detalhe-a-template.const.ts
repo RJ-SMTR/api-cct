@@ -5,6 +5,7 @@ import { Cnab104FormaParcelamento } from 'src/cnab/enums/104/cnab-104-forma-parc
 import { Cnab104IndicadorBloqueio } from 'src/cnab/enums/104/cnab-104-indicador-bloqueio.enum';
 import { Cnab104FinalidadeDoc } from 'src/cnab/enums/104/cnab-104-finalidade-doc.enum';
 import { Cnab104TipoMoeda } from 'src/cnab/enums/104/cnab-104-tipo-moeda.enum';
+import { Cnab104Const } from 'src/cnab/const/cnab-104.const';
 
 export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
@@ -41,7 +42,8 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
   numeroDocumento: { pos: [74, 79], picture: '9(006)', value: '000000' },
   filler: { pos: [80, 92], picture: 'X(013)', value: '             ' },
   tipoContaFinalidadeTed: { pos: [93, 93], picture: 'X(001)', value: ' ' },
-  dataVencimento: { pos: [94, 101], picture: '9(008)', value: '00000000' },
+  /** DDMMAAAA */
+  dataVencimento: { pos: [94, 101], picture: '9(008)', value: '00000000', dateFormat: { output: Cnab104Const.dateOutput } },
   tipoMoeda: {
     pos: [102, 104],
     picture: 'X(003)',
@@ -77,6 +79,7 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
   /** Data fixa, Periódico ou Dia útil */
   periodoDiaVencimento: { pos: [151, 152], picture: 'X(002)', value: '  ' },
   numeroParcela: { pos: [153, 154], picture: '9(002)', value: 1 },
+  /** Zeros */
   dataEfetivacao: { pos: [155, 162], picture: '9(008)', value: '00000000' },
   valorRealEfetivado: {
     pos: [163, 177],

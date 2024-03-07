@@ -1,15 +1,17 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
+import { DeepPartial } from 'typeorm';
+import { DetalheA } from '../entity/detalhe-a.entity';
 
 function isCreate(object: DetalheBDTO): boolean {
-  return object.id_detalhe_a === undefined;
+  return object.id === undefined;
 }
 
 export class DetalheBDTO {
-  id_detalhe_b?: number;
+  id?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  id_detalhe_a?: number;
+  detalhe_a?: DeepPartial<DetalheA>;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -17,6 +19,6 @@ export class DetalheBDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  data_vencimento?: Date;
+  dataVencimento?: Date;
 }
 
