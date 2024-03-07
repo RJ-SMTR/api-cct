@@ -43,7 +43,7 @@ export class Transacao extends EntityHelper {
   })
   vlr_rateio_credito: number;
 
-  @Column({ type: Number, unique: false, nullable: true, length: 150 })
+  @Column({ type: Number, unique: false, nullable: true })
   qtde_transacao_rateio_debito: number;
 
   @Column({

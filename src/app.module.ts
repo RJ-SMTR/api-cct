@@ -40,16 +40,16 @@ import { CronJobsModule } from './cron-jobs/cron-jobs.module';
 import { BigqueryModule } from './bigquery/bigquery.module';
 import { TestModule } from './test/test.module';
 import { CnabModule } from './cnab/cnab.module';
-import { SftpModule } from 'nest-sftp';
+import { SftpModule } from './sftp/sftp.module';
 
 @Module({
   imports: [
     SftpModule.forRoot(
       {
-        host: '34.123.217.7',
-        port: 23,
-        username: 'cct_devs',
-        password: 'EzKWSiqqchX3xdF' 
+        host: '',
+        port: 0,
+        username: '',
+        password: '' 
       },
       false,
     ),
@@ -119,6 +119,7 @@ import { SftpModule } from 'nest-sftp';
     TestModule,
     CnabModule,
     SftpModule,
+    // SftpModule,
   ],
 })
 export class AppModule {}

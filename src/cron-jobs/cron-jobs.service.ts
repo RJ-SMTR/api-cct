@@ -17,7 +17,7 @@ import { UsersService } from 'src/users/users.service';
 import {
   formatErrorMessage as formatErrorLog,
   formatLog,
-} from 'src/utils/logging';
+} from 'src/utils/log-utils';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -29,7 +29,8 @@ export enum CrobJobsEnum {
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
   updateTransacaoFromJae = 'updateTransacaoFromJae',
-  sendNewCNABs = 'sendNewCNABs',
+  updateRemessa = 'updateRemessa',
+  updateRetorno = 'updateRetorno',
 }
 
 interface ICronJob {
@@ -121,11 +122,11 @@ export class CronJobsService implements OnModuleInit {
           },
         },
         {
-          name: CrobJobsEnum.sendNewCNABs,
+          name: CrobJobsEnum.updateRemessa,
           cronJobParameters: {
             cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
             onTick: async () => {
-              await this.sendNewCNABs();
+              await this.updateRemessa();
             },
           },
         },
@@ -665,7 +666,25 @@ export class CronJobsService implements OnModuleInit {
     await this.cnabService.updateTransacaoFromJae();
   }
 
-  async sendNewCNABs() {
-   await  this.cnabService.sendNewCNABs();
+  async updateRemessa() {
+    const METHOD = 'updateRemessa()';
+    try {
+      await this.cnabService.updateRemessa();
+    } catch (error) {
+      this.logger.error(formatLog(
+        `Erro, abortando: ${(error as Error).message}.`
+        , METHOD));
+    }
+  }
+
+  async updateRetorno() {
+    const METHOD = 'updateRetorno()';
+    try {
+      await this.cnabService.updateRetorno();
+    } catch (error) {
+      this.logger.error(formatLog(
+        `Erro, abortando: ${(error as Error).message}.`
+        , METHOD));
+    }
   }
 }

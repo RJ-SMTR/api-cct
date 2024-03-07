@@ -20,11 +20,11 @@ class EnvironmentVariablesValidator {
   @IsString()
   DATABASE_TYPE: string;
 
-  @ValidateIf((envValues) => !envValues.DATABASE_HOST)
+  @ValidateIf((envValues) => !envValues.DATABASE_URL)
   @IsString()
   DATABASE_HOST: string;
 
-  @ValidateIf((envValues) => !envValues.DATABASE_PORT)
+  @ValidateIf((envValues) => !envValues.DATABASE_URL)
   @IsInt()
   @Min(0)
   @Max(65535)

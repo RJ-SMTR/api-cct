@@ -26,3 +26,10 @@ export function formatErrorMessage(
   }
   return formattedString;
 }
+
+export function getLogFromError(error: any) {
+  return JSON.stringify({
+    message: (error as Error)?.message,
+    traceback: (error as Error)?.stack,
+  })
+}

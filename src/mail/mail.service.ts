@@ -7,7 +7,7 @@ import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-st
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
-import { formatLog } from 'src/utils/logging';
+import { formatLog } from 'src/utils/log-utils';
 import { MaybeType } from '../utils/types/maybe.type';
 import { EhloStatus } from './enums/ehlo-status.enum';
 import { MailData } from './interfaces/mail-data.interface';
@@ -22,7 +22,7 @@ export class MailService {
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AllConfigType>,
-  ) {}
+  ) { }
 
   private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
     const code = Number(sentMessageInfo.response?.split(' ')?.[0] || '0');
