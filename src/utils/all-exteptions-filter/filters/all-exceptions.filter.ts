@@ -12,7 +12,7 @@ import {
   HttpExceptionResponse,
 } from '../interfaces/http-exception-response.interface';
 import { getCustomValidationOptions } from '../custom-validation-options';
-import { formatErrorMessage } from 'src/utils/logging';
+import { formatErrorMessage } from 'src/utils/log-utils';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {

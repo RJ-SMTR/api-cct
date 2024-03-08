@@ -7,7 +7,7 @@ import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-st
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
-import { formatLog } from 'src/utils/logging';
+import { formatLog } from 'src/utils/log-utils';
 import { MaybeType } from '../utils/types/maybe.type';
 import { EhloStatus } from './enums/ehlo-status.enum';
 import { MailData } from './interfaces/mail-data.interface';
@@ -22,7 +22,7 @@ export class MailService {
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AllConfigType>,
-  ) {}
+  ) { }
 
   private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
     const code = Number(sentMessageInfo.response?.split(' ')?.[0] || '0');
@@ -249,18 +249,19 @@ export class MailService {
       const appName = this.configService.get('app.name', {
         infer: true,
       });
+      const userLink =
+        inviteStatus.id === InviteStatusEnum.used
+          ? `${frontendDomain}sign-in`
+          : `${frontendDomain}conclude-registration/${mailData.data.hash}`;
       const response = await this.safeSendMail({
         from,
         to: mailData.to,
         subject: mailTitle,
-        text: mailTitle,
+        text: `reminder-complete-registration ${userLink} ${mailTitle}`,
         template: 'user-daily-conclude',
         context: {
           title: 'Confirme seu email',
-          userLink:
-            inviteStatus.id === InviteStatusEnum.used
-              ? `${frontendDomain}sign-in`
-              : `${frontendDomain}conclude-registration/${mailData.data.hash}`,
+          userLink,
           headerTitle: appName,
         },
       });

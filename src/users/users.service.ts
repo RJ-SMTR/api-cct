@@ -15,12 +15,12 @@ import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { isArrayContainEqual } from 'src/utils/array-utils';
 import { Enum } from 'src/utils/enum';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { formatLog } from 'src/utils/logging';
-import { stringUppercaseUnaccent } from 'src/utils/string-utils';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
+import { formatLog } from 'src/utils/log-utils';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { InvalidRows } from 'src/utils/types/invalid-rows.type';
+import { PaginationOptions } from 'src/utils/types/pagination-options';
 import {
   Brackets,
   DeepPartial,
@@ -31,7 +31,7 @@ import {
   WhereExpressionBuilder,
 } from 'typeorm';
 import * as xlsx from 'xlsx';
-import { NullableType } from '../utils/types/nullable.type';
+import { Nullable } from '../utils/types/nullable.type';
 import { CreateUserFileDto } from './dto/create-user-file.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
@@ -56,7 +56,7 @@ export class UsersService {
     private mailHistoryService: MailHistoryService,
     private banksService: BanksService,
     private readonly entityManager: EntityManager,
-  ) {}
+  ) { }
 
   async create(createProfileDto: CreateUserDto): Promise<User> {
     const createdUser = await this.usersRepository.save(
@@ -86,10 +86,9 @@ export class UsersService {
   }
 
   async findManyWithPagination(
-    paginationOptions: IPaginationOptions,
+    paginationOptions: PaginationOptions,
     fields?: IFindUserPaginated,
   ): Promise<User[]> {
-    console.log('findManyWithPagination');
     const isSgtuBlocked = fields?.isSgtuBlocked || fields?._anyField?.value;
 
     let inviteStatus: any = null;
@@ -106,8 +105,8 @@ export class UsersService {
     const andWhere = {
       ...(fields?.role
         ? {
-            role: { id: fields.role.id },
-          }
+          role: { id: fields.role.id },
+        }
         : {}),
     } as FindOptionsWhere<User>;
 
@@ -115,12 +114,12 @@ export class UsersService {
       const whereFields = [
         ...(fields?.permitCode || fields?._anyField?.value
           ? [
-              {
-                permitCode: ILike(
-                  `%${fields?.permitCode || fields?._anyField?.value}%`,
-                ),
-              },
-            ]
+            {
+              permitCode: ILike(
+                `%${fields?.permitCode || fields?._anyField?.value}%`,
+              ),
+            },
+          ]
           : []),
 
         ...(fields?.email || fields?._anyField?.value
@@ -129,12 +128,12 @@ export class UsersService {
 
         ...(fields?.cpfCnpj || fields?._anyField?.value
           ? [
-              {
-                cpfCnpj: ILike(
-                  `%${fields?.cpfCnpj || fields?._anyField?.value}%`,
-                ),
-              },
-            ]
+            {
+              cpfCnpj: ILike(
+                `%${fields?.cpfCnpj || fields?._anyField?.value}%`,
+              ),
+            },
+          ]
           : []),
 
         ...(isSgtuBlocked === 'true' || isSgtuBlocked === 'false'
@@ -143,12 +142,12 @@ export class UsersService {
 
         ...(fields?.passValidatorId || fields?._anyField?.value
           ? [
-              {
-                passValidatorId: ILike(
-                  `%${fields?.passValidatorId || fields?._anyField?.value}%`,
-                ),
-              },
-            ]
+            {
+              passValidatorId: ILike(
+                `%${fields?.passValidatorId || fields?._anyField?.value}%`,
+              ),
+            },
+          ]
           : []),
       ] as FindOptionsWhere<User>[];
 
@@ -183,7 +182,7 @@ export class UsersService {
       .andWhere(andWhere)
       .getMany();
 
-    let invites: NullableType<MailHistory[]> = null;
+    let invites: Nullable<MailHistory[]> = null;
     if (inviteStatus) {
       invites = await this.mailHistoryService.find({ inviteStatus });
     }
@@ -221,7 +220,7 @@ export class UsersService {
 
   async findOne(
     fields: EntityCondition<User> | EntityCondition<User>[],
-  ): Promise<NullableType<User>> {
+  ): Promise<Nullable<User>> {
     let user = await this.usersRepository.findOne({
       where: fields,
     });
@@ -311,7 +310,7 @@ export class UsersService {
     if (!user) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.NOT_FOUND,
+          error: HttpStatusMessage.NOT_FOUND,
           details: {
             ...(!user && { user: 'userNotFound' }),
           },
@@ -328,7 +327,7 @@ export class UsersService {
     if (!userId) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             ...(!request.user && { loggedUser: 'loggedUserNotExists' }),
             ...(!userId && { loggedUser: 'loggedUserIdNotExists' }),
@@ -402,14 +401,14 @@ export class UsersService {
   async validateFileValues(
     userFile: IFileUser,
     fileUsers: IFileUser[],
-    validatorDto,
-  ): Promise<InvalidRowsType> {
+    validatorDto: any,
+  ): Promise<InvalidRows> {
     const schema = plainToClass(validatorDto, userFile.user);
     const errors = await validate(schema as Record<string, any>, {
       stopAtFirstError: true,
     });
     const SEPARATOR = '; ';
-    const errorDictionary: InvalidRowsType = errors.reduce((result, error) => {
+    const errorDictionary: InvalidRows = errors.reduce((result, error) => {
       const { property, constraints } = error;
       if (property && constraints) {
         result[property] = Object.values(constraints).join(SEPARATOR);
@@ -552,7 +551,7 @@ export class UsersService {
         ),
         email: fileUser.user.email,
         phone: fileUser.user.telefone,
-        fullName: stringUppercaseUnaccent(fileUser.user.nome as string),
+        fullName: getStringUpperUnaccent(fileUser.user.nome as string),
         cpfCnpj: fileUser.user.cpf,
         hash: hash,
         status: new Status(StatusEnum.register),
@@ -600,10 +599,10 @@ export class UsersService {
     this.logger.log(
       formatLog(
         'Tarefa finalizada, resultado:\n' +
-          JSON.stringify({
-            requestUser: reqUser.getLogInfo(),
-            ...result,
-          }),
+        JSON.stringify({
+          requestUser: reqUser.getLogInfo(),
+          ...result,
+        }),
         'createFromFile()',
       ),
     );
@@ -616,12 +615,12 @@ export class UsersService {
   async getUnregisteredUsers(): Promise<User[]> {
     const results: any[] = await this.entityManager.query(
       'SELECT u."fullName", u."email", u."phone", i."sentAt", i."inviteStatusId", i."hash" ' +
-        'FROM public."user" u ' +
-        'INNER JOIN invite i ON u.id = i."userId" ' +
-        `WHERE i."inviteStatusId" = ${InviteStatusEnum.sent} ` +
-        'AND i."sentAt" <= NOW() - INTERVAL \'15 DAYS\' ' +
-        `AND u."roleId" = ${RoleEnum.user} ` +
-        'ORDER BY U."fullName", i."sentAt"',
+      'FROM public."user" u ' +
+      'INNER JOIN invite i ON u.id = i."userId" ' +
+      `WHERE i."inviteStatusId" = ${InviteStatusEnum.sent} ` +
+      'AND i."sentAt" <= NOW() - INTERVAL \'15 DAYS\' ' +
+      `AND u."roleId" = ${RoleEnum.user} ` +
+      'ORDER BY U."fullName", i."sentAt"',
     );
     const users: User[] = [];
     for (const result of results) {
@@ -644,13 +643,13 @@ export class UsersService {
   async getNotRegisteredUsers(): Promise<User[]> {
     const results: any[] = await this.entityManager.query(
       'SELECT U."fullName", u.email, u.phone, iv."name", i."sentAt", i."inviteStatusId", i."hash" ' +
-        'FROM public."user" U inner join invite i on  U.id = i."userId" ' +
-        'inner join invite_status iv on iv.id = i."inviteStatusId" ' +
-        'where u."bankCode" is null ' +
-        'and i."sentAt" <= now() - INTERVAL \'15 DAYS\' ' +
-        'and "roleId" <> 1 ' +
-        'and i."inviteStatusId" != 2 ' +
-        'order by U."fullName", i."sentAt" ',
+      'FROM public."user" U inner join invite i on  U.id = i."userId" ' +
+      'inner join invite_status iv on iv.id = i."inviteStatusId" ' +
+      'where u."bankCode" is null ' +
+      'and i."sentAt" <= now() - INTERVAL \'15 DAYS\' ' +
+      'and "roleId" <> 1 ' +
+      'and i."inviteStatusId" != 2 ' +
+      'order by U."fullName", i."sentAt" ',
     );
     const users: User[] = [];
     for (const result of results) {

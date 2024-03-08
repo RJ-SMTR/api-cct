@@ -10,10 +10,10 @@ import {
   ADMIN_PASSWORD,
   APP_URL,
   LICENSEE_CASE_ACCENT,
-  LICENSEE_PERMIT_CODE,
+  LICENSEE_CPF_PERMIT_CODE,
   MAILDEV_URL,
 } from '../utils/constants';
-import { stringUppercaseUnaccent } from 'src/utils/string-utils';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
 
 describe('Admin managing users (e2e)', () => {
   const app = APP_URL;
@@ -34,38 +34,39 @@ describe('Admin managing users (e2e)', () => {
   });
 
   describe('Setup tests', () => {
-    it('Should have UTC and local timezones', () => {
+    it('should have UTC and local timezones', () => {
       new Date().getTimezoneOffset();
       expect(process.env.TZ).toEqual('UTC');
       expect(global.__localTzOffset).toBeDefined();
     });
 
-    it('Should have mailDev server', async () => {
+    it('should have mailDev server', async () => {
       await request(MAILDEV_URL).get('').expect(HttpStatus.OK);
     });
   });
 
-  /**
-   * Phase 1: manage users
-   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
-   */
   describe('Manage users', () => {
-    test('Filter users', async () => {
+    test('Filter users', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 7 - GitHub}
+     */ async () => {
       // Arrange
+      await request(app)
+        .get('/api/v1/test/users/reset-testing-users')
+        .expect(200);
       const licensee = await request(app)
         .get('/api/v1/users/')
         .auth(apiToken, {
           type: 'bearer',
         })
-        .query({ permitCode: LICENSEE_PERMIT_CODE })
+        .query({ permitCode: LICENSEE_CPF_PERMIT_CODE })
         .expect(({ body }) => {
-          expect(body.data.length).toBe(1);
+          expect(body.data?.length).toBe(1);
         })
         .then(({ body }) => body.data);
       const licenseePartOfName = 'user';
       const args = [
         {
-          filter: { name: stringUppercaseUnaccent(LICENSEE_CASE_ACCENT) },
+          filter: { name: getStringUpperUnaccent(LICENSEE_CASE_ACCENT) },
           expect: (body: any) =>
             expect(
               body.data.some((i: any) => i.fullName === LICENSEE_CASE_ACCENT),
@@ -75,21 +76,27 @@ describe('Admin managing users (e2e)', () => {
           filter: { permitCode: licensee.permitCode },
           expect: (body: any) =>
             expect(
-              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+              body.data.some(
+                (i: any) => i.permitCode === LICENSEE_CPF_PERMIT_CODE,
+              ),
             ).toBeTruthy(),
         },
         {
           filter: { name: licensee.fullName },
           expect: (body: any) =>
             expect(
-              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+              body.data.some(
+                (i: any) => i.permitCode === LICENSEE_CPF_PERMIT_CODE,
+              ),
             ).toBeTruthy(),
         },
         {
           filter: { email: licensee.email },
           expect: (body: any) =>
             expect(
-              body.data.some((i: any) => i.permitCode === LICENSEE_PERMIT_CODE),
+              body.data.some(
+                (i: any) => i.permitCode === LICENSEE_CPF_PERMIT_CODE,
+              ),
             ).toBeTruthy(),
         },
         {
@@ -132,10 +139,6 @@ describe('Admin managing users (e2e)', () => {
     }, 20000);
   });
 
-  /**
-   * Phase 1: upload users
-   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
-   */
   describe('Upload users', () => {
     let uploadUsers: any[];
     let users: any[] = [];
@@ -153,7 +156,9 @@ describe('Admin managing users (e2e)', () => {
       ];
     });
 
-    test(`Upload users, status = 'queued'`, async () => {
+    test(`Upload users, status = 'queued'`, /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 3 - GitHub}
+     */ async () => {
       // Arrange
       const excelFilePath = path.join(tempFolder, 'newUsers.xlsx');
       const workbook = XLSX.utils.book_new();
@@ -180,16 +185,18 @@ describe('Admin managing users (e2e)', () => {
         })
         .query({ permitCode: uploadUsers[0].codigo_permissionario })
         .expect(({ body }) => {
-          expect(body.data.length).toBe(1);
+          expect(body.data?.length).toBe(1);
           expect(body.data[0]?.fullName).toEqual(
-            stringUppercaseUnaccent(uploadUsers[0].nome),
+            getStringUpperUnaccent(uploadUsers[0].nome),
           );
           expect(body.data[0]?.aux_inviteStatus?.name).toEqual('queued');
         })
         .then(({ body }) => body.data);
     });
 
-    test(`Resend new user invite, status = 'sent'`, async () => {
+    test(`Resend new user invite, status = 'sent'`, /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 4 - GitHub}
+     */ async () => {
       const newUser = users[0];
       expect(newUser?.id).toBeDefined();
 
@@ -234,7 +241,9 @@ describe('Admin managing users (e2e)', () => {
       users[0] = newUser;
     });
 
-    test(`New user conclude registration, status = 'used'`, async () => {
+    test(`New user conclude registration, status = 'used'`, /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 5 - GitHub}
+     */ async () => {
       const newUser = users[0];
       expect(newUser?.hash).toBeDefined();
 
@@ -252,7 +261,9 @@ describe('Admin managing users (e2e)', () => {
       users[0] = newUser;
     });
 
-    test('New user login', async () => {
+    test('New user login', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 6 - GitHub}
+     */ async () => {
       const newUser = users[0];
       await request(APP_URL)
         .post(`/api/v1/auth/licensee/login`)

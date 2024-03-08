@@ -11,6 +11,10 @@ export class InviteStatusSeedService {
     private repository: Repository<InviteStatus>,
   ) {}
 
+  async validateRun() {
+    return Promise.resolve(true);
+  }
+
   async run() {
     for (const value in InviteStatusEnum) {
       if (isNaN(Number(value))) {

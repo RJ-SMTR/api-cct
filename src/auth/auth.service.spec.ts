@@ -1,8 +1,8 @@
 import { Provider } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
 import { ForgotService } from 'src/forgot/forgot.service';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
@@ -11,16 +11,11 @@ import { MailSentInfo } from 'src/mail/interfaces/mail-sent-info.interface';
 import { MailService } from 'src/mail/mail.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import { AuthService } from './auth.service';
 import { DeepPartial } from 'typeorm';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { AuthService } from './auth.service';
 
 process.env.TZ = 'UTC';
 
-/**
- * All tests below were based on the requirements on GitHub.
- * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
- */
 describe('AuthService', () => {
   let authService: AuthService;
   let usersService: UsersService;
@@ -54,12 +49,6 @@ describe('AuthService', () => {
         sendForgotPassword: jest.fn(),
       },
     } as Provider;
-    const coreBankServiceMock = {
-      provide: CoreBankService,
-      useValue: {
-        updateDataIfNeeded: jest.fn(),
-      },
-    } as Provider;
     const mailHistoryServiceMock = {
       provide: MailHistoryService,
       useValue: {
@@ -83,7 +72,6 @@ describe('AuthService', () => {
         usersServiceMock,
         forgotServiceMock,
         mailServiceMock,
-        coreBankServiceMock,
         mailHistoryServiceMock,
       ],
     }).compile();
@@ -100,7 +88,9 @@ describe('AuthService', () => {
   });
 
   describe('resendRegisterMail', () => {
-    it('should throw exception when no mail quota available', async () => {
+    it('should throw exception when no mail quota available', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 13 - GitHub}
+     */ async () => {
       // Arrange
       const user = new User({
         id: 1,
@@ -119,41 +109,9 @@ describe('AuthService', () => {
       await expect(response).rejects.toThrowError();
     });
 
-    it('should throw exception when mail status is not QUEUED', async () => {
-      // Arrange
-      const user = new User({
-        id: 1,
-        email: 'user1@example.com',
-        hash: 'hash_1',
-      });
-      const mailHistory = new MailHistory({
-        id: 1,
-        user: user,
-        hash: 'hash_1',
-      });
-      mailHistory.setInviteStatus(InviteStatusEnum.sent);
-      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
-      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
-      jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
-
-      // Act
-      const response = authService.resendRegisterMail({ id: 1 });
-      let error: any;
-      await response.catch((httpException) => {
-        error = httpException;
-      });
-
-      // Assert
-      await expect(response).rejects.toThrowError();
-      await expect(error?.response?.error).toContain(
-        "User's mailStatus is not 'queued'",
-      );
-    });
-
-    /**
-     *@see {@link https://github.com/RJ-SMTR/api-cct/issues/164 Requirements #164 - GitHub}
-     */
-    it('should return success regardless of quota status', async () => {
+    it('should return success regardless of quota status', /**
+     * Requirement: 2023/12/28 {@link https://github.com/RJ-SMTR/api-cct/issues/164#issuecomment-1871504885 #164 - GitHub}
+     */ async () => {
       // Arrange
       const users = [
         new User({ id: 1, email: 'user1@mail.com', hash: 'hash_1' }),
@@ -210,7 +168,9 @@ describe('AuthService', () => {
   });
 
   describe('forgotPassword', () => {
-    it('should throw exception when no mail quota available', async () => {
+    it('should throw exception when no mail quota available', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 16 - GitHub}
+     */ async () => {
       // Arrange
       jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(0);
 
@@ -221,7 +181,9 @@ describe('AuthService', () => {
       await expect(responsePromise).rejects.toThrowError();
     });
 
-    it('should not consume the quota when available', async () => {
+    it('should not consume the quota when available', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 17 - GitHub}
+     */ async () => {
       // Arrange
       const user = new User({ id: 1, email: 'user1@mail.com', hash: 'hash_1' });
       const mailSentInfo = {

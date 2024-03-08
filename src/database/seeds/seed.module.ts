@@ -16,6 +16,8 @@ import { SettingTypeSeedModule } from './setting-type/setting-type.module';
 import { SettingSeedModule } from './setting/setting-seed.module';
 import { StatusSeedModule } from './status/status-seed.module';
 import { UserSeedModule } from './user/user-seed.module';
+import { BigqueryModule } from 'src/bigquery/bigquery.module';
+import googleConfig from 'src/config/google.config';
 
 @Module({
   imports: [
@@ -29,9 +31,10 @@ import { UserSeedModule } from './user/user-seed.module';
     MailCountSeedModule,
     UserSeedModule,
     MailHistorySeedModule,
+    BigqueryModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, appConfig, mailConfig],
+      load: [databaseConfig, appConfig, mailConfig, googleConfig],
       envFilePath: ['.env'],
     }),
     TypeOrmModule.forRootAsync({

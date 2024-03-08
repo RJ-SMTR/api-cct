@@ -2,7 +2,7 @@ import { Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
 import { MailHistoryService } from './mail-history.service';
 
@@ -32,12 +32,20 @@ describe('InviteService', () => {
         query: jest.fn(),
       },
     } as Provider;
+    const entityManagerMock = {
+      provide: EntityManager,
+      useValue: {
+        createQueryBuilder: jest.fn(),
+        transaction: jest.fn(),
+      },
+    } as Provider;
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MailHistoryService,
         mailHistoryRepositoryMock,
         configServiceMock,
         dataSourceMock,
+        entityManagerMock,
       ],
     }).compile();
 
@@ -52,11 +60,10 @@ describe('InviteService', () => {
     expect(mailHistoryService).toBeDefined();
   });
 
-  /**
-   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
-   */
   describe('getUpdatedMailCounts', () => {
-    it('should return quota as max value after midnight', async () => {
+    it('should return quota as max value after midnight', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 10 - GitHub}
+     */ async () => {
       // Arrange
       const findResult: Partial<MailHistory>[] = [
         {

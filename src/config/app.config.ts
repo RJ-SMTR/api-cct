@@ -11,9 +11,10 @@ import {
   Min,
 } from 'class-validator';
 
-enum Environment {
-  Development = 'development',
+export enum Environment {
   Production = 'production',
+  Homologation = 'homologation',
+  Development = 'development',
   Local = 'local',
   Test = 'test',
 }

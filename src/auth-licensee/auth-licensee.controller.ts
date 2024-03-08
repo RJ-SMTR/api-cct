@@ -16,6 +16,7 @@ import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
 import { IALConcludeRegistration } from './interfaces/al-conclude-registration.interface';
 import { IALInviteProfile } from './interfaces/al-invite-profile.interface';
+import { RoleEnum } from 'src/roles/roles.enum';
 
 @ApiTags('Auth')
 @Controller({
@@ -34,7 +35,7 @@ export class AuthLicenseeController {
     @Body()
     loginDto: AuthLicenseeLoginDto,
   ): Promise<LoginResponseType> {
-    return this.authLicenseeService.validateLogin(loginDto, false);
+    return this.authLicenseeService.validateLogin(loginDto, RoleEnum.user);
   }
 
   @Post('invite/:hash')

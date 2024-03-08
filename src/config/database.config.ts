@@ -16,7 +16,7 @@ class EnvironmentVariablesValidator {
   @IsString()
   DATABASE_URL: string;
 
-  @ValidateIf((envValues) => !envValues.DATABASE_URL)
+  @ValidateIf((envValues) => !envValues.DATABASE_TYPE)
   @IsString()
   DATABASE_TYPE: string;
 

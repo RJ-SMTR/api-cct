@@ -4,8 +4,6 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { plainToClass } from 'class-transformer';
 import * as crypto from 'crypto';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
 import { ForgotService } from 'src/forgot/forgot.service';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -18,11 +16,11 @@ import { SocialInterface } from 'src/social/interfaces/social.interface';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { formatLog } from 'src/utils/logging';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
+import { formatLog } from 'src/utils/log-utils';
 import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
-import { NullableType } from '../utils/types/nullable.type';
+import { Nullable } from '../utils/types/nullable.type';
 import { AuthProvidersEnum } from './auth-providers.enum';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
@@ -38,9 +36,8 @@ export class AuthService {
     private usersService: UsersService,
     private forgotService: ForgotService,
     private mailService: MailService,
-    private coreBankService: CoreBankService,
     private mailHistoryService: MailHistoryService,
-  ) {}
+  ) { }
 
   async validateLogin(
     loginDto: AuthEmailLoginDto,
@@ -59,7 +56,7 @@ export class AuthService {
     ) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             email: 'notFound',
           },
@@ -71,7 +68,7 @@ export class AuthService {
     if (user.provider !== AuthProvidersEnum.email) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             email: `needLoginViaProvider:${user.provider}`,
           },
@@ -88,7 +85,7 @@ export class AuthService {
     if (!isValidPassword) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             password: 'incorrectPassword',
           },
@@ -109,7 +106,7 @@ export class AuthService {
     authProvider: string,
     socialData: SocialInterface,
   ): Promise<LoginResponseType> {
-    let user: NullableType<User>;
+    let user: Nullable<User>;
     const socialEmail = socialData.email?.toLowerCase();
 
     const userByEmail = await this.usersService.findOne({
@@ -158,7 +155,7 @@ export class AuthService {
     if (!user) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             user: 'userNotFound',
           },
@@ -400,7 +397,7 @@ export class AuthService {
         this.logger.log(
           formatLog(
             'Email redefinir senha enviado com sucesso.' +
-              `\n    - Detalhes: ${JSON.stringify({ mailSentInfo })}`,
+            `\n    - Detalhes: ${JSON.stringify({ mailSentInfo })}`,
             'forgotPassword()',
           ),
         );
@@ -411,7 +408,7 @@ export class AuthService {
       else {
         throw new HttpException(
           {
-            error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+            error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
             details: {
               mailSentInfo: mailSentInfo,
             },
@@ -435,7 +432,7 @@ export class AuthService {
     if (!forgot) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             error: 'hash not found',
             hash,
@@ -452,16 +449,13 @@ export class AuthService {
     await this.forgotService.softDelete(forgot.id);
   }
 
-  async me(user: User): Promise<NullableType<User>> {
+  async me(user: User): Promise<Nullable<User>> {
     return this.usersService.findOne({
       id: user.id,
     });
   }
 
-  async update(
-    user: User,
-    userDto: AuthUpdateDto,
-  ): Promise<NullableType<User>> {
+  async update(user: User, userDto: AuthUpdateDto): Promise<Nullable<User>> {
     const userProfile = await this.usersService.findOne({ id: user.id });
 
     if (!userProfile || !(userProfile && userProfile?.cpfCnpj)) {
@@ -489,14 +483,6 @@ export class AuthService {
       userProfile,
       'AuthService.update()',
     );
-
-    const coreBankProfile: UpdateCoreBankInterface = {
-      bankAccountCode: userProfile.bankAccount,
-      bankAccountDigit: userProfile.bankAccountDigit,
-      bankAgencyCode: userProfile.bankAgency,
-      bankCode: userProfile.bankCode,
-    };
-    this.coreBankService.update(userProfile.cpfCnpj, coreBankProfile);
 
     return userProfile;
   }
