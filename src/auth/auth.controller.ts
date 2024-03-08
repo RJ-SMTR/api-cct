@@ -73,7 +73,7 @@ export class AuthController {
   public finanLogin(
     @Body() loginDTO: AuthEmailLoginDto,
   ): Promise<LoginResponseType> {
-    return this.service.validateLogin(loginDTO, true);
+    return this.authService.validateLogin(loginDTO, true);
   }
 
   @Post('email/register')

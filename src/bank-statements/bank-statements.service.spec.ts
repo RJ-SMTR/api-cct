@@ -559,31 +559,14 @@ describe('BankStatementsService', () => {
       });
     });
 
-    it('should throw exception when filtering by start-end dates', /**
-     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/168#issuecomment-1898457310 #168, item 4 - GitHub}
+    xit('should filter by start-end dates, where weeks include only the interval', /**
+     * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/215#issuecomment-1986233087 #215, item 1 - GitHub}
+     * 
+     * Tested manually only. It would be better to make unit test later.
      */ async () => {
       // Arrange
-      const bankStatements = allBankStatements.filter(
-        (i) => i.permitCode === 'pc_1',
-      );
-
-      const user = {
-        id: 1,
-        permitCode: 'pc_1',
-        cpfCnpj: bankStatements[0].cpfCnpj,
-      } as User;
-
-      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
-
       // Act
-      const result = bankStatementsService.getMe({
-        userId: 1,
-        startDate: '2023-01-05',
-        endDate: '2023-01-13',
-      });
-
       // Assert
-      await expect(result).rejects.toThrowError();
     });
 
     it('should throw exception when profile is not found', /**
