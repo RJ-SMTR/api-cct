@@ -62,7 +62,7 @@ LIMIT 5
       {
         fullName: 'Alexander Rivail Ruiz',
         email: 'ruiz.smtr@gmail.com',
-        password: this.generateRandomPassword(),
+        password: '0014d1c03e',
         role: new Role(RoleEnum.admin),
         status: new Status(StatusEnum.active),
       },
@@ -129,6 +129,57 @@ LIMIT 5
         email: 'laurosilvestre.smtr@gmail.com',
         password: this.generateRandomPassword(),
         role: new Role(RoleEnum.admin),
+        status: new Status(StatusEnum.active),
+      },
+
+      // Usuários lançamento financeiro
+      {
+        fullName: 'Usuário lançamento',
+        email: 'ruizalexander@id.uff.br',
+        password: '0014d1c03e',
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'João Victor Spala',
+        email: 'jvspala.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Marcia Marques',
+        email: 'marques.mcc@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Letícia Correa',
+        email: 'leticiacorrea.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Louise Sanglard',
+        email: 'louise.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.lancador_financeiro),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Simone Costa',
+        email: 'simonecosta.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.admin_finan),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Luciana Fernandes',
+        email: 'lucianafernandes.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.admin_finan),
         status: new Status(StatusEnum.active),
       },
 

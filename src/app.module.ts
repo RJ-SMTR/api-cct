@@ -38,6 +38,7 @@ import { SettingsModule } from './settings/settings.module';
 import { MailCountModule } from './mail-count/mail-count.module';
 import { CronJobsModule } from './cron-jobs/cron-jobs.module';
 import { BigqueryModule } from './bigquery/bigquery.module';
+import { LancamentoModule } from './lancamento/lancamento.module';
 import { TestModule } from './test/test.module';
 import { CnabModule } from './cnab/cnab.module';
 import { SftpModule } from './sftp/sftp.module';
@@ -109,6 +110,7 @@ import sftpConfig from './config/sftp.config';
     MailCountModule,
     CronJobsModule,
     BigqueryModule,
+    LancamentoModule,
     TestModule,
     CnabModule,
     SftpModule,

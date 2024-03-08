@@ -65,6 +65,17 @@ export class AuthController {
     return this.authService.validateLogin(loginDTO, true);
   }
 
+  @SerializeOptions({
+    groups: ['me'],
+  })
+  @Post('finan/email/login')
+  @HttpCode(HttpStatus.OK)
+  public finanLogin(
+    @Body() loginDTO: AuthEmailLoginDto,
+  ): Promise<LoginResponseType> {
+    return this.service.validateLogin(loginDTO, true);
+  }
+
   @Post('email/register')
   @HttpCode(HttpStatus.OK)
   async register(

@@ -16,6 +16,21 @@ export class RoleSeedService {
   }
 
   async run() {
+    const master = await this.roleRepository.count({
+      where: {
+        id: RoleEnum.master,
+      },
+    });
+
+    if (!master) {
+      await this.roleRepository.save(
+        this.repository.create({
+          id: RoleEnum.master,
+          name: 'Admin Master',
+        }),
+      );
+    }
+
     const countUser = await this.roleRepository.count({
       where: {
         id: RoleEnum.user,
@@ -42,6 +57,51 @@ export class RoleSeedService {
         this.roleRepository.create({
           id: RoleEnum.admin,
           name: 'Admin',
+        }),
+      );
+    }
+
+    const countLancador = await this.roleRepository.count({
+      where: {
+        id: RoleEnum.lancador_financeiro,
+      },
+    });
+
+    if (!countLancador) {
+      await this.roleRepository.save(
+        this.roleRepository.create({
+          id: RoleEnum.lancador_financeiro,
+          name: 'Lançador financeiro',
+        }),
+      );
+    }
+
+    const countAprovador = await this.roleRepository.count({
+      where: {
+        id: RoleEnum.aprovador_financeiro,
+      },
+    });
+
+    if (!countAprovador) {
+      await this.repository.save(
+        this.roleRepository.create({
+          id: RoleEnum.aprovador_financeiro,
+          name: 'Aprovador financeiro',
+        }),
+      );
+    }
+
+    const admin_finan = await this.roleRepository.count({
+      where: {
+        id: RoleEnum.admin_finan,
+      },
+    });
+
+    if (!admin_finan) {
+      await this.roleRepository.save(
+        this.roleRepository.create({
+          id: RoleEnum.admin_finan,
+          name: 'Admin Finan',
         }),
       );
     }
