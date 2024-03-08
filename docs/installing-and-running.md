@@ -1,12 +1,13 @@
-# Installation
-
----
+# Instalação
 
 ## Table of Contents
 
-- [Comfortable development](#comfortable-development)
-- [Quick run](#quick-run)
-- [Links](#links)
+* [Instalação](#instalação)
+  * [Table of Contents](#table-of-contents)
+  * [Comfortable development](#comfortable-development)
+  * [Quick run](#quick-run)
+    * [Video guideline](#video-guideline)
+  * [Links](#links)
 
 ---
 
@@ -18,48 +19,55 @@
     git clone --depth 1 https://github.com/brocoders/nestjs-boilerplate.git my-app
     ```
 
-1. Go to folder, and copy `env-example` as `.env`.
+2. Go to folder, and copy `env-example` as `.env`.
 
     ```bash
     cd my-app/
     cp env-example .env
     ```
 
-1. Change `DATABASE_HOST=postgres` to `DATABASE_HOST=localhost`
+3. Change `DATABASE_HOST=postgres` to `DATABASE_HOST=localhost`
 
    Change `MAIL_HOST=maildev` to `MAIL_HOST=localhost`
 
-1. Run additional container:
+4. Executar gerenciador de banco Adminer:
 
     ```bash
     docker compose up -d postgres adminer maildev
     ```
 
-1. Install dependency
+    Login no adminer (login de exemplo):
+    - Sistema: `PostgreSQL`
+    - Servidor: `postgres`
+    - Usuário: `root`
+    - Senha: `secret`
+    - Base de dados: `api`
+
+5. Install dependency
 
     ```bash
     npm install
     ```
 
-1. Run migrations
+6. Run migrations
 
     ```bash
     npm run migration:run
     ```
 
-1. Run seeds
+7. Run seeds
 
     ```bash
     npm run seed:run
     ```
 
-1. Run app in dev mode
+8. Run app in dev mode
 
     ```bash
     npm run start:dev
     ```
 
-1. Open http://localhost:3000
+9. Open http://localhost:3000
 
 ---
 

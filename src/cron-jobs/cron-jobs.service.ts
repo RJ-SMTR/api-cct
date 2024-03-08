@@ -1,9 +1,8 @@
 import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { JaeService } from 'src/jae/jae.service';
+import { CnabService } from 'src/cnab/service/cnab.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -18,7 +17,7 @@ import { UsersService } from 'src/users/users.service';
 import {
   formatErrorMessage as formatErrorLog,
   formatLog,
-} from 'src/utils/logging';
+} from 'src/utils/log-utils';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -26,11 +25,12 @@ import { validateEmail } from 'validations-br';
  */
 export enum CrobJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
-  updateJaeMockedData = 'updateJaeMockedData',
-  updateCoreBankMockedData = 'updateCoreBankMockedData',
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
+  updateTransacaoFromJae = 'updateTransacaoFromJae',
+  updateRemessa = 'updateRemessa',
+  updateRetorno = 'updateRetorno'
 }
 
 interface ICronJob {
@@ -56,29 +56,14 @@ export class CronJobsService implements OnModuleInit {
     private schedulerRegistry: SchedulerRegistry,
     private mailService: MailService,
     private mailHistoryService: MailHistoryService,
-    private jaeService: JaeService,
-    private coreBankService: CoreBankService,
     private usersService: UsersService,
-  ) {}
+    private cnabService: CnabService,
+  ) { }
 
   onModuleInit() {
     const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
     (async () => {
       this.jobsConfig.push(
-        {
-          name: CrobJobsEnum.updateJaeMockedData,
-          cronJobParameters: {
-            cronTime: CronExpression.EVERY_MINUTE,
-            onTick: async () => this.updateJaeMockedData(),
-          },
-        },
-        {
-          name: CrobJobsEnum.updateCoreBankMockedData,
-          cronJobParameters: {
-            cronTime: CronExpression.EVERY_HOUR,
-            onTick: () => this.coreBankService.updateDataIfNeeded(),
-          },
-        },
         {
           name: CrobJobsEnum.bulkSendInvites,
           cronJobParameters: {
@@ -122,9 +107,39 @@ export class CronJobsService implements OnModuleInit {
           name: CrobJobsEnum.bulkResendInvites,
           cronJobParameters: {
             cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
-            onTick: async () => this.bulkResendInvites(),
+            onTick: async () => {
+              await this.bulkResendInvites();
+            },
           },
         },
+
+        // {
+        //   name: CrobJobsEnum.updateTransacaoFromJae,
+        //   cronJobParameters: {
+        //     cronTime: '* * * * *',
+        //     onTick: async () => {
+        //       await this.updateTransacaoFromJae();
+        //     },
+        //   },
+        // },
+        // {
+        //   name: CrobJobsEnum.updateRemessa,
+        //   cronJobParameters: {
+        //     cronTime: '45 14 * * *',
+        //     onTick: async () => {
+        //       await this.updateRemessa();
+        //     },
+        //   },
+        // },
+        // {
+        //   name: CrobJobsEnum.updateRetorno,
+        //   cronJobParameters: {
+        //     cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+        //     onTick: async () => {
+        //       await this.updateRetorno();
+        //     },
+        //   },
+        // }        
       );
 
       for (const jobConfig of this.jobsConfig) {
@@ -148,18 +163,6 @@ export class CronJobsService implements OnModuleInit {
     this.schedulerRegistry.deleteCronJob(jobConfig.name);
   }
 
-  async updateJaeMockedData() {
-    this.logger.log(`updateJaeMockedData(): Atualizando dados se necessário`);
-    await this.jaeService.updateDataIfNeeded();
-  }
-
-  updateCoreBankMockedData() {
-    this.logger.log(
-      `updateCoreBankMockedData(): Atualizando dados se necessário`,
-    );
-    this.coreBankService.updateDataIfNeeded();
-  }
-
   async bulkSendInvites() {
     const THIS_METHOD = `${this.bulkSendInvites.name}()`;
     const THIS_CLASS_AND_METHOD = `${CronJobsService}.${this.bulkSendInvites.name}()`;
@@ -179,7 +182,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -195,8 +198,8 @@ export class CronJobsService implements OnModuleInit {
     this.logger.log(
       formatLog(
         `Iniciando tarefa - a enviar: ${unsent.length},` +
-          ` enviado: ${sentToday.length}/${dailyQuota()},` +
-          ` falta enviar: ${remainingQuota}`,
+        ` enviado: ${sentToday.length}/${dailyQuota()},` +
+        ` falta enviar: ${remainingQuota}`,
         THIS_METHOD,
       ),
     );
@@ -356,7 +359,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -375,7 +378,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -391,7 +394,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.error(
         formatLog(
           `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
-            ` não foi encontrada (retornou: ${mailRecipients}).`,
+          ` não foi encontrada (retornou: ${mailRecipients}).`,
           'sendStatusReport()',
         ),
       );
@@ -402,7 +405,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.error(
         formatLog(
           `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
-            ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
+          ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
           THIS_METHOD,
         ),
       );
@@ -476,7 +479,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Tarefa cancelada pois setting.${appSettings.any__poll_db_enabled.name}' = 'false'` +
-            ` Para ativar, altere na tabela 'setting'`,
+          ` Para ativar, altere na tabela 'setting'`,
           THIS_METHOD,
         ),
       );
@@ -533,8 +536,8 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog(
           `Alteração encontrada em` +
-            ` setting.'${args.setting.name}': ` +
-            `${job?.cronJobParameters.cronTime} --> ${setting}.`,
+          ` setting.'${args.setting.name}': ` +
+          `${job?.cronJobParameters.cronTime} --> ${setting}.`,
           thisMethod,
         ),
       );
@@ -599,7 +602,7 @@ export class CronJobsService implements OnModuleInit {
     };
   }
 
-  async bulkResendInvites() {
+  async bulkResendInvites(): Promise<HttpStatus> {
     const THIS_METHOD = `${this.bulkResendInvites.name}()`;
     const notRegisteredUsers = await this.usersService.getNotRegisteredUsers();
 
@@ -607,13 +610,13 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog('Não há usuários para enviar, abortando...', THIS_METHOD),
       );
-      return;
+      return HttpStatus.NOT_FOUND;
     }
     this.logger.log(
       formatLog(
         String(
           'Enviando emails específicos para ' +
-            `${notRegisteredUsers.length} usuários não totalmente registrados`,
+          `${notRegisteredUsers.length} usuários não totalmente registrados`,
         ),
         THIS_METHOD,
       ),
@@ -621,6 +624,7 @@ export class CronJobsService implements OnModuleInit {
     for (const user of notRegisteredUsers) {
       await this.resendInvite(user, THIS_METHOD);
     }
+    return HttpStatus.OK;
   }
 
   async resendInvite(user: User, outerMethod: string) {
@@ -636,7 +640,12 @@ export class CronJobsService implements OnModuleInit {
 
       // Success
       if (mailSentInfo.success) {
-        this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+        this.logger.log(
+          formatLog(
+            `Email enviado com sucesso para ${mailSentInfo.envelope.to}.`,
+            THIS_METHOD,
+          ),
+        );
       }
 
       // SMTP error
@@ -660,6 +669,36 @@ export class CronJobsService implements OnModuleInit {
           THIS_METHOD,
         ),
       );
+    }
+  }
+
+  async updateTransacaoFromJae() {
+    await this.cnabService.updateTransacaoFromJae();
+  }
+
+  async getRetornoCNAB(){
+    await this.cnabService.getArquivoRetornoCNAB();
+  }
+
+  async updateRemessa() {
+    const METHOD = 'updateRemessa()';
+    try {
+      await this.cnabService.updateRemessa();
+    } catch (error) {
+      this.logger.error(formatLog(
+        `Erro, abortando: ${(error as Error).message}.`
+        , METHOD));
+    }
+  }
+
+  async updateRetorno() {
+    const METHOD = 'updateRetorno()';
+    try {
+      await this.cnabService.updateRetorno();
+    } catch (error) {
+      this.logger.error(formatLog(
+        `Erro, abortando: ${(error as Error).message}.`
+        , METHOD));
     }
   }
 }

@@ -8,18 +8,22 @@ import { Repository } from 'typeorm';
 export class RoleSeedService {
   constructor(
     @InjectRepository(Role)
-    private repository: Repository<Role>,
+    private roleRepository: Repository<Role>,
   ) {}
 
+  async validateRun() {
+    return Promise.resolve(true);
+  }
+
   async run() {
-    const master = await this.repository.count({
+    const master = await this.roleRepository.count({
       where: {
         id: RoleEnum.master,
       },
     });
 
     if (!master) {
-      await this.repository.save(
+      await this.roleRepository.save(
         this.repository.create({
           id: RoleEnum.master,
           name: 'Admin Master',
@@ -27,52 +31,52 @@ export class RoleSeedService {
       );
     }
 
-    const countUser = await this.repository.count({
+    const countUser = await this.roleRepository.count({
       where: {
         id: RoleEnum.user,
       },
     });
 
     if (!countUser) {
-      await this.repository.save(
-        this.repository.create({
+      await this.roleRepository.save(
+        this.roleRepository.create({
           id: RoleEnum.user,
           name: 'User',
         }),
       );
     }
 
-    const countAdmin = await this.repository.count({
+    const countAdmin = await this.roleRepository.count({
       where: {
         id: RoleEnum.admin,
       },
     });
 
     if (!countAdmin) {
-      await this.repository.save(
-        this.repository.create({
+      await this.roleRepository.save(
+        this.roleRepository.create({
           id: RoleEnum.admin,
           name: 'Admin',
         }),
       );
     }
 
-    const countLancador = await this.repository.count({
+    const countLancador = await this.roleRepository.count({
       where: {
         id: RoleEnum.lancador_financeiro,
       },
     });
 
     if (!countLancador) {
-      await this.repository.save(
-        this.repository.create({
+      await this.roleRepository.save(
+        this.roleRepository.create({
           id: RoleEnum.lancador_financeiro,
           name: 'Lançador financeiro',
         }),
       );
     }
 
-    const countAprovador = await this.repository.count({
+    const countAprovador = await this.roleRepository.count({
       where: {
         id: RoleEnum.aprovador_financeiro,
       },
@@ -80,22 +84,22 @@ export class RoleSeedService {
 
     if (!countAprovador) {
       await this.repository.save(
-        this.repository.create({
+        this.roleRepository.create({
           id: RoleEnum.aprovador_financeiro,
           name: 'Aprovador financeiro',
         }),
       );
     }
 
-    const admin_finan = await this.repository.count({
+    const admin_finan = await this.roleRepository.count({
       where: {
         id: RoleEnum.admin_finan,
       },
     });
 
     if (!admin_finan) {
-      await this.repository.save(
-        this.repository.create({
+      await this.roleRepository.save(
+        this.roleRepository.create({
           id: RoleEnum.admin_finan,
           name: 'Admin Finan',
         }),

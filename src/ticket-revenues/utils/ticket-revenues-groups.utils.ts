@@ -1,6 +1,6 @@
 import { ITicketRevenue } from '../interfaces/ticket-revenue.interface';
 import { ITicketRevenuesGroup } from '../interfaces/ticket-revenues-group.interface';
-import { ITRCounts } from '../interfaces/tr-count-content.interface';
+import { ITRCounts } from '../interfaces/tr-counts.interface';
 
 const COUNTS_KEYS = [
   'transportTypeCounts',

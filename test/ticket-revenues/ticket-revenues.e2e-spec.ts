@@ -1,191 +1,132 @@
-import {
-  isFriday,
-  isSameMonth,
-  nextFriday,
-  previousFriday,
-  startOfMonth,
-} from 'date-fns';
-import { getDateYMDString } from 'src/utils/date-utils';
+import { subDays } from 'date-fns';
 import * as request from 'supertest';
+import { getDateYMDString } from '../../src/utils/date-utils';
 import {
   APP_URL,
-  LICENSEE_PASSWORD,
-  LICENSEE_PERMIT_CODE,
-} from '../../test/utils/constants';
-/**
- * @see {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 Requirements - GitHub}
- */
+  BQ_JSON_CREDENTIALS,
+  LICENSEE_CNPJ_PASSWORD,
+  LICENSEE_CNPJ_PERMIT_CODE,
+  LICENSEE_CPF_PASSWORD,
+  LICENSEE_CPF_PERMIT_CODE,
+} from '../utils/constants';
+import { BigQuery } from '@google-cloud/bigquery';
+
 describe('Ticket revenues (e2e)', () => {
   const app = APP_URL;
-  let apiToken;
-  function getMonthStartDateStr(oldDate: Date): string {
-    let newDate = startOfMonth(oldDate);
-    if (!isFriday(newDate)) {
-      newDate = nextFriday(newDate);
-    }
-    newDate.setDate(newDate.getDate() - 8);
-    return getDateYMDString(newDate);
-  }
-  function getPreviousDateStr(oldDate: Date, daysBefore: number): string {
-    const newDate = new Date(oldDate);
-    newDate.setDate(newDate.getDate() - daysBefore);
-    return getDateYMDString(newDate);
-  }
-  function getNowFriday(): Date {
-    const nowDate = new Date(Date.now());
-    let nowFriday = nextFriday(nowDate);
-    if (!isSameMonth(nowDate, nowFriday)) {
-      nowFriday = previousFriday(nowDate);
-    }
-    return nowFriday;
-  }
+  let bq: BigQuery;
+  let cpfApiToken: any;
+  let cnpjApiToken: any;
+  let licenseeCnpj: string;
+  let licenseeCnpjMaxDate: Date;
 
   beforeAll(async () => {
+    // Login CPF and CNPJ users
     await request(app)
       .post('/api/v1/auth/licensee/login')
-      .send({ permitCode: LICENSEE_PERMIT_CODE, password: LICENSEE_PASSWORD })
+      .send({
+        permitCode: LICENSEE_CPF_PERMIT_CODE,
+        password: LICENSEE_CPF_PASSWORD,
+      })
       .expect(200)
       .then(({ body }) => {
-        apiToken = body.token;
+        cpfApiToken = body.token;
       });
-  });
 
-  describe('Setup tests', () => {
-    test('timezone should be UTC', () => {
-      expect(new Date().getTimezoneOffset()).toBe(0);
+    await request(app)
+      .post('/api/v1/auth/licensee/login')
+      .send({
+        permitCode: LICENSEE_CNPJ_PERMIT_CODE,
+        password: LICENSEE_CNPJ_PASSWORD,
+      })
+      .expect(200)
+      .then(({ body }) => {
+        cnpjApiToken = body.token;
+        licenseeCnpj = body.user.cpfCnpj;
+      });
+
+    // get licenseeMaxDate
+    bq = new BigQuery({ credentials: BQ_JSON_CREDENTIALS() });
+    const query = `
+SELECT
+  CAST(t.data AS STRING) AS partitionDate,
+  FROM \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao\` t
+  LEFT JOIN \`rj-smtr-dev.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
+    `;
+    await bq.query(query).then((value) => {
+      licenseeCnpjMaxDate = new Date(value[0][0]?.['partitionDate']);
     });
+    expect(Number(licenseeCnpjMaxDate)).not.toBeNaN();
   });
 
-  it('Should match startDate, endDate in /ticket-revenues/me when passed timeInterval = last month, with/without endDate', async () => {
+  it('should match result in /ticket-revenues/me with /ticket-revenues/me/individual', /**
+   * Requirement: 2024/01/26 {@link https://github.com/RJ-SMTR/api-cct/issues/167#issuecomment-1912764312 #167, item 3 - GitHub}
+   */ async () => {
     // Arrange
-    const nowDate = new Date(Date.now());
-    const nowFriday = getNowFriday();
-    const ticketIntervalEndDate: any = {
-      expectedStartDate: getMonthStartDateStr(nowDate),
-      expectedEndDate: getPreviousDateStr(nowFriday, 9),
-    };
-    const ticketInterval: any = {
-      expectedStartDate: getMonthStartDateStr(nowDate),
-      expectedEndDate: getPreviousDateStr(nowFriday, 2),
-    };
+    const startDate = subDays(new Date(), 366);
 
     // Act
+    let ticketRevenuesMe: any;
     await request(app)
       .get('/api/v1/ticket-revenues/me')
-      .auth(apiToken, {
+      .auth(cpfApiToken, {
         type: 'bearer',
       })
       .query({
-        timeInterval: 'lastMonth',
-        // endDate should be ignored
-        endDate: getPreviousDateStr(nowFriday, 10),
+        startDate: getDateYMDString(startDate),
+        endDate: getDateYMDString(new Date()),
       })
       .expect(200)
       .then(({ body }) => {
-        ticketIntervalEndDate.response = body;
+        ticketRevenuesMe = body;
       });
 
+    let ticketRevenuesMeIndividual: any;
     await request(app)
-      .get('/api/v1/ticket-revenues/me')
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .query({ timeInterval: 'lastMonth' })
-      .expect(200)
-      .then(({ body }) => {
-        ticketInterval.response = body;
-      });
-
-    // Assert
-    expect(ticketIntervalEndDate.expectedStartDate).toEqual(
-      ticketIntervalEndDate.response.startDate,
-    );
-    expect(ticketIntervalEndDate.expectedEndDate).toEqual(
-      ticketIntervalEndDate.response.endDate,
-    );
-    expect(ticketInterval.expectedStartDate).toEqual(
-      ticketInterval.response.startDate,
-    );
-    expect(ticketInterval.expectedEndDate).toEqual(
-      ticketInterval.response.endDate,
-    );
-  }, 60000);
-
-  it('Should match startDate, endDate in /ticket-revenues/me when passed timeInterval = last 2 weeks', async () => {
-    // Arrange
-    const nowFriday = getNowFriday();
-    const expectedStartDate = getPreviousDateStr(nowFriday, 15);
-    const expectedEndDate = getPreviousDateStr(nowFriday, 2);
-
-    // Act
-    let ticketMe: any = {};
-
-    await request(app)
-      .get('/api/v1/ticket-revenues/me')
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .query({ timeInterval: 'last2Weeks' })
-      .expect(200)
-      .then(({ body }) => {
-        ticketMe = body;
-      });
-
-    // Assert
-    expect(expectedStartDate).toEqual(ticketMe.startDate);
-    expect(expectedEndDate).toEqual(ticketMe.endDate);
-  }, 60000);
-
-  it('Should match startDate, endDate in /ticket-revenues/me when passed timeInterval = last week', async () => {
-    // Arrange
-    const nowFriday = getNowFriday();
-    const expectedStartDate = getPreviousDateStr(nowFriday, 8);
-    const expectedEndDate = getPreviousDateStr(nowFriday, 2);
-
-    // Act
-    let ticketMe: any = {};
-
-    await request(app)
-      .get('/api/v1/ticket-revenues/me')
-      .auth(apiToken, {
-        type: 'bearer',
-      })
-      .query({ timeInterval: 'lastWeek' })
-      .expect(200)
-      .then(({ body }) => {
-        ticketMe = body;
-      });
-
-    // Assert
-    expect(expectedStartDate).toEqual(ticketMe.startDate);
-    expect(expectedEndDate).toEqual(ticketMe.endDate);
-  }, 60000);
-
-  it('Should match startDate, endDate in /ticket-revenues/me when passed startDate, endDate', async () => {
-    // Arrange
-    const nowFriday = getNowFriday();
-    const expectedStartDate = getPreviousDateStr(nowFriday, 8);
-    const expectedEndDate = getPreviousDateStr(nowFriday, 2);
-
-    // Act
-    let ticketMe: any = {};
-
-    await request(app)
-      .get('/api/v1/ticket-revenues/me')
-      .auth(apiToken, {
+      .get('/api/v1/ticket-revenues/me/individual')
+      .auth(cpfApiToken, {
         type: 'bearer',
       })
       .query({
-        startDate: expectedStartDate,
-        endDate: expectedEndDate,
+        startDate: getDateYMDString(startDate),
+        endDate: getDateYMDString(new Date()),
       })
       .expect(200)
       .then(({ body }) => {
-        ticketMe = body;
+        ticketRevenuesMeIndividual = body;
       });
 
     // Assert
-    expect(expectedStartDate).toEqual(ticketMe.startDate);
-    expect(expectedEndDate).toEqual(ticketMe.endDate);
+    expect(ticketRevenuesMe.data.length).toBeGreaterThan(0);
+    expect(ticketRevenuesMeIndividual.data.length).toBeGreaterThan(0);
+    expect(ticketRevenuesMeIndividual.amountSum).toEqual(
+      ticketRevenuesMe.amountSum,
+    );
+  }, 60000);
+
+  it('should fetch successfully CNPJ user at /ticket-revenues/me', /**
+   * Requirement: 2024/01/26 {@link https://github.com/RJ-SMTR/api-cct/issues/167#issuecomment-1912764312 #167, item 4 - GitHub}
+   */ async () => {
+    // Arrange
+    const startDate = subDays(licenseeCnpjMaxDate, 366);
+
+    // Act
+    let ticketRevenuesMe: any;
+    await request(app)
+      .get('/api/v1/ticket-revenues/me')
+      .auth(cnpjApiToken, {
+        type: 'bearer',
+      })
+      .query({
+        startDate: getDateYMDString(startDate),
+        endDate: getDateYMDString(licenseeCnpjMaxDate),
+      })
+      .expect(200)
+      .then(({ body }) => {
+        ticketRevenuesMe = body;
+      });
+
+    // Assert
+    expect(ticketRevenuesMe.data.length).toBeGreaterThan(0);
   }, 60000);
 });

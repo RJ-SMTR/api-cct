@@ -2,7 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
 import { SettingType } from 'src/setting-types/entities/setting-type.entity';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import {
   BaseEntity,
   Column,
@@ -62,7 +62,7 @@ export class SettingEntity extends BaseEntity {
       } catch (error) {
         throw new HttpException(
           {
-            error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+            error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
             details: {
               value: `should be valid JSON, received '${this.value}' instead`,
             },
@@ -79,7 +79,7 @@ export class SettingEntity extends BaseEntity {
     } else {
       throw new HttpException(
         {
-          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
             value: 'should not be null',
           },
@@ -108,7 +108,7 @@ export class SettingEntity extends BaseEntity {
     } else {
       throw new HttpException(
         {
-          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
             value: 'should not be null',
           },
@@ -122,7 +122,7 @@ export class SettingEntity extends BaseEntity {
     if (!this?.value) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
             value: 'should not be null',
           },

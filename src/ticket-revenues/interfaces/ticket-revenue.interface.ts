@@ -1,5 +1,3 @@
-import { BqApiTicketRevenuesTransportTypeEnum } from 'src/bigquery/enums/bq-api-ticket-revenues-transport-type.enum';
-
 /**
  * Internal representation of `IBqApiTicketRevenues`
  *
@@ -62,20 +60,10 @@ export interface ITicketRevenue {
   /**
    * Represents `modo`
    *
-   * @description Tipo de transporte (SPPO = ônibus, STPL = van, BRT)
-   * @example 'SPPO', 'STPL'
+   * @description Tipo de transporte
+   * @options 'BRT', 'Ônibus', 'Van', 'VLT'
    */
-  transportType: BqApiTicketRevenuesTransportTypeEnum | string | null;
-
-  /**
-   * **Important field**
-   *
-   * Represents `permissao`
-   *
-   * @description Número da permissão do operador
-   * @example 'abcde123.ab12.abcde'
-   */
-  permitCode: string;
+  transportType: string | null;
 
   /**
    * Represents `servico`
@@ -136,11 +124,10 @@ export interface ITicketRevenue {
   /**
    * **Important field**
    *
-   * Represents `id_tipo_transacao`
+   * Represents `tipo_transacao`
    *
    * @description Tipo de transação realizada
-   * @type `TicketRevenuesTransactionTypeMap`
-   * @example 'Riocard' = 98
+   * @example 'Débito', 'Recarga', 'Riocard', 'Bloqueio', 'Botoeria', 'Gratuidade', 'Cancelamento', 'Integração'
    */
   transactionType: string | null;
 
