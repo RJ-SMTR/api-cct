@@ -57,7 +57,7 @@ export class BankStatementsService {
   }
 
   private async validateGetMe(args: IBSGetMeArgs): Promise<{
-    startDate: undefined;
+    startDate?: string;
     endDate?: string;
     timeInterval?: TimeIntervalEnum;
     user: User;
@@ -73,24 +73,11 @@ export class BankStatementsService {
       );
     }
 
-    if (args?.startDate) {
-      throw new HttpException(
-        {
-          error: {
-            code: 'invalid_request-startDate-forbidden',
-            message:
-              'Invalid request: start_date not allowed, filter only by endDate + timeInterval.',
-          },
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     // For now it validates if user exists
     const user = await this.usersService.getOne({ id: args?.userId });
 
     return {
-      startDate: undefined,
+      startDate: args?.startDate,
       endDate: args?.endDate,
       timeInterval: args?.timeInterval,
       user: user,

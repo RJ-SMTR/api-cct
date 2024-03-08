@@ -24,7 +24,7 @@ export class RoleSeedService {
 
     if (!master) {
       await this.roleRepository.save(
-        this.repository.create({
+        this.roleRepository.create({
           id: RoleEnum.master,
           name: 'Admin Master',
         }),
@@ -83,7 +83,7 @@ export class RoleSeedService {
     });
 
     if (!countAprovador) {
-      await this.repository.save(
+      await this.roleRepository.save(
         this.roleRepository.create({
           id: RoleEnum.aprovador_financeiro,
           name: 'Aprovador financeiro',
