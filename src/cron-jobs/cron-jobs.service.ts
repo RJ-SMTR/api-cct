@@ -112,6 +112,7 @@ export class CronJobsService implements OnModuleInit {
             },
           },
         },
+
         // {
         //   name: CrobJobsEnum.updateTransacaoFromJae,
         //   cronJobParameters: {
@@ -138,8 +139,7 @@ export class CronJobsService implements OnModuleInit {
         //       await this.updateRetorno();
         //     },
         //   },
-        // }
-        
+        // }        
       );
 
       for (const jobConfig of this.jobsConfig) {
