@@ -1,12 +1,11 @@
-import { ArquivoPublicacaoRepository } from './../repository/arquivo-publicacao.repository';
-import { ClienteFavorecidoService } from './cliente-favorecido.service';
-import { ArquivoPublicacaoDTO } from './../dto/arquivo-publicacao.dto';
 import { Injectable, Logger } from '@nestjs/common';
 import { BanksService } from 'src/banks/banks.service';
 import { SftpService } from 'src/sftp/sftp.service';
-import { asDate, asNumber, asString, asStringDate } from 'src/utils/pipe-utils';
+import { getDateFromString } from 'src/utils/date-utils';
+import { asDate, asNullableStringDate, asNumber, asString } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
+import { Cnab104Const } from '../const/cnab-104.const';
 import { DetalheADTO } from '../dto/detalhe-a.dto';
 import { DetalheBDTO } from '../dto/detalhe-b.dto';
 import { HeaderArquivoDTO } from '../dto/header-arquivo.dto';
@@ -31,8 +30,11 @@ import {
   getProcessedCnab104,
   stringifyCnab104File,
 } from '../utils/cnab-104-utils';
+import { ArquivoPublicacaoDTO } from './../dto/arquivo-publicacao.dto';
 import { HeaderLoteDTO } from './../dto/header-lote.dto';
 import { HeaderArquivo } from './../entity/header-arquivo.entity';
+import { ArquivoPublicacaoRepository } from './../repository/arquivo-publicacao.repository';
+import { ClienteFavorecidoService } from './cliente-favorecido.service';
 import { Cnab104Service } from './cnab-104.service';
 import { DetalheAService } from './detalhe-a.service';
 import { DetalheBService } from './detalhe-b.service';
@@ -40,8 +42,6 @@ import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoService } from './item-transacao.service';
 import { PagadorService } from './pagador.service';
 import { TransacaoService } from './transacao.service';
-import { getDateFromString } from 'src/utils/date-utils';
-import { Cnab104Const } from '../const/cnab-104.const';
 
 @Injectable()
 export class HeaderArquivoService {
@@ -232,19 +232,19 @@ export class HeaderArquivoService {
   ): Promise<HeaderArquivoDTO> {
     const dto = new HeaderArquivoDTO();
     const pagador = await this.pagadorService.getOneByIdPagador(transacao.pagador.id);
-    dto.agencia = asString(pagador.agencia);
+    dto.agencia = asString(pagador.agencia, 'agencia');
     dto.codigoBanco = String(headerArquivoTemplate.codigoBanco.value);
     dto.codigoConvenio = String(headerArquivoTemplate.codigoConvenioBanco.value);
-    dto.dataGeracao = asDate(transacao.dataOrdem);
-    dto.horaGeracao = asDate(transacao.dataOrdem);
-    dto.dvAgencia = asString(pagador.dvAgencia);
-    dto.dvConta = asString(pagador.dvConta);
+    dto.dataGeracao = asDate(transacao.dataOrdem, 'dataGeracao');
+    dto.horaGeracao = asDate(transacao.dataOrdem, 'horaGeracao');
+    dto.dvAgencia = asString(pagador.dvAgencia, 'dvAgencia');
+    dto.dvConta = asString(pagador.dvConta, 'dvConta');
     dto.transacao = transacao;
     dto.nomeEmpresa = pagador.nomeEmpresa;
-    dto.numeroConta = asString(pagador.conta);
-    dto.numeroInscricao = asString(pagador.cpfCnpj);
-    dto.parametroTransmissao = String(
-      headerArquivoTemplate.parametroTransmissao.value,
+    dto.numeroConta = asString(pagador.conta, 'numeroConta');
+    dto.numeroInscricao = asString(pagador.cpfCnpj, 'numeroInscricao');
+    dto.parametroTransmissao = asString(
+      headerArquivoTemplate.parametroTransmissao.value, 'parametroTransmissao',
     );
     dto.tipoArquivo = tipo_arquivo;
     dto.tipoInscricao = String(headerArquivoTemplate.tipoInscricao.value);
@@ -349,10 +349,10 @@ export class HeaderArquivoService {
       const headerLote = new HeaderLoteDTO();
 
       headerLote.id = headerArquivoSave.id;
-      headerLote.loteServico = asString(l.headerLote.loteServico.value);
-      headerLote.codigoConvenioBanco = asString(l.headerLote.codigoConvenioBanco.value);
-      headerLote.numeroInscricao = asString(l.headerLote.numeroInscricao.value);
-      headerLote.parametroTransmissao = asString(l.headerLote.param_transmissao.value);
+      headerLote.loteServico = asString(l.headerLote.loteServico.value, 'loteServico');
+      headerLote.codigoConvenioBanco = asString(l.headerLote.codigoConvenioBanco.value, 'codigoConvenioBanco');
+      headerLote.numeroInscricao = asString(l.headerLote.numeroInscricao.value, 'numeroInscricao');
+      headerLote.parametroTransmissao = asString(l.headerLote.param_transmissao.value, 'parametroTransmissao');
       headerLote.tipoCompromisso = l.headerLote.tipoCompromisso.value;
       headerLote.tipoInscricao = l.headerLote.tipoInscricao.value;
 
@@ -364,10 +364,10 @@ export class HeaderArquivoService {
         const detalheA = new DetalheADTO();
         detalheA.headerLote = { id: headerLoteSave.id };
         detalheA.dataEfetivacao = getDateFromString(r.detalheA.dataEfetivacao.value, Cnab104Const.dateObjOutput);
-        detalheA.dataVencimento = asStringDate(r.detalheA.dataVencimento.value);
+        detalheA.dataVencimento = asNullableStringDate(r.detalheA.dataVencimento.value);
         detalheA.indicadorBloqueio = r.detalheA?.indicadorBloqueio.value;
-        detalheA.indicadorFormaParcelamento = asString(r.detalheA?.indicadorFormaParcelamento.value);
-        detalheA.loteServico = asString(r.detalheA?.loteServico.value);
+        detalheA.indicadorFormaParcelamento = asString(r.detalheA?.indicadorFormaParcelamento.value, 'indicadorFormaParcelamento');
+        detalheA.loteServico = asString(r.detalheA?.loteServico.value, 'loteServico');
         detalheA.nsr = Number(asString(r.detalheA.nsr.value));
         detalheA.numeroDocumentoLancamento = Number(asString(r.detalheA?.numeroDocumento.value));
         detalheA.numeroParcela = Number(asString(r.detalheA?.numeroParcela.value));
@@ -375,8 +375,8 @@ export class HeaderArquivoService {
         detalheA.quantidadeMoeda = asNumber(r.detalheA?.quantidadeMoeda.value);
         detalheA.quantidadeParcelas = asNumber(r.detalheA?.quantidadeMoeda.value);
         detalheA.valorLancamento = asNumber(r.detalheA?.valor_lancamento.value);
-        detalheA.tipoFinalidadeConta = asString(r.detalheA?.tipoContaFinalidade.value);
-        detalheA.tipoMoeda = asString(r.detalheA?.tipoMoeda.value);
+        detalheA.tipoFinalidadeConta = asString(r.detalheA?.tipoContaFinalidade.value, 'tipoFinalidadeConta');
+        detalheA.tipoMoeda = asString(r.detalheA?.tipoMoeda.value, 'tipoMoeda');
         detalheA.valorRealEfetivado = asNumber(r.detalheA?.valorRealEfetivado.value);
 
         const cliente =
@@ -423,21 +423,21 @@ export class HeaderArquivoService {
             //DetalheA Retorno
             const detalhesA = await this.detalheAService.findMany({ id: headerLoteRetorno.id });
             detalhesA.forEach(async detalheA => {
-              arquivoPublicacao.loteServico = asString(detalheA.loteServico);
-              arquivoPublicacao.dataVencimento = asDate(detalheA.dataVencimento);
-              arquivoPublicacao.valorLancamento = asNumber(detalheA.valorLancamento);
-              arquivoPublicacao.dataEfetivacao = asDate(detalheA.dataEfetivacao);
-              arquivoPublicacao.valorRealEfetivado = asNumber(detalheA.valorRealEfetivado);
+              arquivoPublicacao.loteServico = asString(detalheA.loteServico, 'loteServico');
+              arquivoPublicacao.dataVencimento = asDate(detalheA.dataVencimento, 'dataVencimento');
+              arquivoPublicacao.valorLancamento = asNumber(detalheA.valorLancamento, 'valorLancamento');
+              arquivoPublicacao.dataEfetivacao = asDate(detalheA.dataEfetivacao, 'dataEfetivacao');
+              arquivoPublicacao.valorRealEfetivado = asNumber(detalheA.valorRealEfetivado, 'valorRealEfetivado');
               const clienteFavorecido =
                 await this.clienteFavorecidoService.getOneByIdClienteFavorecido(detalheA.clienteFavorecido.id);
               arquivoPublicacao.nomeCliente = clienteFavorecido.nome;
-              arquivoPublicacao.cpfCnpjCliente = String(clienteFavorecido.cpfCnpj);
-              arquivoPublicacao.codBancoCliente = String(clienteFavorecido.codigoBanco);
-              arquivoPublicacao.agenciaCliente = String(clienteFavorecido.agencia);
-              arquivoPublicacao.dvAgenciaCliente = String(clienteFavorecido.dvAgencia);
-              arquivoPublicacao.contaCorrenteCliente = String(clienteFavorecido.contaCorrente);
-              arquivoPublicacao.dvContaCorrenteCliente = String(clienteFavorecido.dvContaCorrente);
-              arquivoPublicacao.ocorrencias = asString(detalheA.ocorrencias);
+              arquivoPublicacao.cpfCnpjCliente = asString(clienteFavorecido.cpfCnpj, 'cpfCnpj');
+              arquivoPublicacao.codBancoCliente = asString(clienteFavorecido.codigoBanco, 'codigoBanco');
+              arquivoPublicacao.agenciaCliente = asString(clienteFavorecido.agencia, 'agencia');
+              arquivoPublicacao.dvAgenciaCliente = asString(clienteFavorecido.dvAgencia, 'dvAgencia');
+              arquivoPublicacao.contaCorrenteCliente = asString(clienteFavorecido.contaCorrente, 'contaCorrente');
+              arquivoPublicacao.dvContaCorrenteCliente = asString(clienteFavorecido.dvContaCorrente, 'dvContaCorrente');
+              arquivoPublicacao.ocorrencias = asString(detalheA.ocorrencias, 'ocorrencias');
               void this.arquivoPublicacaoRepository.save(arquivoPublicacao);
             });
           });

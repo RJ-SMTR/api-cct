@@ -40,12 +40,12 @@ export class Transacao extends EntityHelper {
 
   @Column({
     type: 'decimal',
-    unique: false,
+  unique: false,
     nullable: true,
     precision: 10,
     scale: 2,
   })
-  valorRateioCredito: number;
+  valorRateioCredito: number | null;
 
   @Column({ type: Number, unique: false, nullable: true })
   quantidadeTransacaoRateioDebito: number | null;

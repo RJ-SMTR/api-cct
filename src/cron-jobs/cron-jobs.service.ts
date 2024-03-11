@@ -63,6 +63,7 @@ export class CronJobsService implements OnModuleInit {
   onModuleInit() {
     const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
     (async () => {
+      await this.updateTransacaoFromJae();
       this.jobsConfig.push(
         {
           name: CrobJobsEnum.bulkSendInvites,
@@ -113,15 +114,15 @@ export class CronJobsService implements OnModuleInit {
           },
         },
 
-        // {
-        //   name: CrobJobsEnum.updateTransacaoFromJae,
-        //   cronJobParameters: {
-        //     cronTime: '* * * * *',
-        //     onTick: async () => {
-        //       await this.updateTransacaoFromJae();
-        //     },
-        //   },
-        // },
+        {
+          name: CrobJobsEnum.updateTransacaoFromJae,
+          cronJobParameters: {
+            cronTime: '* * * * *',
+            onTick: async () => {
+              await this.updateTransacaoFromJae();
+            },
+          },
+        },
         // {
         //   name: CrobJobsEnum.updateRemessa,
         //   cronJobParameters: {

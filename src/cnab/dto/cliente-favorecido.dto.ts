@@ -1,11 +1,11 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
 
 function isCreate(object: SaveClienteFavorecidoDTO): boolean {
-  return object.id_cliente_favorecido === undefined;
+  return object.id === undefined;
 }
 
 export class SaveClienteFavorecidoDTO {
-  id_cliente_favorecido?: number;
+  id?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -17,7 +17,7 @@ export class SaveClienteFavorecidoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  codBanco?: string | null;
+  codigoBanco?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -35,35 +35,12 @@ export class SaveClienteFavorecidoDTO {
   @IsNotEmpty()
   dvContaCorrente?: string | null;
 
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   logradouro?: string | null;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   numero?: string | null;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   complemento?: string | null;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   bairro?: string | null;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   cidade?: string | null;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   cep?: string | null;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   complementoCep?: string | null;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   uf?: string | null;
 }

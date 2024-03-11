@@ -19,10 +19,10 @@ export class ClienteFavorecidoRepository {
   ) { }
 
   async save(dto: SaveClienteFavorecidoDTO): Promise<void> {
-    if (dto.id_cliente_favorecido === undefined) {
+    if (dto.id === undefined) {
       await this.create(dto);
     } else {
-      await this.update(dto.id_cliente_favorecido, dto);
+      await this.update(dto.id, dto);
     }
   }
 
@@ -52,6 +52,14 @@ export class ClienteFavorecidoRepository {
       `ClienteFavorecido atualizado: ${updatedItem.getLogInfo()}`,
     );
     return updatePayload;
+  }
+
+  public async findOne(
+    fields: EntityCondition<ClienteFavorecido> | EntityCondition<ClienteFavorecido>[],
+  ): Promise<ClienteFavorecido | null> {
+    return await this.clienteFavorecidoRepository.findOne({
+      where: fields,
+    });
   }
 
   public async getOne(

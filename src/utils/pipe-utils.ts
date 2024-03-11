@@ -32,6 +32,11 @@ export function asStringDate(str: string | null | undefined, fieldName?: string)
   return asValidDate(new Date(asString(str)), field);
 }
 
+export function asNullableStringDate(str: string | null | undefined, fieldName?: string): Date | null {
+  const field = fieldName || 'NullableStringDate';
+  return str ? asValidDate(new Date(asString(str)), field) : null;
+}
+
 export function asValidDate(date: Date | null | undefined, fieldName?: string): Date {
   const field = fieldName || 'Date';
   const validDate = asDate(date);

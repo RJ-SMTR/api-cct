@@ -1,5 +1,5 @@
 import { IsNotEmpty, ValidateIf } from "class-validator";
-import { DeepPartial } from "typeorm";
+import { CreateDateColumn, DeepPartial } from "typeorm";
 import { ClienteFavorecido } from "../entity/cliente-favorecido.entity";
 
 function isCreate(object: ItemTransacaoDTO): boolean {
@@ -19,17 +19,11 @@ export class ItemTransacaoDTO {
   @IsNotEmpty()
   dataTransacao?: Date;
 
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
+  @CreateDateColumn()
   dataProcessamento?: Date;
 
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
+  @CreateDateColumn()
   dataCaptura?: Date;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  modo?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

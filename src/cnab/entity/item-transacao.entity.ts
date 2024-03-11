@@ -30,9 +30,6 @@ export class ItemTransacao extends EntityHelper {
   @Column({ type: Date, unique: false, nullable: true })
   dataCaptura: Date | null;
 
-  @Column({ type: String, unique: false, nullable: true, length: 10 })
-  modo: string | null;
-
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   nomeConsorcio: string | null;
 

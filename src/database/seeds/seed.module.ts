@@ -18,6 +18,7 @@ import { StatusSeedModule } from './status/status-seed.module';
 import { UserSeedModule } from './user/user-seed.module';
 import { BigqueryModule } from 'src/bigquery/bigquery.module';
 import googleConfig from 'src/config/google.config';
+import { PagadorSeedModule } from './pagador/pagador-seed.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import googleConfig from 'src/config/google.config';
     UserSeedModule,
     MailHistorySeedModule,
     BigqueryModule,
+    PagadorSeedModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, appConfig, mailConfig, googleConfig],

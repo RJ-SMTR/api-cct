@@ -8,6 +8,7 @@ import { validateDTO } from 'src/utils/validation-utils';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
+import { IsNull, Not } from 'typeorm';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -26,11 +27,17 @@ export class ClienteFavorecidoService {
    */
   public async updateAllFromUsers(): Promise<void> {
     const allUsers = await this.usersService.findMany({
-      role: { id: RoleEnum.user }
+      role: { id: RoleEnum.user, },
+      fullName: Not(IsNull()),
+      cpfCnpj: Not(IsNull()),
+      bankCode: Not(IsNull()),
+      bankAgency: Not(IsNull()),
+      bankAccount: Not(IsNull()),
+      bankAccountDigit: Not(IsNull()),
     });
     for (const user of allUsers) {
-      const favorecido = await this.clienteFavorecidoRepository.getOne({
-        cpfCnpj: user.getCpfCnpj(),
+      const favorecido = await this.clienteFavorecidoRepository.findOne({
+        cpfCnpj: user.cpfCnpj,
       });
       await this.saveFavorecidoFromUser(
         user,
@@ -64,7 +71,7 @@ export class ClienteFavorecidoService {
       return cliente_favorecido;
     }
   }
-  
+
   public async getClienteFavorecido(): Promise<ClienteFavorecido[]> {
     const cliente_favorecido =
       await this.clienteFavorecidoRepository.findAll({});
@@ -84,10 +91,10 @@ export class ClienteFavorecidoService {
     existingId_facorecido?: number,
   ): Promise<void> {
     const saveObject: SaveClienteFavorecidoDTO = {
-      id_cliente_favorecido: existingId_facorecido,
+      id: existingId_facorecido,
       nome: user.getFullName(),
       cpfCnpj: user.getCpfCnpj(),
-      codBanco: String(user.getBankCode()),
+      codigoBanco: String(user.getBankCode()),
       agencia: user.getBankAgencyWithoutDigit(),
       dvAgencia: user.getBankAgencyDigit(),
       contaCorrente: user.getBankAccount(),

@@ -16,6 +16,50 @@ export class BigqueryOrdemPagamentoService {
     private readonly bigqueryOrdemPagamentoRepository: BigqueryOrdemPagamentoRepository,
   ) { }
 
+
+  /**
+   * Get data from current payment week (from thu to wed)
+   */
+  public async getCurrentWeekTest(): Promise<BigqueryOrdemPagamentoDTO[]> {
+    // Read
+    const ordemPgto: BigqueryOrdemPagamentoDTO[] = [
+      {
+        dataOrdem: '2024-03-11',
+        dataPagamento: null,
+        idConsorcio: 'idConsorcio1',
+        consorcio: 'Consorcio1',
+        idOperadora: 'idOperadora1',
+        operadora: 'Operadora1',
+        servico: null,
+        idOrdemPagamento: '10',
+        idOrdemRessarcimento: null,
+        quantidadeTransacaoDebito: null,
+        valorDebito: null,
+        quantidadeTransacaoEspecie: null,
+        valorEspecie: null,
+        quantidadeTransacaoGratuidade: null,
+        valor_gratuidade: null,
+        quantidadeTransacaoIntegracao: null,
+        valor_integracao: null,
+        quantidadeTransacaoRateioCredito: null,
+        valorRateioCredito: null,
+        quantidadeTransacaoRateioDebito: null,
+        valorRateioDebito: null,
+        quantidadeTotalTransacao: null,
+        valorTotalTransacaoBruto: 10,
+        valorDescontoTaxa: null,
+        valorTotalTransacaoLiquido: null,
+        quantidadeTotalTransacaoCaptura: null,
+        valorTotalTransacaoCaptura: null,
+        indicadorOrdemValida: null,
+        versao: null,
+        aux_favorecidoCpfCnpj: '96583185768',
+      },
+    ];
+
+    return await this.validateGetCurrentWeek(ordemPgto);
+  }
+
   /**
    * Get data from current payment week (from thu to wed)
    */
