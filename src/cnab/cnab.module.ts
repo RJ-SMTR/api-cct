@@ -32,6 +32,7 @@ import { ItemTransacao } from './entity/item-transacao.entity';
 import { Pagador } from './entity/pagador.entity';
 import { UsersModule } from 'src/users/users.module';
 import { BigqueryModule } from 'src/bigquery/bigquery.module';
+import { CnabController } from './cnab.controller';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { BigqueryModule } from 'src/bigquery/bigquery.module';
     TransacaoRepository,
     ItemTransacaoService,
     ItemTransacaoRepository,
-  ]
+  ],
+  controllers: [CnabController]
 })
 export class CnabModule { }
