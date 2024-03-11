@@ -12,6 +12,7 @@ import { ClienteFavorecidoService } from './cliente-favorecido.service';
 
 import { PagadorService } from './pagador.service';
 import { ItemTransacaoService } from './item-transacao.service';
+import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 
 @Injectable()
 export class TransacaoService {
@@ -56,7 +57,7 @@ export class TransacaoService {
    * Para cada BigqueryOrdemPagamento insere em Transacao
    * @returns `id_transacao` do item criado
    */
-  public ordemPagamentoToTransacao(ordemPagamento: BigqueryOrdemPagamento, idPagador: number,
+  public ordemPagamentoToTransacao(ordemPagamento: BigqueryOrdemPagamentoDTO, idPagador: number,
   ): TransacaoDTO {
     const transacao = new TransacaoDTO();
     transacao.dataOrdem = asStringDate(ordemPagamento.dataOrdem);
