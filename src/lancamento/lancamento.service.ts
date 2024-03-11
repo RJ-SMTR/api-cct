@@ -102,11 +102,13 @@ export class LancamentoService {
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
-
-    lancamento = { ...lancamento, ...updatedData, userId, auth_usersIds: '' };
-
+  
+    const { id_cliente_favorecido, ...restUpdatedData } = updatedData;
+    lancamento = { ...lancamento, ...restUpdatedData, userId, auth_usersIds: '' };
+    
     await this.lancamentoRepository.save(lancamento);
-
+    console.log(id_cliente_favorecido);
+  
     return lancamento;
   }
 

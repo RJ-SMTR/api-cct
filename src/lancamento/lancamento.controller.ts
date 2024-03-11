@@ -19,6 +19,8 @@ import { CreateLancamentoDto } from './createLancamentoDto';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
+import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.service';
+
 
 @ApiTags('Lancamento')
 @Controller({
@@ -26,7 +28,10 @@ import { RolesGuard } from 'src/roles/roles.guard';
   version: '1',
 })
 export class LancamentoController {
-  constructor(private readonly lancamentoService: LancamentoService) {}
+  constructor(
+    private readonly lancamentoService: LancamentoService,
+    private readonly clienteFavorecidoService: ClienteFavorecidoService
+    ) {}
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)

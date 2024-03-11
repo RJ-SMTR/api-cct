@@ -1,3 +1,4 @@
+import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { User } from 'src/users/entities/user.entity';
 import {
   Entity,
@@ -33,6 +34,10 @@ export class LancamentoEntity {
   @ManyToOne(() => User)
   @JoinColumn({ name: 'userId' })
   user: User;
+
+  @ManyToOne(() => ClienteFavorecido)
+  @JoinColumn({ name: 'id_cliente_favorecido' })
+  id_cliente_favorecido: ClienteFavorecido;
 
   @Column({ type: 'int', nullable: false })
   algoritmo: number;

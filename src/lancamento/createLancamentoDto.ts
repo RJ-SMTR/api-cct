@@ -46,4 +46,8 @@ export class CreateLancamentoDto {
   @IsNotEmpty()
   @IsDateString()
   numero_processo: number;
+  
+  @ApiProperty()
+  @IsNotEmpty()
+  id_cliente_favorecido: number;
 }

@@ -64,6 +64,20 @@ export class ClienteFavorecidoService {
       return cliente_favorecido;
     }
   }
+  
+  public async getClienteFavorecido(): Promise<ClienteFavorecido[]> {
+    const cliente_favorecido =
+      await this.clienteFavorecidoRepository.findAll({});
+    if (!cliente_favorecido) {
+      throw CommonHttpException.errorDetails(
+        'cliente_favorecido.conta not found',
+        {},
+        HttpStatus.NOT_FOUND,
+      );
+    } else {
+      return cliente_favorecido;
+    }
+  }
 
   private async saveFavorecidoFromUser(
     user: User,
