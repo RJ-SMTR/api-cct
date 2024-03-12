@@ -218,7 +218,8 @@ export class JaeDataService implements OnModuleInit {
     ];
     const licenseesLength = jaeProfiles.length;
     for (const tripIndex in uniqueTripsList) {
-      const licenseeStepIndex = ~~(Number(tripIndex) / licenseesLength);
+      const licenseeStepIndex =
+        ~~(Number(tripIndex) / licenseesLength) % jaeProfiles.length;
       const profile = jaeProfiles[licenseeStepIndex];
       const tripId = uniqueTripsList[tripIndex];
       const stopTimes = this.stopTimes
