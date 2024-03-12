@@ -145,12 +145,13 @@ export class MailHistoryService {
     payload: DeepPartial<MailHistory>,
     logContext?: string,
   ): Promise<MailHistory> {
-    const updatedMail = await this.inviteRepository.save(
+    const mailRespose = await this.inviteRepository.save(
       this.inviteRepository.create({
         id,
         ...payload,
       }),
     );
+    const updatedMail = await this.inviteRepository.findOneByOrFail({ id: id });
     this.logger.log(
       formatLog(
         `Histórico de email ${updatedMail.getLogInfoStr()}` +
@@ -159,7 +160,7 @@ export class MailHistoryService {
         logContext,
       ),
     );
-    return updatedMail;
+    return mailRespose;
   }
 
   async softDelete(id: number): Promise<void> {
