@@ -15,7 +15,7 @@ describe('CronJobs (e2e)', () => {
 
   describe('BulkResendMails', () => {
     test('Resend mails to not fully registered users', /**
-     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 7 - GitHub}
+     * Requirement: 2024/03/12 {@link https://github.com/RJ-SMTR/api-cct/issues/218 #218, Requirements - GitHub}
      */ async () => {
       // Arrange
       await request(app)
