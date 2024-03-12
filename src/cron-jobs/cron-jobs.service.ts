@@ -30,7 +30,8 @@ export enum CrobJobsEnum {
   updateCoreBankMockedData = 'updateCoreBankMockedData',
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
-  bulkResendInvites = 'bulkResendInvites',
+  bulkResendInvites1 = 'bulkResendInvites1',
+  bulkResendInvites2 = 'bulkResendInvites2',
 }
 
 interface ICronJob {
@@ -119,10 +120,21 @@ export class CronJobsService implements OnModuleInit {
           },
         },
         {
-          name: CrobJobsEnum.bulkResendInvites,
+          name: CrobJobsEnum.bulkResendInvites1,
           cronJobParameters: {
-            cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
-            onTick: async () => this.bulkResendInvites(),
+            cronTime: '45 14 * * *', // 14:45 GMT = 11:45 BRT (GMT-3)
+            onTick: async () => {
+              await this.bulkResendInvites();
+            },
+          },
+        },
+        {
+          name: CrobJobsEnum.bulkResendInvites2,
+          cronJobParameters: {
+            cronTime: '45 20 * * *', // 20:45 GMT = 17:45 BRT (GMT-3)
+            onTick: async () => {
+              await this.bulkResendInvites();
+            },
           },
         },
       );
@@ -636,7 +648,20 @@ export class CronJobsService implements OnModuleInit {
 
       // Success
       if (mailSentInfo.success) {
-        this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+        const mailHistory = await this.mailHistoryService.getOne({
+          user: { email: user.email as string },
+        });
+        this.logger.log(
+          formatLog(
+            `Email enviado com sucesso para ${
+              mailSentInfo.envelope.to
+            }. (último envio: ${mailHistory.sentAt?.toISOString()})`,
+            THIS_METHOD,
+          ),
+        );
+        await this.mailHistoryService.update(mailHistory.id, {
+          sentAt: new Date(Date.now()),
+        });
       }
 
       // SMTP error
