@@ -11,7 +11,7 @@ export class TestService {
   constructor(
     private readonly cronjobsService: CronJobsService,
     private readonly mailHistoryService: MailHistoryService,
-  ) {}
+  ) { }
 
   async getCronJobsBulkResendInvites() {
     await this.setMailsToTestResendInvites();
@@ -30,12 +30,19 @@ export class TestService {
           'registered.user@example.com',
         ]),
       })) || [];
+    const testSent15 = await this.mailHistoryService.getOne({
+      email: 'sent15.user@example.com',
+    });
+
     const now = new Date();
     for (const mail of testMails) {
       await this.mailHistoryService.update(mail.id, {
-        sentAt: subDays(now, 16),
+        sentAt: now,
       });
     }
+    await this.mailHistoryService.update(testSent15.id, {
+      sentAt: subDays(now, 16),
+    });
   }
 
   async getResetTestingUsers() {

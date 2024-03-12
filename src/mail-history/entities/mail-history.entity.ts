@@ -110,9 +110,7 @@ export class MailHistory extends BaseEntity {
 
   getLogInfoStr(): string {
     let response = '';
-    if (this?.email) {
-      response += `'${this.email}'`;
-    } else if (this?.id) {
+    if (this?.id) {
       response += `#${this.id.toString()}`;
     } else {
       response += '[VAZIO]';
