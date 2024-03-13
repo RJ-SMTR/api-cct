@@ -25,7 +25,7 @@ export class LancamentoService {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
     const lancamentos = await this.lancamentoRepository.find({
       where: {
-        data_ordem: Between(startDate, endDate),
+        data_lancamento: Between(startDate, endDate),
       },
       relations: ['user'],
     });
