@@ -7,7 +7,7 @@ export class TransacaoDTO {
   nomeConsorcio?: string | null;
   nomeOperadora?: string | null;
   servico?: string | null;
-  idOrdemPagamento?: number | null;
+  idOrdemPagamento?: string | null;
   idOrdemRessarcimento?: string | null;
   quantidadeTransacaoRateioCredito?: number | null;
   valorRateioCredito?: number | null;

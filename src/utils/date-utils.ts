@@ -1,13 +1,15 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
 import {
   endOfDay,
   format,
-  parse,
   nextFriday,
+  parse,
   startOfDay,
   startOfMonth,
+  subHours,
 } from 'date-fns';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
+import { CommonHttpException } from './http-exception/common-http-exception';
 import { DateIntervalStrType } from './types/date-interval.type';
 
 export function getDateWithTimezone(
@@ -124,10 +126,14 @@ export function getDateFromString(
     date = new Date(`${format(new Date(), 'yyyy-MM-dd')} ${value}`);
   }
   if (throwIfInvalid && isNaN(date.getDate())) {
-    throw new HttpException(
+    throw CommonHttpException.details(
       `Invalid date format (${value})`,
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }
   return date;
+}
+
+export function getBRTFromUTC(utc: Date): Date {
+  return subHours(utc, 3);
 }

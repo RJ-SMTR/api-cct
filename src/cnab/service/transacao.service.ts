@@ -1,7 +1,7 @@
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
-import { asStringDate } from 'src/utils/pipe-utils';
+import { asString, asStringDate } from 'src/utils/pipe-utils';
 import { ItemTransacaoDTO } from '../dto/item-transacao.dto';
 import { Transacao } from '../entity/transacao.entity';
 import { PagadorContaEnum } from '../enums/pagador/pagador.enum';
@@ -10,12 +10,19 @@ import { TransacaoDTO } from './../dto/transacao.dto';
 import { ClienteFavorecidoService } from './cliente-favorecido.service';
 
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
+import { formatLog } from 'src/utils/log-utils';
+import { InvalidRows } from 'src/utils/types/invalid-rows.type';
+import { validateDTO } from 'src/utils/validation-utils';
 import { Pagador } from '../entity/pagador.entity';
 import { ItemTransacaoService } from './item-transacao.service';
 import { PagadorService } from './pagador.service';
 
 @Injectable()
 export class TransacaoService {
+  private logger: Logger = new Logger('TransacaoService', {
+    timestamp: true,
+  });
+
   constructor(
     private transacaoRepository: TransacaoRepository,
     private itemTransacaoService: ItemTransacaoService,
@@ -24,32 +31,49 @@ export class TransacaoService {
     private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
   ) { }
 
-  /**
-   * This task will:
-   * 1. Update ClienteFavorecidos from Users
-   * 2. Fetch ordemPgto from this week
-   * 3. For every id_ordem not in table, add Transacao and 
-   * 
-   * Assumptions:
-   * 1. Every
-   */
   public async updateTransacaoFromJae() {
+    const METHOD = 'updateTransacaoFromJae()';
+    // Update cliente favorecido
     await this.clienteFavorecidoService.updateAllFromUsers();
-    const ordensPagamento = await this.bigqueryOrdemPagamentoService.getCurrentWeekTest();
+
+    // Update transacao
+    const ordensPagamento = this.bigqueryOrdemPagamentoService.getCurrentWeekTest();
     const pagador = await this.pagadorService.getOneByConta(PagadorContaEnum.JAE);
-    // WIP: idOrdemAux
-    let idOrdemAux = "";
+    const errors: InvalidRows[] = [];
 
     for (const ordemPagamento of ordensPagamento) {
-      if ((ordemPagamento.idOrdemPagamento as string) !== idOrdemAux) {
-        const transacaoDTO = this.ordemPagamentoToTransacao(ordemPagamento, pagador.id);
-        const saveTransacaoDTO = await this.transacaoRepository.save(transacaoDTO);
-        const favorecido = await this.clienteFavorecidoService.getCpfCnpj(ordemPagamento.aux_favorecidoCpfCnpj);
-        const itemTransacaoDTO = this.ordemPagamentoToItemTransacaoDTO(ordemPagamento,
-          saveTransacaoDTO.id, favorecido.id)
-        await this.itemTransacaoService.save(itemTransacaoDTO);
-        idOrdemAux = ordemPagamento.idOrdemPagamento as string;
+      // Add transacao
+      const error = await validateDTO(BigqueryOrdemPagamentoDTO, ordemPagamento, false);
+      if (Object.keys(error).length > 0) {
+        errors.push(error);
+        continue;
       }
+      const transacaoDTO = this.ordemPagamentoToTransacao(ordemPagamento, pagador.id);
+      const saveTransacaoDTO = await this.saveIfNotExists(transacaoDTO);
+
+      // Add itemTransacao
+      const favorecido = await this.clienteFavorecidoService.getCpfCnpj(ordemPagamento.aux_favorecidoCpfCnpj);
+      const itemTransacaoDTO = this.ordemPagamentoToItemTransacaoDTO(ordemPagamento,
+        saveTransacaoDTO.id, favorecido.id)
+      await this.itemTransacaoService.saveIfNotExists(itemTransacaoDTO);
+    }
+
+    // Log errors
+    if (errors.length > 0) {
+      this.logger.error(formatLog(`O bigquery retornou itens inválidos: ${JSON.stringify(errors)}`, METHOD));
+    }
+  }
+
+
+  /**
+   * Save
+   */
+  public async saveIfNotExists(dto: TransacaoDTO): Promise<Transacao> {
+    const transacao = await this.transacaoRepository.findOne({ idOrdemPagamento: asString(dto.idOrdemPagamento) });
+    if (transacao) {
+      return transacao;
+    } else {
+      return await this.transacaoRepository.save(dto);
     }
   }
 
@@ -65,7 +89,7 @@ export class TransacaoService {
     transacao.nomeConsorcio = ordemPagamento.consorcio;
     transacao.nomeOperadora = ordemPagamento.operadora;
     transacao.servico = ordemPagamento.servico;
-    transacao.idOrdemPagamento = Number(ordemPagamento.idOrdemPagamento);
+    transacao.idOrdemPagamento = asString(ordemPagamento.idOrdemPagamento);
     transacao.idOrdemRessarcimento = ordemPagamento.idOrdemRessarcimento;
     transacao.quantidadeTransacaoRateioCredito = ordemPagamento.quantidadeTransacaoRateioCredito;
     transacao.valorRateioCredito = ordemPagamento.valorRateioCredito;
@@ -82,18 +106,24 @@ export class TransacaoService {
     return transacao;
   }
 
-  public ordemPagamentoToItemTransacaoDTO(ordemPagamento: BigqueryOrdemPagamentoDTO, id_transacao: number,
-    idClienteFavorecido: number): ItemTransacaoDTO {
+  public ordemPagamentoToItemTransacaoDTO(ordemPagamento: BigqueryOrdemPagamentoDTO, transacaoId: number,
+    favorecidoId: number): ItemTransacaoDTO {
     const itemTransacao = new ItemTransacaoDTO({
       dataTransacao: asStringDate(ordemPagamento.dataOrdem),
-      clienteFavorecido: { id: idClienteFavorecido },
-      id: id_transacao,
+      clienteFavorecido: { id: favorecidoId },
+      transacao: { id: transacaoId },
+      valor: ordemPagamento.valorTotalTransacaoLiquido,
+      // Composite unique columns
+      idOrdemPagamento: ordemPagamento.idOrdemPagamento,
+      idConsorcio: ordemPagamento.idConsorcio,
+      idOperadora: ordemPagamento.idOperadora,
+      servico: ordemPagamento.servico,
     });
     return itemTransacao;
   }
 
   public async getAll(): Promise<Transacao[]> {
-    return await this.transacaoRepository.getAll();
+    return await this.transacaoRepository.findAll();
   }
 
 }

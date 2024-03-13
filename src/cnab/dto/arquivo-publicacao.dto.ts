@@ -21,7 +21,7 @@ export class ArquivoPublicacaoDTO {
   horaGeracaoRetorno: Date;
 
 
-  loteServico: string;
+  loteServico: number;
   nomePagador: string;
   agenciaPagador: string;
   dvAgenciaPagador: string;

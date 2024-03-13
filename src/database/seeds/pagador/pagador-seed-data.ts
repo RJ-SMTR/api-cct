@@ -4,19 +4,20 @@ import { PagadorContaEnum } from "src/cnab/enums/pagador/pagador.enum";
 export const pagadorSeedData: Pagador[] = [
   new Pagador({
     id: 1,
-    nomeEmpresa: 'PREFEITURA DO RIO 2',
-    agencia: '1234',
-    dvAgencia: '',
+    nomeEmpresa: 'SECRETARIA MUNICIPAL DE TRANSPORTES - RIO DE JANEIRO',
+    agencia: '4064',
+    /** TODO: Qual é o dvAgencia? - Anotado  */
+    dvAgencia: '0',
     conta: PagadorContaEnum.JAE,
-    dvConta: '',
-    logradouro: 'RUA ABC',
-    numero: '123',
-    complemento: 'BLOCO C',
+    dvConta: '0',
+    logradouro: 'R DONA MARIANA',
+    numero: '00048',
+    complemento: 'ANDAR 7',
     bairro: 'CENTRO',
-    cidade: 'RIO DE JANEIRO',
-    cep: '12345',
-    complementoCep: '678',
-    uf: '',
-    cpfCnpj: '81783423000127',
+    cidade: 'Rio de Janeiro',
+    cep: '22280',
+    complementoCep: '020',
+    uf: 'RJ',
+    cpfCnpj: '546037000110',
   })
 ];

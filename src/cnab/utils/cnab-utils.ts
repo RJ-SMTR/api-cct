@@ -1,6 +1,9 @@
 import { Exception } from 'handlebars';
+import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { CNAB_EOL, CNAB_SUPPORTED_FORMATS } from '../cnab-consts';
 import { CnabAllCodigoRegistro } from '../enums/all/cnab-all-codigo-registro.enum';
+import { CnabAllTipoInscricao } from '../enums/all/cnab-all-tipo-inscricao.enum';
 import { ICnabFieldMap } from '../interfaces/cnab-all/cnab-field-map.interface';
 import { CnabField, CnabFields } from '../types/cnab-field.type';
 import { CnabFile, isCnabFile } from '../types/cnab-file.type';
@@ -18,9 +21,13 @@ const LOTE_REGISTRO_CODES = [
 export function stringifyCnabFile(cnab: CnabFile): string {
   const treatedCnab = sc(cnab);
   processCnabFile(treatedCnab);
-  return getCnabRegistros(treatedCnab)
-    .reduce((l, i) => [...l, stringifyCnabRegistro(i)], [])
-    .join(CNAB_EOL);
+  const registros = getCnabRegistros(treatedCnab);
+  const stringRegistros: string[] = [];
+  for (const registro of registros) {
+    const stringRegistro = stringifyCnabRegistro(registro);
+    stringRegistros.push(stringRegistro);
+  }
+  return stringRegistros.join(CNAB_EOL);
 }
 
 /**
@@ -38,7 +45,7 @@ export function stringifyCnabRegistro(registro: CnabRegistro): string {
  * Get CnabField list sorted ascending by position, from CnabRegistro
  */
 export function getSortedCnabFieldList(fields: CnabFields): CnabField[] {
-  const fieldsList = Object.values(fields.fields);
+  const fieldsList = Object.values(fields);
   fieldsList.sort((a, b) => a.pos[0] - b.pos[0]);
   return fieldsList;
 }
@@ -436,6 +443,8 @@ export function getCnabRegistroFromStringLine(cnabStringLine: string, registroDT
 
 // #endregion
 
+// #region other utils
+
 /**
  * Set value of Registro's CnabField using mapped key
  */
@@ -487,3 +496,18 @@ function validateCnabMappedField(
   }
   return mapFieldValue;
 }
+
+export function getTipoInscricao(cpfCnpj: string): CnabAllTipoInscricao {
+  const cpfCnpjType = isCpfOrCnpj(cpfCnpj);
+  if (cpfCnpjType === 'cpf') {
+    return CnabAllTipoInscricao.CPF;
+  } else if (cpfCnpjType === 'cnpj') {
+    return CnabAllTipoInscricao.CNPJ;
+  } else {
+    throw CommonHttpException.details(
+      `When getting CNAB TipoInscricao, cpfCnpj should be a valid CPF or CNPJ, but got ${cpfCnpj}`
+    )
+  }
+}
+
+// #endregion

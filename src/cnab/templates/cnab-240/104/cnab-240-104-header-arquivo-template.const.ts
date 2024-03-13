@@ -125,7 +125,7 @@ export const cnab240_104HeaderArquivoTemplate: ICnab240_104HeaderArquivo = {
     pos: [152, 157],
     picture: '9(006)',
     value: '000000',
-    dateFormat: { output: Cnab104Const.cnabHourOutput }
+    dateFormat: { output: Cnab104Const.cnabTimeOutput }
   },
   nsa: {
     pos: [158, 163],

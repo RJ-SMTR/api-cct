@@ -1,5 +1,5 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, DeepPartial, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { ClienteFavorecido } from './cliente-favorecido.entity';
 import { Transacao } from './transacao.entity';
 
@@ -24,11 +24,11 @@ export class ItemTransacao extends EntityHelper {
   @Column({ type: Date, unique: false, nullable: false })
   dataTransacao: Date;
 
-  @Column({ type: Date, unique: false, nullable: true })
-  dataProcessamento: Date | null;
+  @CreateDateColumn()
+  dataProcessamento: Date;
 
-  @Column({ type: Date, unique: false, nullable: true })
-  dataCaptura: Date | null;
+  @CreateDateColumn()
+  dataCaptura: Date;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   nomeConsorcio: string | null;
@@ -50,4 +50,21 @@ export class ItemTransacao extends EntityHelper {
   })
   valor: number | null;
 
+  @Column({ type: String, unique: false, nullable: false })
+  idOrdemPagamento: string;
+
+  /** CPF. */
+  @Column({ type: String, unique: false, nullable: false })
+  idOperadora: string;
+
+  /** CNPJ */
+  @Column({ type: String, unique: false, nullable: false })
+  idConsorcio: string;
+
+  /** Veículo */
+  @Column({ type: String, unique: false, nullable: false })
+  servico: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
 }

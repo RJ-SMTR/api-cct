@@ -37,21 +37,21 @@ export const CommonHttpException = {
     ),
   errorDetails: (
     error: string,
-    details: object,
+    details: object | string,
     httpStatusCode: HttpStatus = 500,
   ) =>
     new HttpException(
       {
-        error: getHttpStatusMessage(httpStatusCode),
-        details,
+        error: error || getHttpStatusMessage(httpStatusCode),
+        details: typeof details === 'string' ? { message: details } : details,
       },
       httpStatusCode,
     ),
-  simpleDetails: (details: any, httpStatusCode: HttpStatus = 500) =>
+  details: (details: object | string, httpStatusCode: HttpStatus = 500) =>
     new HttpException(
       {
         error: getHttpStatusMessage(httpStatusCode),
-        details,
+        details: typeof details === 'string' ? { message: details } : details,
       },
       httpStatusCode,
     ),
@@ -65,10 +65,10 @@ export const CommonHttpException = {
         error: error || getHttpStatusMessage(httpStatusCode),
         ...(notFoundProp
           ? {
-              details: {
-                [notFoundProp]: 'not found',
-              },
-            }
+            details: {
+              [notFoundProp]: 'not found',
+            },
+          }
           : {}),
       },
       httpStatusCode,
@@ -86,8 +86,8 @@ export const CommonHttpException = {
         ...(detailsOnly
           ? {}
           : {
-              error: `O campo ${field} deveria ser um ${expectedType} mas recebeu '${value}'`,
-            }),
+            error: `O campo ${field} deveria ser um ${expectedType} mas recebeu '${value}'`,
+          }),
         details: {
           [field]: `O campo ${field} deveria ser um ${expectedType} mas recebeu '${value}'`,
         },

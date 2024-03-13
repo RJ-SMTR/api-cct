@@ -24,7 +24,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HeaderArquivo } from './entity/header-arquivo.entity';
 import { HeaderLote } from './entity/header-lote.entity';
 import { DetalheA } from './entity/detalhe-a.entity';
-import { DetalheB } from './entity/detalhe-b.entiy';
+import { DetalheB } from './entity/detalhe-b.entity';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ArquivoPublicacao } from './entity/arquivo-publicacao.entity';
 import { Transacao } from './entity/transacao.entity';

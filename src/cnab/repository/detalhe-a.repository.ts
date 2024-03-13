@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { endOfDay, startOfDay } from 'date-fns';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { Repository } from 'typeorm';
+import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { DetalheADTO } from '../dto/detalhe-a.dto';
 import { DetalheA } from '../entity/detalhe-a.entity';
 
@@ -38,21 +39,16 @@ export class DetalheARepository {
   }
 
   /**
-   * Get next 'Número Documento Atribuído pela Empresa'.
+   * Obtém o próximo'Número Documento Atribuído pela Empresa' para o DetalheA.
    * 
-   * For each registro A, J etc in the same date, you must set unique number from 1 then add 1.
-   * 
-   * > Número do Documento Atribuído pela Empresa - número do agendamento atribuído pela empresa.
-   * > Este número deverá evoluir de 1 em 1 para cada registro dentro do arquivo.
+   * Baseado no mesmo dia.
    */
-  public async getNextNumeroDocumento(dataEfetivacao: Date): Promise<number> {
-    const result = await this.detalheARepository
-      .createQueryBuilder('detalheA')
-      .select('MAX(detalheA.num_doc_lancamento)', 'maxNumDocLancamento')
-      .where('detalheA.data_efetivacao = :dataEfetivacao', { dataEfetivacao })
-      .getRawOne();
-
-    const maxNumDocLancamento = result.maxNumDocLancamento || 0;
-    return maxNumDocLancamento + 1;
+  public async getNextNumeroDocumento(date: Date): Promise<number> {
+    return await this.detalheARepository.count({
+      where: [
+        { createdAt: MoreThanOrEqual(startOfDay(date)) },
+        { createdAt: LessThanOrEqual(endOfDay(date)) },
+      ]
+    }) + 1;
   }
 }

@@ -22,7 +22,8 @@ export interface ICnab240_104DetalheA extends CnabFields {
   dvContaDestino: CnabField;
   dvAgenciaContaDestino: CnabField;
   nomeTerceiro: CnabField;
-  numeroDocumento: CnabField;
+  /** Atribuído pela empresa */
+  numeroDocumentoEmpresa: CnabField;
   filler: CnabField;
   tipoContaFinalidadeTed: CnabField;
   dataVencimento: CnabField;
@@ -37,7 +38,15 @@ export interface ICnab240_104DetalheA extends CnabFields {
   indicadorFormaParcelamento: CnabField;
   periodoDiaVencimento: CnabField;
   numeroParcela: CnabField;
+  /**
+   * Na remessa deve ser preenchido com zeros.
+   * Retornado com o valor efetivamente debitado/creditado.
+   */
   dataEfetivacao: CnabField;
+  /**
+   * Na remessa deve ser preenchido com zeros.
+   * Retornado com o valor efetivamente debitado/creditado.
+   */
   valorRealEfetivado: CnabField;
   informacao2: CnabField;
   finalidadeDOC: CnabField;

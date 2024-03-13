@@ -29,8 +29,8 @@ export class DetalheAService {
     return await this.detalheARepository.findMany(fields);
   }
 
-  public async getNextNumeroDocumento(dataEfetivacao: Date): Promise<number> {
-    return await this.detalheARepository.getNextNumeroDocumento(dataEfetivacao);
+  public async getNextNumeroDocumento(date: Date): Promise<number> {
+    return await this.detalheARepository.getNextNumeroDocumento(date);
   }
 
 }

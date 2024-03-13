@@ -1,5 +1,5 @@
 import { format, isDate } from 'date-fns';
-import { getDateFromString } from 'src/utils/date-utils';
+import { asNumber, asStringDate, asStringNumber } from 'src/utils/pipe-utils';
 import {
   getStringNoSpecials,
   getStringUpperUnaccent,
@@ -7,6 +7,7 @@ import {
 } from 'src/utils/string-utils';
 import { CnabFieldType } from '../enums/cnab-field-type.enum';
 import { CnabField } from '../types/cnab-field.type';
+import { getDateFromString } from 'src/utils/date-utils';
 
 export type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';
 
@@ -165,7 +166,7 @@ export function formatText(
  */
 function validateFormatText(field: CnabField) {
   if (typeof field.value !== 'string') {
-    throw new Error(`CnabField value (${field.value}) is not string.`);
+    throw new Error(`CnabField (${JSON.stringify(field)}) is not string.`);
   }
 }
 
@@ -192,15 +193,24 @@ export function formatDate(
 ): string {
   validateFormatDate(field);
   const { integer } = getPictureNumberSize(field.picture);
-  const value =
-    !isDate(field.value) && !field.dateFormat
-      ? String(field.value)
-      : String(
-        format(
-          getDateFromString(field.value, field.dateFormat?.input),
-          field.dateFormat?.output || 'yymmdd',
-        ),
-      );
+  let value: string;
+  if (isDate(field.value)) {
+    value = String(
+      format(
+        field.value,
+        field.dateFormat?.output || 'yymmdd',
+      ),
+    );
+  } else if (field.dateFormat) {
+    value = String(
+      format(
+        asStringDate(field.value, field.dateFormat?.input),
+        field.dateFormat?.output || 'yymmdd',
+      ),
+    );
+  } else {
+    value = String(field.value);
+  }
   return cropFillCnabField(value, integer, CnabFieldType.Date, onCrop);
 }
 
@@ -216,7 +226,7 @@ function validateFormatDate(field: CnabField) {
       ? JSON.stringify(field.dateFormat)
       : 'undefined';
     throw new Error(
-      `CnabField value: ${field.value}, dateFormat: ${dateFormat} got an invalid date.`,
+      `CnabField: ${JSON.stringify(field)}, dateFormat: ${dateFormat} got an invalid date.`,
     );
   }
 }
@@ -367,4 +377,18 @@ export function validateCnabFieldValue(field: CnabField) {
   getStringFromCnabField(field);
 
   // #endregion
+}
+
+export function getNumberFromCnabField(field: CnabField): number {
+  const { decimal } = getPictureNumberSize(field.picture);
+  if (typeof field.value === 'string') {
+    const num = asStringNumber(field.value);
+    if (field.value.includes('.')) {
+      return num; 
+    } else {
+      return Number(num.toFixed(decimal));
+    }
+  } else {
+    return asNumber(field.value);
+  }
 }

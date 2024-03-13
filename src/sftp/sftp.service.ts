@@ -1,17 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SftpClientService } from './sftp-client/sftp-client.service';
-import { ConnectConfig } from './interfaces/connect-config.interface';
-import { FileInfo } from './interfaces/file-info.interface';
 import { ConfigService } from '@nestjs/config';
 import { AllConfigType } from 'src/config/config.type';
+import { formatLog } from 'src/utils/log-utils';
+import { ConnectConfig } from './interfaces/connect-config.interface';
+import { FileInfo } from './interfaces/file-info.interface';
+import { SftpClientService } from './sftp-client/sftp-client.service';
 
 @Injectable()
 export class SftpService {
   private readonly logger: Logger;
-  private readonly REMESSA_FOLDER = '/remessa'
-  private readonly RETORNO_FOLDER = '/retorno'
-  private readonly BACKUP_REMESSA = '/backup/remessa'
-  private readonly BACKUP_RETORNO_FOLDER = '/backup/retorno'
+  private readonly REMESSA_FOLDER = '/remessa';
+  private readonly RETORNO_FOLDER = '/retorno';
+  private readonly BACKUP_REMESSA = '/backup/remessa';
+  private readonly BACKUP_RETORNO_FOLDER = '/backup/retorno';
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly sftpClient: SftpClientService,
@@ -29,7 +30,7 @@ export class SftpService {
   }
 
   private async connectClient() {
-    await this.sftpClient.connect(this.getClientCredentials());
+    await this.sftpClient.resetConnection(this.getClientCredentials());
   }
 
   public async download(
@@ -56,14 +57,15 @@ export class SftpService {
   public async submit(
     remotePath: string,
     localPath: string,
-    submitConfig: ConnectConfig,
   ): Promise<string | NodeJS.ReadableStream | Buffer> {
-    await this.sftpClient.resetConnection(submitConfig);
     return await this.sftpClient.upload(remotePath, localPath);
   }
 
   async submitFromString(content: string, remotePath: string) {
+    const METHOD = 'submitFromString()';
+    await this.connectClient();
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
+    this.logger.debug(formatLog(`Arquivo carregado em ${remotePath}`, METHOD));
   }
 
   /**

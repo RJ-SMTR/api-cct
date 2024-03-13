@@ -16,7 +16,7 @@ export class DetalheADTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  loteServico?: string | null;
+  loteServico?: number | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -24,7 +24,12 @@ export class DetalheADTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipoFinalidadeConta?: string | null;
+  finalidadeDOC?: string | null;
+
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  numeroDocumentoEmpresa?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -44,7 +49,7 @@ export class DetalheADTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numeroDocumentoLancamento?: number | null;
+  numeroDocumentoBanco?: number | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -66,19 +71,12 @@ export class DetalheADTO {
   @IsNotEmpty()
   numeroParcela?: number | null;
 
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   dataEfetivacao?: Date | null;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   valorRealEfetivado?: number | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
   nsr?: number;
 
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   ocorrencias: string | null;
 }

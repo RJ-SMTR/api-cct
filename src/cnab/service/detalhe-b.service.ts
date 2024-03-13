@@ -3,14 +3,14 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { DetalheBDTO } from '../dto/detalhe-b.dto';
 import { DetalheBRepository } from '../repository/detalhe-b.repository';
-import { DetalheB } from '../entity/detalhe-b.entiy';
+import { DetalheB } from '../entity/detalhe-b.entity';
 import { validateDTO } from 'src/utils/validation-utils';
 
 @Injectable()
 export class DetalheBService {
   private logger: Logger = new Logger('DetalheBService', { timestamp: true });
 
-  constructor(private detalheBRepository: DetalheBRepository) {}
+  constructor(private detalheBRepository: DetalheBRepository) { }
 
   public async save(dto: DetalheBDTO): Promise<void> {
     await validateDTO(DetalheBDTO, dto);

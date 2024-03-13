@@ -1,4 +1,4 @@
 export enum HeaderArquivoTipoArquivo {
-  Remessa = 'remessa',
-  Retorno = 'retorno',
+  Remessa = 1,
+  Retorno = 2,
 }

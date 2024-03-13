@@ -1,8 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { nextFriday } from 'date-fns';
-import { formatLog } from 'src/utils/log-utils';
 import { getPaymentWeek } from 'src/utils/payment-date-utils';
-import { validateDTO } from 'src/utils/validation-utils';
 import { BigqueryOrdemPagamentoDTO } from '../dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoRepository } from '../repositories/bigquery-ordem-pagamento.repository';
 
@@ -20,18 +18,146 @@ export class BigqueryOrdemPagamentoService {
   /**
    * Get data from current payment week (from thu to wed)
    */
-  public async getCurrentWeekTest(): Promise<BigqueryOrdemPagamentoDTO[]> {
+  public getCurrentWeekTest(): BigqueryOrdemPagamentoDTO[] {
     // Read
     const ordemPgto: BigqueryOrdemPagamentoDTO[] = [
       {
         dataOrdem: '2024-03-11',
+        idOrdemPagamento: '1',
+        idConsorcio: 'idConsorcio1',
+        idOperadora: 'idOperadora1',
+        servico: 'AB123',
+        dataPagamento: null,
+        consorcio: 'Consorcio1',
+        operadora: 'Operadora1',
+        idOrdemRessarcimento: null,
+        quantidadeTransacaoDebito: null,
+        valorDebito: null,
+        quantidadeTransacaoEspecie: null,
+        valorEspecie: null,
+        quantidadeTransacaoGratuidade: null,
+        valor_gratuidade: null,
+        quantidadeTransacaoIntegracao: null,
+        valor_integracao: null,
+        quantidadeTransacaoRateioCredito: null,
+        valorRateioCredito: null,
+        quantidadeTransacaoRateioDebito: null,
+        valorRateioDebito: null,
+        quantidadeTotalTransacao: null,
+        valorTotalTransacaoBruto: 10,
+        valorDescontoTaxa: null,
+        valorTotalTransacaoLiquido: 1.10,
+        quantidadeTotalTransacaoCaptura: null,
+        valorTotalTransacaoCaptura: null,
+        indicadorOrdemValida: null,
+        versao: null,
+        aux_favorecidoCpfCnpj: '96583185768',
+      },
+      {
+        dataOrdem: '2024-03-11',
+        idOrdemPagamento: '1',
         dataPagamento: null,
         idConsorcio: 'idConsorcio1',
         consorcio: 'Consorcio1',
         idOperadora: 'idOperadora1',
         operadora: 'Operadora1',
-        servico: null,
-        idOrdemPagamento: '10',
+        servico: 'AB124',
+        idOrdemRessarcimento: null,
+        quantidadeTransacaoDebito: null,
+        valorDebito: null,
+        quantidadeTransacaoEspecie: null,
+        valorEspecie: null,
+        quantidadeTransacaoGratuidade: null,
+        valor_gratuidade: null,
+        quantidadeTransacaoIntegracao: null,
+        valor_integracao: null,
+        quantidadeTransacaoRateioCredito: null,
+        valorRateioCredito: null,
+        quantidadeTransacaoRateioDebito: null,
+        valorRateioDebito: null,
+        quantidadeTotalTransacao: null,
+        valorTotalTransacaoBruto: 10,
+        valorDescontoTaxa: null,
+        valorTotalTransacaoLiquido: 4.90,
+        quantidadeTotalTransacaoCaptura: null,
+        valorTotalTransacaoCaptura: null,
+        indicadorOrdemValida: null,
+        versao: null,
+        aux_favorecidoCpfCnpj: '96583185768',
+      },
+      {
+        dataOrdem: '2024-03-12',
+        idOrdemPagamento: '2',
+        idConsorcio: 'idConsorcio1',
+        idOperadora: 'idOperadora1',
+        servico: 'AB123',
+        dataPagamento: null,
+        consorcio: 'Consorcio1',
+        operadora: 'Operadora1',
+        idOrdemRessarcimento: null,
+        quantidadeTransacaoDebito: null,
+        valorDebito: null,
+        quantidadeTransacaoEspecie: null,
+        valorEspecie: null,
+        quantidadeTransacaoGratuidade: null,
+        valor_gratuidade: null,
+        quantidadeTransacaoIntegracao: null,
+        valor_integracao: null,
+        quantidadeTransacaoRateioCredito: null,
+        valorRateioCredito: null,
+        quantidadeTransacaoRateioDebito: null,
+        valorRateioDebito: null,
+        quantidadeTotalTransacao: null,
+        valorTotalTransacaoBruto: 10,
+        valorDescontoTaxa: null,
+        valorTotalTransacaoLiquido: 4.91,
+        quantidadeTotalTransacaoCaptura: null,
+        valorTotalTransacaoCaptura: null,
+        indicadorOrdemValida: null,
+        versao: null,
+        aux_favorecidoCpfCnpj: '96583185768',
+      },
+      {
+        dataOrdem: '2024-03-12',
+        idOrdemPagamento: '2',
+        dataPagamento: null,
+        idConsorcio: 'idConsorcio1',
+        consorcio: 'Consorcio1',
+        idOperadora: 'idOperadora1',
+        operadora: 'Operadora1',
+        servico: 'AB124',
+        idOrdemRessarcimento: null,
+        quantidadeTransacaoDebito: null,
+        valorDebito: null,
+        quantidadeTransacaoEspecie: null,
+        valorEspecie: null,
+        quantidadeTransacaoGratuidade: null,
+        valor_gratuidade: null,
+        quantidadeTransacaoIntegracao: null,
+        valor_integracao: null,
+        quantidadeTransacaoRateioCredito: null,
+        valorRateioCredito: null,
+        quantidadeTransacaoRateioDebito: null,
+        valorRateioDebito: null,
+        quantidadeTotalTransacao: null,
+        valorTotalTransacaoBruto: 10,
+        valorDescontoTaxa: null,
+        valorTotalTransacaoLiquido: 1.10,
+        quantidadeTotalTransacaoCaptura: null,
+        valorTotalTransacaoCaptura: null,
+        indicadorOrdemValida: null,
+        versao: null,
+        aux_favorecidoCpfCnpj: '96583185768',
+      },
+      {
+        dataOrdem: '2024-03-12',
+        idOrdemPagamento: null,
+        dataPagamento: null,
+        idConsorcio: 'idConsorcio1',
+        consorcio: 'Consorcio1',
+        idOperadora: 'idOperadora1',
+        operadora: 'Operadora1',
+        servico: 'AB123',
         idOrdemRessarcimento: null,
         quantidadeTransacaoDebito: null,
         valorDebito: null,
@@ -53,11 +179,10 @@ export class BigqueryOrdemPagamentoService {
         valorTotalTransacaoCaptura: null,
         indicadorOrdemValida: null,
         versao: null,
-        aux_favorecidoCpfCnpj: '96583185768',
+        aux_favorecidoCpfCnpj: null,
       },
-    ];
-
-    return await this.validateGetCurrentWeek(ordemPgto);
+    ] as unknown as BigqueryOrdemPagamentoDTO[];
+    return ordemPgto;
   }
 
   /**
@@ -70,21 +195,6 @@ export class BigqueryOrdemPagamentoService {
       startDate: paymentWeek.startDate,
       endDate: paymentWeek.endDate,
     })).map(i => ({ ...i } as BigqueryOrdemPagamentoDTO));
-
-    return await this.validateGetCurrentWeek(ordemPgto);
-  }
-
-  private async validateGetCurrentWeek(dtos: BigqueryOrdemPagamentoDTO[]): Promise<BigqueryOrdemPagamentoDTO[]> {
-    const METHOD = 'validateGetCurrentWeek()';
-    const validDtos: BigqueryOrdemPagamentoDTO[] = [];
-    for (const dto of dtos) {
-      try {
-        await validateDTO(BigqueryOrdemPagamentoDTO, dto);
-        validDtos.push(dto);
-      } catch (error) {
-        this.logger.error(formatLog(`Ignoring bqOrdemPgto item: ${String(error)}`, METHOD));
-      }
-    }
-    return validDtos;
+    return ordemPgto;
   }
 }

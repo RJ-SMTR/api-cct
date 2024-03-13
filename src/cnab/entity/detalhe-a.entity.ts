@@ -1,24 +1,30 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { ClienteFavorecido } from './cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
 
 @Entity()
 export class DetalheA extends EntityHelper {
+
+
   @PrimaryGeneratedColumn()
   id: number;
 
   @ManyToOne(() => HeaderLote, { eager: true })
   headerLote: HeaderLote;
 
-  @Column({ type: String, unique: false, nullable: true })
-  loteServico: string | null;
-
-  @Column({ type: Number, unique: false, nullable: false })
+  @ManyToOne(() => HeaderLote, { eager: true })
   clienteFavorecido: ClienteFavorecido;
 
+  @Column({ type: Number, unique: false, nullable: true })
+  loteServico: number | null;
+
   @Column({ type: String, unique: false, nullable: true })
-  tipoFinalidadeConta: string | null;
+  finalidadeDOC: string | null;
+
+  /** Atribuído pela empresa, sequencial */
+  @Column({ type: Number, unique: false, nullable: false })
+  numeroDocumentoEmpresa: number;
 
   @Column({ type: Date, unique: false, nullable: true })
   dataVencimento: Date | null;
@@ -29,13 +35,17 @@ export class DetalheA extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: true })
   quantidadeMoeda: number | null;
 
-  @Column({ type: String, unique: false, nullable: true })
+  @Column({
+    type: 'decimal', unique: false, nullable: true,
+    precision: 5,
+    scale: 2,
+  })
   valorLancamento: number | null;
 
-  @Column({ type: String, unique: false, nullable: true })
-  numeroDocumentoLancamento: number | null;
+  @Column({ type: Number, unique: false, nullable: true })
+  numeroDocumentoBanco: number | null;
 
-  @Column({ type: String, unique: false, nullable: true })
+  @Column({ type: Number, unique: false, nullable: true })
   quantidadeParcelas: number | null;
 
   @Column({ type: String, unique: false, nullable: true })
@@ -47,13 +57,17 @@ export class DetalheA extends EntityHelper {
   @Column({ type: Date, unique: false, nullable: true })
   periodoVencimento: Date | null;
 
-  @Column({ type: String, unique: false, nullable: true })
+  @Column({ type: Number, unique: false, nullable: true })
   numeroParcela: number | null;
 
   @Column({ type: Date, unique: false, nullable: true })
   dataEfetivacao: Date | null;
 
-  @Column({ type: Number, unique: false, nullable: true })
+  @Column({
+    type: 'decimal', unique: false, nullable: true,
+    precision: 5,
+    scale: 2,
+  })
   valorRealEfetivado: number | null;
 
   @Column({ type: Number, unique: false, nullable: false })
@@ -61,4 +75,7 @@ export class DetalheA extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true, length: 10 })
   ocorrencias: string | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
 }
