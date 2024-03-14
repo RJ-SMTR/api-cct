@@ -28,7 +28,7 @@ export class MailHistorySeedDataService {
       if (mail.email === 'registered.user@example.com') {
         mail[i] = {
           ...mail,
-          sentAt: subDays(new Date(), 16),
+          sentAt: subDays(new Date(), 31),
         } as IMailSeedData;
       }
     }

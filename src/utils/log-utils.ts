@@ -12,12 +12,13 @@ export function formatLog(
 
 export function formatErrorMessage(
   firstLine: string,
-  message: object,
+  message: object | string,
   traceback?: Error,
   context?: string,
 ): string {
-  let formattedString =
-    `${firstLine}` + `\n    - Message: ${JSON.stringify(message)}`;
+  const strMsg =
+    typeof message === 'string' ? message : JSON.stringify(message);
+  let formattedString = `${firstLine}` + `\n    - Message: ${strMsg}`;
   if (traceback) {
     formattedString += `\n    - Traceback:\n ${traceback.stack}`;
   }
@@ -27,6 +28,9 @@ export function formatErrorMessage(
   return formattedString;
 }
 
-if (require.main === module) {
-  console.log(formatErrorMessage('mensagem', {}, new Error()));
+export function getLogFromError(error: any) {
+  return JSON.stringify({
+    message: (error as Error)?.message,
+    traceback: (error as Error)?.stack,
+  });
 }

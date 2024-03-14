@@ -18,7 +18,7 @@ import { UsersService } from 'src/users/users.service';
 import {
   formatErrorMessage as formatErrorLog,
   formatLog,
-} from 'src/utils/logging';
+} from 'src/utils/log-utils';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -30,8 +30,7 @@ export enum CrobJobsEnum {
   updateCoreBankMockedData = 'updateCoreBankMockedData',
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
-  bulkResendInvites1 = 'bulkResendInvites1',
-  bulkResendInvites2 = 'bulkResendInvites2',
+  bulkResendInvites = 'bulkResendInvites',
 }
 
 interface ICronJob {
@@ -120,18 +119,9 @@ export class CronJobsService implements OnModuleInit {
           },
         },
         {
-          name: CrobJobsEnum.bulkResendInvites1,
+          name: CrobJobsEnum.bulkResendInvites,
           cronJobParameters: {
             cronTime: '45 14 * * *', // 14:45 GMT = 11:45 BRT (GMT-3)
-            onTick: async () => {
-              await this.bulkResendInvites();
-            },
-          },
-        },
-        {
-          name: CrobJobsEnum.bulkResendInvites2,
-          cronJobParameters: {
-            cronTime: '45 20 * * *', // 20:45 GMT = 17:45 BRT (GMT-3)
             onTick: async () => {
               await this.bulkResendInvites();
             },
