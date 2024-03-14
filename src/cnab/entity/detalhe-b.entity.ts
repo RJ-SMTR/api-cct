@@ -1,5 +1,5 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, DeepPartial, Entity, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, DeepPartial, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { DetalheBDTO } from '../dto/detalhe-b.dto';
 import { DetalheA } from './detalhe-a.entity';
 
@@ -15,7 +15,8 @@ export class DetalheB extends EntityHelper {
   @PrimaryGeneratedColumn()
   id: number;
   
-  @OneToOne(() => DetalheA, {eager: true})
+  @OneToOne(() => DetalheA, { eager: true })
+  @JoinColumn()
   detalheA: DetalheA;
 
   @Column({ type: Number, unique: false, nullable: false })

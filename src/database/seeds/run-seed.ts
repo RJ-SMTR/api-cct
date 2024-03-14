@@ -4,6 +4,7 @@ import { InfoSeedService } from './info/info-seed.service';
 import { MailCountSeedService } from './mail-count/mail-count-seed.service';
 import { InviteStatusSeedService } from './mail-history-status/mail-history-status-seed.service';
 import { MailHistorySeedService } from './mail-history/mail-history-seed.service';
+import { PagadorSeedService } from './pagador/pagador-seed.service';
 import { RoleSeedService } from './role/role-seed.service';
 import { SeedModule } from './seed.module';
 import { SettingTypeSeedService } from './setting-type/setting-type.service';
@@ -24,6 +25,7 @@ const runSeed = async () => {
     MailCountSeedService,
     UserSeedService,
     MailHistorySeedService,
+    PagadorSeedService,
   ];
 
   const FORCE_PARAM = '__force';

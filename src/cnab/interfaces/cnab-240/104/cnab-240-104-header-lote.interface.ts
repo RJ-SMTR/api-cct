@@ -40,5 +40,9 @@ export interface ICnab240_104HeaderLote extends CnabFields {
   /** @example "RJ" */
   siglaEstado: CnabField;
   usoExclusivoFebraban: CnabField;
+  /**
+   * Retorna o status de retorno do CNAB (Tabela G059)
+   * @see `cnab104OcorrenciasMap`
+   */
   ocorrencias: CnabField;
 }

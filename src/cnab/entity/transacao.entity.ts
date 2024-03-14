@@ -29,8 +29,8 @@ export class Transacao extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 150 })
   servico: string | null;
 
-  @Column({ type: Number, unique: false, })
-  idOrdemPagamento: number | null;
+  @Column({ type: String, unique: false })
+  idOrdemPagamento: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 150 })
   idOrdemRessarcimento: string | null;
@@ -45,7 +45,7 @@ export class Transacao extends EntityHelper {
     precision: 10,
     scale: 2,
   })
-  valorRateioCredito: number;
+  valorRateioCredito: number | null;
 
   @Column({ type: Number, unique: false, nullable: true })
   quantidadeTransacaoRateioDebito: number | null;

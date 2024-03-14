@@ -1,3 +1,4 @@
+
 export function formatLog(
   log: string,
   context: string,
@@ -12,12 +13,12 @@ export function formatLog(
 
 export function formatErrorMessage(
   firstLine: string,
-  message: object,
+  message: object | string,
   traceback?: Error,
   context?: string,
 ): string {
   let formattedString =
-    `${firstLine}` + `\n    - Message: ${JSON.stringify(message)}`;
+    `${firstLine}` + `\n    - Message: ${message}`;
   if (traceback) {
     formattedString += `\n    - Traceback:\n ${traceback.stack}`;
   }

@@ -1,5 +1,5 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, Entity, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Transacao } from './transacao.entity';
 
 @Entity()
@@ -7,8 +7,8 @@ export class HeaderArquivo extends EntityHelper {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: String, unique: false, nullable: true, length: 100 })
-  tipoArquivo: string | null;
+  @Column({ type: Number, unique: false, nullable: true })
+  tipoArquivo: number | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 10 })
   codigoBanco: string | null;
@@ -47,6 +47,7 @@ export class HeaderArquivo extends EntityHelper {
   horaGeracao: Date | null;
 
   @OneToOne(() => Transacao, { eager: true })
+  @JoinColumn()
   transacao: Transacao;
 
   @Column({ type: Number, unique: true, nullable: false })

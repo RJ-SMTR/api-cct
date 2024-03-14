@@ -15,25 +15,26 @@ export class HeaderArquivoRepository {
 
   constructor(
     @InjectRepository(HeaderArquivo)
-    private HeaderArquivoRepository: Repository<HeaderArquivo>,
+    private headerArquivoRepository: Repository<HeaderArquivo>,
   ) { }
 
   public async save(dto: HeaderArquivoDTO): Promise<HeaderArquivo> {
-    return await this.HeaderArquivoRepository.save(dto);
+    return await this.headerArquivoRepository.save(dto);
   }
 
   public async getOne(
     fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[],
     order?: FindOptionsOrder<HeaderArquivo>
   ): Promise<HeaderArquivo> {
-    const header = await this.HeaderArquivoRepository.findOne({
+    const header = await this.headerArquivoRepository.findOne({
       where: fields,
       order: order,
     });
     if (!header) {
+      const fieldsList = Object.values(fields).reduce((l, i) => [...l, String(i)], []);
       throw CommonHttpException.invalidField(
         'HeaderArquivo',
-        Object.values(fields).join(','),
+        fieldsList.join(','),
         { errorMessage: 'not found.' }
       )
     } else {
@@ -41,9 +42,28 @@ export class HeaderArquivoRepository {
     }
   }
 
+
+  public async findOne(
+    fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[],
+  ): Promise<HeaderArquivo | null> {
+    return await this.headerArquivoRepository.findOne({
+      where: fields,
+    });
+  }
+
   public async findAll(fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[]): Promise<HeaderArquivo[]> {
-    return await this.HeaderArquivoRepository.find({
+    return await this.headerArquivoRepository.find({
       where: fields
     });
+  }
+
+  public async getNextNSA(): Promise<number> {
+    const nsa = (await this.headerArquivoRepository.find({
+      order: {
+        nsa: 'DESC',
+      },
+      take: 1
+    })).pop()?.nsa || 0;
+    return nsa + 1;
   }
 }

@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { format } from 'date-fns';
 import { SftpService } from 'src/sftp/sftp.service';
+import { getBRTFromUTC } from 'src/utils/date-utils';
 import { formatLog } from 'src/utils/log-utils';
 import { ICnab240_104File } from '../interfaces/cnab-240/104/cnab-240-104-file.interface';
 import { parseCnab240_104 } from '../utils/cnab-104-utils';
@@ -8,6 +10,7 @@ import { TransacaoService } from './transacao.service';
 
 @Injectable()
 export class CnabService {
+  private readonly REMESSA_FOLDER = '/remessa';
   private logger: Logger = new Logger('HeaderArquivoService', {
     timestamp: true,
   });
@@ -18,6 +21,14 @@ export class CnabService {
     private sftpService: SftpService,
   ) { }
 
+
+  /**
+   * This task will:
+   * 1. Update ClienteFavorecidos from Users
+   * 2. Fetch ordemPgto from this week
+   * 3. For every id_ordem not in table, add Transacao and every itemTransacao
+   * for each ordemPgto with same
+   */
   public async updateTransacaoFromJae() {
     await this.transacaoService.updateTransacaoFromJae()
   }
@@ -32,14 +43,27 @@ export class CnabService {
    * @throws `Error` if any subtask throws
    */
   public async updateRemessa() {
+    // Read new Transacoes
     const listAllTransacao = await this.transacaoService.getAll();
     for (const transacao of listAllTransacao) {
-      if (!this.headerArquivoService.headerArquivoExists(transacao.id)) {
+      const headerExists = await this.headerArquivoService.findOne({
+        transacao: { id: transacao.id },
+      });
+      if (!headerExists) {
         const { cnabString, cnabTables } = await this.headerArquivoService.generateCnab(transacao);
         await this.headerArquivoService.saveRemessa(cnabTables);
-        await this.sftpService.submitFromString(cnabString, 'arquivo/123-wip-rem.txt');
+        await this.sftpService.submitFromString(cnabString, `${this.REMESSA_FOLDER}/${this.getRemessaName()}`);
       }
     }
+  }
+
+  /**
+   * @example 'smtr_prefeiturarj_31122024_235959.txt'
+   */
+  private getRemessaName() {
+    const now = getBRTFromUTC(new Date());
+    const stringDate = format(now, `ddMMyy_HHmmss`);
+    return `smtr_prefeiturarj_${stringDate}.txt`;
   }
 
   /**
@@ -72,7 +96,7 @@ export class CnabService {
     return true;
   }
 
-  public async getArquivoRetornoCNAB(){
+  public async getArquivoRetornoCNAB() {
     //await this.headerArquivoService.saveArquivoRetorno();
     await this.headerArquivoService.compareRemessaToRetorno();
   }

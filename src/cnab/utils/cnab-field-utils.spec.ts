@@ -490,4 +490,16 @@ describe('cnab-utils.ts', () => {
       expect(result).toThrowError();
     });
   });
+
+  // describe('getCnabFieldUtils', () => {
+  //   it('should convert stringNumber with decimal', () => {
+
+  //   });
+  //   it('should convert stringNumber with no decimal', () => {
+
+  //   });
+  //   it('should convert number with decimal', () => {
+
+  //   });
+  // });
 });

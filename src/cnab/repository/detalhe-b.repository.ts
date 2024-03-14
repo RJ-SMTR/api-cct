@@ -4,7 +4,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository } from 'typeorm';
 import { DetalheBDTO } from '../dto/detalhe-b.dto';
-import { DetalheB } from '../entity/detalhe-b.entiy';
+import { DetalheB } from '../entity/detalhe-b.entity';
 
 @Injectable()
 export class DetalheBRepository {
@@ -15,7 +15,7 @@ export class DetalheBRepository {
   constructor(
     @InjectRepository(DetalheB)
     private DetalheBRepository: Repository<DetalheB>,
-  ) {}
+  ) { }
 
   public async save(dto: DetalheBDTO): Promise<DetalheB> {
     return await this.DetalheBRepository.save(dto);

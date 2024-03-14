@@ -1,12 +1,11 @@
-import { ArquivoPublicacaoRepository } from './../repository/arquivo-publicacao.repository';
-import { ClienteFavorecidoService } from './cliente-favorecido.service';
-import { ArquivoPublicacaoDTO } from './../dto/arquivo-publicacao.dto';
 import { Injectable, Logger } from '@nestjs/common';
+import { format } from 'date-fns';
 import { BanksService } from 'src/banks/banks.service';
 import { SftpService } from 'src/sftp/sftp.service';
 import { asDate, asNumber, asString, asStringDate } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
+import { Cnab104Const } from '../const/cnab-104.const';
 import { DetalheADTO } from '../dto/detalhe-a.dto';
 import { DetalheBDTO } from '../dto/detalhe-b.dto';
 import { HeaderArquivoDTO } from '../dto/header-arquivo.dto';
@@ -31,8 +30,13 @@ import {
   getProcessedCnab104,
   stringifyCnab104File,
 } from '../utils/cnab-104-utils';
+import { getNumberFromCnabField } from '../utils/cnab-field-utils';
+import { getTipoInscricao } from '../utils/cnab-utils';
+import { ArquivoPublicacaoDTO } from './../dto/arquivo-publicacao.dto';
 import { HeaderLoteDTO } from './../dto/header-lote.dto';
 import { HeaderArquivo } from './../entity/header-arquivo.entity';
+import { ArquivoPublicacaoRepository } from './../repository/arquivo-publicacao.repository';
+import { ClienteFavorecidoService } from './cliente-favorecido.service';
 import { Cnab104Service } from './cnab-104.service';
 import { DetalheAService } from './detalhe-a.service';
 import { DetalheBService } from './detalhe-b.service';
@@ -40,8 +44,6 @@ import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoService } from './item-transacao.service';
 import { PagadorService } from './pagador.service';
 import { TransacaoService } from './transacao.service';
-import { getDateFromString } from 'src/utils/date-utils';
-import { Cnab104Const } from '../const/cnab-104.const';
 
 @Injectable()
 export class HeaderArquivoService {
@@ -67,31 +69,38 @@ export class HeaderArquivoService {
   public async saveRemessa(cnabTables: ICnabTables) {
     const headerLote = cnabTables.lotes[0].headerLote;
     const detalhes = cnabTables.lotes[0].detalhes;
-    await this.headerArquivoRepository.save(cnabTables.headerArquivo);
+    const savedHeaderArquivo = await this.headerArquivoRepository.save(cnabTables.headerArquivo);
+    this.updateHeaderLoteDTOFromHeaderArquivo(headerLote, savedHeaderArquivo);
     await this.headerLoteService.save(headerLote);
     for (const { itemTransacao, registroAB } of detalhes) {
-      await this.saveDetalhes(itemTransacao, headerLote, registroAB);
+      await this.saveRemessaDetalhes(itemTransacao, headerLote, registroAB);
     }
+  }
+
+  private updateHeaderLoteDTOFromHeaderArquivo(headerLoteDTO: HeaderLoteDTO, headerArquivo: HeaderArquivo) {
+    headerLoteDTO.headerArquivo = { id: headerArquivo.id };
   }
 
   public async generateCnab(transacao: Transacao): Promise<{
     cnabString: string;
     cnabTables: ICnabTables;
   }> {
-    // get variables
+    // Get DTO
+    const now = new Date();
     const headerArquivoDTO = await this.getHeaderArquivoDTOFromTransacao(
       transacao,
       HeaderArquivoTipoArquivo.Remessa,
     );
-    const headerLoteDTO = this.transacaoToHeaderLoteDTO(
+    const headerLoteDTO = this.getHeaderLoteDTOFromTransacao(
       transacao,
       headerArquivoDTO,
     );
 
+    // Get 104
     const headerArquivo104 = await this.getHeaderArquivo104(headerArquivoDTO);
     const trailerArquivo104 = structuredClone(trailerArquivoTemplate);
 
-    // mount file and tables
+    // mount file104
     const cnab104: ICnab240_104File = {
       headerArquivo: headerArquivo104,
       lotes: [
@@ -103,6 +112,29 @@ export class HeaderArquivoService {
       ],
       trailerArquivo: trailerArquivo104,
     };
+
+    // mount file104 details
+    const listItem = await this.itemTransacaoService.findManyByIdTransacao(
+      transacao.id,
+    );
+    let numeroDocumento = await this.getNextNumeroDocumento(now);
+    for (const itemTransacao of listItem) {
+      cnab104.lotes[0].registros.push(
+        this.getDetalhes104(itemTransacao, numeroDocumento),
+      );
+      numeroDocumento++;
+    }
+
+    // process file104
+    const processedCnab104 = getProcessedCnab104(cnab104);
+    const cnabString = stringifyCnab104File(cnab104);
+
+    // Mount cnabTablesDTO
+    this.updateHeaderArquivoDTOFrom104(headerArquivoDTO, processedCnab104.headerArquivo);
+    this.updateHeaderLoteDTOFrom104(
+      headerLoteDTO,
+      processedCnab104.lotes[0].headerLote,
+    );
     const cnabTables: ICnabTables = {
       headerArquivo: headerArquivoDTO,
       lotes: [
@@ -113,25 +145,7 @@ export class HeaderArquivoService {
       ],
     };
 
-    // mount file details
-    const listItem = await this.itemTransacaoService.findManyByIdTransacao(
-      transacao.id,
-    );
-    for (const itemTransacao of listItem) {
-      cnab104.lotes[0].registros.push(
-        this.getDetalhes104(itemTransacao, headerLoteDTO),
-      );
-    }
-
-    // process file
-    const processedCnab104 = getProcessedCnab104(cnab104);
-    const cnabString = stringifyCnab104File(cnab104);
-
-    // update cnabTables
-    this.updateHeaderLoteDTOFrom104(
-      cnabTables.lotes[0].headerLote,
-      processedCnab104.lotes[0].headerLote,
-    );
+    // Mount cnabTablesDTO detalhes
     for (let i = 0; i < listItem.length; i++) {
       const itemTransacao = listItem[i];
       cnabTables.lotes[0].detalhes.push({
@@ -172,6 +186,7 @@ export class HeaderArquivoService {
     headerArquivo104.tipoArquivo.value = headerArquivoDTO.tipoArquivo;
     headerArquivo104.dataGeracaoArquivo.value = headerArquivoDTO.dataGeracao;
     headerArquivo104.horaGeracaoArquivo.value = headerArquivoDTO.horaGeracao;
+    headerArquivo104.nsa.value = headerArquivoDTO.nsa;
 
     return headerArquivo104;
   }
@@ -194,21 +209,30 @@ export class HeaderArquivoService {
    * Get Cnab 240 DetalheA, DetalheB for Caixa
    * 
    * indicadorBloqueio = DataFixa (see `detalheATemplate`)
+   * 
+   * @param numeroDocumento Atribuído pela empresa. Deve ser um número novo.
    */
   public getDetalhes104(
     itemTransacao: ItemTransacao,
-    headerLoteDTO: HeaderLoteDTO,
+    numeroDocumento: number,
   ): ICnab240_104RegistroAB {
     const detalheA: ICnab240_104DetalheA = structuredClone(detalheATemplate);
-    detalheA.dataEfetivacao.value = itemTransacao.dataTransacao;
+    detalheA.codigoBancoDestino.value = itemTransacao.clienteFavorecido.codigoBanco;
+    detalheA.codigoAgenciaDestino.value = itemTransacao.clienteFavorecido.agencia;
+    detalheA.dvAgenciaDestino.value = itemTransacao.clienteFavorecido.dvAgencia;
+    detalheA.contaCorrenteDestino.value = itemTransacao.clienteFavorecido.contaCorrente;
+    detalheA.dvContaDestino.value = itemTransacao.clienteFavorecido.dvContaCorrente;
+    detalheA.nomeTerceiro.value = itemTransacao.clienteFavorecido.nome;
+    detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
     detalheA.dataVencimento.value = itemTransacao.dataProcessamento;
-    detalheA.loteServico.value = headerLoteDTO.loteServico;
-    detalheA.periodoDiaVencimento.value = itemTransacao.dataProcessamento;
+    // indicadorFormaParcelamento = DataFixa
+    detalheA.periodoDiaVencimento.value = format(itemTransacao.dataProcessamento, 'dd');
     detalheA.valorLancamento.value = itemTransacao.valor;
-    detalheA.valorRealEfetivado.value = itemTransacao.valor;
 
     const detalheB: ICnab240_104DetalheB = structuredClone(detalheBTemplate);
-    detalheB.dataVencimento.value = itemTransacao.dataProcessamento;
+    detalheB.tipoInscricao.value = getTipoInscricao(asString(itemTransacao.clienteFavorecido.cpfCnpj));
+    detalheB.numeroInscricao.value = asString(itemTransacao.clienteFavorecido.cpfCnpj);
+    detalheB.dataVencimento.value = detalheA.dataVencimento.value;
 
     return {
       detalheA: detalheA,
@@ -219,7 +243,7 @@ export class HeaderArquivoService {
   public async findOne(
     fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[],
   ): Promise<Nullable<HeaderArquivo>> {
-    return await this.headerArquivoRepository.getOne(fields);
+    return await this.headerArquivoRepository.findOne(fields);
   }
 
   public async findAll(): Promise<HeaderArquivo[]> {
@@ -230,25 +254,34 @@ export class HeaderArquivoService {
     transacao: Transacao,
     tipo_arquivo: HeaderArquivoTipoArquivo,
   ): Promise<HeaderArquivoDTO> {
+    const now = new Date();
     const dto = new HeaderArquivoDTO();
     const pagador = await this.pagadorService.getOneByIdPagador(transacao.pagador.id);
-    dto.agencia = asString(pagador.agencia);
+    dto.agencia = String(pagador.agencia);
     dto.codigoBanco = String(headerArquivoTemplate.codigoBanco.value);
+    dto.tipoInscricao = String(headerArquivoTemplate.tipoInscricao.value);
+    dto.numeroInscricao = String(pagador.cpfCnpj);
     dto.codigoConvenio = String(headerArquivoTemplate.codigoConvenioBanco.value);
-    dto.dataGeracao = asDate(transacao.dataOrdem);
-    dto.horaGeracao = asDate(transacao.dataOrdem);
-    dto.dvAgencia = asString(pagador.dvAgencia);
-    dto.dvConta = asString(pagador.dvConta);
-    dto.transacao = transacao;
-    dto.nomeEmpresa = pagador.nomeEmpresa;
-    dto.numeroConta = asString(pagador.conta);
-    dto.numeroInscricao = asString(pagador.cpfCnpj);
     dto.parametroTransmissao = String(
       headerArquivoTemplate.parametroTransmissao.value,
     );
+    dto.dataGeracao = now;
+    dto.horaGeracao = now;
+    dto.dvAgencia = String(pagador.dvAgencia);
+    dto.dvConta = String(pagador.dvConta);
+    dto.transacao = transacao;
+    dto.nomeEmpresa = pagador.nomeEmpresa;
+    dto.numeroConta = String(pagador.conta);
     dto.tipoArquivo = tipo_arquivo;
-    dto.tipoInscricao = String(headerArquivoTemplate.tipoInscricao.value);
+    dto.nsa = await this.getNextNSA();
     return dto;
+  }
+
+  private updateHeaderArquivoDTOFrom104(
+    headerArquivoDTO: HeaderArquivoDTO,
+    headerArquivo104: ICnab240_104HeaderArquivo,
+  ) {
+    headerArquivoDTO.nsa = Number(headerArquivo104.nsa.value);
   }
 
   private updateHeaderLoteDTOFrom104(
@@ -258,14 +291,13 @@ export class HeaderArquivoService {
     headerLoteDTO.loteServico = String(headerLote104.loteServico.value);
   }
 
-  private transacaoToHeaderLoteDTO(
+  private getHeaderLoteDTOFromTransacao(
     transacao: Transacao,
     headerArquivoDTO: HeaderArquivoDTO,
   ): HeaderLoteDTO {
     const dto = new HeaderLoteDTO();
     dto.codigoConvenioBanco = headerArquivoDTO.codigoConvenio;
-    dto.headerArquivo = headerArquivoDTO;
-    dto.pagador = transacao.pagador;
+    dto.pagador = { id: transacao.pagador.id };
     dto.numeroInscricao = headerArquivoDTO.numeroInscricao;
     dto.parametroTransmissao = headerArquivoDTO.parametroTransmissao;
     dto.tipoCompromisso = String(headerLoteTemplate.tipoCompromisso.value);
@@ -273,74 +305,77 @@ export class HeaderArquivoService {
     return dto;
   }
 
-  public async saveDetalhes(
+  /**
+   * @param headerLoteDTO filled DTO with ID
+   * @param registroAB filled registroAB
+   */
+  public async saveRemessaDetalhes(
     itemTransacao: ItemTransacao,
     headerLoteDTO: HeaderLoteDTO,
     registroAB: ICnab240_104RegistroAB,
   ): Promise<void> {
-    const dataTransacao = itemTransacao.dataTransacao;
+    const r = registroAB;
 
     const detalheA = new DetalheADTO();
-    detalheA.dataEfetivacao = dataTransacao;
-    detalheA.dataVencimento = asDate(itemTransacao.dataProcessamento);
-    detalheA.headerLote = headerLoteDTO;
-    detalheA.indicadorBloqueio = String(
-      registroAB.detalheA.indicadorBloqueio.value,
-    );
-    detalheA.clienteFavorecido = itemTransacao.clienteFavorecido;
+    // TODO: A dataEfetivação deveria ser null na remessa
+    detalheA.headerLote = { id: headerLoteDTO.id };
+    detalheA.clienteFavorecido = { id: itemTransacao.clienteFavorecido.id };
+    detalheA.loteServico = Number(r.detalheA.loteServico.value);
+    detalheA.finalidadeDOC = String(r.detalheA.finalidadeDOC.value);
+    detalheA.numeroDocumentoEmpresa = Number(r.detalheA.numeroDocumentoEmpresa.value);
+    detalheA.dataVencimento = asDate(new Date(r.detalheA.dataVencimento.value));
+    detalheA.tipoMoeda = String(r.detalheA.tipoMoeda.value);
+    detalheA.quantidadeMoeda = Number(r.detalheA.quantidadeMoeda.value);
+    detalheA.valorLancamento = getNumberFromCnabField(r.detalheA.valorLancamento);
+    detalheA.numeroDocumentoBanco = Number(r.detalheA.numeroDocumentoBanco.value);
+    detalheA.quantidadeParcelas = Number(r.detalheA.quantidadeParcelas.value);
+    detalheA.indicadorBloqueio = String(r.detalheA.indicadorBloqueio.value);
     detalheA.indicadorFormaParcelamento = String(
-      detalheATemplate.indicadorFormaParcelamento.value,
+      r.detalheA.indicadorFormaParcelamento.value,
     );
-    detalheA.loteServico = headerLoteDTO.loteServico;
-    detalheA.numeroDocumentoLancamento =
-      await this.detalheAService.getNextNumeroDocumento(dataTransacao);
     detalheA.periodoVencimento = asDate(itemTransacao.dataProcessamento);
-    detalheA.numeroParcela = Number(registroAB.detalheA.numeroParcela.value);
-    detalheA.quantidadeParcelas = Number(
-      registroAB.detalheA.quantidadeParcelas.value,
-    );
-    detalheA.tipoFinalidadeConta = String(
-      registroAB.detalheA.finalidadeDOC.value,
-    );
-    detalheA.tipoMoeda = String(registroAB.detalheA.tipoMoeda.value);
-    detalheA.quantidadeMoeda = Number(registroAB.detalheA.quantidadeMoeda.value);
-    detalheA.valorLancamento = asNumber(itemTransacao.valor);
-    detalheA.valorRealEfetivado = asNumber(itemTransacao.valor);
+    detalheA.numeroParcela = Number(r.detalheA.numeroParcela.value);
+    detalheA.dataEfetivacao = null;
+    detalheA.valorRealEfetivado = null;
+    detalheA.nsr = Number(r.detalheA.nsr.value);
     const saveDetalheA = await this.detalheAService.save(detalheA);
 
     const detalheB = new DetalheBDTO();
     detalheB.dataVencimento = asDate(itemTransacao.dataProcessamento);
-    detalheB.nsr = Number(registroAB.detalheB.nsr.value);
-    detalheB.detalhe_a = { id: saveDetalheA.id };
+    detalheB.nsr = Number(r.detalheB.nsr.value);
+    detalheB.detalheA = { id: saveDetalheA.id };
     await this.detalheBService.save(detalheB);
   }
   public async headerArquivoExists(id_transacao: number): Promise<boolean> {
-    const ret = await this.headerArquivoRepository.getOne({
+    const header = await this.headerArquivoRepository.findOne({
       transacao: { id: id_transacao },
     });
-    if (ret == null) {
+    if (header == null) {
       return false;
     }
     return true;
   }
 
+  /**
+   * @throws `HttpException` if pipe fails or other problem
+   */
   public async saveArquivoRetorno(Cnab240: ICnab240_104File): Promise<void> {
     const headerArquivo = new HeaderArquivo();
     headerArquivo.codigoBanco = String(Cnab240.headerArquivo.codigoBanco.value);
     headerArquivo.agencia = String(Cnab240.headerArquivo.agenciaContaCorrente.value);
     headerArquivo.numeroConta = String(Cnab240.headerArquivo.numeroConta.value);
     headerArquivo.dvConta = String(Cnab240.headerArquivo.dvConta.value);
-    headerArquivo.dataGeracao = getDateFromString(Cnab240.headerArquivo.dataGeracaoArquivo.value, Cnab104Const.cnabDateOutput);
+    headerArquivo.dataGeracao = asStringDate(Cnab240.headerArquivo.dataGeracaoArquivo.value, Cnab104Const.cnabDateOutput);
     headerArquivo.nomeEmpresa = String(Cnab240.headerArquivo.nomeEmpresa.value);
     headerArquivo.nsa = Number(Cnab240.headerArquivo.nsa.value);
     headerArquivo.parametroTransmissao = String(Cnab240.headerArquivo.parametroTransmissao.value);
-    headerArquivo.tipoArquivo = "retorno";
+    headerArquivo.tipoArquivo = HeaderArquivoTipoArquivo.Retorno;
     headerArquivo.tipoInscricao = String(Cnab240.headerArquivo.tipoInscricao.value);
     headerArquivo.numeroInscricao = String(Cnab240.headerArquivo.numeroInscricao.value);
 
     const headerArquivoRemessa = await this.headerArquivoRepository.getOne({
       nsa: Number(Cnab240.headerArquivo.nsa.value),
-      tipoArquivo: "remessa"
+      tipoArquivo: HeaderArquivoTipoArquivo.Remessa
     });
 
     headerArquivo.transacao = ({ id: headerArquivoRemessa.transacao.id } as Transacao);
@@ -349,36 +384,20 @@ export class HeaderArquivoService {
       const headerLote = new HeaderLoteDTO();
 
       headerLote.id = headerArquivoSave.id;
-      headerLote.loteServico = asString(l.headerLote.loteServico.value);
-      headerLote.codigoConvenioBanco = asString(l.headerLote.codigoConvenioBanco.value);
-      headerLote.numeroInscricao = asString(l.headerLote.numeroInscricao.value);
-      headerLote.parametroTransmissao = asString(l.headerLote.param_transmissao.value);
+      headerLote.loteServico = asString(l.headerLote.loteServico.value, 'loteServico');
+      headerLote.codigoConvenioBanco = asString(l.headerLote.codigoConvenioBanco.value, 'codigoConvenioBanco');
+      headerLote.numeroInscricao = asString(l.headerLote.numeroInscricao.value, 'numeroInscricao');
+      headerLote.parametroTransmissao = asString(l.headerLote.param_transmissao.value, 'parametroTransmissao');
       headerLote.tipoCompromisso = l.headerLote.tipoCompromisso.value;
       headerLote.tipoInscricao = l.headerLote.tipoInscricao.value;
 
       const pagador = await this.pagadorService.getByConta(l.headerLote.numeroConta.value);
       headerLote.pagador = { id: pagador.id };
       const headerLoteSave = await this.headerLoteService.save(headerLote);
+
+      // 
       l.registros.forEach(async registro => {
         const r = (registro as ICnab240_104RegistroAB);
-        const detalheA = new DetalheADTO();
-        detalheA.headerLote = { id: headerLoteSave.id };
-        detalheA.dataEfetivacao = getDateFromString(r.detalheA.dataEfetivacao.value, Cnab104Const.dateObjOutput);
-        detalheA.dataVencimento = asStringDate(r.detalheA.dataVencimento.value);
-        detalheA.indicadorBloqueio = r.detalheA?.indicadorBloqueio.value;
-        detalheA.indicadorFormaParcelamento = asString(r.detalheA?.indicadorFormaParcelamento.value);
-        detalheA.loteServico = asString(r.detalheA?.loteServico.value);
-        detalheA.nsr = Number(asString(r.detalheA.nsr.value));
-        detalheA.numeroDocumentoLancamento = Number(asString(r.detalheA?.numeroDocumento.value));
-        detalheA.numeroParcela = Number(asString(r.detalheA?.numeroParcela.value));
-        detalheA.periodoVencimento = getDateFromString(r.detalheA?.dataVencimento.value, Cnab104Const.dateObjOutput);
-        detalheA.quantidadeMoeda = asNumber(r.detalheA?.quantidadeMoeda.value);
-        detalheA.quantidadeParcelas = asNumber(r.detalheA?.quantidadeMoeda.value);
-        detalheA.valorLancamento = asNumber(r.detalheA?.valor_lancamento.value);
-        detalheA.tipoFinalidadeConta = asString(r.detalheA?.tipoContaFinalidade.value);
-        detalheA.tipoMoeda = asString(r.detalheA?.tipoMoeda.value);
-        detalheA.valorRealEfetivado = asNumber(r.detalheA?.valorRealEfetivado.value);
-
         const cliente =
           await this.clienteFavorecidoService.getOne(
             {
@@ -386,14 +405,31 @@ export class HeaderArquivoService {
               dvContaCorrente: r.detalheA.dvContaDestino.value
             });
 
+        const detalheA = new DetalheADTO();
+        detalheA.headerLote = { id: headerLoteSave.id };
+        detalheA.loteServico = Number(r.detalheA?.loteServico.value);
         detalheA.clienteFavorecido = { id: cliente.id };
-
+        detalheA.finalidadeDOC = String(r.detalheA?.finalidadeDOC.value);
+        detalheA.numeroDocumentoEmpresa = Number(r.detalheA?.numeroDocumentoEmpresa.value);
+        detalheA.dataVencimento = asStringDate(r.detalheA.dataVencimento.value, Cnab104Const.cnabDateOutput);
+        detalheA.tipoMoeda = String(r.detalheA?.tipoMoeda.value);
+        detalheA.quantidadeMoeda = Number(r.detalheA?.quantidadeMoeda.value);
+        detalheA.valorLancamento = Number(r.detalheA?.valorLancamento.value);
+        detalheA.numeroDocumentoBanco = Number(r.detalheA?.numeroDocumentoBanco.value);
+        detalheA.quantidadeParcelas = Number(r.detalheA?.quantidadeParcelas.value);
+        detalheA.indicadorBloqueio = r.detalheA?.indicadorBloqueio.value;
+        detalheA.indicadorFormaParcelamento = String(r.detalheA?.indicadorFormaParcelamento.value);
+        detalheA.periodoVencimento = asStringDate(r.detalheA?.dataVencimento.value, Cnab104Const.cnabDateOutput);
+        detalheA.numeroParcela = Number(r.detalheA?.numeroParcela.value);
+        detalheA.dataEfetivacao = asStringDate(r.detalheA.dataEfetivacao.value, Cnab104Const.cnabDateOutput);
+        detalheA.valorRealEfetivado = Number(r.detalheA?.valorRealEfetivado.value);
+        detalheA.nsr = Number(r.detalheA.nsr.value);
         const detalheASave = await this.detalheAService.save(detalheA);
 
         const detalheB = new DetalheBDTO();
-        detalheB.detalhe_a = { id: detalheASave.id };
-        detalheB.nsr = r.detalheB.nsr.value;
-        detalheB.dataVencimento = getDateFromString(r.detalheB.dataVencimento.value, Cnab104Const.dateObjOutput);
+        detalheB.detalheA = { id: detalheASave.id };
+        detalheB.nsr = Number(r.detalheB.nsr.value);
+        detalheB.dataVencimento = asStringDate(r.detalheB.dataVencimento.value, Cnab104Const.cnabDateOutput);
         await this.detalheBService.save(detalheB);
       });
     })
@@ -401,7 +437,9 @@ export class HeaderArquivoService {
 
 
   public async compareRemessaToRetorno(): Promise<void> {
-    const arquivosRemessa = await this.headerArquivoRepository.findAll({ tipoArquivo: "remessa" });
+    const arquivosRemessa = await this.headerArquivoRepository.findAll({
+      tipoArquivo: HeaderArquivoTipoArquivo.Remessa
+    });
 
     arquivosRemessa.forEach(async headerArquivo => {
       const arquivoPublicacao = new ArquivoPublicacaoDTO();
@@ -410,7 +448,10 @@ export class HeaderArquivoService {
       arquivoPublicacao.dataGeracaoRemessa = asDate(headerArquivo.dataGeracao);
       arquivoPublicacao.horaGeracaoRemessa = asDate(headerArquivo.dataGeracao);
       const arquivosRetorno =
-        await this.headerArquivoRepository.findAll({ tipoArquivo: "retorno", nsa: headerArquivo.nsa });
+        await this.headerArquivoRepository.findAll({
+          tipoArquivo: HeaderArquivoTipoArquivo.Retorno,
+          nsa: headerArquivo.nsa
+        });
       if (arquivosRetorno != null) {
         //Header Arquivo Retorno
         arquivosRetorno.forEach(async arquivoRetorno => {
@@ -423,21 +464,21 @@ export class HeaderArquivoService {
             //DetalheA Retorno
             const detalhesA = await this.detalheAService.findMany({ id: headerLoteRetorno.id });
             detalhesA.forEach(async detalheA => {
-              arquivoPublicacao.loteServico = asString(detalheA.loteServico);
-              arquivoPublicacao.dataVencimento = asDate(detalheA.dataVencimento);
-              arquivoPublicacao.valorLancamento = asNumber(detalheA.valorLancamento);
-              arquivoPublicacao.dataEfetivacao = asDate(detalheA.dataEfetivacao);
-              arquivoPublicacao.valorRealEfetivado = asNumber(detalheA.valorRealEfetivado);
+              arquivoPublicacao.loteServico = asNumber(detalheA.loteServico);
+              arquivoPublicacao.dataVencimento = asDate(detalheA.dataVencimento, 'dataVencimento');
+              arquivoPublicacao.valorLancamento = asNumber(detalheA.valorLancamento, 'valorLancamento');
+              arquivoPublicacao.dataEfetivacao = asDate(detalheA.dataEfetivacao, 'dataEfetivacao');
+              arquivoPublicacao.valorRealEfetivado = asNumber(detalheA.valorRealEfetivado, 'valorRealEfetivado');
               const clienteFavorecido =
                 await this.clienteFavorecidoService.getOneByIdClienteFavorecido(detalheA.clienteFavorecido.id);
               arquivoPublicacao.nomeCliente = clienteFavorecido.nome;
-              arquivoPublicacao.cpfCnpjCliente = String(clienteFavorecido.cpfCnpj);
-              arquivoPublicacao.codBancoCliente = String(clienteFavorecido.codigoBanco);
-              arquivoPublicacao.agenciaCliente = String(clienteFavorecido.agencia);
-              arquivoPublicacao.dvAgenciaCliente = String(clienteFavorecido.dvAgencia);
-              arquivoPublicacao.contaCorrenteCliente = String(clienteFavorecido.contaCorrente);
-              arquivoPublicacao.dvContaCorrenteCliente = String(clienteFavorecido.dvContaCorrente);
-              arquivoPublicacao.ocorrencias = asString(detalheA.ocorrencias);
+              arquivoPublicacao.cpfCnpjCliente = asString(clienteFavorecido.cpfCnpj, 'cpfCnpj');
+              arquivoPublicacao.codBancoCliente = asString(clienteFavorecido.codigoBanco, 'codigoBanco');
+              arquivoPublicacao.agenciaCliente = asString(clienteFavorecido.agencia, 'agencia');
+              arquivoPublicacao.dvAgenciaCliente = asString(clienteFavorecido.dvAgencia, 'dvAgencia');
+              arquivoPublicacao.contaCorrenteCliente = asString(clienteFavorecido.contaCorrente, 'contaCorrente');
+              arquivoPublicacao.dvContaCorrenteCliente = asString(clienteFavorecido.dvContaCorrente, 'dvContaCorrente');
+              arquivoPublicacao.ocorrencias = asString(detalheA.ocorrencias, 'ocorrencias');
               void this.arquivoPublicacaoRepository.save(arquivoPublicacao);
             });
           });
@@ -455,6 +496,41 @@ export class HeaderArquivoService {
       { createdAt: 'DESC' }
     );
     return retorno?.createdAt || new Date(0);
+  }
+
+  /**
+   * numeroDocumento:
+   * 
+   * - Começa com 000001
+   * - Soma 1 para cada registro no arquivo
+   * - Reinicia para 1 para cada data de pagamento
+   * 
+   * Usado nos Dertalhes: A, J, O, N
+   * 
+   * @example
+   * 01/01/2024
+   * - Cnab1
+   *    - DetalheA = 1
+   *    - DetalheA = 2
+   * - Cnab2
+   *    - DetalheA = 3
+   *    - DetalheA = 4
+   * 
+   * 02/01/2024
+   * - Cnab1
+   *    - DetalheA = 1
+   *    - DetalheA = 2
+   * - Cnab2
+   *    - DetalheA = 3
+   *    - DetalheA = 4
+   * 
+   */
+  public async getNextNumeroDocumento(date: Date): Promise<number> {
+    return await this.detalheAService.getNextNumeroDocumento(date);
+  }
+
+  public async getNextNSA() {
+    return await this.headerArquivoRepository.getNextNSA();
   }
 }
 

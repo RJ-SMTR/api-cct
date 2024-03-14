@@ -5,6 +5,12 @@ export function getStringUpperUnaccent(str: string): string {
     .toUpperCase();
 }
 
+export function getStringReplaceAccent(str: string) {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 export function getStringNoSpecials(str: string) {
   return str.replace(/[^a-zA-Z0-9 ]/g, '');
 }

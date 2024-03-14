@@ -1,4 +1,4 @@
-import { IsDateString, IsNotEmpty, IsNumber, IsString, ValidateIf } from "class-validator";
+import { IsDateString, IsNotEmpty, IsNumber, IsNumberString, IsString, ValidateIf } from "class-validator";
 
 /**
  * Logic:
@@ -13,7 +13,7 @@ export class BigqueryOrdemPagamentoDTO {
    * Para filtrar e ordenar por data	
    */
   @IsNotEmpty()
-  @IsDateString()
+  @IsDateString(undefined)
   dataOrdem: string;
 
   /** 
@@ -23,7 +23,7 @@ export class BigqueryOrdemPagamentoDTO {
    * Senão, ignoramos o item.	
    */
   @ValidateIf((o, v) => v !== null)
-  @IsDateString()
+  @IsDateString(undefined)
   dataPagamento: string | null;
 
   /**
@@ -49,7 +49,7 @@ export class BigqueryOrdemPagamentoDTO {
   operadora: string;
 
   /** Nome curto da linha operada com variação de serviço (ex: 010, 011SN, ...) */
-  servico: string | null;
+  servico: string;
 
   /**
    * Identificador da ordem pagamento no banco de dados da Jaé
@@ -61,7 +61,7 @@ export class BigqueryOrdemPagamentoDTO {
    * **id_consorico** (favorecido CNPJ) e **servico** (veículo que arrecadou)
    */
   @IsNotEmpty()
-  @IsString()
+  @IsNumberString()
   idOrdemPagamento: string;
 
   /** Identificador da ordem ressarcimento no banco de dados da Jaé */
@@ -115,7 +115,7 @@ export class BigqueryOrdemPagamentoDTO {
   valorDescontoTaxa: number | null;
 
   /** Valor total das transações menos o valor_desconto_taxa (R$) */
-  valorTotalTransacaoLiquido: number | null;
+  valorTotalTransacaoLiquido: number;
 
   /** Quantidade total de transações calculada pela captura de transações */
   quantidadeTotalTransacaoCaptura: number | null;
@@ -128,4 +128,6 @@ export class BigqueryOrdemPagamentoDTO {
 
   /** Código de controle de versão do dado (SHA Github) */
   versao: string | null;
+
+  aux_favorecidoCpfCnpj: string;
 }

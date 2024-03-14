@@ -17,7 +17,7 @@ export class HeaderArquivoDTO {
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipoArquivo?: string | null;
+  tipoArquivo?: number | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -70,4 +70,8 @@ export class HeaderArquivoDTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   transacao?: DeepPartial<Transacao>;
+  
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  nsa?: number;
 }

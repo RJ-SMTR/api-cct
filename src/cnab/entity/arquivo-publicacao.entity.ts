@@ -36,8 +36,8 @@ export class ArquivoPublicacao extends EntityHelper {
   @Column({ type: Date, unique: false, nullable: false })
   horaGeracaoRetorno: Date;
 
-  @Column({ type: String, unique: false, nullable: false })
-  loteServico: string;
+  @Column({ type: Number, unique: false, nullable: false })
+  loteServico: number;
 
   @Column({ type: String, unique: false, nullable: false })
   nomePagador: string;

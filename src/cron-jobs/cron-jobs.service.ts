@@ -16,7 +16,7 @@ import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import {
   formatErrorMessage as formatErrorLog,
-  formatLog,
+  formatLog
 } from 'src/utils/log-utils';
 import { validateEmail } from 'validations-br';
 
@@ -64,6 +64,7 @@ export class CronJobsService implements OnModuleInit {
   onModuleInit() {
     const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
     (async () => {
+      // await this.updateRemessa();
       this.jobsConfig.push(
         {
           name: CrobJobsEnum.bulkSendInvites,
@@ -687,11 +688,39 @@ export class CronJobsService implements OnModuleInit {
   }
 
   async updateTransacaoFromJae() {
-    await this.cnabService.updateTransacaoFromJae();
+    const METHOD = 'updateTransacaoFromJae()';
+    try {
+      await this.cnabService.updateTransacaoFromJae();
+      this.logger.log(formatLog(
+        'Tabelas: Favorecido, Transacao e ItemTransacao atualizados com sucesso.',
+        METHOD
+      ));
+    } catch (error) {
+      this.logger.error(
+        formatErrorLog(
+          'Erro, abortando.',
+          error,
+          error as Error,
+          METHOD,
+        ),
+      );
+    }
   }
 
   async getRetornoCNAB() {
-    await this.cnabService.getArquivoRetornoCNAB();
+    const METHOD = 'getRetornoCNAB()';
+    try {
+      await this.cnabService.getArquivoRetornoCNAB();
+    } catch (error) {
+      this.logger.error(
+        formatErrorLog(
+          'Erro, abortando.',
+          error,
+          error as Error,
+          METHOD,
+        ),
+      );
+    }
   }
 
   async updateRemessa() {
@@ -699,9 +728,14 @@ export class CronJobsService implements OnModuleInit {
     try {
       await this.cnabService.updateRemessa();
     } catch (error) {
-      this.logger.error(formatLog(
-        `Erro, abortando: ${(error as Error).message}.`
-        , METHOD));
+      this.logger.error(
+        formatErrorLog(
+          'Erro, abortando.',
+          error,
+          error as Error,
+          METHOD,
+        ),
+      );
     }
   }
 
@@ -710,9 +744,14 @@ export class CronJobsService implements OnModuleInit {
     try {
       await this.cnabService.updateRetorno();
     } catch (error) {
-      this.logger.error(formatLog(
-        `Erro, abortando: ${(error as Error).message}.`
-        , METHOD));
+      this.logger.error(
+        formatErrorLog(
+          'Erro, abortando.',
+          error,
+          error as Error,
+          METHOD,
+        ),
+      );
     }
   }
 }

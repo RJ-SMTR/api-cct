@@ -18,7 +18,7 @@ export class BigqueryOrdemPagamentoRepository {
   constructor(
     private readonly bigqueryService: BigqueryService,
     private readonly settingsService: SettingsService,
-  ) {}
+  ) { }
 
   public async findMany(
     filter?: IBigqueryQueryEntity,
@@ -64,6 +64,7 @@ export class BigqueryOrdemPagamentoRepository {
         CAST(t.valor_total_transacao_captura AS STRING) AS valorTotalTransacaoCaptura,
         t.indicador_ordem_valida AS indicadorOrdemValida,
         t.versao AS versao,
+        CAST(${qArgs.cpfCnpj} AS STRING) AS cpfCnpj,
         -- aux columns
         (${qArgs.countQuery}) AS count,
         'ok' AS status
@@ -72,7 +73,7 @@ export class BigqueryOrdemPagamentoRepository {
       '\n' +
       (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
       `UNION ALL
-      SELECT ${'null, '.repeat(29)}
+      SELECT ${'null, '.repeat(30)}
       (${qArgs.countQuery}) AS count, 'empty' AS status` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
@@ -103,6 +104,7 @@ export class BigqueryOrdemPagamentoRepository {
     ordemPagamento: string;
     tTipoPgto: string;
     joinCpfCnpj: string;
+    cpfCnpj: string;
     countQuery: string;
     offset?: number;
     limit?: number;
@@ -120,6 +122,7 @@ export class BigqueryOrdemPagamentoRepository {
         ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento'
         : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.ordem_pagamento',
       tTipoPgto: IS_BQ_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
+      cpfCnpj: args?.cpfCnpj ? (isCpfOrCnpj(args.cpfCnpj) === 'cpf' ? 'b.documento' : 'b.cnpj') : '',
     };
     // Args
     let offset = args?.offset;
@@ -128,7 +131,7 @@ export class BigqueryOrdemPagamentoRepository {
     if (args?.offset !== undefined && args.limit === undefined) {
       this.logger.warn(
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-          " 'offset' will be ignored to prevent query fail",
+        " 'offset' will be ignored to prevent query fail",
       );
       offset = undefined;
     }
@@ -178,6 +181,7 @@ export class BigqueryOrdemPagamentoRepository {
       ordemPagamento: Q_CONSTS.ordemPagamento,
       tTipoPgto: Q_CONSTS.tTipoPgto,
       joinCpfCnpj,
+      cpfCnpj: Q_CONSTS.cpfCnpj,
       countQuery,
       offset,
       limit: args?.limit,

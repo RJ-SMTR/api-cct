@@ -11,7 +11,7 @@ export class DetalheBDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  detalhe_a?: DeepPartial<DetalheA>;
+  detalheA?: DeepPartial<DetalheA>;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

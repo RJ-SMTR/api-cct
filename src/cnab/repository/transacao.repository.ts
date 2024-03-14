@@ -30,7 +30,7 @@ export class TransacaoRepository {
   }
 
   public async findAll(): Promise<Transacao[]> {
-    return await this.transacaoRepository.find();
+    return await this.transacaoRepository.find({});
   }
 
   public async getAll(): Promise<Transacao[]> {

@@ -34,7 +34,7 @@ export const cnab240_104DetalheATemplateTest: ICnab240_104DetalheA = {
     picture: 'X(030)',
     value: 'TEREZINHA SEVERIANA           ',
   },
-  numeroDocumento: { pos: [74, 79], picture: '9(006)', value: '000027' },
+  numeroDocumentoEmpresa: { pos: [74, 79], picture: '9(006)', value: '000027' },
   filler: { pos: [80, 92], picture: 'X(013)', value: '             ' },
   tipoContaFinalidadeTed: { pos: [93, 93], picture: 'X(001)', value: '1' },
   dataVencimento: {

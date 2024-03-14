@@ -52,7 +52,7 @@ export class Pagador extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   uf: string | null;
 
-  @Column({ type: String, unique: false, nullable: true, length: 2 })
+  @Column({ type: String, unique: false, nullable: true, length: 14 })
   cpfCnpj: string | null;
 
   public getLogInfo(): string {
