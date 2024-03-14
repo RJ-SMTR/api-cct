@@ -15,7 +15,7 @@ export class TransacaoRepository {
   constructor(
     @InjectRepository(Transacao)
     private transacaoRepository: Repository<Transacao>,
-  ) {}
+  ) { }
 
   public async save(dto: TransacaoDTO): Promise<Transacao> {
     return this.transacaoRepository.save(dto);
@@ -35,5 +35,18 @@ export class TransacaoRepository {
 
   public async getAll(): Promise<Transacao[]> {
     return await this.transacaoRepository.find({});
+  }
+
+  /**
+   * Get all transacao where id not exists in headerArquivo yet (new CNABS)
+   */
+  public async findAllNewTransacao(): Promise<Transacao[]> {
+    return (await this.transacaoRepository.query(
+      'SELECT t.* ' +
+      'FROM transacao t ' +
+      'LEFT JOIN header_arquivo ha ON ha."transacaoId" = t.id ' +
+      'WHERE ha."transacaoId" IS NULL '
+    ));
+
   }
 }

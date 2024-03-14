@@ -126,4 +126,11 @@ export class TransacaoService {
     return await this.transacaoRepository.findAll();
   }
 
+  /**
+   * Get all transacao where id not exists in headerArquivo yet (new CNABS)
+   */
+  public async findAllNewTransacao(): Promise<Transacao[]> {
+    return await this.transacaoRepository.findAllNewTransacao();
+  }
+
 }

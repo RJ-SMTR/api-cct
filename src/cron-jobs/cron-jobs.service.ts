@@ -15,7 +15,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import {
-  formatErrorMessage as formatErrorLog,
+  formatError as formatErrorLog,
   formatLog
 } from 'src/utils/log-utils';
 import { validateEmail } from 'validations-br';
@@ -64,7 +64,7 @@ export class CronJobsService implements OnModuleInit {
   onModuleInit() {
     const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
     (async () => {
-      // await this.updateRemessa();
+      await this.updateRemessa();
       this.jobsConfig.push(
         {
           name: CrobJobsEnum.bulkSendInvites,

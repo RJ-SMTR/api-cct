@@ -1,3 +1,4 @@
+import { asJSONStrOrObj } from "./pipe-utils";
 
 export function formatLog(
   log: string,
@@ -11,14 +12,14 @@ export function formatLog(
   return `${startLog}: ${log}`;
 }
 
-export function formatErrorMessage(
+export function formatError(
   firstLine: string,
   message: object | string,
   traceback?: Error,
   context?: string,
 ): string {
   let formattedString =
-    `${firstLine}` + `\n    - Message: ${message}`;
+    `${firstLine}` + `\n    - Message: ${asJSONStrOrObj(message)}`;
   if (traceback) {
     formattedString += `\n    - Traceback:\n ${traceback.stack}`;
   }

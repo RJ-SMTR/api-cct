@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { format } from 'date-fns';
 import { SftpService } from 'src/sftp/sftp.service';
 import { getBRTFromUTC } from 'src/utils/date-utils';
-import { formatLog } from 'src/utils/log-utils';
+import { formatError, formatLog } from 'src/utils/log-utils';
 import { ICnab240_104File } from '../interfaces/cnab-240/104/cnab-240-104-file.interface';
 import { parseCnab240_104 } from '../utils/cnab-104-utils';
 import { HeaderArquivoService } from './header-arquivo.service';
@@ -43,17 +43,27 @@ export class CnabService {
    * @throws `Error` if any subtask throws
    */
   public async updateRemessa() {
+    const METHOD = 'updateRemessa()';
     // Read new Transacoes
-    const listAllTransacao = await this.transacaoService.getAll();
-    for (const transacao of listAllTransacao) {
-      const headerExists = await this.headerArquivoService.findOne({
-        transacao: { id: transacao.id },
-      });
-      if (!headerExists) {
+    const allNewTransacao = await this.transacaoService.findAllNewTransacao();
+    for (const transacao of allNewTransacao) {
+      try {
         const { cnabString, cnabTables } = await this.headerArquivoService.generateCnab(transacao);
         await this.headerArquivoService.saveRemessa(cnabTables);
         await this.sftpService.submitFromString(cnabString, `${this.REMESSA_FOLDER}/${this.getRemessaName()}`);
+      } catch (error) {
+        this.logger.error(formatError(
+          `Ao adicionar a transação #${transacao.id} houve erro, ignorando...`, error, error, METHOD
+        ));
       }
+    }
+
+    // Log
+    if (allNewTransacao.length === 0) {
+      this.logger.log(formatLog(
+        'Sem Transacao novas para criar CNAB. Tarefa finalizada.', METHOD
+      ));
+      return;
     }
   }
 

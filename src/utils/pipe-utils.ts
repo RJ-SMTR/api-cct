@@ -104,14 +104,14 @@ export function asBoolean(bool: boolean | null | undefined, fieldName?: string):
   return bool;
 }
 
-export function asStringJSON(str: string | object): any {
-  try {
-    if (typeof str === 'string') {
-      return JSON.parse(str);
-    } else {
-      return str;
+export function asJSONStrOrObj(str: string | object): string {
+  if (typeof str === 'string') {
+    return str
+  } else {
+    try {
+      return JSON.stringify(str);
+    } catch (e) {
+      return String(str);
     }
-  } catch (e) {
-    return str;
   }
 }
