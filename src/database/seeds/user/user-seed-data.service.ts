@@ -249,7 +249,7 @@ LIMIT 5
           },
           {
             fullName: 'Sent user with fifteen days',
-            email: 'sent15.user@example.com',
+            email: 'sent_before_days.user@example.com',
             password: 'secret',
             permitCode: '319274392832025',
             role: { id: RoleEnum.user } as Role,

@@ -30,18 +30,18 @@ export class TestService {
           'registered.user@example.com',
         ]),
       })) || [];
-    const testSent15 = await this.mailHistoryService.getOne({
-      email: 'sent15.user@example.com',
+    const testSentBeforeDays = await this.mailHistoryService.getOne({
+      email: 'sent_before_days.user@example.com',
     });
 
     const now = new Date();
     for (const mail of testMails) {
       await this.mailHistoryService.update(mail.id, {
-        sentAt: now,
+        sentAt: subDays(now, 31),
       });
     }
-    await this.mailHistoryService.update(testSent15.id, {
-      sentAt: subDays(now, 16),
+    await this.mailHistoryService.update(testSentBeforeDays.id, {
+      sentAt: now,
     });
   }
 
