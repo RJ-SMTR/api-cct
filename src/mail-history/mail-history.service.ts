@@ -9,7 +9,7 @@ import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.
 import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { formatLog } from 'src/utils/logging';
+import { formatLog } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import {

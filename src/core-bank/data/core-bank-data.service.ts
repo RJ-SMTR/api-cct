@@ -6,7 +6,7 @@ import { CoreBankStatusCodeEnum } from '../enums/core-bank-status-code.enum';
 import { CoreBankStatusEnum } from '../enums/core-bank-status.enum';
 import { ICoreBankProfile } from '../interfaces/core-bank-profile.interface';
 import { ICoreBankStatements } from '../interfaces/core-bank-statements.interface';
-import { formatLog } from 'src/utils/logging';
+import { formatLog } from 'src/utils/log-utils';
 
 @Injectable()
 export class CoreBankDataService implements OnModuleInit {

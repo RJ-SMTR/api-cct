@@ -9,7 +9,7 @@ import { IMockProbability } from '../../utils/interfaces/mock-probability.interf
 import { JaeProfileInterface } from '../interfaces/jae-profile.interface';
 import { JaeStopTimesInterface } from '../interfaces/jae-stop-times.interface';
 import { JaeValidatorGtfsDataInterface } from '../interfaces/jae-validator-gtfs-data.interface';
-import { formatLog } from 'src/utils/logging';
+import { formatLog } from 'src/utils/log-utils';
 
 @Injectable()
 export class JaeDataService implements OnModuleInit {
