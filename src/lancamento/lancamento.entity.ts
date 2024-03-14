@@ -24,6 +24,9 @@ export class LancamentoEntity {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   data_pgto: Date;
+  
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  data_lancamento: Date;
 
   @Column({ type: 'varchar', nullable: true })
   auth_usersIds?: string;

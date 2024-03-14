@@ -15,7 +15,7 @@ describe('CronJobs (e2e)', () => {
 
   describe('BulkResendMails', () => {
     test('Resend mails to not fully registered users', /**
-     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 7 - GitHub}
+     * Requirement: 2024/03/12 {@link https://github.com/RJ-SMTR/api-cct/issues/218 #218, Requirements - GitHub}
      */ async () => {
       // Arrange
       await request(app)
@@ -45,6 +45,7 @@ describe('CronJobs (e2e)', () => {
         (i) => i.to === 'queued.user@example.com',
       )[0];
       const sentUser = mails.filter((i) => i.to === 'sent.user@example.com')[0];
+      const sent15User = mails.filter((i) => i.to === 'sent15.user@example.com')[0];
       const usedUser = mails.filter((i) => i.to === 'used.user@example.com')[0];
       const registeredUser = mails.filter(
         (i) => i.to === 'queued.user@example.com',
@@ -52,13 +53,16 @@ describe('CronJobs (e2e)', () => {
 
       expect(queuedUser).toBeUndefined();
       expect(sentUser).toBeDefined();
+      expect(sent15User).toBeDefined();
       expect(usedUser).toBeDefined();
       expect(registeredUser).toBeUndefined();
 
       expect(sentUser.purpose).toEqual('reminder-complete-registration');
+      expect(sent15User.purpose).toEqual('reminder-complete-registration');
       expect(usedUser.purpose).toEqual('reminder-complete-registration');
 
       expect(sentUser.URL).toContain('/conclude-registration/');
+      expect(sent15User.URL).toContain('/conclude-registration/');
       expect(usedUser.URL).toContain('/sign-in');
     }, 20000);
   });

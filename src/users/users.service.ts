@@ -638,7 +638,10 @@ export class UsersService {
   }
 
   /**
-   * Get users with status = USED who created login/password but didn't fill bank fields
+   * Get users where:
+   * - status = USED who created login/password but didn't fill bank fields
+   * - status = SENT who didn't create login/password
+   * with no waiting for 15 days before resend
    */
   async getNotRegisteredUsers(): Promise<User[]> {
     const results: any[] = await this.entityManager.query(
@@ -646,8 +649,7 @@ export class UsersService {
       'FROM public."user" U inner join invite i on  U.id = i."userId" ' +
       'inner join invite_status iv on iv.id = i."inviteStatusId" ' +
       'where u."bankCode" is null ' +
-      'and i."sentAt" <= now() - INTERVAL \'15 DAYS\' ' +
-      'and "roleId" <> 1 ' +
+      'and "roleId" != 1 ' +
       'and i."inviteStatusId" != 2 ' +
       'order by U."fullName", i."sentAt" ',
     );
