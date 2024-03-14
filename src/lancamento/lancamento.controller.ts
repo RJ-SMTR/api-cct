@@ -67,6 +67,42 @@ export class LancamentoController {
   ): Promise<ItfLancamento[]> {
     return await this.lancamentoService.findByPeriod(mes, periodo, ano);
   }
+  
+  
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.master,
+    RoleEnum.admin_finan,
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro,
+  )
+  @Get('/getValorAutorizado')
+  @ApiQuery({
+    name: 'mes',
+    required: true,
+    description: 'Mês do lançamento',
+  })
+  @ApiQuery({
+    name: 'periodo',
+    required: true,
+    description:
+      'Período do lançamento. primeira quinzena ou segunda quinzena.',
+  })
+  @ApiQuery({
+    name: 'ano',
+    required: true,
+    description: 'Ano do lançamento.',
+  })
+  @HttpCode(HttpStatus.OK)
+  async getValorAutorizado(
+    @Request() request,
+    @Query('mes') mes: number,
+    @Query('periodo') periodo: number,
+    @Query('ano') ano: number,
+  ): Promise<any> {
+    return await this.lancamentoService.getValorAutorizado(mes, periodo, ano);
+  }
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)

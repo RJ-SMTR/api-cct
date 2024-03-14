@@ -59,6 +59,32 @@ export class LancamentoService {
 
     return lancamentosComUsuarios;
   }
+  
+  async getValorAutorizado(
+    month: number,
+    period: number,
+    year: number,
+  ): Promise<any> {
+    const [startDate, endDate] = this.getMonthDateRange(year, month, period);
+  
+    const response = await this.lancamentoRepository.find({
+      where: {
+        data_lancamento: Between(startDate, endDate),
+      },
+    });
+  
+    const filteredResponse = response.filter(
+      (item) => item.auth_usersIds && item.auth_usersIds.split(',').length >= 2
+    );
+  
+    const sumOfValues = filteredResponse.reduce((acc, curr) => acc + curr.valor, 0);
+
+    const resp = {
+      valor_autorizado: sumOfValues,
+    }
+  
+    return resp;
+  }
 
   async create(
     lancamentoData: ItfLancamento,
