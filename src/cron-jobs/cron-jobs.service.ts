@@ -27,8 +27,7 @@ export enum CrobJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
-  bulkResendInvites1 = 'bulkResendInvites1',
-  bulkResendInvites2 = 'bulkResendInvites2',
+  bulkResendInvites = 'bulkResendInvites',
   updateTransacaoFromJae = 'updateTransacaoFromJae',
   updateRemessa = 'updateRemessa',
   updateRetorno = 'updateRetorno'
@@ -106,18 +105,9 @@ export class CronJobsService implements OnModuleInit {
           },
         },
         {
-          name: CrobJobsEnum.bulkResendInvites1,
+          name: CrobJobsEnum.bulkResendInvites,
           cronJobParameters: {
             cronTime: '45 14 * * *', // 14:45 GMT = 11:45 BRT (GMT-3)
-            onTick: async () => {
-              await this.bulkResendInvites();
-            },
-          },
-        },
-        {
-          name: CrobJobsEnum.bulkResendInvites2,
-          cronJobParameters: {
-            cronTime: '45 20 * * *', // 20:45 GMT = 17:45 BRT (GMT-3)
             onTick: async () => {
               await this.bulkResendInvites();
             },

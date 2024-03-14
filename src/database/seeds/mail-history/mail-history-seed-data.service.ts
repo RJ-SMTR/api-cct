@@ -34,7 +34,7 @@ export class MailHistorySeedDataService {
       ) {
         mail[i] = {
           ...mail,
-          sentAt: subDays(new Date(), 16),
+          sentAt: subDays(new Date(), 31),
         } as IMailSeedData;
       }
     }

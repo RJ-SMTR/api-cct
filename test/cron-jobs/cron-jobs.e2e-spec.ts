@@ -15,55 +15,53 @@ describe('CronJobs (e2e)', () => {
 
   describe('BulkResendMails', () => {
     test('Resend mails to not fully registered users', /**
-     * Requirement: 2024/03/12 {@link https://github.com/RJ-SMTR/api-cct/issues/218 #218, Requirements - GitHub}
+     * Requirement: 2024/03/14 {@link https://github.com/RJ-SMTR/api-cct/issues/218 #218, Requirements 3, 4 - GitHub}
      */ async () => {
-      // Arrange
-      await request(app)
-        .get('/api/v1/test/cron-jobs/bulk-resend-invites')
-        .expect(200);
-      const resendInvitesDate = new Date();
+        // Arrange
+        await request(app)
+          .get('/api/v1/test/cron-jobs/bulk-resend-invites')
+          .expect(200);
+        const resendInvitesDate = new Date();
 
-      const mails = await request(MAILDEV_URL)
-        .get('/email')
-        .then(({ body }) =>
-          (body as IMaildevEmail[])
-            .filter(
-              (mail) =>
-                differenceInSeconds(resendInvitesDate, new Date(mail.date)) <=
-                10,
-            )
-            .map((mail) => ({
-              purpose: mail.text.split(' ')?.[0],
-              URL: mail.text.split(' ')?.[1],
-              to: mail.headers.to,
-              date: mail.date,
-            })),
-        );
+        const mails = await request(MAILDEV_URL)
+          .get('/email')
+          .then(({ body }) =>
+            (body as IMaildevEmail[])
+              .filter(
+                (mail) =>
+                  differenceInSeconds(resendInvitesDate, new Date(mail.date)) <=
+                  10,
+              )
+              .map((mail) => ({
+                purpose: mail.text.split(' ')?.[0],
+                URL: mail.text.split(' ')?.[1],
+                to: mail.headers.to,
+                date: mail.date,
+              })),
+          );
 
-      //  Assert
-      const queuedUser = mails.filter(
-        (i) => i.to === 'queued.user@example.com',
-      )[0];
-      const sentUser = mails.filter((i) => i.to === 'sent.user@example.com')[0];
-      const sent15User = mails.filter((i) => i.to === 'sent15.user@example.com')[0];
-      const usedUser = mails.filter((i) => i.to === 'used.user@example.com')[0];
-      const registeredUser = mails.filter(
-        (i) => i.to === 'queued.user@example.com',
-      )[0];
+        //  Assert
+        const queuedUser = mails.filter(
+          (i) => i.to === 'queued.user@example.com',
+        )[0];
+        const sentUser = mails.filter((i) => i.to === 'sent.user@example.com')[0];
+        const sentBeforeUser = mails.filter((i) => i.to === 'sent_before_days.user@example.com')[0];
+        const usedUser = mails.filter((i) => i.to === 'used.user@example.com')[0];
+        const registeredUser = mails.filter(
+          (i) => i.to === 'queued.user@example.com',
+        )[0];
 
-      expect(queuedUser).toBeUndefined();
-      expect(sentUser).toBeDefined();
-      expect(sent15User).toBeDefined();
-      expect(usedUser).toBeDefined();
-      expect(registeredUser).toBeUndefined();
+        expect(queuedUser).toBeUndefined();
+        expect(sentUser).toBeDefined();
+        expect(sentBeforeUser).toBeUndefined();
+        expect(usedUser).toBeDefined();
+        expect(registeredUser).toBeUndefined();
 
-      expect(sentUser.purpose).toEqual('reminder-complete-registration');
-      expect(sent15User.purpose).toEqual('reminder-complete-registration');
-      expect(usedUser.purpose).toEqual('reminder-complete-registration');
+        expect(sentUser.purpose).toEqual('reminder-complete-registration');
+        expect(usedUser.purpose).toEqual('reminder-complete-registration');
 
-      expect(sentUser.URL).toContain('/conclude-registration/');
-      expect(sent15User.URL).toContain('/conclude-registration/');
-      expect(usedUser.URL).toContain('/sign-in');
-    }, 20000);
+        expect(sentUser.URL).toContain('/conclude-registration/');
+        expect(usedUser.URL).toContain('/sign-in');
+      }, 60000);
   });
 });

@@ -17,8 +17,9 @@ export function formatErrorMessage(
   traceback?: Error,
   context?: string,
 ): string {
+  const strMsg = typeof message === 'string' ? message : JSON.stringify(message);
   let formattedString =
-    `${firstLine}` + `\n    - Message: ${message}`;
+    `${firstLine}` + `\n    - Message: ${strMsg}`;
   if (traceback) {
     formattedString += `\n    - Traceback:\n ${traceback.stack}`;
   }

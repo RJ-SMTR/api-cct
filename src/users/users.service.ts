@@ -649,6 +649,7 @@ export class UsersService {
       'FROM public."user" U inner join invite i on  U.id = i."userId" ' +
       'inner join invite_status iv on iv.id = i."inviteStatusId" ' +
       'where u."bankCode" is null ' +
+      'and i."sentAt" <= now() - INTERVAL \'30 DAYS\' ' +
       'and "roleId" != 1 ' +
       'and i."inviteStatusId" != 2 ' +
       'order by U."fullName", i."sentAt" ',
