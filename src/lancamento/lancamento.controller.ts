@@ -133,7 +133,6 @@ export class LancamentoController {
   @Roles(
     RoleEnum.master,
     RoleEnum.admin_finan,
-    RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
   @Put('/authorize')
