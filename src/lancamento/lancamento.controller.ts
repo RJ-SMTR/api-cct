@@ -186,7 +186,6 @@ export class LancamentoController {
   @Get('/:id')
   @HttpCode(HttpStatus.OK)
   async getById(@Param('id') id: number) {
-    console.log('GET BY ID', id);
     return await this.lancamentoService.getById(id);
   }
 }
