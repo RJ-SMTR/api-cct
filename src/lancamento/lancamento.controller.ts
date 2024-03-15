@@ -177,7 +177,12 @@ export class LancamentoController {
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(RoleEnum.master, RoleEnum.admin_finan, RoleEnum.lancador_financeiro)
+  @Roles(
+    RoleEnum.master, 
+    RoleEnum.admin_finan, 
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro
+  )
   @Get('/:id')
   @HttpCode(HttpStatus.OK)
   async getById(@Param('id') id: number) {
