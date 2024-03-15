@@ -183,6 +183,27 @@ LIMIT 5
         status: new Status(StatusEnum.active),
       },
 
+
+      //apagar após teste
+      {
+        fullName: 'teste approval',
+        email: 'approval@example.com',
+        password: 'secret',
+        permitCode: '',
+        cpfCnpj: this.cpfSamples?.[0],
+        role: { id: RoleEnum.lancador_financeiro } as Role,
+        status: { id: StatusEnum.active } as Status,
+      },
+      {
+        fullName: 'teste launcher',
+        email: 'launcher@example.com',
+        password: 'secret',
+        permitCode: '',
+        cpfCnpj: this.cpfSamples?.[0],
+        role: { id: RoleEnum.aprovador_financeiro } as Role,
+        status: { id: StatusEnum.active } as Status,
+      },
+
       // Development only
       ...(this.nodeEnv() === 'local' || this.nodeEnv() === 'test'
         ? ([
@@ -193,24 +214,6 @@ LIMIT 5
             permitCode: '213890329890312',
             cpfCnpj: this.cpfSamples?.[0],
             role: { id: RoleEnum.user } as Role,
-            status: { id: StatusEnum.active } as Status,
-          },
-          {
-            fullName: 'teste approval',
-            email: 'approval@example.com',
-            password: 'secret',
-            permitCode: '',
-            cpfCnpj: this.cpfSamples?.[0],
-            role: { id: RoleEnum.lancador_financeiro } as Role,
-            status: { id: StatusEnum.active } as Status,
-          },
-          {
-            fullName: 'teste launcher',
-            email: 'launcher@example.com',
-            password: 'secret',
-            permitCode: '',
-            cpfCnpj: this.cpfSamples?.[0],
-            role: { id: RoleEnum.aprovador_financeiro } as Role,
             status: { id: StatusEnum.active } as Status,
           },
           {
