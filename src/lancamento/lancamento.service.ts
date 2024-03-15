@@ -80,10 +80,8 @@ export class LancamentoService {
   
     const sumOfValues = filteredResponse.reduce((acc, curr) => acc + Number(curr.valor), 0);
 
-    console.log(sumOfValues)
-
     const resp = {
-      valor_autorizado: Number(sumOfValues),
+      valor_autorizado: String(sumOfValues),
     }
   
     return resp;
