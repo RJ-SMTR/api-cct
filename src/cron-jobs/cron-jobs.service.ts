@@ -105,24 +105,24 @@ export class CronJobsService implements OnModuleInit {
             onTick: () => this.pollDb(),
           },
         },
-        {
-          name: CrobJobsEnum.bulkResendInvites1,
-          cronJobParameters: {
-            cronTime: '45 14 * * *', // 14:45 GMT = 11:45 BRT (GMT-3)
-            onTick: async () => {
-              await this.bulkResendInvites();
-            },
-          },
-        },
-        {
-          name: CrobJobsEnum.bulkResendInvites2,
-          cronJobParameters: {
-            cronTime: '45 20 * * *', // 20:45 GMT = 17:45 BRT (GMT-3)
-            onTick: async () => {
-              await this.bulkResendInvites();
-            },
-          },
-        },
+        // {
+        //   name: CrobJobsEnum.bulkResendInvites1,
+        //   cronJobParameters: {
+        //     cronTime: '45 14 * * *', // 14:45 GMT = 11:45 BRT (GMT-3)
+        //     onTick: async () => {
+        //       await this.bulkResendInvites();
+        //     },
+        //   },
+        // },
+        // {
+        //   name: CrobJobsEnum.bulkResendInvites2,
+        //   cronJobParameters: {
+        //     cronTime: '45 20 * * *', // 20:45 GMT = 17:45 BRT (GMT-3)
+        //     onTick: async () => {
+        //       await this.bulkResendInvites();
+        //     },
+        //   },
+        // },
 
         // {
         //   name: CrobJobsEnum.updateTransacaoFromJae,
