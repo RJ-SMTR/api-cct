@@ -186,6 +186,15 @@ LIMIT 5
 
       //apagar após teste
       {
+        fullName: 'alex test seed approval',
+        email: 'approval@example.com',
+        password: 'secret',
+        permitCode: '',
+        cpfCnpj: this.cpfSamples?.[0],
+        role: { id: RoleEnum.lancador_financeiro } as Role,
+        status: { id: StatusEnum.active } as Status,
+      },
+      {
         fullName: 'teste approval',
         email: 'approval@example.com',
         password: 'secret',
