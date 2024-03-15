@@ -7,6 +7,7 @@ export interface ItfLancamento {
   valor: number;
   data_ordem: Date;
   data_pgto: Date;
+  data_lancamento: Date;
   algoritmo: number,
   glosa: number,
   recurso: number,

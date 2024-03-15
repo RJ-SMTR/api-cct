@@ -23,6 +23,7 @@ export class LancamentoService {
     year: number,
   ): Promise<ItfLancamento[]> {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
+    console.log(startDate, endDate)
     const lancamentos = await this.lancamentoRepository.find({
       where: {
         data_lancamento: Between(startDate, endDate),
@@ -159,9 +160,11 @@ export class LancamentoService {
     if (period === 1) {
       startDate = new Date(year, month - 1, 1);
       endDate = new Date(year, month - 1, 15);
+      endDate.setHours(23, 59, 59);
     } else if (period === 2) {
       startDate = new Date(year, month - 1, 16);
       endDate = new Date(year, month, 0);
+      endDate.setHours(23, 59, 59);
     } else {
       throw new Error('Invalid period. Period should be 1 or 2.');
     }
