@@ -7,7 +7,7 @@ import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-st
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
-import { formatLog } from 'src/utils/log-utils';
+import { logWarn } from 'src/utils/log-utils';
 import { MaybeType } from '../utils/types/maybe.type';
 import { EhloStatus } from './enums/ehlo-status.enum';
 import { MailData } from './interfaces/mail-data.interface';
@@ -76,11 +76,9 @@ export class MailService {
       [emailConfirmTitle] = await Promise.all([i18n.t('common.confirmEmail')]);
     } else {
       [emailConfirmTitle] = ['Confirme seu email'];
-      this.logger.warn(
-        formatLog(
-          'módulo i18n não encontrou templates de email, usando valores padrão',
-          'userConcludeRegistration()',
-        ),
+      logWarn(this.logger,
+        'módulo i18n não encontrou templates de email, usando valores padrão',
+        'userConcludeRegistration()',
       );
     }
 
@@ -89,11 +87,9 @@ export class MailService {
     });
     const emailConfirmLink = `${frontendDomain}conclude-registration/${mailData.data.hash}`;
     if (!mailData.data.userName) {
-      this.logger.warn(
-        formatLog(
-          'user.fullName não encontrado, usando nome padrão.',
-          'userConcludeRegistration()',
-        ),
+      logWarn(this.logger,
+        'user.fullName não encontrado, usando nome padrão.',
+        'userConcludeRegistration()',
       );
     }
     try {

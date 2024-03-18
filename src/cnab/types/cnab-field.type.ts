@@ -23,11 +23,12 @@ export type CnabFieldAs<T> = {
 };
 
 /**
- * Input: optional.
+ * Input: optional. When reading Retorno.
  * - `undefined`: Current date will be used as input of new Date()
  * - `string`: Will use date-fns date format
  *
- * Output: mandatory. Desired string output format. Will use date-fns date format
+ * Output: mandatory. When writing Remessa.
+ * - Desired string output format. Will use date-fns date format
  *
  * @see{@link https://date-fns.org/v3.3.1/docs/format}
  */

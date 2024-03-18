@@ -59,7 +59,7 @@ export class ClienteFavorecido extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   uf: string | null;
-
+  
   public getLogInfo(showName?: boolean): string {
     if (showName === undefined) {
       showName = false;

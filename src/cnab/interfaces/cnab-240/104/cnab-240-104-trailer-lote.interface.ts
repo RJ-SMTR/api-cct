@@ -1,11 +1,13 @@
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
 import {
   CnabField,
-  CnabFieldAs,
-  CnabFields,
+  CnabFieldAs
 } from '../../../types/cnab-field.type';
 
-export interface ICnab240_104TrailerLote extends CnabFields {
+/**
+ * @extends {CnabFields}
+ */
+export interface ICnab240_104TrailerLote {
   codigoBanco: CnabField;
   /** O mesmo valor que o `HeaderLote.loteServico` deste lote. */
   loteServico: CnabField;

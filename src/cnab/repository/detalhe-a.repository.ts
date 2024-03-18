@@ -6,6 +6,8 @@ import { Nullable } from 'src/utils/types/nullable.type';
 import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { DetalheADTO } from '../dto/detalhe-a.dto';
 import { DetalheA } from '../entity/detalhe-a.entity';
+import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 
 @Injectable()
 export class DetalheARepository {
@@ -25,17 +27,26 @@ export class DetalheARepository {
   public async findOne(
     fields: EntityCondition<DetalheA> | EntityCondition<DetalheA>[],
   ): Promise<Nullable<DetalheA>> {
-    return await this.detalheARepository.findOne({
+    const one = await this.detalheARepository.findOne({
       where: fields,
     });
+    if (one) {
+      await this.forceEager(one)
+    }
+    return one;
   }
 
   public async findMany(
     fields: EntityCondition<DetalheA> | EntityCondition<DetalheA>[],
   ): Promise<DetalheA[]> {
-    return await this.detalheARepository.find({
+    const many = await this.detalheARepository.find({
       where: fields,
+      loadEagerRelations: true,
     });
+    for (const one of many) {
+      await this.forceEager(one)
+    }
+    return many;
   }
 
   /**
@@ -50,5 +61,23 @@ export class DetalheARepository {
         { createdAt: LessThanOrEqual(endOfDay(date)) },
       ]
     }) + 1;
+  }
+
+  /**
+   * For some reason the default eager of ClienteFavorecido doesnt get columns like cpfCnpj.
+   * 
+   * So we query separately the Entity and use it.
+   */
+  private async forceEager(one: DetalheA) {
+    if (one.clienteFavorecido) {
+      const favorecidos: ClienteFavorecido[] = await this.detalheARepository
+        .query('SELECT * from cliente_favorecido c WHERE c.id = $1', [one.clienteFavorecido.id]);
+      const favorecido = favorecidos.pop();
+      if (!favorecido) {
+        throw CommonHttpException.details(
+          `DetalheA #${one.id} não encontrou ClienteFavorecido #${one.clienteFavorecido.id}.`);
+      }
+      one.clienteFavorecido = favorecido;
+    }
   }
 }

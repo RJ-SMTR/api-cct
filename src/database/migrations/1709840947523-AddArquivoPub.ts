@@ -9,7 +9,7 @@ export class AddArquivoPub1709840947523 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "header_arquivo" ADD "dataGeracao" character varying`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" ADD "horaGeracao" TIME`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" ADD "nsa" integer NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "header_arquivo" ADD CONSTRAINT "UQ_785f0108ddcd63b34b2574b4a2d" UNIQUE ("nsa")`);
+        // await queryRunner.query(`ALTER TABLE "header_arquivo" ADD CONSTRAINT "UQ_785f0108ddcd63b34b2574b4a2d" UNIQUE ("nsa")`);
         await queryRunner.query(`ALTER TABLE "detalhe_a" ALTER COLUMN "clienteFavorecido" SET NOT NULL`);
         await queryRunner.query(`ALTER TABLE "arquivo_publicacao" ADD CONSTRAINT "FK_9034ea1202b6574b75a2304d419" FOREIGN KEY ("headerArquivoId") REFERENCES "header_arquivo"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
     }
@@ -17,7 +17,7 @@ export class AddArquivoPub1709840947523 implements MigrationInterface {
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE "arquivo_publicacao" DROP CONSTRAINT "FK_9034ea1202b6574b75a2304d419"`);
         await queryRunner.query(`ALTER TABLE "detalhe_a" ALTER COLUMN "clienteFavorecido" DROP NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "header_arquivo" DROP CONSTRAINT "UQ_785f0108ddcd63b34b2574b4a2d"`);
+        // await queryRunner.query(`ALTER TABLE "header_arquivo" DROP CONSTRAINT "UQ_785f0108ddcd63b34b2574b4a2d"`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" DROP COLUMN "nsa"`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" DROP COLUMN "horaGeracao"`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" DROP COLUMN "dataGeracao"`);

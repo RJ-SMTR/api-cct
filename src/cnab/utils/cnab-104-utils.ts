@@ -13,6 +13,7 @@ import { cnab240_104HeaderLoteTemplate } from '../templates/cnab-240/104/cnab-24
 import { cnab240_104TrailerArquivoTemplate } from '../templates/cnab-240/104/cnab-240-104-trailer-arquivo-template.const';
 import { cnab240_104TrailerLoteTemplate } from '../templates/cnab-240/104/cnab-240-104-trailer-lote-template.const';
 import { cnabAll104FieldMapTemplate as fieldMapTemplate } from '../templates/cnab-all/cnab-all-104-registro-field-map-template';
+import { CnabFields } from '../types/cnab-field.type';
 import { CnabFile } from '../types/cnab-file.type';
 import { CnabLote } from '../types/cnab-lote.type';
 import { CnabRegistro } from '../types/cnab-registro.type';
@@ -128,9 +129,9 @@ function getSomarioValoresCnabLote(lote: ICnab240_104Lote): number {
 
 export function getCnab104FromFile(cnab: CnabFile): ICnab240_104File {
   return {
-    headerArquivo: cnab.headerArquivo.fields as ICnab240_104HeaderArquivo,
+    headerArquivo: (cnab.headerArquivo.fields as unknown as ICnab240_104HeaderArquivo),
     lotes: getCnab104Lotes(cnab.lotes),
-    trailerArquivo: cnab.trailerArquivo.fields as ICnab240_104TrailerArquivo,
+    trailerArquivo: (cnab.trailerArquivo.fields as unknown as ICnab240_104TrailerArquivo),
   };
 }
 
@@ -138,9 +139,9 @@ function getCnab104Lotes(lotes: CnabLote[]): ICnab240_104Lote[] {
   const newLotes: ICnab240_104Lote[] = [];
   for (const lote of lotes) {
     newLotes.push({
-      headerLote: lote.headerLote.fields as ICnab240_104HeaderLote,
+      headerLote: (lote.headerLote.fields as unknown as ICnab240_104HeaderLote),
       registros: getCnab104Registros(lote),
-      trailerLote: lote.trailerLote.fields as ICnab240_104TrailerLote,
+      trailerLote: (lote.trailerLote.fields as unknown as ICnab240_104TrailerLote),
     });
   }
   return newLotes;
@@ -198,12 +199,12 @@ function isNewCnab104RegistroSet(registro: CnabRegistro): boolean {
 export function getCnabFileFrom104(cnab: ICnab240_104File): CnabFile {
   return {
     headerArquivo: {
-      fields: cnab.headerArquivo,
+      fields: (cnab.headerArquivo as unknown as CnabFields),
       fieldMap: fieldMapTemplate.headerArquivo,
     },
     lotes: getCnabLotesFrom104(cnab.lotes),
     trailerArquivo: {
-      fields: cnab.trailerArquivo,
+      fields: (cnab.trailerArquivo as unknown as CnabFields),
       fieldMap: fieldMapTemplate.trailerArquivo,
     },
   };
@@ -216,12 +217,12 @@ function getCnabLotesFrom104(lotes: ICnab240_104Lote[]): CnabLote[] {
 function getCnabLoteFrom104(lote: ICnab240_104Lote): CnabLote {
   return {
     headerLote: {
-      fields: lote.headerLote,
+      fields: (lote.headerLote as unknown as CnabFields),
       fieldMap: fieldMapTemplate.headerLote,
     },
     registros: getCnabRegistrosFrom104(lote.registros),
     trailerLote: {
-      fields: lote.trailerLote,
+      fields: (lote.trailerLote as unknown as CnabFields),
       fieldMap: fieldMapTemplate.trailerLote,
     },
   };

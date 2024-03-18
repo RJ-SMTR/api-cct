@@ -8,6 +8,12 @@ function isCreate(object: DetalheADTO): boolean {
 }
 
 export class DetalheADTO {
+  constructor(dto?: DetalheADTO) {
+    if (dto) {
+      Object.assign(this, dto);
+    }
+  }
+
   id?: number;
 
   @ValidateIf(isCreate)

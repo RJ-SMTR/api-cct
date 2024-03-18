@@ -2,25 +2,36 @@
  * Simple pipe helpers
  */
 
+import { isDate } from "date-fns";
 import { getDateFromString } from "./date-utils";
 import { CommonHttpException } from "./http-exception/common-http-exception";
 
-export function asString(str: string | null | undefined, fieldName?: string): string {
-  const field = fieldName || 'String';
+export function asStringOrEmpty(str: string | null | undefined, message?: string): string {
+  if (str === null || str === undefined){
+    return '';
+  }
   if (typeof str !== 'string') {
     throw CommonHttpException.details(
-      `${field} is not string, but ${str}`,
+      message || `value is not string, but ${typeof str}, value: ${str}`,
     );
   }
   return str;
 }
 
-export function asFilledString(str: string | null | undefined, fieldName?: string): string {
-  const field = fieldName || 'String';
-  const validStr = asString(str);
+export function asString(str: string | null | undefined, errMsg?: string): string {
+  if (typeof str !== 'string') {
+    throw CommonHttpException.details(
+      `${errMsg || 'String'} is not string, but ${typeof str}, value: ${str}`,
+    );
+  }
+  return str;
+}
+
+export function asFilledString(str: string | null | undefined, errMsg?: string): string {
+  const validStr = asString(str, errMsg);
   if (validStr?.length === 0) {
     throw CommonHttpException.details(
-      `${field} should not be empty`,
+      errMsg || `String should not be empty`,
     );
   }
   return validStr;
@@ -28,17 +39,38 @@ export function asFilledString(str: string | null | undefined, fieldName?: strin
 
 export function asDate(date: Date | null | undefined, fieldName?: string): Date {
   const field = fieldName || 'Date';
-  if (date === null || date === undefined) {
+  if (date === null || date === undefined || !isDate(date)) {
     throw CommonHttpException.details(
-      `${field} is not string, but ${date}`,
+      `${field} is not Date, but ${typeof date}, value: ${date}`,
     );
   }
   else if (isNaN(date.getDate())) {
     throw CommonHttpException.details(
-      `${field} is invalid date, but ${date}`,
+      `${field} is invalid date, but ${typeof date}, value: ${date}`,
     );
   }
   return date;
+}
+
+export function asNullableStringOrDateTime(str: string | Date | null | undefined, date?: Date | null | undefined, inputFormat?: string, fieldName?: string): Date | null {
+  const field = fieldName ? fieldName : 'StringDate';
+  if (typeof str === 'string') {
+    const validStr = asString(str);
+    const baseTime = new Date(`0 ${validStr}`);
+    const time = date ? new Date(date) : new Date();
+    time.setHours(baseTime.getHours(), baseTime.getMinutes(), baseTime.getSeconds());
+    return time;
+  }
+  else if (!str) {
+    return null;
+  }
+  else if (isDate(str)) {
+    return str;
+  } else {
+    throw CommonHttpException.details(
+      `${field} should be nullable string | date , but got ${typeof str}, value: ${str}`,
+    );
+  }
 }
 
 export function asStringDate(str: string | null | undefined, inputFormat?: string, fieldName?: string): Date {
@@ -50,6 +82,26 @@ export function asStringDate(str: string | null | undefined, inputFormat?: strin
 export function asNullableStringDate(str: string | null | undefined, inputFormat?: string, fieldName?: string): Date | null {
   const field = fieldName ? fieldName : 'NullableStringDate';
   return str ? asStringDate(str, inputFormat, field) : null;
+}
+
+export function asStringOrNumber(val: string | number | null | undefined, fieldName?: string): number {
+  const field = fieldName || 'StringOrNumber';
+  if (typeof val === 'string') {
+    return asStringNumber(val, field);
+  } else {
+    return asNumber(val, field);
+  }
+}
+
+export function asNullableStringOrNumber(val: string | number | null | undefined, fieldName?: string): number | null {
+  const field = fieldName || 'StringOrNumber';
+  if (typeof val === 'string') {
+    return asStringNumber(val, field);
+  } else if (typeof val === 'number') {
+    return asNumber(val, field);
+  } else {
+    return null;
+  }
 }
 
 export function asStringNumber(str: string | null | undefined, fieldName?: string, allowNaN = false): number {

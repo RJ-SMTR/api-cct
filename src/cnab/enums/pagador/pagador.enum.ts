@@ -1,4 +1,4 @@
 export enum PagadorContaEnum {
-  JAE = '71083',
-  FASE_4 = '22222',
+  JAE = '000000071083',
+  FASE_4 = '000000022222',
 }

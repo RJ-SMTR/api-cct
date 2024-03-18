@@ -7,6 +7,12 @@ function isCreate(object: DetalheBDTO): boolean {
 }
 
 export class DetalheBDTO {
+  constructor(dto?: DetalheBDTO) {
+    if (dto) {
+      Object.assign(this, dto);
+    }
+  }
+
   id?: number;
 
   @ValidateIf(isCreate)

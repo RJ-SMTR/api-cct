@@ -1,16 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { format } from 'date-fns';
+import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
-import { getBRTFromUTC } from 'src/utils/date-utils';
-import { formatError, formatLog } from 'src/utils/log-utils';
-import { ICnab240_104File } from '../interfaces/cnab-240/104/cnab-240-104-file.interface';
+import { logError, logLog } from 'src/utils/log-utils';
 import { parseCnab240_104 } from '../utils/cnab-104-utils';
 import { HeaderArquivoService } from './header-arquivo.service';
 import { TransacaoService } from './transacao.service';
 
 @Injectable()
 export class CnabService {
-  private readonly REMESSA_FOLDER = '/remessa';
   private logger: Logger = new Logger('HeaderArquivoService', {
     timestamp: true,
   });
@@ -50,65 +47,50 @@ export class CnabService {
       try {
         const { cnabString, cnabTables } = await this.headerArquivoService.generateCnab(transacao);
         await this.headerArquivoService.saveRemessa(cnabTables);
-        await this.sftpService.submitFromString(cnabString, `${this.REMESSA_FOLDER}/${this.getRemessaName()}`);
+        await this.sftpService.submitCnabRemessa(cnabString);
       } catch (error) {
-        this.logger.error(formatError(
-          `Ao adicionar a transação #${transacao.id} houve erro, ignorando...`, error, error, METHOD
-        ));
+        logError(this.logger,
+          `Ao adicionar a transação #${transacao.id} houve erro, ignorando...`, METHOD, error, error);
       }
     }
 
     // Log
     if (allNewTransacao.length === 0) {
-      this.logger.log(formatLog(
-        'Sem Transacao novas para criar CNAB. Tarefa finalizada.', METHOD
-      ));
+      logLog(this.logger, 'Sem Transacao novas para criar CNAB. Tarefa finalizada.', METHOD);
       return;
     }
-  }
-
-  /**
-   * @example 'smtr_prefeiturarj_31122024_235959.txt'
-   */
-  private getRemessaName() {
-    const now = getBRTFromUTC(new Date());
-    const stringDate = format(now, `ddMMyy_HHmmss`);
-    return `smtr_prefeiturarj_${stringDate}.txt`;
   }
 
   /**
    * This task will:
    * 1. Get retorno from SFTP
    * 2. Save retorno to CNAB tables
-   * 3. If successfull, move retorno to backup folder
-   * 
-   * @throws `Error` if any subtask throws
+   * 3.  - If successfull, move retorno to backup folder.
+   *     - If failed, move retorno to backup/failure folder
    */
   public async updateRetorno() {
     const METHOD = 'updateRetorno()';
     // Get retorno
     const { cnabString, cnabName } = await this.sftpService.getFirstCnabRetorno();
     if (!cnabName || !cnabString) {
-      this.logger.log(formatLog('Retorno não encontrado, abortando tarefa.', METHOD));
+      logLog(this.logger, 'Retorno não encontrado, abortando tarefa.', METHOD);
       return;
     }
 
-    // Save retorno, move backup
-    const retorno104 = parseCnab240_104(cnabString);
-    if (this.salvarRetorno(retorno104)) {
-      await this.sftpService.backupCnabRetorno(cnabName);
+    // Save Retorno, ArquivoPublicacao, move SFTP to backup
+    try {
+      const retorno104 = parseCnab240_104(cnabString);
+      await this.headerArquivoService.saveArquivoRetorno(retorno104);
+      await this.headerArquivoService.compareRemessaToRetorno();
+      await this.sftpService.backupCnabRetorno(cnabName, SftpBackupFolder.RetornoSuccess);
     }
-  }
-
-  // CHAMAR MÉTODO PARA SALVAR RETORNO NO BANCO
-  salvarRetorno(a: ICnab240_104File): boolean {
-    console.log(a);
-    return true;
-  }
-
-  public async getArquivoRetornoCNAB() {
-    //await this.headerArquivoService.saveArquivoRetorno();
-    await this.headerArquivoService.compareRemessaToRetorno();
+    catch (error) {
+      logError(this.logger,
+        'Erro ao processar CNAB retorno, movendo para backup de erros e finalizando...',
+        METHOD, error, error);
+      await this.sftpService.backupCnabRetorno(cnabName, SftpBackupFolder.RetornoFailure);
+      return;
+    }
   }
 
 }

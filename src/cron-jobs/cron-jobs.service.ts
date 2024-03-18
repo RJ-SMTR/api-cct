@@ -14,10 +14,7 @@ import { ISettingData } from 'src/settings/interfaces/setting-data.interface';
 import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import {
-  formatError as formatErrorLog,
-  formatLog
-} from 'src/utils/log-utils';
+import { logError, logLog } from 'src/utils/log-utils';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -64,7 +61,7 @@ export class CronJobsService implements OnModuleInit {
   onModuleInit() {
     const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
     (async () => {
-      await this.updateRemessa();
+      await this.updateRetorno();
       this.jobsConfig.push(
         {
           name: CrobJobsEnum.bulkSendInvites,
@@ -182,21 +179,15 @@ export class CronJobsService implements OnModuleInit {
         appSettings.any__activate_auto_send_invite,
       );
     if (!activateAutoSendInvite) {
-      this.logger.error(
-        formatLog(
-          `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' não foi encontrado no banco.`,
-          THIS_METHOD,
-        ),
-      );
+      logLog(this.logger,
+        `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' não foi encontrado no banco.`,
+        THIS_METHOD);
       return;
     } else if (activateAutoSendInvite.getValueAsBoolean() === false) {
-      this.logger.log(
-        formatLog(
-          `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` +
-          ` Para ativar, altere na tabela 'setting'`,
-          THIS_METHOD,
-        ),
-      );
+      logLog(this.logger,
+        `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` +
+        ` Para ativar, altere na tabela 'setting'`,
+        THIS_METHOD);
       return;
     }
 
@@ -206,13 +197,11 @@ export class CronJobsService implements OnModuleInit {
     const remainingQuota = await this.mailHistoryService.getRemainingQuota();
     const dailyQuota = () => this.configService.getOrThrow('mail.dailyQuota');
 
-    this.logger.log(
-      formatLog(
-        `Iniciando tarefa - a enviar: ${unsent.length},` +
-        ` enviado: ${sentToday.length}/${dailyQuota()},` +
-        ` falta enviar: ${remainingQuota}`,
-        THIS_METHOD,
-      ),
+    logLog(this.logger,
+      `Iniciando tarefa - a enviar: ${unsent.length},` +
+      ` enviado: ${sentToday.length}/${dailyQuota()},` +
+      ` falta enviar: ${remainingQuota}`,
+      THIS_METHOD,
     );
 
     for (let i = 0; i < remainingQuota && i < unsent.length; i++) {
@@ -222,12 +211,9 @@ export class CronJobsService implements OnModuleInit {
 
       // User mail error
       if (!user?.email) {
-        this.logger.error(
-          formatLog(
-            `Usuário não tem email válido (${user?.email}), este email não será enviado.`,
-            THIS_METHOD,
-          ),
-        );
+        logError(this.logger,
+          `Usuário não tem email válido (${user?.email}), este email não será enviado.`,
+          THIS_METHOD);
         invite.setInviteError({
           httpErrorCode: HttpStatus.UNPROCESSABLE_ENTITY,
           smtpErrorCode: null,
@@ -278,18 +264,16 @@ export class CronJobsService implements OnModuleInit {
             },
             THIS_CLASS_AND_METHOD,
           );
-          this.logger.log(formatLog('Email enviado com sucesso.', THIS_METHOD));
+          logLog(this.logger, 'Email enviado com sucesso.', THIS_METHOD);
         }
 
         // SMTP error
         else {
-          this.logger.error(
-            formatErrorLog(
-              'Email enviado retornou erro.',
-              mailSentInfo,
-              new Error(),
-              THIS_METHOD,
-            ),
+          logError(this.logger,
+            'Email enviado retornou erro.',
+            THIS_METHOD,
+            mailSentInfo,
+            new Error(),
           );
           invite.setInviteError({
             httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -311,13 +295,11 @@ export class CronJobsService implements OnModuleInit {
 
         // API error
       } catch (httpException) {
-        this.logger.error(
-          formatErrorLog(
-            'Email falhou ao enviar.',
-            httpException,
-            httpException as Error,
-            THIS_METHOD,
-          ),
+        logError(this.logger,
+          'Email falhou ao enviar.',
+          THIS_METHOD,
+          httpException,
+          httpException as Error,
         );
         invite.httpErrorCode = httpException.statusCode;
         invite.setInviteError({
@@ -343,55 +325,43 @@ export class CronJobsService implements OnModuleInit {
         ...(unsent.length == 0 ? ['no mails to sent'] : []),
         ...(remainingQuota == 0 ? ['no remaining quota'] : []),
       ];
-      this.logger.log(
-        formatLog(`Tarefa cancelada pois ${reasons.join(' e ')}`, THIS_METHOD),
-      );
+      logLog(this.logger, `Tarefa cancelada pois ${reasons.join(' e ')}`, THIS_METHOD);
     } else {
-      this.logger.log(formatLog('Tarefa finalizada com sucesso.', THIS_METHOD));
+      logLog(this.logger, 'Tarefa finalizada com sucesso.', THIS_METHOD);
     }
   }
 
   async sendStatusReport() {
-    this.logger.log(formatLog('Iniciando tarefa.', 'sendStatusReport()'));
+    logLog(this.logger, 'Iniciando tarefa.', 'sendStatusReport()');
     const THIS_METHOD = `${this.sendStatusReport.name}()`;
 
     const isEnabledFlag = await this.settingsService.findOneBySettingData(
       appSettings.any__mail_report_enabled,
     );
     if (!isEnabledFlag) {
-      this.logger.error(
-        formatLog(
-          `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' não foi encontrado no banco.`,
-          THIS_METHOD,
-        ),
-      );
+      logError(this.logger,
+        `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' não foi encontrado no banco.`,
+        THIS_METHOD);
       return;
     } else if (isEnabledFlag.getValueAsBoolean() === false) {
-      this.logger.log(
-        formatLog(
-          `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
-          ` Para ativar, altere na tabela 'setting'`,
-          THIS_METHOD,
-        ),
-      );
+      logLog(this.logger,
+        `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
+        ` Para ativar, altere na tabela 'setting'`,
+        THIS_METHOD);
       return;
     }
 
     if (!isEnabledFlag) {
-      this.logger.error(
-        formatLog(
-          `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' não foi encontrado no banco.`,
-          THIS_METHOD,
-        ),
+      logError(this.logger,
+        `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' não foi encontrado no banco.`,
+        THIS_METHOD,
       );
       return;
     } else if (isEnabledFlag.getValueAsBoolean() === false) {
-      this.logger.log(
-        formatLog(
-          `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
-          ` Para ativar, altere na tabela 'setting'`,
-          THIS_METHOD,
-        ),
+      logLog(this.logger,
+        `Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` +
+        ` Para ativar, altere na tabela 'setting'`,
+        THIS_METHOD,
       );
       return;
     }
@@ -402,24 +372,19 @@ export class CronJobsService implements OnModuleInit {
       );
 
     if (!mailRecipients) {
-      this.logger.error(
-        formatLog(
-          `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
-          ` não foi encontrada (retornou: ${mailRecipients}).`,
-          'sendStatusReport()',
-        ),
+      logError(this.logger,
+        `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
+        ` não foi encontrada (retornou: ${mailRecipients}).`,
+        'sendStatusReport()',
       );
       return;
     } else if (
       mailRecipients.some((i) => !validateEmail(i.getValueAsString()))
     ) {
-      this.logger.error(
-        formatLog(
-          `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
-          ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
-          THIS_METHOD,
-        ),
-      );
+      logError(this.logger,
+        `Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` +
+        ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`,
+        THIS_METHOD);
       return;
     }
 
@@ -438,38 +403,32 @@ export class CronJobsService implements OnModuleInit {
 
       // Success
       if (mailSentInfo.success === true) {
-        this.logger.log(
-          formatLog(
-            `Relatório enviado com sucesso para os emails ${emails}`,
-            THIS_METHOD,
-          ),
+        logLog(this.logger,
+          `Relatório enviado com sucesso para os emails ${emails}`,
+          THIS_METHOD,
         );
       }
 
       // SMTP error
       else {
-        this.logger.error(
-          formatErrorLog(
-            `Relatório enviado para os emails ${emails} retornou erro`,
-            mailSentInfo,
-            new Error(),
-            THIS_METHOD,
-          ),
+        logError(this.logger,
+          `Relatório enviado para os emails ${emails} retornou erro`,
+          THIS_METHOD,
+          mailSentInfo,
+          new Error(),
         );
       }
 
       // API error
     } catch (httpException) {
-      this.logger.error(
-        formatErrorLog(
-          `Email falhou ao enviar para ${emails}`,
-          httpException,
-          httpException as Error,
-          THIS_METHOD,
-        ),
+      logError(this.logger,
+        `Email falhou ao enviar para ${emails}`,
+        THIS_METHOD,
+        httpException,
+        httpException as Error,
       );
     }
-    this.logger.log(formatLog('Tarefa finalizada.', THIS_METHOD));
+    logLog(this.logger, 'Tarefa finalizada.', THIS_METHOD);
   }
 
   async pollDb() {
@@ -478,21 +437,17 @@ export class CronJobsService implements OnModuleInit {
       appSettings.any__poll_db_enabled,
     );
     if (!settingPollDbActive) {
-      this.logger.error(
-        formatLog(
-          `Tarefa cancelada pois 'setting.${appSettings.any__poll_db_enabled.name}' não foi encontrado no banco.`,
-          THIS_METHOD,
-        ),
+      logError(this.logger,
+        `Tarefa cancelada pois 'setting.${appSettings.any__poll_db_enabled.name}' não foi encontrado no banco.`,
+        THIS_METHOD,
       );
       return;
     }
     if (!settingPollDbActive.getValueAsBoolean()) {
-      this.logger.log(
-        formatLog(
-          `Tarefa cancelada pois setting.${appSettings.any__poll_db_enabled.name}' = 'false'` +
-          ` Para ativar, altere na tabela 'setting'`,
-          THIS_METHOD,
-        ),
+      logLog(this.logger,
+        `Tarefa cancelada pois setting.${appSettings.any__poll_db_enabled.name}' = 'false'` +
+        ` Para ativar, altere na tabela 'setting'`,
+        THIS_METHOD,
       );
       return;
     }
@@ -521,11 +476,9 @@ export class CronJobsService implements OnModuleInit {
     }
 
     if (hasDbChanges) {
-      this.logger.log(formatLog('Tarefa finalizada.', THIS_METHOD));
+      logLog(this.logger, 'Tarefa finalizada.', THIS_METHOD);
     } else {
-      this.logger.log(
-        formatLog('Tarefa finalizada, sem alterações no banco.', THIS_METHOD),
-      );
+      logLog(this.logger, 'Tarefa finalizada, sem alterações no banco.', THIS_METHOD);
     }
   }
 
@@ -544,23 +497,19 @@ export class CronJobsService implements OnModuleInit {
     const jobIndex = this.jobsConfig.findIndex((i) => i.name === args.cronJob);
     const job = this.jobsConfig[jobIndex];
     if (job.cronJobParameters.cronTime !== setting) {
-      this.logger.log(
-        formatLog(
-          `Alteração encontrada em` +
-          ` setting.'${args.setting.name}': ` +
-          `${job?.cronJobParameters.cronTime} --> ${setting}.`,
-          thisMethod,
-        ),
+      logLog(this.logger,
+        `Alteração encontrada em` +
+        ` setting.'${args.setting.name}': ` +
+        `${job?.cronJobParameters.cronTime} --> ${setting}.`,
+        thisMethod,
       );
       job.cronJobParameters.cronTime = setting;
       this.jobsConfig[jobIndex] = job;
       this.deleteCron(job);
       this.startCron(job);
-      this.logger.log(
-        formatLog(
-          `Tarefa reagendada: ${job.name}, ${job.cronJobParameters.cronTime}`,
-          thisMethod,
-        ),
+      logLog(this.logger,
+        `Tarefa reagendada: ${job.name}, ${job.cronJobParameters.cronTime}`,
+        thisMethod,
       );
       return true;
     }
@@ -618,19 +567,13 @@ export class CronJobsService implements OnModuleInit {
     const notRegisteredUsers = await this.usersService.getNotRegisteredUsers();
 
     if (notRegisteredUsers.length === 0) {
-      this.logger.log(
-        formatLog('Não há usuários para enviar, abortando...', THIS_METHOD),
-      );
+      logLog(this.logger, 'Não há usuários para enviar, abortando...', THIS_METHOD);
       return HttpStatus.NOT_FOUND;
     }
-    this.logger.log(
-      formatLog(
-        String(
-          'Enviando emails específicos para ' +
-          `${notRegisteredUsers.length} usuários não totalmente registrados`,
-        ),
-        THIS_METHOD,
-      ),
+    logLog(this.logger,
+      'Enviando emails específicos para ' +
+      `${notRegisteredUsers.length} usuários não totalmente registrados`,
+      THIS_METHOD,
     );
     for (const user of notRegisteredUsers) {
       await this.resendInvite(user, THIS_METHOD);
@@ -652,11 +595,9 @@ export class CronJobsService implements OnModuleInit {
       // Success
       if (mailSentInfo.success) {
         const mailHistory = await this.mailHistoryService.getOne({ user: { email: user.email as string } });
-        this.logger.log(
-          formatLog(
-            `Email enviado com sucesso para ${mailSentInfo.envelope.to}. (último envio: ${mailHistory.sentAt?.toISOString()})`,
-            THIS_METHOD,
-          ),
+        logLog(this.logger,
+          `Email enviado com sucesso para ${mailSentInfo.envelope.to}. (último envio: ${mailHistory.sentAt?.toISOString()})`,
+          THIS_METHOD,
         );
         await this.mailHistoryService.update(mailHistory.id, {
           sentAt: new Date(Date.now())
@@ -665,24 +606,20 @@ export class CronJobsService implements OnModuleInit {
 
       // SMTP error
       else {
-        this.logger.error(
-          formatErrorLog(
-            'Email enviado retornou erro.',
-            mailSentInfo,
-            new Error(),
-            THIS_METHOD,
-          ),
+        logError(this.logger,
+          'Email enviado retornou erro.',
+          THIS_METHOD,
+          mailSentInfo,
+          new Error(),
         );
       }
     } catch (httpException) {
       // API error
-      this.logger.error(
-        formatErrorLog(
-          'Email falhou ao enviar.',
-          httpException,
-          httpException as Error,
-          THIS_METHOD,
-        ),
+      logError(this.logger,
+        'Email falhou ao enviar.',
+        THIS_METHOD,
+        httpException,
+        httpException as Error,
       );
     }
   }
@@ -691,34 +628,16 @@ export class CronJobsService implements OnModuleInit {
     const METHOD = 'updateTransacaoFromJae()';
     try {
       await this.cnabService.updateTransacaoFromJae();
-      this.logger.log(formatLog(
+      logLog(this.logger,
         'Tabelas: Favorecido, Transacao e ItemTransacao atualizados com sucesso.',
         METHOD
-      ));
-    } catch (error) {
-      this.logger.error(
-        formatErrorLog(
-          'Erro, abortando.',
-          error,
-          error as Error,
-          METHOD,
-        ),
       );
-    }
-  }
-
-  async getRetornoCNAB() {
-    const METHOD = 'getRetornoCNAB()';
-    try {
-      await this.cnabService.getArquivoRetornoCNAB();
     } catch (error) {
-      this.logger.error(
-        formatErrorLog(
-          'Erro, abortando.',
-          error,
-          error as Error,
-          METHOD,
-        ),
+      logError(this.logger,
+        'Erro, abortando.',
+        METHOD,
+        error,
+        error as Error,
       );
     }
   }
@@ -728,13 +647,11 @@ export class CronJobsService implements OnModuleInit {
     try {
       await this.cnabService.updateRemessa();
     } catch (error) {
-      this.logger.error(
-        formatErrorLog(
-          'Erro, abortando.',
-          error,
-          error as Error,
-          METHOD,
-        ),
+      logError(this.logger,
+        'Erro, abortando.',
+        METHOD,
+        error,
+        error as Error,
       );
     }
   }
@@ -744,13 +661,11 @@ export class CronJobsService implements OnModuleInit {
     try {
       await this.cnabService.updateRetorno();
     } catch (error) {
-      this.logger.error(
-        formatErrorLog(
-          'Erro, abortando.',
-          error,
-          error as Error,
-          METHOD,
-        ),
+      logError(this.logger,
+        'Erro, abortando.',
+        METHOD,
+        error,
+        error as Error,
       );
     }
   }

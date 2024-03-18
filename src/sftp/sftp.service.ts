@@ -1,18 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { format } from 'date-fns';
 import { AllConfigType } from 'src/config/config.type';
-import { formatLog } from 'src/utils/log-utils';
+import { getBRTFromUTC } from 'src/utils/date-utils';
+import { logDebug } from 'src/utils/log-utils';
 import { ConnectConfig } from './interfaces/connect-config.interface';
-import { FileInfo } from './interfaces/file-info.interface';
 import { SftpClientService } from './sftp-client/sftp-client.service';
+import { SftpBackupFolder } from './enums/sftp-backup-folder.enum';
 
 @Injectable()
 export class SftpService {
   private readonly logger: Logger;
   private readonly REMESSA_FOLDER = '/remessa';
   private readonly RETORNO_FOLDER = '/retorno';
-  private readonly BACKUP_REMESSA = '/backup/remessa';
-  private readonly BACKUP_RETORNO_FOLDER = '/backup/retorno';
+  private readonly BACKUP_FOLDER = '/backup';
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly sftpClient: SftpClientService,
@@ -29,6 +30,9 @@ export class SftpService {
     }
   }
 
+  /**
+   * Reset connection with default NestJS SFTP settings
+   */
   private async connectClient() {
     await this.sftpClient.resetConnection(this.getClientCredentials());
   }
@@ -46,7 +50,7 @@ export class SftpService {
       const content = buffer.toString('utf-8');
       return content;
     } catch (error) {
-      this.logger.error(`Error downloading file from SFTP: ${error.message}`);
+      this.logger.error(`Erro ao baixar do SFTP: ${error.message}`);
       throw error;
     }
   }
@@ -65,7 +69,24 @@ export class SftpService {
     const METHOD = 'submitFromString()';
     await this.connectClient();
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
-    this.logger.debug(formatLog(`Arquivo carregado em ${remotePath}`, METHOD));
+    logDebug(this.logger, `Arquivo carregado em ${remotePath}`, METHOD);
+  }
+
+  async submitCnabRemessa(content: string) {
+    const METHOD = 'submitFromString()';
+    await this.connectClient();
+    const remotePath = `${this.REMESSA_FOLDER}/${this.getRemessaName()}`;
+    await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
+    logDebug(this.logger, `Arquivo CNAB carregado em ${remotePath}`, METHOD);
+  }
+
+  /**
+   * @example 'smtr_prefeiturarj_31122024_235959.txt'
+   */
+  private getRemessaName() {
+    const now = getBRTFromUTC(new Date());
+    const stringDate = format(now, `ddMMyy_HHmmss`);
+    return `smtr_prefeiturarj_${stringDate}.txt`;
   }
 
   /**
@@ -78,14 +99,19 @@ export class SftpService {
     cnabString: string | null,
   }> {
     await this.connectClient();
-    const fileInfo: FileInfo = await this.sftpClient.list(
+    const firstFile = (await this.sftpClient.list(
       this.RETORNO_FOLDER,
       this.getRegexForCnab('retorno'),
-    )[0];
-    const cnabPath = `${this.RETORNO_FOLDER}/${fileInfo.name}`;
+    )).pop();
+
+    if (!firstFile) {
+      return { cnabName: null, cnabString: null };
+    }
+
+    const cnabPath = `${this.RETORNO_FOLDER}/${firstFile.name}`;
     const cnabString =
       await this.downloadToString(cnabPath);
-    return { cnabName: fileInfo.name, cnabString };
+    return { cnabName: firstFile.name, cnabString };
   }
 
   /**
@@ -93,36 +119,18 @@ export class SftpService {
    * 
    * @param cnabName Name with extension. No folder path.
    */
-  public async backupCnabRetorno(cnabName: string) {
+  public async backupCnabRetorno(cnabName: string, folder: SftpBackupFolder) {
+    const METHOD = 'backupCnabRetorno()';
+    const originPath = `${this.RETORNO_FOLDER}/${cnabName}`;
+    const destPath = `${this.BACKUP_FOLDER}/${folder}/${cnabName}`;
     await this.connectClient();
-    await this.sftpClient.rename(
-      `${this.RETORNO_FOLDER}/${cnabName}`,
-      `${this.BACKUP_RETORNO_FOLDER}/${cnabName}`
-    );
+    await this.sftpClient.rename(originPath, destPath);
+    logDebug(this.logger, `Arquivo CNAB movido de '${originPath}' para ${destPath}`, METHOD);
   }
 
-  public getRegexForCnab(
-    fileType: 'remessa' | 'retorno',
-    startDate?: Date,
-    filter?: {
-      year?: boolean,
-      month?: boolean,
-      day?: boolean,
-      hour?: boolean,
-      min?: boolean,
-      sec?: boolean,
-    },
-  ): RegExp {
-    const fileTypeStr =
-      fileType === 'remessa' ? 'rem' : 'ret';
-    const year = startDate && filter?.year ? startDate.getFullYear() : '\\d{4}';
-    const month = startDate && filter?.month ? String(startDate.getMonth() + 1).padStart(2, '0') : '\\d{2}';
-    const day = startDate && filter?.day ? String(startDate.getDate()).padStart(2, '0') : '\\d{2}';
-    const hour = startDate && filter?.hour ? String(startDate.getHours()).padStart(2, '0') : '\\d{2}';
-    const minute = startDate && filter?.min ? String(startDate.getMinutes()).padStart(2, '0') : '\\d{2}';
-    const second = startDate && filter?.sec ? String(startDate.getSeconds()).padStart(2, '0') : '\\d{2}';
-    const regexString =
-      `smtrrj_${year}_${month}_${day}_${hour}_${minute}_${second}_${fileTypeStr}\\.txt`;
+  public getRegexForCnab(fileType: 'remessa' | 'retorno'): RegExp {
+    const fileTypeStr = fileType === 'remessa' ? 'rem' : 'ret';
+    const regexString = `smtr_prefeiturarj_\\d{6}_\\d{6}\\.${fileTypeStr}`;
     const regex = new RegExp(regexString);
     return regex;
   }

@@ -10,7 +10,7 @@ import { DetalheARepository } from '../repository/detalhe-a.repository';
 export class DetalheAService {
   private logger: Logger = new Logger('DetalheAService', { timestamp: true });
 
-  constructor(private detalheARepository: DetalheARepository) {}
+  constructor(private detalheARepository: DetalheARepository) { }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
     await validateDTO(DetalheADTO, dto);
@@ -32,5 +32,4 @@ export class DetalheAService {
   public async getNextNumeroDocumento(date: Date): Promise<number> {
     return await this.detalheARepository.getNextNumeroDocumento(date);
   }
-
 }

@@ -5,7 +5,7 @@ import { HeaderArquivo } from "./header-arquivo.entity";
 @Entity()
 export class ArquivoPublicacao extends EntityHelper {
   constructor(
-    arquivoPublicacao:ArquivoPublicacao | DeepPartial<ArquivoPublicacao>,
+    arquivoPublicacao: ArquivoPublicacao | DeepPartial<ArquivoPublicacao>,
   ) {
     super();
     if (arquivoPublicacao !== undefined) {
@@ -55,38 +55,41 @@ export class ArquivoPublicacao extends EntityHelper {
   dvContaPagador: string;
 
   @Column({ type: String, unique: false, nullable: false })
-  nomeCliente:string;
+  nomeCliente: string;
 
   @Column({ type: String, unique: false, nullable: false })
-  cpfCnpjCliente:string;
+  cpfCnpjCliente: string;
 
   @Column({ type: String, unique: false, nullable: false })
-  codigoBancoCliente:string;
+  codigoBancoCliente: string;
 
   @Column({ type: String, unique: false, nullable: false })
-  agenciaCliente:string;
+  agenciaCliente: string;
 
   @Column({ type: String, unique: false, nullable: false })
-  dvAgenciaCliente:string;
+  dvAgenciaCliente: string;
 
   @Column({ type: String, unique: false, nullable: false })
-  contaCorrenteCliente:string;
+  contaCorrenteCliente: string;
 
   @Column({ type: String, unique: false, nullable: false })
-  dvContaCorrenteCliente:string;
+  dvContaCorrenteCliente: string;
 
   @Column({ type: String, unique: false, nullable: false })
-  dtVencimento:Date;
+  dataVencimento: Date;
 
   @Column({ type: String, unique: false, nullable: false })
-  valorLancamento: number | null;
+  valorLancamento: number;
 
   @Column({ type: String, unique: false, nullable: false })
-  dataEfetivacao:Date;
+  dataEfetivacao: Date;
 
   @Column({ type: String, unique: false, nullable: false })
-  valorRealEfetivado: number | null;
+  valorRealEfetivado: number;
 
   @Column({ type: String, unique: false, nullable: true })
-  ocorrencias: string | null;
+  ocorrencias: string;
+
+  @Column({ type: Number, unique: false, nullable: false })
+  idDetalheARetorno: number;
 }

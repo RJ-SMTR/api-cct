@@ -11,8 +11,8 @@ export class HeaderLote extends EntityHelper {
   @ManyToOne(() => HeaderArquivo, { eager: true })
   headerArquivo: HeaderArquivo;
 
-  @Column({ type: String, unique: false, nullable: true })
-  loteServico: string | null;
+  @Column({ type: Number, unique: false, nullable: true })
+  loteServico: number | null;
 
   @Column({ type: String, unique: false, nullable: true })
   tipoInscricao: string | null;

@@ -1,7 +1,8 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { AfterLoad, Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { ClienteFavorecido } from './cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
+import { asNullableStringOrNumber } from 'src/utils/pipe-utils';
 
 @Entity()
 export class DetalheA extends EntityHelper {
@@ -32,7 +33,11 @@ export class DetalheA extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true })
   tipoMoeda: string | null;
 
-  @Column({ type: Number, unique: false, nullable: true })
+  @Column({
+    type: 'decimal', unique: false, nullable: true,
+    precision: 5,
+    scale: 10,
+  })
   quantidadeMoeda: number | null;
 
   @Column({
@@ -78,4 +83,15 @@ export class DetalheA extends EntityHelper {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  /**
+   * For some reason, fields like 'time', 'decimal'
+   * are received as string instead as Date, Number
+   */
+  @AfterLoad()
+  castFields() {
+    this.quantidadeMoeda = asNullableStringOrNumber(this.quantidadeMoeda);
+    this.valorLancamento = asNullableStringOrNumber(this.valorLancamento);
+    this.valorRealEfetivado = asNullableStringOrNumber(this.valorRealEfetivado);
+  }
 }

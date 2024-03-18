@@ -9,7 +9,7 @@ import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.
 import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
-import { formatLog } from 'src/utils/log-utils';
+import { logLog } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import {
@@ -41,13 +41,11 @@ export class MailHistoryService {
     const createdMail = await this.inviteRepository.save(
       this.inviteRepository.create(data),
     );
-    this.logger.log(
-      formatLog(
-        `Histórico de email ${createdMail.getLogInfoStr()}` +
-        ` criado com sucesso.`,
-        'create()',
-        logContext,
-      ),
+    logLog(this.logger,
+      `Histórico de email ${createdMail.getLogInfoStr()}` +
+      ` criado com sucesso.`,
+      'create()',
+      logContext,
     );
     return createdMail;
   }
@@ -152,13 +150,11 @@ export class MailHistoryService {
       }),
     );
     const updatedMail = await this.inviteRepository.findOneByOrFail({ id: id });
-    this.logger.log(
-      formatLog(
-        `Histórico de email ${updatedMail.getLogInfoStr()}` +
-        ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
-        'update()',
-        logContext,
-      ),
+    logLog(this.logger,
+      `Histórico de email ${updatedMail.getLogInfoStr()}` +
+      ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
+      'update()',
+      logContext,
     );
     return mailRespose;
   }

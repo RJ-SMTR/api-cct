@@ -49,7 +49,7 @@ export const cnab240_104DetalheBTemplate: ICnab240_104DetalheB = {
   /** DDMMAAAA - transacao.datetime_processamento */
   dataVencimento: {
     pos: [128, 135], picture: '9(008)', value: '00000000',
-    dateFormat: { output: Cnab104Const.cnabDateOutput }
+    dateFormat: Cnab104Const.dateFormat
   },
   /** Zeros */
   valorDocumento: {

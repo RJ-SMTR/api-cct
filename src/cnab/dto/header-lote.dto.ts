@@ -22,7 +22,7 @@ export class HeaderLoteDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  loteServico?: string | null;
+  loteServico?: number | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

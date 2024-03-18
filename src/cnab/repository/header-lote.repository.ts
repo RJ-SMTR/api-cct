@@ -15,7 +15,7 @@ export class HeaderLoteRepository {
   constructor(
     @InjectRepository(HeaderLote)
     private HeaderLoteRepository: Repository<HeaderLote>,
-  ) {}
+  ) { }
 
   public async save(dto: HeaderLoteDTO): Promise<HeaderLote> {
     return await this.HeaderLoteRepository.save(dto);

@@ -9,6 +9,7 @@ import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
 import { IsNull, Not } from 'typeorm';
+import { asString } from 'src/utils/pipe-utils';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -92,13 +93,13 @@ export class ClienteFavorecidoService {
   ): Promise<void> {
     const saveObject: SaveClienteFavorecidoDTO = {
       id: existingId_facorecido,
-      nome: user.getFullName(),
-      cpfCnpj: user.getCpfCnpj(),
+      nome: asString(user.fullName),
+      cpfCnpj: asString(user.cpfCnpj),
       codigoBanco: String(user.getBankCode()),
-      agencia: user.getBankAgencyWithoutDigit(),
-      dvAgencia: user.getBankAgencyDigit(),
-      contaCorrente: user.getBankAccount(),
-      dvContaCorrente: user.getBankAccountDigit(),
+      agencia: asString(user.getBankAgencyWithoutDigit()),
+      dvAgencia: asString(user.getBankAgencyDigit()),
+      contaCorrente: asString(user.getBankAccount()),
+      dvContaCorrente: asString(user.getBankAccountDigit()),
       logradouro: null,
       numero: null,
       complemento: null,

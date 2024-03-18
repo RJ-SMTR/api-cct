@@ -259,7 +259,7 @@ export function formatNumber(
 function validateFormatNumber(field: CnabField) {
   if (field.value === null || isNaN(Number(field.value))) {
     throw new Error(
-      `CnabField value (${field.value}) is not a valid number value.`,
+      `CnabField ${JSON.stringify(field)} is not a valid number value.`,
     );
   }
 }
@@ -350,7 +350,10 @@ export function getCnabFieldFromString(
 ): CnabField {
   const field = structuredClone(fieldDTO);
   const start = fieldDTO.pos[0] - 1;
-  const end = fieldDTO.pos[0] + fieldDTO.pos[1];
+  const end = fieldDTO.pos[1];
+  // if (cnabStringLine === '10400011E0440020 2005460370001100000000000000004205204064900600007108300CETT CTA ESTAB TARIFARIA TRANS                                        13032024000000000000000000CPBRL00001                                                              ') {
+  //   const a = 1;
+  // }
   field.value = cnabStringLine.slice(start, end);
   return field;
 }

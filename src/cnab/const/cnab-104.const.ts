@@ -1,4 +1,20 @@
+
 export const Cnab104Const = {
+
+  dateFormat: {
+    /** cnabDateOutput */
+    input: 'ddMMyyyy',
+    /** cnabDateOutput */
+    output: 'ddMMyyyy',
+  },
+
+  timeFormat: {
+    /** cnabTimeOutput */
+    input: 'HHmmss',
+    /** cnabTimeOutput */
+    output: 'HHmmss',
+  },
+  
   /** 
    * DDMMAAAA
    * 

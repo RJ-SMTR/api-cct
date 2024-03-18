@@ -47,6 +47,5 @@ export class TransacaoRepository {
       'LEFT JOIN header_arquivo ha ON ha."transacaoId" = t.id ' +
       'WHERE ha."transacaoId" IS NULL '
     ));
-
   }
 }

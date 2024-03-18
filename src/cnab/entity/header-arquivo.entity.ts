@@ -1,9 +1,17 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { asNullableStringOrDateTime } from 'src/utils/pipe-utils';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Transacao } from './transacao.entity';
 
 @Entity()
 export class HeaderArquivo extends EntityHelper {
+  constructor(dto?: DeepPartial<HeaderArquivo>) {
+    super();
+    if (dto) {
+      Object.assign(this, dto);
+    }
+  }
+
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -40,19 +48,31 @@ export class HeaderArquivo extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 100 })
   nomeEmpresa: string | null;
 
-  @Column({ type: String, unique: false, nullable: true })
+  @Column({ type: Date, unique: false, nullable: true })
   dataGeracao: Date | null;
 
   @Column({ type: 'time', unique: false, nullable: true })
   horaGeracao: Date | null;
 
-  @OneToOne(() => Transacao, { eager: true })
-  @JoinColumn()
+  @ManyToOne(() => Transacao, { eager: true })
   transacao: Transacao;
 
-  @Column({ type: Number, unique: true, nullable: false })
+  @Column({ type: Number, unique: false, nullable: false })
   nsa: number;
 
   @CreateDateColumn()
   createdAt: Date;
+
+  public getComposedPKLog(): string {
+    return `{ transacao: ${this.transacao.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;
+  }
+
+  /**
+   * For some reason, fields like 'time', 'decimal'
+   * are received as string instead as Date, Number
+   */
+  @AfterLoad()
+  castFields() {
+    this.horaGeracao = asNullableStringOrDateTime(this.horaGeracao, this.dataGeracao);
+  }
 }

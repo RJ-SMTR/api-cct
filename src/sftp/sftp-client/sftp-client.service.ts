@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as SftpClient from 'ssh2-sftp-client';
 import { ConnectConfig } from '../interfaces/connect-config.interface';
+import { FileInfo } from '../interfaces/file-info.interface';
 
 @Injectable()
 export class SftpClientService {
@@ -90,15 +91,29 @@ export class SftpClientService {
    * returns an array of objects representing items in the remote directory.
    *
    * @param remoteDirectory {String} Remote directory path
-   * @param pattern (optional) {string|RegExp} A pattern used to filter the items included in the returned array.
-   * Pattern can be a simple glob-style string or a regular expression. Defaults to /.* &#8205;/
-   *
+   * @param filter If string, filter where item.name includes filter substring.
+   * If RegExp, apply to item name.
+   * If function, it will add if return is `true`.
+   * If no filter, all items wil be returned.
    */
   async list(
     remoteDirectory: string,
-    pattern?: string | RegExp,
-  ): Promise<SftpClient.FileInfo[]> {
-    return await this.sftpClient.list(remoteDirectory, pattern);
+    filter?: string | RegExp | ((item: FileInfo) => boolean),
+  ): Promise<FileInfo[]> {
+    return await this.sftpClient.list(remoteDirectory, (item: FileInfo) => {
+      if (typeof filter === 'function') {
+        return filter(item);
+      }
+      else if (typeof filter === 'string') {
+        return item.name.includes(filter);
+      }
+      else if (filter) {
+        return item.name.match(filter);
+      }
+      else {
+        return true;
+      }
+    });
   }
 
   /**

@@ -1,7 +1,18 @@
+import { IsNotEmpty, ValidateIf } from 'class-validator';
 import { Pagador } from '../entity/pagador.entity';
 
+function isCreate(object: TransacaoDTO): boolean {
+  return object.id === undefined;
+}
+
 export class TransacaoDTO {
-  id: number;
+  constructor(dto?: TransacaoDTO) {
+    if (dto) {
+      Object.assign(this, dto);
+    }
+  }
+
+  id?: number;
   dataOrdem?: Date | null;
   dataPagamento?: Date | null;
   nomeConsorcio?: string | null;
@@ -20,5 +31,8 @@ export class TransacaoDTO {
   quantidadeTotalTransacaoCaptura?: number | null;
   valorTotalTransacaoCaptura?: number | null;
   indicadorOrdemValida?: boolean | null;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
   pagador?: Pagador;
 }

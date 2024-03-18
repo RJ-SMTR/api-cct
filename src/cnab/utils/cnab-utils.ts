@@ -263,18 +263,21 @@ export function parseCnabFile(cnabString: string, fileDTO: CnabFile): CnabFile {
   // get valid data
   const file = sc(fileDTO);
   const registrosDTO = getCnabRegistrosFromCnabFile(file);
-  const lines = cnabString.replace(/\r\n/g, '\n').split('\n');
+  const lines = cnabString.trim().replace(/\r\n/g, '\n').split('\n');
 
   // parse
-  setParseCnabHeaderTrailerArquivo(lines, registrosDTO);
+  setParseCnabHeaderTrailerArquivo(lines, registrosDTO, file);
   file.lotes = parseCnabLotes(lines, registrosDTO);
   return file;
 }
 
-function setParseCnabHeaderTrailerArquivo(lines: string[], registros: CnabRegistro[]) {
-  const lastIndex = registros.length - 1;
-  registros[0] = parseCnabRegistro(lines[0], registros[0]);
-  registros[lastIndex] = parseCnabRegistro(lines[lastIndex], registros[lastIndex]);
+/**
+ * Parse HeaderArquivo, TrailerArquivo directly to CnabRegistro
+ */
+function setParseCnabHeaderTrailerArquivo(lines: string[], registrosDTO: CnabRegistro[], file: CnabFile) {
+  const lastIndex = registrosDTO.length - 1;
+  file.headerArquivo = parseCnabRegistro(lines[0], registrosDTO[0]);
+  file.trailerArquivo = parseCnabRegistro(lines[lastIndex], registrosDTO[lastIndex]);
 }
 
 function parseCnabLotes(cnabAllLines: string[], registrosDTO: CnabRegistro[]): CnabLote[] {
@@ -345,14 +348,16 @@ function getCnabDetalheDTO(cnabRegistroLine: string, detalheDTO: CnabRegistro[])
   const errorJSON = JSON.stringify({ detalheDTO, cnabStringLine: cnabRegistroLine });
   for (const registroDTO of detalheDTO) {
     try {
-      const detalheCode = parseCnabField(
+      const lineDetalheCode = parseCnabField(
         cnabRegistroLine,
         getCnabMappedField(registroDTO, 'detalheSegmentoCodeField')
       ).value;
-      if (detalheCode) {
-        if (typeof detalheCode !== 'string') {
+      const DTODetalheCode = getCnabMappedField(registroDTO, 'detalheSegmentoCodeField').value;
+
+      if (lineDetalheCode && DTODetalheCode === lineDetalheCode) {
+        if (typeof lineDetalheCode !== 'string') {
           throw new Error(`Expected typeof detalheCode to be string but got ` +
-            `${typeof detalheCode}. ${errorJSON}`);
+            `${typeof lineDetalheCode}. ${errorJSON}`);
         }
         return registroDTO;
       }

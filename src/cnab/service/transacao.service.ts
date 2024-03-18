@@ -1,7 +1,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
-import { asString, asStringDate } from 'src/utils/pipe-utils';
+import { asNullableStringDate, asString, asStringDate } from 'src/utils/pipe-utils';
 import { ItemTransacaoDTO } from '../dto/item-transacao.dto';
 import { Transacao } from '../entity/transacao.entity';
 import { PagadorContaEnum } from '../enums/pagador/pagador.enum';
@@ -10,7 +10,7 @@ import { TransacaoDTO } from './../dto/transacao.dto';
 import { ClienteFavorecidoService } from './cliente-favorecido.service';
 
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
-import { formatLog } from 'src/utils/log-utils';
+import { logError } from 'src/utils/log-utils';
 import { InvalidRows } from 'src/utils/types/invalid-rows.type';
 import { validateDTO } from 'src/utils/validation-utils';
 import { Pagador } from '../entity/pagador.entity';
@@ -60,7 +60,7 @@ export class TransacaoService {
 
     // Log errors
     if (errors.length > 0) {
-      this.logger.error(formatLog(`O bigquery retornou itens inválidos: ${JSON.stringify(errors)}`, METHOD));
+      logError(this.logger, `O bigquery retornou itens inválidos: ${JSON.stringify(errors)}`, METHOD);
     }
   }
 
@@ -83,26 +83,27 @@ export class TransacaoService {
    */
   public ordemPagamentoToTransacao(ordemPagamento: BigqueryOrdemPagamentoDTO, idPagador: number,
   ): TransacaoDTO {
-    const transacao = new TransacaoDTO();
-    transacao.dataOrdem = asStringDate(ordemPagamento.dataOrdem);
-    transacao.dataPagamento = ((x = ordemPagamento.dataPagamento) => x ? asStringDate(x) : null)();
-    transacao.nomeConsorcio = ordemPagamento.consorcio;
-    transacao.nomeOperadora = ordemPagamento.operadora;
-    transacao.servico = ordemPagamento.servico;
-    transacao.idOrdemPagamento = asString(ordemPagamento.idOrdemPagamento);
-    transacao.idOrdemRessarcimento = ordemPagamento.idOrdemRessarcimento;
-    transacao.quantidadeTransacaoRateioCredito = ordemPagamento.quantidadeTransacaoRateioCredito;
-    transacao.valorRateioCredito = ordemPagamento.valorRateioCredito;
-    transacao.quantidadeTransacaoRateioDebito = ordemPagamento.quantidadeTransacaoRateioDebito;
-    transacao.valorRateioDebito = ordemPagamento.valorRateioDebito;
-    transacao.quantidadeTotalTransacao = ordemPagamento.quantidadeTotalTransacao;
-    transacao.valorTotalTransacaoBruto = ordemPagamento.valorTotalTransacaoBruto;
-    transacao.valorDescontoTaxa = ordemPagamento.valorDescontoTaxa;
-    transacao.valorTotalTransacaoLiquido = ordemPagamento.valorTotalTransacaoLiquido;
-    transacao.quantidadeTotalTransacaoCaptura = ordemPagamento.quantidadeTotalTransacaoCaptura;
-    transacao.valorTotalTransacaoCaptura = ordemPagamento.valorTotalTransacaoCaptura;
-    transacao.indicadorOrdemValida = ordemPagamento.indicadorOrdemValida;
-    transacao.pagador = { id: idPagador } as Pagador;
+    const transacao = new TransacaoDTO({
+      dataOrdem: asStringDate(ordemPagamento.dataOrdem),
+      dataPagamento: asNullableStringDate(ordemPagamento.dataPagamento),
+      nomeConsorcio: ordemPagamento.consorcio,
+      nomeOperadora: ordemPagamento.operadora,
+      servico: ordemPagamento.servico,
+      idOrdemPagamento: asString(ordemPagamento.idOrdemPagamento),
+      idOrdemRessarcimento: ordemPagamento.idOrdemRessarcimento,
+      quantidadeTransacaoRateioCredito: ordemPagamento.quantidadeTransacaoRateioCredito,
+      valorRateioCredito: ordemPagamento.valorRateioCredito,
+      quantidadeTransacaoRateioDebito: ordemPagamento.quantidadeTransacaoRateioDebito,
+      valorRateioDebito: ordemPagamento.valorRateioDebito,
+      quantidadeTotalTransacao: ordemPagamento.quantidadeTotalTransacao,
+      valorTotalTransacaoBruto: ordemPagamento.valorTotalTransacaoBruto,
+      valorDescontoTaxa: ordemPagamento.valorDescontoTaxa,
+      valorTotalTransacaoLiquido: ordemPagamento.valorTotalTransacaoLiquido,
+      quantidadeTotalTransacaoCaptura: ordemPagamento.quantidadeTotalTransacaoCaptura,
+      valorTotalTransacaoCaptura: ordemPagamento.valorTotalTransacaoCaptura,
+      indicadorOrdemValida: ordemPagamento.indicadorOrdemValida,
+      pagador: { id: idPagador } as Pagador,
+    });
     return transacao;
   }
 

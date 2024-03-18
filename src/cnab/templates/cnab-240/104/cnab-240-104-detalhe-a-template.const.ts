@@ -74,14 +74,14 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
   /** DDMMAAAA */
   dataVencimento: {
     pos: [94, 101], picture: '9(008)', value: '00000000',
-    dateFormat: { output: Cnab104Const.cnabDateOutput }
+    dateFormat: Cnab104Const.dateFormat
   },
   /** Fixo: BRL */
   tipoMoeda: {
     pos: [102, 104],
     picture: 'X(003)',
     value: Cnab104TipoMoeda.Real,
-    dateFormat: { output: Cnab104Const.cnabDateOutput }
+    dateFormat: Cnab104Const.dateFormat
   },
   /** Fixo: Zeros(10) */
   quantidadeMoeda: {
@@ -131,7 +131,7 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
    */
   dataEfetivacao: {
     pos: [155, 162], picture: '9(008)', value: '00000000',
-    dateFormat: { output: Cnab104Const.cnabDateOutput }
+    dateFormat: Cnab104Const.dateFormat
   },
   /** Zeros */
   valorRealEfetivado: {

@@ -194,6 +194,8 @@ LIMIT 5
             cpfCnpj: this.cpfSamples?.[0],
             role: { id: RoleEnum.user } as Role,
             status: { id: StatusEnum.active } as Status,
+            bankAccount: '000000000567',
+            bankAccountDigit: '8',
           },
           {
             fullName: 'Márcia Clara Template Cnpj Brt etc',
@@ -275,7 +277,7 @@ LIMIT 5
             inviteStatus: new InviteStatus(InviteStatusEnum.used),
             bankCode: 104,
             bankAgency: '1234',
-            bankAccount: '12345',
+            bankAccount: '000000012345',
             bankAccountDigit: '1',
           },
         ] as UserDataInterface[])

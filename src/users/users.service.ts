@@ -16,7 +16,7 @@ import { StatusEnum } from 'src/statuses/statuses.enum';
 import { isArrayContainEqual } from 'src/utils/array-utils';
 import { Enum } from 'src/utils/enum';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
-import { formatLog } from 'src/utils/log-utils';
+import { logLog } from 'src/utils/log-utils';
 import { getStringUpperUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { InvalidRows } from 'src/utils/types/invalid-rows.type';
@@ -286,19 +286,17 @@ export class UsersService {
           payload,
         )}]`;
     }
-    this.logger.log(formatLog(logMsg, 'update()', logContext));
+    logLog(this.logger, logMsg, 'update()', logContext);
 
     return createPayload;
   }
 
   async softDelete(id: number, logContext?: string): Promise<void> {
     await this.usersRepository.softDelete(id);
-    this.logger.log(
-      formatLog(
-        `Usuário ${{ id }} desativado com sucesso.`,
-        'softDelete()',
-        logContext,
-      ),
+    logLog(this.logger,
+      `Usuário ${{ id }} desativado com sucesso.`,
+      'softDelete()',
+      logContext,
     );
   }
 
@@ -558,11 +556,9 @@ export class UsersService {
         role: new Role(RoleEnum.user),
       } as DeepPartial<User>);
       await this.usersRepository.save(createdUser);
-      this.logger.log(
-        formatLog(
-          `Usuario: ${createdUser.getLogInfo()} criado.`,
-          'createFromFile()',
-        ),
+      logLog(this.logger,
+        `Usuario: ${createdUser.getLogInfo()} criado.`,
+        'createFromFile()',
       );
 
       await this.mailHistoryService.create(
@@ -596,15 +592,13 @@ export class UsersService {
       invalidRows: invalidUsers,
       uploadedRows: uploadedRows,
     };
-    this.logger.log(
-      formatLog(
-        'Tarefa finalizada, resultado:\n' +
-        JSON.stringify({
-          requestUser: reqUser.getLogInfo(),
-          ...result,
-        }),
-        'createFromFile()',
-      ),
+    logLog(this.logger,
+      'Tarefa finalizada, resultado:\n' +
+      JSON.stringify({
+        requestUser: reqUser.getLogInfo(),
+        ...result,
+      }),
+      'createFromFile()',
     );
     return result;
   }

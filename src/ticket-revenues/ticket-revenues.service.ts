@@ -5,7 +5,7 @@ import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
-import { formatLog } from 'src/utils/log-utils';
+import { logError } from 'src/utils/log-utils';
 import {
   PAYMENT_START_WEEKDAY,
   PaymentEndpointType,
@@ -183,11 +183,9 @@ export class TicketRevenuesService {
     const groupSums = this.getTicketRevenuesGroups(data, 'all');
     if (groupSums.length >= 1) {
       if (groupSums.length > 1) {
-        this.logger.error(
-          formatLog(
-            'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
-            `${this.getMeGrouped.name}() -> ${this.getGroupSum.name}()`,
-          ),
+        logError(this.logger,
+          'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
+          `${this.getMeGrouped.name}() -> ${this.getGroupSum.name}()`,
         );
       }
       return groupSums[0];
