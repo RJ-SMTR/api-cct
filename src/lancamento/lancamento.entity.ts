@@ -45,10 +45,10 @@ export class LancamentoEntity {
   @Column({ type: 'int', nullable: false })
   algoritmo: number;
 
-  @Column({ type: 'int', nullable: false })
+  @Column({ type: 'numeric', nullable: false })
   glosa: number;
 
-  @Column({ type: 'int', nullable: false })
+  @Column({ type: 'numeric', nullable: false })
   recurso: number;
 
   @Column({ type: 'int', nullable: false })
