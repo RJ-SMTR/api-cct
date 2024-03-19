@@ -12,6 +12,6 @@ export interface ItfLancamento {
   glosa: number,
   recurso: number,
   valor_a_pagar: number,
-  numero_processo: number,
+  numero_processo: string,
   id_cliente_favorecido: DeepPartial<ClienteFavorecido>,
 }
