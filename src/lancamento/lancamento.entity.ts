@@ -54,6 +54,6 @@ export class LancamentoEntity {
   @Column({ type: 'int', nullable: false })
   valor_a_pagar: number;
 
-  @Column({ type: 'string', nullable: false })
+  @Column({ type: 'varchar', nullable: false })
   numero_processo: string;
 }
