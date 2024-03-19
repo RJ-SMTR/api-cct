@@ -45,7 +45,7 @@ export class CreateLancamentoDto {
   @ApiProperty()
   @IsNotEmpty()
   @IsDateString()
-  numero_processo: number;
+  numero_processo: string;
   
   @ApiProperty()
   @IsNotEmpty()
