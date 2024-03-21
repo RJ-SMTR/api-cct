@@ -1,5 +1,5 @@
-import { Pagador } from "src/cnab/entity/pagador.entity";
-import { PagadorContaEnum } from "src/cnab/enums/pagador/pagador.enum";
+import { Pagador } from "src/cnab/entity/intermediate/pagador.entity";
+import { PagadorContaEnum } from "src/cnab/enums/intermediate/pagador.enum";
 
 export const pagadorSeedData: Pagador[] = [
   new Pagador({

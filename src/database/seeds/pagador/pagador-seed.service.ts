@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Pagador } from 'src/cnab/entity/pagador.entity';
+import { Pagador } from 'src/cnab/entity/intermediate/pagador.entity';
 import { Repository } from 'typeorm';
 import { pagadorSeedData } from './pagador-seed-data';
 
@@ -18,7 +18,7 @@ export class PagadorSeedService {
   async run() {
     const items = pagadorSeedData;
     for (const pagador of items) {
-     await  this.repository.save(pagador);
+      await this.repository.save(pagador);
     }
   }
 }

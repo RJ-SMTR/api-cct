@@ -28,7 +28,7 @@ export class AuthLicenseeService {
     private jwtService: JwtService,
     private usersService: UsersService,
     private mailHistoryService: MailHistoryService,
-  ) {}
+  ) { }
 
   async validateLogin(
     loginDto: AuthLicenseeLoginDto,
@@ -127,9 +127,9 @@ export class AuthLicenseeService {
               : {}),
             ...(duplicatedPermitCode.length > 1
               ? {
-                  permitCode: 'duplicated',
-                  permitCodeValue: duplicatedPermitCode[0]?.permitCode,
-                }
+                permitCode: 'duplicated',
+                permitCodeValue: duplicatedPermitCode[0]?.permitCode,
+              }
               : {}),
           },
         },

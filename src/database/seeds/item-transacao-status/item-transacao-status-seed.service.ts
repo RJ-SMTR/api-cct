@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ItemTransacaoStatus } from 'src/cnab/entity/item-transacao-status.entity';
-import { ItemTransacaoStatusEnum } from 'src/cnab/enums/item-transacao/item-transacao-status.enum';
+import { ItemTransacaoStatus } from 'src/cnab/entity/intermediate/item-transacao-status.entity';
+import { ItemTransacaoStatusEnum } from 'src/cnab/enums/intermediate/item-transacao-status.enum';
 import { Enum } from 'src/utils/enum';
 import { Repository } from 'typeorm';
 

@@ -1,6 +1,6 @@
 import { IsNotEmpty, ValidateIf } from "class-validator";
 import { DeepPartial } from "typeorm";
-import { HeaderArquivo } from "../entity/header-arquivo.entity";
+import { HeaderArquivo } from "../entity/pagamento/header-arquivo.entity";
 
 function isCreate(object: ArquivoPublicacaoDTO): boolean {
   return object.id === undefined;

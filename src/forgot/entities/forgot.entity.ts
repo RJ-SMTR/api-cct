@@ -6,6 +6,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   DeleteDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Allow } from 'class-validator';
@@ -25,6 +26,7 @@ export class Forgot extends EntityHelper {
   @ManyToOne(() => User, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Forgot_user_ManyToOne' })
   user: User;
 
   @CreateDateColumn()

@@ -1,6 +1,6 @@
 import { EntityHelper } from "src/utils/entity-helper";
-import { Column, DeepPartial, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { HeaderArquivo } from "./header-arquivo.entity";
+import { Column, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { HeaderArquivo } from "./pagamento/header-arquivo.entity";
 
 @Entity()
 export class ArquivoPublicacao extends EntityHelper {
@@ -12,10 +12,11 @@ export class ArquivoPublicacao extends EntityHelper {
       Object.assign(this, arquivoPublicacao);
     }
   }
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_ArquivoPublicacao_id' })
   id: number;
 
   @ManyToOne(() => HeaderArquivo)
+  @JoinColumn({ foreignKeyConstraintName: 'FK_ArquivoPublicacao_headerArquivo_ManyToOne' })
   headerArquivo: HeaderArquivo;
 
   @Column({ type: String, unique: false, nullable: false })

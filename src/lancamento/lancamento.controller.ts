@@ -31,7 +31,7 @@ export class LancamentoController {
   constructor(
     private readonly lancamentoService: LancamentoService,
     private readonly clienteFavorecidoService: ClienteFavorecidoService
-    ) {}
+  ) { }
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)

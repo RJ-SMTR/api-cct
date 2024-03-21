@@ -1,4 +1,4 @@
-import { Cnab104Const } from 'src/cnab/const/cnab-104.const';
+import { CnabAllConst } from 'src/cnab/const/cnab-all.const';
 import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
 import { ICnab240_104DetalheB } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-detalhe-b.interface';
@@ -49,7 +49,7 @@ export const cnab240_104DetalheBTemplate: ICnab240_104DetalheB = {
   /** DDMMAAAA - transacao.datetime_processamento */
   dataVencimento: {
     pos: [128, 135], picture: '9(008)', value: '00000000',
-    dateFormat: Cnab104Const.dateFormat
+    dateFormat: CnabAllConst.dateFormat
   },
   /** Zeros */
   valorDocumento: {

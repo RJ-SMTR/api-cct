@@ -1,4 +1,4 @@
-import { Cnab104Const } from 'src/cnab/const/cnab-104.const';
+import { CnabAllConst } from 'src/cnab/const/cnab-all.const';
 import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
 import { ICnab240_104HeaderArquivo } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-header-arquivo.interface';
 
@@ -118,14 +118,14 @@ export const cnab240_104HeaderArquivoTemplate: ICnab240_104HeaderArquivo = {
     pos: [144, 151],
     picture: '9(008)',
     value: '00000000',
-    dateFormat: Cnab104Const.dateFormat
+    dateFormat: CnabAllConst.dateFormat
   },
   /** HHMMSS */
   horaGeracaoArquivo: {
     pos: [152, 157],
     picture: '9(006)',
     value: '000000',
-    dateFormat: Cnab104Const.dateFormat
+    dateFormat: CnabAllConst.dateFormat
   },
   nsa: {
     pos: [158, 163],

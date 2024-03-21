@@ -14,7 +14,7 @@ export class ClienteFavorecido extends EntityHelper {
     }
   }
 
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_ClienteFavorecido_id' })
   id: number;
 
   @Column({ type: String, unique: false, nullable: false, length: 150 })
@@ -63,11 +63,12 @@ export class ClienteFavorecido extends EntityHelper {
   uf: string | null;
 
   @ManyToOne(() => PermissionarioRole, { eager: true, nullable: true })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_ClienteFavorecido_permissionarioRole_ManyToOne' })
   permissionarioRole: PermissionarioRole | null;
 
   /** Just for maintenance and audit control */
   @OneToOne(() => User, { eager: false })
-  @JoinColumn()
+  @JoinColumn({ foreignKeyConstraintName: 'FK_ClienteFavorecido_user_OneToOne' })
   user: User;
 
   public getLogInfo(showName?: boolean): string {

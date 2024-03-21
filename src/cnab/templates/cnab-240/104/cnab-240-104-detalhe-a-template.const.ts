@@ -1,4 +1,4 @@
-import { Cnab104Const } from 'src/cnab/const/cnab-104.const';
+import { CnabAllConst } from 'src/cnab/const/cnab-all.const';
 import { Cnab104AvisoFavorecido } from 'src/cnab/enums/104/cnab-104-aviso-favorecido.enum';
 import { Cnab104CamaraCompensacao } from 'src/cnab/enums/104/cnab-104-camara-compensacao.enum';
 import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
@@ -74,14 +74,14 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
   /** DDMMAAAA */
   dataVencimento: {
     pos: [94, 101], picture: '9(008)', value: '00000000',
-    dateFormat: Cnab104Const.dateFormat
+    dateFormat: CnabAllConst.dateFormat
   },
   /** Fixo: BRL */
   tipoMoeda: {
     pos: [102, 104],
     picture: 'X(003)',
     value: Cnab104TipoMoeda.Real,
-    dateFormat: Cnab104Const.dateFormat
+    dateFormat: CnabAllConst.dateFormat
   },
   /** Fixo: Zeros(10) */
   quantidadeMoeda: {
@@ -131,7 +131,7 @@ export const cnab240_104DetalheATemplate: ICnab240_104DetalheA = {
    */
   dataEfetivacao: {
     pos: [155, 162], picture: '9(008)', value: '00000000',
-    dateFormat: Cnab104Const.dateFormat
+    dateFormat: CnabAllConst.dateFormat
   },
   /** Zeros */
   valorRealEfetivado: {

@@ -10,7 +10,7 @@ import {
 
 @Entity('lancamento')
 export class LancamentoEntity {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Lancamento_id' })
   id: number;
 
   @Column({ type: 'varchar' })
@@ -24,7 +24,7 @@ export class LancamentoEntity {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   data_pgto: Date;
-  
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   data_lancamento: Date;
 
@@ -35,11 +35,14 @@ export class LancamentoEntity {
   userId?: number;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'userId', foreignKeyConstraintName: 'FK_Lancamento_user_ManyToOne' })
   user: User;
 
   @ManyToOne(() => ClienteFavorecido)
-  @JoinColumn({ name: 'id_cliente_favorecido' })
+  @JoinColumn({
+    name: 'id_cliente_favorecido',
+    foreignKeyConstraintName: 'FK_Lancamento_idClienteFavorecido_ManyToOne'
+  })
   id_cliente_favorecido: ClienteFavorecido;
 
   @Column({ type: 'int', nullable: false })

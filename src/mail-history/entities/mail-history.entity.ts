@@ -10,6 +10,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -24,13 +25,14 @@ export class MailHistory extends BaseEntity {
   }
 
   @ApiProperty({ example: 1 })
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Invite_id' })
   id: number;
 
   @Allow()
   @ManyToOne(() => User, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Invite_user_ManyToOne' })
   user: User;
 
   @Column({ type: String })
@@ -43,6 +45,7 @@ export class MailHistory extends BaseEntity {
   @ManyToOne(() => InviteStatus, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Invite_inviteStatus_ManyToOne' })
   inviteStatus: InviteStatus;
 
   @Column({ type: Number, nullable: true })

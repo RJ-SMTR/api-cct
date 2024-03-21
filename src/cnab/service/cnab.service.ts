@@ -3,10 +3,10 @@ import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
 import { logError, logLog, logWarn } from 'src/utils/log-utils';
 import { parseCnab240_104 } from '../utils/cnab-104-utils';
-import { HeaderArquivoService } from './header-arquivo.service';
-import { TransacaoService } from './transacao.service';
+import { HeaderArquivoService } from './pagamento/header-arquivo.service';
+import { TransacaoService } from './intermediate/transacao.service';
 import { TransacaoTarget } from '../types/transacao/transacao-target.type';
-import { ItemTransacaoService } from './item-transacao.service';
+import { ItemTransacaoService } from './intermediate/item-transacao.service';
 
 @Injectable()
 export class CnabService {

@@ -15,7 +15,7 @@ export class SettingType extends BaseEntity {
   }
   @Exclude()
   @ApiProperty({ example: 1 })
-  @PrimaryColumn()
+  @PrimaryColumn({ primaryKeyConstraintName: 'PK_SettingType_id' })
   id: number;
 
   @ApiProperty({ example: 'boolean' })

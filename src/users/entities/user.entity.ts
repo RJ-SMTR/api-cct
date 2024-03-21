@@ -16,6 +16,7 @@ import {
   DeleteDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -37,7 +38,7 @@ export class User extends EntityHelper {
     }
   }
 
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_User_id' })
   id: number;
 
   // For "string | null" we need to use String type.
@@ -95,16 +96,19 @@ export class User extends EntityHelper {
   @ManyToOne(() => FileEntity, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_User_photo_ManyToOne' })
   photo?: FileEntity | null;
 
   @ManyToOne(() => Role, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_User_role_ManyToOne' })
   role?: Role | null;
 
   @ManyToOne(() => Status, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_User_status_ManyToOne' })
   @Exclude({ toPlainOnly: true })
   status?: Status;
 
@@ -155,6 +159,7 @@ export class User extends EntityHelper {
   @ManyToOne(() => PermissionarioRole, {
     eager: true, nullable: true
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_User_permissionarioRole_ManyToOne' })
   permissionarioRole?: PermissionarioRole | null;
 
   @Expose({ name: 'aux_isRegistrationComplete' })

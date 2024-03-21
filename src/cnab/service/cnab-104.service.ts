@@ -12,12 +12,12 @@ export class Cnab104Service {
   constructor(private readonly configService: ConfigService) {}
 
   /**
-   * Cnab Caixa Cliente environment is Test if NODE_ENV is 'local' or 'test'.
+   * Cnab Caixa Cliente environment is Test if NODE_ENV is not 'production'.
    */
   public isCnab104Test(): boolean {
     const nodeEnv = () =>
       this.configService.getOrThrow<Environment>('app.nodeEnv');
-    return [Environment.Test, Environment.Local].includes(nodeEnv());
+    return ![Environment.Production].includes(nodeEnv());
   }
 
   public getCnab104ClienteCaixa(): Cnab104AmbienteCliente {

@@ -129,42 +129,42 @@ export class CronJobsService implements OnModuleInit {
             onTick: () => this.pollDb(),
           },
         },
-        {
-          name: CrobJobsEnum.bulkResendInvites1,
-          cronJobParameters: {
-            cronTime: '45 14 * * *', // 14:45 GMT = 11:45 BRT (GMT-3)
-            onTick: async () => {
-              await this.bulkResendInvites();
-            },
-          },
-        },
-        {
-          name: CrobJobsEnum.bulkResendInvites2,
-          cronJobParameters: {
-            cronTime: '45 20 * * *', // 20:45 GMT = 17:45 BRT (GMT-3)
-            onTick: async () => {
-              await this.bulkResendInvites();
-            },
-          },
-        },
-        {
-          name: CrobJobsEnum.updateTransacaoWeek1,
-          cronJobParameters: {
-            cronTime: '30 4 * * *',  // 00:30 BRT = 03:30 UTC
-            onTick: async () => {
-              await this.updateTransacaoWeek1();
-            },
-          },
-        },
-        {
-          name: CrobJobsEnum.updateTransacaoDaily1,
-          cronJobParameters: {
-            cronTime: '30 4 * * *',  // 01:30 BRT = 04:30 UTC
-            onTick: async () => {
-              await this.updateTransacaoWeek1();
-            },
-          },
-        },
+        // {
+        //   name: CrobJobsEnum.bulkResendInvites1,
+        //   cronJobParameters: {
+        //     cronTime: '45 14 * * *', // 14:45 GMT = 11:45 BRT (GMT-3)
+        //     onTick: async () => {
+        //       await this.bulkResendInvites();
+        //     },
+        //   },
+        // },
+        // {
+        //   name: CrobJobsEnum.bulkResendInvites2,
+        //   cronJobParameters: {
+        //     cronTime: '45 20 * * *', // 20:45 GMT = 17:45 BRT (GMT-3)
+        //     onTick: async () => {
+        //       await this.bulkResendInvites();
+        //     },
+        //   },
+        // },
+        // {
+        //   name: CrobJobsEnum.updateTransacaoWeek1,
+        //   cronJobParameters: {
+        //     cronTime: '30 4 * * *',  // 00:30 BRT = 03:30 UTC
+        //     onTick: async () => {
+        //       await this.updateTransacaoWeek1();
+        //     },
+        //   },
+        // },
+        // {
+        //   name: CrobJobsEnum.updateTransacaoDaily1,
+        //   cronJobParameters: {
+        //     cronTime: '30 4 * * *',  // 01:30 BRT = 04:30 UTC
+        //     onTick: async () => {
+        //       await this.updateTransacaoWeek1();
+        //     },
+        //   },
+        // },
         // {
         //   name: CrobJobsEnum.updateRemessaJae,
         //   cronJobParameters: {

@@ -7,6 +7,7 @@ import {
   BaseEntity,
   Column,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryColumn,
   Unique,
@@ -28,7 +29,7 @@ export class SettingEntity extends BaseEntity {
   }
   @Exclude()
   @ApiProperty({ example: 1 })
-  @PrimaryColumn({ insert: true })
+  @PrimaryColumn({ insert: true, primaryKeyConstraintName: 'PK_Setting_id' })
   id: number;
 
   @ApiProperty({ example: 'activate_auto_send_invite' })
@@ -51,6 +52,7 @@ export class SettingEntity extends BaseEntity {
   @ManyToOne(() => SettingType, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Setting_settingType_ManyToOne' })
   settingType: SettingType;
 
   getValueAsNullableJson(): any | null {

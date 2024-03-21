@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ItemTransacaoStatus } from 'src/cnab/entity/item-transacao-status.entity';
+import { ItemTransacaoStatus } from 'src/cnab/entity/intermediate/item-transacao-status.entity';
 import { ItemTransacaoStatusSeedService } from './item-transacao-status-seed.service';
 
 @Module({

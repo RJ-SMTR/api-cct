@@ -16,7 +16,7 @@ export class PermissionarioRole extends EntityHelper {
   }
 
   @ApiProperty({ example: 1 })
-  @PrimaryColumn()
+  @PrimaryColumn({ primaryKeyConstraintName: 'PK_PermissionarioRole_id' })
   id: number;
 
   @Allow()
