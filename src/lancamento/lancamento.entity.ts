@@ -16,8 +16,8 @@ export class LancamentoEntity {
   @Column({ type: 'varchar' })
   descricao: string;
 
-  @Column({ type: 'numeric' })
-  valor: number;
+  @Column({ type: 'varchar' })
+  valor: string;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   data_ordem: Date;
@@ -42,17 +42,17 @@ export class LancamentoEntity {
   @JoinColumn({ name: 'id_cliente_favorecido' })
   id_cliente_favorecido: ClienteFavorecido;
 
-  @Column({ type: 'int', nullable: false })
-  algoritmo: number;
+  @Column({ type: 'varchar', nullable: false })
+  algoritmo: string;
 
-  @Column({ type: 'numeric', nullable: false })
-  glosa: number;
+  @Column({ type: 'varchar', nullable: false })
+  glosa: string;
 
-  @Column({ type: 'numeric', nullable: false })
-  recurso: number;
+  @Column({ type: 'varchar', nullable: false })
+  recurso: string;
 
-  @Column({ type: 'int', nullable: false })
-  valor_a_pagar: number;
+  @Column({ type: 'varchar', nullable: false })
+  valor_a_pagar: string;
 
   @Column({ type: 'varchar', nullable: false })
   numero_processo: string;

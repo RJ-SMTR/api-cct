@@ -10,7 +10,7 @@ export class CreateLancamentoDto {
   @ApiProperty()
   @IsNotEmpty()
   @IsNumber()
-  valor: number;
+  valor: string;
 
   @ApiProperty()
   @IsNotEmpty()
@@ -25,22 +25,22 @@ export class CreateLancamentoDto {
   @ApiProperty()
   @IsNotEmpty()
   @IsDateString()
-  algoritmo: number;
+  algoritmo: string;
 
   @ApiProperty()
   @IsNotEmpty()
   @IsDateString()
-  glosa: number;
+  glosa: string;
 
   @ApiProperty()
   @IsNotEmpty()
   @IsDateString()
-  recurso: number;
+  recurso: string;
 
   @ApiProperty()
   @IsNotEmpty()
   @IsDateString()
-  valor_a_pagar: number;
+  valor_a_pagar: string;
 
   @ApiProperty()
   @IsNotEmpty()
