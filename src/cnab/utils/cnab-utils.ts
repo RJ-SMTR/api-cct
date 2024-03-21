@@ -515,4 +515,24 @@ export function getTipoInscricao(cpfCnpj: string): CnabAllTipoInscricao {
   }
 }
 
+/**
+ * Return the max amount of detalhes groups, the same amount for each lote.
+ * 
+ * Example of detalhe gorup:
+ * 
+ * Each lote has N detalhe groups.
+ * 
+ * lote1 = [[detalheA, detalheB], [detalheA, detalheB]]
+ * 
+ * @param detalhesPerLote E.g. [lote1 has 2 detalhes, lote2 has 3 detalhes]
+ */
+export function getMaxDetalhes(detalhesPerLote: number[]): number {
+  const maxRegistros = 999999;
+  const startRegistros = 2; // Header/Trailer Arquivo
+  const lotesRegistros = detalhesPerLote.length * 2; // Header/TrailerLote
+  const fixedRegistros = startRegistros + lotesRegistros;
+  const allDetalhesGroup = detalhesPerLote.reduce((s, i) => s + i, 0) || 1;
+  const maxDetalhes = Math.floor((maxRegistros - fixedRegistros) / allDetalhesGroup);
+  return maxDetalhes;
+}
 // #endregion

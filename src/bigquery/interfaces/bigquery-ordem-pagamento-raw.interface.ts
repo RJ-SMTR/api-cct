@@ -1,0 +1,34 @@
+export interface IBigqueryOrdemPagamentoRaw {
+  dataOrdem: string;
+  dataPagamento: string | null;
+  idConsorcio: string;
+  consorcio: string;
+  idOperadora: string;
+  operadora: string;
+  servico: string;
+  idOrdemPagamento: string;
+  idOrdemRessarcimento: string | null;
+  quantidadeTransacaoDebito: string | null;
+  valorDebito: string | null;
+  quantidadeTransacaoEspecie: string | null;
+  valorEspecie: string | null;
+  quantidadeTransacaoGratuidade: string | null;
+  valorGratuidade: string | null;
+  quantidadeTransacaoIntegracao: string | null;
+  valorIntegracao: string | null;
+  quantidadeTransacaoRateioCredito: string | null;
+  valorRateioCredito: string | null;
+  quantidadeTransacaoRateioDebito: string | null;
+  valorRateioDebito: string | null;
+  quantidadeTotalTransacao: string | null;
+  valorTotalTransacaoBruto: string;
+  valorDescontoTaxa: string | null;
+  valorTotalTransacaoLiquido: string;
+  quantidadeTotalTransacaoCaptura: string | null;
+  valorTotalTransacaoCaptura: string | null;
+  indicadorOrdemValida: string | null;
+  versao: string | null;
+  operadoraCpfCnpj: string | null;
+  consorcioCpfCnpj: string | null;
+  favorecidoCpfCnpj: string;
+}

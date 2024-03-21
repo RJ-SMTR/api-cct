@@ -11,11 +11,17 @@ import { SettingTypeSeedService } from './setting-type/setting-type.service';
 import { SettingSeedService } from './setting/setting-seed.service';
 import { StatusSeedService } from './status/status-seed.service';
 import { UserSeedService } from './user/user-seed.service';
+import { PermissionarioRoleSeedService } from './permissionario-role/permissionario-role-seed.service';
+import { TransacaoStatusSeedService } from './transacao-status/transacao-status-seed.service';
+import { ItemTransacaoStatusSeedService } from './item-transacao-status/item-transacao-status-seed.service';
 
 const runSeed = async () => {
   // filter
   let services = [
     RoleSeedService,
+    PermissionarioRoleSeedService,
+    TransacaoStatusSeedService,
+    ItemTransacaoStatusSeedService,
     StatusSeedService,
     InfoSeedService,
     BankSeedService,

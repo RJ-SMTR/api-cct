@@ -1,8 +1,8 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { AfterLoad, Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { asNullableStringOrNumber } from 'src/utils/pipe-utils';
+import { AfterLoad, Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { ClienteFavorecido } from './cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
-import { asNullableStringOrNumber } from 'src/utils/pipe-utils';
 
 @Entity()
 export class DetalheA extends EntityHelper {
@@ -14,7 +14,7 @@ export class DetalheA extends EntityHelper {
   @ManyToOne(() => HeaderLote, { eager: true })
   headerLote: HeaderLote;
 
-  @ManyToOne(() => HeaderLote, { eager: true })
+  @ManyToOne(() => ClienteFavorecido, { eager: true })
   clienteFavorecido: ClienteFavorecido;
 
   @Column({ type: Number, unique: false, nullable: true })
@@ -83,6 +83,9 @@ export class DetalheA extends EntityHelper {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   /**
    * For some reason, fields like 'time', 'decimal'

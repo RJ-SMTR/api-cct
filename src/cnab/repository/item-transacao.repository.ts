@@ -2,10 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { Repository } from 'typeorm';
-import { ItemTransacao } from '../entity/item-transacao.entity';
-import { ItemTransacaoDTO } from '../dto/item-transacao.dto';
 import { validateDTO } from 'src/utils/validation-utils';
+import { FindOneOptions, Repository } from 'typeorm';
+import { ItemTransacaoDTO } from '../dto/item-transacao.dto';
+import { ItemTransacao } from '../entity/item-transacao.entity';
 
 @Injectable()
 export class ItemTransacaoRepository {
@@ -21,18 +21,12 @@ export class ItemTransacaoRepository {
 
   public async save(itemTransacao: ItemTransacaoDTO): Promise<ItemTransacao> {
     await validateDTO(ItemTransacaoDTO, itemTransacao);
-    const itemTransacaoEntity = new ItemTransacao(itemTransacao);
-    return await this.itemTransacaoRepository.save(itemTransacaoEntity);
+    return await this.itemTransacaoRepository.save(itemTransacao);
   }
 
-  public async findOne(
-    fields: EntityCondition<ItemTransacao> | EntityCondition<ItemTransacao>[],
-  ): Promise<Nullable<ItemTransacao>> {
-    return await this.itemTransacaoRepository.findOne({
-      where: fields,
-    });
+  public async findOne(options: FindOneOptions<ItemTransacao>): Promise<Nullable<ItemTransacao>> {
+    return (await this.itemTransacaoRepository.find(options)).shift() || null;
   }
-
 
   public async findAll(): Promise<ItemTransacao[]> {
     return await this.itemTransacaoRepository.find();

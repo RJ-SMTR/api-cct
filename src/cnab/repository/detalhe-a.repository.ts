@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { endOfDay, startOfDay } from 'date-fns';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { DetalheADTO } from '../dto/detalhe-a.dto';
-import { DetalheA } from '../entity/detalhe-a.entity';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { DetalheA } from '../entity/detalhe-a.entity';
 
 @Injectable()
 export class DetalheARepository {

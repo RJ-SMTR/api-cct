@@ -1,6 +1,6 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
-import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { DeepPartial } from 'typeorm';
+import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { HeaderLote } from '../entity/header-lote.entity';
 
 function isCreate(object: DetalheADTO): boolean {
@@ -31,7 +31,6 @@ export class DetalheADTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   finalidadeDOC?: string | null;
-
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

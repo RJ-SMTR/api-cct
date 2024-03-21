@@ -7,7 +7,7 @@ import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BQSInstances, BigqueryService } from '../bigquery.service';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
-import { IBqFetchTransacao } from '../interfaces/bq-find-transacao-by.interface';
+import { IBqFindTransacao } from '../interfaces/bq-find-transacao-by.interface';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
 import { BqTransacaoTipoTransacaoMap } from '../maps/bq-transacao-tipo-transacao.map';
@@ -21,10 +21,10 @@ export class BigqueryTransacaoRepository {
   constructor(
     private readonly bigqueryService: BigqueryService,
     private readonly settingsService: SettingsService,
-  ) {}
+  ) { }
 
   public async findTransacaoBy(
-    filter?: IBqFetchTransacao,
+    filter?: IBqFindTransacao,
   ): Promise<BigqueryTransacao[]> {
     const transacoes: BigqueryTransacao[] = (await this.fetchTransacao(filter))
       .data;
@@ -32,7 +32,7 @@ export class BigqueryTransacaoRepository {
   }
 
   private async fetchTransacao(
-    args?: IBqFetchTransacao,
+    args?: IBqFindTransacao,
   ): Promise<{ data: BigqueryTransacao[]; countAll: number }> {
     const qArgs = await this.getQueryArgs(args);
     const query =
@@ -96,7 +96,7 @@ export class BigqueryTransacaoRepository {
     };
   }
 
-  private async getQueryArgs(args?: IBqFetchTransacao): Promise<{
+  private async getQueryArgs(args?: IBqFindTransacao): Promise<{
     qWhere: string;
     bucket: string;
     transacao: string;
@@ -132,7 +132,7 @@ export class BigqueryTransacaoRepository {
     if (args?.offset !== undefined && args.limit === undefined) {
       this.logger.warn(
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-          " 'offset' will be ignored to prevent query fail",
+        " 'offset' will be ignored to prevent query fail",
       );
       offset = undefined;
     }

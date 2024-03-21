@@ -24,16 +24,19 @@ export class ArquivoPublicacaoRepository {
   /**
    * Save if detalheARetornoId not exists yet.
    */
-  public async saveIfNotExists(dto: ArquivoPublicacaoDTO): Promise<SaveIfNotExists<ArquivoPublicacao>> {
+  public async saveIfNotExists(dto: ArquivoPublicacaoDTO, updateIfExists?: boolean): Promise<SaveIfNotExists<ArquivoPublicacao>> {
     const METHOD = 'saveIfNotExists()';
     const existing = await this.arquivoPublicacaoRepository.findOne({
       where: { idDetalheARetorno: dto.idDetalheARetorno }
     });
     if (existing) {
+      const itemResult = updateIfExists
+        ? await this.arquivoPublicacaoRepository.save({ ...dto, id: existing.id })
+        : existing;
       logWarn(this.logger, 'detalheARetorno já existe no Arq.Pub. Ignorando...', METHOD);
       return {
         isNewItem: false,
-        item: existing,
+        item: itemResult,
       };
     } else {
       return {

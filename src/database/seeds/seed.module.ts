@@ -19,10 +19,16 @@ import { UserSeedModule } from './user/user-seed.module';
 import { BigqueryModule } from 'src/bigquery/bigquery.module';
 import googleConfig from 'src/config/google.config';
 import { PagadorSeedModule } from './pagador/pagador-seed.module';
+import { PermissionarioRoleSeedModule } from './permissionario-role/permissionario-role-seed.module';
+import { TransacaoStatusSeedModule } from './transacao-status/transacao-status-seed.module';
+import { ItemTransacaoStatusSeedModule } from './item-transacao-status/item-transacao-status-seed.module';
 
 @Module({
   imports: [
     RoleSeedModule,
+    PermissionarioRoleSeedModule,
+    TransacaoStatusSeedModule,
+    ItemTransacaoStatusSeedModule,
     StatusSeedModule,
     InfoSeedModule,
     BankSeedModule,
@@ -47,4 +53,4 @@ import { PagadorSeedModule } from './pagador/pagador-seed.module';
     }),
   ],
 })
-export class SeedModule {}
+export class SeedModule { }

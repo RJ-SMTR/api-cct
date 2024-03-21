@@ -1,6 +1,7 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { Column, CreateDateColumn, DeepPartial, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Pagador } from './pagador.entity';
+import { TransacaoStatus } from './transacao-status.entity';
 
 @Entity()
 export class Transacao extends EntityHelper {
@@ -26,11 +27,19 @@ export class Transacao extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   nomeOperadora: string | null;
 
-  @Column({ type: String, unique: false, nullable: true, length: 150 })
-  servico: string | null;
+  @Column({ type: String, unique: false, nullable: false })
+  idOrdemPagamento: string;
 
-  @Column({ type: String, unique: false })
-  idOrdemPagamento: string | null;
+  @Column({ type: String, unique: false, nullable: false, length: 150 })
+  servico: string;
+
+  /** CPF/CNPJ */
+  @Column({ type: String, unique: false, nullable: false })
+  idOperadora: string;
+
+  /** CNPJ */
+  @Column({ type: String, unique: false, nullable: false })
+  idConsorcio: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 150 })
   idOrdemRessarcimento: string | null;
@@ -43,7 +52,7 @@ export class Transacao extends EntityHelper {
     unique: false,
     nullable: true,
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   valorRateioCredito: number | null;
 
@@ -55,20 +64,20 @@ export class Transacao extends EntityHelper {
     unique: false,
     nullable: true,
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   valorRateioDebito: number | null;
+
+  @Column({ type: Number, unique: false, nullable: true })
+  quantidadeTotalTransacao: number | null;
 
   @Column({
     type: 'decimal',
     unique: false,
     nullable: true,
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
-  quantidadeTotalTransacao: number | null;
-
-  @Column({ type: Number, unique: false, nullable: true })
   valorTotalTransacaoBruto: number | null;
 
   @Column({
@@ -76,7 +85,7 @@ export class Transacao extends EntityHelper {
     unique: false,
     nullable: true,
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   valorDescontoTaxa: number | null;
 
@@ -85,7 +94,7 @@ export class Transacao extends EntityHelper {
     unique: false,
     nullable: true,
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   valorTotalTransacaoLiquido: number | null;
 
@@ -97,7 +106,7 @@ export class Transacao extends EntityHelper {
     unique: false,
     nullable: true,
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   valorTotalTransacaoCaptura: number | null;
 
@@ -109,6 +118,12 @@ export class Transacao extends EntityHelper {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @ManyToOne(() => TransacaoStatus, { eager: false, nullable: false })
+  status: TransacaoStatus;
+
+  @Column({ type: String, unique: false, nullable: false })
+  versaoOrdemPagamento: string;
 
   public getLogInfo(): string {
     const response = `#${this.id}`;

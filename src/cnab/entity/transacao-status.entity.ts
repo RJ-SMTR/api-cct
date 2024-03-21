@@ -2,16 +2,18 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Allow } from 'class-validator';
 import { EntityHelper } from 'src/utils/entity-helper';
-import { RoleEnum } from '../roles.enum';
 import { Enum } from 'src/utils/enum';
+import { TransacaoStatusEnum } from '../enums/transacao/transacao-status.enum';
 
 @Entity()
-export class Role extends EntityHelper {
-  constructor(role?: RoleEnum) {
+export class TransacaoStatus extends EntityHelper {
+  constructor(role?: TransacaoStatusEnum, onlyId = true) {
     super();
     if (role !== undefined) {
       this.id = role;
-      this.name = Enum.getKey(RoleEnum, role);
+      if (!onlyId) {
+        this.name = Enum.getKey(TransacaoStatusEnum, role);
+      }
     }
   }
 
@@ -20,7 +22,11 @@ export class Role extends EntityHelper {
   id: number;
 
   @Allow()
-  @ApiProperty({ example: 'Admin' })
+  @ApiProperty({ example: 'vanzeiro' })
   @Column()
   name?: string;
+
+  getEnum(): TransacaoStatusEnum {
+    return this.id;
+  }
 }

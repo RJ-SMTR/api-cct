@@ -25,6 +25,12 @@ function findKey<T>(e: T, value: any): string | undefined {
   return key;
 }
 
+function getItems<T>(enumType: T): { key: keyof T; value: T[keyof T] }[] {
+  const keys = getKeys(enumType);
+  const values = getValues(enumType);
+  return keys.map((key, index) => ({ key, value: values[index] }));
+}
+
 function getKeys<T>(e: T): (keyof T)[] {
   const enumType = e;
   return Object.keys(enumType as any).filter(
@@ -33,13 +39,14 @@ function getKeys<T>(e: T): (keyof T)[] {
 }
 
 function getValues<T>(enumType: T): T[keyof T][] {
-  return this.getKeys(enumType).map((key) => enumType[key]);
+  return getKeys(enumType).map((key) => enumType[key]);
 }
 
 export const Enum = {
   findKey: findKey,
   getKey: getKey,
   getKeys: getKeys,
-  getValues: getValues,
   getValue: getValue,
+  getValues: getValues,
+  getItems: getItems,
 };

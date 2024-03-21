@@ -1,7 +1,9 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, DeepPartial, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { ClienteFavorecido } from './cliente-favorecido.entity';
 import { Transacao } from './transacao.entity';
+import { DetalheA } from './detalhe-a.entity';
+import { ItemTransacaoStatus } from './item-transacao-status.entity';
 
 @Entity()
 export class ItemTransacao extends EntityHelper {
@@ -33,10 +35,13 @@ export class ItemTransacao extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   nomeConsorcio: string | null;
 
+  @Column({ type: String, unique: false, nullable: true, length: 200 })
+  nomeOperadora: string | null;
+
   @ManyToOne(() => ClienteFavorecido, {
-    eager: true
+    eager: true, nullable: true
   })
-  clienteFavorecido: ClienteFavorecido;
+  clienteFavorecido: ClienteFavorecido | null;
 
   /**
    * Monetary value
@@ -50,8 +55,14 @@ export class ItemTransacao extends EntityHelper {
   })
   valor: number | null;
 
+  // Unique columns combination
+
   @Column({ type: String, unique: false, nullable: false })
   idOrdemPagamento: string;
+
+  /** Veículo */
+  @Column({ type: String, unique: false, nullable: false })
+  servico: string;
 
   /** CPF. */
   @Column({ type: String, unique: false, nullable: false })
@@ -60,11 +71,30 @@ export class ItemTransacao extends EntityHelper {
   /** CNPJ */
   @Column({ type: String, unique: false, nullable: false })
   idConsorcio: string;
-
-  /** Veículo */
-  @Column({ type: String, unique: false, nullable: false })
-  servico: string;
-
+  
+  /** FK to know which DetalheA is related to ItemTransacao */
+  @OneToOne(() => DetalheA, { eager: false, nullable: true })
+  @JoinColumn()
+  detalheA: DetalheA | null;
+  
+  /** DataOrdem from bigquery */
+  @Column({ type: Date, unique: false, nullable: false })
+  dataOrdem: Date;
+  
   @CreateDateColumn()
   createdAt: Date;
+  
+  @UpdateDateColumn()
+  updatedAt: Date;
+  
+  @Column({ type: String, unique: false, nullable: false })
+  versaoOrdemPagamento: string;
+
+  @ManyToOne(() => ItemTransacaoStatus, { eager: false, nullable: false })
+  status: ItemTransacaoStatus;
+
+  public getLogInfo(): string {
+    return `#{ idOP: ${this.idOrdemPagamento}, svc: ${this.servico}, `
+      + `op: ${this.idOperadora}, co: ${this.idConsorcio} }`;
+  }
 }

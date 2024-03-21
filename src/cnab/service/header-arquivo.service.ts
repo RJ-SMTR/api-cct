@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { format } from 'date-fns';
 import { BanksService } from 'src/banks/banks.service';
-import { SftpService } from 'src/sftp/sftp.service';
-import { logLog, logWarn } from 'src/utils/log-utils';
+import { logDebug, logLog, logWarn } from 'src/utils/log-utils';
 import { asDate, asNumber, asString, asStringDate } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
@@ -10,9 +9,13 @@ import { Cnab104Const } from '../const/cnab-104.const';
 import { DetalheADTO } from '../dto/detalhe-a.dto';
 import { DetalheBDTO } from '../dto/detalhe-b.dto';
 import { HeaderArquivoDTO } from '../dto/header-arquivo.dto';
+import { ItemTransacaoStatus } from '../entity/item-transacao-status.entity';
 import { ItemTransacao } from '../entity/item-transacao.entity';
+import { TransacaoStatus } from '../entity/transacao-status.entity';
 import { Transacao } from '../entity/transacao.entity';
 import { HeaderArquivoTipoArquivo } from '../enums/header-arquivo/header-arquivo-tipo-arquivo.enum';
+import { ItemTransacaoStatusEnum } from '../enums/item-transacao/item-transacao-status.enum';
+import { TransacaoStatusEnum } from '../enums/transacao/transacao-status.enum';
 import { ICnab240_104DetalheA } from '../interfaces/cnab-240/104/cnab-240-104-detalhe-a.interface';
 import { ICnab240_104DetalheB } from '../interfaces/cnab-240/104/cnab-240-104-detalhe-b.interface';
 import { ICnab240_104File } from '../interfaces/cnab-240/104/cnab-240-104-file.interface';
@@ -55,18 +58,22 @@ export class HeaderArquivoService {
   constructor(
     private headerArquivoRepository: HeaderArquivoRepository,
     private arquivoPublicacaoRepository: ArquivoPublicacaoRepository,
-    private transacaoService: TransacaoService,
     private headerLoteService: HeaderLoteService,
     private itemTransacaoService: ItemTransacaoService,
+    private transacaoService: TransacaoService,
     private pagadorService: PagadorService,
     private detalheAService: DetalheAService,
     private detalheBService: DetalheBService,
     private clienteFavorecidoService: ClienteFavorecidoService,
     private cnab104Service: Cnab104Service,
     private banksService: BanksService,
-    private sftpService: SftpService
   ) { }
 
+  /**
+   * This task will:
+   * 1. Generate Cnab Tables
+   * 2. Set Transacao status as used
+   */
   public async saveRemessa(cnabTables: ICnabTables) {
     const headerLote = cnabTables.lotes[0].headerLote;
     const detalhes = cnabTables.lotes[0].detalhes;
@@ -76,6 +83,12 @@ export class HeaderArquivoService {
     for (const { itemTransacao, registroAB } of detalhes) {
       await this.saveRemessaDetalhes(itemTransacao, headerLote, registroAB);
     }
+
+    // After generate CnabTables, set Transacao status as used
+    await this.transacaoService.save({
+      id: cnabTables.transacao.id,
+      status: new TransacaoStatus(TransacaoStatusEnum.used),
+    });
   }
 
   private updateHeaderLoteDTOFromHeaderArquivo(headerLoteDTO: HeaderLoteDTO, headerArquivo: HeaderArquivo) {
@@ -83,9 +96,9 @@ export class HeaderArquivoService {
   }
 
   public async generateCnab(transacao: Transacao): Promise<{
-    cnabString: string;
-    cnabTables: ICnabTables;
-  }> {
+    string: string;
+    tables: ICnabTables;
+  } | null> {
     // Get DTO
     const now = new Date();
     const headerArquivoDTO = await this.getHeaderArquivoDTOFromTransacao(
@@ -115,15 +128,28 @@ export class HeaderArquivoService {
     };
 
     // mount file104 details
-    const listItem = await this.itemTransacaoService.findManyByIdTransacao(
+    const itemTransacaoMany = await this.itemTransacaoService.findManyByIdTransacao(
       transacao.id,
     );
+    const itemTransacaoSuccess: ItemTransacao[] = [];
     let numeroDocumento = await this.getNextNumeroDocumento(now);
-    for (const itemTransacao of listItem) {
-      cnab104.lotes[0].registros.push(
-        this.getDetalhes104(itemTransacao, numeroDocumento),
-      );
+
+    for (const itemTransacao of itemTransacaoMany) {
+      // add valid itemTransacao
+      const successDetalhes = await this.getDetalhes104(itemTransacao, numeroDocumento);
+      if (successDetalhes) {
+        cnab104.lotes[0].registros.push(successDetalhes);
+        itemTransacaoSuccess.push(itemTransacao);
+      }
       numeroDocumento++;
+    }
+
+    // Remove empty cnab104 lotes
+    cnab104.lotes = cnab104.lotes.filter(l => l.registros.length > 0);
+
+    // If empty, return null
+    if (!cnab104.lotes.length) {
+      return null;
     }
 
     // process file104
@@ -137,6 +163,7 @@ export class HeaderArquivoService {
       processedCnab104.lotes[0].headerLote,
     );
     const cnabTables: ICnabTables = {
+      transacao: transacao,
       headerArquivo: headerArquivoDTO,
       lotes: [
         {
@@ -147,17 +174,20 @@ export class HeaderArquivoService {
     };
 
     // Mount cnabTablesDTO detalhes
-    for (let i = 0; i < listItem.length; i++) {
-      const itemTransacao = listItem[i];
+    for (let i = 0; i < itemTransacaoSuccess.length; i++) {
+      const itemTransacao = itemTransacaoSuccess[i];
       cnabTables.lotes[0].detalhes.push({
         itemTransacao: itemTransacao,
         registroAB: processedCnab104.lotes[0].registros[i] as ICnab240_104RegistroAB,
       });
     }
 
+    // Remove empty cnabTables lotes
+    cnabTables.lotes = cnabTables.lotes.filter(l => l.detalhes.length > 0);
+
     return {
-      cnabString: cnabString,
-      cnabTables: cnabTables,
+      string: cnabString,
+      tables: cnabTables,
     };
   }
 
@@ -211,28 +241,41 @@ export class HeaderArquivoService {
    * 
    * indicadorBloqueio = DataFixa (see `detalheATemplate`)
    * 
-   * @param numeroDocumento Atribuído pela empresa. Deve ser um número novo.
-   */
-  public getDetalhes104(
+   * @param numeroDocumento Managed by company. It must be a new number.
+   * @returns null if failed ItemTransacao to CNAB */
+  public async getDetalhes104(
     itemTransacao: ItemTransacao,
     numeroDocumento: number,
-  ): ICnab240_104RegistroAB {
+  ): Promise<ICnab240_104RegistroAB | null> {
+    const METHOD = 'getDetalhes104()';
+    const favorecido = itemTransacao.clienteFavorecido;
+    if (!favorecido) {
+      // Failure if no favorecido
+      await this.itemTransacaoService.save({
+        id: itemTransacao.id,
+        status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.failure),
+      });
+      logDebug(this.logger, `Falha ao usar ItemTransacao #${itemTransacao.id}: favorecido ausente.`, METHOD);
+      return null;
+    }
+
     const detalheA: ICnab240_104DetalheA = structuredClone(detalheATemplate);
-    detalheA.codigoBancoDestino.value = itemTransacao.clienteFavorecido.codigoBanco;
-    detalheA.codigoAgenciaDestino.value = itemTransacao.clienteFavorecido.agencia;
-    detalheA.dvAgenciaDestino.value = itemTransacao.clienteFavorecido.dvAgencia;
-    detalheA.contaCorrenteDestino.value = itemTransacao.clienteFavorecido.contaCorrente;
-    detalheA.dvContaDestino.value = itemTransacao.clienteFavorecido.dvContaCorrente;
-    detalheA.nomeTerceiro.value = itemTransacao.clienteFavorecido.nome;
+    detalheA.codigoBancoDestino.value = favorecido.codigoBanco;
+    detalheA.codigoAgenciaDestino.value = favorecido.agencia;
+    detalheA.dvAgenciaDestino.value = favorecido.dvAgencia;
+    detalheA.contaCorrenteDestino.value = favorecido.contaCorrente;
+    detalheA.dvContaDestino.value = favorecido.dvContaCorrente;
+    detalheA.nomeTerceiro.value = favorecido.nome;
     detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
     detalheA.dataVencimento.value = itemTransacao.dataProcessamento;
     // indicadorFormaParcelamento = DataFixa
     detalheA.periodoDiaVencimento.value = format(itemTransacao.dataProcessamento, 'dd');
     detalheA.valorLancamento.value = itemTransacao.valor;
+    delete detalheA.dataEfetivacao.dateFormat; //send as zerores on input
 
     const detalheB: ICnab240_104DetalheB = structuredClone(detalheBTemplate);
-    detalheB.tipoInscricao.value = getTipoInscricao(asString(itemTransacao.clienteFavorecido.cpfCnpj));
-    detalheB.numeroInscricao.value = asString(itemTransacao.clienteFavorecido.cpfCnpj);
+    detalheB.tipoInscricao.value = getTipoInscricao(asString(favorecido.cpfCnpj));
+    detalheB.numeroInscricao.value = asString(favorecido.cpfCnpj);
     detalheB.dataVencimento.value = detalheA.dataVencimento.value;
 
     return {
@@ -315,11 +358,23 @@ export class HeaderArquivoService {
     headerLoteDTO: HeaderLoteDTO,
     registroAB: ICnab240_104RegistroAB,
   ): Promise<void> {
+    const METHOD = 'saveRemessaDetalhes()';
     const r = registroAB;
+    const favorecido = itemTransacao.clienteFavorecido;
+
+    if (!favorecido) {
+      // Failure if no favorecido
+      await this.itemTransacaoService.save({
+        id: itemTransacao.id,
+        status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.failure),
+      });
+      logDebug(this.logger, `Falha ao usar ItemTransacao #${itemTransacao.id}: favorecido ausente.`, METHOD);
+      return;
+    }
 
     const detalheA = new DetalheADTO({
       headerLote: { id: headerLoteDTO.id },
-      clienteFavorecido: { id: itemTransacao.clienteFavorecido.id },
+      clienteFavorecido: { id: favorecido.id },
       loteServico: Number(r.detalheA.loteServico.value),
       finalidadeDOC: String(r.detalheA.finalidadeDOC.value),
       numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
@@ -348,6 +403,13 @@ export class HeaderArquivoService {
       detalheA: { id: saveDetalheA.id },
     });
     await this.detalheBService.save(detalheB);
+
+    // Update ItemTransacao Success
+    await this.itemTransacaoService.save({
+      id: itemTransacao.id,
+      status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.used),
+      detalheA: { id: saveDetalheA.id },
+    });
   }
 
   /**
@@ -389,7 +451,7 @@ export class HeaderArquivoService {
     const headerArquivoSave = await this.headerArquivoRepository.saveIfNotExists(headerArquivoDTO);
     if (!headerArquivoSave.isNewItem) {
       logWarn(this.logger,
-        `Retorno HeaderArquivo ${new HeaderArquivo(headerArquivoDTO).getComposedPKLog()} já existe no banco, ignorando...`,
+        `Retorno HeaderArquivo Retorno ${new HeaderArquivo(headerArquivoDTO).getComposedPKLog()} já existe no banco, ignorando...`,
         METHOD);
       return false;
     }

@@ -1,11 +1,11 @@
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { User } from 'src/users/entities/user.entity';
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
+  Entity,
   JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 
 @Entity('lancamento')

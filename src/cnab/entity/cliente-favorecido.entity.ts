@@ -1,5 +1,7 @@
+import { PermissionarioRole } from 'src/permissionario-role/permissionario-role.entity';
+import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, DeepPartial, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class ClienteFavorecido extends EntityHelper {
@@ -59,7 +61,15 @@ export class ClienteFavorecido extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   uf: string | null;
-  
+
+  @ManyToOne(() => PermissionarioRole, { eager: true, nullable: true })
+  permissionarioRole: PermissionarioRole | null;
+
+  /** Just for maintenance and audit control */
+  @OneToOne(() => User, { eager: false })
+  @JoinColumn()
+  user: User;
+
   public getLogInfo(showName?: boolean): string {
     if (showName === undefined) {
       showName = false;

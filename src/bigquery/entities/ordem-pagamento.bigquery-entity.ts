@@ -16,7 +16,7 @@ export class BigqueryOrdemPagamento {
    * 
    * id_consorcio.cnpj = CNPJ
    */
-  idConsorcio: string | null;
+  idConsorcio: string;
 
   /** Nome do consórcio */
   consorcio: string | null;
@@ -26,13 +26,13 @@ export class BigqueryOrdemPagamento {
    * 
    * id_operadora.documento = CPF
    */
-  idOperadora: string | null;
+  idOperadora: string;
 
   /** Nome da operadora */
   operadora: string | null;
 
   /** Nome curto da linha operada com variação de serviço (ex: 010, 011SN, ...) */
-  servico: string | null;
+  servico: string;
 
   /** Identificador da ordem pagamento no banco de dados da Jaé */
   idOrdemPagamento: string | null;
@@ -56,13 +56,13 @@ export class BigqueryOrdemPagamento {
   quantidadeTransacaoGratuidade: number | null;
 
   /** Valor total das transações feitas com gratuidade (R$) */
-  valor_gratuidade: number | null;
+  valorGratuidade: number | null;
 
   /** Quantidade de transações feitas com integração */
   quantidadeTransacaoIntegracao: number | null;
 
   /** Valor total das transações feitas com integração (R$) */
-  valor_integracao: number | null;
+  valorIntegracao: number | null;
 
   /** Número de transações com rateio de crédito */
   quantidadeTransacaoRateioCredito: number | null;
@@ -98,5 +98,14 @@ export class BigqueryOrdemPagamento {
   indicadorOrdemValida: boolean | null;
 
   /** Código de controle de versão do dado (SHA Github) */
-  versao: string | null;
+  versao: string;
+
+  /** consorcios.cnpj */
+  consorcioCpfCnpj: string | null;
+
+  /** operadora.documento (cpf/cnpj) */
+  operadoraCpfCnpj: string | null;
+
+  /** Value of favorecido's CPF/CNPJ, if searched */
+  favorecidoCpfCnpj: string | null;
 }

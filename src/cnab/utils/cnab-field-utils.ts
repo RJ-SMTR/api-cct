@@ -1,5 +1,5 @@
 import { format, isDate } from 'date-fns';
-import { asNumber, asStringDate, asStringNumber } from 'src/utils/pipe-utils';
+import { asNumber, asStringDate, asStringNumber, asStringOrDateDate } from 'src/utils/pipe-utils';
 import {
   getStringNoSpecials,
   getStringUpperUnaccent,
@@ -7,7 +7,6 @@ import {
 } from 'src/utils/string-utils';
 import { CnabFieldType } from '../enums/cnab-field-type.enum';
 import { CnabField } from '../types/cnab-field.type';
-import { getDateFromString } from 'src/utils/date-utils';
 
 export type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';
 
@@ -221,13 +220,20 @@ function validateFormatDate(field: CnabField) {
   if (!field.dateFormat) {
     throw new Error(`CnabField must have dateFormat.`);
   }
-  if (isNaN(getDateFromString(field.value, field.dateFormat.input).getDate())) {
-    const dateFormat = field.dateFormat
-      ? JSON.stringify(field.dateFormat)
-      : 'undefined';
+  try {
+    if (isNaN(asStringOrDateDate(field.value, field.dateFormat.input).getDate())) {
+      const dateFormat = field.dateFormat
+        ? JSON.stringify(field.dateFormat)
+        : 'undefined';
+      throw new Error(
+        `CnabField: ${JSON.stringify(field)}, dateFormat: ${dateFormat} got an invalid date.`,
+      );
+    }
+  } catch (error) {
     throw new Error(
-      `CnabField: ${JSON.stringify(field)}, dateFormat: ${dateFormat} got an invalid date.`,
+      `CnabField: ${JSON.stringify(field)}, dateFormat: ${field.dateFormat} got an invalid date.`,
     );
+
   }
 }
 
@@ -387,7 +393,7 @@ export function getNumberFromCnabField(field: CnabField): number {
   if (typeof field.value === 'string') {
     const num = asStringNumber(field.value);
     if (field.value.includes('.')) {
-      return num; 
+      return num;
     } else {
       return Number(num.toFixed(decimal));
     }

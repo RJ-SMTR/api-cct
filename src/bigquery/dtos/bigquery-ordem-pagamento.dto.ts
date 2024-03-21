@@ -49,6 +49,8 @@ export class BigqueryOrdemPagamentoDTO {
   operadora: string;
 
   /** Nome curto da linha operada com variação de serviço (ex: 010, 011SN, ...) */
+  @IsNotEmpty()
+  @IsString()
   servico: string;
 
   /**
@@ -57,7 +59,7 @@ export class BigqueryOrdemPagamentoDTO {
    * Agrupamos um arquivo CNAB por id_ordem_pagamento.
    * 
    * Cada **data_ordem** possui um id_ordem_pagamento único.
-   * Cada **id_ordem_pagamento** possui vários **id_operadora** (favorecido CPF),
+   * Cada **id_ordem_pagamento** possui vários **id_operadora** (favorecidoBele CPF),
    * **id_consorico** (favorecido CNPJ) e **servico** (veículo que arrecadou)
    */
   @IsNotEmpty()
@@ -83,13 +85,13 @@ export class BigqueryOrdemPagamentoDTO {
   quantidadeTransacaoGratuidade: number | null;
 
   /** Valor total das transações feitas com gratuidade (R$) */
-  valor_gratuidade: number | null;
+  valorGratuidade: number | null;
 
   /** Quantidade de transações feitas com integração */
   quantidadeTransacaoIntegracao: number | null;
 
   /** Valor total das transações feitas com integração (R$) */
-  valor_integracao: number | null;
+  valorIntegracao: number | null;
 
   /** Número de transações com rateio de crédito */
   quantidadeTransacaoRateioCredito: number | null;
@@ -127,7 +129,14 @@ export class BigqueryOrdemPagamentoDTO {
   indicadorOrdemValida: boolean | null;
 
   /** Código de controle de versão do dado (SHA Github) */
-  versao: string | null;
+  versao: string;
 
-  aux_favorecidoCpfCnpj: string;
+  /** consorcios.cnpj */
+  operadoraCpfCnpj: string | null;
+
+  /** operadora.documento (cpf/cnpj) */
+  consorcioCpfCnpj: string | null;
+
+  /** Value of favorecido's CPF/CNPJ, if searched */
+  favorecidoCpfCnpj: string;
 }

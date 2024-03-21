@@ -26,8 +26,12 @@ export enum CrobJobsEnum {
   pollDb = 'pollDb',
   bulkResendInvites1 = 'bulkResendInvites1',
   bulkResendInvites2 = 'bulkResendInvites2',
-  updateTransacaoFromJae = 'updateTransacaoFromJae',
-  updateRemessa = 'updateRemessa',
+  updateTransacaoWeek1 = 'updateTransacaoWeek1',
+  updateTransacaoWeek2 = 'updateTransacaoWeek2',
+  updateTransacaoDaily1 = 'updateTransacaoDaily1',
+  updateTransacaoDaily2 = 'updateTransacaoDaily2',
+  updateRemessaJae = 'updateRemessaJae',
+  updateRemessaOutros = 'updateRemessaOutros',
   updateRetorno = 'updateRetorno'
 }
 
@@ -47,6 +51,26 @@ export class CronJobsService implements OnModuleInit {
   private logger = new Logger('CronJobsService', { timestamp: true });
 
   public jobsConfig: ICronJob[] = [];
+  public staticJobs = {
+    updateTransacaoWeek2: {
+      name: CrobJobsEnum.updateTransacaoWeek2,
+      cronJobParameters: {
+        cronTime: '30 6 * * *',  // 03:30 BRT = 06:30 UTC
+        onTick: async () => {
+          await this.updateTransacaoWeek2();
+        },
+      },
+    } as ICronJob,
+    updateTransacaoDaily2: {
+      name: CrobJobsEnum.updateTransacaoDaily2,
+      cronJobParameters: {
+        cronTime: '30 7 * * *',  // 04:30 BRT = 07:30 UTC
+        onTick: async () => {
+          await this.updateTransacaoDaily2();
+        },
+      },
+    } as ICronJob,
+  };
 
   constructor(
     private configService: ConfigService,
@@ -61,7 +85,10 @@ export class CronJobsService implements OnModuleInit {
   onModuleInit() {
     const THIS_CLASS_WITH_METHOD = `${CronJobsService.name}.${this.onModuleInit.name}`;
     (async () => {
-      await this.updateRetorno();
+      // test
+      // await this.updateTransacaoWeek1();
+      // await this.updateRemessa();
+      
       this.jobsConfig.push(
         {
           name: CrobJobsEnum.bulkSendInvites,
@@ -120,20 +147,37 @@ export class CronJobsService implements OnModuleInit {
             },
           },
         },
-
+        {
+          name: CrobJobsEnum.updateTransacaoWeek1,
+          cronJobParameters: {
+            cronTime: '30 4 * * *',  // 00:30 BRT = 03:30 UTC
+            onTick: async () => {
+              await this.updateTransacaoWeek1();
+            },
+          },
+        },
+        {
+          name: CrobJobsEnum.updateTransacaoDaily1,
+          cronJobParameters: {
+            cronTime: '30 4 * * *',  // 01:30 BRT = 04:30 UTC
+            onTick: async () => {
+              await this.updateTransacaoWeek1();
+            },
+          },
+        },
         // {
-        //   name: CrobJobsEnum.updateTransacaoFromJae,
+        //   name: CrobJobsEnum.updateRemessaJae,
         //   cronJobParameters: {
-        //     cronTime: '* * * * *',
+        //     cronTime: '30 0 * * 5',  // Every friday
         //     onTick: async () => {
-        //       await this.updateTransacaoFromJae();
+        //       await this.updateRemessa();
         //     },
         //   },
         // },
         // {
-        //   name: CrobJobsEnum.updateRemessa,
+        //   name: CrobJobsEnum.updateRemessaOutros,
         //   cronJobParameters: {
-        //     cronTime: '45 14 * * *',
+        //     cronTime: '30 0 * * *',  // Daily
         //     onTick: async () => {
         //       await this.updateRemessa();
         //     },
@@ -167,8 +211,8 @@ export class CronJobsService implements OnModuleInit {
     job.start();
   }
 
-  deleteCron(jobConfig: ICronJob) {
-    this.schedulerRegistry.deleteCronJob(jobConfig.name);
+  deleteCron(jobName: string) {
+    this.schedulerRegistry.deleteCronJob(jobName);
   }
 
   async bulkSendInvites() {
@@ -505,7 +549,7 @@ export class CronJobsService implements OnModuleInit {
       );
       job.cronJobParameters.cronTime = setting;
       this.jobsConfig[jobIndex] = job;
-      this.deleteCron(job);
+      this.deleteCron(job.name);
       this.startCron(job);
       logLog(this.logger,
         `Tarefa reagendada: ${job.name}, ${job.cronJobParameters.cronTime}`,
@@ -624,21 +668,83 @@ export class CronJobsService implements OnModuleInit {
     }
   }
 
-  async updateTransacaoFromJae() {
-    const METHOD = 'updateTransacaoFromJae()';
+  async updateTransacaoWeek1() {
+    const METHOD = 'updateTransacaoWeek1()';
     try {
-      await this.cnabService.updateTransacaoFromJae();
+      await this.cnabService.updateTransacaoFromJae('vanzeiroWeek');
       logLog(this.logger,
         'Tabelas: Favorecido, Transacao e ItemTransacao atualizados com sucesso.',
         METHOD
       );
     } catch (error) {
       logError(this.logger,
-        'Erro, abortando.',
+        'ERRO CRÍTICO',
         METHOD,
         error,
         error as Error,
       );
+      this.startCron(this.staticJobs.updateTransacaoWeek2);
+      // enviar email para: raphael, william, bernardo...
+    }
+  }
+
+  async updateTransacaoWeek2() {
+    const METHOD = 'updateTransacaoWeek2()';
+    try {
+      await this.cnabService.updateTransacaoFromJae('vanzeiroWeek');
+      logLog(this.logger,
+        'Tabelas: Favorecido, Transacao e ItemTransacao atualizados com sucesso.',
+        METHOD
+      );
+    } catch (error) {
+      logError(this.logger,
+        'ERRO CRÍTICO (TENTATIVA 2)',
+        METHOD,
+        error,
+        error as Error,
+      );
+      this.deleteCron(CrobJobsEnum.updateTransacaoWeek2);
+      // enviar email para: raphael, william, bernardo...
+    }
+  }
+
+  async updateTransacaoDaily1() {
+    const METHOD = 'updateTransacaoDaily1()';
+    try {
+      await this.cnabService.updateTransacaoFromJae('othersDaily');
+      logLog(this.logger,
+        'Tabelas: Favorecido, Transacao e ItemTransacao atualizados com sucesso.',
+        METHOD
+      );
+    } catch (error) {
+      logError(this.logger,
+        'ERRO CRÍTICO (TENTATIVA 1)',
+        METHOD,
+        error,
+        error as Error,
+      );
+      this.startCron(this.staticJobs.updateTransacaoDaily2);
+      // Enviar email
+    }
+  }
+
+  async updateTransacaoDaily2() {
+    const METHOD = 'updateTransacaoDaily2()';
+    try {
+      await this.cnabService.updateTransacaoFromJae('othersDaily');
+      logLog(this.logger,
+        'Tabelas: Favorecido, Transacao e ItemTransacao atualizados com sucesso.',
+        METHOD
+      );
+    } catch (error) {
+      logError(this.logger,
+        'ERRO CRÍTICO (TENTATIVA 2)',
+        METHOD,
+        error,
+        error as Error,
+      );
+      this.deleteCron(CrobJobsEnum.updateTransacaoDaily2);
+      // Enviar email
     }
   }
 

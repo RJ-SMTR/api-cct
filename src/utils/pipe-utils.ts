@@ -52,6 +52,20 @@ export function asDate(date: Date | null | undefined, fieldName?: string): Date 
   return date;
 }
 
+export function asStringOrDateDate(str: string | Date, inputFormat?: string, fieldName?: string): Date {
+  const field = fieldName ? fieldName : 'StringDate';
+  if (typeof str === 'string') {
+    return getDateFromString(str, inputFormat);
+  }
+  else if (isDate(str)) {
+    return str;
+  } else {
+    throw CommonHttpException.details(
+      `${field} should be nullable string | date , but got ${typeof str}, value: ${str}`,
+    );
+  }
+}
+
 export function asNullableStringOrDateTime(str: string | Date | null | undefined, date?: Date | null | undefined, inputFormat?: string, fieldName?: string): Date | null {
   const field = fieldName ? fieldName : 'StringDate';
   if (typeof str === 'string') {
@@ -104,6 +118,15 @@ export function asNullableStringOrNumber(val: string | number | null | undefined
   }
 }
 
+export function asNullableStringNumber(str: string | null | undefined, fieldName?: string, allowNaN = false): number | null {
+  const field = fieldName || 'Number';
+  if (str === null || str === undefined) {
+    return null;
+  } else {
+    return asNumber(Number(asString(str, field)), field, allowNaN);
+  }
+}
+
 export function asStringNumber(str: string | null | undefined, fieldName?: string, allowNaN = false): number {
   const field = fieldName || 'Number';
   return asNumber(Number(asString(str, field)), field, allowNaN);
@@ -145,6 +168,15 @@ export function asDecimal(num: number | null | undefined, fieldName?: string): n
   return validNum;
 }
 
+export function asStringBoolean(str: string | null | undefined, fieldName?: string): boolean {
+  const field = fieldName || 'StringBoolean';
+  if (typeof str !== 'string' && str !== undefined && str !== null) {
+    throw CommonHttpException.details(
+      `${field} is not boolean, but ${typeof str}, value: ${str}`,
+    );
+  }
+  return str?.toLowerCase() === 'true';
+}
 
 export function asBoolean(bool: boolean | null | undefined, fieldName?: string): boolean {
   const field = fieldName || 'Boolean';
@@ -166,4 +198,14 @@ export function asJSONStrOrObj(str: string | object): string {
       return String(str);
     }
   }
+}
+
+export function asObject<T>(obj: T | null | undefined, fieldName?: string): T {
+  const field = fieldName || 'NullableObject';
+  if (obj === null || obj === undefined) {
+    throw CommonHttpException.details(
+      `${field} is nullable: ${typeof obj}`,
+    );
+  }
+  return obj;
 }

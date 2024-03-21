@@ -5,6 +5,7 @@ import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository } from 'typeorm';
 import { Transacao } from '../entity/transacao.entity';
 import { TransacaoDTO } from '../dto/transacao.dto';
+import { TransacaoStatusEnum } from '../enums/transacao/transacao-status.enum';
 
 @Injectable()
 export class TransacaoRepository {
@@ -41,11 +42,10 @@ export class TransacaoRepository {
    * Get all transacao where id not exists in headerArquivo yet (new CNABS)
    */
   public async findAllNewTransacao(): Promise<Transacao[]> {
-    return (await this.transacaoRepository.query(
-      'SELECT t.* ' +
-      'FROM transacao t ' +
-      'LEFT JOIN header_arquivo ha ON ha."transacaoId" = t.id ' +
-      'WHERE ha."transacaoId" IS NULL '
-    ));
+    return await this.transacaoRepository.find({
+      where: {
+        status: { id: TransacaoStatusEnum.created }
+      }
+    });
   }
 }

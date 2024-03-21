@@ -10,7 +10,7 @@ import { BigqueryOrdemPagamentoRepository } from './bigquery-ordem-pagamento.rep
 
 describe('BigqueryOrdemPagamentoRepository', () => {
   let settingsService: SettingsService;
-  let bqTransacaoRepository: BigqueryOrdemPagamentoRepository;
+  let bqOrdemPagamentoRepository: BigqueryOrdemPagamentoRepository;
   let googleCredentials: any;
 
   beforeAll(() => {
@@ -41,7 +41,7 @@ describe('BigqueryOrdemPagamentoRepository', () => {
     }).compile();
 
     settingsService = module.get(SettingsService);
-    bqTransacaoRepository = module.get(BigqueryOrdemPagamentoRepository);
+    bqOrdemPagamentoRepository = module.get(BigqueryOrdemPagamentoRepository);
   });
 
   afterEach(() => {
@@ -52,7 +52,7 @@ describe('BigqueryOrdemPagamentoRepository', () => {
     expect(settingsService).toBeDefined();
   });
 
-  describe('findTransacaoBy', () => {
+  describe('findMany', () => {
     it('should return some data', async () => {
       // Arrange
       jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValueOnce({
@@ -60,7 +60,7 @@ describe('BigqueryOrdemPagamentoRepository', () => {
       } as SettingEntity);
 
       // Act
-      const result = await bqTransacaoRepository.findMany({
+      const result = await bqOrdemPagamentoRepository.findMany({
         startDate: new Date('2023-06-01'),
         endDate: new Date('2024-06-01'),
         limit: 50,

@@ -3,13 +3,13 @@ import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { asString } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { validateDTO } from 'src/utils/validation-utils';
+import { FindOneOptions, IsNull, Not } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
-import { IsNull, Not } from 'typeorm';
-import { asString } from 'src/utils/pipe-utils';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -38,7 +38,9 @@ export class ClienteFavorecidoService {
     });
     for (const user of allUsers) {
       const favorecido = await this.clienteFavorecidoRepository.findOne({
-        cpfCnpj: user.cpfCnpj,
+        where: {
+          cpfCnpj: user.cpfCnpj,
+        }
       });
       await this.saveFavorecidoFromUser(
         user,
@@ -47,11 +49,13 @@ export class ClienteFavorecidoService {
     }
   }
 
+  public async findCpfCnpj(cpfCnpj: string): Promise<ClienteFavorecido | null> {
+    return await this.clienteFavorecidoRepository.findOne({ where: { cpfCnpj: cpfCnpj } });
+  }
 
   public async getCpfCnpj(cpf_cnpj: string): Promise<ClienteFavorecido> {
     return await this.clienteFavorecidoRepository.getOne({ cpfCnpj: cpf_cnpj });
   }
-
 
   public async getAll(): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.findAll({});
@@ -108,6 +112,8 @@ export class ClienteFavorecidoService {
       cep: null,
       complementoCep: null,
       uf: null,
+      permissionarioRole: user.permissionarioRole,
+      user: { id: user.id }
     };
     await validateDTO(SaveClienteFavorecidoDTO, saveObject);
     await this.clienteFavorecidoRepository.save(saveObject);
@@ -126,6 +132,10 @@ export class ClienteFavorecidoService {
     } else {
       return cliente;
     }
+  }
+
+  public async findOne(options: FindOneOptions<ClienteFavorecido>): Promise<ClienteFavorecido | null> {
+    return await this.clienteFavorecidoRepository.findOne(options);
   }
 
 }

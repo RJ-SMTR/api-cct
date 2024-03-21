@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { Repository, UpdateResult } from 'typeorm';
+import { FindOneOptions, Repository, UpdateResult } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
@@ -54,12 +54,9 @@ export class ClienteFavorecidoRepository {
     return updatePayload;
   }
 
-  public async findOne(
-    fields: EntityCondition<ClienteFavorecido> | EntityCondition<ClienteFavorecido>[],
-  ): Promise<ClienteFavorecido | null> {
-    return await this.clienteFavorecidoRepository.findOne({
-      where: fields,
-    });
+  public async findOne(options: FindOneOptions<ClienteFavorecido>): Promise<ClienteFavorecido | null> {
+    const first = (await this.clienteFavorecidoRepository.find(options)).shift();
+    return first || null;
   }
 
   public async getOne(
