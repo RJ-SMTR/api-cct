@@ -14,7 +14,7 @@ export class CreateLancamento1708975174260 implements MigrationInterface {
                 "data_lancamento" TIMESTAMP NOT NULL DEFAULT now(), 
                 "auth_usersIds" character varying, 
                 "userId" integer, 
-                "algoritmo" integer NOT NULL,
+                "algoritmo" character varying NOT NULL,
                 "glosa" character varying NOT NULL,
                 "recurso" character varying NOT NULL,
                 "valor_a_pagar" character varying  NOT NULL,
