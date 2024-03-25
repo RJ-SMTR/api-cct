@@ -41,7 +41,7 @@ export class SettingsController {
   }
 
   @ApiBearerAuth()
-  @Roles(RoleEnum.admin)
+  @Roles(RoleEnum.admin, RoleEnum.master)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @HttpCode(HttpStatus.OK)
   @Patch()

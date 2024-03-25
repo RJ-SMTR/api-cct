@@ -78,7 +78,7 @@ export class LancamentoService {
       (item) => item.auth_usersIds && item.auth_usersIds.split(',').length >= 2
     );
   
-    const sumOfValues = filteredResponse.reduce((acc, curr) => acc + Number(curr.valor), 0);
+    const sumOfValues = filteredResponse.reduce((acc, curr) => Number(acc) + Number(curr.valor), 0);
 
     const resp = {
       valor_autorizado: String(sumOfValues),
