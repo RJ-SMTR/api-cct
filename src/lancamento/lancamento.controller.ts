@@ -8,6 +8,7 @@ import {
   UseGuards,
   Put,
   Param,
+  Delete,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Request, HttpStatus } from '@nestjs/common';
@@ -187,5 +188,11 @@ export class LancamentoController {
   @HttpCode(HttpStatus.OK)
   async getById(@Param('id') id: number) {
     return await this.lancamentoService.getById(id);
+  }
+
+  @Delete('/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteById(@Param('id') id: number) {
+    return await this.lancamentoService.delete(id);
   }
 }
