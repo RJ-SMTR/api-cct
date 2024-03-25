@@ -15,7 +15,7 @@ export class LancamentoService {
     private readonly lancamentoRepository: Repository<LancamentoEntity>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async findByPeriod(
     month: number,
@@ -60,30 +60,41 @@ export class LancamentoService {
 
     return lancamentosComUsuarios;
   }
-  
+
   async getValorAutorizado(
     month: number,
     period: number,
     year: number,
   ): Promise<any> {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
-  
+
     const response = await this.lancamentoRepository.find({
       where: {
         data_lancamento: Between(startDate, endDate),
       },
     });
-  
+
+
     const filteredResponse = response.filter(
       (item) => item.auth_usersIds && item.auth_usersIds.split(',').length >= 2
     );
-  
-    const sumOfValues = filteredResponse.reduce((acc, curr) => Number(acc) + Number(curr.valor), 0);
+    console.log('filteredResponse', filteredResponse)
+
+    const sumOfValues = filteredResponse.reduce((acc, curr) => {
+      // Remove pontos dos milhares e substitui a vírgula por ponto para torná-lo um número válido
+      const valor = parseFloat(curr.valor.replace(/\./g, '').replace(',', '.'));
+      return acc + valor;
+    }, 0);
+
+    const formattedSum = sumOfValues.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
 
     const resp = {
-      valor_autorizado: String(sumOfValues),
+      valor_autorizado: String(formattedSum),
     }
-  
+
     return resp;
   }
 
@@ -129,13 +140,13 @@ export class LancamentoService {
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
-  
+
     const { id_cliente_favorecido, ...restUpdatedData } = updatedData;
     lancamento = { ...lancamento, ...restUpdatedData, userId, auth_usersIds: '' };
-    
+
     await this.lancamentoRepository.save(lancamento);
     console.log(id_cliente_favorecido);
-  
+
     return lancamento;
   }
 
