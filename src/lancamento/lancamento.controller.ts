@@ -21,6 +21,7 @@ import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.service';
+import { AutorizaLancamentoDto } from './AutorizaLancamentoDto';
 
 
 @ApiTags('Lancamento')
@@ -32,7 +33,7 @@ export class LancamentoController {
   constructor(
     private readonly lancamentoService: LancamentoService,
     private readonly clienteFavorecidoService: ClienteFavorecidoService
-    ) {}
+  ) { }
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -68,8 +69,8 @@ export class LancamentoController {
   ): Promise<ItfLancamento[]> {
     return await this.lancamentoService.findByPeriod(mes, periodo, ano);
   }
-  
-  
+
+
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
@@ -142,21 +143,26 @@ export class LancamentoController {
     required: true,
     description: 'Id do lançamento',
   })
+  @ApiBody({ type: AutorizaLancamentoDto })
   @HttpCode(HttpStatus.OK)
-  async autorizarPagamento(@Request() req) {
+  async autorizarPagamento(
+    @Request() req,
+    @Body() AutorizaLancamentoDto: AutorizaLancamentoDto,
+  ) {
     const userId = req.user.id;
     const lancamentoId = req.query.lancamentoId;
     return await this.lancamentoService.autorizarPagamento(
       userId,
       lancamentoId,
+      AutorizaLancamentoDto
     );
   }
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
-    RoleEnum.master, 
-    RoleEnum.admin_finan, 
+    RoleEnum.master,
+    RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro)
   @Put('/')
@@ -179,8 +185,8 @@ export class LancamentoController {
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
-    RoleEnum.master, 
-    RoleEnum.admin_finan, 
+    RoleEnum.master,
+    RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro
   )

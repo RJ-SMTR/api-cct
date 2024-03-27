@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ItfLancamento } from './interfaces/lancamento.interface';
@@ -7,6 +7,9 @@ import { Between } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { In } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
+import { AutorizaLancamentoDto } from './AutorizaLancamentoDto';
+import { UsersService } from 'src/users/users.service';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class LancamentoService {
@@ -15,6 +18,7 @@ export class LancamentoService {
     private readonly lancamentoRepository: Repository<LancamentoEntity>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private readonly usersService: UsersService,
   ) { }
 
   async findByPeriod(
@@ -110,7 +114,24 @@ export class LancamentoService {
   async autorizarPagamento(
     userId: number,
     lancamentoId,
+    AutorizaLancamentoDto: AutorizaLancamentoDto,
   ): Promise<ItfLancamento> {
+
+    const user = await this.usersService.findOne({
+      id: userId,
+    });
+
+    if(!user)
+      throw new HttpException('Usuário não encontrado', HttpStatus.UNAUTHORIZED);
+
+    const isValidPassword = await bcrypt.compare(
+      AutorizaLancamentoDto.password,
+      user.password,
+    );
+
+    if(!isValidPassword)
+      throw new HttpException('Senha inválida', HttpStatus.UNAUTHORIZED);
+
     const lancamento = await this.lancamentoRepository.findOne({
       where: { id: parseInt(lancamentoId) },
     });
