@@ -74,7 +74,7 @@ export class LancamentoService {
 
     const response = await this.lancamentoRepository.find({
       where: {
-        data_lancamento: Between(startDate, endDate),
+        data_ordem: Between(startDate, endDate),
       },
     });
 
