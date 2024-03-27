@@ -1,22 +1,20 @@
-import { Cnab104CodigoSegmento } from '../enums/104/cnab-104-codigo-segmento.enum';
-import { ICnab240_104File } from '../interfaces/cnab-240/104/cnab-240-104-file.interface';
-import { ICnab240_104HeaderArquivo } from '../interfaces/cnab-240/104/cnab-240-104-header-arquivo.interface';
-import { ICnab240_104HeaderLote } from '../interfaces/cnab-240/104/cnab-240-104-header-lote.interface';
-import { ICnab240_104Lote } from '../interfaces/cnab-240/104/cnab-240-104-lote.interface';
-import { ICnab240_104Registro } from '../interfaces/cnab-240/104/cnab-240-104-registro.interface';
-import { ICnab240_104TrailerArquivo } from '../interfaces/cnab-240/104/cnab-240-104-trailer-arquivo.interface';
-import { ICnab240_104TrailerLote } from '../interfaces/cnab-240/104/cnab-240-104-trailer-lote.interface';
-import { cnab240_104DetalheATemplate } from '../templates/cnab-240/104/cnab-240-104-detalhe-a-template.const';
-import { cnab240_104DetalheBTemplate } from '../templates/cnab-240/104/cnab-240-104-detalhe-b-template.const';
-import { cnab240_104HeaderArquivoTemplate } from '../templates/cnab-240/104/cnab-240-104-header-arquivo-template.const';
-import { cnab240_104HeaderLoteTemplate } from '../templates/cnab-240/104/cnab-240-104-header-lote-template.const';
-import { cnab240_104TrailerArquivoTemplate } from '../templates/cnab-240/104/cnab-240-104-trailer-arquivo-template.const';
-import { cnab240_104TrailerLoteTemplate } from '../templates/cnab-240/104/cnab-240-104-trailer-lote-template.const';
-import { cnabAll104FieldMapTemplate as fieldMapTemplate } from '../templates/cnab-all/cnab-all-104-registro-field-map-template';
-import { CnabFields } from '../types/cnab-field.type';
-import { CnabFile } from '../types/cnab-file.type';
-import { CnabLote } from '../types/cnab-lote.type';
-import { CnabRegistro } from '../types/cnab-registro.type';
+import { CnabCodigoSegmento } from 'src/cnab/enums/all/cnab-codigo-segmento.enum';
+import { CnabFile104 } from '../interfaces/cnab-240/104/cnab-file-104.interface';
+import { CnabHeaderArquivo104 } from '../interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
+import { CnabLote104 } from '../interfaces/cnab-240/104/cnab-lote-104.interface';
+import { CnabRegistros104 } from '../interfaces/cnab-240/104/cnab-registros-104.interface';
+import { CnabTrailerArquivo104 } from '../interfaces/cnab-240/104/cnab-trailer-arquivo-104.interface';
+import { CnabTrailerLote104 } from '../interfaces/cnab-240/104/cnab-trailer-lote-104.interface';
+import { CnabFile104Extrato } from '../interfaces/cnab-240/104/extrato/cnab-file-104-extrato.interface';
+import { CnabFile104Pgto } from '../interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
+import { CnabHeaderLote104Pgto } from '../interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
+import { cnab104ExtratoFileTemplates } from '../templates/cnab-240/104/extrato/cnab-104-extrato-file-templates.const';
+import { Cnab104PgtoFileTemplates as PgtoTemplates } from '../templates/cnab-240/104/pagamento/cnab-104-pgto-file-templates.const';
+import { CnabFile } from '../interfaces/cnab-file.interface';
+import { CnabLote } from '../interfaces/cnab-lote.interface';
+import { CnabRegistro } from '../interfaces/cnab-registro.interface';
+import { getCnabFileFrom104 } from './cnab-104-pipe-utils';
+import { setCnab104Metadata } from './cnab-metadata-utils';
 import {
   getCnabMappedValue,
   parseCnabFile,
@@ -24,58 +22,60 @@ import {
   stringifyCnabFile,
 } from './cnab-utils';
 
-export function parseCnab240_104(cnabString: string): ICnab240_104File {
-  const fileDTO = getCnabFileFrom104({
-    headerArquivo: structuredClone(cnab240_104HeaderArquivoTemplate),
-    lotes: [{
-      headerLote: structuredClone(cnab240_104HeaderLoteTemplate),
-      registros: [{
-        detalheA: structuredClone(cnab240_104DetalheATemplate),
-        detalheB: structuredClone(cnab240_104DetalheBTemplate),
-      }],
-      trailerLote: structuredClone(cnab240_104TrailerLoteTemplate),
-    }],
-    trailerArquivo: structuredClone(cnab240_104TrailerArquivoTemplate),
-  })
+const sc = structuredClone;
+
+export function parseCnab240Extrato(cnabString: string): CnabFile104Extrato {
+  const fileDTO = sc(cnab104ExtratoFileTemplates.file.dto.retorno);
   const file = parseCnabFile(cnabString, fileDTO);
-  return getCnab104FromFile(file);
+  const file104 = getCnab104FromFile(file);
+  return file104 as CnabFile104Extrato;
+}
+
+export function parseCnab240Pagamento(cnabString: string): CnabFile104Pgto {
+  const fileDTO = sc(PgtoTemplates.file.dto.retorno)
+  const file = parseCnabFile(cnabString, fileDTO);
+  const file104 = getCnab104FromFile(file);
+  return file104 as CnabFile104Pgto;
 }
 
 /**
- * Validate and add Cnab 104 information
+ * Validate, process and transform raw cnab into string
  */
-export function getProcessedCnab104(
-  cnab104: ICnab240_104File,
-): ICnab240_104File {
-  validateCnab104File(cnab104);
-  const newCnab104 = structuredClone(cnab104);
-  processCnab104File(newCnab104);
-  const cnab = getCnabFileFrom104(newCnab104);
-  processCnabFile(cnab);
-  return getCnab104FromFile(cnab);
-}
-
-/**
- * Validate, process and transform into string
- */
-export function stringifyCnab104File(cnab104: ICnab240_104File): string {
-  validateCnab104File(cnab104);
-  const newCnab104 = structuredClone(cnab104);
-  processCnab104File(newCnab104);
-  const cnab = getCnabFileFrom104(newCnab104);
+export function stringifyCnab104File(cnab104: CnabFile104, process = true, cnabName?: string): string {
+  const _cnab104 = process ? getProcessedCnab104(cnab104, cnabName) : cnab104;
+  const cnab = getCnabFileFrom104(_cnab104);
   return stringifyCnabFile(cnab);
 }
 
-export function validateCnab104File(cnab: ICnab240_104File) {
+/**
+ * Validate, and add Cnab 104 information, including debug metadata
+ * 
+ * @param cnabName CnabName for debugging
+ */
+export function getProcessedCnab104<T extends CnabFile104>(
+  cnab104: T,
+  cnabName?: string
+): T {
+  validateCnab104File(cnab104);
+  const newCnab104 = structuredClone(cnab104);
+  setCnab104Metadata(newCnab104, cnabName);
+  processCnab104File(newCnab104);
+  const cnab = getCnabFileFrom104(newCnab104);
+  processCnabFile(cnab);
+  return getCnab104FromFile(cnab) as T;
+}
+
+export function validateCnab104File(cnab: CnabFile104) {
   validateUniqueCnab104Lotes(cnab.lotes);
 }
 
-export function validateUniqueCnab104Lotes(lotes: ICnab240_104Lote[]) {
+export function validateUniqueCnab104Lotes(lotes: CnabLote104[]) {
   const loteTypesDict = lotes.reduce(
     (l, i) => [
       ...l,
       {
-        tipoCompromisso: i.headerLote.tipoCompromisso.value,
+        // ICnab240_104HeaderLotePgto
+        ...('tipoCompromisso' in i.headerLote ? { tipoCompromisso: i.headerLote.tipoCompromisso.value } : {}),
         formaLancamento: i.headerLote.formaLancamento.value,
       },
     ],
@@ -84,7 +84,8 @@ export function validateUniqueCnab104Lotes(lotes: ICnab240_104Lote[]) {
   const loteTypes = lotes.reduce(
     (l, i) => [
       ...l,
-      String(i.headerLote.tipoCompromisso.value) +
+      // ICnab240_104HeaderLotePgto
+      ...('tipoCompromisso' in i.headerLote ? [String(i.headerLote.tipoCompromisso.value)] : []),
       String(i.headerLote.formaLancamento.value),
     ],
     [],
@@ -102,22 +103,22 @@ export function validateUniqueCnab104Lotes(lotes: ICnab240_104Lote[]) {
 /**
  * Process data in CnabFile for Caixa (bank 104)
  */
-export function processCnab104File(cnab: ICnab240_104File) {
+export function processCnab104File(cnab: CnabFile104) {
   processCnab104Lotes(cnab.lotes);
 }
 
-function processCnab104Lotes(lotes: ICnab240_104Lote[]) {
+function processCnab104Lotes(lotes: CnabLote104[]) {
   for (let i = 0; i < lotes.length; i++) {
     processCnab104TrailerLote(lotes[i]);
   }
 }
 
-function processCnab104TrailerLote(lote: ICnab240_104Lote) {
+function processCnab104TrailerLote(lote: CnabLote104) {
   const somatorioValores = getSomarioValoresCnabLote(lote);
   lote.trailerLote.somatorioValores.value = somatorioValores;
 }
 
-function getSomarioValoresCnabLote(lote: ICnab240_104Lote): number {
+function getSomarioValoresCnabLote(lote: CnabLote104): number {
   return lote.registros.reduce(
     (s2, regGroup) =>
       s2 + Number(regGroup.detalheA?.valorLancamento?.value || 0),
@@ -127,38 +128,46 @@ function getSomarioValoresCnabLote(lote: ICnab240_104Lote): number {
 
 // #region getCnab104FromFile
 
-export function getCnab104FromFile(cnab: CnabFile): ICnab240_104File {
+/**
+ * A pipe that transforms Cnab240_104File into CnabFile
+ */
+export function getCnab104FromFile(cnab: CnabFile): CnabFile104 {
   return {
-    headerArquivo: (cnab.headerArquivo.fields as unknown as ICnab240_104HeaderArquivo),
+    _metadata: { type: 'ICnab240_104File' },
+    headerArquivo: (cnab.headerArquivo.fields as unknown as CnabHeaderArquivo104),
     lotes: getCnab104Lotes(cnab.lotes),
-    trailerArquivo: (cnab.trailerArquivo.fields as unknown as ICnab240_104TrailerArquivo),
+    trailerArquivo: (cnab.trailerArquivo.fields as unknown as CnabTrailerArquivo104),
   };
 }
 
-function getCnab104Lotes(lotes: CnabLote[]): ICnab240_104Lote[] {
-  const newLotes: ICnab240_104Lote[] = [];
+function getCnab104Lotes(lotes: CnabLote[]): CnabLote104[] {
+  const newLotes: CnabLote104[] = [];
   for (const lote of lotes) {
     newLotes.push({
-      headerLote: (lote.headerLote.fields as unknown as ICnab240_104HeaderLote),
+      headerLote: (lote.headerLote.fields as unknown as CnabHeaderLote104Pgto),
       registros: getCnab104Registros(lote),
-      trailerLote: (lote.trailerLote.fields as unknown as ICnab240_104TrailerLote),
+      trailerLote: (lote.trailerLote.fields as unknown as CnabTrailerLote104),
     });
   }
   return newLotes;
 }
 
 /**
- * From list of CnabLote return a list of sets of Detalhes.
+ * From list of CnabLote return a list of Detalhes.
  *
  * For example: We have input of `[detalheA, deatalheB, detalheA, deatalheB]`,
  * it returns `[{detalheA: {...}, detalheB: {...}}, {detalheA: {...}, detalheB: {...}}]`
+ * 
+ * @param lote Lote containing Header and Trailer
  */
-function getCnab104Registros(lote: CnabLote): ICnab240_104Registro[] {
-  const newRegistros: ICnab240_104Registro[] = [];
-  let newRegistro: ICnab240_104Registro = {};
-  for (const registro of lote.registros) {
+function getCnab104Registros(lote: CnabLote): CnabRegistros104[] {
+  const newRegistros: CnabRegistros104[] = [];
+  let newRegistro: CnabRegistros104 = {};
+
+  // Add detalhe
+  for (const detalhe of lote.registros) {
     // reset / push new registro set
-    if (isNewCnab104RegistroSet(registro)) {
+    if (isCnabRegistroNewLote(detalhe)) {
       if (Object.values(newRegistro).some((i) => i)) {
         newRegistros.push(newRegistro);
       }
@@ -166,11 +175,12 @@ function getCnab104Registros(lote: CnabLote): ICnab240_104Registro[] {
     }
     // add detalhe to registro set
     const codSegmento = getCnabMappedValue(
-      registro,
+      detalhe,
       'detalheSegmentoCodeField',
     );
-    newRegistro[`detalhe${codSegmento}`] = registro.fields;
+    newRegistro[`detalhe${codSegmento}`] = detalhe.fields;
   }
+
   // push new registro set
   if (Object.values(newRegistro).some((i) => i)) {
     newRegistros.push(newRegistro);
@@ -180,66 +190,17 @@ function getCnab104Registros(lote: CnabLote): ICnab240_104Registro[] {
 }
 
 /**
- * Each registro follows this order: A,B,A,B...
- * There is no "B,A", "A,A" or "B,B", for example.
+ * If CnabRegisto represents a new lote.
  *
  * In Cnab104 we have interface Registro = { detalheA: {...}, detalheB: {...} }.
  * So we expect to transform each CnabRegistro into a list of of sets (detalheA, detalheB).
  *
  * There are other combinations but for now we just need to deal with these.
  */
-function isNewCnab104RegistroSet(registro: CnabRegistro): boolean {
-  return [Cnab104CodigoSegmento.A].includes(
+function isCnabRegistroNewLote(registro: CnabRegistro): boolean {
+  return [CnabCodigoSegmento.A, CnabCodigoSegmento.E].includes(
     getCnabMappedValue(registro, 'detalheSegmentoCodeField'),
   );
 }
 
 // #endregion
-
-export function getCnabFileFrom104(cnab: ICnab240_104File): CnabFile {
-  return {
-    headerArquivo: {
-      fields: (cnab.headerArquivo as unknown as CnabFields),
-      fieldMap: fieldMapTemplate.headerArquivo,
-    },
-    lotes: getCnabLotesFrom104(cnab.lotes),
-    trailerArquivo: {
-      fields: (cnab.trailerArquivo as unknown as CnabFields),
-      fieldMap: fieldMapTemplate.trailerArquivo,
-    },
-  };
-}
-
-function getCnabLotesFrom104(lotes: ICnab240_104Lote[]): CnabLote[] {
-  return lotes.reduce((l, i) => [...l, getCnabLoteFrom104(i)], []);
-}
-
-function getCnabLoteFrom104(lote: ICnab240_104Lote): CnabLote {
-  return {
-    headerLote: {
-      fields: (lote.headerLote as unknown as CnabFields),
-      fieldMap: fieldMapTemplate.headerLote,
-    },
-    registros: getCnabRegistrosFrom104(lote.registros),
-    trailerLote: {
-      fields: (lote.trailerLote as unknown as CnabFields),
-      fieldMap: fieldMapTemplate.trailerLote,
-    },
-  };
-}
-
-function getCnabRegistrosFrom104(
-  registrosGroup: ICnab240_104Registro[],
-): CnabRegistro[] {
-  const baseRegistros: CnabRegistro[] = [];
-  for (const registros of registrosGroup) {
-    for (const registro of Object.values(registros).filter((i) => i)) {
-      const baseRegistro: CnabRegistro = {
-        fields: registro,
-        fieldMap: fieldMapTemplate.detalheLote,
-      };
-      baseRegistros.push(baseRegistro);
-    }
-  }
-  return baseRegistros;
-}

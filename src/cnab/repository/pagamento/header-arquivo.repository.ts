@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
+import { HeaderArquivoTipoArquivo } from 'src/cnab/enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { FindOptionsOrder, In, Repository } from 'typeorm';
+import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
+import { FindOptionsOrder, Repository } from 'typeorm';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
-import { asNumber } from 'src/utils/pipe-utils';
-import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 
 @Injectable()
 export class HeaderArquivoRepository {
@@ -25,23 +26,16 @@ export class HeaderArquivoRepository {
   }
 
   public async saveIfNotExists(dto: HeaderArquivoDTO): Promise<SaveIfNotExists<HeaderArquivo>> {
-    const existingHeader = await this.headerArquivoRepository.findOne({
+    const existing = await this.headerArquivoRepository.findOne({
       where: {
         nsa: dto.nsa,
-        transacao: { id: dto.transacao?.id },
-        tipoArquivo: asNumber(dto.tipoArquivo)
+        tipoArquivo: dto.tipoArquivo,
       }
     });
-    if (existingHeader) {
-      return {
-        isNewItem: false,
-        item: existingHeader,
-      };
-    } else {
-      return {
-        isNewItem: true,
-        item: await this.headerArquivoRepository.save(dto),
-      };
+    const item = existing || await this.headerArquivoRepository.save(dto);
+    return {
+      isNewItem: !Boolean(existing),
+      item: item,
     }
   }
 
@@ -74,28 +68,22 @@ export class HeaderArquivoRepository {
     });
   }
 
-  public async findMany(fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[]): Promise<HeaderArquivo[]> {
+  public async findMany(fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[]
+  ): Promise<HeaderArquivo[]> {
     return await this.headerArquivoRepository.find({
       where: fields
     });
   }
 
   /**
-   * Find HeaderArquivo Remessa where id not exists yet in ArquivoPublicacao
+   * Find HeaderArquivo Remessa ready to save in ArquivoPublicacao
    */
-  public async findAllNewRemessa(): Promise<HeaderArquivo[]> {
-    // Find new remessa
-    const ids: number[] = (await this.headerArquivoRepository.query(
-      'SELECT ha.id ' +
-      'FROM header_arquivo ha ' +
-      'LEFT JOIN arquivo_publicacao ap ON ap."headerArquivoId" = ha.id ' +
-      'LEFT JOIN transacao t ON t."id" = ha."transacaoId" ' +
-      'WHERE ha."tipoArquivo" = 1 -- REMESSA ' +
-      'AND ap."headerArquivoId" IS NULL '
-    )).map((item: { id: number; }) => item.id);
-    // Retrieve Entities with eager
+  public async findAllRemessaForPublicacao(): Promise<HeaderArquivo[]> {
     return await this.headerArquivoRepository.find({
-      where: { id: In(ids) }
+      where: {
+        tipoArquivo: HeaderArquivoTipoArquivo.Remessa,
+        status: { id: HeaderArquivoStatusEnum.retornoSaved }
+      }
     });
   }
 

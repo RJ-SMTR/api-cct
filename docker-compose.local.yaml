@@ -18,6 +18,13 @@ services:
       - ${MAIL_CLIENT_PORT}:1080
       - ${MAIL_PORT}:1025
 
+  sftp:
+    image: "emberstack/sftp"
+    ports:
+      - "22:22"
+    volumes:
+      - ../config-samples/sample.sftp.json:/app/config/sftp.json:ro
+
   adminer:
     image: adminer
     restart: always

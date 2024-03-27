@@ -1,21 +1,21 @@
 import { Exception } from 'handlebars';
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { CNAB_EOL, CNAB_SUPPORTED_FORMATS } from '../cnab-consts';
-import { CnabAllCodigoRegistro } from '../enums/all/cnab-all-codigo-registro.enum';
-import { CnabAllTipoInscricao } from '../enums/all/cnab-all-tipo-inscricao.enum';
+import { CNAB_EOL, CNAB_LAYOUTS } from '../const/cnab.const';
+import { CnabCodigoRegistro } from '../enums/all/cnab-codigo-registro.enum';
+import { CnabTipoInscricao } from '../enums/all/cnab-tipo-inscricao.enum';
 import { ICnabFieldMap } from '../interfaces/cnab-all/cnab-field-map.interface';
-import { CnabField, CnabFields } from '../types/cnab-field.type';
-import { CnabFile, isCnabFile } from '../types/cnab-file.type';
-import { CnabLote, isCnabLote } from '../types/cnab-lote.type';
-import { CnabRegistro } from '../types/cnab-registro.type';
-import { parseCnabField, stringifyCnabField } from './cnab-field-utils';
+import { CnabField, CnabFields, CnabFieldMetadata } from '../interfaces/cnab-field.interface';
+import { CnabFile, isCnabFile } from '../interfaces/cnab-file.interface';
+import { CnabLote, isCnabLote } from '../interfaces/cnab-lote.interface';
+import { CnabRegistro } from '../interfaces/cnab-registro.interface';
+import { cnabFieldToString, parseCnabField, stringifyCnabField } from './cnab-field-utils';
 
 const sc = structuredClone;
 const LOTE_REGISTRO_CODES = [
-  CnabAllCodigoRegistro.HeaderLote,
-  CnabAllCodigoRegistro.TrailerLote,
-  CnabAllCodigoRegistro.DetalheSegmento,
+  CnabCodigoRegistro.HeaderLote,
+  CnabCodigoRegistro.TrailerLote,
+  CnabCodigoRegistro.DetalheSegmento,
 ].reduce((s, i) => [...s, String(i)], []);
 
 export function stringifyCnabFile(cnab: CnabFile): string {
@@ -90,19 +90,22 @@ export function validateCnabRegistroPosition(
 ) {
   if (!previous && current.pos[0] !== 1) {
     throw new Error(
-      `First CnabField position start should be 1 but is ${current.pos[0]}`,
+      `First CnabField position start should be 1 but is ${current.pos[0]}. ` +
+      `Current: ${cnabFieldToString(current)}`,
     );
   }
-  if (!hasNext && !CNAB_SUPPORTED_FORMATS.includes(current.pos[1])) {
+  if (!hasNext && !CNAB_LAYOUTS.includes(current.pos[1])) {
     throw new Error(
       'Last CnabField position end should be one of these values' +
-      `${CNAB_SUPPORTED_FORMATS} but is ${current.pos[1]}`,
+      `${CNAB_LAYOUTS} but is ${current.pos[1]}. ` +
+      `Current: ${cnabFieldToString(current)}`,
     );
   } else if (previous && current.pos[0] !== previous?.pos[1] + 1) {
     throw new Error(
       'Current start and previous end item positions ' +
       `should be both ${current.pos[0]} but are: previousEnd: ` +
-      `${previous.pos[1]}, currentStart: ${current.pos[0]}`,
+      `${previous.pos[1]}, currentStart: ${current.pos[0]}. ` +
+      `Current: ${cnabFieldToString(current)}`,
     );
   }
 }
@@ -117,19 +120,21 @@ export function getCnabRegistros(cnab: CnabFile | CnabLote): CnabRegistro[] {
   if (isCnabLote(cnab)) {
     plainRegistros.push(...getCnabRegistrosFromLote(cnab as CnabLote));
   } else if (isCnabFile(cnab)) {
-    plainRegistros.push(...getCnabRegistrosFromCnabFile(cnab as CnabFile));
+    plainRegistros.push(...getCnabRegistrosFromCnabFile(cnab));
   } else {
-    throw new Exception('Unsupported object type.');
+    throw new Exception(`Unsupported object type. ${JSON.stringify(cnab)}`);
   }
   return plainRegistros;
 }
 
 function getCnabRegistrosFromCnabFile(file: CnabFile): CnabRegistro[] {
-  return [
+  let registros = [
     sc(file.headerArquivo),
-    ...file.lotes.reduce((l, i) => [...l, ...getCnabRegistrosFromLote(i)], []),
+    ...file.lotes.reduce((l, v) => [...l, ...getCnabRegistrosFromLote(v)], []),
     sc(file.trailerArquivo),
   ];
+  registros = registros.map((v, i) => getCnabRegistroWithMetadata(v, { registroIndex: i }));
+  return registros;
 }
 
 function getCnabRegistrosFromLote(lote: CnabLote): CnabRegistro[] {
@@ -153,7 +158,7 @@ function processCnabHeaderArquivo(cnab: CnabFile) {
   setCnabMappedValue(
     cnab.headerArquivo,
     'registroIdField',
-    CnabAllCodigoRegistro.HeaderArquivo,
+    CnabCodigoRegistro.HeaderArquivo,
   );
 }
 
@@ -162,7 +167,7 @@ function processCnabTrailerArquivo(cnab: CnabFile) {
   setCnabMappedValue(
     cnab.trailerArquivo,
     'registroIdField',
-    CnabAllCodigoRegistro.TrailerArquivo,
+    CnabCodigoRegistro.TrailerArquivo,
   );
   setCnabMappedValue(cnab.trailerArquivo, 'registroLoteSequenceField', 9999);
   setCnabMappedValue(
@@ -189,7 +194,7 @@ function processCnabHeaderLote(lotes: CnabLote[], loteIndex: number) {
   setCnabMappedValue(
     lotes[loteIndex].headerLote,
     'registroIdField',
-    CnabAllCodigoRegistro.HeaderLote,
+    CnabCodigoRegistro.HeaderLote,
   );
   setCnabMappedValue(
     lotes[loteIndex].headerLote,
@@ -202,7 +207,7 @@ function processCnabTrailerLote(lotes: CnabLote[], loteIndex: number) {
   setCnabMappedValue(
     lotes[loteIndex].trailerLote,
     'registroIdField',
-    CnabAllCodigoRegistro.TrailerLote,
+    CnabCodigoRegistro.TrailerLote,
   );
   setCnabMappedValue(
     lotes[loteIndex].trailerLote,
@@ -221,7 +226,7 @@ function processCnabRegistros(lote: CnabLote, loteIndex: number) {
     setCnabMappedValue(
       lote.registros[i],
       'registroIdField',
-      CnabAllCodigoRegistro.DetalheSegmento,
+      CnabCodigoRegistro.DetalheSegmento,
     );
     setCnabMappedValue(
       lote.registros[i],
@@ -283,32 +288,39 @@ function setParseCnabHeaderTrailerArquivo(lines: string[], registrosDTO: CnabReg
 function parseCnabLotes(cnabAllLines: string[], registrosDTO: CnabRegistro[]): CnabLote[] {
   // Get lotes
   const loteDTO = registrosDTO.slice(1, -1);
-  const cnabLotes: CnabLote[] = [];
-  const lote: CnabRegistro[] = [];
+  const lotes: CnabLote[] = [];
+  let newLote: CnabRegistro[] = [];
   for (let i = 1; i < cnabAllLines.length - 1; i++) {
     const { registroId, registroDTO } = getCnabLoteRegistroIdDTO(cnabAllLines[i], loteDTO);
-    lote.push(parseCnabRegistro(cnabAllLines[i], registroDTO));
-    if (registroId === CnabAllCodigoRegistro.TrailerLote) {
-      cnabLotes.push({
-        headerLote: lote[0],
-        registros: lote.slice(1, -1),
-        trailerLote: lote[lote.length - 1],
-      })
+    newLote.push(parseCnabRegistro(cnabAllLines[i], registroDTO));
+    if (registroId === CnabCodigoRegistro.TrailerLote) {
+      lotes.push({
+        _type: 'CnabLote',
+        headerLote: newLote[0],
+        registros: newLote.slice(1, -1),
+        trailerLote: newLote[newLote.length - 1],
+      });
+      newLote = [];
     }
   }
-  return cnabLotes;
+  return lotes;
 }
 
 
+/**
+ * 
+ * @param loteDTO One lote contain many registros (header, trailer, detalhes)
+ * @returns 
+ */
 function getCnabLoteRegistroIdDTO(cnabRegistroLine: string, loteDTO: CnabRegistro[]): {
   registroId: string,
   registroDTO: CnabRegistro,
 } {
   const { registroId, registroDTO } = getCnabRegistroIdDTO(cnabRegistroLine, loteDTO);
-  if (registroId === CnabAllCodigoRegistro.DetalheSegmento) {
+  if (registroId === CnabCodigoRegistro.DetalheSegmento) {
     return {
       registroId: registroId,
-      registroDTO: getCnabDetalheDTO(cnabRegistroLine, loteDTO),
+      registroDTO: getCnabDetalheDTO(cnabRegistroLine, loteDTO.slice(1, -1)),
     };
   } else {
     return {
@@ -344,9 +356,12 @@ function getCnabRegistroIdDTO(cnabRegistroLine: string, loteDTO: CnabRegistro[])
   throw new Error(`No registroId found. ${errorJSON}`);
 }
 
-function getCnabDetalheDTO(cnabRegistroLine: string, detalheDTO: CnabRegistro[]): CnabRegistro {
-  const errorJSON = JSON.stringify({ detalheDTO, cnabStringLine: cnabRegistroLine });
-  for (const registroDTO of detalheDTO) {
+function getCnabDetalheDTO(cnabRegistroLine: string, detalhesDTO: CnabRegistro[]): CnabRegistro {
+  const detalheNames = detalhesDTO.reduce((l, v) => [...l, ...(
+    (x = v?._metadata?.name) => x ? [x] : []
+  )()], []);
+  const errorJSON = JSON.stringify({ detalhes: detalheNames, cnabStringLine: cnabRegistroLine });
+  for (const registroDTO of detalhesDTO) {
     try {
       const lineDetalheCode = parseCnabField(
         cnabRegistroLine,
@@ -369,6 +384,7 @@ function getCnabDetalheDTO(cnabRegistroLine: string, detalheDTO: CnabRegistro[])
 export function getCnabFileFromCnabRegistros(registros: CnabRegistro[]): CnabFile {
   validateCnabRegistrosSizeToCnabFile(registros);
   return {
+    _type: 'CnabFile',
     headerArquivo: registros[0],
     lotes: getCnabLotesFromCnabRegistros(registros.slice(1, -1)),
     trailerArquivo: registros[registros.length - 1],
@@ -385,6 +401,7 @@ export function getCnabLotesFromCnabRegistros(registros: CnabRegistro[]): CnabLo
     newLoteSlice.push(registro);
     if (Number(getCnabMappedValue(registro, 'registroIdField')) === 5) {
       lotes.push({
+        _type: 'CnabLote',
         headerLote: newLoteSlice[0],
         registros: newLoteSlice.slice(1, -1),
         trailerLote: newLoteSlice[newLoteSlice.length - 1],
@@ -491,23 +508,23 @@ function validateCnabMappedField(
   const mapFieldValue = registro.fieldMap?.[field] || '';
   const fieldValue = registro.fields?.[mapFieldValue];
   if (!mapFieldValue) {
-    throw new Exception('Cnab file should not have any unmapped Registro.');
+    const logObj = JSON.stringify({ _metadata: registro._metadata, map: registro.fieldMap });
+    throw new Exception(`CnabRegistro FieldMap key '${field}' not found. ${logObj}`);
   } else if (!fieldValue) {
+    const logObj = JSON.stringify({ _metadata: registro._metadata, map: registro.fieldMap });
     throw new Error(
-      `Mapped field '${field}: ${mapFieldValue}}, it does not exists in fields: ${Object.keys(
-        registro.fields,
-      )}`,
+      `CnabRegistro FieldMap key '${field}' not exists in fields: ${mapFieldValue}. ${logObj}`,
     );
   }
   return mapFieldValue;
 }
 
-export function getTipoInscricao(cpfCnpj: string): CnabAllTipoInscricao {
+export function getTipoInscricao(cpfCnpj: string): CnabTipoInscricao {
   const cpfCnpjType = isCpfOrCnpj(cpfCnpj);
   if (cpfCnpjType === 'cpf') {
-    return CnabAllTipoInscricao.CPF;
+    return CnabTipoInscricao.CPF;
   } else if (cpfCnpjType === 'cnpj') {
-    return CnabAllTipoInscricao.CNPJ;
+    return CnabTipoInscricao.CNPJ;
   } else {
     throw CommonHttpException.details(
       `When getting CNAB TipoInscricao, cpfCnpj should be a valid CPF or CNPJ, but got ${cpfCnpj}`
@@ -535,4 +552,39 @@ export function getMaxDetalhes(detalhesPerLote: number[]): number {
   const maxDetalhes = Math.floor((maxRegistros - fixedRegistros) / allDetalhesGroup);
   return maxDetalhes;
 }
+
 // #endregion
+
+export function getCnabRegistroWithMetadata(
+  registro: CnabRegistro,
+  metadata?: CnabFieldMetadata,
+): CnabRegistro {
+  for (const key of Object.keys(registro.fields)) {
+    registro.fields[key]._metadata = {
+      name: metadata?.name || registro.fields[key]._metadata?.name,
+      registro: metadata?.registro || registro.fields[key]._metadata?.registro,
+      cnab: metadata?.cnab || registro.fields[key]._metadata?.cnab,
+      registroIndex: metadata?.registroIndex === undefined
+        ? registro.fields[key]._metadata?.registroIndex
+        : metadata.registroIndex,
+    }
+  }
+  return registro;
+}
+
+export function getCnabFieldsWithMetadata(
+  fields: CnabFields,
+  registroName: string,
+  cnabName?: string,
+  loteNumber?: number,
+): CnabFields {
+  for (const key of Object.keys(fields)) {
+    fields[key]._metadata = {
+      name: key,
+      registro: registroName,
+      cnab: cnabName || fields[key]._metadata?.cnab,
+      registroIndex: loteNumber || fields[key]._metadata?.registroIndex,
+    }
+  }
+  return fields;
+}

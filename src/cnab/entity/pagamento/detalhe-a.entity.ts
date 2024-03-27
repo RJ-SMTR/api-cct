@@ -1,5 +1,5 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { asNullableStringOrNumber } from 'src/utils/pipe-utils';
+import { asNullableStringOrNumber, asStringOrNumber } from 'src/utils/pipe-utils';
 import { AfterLoad, Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
@@ -21,7 +21,7 @@ export class DetalheA extends EntityHelper {
   clienteFavorecido: ClienteFavorecido;
 
   @Column({ type: Number, unique: false, nullable: true })
-  loteServico: number | null;
+  loteServico: number;
 
   @Column({ type: String, unique: false, nullable: true })
   finalidadeDOC: string | null;
@@ -31,7 +31,7 @@ export class DetalheA extends EntityHelper {
   numeroDocumentoEmpresa: number;
 
   @Column({ type: Date, unique: false, nullable: true })
-  dataVencimento: Date | null;
+  dataVencimento: Date;
 
   @Column({ type: String, unique: false, nullable: true })
   tipoMoeda: string | null;
@@ -48,10 +48,10 @@ export class DetalheA extends EntityHelper {
     precision: 5,
     scale: 2,
   })
-  valorLancamento: number | null;
+  valorLancamento: number;
 
   @Column({ type: Number, unique: false, nullable: true })
-  numeroDocumentoBanco: number | null;
+  numeroDocumentoBanco: string | null;
 
   @Column({ type: Number, unique: false, nullable: true })
   quantidadeParcelas: number | null;
@@ -69,14 +69,14 @@ export class DetalheA extends EntityHelper {
   numeroParcela: number | null;
 
   @Column({ type: Date, unique: false, nullable: true })
-  dataEfetivacao: Date | null;
+  dataEfetivacao: Date;
 
   @Column({
     type: 'decimal', unique: false, nullable: true,
     precision: 5,
     scale: 2,
   })
-  valorRealEfetivado: number | null;
+  valorRealEfetivado: number;
 
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
@@ -94,7 +94,7 @@ export class DetalheA extends EntityHelper {
   @AfterLoad()
   castFields() {
     this.quantidadeMoeda = asNullableStringOrNumber(this.quantidadeMoeda);
-    this.valorLancamento = asNullableStringOrNumber(this.valorLancamento);
-    this.valorRealEfetivado = asNullableStringOrNumber(this.valorRealEfetivado);
+    this.valorLancamento = asStringOrNumber(this.valorLancamento);
+    this.valorRealEfetivado = asStringOrNumber(this.valorRealEfetivado);
   }
 }

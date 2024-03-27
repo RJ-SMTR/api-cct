@@ -1,20 +1,23 @@
-import { Cnab104CodigoSegmento } from 'src/cnab/enums/104/cnab-104-codigo-segmento.enum';
-import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
-import { ICnab240_104DetalheA } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-detalhe-a.interface';
+import { CnabCodigoSegmento } from 'src/cnab/enums/all/cnab-codigo-segmento.enum';
+import { CnabCodigoRegistro } from 'src/cnab/enums/all/cnab-codigo-registro.enum';
+import { CnabDetalheA_104 } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-detalhe-a-104.interface';
+import { CnabConst } from 'src/cnab/const/cnab.const';
 
-export const cnab240_104DetalheATemplateTest: ICnab240_104DetalheA = {
+export const cnab240_104DetalheATemplateTest: CnabDetalheA_104 = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
-  loteServico: { pos: [4, 7], picture: '9(004)', value: '0001' },
+  loteServico: { pos: [4, 7], picture: '9(004)', value: '0001', format: CnabConst.format.number() },
   codigoRegistro: {
     pos: [8, 8],
     picture: '9(001)',
-    value: CnabAllCodigoRegistro.DetalheSegmento,
+    value: CnabCodigoRegistro.DetalheSegmento,
+    format: CnabConst.format.number(),
   },
-  nsr: { pos: [9, 13], picture: '9(005)', value: '00001' },
+  nsr: { pos: [9, 13], picture: '9(005)', value: '00001', format: CnabConst.format.number() },
   codigoSegmento: {
     pos: [14, 14],
     picture: 'X(001)',
-    value: Cnab104CodigoSegmento.A,
+    value: CnabCodigoSegmento.A,
+    format: CnabConst.format.string(),
   },
   tipoMovimento: { pos: [15, 15], picture: '9(001)', value: '0' },
   codigoInstrucaoMovimento: { pos: [16, 17], picture: '9(002)', value: '00' },
@@ -34,25 +37,27 @@ export const cnab240_104DetalheATemplateTest: ICnab240_104DetalheA = {
     picture: 'X(030)',
     value: 'TEREZINHA SEVERIANA           ',
   },
-  numeroDocumentoEmpresa: { pos: [74, 79], picture: '9(006)', value: '000027' },
+  numeroDocumentoEmpresa: { pos: [74, 79], picture: '9(006)', value: '000027', format: CnabConst.format.number() },
   filler: { pos: [80, 92], picture: 'X(013)', value: '             ' },
   tipoContaFinalidadeTed: { pos: [93, 93], picture: 'X(001)', value: '1' },
   dataVencimento: {
     pos: [94, 101],
     picture: '9(008)',
     value: '05022023',
-    dateFormat: { input: 'ddMMyyyy', output: 'ddMMyyyy' },
+    format: CnabConst.format.dateFormat(),
   },
   tipoMoeda: { pos: [102, 104], picture: 'X(003)', value: 'BRL' },
   quantidadeMoeda: {
     pos: [105, 119],
     picture: '9(010)V99999',
     value: '000000000000000',
+    format: CnabConst.format.number(),
   },
   valorLancamento: {
     pos: [120, 134],
     picture: '9(013)V99',
     value: 1200.12,
+    format: CnabConst.format.number(),
   },
   numeroDocumentoBanco: {
     pos: [135, 143],
@@ -60,7 +65,7 @@ export const cnab240_104DetalheATemplateTest: ICnab240_104DetalheA = {
     value: '000000000',
   },
   filler2: { pos: [144, 146], picture: 'X(003)', value: '   ' },
-  quantidadeParcelas: { pos: [147, 148], picture: '9(002)', value: '01' },
+  quantidadeParcelas: { pos: [147, 148], picture: '9(002)', value: '01', format: CnabConst.format.number() },
   indicadorBloqueio: { pos: [149, 149], picture: 'X(001)', value: 'N' },
   indicadorFormaParcelamento: {
     pos: [150, 150],
@@ -68,12 +73,13 @@ export const cnab240_104DetalheATemplateTest: ICnab240_104DetalheA = {
     value: '1',
   },
   periodoDiaVencimento: { pos: [151, 152], picture: 'X(002)', value: '06' },
-  numeroParcela: { pos: [153, 154], picture: '9(002)', value: '00' },
-  dataEfetivacao: { pos: [155, 162], picture: '9(008)', value: '00000000' },
+  numeroParcela: { pos: [153, 154], picture: '9(002)', value: '00', format: CnabConst.format.number() },
+  dataEfetivacao: { pos: [155, 162], picture: '9(008)', value: '00000000', format: CnabConst.format.dateFormat() },
   valorRealEfetivado: {
     pos: [163, 177],
     picture: '9(013)V99',
     value: '000000000000000',
+    format: CnabConst.format.number(),
   },
   informacao2: {
     pos: [178, 217],

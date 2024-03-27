@@ -127,7 +127,7 @@ export function getDateFromString(
   }
   if (throwIfInvalid && isNaN(date.getDate())) {
     throw CommonHttpException.details(
-      `Invalid date format (${value})`,
+      `Invalid date format (value: ${value}, inputFormat: ${inputFormat})`,
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }

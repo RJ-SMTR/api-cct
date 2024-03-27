@@ -57,16 +57,16 @@ Mude `MAIL_HOST=maildev` para `MAIL_HOST=localhost`
 Executar contêiner adicional:
 
 ```bash
-docker compose up -d postgres adminer maildev
+docker compose up -d postgres adminer maildev sftp
 ```
 
 Login no adminer (login de exemplo):
 
-- Sistema: `PostgreSQL`
-- Servidor: `postgres`
-- Usuário: `root`
-- Senha: `secret`
-- Base de dados: `api`
+* Sistema: `PostgreSQL`
+* Servidor: `postgres`
+* Usuário: `root`
+* Senha: `secret`
+* Base de dados: `api`
 
 Configurar projeto:
 
@@ -81,34 +81,48 @@ npm run start:dev
 ```
 
 Rodar seed caso o banco não esteja vazio:
-```
+
+```bash
 npm run seed:run __force
 ```
 
 Rodar seed apenas de alguns módulos
-```
+
+```bash
 npm run seed:run user mailhistory
 ```
+
 > O comando não diferencia maiúsculas de minúsculas
 
 Rodar seed com todos os módulos exceto alguns
-```
+
+```bash
 npm run seed:run __exclude user mailhistory
 > A ordem dos parâmetros não influencia a execução
 ```
 
+### SFTP
+
+Você pode usar:
+
+1. Filezilla
+2. Extensão de VSCode [SFTP](https://marketplace.visualstudio.com/items?itemName=Natizyskunk.sftp).
+
+Caso use a extensão de VSCode há uma configuração de exemplo em [local_dev_example/.vscode/sftp.json](local_dev_example/.vscode/sftp.json)
+
 ## Links
 
-- Swagger: http://localhost:3000/docs
-- Adminer (client for DB): http://localhost:8080
-- Maildev: http://localhost:1080
+* Swagger: <http://localhost:3000/docs>
+* Adminer (cliente de BD): <http://localhost:8080>
+* Maildev: <http://localhost:1080>
+* SFTP: <sftp://localhost:23>
 
 ## Banco de dados
 
 Generate migration
 
 ```bash
-npm run migration:generate -- src/database/migrations/CreateNameTable 
+npm run migration:generate -* src/database/migrations/CreateNameTable 
 ```
 
 Run migration
@@ -148,6 +162,7 @@ npm run test:e2e
 ### Testando scripts localmente
 
 Para testar scripts que fazem uso das mesmas boblioitecas e componentes deste projeto basta criar a seguinte pasta:
+
 ```bash
 api-cct
 📂 src
@@ -156,101 +171,20 @@ api-cct
 ```
 
 Para executar basta rodar:
+
 ```bash
 ts-node "diretório do script"
 ```
 
 ### Depurando testes
 
-**Exemplo de configuração no VSCode:**
+**Configuração no VSCode:**
 
 Requisitos
-- Extensão [Command Variable](https://marketplace.visualstudio.com/items?itemName=rioj7.command-variable)
 
-.vscode/launch.json
-```jsonc
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Jest test: Arquivo Atual",
-            "type": "node",
-            "request": "launch",
-            "args": [
-                "--runInBand"
-            ],
-            "cwd": "${fileDirname}",
-            "runtimeArgs": [
-                "--inspect-brk",
-                "${workspaceFolder}/node_modules/jest/bin/jest.js",
-                "${fileBasenameNoExtension}"
-            ],
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "attachSimplePort": 9229,
-        },
-        {
-            "name": "Jest test: Teste específico",
-            "type": "node",
-            "request": "launch",
-            "args": [
-                "--runInBand"
-            ],
-            "cwd": "${fileDirname}",
-            "runtimeArgs": [
-                "--inspect-brk",
-                "${workspaceFolder}/node_modules/jest/bin/jest.js",
-                "${fileBasenameNoExtension}",
-                "--testNamePattern",
-                "\".*${selectedText}\""
-            ],
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "attachSimplePort": 9229,
-        },
-        {
-            "name": "Jest e2e: Arquivo Atual",
-            "type": "node",
-            "request": "launch",
-            "args": [
-                "--runInBand"
-            ],
-            "cwd": "${workspaceFolder}",
-            "runtimeArgs": [
-                "--inspect-brk",
-                "${workspaceFolder}/node_modules/jest/bin/jest.js",
-                "--config",
-                "${workspaceFolder}/test/jest-e2e.json",
-                "${command:extension.commandvariable.file.relativeFilePosix}"
-            ],
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "attachSimplePort": 9229,
-        },
-        {
-            "name": "Jest e2e: Teste específico",
-            "type": "node",
-            "request": "launch",
-            "args": [
-                "--runInBand"
-            ],
-            "cwd": "${workspaceFolder}",
-            "runtimeArgs": [
-                "--inspect-brk",
-                "${workspaceFolder}/node_modules/jest/bin/jest.js",
-                "--config",
-                "${workspaceFolder}/test/jest-e2e.json",
-                "${command:extension.commandvariable.file.relativeFilePosix}",
-                "--testNamePattern",
-                "\".*${selectedText}\""
-            ],
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "attachSimplePort": 9229
-        }
-    ],
-}
-```
+* Extensão [Command Variable](https://marketplace.visualstudio.com/items?itemName=rioj7.command-variable)
+
+Veja em .vscode/launch.json
 
 ## Testes no Docker
 

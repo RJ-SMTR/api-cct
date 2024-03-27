@@ -39,6 +39,7 @@ export class MailHistory extends BaseEntity {
   @Expose({ groups: ['me', 'admin'] })
   email: string;
 
+  /** uniqueConstraintname: `UQ_Invite_hash` */
   @Column({ unique: true })
   hash: string;
 

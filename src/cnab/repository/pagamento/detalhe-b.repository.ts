@@ -5,6 +5,8 @@ import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { DetalheB } from '../../entity/pagamento/detalhe-b.entity';
+import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
+import { asNumber } from 'src/utils/pipe-utils';
 
 @Injectable()
 export class DetalheBRepository {
@@ -14,17 +16,30 @@ export class DetalheBRepository {
 
   constructor(
     @InjectRepository(DetalheB)
-    private DetalheBRepository: Repository<DetalheB>,
+    private detalheBRepository: Repository<DetalheB>,
   ) { }
 
+  public async saveIfNotExists(obj: DetalheBDTO): Promise<SaveIfNotExists<DetalheB>> {
+    const existing = await this.detalheBRepository.findOne({
+      where: {
+        detalheA: { id: asNumber(obj.detalheA?.id) }
+      }
+    });
+    const item = existing || await this.detalheBRepository.save(obj);
+    return {
+      isNewItem: !Boolean(existing),
+      item: item,
+    }
+  }
+
   public async save(dto: DetalheBDTO): Promise<DetalheB> {
-    return await this.DetalheBRepository.save(dto);
+    return await this.detalheBRepository.save(dto);
   }
 
   public async findOne(
     fields: EntityCondition<DetalheB> | EntityCondition<DetalheB>[],
   ): Promise<Nullable<DetalheB>> {
-    return await this.DetalheBRepository.findOne({
+    return await this.detalheBRepository.findOne({
       where: fields,
     });
   }
@@ -32,7 +47,7 @@ export class DetalheBRepository {
   public async findMany(
     fields: EntityCondition<DetalheB> | EntityCondition<DetalheB>[],
   ): Promise<DetalheB[]> {
-    return await this.DetalheBRepository.find({
+    return await this.detalheBRepository.find({
       where: fields,
     });
   }

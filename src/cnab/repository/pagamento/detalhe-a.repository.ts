@@ -8,6 +8,8 @@ import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { ClienteFavorecido } from '../../entity/cliente-favorecido.entity';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
+import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
+import { asNumber } from 'src/utils/pipe-utils';
 
 @Injectable()
 export class DetalheARepository {
@@ -19,6 +21,23 @@ export class DetalheARepository {
     @InjectRepository(DetalheA)
     private detalheARepository: Repository<DetalheA>,
   ) { }
+
+  public async saveIfNotExists(obj: DetalheADTO, updateIfExists?: boolean
+  ): Promise<SaveIfNotExists<DetalheA>> {
+    const existing = await this.detalheARepository.findOne({
+      where: {
+        headerLote: { id: asNumber(obj.headerLote?.id) },
+        nsr: asNumber(obj.nsr),
+      }
+    });
+    const item = !existing || (existing && updateIfExists)
+      ? await this.detalheARepository.save(obj)
+      : existing;
+    return {
+      isNewItem: !Boolean(existing),
+      item: item,
+    }
+  }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
     return await this.detalheARepository.save(dto);

@@ -4,6 +4,7 @@ import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, PrimaryGenera
 
 @Entity()
 export class ExtratoHeaderArquivo extends EntityHelper {
+
   constructor(dto?: DeepPartial<ExtratoHeaderArquivo>) {
     super();
     if (dto) {
@@ -15,7 +16,7 @@ export class ExtratoHeaderArquivo extends EntityHelper {
   id: number;
 
   @Column({ type: Number, unique: false, nullable: true })
-  tipoArquivo: number | null;
+  tipoArquivo: number;
 
   @Column({ type: String, unique: false, nullable: true, length: 10 })
   codigoBanco: string | null;

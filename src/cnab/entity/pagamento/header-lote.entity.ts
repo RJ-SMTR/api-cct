@@ -1,7 +1,7 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { HeaderArquivo } from './header-arquivo.entity';
-import { Pagador } from '../intermediate/pagador.entity';
+import { Pagador } from './pagador.entity';
 
 /**
  * Pagamento.HeaderLote

@@ -5,9 +5,11 @@
 import { isDate } from "date-fns";
 import { getDateFromString } from "./date-utils";
 import { CommonHttpException } from "./http-exception/common-http-exception";
+import { isNumberString } from "class-validator";
+import { isDefined, isContent } from "./type-utils";
 
 export function asStringOrEmpty(str: string | null | undefined, message?: string): string {
-  if (str === null || str === undefined){
+  if (str === null || str === undefined) {
     return '';
   }
   if (typeof str !== 'string') {
@@ -87,15 +89,40 @@ export function asNullableStringOrDateTime(str: string | Date | null | undefined
   }
 }
 
-export function asStringDate(str: string | null | undefined, inputFormat?: string, fieldName?: string): Date {
+export function asStringOrDateTime(str: string | Date, date?: Date | null | undefined, inputFormat?: string, fieldName?: string): Date {
   const field = fieldName ? fieldName : 'StringDate';
-  const validStr = asString(str, field);
-  return getDateFromString(validStr, inputFormat, true);
+  if (typeof str === 'string') {
+    const validStr = asString(str);
+    const baseTime = new Date(`0 ${validStr}`);
+    const time = date ? new Date(date) : new Date();
+    time.setHours(baseTime.getHours(), baseTime.getMinutes(), baseTime.getSeconds());
+    return time;
+  }
+  else if (isDate(str)) {
+    return str;
+  } else {
+    throw CommonHttpException.details(
+      `${field} should be nullable string | date , but got ${typeof str}, value: ${str}`,
+    );
+  }
 }
 
-export function asNullableStringDate(str: string | null | undefined, inputFormat?: string, fieldName?: string): Date | null {
-  const field = fieldName ? fieldName : 'NullableStringDate';
-  return str ? asStringDate(str, inputFormat, field) : null;
+export function asNumberStringDate(str: string | null | undefined, inputFormat?: string, fieldName?: string): Date {
+  const field = fieldName ? fieldName : 'StringDate';
+  if (!isNumberString(str)) {
+    throw CommonHttpException.details(`${field} should be NumberString, but got '${str}'`);
+  }
+  const validVal = String(str);
+  return getDateFromString(validVal, inputFormat, true);
+}
+
+export function asStringDate(str: string | null | undefined, inputFormat?: string): Date {
+  const validVal = String(str);
+  return getDateFromString(validVal, inputFormat, true);
+}
+
+export function asNullableStringDate(str: string | null | undefined, inputFormat?: string): Date | null {
+  return str ? asStringDate(str, inputFormat) : null
 }
 
 export function asStringOrNumber(val: string | number | null | undefined, fieldName?: string): number {
@@ -208,4 +235,28 @@ export function asObject<T>(obj: T | null | undefined, fieldName?: string): T {
     );
   }
   return obj;
+}
+
+export function asDefinedContent<T>(val: T | undefined | null, field = 'Value'): T {
+  if (!isDefined(val)) {
+    throw CommonHttpException.details(`${field} should not be undefined.`);
+  }
+  if (!isContent(val)) {
+    throw CommonHttpException.details(`${field} should not be null.`);
+  }
+  return val;
+}
+
+export function asDefined<T>(val: T | undefined, field = 'Value'): T {
+  if (!isDefined(val)) {
+    throw CommonHttpException.details(`${field} should not be undefined.`);
+  }
+  return val;
+}
+
+export function asContent<T>(val: T | null, field = 'Value'): T {
+  if (!isContent(val)) {
+    throw CommonHttpException.details(`${field} should not be undefined.`);
+  }
+  return val;
 }

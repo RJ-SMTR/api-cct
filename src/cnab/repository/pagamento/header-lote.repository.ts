@@ -5,6 +5,8 @@ import { Nullable } from 'src/utils/types/nullable.type';
 import { Repository } from 'typeorm';
 import { HeaderLoteDTO } from '../../dto/pagamento/header-lote.dto';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
+import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
+import { asNumber } from 'src/utils/pipe-utils';
 
 @Injectable()
 export class HeaderLoteRepository {
@@ -14,17 +16,32 @@ export class HeaderLoteRepository {
 
   constructor(
     @InjectRepository(HeaderLote)
-    private HeaderLoteRepository: Repository<HeaderLote>,
+    private headerLoteRepository: Repository<HeaderLote>,
   ) { }
 
+  public async saveIfNotExists(dto: HeaderLoteDTO, updateIfExists?: boolean
+  ): Promise<SaveIfNotExists<HeaderLote>> {
+    const existing = await this.findOne({
+      headerArquivo: { id: asNumber(dto.headerArquivo?.id) },
+      loteServico: asNumber(dto.loteServico),
+    });
+    const item = !existing || (existing && updateIfExists)
+      ? await this.headerLoteRepository.save(dto)
+      : existing;
+    return {
+      isNewItem: !Boolean(existing),
+      item: item,
+    }
+  }
+
   public async save(dto: HeaderLoteDTO): Promise<HeaderLote> {
-    return await this.HeaderLoteRepository.save(dto);
+    return await this.headerLoteRepository.save(dto);
   }
 
   public async findOne(
     fields: EntityCondition<HeaderLote> | EntityCondition<HeaderLote>[],
   ): Promise<Nullable<HeaderLote>> {
-    return await this.HeaderLoteRepository.findOne({
+    return await this.headerLoteRepository.findOne({
       where: fields,
     });
   }
@@ -32,7 +49,7 @@ export class HeaderLoteRepository {
   public async findMany(
     fields: EntityCondition<HeaderLote> | EntityCondition<HeaderLote>[],
   ): Promise<HeaderLote[]> {
-    return await this.HeaderLoteRepository.find({
+    return await this.headerLoteRepository.find({
       where: fields,
     });
   }

@@ -1,13 +1,15 @@
-import { CnabAllCodigoRegistro } from 'src/cnab/enums/all/cnab-all-codigo-registro.enum';
-import { ICnab240_104HeaderLote } from 'src/cnab/interfaces/cnab-240/104/cnab-240-104-header-lote.interface';
+import { CnabConst } from 'src/cnab/const/cnab.const';
+import { CnabCodigoRegistro } from 'src/cnab/enums/all/cnab-codigo-registro.enum';
+import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 
-export const cnab240_104HeaderLoteTemplateTest: ICnab240_104HeaderLote = {
+export const cnab240_104HeaderLoteTemplateTest: CnabHeaderLote104Pgto = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
   loteServico: { pos: [4, 7], picture: '9(004)', value: '0001' },
   codigoRegistro: {
     pos: [8, 8],
     picture: '9(001)',
-    value: CnabAllCodigoRegistro.HeaderLote,
+    value: CnabCodigoRegistro.HeaderLote,
+    format: CnabConst.format.number(),
   },
   tipoOperacao: { pos: [9, 9], picture: 'X(001)', value: 'C' },
   tipoServico: { pos: [10, 11], picture: '9(002)', value: '30' },

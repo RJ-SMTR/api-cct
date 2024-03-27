@@ -1,12 +1,10 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
-import { UsersService } from 'src/users/users.service';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { asString } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { FindOneOptions, IsNull, Not } from 'typeorm';
+import { FindOneOptions } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
@@ -18,24 +16,17 @@ export class ClienteFavorecidoService {
   });
 
   constructor(
-    private usersService: UsersService,
     private clienteFavorecidoRepository: ClienteFavorecidoRepository,
   ) { }
 
   /**
    * All ClienteFavoecidos will be created or updated from users based of cpfCnpj.
+   * 
+   * It also updates
+   * 
    * @returns All favorecidos after update
    */
-  public async updateAllFromUsers(): Promise<void> {
-    const allUsers = await this.usersService.findMany({
-      role: { id: RoleEnum.user, },
-      fullName: Not(IsNull()),
-      cpfCnpj: Not(IsNull()),
-      bankCode: Not(IsNull()),
-      bankAgency: Not(IsNull()),
-      bankAccount: Not(IsNull()),
-      bankAccountDigit: Not(IsNull()),
-    });
+  public async updateAllFromUsers(allUsers: User[]): Promise<void> {
     for (const user of allUsers) {
       const favorecido = await this.clienteFavorecidoRepository.findOne({
         where: {
@@ -100,10 +91,10 @@ export class ClienteFavorecidoService {
       nome: asString(user.fullName),
       cpfCnpj: asString(user.cpfCnpj),
       codigoBanco: String(user.getBankCode()),
-      agencia: asString(user.getBankAgencyWithoutDigit()),
-      dvAgencia: asString(user.getBankAgencyDigit()),
-      contaCorrente: asString(user.getBankAccount()),
-      dvContaCorrente: asString(user.getBankAccountDigit()),
+      agencia: user.getBankAgencyWithoutDigit(),
+      dvAgencia: user.getBankAgencyDigit(),
+      contaCorrente: user.getBankAccount(),
+      dvContaCorrente: user.getBankAccountDigit(),
       logradouro: null,
       numero: null,
       complemento: null,

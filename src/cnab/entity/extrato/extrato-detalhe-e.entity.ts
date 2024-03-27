@@ -1,14 +1,24 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { ExtratoHeaderLote } from './extrato-header-lote.entity';
 
 /**
- * @see {@link https://cmsarquivos.febraban.org.br/Arquivos/documentos/PDF/Layout%20padrao%20CNAB240%20V%2010%2011%20-%2021_08_2023.pdf FEBRABAN}
+ * Represents Detalhe Segmento E v030
+ * 
+ * Composite PK: extratoHeaderLote, loteServico, nsr
+ * 
+ * @see {@link https://www.caixa.gov.br/Downloads/extrato-eletronico-conciliacao-bancaria/Manual_de_Leiaute_CNAB_240_Extrato_Eletronico_Para_Conciliacao_Bancaria.pdf Caixa, page 10}
  */
 @Entity()
 export class ExtratoDetalheE extends EntityHelper {
 
+  constructor(dto?: DeepPartial<ExtratoDetalheE>) {
+    super();
+    if (dto) {
+      Object.assign(this, dto);
+    }
+  }
 
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_ExtratoDetalheE_id' })
   id: number;
@@ -17,14 +27,26 @@ export class ExtratoDetalheE extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_ExtratoDetalheE_extratoHeaderLote_ManyToOne' })
   extratoHeaderLote: ExtratoHeaderLote;
 
+  /**
+   * Current lote number in Cnab File
+   */
   @Column({ type: Number, unique: false, nullable: false })
   loteServico: number;
+  
+  /**
+   * Número Sequencial do Registro (no lote).
+   * 
+   * Current registro number in Cnab Lote
+   */
+  @Column({ type: Number, unique: false, nullable: false })
+  nsr: number;
+
 
   /** Empresa */
-  @Column({ type: Number, unique: false, nullable: false })
-  tipoInscricao: number;
+  @Column({ type: String, unique: false, nullable: false })
+  tipoInscricao: string;
 
-  /** Empresa. Numeric string, because its a code despite being a number */
+  /** Empresa. CPF/CNPJ */
   @Column({ type: String, unique: false, nullable: false })
   numeroInscricao: string;
 
@@ -56,29 +78,13 @@ export class ExtratoDetalheE extends EntityHelper {
   @Column({ type: String, unique: false, nullable: false })
   nomeEmpresa: string;
 
-  @Column({ type: String, unique: false, nullable: false })
-  naturezaLancamento: string;
-
-  @Column({ type: String, unique: false, nullable: false })
-  tipoComplementoLancamento: string;
-
-  @Column({ type: String, unique: false, nullable: false })
-  complementoLancamento: string;
-
-  @Column({ type: String, unique: false, nullable: false })
-  isencaoCpmf: string;
-
-  /** Data de efetivação do Lançamento */
-  @Column({ type: Date, unique: false, nullable: false })
-  dataContabil: string;
-
   /** Data de ocorrência dos fatos, itens, componentes do extrato bancário */
   @Column({ type: Date, unique: false, nullable: false })
   dataLancamento: Date;
 
   @Column({
     type: 'decimal', unique: false, nullable: true,
-    precision: 5,
+    precision: 16,
     scale: 2,
   })
   valorLancamento: number;
@@ -98,7 +104,7 @@ export class ExtratoDetalheE extends EntityHelper {
   /** 
    * Número Documento / Complemento
    * 
-   * Número que identifica o documento que gerou o Lançamento.
+   * TODO: Is this field "Número Documento atribuído pela Empresa" (unique id per date)?
    */
   @Column({ type: String, unique: false, nullable: false })
   numeroDocumento: string;

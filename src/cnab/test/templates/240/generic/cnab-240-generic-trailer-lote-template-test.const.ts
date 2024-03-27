@@ -1,4 +1,4 @@
-import { CnabFields } from 'src/cnab/types/cnab-field.type';
+import { CnabFields } from 'src/cnab/interfaces/cnab-field.interface';
 
 export const cnab240GenericTrailerLoteTemplateTest: CnabFields = {
   codigoRegistro: { pos: [1, 1], picture: '9(001)', value: '0' },

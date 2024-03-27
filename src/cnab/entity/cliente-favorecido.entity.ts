@@ -21,22 +21,22 @@ export class ClienteFavorecido extends EntityHelper {
   nome: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 14 })
-  cpfCnpj: string | null;
+  cpfCnpj: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 10 })
-  codigoBanco: string | null;
+  codigoBanco: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
-  agencia: string | null;
+  agencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  dvAgencia: string | null;
+  dvAgencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 12 })
-  contaCorrente: string | null;
+  contaCorrente: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  dvContaCorrente: string | null;
+  dvContaCorrente: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   logradouro: string | null;

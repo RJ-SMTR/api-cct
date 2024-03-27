@@ -5,10 +5,10 @@ import {
   stringifyCnabRegistro,
   validateCnabRegistroPosition,
 } from './cnab-utils';
-import { CnabFields } from '../types/cnab-field.type';
-import { CnabFile } from '../types/cnab-file.type';
-import { CnabLote } from '../types/cnab-lote.type';
-import { CnabRegistro } from '../types/cnab-registro.type';
+import { CnabFields } from '../interfaces/cnab-field.interface';
+import { CnabFile } from '../interfaces/cnab-file.interface';
+import { CnabLote } from '../interfaces/cnab-lote.interface';
+import { CnabRegistro } from '../interfaces/cnab-registro.interface';
 import { ICnabFieldMap } from '../interfaces/cnab-all/cnab-field-map.interface';
 import * as path from 'path';
 import * as fs from 'fs';

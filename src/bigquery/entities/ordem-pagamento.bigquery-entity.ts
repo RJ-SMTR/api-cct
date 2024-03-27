@@ -1,3 +1,4 @@
+import { PermissionarioRoleEnum } from "src/permissionario-role/permissionario-role.enum";
 
 /**
  * Logic:
@@ -5,6 +6,9 @@
  * - id_ordem_pagamento repeats by combination of id_consorcio (CNPJ), id_operadora (CPF), servico (vehicle)
  */
 export class BigqueryOrdemPagamento {
+
+  // DATABASE COLUMNS
+
   /** Data da ordem de pagamento (partição) */
   dataOrdem: string | null;
 
@@ -100,6 +104,8 @@ export class BigqueryOrdemPagamento {
   /** Código de controle de versão do dado (SHA Github) */
   versao: string;
 
+  // CUSTOM COLUMNS
+
   /** consorcios.cnpj */
   consorcioCpfCnpj: string | null;
 
@@ -108,4 +114,11 @@ export class BigqueryOrdemPagamento {
 
   /** Value of favorecido's CPF/CNPJ, if searched */
   favorecidoCpfCnpj: string | null;
+
+  /** 
+   * Identify permissionarioRole form data content
+   * 
+   * Rules: see {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, item 8}
+   */
+  permissionarioRole: PermissionarioRoleEnum | null;
 }

@@ -1,7 +1,8 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { asNullableStringOrDateTime } from 'src/utils/pipe-utils';
+import { asStringOrDateTime } from 'src/utils/pipe-utils';
 import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { Transacao } from '../intermediate/transacao.entity';
+import { HeaderArquivoStatus } from './header-arquivo-status.entity';
+import { Transacao } from './transacao.entity';
 
 /**
  * Pagamento.HeaderArquivo
@@ -18,8 +19,8 @@ export class HeaderArquivo extends EntityHelper {
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_HeaderArquivo_id' })
   id: number;
 
-  @Column({ type: Number, unique: false, nullable: true })
-  tipoArquivo: number | null;
+  @Column({ type: Number, unique: false, nullable: false })
+  tipoArquivo: number;
 
   @Column({ type: String, unique: false, nullable: true, length: 10 })
   codigoBanco: string | null;
@@ -52,10 +53,10 @@ export class HeaderArquivo extends EntityHelper {
   nomeEmpresa: string | null;
 
   @Column({ type: Date, unique: false, nullable: true })
-  dataGeracao: Date | null;
+  dataGeracao: Date;
 
   @Column({ type: 'time', unique: false, nullable: true })
-  horaGeracao: Date | null;
+  horaGeracao: Date;
 
   @ManyToOne(() => Transacao, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderArquivo_transacao_ManyToOne' })
@@ -64,10 +65,14 @@ export class HeaderArquivo extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: false })
   nsa: number;
 
+  @ManyToOne(() => HeaderArquivoStatus, { eager: true })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderArquivo_status_ManyToOne' })
+  status: HeaderArquivoStatus;
+
   @CreateDateColumn()
   createdAt: Date;
 
-  public getComposedPKLog(): string {
+  public getIdString(): string {
     return `{ transacao: ${this.transacao.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;
   }
 
@@ -77,6 +82,6 @@ export class HeaderArquivo extends EntityHelper {
    */
   @AfterLoad()
   castFields() {
-    this.horaGeracao = asNullableStringOrDateTime(this.horaGeracao, this.dataGeracao);
+    this.horaGeracao = asStringOrDateTime(this.horaGeracao, this.dataGeracao);
   }
 }

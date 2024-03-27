@@ -10,6 +10,13 @@ services:
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME}
 
+  sftp:
+    image: "emberstack/sftp"
+    ports:
+      - "23:22"
+    volumes:
+      - ./local_dev_example/config/sftp.json:/app/config/sftp.json:ro
+
   maildev:
     build:
       context: .

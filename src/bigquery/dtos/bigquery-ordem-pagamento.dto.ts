@@ -1,4 +1,5 @@
 import { IsDateString, IsNotEmpty, IsNumber, IsNumberString, IsString, ValidateIf } from "class-validator";
+import { PermissionarioRoleEnum } from "src/permissionario-role/permissionario-role.enum";
 
 /**
  * Logic:
@@ -131,6 +132,8 @@ export class BigqueryOrdemPagamentoDTO {
   /** Código de controle de versão do dado (SHA Github) */
   versao: string;
 
+  // CUSTOM COLUMNS
+  
   /** consorcios.cnpj */
   operadoraCpfCnpj: string | null;
 
@@ -139,4 +142,6 @@ export class BigqueryOrdemPagamentoDTO {
 
   /** Value of favorecido's CPF/CNPJ, if searched */
   favorecidoCpfCnpj: string;
+
+  permissionarioRole: PermissionarioRoleEnum | null;
 }

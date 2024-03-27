@@ -9,13 +9,13 @@ import { DetalheBService } from './service/pagamento/detalhe-b.service';
 import { DetalheBRepository } from './repository/pagamento/detalhe-b.repository';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ClienteFavorecidoRepository } from './repository/cliente-favorecido.repository';
-import { PagadorService } from './service/intermediate/pagador.service';
-import { PagadorRepository } from './repository/intermediate/pagador.repository';
+import { PagadorService } from './service/pagamento/pagador.service';
+import { PagadorRepository } from './repository/pagamento/pagador.repository';
 import { ArquivoPublicacaoRepository } from './repository/arquivo-publicacao.repository';
-import { TransacaoService } from './service/intermediate/transacao.service';
-import { TransacaoRepository } from './repository/intermediate/transacao.repository';
-import { ItemTransacaoService } from './service/intermediate/item-transacao.service';
-import { ItemTransacaoRepository } from './repository/intermediate/item-transacao.repository';
+import { TransacaoService } from './service/pagamento/transacao.service';
+import { TransacaoRepository } from './repository/pagamento/transacao.repository';
+import { ItemTransacaoService } from './service/pagamento/item-transacao.service';
+import { ItemTransacaoRepository } from './repository/pagamento/item-transacao.repository';
 import { SftpModule } from 'src/sftp/sftp.module';
 import { HeaderArquivoRepository } from './repository/pagamento/header-arquivo.repository';
 import { Cnab104Service } from './service/cnab-104.service';
@@ -27,12 +27,23 @@ import { DetalheA } from './entity/pagamento/detalhe-a.entity';
 import { DetalheB } from './entity/pagamento/detalhe-b.entity';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ArquivoPublicacao } from './entity/arquivo-publicacao.entity';
-import { Transacao } from './entity/intermediate/transacao.entity';
-import { ItemTransacao } from './entity/intermediate/item-transacao.entity';
-import { Pagador } from './entity/intermediate/pagador.entity';
+import { Transacao } from './entity/pagamento/transacao.entity';
+import { ItemTransacao } from './entity/pagamento/item-transacao.entity';
+import { Pagador } from './entity/pagamento/pagador.entity';
 import { UsersModule } from 'src/users/users.module';
 import { BigqueryModule } from 'src/bigquery/bigquery.module';
 import { CnabController } from './cnab.controller';
+import { ExtratoHeaderArquivo } from './entity/extrato/extrato-header-arquivo.entity';
+import { ExtratoHeaderLote } from './entity/extrato/extrato-header-lote.entity';
+import { ExtratoDetalheE } from './entity/extrato/extrato-detalhe-e.entity';
+import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
+import { ExtratoHeaderArquivoRepository } from './repository/extrato/extrato-header-arquivo.repository';
+import { ExtratoHeaderLoteRepository } from './repository/extrato/extrato-header-lote.repository';
+import { ExtratoHeaderLoteService } from './service/extrato/extrato-header-lote.service';
+import { ExtratoDetalheEService } from './service/extrato/extrato-detalhe-e.service';
+import { ExtratoDetalheERepository } from './repository/extrato/extrato-detalhe-e.repository';
+import { PagamentoService } from './service/pagamento/pagamento.service';
+import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 
 @Module({
   imports: [
@@ -50,49 +61,68 @@ import { CnabController } from './cnab.controller';
       Transacao,
       ItemTransacao,
       Pagador,
+      ExtratoHeaderArquivo,
+      ExtratoHeaderLote,
+      ExtratoDetalheE,
     ])
   ],
   providers: [
     CnabService,
     Cnab104Service,
-    HeaderArquivoService,
     HeaderArquivoRepository,
+    HeaderArquivoService,
     HeaderLoteRepository,
     HeaderLoteService,
-    DetalheAService,
     DetalheARepository,
-    DetalheBService,
+    DetalheAService,
     DetalheBRepository,
-    ClienteFavorecidoService,
+    DetalheBService,
     ClienteFavorecidoRepository,
-    PagadorService,
+    ClienteFavorecidoService,
     PagadorRepository,
+    PagadorService,
     ArquivoPublicacaoRepository,
-    TransacaoService,
+    ArquivoPublicacaoService,
     TransacaoRepository,
-    ItemTransacaoService,
+    TransacaoService,
     ItemTransacaoRepository,
+    ItemTransacaoService,
+    ExtratoHeaderArquivoRepository,
+    ExtratoHeaderArquivoService,
+    ExtratoHeaderLoteRepository,
+    ExtratoHeaderLoteService,
+    ExtratoDetalheERepository,
+    ExtratoDetalheEService,
+    PagamentoService,
   ],
   exports: [
     CnabService,
     Cnab104Service,
-    HeaderArquivoService,
     HeaderArquivoRepository,
+    HeaderArquivoService,
     HeaderLoteRepository,
     HeaderLoteService,
-    DetalheAService,
     DetalheARepository,
-    DetalheBService,
+    DetalheAService,
     DetalheBRepository,
-    ClienteFavorecidoService,
+    DetalheBService,
     ClienteFavorecidoRepository,
-    PagadorService,
+    ClienteFavorecidoService,
     PagadorRepository,
+    PagadorService,
     ArquivoPublicacaoRepository,
-    TransacaoService,
+    ArquivoPublicacaoService,
     TransacaoRepository,
-    ItemTransacaoService,
+    TransacaoService,
     ItemTransacaoRepository,
+    ItemTransacaoService,
+    ExtratoHeaderArquivoRepository,
+    ExtratoHeaderArquivoService,
+    ExtratoHeaderLoteRepository,
+    ExtratoHeaderLoteService,
+    ExtratoDetalheERepository,
+    ExtratoDetalheEService,
+    PagamentoService,
   ],
   controllers: [CnabController]
 })

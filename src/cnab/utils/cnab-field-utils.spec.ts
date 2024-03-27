@@ -9,7 +9,7 @@ import {
   validateCnabFieldPositionSize,
 } from './cnab-field-utils';
 import { CnabFieldType } from '../enums/cnab-field-type.enum';
-import { CnabField } from '../types/cnab-field.type';
+import { CnabField } from '../interfaces/cnab-field.interface';
 
 process.env.TZ = 'UTC';
 
@@ -216,199 +216,199 @@ describe('cnab-utils.ts', () => {
   describe('formatDate()', /**
    * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 2b - GitHub}
    */ () => {
-    it('should format Date as string correctly', () => {
-      // Act
-      const resultDdmmyyyy = formatDate({
-        picture: '9(8)',
-        pos: [0, 0],
-        value: new Date('2024-03-25'),
-        dateFormat: { output: 'ddMMyyyy' },
-      });
-      const resultDdmmyy = formatDate({
-        picture: '9(6)',
-        pos: [0, 0],
-        value: new Date('2024-04-26'),
-        dateFormat: { output: 'ddMMyy' },
-      });
-      const resultHhmmss = formatDate({
-        picture: '9(6)',
-        pos: [0, 0],
-        value: new Date('2024-05-27 12:13:14'),
-        dateFormat: { output: 'kkmmss' },
-      });
-
-      // Assert
-      expect(resultDdmmyyyy).toEqual('25032024');
-      expect(resultDdmmyy).toEqual('260424');
-      expect(resultHhmmss).toEqual('121314');
-    });
-
-    it('should format string date correctly', () => {
-      // Act
-      const resultIsoToHms = formatDate({
-        picture: '9(6)',
-        pos: [0, 0],
-        value: '2024-01-02 10:11:12',
-        dateFormat: { output: 'hhmmss' },
-      });
-      const resultHmsToHms = formatDate({
-        picture: '9(6)',
-        pos: [0, 0],
-        value: '13:20:57',
-        dateFormat: { output: 'HHmmss' },
-      });
-      const resultDateToDate = formatDate({
-        picture: '9(8)',
-        pos: [0, 0],
-        value: '2024-01-03',
-        dateFormat: { output: 'ddMMyyyy' },
-      });
-      const resultNoFormat = () =>
-        formatDate({
+      it('should format Date as string correctly', () => {
+        // Act
+        const resultDdmmyyyy = formatDate({
           picture: '9(8)',
           pos: [0, 0],
-          value: '2024-03-15',
+          value: new Date('2024-03-25'),
+          dateFormat: { output: 'ddMMyyyy' },
         });
-      const resultInvalid = () =>
-        formatDate({
-          picture: '9(8)',
+        const resultDdmmyy = formatDate({
+          picture: '9(6)',
           pos: [0, 0],
-          value: '20240315',
+          value: new Date('2024-04-26'),
+          dateFormat: { output: 'ddMMyy' },
+        });
+        const resultHhmmss = formatDate({
+          picture: '9(6)',
+          pos: [0, 0],
+          value: new Date('2024-05-27 12:13:14'),
+          dateFormat: { output: 'kkmmss' },
         });
 
-      // Assert
-      expect(resultIsoToHms).toEqual('101112');
-      expect(resultHmsToHms).toEqual('132057');
-      expect(resultDateToDate).toEqual('03012024');
-      expect(resultNoFormat).toThrowError();
-      expect(resultInvalid).toThrowError();
+        // Assert
+        expect(resultDdmmyyyy).toEqual('25032024');
+        expect(resultDdmmyy).toEqual('260424');
+        expect(resultHhmmss).toEqual('121314');
+      });
+
+      it('should format string date correctly', () => {
+        // Act
+        const resultIsoToHms = formatDate({
+          picture: '9(6)',
+          pos: [0, 0],
+          value: '2024-01-02 10:11:12',
+          dateFormat: { output: 'hhmmss' },
+        });
+        const resultHmsToHms = formatDate({
+          picture: '9(6)',
+          pos: [0, 0],
+          value: '13:20:57',
+          dateFormat: { output: 'HHmmss' },
+        });
+        const resultDateToDate = formatDate({
+          picture: '9(8)',
+          pos: [0, 0],
+          value: '2024-01-03',
+          dateFormat: { output: 'ddMMyyyy' },
+        });
+        const resultNoFormat = () =>
+          formatDate({
+            picture: '9(8)',
+            pos: [0, 0],
+            value: '2024-03-15',
+          });
+        const resultInvalid = () =>
+          formatDate({
+            picture: '9(8)',
+            pos: [0, 0],
+            value: '20240315',
+          });
+
+        // Assert
+        expect(resultIsoToHms).toEqual('101112');
+        expect(resultHmsToHms).toEqual('132057');
+        expect(resultDateToDate).toEqual('03012024');
+        expect(resultNoFormat).toThrowError();
+        expect(resultInvalid).toThrowError();
+      });
     });
-  });
 
   describe('formatNumber()', /**
    * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 2c - GitHub}
    */ () => {
-    it('should format Number as string correctly', () => {
-      // Arrange
-      function setCnabField(value: number, picture: string): CnabField {
-        return { pos: [0, 0], picture, value };
-      }
-      function runFormatNumber(value: number, picture: string) {
-        return formatNumber(setCnabField(value, picture));
-      }
+      it('should format Number as string correctly', () => {
+        // Arrange
+        function setCnabField(value: number, picture: string): CnabField {
+          return { pos: [0, 0], picture, value };
+        }
+        function runFormatNumber(value: number, picture: string) {
+          return formatNumber(setCnabField(value, picture));
+        }
 
-      // Act
-      const resultIntegerCropRight = runFormatNumber(12345678, '9(6)');
-      const resultIntegerFillLeft = runFormatNumber(123456, '9(10)');
-      const resultIntegerExact = runFormatNumber(123456, '9(6)');
-      const resultDecimalCropRight = runFormatNumber(1234567.8, '9(5)V9');
-      const resultDecimalFillLeft = runFormatNumber(12345.6, '9(9)V9');
-      const resultDecimalExact = runFormatNumber(12345.6, '9(5)V9');
-      const resultFillDecimal = runFormatNumber(1234.56, '9(4)V9999');
-      const resultCropDecimal = runFormatNumber(1234.5111, '9(4)V99');
-      const resultCropDecimalFillLeft = runFormatNumber(1234.5111, '9(8)V99');
+        // Act
+        const resultIntegerCropRight = runFormatNumber(12345678, '9(6)');
+        const resultIntegerFillLeft = runFormatNumber(123456, '9(10)');
+        const resultIntegerExact = runFormatNumber(123456, '9(6)');
+        const resultDecimalCropRight = runFormatNumber(1234567.8, '9(5)V9');
+        const resultDecimalFillLeft = runFormatNumber(12345.6, '9(9)V9');
+        const resultDecimalExact = runFormatNumber(12345.6, '9(5)V9');
+        const resultFillDecimal = runFormatNumber(1234.56, '9(4)V9999');
+        const resultCropDecimal = runFormatNumber(1234.5111, '9(4)V99');
+        const resultCropDecimalFillLeft = runFormatNumber(1234.5111, '9(8)V99');
 
-      // Assert
-      expect(resultIntegerCropRight).toEqual('123456');
-      expect(resultIntegerFillLeft).toEqual('0000123456');
-      expect(resultIntegerExact).toEqual('123456');
-      expect(resultDecimalCropRight).toEqual('123456');
-      expect(resultDecimalFillLeft).toEqual('0000123456');
-      expect(resultDecimalExact).toEqual('123456');
-      expect(resultFillDecimal).toEqual('12345600');
-      expect(resultCropDecimal).toEqual('123451');
-      expect(resultCropDecimalFillLeft).toEqual('0000123451');
+        // Assert
+        expect(resultIntegerCropRight).toEqual('123456');
+        expect(resultIntegerFillLeft).toEqual('0000123456');
+        expect(resultIntegerExact).toEqual('123456');
+        expect(resultDecimalCropRight).toEqual('123456');
+        expect(resultDecimalFillLeft).toEqual('0000123456');
+        expect(resultDecimalExact).toEqual('123456');
+        expect(resultFillDecimal).toEqual('12345600');
+        expect(resultCropDecimal).toEqual('123451');
+        expect(resultCropDecimalFillLeft).toEqual('0000123451');
+      });
+
+      it('should treat string number the same as Number object', () => {
+        // Arrange
+        function setCnabField(value: string, picture: string): CnabField {
+          return { pos: [0, 0], picture, value };
+        }
+        function runFormatNumber(value: string, picture: string) {
+          return formatNumber(setCnabField(value, picture));
+        }
+
+        // Act
+        const resultIntegerCropRight = runFormatNumber('12345678', '9(6)');
+        const resultDecimalCropRight = runFormatNumber('1234567.8', '9(5)V9');
+        const resultCropDecimalFillLeft = runFormatNumber('1234.5111', '9(8)V99');
+
+        // Assert
+        expect(resultIntegerCropRight).toEqual('123456');
+        expect(resultDecimalCropRight).toEqual('123456');
+        expect(resultCropDecimalFillLeft).toEqual('0000123451');
+      });
     });
-
-    it('should treat string number the same as Number object', () => {
-      // Arrange
-      function setCnabField(value: string, picture: string): CnabField {
-        return { pos: [0, 0], picture, value };
-      }
-      function runFormatNumber(value: string, picture: string) {
-        return formatNumber(setCnabField(value, picture));
-      }
-
-      // Act
-      const resultIntegerCropRight = runFormatNumber('12345678', '9(6)');
-      const resultDecimalCropRight = runFormatNumber('1234567.8', '9(5)V9');
-      const resultCropDecimalFillLeft = runFormatNumber('1234.5111', '9(8)V99');
-
-      // Assert
-      expect(resultIntegerCropRight).toEqual('123456');
-      expect(resultDecimalCropRight).toEqual('123456');
-      expect(resultCropDecimalFillLeft).toEqual('0000123451');
-    });
-  });
 
   describe('formatText()', /**
    * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 2a - GitHub}
    */ () => {
-    it('should crop or fill text accordingly', () => {
-      // Act
-      const resultCropped = formatText({
-        picture: 'X(5)',
-        pos: [0, 0],
-        value: 'HELLO WORLD',
-      });
-      const resultFilled = formatText({
-        picture: 'X(10)',
-        pos: [0, 0],
-        value: 'HELLO',
+      it('should crop or fill text accordingly', () => {
+        // Act
+        const resultCropped = formatText({
+          picture: 'X(5)',
+          pos: [0, 0],
+          value: 'HELLO WORLD',
+        });
+        const resultFilled = formatText({
+          picture: 'X(10)',
+          pos: [0, 0],
+          value: 'HELLO',
+        });
+
+        // Assert
+        expect(resultCropped).toEqual('HELLO');
+        expect(resultFilled).toEqual('HELLO     ');
       });
 
-      // Assert
-      expect(resultCropped).toEqual('HELLO');
-      expect(resultFilled).toEqual('HELLO     ');
+      it('should always convert text to uppercase unaccent', () => {
+        // Act
+        const resultLowerAccent = formatText({
+          picture: 'X(20)',
+          pos: [0, 0],
+          value: 'Hello açaí!!',
+        });
+
+        // Assert
+        expect(resultLowerAccent).toEqual('HELLO ACAI          ');
+      });
     });
-
-    it('should always convert text to uppercase unaccent', () => {
-      // Act
-      const resultLowerAccent = formatText({
-        picture: 'X(20)',
-        pos: [0, 0],
-        value: 'Hello açaí!!',
-      });
-
-      // Assert
-      expect(resultLowerAccent).toEqual('HELLO ACAI          ');
-    });
-  });
 
   describe('getCnabFieldType()', () => {
     it('should CnabFieldType accordingly', /**
      * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 2d - GitHub}
      */ () => {
-      // Act
-      const resultText = getCnabFieldType({
-        picture: 'X(1)',
-        pos: [0, 0],
-        value: ' ',
-      });
-      const resultNumber = getCnabFieldType({
-        picture: '9(1)',
-        pos: [0, 0],
-        value: '0',
-      });
-      const resultDate = getCnabFieldType({
-        picture: '9(1)',
-        pos: [0, 0],
-        value: '0',
-        dateFormat: { output: 'ddMMyyyy' },
-      });
-      const resultInvalid = () =>
-        getCnabFieldType({
-          picture: '(1)',
+        // Act
+        const resultText = getCnabFieldType({
+          picture: 'X(1)',
           pos: [0, 0],
           value: ' ',
         });
+        const resultNumber = getCnabFieldType({
+          picture: '9(1)',
+          pos: [0, 0],
+          value: '0',
+        });
+        const resultDate = getCnabFieldType({
+          picture: '9(1)',
+          pos: [0, 0],
+          value: '0',
+          dateFormat: { output: 'ddMMyyyy' },
+        });
+        const resultInvalid = () =>
+          getCnabFieldType({
+            picture: '(1)',
+            pos: [0, 0],
+            value: ' ',
+          });
 
-      // Assert
-      expect(resultText).toEqual(CnabFieldType.Text);
-      expect(resultNumber).toEqual(CnabFieldType.Number);
-      expect(resultDate).toEqual(CnabFieldType.Date);
-      expect(resultInvalid).toThrowError();
-    });
+        // Assert
+        expect(resultText).toEqual(CnabFieldType.Text);
+        expect(resultNumber).toEqual(CnabFieldType.Number);
+        expect(resultDate).toEqual(CnabFieldType.Date);
+        expect(resultInvalid).toThrowError();
+      });
   });
 
   describe('validateCnabFieldPositionSize()', () => {
@@ -448,47 +448,47 @@ describe('cnab-utils.ts', () => {
     it('should throw exception when position start is invalid', /**
      * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 3 - GitHub}
      */ () => {
-      // Act
-      const result = () =>
-        validateCnabFieldPositionSize({
-          picture: 'X(1)',
-          pos: [0, 1],
-          value: '',
-        });
+        // Act
+        const result = () =>
+          validateCnabFieldPositionSize({
+            picture: 'X(1)',
+            pos: [0, 1],
+            value: '',
+          });
 
-      // Assert
-      expect(result).toThrowError();
-    });
+        // Assert
+        expect(result).toThrowError();
+      });
 
     it('should throw exception when position end < start', /**
      * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 5 - GitHub}
      */ () => {
-      // Act
-      const result = () =>
-        validateCnabFieldPositionSize({
-          picture: 'X(1)',
-          pos: [2, 1],
-          value: '',
-        });
+        // Act
+        const result = () =>
+          validateCnabFieldPositionSize({
+            picture: 'X(1)',
+            pos: [2, 1],
+            value: '',
+          });
 
-      // Assert
-      expect(result).toThrowError();
-    });
+        // Assert
+        expect(result).toThrowError();
+      });
 
     it('should throw exception when picture size < 1', /**
      * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 4 - GitHub}
      */ () => {
-      // Act
-      const result = () =>
-        validateCnabFieldPositionSize({
-          picture: 'X(0)',
-          pos: [1, 1],
-          value: '',
-        });
+        // Act
+        const result = () =>
+          validateCnabFieldPositionSize({
+            picture: 'X(0)',
+            pos: [1, 1],
+            value: '',
+          });
 
-      // Assert
-      expect(result).toThrowError();
-    });
+        // Assert
+        expect(result).toThrowError();
+      });
   });
 
   // describe('getCnabFieldUtils', () => {

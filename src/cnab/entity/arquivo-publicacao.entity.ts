@@ -5,7 +5,7 @@ import { HeaderArquivo } from "./pagamento/header-arquivo.entity";
 @Entity()
 export class ArquivoPublicacao extends EntityHelper {
   constructor(
-    arquivoPublicacao: ArquivoPublicacao | DeepPartial<ArquivoPublicacao>,
+    arquivoPublicacao: DeepPartial<ArquivoPublicacao>,
   ) {
     super();
     if (arquivoPublicacao !== undefined) {

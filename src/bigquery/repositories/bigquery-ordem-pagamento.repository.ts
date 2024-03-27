@@ -66,6 +66,7 @@ export class BigqueryOrdemPagamentoRepository {
         CAST(c.cnpj AS STRING) AS consorcioCpfCnpj,
         CAST(o.documento AS STRING) AS operadoraCpfCnpj,
         ${qArgs.favorecidoCpfCnpj} AS favorecidoCpfCnpj,
+        ${qArgs.permissionarioRole} AS permissionarioRole,
         -- aux columns
         (${qArgs.countQuery}) AS count,
         'ok' AS status
@@ -74,7 +75,7 @@ export class BigqueryOrdemPagamentoRepository {
       ${qArgs.joinOperadoras}\n` +
       (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
       `UNION ALL
-      SELECT ${'null, '.repeat(32)}
+      SELECT ${'null, '.repeat(33)}
       (${qArgs.countQuery}) AS count, 'empty' AS status` +
       '\nORDER BY dataOrdem DESC, idOrdemPagamento DESC\n' +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
@@ -113,6 +114,8 @@ export class BigqueryOrdemPagamentoRepository {
         : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.ordem_pagamento',
       tTipoPgto: IS_BQ_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
       favorecidoCpfCnpj: 'NULL',
+      permissionarioRole:
+        `CASE WHEN o.tipo_documento = 'CPF' THEN NULL ELSE ${PermissionarioRoleEnum.vanzeiro} END`,
     };
 
     // Args
@@ -169,8 +172,8 @@ export class BigqueryOrdemPagamentoRepository {
       } else {
         queryBuilder.pushAND(`(o.tipo_documento = 'CNPJ' OR c.cnpj IS NOT NULL)`);
       }
-
     }
+
     const qWhere = queryBuilder.toSQL();
 
     // Query
@@ -191,6 +194,7 @@ export class BigqueryOrdemPagamentoRepository {
       joinOperadoras: joinOperadoras,
       joinConsorcios: joinConsorcios,
       favorecidoCpfCnpj: Q_CONSTS.favorecidoCpfCnpj,
+      permissionarioRole: Q_CONSTS.permissionarioRole,
       countQuery,
       offset,
       limit: args?.limit,

@@ -22,23 +22,24 @@ export class DetalheADTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  loteServico?: number | null;
+  clienteFavorecido?: DeepPartial<ClienteFavorecido>;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  clienteFavorecido?: DeepPartial<ClienteFavorecido>;
+  loteServico?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
   finalidadeDOC?: string | null;
 
+  /** Automático, sequencial. */
   @ValidateIf(isCreate)
   @IsNotEmpty()
   numeroDocumentoEmpresa?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dataVencimento?: Date | null;
+  dataVencimento?: Date;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -50,11 +51,11 @@ export class DetalheADTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  valorLancamento?: number | null;
+  valorLancamento?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numeroDocumentoBanco?: number | null;
+  numeroDocumentoBanco?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -76,8 +77,8 @@ export class DetalheADTO {
   @IsNotEmpty()
   numeroParcela?: number | null;
 
-  dataEfetivacao?: Date | null;
-  valorRealEfetivado?: number | null;
+  dataEfetivacao?: Date;
+  valorRealEfetivado?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

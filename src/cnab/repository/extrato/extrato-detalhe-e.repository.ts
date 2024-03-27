@@ -2,7 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { endOfDay, startOfDay } from 'date-fns';
 import { ExtratoDetalheE } from 'src/cnab/entity/extrato/extrato-detalhe-e.entity';
+import { asNumber } from 'src/utils/pipe-utils';
 import { Nullable } from 'src/utils/types/nullable.type';
+import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { DeepPartial, FindManyOptions, FindOneOptions, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 
 @Injectable()
@@ -12,21 +14,40 @@ export class ExtratoDetalheERepository {
   });
 
   constructor(
-    @InjectRepository(ExtratoDetalheERepository)
-    private detalheARepository: Repository<ExtratoDetalheE>,
+    @InjectRepository(ExtratoDetalheE)
+    private extDetalheERepository: Repository<ExtratoDetalheE>,
   ) { }
 
+  public async saveIfNotExists(obj: DeepPartial<ExtratoDetalheE>, updateIfExists?: boolean
+  ): Promise<SaveIfNotExists<ExtratoDetalheE>> {
+    const existing = obj?.id
+      ? await this.extDetalheERepository.findOne({ where: { id: obj.id } })
+      : await this.extDetalheERepository.findOne({
+        where: {
+          extratoHeaderLote: { id: asNumber(obj.extratoHeaderLote?.id) },
+          nsr: asNumber(obj.nsr),
+        }
+      });
+    const item = !existing || (existing && updateIfExists)
+      ? await this.extDetalheERepository.save(obj)
+      : existing;
+    return {
+      isNewItem: !Boolean(existing),
+      item: item,
+    }
+  }
+
   public async save(obj: DeepPartial<ExtratoDetalheE>): Promise<ExtratoDetalheE> {
-    return await this.detalheARepository.save(obj);
+    return await this.extDetalheERepository.save(obj);
   }
 
   public async findOne(options: FindOneOptions<ExtratoDetalheE>): Promise<Nullable<ExtratoDetalheE>> {
-    const one = await this.detalheARepository.findOne(options);
+    const one = await this.extDetalheERepository.findOne(options);
     return one;
   }
 
-  public async findMany(options: FindManyOptions<ExtratoDetalheE> ): Promise<ExtratoDetalheE[]> {
-    const many = await this.detalheARepository.find(options);
+  public async findMany(options: FindManyOptions<ExtratoDetalheE>): Promise<ExtratoDetalheE[]> {
+    const many = await this.extDetalheERepository.find(options);
     return many;
   }
 
@@ -36,7 +57,7 @@ export class ExtratoDetalheERepository {
    * Baseado no mesmo dia.
    */
   public async getNextNumeroDocumento(date: Date): Promise<number> {
-    return await this.detalheARepository.count({
+    return await this.extDetalheERepository.count({
       where: [
         { createdAt: MoreThanOrEqual(startOfDay(date)) },
         { createdAt: LessThanOrEqual(endOfDay(date)) },

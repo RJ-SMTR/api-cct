@@ -1,10 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Cnab104FormaLancamento } from '../enums/104/cnab-104-forma-lancamento.enum';
-import { ICnab240_104DetalheA } from '../interfaces/cnab-240/104/cnab-240-104-detalhe-a.interface';
-import { ICnab240_104DetalheB } from '../interfaces/cnab-240/104/cnab-240-104-detalhe-b.interface';
-import { ICnab240_104File } from '../interfaces/cnab-240/104/cnab-240-104-file.interface';
-import { ICnab240_104Lote } from '../interfaces/cnab-240/104/cnab-240-104-lote.interface';
+import { CnabFile104 } from '../interfaces/cnab-240/104/cnab-file-104.interface';
+import { CnabLote104 } from '../interfaces/cnab-240/104/cnab-lote-104.interface';
+import { CnabDetalheA_104 } from '../interfaces/cnab-240/104/pagamento/cnab-detalhe-a-104.interface';
+import { CnabDetalheB_104 } from '../interfaces/cnab-240/104/pagamento/cnab-detalhe-b-104.interface';
 import { cnab240_104DetalheATemplateTest } from '../test/templates/240/104/cnab-240-104-detalhe-a-template-test.const';
 import { cnab240_104DetalheBTemplateTest } from '../test/templates/240/104/cnab-240-104-detalhe-b-template-test.const';
 import { cnab240_104HeaderArquivoTemplateTest } from '../test/templates/240/104/cnab-240-104-header-arquivo-template-test.const';
@@ -18,14 +18,15 @@ import { cnab240GenericHeaderArquivoTemplateTest } from '../test/templates/240/g
 import { cnab240GenericHeaderLoteTemplateTest } from '../test/templates/240/generic/cnab-240-generic-header-lote-template-test.const';
 import { cnab240GenericTrailerArquivoTemplateTest } from '../test/templates/240/generic/cnab-240-generic-trailer-arquivo-template-test.const';
 import { cnab240GenericTrailerLoteTemplateTest } from '../test/templates/240/generic/cnab-240-generic-trailer-lote-template-test.const';
-import { CnabFile } from '../types/cnab-file.type';
-import { CnabLote } from '../types/cnab-lote.type';
-import { CnabRegistro } from '../types/cnab-registro.type';
+import { CnabFile } from '../interfaces/cnab-file.interface';
+import { CnabLote } from '../interfaces/cnab-lote.interface';
+import { CnabRegistro } from '../interfaces/cnab-registro.interface';
+import { getCnabFileFrom104 } from './cnab-104-pipe-utils';
 import {
   getCnab104FromFile,
-  getCnabFileFrom104,
   stringifyCnab104File,
 } from './cnab-104-utils';
+import { cnab104FieldMapTemplate } from '../templates/cnab-all/cnab-104-field-map-template';
 
 describe('cnab-104-utils.ts', () => {
   const sc = structuredClone;
@@ -116,58 +117,58 @@ describe('cnab-104-utils.ts', () => {
     it('should return string version correctly', /**
      * Requirement: 2024/02/27 {@link https://github.com/RJ-SMTR/api-cct/issues/187#issuecomment-1965124944 #187, item 7 - GitHub}
      */ () => {
-      // Arrange
-      const lote: ICnab240_104Lote = {
-        headerLote: sc(headerLote),
-        registros: [
-          {
-            detalheA: sc(detalheA),
-            detalheB: sc(detalheB),
-          },
-          {
-            detalheA: sc(detalheA),
-            detalheB: sc(detalheB),
-          },
-        ],
-        trailerLote: sc(trailerLote),
-      };
-      const lote0 = sc(lote);
-      lote0.headerLote.formaLancamento.value = Cnab104FormaLancamento.DOC;
-      const lote1 = sc(lote);
-      lote0.headerLote.formaLancamento.value = Cnab104FormaLancamento.TED;
+        // Arrange
+        const lote: CnabLote104 = {
+          headerLote: sc(headerLote),
+          registros: [
+            {
+              detalheA: sc(detalheA),
+              detalheB: sc(detalheB),
+            },
+            {
+              detalheA: sc(detalheA),
+              detalheB: sc(detalheB),
+            },
+          ],
+          trailerLote: sc(trailerLote),
+        };
+        const lote0 = sc(lote);
+        lote0.headerLote.formaLancamento.value = Cnab104FormaLancamento.DOC;
+        const lote1 = sc(lote);
+        lote0.headerLote.formaLancamento.value = Cnab104FormaLancamento.TED;
 
-      const file: ICnab240_104File = {
-        headerArquivo: sc(headerArquivo),
-        lotes: [sc(lote0), sc(lote1)],
-        trailerArquivo: sc(trailerArquivo),
-      };
-      file.lotes[1].registros.push({
-        detalheA: sc(detalheA),
-        detalheB: sc(detalheB),
+        const file: CnabFile104 = {
+          headerArquivo: sc(headerArquivo),
+          lotes: [sc(lote0), sc(lote1)],
+          trailerArquivo: sc(trailerArquivo),
+        };
+        file.lotes[1].registros.push({
+          detalheA: sc(detalheA),
+          detalheB: sc(detalheB),
+        });
+
+        const expectedResponseFilePath = path.join(
+          templatesPath,
+          '240',
+          '104',
+          'example-240-104.rem',
+        );
+        const expectedResponse = fs
+          .readFileSync(expectedResponseFilePath, 'utf-8')
+          .replace(/\r\n/g, '\n');
+
+        // Act
+        const response = stringifyCnab104File(file).replace(/\r\n/g, '\n');
+
+        // Assert
+        expect(response).toEqual(expectedResponse);
       });
-
-      const expectedResponseFilePath = path.join(
-        templatesPath,
-        '240',
-        '104',
-        'example-240-104.rem',
-      );
-      const expectedResponse = fs
-        .readFileSync(expectedResponseFilePath, 'utf-8')
-        .replace(/\r\n/g, '\n');
-
-      // Act
-      const response = stringifyCnab104File(file).replace(/\r\n/g, '\n');
-
-      // Assert
-      expect(response).toEqual(expectedResponse);
-    });
   });
 
   describe('getCnabFileFrom104', () => {
     it('should set CnabFields in the right places', () => {
       // Arrange
-      const lote: ICnab240_104Lote = {
+      const lote: CnabLote104 = {
         headerLote: sc(headerLote),
         registros: [
           {
@@ -186,28 +187,28 @@ describe('cnab-104-utils.ts', () => {
 
       lote0.headerLote.usoExclusivoFebraban.value = 'L0H';
       (
-        lote0.registros[0].detalheA as ICnab240_104DetalheA
+        lote0.registros[0].detalheA as CnabDetalheA_104
       ).usoExclusivoFebraban.value = 'L0R0A';
       (
-        lote0.registros[1].detalheB as ICnab240_104DetalheB
+        lote0.registros[1].detalheB as CnabDetalheB_104
       ).usoExclusivoFebraban.value = 'L0R1B';
 
       lote1.trailerLote.usoExclusivoFebraban.value = 'L1T';
       (
-        lote1.registros[0].detalheB as ICnab240_104DetalheB
+        lote1.registros[0].detalheB as CnabDetalheB_104
       ).usoExclusivoFebraban.value = 'L1R0B';
       (
-        lote1.registros[1].detalheA as ICnab240_104DetalheA
+        lote1.registros[1].detalheA as CnabDetalheA_104
       ).usoExclusivoFebraban.value = 'L1R1A';
 
-      const file: ICnab240_104File = {
+      const file: CnabFile104 = {
         headerArquivo: sc(headerArquivo),
         lotes: [sc(lote0), sc(lote1)],
         trailerArquivo: sc(trailerArquivo),
       };
 
       // Act
-      const response = getCnabFileFrom104(file);
+      const response = getCnabFileFrom104(file, cnab104FieldMapTemplate);
 
       // Assert
       expect(response.headerArquivo.fields).toEqual(headerArquivo);

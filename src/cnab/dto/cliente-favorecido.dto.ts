@@ -16,27 +16,27 @@ export class SaveClienteFavorecidoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  cpfCnpj?: string | null;
+  cpfCnpj?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  codigoBanco?: string | null;
+  codigoBanco?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  agencia?: string | null;
+  agencia?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dvAgencia?: string | null;
+  dvAgencia?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  contaCorrente?: string | null;
+  contaCorrente?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dvContaCorrente?: string | null;
+  dvContaCorrente?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

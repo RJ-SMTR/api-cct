@@ -1,5 +1,5 @@
 export enum SftpBackupFolder {
-  RetornoFailure = 'retorno/failure',
-  RetornoSuccess = 'retorno/success',
-  Remessa = 'remessa',
+  RetornoFailure = 'backup/retorno/failure',
+  RetornoSuccess = 'backup/retorno/success',
+  Remessa = 'backup/remessa',
 }

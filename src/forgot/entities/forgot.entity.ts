@@ -14,9 +14,10 @@ import { EntityHelper } from 'src/utils/entity-helper';
 
 @Entity()
 export class Forgot extends EntityHelper {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Forgot_id' })
   id: number;
 
+  /** indexName: `IDX_Forgot_hash` */
   @Allow()
   @Column()
   @Index()

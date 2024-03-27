@@ -26,6 +26,7 @@ import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
 import { PermissionarioRole } from 'src/permissionario-role/permissionario-role.entity';
 
+/** uniqueConstraintName: `UQ_User_email` */
 @Entity()
 export class User extends EntityHelper {
   newUser: User[];

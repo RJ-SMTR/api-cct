@@ -1,7 +1,7 @@
 import { DeepPartial } from "typeorm";
 import { HeaderArquivo } from "../../entity/pagamento/header-arquivo.entity";
 import { IsNotEmpty, ValidateIf } from "class-validator";
-import { Pagador } from "../../entity/intermediate/pagador.entity";
+import { Pagador } from "../../entity/pagamento/pagador.entity";
 
 function isCreate(object: HeaderLoteDTO): boolean {
   return object.id === undefined;

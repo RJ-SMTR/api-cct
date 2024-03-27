@@ -1,0 +1,27 @@
+import { CnabField } from '../interfaces/cnab-field.interface';
+
+interface ICnabFieldMetadata {
+  fieldName: string,
+  registroName: string,
+  loteNumber?: number,
+  cnabName?: string,
+}
+
+export class CnabFieldDTO {
+  public cnabField: CnabField;
+  private metadata: ICnabFieldMetadata;
+  private readonly _typeof = 'CnabFieldDto';
+
+  constructor(cnabField: CnabField, metadata: ICnabFieldMetadata) {
+    this.cnabField = cnabField;
+    this.metadata = metadata;
+  }
+
+  // public toString(): string {
+  //   return `${JSON.stringify({
+  //     ...this.cnabField,
+  //     dateFormat: this.cnabField?.dateFormat || 'undefined',
+  //     ...this.metadata,
+  //   })}`;
+  // }
+}

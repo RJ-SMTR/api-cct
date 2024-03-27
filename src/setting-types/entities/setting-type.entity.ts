@@ -4,6 +4,7 @@ import { Exclude } from 'class-transformer';
 import { SettingTypeEnum } from '../setting-type.enum';
 import { Enum } from 'src/utils/enum';
 
+/** uniqueConstraintName: `UQ_SettingType_name` */
 @Entity({ name: 'setting_type' })
 export class SettingType extends BaseEntity {
   constructor(setting?: SettingTypeEnum) {

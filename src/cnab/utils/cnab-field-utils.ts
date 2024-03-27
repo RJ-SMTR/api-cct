@@ -1,12 +1,13 @@
 import { format, isDate } from 'date-fns';
-import { asNumber, asStringDate, asStringNumber, asStringOrDateDate } from 'src/utils/pipe-utils';
+import { asNumber, asNumberStringDate, asStringNumber, asStringOrDateDate } from 'src/utils/pipe-utils';
 import {
   getStringNoSpecials,
   getStringUpperUnaccent,
   isStringBasicAlnumUpper,
 } from 'src/utils/string-utils';
 import { CnabFieldType } from '../enums/cnab-field-type.enum';
-import { CnabField } from '../types/cnab-field.type';
+import { CnabField, CnabFieldFormat } from '../interfaces/cnab-field.interface';
+import { getCnabFieldNameLog } from './cnab-metadata-utils';
 
 export type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';
 
@@ -42,7 +43,7 @@ export function getStringFromCnabField(field: CnabField): string {
 export function getCnabFieldType(field: CnabField): CnabFieldType {
   let result: CnabFieldType | undefined = undefined;
   if (field.picture.startsWith('9')) {
-    if (field.dateFormat) {
+    if (field.format?.dateFormat) {
       result = CnabFieldType.Date;
     } else {
       result = CnabFieldType.Number;
@@ -165,7 +166,7 @@ export function formatText(
  */
 function validateFormatText(field: CnabField) {
   if (typeof field.value !== 'string') {
-    throw new Error(`CnabField (${JSON.stringify(field)}) is not string.`);
+    throw new Error(`CnabField is not string. ${cnabFieldToString(field)}`);
   }
 }
 
@@ -197,16 +198,14 @@ export function formatDate(
     value = String(
       format(
         field.value,
-        field.dateFormat?.output || 'yymmdd',
+        field.format?.dateFormat || 'yymmdd',
       ),
     );
-  } else if (field.dateFormat) {
-    value = String(
-      format(
-        asStringDate(field.value, field.dateFormat?.input),
-        field.dateFormat?.output || 'yymmdd',
-      ),
-    );
+  } else if (field.format?.dateFormat) {
+    const strDate = asNumberStringDate(field.value, field.format?.dateFormat, getCnabFieldNameLog(field));
+    const formatted = format(strDate, field.format?.dateFormat || 'yymmdd');
+    const newValue = String(formatted);
+    value = newValue;
   } else {
     value = String(field.value);
   }
@@ -217,22 +216,15 @@ export function formatDate(
  * Performs basic validation before formatting.
  */
 function validateFormatDate(field: CnabField) {
-  if (!field.dateFormat) {
-    throw new Error(`CnabField must have dateFormat.`);
+  if (!field.format?.dateFormat) {
+    throw new Error(`CnabField must have dateFormat. ${cnabFieldToString(field)}`);
   }
   try {
-    if (isNaN(asStringOrDateDate(field.value, field.dateFormat.input).getDate())) {
-      const dateFormat = field.dateFormat
-        ? JSON.stringify(field.dateFormat)
-        : 'undefined';
-      throw new Error(
-        `CnabField: ${JSON.stringify(field)}, dateFormat: ${dateFormat} got an invalid date.`,
-      );
+    if (isNaN(asStringOrDateDate(field.value, field.format?.dateFormat).getDate())) {
+      throw new Error(`CnabField got an invalid date. ${cnabFieldToString(field)}`);
     }
   } catch (error) {
-    throw new Error(
-      `CnabField: ${JSON.stringify(field)}, dateFormat: ${field.dateFormat} got an invalid date.`,
-    );
+    throw new Error(`CnabField got an invalid date. ${cnabFieldToString(field)}`);
 
   }
 }
@@ -265,7 +257,7 @@ export function formatNumber(
 function validateFormatNumber(field: CnabField) {
   if (field.value === null || isNaN(Number(field.value))) {
     throw new Error(
-      `CnabField ${JSON.stringify(field)} is not a valid number value.`,
+      `CnabField is not a valid number value. ${cnabFieldToString(field)}`,
     );
   }
 }
@@ -282,7 +274,7 @@ export function validateCnabText(
     typeof field.value === 'string' && isStringBasicAlnumUpper(field.value);
   if (isCnabTextValid && throwOnError) {
     throw new Error(
-      `CnabField value "${field.value}" formatting has invalid Text format.`,
+      `CnabField value has invalid Text format. ${cnabFieldToString(field)}`,
     );
   }
   return isCnabTextValid;
@@ -304,23 +296,22 @@ export function validateCnabFieldPositionSize(field: CnabField) {
   const end = field.pos[1];
   const posSize = end + 1 - start;
   if (pictureSize < 1) {
-    throw new Error(`CnabField picture should be >= 1 but is ${pictureSize}`);
+    throw new Error(`CnabField picture should be >= 1 but is ${pictureSize}. ${cnabFieldToString(field)}`);
   }
   if (start < 1) {
     throw new Error(
-      `CnabField position start should be >= 1 but is ${field.pos[0]}`,
+      `CnabField position start should be >= 1 but is ${field.pos[0]}. ${cnabFieldToString(field)}`,
     );
   }
   if (end < start) {
     throw new Error(
-      `CnabField position end should be >= start but positions are ${field.pos}`,
+      `CnabField position end should be >= start but positions are ${field.pos}. ${cnabFieldToString(field)}`,
     );
   }
   if (pictureSize !== posSize) {
     throw new Error(
       `CnabField picture and position doesnt match ` +
-      `(positionSize: ${posSize}, pictureSize: ${pictureSize}),` +
-      `CnabField: ${JSON.stringify(field)}`,
+      `(positionSize: ${posSize}, pictureSize: ${pictureSize}). ${cnabFieldToString(field)}`,
     );
   }
 }
@@ -341,7 +332,86 @@ export function parseCnabField(
 ): CnabField {
   const field = getCnabFieldFromString(cnabStringLine, fieldDTO);
   validateParseCnabField(field);
+  parseCnabFieldValue(field);
   return field;
+}
+
+function parseCnabFieldValue(field: CnabField) {
+  const cnabFieldType = getCnabFieldType(field);
+  if (field.format?.force) {
+    if (field.format.formatType === 'Date') {
+      parseDate(field);
+    } else if (field.format.formatType === 'number') {
+      parseNumber(field);
+    } else {
+      // default: text
+      parseText(field);
+    }
+  } else {
+    if (cnabFieldType === CnabFieldType.Date) {
+      parseDate(field);
+    } else if (cnabFieldType === CnabFieldType.Number) {
+      parseNumber(field);
+    } else {
+      parseText(field);
+    }
+  }
+}
+
+/**
+ * If no format defined, set format as Date
+ */
+export function parseDate(field: CnabField) {
+  if ((field?.format && field.format?.formatType !== 'Date') || !field?.format?.dateFormat) {
+    throw new Error(`Expected CnabFieldAs<Date> with defined dateFormat. ${JSON.stringify(field)}`);
+  }
+  const format = field.format as CnabFieldFormat;
+  const date = asNumberStringDate(field.value, format.dateFormat);
+  if (field.format) {
+    field.format.value = date;
+  } else {
+    field.format = {
+      formatType: 'Date',
+      value: date,
+    }
+  }
+}
+
+/**
+ * If no format defined, set format as number
+ */
+export function parseNumber(field: CnabField) {
+  if (field?.format && field?.format?.formatType !== 'number') {
+    throw new Error(`Expected CnabFieldAs<number> with formatType = 'number'. ${JSON.stringify(field)}`);
+  }
+  const { decimal } = getPictureNumberSize(field.picture);
+  const num = Number(field.value) / (decimal ? (10 * decimal) : 1);
+  if (field.format) {
+    field.format.value = num;
+  } else {
+    field.format = {
+      formatType: 'number',
+      value: num
+    };
+  }
+}
+
+/**
+ * If no format defined, set format as string
+ */
+export function parseText(field: CnabField) {
+  if (field.format && field.format?.formatType !== 'string' && !field.format.force) {
+    throw new Error(`Expected CnabFieldAs<string> with formatType = 'string'. ${JSON.stringify(field)}`);
+  }
+  const str = String(field.value).trim();
+  if (field.format) {
+    field.format.value = str;
+  } else {
+    field.format = {
+      formatType: 'string',
+      value: str,
+    }
+  }
 }
 
 /**
@@ -357,9 +427,6 @@ export function getCnabFieldFromString(
   const field = structuredClone(fieldDTO);
   const start = fieldDTO.pos[0] - 1;
   const end = fieldDTO.pos[1];
-  // if (cnabStringLine === '10400011E0440020 2005460370001100000000000000004205204064900600007108300CETT CTA ESTAB TARIFARIA TRANS                                        13032024000000000000000000CPBRL00001                                                              ') {
-  //   const a = 1;
-  // }
   field.value = cnabStringLine.slice(start, end);
   return field;
 }
@@ -400,4 +467,26 @@ export function getNumberFromCnabField(field: CnabField): number {
   } else {
     return asNumber(field.value);
   }
+}
+
+export function cnabFieldToString(field: CnabField): string {
+  return JSON.stringify({
+    ...field,
+    dateFormat: field?.format?.dateFormat || 'undefined',
+  });
+}
+
+export function setCnabFieldMetadata(
+  field: CnabField,
+  fieldName: string,
+  registroName: string,
+  loteNumber?: number,
+  cnabName?: string,
+) {
+  field._metadata = {
+    name: fieldName,
+    registro: registroName,
+    registroIndex: loteNumber,
+    cnab: cnabName,
+  };
 }

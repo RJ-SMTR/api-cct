@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ExtratoHeaderArquivo } from 'src/cnab/entity/extrato/extrato-header-arquivo.entity';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { asNumber } from 'src/utils/pipe-utils';
+import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { DeepPartial, FindManyOptions, FindOneOptions, Repository } from 'typeorm';
 
 @Injectable()
@@ -13,19 +15,38 @@ export class ExtratoHeaderArquivoRepository {
 
   constructor(
     @InjectRepository(ExtratoHeaderArquivo)
-    private headerArquivoRepository: Repository<ExtratoHeaderArquivo>,
+    private extHeaderArquivoRepository: Repository<ExtratoHeaderArquivo>,
   ) { }
+
+  public async saveIfNotExists(dto: DeepPartial<ExtratoHeaderArquivo>, updateIfExists?: boolean
+  ): Promise<SaveIfNotExists<ExtratoHeaderArquivo>> {
+    const existing = dto?.id
+      ? await this.extDetalheERepository.findOne({ where: { id: dto.id } })
+      : await this.extDetalheERepository.findOne({
+        where: {
+          nsa: asNumber(dto.nsa),
+          tipoArquivo: asNumber(dto.tipoArquivo),
+        }
+      });
+    const item = !existing || (existing && updateIfExists)
+      ? await this.extDetalheERepository.save(dto)
+      : existing;
+    return {
+      isNewItem: !Boolean(existing),
+      item: item,
+    }
+  }
 
   /**
    * If has existing id, update, otherwise save.
    */
   public async save(obj: DeepPartial<ExtratoHeaderArquivo>): Promise<ExtratoHeaderArquivo> {
-    return await this.headerArquivoRepository.save(obj);
+    return await this.extHeaderArquivoRepository.save(obj);
   }
 
   public async getOne(options: FindOneOptions<ExtratoHeaderArquivo>): Promise<ExtratoHeaderArquivo> {
     try {
-      const header = await this.headerArquivoRepository.findOneOrFail(options);
+      const header = await this.extHeaderArquivoRepository.findOneOrFail(options);
       return header;
     } catch (error) {
       const fieldsStr = Object.values(options?.where || []).reduce((l, i) => [...l, String(i)], []);
@@ -38,10 +59,10 @@ export class ExtratoHeaderArquivoRepository {
   }
 
   public async findOne(options: FindOneOptions<ExtratoHeaderArquivo>): Promise<ExtratoHeaderArquivo | null> {
-    return await this.headerArquivoRepository.findOne(options);
+    return await this.extHeaderArquivoRepository.findOne(options);
   }
 
   public async findMany(options: FindManyOptions<ExtratoHeaderArquivo>): Promise<ExtratoHeaderArquivo[]> {
-    return await this.headerArquivoRepository.find(options);
+    return await this.extHeaderArquivoRepository.find(options);
   }
 }

@@ -1,24 +1,69 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { format } from 'date-fns';
 import { AllConfigType } from 'src/config/config.type';
 import { getBRTFromUTC } from 'src/utils/date-utils';
-import { logDebug } from 'src/utils/log-utils';
+import { OnModuleLoad } from 'src/utils/interfaces/on-load.interface';
+import { logDebug, logError } from 'src/utils/log-utils';
+import { SftpBackupFolder } from './enums/sftp-backup-folder.enum';
 import { ConnectConfig } from './interfaces/connect-config.interface';
 import { SftpClientService } from './sftp-client/sftp-client.service';
-import { SftpBackupFolder } from './enums/sftp-backup-folder.enum';
 
 @Injectable()
-export class SftpService {
+export class SftpService implements OnModuleInit, OnModuleLoad {
   private readonly logger: Logger;
-  private readonly REMESSA_FOLDER = '/remessa';
-  private readonly RETORNO_FOLDER = '/retorno';
-  private readonly BACKUP_FOLDER = '/backup';
+  private readonly FOLDERS = {
+    REMESSA: '/remessa',
+    RETORNO: '/retorno',
+    BACKUP: '/backup',
+    BACKUP_RETORNO_FAILURE: '/backup/retorno/failure',
+    BACKUP_RETORNO_SUCCESS: '/backup/retorno/success',
+  };
+  private RECURSIVE_MKDIR: string[] = [
+    '/remessa',
+    '/retorno',
+    '/backup/retorno/failure',
+    '/backup/retorno/success',
+  ]
+  private readonly REGEX = {
+    /** smtr_prefeiturarj_ddMMyy_hhmmss_.rem */
+    REMESSA: new RegExp(`smtr_prefeiturarj_\\d{6}_\\d{6}\\.rem`),
+    /** smtr_prefeiturarj_ddMMyy_hhmmss_.ret */
+    RETORNO: new RegExp(`smtr_prefeiturarj_\\d{6}_\\d{6}\\.ret`),
+    /** smtr_prefeiturarj_eerdiario_ddMMyyhhmmss_.EXT */
+    EXTRATO: new RegExp(`smtr_prefeiturarj_eediario_\\d{12}\\.EXT`),
+  };
+
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly sftpClient: SftpClientService,
   ) {
     this.logger = new Logger('SftpService', { timestamp: true });
+  }
+
+  onModuleInit() {
+    this.logger.log('ON MODULE INIT')
+    this.onModuleLoad().catch((error: Error) => { throw error; });
+  }
+
+  async onModuleLoad() {
+    await this.createMainFolders();
+  }
+
+  /**
+   * Ensure all SFTP subfolders exists.
+   */
+  public async createMainFolders() {
+    const METHOD = 'createMainFolders()';
+    try {
+      await this.connectClient();
+      for (const folder of this.RECURSIVE_MKDIR) {
+        await this.sftpClient.makeDirectory(folder, true);
+      }
+      logDebug(this.logger, 'As pastas SFTP estão preparadas.', METHOD);
+    } catch (error) {
+      logError(this.logger, 'Falha ao preparar pastas SFTP.', error, error);
+    }
   }
 
   private getClientCredentials(): ConnectConfig {
@@ -75,7 +120,7 @@ export class SftpService {
   async submitCnabRemessa(content: string) {
     const METHOD = 'submitFromString()';
     await this.connectClient();
-    const remotePath = `${this.REMESSA_FOLDER}/${this.getRemessaName()}`;
+    const remotePath = `${this.FOLDERS.REMESSA}/${this.getRemessaName()}`;
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
     logDebug(this.logger, `Arquivo CNAB carregado em ${remotePath}`, METHOD);
   }
@@ -100,18 +145,43 @@ export class SftpService {
   }> {
     await this.connectClient();
     const firstFile = (await this.sftpClient.list(
-      this.RETORNO_FOLDER,
-      this.getRegexForCnab('retorno'),
+      this.FOLDERS.RETORNO,
+      this.REGEX.RETORNO,
     )).pop();
 
     if (!firstFile) {
       return { cnabName: null, cnabString: null };
     }
 
-    const cnabPath = `${this.RETORNO_FOLDER}/${firstFile.name}`;
+    const cnabPath = `${this.FOLDERS.RETORNO}/${firstFile.name}`;
     const cnabString =
       await this.downloadToString(cnabPath);
     return { cnabName: firstFile.name, cnabString };
+  }
+
+  /**
+   * Get first Cnab Extrato (eediario) in Retorno and read it
+   * 
+   * @returns CnabName: file name with extension (no folder)
+   */
+  public async getFirstCnabExtrato(): Promise<{
+    name: string,
+    content: string,
+  } | null> {
+    await this.connectClient();
+    const firstFile = (await this.sftpClient.list(
+      this.FOLDERS.RETORNO,
+      this.REGEX.EXTRATO,
+    )).pop();
+
+    if (!firstFile) {
+      return null;
+    }
+
+    const cnabPath = `${this.FOLDERS.RETORNO}/${firstFile.name}`;
+    const cnabString =
+      await this.downloadToString(cnabPath);
+    return { name: firstFile.name, content: cnabString };
   }
 
   /**
@@ -119,19 +189,12 @@ export class SftpService {
    * 
    * @param cnabName Name with extension. No folder path.
    */
-  public async backupCnabRetorno(cnabName: string, folder: SftpBackupFolder) {
-    const METHOD = 'backupCnabRetorno()';
-    const originPath = `${this.RETORNO_FOLDER}/${cnabName}`;
-    const destPath = `${this.BACKUP_FOLDER}/${folder}/${cnabName}`;
+  public async moveToBackup(cnabName: string, folder: SftpBackupFolder) {
+    const METHOD = 'moveToBackup()';
+    const originPath = `${this.FOLDERS.RETORNO}/${cnabName}`;
+    const destPath = `${folder}/${cnabName}`;
     await this.connectClient();
     await this.sftpClient.rename(originPath, destPath);
     logDebug(this.logger, `Arquivo CNAB movido de '${originPath}' para ${destPath}`, METHOD);
-  }
-
-  public getRegexForCnab(fileType: 'remessa' | 'retorno'): RegExp {
-    const fileTypeStr = fileType === 'remessa' ? 'rem' : 'ret';
-    const regexString = `smtr_prefeiturarj_\\d{6}_\\d{6}\\.${fileTypeStr}`;
-    const regex = new RegExp(regexString);
-    return regex;
   }
 }
