@@ -60,14 +60,20 @@ export class LancamentoController {
     required: true,
     description: 'Ano do lançamento.',
   })
+  @ApiQuery({
+    name: 'autorizado',
+    required: false,
+    description: 'use 1 ou 0 (ou deixe vazio) para filtrar por autorizado ou não autorizado.',
+  })
   @HttpCode(HttpStatus.OK)
   async getLancamento(
     @Request() request,
     @Query('mes') mes: number,
     @Query('periodo') periodo: number,
     @Query('ano') ano: number,
+    @Query('autorizado') authorized: number,
   ): Promise<ItfLancamento[]> {
-    return await this.lancamentoService.findByPeriod(mes, periodo, ano);
+    return await this.lancamentoService.findByPeriod(mes, periodo, ano, authorized);
   }
 
 

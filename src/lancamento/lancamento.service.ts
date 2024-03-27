@@ -25,6 +25,7 @@ export class LancamentoService {
     month: number,
     period: number,
     year: number,
+    authorized: number | null = null,
   ): Promise<ItfLancamento[]> {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
     console.log(startDate, endDate)
@@ -62,6 +63,18 @@ export class LancamentoService {
       return { ...lancamento, autorizadopor };
     });
 
+    if (authorized === 1) {
+      return lancamentosComUsuarios.filter(
+        (lancamento) => lancamento.autorizadopor.length >= 2,
+      );
+    }
+
+    if (authorized === 0) {
+      return lancamentosComUsuarios.filter(
+        (lancamento) => lancamento.autorizadopor.length < 2,
+      );
+    }
+    
     return lancamentosComUsuarios;
   }
 
