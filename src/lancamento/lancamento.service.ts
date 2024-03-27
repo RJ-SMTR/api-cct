@@ -29,6 +29,7 @@ export class LancamentoService {
   ): Promise<ItfLancamento[]> {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
     console.log(startDate, endDate)
+    
     const lancamentos = await this.lancamentoRepository.find({
       where: {
         data_lancamento: Between(startDate, endDate),
@@ -215,4 +216,17 @@ export class LancamentoService {
     }
     return [startDate, endDate];
   }
+
+  getDatePeriodInfo(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1; // Os meses no JavaScript vão de 0 a 11, então é necessário adicionar 1
+    const day = date.getDate();
+  
+    if (day <= 15) {
+      return { year, month, period: 1 };
+    } else {
+      return { year, month, period: 2 };
+    }
+  }
+  
 }

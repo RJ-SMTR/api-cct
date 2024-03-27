@@ -21,6 +21,11 @@ export class CreateLancamentoDto {
   @IsNotEmpty()
   @IsDateString()
   data_pgto: Date;
+  
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsDateString()
+  data_lancamento: Date;
 
   @ApiProperty()
   @IsNotEmpty()
