@@ -22,6 +22,7 @@ import { PagadorSeedModule } from './pagador/pagador-seed.module';
 import { PermissionarioRoleSeedModule } from './permissionario-role/permissionario-role-seed.module';
 import { TransacaoStatusSeedModule } from './transacao-status/transacao-status-seed.module';
 import { ItemTransacaoStatusSeedModule } from './item-transacao-status/item-transacao-status-seed.module';
+import { HeaderArquivoStatusSeedModule } from './header-arquivo-status/header-arquivo-status-seed.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ItemTransacaoStatusSeedModule } from './item-transacao-status/item-tran
     PermissionarioRoleSeedModule,
     TransacaoStatusSeedModule,
     ItemTransacaoStatusSeedModule,
+    HeaderArquivoStatusSeedModule,
     StatusSeedModule,
     InfoSeedModule,
     BankSeedModule,

@@ -6,6 +6,7 @@ import { ItemTransacaoStatus } from 'src/cnab/entity/pagamento/item-transacao-st
 import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
 import { ItemTransacaoStatusEnum } from 'src/cnab/enums/pagamento/item-transacao-status.enum';
+import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { ItemTransacaoPK } from 'src/cnab/interfaces/pagamento/item-transacao-pk.interface';
 import { ItemTransacaoRepository } from 'src/cnab/repository/pagamento/item-transacao.repository';
 import { filterArrayInANotInB } from 'src/utils/array-utils';
@@ -13,7 +14,7 @@ import { SaveManyNew } from 'src/utils/interfaces/save-many-new.interface';
 import { logDebug } from 'src/utils/log-utils';
 import { asStringDate } from 'src/utils/pipe-utils';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { DeepPartial, FindOptionsWhere, IsNull } from 'typeorm';
+import { DeepPartial, FindOptionsWhere, IsNull, Not } from 'typeorm';
 
 @Injectable()
 export class ItemTransacaoService {
@@ -32,7 +33,7 @@ export class ItemTransacaoService {
     favorecidos: ClienteFavorecido[],
   ): Promise<SaveManyNew<ItemTransacao>> {
     const uniquePKs = this.getItemPKsFromOrdens(ordens);
-    const existingItems = await this.itemTransacaoRepository.findMany(uniquePKs);
+    const existingItems = await this.itemTransacaoRepository.findMany({ where: uniquePKs });
     const existingPKs = this.getItemPKs(existingItems);
     const notExistingPKs = filterArrayInANotInB(uniquePKs, existingPKs);
     const notExistingPKsAux = notExistingPKs.reduce((l, i) => [...l, JSON.stringify(i)], []);
@@ -54,9 +55,9 @@ export class ItemTransacaoService {
       }
     }
     const insertResult = await this.itemTransacaoRepository.insert(newItems);
-    const insertedTransacoes = await this.itemTransacaoRepository.findMany(
-      insertResult.identifiers as ItemTransacaoPK[]
-    );
+    const insertedTransacoes = await this.itemTransacaoRepository.findMany({
+      where: insertResult.identifiers as ItemTransacaoPK[]
+    });
     return {
       existing: existingItems,
       inserted: insertedTransacoes,
@@ -97,7 +98,7 @@ export class ItemTransacaoService {
    * 
    * If cpfCnpj matches ClienteFavorecido, update ItemTransacao.
    */
-  public async updateMissingFavorecidos(favorecidos: ClienteFavorecido[]) {
+  public async updateWithMissingFavorecidos(favorecidos: ClienteFavorecido[]) {
     const METHOD = 'updateMissingFavorecidos()';
     const incompletes = await this.getMissingFavorecidos();
     const updates: DeepPartial<ItemTransacao>[] = [];
@@ -121,7 +122,7 @@ export class ItemTransacaoService {
 
   public async getMissingFavorecidos(): Promise<ItemTransacao[]> {
     return await this.itemTransacaoRepository.findMany({
-      clienteFavorecido: IsNull(),
+      where: { clienteFavorecido: IsNull() }
     });
   }
 
@@ -157,8 +158,10 @@ export class ItemTransacaoService {
     id_transacao: number,
   ): Promise<ItemTransacao[]> {
     return await this.itemTransacaoRepository.findMany({
-      transacao: {
-        id: id_transacao
+      where: {
+        transacao: {
+          id: id_transacao
+        }
       }
     });
   }
@@ -209,14 +212,61 @@ export class ItemTransacaoService {
   }
 
   /**
-   * Move all failed ItemTransacao to another Transacao with same Pagador, 
+   * Move all failed ItemTransacao to another new Transacao with same Pagador, 
+   * then reset status so we can try send again.
+   * 
+   * If there are ItemTransacao with no new Transacao for the same Pagador,
+   * insert new transacao as cct_idOrdemPagamento for the Pagador.
+   */
+  // public async moveAllFailedToTransacoes(newTransacoes: Transacao[]) {
+  //   const METHOD = 'moveAllFailedToTransacoes()';
+  //   const transacoesByPagador = getUniqueFromArray(newTransacoes, ['pagador']);
+  //   const pagadorIds = transacoesByPagador.reduce((l, i) => [...l, i.pagador], []);
+  //   const allFailed = await this.itemTransacaoRepository.findMany({
+  //     where: transacoesByPagador.map(i => ({
+  //       status: { id: ItemTransacaoStatusEnum.failure },
+  //       transacao: { pagador: { id: i.pagador.id } }
+  //     })),
+  //     order: {
+  //       transacao: { pagador: { id: 'ASC' } }
+  //     }
+  //   });
+  //   if (allFailed.length === 0) {
+  //     return;
+  //   }
+  //   for (const item of allFailed) {
+  //     await this.itemTransacaoRepository.saveDTO({
+  //       id: item.id,
+  //       transacao: { id: transacao.id },
+  //       status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
+  //     });
+  //   }
+
+  //   // Log
+  //   const allIds = allFailed.reduce((l, i) => [...l, i.id], []).join(',');
+  //   logDebug(this.logger, `ItemTr. #${allIds} movidos para Transacao #${transacao.id}`, METHOD);
+  // }
+
+  /**
+   * Move all ItemTransacao that is:
+   * - failed
+   * - has Transacao used
+   * - has different Transacao
+   * - has Transacao.pagador the same as Transacao dest
+   * to another Transacao with same Pagador, 
    * then reset status so we can try send again.
    */
-  public async moveAllFailedToTransacao(transacao: Transacao) {
+  public async moveAllFailedToTransacao(transacaoDest: Transacao) {
     const METHOD = 'moveAllFailedToTransacao()';
     const allFailed = await this.itemTransacaoRepository.findMany({
-      status: { id: ItemTransacaoStatusEnum.failure },
-      transacao: { pagador: { id: transacao.pagador.id } }
+      where: {
+        status: { id: ItemTransacaoStatusEnum.failure },
+        transacao: {
+          id: Not(transacaoDest.id),
+          pagador: { id: transacaoDest.pagador.id },
+          status: { id: TransacaoStatusEnum.used },
+        }
+      }
     });
     if (allFailed.length === 0) {
       return;
@@ -224,14 +274,14 @@ export class ItemTransacaoService {
     for (const item of allFailed) {
       await this.itemTransacaoRepository.saveDTO({
         id: item.id,
-        transacao: { id: transacao.id },
+        transacao: { id: transacaoDest.id },
         status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
       });
     }
 
     // Log
     const allIds = allFailed.reduce((l, i) => [...l, i.id], []).join(',');
-    logDebug(this.logger, `ItemTr. #${allIds} movidos para Transacao #${transacao.id}`, METHOD);
+    logDebug(this.logger, `ItemTr. #${allIds} movidos para Transacao #${transacaoDest.id}`, METHOD);
   }
 
   public async getExistingFromBQOrdemPagamento(
@@ -242,6 +292,6 @@ export class ItemTransacaoService {
       idOperadora: v.idOperadora,
       idConsorcio: v.idConsorcio,
     } as FindOptionsWhere<ItemTransacao>));
-    return await this.itemTransacaoRepository.findMany(fields);
+    return await this.itemTransacaoRepository.findMany({ where: fields });
   }
 }

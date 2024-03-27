@@ -59,6 +59,8 @@ export class CnabService {
    * 2. Fetch ordemPgto from this week + days before
    * 3. Bulk add new Transacao/ItemTransacao to save time
    * 4. If error, save individually via saveIfNotExists
+   * 
+   * Requirement: **Salvar ordem de pagamento** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3.x}
    */
   public async updateTransacaoFromJae() {
     const METHOD = 'updateTransacaoFromJae()';
@@ -68,7 +70,7 @@ export class CnabService {
 
     // Update ItemTransacao with no ClienteFavorecido
     const allFavorecidos = await this.clienteFavorecidoService.getAll();
-    await this.itemTransacaoService.updateMissingFavorecidos(allFavorecidos);
+    await this.itemTransacaoService.updateWithMissingFavorecidos(allFavorecidos);
 
     // Get items
     const ordens = await this.getOrdemPagamentoJae();
@@ -148,11 +150,6 @@ export class CnabService {
     }
   }
 
-  // private saveNewTransacaoAndItem(ordens: BigqueryOrdemPagamentoDTO[], pagadores: AllPagadorDict) {
-  // const uniqueTransacaoFromOrdem = getUniqueFromArray(ordens, ['']) 
-  // const newTransacoes: TransacaoDTO[] = [];
-
-  // }
 
   private async updateAllFavorecidosFromUsers() {
     const allUsers = await this.usersService.findMany({
@@ -299,11 +296,11 @@ export class CnabService {
    *     - If failed, move retorno to backup/failure folder
    */
   public async updateExtrato() {
-    const METHOD = 'updateRetorno()';
+    const METHOD = 'updateExtrato()';
     // Get retorno
     const cnab = await this.sftpService.getFirstCnabExtrato();
     if (!cnab) {
-      logLog(this.logger, 'Retorno não encontrado, abortando tarefa.', METHOD);
+      logLog(this.logger, 'Extrato não encontrado, abortando tarefa.', METHOD);
       return;
     }
 
@@ -317,7 +314,7 @@ export class CnabService {
       logError(this.logger,
         'Erro ao processar CNAB extrato, movendo para backup de erros e finalizando...',
         METHOD, error, error);
-      await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure);
+      // await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure);
       return;
     }
   }

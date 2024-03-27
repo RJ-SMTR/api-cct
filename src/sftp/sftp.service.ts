@@ -42,7 +42,6 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   }
 
   onModuleInit() {
-    this.logger.log('ON MODULE INIT')
     this.onModuleLoad().catch((error: Error) => { throw error; });
   }
 

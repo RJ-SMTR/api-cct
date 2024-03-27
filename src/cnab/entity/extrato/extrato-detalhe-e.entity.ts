@@ -32,7 +32,7 @@ export class ExtratoDetalheE extends EntityHelper {
    */
   @Column({ type: Number, unique: false, nullable: false })
   loteServico: number;
-  
+
   /**
    * Número Sequencial do Registro (no lote).
    * 
@@ -112,12 +112,8 @@ export class ExtratoDetalheE extends EntityHelper {
   @CreateDateColumn()
   createdAt: Date;
 
-  /**
-   * For some reason, fields like 'time', 'decimal'
-   * are received as string instead as Date, Number.
-   */
   @AfterLoad()
-  castFields() {
+  setFieldValues() {
     this.valorLancamento = asStringOrNumber(this.valorLancamento);
   }
 }

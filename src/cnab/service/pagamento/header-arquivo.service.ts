@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
-import { Cnab104PgtoFileTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-file-templates.const';
+import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { FindOptionsWhere } from 'typeorm';
@@ -13,7 +13,7 @@ import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-t
 import { HeaderArquivoRepository } from '../../repository/pagamento/header-arquivo.repository';
 import { PagadorService } from './pagador.service';
 
-const PgtoRegistros = Cnab104PgtoFileTemplates.file104.registros;
+const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
 @Injectable()
 export class HeaderArquivoService {

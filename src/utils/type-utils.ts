@@ -1,3 +1,4 @@
+
 /**
  * Return if value !== undefined.
  */
@@ -24,5 +25,9 @@ export function isDefinedContent<T>(val: T | null | undefined): val is T {
  * Return if value !== undefined && value !== null && value !== ''.
  */
 export function isFilled(val: string | null | undefined): val is string {
+  return isDefinedContent(val) && val !== '';
+}
+
+export function isStringNumber(val: string | null | undefined): val is string {
   return isDefinedContent(val) && val !== '';
 }

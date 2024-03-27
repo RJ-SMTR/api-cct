@@ -2,10 +2,10 @@ import { HeaderArquivoDTO } from "../dto/pagamento/header-arquivo.dto";
 import { HeaderLoteDTO } from "../dto/pagamento/header-lote.dto";
 import { Transacao } from "../entity/pagamento/transacao.entity";
 import { CnabHeaderLote104Pgto } from "../interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface";
-import { Cnab104PgtoFileTemplates } from "../templates/cnab-240/104/pagamento/cnab-104-pgto-file-templates.const";
+import { Cnab104PgtoTemplates } from "../templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const";
 
 const sc = structuredClone;
-const PgtoRegistros = Cnab104PgtoFileTemplates.file104.registros;
+const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
 /**
  * From Transacao, HeaderArquivo transforms into HeaderLote.

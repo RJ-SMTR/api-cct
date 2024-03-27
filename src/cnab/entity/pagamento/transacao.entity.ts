@@ -27,6 +27,7 @@ export class Transacao extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   nomeOperadora: string | null;
 
+  /** References BigqueryOrdemPagamento */
   @Column({ type: String, unique: false, nullable: false })
   idOrdemPagamento: string;
 

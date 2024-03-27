@@ -38,8 +38,6 @@ export class SaveClienteFavorecidoDTO {
   @IsNotEmpty()
   dvContaCorrente?: string;
 
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   permissionarioRole?: DeepPartial<PermissionarioRole> | null;
 
   logradouro?: string | null;

@@ -79,10 +79,6 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad()';
-    // await this.updateTransacao1();
-    await this.updateRemessa();
-    // await this.updateExtrato();
-
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -144,7 +140,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       // {
       //   name: CrobJobsEnum.updateTransacao1,
       //   cronJobParameters: {
-      //     cronTime: '30 4 * * *',  // 00:30 BRT = 03:30 UTC
+      //     cronTime: '30 4 * * *',  // 00:30 BRT = 03:30 GMT
       //     onTick: async () => {
       //       await this.updateTransacao1();
       //     },
@@ -162,7 +158,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       // {
       //   name: CrobJobsEnum.updateRetorno,
       //   cronJobParameters: {
-      //     cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+      //     cronTime: '45 14 * * *', // 14:45 GMT = 11:45 BRT (GMT-3)
       //     onTick: async () => {
       //       await this.updateRetorno();
       //     },
@@ -171,7 +167,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       // {
       //   name: CrobJobsEnum.updateExtrato,
       //   cronJobParameters: {
-      //     cronTime: '45 14 * * *', // 14:45 GMT = 11:45BRT (GMT-3)
+      //     cronTime: '45 14 * * *', // 14:45 GMT = 11:45 BRT (GMT-3)
       //     onTick: async () => {
       //       await this.updateExtrato();
       //     },

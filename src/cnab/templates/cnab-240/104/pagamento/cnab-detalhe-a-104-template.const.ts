@@ -134,7 +134,7 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
    */
   dataEfetivacao: {
     pos: [155, 162], picture: '9(008)', value: '00000000',
-    format: CnabConst.format.dateFormat(),
+    format: CnabConst.format.nullableDate(),
   },
   /** Zeros */
   valorRealEfetivado: {
@@ -166,5 +166,5 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
     pos: [230, 230], picture: '9(001)', value: Cnab104AvisoFavorecido.SemAviso,
   },
   /** Espaços(10) */
-  ocorrencias: { pos: [231, 240], picture: 'X(010)', value: '          ', format: CnabConst.format.string() },
+  ocorrencias: { pos: [231, 240], picture: 'X(010)', value: '          ' },
 };

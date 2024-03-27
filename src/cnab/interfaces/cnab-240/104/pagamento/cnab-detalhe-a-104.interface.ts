@@ -39,7 +39,7 @@ export interface CnabDetalheA_104 {
    * Na remessa deve ser preenchido com zeros.
    * Retornado com o valor efetivamente debitado/creditado.
    */
-  dataEfetivacao: CnabFieldAs<Date>;
+  dataEfetivacao: CnabFieldAs<Date | null>;
   /**
    * Na remessa deve ser preenchido com zeros.
    * Retornado com o valor efetivamente debitado/creditado.

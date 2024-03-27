@@ -1,7 +1,27 @@
 import { CnabFile104 } from "../interfaces/cnab-240/104/cnab-file-104.interface";
 import { CnabField, CnabFields } from "../interfaces/cnab-field.interface";
+import { CnabFileBase } from "../types/cnab-file-base.type";
 
 const addMeta = addCnabTemplateMetadata;
+
+/**
+ * Set metadata to all CnabRegistro, CnabFields in CnabFile.
+ */
+export function setCnabFileMetadata(cnab: CnabFileBase, cnabName?: string) {
+  cnab.headerArquivo = addMeta(cnab.headerArquivo, 'headerArquivo', cnabName);
+  for (const i in cnab.lotes) {
+    const lote = cnab.lotes[i];
+    lote.headerLote = addMeta(lote.headerLote, 'headerLote', cnabName, Number(i));
+    for (const registro of lote.registros) {
+      for (const detalheName of Object.keys(registro)) {
+        const detalhe = registro[detalheName];
+        registro[detalheName] = addMeta(detalhe, detalheName, cnabName, Number(i));
+      }
+    }
+    lote.trailerLote = addMeta(lote.trailerLote, 'trailerLote', cnabName, Number(i));
+  }
+  cnab.trailerArquivo = addMeta(cnab.trailerArquivo, 'trailerArquivo', cnabName);
+}
 
 export function setCnab104Metadata(cnab: CnabFile104, cnabName?: string) {
   cnab.headerArquivo = addMeta(cnab.headerArquivo, 'headerArquivo', cnabName);

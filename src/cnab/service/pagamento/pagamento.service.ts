@@ -4,8 +4,9 @@ import { BanksService } from 'src/banks/banks.service';
 import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
-import { Cnab104PgtoFileTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-file-templates.const';
+import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { asHeaderLote104, generateHeaderLote } from 'src/cnab/utils/cnab-tables-pipe-utils';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { logDebug, logWarn } from 'src/utils/log-utils';
 import { asDate, asString } from 'src/utils/pipe-utils';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
@@ -27,8 +28,7 @@ import { CnabHeaderLote104Pgto } from '../../interfaces/cnab-240/104/pagamento/c
 import { CnabRegistros104Pgto } from '../../interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { ICnabTables } from '../../interfaces/cnab-tables.interface';
 import {
-  getProcessedCnab104,
-  stringifyCnab104File,
+  stringifyCnab104File
 } from '../../utils/cnab-104-utils';
 import { getTipoInscricao } from '../../utils/cnab-utils';
 import { Cnab104Service } from '../cnab-104.service';
@@ -40,7 +40,7 @@ import { ItemTransacaoService } from './item-transacao.service';
 import { TransacaoService } from './transacao.service';
 
 const sc = structuredClone;
-const PgtoRegistros = Cnab104PgtoFileTemplates.file104.registros;
+const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
 @Injectable()
 export class PagamentoService {
@@ -169,18 +169,17 @@ export class PagamentoService {
     const headerLote = generateHeaderLote(transacao, headerArquivo);
 
     // Get Cnab104
-    const cnab104Ret = await this.generateCnab104Pgto(transacao, headerArquivo, headerLote);
-    if (!cnab104Ret) {
+    const cnab104 = await this.generateCnab104Pgto(transacao, headerArquivo, headerLote);
+    if (!cnab104) {
       return null;
     }
 
     // read file104
-    const processedCnab104 = getProcessedCnab104(cnab104Ret.cnab104, 'CnabPgtoRem');
-    const cnabString = stringifyCnab104File(cnab104Ret.cnab104, false);
+    const [cnabString, processedCnab104] = stringifyCnab104File(cnab104.cnab104, true, 'CnabPgtoRem');
 
     // Mount cnabTablesDTO
     const cnabTables = this.generateCnabTables(
-      transacao, headerArquivo, headerLote, processedCnab104, cnab104Ret.itemTransacaoList);
+      transacao, headerArquivo, headerLote, processedCnab104, cnab104.itemTransacaoList);
     return {
       string: cnabString,
       tables: cnabTables,
@@ -281,6 +280,10 @@ export class PagamentoService {
     processedCnab104: CnabFile104Pgto,
     itemTransacaoList: ItemTransacao[],
   ): ICnabTables {
+    if (processedCnab104.lotes.length > 1) {
+      throw CommonHttpException.details('Este método só gera tabelas para CNABs com 1 lote. ' +
+        `Recebeu ${processedCnab104.lotes.length}`);
+    }
     this.updateHeaderArquivoDTOFrom104(headerArquivo, processedCnab104.headerArquivo);
     this.updateHeaderLoteDTOFrom104(headerLote, processedCnab104.lotes[0].headerLote);
     const cnabTables: ICnabTables = {
@@ -360,7 +363,7 @@ export class PagamentoService {
     // indicadorFormaParcelamento = DataFixa
     detalheA.periodoDiaVencimento.value = format(itemTransacao.dataProcessamento, 'dd');
     detalheA.valorLancamento.value = itemTransacao.valor;
-    delete detalheA.dataEfetivacao.format?.dateFormat; //send as zerores on input
+    detalheA.dataEfetivacao.format.null = true; //send as zerores on input (null date)
 
     const detalheB: CnabDetalheB_104 = sc(PgtoRegistros.detalheB);
     detalheB.tipoInscricao.value = getTipoInscricao(asString(favorecido.cpfCnpj));

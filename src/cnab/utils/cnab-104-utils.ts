@@ -8,13 +8,13 @@ import { CnabTrailerLote104 } from '../interfaces/cnab-240/104/cnab-trailer-lote
 import { CnabFile104Extrato } from '../interfaces/cnab-240/104/extrato/cnab-file-104-extrato.interface';
 import { CnabFile104Pgto } from '../interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { CnabHeaderLote104Pgto } from '../interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
-import { cnab104ExtratoFileTemplates } from '../templates/cnab-240/104/extrato/cnab-104-extrato-file-templates.const';
-import { Cnab104PgtoFileTemplates as PgtoTemplates } from '../templates/cnab-240/104/pagamento/cnab-104-pgto-file-templates.const';
 import { CnabFile } from '../interfaces/cnab-file.interface';
 import { CnabLote } from '../interfaces/cnab-lote.interface';
 import { CnabRegistro } from '../interfaces/cnab-registro.interface';
+import { cnab104ExtratoTemplates } from '../templates/cnab-240/104/extrato/cnab-104-extrato-templates.const';
+import { Cnab104PgtoTemplates as PgtoTemplates } from '../templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { getCnabFileFrom104 } from './cnab-104-pipe-utils';
-import { setCnab104Metadata } from './cnab-metadata-utils';
+import { setCnabFileMetadata } from './cnab-metadata-utils';
 import {
   getCnabMappedValue,
   parseCnabFile,
@@ -25,7 +25,7 @@ import {
 const sc = structuredClone;
 
 export function parseCnab240Extrato(cnabString: string): CnabFile104Extrato {
-  const fileDTO = sc(cnab104ExtratoFileTemplates.file.dto.retorno);
+  const fileDTO = sc(cnab104ExtratoTemplates.file.dto.retorno);
   const file = parseCnabFile(cnabString, fileDTO);
   const file104 = getCnab104FromFile(file);
   return file104 as CnabFile104Extrato;
@@ -41,10 +41,13 @@ export function parseCnab240Pagamento(cnabString: string): CnabFile104Pgto {
 /**
  * Validate, process and transform raw cnab into string
  */
-export function stringifyCnab104File(cnab104: CnabFile104, process = true, cnabName?: string): string {
+export function stringifyCnab104File<T extends CnabFile104>(
+  cnab104: T, process = true, cnabName?: string): [string, T] {
   const _cnab104 = process ? getProcessedCnab104(cnab104, cnabName) : cnab104;
   const cnab = getCnabFileFrom104(_cnab104);
-  return stringifyCnabFile(cnab);
+  const [cnabString, cnabFormatted] = stringifyCnabFile(cnab);
+  const cnab104Formatted = getCnab104FromFile(cnabFormatted);
+  return [cnabString, cnab104Formatted as T];
 }
 
 /**
@@ -58,7 +61,7 @@ export function getProcessedCnab104<T extends CnabFile104>(
 ): T {
   validateCnab104File(cnab104);
   const newCnab104 = structuredClone(cnab104);
-  setCnab104Metadata(newCnab104, cnabName);
+  setCnabFileMetadata(newCnab104, cnabName);
   processCnab104File(newCnab104);
   const cnab = getCnabFileFrom104(newCnab104);
   processCnabFile(cnab);
@@ -84,9 +87,8 @@ export function validateUniqueCnab104Lotes(lotes: CnabLote104[]) {
   const loteTypes = lotes.reduce(
     (l, i) => [
       ...l,
-      // ICnab240_104HeaderLotePgto
-      ...('tipoCompromisso' in i.headerLote ? [String(i.headerLote.tipoCompromisso.value)] : []),
-      String(i.headerLote.formaLancamento.value),
+      `${i.headerLote.formaLancamento.value}|` +
+      `${i.headerLote?.['tipoCompromisso']?.value}` // ICnab240_104HeaderLotePgto only
     ],
     [],
   );
@@ -133,7 +135,7 @@ function getSomarioValoresCnabLote(lote: CnabLote104): number {
  */
 export function getCnab104FromFile(cnab: CnabFile): CnabFile104 {
   return {
-    _metadata: { type: 'ICnab240_104File' },
+    _metadata: { type: 'CnabFile104', extends: cnab._metadata.type },
     headerArquivo: (cnab.headerArquivo.fields as unknown as CnabHeaderArquivo104),
     lotes: getCnab104Lotes(cnab.lotes),
     trailerArquivo: (cnab.trailerArquivo.fields as unknown as CnabTrailerArquivo104),

@@ -21,15 +21,15 @@ export class ExtratoHeaderArquivoRepository {
   public async saveIfNotExists(dto: DeepPartial<ExtratoHeaderArquivo>, updateIfExists?: boolean
   ): Promise<SaveIfNotExists<ExtratoHeaderArquivo>> {
     const existing = dto?.id
-      ? await this.extDetalheERepository.findOne({ where: { id: dto.id } })
-      : await this.extDetalheERepository.findOne({
+      ? await this.extHeaderArquivoRepository.findOne({ where: { id: dto.id } })
+      : await this.extHeaderArquivoRepository.findOne({
         where: {
           nsa: asNumber(dto.nsa),
           tipoArquivo: asNumber(dto.tipoArquivo),
         }
       });
     const item = !existing || (existing && updateIfExists)
-      ? await this.extDetalheERepository.save(dto)
+      ? await this.extHeaderArquivoRepository.save(dto)
       : existing;
     return {
       isNewItem: !Boolean(existing),

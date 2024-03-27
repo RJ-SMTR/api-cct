@@ -12,6 +12,7 @@ import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.re
 import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
+import { asDate } from 'src/utils/pipe-utils';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -93,7 +94,7 @@ export class ArquivoPublicacaoService {
       loteServico: detalheA.loteServico,
       dataVencimento: detalheA.dataVencimento,
       valorLancamento: detalheA.valorLancamento,
-      dataEfetivacao: detalheA.dataEfetivacao,
+      dataEfetivacao: asDate(detalheA.dataEfetivacao),
       valorRealEfetivado: detalheA.valorRealEfetivado,
       nomeCliente: favorecido.nome,
       cpfCnpjCliente: favorecido.cpfCnpj,

@@ -13,4 +13,13 @@ export class EntityHelper extends BaseEntity {
   toJSON() {
     return instanceToPlain(this);
   }
+
+  /**
+   * For some reason, fields like 'time', 'decimal'
+   * are received as string instead as Date, Number
+   */
+  @AfterLoad()
+  setFieldValues() {
+    // 
+  }
 }

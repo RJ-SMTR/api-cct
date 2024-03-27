@@ -18,7 +18,7 @@ const LOTE_REGISTRO_CODES = [
   CnabCodigoRegistro.DetalheSegmento,
 ].reduce((s, i) => [...s, String(i)], []);
 
-export function stringifyCnabFile(cnab: CnabFile): string {
+export function stringifyCnabFile(cnab: CnabFile): [string, CnabFile] {
   const treatedCnab = sc(cnab);
   processCnabFile(treatedCnab);
   const registros = getCnabRegistros(treatedCnab);
@@ -27,7 +27,8 @@ export function stringifyCnabFile(cnab: CnabFile): string {
     const stringRegistro = stringifyCnabRegistro(registro);
     stringRegistros.push(stringRegistro);
   }
-  return stringRegistros.join(CNAB_EOL);
+  const cnabFormatted = getCnabFileFromCnabRegistros(registros);
+  return [stringRegistros.join(CNAB_EOL), cnabFormatted];
 }
 
 /**
@@ -295,7 +296,7 @@ function parseCnabLotes(cnabAllLines: string[], registrosDTO: CnabRegistro[]): C
     newLote.push(parseCnabRegistro(cnabAllLines[i], registroDTO));
     if (registroId === CnabCodigoRegistro.TrailerLote) {
       lotes.push({
-        _type: 'CnabLote',
+        _metadata: { type: 'CnabLote' },
         headerLote: newLote[0],
         registros: newLote.slice(1, -1),
         trailerLote: newLote[newLote.length - 1],
@@ -384,7 +385,7 @@ function getCnabDetalheDTO(cnabRegistroLine: string, detalhesDTO: CnabRegistro[]
 export function getCnabFileFromCnabRegistros(registros: CnabRegistro[]): CnabFile {
   validateCnabRegistrosSizeToCnabFile(registros);
   return {
-    _type: 'CnabFile',
+    _metadata: { type: 'CnabFile' },
     headerArquivo: registros[0],
     lotes: getCnabLotesFromCnabRegistros(registros.slice(1, -1)),
     trailerArquivo: registros[registros.length - 1],
@@ -401,7 +402,7 @@ export function getCnabLotesFromCnabRegistros(registros: CnabRegistro[]): CnabLo
     newLoteSlice.push(registro);
     if (Number(getCnabMappedValue(registro, 'registroIdField')) === 5) {
       lotes.push({
-        _type: 'CnabLote',
+        _metadata: { type: 'CnabLote' },
         headerLote: newLoteSlice[0],
         registros: newLoteSlice.slice(1, -1),
         trailerLote: newLoteSlice[newLoteSlice.length - 1],

@@ -1,9 +1,16 @@
 
-export interface IMetadata {
-  type?: string,
+/**
+ * A standadized way to store and type check complex objects
+ */
+export interface Metadata {
+  type: string,
   extends?: string,
 }
 
-export type Metadata<T> = {
-  _metdata?: IMetadata
-} & T
+/**
+ * Customize and change you metadata to satisfy your objects.
+ * 
+ * Example: type is optional, type is 'MyObject'.
+ */
+export type MetadataAs<T extends Metadata> = T & Metadata;
+

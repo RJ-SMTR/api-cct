@@ -125,6 +125,9 @@ export function asNullableStringDate(str: string | null | undefined, inputFormat
   return str ? asStringDate(str, inputFormat) : null
 }
 
+/**
+ * Converts from String or NumberString into Number.
+ */
 export function asStringOrNumber(val: string | number | null | undefined, fieldName?: string): number {
   const field = fieldName || 'StringOrNumber';
   if (typeof val === 'string') {

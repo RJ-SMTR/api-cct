@@ -65,7 +65,7 @@ export class ExtratoHeaderArquivo extends EntityHelper {
    * are received as string instead as Date, Number
    */
   @AfterLoad()
-  castFields() {
+  setFieldValues() {
     this.horaGeracao = asNullableStringOrDateTime(this.horaGeracao, this.dataGeracao);
   }
 }

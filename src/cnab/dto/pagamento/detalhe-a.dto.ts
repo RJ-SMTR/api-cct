@@ -77,7 +77,7 @@ export class DetalheADTO {
   @IsNotEmpty()
   numeroParcela?: number | null;
 
-  dataEfetivacao?: Date;
+  dataEfetivacao?: Date | null;
   valorRealEfetivado?: number;
 
   @ValidateIf(isCreate)

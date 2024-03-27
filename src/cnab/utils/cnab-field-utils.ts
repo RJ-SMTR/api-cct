@@ -1,4 +1,6 @@
+import { isNumberString } from 'class-validator';
 import { format, isDate } from 'date-fns';
+import { cropDecimals } from 'src/utils/number-utils';
 import { asNumber, asNumberStringDate, asStringNumber, asStringOrDateDate } from 'src/utils/pipe-utils';
 import {
   getStringNoSpecials,
@@ -8,8 +10,14 @@ import {
 import { CnabFieldType } from '../enums/cnab-field-type.enum';
 import { CnabField, CnabFieldFormat } from '../interfaces/cnab-field.interface';
 import { getCnabFieldNameLog } from './cnab-metadata-utils';
+import { isValidDate } from 'src/utils/date-utils';
 
 export type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';
+/** 
+ * @param cropDecimals Crop decimals with no rouding
+ * @param roundCeil Round ceil decimals 
+ */
+export type CropDecimal = 'cropDecimals' | 'roundCeil';
 
 // #region stringifyCnabField
 
@@ -29,21 +37,23 @@ export function stringifyCnabField(field: CnabField): string {
  * With necessary validation.
  */
 export function getStringFromCnabField(field: CnabField): string {
+  let result = '';
   const cnabFieldType = getCnabFieldType(field);
   if (cnabFieldType === CnabFieldType.Date) {
-    return formatDate(field);
+    result = formatDate(field);
   } else if (cnabFieldType === CnabFieldType.Number) {
-    return formatNumber(field);
+    result = formatNumber(field);
   } else {
     // Text
-    return formatText(field);
+    result = formatText(field);
   }
+  return result;
 }
 
 export function getCnabFieldType(field: CnabField): CnabFieldType {
   let result: CnabFieldType | undefined = undefined;
   if (field.picture.startsWith('9')) {
-    if (field.format?.dateFormat) {
+    if (field.format?.formatType.includes('Date')) {
       result = CnabFieldType.Date;
     } else {
       result = CnabFieldType.Number;
@@ -151,12 +161,20 @@ export function formatText(
   validateFormatText(field);
   validateCnabText(field, throwIfInvalid);
   const size = getPictureTextSize(field.picture);
-  return cropFillCnabField(
+  const result = cropFillCnabField(
     getStringNoSpecials(getStringUpperUnaccent(field.value)),
     size,
     CnabFieldType.Text,
     onCrop,
   );
+
+  field.format = field.format
+    ? { ...field.format, originalValue: field.value }
+    : { formatType: 'string', originalValue: field.value };
+  field.value = result;
+  parseText(field);
+
+  return result;
 }
 
 /**
@@ -177,6 +195,8 @@ function validateFormatText(field: CnabField) {
  * - `kkmmss` =  "992359"
  * - `ddMMyyyy` = "31122024"
  * - `ddMMyy` =  "311230"
+ * 
+ * If format.null = true, it will send as zeroes.
  *
  * String value is string date it must be compatible with `new Date(<originalValue>)`.
  * If value is string date and there is no date format, the original value will be used.
@@ -194,14 +214,22 @@ export function formatDate(
   validateFormatDate(field);
   const { integer } = getPictureNumberSize(field.picture);
   let value: string;
-  if (isDate(field.value)) {
+  // if null, stirngify as zeroes.
+  if (field.format?.null) {
+    const size = getPictureNumberSize(field.picture);
+    value = '0'.repeat(size.integer);
+  }
+  // If type is date, stringify.
+  else if (isDate(field.value)) {
     value = String(
       format(
         field.value,
         field.format?.dateFormat || 'yymmdd',
       ),
     );
-  } else if (field.format?.dateFormat) {
+  }
+  // If dateFormat, convert and parse
+  else if (field.format?.dateFormat) {
     const strDate = asNumberStringDate(field.value, field.format?.dateFormat, getCnabFieldNameLog(field));
     const formatted = format(strDate, field.format?.dateFormat || 'yymmdd');
     const newValue = String(formatted);
@@ -209,7 +237,16 @@ export function formatDate(
   } else {
     value = String(field.value);
   }
-  return cropFillCnabField(value, integer, CnabFieldType.Date, onCrop);
+  const result = cropFillCnabField(value, integer, CnabFieldType.Date, onCrop);
+
+  // Allow parse date using string | date value
+  field.format = field.format
+    ? { ...field.format, originalValue: field.value }
+    : { formatType: 'Date', originalValue: field.value };
+  field.value = result;
+  parseDate(field);
+
+  return result;
 }
 
 /**
@@ -218,6 +255,9 @@ export function formatDate(
 function validateFormatDate(field: CnabField) {
   if (!field.format?.dateFormat) {
     throw new Error(`CnabField must have dateFormat. ${cnabFieldToString(field)}`);
+  }
+  if (field.format?.null) {
+    return;
   }
   try {
     if (isNaN(asStringOrDateDate(field.value, field.format?.dateFormat).getDate())) {
@@ -239,16 +279,33 @@ function validateFormatDate(field: CnabField) {
 export function formatNumber(
   field: CnabField,
   onCrop: CropFillOnCrop = 'cropRight',
+  cropDecimal: CropDecimal = 'cropDecimals',
 ): string {
   validateFormatNumber(field);
   const { integer, decimal } = getPictureNumberSize(field.picture);
-  const result = Number(field.value).toFixed(decimal).replace('.', '');
-  return cropFillCnabField(
-    result,
+
+  let numFixed = Number(Number(field.value).toFixed(decimal)); // roundCeil
+  if (cropDecimal === 'cropDecimals') {
+    numFixed = cropDecimals(Number(field.value), decimal);
+  }
+  const num = numFixed.toFixed(decimal).replace('.', '');
+
+  const result = cropFillCnabField(
+    num,
     integer + decimal,
     CnabFieldType.Number,
     onCrop,
   );
+
+  field.format = field.format
+    ? { ...field.format, originalValue: field.value }
+    : { formatType: 'number', originalValue: field.value };
+  // set value as cnab string value
+  field.value = result;
+  // set format.value
+  parseNumber(field);
+
+  return result;
 }
 
 /**
@@ -332,11 +389,11 @@ export function parseCnabField(
 ): CnabField {
   const field = getCnabFieldFromString(cnabStringLine, fieldDTO);
   validateParseCnabField(field);
-  parseCnabFieldValue(field);
+  parseCnabFieldFormatValue(field);
   return field;
 }
 
-function parseCnabFieldValue(field: CnabField) {
+export function parseCnabFieldFormatValue(field: CnabField) {
   const cnabFieldType = getCnabFieldType(field);
   if (field.format?.force) {
     if (field.format.formatType === 'Date') {
@@ -359,14 +416,26 @@ function parseCnabFieldValue(field: CnabField) {
 }
 
 /**
- * If no format defined, set format as Date
+ * If no format defined, set format as Date.
+ * 
+ * It supports Date and DateString.
  */
 export function parseDate(field: CnabField) {
-  if ((field?.format && field.format?.formatType !== 'Date') || !field?.format?.dateFormat) {
+  if (
+    (field?.format && !['Date', 'NullableDate'].includes(field.format?.formatType))
+    || !field?.format?.dateFormat
+  ) {
     throw new Error(`Expected CnabFieldAs<Date> with defined dateFormat. ${JSON.stringify(field)}`);
   }
   const format = field.format as CnabFieldFormat;
-  const date = asNumberStringDate(field.value, format.dateFormat);
+  let date: Date | null = new Date(field.value);
+  if (!isValidDate(date)) {
+    date = asNumberStringDate(field.value, format.dateFormat);
+  }
+  if (field.format.formatType === 'NullableDate' && Number(field.value) === 0) {
+    date = null;
+  }
+  // isDate(new Date(field.value)) ? new Date(field.value) : asNumberStringDate(field.value, format.dateFormat);
   if (field.format) {
     field.format.value = date;
   } else {
@@ -378,14 +447,18 @@ export function parseDate(field: CnabField) {
 }
 
 /**
- * If no format defined, set format as number
+ * If no format defined, set format as number.
+ * 
+ * It supports number and NumberString.
  */
 export function parseNumber(field: CnabField) {
-  if (field?.format && field?.format?.formatType !== 'number') {
+  if (field?.format && field?.format?.formatType !== 'number' && !isNumberString(field.value)) {
     throw new Error(`Expected CnabFieldAs<number> with formatType = 'number'. ${JSON.stringify(field)}`);
   }
   const { decimal } = getPictureNumberSize(field.picture);
-  const num = Number(field.value) / (decimal ? (10 * decimal) : 1);
+  const num = typeof field.value === 'number'
+    ? field.value
+    : Number(field.value) / Number(`10e${decimal - 1}`);
   if (field.format) {
     field.format.value = num;
   } else {
@@ -397,7 +470,12 @@ export function parseNumber(field: CnabField) {
 }
 
 /**
- * If no format defined, set format as string
+ * It converts into string and trim whitespaces.
+ * 
+ * If no format defined, set format as string.
+ * 
+ * It supports string only.
+ * But it can convert to string if field.format.force = true.
  */
 export function parseText(field: CnabField) {
   if (field.format && field.format?.formatType !== 'string' && !field.format.force) {

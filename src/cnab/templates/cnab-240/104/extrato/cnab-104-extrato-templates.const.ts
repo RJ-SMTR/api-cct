@@ -1,14 +1,14 @@
 import { CnabFile } from "src/cnab/interfaces/cnab-file.interface";
 import { getCnabFileFrom104 } from "src/cnab/utils/cnab-104-pipe-utils";
 import { setCnab104Metadata } from "src/cnab/utils/cnab-metadata-utils";
-import { Cnab104ExtratoFile104Templates } from "./cnab-104-extrato-file-104-templates.const";
+import { CnabFile104ExtratoTemplate } from "./cnab-file-104-extrato-template.const";
 
 const sc = structuredClone;
 
-const cnabExtRetFile104 = sc(Cnab104ExtratoFile104Templates);
-setCnab104Metadata(cnabExtRetFile104, 'CnabExtRet');
+const cnabExtRetFile104 = sc(CnabFile104ExtratoTemplate);
+setCnab104Metadata(cnabExtRetFile104, 'CnabExtratoRetorno');
 
-export const cnab104ExtratoFileTemplates = {
+export const cnab104ExtratoTemplates = {
   file: {
     dto: {
       retorno: {

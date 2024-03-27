@@ -1,12 +1,12 @@
 import { CnabFile104 } from "src/cnab/interfaces/cnab-240/104/cnab-file-104.interface";
 import { getCnabFileFrom104 } from "src/cnab/utils/cnab-104-pipe-utils";
+import { setCnabFileMetadata } from "src/cnab/utils/cnab-metadata-utils";
 import { CnabHeaderArquivo104Template } from "../cnab-header-arquivo-104-template.const";
-import { cnabHeaderLote104PgtoTemplate } from "./cnab-header-lote-104-pgto-template.const";
 import { cnabTrailerArquivo104Template } from "../cnab-trailer-arquivo-104-template.const";
 import { cnabTrailerLote104Template } from "../cnab-trailer-lote-104-template.const";
 import { cnabDetalheA104Template } from "./cnab-detalhe-a-104-template.const";
 import { cnabDetalheB104Template } from "./cnab-detalhe-b-104-template.const";
-import { setCnab104Metadata } from "src/cnab/utils/cnab-metadata-utils";
+import { cnabHeaderLote104PgtoTemplate } from "./cnab-header-lote-104-pgto-template.const";
 
 const sc = structuredClone;
 
@@ -19,6 +19,7 @@ const registros = {
   trailerArquivo: sc(cnabTrailerArquivo104Template),
 };
 const pgtoFile104: CnabFile104 = {
+  _metadata: { type: 'CnabFile104' },
   headerArquivo: sc(CnabHeaderArquivo104Template),
   lotes: [{
     headerLote: sc(registros.headerLote),
@@ -33,11 +34,11 @@ const pgtoFile104: CnabFile104 = {
 
 const pgtoRetFile104 = sc(pgtoFile104);
 
-setCnab104Metadata(pgtoRetFile104, 'CnabPgtoRet');
+setCnabFileMetadata(pgtoRetFile104, 'CnabPgtoRet');
 
 const pgtoRetFile = getCnabFileFrom104(pgtoRetFile104);
 
-export const Cnab104PgtoFileTemplates = {
+export const Cnab104PgtoTemplates = {
   file: {
     /** With Metadata */
     dto: {

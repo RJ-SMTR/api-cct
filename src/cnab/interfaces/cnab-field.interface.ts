@@ -39,12 +39,16 @@ export interface CnabFieldFormat {
    * @example `ddMMyyyy`
    */
   dateFormat?: string;
+  /** If field is considered null */
+  null?: boolean;
   /** Format used to convert from Cnab text content into desired TypeScript format */
-  formatType: 'string' | 'boolean' | 'Date' | 'number' | 'enum';
+  formatType: CnabFieldFormatType;
   /** If picture format is not the desired format, force convert into desired format */
   force?: boolean;
   /** Converted value. Used when reading CNAB to object */
   value?: any;
+  /** Original input value, inserted before any transformation */
+  originalValue?: any;
 }
 
 export interface CnabFieldFormatAs<T> {
@@ -56,13 +60,20 @@ export interface CnabFieldFormatAs<T> {
    * @example `ddMMyyyy`
    */
   dateFormat?: string;
+  /** If field is considered null */
+  null?: boolean;
   /** Format used to convert from Cnab text content into desired TypeScript format */
-  formatType: 'string' | 'boolean' | 'Date' | 'number' | 'enum';
+  formatType: CnabFieldFormatType,
   /** If picture format is not the desired format, force convert into desired format */
   force?: boolean;
   /** Converted value. Used when reading CNAB to object */
   value: T;
 }
+
+export type CnabFieldFormatType =
+  'string' | 'boolean' |
+  'Date' | 'NullableDate' |
+  'number' | 'enum';
 
 export type CnabFields = Record<string, CnabField>;
 

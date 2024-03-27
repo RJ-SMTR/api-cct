@@ -1,9 +1,10 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { Transacao } from './transacao.entity';
 import { DetalheA } from './detalhe-a.entity';
 import { ItemTransacaoStatus } from './item-transacao-status.entity';
+import { asStringOrNumber } from 'src/utils/pipe-utils';
 
 @Entity()
 export class ItemTransacao extends EntityHelper {
@@ -52,7 +53,7 @@ export class ItemTransacao extends EntityHelper {
   favorecidoCpfCnpj: string;
 
   /**
-   * Monetary value
+   * Valor do lançamento.
    */
   @Column({
     type: 'decimal',
@@ -105,5 +106,11 @@ export class ItemTransacao extends EntityHelper {
   public getLogInfo(): string {
     return `#{ idOP: ${this.idOrdemPagamento}, svc: ${this.servico}, `
       + `op: ${this.idOperadora}, co: ${this.idConsorcio} }`;
+  }
+  
+
+  @AfterLoad()
+  setFieldValues() {
+    this.valor = asStringOrNumber(this.valor);
   }
 }

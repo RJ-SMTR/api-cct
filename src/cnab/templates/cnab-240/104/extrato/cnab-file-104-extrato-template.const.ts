@@ -6,8 +6,8 @@ import { cnabDetalheE104V030Template } from "./cnab-detalhe-e-104-v030-template.
 import { cnabHeaderLote104ExtratoTemplate } from "./cnab-header-lote-104-extrato-template.const";
 
 const sc = structuredClone;
-export const Cnab104ExtratoFile104Templates: CnabFile104Extrato = {
-  _metadata: { type: 'ICnab240_104FileExtrato' },
+export const CnabFile104ExtratoTemplate: CnabFile104Extrato = {
+  _metadata: { type: 'CnabFile104Extrato', extends: 'CnabFile104' },
   headerArquivo: sc(CnabHeaderArquivo104Template),
   lotes: [{
     headerLote: sc(cnabHeaderLote104ExtratoTemplate),

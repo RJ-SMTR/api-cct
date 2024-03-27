@@ -69,7 +69,7 @@ export class DetalheA extends EntityHelper {
   numeroParcela: number | null;
 
   @Column({ type: Date, unique: false, nullable: true })
-  dataEfetivacao: Date;
+  dataEfetivacao: Date | null;
 
   @Column({
     type: 'decimal', unique: false, nullable: true,
@@ -87,12 +87,8 @@ export class DetalheA extends EntityHelper {
   @CreateDateColumn()
   createdAt: Date;
 
-  /**
-   * For some reason, fields like 'time', 'decimal'
-   * are received as string instead as Date, Number
-   */
   @AfterLoad()
-  castFields() {
+  setFieldValues() {
     this.quantidadeMoeda = asNullableStringOrNumber(this.quantidadeMoeda);
     this.valorLancamento = asStringOrNumber(this.valorLancamento);
     this.valorRealEfetivado = asStringOrNumber(this.valorRealEfetivado);

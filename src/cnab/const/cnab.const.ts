@@ -12,6 +12,7 @@ export const CnabConst = {
     stringForce: () => ({ formatType: 'string', force: true } as CnabFieldFormatAs<string>),
     number: () => ({ formatType: 'number' } as CnabFieldFormatAs<number>),
     enum: () => ({ formatType: 'enum' } as CnabFieldFormat),
+    nullableDate: () => ({ dateFormat: 'ddMMyyyy', formatType: 'NullableDate' } as CnabFieldFormatAs<Date | null>),
     dateFormat: () => ({ dateFormat: 'ddMMyyyy', formatType: 'Date' } as CnabFieldFormatAs<Date>),
     timeFormat: () => ({ dateFormat: 'HHmmss', formatType: 'Date' } as CnabFieldFormatAs<Date>),
   },

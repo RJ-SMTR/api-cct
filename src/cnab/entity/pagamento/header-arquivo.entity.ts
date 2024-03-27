@@ -81,7 +81,7 @@ export class HeaderArquivo extends EntityHelper {
    * are received as string instead as Date, Number
    */
   @AfterLoad()
-  castFields() {
+  setFieldValues() {
     this.horaGeracao = asStringOrDateTime(this.horaGeracao, this.dataGeracao);
   }
 }

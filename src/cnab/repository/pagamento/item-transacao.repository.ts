@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, FindOneOptions, InsertResult, Repository } from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository } from 'typeorm';
 import { ItemTransacaoDTO } from '../../dto/pagamento/item-transacao.dto';
 import { ItemTransacao } from '../../entity/pagamento/item-transacao.entity';
 
@@ -20,12 +19,22 @@ export class ItemTransacaoRepository {
   ) { }
 
   /**
+   * Bulk update
+   */
+  public async updateMany(dtos: DeepPartial<ItemTransacao>[]): Promise<InsertResult> {
+    return this.itemTransacaoRepository.upsert(dtos, {
+      skipUpdateIfNoValuesChanged: true,
+      conflictPaths: { id: true },
+    });
+  }
+
+  /**
    * Bulk save
    */
   public async insert(dtos: DeepPartial<ItemTransacao>[]): Promise<InsertResult> {
     return this.itemTransacaoRepository.insert(dtos);
   }
-  
+
   public async save(itemTransacao: DeepPartial<ItemTransacao>): Promise<ItemTransacao> {
     return await this.itemTransacaoRepository.save(itemTransacao);
   }
@@ -43,7 +52,7 @@ export class ItemTransacaoRepository {
     return await this.itemTransacaoRepository.find();
   }
 
-  public async findMany(fields: EntityCondition<ItemTransacao> | EntityCondition<ItemTransacao>[]): Promise<ItemTransacao[]> {
-    return await this.itemTransacaoRepository.find({ where: fields });
+  public async findMany(options: FindManyOptions<ItemTransacao>): Promise<ItemTransacao[]> {
+    return await this.itemTransacaoRepository.find(options);
   }
 }

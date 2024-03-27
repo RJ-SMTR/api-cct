@@ -8,8 +8,8 @@ import { cnabHeaderLote104PgtoTemplate } from "./cnab-header-lote-104-pgto-templ
 
 const sc = structuredClone;
 
-export const Cnab104PgtoFile104Templates: CnabFile104Pgto = {
-  _metadata: { type: 'ICnab240_104FileExtrato' },
+export const CnabFile104PgtoTemplate: CnabFile104Pgto = {
+  _metadata: { type: 'CnabFile104Pgto', extends: 'CnabFile104' },
   headerArquivo: sc(CnabHeaderArquivo104Template),
   lotes: [{
     headerLote: sc(cnabHeaderLote104PgtoTemplate),
