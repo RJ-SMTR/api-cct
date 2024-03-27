@@ -30,7 +30,7 @@ export class LancamentoService {
     console.log(startDate, endDate)
     const lancamentos = await this.lancamentoRepository.find({
       where: {
-        data_lancamento: Between(startDate, endDate),
+        data_ordem: Between(startDate, endDate),
       },
       relations: ['user'],
     });
