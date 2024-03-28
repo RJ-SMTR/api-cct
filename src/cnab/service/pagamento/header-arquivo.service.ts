@@ -42,7 +42,7 @@ export class HeaderArquivoService {
       numeroInscricao: String(pagador.cpfCnpj),
       codigoConvenio: String(PgtoRegistros.headerArquivo.codigoConvenioBanco.value),
       parametroTransmissao: String(
-        PgtoRegistros.headerArquivo.parametroTransmissao.value,
+        PgtoRegistros.headerArquivo.parametroTransmissao.stringValue,
       ),
       dataGeracao: now,
       horaGeracao: now,
@@ -62,20 +62,20 @@ export class HeaderArquivoService {
   ): Promise<SaveIfNotExists<HeaderArquivo>> {
     const headerArquivo = new HeaderArquivoDTO({
       tipoArquivo: HeaderArquivoTipoArquivo.Retorno,
-      codigoBanco: cnab104.headerArquivo.codigoBanco.value,
-      tipoInscricao: cnab104.headerArquivo.tipoInscricao.value,
-      numeroInscricao: cnab104.headerArquivo.numeroInscricao.value,
-      codigoConvenio: cnab104.headerArquivo.codigoConvenioBanco.value,
-      parametroTransmissao: cnab104.headerArquivo.parametroTransmissao.value,
-      agencia: cnab104.headerArquivo.agenciaContaCorrente.value,
-      dvAgencia: cnab104.headerArquivo.dvAgencia.value,
-      numeroConta: cnab104.headerArquivo.numeroConta.value,
-      dvConta: cnab104.headerArquivo.dvConta.value,
-      nomeEmpresa: cnab104.headerArquivo.nomeEmpresa.format.value,
-      dataGeracao: cnab104.headerArquivo.dataGeracaoArquivo.format.value,
-      horaGeracao: cnab104.headerArquivo.horaGeracaoArquivo.format.value,
+      codigoBanco: cnab104.headerArquivo.codigoBanco.stringValue,
+      tipoInscricao: cnab104.headerArquivo.tipoInscricao.stringValue,
+      numeroInscricao: cnab104.headerArquivo.numeroInscricao.stringValue,
+      codigoConvenio: cnab104.headerArquivo.codigoConvenioBanco.stringValue,
+      parametroTransmissao: cnab104.headerArquivo.parametroTransmissao.stringValue,
+      agencia: cnab104.headerArquivo.agenciaContaCorrente.stringValue,
+      dvAgencia: cnab104.headerArquivo.dvAgencia.stringValue,
+      numeroConta: cnab104.headerArquivo.numeroConta.stringValue,
+      dvConta: cnab104.headerArquivo.dvConta.stringValue,
+      nomeEmpresa: cnab104.headerArquivo.nomeEmpresa.convertedValue,
+      dataGeracao: cnab104.headerArquivo.dataGeracaoArquivo.convertedValue,
+      horaGeracao: cnab104.headerArquivo.horaGeracaoArquivo.convertedValue,
       transacao: { id: headerArquivoRemessa.transacao.id } as Transacao,
-      nsa: cnab104.headerArquivo.nsa.format.value,
+      nsa: cnab104.headerArquivo.nsa.convertedValue,
     });
     return await this.headerArquivoRepository.saveIfNotExists(headerArquivo);
   }

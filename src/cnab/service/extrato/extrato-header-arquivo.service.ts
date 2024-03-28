@@ -20,20 +20,20 @@ export class ExtratoHeaderArquivoService {
   public async saveFrom104(header: CnabHeaderArquivo104): Promise<SaveIfNotExists<ExtratoHeaderArquivo>> {
     // Save Header Arquivo
     const extratoHeaderArquivo = new ExtratoHeaderArquivo({
-      tipoArquivo: header.tipoArquivo.format.value,
-      codigoBanco: header.codigoBanco.value,
-      tipoInscricao: header.tipoInscricao.value,
-      numeroInscricao: header.numeroInscricao.value,
-      codigoConvenio: header.codigoConvenioBanco.value,
-      parametroTransmissao: header.parametroTransmissao.value,
-      agencia: header.agenciaContaCorrente.value,
-      dvAgencia: header.dvAgencia.value,
-      numeroConta: header.numeroConta.value,
-      dvConta: header.dvConta.value,
-      nomeEmpresa: header.nomeEmpresa.format.value,
-      dataGeracao: header.dataGeracaoArquivo.format.value,
-      horaGeracao: header.horaGeracaoArquivo.format.value,
-      nsa: header.nsa.format?.value,
+      tipoArquivo: header.tipoArquivo.convertedValue,
+      codigoBanco: header.codigoBanco.stringValue,
+      tipoInscricao: header.tipoInscricao.stringValue,
+      numeroInscricao: header.numeroInscricao.stringValue,
+      codigoConvenio: header.codigoConvenioBanco.stringValue,
+      parametroTransmissao: header.parametroTransmissao.stringValue,
+      agencia: header.agenciaContaCorrente.stringValue,
+      dvAgencia: header.dvAgencia.stringValue,
+      numeroConta: header.numeroConta.stringValue,
+      dvConta: header.dvConta.stringValue,
+      nomeEmpresa: header.nomeEmpresa.convertedValue,
+      dataGeracao: header.dataGeracaoArquivo.convertedValue,
+      horaGeracao: header.horaGeracaoArquivo.convertedValue,
+      nsa: header.nsa.convertedValue,
     });
     const saveHA = await this.extHeaderArquivoRepository.saveIfNotExists(extratoHeaderArquivo);
     if (!saveHA.isNewItem) {

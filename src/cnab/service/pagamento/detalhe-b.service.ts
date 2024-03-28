@@ -20,7 +20,7 @@ export class DetalheBService {
   ): Promise<SaveIfNotExists<DetalheB>> {
     const detalheB = new DetalheBDTO({
       detalheA: { id: detalheA.id },
-      nsr: registro.detalheB.nsr.format.value,
+      nsr: registro.detalheB.nsr.convertedValue,
       dataVencimento: asCnabFieldDate(registro.detalheB.dataVencimento),
     });
     return await this.detalheBRepository.saveIfNotExists(detalheB);

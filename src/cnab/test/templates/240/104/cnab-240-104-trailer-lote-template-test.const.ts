@@ -1,4 +1,4 @@
-import { CnabConst } from 'src/cnab/const/cnab.const';
+import { Cnab } from 'src/cnab/const/cnab.const';
 import { CnabCodigoRegistro } from 'src/cnab/enums/all/cnab-codigo-registro.enum';
 import { CnabTrailerLote104 } from 'src/cnab/interfaces/cnab-240/104/cnab-trailer-lote-104.interface';
 
@@ -9,7 +9,7 @@ export const cnab240_104TrailerLoteTemplateTest: CnabTrailerLote104 = {
     pos: [8, 8],
     picture: '9(001)',
     value: CnabCodigoRegistro.TrailerLote,
-    format: CnabConst.format.number(),
+    format: Cnab.format.number(),
   },
   usoExclusivoFebraban: { pos: [9, 17], picture: 'X(009)', value: '         ' },
   quantidadeRegistrosLote: {

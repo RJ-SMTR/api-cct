@@ -5,6 +5,9 @@ import { CnabFile104 } from '../interfaces/cnab-240/104/cnab-file-104.interface'
 import { CnabLote104 } from '../interfaces/cnab-240/104/cnab-lote-104.interface';
 import { CnabDetalheA_104 } from '../interfaces/cnab-240/104/pagamento/cnab-detalhe-a-104.interface';
 import { CnabDetalheB_104 } from '../interfaces/cnab-240/104/pagamento/cnab-detalhe-b-104.interface';
+import { CnabFile } from '../interfaces/cnab-file.interface';
+import { CnabLote } from '../interfaces/cnab-lote.interface';
+import { CnabRegistro } from '../interfaces/cnab-registro.interface';
 import { cnab240_104DetalheATemplateTest } from '../test/templates/240/104/cnab-240-104-detalhe-a-template-test.const';
 import { cnab240_104DetalheBTemplateTest } from '../test/templates/240/104/cnab-240-104-detalhe-b-template-test.const';
 import { cnab240_104HeaderArquivoTemplateTest } from '../test/templates/240/104/cnab-240-104-header-arquivo-template-test.const';
@@ -18,15 +21,11 @@ import { cnab240GenericHeaderArquivoTemplateTest } from '../test/templates/240/g
 import { cnab240GenericHeaderLoteTemplateTest } from '../test/templates/240/generic/cnab-240-generic-header-lote-template-test.const';
 import { cnab240GenericTrailerArquivoTemplateTest } from '../test/templates/240/generic/cnab-240-generic-trailer-arquivo-template-test.const';
 import { cnab240GenericTrailerLoteTemplateTest } from '../test/templates/240/generic/cnab-240-generic-trailer-lote-template-test.const';
-import { CnabFile } from '../interfaces/cnab-file.interface';
-import { CnabLote } from '../interfaces/cnab-lote.interface';
-import { CnabRegistro } from '../interfaces/cnab-registro.interface';
 import { getCnabFileFrom104 } from './cnab-104-pipe-utils';
 import {
   getCnab104FromFile,
   stringifyCnab104File,
 } from './cnab-104-utils';
-import { cnab104FieldMapTemplate } from '../templates/cnab-all/cnab-104-field-map-template';
 
 describe('cnab-104-utils.ts', () => {
   const sc = structuredClone;
@@ -208,7 +207,7 @@ describe('cnab-104-utils.ts', () => {
       };
 
       // Act
-      const response = getCnabFileFrom104(file, cnab104FieldMapTemplate);
+      const response = getCnabFileFrom104(file);
 
       // Assert
       expect(response.headerArquivo.fields).toEqual(headerArquivo);

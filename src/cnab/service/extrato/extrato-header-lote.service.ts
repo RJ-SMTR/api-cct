@@ -18,15 +18,15 @@ export class ExtratoHeaderLoteService {
     // Save Header Arquivo
     const extratoHeaderLote = new ExtratoHeaderLote({
       extratoHeaderArquivo: { id: headerArquivo.id },
-      loteServico: header.loteServico.format.value,
-      tipoInscricao: header.tipoInscricao.value,
-      numeroInscricao: header.numeroInscricao.value,
-      codigoConvenioBanco: header.codigoConvenioBanco.value,
-      dataSaldoInicial: header.dataSaldoInicial.format.value,
-      valorSaldoInicial: header.valorSaldoInicial.format.value,
-      situacaoSaldoInicial: header.situacaoSaldoInicial.value,
-      posicaoSaldoInicial: header.posicaoSaldoInicial.value,
-      tipoMoeda: header.tipoMoeda.value,
+      loteServico: header.loteServico.convertedValue,
+      tipoInscricao: header.tipoInscricao.stringValue,
+      numeroInscricao: header.numeroInscricao.stringValue,
+      codigoConvenioBanco: header.codigoConvenioBanco.stringValue,
+      dataSaldoInicial: header.dataSaldoInicial.convertedValue,
+      valorSaldoInicial: header.valorSaldoInicial.convertedValue,
+      situacaoSaldoInicial: header.situacaoSaldoInicial.stringValue,
+      posicaoSaldoInicial: header.posicaoSaldoInicial.stringValue,
+      tipoMoeda: header.tipoMoeda.stringValue,
     });
     const saveHL = await this.extHeaderLoteRepository.saveIfNotExists(extratoHeaderLote);
     if (!saveHL.isNewItem) {

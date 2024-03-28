@@ -1,4 +1,4 @@
-import { CnabConst } from 'src/cnab/const/cnab.const';
+import { Cnab } from 'src/cnab/const/cnab.const';
 import { CnabCodigoRegistro } from 'src/cnab/enums/all/cnab-codigo-registro.enum';
 import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-trailer-arquivo-104.interface';
 
@@ -10,7 +10,7 @@ export const cnab240_104TrailerArquivoTemplateTest: CnabTrailerArquivo104 =
     pos: [8, 8],
     picture: '9(001)',
     value: CnabCodigoRegistro.TrailerArquivo,
-    format: CnabConst.format.number(),
+    format: Cnab.format.number(),
   },
   usoExclusivoFebraban: {
     pos: [9, 17],

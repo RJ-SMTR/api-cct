@@ -1,7 +1,7 @@
 import { CnabCodigoSegmento } from 'src/cnab/enums/all/cnab-codigo-segmento.enum';
 import { CnabCodigoRegistro } from 'src/cnab/enums/all/cnab-codigo-registro.enum';
 import { CnabDetalheB_104 } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-detalhe-b-104.interface';
-import { CnabConst } from 'src/cnab/const/cnab.const';
+import { Cnab } from 'src/cnab/const/cnab.const';
 
 export const cnab240_104DetalheBTemplateTest: CnabDetalheB_104 = {
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104' },
@@ -10,14 +10,14 @@ export const cnab240_104DetalheBTemplateTest: CnabDetalheB_104 = {
     pos: [8, 8],
     picture: '9(001)',
     value: CnabCodigoRegistro.DetalheSegmento,
-    format: CnabConst.format.number(),
+    format: Cnab.format.number(),
   },
-  nsr: { pos: [9, 13], picture: '9(005)', value: '00002', format: CnabConst.format.number() },
+  nsr: { pos: [9, 13], picture: '9(005)', value: '00002', format: Cnab.format.number() },
   codigoSegmento: {
     pos: [14, 14],
     picture: 'X(001)',
     value: CnabCodigoSegmento.B,
-    format: CnabConst.format.string(),
+    format: Cnab.format.string(),
   },
   usoExclusivoFebraban: { pos: [15, 17], picture: 'X(003)', value: '   ' },
   tipoInscricao: { pos: [18, 18], picture: '9(001)', value: ' ' },
@@ -42,7 +42,7 @@ export const cnab240_104DetalheBTemplateTest: CnabDetalheB_104 = {
     pos: [128, 135],
     picture: '9(008)',
     value: '06022023',
-    format: CnabConst.format.dateFormat(),
+    format: Cnab.format.dateFormat(),
   },
   valorDocumento: {
     pos: [136, 150],

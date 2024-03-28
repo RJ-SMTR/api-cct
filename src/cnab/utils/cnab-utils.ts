@@ -1,11 +1,11 @@
 import { Exception } from 'handlebars';
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { CNAB_EOL, CNAB_LAYOUTS } from '../const/cnab.const';
+import { Cnab } from '../const/cnab.const';
 import { CnabCodigoRegistro } from '../enums/all/cnab-codigo-registro.enum';
 import { CnabTipoInscricao } from '../enums/all/cnab-tipo-inscricao.enum';
 import { ICnabFieldMap } from '../interfaces/cnab-all/cnab-field-map.interface';
-import { CnabField, CnabFields, CnabFieldMetadata } from '../interfaces/cnab-field.interface';
+import { CnabField, CnabFieldMetadata, CnabFields } from '../interfaces/cnab-field.interface';
 import { CnabFile, isCnabFile } from '../interfaces/cnab-file.interface';
 import { CnabLote, isCnabLote } from '../interfaces/cnab-lote.interface';
 import { CnabRegistro } from '../interfaces/cnab-registro.interface';
@@ -28,7 +28,7 @@ export function stringifyCnabFile(cnab: CnabFile): [string, CnabFile] {
     stringRegistros.push(stringRegistro);
   }
   const cnabFormatted = getCnabFileFromCnabRegistros(registros);
-  return [stringRegistros.join(CNAB_EOL), cnabFormatted];
+  return [stringRegistros.join(Cnab.const.eol), cnabFormatted];
 }
 
 /**
@@ -95,10 +95,10 @@ export function validateCnabRegistroPosition(
       `Current: ${cnabFieldToString(current)}`,
     );
   }
-  if (!hasNext && !CNAB_LAYOUTS.includes(current.pos[1])) {
+  if (!hasNext && !Cnab.const.layouts.includes(current.pos[1])) {
     throw new Error(
       'Last CnabField position end should be one of these values' +
-      `${CNAB_LAYOUTS} but is ${current.pos[1]}. ` +
+      `${Cnab.const.layouts} but is ${current.pos[1]}. ` +
       `Current: ${cnabFieldToString(current)}`,
     );
   } else if (previous && current.pos[0] !== previous?.pos[1] + 1) {

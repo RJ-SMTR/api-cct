@@ -1,3 +1,4 @@
+import { CnabField } from '../interfaces/cnab-field.interface';
 import {
   cropFillCnabField,
   formatDate,
@@ -8,8 +9,6 @@ import {
   getPictureTextSize,
   validateCnabFieldPositionSize,
 } from './cnab-field-utils';
-import { CnabFieldType } from '../enums/cnab-field-type.enum';
-import { CnabField } from '../interfaces/cnab-field.interface';
 
 process.env.TZ = 'UTC';
 
@@ -62,7 +61,7 @@ describe('cnab-utils.ts', () => {
     it('should throw error when value size > max size', () => {
       // Arrange
       const result = () =>
-        cropFillCnabField('123456', 5, CnabFieldType.Number, 'error');
+        cropFillCnabField('123456', 5, 'number', 'error');
 
       // Assert
       expect(() => result()).toThrow();
@@ -73,37 +72,37 @@ describe('cnab-utils.ts', () => {
       const resultNumberLeft = cropFillCnabField(
         '123456',
         6,
-        CnabFieldType.Number,
+        'number',
         'cropLeft',
       );
       const resultTextLeft = cropFillCnabField(
         '123456',
         6,
-        CnabFieldType.Text,
+        'text',
         'cropLeft',
       );
       const resultDateLeft = cropFillCnabField(
         '123456',
         6,
-        CnabFieldType.Date,
+        'date',
         'cropLeft',
       );
       const resultNumberRight = cropFillCnabField(
         '123456',
         6,
-        CnabFieldType.Number,
+        'number',
         'cropRight',
       );
       const resultTextRight = cropFillCnabField(
         '123456',
         6,
-        CnabFieldType.Text,
+        'text',
         'cropRight',
       );
       const resultDateRight = cropFillCnabField(
         '123456',
         6,
-        CnabFieldType.Date,
+        'date',
         'cropRight',
       );
 
@@ -121,37 +120,37 @@ describe('cnab-utils.ts', () => {
       const resultNumberLeft = cropFillCnabField(
         '123456',
         4,
-        CnabFieldType.Number,
+        'number',
         'cropLeft',
       );
       const resultTextLeft = cropFillCnabField(
         'abcdef',
         4,
-        CnabFieldType.Text,
+        'text',
         'cropLeft',
       );
       const resultDateLeft = cropFillCnabField(
         '123456',
         4,
-        CnabFieldType.Date,
+        'date',
         'cropLeft',
       );
       const resultNumberRight = cropFillCnabField(
         '123456',
         4,
-        CnabFieldType.Number,
+        'number',
         'cropRight',
       );
       const resultTextRight = cropFillCnabField(
         'abcdef',
         4,
-        CnabFieldType.Text,
+        'text',
         'cropRight',
       );
       const resultDateRight = cropFillCnabField(
         '123456',
         4,
-        CnabFieldType.Date,
+        'date',
         'cropRight',
       );
 
@@ -169,37 +168,37 @@ describe('cnab-utils.ts', () => {
       const resultNumberLeft = cropFillCnabField(
         '1234',
         6,
-        CnabFieldType.Number,
+        'number',
         'cropLeft',
       );
       const resultTextLeft = cropFillCnabField(
         'abcd',
         6,
-        CnabFieldType.Text,
+        'text',
         'cropLeft',
       );
       const resultDateLeft = cropFillCnabField(
         '1234',
         6,
-        CnabFieldType.Date,
+        'date',
         'cropLeft',
       );
       const resultNumberRight = cropFillCnabField(
         '1234',
         6,
-        CnabFieldType.Number,
+        'number',
         'cropRight',
       );
       const resultTextRight = cropFillCnabField(
         'abcd',
         6,
-        CnabFieldType.Text,
+        'text',
         'cropRight',
       );
       const resultDateRight = cropFillCnabField(
         '1234',
         6,
-        CnabFieldType.Date,
+        'date',
         'cropRight',
       );
 
@@ -404,9 +403,9 @@ describe('cnab-utils.ts', () => {
           });
 
         // Assert
-        expect(resultText).toEqual(CnabFieldType.Text);
-        expect(resultNumber).toEqual(CnabFieldType.Number);
-        expect(resultDate).toEqual(CnabFieldType.Date);
+        expect(resultText).toEqual('text');
+        expect(resultNumber).toEqual('number');
+        expect(resultDate).toEqual('date');
         expect(resultInvalid).toThrowError();
       });
   });

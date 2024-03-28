@@ -24,30 +24,30 @@ export class DetalheAService {
     const r = registro;
     const favorecido =
       await this.clienteFavorecidoService.getOne({
-        contaCorrente: r.detalheA.contaCorrenteDestino.value,
+        contaCorrente: r.detalheA.contaCorrenteDestino.stringValue,
         dvContaCorrente: r.detalheA.dvContaDestino.value
       });
 
     const detalheA = new DetalheADTO({
       headerLote: { id: headerLote.id },
-      loteServico: r.detalheA.loteServico.format.value,
+      loteServico: r.detalheA.loteServico.convertedValue,
       clienteFavorecido: { id: favorecido.id },
-      finalidadeDOC: r.detalheA.finalidadeDOC.value,
-      numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.format.value,
-      dataVencimento: r.detalheA.dataVencimento.format.value,
-      tipoMoeda: r.detalheA.tipoMoeda.value,
-      quantidadeMoeda: r.detalheA.quantidadeMoeda.format.value,
-      valorLancamento: r.detalheA.valorLancamento.format.value,
-      numeroDocumentoBanco: r.detalheA.numeroDocumentoBanco.value,
-      quantidadeParcelas: r.detalheA.quantidadeParcelas.format.value,
-      indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
-      indicadorFormaParcelamento: r.detalheA.indicadorFormaParcelamento.value,
-      periodoVencimento: r.detalheA.dataVencimento.format.value,
-      numeroParcela: r.detalheA.numeroParcela.format.value,
-      dataEfetivacao: r.detalheA.dataEfetivacao.format.value,
-      valorRealEfetivado: r.detalheA.valorRealEfetivado.format.value,
-      nsr: r.detalheA.nsr.format.value,
-      ocorrencias: r.detalheA.ocorrencias.value,
+      finalidadeDOC: r.detalheA.finalidadeDOC.stringValue,
+      numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
+      dataVencimento: r.detalheA.dataVencimento.convertedValue,
+      tipoMoeda: r.detalheA.tipoMoeda.stringValue,
+      quantidadeMoeda: r.detalheA.quantidadeMoeda.convertedValue,
+      valorLancamento: r.detalheA.valorLancamento.convertedValue,
+      numeroDocumentoBanco: r.detalheA.numeroDocumentoBanco.stringValue,
+      quantidadeParcelas: r.detalheA.quantidadeParcelas.convertedValue,
+      indicadorBloqueio: r.detalheA.indicadorBloqueio.stringValue,
+      indicadorFormaParcelamento: r.detalheA.indicadorFormaParcelamento.stringValue,
+      periodoVencimento: r.detalheA.dataVencimento.convertedValue,
+      numeroParcela: r.detalheA.numeroParcela.convertedValue,
+      dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
+      valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
+      nsr: r.detalheA.nsr.convertedValue,
+      ocorrencias: r.detalheA.ocorrencias.stringValue,
     });
     return await this.detalheARepository.saveIfNotExists(detalheA);
   }

@@ -1,20 +1,35 @@
 
-export interface CnabField {
+/**
+ * Minimal content used as constructor args
+ */
+export interface CnabFieldBase {
   _metadata?: CnabFieldMetadata;
+  format?: CnabFieldFormat;
+  
   pos: [number, number];
   picture: string;
-  /** Default read value format is `string` */
+  /** Input value format is `string` */
   value: any;
-  format?: CnabFieldFormat;
 }
 
-export interface CnabFieldAs<T> {
+export interface CnabField extends CnabFieldBase {
   _metadata?: CnabFieldMetadata;
+  format?: CnabFieldFormat;
+  
   pos: [number, number];
   picture: string;
+  /** Input value. */
   value: any;
-  /** Value before any conversion */
-  format: CnabFieldFormatAs<T>;
+  
+  /** Value generated after stringify from object to CNAB text output */
+  stringValue: string;
+  /** Used when reading CNAB to object */
+  convertedValue: any;
+}
+
+export interface CnabFieldAs<T> extends CnabField {
+  convertedValue: T;
+  format: CnabFieldFormat;
 }
 
 /**
@@ -30,28 +45,12 @@ export interface CnabFieldMetadata {
   registroIndex?: number,
 }
 
+/**
+ * Info used to handle formatting.
+ */
 export interface CnabFieldFormat {
-  /** 
-   * date-fns format to write in CNAB and read from CNAB.
-   * 
-   * Formatting is date-fns date format
-   * @see{@link https://date-fns.org/v3.3.1/docs/format}
-   * @example `ddMMyyyy`
-   */
-  dateFormat?: string;
-  /** If field is considered null */
-  null?: boolean;
   /** Format used to convert from Cnab text content into desired TypeScript format */
   formatType: CnabFieldFormatType;
-  /** If picture format is not the desired format, force convert into desired format */
-  force?: boolean;
-  /** Converted value. Used when reading CNAB to object */
-  value?: any;
-  /** Original input value, inserted before any transformation */
-  originalValue?: any;
-}
-
-export interface CnabFieldFormatAs<T> {
   /** 
    * date-fns format to write in CNAB and read from CNAB.
    * 
@@ -62,12 +61,8 @@ export interface CnabFieldFormatAs<T> {
   dateFormat?: string;
   /** If field is considered null */
   null?: boolean;
-  /** Format used to convert from Cnab text content into desired TypeScript format */
-  formatType: CnabFieldFormatType,
   /** If picture format is not the desired format, force convert into desired format */
   force?: boolean;
-  /** Converted value. Used when reading CNAB to object */
-  value: T;
 }
 
 export type CnabFieldFormatType =

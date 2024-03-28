@@ -1,4 +1,4 @@
-import { CnabConst } from 'src/cnab/const/cnab.const';
+import { Cnab } from 'src/cnab/const/cnab.const';
 import { CnabCodigoRegistro } from 'src/cnab/enums/all/cnab-codigo-registro.enum';
 import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 
@@ -12,13 +12,13 @@ export const cnab240_104HeaderArquivoTemplateTest: CnabHeaderArquivo104 = {
     pos: [4, 7],
     picture: '9(004)',
     value: '0090',
-    format: CnabConst.format.number(),
+    format: Cnab.format.number(),
   },
   codigoRegistro: {
     pos: [8, 8],
     picture: '9(001)',
     value: CnabCodigoRegistro.HeaderArquivo,
-    format: CnabConst.format.number(),
+    format: Cnab.format.number(),
   },
   filler: {
     pos: [9, 17],
@@ -99,13 +99,13 @@ export const cnab240_104HeaderArquivoTemplateTest: CnabHeaderArquivo104 = {
     pos: [73, 102],
     picture: 'X(030)',
     value: 'CONVE  DE PAGAMENTOSSA E OEBSA',
-    format: CnabConst.format.string(),
+    format: Cnab.format.string(),
   },
   nomeBanco: {
     pos: [103, 132],
     picture: 'X(030)',
     value: 'CAIXA                         ',
-    format: CnabConst.format.string(),
+    format: Cnab.format.string(),
   },
   filler3: {
     pos: [133, 142],
@@ -116,25 +116,25 @@ export const cnab240_104HeaderArquivoTemplateTest: CnabHeaderArquivo104 = {
     pos: [143, 143],
     picture: '9(001)',
     value: ' 2',
-    format: CnabConst.format.number(),
+    format: Cnab.format.number(),
   },
   dataGeracaoArquivo: {
     pos: [144, 151],
     picture: '9(008)',
     value: '06022027',
-    format: CnabConst.format.dateFormat(),
+    format: Cnab.format.dateFormat(),
   },
   horaGeracaoArquivo: {
     pos: [152, 157],
     picture: '9(006)',
     value: '102342',
-    format: CnabConst.format.timeFormat(),
+    format: Cnab.format.timeFormat(),
   },
   nsa: {
     pos: [158, 163],
     picture: '9(006)',
     value: '000101',
-    format: CnabConst.format.number(),
+    format: Cnab.format.number(),
   },
   versaoLeiauteArquivo: {
     pos: [164, 166],

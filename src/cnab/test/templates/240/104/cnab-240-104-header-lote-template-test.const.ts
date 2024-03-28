@@ -1,4 +1,4 @@
-import { CnabConst } from 'src/cnab/const/cnab.const';
+import { Cnab } from 'src/cnab/const/cnab.const';
 import { CnabCodigoRegistro } from 'src/cnab/enums/all/cnab-codigo-registro.enum';
 import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 
@@ -9,7 +9,7 @@ export const cnab240_104HeaderLoteTemplateTest: CnabHeaderLote104Pgto = {
     pos: [8, 8],
     picture: '9(001)',
     value: CnabCodigoRegistro.HeaderLote,
-    format: CnabConst.format.number(),
+    format: Cnab.format.number(),
   },
   tipoOperacao: { pos: [9, 9], picture: 'X(001)', value: 'C' },
   tipoServico: { pos: [10, 11], picture: '9(002)', value: '30' },
