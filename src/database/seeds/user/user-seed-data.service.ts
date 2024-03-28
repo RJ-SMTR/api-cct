@@ -62,7 +62,7 @@ LIMIT 5
       {
         fullName: 'Alexander Rivail Ruiz',
         email: 'ruiz.smtr@gmail.com',
-        password: '0014d1c03e',
+        password: this.generateRandomPassword(),
         role: new Role(RoleEnum.admin),
         status: new Status(StatusEnum.active),
       },
