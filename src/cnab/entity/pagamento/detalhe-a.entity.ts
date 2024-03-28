@@ -38,14 +38,14 @@ export class DetalheA extends EntityHelper {
 
   @Column({
     type: 'decimal', unique: false, nullable: true,
-    precision: 5,
-    scale: 10,
+    precision: 10,
+    scale: 5,
   })
   quantidadeMoeda: number | null;
 
   @Column({
     type: 'decimal', unique: false, nullable: true,
-    precision: 5,
+    precision: 13,
     scale: 2,
   })
   valorLancamento: number;
@@ -73,7 +73,7 @@ export class DetalheA extends EntityHelper {
 
   @Column({
     type: 'decimal', unique: false, nullable: true,
-    precision: 5,
+    precision: 13,
     scale: 2,
   })
   valorRealEfetivado: number;

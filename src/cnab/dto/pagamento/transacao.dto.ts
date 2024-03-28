@@ -17,38 +17,11 @@ export class TransacaoDTO {
   id?: number;
   dataOrdem?: Date | null;
   dataPagamento?: Date | null;
-  nomeConsorcio?: string | null;
-  nomeOperadora?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
   idOrdemPagamento?: string;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  servico?: string;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  idOperadora?: string;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  idConsorcio?: string;
-
-  idOrdemRessarcimento?: string | null;
-  quantidadeTransacaoRateioCredito?: number | null;
-  valorRateioCredito?: number | null;
-  quantidadeTransacaoRateioDebito?: number | null;
-  valorRateioDebito?: number | null;
-  quantidadeTotalTransacao?: number | null;
-  valorTotalTransacaoBruto?: number | null;
-  valorDescontoTaxa?: number | null;
-  valorTotalTransacaoLiquido?: number | null;
-  quantidadeTotalTransacaoCaptura?: number | null;
-  valorTotalTransacaoCaptura?: number | null;
-  indicadorOrdemValida?: boolean | null;
-
+  
   @ValidateIf(isCreate)
   @IsNotEmpty()
   pagador?: Pagador;
@@ -56,8 +29,4 @@ export class TransacaoDTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   status?: DeepPartial<TransacaoStatus>;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  versaoOrdemPagamento?: string;
 }

@@ -8,6 +8,7 @@ import { FindOneOptions } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -103,8 +104,7 @@ export class ClienteFavorecidoService {
       cep: null,
       complementoCep: null,
       uf: null,
-      permissionarioRole: user.permissionarioRole,
-      user: { id: user.id }
+      tipo: TipoFavorecidoEnum.vanzeiro,
     };
     await validateDTO(SaveClienteFavorecidoDTO, saveObject);
     await this.clienteFavorecidoRepository.save(saveObject);

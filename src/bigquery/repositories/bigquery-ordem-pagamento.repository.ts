@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PermissionarioRoleEnum } from 'src/permissionario-role/permissionario-role.enum';
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 import { appSettings } from 'src/settings/app.settings';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 import { SettingsService } from 'src/settings/settings.service';
@@ -22,14 +22,143 @@ export class BigqueryOrdemPagamentoRepository {
   public async findMany(
     filter?: IBigqueryFindOrdemPagamento,
   ): Promise<BigqueryOrdemPagamento[]> {
-    const transacoes: BigqueryOrdemPagamento[] = (await this.queryData(filter))
+    const transacoes: BigqueryOrdemPagamento[] = (await this.queryDataTest(filter))
       .data;
     return transacoes;
+  }
+
+  private async queryDataTest(
+    /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+    args?: IBigqueryFindOrdemPagamento,
+  ): Promise<{ data: BigqueryOrdemPagamento[]; countAll: number }> {
+    const query =
+      `
+(
+  SELECT
+    CAST(current_date AS string) AS dataOrdem,
+    CAST(current_date AS string) AS dataPagamento,
+    t.id_consorcio AS idConsorcio,
+    t.consorcio AS consorcio,
+    t.id_operadora AS idOperadora,
+    t.operadora AS operadora,
+    t.servico AS servico,
+    'cct_1' AS idOrdemPagamento,
+    t.id_ordem_ressarcimento AS idOrdemRessarcimento,
+    t.quantidade_transacao_debito AS quantidadeTransacaoDebito,
+    t.valor_debito AS valorDebito,
+    t.quantidade_transacao_especie AS quantidadeTransacaoEspecie,
+    t.valor_especie AS valorEspecie,
+    t.quantidade_transacao_gratuidade AS quantidadeTransacaoGratuidade,
+    t.valor_gratuidade AS valorGratuidade,
+    t.quantidade_transacao_integracao AS quantidadeTransacaoIntegracao,
+    t.valor_integracao AS valorIntegracao,
+    t.quantidade_transacao_rateio_credito AS quantidadeTransacaoRateioCredito,
+    t.valor_rateio_credito AS valorRateioCredito,
+    t.quantidade_transacao_rateio_debito AS quantidadeTransacaoRateioDebito,
+    t.valor_rateio_debito AS valorRateioDebito,
+    t.quantidade_total_transacao AS quantidadeTotalTransacao,
+    t.valor_total_transacao_bruto AS valorTotalTransacaoBruto,
+    t.valor_desconto_taxa AS valorDescontoTaxa,
+    60038.09 AS valorTotalTransacaoLiquido,
+    t.quantidade_total_transacao_captura AS quantidadeTotalTransacaoCaptura,
+    t.valor_total_transacao_captura AS valorTotalTransacaoCaptura,
+    t.indicador_ordem_valida AS indicadorOrdemValida,
+    t.versao AS versao,
+    '44520687000161' AS consorcioCpfCnpj,
+    '44520687000161' AS operadoraCpfCnpj,
+    CASE
+      WHEN o.tipo_documento = 'CPF' THEN NULL
+      ELSE 1
+    END AS tipoFavorecido,
+  FROM
+    \`rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento\` t
+    LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+    LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
+  WHERE
+    (
+      -- (DATE(t.data_ordem) >= DATE('2023-06-01') AND DATE(t.data_ordem) <= DATE('2024-06-01'))
+      -- AND t.indicador_ordem_valida IS TRUE AND (o.tipo_documento = 'CNPJ' OR c.cnpj IS NOT NULL)
+      t.operadora LIKE "%CMTC%"
+    )
+    ORDER BY t.id_ordem_pagamento DESC
+  LIMIT
+    1
+)
+UNION
+ALL (
+  SELECT
+    CAST(current_date AS string) AS dataOrdem,
+    CAST(current_date AS string) AS dataPagamento,
+    t.id_consorcio AS idConsorcio,
+    t.consorcio AS consorcio,
+    t.id_operadora AS idOperadora,
+    t.operadora AS operadora,
+    t.servico AS servico,
+    'cct_1' AS idOrdemPagamento,
+    t.id_ordem_ressarcimento AS idOrdemRessarcimento,
+    t.quantidade_transacao_debito AS quantidadeTransacaoDebito,
+    t.valor_debito AS valorDebito,
+    t.quantidade_transacao_especie AS quantidadeTransacaoEspecie,
+    t.valor_especie AS valorEspecie,
+    t.quantidade_transacao_gratuidade AS quantidadeTransacaoGratuidade,
+    t.valor_gratuidade AS valorGratuidade,
+    t.quantidade_transacao_integracao AS quantidadeTransacaoIntegracao,
+    t.valor_integracao AS valorIntegracao,
+    t.quantidade_transacao_rateio_credito AS quantidadeTransacaoRateioCredito,
+    t.valor_rateio_credito AS valorRateioCredito,
+    t.quantidade_transacao_rateio_debito AS quantidadeTransacaoRateioDebito,
+    t.valor_rateio_debito AS valorRateioDebito,
+    t.quantidade_total_transacao AS quantidadeTotalTransacao,
+    t.valor_total_transacao_bruto AS valorTotalTransacaoBruto,
+    t.valor_desconto_taxa AS valorDescontoTaxa,
+    3634.52 AS valorTotalTransacaoLiquido,
+    t.quantidade_total_transacao_captura AS quantidadeTotalTransacaoCaptura,
+    t.valor_total_transacao_captura AS valorTotalTransacaoCaptura,
+    t.indicador_ordem_valida AS indicadorOrdemValida,
+    t.versao AS versao,
+    '18201378000119' AS consorcioCpfCnpj,
+    '18201378000119' AS operadoraCpfCnpj,
+    CASE
+      WHEN o.tipo_documento = 'CPF' THEN NULL
+      ELSE 1
+    END AS tipoFavorecido,
+  FROM
+    \`rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento\` t
+    LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+    LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
+  WHERE
+    (
+      -- (DATE(t.data_ordem) >= DATE('2023-06-01') AND DATE(t.data_ordem) <= DATE('2024-06-01'))
+      -- AND t.indicador_ordem_valida IS TRUE AND (o.tipo_documento = 'CNPJ' OR c.cnpj IS NOT NULL)
+      t.operadora LIKE "%VLT%"
+    )
+    ORDER BY t.id_ordem_pagamento DESC
+  LIMIT
+    1
+)
+        `
+      ;
+
+
+    const queryResult = await this.bigqueryService.query(
+      BQSInstances.smtr,
+      query,
+    );
+    const count = 2;
+    // Remove unwanted keys and remove last item (all null if empty)
+    const items: BigqueryOrdemPagamento[] = queryResult;
+    // items.pop();
+
+    return {
+      data: items,
+      countAll: count,
+    };
   }
 
   private async queryData(
     args?: IBigqueryFindOrdemPagamento,
   ): Promise<{ data: BigqueryOrdemPagamento[]; countAll: number }> {
+    // TODO: remover tipoFavorecido
     const qArgs = await this.getQueryArgs(args);
     const query =
       `
@@ -65,8 +194,7 @@ export class BigqueryOrdemPagamentoRepository {
         t.versao AS versao,
         CAST(c.cnpj AS STRING) AS consorcioCpfCnpj,
         CAST(o.documento AS STRING) AS operadoraCpfCnpj,
-        ${qArgs.favorecidoCpfCnpj} AS favorecidoCpfCnpj,
-        ${qArgs.permissionarioRole} AS permissionarioRole,
+        ${qArgs.tipoFavorecido} AS tipoFavorecido,
         -- aux columns
         (${qArgs.countQuery}) AS count,
         'ok' AS status
@@ -75,7 +203,7 @@ export class BigqueryOrdemPagamentoRepository {
       ${qArgs.joinOperadoras}\n` +
       (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
       `UNION ALL
-      SELECT ${'null, '.repeat(33)}
+      SELECT ${'null, '.repeat(32)}
       (${qArgs.countQuery}) AS count, 'empty' AS status` +
       '\nORDER BY dataOrdem DESC, idOrdemPagamento DESC\n' +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
@@ -114,8 +242,8 @@ export class BigqueryOrdemPagamentoRepository {
         : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.ordem_pagamento',
       tTipoPgto: IS_BQ_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
       favorecidoCpfCnpj: 'NULL',
-      permissionarioRole:
-        `CASE WHEN o.tipo_documento = 'CPF' THEN NULL ELSE ${PermissionarioRoleEnum.vanzeiro} END`,
+      tipoFavorecido:
+        `CASE WHEN o.tipo_documento = 'CPF' THEN NULL ELSE ${TipoFavorecidoEnum.vanzeiro} END`,
     };
 
     // Args
@@ -156,18 +284,15 @@ export class BigqueryOrdemPagamentoRepository {
       queryBuilder.pushAND(`t.valor_total_transacao_liquido > 0`)
     }
 
+    // We dont use this filter
     if (args?.cpfCnpj !== undefined) {
-      Q_CONSTS.favorecidoCpfCnpj = args.cpfCnpj;
-      if (args?.permissionarioRole === PermissionarioRoleEnum.vanzeiro) {
+      if (args?.tipoFavorecido === TipoFavorecidoEnum.vanzeiro) {
         queryBuilder.pushAND(`o.documento = ${args.cpfCnpj}`);
       } else {
         queryBuilder.pushAND(`(o.documento = ${args.cpfCnpj} OR c.cnpj = ${args.cpfCnpj})`);
       }
     } else {
-      Q_CONSTS.favorecidoCpfCnpj = args?.permissionarioRole === PermissionarioRoleEnum.vanzeiro
-        ? `CASE WHEN o.tipo_documento = 'CPF' THEN o.documento ELSE NULL END`
-        : `c.cnpj`;
-      if (args?.permissionarioRole === PermissionarioRoleEnum.vanzeiro) {
+      if (args?.tipoFavorecido === TipoFavorecidoEnum.vanzeiro) {
         queryBuilder.pushAND(`o.tipo_documento = 'CPF'`);
       } else {
         queryBuilder.pushAND(`(o.tipo_documento = 'CNPJ' OR c.cnpj IS NOT NULL)`);
@@ -193,8 +318,7 @@ export class BigqueryOrdemPagamentoRepository {
       tTipoPgto: Q_CONSTS.tTipoPgto,
       joinOperadoras: joinOperadoras,
       joinConsorcios: joinConsorcios,
-      favorecidoCpfCnpj: Q_CONSTS.favorecidoCpfCnpj,
-      permissionarioRole: Q_CONSTS.permissionarioRole,
+      tipoFavorecido: Q_CONSTS.tipoFavorecido,
       countQuery,
       offset,
       limit: args?.limit,

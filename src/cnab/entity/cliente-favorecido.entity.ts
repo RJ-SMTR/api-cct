@@ -1,12 +1,10 @@
-import { PermissionarioRole } from 'src/permissionario-role/permissionario-role.entity';
-import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, DeepPartial, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class ClienteFavorecido extends EntityHelper {
   constructor(
-    clienteFavorecido?: ClienteFavorecido | DeepPartial<ClienteFavorecido>,
+    clienteFavorecido?: DeepPartial<ClienteFavorecido>,
   ) {
     super();
     if (clienteFavorecido !== undefined) {
@@ -61,15 +59,9 @@ export class ClienteFavorecido extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   uf: string | null;
-
-  @ManyToOne(() => PermissionarioRole, { eager: true, nullable: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ClienteFavorecido_permissionarioRole_ManyToOne' })
-  permissionarioRole: PermissionarioRole | null;
-
-  /** Just for maintenance and audit control */
-  @OneToOne(() => User, { eager: false })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ClienteFavorecido_user_OneToOne' })
-  user: User;
+  
+  @Column({ type: String, unique: false, nullable: true })
+  tipo: string | null;
 
   public getLogInfo(showName?: boolean): string {
     if (showName === undefined) {

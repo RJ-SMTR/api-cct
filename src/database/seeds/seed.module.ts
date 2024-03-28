@@ -19,15 +19,14 @@ import { UserSeedModule } from './user/user-seed.module';
 import { BigqueryModule } from 'src/bigquery/bigquery.module';
 import googleConfig from 'src/config/google.config';
 import { PagadorSeedModule } from './pagador/pagador-seed.module';
-import { PermissionarioRoleSeedModule } from './permissionario-role/permissionario-role-seed.module';
 import { TransacaoStatusSeedModule } from './transacao-status/transacao-status-seed.module';
 import { ItemTransacaoStatusSeedModule } from './item-transacao-status/item-transacao-status-seed.module';
 import { HeaderArquivoStatusSeedModule } from './header-arquivo-status/header-arquivo-status-seed.module';
+import { ClienteFavorecidoSeedModule } from './cliente-favorecido/cliente-favorecido-seed.module';
 
 @Module({
   imports: [
     RoleSeedModule,
-    PermissionarioRoleSeedModule,
     TransacaoStatusSeedModule,
     ItemTransacaoStatusSeedModule,
     HeaderArquivoStatusSeedModule,
@@ -42,6 +41,7 @@ import { HeaderArquivoStatusSeedModule } from './header-arquivo-status/header-ar
     MailHistorySeedModule,
     BigqueryModule,
     PagadorSeedModule,
+    ClienteFavorecidoSeedModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, appConfig, mailConfig, googleConfig],

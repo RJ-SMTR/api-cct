@@ -40,13 +40,12 @@ export class ItemTransacao extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   nomeOperadora: string | null;
   
-  @ManyToOne(() => ClienteFavorecido, {
-    eager: true, nullable: true
-  })
-
   /** If entity exists, create, if not, go standby and check later. */
+  @ManyToOne(() => ClienteFavorecido, {
+    eager: true
+  })
   @JoinColumn({ foreignKeyConstraintName: 'FK_ItemTransacao_clienteFavorecido_ManyToOne' })
-  clienteFavorecido: ClienteFavorecido | null;
+  clienteFavorecido: ClienteFavorecido;
   
   /** If no clienteFavorecido, use this static value to find if FK can be created. */
   @Column({ type: String, unique: false, nullable: false })

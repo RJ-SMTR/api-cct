@@ -1,7 +1,5 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
-import { PermissionarioRole } from 'src/permissionario-role/permissionario-role.entity';
-import { User } from 'src/users/entities/user.entity';
-import { DeepPartial } from 'typeorm';
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 
 function isCreate(object: SaveClienteFavorecidoDTO): boolean {
   return object.id === undefined;
@@ -38,7 +36,7 @@ export class SaveClienteFavorecidoDTO {
   @IsNotEmpty()
   dvContaCorrente?: string;
 
-  permissionarioRole?: DeepPartial<PermissionarioRole> | null;
+  tipo?: TipoFavorecidoEnum | null;
 
   logradouro?: string | null;
   numero?: string | null;
@@ -48,5 +46,4 @@ export class SaveClienteFavorecidoDTO {
   cep?: string | null;
   complementoCep?: string | null;
   uf?: string | null;
-  user?: DeepPartial<User>;
 }

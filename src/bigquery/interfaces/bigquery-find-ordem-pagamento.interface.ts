@@ -1,8 +1,8 @@
-import { PermissionarioRoleEnum } from "src/permissionario-role/permissionario-role.enum";
+import { TipoFavorecidoEnum } from "src/tipo-favorecido/tipo-favorecido.enum";
 
 export interface IBigqueryFindOrdemPagamento {
   cpfCnpj?: string;
-  permissionarioRole?: PermissionarioRoleEnum | null;
+  tipoFavorecido?: TipoFavorecidoEnum | null;
   startDate?: Date;
   endDate?: Date;
   limit?: number;

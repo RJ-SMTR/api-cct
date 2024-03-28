@@ -1,5 +1,5 @@
 import { IsDateString, IsNotEmpty, IsNumber, IsNumberString, IsString, ValidateIf } from "class-validator";
-import { PermissionarioRoleEnum } from "src/permissionario-role/permissionario-role.enum";
+import { TipoFavorecidoEnum } from "src/tipo-favorecido/tipo-favorecido.enum";
 
 /**
  * Logic:
@@ -14,7 +14,7 @@ export class BigqueryOrdemPagamentoDTO {
    * Para filtrar e ordenar por data	
    */
   @IsNotEmpty()
-  @IsDateString(undefined)
+  @IsDateString()
   dataOrdem: string;
 
   /** 
@@ -24,7 +24,7 @@ export class BigqueryOrdemPagamentoDTO {
    * Senão, ignoramos o item.	
    */
   @ValidateIf((o, v) => v !== null)
-  @IsDateString(undefined)
+  @IsDateString()
   dataPagamento: string | null;
 
   /**
@@ -133,15 +133,12 @@ export class BigqueryOrdemPagamentoDTO {
   versao: string;
 
   // CUSTOM COLUMNS
-  
+
   /** consorcios.cnpj */
   operadoraCpfCnpj: string | null;
 
   /** operadora.documento (cpf/cnpj) */
   consorcioCpfCnpj: string | null;
 
-  /** Value of favorecido's CPF/CNPJ, if searched */
-  favorecidoCpfCnpj: string;
-
-  permissionarioRole: PermissionarioRoleEnum | null;
+  tipoFavorecido: TipoFavorecidoEnum | null;
 }

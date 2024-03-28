@@ -117,7 +117,7 @@ export function asNumberStringDate(str: string | null | undefined, inputFormat?:
 }
 
 export function asStringDate(str: string | null | undefined, inputFormat?: string): Date {
-  const validVal = String(str);
+  const validVal = asString(str);
   return getDateFromString(validVal, inputFormat, true);
 }
 

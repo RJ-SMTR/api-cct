@@ -45,9 +45,15 @@ export class ItemTransacaoService {
       }
       const pk = JSON.stringify(this.getItemPKsFromOrdens([ordem])[0]);
       if (notExistingPKsAux.includes(pk)) {
-        const favorecido = favorecidos.filter(i => i.cpfCnpj === ordem.favorecidoCpfCnpj).pop() || null;
+        const favorecido = favorecidos.filter(i =>
+          i.cpfCnpj === ordem.operadoraCpfCnpj ||
+          i.cpfCnpj === ordem.consorcioCpfCnpj
+        ).pop() || null;
         if (ordem.idOrdemPagamento !== transacaoAux.idOrdemPagamento) {
           transacaoAux = transacoes.filter(i => i.idOrdemPagamento === ordem.idOrdemPagamento)[0];
+        }
+        if (!favorecido) {
+          continue;
         }
         const newDTO = this.ordemPagamentoToItemTransacaoDTO(ordem, transacaoAux.id, favorecido);
         newItems.push(newDTO);
@@ -70,11 +76,11 @@ export class ItemTransacaoService {
    * **status** is Created.
    */
   public ordemPagamentoToItemTransacaoDTO(ordemPagamento: BigqueryOrdemPagamentoDTO, transacaoId: number,
-    favorecido: ClienteFavorecido | null): ItemTransacaoDTO {
+    favorecido: ClienteFavorecido): ItemTransacaoDTO {
     const itemTransacao = new ItemTransacaoDTO({
       dataTransacao: asStringDate(ordemPagamento.dataOrdem),
-      clienteFavorecido: favorecido ? { id: favorecido.id } : null,
-      favorecidoCpfCnpj: ordemPagamento.favorecidoCpfCnpj,
+      clienteFavorecido: { id: favorecido.id },
+      favorecidoCpfCnpj: favorecido.cpfCnpj,
       transacao: { id: transacaoId },
       valor: ordemPagamento.valorTotalTransacaoLiquido,
       // Composite unique columns

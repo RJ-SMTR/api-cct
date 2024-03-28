@@ -31,7 +31,7 @@ export class ItemTransacaoDTO {
   nomeConsorcio?: string | null;
   nomeOperadora?: string | null;
 
-  clienteFavorecido?: DeepPartial<ClienteFavorecido> | null;
+  clienteFavorecido?: DeepPartial<ClienteFavorecido>;
   /** If no clienteFavorecido, use this static value to find if FK can be created. */
   favorecidoCpfCnpj?: string;
 

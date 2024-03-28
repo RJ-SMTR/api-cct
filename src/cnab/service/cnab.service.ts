@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryInvalidRows } from 'src/bigquery/interfaces/bigquery-invalid-rows.interface';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
-import { PermissionarioRoleEnum } from 'src/permissionario-role/permissionario-role.enum';
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
@@ -123,7 +123,7 @@ export class CnabService {
     const METHOD = 'updateTransacaoFromJae->insertTransacaoIndividually()';
     const errors: BigqueryInvalidRows[] = [];
     for (const ordemPagamento of newOrdens) {
-      const pagador = ordemPagamento.permissionarioRole === PermissionarioRoleEnum.vanzeiro
+      const pagador = ordemPagamento.tipoFavorecido === TipoFavorecidoEnum.vanzeiro
         ? pagadores.jae : pagadores.lancamento;
 
       // Add transacao
@@ -139,8 +139,14 @@ export class CnabService {
       const saveTransacao = await this.transacaoService.saveIfNotExists(transacaoDTO);
 
       // Add itemTransacao
-      // const favorecido = await this.clienteFavorecidoService.findCpfCnpj(ordemPagamento.favorecidoCpfCnpj);
-      const favorecido = allFavorecidos.filter(i => i.cpfCnpj === ordemPagamento.favorecidoCpfCnpj).pop() || null;
+      const favorecido = allFavorecidos.filter(i =>
+        i.cpfCnpj === ordemPagamento.operadoraCpfCnpj ||
+        i.cpfCnpj === ordemPagamento.consorcioCpfCnpj
+      ).pop() || null;
+      if (!favorecido) {
+        logLog(this.logger, `Não há favorecidos para a ordem ${ordemPagamento.versao}, ignorando.`, METHOD);
+        continue;
+      }
       const itemTransacaoDTO = this.itemTransacaoService.ordemPagamentoToItemTransacaoDTO(
         ordemPagamento, saveTransacao.item.id, favorecido);
       await this.itemTransacaoService.saveIfNotExists(itemTransacaoDTO, true);

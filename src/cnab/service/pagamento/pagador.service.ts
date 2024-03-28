@@ -17,12 +17,12 @@ export class PagadorService {
    */
   public async getAllPagador(): Promise<AllPagadorDict> {
     return {
-      jae: await this.getOneByConta(PagadorContaEnum.JAE),
-      lancamento: await this.getOneByConta(PagadorContaEnum.LANCAMENTO),
+      jae: await this.getOneByConta(PagadorContaEnum.LANCAMENTO),
+      lancamento: await this.getOneByConta(PagadorContaEnum.JAE),
 
     }
   }
-  
+
   public async findByConta(conta: PagadorContaEnum | string) {
     return await this.pagadorRepository.findOne({ conta: conta });
   }

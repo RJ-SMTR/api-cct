@@ -24,7 +24,6 @@ import {
 import { FileEntity } from '../../files/entities/file.entity';
 import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
-import { PermissionarioRole } from 'src/permissionario-role/permissionario-role.entity';
 
 /** uniqueConstraintName: `UQ_User_email` */
 @Entity()
@@ -156,12 +155,6 @@ export class User extends EntityHelper {
 
   @Column({ type: String, nullable: true })
   passValidatorId?: string;
-
-  @ManyToOne(() => PermissionarioRole, {
-    eager: true, nullable: true
-  })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_User_permissionarioRole_ManyToOne' })
-  permissionarioRole?: PermissionarioRole | null;
 
   @Expose({ name: 'aux_isRegistrationComplete' })
   aux_isRegistrationComplete(): boolean {

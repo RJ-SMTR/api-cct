@@ -98,19 +98,8 @@ export class PagamentoService {
     headerLoteDTO: HeaderLoteDTO,
     registroAB: CnabRegistros104Pgto,
   ) {
-    const METHOD = 'saveRemessaDetalhes()';
     const r = registroAB;
     const favorecido = itemTransacao.clienteFavorecido;
-
-    if (!favorecido) {
-      // Failure if no favorecido
-      await this.itemTransacaoService.save({
-        id: itemTransacao.id,
-        status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.failure),
-      });
-      logDebug(this.logger, `Falha ao usar ItemTransacao #${itemTransacao.id}: favorecido ausente.`, METHOD);
-      return;
-    }
 
     const detalheA = new DetalheADTO({
       headerLote: { id: headerLoteDTO.id },

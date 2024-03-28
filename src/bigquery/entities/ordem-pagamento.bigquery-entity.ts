@@ -1,4 +1,4 @@
-import { PermissionarioRoleEnum } from "src/permissionario-role/permissionario-role.enum";
+import { TipoFavorecidoEnum } from "src/tipo-favorecido/tipo-favorecido.enum";
 
 /**
  * Logic:
@@ -112,13 +112,10 @@ export class BigqueryOrdemPagamento {
   /** operadora.documento (cpf/cnpj) */
   operadoraCpfCnpj: string | null;
 
-  /** Value of favorecido's CPF/CNPJ, if searched */
-  favorecidoCpfCnpj: string | null;
-
   /** 
    * Identify permissionarioRole form data content
    * 
    * Rules: see {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, item 8}
    */
-  permissionarioRole: PermissionarioRoleEnum | null;
+  tipoFavorecido: TipoFavorecidoEnum | null;
 }

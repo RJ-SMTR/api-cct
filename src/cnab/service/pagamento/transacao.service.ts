@@ -7,7 +7,7 @@ import { TransacaoRepository } from '../../repository/pagamento/transacao.reposi
 
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { AllPagadorDict } from 'src/cnab/interfaces/pagamento/all-pagador-dict.interface';
-import { PermissionarioRoleEnum } from 'src/permissionario-role/permissionario-role.enum';
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 import { filterArrayInANotInB } from 'src/utils/array-utils';
 import { SaveManyNew } from 'src/utils/interfaces/save-many-new.interface';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
@@ -45,7 +45,7 @@ export class TransacaoService {
         break;
       }
       if (notExistingIdOrdensAux.includes(ordem.idOrdemPagamento)) {
-        const pagador = ordem.permissionarioRole === PermissionarioRoleEnum.vanzeiro
+        const pagador = ordem.tipoFavorecido === TipoFavorecidoEnum.vanzeiro
           ? pagadores.jae : pagadores.lancamento;
         newTransacoes.push(this.ordemPagamentoToTransacao(ordem, pagador.id));
         notExistingIdOrdensAux.splice(notExistingIdOrdensAux.indexOf(ordem.idOrdemPagamento), 1);
@@ -73,27 +73,9 @@ export class TransacaoService {
     const transacao = new TransacaoDTO({
       dataOrdem: asStringDate(ordemPagamento.dataOrdem),
       dataPagamento: asNullableStringDate(ordemPagamento.dataPagamento),
-      nomeConsorcio: ordemPagamento.consorcio,
-      nomeOperadora: ordemPagamento.operadora,
       idOrdemPagamento: ordemPagamento.idOrdemPagamento,
-      servico: ordemPagamento.servico,
-      idConsorcio: ordemPagamento.idConsorcio,
-      idOperadora: ordemPagamento.idOperadora,
-      idOrdemRessarcimento: ordemPagamento.idOrdemRessarcimento,
-      quantidadeTransacaoRateioCredito: ordemPagamento.quantidadeTransacaoRateioCredito,
-      valorRateioCredito: ordemPagamento.valorRateioCredito,
-      quantidadeTransacaoRateioDebito: ordemPagamento.quantidadeTransacaoRateioDebito,
-      valorRateioDebito: ordemPagamento.valorRateioDebito,
-      quantidadeTotalTransacao: ordemPagamento.quantidadeTotalTransacao,
-      valorTotalTransacaoBruto: ordemPagamento.valorTotalTransacaoBruto,
-      valorDescontoTaxa: ordemPagamento.valorDescontoTaxa,
-      valorTotalTransacaoLiquido: ordemPagamento.valorTotalTransacaoLiquido,
-      quantidadeTotalTransacaoCaptura: ordemPagamento.quantidadeTotalTransacaoCaptura,
-      valorTotalTransacaoCaptura: ordemPagamento.valorTotalTransacaoCaptura,
-      indicadorOrdemValida: ordemPagamento.indicadorOrdemValida,
       pagador: { id: idPagador } as Pagador,
       status: new TransacaoStatus(TransacaoStatusEnum.created),
-      versaoOrdemPagamento: ordemPagamento.versao,
     });
     return transacao;
   }
