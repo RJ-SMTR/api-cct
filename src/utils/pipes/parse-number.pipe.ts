@@ -23,7 +23,9 @@ export class ParseNumberPipe implements PipeTransform {
 
     if (!this.args.required && (value === undefined || field === undefined)) {
       return numberValue;
-    } else if (value !== undefined && isNaN(numberValue)) {
+    }
+
+    if (value !== undefined && isNaN(numberValue)) {
       throw new BadRequestException(
         `${field} should be a valid number: ${value}`,
       );
@@ -35,7 +37,7 @@ export class ParseNumberPipe implements PipeTransform {
     ) {
       let returnSubstring = '';
       if (isMin && !isMax) {
-        returnSubstring = `greather or equal than ${this.args.min as number}`;
+        returnSubstring = `greater or equal than ${this.args.min as number}`;
       }
       if (!isMin && isMax) {
         returnSubstring = `lower or equal than ${this.args.max as number}`;

@@ -8,7 +8,7 @@ import { Enum } from 'src/utils/enum';
 @Entity()
 export class Status extends EntityHelper {
   @ApiProperty({ example: 1 })
-  @PrimaryColumn()
+  @PrimaryColumn({ primaryKeyConstraintName: 'PK_Status_id' })
   id: number;
 
   @Allow()

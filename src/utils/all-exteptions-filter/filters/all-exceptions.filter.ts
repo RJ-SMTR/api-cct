@@ -12,7 +12,7 @@ import {
   HttpExceptionResponse,
 } from '../interfaces/http-exception-response.interface';
 import { getCustomValidationOptions } from '../custom-validation-options';
-import { formatErrorMessage } from 'src/utils/log-utils';
+import { formatError } from 'src/utils/log-utils';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -88,7 +88,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const { statusCode, clientMessage, method, uri, internalMessage } =
       errorResponse;
 
-    const errorLog = formatErrorMessage(
+    const errorLog = formatError(
       `Code: ${statusCode} - ${method}: ${uri}`,
       { ...clientMessage, ...internalMessage },
       exception instanceof Error ? (exception as Error) : undefined,

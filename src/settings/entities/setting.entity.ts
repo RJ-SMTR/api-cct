@@ -2,17 +2,19 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
 import { SettingType } from 'src/setting-types/entities/setting-type.entity';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import {
   BaseEntity,
   Column,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryColumn,
   Unique,
 } from 'typeorm';
 import { ISettingData } from '../interfaces/setting-data.interface';
 
+/** uniqueConstraintName: `UQ_Setting_name_version` */
 @Entity({ name: 'setting' })
 @Unique(['name', 'version'])
 export class SettingEntity extends BaseEntity {
@@ -28,7 +30,7 @@ export class SettingEntity extends BaseEntity {
   }
   @Exclude()
   @ApiProperty({ example: 1 })
-  @PrimaryColumn({ insert: true })
+  @PrimaryColumn({ insert: true, primaryKeyConstraintName: 'PK_Setting_id' })
   id: number;
 
   @ApiProperty({ example: 'activate_auto_send_invite' })
@@ -51,6 +53,7 @@ export class SettingEntity extends BaseEntity {
   @ManyToOne(() => SettingType, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Setting_settingType_ManyToOne' })
   settingType: SettingType;
 
   getValueAsNullableJson(): any | null {
@@ -62,7 +65,7 @@ export class SettingEntity extends BaseEntity {
       } catch (error) {
         throw new HttpException(
           {
-            error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+            error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
             details: {
               value: `should be valid JSON, received '${this.value}' instead`,
             },
@@ -79,7 +82,7 @@ export class SettingEntity extends BaseEntity {
     } else {
       throw new HttpException(
         {
-          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
             value: 'should not be null',
           },
@@ -108,7 +111,7 @@ export class SettingEntity extends BaseEntity {
     } else {
       throw new HttpException(
         {
-          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
             value: 'should not be null',
           },
@@ -122,7 +125,7 @@ export class SettingEntity extends BaseEntity {
     if (!this?.value) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
             value: 'should not be null',
           },

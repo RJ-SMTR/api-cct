@@ -7,15 +7,6 @@ import { Enum } from 'src/utils/enum';
 
 @Entity()
 export class Role extends EntityHelper {
-  @ApiProperty({ example: 1 })
-  @PrimaryColumn()
-  id: number;
-
-  @Allow()
-  @ApiProperty({ example: 'Admin' })
-  @Column()
-  name?: string;
-
   constructor(role?: RoleEnum) {
     super();
     if (role !== undefined) {
@@ -23,4 +14,13 @@ export class Role extends EntityHelper {
       this.name = Enum.getKey(RoleEnum, role);
     }
   }
+
+  @ApiProperty({ example: 1 })
+  @PrimaryColumn({ primaryKeyConstraintName: 'PK_Role_id' })
+  id: number;
+
+  @Allow()
+  @ApiProperty({ example: 'Admin' })
+  @Column()
+  name?: string;
 }

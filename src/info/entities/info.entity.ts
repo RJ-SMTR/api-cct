@@ -6,9 +6,10 @@ import { Exclude } from 'class-transformer';
 export class Info extends BaseEntity {
   @Exclude()
   @ApiProperty({ example: 1 })
-  @PrimaryColumn()
+  @PrimaryColumn({ primaryKeyConstraintName: 'PK_Info_id' })
   id: number;
 
+  /** uniqueConstraintName: `UQ_Info_name` */
   @ApiProperty({ example: 'version' })
   @Column({ unique: true })
   name: string;

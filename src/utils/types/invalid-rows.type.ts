@@ -11,4 +11,4 @@
  * }
  * ```
  */
-export type InvalidRowsType = { [field: string]: string };
+export type InvalidRows = { [field: string]: string };

@@ -8,10 +8,10 @@ import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/ma
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
-import { formatLog } from 'src/utils/log-utils';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
+import { logLog } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import {
   DeepPartial,
   EntityManager,
@@ -32,7 +32,7 @@ export class MailHistoryService {
     private inviteRepository: Repository<MailHistory>,
     private configService: ConfigService,
     private readonly entityManager: EntityManager,
-  ) {}
+  ) { }
 
   async create(
     data: DeepPartial<MailHistory>,
@@ -41,20 +41,18 @@ export class MailHistoryService {
     const createdMail = await this.inviteRepository.save(
       this.inviteRepository.create(data),
     );
-    this.logger.log(
-      formatLog(
-        `Histórico de email ${createdMail.getLogInfoStr()}` +
-          ` criado com sucesso.`,
-        'create()',
-        logContext,
-      ),
+    logLog(this.logger,
+      `Histórico de email ${createdMail.getLogInfoStr()}` +
+      ` criado com sucesso.`,
+      'create()',
+      logContext,
     );
     return createdMail;
   }
 
   async find(
     fields?: EntityCondition<MailHistory> | EntityCondition<MailHistory>[],
-  ): Promise<NullableType<MailHistory[]>> {
+  ): Promise<Nullable<MailHistory[]>> {
     return this.inviteRepository.find({
       where: fields,
       order: {
@@ -63,7 +61,7 @@ export class MailHistoryService {
     });
   }
 
-  async findSentToday(): Promise<NullableType<MailHistory[]>> {
+  async findSentToday(): Promise<Nullable<MailHistory[]>> {
     return this.inviteRepository.find({
       where: {
         sentAt: MoreThanOrEqual(startOfDay(new Date(Date.now()))),
@@ -74,7 +72,7 @@ export class MailHistoryService {
     });
   }
 
-  async findUnsent(): Promise<NullableType<MailHistory[]>> {
+  async findUnsent(): Promise<Nullable<MailHistory[]>> {
     return this.inviteRepository.find({
       where: {
         inviteStatus: { id: InviteStatusEnum.queued },
@@ -115,7 +113,7 @@ export class MailHistoryService {
 
   findOne(
     fields: EntityCondition<MailHistory>,
-  ): Promise<NullableType<MailHistory>> {
+  ): Promise<Nullable<MailHistory>> {
     return this.inviteRepository.findOne({
       where: fields,
     });
@@ -152,13 +150,11 @@ export class MailHistoryService {
       }),
     );
     const updatedMail = await this.inviteRepository.findOneByOrFail({ id: id });
-    this.logger.log(
-      formatLog(
-        `Histórico de email ${updatedMail.getLogInfoStr()}` +
-          ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
-        'update()',
-        logContext,
-      ),
+    logLog(this.logger,
+      `Histórico de email ${updatedMail.getLogInfoStr()}` +
+      ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
+      'update()',
+      logContext,
     );
     return mailRespose;
   }
@@ -176,7 +172,7 @@ export class MailHistoryService {
     if (!invite) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.NOT_FOUND,
+          error: HttpStatusMessage.NOT_FOUND,
         },
         HttpStatus.NOT_FOUND,
       );
@@ -195,27 +191,26 @@ export class MailHistoryService {
   }
 
   async getStatusCount(): Promise<IMailHistoryStatusCount> {
-    console.log('getStatusCount');
     const result: any[] = await this.inviteRepository
       .createQueryBuilder('invite')
       .select([
         'invite.inviteStatus as status_id',
         'COUNT(invite.inviteStatus) as status_count',
         `CASE ` +
-          `WHEN ( ` +
-          `"user"."fullName" IS NOT NULL AND "user"."fullName" != '' AND ` +
-          `"user"."cpfCnpj" IS NOT NULL AND "user"."cpfCnpj" != '' AND ` +
-          `"user"."permitCode" IS NOT NULL AND "user"."permitCode" != '' AND ` +
-          `"user"."email" IS NOT NULL AND "user"."email" != '' AND ` +
-          `"user"."phone" IS NOT NULL AND "user"."phone" != '' AND ` +
-          `"user"."bankCode" IS NOT NULL AND ` +
-          `"user"."bankAgency" IS NOT NULL AND "user"."bankAgency" != '' AND ` +
-          `"user"."bankAccount" IS NOT NULL AND "user"."bankAccount" != '' AND ` +
-          `"user"."bankAccountDigit" IS NOT NULL AND "user"."bankAccountDigit" != '' ` +
-          ')' +
-          'THEN true ' +
-          'ELSE false ' +
-          'END AS is_filled',
+        `WHEN ( ` +
+        `"user"."fullName" IS NOT NULL AND "user"."fullName" != '' AND ` +
+        `"user"."cpfCnpj" IS NOT NULL AND "user"."cpfCnpj" != '' AND ` +
+        `"user"."permitCode" IS NOT NULL AND "user"."permitCode" != '' AND ` +
+        `"user"."email" IS NOT NULL AND "user"."email" != '' AND ` +
+        `"user"."phone" IS NOT NULL AND "user"."phone" != '' AND ` +
+        `"user"."bankCode" IS NOT NULL AND ` +
+        `"user"."bankAgency" IS NOT NULL AND "user"."bankAgency" != '' AND ` +
+        `"user"."bankAccount" IS NOT NULL AND "user"."bankAccount" != '' AND ` +
+        `"user"."bankAccountDigit" IS NOT NULL AND "user"."bankAccountDigit" != '' ` +
+        ')' +
+        'THEN true ' +
+        'ELSE false ' +
+        'END AS is_filled',
       ])
       .leftJoin('invite.user', 'user')
       .leftJoin('user.role', 'role')

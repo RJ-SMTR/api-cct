@@ -85,6 +85,14 @@ export type TwitterConfig = {
   consumerSecret?: string;
 };
 
+export type SftpConfig = {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  rootFolder: string;
+};
+
 export type AllConfigType = {
   app: AppConfig;
   apple: AppleConfig;
@@ -95,4 +103,5 @@ export type AllConfigType = {
   google: GoogleConfig;
   mail: MailConfig;
   twitter: TwitterConfig;
+  sftp: SftpConfig;
 };

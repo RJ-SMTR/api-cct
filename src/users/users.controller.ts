@@ -31,9 +31,9 @@ import { InviteStatusNamesEnum } from 'src/mail-history-statuses/mail-history-st
 import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
 import { infinityPagination } from 'src/utils/infinity-pagination';
 import { EnumValidationPipe } from 'src/utils/pipes/enum-validation.pipe';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { InfinityPaginationResultType } from '../utils/types/infinity-pagination-result.type';
-import { NullableType } from '../utils/types/nullable.type';
+import { Nullable } from '../utils/types/nullable.type';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -114,7 +114,7 @@ export class UsersController {
     if (limit > 500) {
       limit = 500;
     }
-    const pagination: IPaginationOptions = { page, limit };
+    const pagination: PaginationOptions = { page, limit };
     const fields: IFindUserPaginated = {
       _anyField: {
         value: anyField,
@@ -137,7 +137,7 @@ export class UsersController {
   })
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  getId(@Param('id') id: string): Promise<NullableType<User>> {
+  getId(@Param('id') id: string): Promise<Nullable<User>> {
     return this.usersService.findOne({ id: +id });
   }
 

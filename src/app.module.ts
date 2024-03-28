@@ -30,10 +30,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { AllConfigType } from './config/config.type';
 import { InfoModule } from './info/info.module';
 import { AuthLicenseeModule } from './auth-licensee/auth-licensee.module';
-import { SgtuModule } from './sgtu/sgtu.module';
-import { CoreBankModule } from './core-bank/core-bank.module';
 import { MailHistoryModule } from './mail-history/mail-history.module';
-import { JaeModule } from './jae/jae.module';
 import { BanksModule } from './banks/banks.module';
 import { BankStatementsModule } from './bank-statements/bank-statements.module';
 import { TicketRevenuesModule } from './ticket-revenues/ticket-revenues.module';
@@ -41,6 +38,11 @@ import { SettingsModule } from './settings/settings.module';
 import { MailCountModule } from './mail-count/mail-count.module';
 import { CronJobsModule } from './cron-jobs/cron-jobs.module';
 import { BigqueryModule } from './bigquery/bigquery.module';
+import { LancamentoModule } from './lancamento/lancamento.module';
+import { TestModule } from './test/test.module';
+import { CnabModule } from './cnab/cnab.module';
+import { SftpModule } from './sftp/sftp.module';
+import sftpConfig from './config/sftp.config';
 
 @Module({
   imports: [
@@ -56,6 +58,7 @@ import { BigqueryModule } from './bigquery/bigquery.module';
         googleConfig,
         twitterConfig,
         appleConfig,
+        sftpConfig,
       ],
       envFilePath: ['.env'],
     }),
@@ -99,10 +102,7 @@ import { BigqueryModule } from './bigquery/bigquery.module';
     HomeModule,
     InfoModule,
     AuthLicenseeModule,
-    SgtuModule,
-    CoreBankModule,
     MailHistoryModule,
-    JaeModule,
     BanksModule,
     BankStatementsModule,
     TicketRevenuesModule,
@@ -110,6 +110,10 @@ import { BigqueryModule } from './bigquery/bigquery.module';
     MailCountModule,
     CronJobsModule,
     BigqueryModule,
+    LancamentoModule,
+    TestModule,
+    CnabModule,
+    SftpModule,
   ],
 })
 export class AppModule {}

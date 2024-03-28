@@ -1,32 +1,27 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { endOfDay, isToday, startOfDay } from 'date-fns';
-import {
-  BigqueryService,
-  BigqueryServiceInstances,
-} from 'src/bigquery/bigquery.service';
-import { JaeService } from 'src/jae/jae.service';
+import { isToday } from 'date-fns';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
+import { logError } from 'src/utils/log-utils';
 import {
   PAYMENT_START_WEEKDAY,
+  PaymentEndpointType,
   getPaymentDates,
 } from 'src/utils/payment-date-utils';
-import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { PaginationOptions } from 'src/utils/types/pagination-options';
+import { Pagination } from 'src/utils/types/pagination.type';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
-import { ITicketRevenuesGetGrouped } from './interfaces/ticket-revenues-get-grouped.interface';
 import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
-import { ITicketRevenuesGroupedResponse } from './interfaces/ticket-revenues-grouped-response.interface';
-import {
-  TRIntegrationTypeMap as IntegrationType,
-  TRPaymentTypeMap as PaymentType,
-  TRTransactionTypeMap as TransactionType,
-} from './maps/ticket-revenues.map';
+import { ITRGetMeGroupedArgs } from './interfaces/tr-get-me-grouped-args.interface';
+import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response.interface';
+import { ITRGetMeIndividualArgs } from './interfaces/tr-get-me-individual-args.interface';
+import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
+import { TicketRevenuesRepositoryService } from './ticket-revenues-repository.service';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
 
@@ -37,89 +32,85 @@ export class TicketRevenuesService {
   });
 
   constructor(
-    private readonly bigqueryService: BigqueryService,
     private readonly usersService: UsersService,
-    private jaeService: JaeService,
-  ) {}
+    private readonly ticketRevenuesRepository: TicketRevenuesRepositoryService,
+  ) { }
 
-  public async getMeGroupedFromUser(
-    args: ITicketRevenuesGetGrouped,
-    endpoint: string,
+  /**
+   * TODO: refactor - use repository method
+   *
+   * Service method
+   */
+  public async getMeGrouped(
+    args: ITRGetMeGroupedArgs,
   ): Promise<ITicketRevenuesGroup> {
     // Args
-    const user = await this.getUser(args);
-    const { startDate, endDate } = getPaymentDates(
-      endpoint,
-      args.startDate,
-      args.endDate,
-      args.timeInterval,
-    );
+    const user = await this.validateGetMeGrouped(args);
+
+    // Repository tasks
+    const { startDate, endDate } = getPaymentDates({
+      endpoint: 'ticket-revenues',
+      startDateStr: args.startDate,
+      endDateStr: args.endDate,
+      timeInterval: args.timeInterval,
+    });
 
     // Get data
-    let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
-      permitCode: user.permitCode,
+      cpfCnpj: user.getCpfCnpj(),
       startDate,
       endDate,
     };
-    if (this.jaeService.isPermitCodeExists(user.permitCode)) {
-      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
-        fetchArgs,
-      );
-    } else {
-      ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
-    }
-    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
+
+    const ticketRevenuesResponse: ITicketRevenue[] = (
+      await this.ticketRevenuesRepository.fetchTicketRevenues(fetchArgs)
+    ).data;
 
     if (ticketRevenuesResponse.length === 0) {
       return new TicketRevenuesGroup().toInterface();
     }
     const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
-    console.log({
-      message: 'GET GROUPED',
-      groupSum: ticketRevenuesGroupSum.transactionValueSum,
-      individualSum: Number(
-        ticketRevenuesResponse
-          .reduce((sum, i) => sum + (i?.transactionValue || 0), 0)
-          .toFixed(2),
-      ),
-    });
 
     return ticketRevenuesGroupSum;
   }
 
-  public async getMeFromUser(
-    args: ITicketRevenuesGetGrouped,
-    pagination: IPaginationOptions,
-    endpoint: string,
-  ): Promise<ITicketRevenuesGroupedResponse> {
-    const user = await this.getUser(args);
-    const GET_TODAY = true;
-    const { startDate, endDate } = getPaymentDates(
-      endpoint,
-      args.startDate,
-      args.endDate,
-      args.timeInterval,
-    );
+  private async validateGetMeGrouped(args: ITRGetMeGroupedArgs): Promise<User> {
+    const user = await this.usersService.getOne({ id: args?.userId });
+    return user;
+  }
+
+  /**
+   * TODO: refactor - use repository method
+   *
+   * Service method
+   */
+  public async getMe(
+    args: ITRGetMeGroupedArgs,
+    pagination: PaginationOptions,
+    endpoint: PaymentEndpointType,
+  ): Promise<ITRGetMeGroupedResponse> {
+    // TODO: set groupBy as validation response
+    const user = await this.validateGetMe(args);
+    const { startDate, endDate } = getPaymentDates({
+      endpoint: endpoint,
+      startDateStr: args.startDate,
+      endDateStr: args.endDate,
+      timeInterval: args.timeInterval,
+    });
     const groupBy = args?.groupBy || 'day';
 
-    // Get data
+    // Repository tasks
     let ticketRevenuesResponse: ITicketRevenue[] = [];
     const fetchArgs: IFetchTicketRevenues = {
-      permitCode: user.permitCode,
+      cpfCnpj: user.getCpfCnpj(),
       startDate,
       endDate,
-      getToday: GET_TODAY,
+      getToday: true,
     };
-    if (this.jaeService.isPermitCodeExists(user.permitCode)) {
-      ticketRevenuesResponse = await this.jaeService.getTicketRevenues(
-        fetchArgs,
-      );
-    } else {
-      ticketRevenuesResponse = await this.fetchTicketRevenues(fetchArgs);
-    }
 
-    ticketRevenuesResponse = this.mapTicketRevenues(ticketRevenuesResponse);
+    ticketRevenuesResponse = (
+      await this.ticketRevenuesRepository.fetchTicketRevenues(fetchArgs)
+    ).data;
 
     if (ticketRevenuesResponse.length === 0) {
       return {
@@ -153,23 +144,17 @@ export class TicketRevenuesService {
         .toFixed(2),
     );
 
-    const mostRecentResponseDate = startOfDay(
-      new Date(ticketRevenuesResponse[0].partitionDate),
+    ticketRevenuesResponse = this.ticketRevenuesRepository.removeTodayData(
+      ticketRevenuesResponse,
+      endDate,
     );
-    if (GET_TODAY && mostRecentResponseDate > endOfDay(endDate)) {
-      ticketRevenuesResponse = this.removeTicketRevenueToday(
-        ticketRevenuesResponse,
-      ) as ITicketRevenue[];
-      ticketRevenuesGroups = this.removeTicketRevenueToday(
-        ticketRevenuesGroups,
-      ) as ITicketRevenuesGroup[];
-    }
+    ticketRevenuesGroups = this.ticketRevenuesRepository.removeTodayData(
+      ticketRevenuesGroups,
+      endDate,
+    );
 
-    const amountSum = Number(
-      ticketRevenuesGroups
-        .reduce((sum, i) => sum + (i?.transactionValueSum || 0), 0)
-        .toFixed(2),
-    );
+    const amountSum =
+      this.ticketRevenuesRepository.getAmountSum(ticketRevenuesGroups);
 
     const ticketCount = ticketRevenuesGroups.reduce(
       (sum, i) => sum + i.count,
@@ -178,8 +163,9 @@ export class TicketRevenuesService {
 
     return {
       startDate:
-        ticketRevenuesResponse[ticketRevenuesResponse.length - 1].partitionDate,
-      endDate: ticketRevenuesResponse[0].partitionDate,
+        ticketRevenuesResponse[ticketRevenuesResponse.length - 1]
+          ?.partitionDate || null,
+      endDate: ticketRevenuesResponse[0]?.partitionDate || null,
       amountSum,
       todaySum: transactionValueLastDay,
       count: ticketRevenuesGroups.length,
@@ -188,12 +174,18 @@ export class TicketRevenuesService {
     };
   }
 
+  private async validateGetMe(args: ITRGetMeGroupedArgs): Promise<User> {
+    const user = await this.usersService.getOne({ id: args?.userId });
+    return user;
+  }
+
   private getGroupSum(data: ITicketRevenue[]): ITicketRevenuesGroup {
     const groupSums = this.getTicketRevenuesGroups(data, 'all');
     if (groupSums.length >= 1) {
       if (groupSums.length > 1) {
-        this.logger.error(
-          'getGroupedFromUser(): ticketRevenuesGroupSum should have 0-1 items, getting first one.',
+        logError(this.logger,
+          'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
+          `${this.getMeGrouped.name}() -> ${this.getGroupSum.name}()`,
         );
       }
       return groupSums[0];
@@ -209,42 +201,12 @@ export class TicketRevenuesService {
     }
   }
 
-  private async getUser(args: ITicketRevenuesGetGrouped): Promise<User> {
-    if (isNaN(args?.userId as number)) {
-      throw new HttpException(
-        {
-          details: {
-            userId: `field is ${args?.userId}`,
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
-    const user = await this.usersService.getOne({ id: args?.userId });
-    if (!user.permitCode) {
-      throw new HttpException(
-        {
-          error: HttpErrorMessages.UNAUTHORIZED,
-          details: {
-            message: 'Maybe your token has expired, try to get a new one',
-            user: {
-              permitCode: 'fieldIsEmpty',
-            },
-          },
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-    return user;
-  }
-
-  private removeTicketRevenueToday(
-    list: (ITicketRevenue | ITicketRevenuesGroup)[],
-  ): ITicketRevenue[] | (ITicketRevenue | ITicketRevenuesGroup)[] {
-    return list.filter((i) => !isToday(new Date(i.partitionDate)));
-  }
-
-  public getTicketRevenuesGroups(
+  /**
+   * TODO: refactor - use it in repository
+   *
+   * Filter method: ticket-revenues/me
+   */
+  private getTicketRevenuesGroups(
     ticketRevenues: ITicketRevenue[],
     groupBy: 'day' | 'week' | 'month' | 'all' | string,
   ): ITicketRevenuesGroup[] {
@@ -271,7 +233,6 @@ export class TicketRevenuesService {
             count: 0,
             partitionDate: item.partitionDate,
             transportTypeCounts: {},
-            permitCode: item.permitCode,
             directionIdCounts: {},
             paymentMediaTypeCounts: {},
             transactionTypeCounts: {},
@@ -296,112 +257,29 @@ export class TicketRevenuesService {
     return resultList;
   }
 
-  private async fetchTicketRevenues(
-    args?: IFetchTicketRevenues,
-  ): Promise<ITicketRevenue[]> {
-    // Args
-    let offset = args?.offset;
-    const queryBuilder = new QueryBuilder();
-    queryBuilder.pushOR([]);
-    if (args?.offset !== undefined && args.limit === undefined) {
-      this.logger.warn(
-        "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-          " 'offset' will be ignored to prevent query fail",
-      );
-      offset = undefined;
-    }
-
-    if (args?.startDate !== undefined) {
-      const startDate = args.startDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(data) >= DATE('${startDate}')`);
-    }
-    if (args?.endDate !== undefined) {
-      const endDate = args.endDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(data) <= DATE('${endDate}')`);
-    }
-
-    queryBuilder.pushOR([]);
-    if (args?.getToday) {
-      const nowStr = new Date(Date.now()).toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(data) = DATE('${nowStr}')`);
-    }
-
-    let queryBuilderStr = queryBuilder.toSQL();
-    if (args?.permitCode !== undefined) {
-      let permitCode = args.permitCode;
-      if (permitCode[0] === "'") {
-        this.logger.warn(
-          "permitCode contains ' character, removing it before query",
-        );
-        permitCode = permitCode.replace("'", '');
-      }
-      queryBuilderStr = `permissao = '${permitCode}' AND (${queryBuilderStr})`;
-    }
-
-    // Query
-    const query =
-      `
-SELECT
-  CAST(data AS STRING) AS partitionDate,
-  hora AS processingHour,
-  CAST(datetime_transacao AS STRING) AS transactionDateTime,
-  CAST(datetime_processamento AS STRING) AS processingDateTime,
-  datetime_captura AS captureDateTime,
-  modo AS transportType,
-  permissao AS permitCode,
-  servico AS vehicleService,
-  sentido AS directionId,
-  id_veiculo AS vehicleId,
-  id_cliente AS clientId,
-  id_transacao AS transactionId,
-  id_tipo_pagamento AS paymentMediaType,
-  id_tipo_transacao AS transactionType,
-  id_tipo_integracao AS transportIntegrationType,
-  id_integracao AS integrationId,
-  latitude AS transactionLat,
-  longitude AS transactionLon,
-  stop_id AS stopId,
-  stop_lat AS stopLat,
-  stop_lon AS stopLon,
-  valor_transacao AS transactionValue,
-  versao AS bqDataVersion
-FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\`` +
-      (queryBuilderStr.length ? `\nWHERE ${queryBuilderStr}` : '') +
-      `\nORDER BY data DESC, hora DESC` +
-      (args?.limit !== undefined ? `\nLIMIT ${args.limit}` : '') +
-      (offset !== undefined ? `\nOFFSET ${offset}` : '');
-
-    const ticketRevenues: ITicketRevenue[] =
-      await this.bigqueryService.runQuery(BigqueryServiceInstances.smtr, query);
-    return ticketRevenues;
+  public async getMeIndividual(
+    args: ITRGetMeIndividualArgs,
+    paginationOptions: PaginationOptions,
+  ): Promise<Pagination<ITRGetMeIndividualResponse>> {
+    const validArgs = await this.validateGetMeIndividual(args);
+    return await this.ticketRevenuesRepository.getMeIndividual(
+      validArgs,
+      paginationOptions,
+    );
   }
 
-  private mapTicketRevenues(
-    ticketRevenues: ITicketRevenue[],
-  ): ITicketRevenue[] {
-    return ticketRevenues.map((item: ITicketRevenue) => {
-      const paymentType = item.paymentMediaType;
-      const integrationType = item.transportIntegrationType;
-      const transactionType = item.transactionType;
-      return {
-        ...item,
-        paymentMediaType:
-          paymentType !== null
-            ? PaymentType?.[paymentType] || paymentType
-            : paymentType,
-        transportIntegrationType:
-          integrationType !== null
-            ? IntegrationType?.[integrationType] || integrationType
-            : integrationType,
-        transportType:
-          integrationType !== null
-            ? IntegrationType?.[integrationType] || integrationType
-            : integrationType,
-        transactionType:
-          transactionType !== null
-            ? TransactionType[transactionType] || transactionType
-            : transactionType,
-      };
-    });
+  private async validateGetMeIndividual(args: ITRGetMeIndividualArgs): Promise<{
+    user: User;
+    startDate?: string;
+    endDate?: string;
+    timeInterval?: TimeIntervalEnum;
+  }> {
+    const user = await this.usersService.getOne({ id: args?.userId });
+    return {
+      startDate: args?.startDate,
+      endDate: args?.endDate,
+      timeInterval: args?.timeInterval as unknown as TimeIntervalEnum,
+      user,
+    };
   }
 }

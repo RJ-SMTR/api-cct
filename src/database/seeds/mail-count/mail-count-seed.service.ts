@@ -12,6 +12,10 @@ export class MailCountSeedService {
     private dataService: MailCountSeedDataService,
   ) {}
 
+  async validateRun() {
+    return Promise.resolve(true);
+  }
+
   async run() {
     let id = 1;
     for (const item of this.dataService.getDataFromConfig()) {

@@ -1,8 +1,8 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { formatLog } from 'src/utils/log-utils';
+import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { IsNull, Like, Repository } from 'typeorm';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { SettingEntity } from './entities/setting.entity';
@@ -16,11 +16,11 @@ export class SettingsService {
   constructor(
     @InjectRepository(SettingEntity)
     private readonly settingsRepository: Repository<SettingEntity>,
-  ) {}
+  ) { }
 
   async find(
     fields?: EntityCondition<SettingEntity>,
-  ): Promise<NullableType<SettingEntity[]>> {
+  ): Promise<Nullable<SettingEntity[]>> {
     return this.settingsRepository.find({
       where: fields,
     });
@@ -65,12 +65,10 @@ export class SettingsService {
   ): Promise<SettingEntity> {
     const dbSetting = await this.findOneBySettingData(setting);
     if (defaultValueIfNotFound && !dbSetting) {
-      this.logger.warn(
-        formatLog(
-          `Configuração 'setting.${setting.name}' não encontrada. Usando valor padrão.`,
-          `${this.getOneBySettingData.name}()`,
-          logContext,
-        ),
+      logWarn(this.logger,
+        `Configuração 'setting.${setting.name}' não encontrada. Usando valor padrão: '${setting.value}'.`,
+        `${this.getOneBySettingData.name}()`,
+        logContext,
       );
       return new SettingEntity(setting);
     } else {

@@ -2,6 +2,10 @@
 /dist
 /node_modules
 
+Dockerfile
+startup.ci.sh
+startup.dev.sh
+
 # Logs
 logs
 *.log
@@ -28,11 +32,7 @@ lerna-debug.log*
 *.sublime-workspace
 
 # IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+/.vscode/
 
 .data
 /files

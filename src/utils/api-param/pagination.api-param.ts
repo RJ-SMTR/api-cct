@@ -16,7 +16,7 @@ export const PaginationApiParams = {
     required: false,
     description: DescriptionApiParam({ default: 500, min: 1, max: 500 }),
   } as ApiParamOptions,
-  limitFn: (args: any = { default: 500, min: 1, max: 500 }) =>
+  getLimit: (args: any = { default: 500, min: 1, max: 500 }) =>
     ({
       name: 'limit',
       required: false,
