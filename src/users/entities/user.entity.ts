@@ -73,23 +73,23 @@ export class User extends EntityHelper {
   @Exclude({ toPlainOnly: true })
   provider: string;
 
-  @Index()
+  @Index('IDX_User_socialId')
   @Column({ type: String, nullable: true })
   @Expose({ groups: ['me', 'admin'] })
   @Exclude({ toPlainOnly: true })
   socialId: string | null;
 
-  @Index()
+  @Index('IDX_User_firstName')
   @Column({ type: String, nullable: true })
   @Exclude({ toPlainOnly: true })
   firstName?: string | null;
 
-  @Index()
+  @Index('IDX_User_lastName')
   @Column({ type: String, nullable: true })
   @Exclude({ toPlainOnly: true })
   lastName?: string | null;
 
-  @Index()
+  @Index('IDX_User_fullName')
   @Column({ type: String, nullable: true })
   fullName?: string | null;
 
@@ -113,7 +113,7 @@ export class User extends EntityHelper {
   status?: Status;
 
   @Column({ type: String, nullable: true })
-  @Index()
+  @Index('IDX_User_hash')
   @Exclude({ toPlainOnly: true })
   hash: string | null;
 

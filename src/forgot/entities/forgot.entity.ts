@@ -20,7 +20,7 @@ export class Forgot extends EntityHelper {
   /** indexName: `IDX_Forgot_hash` */
   @Allow()
   @Column()
-  @Index()
+  @Index('IDX_Forgot_hash')
   hash: string;
 
   @Allow()

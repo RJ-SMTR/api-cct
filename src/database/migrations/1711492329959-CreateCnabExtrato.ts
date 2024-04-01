@@ -4,6 +4,21 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
     name = 'CreateCnabExtrato1711492329959'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(
+            `CREATE TABLE IF NOT EXISTS "file" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "path" character varying NOT NULL, CONSTRAINT "PK_36b46d232307066b3a2c9ea3a1d" PRIMARY KEY ("id"))`,
+        ); // custom
+        if (!(await queryRunner.query(`SELECT 1 FROM information_schema.constraint_column_usage WHERE constraint_name = 'FK_75e2be4ce11d447ef43be0e374f'`) as any[]).pop()) {
+            await queryRunner.query(
+                `ALTER TABLE "user" ADD CONSTRAINT "FK_75e2be4ce11d447ef43be0e374f" FOREIGN KEY ("photoId") REFERENCES "file"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+            );
+        } // custom
+        await queryRunner.query(`ALTER TABLE "invite_status" DROP CONSTRAINT "UQ_bfcd7854096256be37cd3b47b16"`); // custom
+        await queryRunner.query(`ALTER TABLE "invite_status" ADD CONSTRAINT "UQ_InviteStatus_id" UNIQUE ("id")`); // custom
+        await queryRunner.query(`ALTER INDEX "IDX_9bd2fe7a8e694dedc4ec2f666f" RENAME TO "IDX_User_socialId"`); // custom
+        await queryRunner.query(`ALTER INDEX "IDX_58e4dbff0e1a32a9bdc861bb29" RENAME TO "IDX_User_firstName"`); // custom
+        await queryRunner.query(`ALTER INDEX "IDX_f0e1b4ecdca13b177e2e3a0613" RENAME TO "IDX_User_lastName"`); // custom
+        await queryRunner.query(`ALTER INDEX "IDX_035190f70c9aff0ef331258d28" RENAME TO "IDX_User_fullName"`); // custom
+        await queryRunner.query(`ALTER INDEX "IDX_e282acb94d2e3aec10f480e4f6" RENAME TO "IDX_User_hash"`); // custom
         await queryRunner.query(`ALTER TABLE "mail_count" DROP CONSTRAINT "PK_0d21bf669f46d5df78f6b7004e9"`); // custom
         await queryRunner.query(`ALTER TABLE "mail_count" ADD CONSTRAINT "PK_MailCount_id" PRIMARY KEY ("id")`); // custom
         await queryRunner.query(`ALTER TABLE "lancamento" DROP CONSTRAINT "PK_133f2e1e4c9e3e9f2f6b1b0b345"`); // custom
@@ -43,9 +58,10 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "lancamento" DROP CONSTRAINT "FK_ea066846cf244204c813b72ff50"`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP CONSTRAINT "FK_80f6744ced95ab9e8dd0b212fee"`);
         await queryRunner.query(`ALTER TABLE "transacao" DROP CONSTRAINT "FK_097c8d865615a7ec0516929b65f"`);
-        await queryRunner.query(`ALTER TABLE "header_arquivo" DROP CONSTRAINT "FK_2ecc2606a7de054a63c0e22f206"`);
         await queryRunner.query(`ALTER TABLE "forgot" DROP CONSTRAINT "FK_31f3c80de0525250f31e23a9b83"`);
         await queryRunner.query(`ALTER TABLE "invite" DROP CONSTRAINT "FK_118ec7f671543d9b992512e7cb9"`);
+        await queryRunner.query(`ALTER TABLE "invite_status" DROP CONSTRAINT "PK_476a43c747978d793e7a82bb0af"`); // custom
+        await queryRunner.query(`ALTER TABLE "invite_status" ADD CONSTRAINT "PK_InviteStatus_id" PRIMARY KEY ("id")`); // custom
         await queryRunner.query(`ALTER TABLE "invite" DROP CONSTRAINT "FK_91bfeec7a9574f458e5b592472d"`);
         await queryRunner.query(`ALTER TABLE "setting" DROP CONSTRAINT "FK_a5bc5fbecc0b218be61ef25b725"`);
         await queryRunner.query(`ALTER TABLE "setting" DROP CONSTRAINT "PK_fcb21187dc6094e24a48f677bed"`); // custom
@@ -88,7 +104,6 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "cliente_favorecido" ADD "permissionarioRoleId" integer`);
         await queryRunner.query(`ALTER TABLE "cliente_favorecido" ADD "userId" integer`);
         await queryRunner.query(/** edited */`ALTER TABLE "cliente_favorecido" ADD CONSTRAINT "UQ_ClienteFavorecido_user" UNIQUE ("userId")`);
-        await queryRunner.query(`ALTER TABLE "lancamento" ADD "data_lancamento" TIMESTAMP NOT NULL DEFAULT now()`);
         await queryRunner.query(`ALTER TABLE "transacao" ADD "idOperadora" character varying NOT NULL`);
         await queryRunner.query(`ALTER TABLE "transacao" ADD "idConsorcio" character varying NOT NULL`);
         await queryRunner.query(`ALTER TABLE "transacao" ADD "versaoOrdemPagamento" character varying NOT NULL`);
@@ -244,7 +259,6 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "transacao" DROP COLUMN "versaoOrdemPagamento"`);
         await queryRunner.query(`ALTER TABLE "transacao" DROP COLUMN "idConsorcio"`);
         await queryRunner.query(`ALTER TABLE "transacao" DROP COLUMN "idOperadora"`);
-        await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "data_lancamento"`);
         await queryRunner.query(`ALTER TABLE "cliente_favorecido" DROP CONSTRAINT "UQ_ClienteFavorecido_user"`); // edited
         await queryRunner.query(`ALTER TABLE "cliente_favorecido" DROP COLUMN "userId"`);
         await queryRunner.query(`ALTER TABLE "cliente_favorecido" DROP COLUMN "permissionarioRoleId"`);
@@ -269,10 +283,11 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "header_lote" ADD CONSTRAINT "FK_75f6c2ed71c10935915157b45f9" FOREIGN KEY ("pagadorId") REFERENCES "pagador"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "setting" ADD CONSTRAINT "FK_a5bc5fbecc0b218be61ef25b725" FOREIGN KEY ("settingTypeId") REFERENCES "setting_type"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "invite" ADD CONSTRAINT "FK_91bfeec7a9574f458e5b592472d" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "invite_status" DROP CONSTRAINT "PK_InviteStatus_id"`); // custom
+        await queryRunner.query(`ALTER TABLE "invite_status" ADD CONSTRAINT "PK_476a43c747978d793e7a82bb0af" PRIMARY KEY ("id")`); // custom
         await queryRunner.query(`ALTER TABLE "invite" ADD CONSTRAINT "FK_118ec7f671543d9b992512e7cb9" FOREIGN KEY ("inviteStatusId") REFERENCES "invite_status"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "forgot" ADD CONSTRAINT "FK_31f3c80de0525250f31e23a9b83" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "arquivo_publicacao" ADD CONSTRAINT "FK_9034ea1202b6574b75a2304d419" FOREIGN KEY ("headerArquivoId") REFERENCES "header_arquivo"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "header_arquivo" ADD CONSTRAINT "FK_2ecc2606a7de054a63c0e22f206" FOREIGN KEY ("transacaoId") REFERENCES "transacao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "transacao" ADD CONSTRAINT "FK_097c8d865615a7ec0516929b65f" FOREIGN KEY ("pagadorId") REFERENCES "pagador"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "lancamento" ADD CONSTRAINT "FK_80f6744ced95ab9e8dd0b212fee" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "lancamento" ADD CONSTRAINT "FK_ea066846cf244204c813b72ff50" FOREIGN KEY ("id_cliente_favorecido") REFERENCES "cliente_favorecido"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
@@ -307,6 +322,13 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "lancamento" ADD CONSTRAINT "PK_133f2e1e4c9e3e9f2f6b1b0b345" PRIMARY KEY ("id")`); // custom
         await queryRunner.query(`ALTER TABLE "mail_count" DROP CONSTRAINT "PK_MailCount_id"`); // custom
         await queryRunner.query(`ALTER TABLE "mail_count" ADD CONSTRAINT "PK_0d21bf669f46d5df78f6b7004e9" PRIMARY KEY ("id")`); // custom
+        await queryRunner.query(`ALTER INDEX "IDX_User_socialId" RENAME TO "IDX_9bd2fe7a8e694dedc4ec2f666f"`); // custom
+        await queryRunner.query(`ALTER INDEX "IDX_User_firstName" RENAME TO "IDX_58e4dbff0e1a32a9bdc861bb29"`); // custom
+        await queryRunner.query(`ALTER INDEX "IDX_User_lastName" RENAME TO "IDX_f0e1b4ecdca13b177e2e3a0613"`); // custom
+        await queryRunner.query(`ALTER INDEX "IDX_User_fullName" RENAME TO "IDX_035190f70c9aff0ef331258d28"`); // custom
+        await queryRunner.query(`ALTER INDEX "IDX_User_hash" RENAME TO "IDX_e282acb94d2e3aec10f480e4f6"`); // custom
+        await queryRunner.query(`ALTER TABLE "invite_status" DROP CONSTRAINT "UQ_InviteStatus_id"`); // custom
+        await queryRunner.query(`ALTER TABLE "invite_status" ADD CONSTRAINT "UQ_bfcd7854096256be37cd3b47b16" UNIQUE ("id")`); // custom
     }
 
 }

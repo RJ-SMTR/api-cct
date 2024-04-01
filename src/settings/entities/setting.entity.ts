@@ -14,9 +14,8 @@ import {
 } from 'typeorm';
 import { ISettingData } from '../interfaces/setting-data.interface';
 
-/** uniqueConstraintName: `UQ_Setting_name_version` */
 @Entity({ name: 'setting' })
-@Unique(['name', 'version'])
+@Unique('UQ_Setting_name_version', ['name', 'version'])
 export class SettingEntity extends BaseEntity {
   constructor(data?: ISettingData) {
     super();
