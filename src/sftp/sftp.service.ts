@@ -129,18 +129,18 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   async submitCnabRemessa(content: string) {
     const METHOD = 'submitCnabRemessa()';
     await this.connectClient();
-    const remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.getRemessaName()}`);
+    const remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
     logLog(this.logger, `Arquivo CNAB carregado em ${remotePath}`, METHOD);
   }
 
   /**
-   * @example 'smtr_prefeiturarj_31122024_235959.txt'
+   * @example 'smtr_prefeiturarj_31122024_235959.rem'
    */
-  private getRemessaName() {
+  private generateRemessaName() {
     const now = getBRTFromUTC(new Date());
     const stringDate = format(now, `ddMMyy_HHmmss`);
-    return `smtr_prefeiturarj_${stringDate}.txt`;
+    return `smtr_prefeiturarj_${stringDate}.rem`;
   }
 
   /**
