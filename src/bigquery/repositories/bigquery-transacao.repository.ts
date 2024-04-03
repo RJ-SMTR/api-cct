@@ -72,7 +72,7 @@ export class BigqueryTransacaoRepository {
       `UNION ALL
       SELECT ${'null, '.repeat(23)}
       (${qArgs.countQuery}) AS count, 'empty' AS status` +
-      `\nORDER BY \`data\` DESC, hora DESC` +
+      `\nt.datetime_processamento DESC` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
     const queryResult = await this.bigqueryService.query(
