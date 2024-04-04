@@ -39,7 +39,7 @@ export class HeaderLoteRepository {
   }
 
   public async findOne(
-    fields: EntityCondition<HeaderLote> | EntityCondition<HeaderLote>[],
+    fields: EntityCondition<HeaderLote>,
   ): Promise<Nullable<HeaderLote>> {
     return await this.headerLoteRepository.findOne({
       where: fields,
@@ -47,7 +47,7 @@ export class HeaderLoteRepository {
   }
 
   public async findMany(
-    fields: EntityCondition<HeaderLote> | EntityCondition<HeaderLote>[],
+    fields: EntityCondition<HeaderLote>,
   ): Promise<HeaderLote[]> {
     return await this.headerLoteRepository.find({
       where: fields,

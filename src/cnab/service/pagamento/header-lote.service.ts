@@ -41,13 +41,13 @@ export class HeaderLoteService {
   }
 
   public async findOne(
-    fields: EntityCondition<HeaderLote> | EntityCondition<HeaderLote>[],
+    fields: EntityCondition<HeaderLote>,
   ): Promise<Nullable<HeaderLote>> {
     return await this.headerLoteRepository.findOne(fields);
   }
 
   public async findMany(
-    fields: EntityCondition<HeaderLote> | EntityCondition<HeaderLote>[],
+    fields: EntityCondition<HeaderLote>,
   ): Promise<HeaderLote[]> {
     return await this.headerLoteRepository.findMany(fields);
   }

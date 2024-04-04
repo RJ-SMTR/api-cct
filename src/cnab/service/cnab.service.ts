@@ -1,21 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
-import { BigqueryInvalidRows } from 'src/bigquery/interfaces/bigquery-invalid-rows.interface';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
-import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
-import { RoleEnum } from 'src/roles/roles.enum';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
 import { UsersService } from 'src/users/users.service';
 import { logError, logLog, logWarn } from 'src/utils/log-utils';
-import { validateDTO } from 'src/utils/validation-utils';
-import { IsNull, Not } from 'typeorm';
+import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { HeaderArquivoStatus } from '../entity/pagamento/header-arquivo-status.entity';
+import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
+import { Pagador } from '../entity/pagamento/pagador.entity';
+import { Transacao } from '../entity/pagamento/transacao.entity';
 import { HeaderArquivoStatusEnum } from '../enums/pagamento/header-arquivo-status.enum';
 import { CnabFile104Extrato } from '../interfaces/cnab-240/104/extrato/cnab-file-104-extrato.interface';
-import { AllPagadorDict } from '../interfaces/pagamento/all-pagador-dict.interface';
-import { parseCnab240Extrato, parseCnab240Pagamento } from '../utils/cnab-104-utils';
+import { parseCnab240Extrato, parseCnab240Pagamento } from '../utils/cnab/cnab-104-utils';
 import { ArquivoPublicacaoService } from './arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './cliente-favorecido.service';
 import { ExtratoDetalheEService } from './extrato/extrato-detalhe-e.service';
@@ -24,7 +22,7 @@ import { ExtratoHeaderLoteService } from './extrato/extrato-header-lote.service'
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { PagadorService } from './pagamento/pagador.service';
-import { PagamentoService } from './pagamento/pagamento.service';
+import { RetornoService } from './pagamento/pagamento.service';
 import { TransacaoService } from './pagamento/transacao.service';
 
 @Injectable()
@@ -35,8 +33,8 @@ export class CnabService {
 
   constructor(
     private headerArquivoService: HeaderArquivoService,
-    private pagamentoService: PagamentoService,
-    private arquivoPubService: ArquivoPublicacaoService,
+    private pagamentoService: RetornoService,
+    private arqPublicacaoService: ArquivoPublicacaoService,
     private transacaoService: TransacaoService,
     private itemTransacaoService: ItemTransacaoService,
     private sftpService: SftpService,
@@ -52,7 +50,7 @@ export class CnabService {
   // #region updateTransacaoFromJae
 
   /**
-   * Update Transacao and ItemTransacao from Bigquery (Jaé)
+   * Update _Pagamento_ tables (Transacao and ItemTransacao etc) from Bigquery (Jaé)
    * 
    * This task will:
    * 1. Update ClienteFavorecidos from Users
@@ -62,151 +60,127 @@ export class CnabService {
    * 
    * Requirement: **Salvar ordem de pagamento** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3.x}
    */
-  public async updateTransacaoFromJae() {
-    const METHOD = 'updateTransacaoFromJae()';
+  public async updatePagamento() {
+    const METHOD = 'updatePagamento()';
 
     // Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
 
-    // Update ItemTransacao with no ClienteFavorecido
-    const allFavorecidos = await this.clienteFavorecidoService.getAll();
-    await this.itemTransacaoService.updateWithMissingFavorecidos(allFavorecidos);
-
-    // Get items
-    const ordens = await this.getOrdemPagamentoJae();
-    const newOrdens = await this.filterNewOrdemPagamento(ordens);
-    const pagadores = await this.pagadorService.getAllPagador();
+    const ordens = await this.getOrdemPagamento();
 
     // Log
-    const msgNewOrdens = `De ${ordens.length} Ordens há ${newOrdens.length} novas.`;
-    if (newOrdens.length) {
-      logLog(this.logger, `${msgNewOrdens}. Salvando cada item...`, METHOD);
+    const msg = `Há ${ordens.length} ordens consideradas novas.`;
+    if (ordens.length) {
+      logLog(this.logger, `${msg}. Salvando os itens...`, METHOD);
     } else {
-      logLog(this.logger, `${msgNewOrdens}. Nada a fazer.`, METHOD);
+      logLog(this.logger, `${msg}. Nada a fazer.`, METHOD);
       return;
     }
 
-    // Insert new Transacao/ItemTransacao
-    try {
-      await this.insertTransacaoBulk(newOrdens, pagadores, allFavorecidos);
-      logLog(this.logger, 'Transações inseridas de uma vez com sucesso', METHOD);
-    }
-    catch (error) {
-      logWarn(this.logger, 'Falha ao adicionar Transações de uma vez, adicionando individualmente...', METHOD);
-      await this.insertTransacaoIndividually(newOrdens, pagadores, allFavorecidos);
-      logLog(this.logger, 'Transações inseridas individualmente com sucesso', METHOD);
-    }
+    // Save Transacao
+    const favorecidos = await this.clienteFavorecidoService.findManyFromOrdens(ordens);
+    const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
+    const publicacaoDTOs = this.getManyPublicacaoDTO(ordens, pagador, favorecidos);
+    const transacaoDTOs = this.getManyTransacaoDTO(publicacaoDTOs, pagador);
+    const createdTransacoes = await this.transacaoService.saveMany(transacaoDTOs);
+    this.updateManyPublicacaoDTO(publicacaoDTOs, createdTransacoes);
+    await this.arqPublicacaoService.saveMany(publicacaoDTOs);
+    const itensTransacaoDTO = this.getManyItemTransacaoDTO(publicacaoDTOs, pagador, favorecidos);
+    await this.itemTransacaoService.saveMany(itensTransacaoDTO);
 
+    logLog(this.logger, 'Transações inseridas de uma vez com sucesso', METHOD);
   }
-
-  /**
-   * Insert Item/Transacao at once. It does not verify constraints or anything.
-   */
-  private async insertTransacaoBulk(
-    newOrdens: BigqueryOrdemPagamentoDTO[],
-    pagadores: AllPagadorDict,
-    allFavorecidos: ClienteFavorecido[],
-  ) {
-    const transacaoResult = await this.transacaoService.saveManyNewFromOrdem(newOrdens, pagadores);
-    const transacoes = [...transacaoResult.existing, ...transacaoResult.inserted];
-    await this.itemTransacaoService.saveManyNewFromOrdem(transacoes, newOrdens, allFavorecidos);
-  }
-
-  /**
-   * Save new Item/Transacao individually by performing saveIfNotExists()
-   */
-  private async insertTransacaoIndividually(
-    newOrdens: BigqueryOrdemPagamentoDTO[],
-    pagadores: AllPagadorDict,
-    allFavorecidos: ClienteFavorecido[],
-  ) {
-    const METHOD = 'updateTransacaoFromJae->insertTransacaoIndividually()';
-    const errors: BigqueryInvalidRows[] = [];
-    for (const ordemPagamento of newOrdens) {
-      const pagador = ordemPagamento.tipoFavorecido === TipoFavorecidoEnum.vanzeiro
-        ? pagadores.jae : pagadores.lancamento;
-
-      // Add transacao
-      const error = await validateDTO(BigqueryOrdemPagamentoDTO, ordemPagamento, false);
-      if (Object.keys(error).length > 0) {
-        errors.push({
-          versao: ordemPagamento.versao,
-          error: error,
-        });
-        continue;
-      }
-      const transacaoDTO = this.transacaoService.ordemPagamentoToTransacao(ordemPagamento, pagador.id);
-      const saveTransacao = await this.transacaoService.saveIfNotExists(transacaoDTO);
-
-      // Add itemTransacao
-      const favorecido = allFavorecidos.filter(i =>
-        i.cpfCnpj === ordemPagamento.operadoraCpfCnpj ||
-        i.cpfCnpj === ordemPagamento.consorcioCpfCnpj
-      ).pop() || null;
-      if (!favorecido) {
-        logLog(this.logger, `Não há favorecidos para a ordem ${ordemPagamento.versao}, ignorando.`, METHOD);
-        continue;
-      }
-      const itemTransacaoDTO = this.itemTransacaoService.ordemPagamentoToItemTransacaoDTO(
-        ordemPagamento, saveTransacao.item.id, favorecido);
-      await this.itemTransacaoService.saveIfNotExists(itemTransacaoDTO, true);
-    }
-    if (errors.length > 0) {
-      logWarn(this.logger, `O bigquery retornou itens inválidos, ignorando: ${JSON.stringify(errors)}`, METHOD);
-    }
-  }
-
 
   private async updateAllFavorecidosFromUsers() {
-    const allUsers = await this.usersService.findMany({
-      role: { id: RoleEnum.user, },
-      fullName: Not(IsNull()),
-      cpfCnpj: Not(IsNull()),
-      bankCode: Not(IsNull()),
-      bankAgency: Not(IsNull()),
-      bankAccount: Not(IsNull()),
-      bankAccountDigit: Not(IsNull()),
-    });
+    const allUsers = await this.usersService.findManyRegisteredUsers();
     await this.clienteFavorecidoService.updateAllFromUsers(allUsers);
   }
 
   /**
-   * Get newest BigqueryOrdemPagamento items.
+   * Get BigqueryOrdemPagamento items.
    */
-  private async getOrdemPagamentoJae(): Promise<BigqueryOrdemPagamentoDTO[]> {
-    return await this.bigqueryOrdemPagamentoService.getAllWeek(50);
-    // const oldestSaved = await this.itemTransacaoService.getOldestBigqueryDate();
-    // if (!oldestSaved) {
-    //   return await this.bigqueryOrdemPagamentoService.getAll();
-    // } else {
-    // return await this.bigqueryOrdemPagamentoService.getAllWeek();
-    // }
+  private async getOrdemPagamento(): Promise<BigqueryOrdemPagamentoDTO[]> {
+    return await this.bigqueryOrdemPagamentoService.getAllWeek();
+  }
+
+  private getManyPublicacaoDTO(
+    ordens: BigqueryOrdemPagamentoDTO[],
+    pagador: Pagador,
+    favorecidos: ClienteFavorecido[],
+  ): ArquivoPublicacao[] {
+    const publicacoes: ArquivoPublicacao[] = [];
+    for (const ordem of ordens) {
+      // Get ClienteFavorecido
+      const favorecido: ClienteFavorecido | undefined = favorecidos.filter(i =>
+        i.cpfCnpj === ordem.operadoraCpfCnpj ||
+        i.cpfCnpj === ordem.consorcioCnpj
+      )[0];
+      if (!favorecido) {
+        // Ignore publicacao with no ClienteFavorecidos
+        continue;
+      }
+      publicacoes.push(this.arqPublicacaoService.getArquivoPublicacaoDTO(ordem, pagador, favorecido));
+    }
+    return publicacoes;
+  }
+
+  private updateManyPublicacaoDTO(publicacoes: ArquivoPublicacao[], createdTransacoes: Transacao[]) {
+    /** key: idOrdemPagamento */
+    const transacaoMap: Record<string, Transacao> = createdTransacoes
+      .reduce((map, i) => ({ ...map, [i.idOrdemPagamento]: i }), {});
+    for (const publicacao of publicacoes) {
+      const transacao = transacaoMap[publicacao.idOrdemPagamento];
+      publicacao.transacao = { id: transacao.id } as Transacao;
+    }
+  }
+
+  private getManyTransacaoDTO(publicacoes: ArquivoPublicacao[], pagador: Pagador) {
+    const transacoes: Transacao[] = [];
+    /** key: idOrdemPagamento */
+    const transacaoMap: Record<string, Transacao> = {};
+    for (const publicacao of publicacoes) {
+      const transacaoPK = publicacao.idOrdemPagamento;
+      const newTransacao = this.transacaoService.getTransacaoDTO(publicacao, pagador);
+      if (!transacaoMap[transacaoPK]) {
+        transacoes.push(newTransacao);
+        transacaoMap[publicacao.idOrdemPagamento] = newTransacao;
+      }
+    }
+    return transacoes;
   }
 
   /**
-   * Return OrdemPagamento containing only items not existing in database.
+   * @param publicacoes Ready to save or saved Entity. Must contain valid Transacao
    */
-  private async filterNewOrdemPagamento(ordens: BigqueryOrdemPagamentoDTO[]): Promise<BigqueryOrdemPagamentoDTO[]> {
-    const existing = await this.itemTransacaoService.getExistingFromBQOrdemPagamento(ordens);
-    const newOrdens = ordens.filter(o =>
-      existing.filter(e =>
-        e.idOrdemPagamento === o.idOrdemPagamento &&
-        e.servico === o.servico &&
-        e.idConsorcio === o.idConsorcio &&
-        e.idOperadora === o.idOperadora
-      ).length === 0
-    );
-    return newOrdens;
-  }
+  private getManyItemTransacaoDTO(
+    publicacoes: ArquivoPublicacao[],
+    pagador: Pagador,
+    favorecidos: ClienteFavorecido[],
+  ): ItemTransacao[] {
+    /** Key: cpfCnpj ClienteFavorecido. Eficient way to find favorecido. */
+    const favorecidosMap: Record<string, ClienteFavorecido> =
+      favorecidos.reduce((map, i) => ({ ...map, [i.cpfCnpj]: i }), {});
 
+    /** Key: idOrdem, idConsorcio, idOperadora */
+    const itensMap: Record<string, ItemTransacao> = {};
+
+    // Mount DTOs
+    for (const publicacao of publicacoes) {
+      const favorecido = favorecidosMap[publicacao.cpfCnpjCliente];
+      const itemPK = `${publicacao.idOrdemPagamento}|${publicacao.idConsorcio}|${publicacao.idOperadora}`;
+      if (!itensMap[itemPK]) {
+        itensMap[itemPK] = this.itemTransacaoService.getItemTransacaoDTO(publicacao, favorecido);
+      }
+      else {
+        itensMap[itemPK].valor += publicacao.valorTotalTransacaoLiquido;
+      }
+    }
+    return Object.values(itensMap);
+  }
 
   // #endregion
 
   /**
-   * This task is used in 2 situations:
-   * 1. To weekly update vanzeiros form Jaé
-   * 2. To daily update other clients (e.g. consórcios)
-   * 
    * This task will:
    * 1. Read new Transacoes (with no data in CNAB tables yet, like headerArquivo etc)
    * 2. Generate CnabFile
@@ -215,8 +189,8 @@ export class CnabService {
    * 
    * @throws `Error` if any subtask throws
    */
-  public async updateRemessa() {
-    const METHOD = 'updateRemessa()';
+  public async sendRemessa() {
+    const METHOD = 'sendRemessa()';
     // Read new Transacoes
     const allNewTransacao = await this.transacaoService.findAllNewTransacao();
 
@@ -282,7 +256,7 @@ export class CnabService {
     try {
       const retorno104 = parseCnab240Pagamento(cnabString);
       await this.pagamentoService.saveRetorno(retorno104);
-      await this.arquivoPubService.compareRemessaToRetorno();
+      await this.arqPublicacaoService.compareRemessaToRetorno();
       await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess);
     }
     catch (error) {

@@ -1,6 +1,6 @@
-import { CnabFile } from "src/cnab/interfaces/cnab-file.interface";
-import { getCnabFileFrom104 } from "src/cnab/utils/cnab-104-pipe-utils";
-import { setCnab104Metadata } from "src/cnab/utils/cnab-metadata-utils";
+import { CnabFile } from "src/cnab/interfaces/cnab-all/cnab-file.interface";
+import { getCnabFileFrom104 } from "src/cnab/utils/cnab/cnab-104-pipe-utils";
+import { setCnab104Metadata } from "src/cnab/utils/cnab/cnab-metadata-utils";
 import { CnabFile104ExtratoTemplate } from "./cnab-file-104-extrato-template.const";
 
 const sc = structuredClone;

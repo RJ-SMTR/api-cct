@@ -1,6 +1,10 @@
 export enum PagadorContaEnum {
-  /** CETT */
-  LANCAMENTO = '000000071083',
-  /** CONTA BILHETAGEM */
-  JAE = '000000071084',
+  /** 
+   * Only for items from Lancamento
+   */
+  CETT = '000000071083',
+  /**
+   * Jaé. Only for items from OrdemPagamento.
+   */
+  ContaBilhetagem = '000000071084',
 }

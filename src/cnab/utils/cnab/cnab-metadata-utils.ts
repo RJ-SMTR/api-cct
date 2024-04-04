@@ -1,6 +1,6 @@
-import { CnabFile104 } from "../interfaces/cnab-240/104/cnab-file-104.interface";
-import { CnabField, CnabFields } from "../interfaces/cnab-field.interface";
-import { CnabFileBase } from "../types/cnab-file-base.type";
+import { CnabFile104 } from "../../interfaces/cnab-240/104/cnab-file-104.interface";
+import { CnabField, CnabFields } from "../../interfaces/cnab-all/cnab-field.interface";
+import { CnabFileBase } from "../../types/cnab-file-base.type";
 
 const addMeta = addCnabTemplateMetadata;
 

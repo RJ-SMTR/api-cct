@@ -52,7 +52,7 @@ export class TransacaoRepository {
   }
 
   public async findOne(
-    fields: EntityCondition<Transacao> | EntityCondition<Transacao>[],
+    fields: EntityCondition<Transacao>,
   ): Promise<Nullable<Transacao>> {
     return await this.transacaoRepository.findOne({
       where: fields,
@@ -77,7 +77,7 @@ export class TransacaoRepository {
   public async findAllNewTransacao(): Promise<Transacao[]> {
     return await this.transacaoRepository.find({
       where: {
-        status: { id: Not(TransacaoStatusEnum.used) }
+        status: { id: Not(TransacaoStatusEnum.sentRemessa) }
       }
     });
   }

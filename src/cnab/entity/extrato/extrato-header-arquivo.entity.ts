@@ -60,10 +60,6 @@ export class ExtratoHeaderArquivo extends EntityHelper {
   @CreateDateColumn()
   createdAt: Date;
 
-  /**
-   * For some reason, fields like 'time', 'decimal'
-   * are received as string instead as Date, Number
-   */
   @AfterLoad()
   setFieldValues() {
     this.horaGeracao = asNullableStringOrDateTime(this.horaGeracao, this.dataGeracao);

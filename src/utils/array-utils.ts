@@ -17,6 +17,19 @@ export function groupArrayBy<T>(array: T[], property: keyof T): T[][] {
   return groupedArray;
 }
 
+/**
+ * Returns a list containing first item of same property
+ */
+export function getFirstOfEach<T>(array: T[], property: keyof T): T[] {
+  const groupDict = array.reduce((map: Record<string, T>, item) => {
+    if (!map[String(property)]) {
+      map[String(property)] = item;
+    }
+    return map;
+  }, {});
+  return Object.values(groupDict);
+}
+
 export function getUniqueFromArray<T>(items: T[], uniqueKeys: (keyof T)[]): T[] {
   const uniqueItems: T[] = [];
   const keySet = new Set<string>();

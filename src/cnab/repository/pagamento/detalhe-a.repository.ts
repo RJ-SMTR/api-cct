@@ -44,7 +44,7 @@ export class DetalheARepository {
   }
 
   public async findOne(
-    fields: EntityCondition<DetalheA> | EntityCondition<DetalheA>[],
+    fields: EntityCondition<DetalheA>,
   ): Promise<Nullable<DetalheA>> {
     const one = await this.detalheARepository.findOne({
       where: fields,
@@ -56,7 +56,7 @@ export class DetalheARepository {
   }
 
   public async findMany(
-    fields: EntityCondition<DetalheA> | EntityCondition<DetalheA>[],
+    fields: EntityCondition<DetalheA>,
   ): Promise<DetalheA[]> {
     const many = await this.detalheARepository.find({
       where: fields,

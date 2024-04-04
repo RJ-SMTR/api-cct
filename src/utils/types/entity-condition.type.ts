@@ -1,3 +1,4 @@
 import { FindOptionsWhere } from 'typeorm';
 
-export type EntityCondition<T> = FindOptionsWhere<T>;
+export type EntityCondition<Entity> = FindOptionsWhere<Entity>[] | FindOptionsWhere<Entity>;
+

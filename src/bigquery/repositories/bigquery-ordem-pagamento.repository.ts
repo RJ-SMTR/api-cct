@@ -22,137 +22,9 @@ export class BigqueryOrdemPagamentoRepository {
   public async findMany(
     filter?: IBigqueryFindOrdemPagamento,
   ): Promise<BigqueryOrdemPagamento[]> {
-    const transacoes: BigqueryOrdemPagamento[] = (await this.queryDataTest(filter))
+    const transacoes: BigqueryOrdemPagamento[] = (await this.queryData(filter))
       .data;
     return transacoes;
-  }
-
-  private async queryDataTest(
-    /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-    args?: IBigqueryFindOrdemPagamento,
-  ): Promise<{ data: BigqueryOrdemPagamento[]; countAll: number }> {
-    const query =
-      `
-(
-  SELECT
-    CAST(current_date AS string) AS dataOrdem,
-    CAST(current_date AS string) AS dataPagamento,
-    t.id_consorcio AS idConsorcio,
-    t.consorcio AS consorcio,
-    t.id_operadora AS idOperadora,
-    t.operadora AS operadora,
-    t.servico AS servico,
-    'cct_1' AS idOrdemPagamento,
-    t.id_ordem_ressarcimento AS idOrdemRessarcimento,
-    t.quantidade_transacao_debito AS quantidadeTransacaoDebito,
-    t.valor_debito AS valorDebito,
-    t.quantidade_transacao_especie AS quantidadeTransacaoEspecie,
-    t.valor_especie AS valorEspecie,
-    t.quantidade_transacao_gratuidade AS quantidadeTransacaoGratuidade,
-    t.valor_gratuidade AS valorGratuidade,
-    t.quantidade_transacao_integracao AS quantidadeTransacaoIntegracao,
-    t.valor_integracao AS valorIntegracao,
-    t.quantidade_transacao_rateio_credito AS quantidadeTransacaoRateioCredito,
-    t.valor_rateio_credito AS valorRateioCredito,
-    t.quantidade_transacao_rateio_debito AS quantidadeTransacaoRateioDebito,
-    t.valor_rateio_debito AS valorRateioDebito,
-    t.quantidade_total_transacao AS quantidadeTotalTransacao,
-    t.valor_total_transacao_bruto AS valorTotalTransacaoBruto,
-    t.valor_desconto_taxa AS valorDescontoTaxa,
-    60038.09 AS valorTotalTransacaoLiquido,
-    t.quantidade_total_transacao_captura AS quantidadeTotalTransacaoCaptura,
-    t.valor_total_transacao_captura AS valorTotalTransacaoCaptura,
-    t.indicador_ordem_valida AS indicadorOrdemValida,
-    t.versao AS versao,
-    '44520687000161' AS consorcioCpfCnpj,
-    '44520687000161' AS operadoraCpfCnpj,
-    CASE
-      WHEN o.tipo_documento = 'CPF' THEN NULL
-      ELSE 1
-    END AS tipoFavorecido,
-  FROM
-    \`rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento\` t
-    LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
-    LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
-  WHERE
-    (
-      -- (DATE(t.data_ordem) >= DATE('2023-06-01') AND DATE(t.data_ordem) <= DATE('2024-06-01'))
-      -- AND t.indicador_ordem_valida IS TRUE AND (o.tipo_documento = 'CNPJ' OR c.cnpj IS NOT NULL)
-      t.operadora LIKE "%CMTC%"
-    )
-    ORDER BY t.id_ordem_pagamento DESC
-  LIMIT
-    1
-)
-UNION
-ALL (
-  SELECT
-    CAST(current_date AS string) AS dataOrdem,
-    CAST(current_date AS string) AS dataPagamento,
-    t.id_consorcio AS idConsorcio,
-    t.consorcio AS consorcio,
-    t.id_operadora AS idOperadora,
-    t.operadora AS operadora,
-    t.servico AS servico,
-    'cct_1' AS idOrdemPagamento,
-    t.id_ordem_ressarcimento AS idOrdemRessarcimento,
-    t.quantidade_transacao_debito AS quantidadeTransacaoDebito,
-    t.valor_debito AS valorDebito,
-    t.quantidade_transacao_especie AS quantidadeTransacaoEspecie,
-    t.valor_especie AS valorEspecie,
-    t.quantidade_transacao_gratuidade AS quantidadeTransacaoGratuidade,
-    t.valor_gratuidade AS valorGratuidade,
-    t.quantidade_transacao_integracao AS quantidadeTransacaoIntegracao,
-    t.valor_integracao AS valorIntegracao,
-    t.quantidade_transacao_rateio_credito AS quantidadeTransacaoRateioCredito,
-    t.valor_rateio_credito AS valorRateioCredito,
-    t.quantidade_transacao_rateio_debito AS quantidadeTransacaoRateioDebito,
-    t.valor_rateio_debito AS valorRateioDebito,
-    t.quantidade_total_transacao AS quantidadeTotalTransacao,
-    t.valor_total_transacao_bruto AS valorTotalTransacaoBruto,
-    t.valor_desconto_taxa AS valorDescontoTaxa,
-    3634.52 AS valorTotalTransacaoLiquido,
-    t.quantidade_total_transacao_captura AS quantidadeTotalTransacaoCaptura,
-    t.valor_total_transacao_captura AS valorTotalTransacaoCaptura,
-    t.indicador_ordem_valida AS indicadorOrdemValida,
-    t.versao AS versao,
-    '18201378000119' AS consorcioCpfCnpj,
-    '18201378000119' AS operadoraCpfCnpj,
-    CASE
-      WHEN o.tipo_documento = 'CPF' THEN NULL
-      ELSE 1
-    END AS tipoFavorecido,
-  FROM
-    \`rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento\` t
-    LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
-    LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
-  WHERE
-    (
-      -- (DATE(t.data_ordem) >= DATE('2023-06-01') AND DATE(t.data_ordem) <= DATE('2024-06-01'))
-      -- AND t.indicador_ordem_valida IS TRUE AND (o.tipo_documento = 'CNPJ' OR c.cnpj IS NOT NULL)
-      t.operadora LIKE "%VLT%"
-    )
-    ORDER BY t.id_ordem_pagamento DESC
-  LIMIT
-    1
-)
-        `
-      ;
-
-
-    const queryResult = await this.bigqueryService.query(
-      BQSInstances.smtr,
-      query,
-    );
-    const count = 2;
-    // Remove unwanted keys and remove last item (all null if empty)
-    const items: BigqueryOrdemPagamento[] = queryResult;
-    // items.pop();
-
-    return {
-      data: items,
-      countAll: count,
-    };
   }
 
   private async queryData(
@@ -164,14 +36,11 @@ ALL (
       `
       SELECT
         CAST(t.data_ordem AS STRING) AS dataOrdem,
-        CAST(t.data_pagamento AS STRING) AS dataPagamento,
         t.id_consorcio AS idConsorcio,
         t.consorcio AS consorcio,
         t.id_operadora AS idOperadora,
         t.operadora AS operadora,
-        t.servico AS servico,
         t.id_ordem_pagamento AS idOrdemPagamento,
-        t.id_ordem_ressarcimento AS idOrdemRessarcimento,
         t.quantidade_transacao_debito AS quantidadeTransacaoDebito,
         t.valor_debito AS valorDebito,
         t.quantidade_transacao_especie AS quantidadeTransacaoEspecie,
@@ -184,29 +53,18 @@ ALL (
         t.valor_rateio_credito AS valorRateioCredito,
         t.quantidade_transacao_rateio_debito AS quantidadeTransacaoRateioDebito,
         t.valor_rateio_debito AS valorRateioDebito,
-        t.quantidade_total_transacao AS quantidadeTotalTransacao,
         t.valor_total_transacao_bruto AS valorTotalTransacaoBruto,
         t.valor_desconto_taxa AS valorDescontoTaxa,
         t.valor_total_transacao_liquido AS valorTotalTransacaoLiquido,
-        t.quantidade_total_transacao_captura AS quantidadeTotalTransacaoCaptura,
-        t.valor_total_transacao_captura AS valorTotalTransacaoCaptura,
-        t.indicador_ordem_valida AS indicadorOrdemValida,
         t.versao AS versao,
-        CAST(c.cnpj AS STRING) AS consorcioCpfCnpj,
+        CAST(c.cnpj AS STRING) AS consorcioCnpj,
         CAST(o.documento AS STRING) AS operadoraCpfCnpj,
-        ${qArgs.tipoFavorecido} AS tipoFavorecido,
-        -- aux columns
-        (${qArgs.countQuery}) AS count,
-        'ok' AS status
       FROM \`${qArgs.ordemPagamento}\` t
       ${qArgs.joinConsorcios}
       ${qArgs.joinOperadoras}\n` +
       (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
-      `UNION ALL
-      SELECT ${'null, '.repeat(32)}
-      (${qArgs.countQuery}) AS count, 'empty' AS status` +
       '\nORDER BY dataOrdem DESC, idOrdemPagamento DESC\n' +
-      (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
+      (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
     const queryResult = await this.bigqueryService.query(
       BQSInstances.smtr,
@@ -219,7 +77,6 @@ ALL (
       delete i.count;
       return i;
     });
-    items.pop();
 
     return {
       data: items,
@@ -238,8 +95,8 @@ ALL (
     const Q_CONSTS = {
       bucket: IS_BQ_PROD ? 'rj-smtr' : 'rj-smtr-dev',
       ordemPagamento: IS_BQ_PROD
-        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento'
-        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.ordem_pagamento',
+        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia'
+        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia',
       tTipoPgto: IS_BQ_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
       favorecidoCpfCnpj: 'NULL',
       tipoFavorecido:
@@ -278,7 +135,6 @@ ALL (
 
     const queryBuilder = new QueryBuilder();
     queryBuilder.pushAND(queryBuilderDate.toSQL());
-    queryBuilder.pushAND(`t.indicador_ordem_valida IS TRUE`);
 
     if (args?.ignoreTransacaoLiquidoZero) {
       queryBuilder.pushAND(`t.valor_total_transacao_liquido > 0`)
@@ -305,12 +161,6 @@ ALL (
     const joinOperadoras = `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora `;
     const joinConsorcios = `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio `;
 
-    const countQuery =
-      'SELECT COUNT(*) AS count ' +
-      `FROM \`${Q_CONSTS.ordemPagamento}\` t\n` +
-      `${joinOperadoras}\n` +
-      `${joinConsorcios}\n` +
-      (qWhere.length ? ` WHERE ${qWhere}\n` : '');
     return {
       qWhere,
       bucket: Q_CONSTS.bucket,
@@ -319,7 +169,6 @@ ALL (
       joinOperadoras: joinOperadoras,
       joinConsorcios: joinConsorcios,
       tipoFavorecido: Q_CONSTS.tipoFavorecido,
-      countQuery,
       offset,
       limit: args?.limit,
     };

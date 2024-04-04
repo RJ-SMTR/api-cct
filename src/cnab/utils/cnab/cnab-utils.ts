@@ -1,14 +1,14 @@
 import { Exception } from 'handlebars';
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { Cnab } from '../const/cnab.const';
-import { CnabCodigoRegistro } from '../enums/all/cnab-codigo-registro.enum';
-import { CnabTipoInscricao } from '../enums/all/cnab-tipo-inscricao.enum';
-import { ICnabFieldMap } from '../interfaces/cnab-all/cnab-field-map.interface';
-import { CnabField, CnabFieldMetadata, CnabFields } from '../interfaces/cnab-field.interface';
-import { CnabFile, isCnabFile } from '../interfaces/cnab-file.interface';
-import { CnabLote, isCnabLote } from '../interfaces/cnab-lote.interface';
-import { CnabRegistro } from '../interfaces/cnab-registro.interface';
+import { Cnab } from '../../const/cnab.const';
+import { CnabCodigoRegistro } from '../../enums/all/cnab-codigo-registro.enum';
+import { CnabTipoInscricao } from '../../enums/all/cnab-tipo-inscricao.enum';
+import { ICnabFieldMap } from '../../interfaces/cnab-all/cnab-field-map.interface';
+import { CnabField, CnabFieldMetadata, CnabFields } from '../../interfaces/cnab-all/cnab-field.interface';
+import { CnabFile, isCnabFile } from '../../interfaces/cnab-all/cnab-file.interface';
+import { CnabLote, isCnabLote } from '../../interfaces/cnab-all/cnab-lote.interface';
+import { CnabRegistro } from '../../interfaces/cnab-all/cnab-registro.interface';
 import { cnabFieldToString, parseCnabField, stringifyCnabField } from './cnab-field-utils';
 
 const sc = structuredClone;

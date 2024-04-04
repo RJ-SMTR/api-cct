@@ -1,6 +1,6 @@
 import { CommonHttpException } from "src/utils/http-exception/common-http-exception";
 import { asNumberStringDate } from "src/utils/pipe-utils";
-import { CnabField } from "../interfaces/cnab-field.interface";
+import { CnabField } from "../../interfaces/cnab-all/cnab-field.interface";
 import { getPictureNumberSize } from "./cnab-field-utils";
 
 export function asCnabFieldDate(field: CnabField) {

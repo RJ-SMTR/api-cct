@@ -39,14 +39,14 @@ export class ExtratoHeaderLoteService {
     return await this.extHeaderLoteRepository.save(obj);
   }
 
-  public async findOne(fields: EntityCondition<ExtratoHeaderLote> | EntityCondition<ExtratoHeaderLote>[],): Promise<Nullable<ExtratoHeaderLote>> {
+  public async findOne(fields: EntityCondition<ExtratoHeaderLote>): Promise<Nullable<ExtratoHeaderLote>> {
     return await this.extHeaderLoteRepository.findOne({
       where: fields
     });
   }
 
   public async findMany(
-    fields: EntityCondition<ExtratoHeaderLote> | EntityCondition<ExtratoHeaderLote>[],
+    fields: EntityCondition<ExtratoHeaderLote>,
   ): Promise<ExtratoHeaderLote[]> {
     return await this.extHeaderLoteRepository.findMany({
       where: fields

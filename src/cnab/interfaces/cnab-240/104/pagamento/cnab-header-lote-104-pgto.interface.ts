@@ -1,4 +1,4 @@
-import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-field.interface';
+import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-all/cnab-field.interface';
 
 /**
  * @extends {CnabFields}
@@ -40,7 +40,7 @@ export interface CnabHeaderLote104Pgto {
   usoExclusivoFebraban: CnabField;
   /**
    * Retorna o status de retorno do CNAB (Tabela G059)
-   * @see `cnab104OcorrenciasMap`
+   * @see `OcorrenciaEnum`
    */
   ocorrencias: CnabField;
 }

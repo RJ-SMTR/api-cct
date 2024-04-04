@@ -18,7 +18,8 @@ export class ClienteFavorecido extends EntityHelper {
   @Column({ type: String, unique: false, nullable: false, length: 150 })
   nome: string;
 
-  @Column({ type: String, unique: false, nullable: true, length: 14 })
+  /** uniqueConstraintName: UQ_ClienteFavorecido_cpfCnpj */
+  @Column({ type: String, unique: true, nullable: true, length: 14 })
   cpfCnpj: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 10 })

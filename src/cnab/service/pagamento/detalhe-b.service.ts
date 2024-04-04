@@ -7,7 +7,7 @@ import { DetalheB } from '../../entity/pagamento/detalhe-b.entity';
 import { validateDTO } from 'src/utils/validation-utils';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
-import { asCnabFieldDate } from 'src/cnab/utils/cnab-field-pipe-utils';
+import { asCnabFieldDate } from 'src/cnab/utils/cnab/cnab-field-pipe-utils';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 
 @Injectable()
@@ -32,13 +32,13 @@ export class DetalheBService {
   }
 
   public async findOne(
-    fields: EntityCondition<DetalheB> | EntityCondition<DetalheB>[],
+    fields: EntityCondition<DetalheB>,
   ): Promise<Nullable<DetalheB>> {
     return await this.detalheBRepository.findOne(fields);
   }
 
   public async findMany(
-    fields: EntityCondition<DetalheB> | EntityCondition<DetalheB>[],
+    fields: EntityCondition<DetalheB>,
   ): Promise<DetalheB[]> {
     return await this.detalheBRepository.findMany(fields);
   }

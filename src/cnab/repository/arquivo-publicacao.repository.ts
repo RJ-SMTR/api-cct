@@ -1,10 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { ArquivoPublicacao } from "../entity/arquivo-publicacao.entity";
-import { ArquivoPublicacaoDTO } from "../dto/arquivo-publicacao.dto";
 import { logWarn } from "src/utils/log-utils";
 import { SaveIfNotExists } from "src/utils/types/save-if-not-exists.type";
+import { DeepPartial, FindManyOptions, InsertResult, Repository } from "typeorm";
+import { ArquivoPublicacaoDTO } from "../dto/arquivo-publicacao.dto";
+import { ArquivoPublicacao } from "../entity/arquivo-publicacao.entity";
 
 @Injectable()
 export class ArquivoPublicacaoRepository {
@@ -16,6 +16,18 @@ export class ArquivoPublicacaoRepository {
     @InjectRepository(ArquivoPublicacao)
     private arquivoPublicacaoRepository: Repository<ArquivoPublicacao>,
   ) { }
+
+
+  /**
+   * Bulk save
+   */
+  public async insert(dtos: DeepPartial<ArquivoPublicacao>[]): Promise<InsertResult> {
+    return this.arquivoPublicacaoRepository.insert(dtos);
+  }
+
+  public async upsert(items: DeepPartial<ArquivoPublicacao>[]): Promise<InsertResult> {
+    return await this.arquivoPublicacaoRepository.upsert(items, { conflictPaths: { id: true } });
+  }
 
   public async save(dto: ArquivoPublicacaoDTO): Promise<ArquivoPublicacao> {
     return this.arquivoPublicacaoRepository.save(dto);
@@ -44,5 +56,9 @@ export class ArquivoPublicacaoRepository {
         item: await this.arquivoPublicacaoRepository.save(dto),
       };
     }
+  }
+
+  public async findMany(options: FindManyOptions<ArquivoPublicacao>): Promise<ArquivoPublicacao[]> {
+    return await this.arquivoPublicacaoRepository.find(options);
   }
 }

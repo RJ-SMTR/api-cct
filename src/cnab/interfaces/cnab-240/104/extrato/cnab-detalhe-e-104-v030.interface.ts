@@ -1,4 +1,4 @@
-import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-field.interface';
+import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-all/cnab-field.interface';
 
 /**
  * Cnab240_104ExtratoDetalheE

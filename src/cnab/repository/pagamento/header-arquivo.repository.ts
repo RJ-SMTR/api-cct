@@ -40,7 +40,7 @@ export class HeaderArquivoRepository {
   }
 
   public async getOne(
-    fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[],
+    fields: EntityCondition<HeaderArquivo>,
     order?: FindOptionsOrder<HeaderArquivo>
   ): Promise<HeaderArquivo> {
     const header = await this.headerArquivoRepository.findOne({
@@ -61,15 +61,14 @@ export class HeaderArquivoRepository {
 
 
   public async findOne(
-    fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[],
+    fields: EntityCondition<HeaderArquivo>,
   ): Promise<HeaderArquivo | null> {
     return await this.headerArquivoRepository.findOne({
       where: fields,
     });
   }
 
-  public async findMany(fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[]
-  ): Promise<HeaderArquivo[]> {
+  public async findMany(fields: EntityCondition<HeaderArquivo>): Promise<HeaderArquivo[]> {
     return await this.headerArquivoRepository.find({
       where: fields
     });

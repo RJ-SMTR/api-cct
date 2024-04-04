@@ -48,14 +48,14 @@ export class ExtratoDetalheEService {
     return await this.extDetalheERepository.save(obj);
   }
 
-  public async findOne(fields: EntityCondition<ExtratoDetalheE> | EntityCondition<ExtratoDetalheE>[],): Promise<Nullable<ExtratoDetalheE>> {
+  public async findOne(fields: EntityCondition<ExtratoDetalheE>,): Promise<Nullable<ExtratoDetalheE>> {
     return await this.extDetalheERepository.findOne({
       where: fields
     });
   }
 
   public async findMany(
-    fields: EntityCondition<ExtratoDetalheE> | EntityCondition<ExtratoDetalheE>[],
+    fields: EntityCondition<ExtratoDetalheE>,
   ): Promise<ExtratoDetalheE[]> {
     return await this.extDetalheERepository.findMany({
       where: fields

@@ -21,8 +21,6 @@ export class Cnab104Service {
   }
 
   public getCnab104ClienteCaixa(): Cnab104AmbienteCliente {
-    return this.isCnab104Test()
-      ? Cnab104AmbienteCliente.Teste
-      : Cnab104AmbienteCliente.Producao;
+    return Cnab104AmbienteCliente.Producao;
   }
 }

@@ -42,7 +42,7 @@ import { ExtratoHeaderLoteRepository } from './repository/extrato/extrato-header
 import { ExtratoHeaderLoteService } from './service/extrato/extrato-header-lote.service';
 import { ExtratoDetalheEService } from './service/extrato/extrato-detalhe-e.service';
 import { ExtratoDetalheERepository } from './repository/extrato/extrato-detalhe-e.repository';
-import { PagamentoService } from './service/pagamento/pagamento.service';
+import { RetornoService } from './service/pagamento/pagamento.service';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 
 @Module({
@@ -93,7 +93,7 @@ import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
     ExtratoHeaderLoteService,
     ExtratoDetalheERepository,
     ExtratoDetalheEService,
-    PagamentoService,
+    RetornoService,
   ],
   exports: [
     CnabService,
@@ -122,7 +122,7 @@ import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
     ExtratoHeaderLoteService,
     ExtratoDetalheERepository,
     ExtratoDetalheEService,
-    PagamentoService,
+    RetornoService,
   ],
   controllers: [CnabController]
 })

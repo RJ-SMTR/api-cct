@@ -1,5 +1,5 @@
 import { MetadataAs } from 'src/utils/interfaces/metadata.type';
-import { ICnabFieldMap } from './cnab-all/cnab-field-map.interface';
+import { ICnabFieldMap } from './cnab-field-map.interface';
 import { CnabFields } from './cnab-field.interface';
 
 export interface CnabRegistro {
@@ -14,7 +14,7 @@ export interface CnabRegistroMapped {
   fieldMap: ICnabFieldMap;
 }
 
-export type RegistroMetadata =  MetadataAs<{
+export type RegistroMetadata = MetadataAs<{
   type: 'CnabRegistro',
   name?: string,
 }>

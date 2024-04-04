@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { FindOneOptions, Repository, UpdateResult } from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository, UpdateResult } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
@@ -36,6 +36,16 @@ export class ClienteFavorecidoRepository {
     return createdUser;
   }
 
+  async upsert(favorecidos: DeepPartial<ClienteFavorecido>[]): Promise<InsertResult> {
+    const payload = await this.clienteFavorecidoRepository.upsert(
+      favorecidos, { conflictPaths: { cpfCnpj: true }, skipUpdateIfNoValuesChanged: true }
+    );
+    this.logger.log(
+      `${payload.identifiers.length} ClienteFavorecidos atualizados.`,
+    );
+    return payload;
+  }
+
   async update(
     id: number,
     updateDto: SaveClienteFavorecidoDTO,
@@ -54,13 +64,8 @@ export class ClienteFavorecidoRepository {
     return updatePayload;
   }
 
-  public async findOne(options: FindOneOptions<ClienteFavorecido>): Promise<ClienteFavorecido | null> {
-    const first = (await this.clienteFavorecidoRepository.find(options)).shift();
-    return first || null;
-  }
-
   public async getOne(
-    fields: EntityCondition<ClienteFavorecido> | EntityCondition<ClienteFavorecido>[],
+    fields: EntityCondition<ClienteFavorecido>,
   ): Promise<ClienteFavorecido> {
     const result = await this.clienteFavorecidoRepository.findOne({
       where: fields,
@@ -72,12 +77,19 @@ export class ClienteFavorecidoRepository {
   }
 
   public async findAll(
-    fields:
-      | EntityCondition<ClienteFavorecido>
-      | EntityCondition<ClienteFavorecido>[],
+    fields: EntityCondition<ClienteFavorecido>,
   ): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.find({
       where: fields,
     });
+  }
+
+  public async findMany(options: FindManyOptions<ClienteFavorecido>): Promise<ClienteFavorecido[]> {
+    return await this.clienteFavorecidoRepository.find(options);
+  }
+
+  public async findOne(options: FindOneOptions<ClienteFavorecido>): Promise<ClienteFavorecido | null> {
+    const first = (await this.clienteFavorecidoRepository.find(options)).shift();
+    return first || null;
   }
 }

@@ -1,4 +1,5 @@
 export enum TransacaoStatusEnum {
   created = 1,
-  used = 2,
+  sentRemessa = 2,
+  publicacaoDeleted = 3,
 }

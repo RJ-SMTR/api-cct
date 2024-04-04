@@ -58,13 +58,13 @@ export class DetalheAService {
   }
 
   public async findOne(
-    fields: EntityCondition<DetalheA> | EntityCondition<DetalheA>[],
+    fields: EntityCondition<DetalheA>,
   ): Promise<Nullable<DetalheA>> {
     return await this.detalheARepository.findOne(fields);
   }
 
   public async findMany(
-    fields: EntityCondition<DetalheA> | EntityCondition<DetalheA>[],
+    fields: EntityCondition<DetalheA>,
   ): Promise<DetalheA[]> {
     return await this.detalheARepository.findMany(fields);
   }

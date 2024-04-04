@@ -1,4 +1,4 @@
-import { ICnabFieldMap } from "./cnab-all/cnab-field-map.interface";
+import { ICnabFieldMap } from "./cnab-field-map.interface";
 
 export interface ICnabFieldMaps {
   headerArquivo: ICnabFieldMap;

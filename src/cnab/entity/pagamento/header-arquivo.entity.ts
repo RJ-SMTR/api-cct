@@ -76,10 +76,6 @@ export class HeaderArquivo extends EntityHelper {
     return `{ transacao: ${this.transacao.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;
   }
 
-  /**
-   * For some reason, fields like 'time', 'decimal'
-   * are received as string instead as Date, Number
-   */
   @AfterLoad()
   setFieldValues() {
     this.horaGeracao = asStringOrDateTime(this.horaGeracao, this.dataGeracao);

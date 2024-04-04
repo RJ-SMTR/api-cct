@@ -1,7 +1,8 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Pagador } from './pagador.entity';
 import { TransacaoStatus } from './transacao-status.entity';
+import { TransacaoOcorrencia } from './transacao-ocorrencia.entity';
 
 @Entity()
 export class Transacao extends EntityHelper {
@@ -15,8 +16,9 @@ export class Transacao extends EntityHelper {
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Transacao_id' })
   id: number;
 
+  /**  */
   @Column({ type: Date, unique: false, nullable: true })
-  dataOrdem: Date | null;
+  dataOrdem: Date;
 
   @Column({ type: Date, unique: false, nullable: true })
   dataPagamento: Date | null;
@@ -35,6 +37,11 @@ export class Transacao extends EntityHelper {
   @ManyToOne(() => TransacaoStatus, { eager: false, nullable: false })
   @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_status_ManyToOne' })
   status: TransacaoStatus;
+
+  /** CNAB errors */
+  @OneToMany(() => TransacaoOcorrencia, ocorrencia => ocorrencia.transacao)
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_ocorrencias_OneToMany' })
+  ocorrencias: TransacaoOcorrencia[];
 
   public getLogInfo(): string {
     const response = `#${this.id}`;

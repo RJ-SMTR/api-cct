@@ -25,8 +25,10 @@ import {
   Brackets,
   DeepPartial,
   EntityManager,
+  FindManyOptions,
   FindOptionsWhere,
   ILike,
+  In,
   Repository,
   WhereExpressionBuilder,
 } from 'typeorm';
@@ -68,21 +70,41 @@ export class UsersService {
 
   async setUserAuxColumns(user: User): Promise<User> {
     const newUser = new User(user);
-    newUser.aux_bank = await this.getAux_bank(user);
+    await this.setManyAux_bank([newUser]);
     newUser.aux_inviteStatus = await this.getAux_inviteSatus(user);
     return newUser;
   }
 
-  async findMany(
-    fields: EntityCondition<User> | EntityCondition<User>[],
-  ): Promise<User[]> {
-    const users = await this.usersRepository.find({
-      where: fields,
-    });
-    for (const i in users) {
-      users[i] = await this.setUserAuxColumns(users[i]);
+  async setManyUserAuxColumns(users: User[]) {
+    await this.setManyAux_bank(users);
+    await this.setManyAux_invite(users);
+  }
+
+  async findMany(options: FindManyOptions<User>, loadAuxColumns = true): Promise<User[]> {
+    const users = await this.usersRepository.find(options);
+    if (loadAuxColumns) {
+      await this.setManyUserAuxColumns(users);
     }
     return users;
+  }
+
+  async findManyRegisteredUsers() {
+    const validUsers = await this.usersRepository.createQueryBuilder("user")
+      .where("user.roleId = :roleId", { roleId: RoleEnum.user })
+      .andWhere("user.fullName IS NOT NULL")
+      .andWhere("user.cpfCnpj IS NOT NULL")
+      .andWhere("user.bankCode IS NOT NULL")
+      .andWhere("user.bankAgency IS NOT NULL")
+      .andWhere("user.bankAccount IS NOT NULL")
+      .andWhere("user.bankAccountDigit IS NOT NULL")
+      .andWhere("user.fullName != ''")
+      .andWhere("user.cpfCnpj != ''")
+      .andWhere("user.bankAgency != ''")
+      .andWhere("user.bankAccount != ''")
+      .andWhere("user.bankAccountDigit != ''")
+      .getMany();
+    await this.setManyUserAuxColumns(validUsers);
+    return validUsers
   }
 
   async findManyWithPagination(
@@ -211,15 +233,44 @@ export class UsersService {
     return inviteStatus;
   }
 
-  private async getAux_bank(user: User): Promise<Bank | null> {
-    if (user?.bankCode === undefined || user?.bankCode === null) {
-      return null;
+  private async setManyAux_invite(users: User[]) {
+    // Find banks
+    const invitesMap: Record<string, MailHistory> = (await this.mailHistoryService.findManyRecentByUser(users))
+      .reduce((map, i) => ({ ...map, [i.user.id]: i }), {});
+
+    // Update
+    for (const user of users) {
+      const invite: MailHistory | undefined = invitesMap?.[user.id];
+      if (invite) {
+        user.aux_inviteHash = invite.hash;
+        user.aux_inviteStatus = invite.inviteStatus;
+      }
     }
-    return await this.banksService.findOne({ code: user?.bankCode });
+  }
+
+  private async setManyAux_bank(users: User[]) {
+    // Find banks
+    const bankCodes = users.reduce((l, i) => {
+      if (typeof i.bankCode === 'number') {
+        return [...l, i.bankCode];
+      } else {
+        return l
+      }
+    }, []);
+    /** key: bank code */
+    const bankMap: Record<number, Bank> = (await this.banksService.findMany({ code: In(bankCodes) }))
+      .reduce((map, i) => ({ ...map, [i.code]: i }), {});
+
+    // Set banks
+    for (const user of users) {
+      if (typeof user.bankCode === 'number') {
+        user.aux_bank = bankMap[user.bankCode];
+      }
+    }
   }
 
   async findOne(
-    fields: EntityCondition<User> | EntityCondition<User>[],
+    fields: EntityCondition<User>,
   ): Promise<Nullable<User>> {
     let user = await this.usersRepository.findOne({
       where: fields,
@@ -421,13 +472,15 @@ export class UsersService {
       userFile.user.codigo_permissionario ||
       userFile.user.cpf
     ) {
-      const dbFoundUsers = await this.findMany([
-        ...(userFile.user.email ? [{ email: userFile.user.email }] : []),
-        ...(userFile.user.codigo_permissionario
-          ? [{ permitCode: userFile.user.codigo_permissionario }]
-          : []),
-        ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : []),
-      ]);
+      const dbFoundUsers = await this.findMany({
+        where: [
+          ...(userFile.user.email ? [{ email: userFile.user.email }] : []),
+          ...(userFile.user.codigo_permissionario
+            ? [{ permitCode: userFile.user.codigo_permissionario }]
+            : []),
+          ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : []),
+        ]
+      });
       if (dbFoundUsers.length > 0) {
         for (const dbField of fields) {
           const dtoField = FileUserMap[dbField];

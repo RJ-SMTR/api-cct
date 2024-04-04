@@ -1,21 +1,16 @@
 
 import { Injectable, Logger } from '@nestjs/common';
-import { asNullableStringDate, asStringDate } from 'src/utils/pipe-utils';
 import { TransacaoDTO } from '../../dto/pagamento/transacao.dto';
 import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { TransacaoRepository } from '../../repository/pagamento/transacao.repository';
 
-import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
-import { AllPagadorDict } from 'src/cnab/interfaces/pagamento/all-pagador-dict.interface';
-import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
-import { filterArrayInANotInB } from 'src/utils/array-utils';
-import { SaveManyNew } from 'src/utils/interfaces/save-many-new.interface';
+import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
+import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
+import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
+import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { In } from 'typeorm';
-import { Pagador } from '../../entity/pagamento/pagador.entity';
-import { TransacaoStatus } from '../../entity/pagamento/transacao-status.entity';
-import { TransacaoStatusEnum } from '../../enums/pagamento/transacao-status.enum';
+import { DeepPartial } from 'typeorm';
 
 @Injectable()
 export class TransacaoService {
@@ -27,57 +22,32 @@ export class TransacaoService {
     private transacaoRepository: TransacaoRepository,
   ) { }
 
-  /**
-   * Bulk save Transacao if NSA not exists
-   */
-  public async saveManyNewFromOrdem(
-    ordens: BigqueryOrdemPagamentoDTO[],
-    pagadores: AllPagadorDict,
-  ): Promise<SaveManyNew<Transacao>> {
-    const uniqueIdOrdens: string[] = [...new Set(ordens.reduce((l, i) => [...l, i.idOrdemPagamento], []))];
-    const existingItems = await this.transacaoRepository.findMany({ where: { idOrdemPagamento: In(uniqueIdOrdens) } });
-    const existingIdOrdens = existingItems.reduce((l, i) => [...l, i.idOrdemPagamento], []);
-    const notExistingIdOrdens = filterArrayInANotInB(uniqueIdOrdens, existingIdOrdens);
-    const notExistingIdOrdensAux = structuredClone(notExistingIdOrdens);
-    const newTransacoes: TransacaoDTO[] = [];
-    for (const ordem of ordens) {
-      if (notExistingIdOrdensAux.length === 0) {
-        break;
-      }
-      if (notExistingIdOrdensAux.includes(ordem.idOrdemPagamento)) {
-        const pagador = ordem.tipoFavorecido === TipoFavorecidoEnum.vanzeiro
-          ? pagadores.jae : pagadores.lancamento;
-        newTransacoes.push(this.ordemPagamentoToTransacao(ordem, pagador.id));
-        notExistingIdOrdensAux.splice(notExistingIdOrdensAux.indexOf(ordem.idOrdemPagamento), 1);
-      }
-    }
-    const insertResult = await this.transacaoRepository.insert(newTransacoes);
-    const insertedTransacoes = await this.transacaoRepository.findMany({
-      where: insertResult.identifiers as { id: number }[]
-    })
-    return {
-      existing: existingItems,
-      inserted: insertedTransacoes,
-    }
-  }
 
   /**
-   * Para cada BigqueryOrdemPagamento insere em Transacao
+   * getTransacaoFromOrdem()
    * 
    * **status** is Created.
-   * 
-   * @returns `id_transacao` do item criado
    */
-  public ordemPagamentoToTransacao(ordemPagamento: BigqueryOrdemPagamentoDTO, idPagador: number,
-  ): TransacaoDTO {
-    const transacao = new TransacaoDTO({
-      dataOrdem: asStringDate(ordemPagamento.dataOrdem),
-      dataPagamento: asNullableStringDate(ordemPagamento.dataPagamento),
-      idOrdemPagamento: ordemPagamento.idOrdemPagamento,
-      pagador: { id: idPagador } as Pagador,
+  public getTransacaoDTO(
+    publicacao: ArquivoPublicacao,
+    pagador: Pagador,
+  ): Transacao {
+    const transacao = new Transacao({
+      dataOrdem: publicacao.dataOrdem,
+      dataPagamento: null,
+      idOrdemPagamento: publicacao.idOrdemPagamento,
+      pagador: { id: pagador.id } as Pagador,
       status: new TransacaoStatus(TransacaoStatusEnum.created),
+      ocorrencias: [],
     });
     return transacao;
+  }
+
+  public async saveMany(transacoes: DeepPartial<Transacao>[]): Promise<Transacao[]> {
+    const insertResult = await this.transacaoRepository.insert(transacoes);
+    return await this.transacaoRepository.findMany({
+      where: insertResult.identifiers
+    });
   }
 
   /**

@@ -134,11 +134,11 @@ export class BigqueryOrdemPagamentoDTO {
 
   // CUSTOM COLUMNS
 
-  /** consorcios.cnpj */
+  /** operadora.documento (cpf/cnpj) */
   operadoraCpfCnpj: string | null;
 
-  /** operadora.documento (cpf/cnpj) */
-  consorcioCpfCnpj: string | null;
+  /** consorcios.cnpj */
+  consorcioCnpj: string | null;
 
   tipoFavorecido: TipoFavorecidoEnum | null;
 }

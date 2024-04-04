@@ -5,21 +5,21 @@ import {
   stringifyCnabRegistro,
   validateCnabRegistroPosition,
 } from './cnab-utils';
-import { CnabFields } from '../interfaces/cnab-field.interface';
-import { CnabFile } from '../interfaces/cnab-file.interface';
-import { CnabLote } from '../interfaces/cnab-lote.interface';
-import { CnabRegistro } from '../interfaces/cnab-registro.interface';
-import { ICnabFieldMap } from '../interfaces/cnab-all/cnab-field-map.interface';
+import { CnabFields } from '../../interfaces/cnab-all/cnab-field.interface';
+import { CnabFile } from '../../interfaces/cnab-all/cnab-file.interface';
+import { CnabLote } from '../../interfaces/cnab-all/cnab-lote.interface';
+import { CnabRegistro } from '../../interfaces/cnab-all/cnab-registro.interface';
+import { ICnabFieldMap } from '../../interfaces/cnab-all/cnab-field-map.interface';
 import * as path from 'path';
 import * as fs from 'fs';
-import { cnab240GenericFieldMapTemplateTest } from '../test/templates/240/generic/cnab-240-generic-field-map-template-test.const';
-import { cnab240GenericHeaderArquivoTemplateTest } from '../test/templates/240/generic/cnab-240-generic-header-arquivo-template-test.const';
-import { cnab240GenericTrailerArquivoTemplateTest } from '../test/templates/240/generic/cnab-240-generic-trailer-arquivo-template-test.const';
-import { cnab240GenericHeaderLoteTemplateTest } from '../test/templates/240/generic/cnab-240-generic-header-lote-template-test.const';
-import { cnab240GenericTrailerLoteTemplateTest } from '../test/templates/240/generic/cnab-240-generic-trailer-lote-template-test.const';
-import { cnab240GenericDetalheATemplateTest } from '../test/templates/240/generic/cnab-240-generic-detalhe-a-template-test.const';
-import { cnab240GenericDetalheBTemplateTest } from '../test/templates/240/generic/cnab-240-generic-detalhe-b-template-test.const';
-import { cnab240GenericDetalheCTemplateTest } from '../test/templates/240/generic/cnab-240-generic-detalhe-c-template-test.const';
+import { cnab240GenericFieldMapTemplateTest } from '../../test/templates/240/generic/cnab-240-generic-field-map-template-test.const';
+import { cnab240GenericHeaderArquivoTemplateTest } from '../../test/templates/240/generic/cnab-240-generic-header-arquivo-template-test.const';
+import { cnab240GenericTrailerArquivoTemplateTest } from '../../test/templates/240/generic/cnab-240-generic-trailer-arquivo-template-test.const';
+import { cnab240GenericHeaderLoteTemplateTest } from '../../test/templates/240/generic/cnab-240-generic-header-lote-template-test.const';
+import { cnab240GenericTrailerLoteTemplateTest } from '../../test/templates/240/generic/cnab-240-generic-trailer-lote-template-test.const';
+import { cnab240GenericDetalheATemplateTest } from '../../test/templates/240/generic/cnab-240-generic-detalhe-a-template-test.const';
+import { cnab240GenericDetalheBTemplateTest } from '../../test/templates/240/generic/cnab-240-generic-detalhe-b-template-test.const';
+import { cnab240GenericDetalheCTemplateTest } from '../../test/templates/240/generic/cnab-240-generic-detalhe-c-template-test.const';
 
 process.env.TZ = 'UTC';
 

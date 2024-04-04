@@ -17,8 +17,8 @@ export class PagadorService {
    */
   public async getAllPagador(): Promise<AllPagadorDict> {
     return {
-      jae: await this.getOneByConta(PagadorContaEnum.LANCAMENTO),
-      lancamento: await this.getOneByConta(PagadorContaEnum.JAE),
+      cett: await this.getOneByConta(PagadorContaEnum.CETT),
+      contaBilhetagem: await this.getOneByConta(PagadorContaEnum.ContaBilhetagem),
 
     }
   }

@@ -1,4 +1,4 @@
-import { CnabField } from '../interfaces/cnab-field.interface';
+import { CnabField } from '../interfaces/cnab-all/cnab-field.interface';
 
 interface ICnabFieldMetadata {
   fieldName: string,

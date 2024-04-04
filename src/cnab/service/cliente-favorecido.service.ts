@@ -1,14 +1,15 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 import { User } from 'src/users/entities/user.entity';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { asString } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { FindOneOptions } from 'typeorm';
+import { FindOneOptions, In } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
-import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -28,21 +29,25 @@ export class ClienteFavorecidoService {
    * @returns All favorecidos after update
    */
   public async updateAllFromUsers(allUsers: User[]): Promise<void> {
-    for (const user of allUsers) {
-      const favorecido = await this.clienteFavorecidoRepository.findOne({
-        where: {
-          cpfCnpj: user.cpfCnpj,
-        }
-      });
-      await this.saveFavorecidoFromUser(
-        user,
-        favorecido?.id,
-      );
-    }
+    const newFavorecidos = await this.getManyFavorecidoDTOsFromUsers(allUsers);
+    await this.clienteFavorecidoRepository.upsert(newFavorecidos);
   }
 
   public async findCpfCnpj(cpfCnpj: string): Promise<ClienteFavorecido | null> {
     return await this.clienteFavorecidoRepository.findOne({ where: { cpfCnpj: cpfCnpj } });
+  }
+
+  public async findManyFromOrdens(ordens: BigqueryOrdemPagamentoDTO[]): Promise<ClienteFavorecido[]> {
+    const documentos = ordens.reduce((l, i) => [
+      ...l,
+      ...i.consorcioCnpj ? [i.consorcioCnpj] : [],
+      ...i.operadoraCpfCnpj ? [i.operadoraCpfCnpj] : [],
+    ], []);
+    const uniqueDocumentos = [...new Set(documentos)];
+    return await this.clienteFavorecidoRepository.findMany({
+      where: {
+        cpfCnpj: In(uniqueDocumentos)
+    } });
   }
 
   public async getCpfCnpj(cpf_cnpj: string): Promise<ClienteFavorecido> {
@@ -83,6 +88,37 @@ export class ClienteFavorecidoService {
     }
   }
 
+  private async getManyFavorecidoDTOsFromUsers(
+    users: User[],
+    existingId_facorecido?: number,
+  ): Promise<SaveClienteFavorecidoDTO[]> {
+    const newItems: SaveClienteFavorecidoDTO[] = [];
+    for (const user of users) {
+      const newItem: SaveClienteFavorecidoDTO = {
+        id: existingId_facorecido,
+        nome: asString(user.fullName),
+        cpfCnpj: asString(user.cpfCnpj),
+        codigoBanco: String(user.getBankCode()),
+        agencia: user.getBankAgencyWithoutDigit(),
+        dvAgencia: user.getBankAgencyDigit(),
+        contaCorrente: user.getBankAccount(),
+        dvContaCorrente: user.getBankAccountDigit(),
+        logradouro: null,
+        numero: null,
+        complemento: null,
+        bairro: null,
+        cidade: null,
+        cep: null,
+        complementoCep: null,
+        uf: null,
+        tipo: TipoFavorecidoEnum.vanzeiro,
+      };
+      await validateDTO(SaveClienteFavorecidoDTO, newItem);
+      newItems.push(newItem);
+    }
+    return newItems;
+  }
+
   private async saveFavorecidoFromUser(
     user: User,
     existingId_facorecido?: number,
@@ -111,7 +147,7 @@ export class ClienteFavorecidoService {
   }
 
   public async getOne(
-    fields: EntityCondition<ClienteFavorecido> | EntityCondition<ClienteFavorecido>[],
+    fields: EntityCondition<ClienteFavorecido>,
   ): Promise<ClienteFavorecido> {
     const cliente = await this.clienteFavorecidoRepository.getOne(fields);
     if (!cliente) {

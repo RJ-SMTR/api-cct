@@ -1,11 +1,11 @@
-import { CnabFile104 } from "../interfaces/cnab-240/104/cnab-file-104.interface";
-import { CnabLote104 } from "../interfaces/cnab-240/104/cnab-lote-104.interface";
-import { CnabRegistros104 } from "../interfaces/cnab-240/104/cnab-registros-104.interface";
-import { cnab104FieldMapTemplate as fieldMapTemplate } from '../templates/cnab-all/cnab-104-field-map-template';
-import { CnabFields } from "../interfaces/cnab-field.interface";
-import { CnabFile } from "../interfaces/cnab-file.interface";
-import { CnabLote } from "../interfaces/cnab-lote.interface";
-import { CnabRegistro } from "../interfaces/cnab-registro.interface";
+import { CnabFile104 } from "../../interfaces/cnab-240/104/cnab-file-104.interface";
+import { CnabLote104 } from "../../interfaces/cnab-240/104/cnab-lote-104.interface";
+import { CnabRegistros104 } from "../../interfaces/cnab-240/104/cnab-registros-104.interface";
+import { cnab104FieldMapTemplate as fieldMapTemplate } from '../../templates/cnab-all/cnab-104-field-map-template';
+import { CnabFields } from "../../interfaces/cnab-all/cnab-field.interface";
+import { CnabFile } from "../../interfaces/cnab-all/cnab-file.interface";
+import { CnabLote } from "../../interfaces/cnab-all/cnab-lote.interface";
+import { CnabRegistro } from "../../interfaces/cnab-all/cnab-registro.interface";
 
 export function getCnabFileFrom104(cnab: CnabFile104): CnabFile {
   return {

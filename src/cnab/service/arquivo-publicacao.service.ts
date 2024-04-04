@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { logLog } from 'src/utils/log-utils';
+import { asDate } from 'src/utils/pipe-utils';
+import { DeepPartial } from 'typeorm';
 import { ArquivoPublicacaoDTO } from '../dto/arquivo-publicacao.dto';
+import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { HeaderArquivoStatus } from '../entity/pagamento/header-arquivo-status.entity';
 import { HeaderArquivo } from '../entity/pagamento/header-arquivo.entity';
@@ -12,7 +15,9 @@ import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.re
 import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
-import { asDate } from 'src/utils/pipe-utils';
+import { isFriday, nextFriday } from 'date-fns';
+import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
+import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -26,6 +31,73 @@ export class ArquivoPublicacaoService {
     private headerLoteService: HeaderLoteService,
     private detalheAService: DetalheAService,
   ) { }
+
+
+  /**
+   * Generates a new ArquivoPublicacao.
+   * 
+   * **status** is Created.
+   */
+  public getArquivoPublicacaoDTO(
+    ordem: BigqueryOrdemPagamentoDTO,
+    pagador: Pagador,
+    favorecido: ClienteFavorecido,
+  ): ArquivoPublicacao {
+    let friday = new Date();
+    if (isFriday(friday)) {
+      friday = nextFriday(friday);
+    }
+    const arquivo = new ArquivoPublicacao({
+      // Remessa
+      headerArquivo: null,
+      transacao: { id: -1},
+      idHeaderLote: null,
+      dataGeracaoRemessa: null,
+      horaGeracaoRemessa: null,
+      // Retorno
+      isPago: false,
+      dataGeracaoRetorno: null,
+      horaGeracaoRetorno: null,
+      dataVencimento: friday,
+      valorLancamento: null,
+      dataEfetivacao: null,
+      valorRealEfetivado: null,
+      // Detalhe A retorno
+      idDetalheARetorno: null,
+      loteServico: null,
+      nomePagador: pagador.nomeEmpresa,
+      agenciaPagador: pagador.agencia,
+      dvAgenciaPagador: pagador.dvAgencia,
+      contaPagador: pagador.conta,
+      dvContaPagador: pagador.dvConta,
+      // Favorecido
+      nomeCliente: favorecido.nome,
+      cpfCnpjCliente: favorecido.cpfCnpj,
+      codigoBancoCliente: favorecido.codigoBanco,
+      agenciaCliente: favorecido.agencia,
+      dvAgenciaCliente: favorecido.dvAgencia,
+      contaCorrenteCliente: favorecido.contaCorrente,
+      dvContaCorrenteCliente: favorecido.dvContaCorrente,
+      // OrdemPagamento
+      idOrdemPagamento: ordem.idOrdemPagamento,
+      idConsorcio: ordem.idConsorcio,
+      idOperadora: ordem.idOperadora,
+      dataOrdem: ordem.dataOrdem,
+      nomeConsorcio: ordem.consorcio,
+      nomeOperadora: ordem.operadora,
+      valorTotalTransacaoLiquido: ordem.valorTotalTransacaoLiquido,
+    });
+    return arquivo;
+  }
+  
+  /**
+   * From OrdemPagamento and others and bulk insert.
+   * 
+   * @returns `TransacaoBuilder`, so you can group it and add to Transacao.
+   */
+  public async saveMany(publicacoes: DeepPartial<ArquivoPublicacao>[]) {
+    await this.arquivoPublicacaoRepository.insert(publicacoes);
+  }
 
   /**
    * updateFromRemessaRetorno()
@@ -65,7 +137,7 @@ export class ArquivoPublicacaoService {
 
           // DetalheA Retorno
           for (const detalheA of detalhesARet) {
-            await this.saveNewPgto(remessa, retorno, headerLoteRetorno, pagador, detalheA);
+            await this.savePublicacaoRetorno(remessa, retorno, headerLoteRetorno, pagador, detalheA);
           }
         }
       }
@@ -76,14 +148,14 @@ export class ArquivoPublicacaoService {
    * Save new item from Pagamento.
    *  Then update status.
    */
-  private async saveNewPgto(
+  private async savePublicacaoRetorno(
     remessa: HeaderArquivo,
     retorno: HeaderArquivo,
     headerLoteRetorno: HeaderLote,
     pagador: Pagador,
-    detalheA: DetalheA,
+    detalheARetorno: DetalheA,
   ) {
-    const favorecido = detalheA.clienteFavorecido;
+    const favorecido = detalheARetorno.clienteFavorecido;
     const arquivoPublicacao = new ArquivoPublicacaoDTO({
       headerArquivo: { id: remessa.id },
       idTransacao: remessa.transacao.id,
@@ -91,11 +163,11 @@ export class ArquivoPublicacaoService {
       horaGeracaoRemessa: remessa.dataGeracao,
       dataGeracaoRetorno: retorno.dataGeracao,
       horaGeracaoRetorno: retorno.horaGeracao,
-      loteServico: detalheA.loteServico,
-      dataVencimento: detalheA.dataVencimento,
-      valorLancamento: detalheA.valorLancamento,
-      dataEfetivacao: asDate(detalheA.dataEfetivacao),
-      valorRealEfetivado: detalheA.valorRealEfetivado,
+      loteServico: detalheARetorno.loteServico,
+      dataVencimento: detalheARetorno.dataVencimento,
+      valorLancamento: detalheARetorno.valorLancamento,
+      dataEfetivacao: asDate(detalheARetorno.dataEfetivacao),
+      valorRealEfetivado: detalheARetorno.valorRealEfetivado,
       nomeCliente: favorecido.nome,
       cpfCnpjCliente: favorecido.cpfCnpj,
       codigoBancoCliente: favorecido.codigoBanco,
@@ -103,14 +175,14 @@ export class ArquivoPublicacaoService {
       dvAgenciaCliente: favorecido.dvAgencia,
       contaCorrenteCliente: favorecido.contaCorrente,
       dvContaCorrenteCliente: favorecido.dvContaCorrente,
-      ocorrencias: detalheA.ocorrencias || '',
+      ocorrencias: detalheARetorno.ocorrencias || '',
       agenciaPagador: pagador.agencia,
       contaPagador: pagador.conta,
       dvAgenciaPagador: pagador.dvAgencia,
       dvContaPagador: pagador.dvConta,
       idHeaderLote: headerLoteRetorno.id,
       nomePagador: pagador.nomeEmpresa,
-      idDetalheARetorno: detalheA.id,
+      idDetalheARetorno: detalheARetorno.id,
     });
     await this.arquivoPublicacaoRepository.saveIfNotExists(arquivoPublicacao);
 
@@ -123,7 +195,10 @@ export class ArquivoPublicacaoService {
       id: retorno.id,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.arquivoPublicacaoSaved),
     });
+  }
 
+  public updateManyFromTransacao(arquivos: DeepPartial<ArquivoPublicacao>[]) {
+    return this.arquivoPublicacaoRepository.upsert(arquivos);
   }
 }
 

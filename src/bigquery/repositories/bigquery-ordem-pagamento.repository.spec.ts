@@ -63,6 +63,7 @@ describe('BigqueryOrdemPagamentoRepository', () => {
       const result = await bqOrdemPagamentoRepository.findMany({
         startDate: new Date('2023-06-01'),
         endDate: new Date('2024-06-01'),
+        ignoreTransacaoLiquidoZero: true,
         limit: 50,
       });
 

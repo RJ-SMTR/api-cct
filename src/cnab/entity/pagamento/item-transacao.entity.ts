@@ -25,9 +25,6 @@ export class ItemTransacao extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_ItemTransacao_transacao_ManyToOne' })
   transacao: Transacao;
 
-  @Column({ type: Date, unique: false, nullable: false })
-  dataTransacao: Date;
-
   @CreateDateColumn()
   dataProcessamento: Date;
 
@@ -61,16 +58,12 @@ export class ItemTransacao extends EntityHelper {
     precision: 10,
     scale: 5,
   })
-  valor: number | null;
+  valor: number;
 
   // Unique columns combination
 
   @Column({ type: String, unique: false, nullable: false })
   idOrdemPagamento: string;
-
-  /** Veículo */
-  @Column({ type: String, unique: false, nullable: false })
-  servico: string;
 
   /** CPF. */
   @Column({ type: String, unique: false, nullable: false })
@@ -95,16 +88,12 @@ export class ItemTransacao extends EntityHelper {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @Column({ type: String, unique: false, nullable: false })
-  versaoOrdemPagamento: string;
-
   @ManyToOne(() => ItemTransacaoStatus, { eager: false, nullable: false })
   @JoinColumn({ foreignKeyConstraintName: 'FK_ItemTransacao_status_ManyToOne' })
   status: ItemTransacaoStatus;
 
   public getLogInfo(): string {
-    return `#{ idOP: ${this.idOrdemPagamento}, svc: ${this.servico}, `
-      + `op: ${this.idOperadora}, co: ${this.idConsorcio} }`;
+    return `#{ idOP: ${this.idOrdemPagamento}, op: ${this.idOperadora}, co: ${this.idConsorcio} }`;
   }
   
 

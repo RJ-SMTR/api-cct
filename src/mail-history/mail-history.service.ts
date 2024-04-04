@@ -17,9 +17,10 @@ import {
   EntityManager,
   Equal,
   MoreThanOrEqual,
-  Repository,
+  Repository
 } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 
 @Injectable()
 export class MailHistoryService {
@@ -29,7 +30,7 @@ export class MailHistoryService {
 
   constructor(
     @InjectRepository(MailHistory)
-    private inviteRepository: Repository<MailHistory>,
+    private mailHistoryRepository: Repository<MailHistory>,
     private configService: ConfigService,
     private readonly entityManager: EntityManager,
   ) { }
@@ -38,8 +39,8 @@ export class MailHistoryService {
     data: DeepPartial<MailHistory>,
     logContext?: string,
   ): Promise<MailHistory> {
-    const createdMail = await this.inviteRepository.save(
-      this.inviteRepository.create(data),
+    const createdMail = await this.mailHistoryRepository.save(
+      this.mailHistoryRepository.create(data),
     );
     logLog(this.logger,
       `Histórico de email ${createdMail.getLogInfoStr()}` +
@@ -51,9 +52,9 @@ export class MailHistoryService {
   }
 
   async find(
-    fields?: EntityCondition<MailHistory> | EntityCondition<MailHistory>[],
+    fields?: EntityCondition<MailHistory>,
   ): Promise<Nullable<MailHistory[]>> {
-    return this.inviteRepository.find({
+    return this.mailHistoryRepository.find({
       where: fields,
       order: {
         createdAt: 'ASC',
@@ -62,7 +63,7 @@ export class MailHistoryService {
   }
 
   async findSentToday(): Promise<Nullable<MailHistory[]>> {
-    return this.inviteRepository.find({
+    return this.mailHistoryRepository.find({
       where: {
         sentAt: MoreThanOrEqual(startOfDay(new Date(Date.now()))),
       },
@@ -73,7 +74,7 @@ export class MailHistoryService {
   }
 
   async findUnsent(): Promise<Nullable<MailHistory[]>> {
-    return this.inviteRepository.find({
+    return this.mailHistoryRepository.find({
       where: {
         inviteStatus: { id: InviteStatusEnum.queued },
       },
@@ -97,11 +98,34 @@ export class MailHistoryService {
     return hash;
   }
 
+  async findManyRecentByUser(users: User[]): Promise<MailHistory[]> {
+    const userIDs = users.reduce((l, i) => [...l, i.id], []);
+    const raw = await this.mailHistoryRepository
+      .createQueryBuilder('invite')
+      .select('invite.*')
+      .where('invite.userId IN (:...userIds)', { userIds: userIDs })
+      // .addGroupBy('invite.userId')
+      .orderBy('invite.userId', 'DESC')
+      .getRawMany();
+    const entities: MailHistory[] = [];
+    for (let i = 0; i < raw.length; i++) {
+      const item = raw[i];
+      // user
+      item.user = { id: item['userId'] } as DeepPartial<User>;
+      delete item.userId;
+      // inviteStatus
+      item.inviteStatus = { id: item['inviteStatusId'] } as DeepPartial<InviteStatus>;
+      delete item.inviteStatusId;
+      entities.push(new MailHistory(item));
+    }
+    return entities;
+  }
+
   findRecentByUser(user: User | null): Promise<MailHistory | null> {
     if (user === null) {
       return new Promise(() => null);
     }
-    return this.inviteRepository.findOne({
+    return this.mailHistoryRepository.findOne({
       where: {
         user: Equal(user?.id),
       },
@@ -114,13 +138,13 @@ export class MailHistoryService {
   findOne(
     fields: EntityCondition<MailHistory>,
   ): Promise<Nullable<MailHistory>> {
-    return this.inviteRepository.findOne({
+    return this.mailHistoryRepository.findOne({
       where: fields,
     });
   }
 
   async getOne(fields: EntityCondition<MailHistory>): Promise<MailHistory> {
-    const mailHistory = await this.inviteRepository.findOne({
+    const mailHistory = await this.mailHistoryRepository.findOne({
       where: fields,
     });
     if (!mailHistory) {
@@ -143,13 +167,13 @@ export class MailHistoryService {
     payload: DeepPartial<MailHistory>,
     logContext?: string,
   ): Promise<MailHistory> {
-    const mailRespose = await this.inviteRepository.save(
-      this.inviteRepository.create({
+    const mailRespose = await this.mailHistoryRepository.save(
+      this.mailHistoryRepository.create({
         id,
         ...payload,
       }),
     );
-    const updatedMail = await this.inviteRepository.findOneByOrFail({ id: id });
+    const updatedMail = await this.mailHistoryRepository.findOneByOrFail({ id: id });
     logLog(this.logger,
       `Histórico de email ${updatedMail.getLogInfoStr()}` +
       ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
@@ -160,11 +184,11 @@ export class MailHistoryService {
   }
 
   async softDelete(id: number): Promise<void> {
-    await this.inviteRepository.softDelete(id);
+    await this.mailHistoryRepository.softDelete(id);
   }
 
   async getLine(inviteId: number): Promise<MailHistory> {
-    const invite = await this.inviteRepository.findOne({
+    const invite = await this.mailHistoryRepository.findOne({
       where: {
         id: inviteId,
       },
@@ -182,7 +206,7 @@ export class MailHistoryService {
 
   async getRemainingQuota(): Promise<number> {
     const dailyQuota = () => this.configService.getOrThrow('mail.dailyQuota');
-    const sentToday = await this.inviteRepository
+    const sentToday = await this.mailHistoryRepository
       .createQueryBuilder()
       .where({ sentAt: MoreThanOrEqual(startOfDay(new Date())) })
       .orderBy({ createdAt: 'ASC' })
@@ -191,7 +215,7 @@ export class MailHistoryService {
   }
 
   async getStatusCount(): Promise<IMailHistoryStatusCount> {
-    const result: any[] = await this.inviteRepository
+    const result: any[] = await this.mailHistoryRepository
       .createQueryBuilder('invite')
       .select([
         'invite.inviteStatus as status_id',

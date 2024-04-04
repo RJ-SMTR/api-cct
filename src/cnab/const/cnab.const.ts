@@ -1,4 +1,4 @@
-import { CnabField, CnabFieldAs, CnabFieldBase, CnabFieldFormat } from "../interfaces/cnab-field.interface";
+import { CnabField, CnabFieldAs, CnabFieldBase, CnabFieldFormat } from "../interfaces/cnab-all/cnab-field.interface";
 
 const format = {
   string: () => ({ formatType: 'string' } as CnabFieldFormat),

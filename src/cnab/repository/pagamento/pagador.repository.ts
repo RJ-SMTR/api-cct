@@ -22,7 +22,7 @@ export class PagadorRepository {
 
 
   public async findOne(
-    fields: EntityCondition<Pagador> | EntityCondition<Pagador>[],
+    fields: EntityCondition<Pagador>,
   ): Promise<Nullable<Pagador>> {
     return await this.PagadorRepository.findOne({
       where: fields,

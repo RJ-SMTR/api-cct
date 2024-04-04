@@ -51,11 +51,6 @@ export class ItemTransacaoDTO {
   @IsNotEmpty()
   idConsorcio?: string;
 
-  /** Veículo */
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  servico?: string;
-
   @ValidateIf(isCreate)
   @IsNotEmpty()
   valor?: number;

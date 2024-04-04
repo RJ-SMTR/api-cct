@@ -4,19 +4,19 @@ import { Allow } from 'class-validator';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { User } from 'src/users/entities/user.entity';
+import { EntityHelper } from 'src/utils/entity-helper';
 import {
-  BaseEntity,
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
+  PrimaryGeneratedColumn
 } from 'typeorm';
 
 @Entity('invite')
-export class MailHistory extends BaseEntity {
+export class MailHistory extends EntityHelper {
   constructor(mailHistory?: Partial<MailHistory>) {
     super();
     if (mailHistory !== undefined) {

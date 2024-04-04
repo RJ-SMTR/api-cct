@@ -1,6 +1,6 @@
 import { CnabFile104 } from "src/cnab/interfaces/cnab-240/104/cnab-file-104.interface";
-import { getCnabFileFrom104 } from "src/cnab/utils/cnab-104-pipe-utils";
-import { setCnabFileMetadata } from "src/cnab/utils/cnab-metadata-utils";
+import { getCnabFileFrom104 } from "src/cnab/utils/cnab/cnab-104-pipe-utils";
+import { setCnabFileMetadata } from "src/cnab/utils/cnab/cnab-metadata-utils";
 import { CnabHeaderArquivo104Template } from "../cnab-header-arquivo-104-template.const";
 import { cnabTrailerArquivo104Template } from "../cnab-trailer-arquivo-104-template.const";
 import { cnabTrailerLote104Template } from "../cnab-trailer-lote-104-template.const";

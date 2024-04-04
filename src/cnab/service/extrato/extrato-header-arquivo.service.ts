@@ -42,14 +42,14 @@ export class ExtratoHeaderArquivoService {
     return saveHA;
   }
 
-  public async findOne(fields: EntityCondition<ExtratoHeaderArquivo> | EntityCondition<ExtratoHeaderArquivo>[],): Promise<Nullable<ExtratoHeaderArquivo>> {
+  public async findOne(fields: EntityCondition<ExtratoHeaderArquivo>,): Promise<Nullable<ExtratoHeaderArquivo>> {
     return await this.extHeaderArquivoRepository.findOne({
       where: fields
     });
   }
 
   public async findMany(
-    fields: EntityCondition<ExtratoHeaderArquivo> | EntityCondition<ExtratoHeaderArquivo>[],
+    fields: EntityCondition<ExtratoHeaderArquivo>,
   ): Promise<ExtratoHeaderArquivo[]> {
     return await this.extHeaderArquivoRepository.findMany({
       where: fields

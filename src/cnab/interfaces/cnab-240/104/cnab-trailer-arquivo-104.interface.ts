@@ -1,7 +1,7 @@
 import {
   CnabField,
   CnabFieldAs
-} from '../../cnab-field.interface';
+} from '../../cnab-all/cnab-field.interface';
 
 /**
  * @extends {CnabFields}

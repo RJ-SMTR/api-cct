@@ -26,10 +26,9 @@ export enum CrobJobsEnum {
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
-  updateTransacao1 = 'updateTransacaoWeek1',
-  updateTransacao2 = 'updateTransacaoWeek2',
-  updateRemessaJae = 'updateRemessaJae',
-  updateRemessaOutros = 'updateRemessaOutros',
+  updatePagamento = 'updatePagamento',
+  updatePagamento2 = 'updatePagamento',
+  sendRemessa = 'sendRemessa',
   updateRetorno = 'updateRetorno',
   updateExtrato = 'updateExtrato',
 }
@@ -51,12 +50,12 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   public jobsConfig: ICronJob[] = [];
   public staticJobs = {
-    updateTransacao2: {
-      name: CrobJobsEnum.updateTransacao2,
+    updatePagamento2: {
+      name: CrobJobsEnum.updatePagamento2,
       cronJobParameters: {
         cronTime: '30 6 * * *',  // 03:30 BRT = 06:30 UTC
         onTick: async () => {
-          await this.updateTransacao2();
+          await this.updatePagamento2();
         },
       },
     } as ICronJob,
@@ -78,8 +77,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad()';
-    await this.updateTransacao1();
-    await this.updateRemessa();
+    await this.updatePagamento1();
+    // await this.sendRemessa();
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -638,11 +637,11 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     }
   }
 
-  async updateTransacao1() {
-    const METHOD = 'updateTransacao()';
+  async updatePagamento1() {
+    const METHOD = 'updatePagamento()';
     try {
       logLog(this.logger, 'Iniciando tarefa.', METHOD);
-      await this.cnabService.updateTransacaoFromJae();
+      await this.cnabService.updatePagamento();
       logLog(this.logger,
         'Tabelas: Favorecido, Transacao e ItemTransacao atualizados com sucesso.',
         METHOD
@@ -654,16 +653,16 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
         error,
         error as Error,
       );
-      this.startCron(this.staticJobs.updateTransacao2);
+      this.startCron(this.staticJobs.updatePagamento2);
       // enviar email para: raphael, william, bernardo...
     }
   }
 
-  async updateTransacao2() {
-    const METHOD = 'updateTransacaoWeek2()';
+  async updatePagamento2() {
+    const METHOD = 'updatePagamento2()';
     try {
       logLog(this.logger, 'Iniciando tarefa.', METHOD);
-      await this.cnabService.updateTransacaoFromJae();
+      await this.cnabService.updatePagamento();
       logLog(this.logger,
         'Tabelas: Favorecido, Transacao e ItemTransacao atualizados com sucesso.',
         METHOD
@@ -675,16 +674,16 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
         error,
         error as Error,
       );
-      this.deleteCron(CrobJobsEnum.updateTransacao2);
+      this.deleteCron(CrobJobsEnum.updatePagamento2);
       // enviar email para: raphael, william, bernardo...
     }
   }
 
-  async updateRemessa() {
-    const METHOD = 'updateRemessa()';
+  async sendRemessa() {
+    const METHOD = 'sendRemessa()';
     try {
       logLog(this.logger, 'Iniciando tarefa.', METHOD);
-      await this.cnabService.updateRemessa();
+      await this.cnabService.sendRemessa();
       logLog(this.logger, 'Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       logError(this.logger,

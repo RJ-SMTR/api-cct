@@ -8,8 +8,8 @@ import {
   getStringUpperUnaccent,
   isStringBasicAlnumUpper,
 } from 'src/utils/string-utils';
-import { CnabField, CnabFieldFormat } from '../interfaces/cnab-field.interface';
-import { CnabFieldType } from '../types/cnab-field-type.type';
+import { CnabField, CnabFieldFormat } from '../../interfaces/cnab-all/cnab-field.interface';
+import { CnabFieldType } from '../../types/cnab-field-type.type';
 import { getCnabFieldNameLog } from './cnab-metadata-utils';
 
 type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';

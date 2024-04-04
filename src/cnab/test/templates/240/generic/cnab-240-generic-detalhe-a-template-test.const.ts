@@ -1,5 +1,5 @@
 import { Cnab } from 'src/cnab/const/cnab.const';
-import { CnabFields } from 'src/cnab/interfaces/cnab-field.interface';
+import { CnabFields } from 'src/cnab/interfaces/cnab-all/cnab-field.interface';
 
 export const cnab240GenericDetalheATemplateTest: CnabFields = {
   codigoRegistro: { pos: [1, 1], picture: '9(001)', value: '0', ...Cnab.insert.d(), },

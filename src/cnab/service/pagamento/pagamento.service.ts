@@ -5,7 +5,7 @@ import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-st
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
-import { asHeaderLote104, generateHeaderLote } from 'src/cnab/utils/cnab-tables-pipe-utils';
+import { asHeaderLote104, generateHeaderLote } from 'src/cnab/utils/cnab/cnab-tables-pipe-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { logDebug, logWarn } from 'src/utils/log-utils';
 import { asDate, asString } from 'src/utils/pipe-utils';
@@ -26,11 +26,11 @@ import { CnabDetalheA_104 } from '../../interfaces/cnab-240/104/pagamento/cnab-d
 import { CnabDetalheB_104 } from '../../interfaces/cnab-240/104/pagamento/cnab-detalhe-b-104.interface';
 import { CnabHeaderLote104Pgto } from '../../interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 import { CnabRegistros104Pgto } from '../../interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
-import { ICnabTables } from '../../interfaces/cnab-tables.interface';
+import { ICnabTables } from '../../interfaces/cnab-all/cnab-tables.interface';
 import {
   stringifyCnab104File
-} from '../../utils/cnab-104-utils';
-import { getTipoInscricao } from '../../utils/cnab-utils';
+} from '../../utils/cnab/cnab-104-utils';
+import { getTipoInscricao } from '../../utils/cnab/cnab-utils';
 import { Cnab104Service } from '../cnab-104.service';
 import { DetalheAService } from './detalhe-a.service';
 import { DetalheBService } from './detalhe-b.service';
@@ -43,7 +43,7 @@ const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
 @Injectable()
-export class PagamentoService {
+export class RetornoService {
   private logger: Logger = new Logger('CnabPagamentoService', {
     timestamp: true,
   });
@@ -79,7 +79,7 @@ export class PagamentoService {
     // After generate CnabTables, update status
     await this.transacaoService.save({
       id: cnabTables.transacao.id,
-      status: new TransacaoStatus(TransacaoStatusEnum.used),
+      status: new TransacaoStatus(TransacaoStatusEnum.sentRemessa),
     });
 
     return savedHA;

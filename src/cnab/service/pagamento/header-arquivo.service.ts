@@ -102,7 +102,7 @@ export class HeaderArquivoService {
 
 
   public async getOne(
-    fields: EntityCondition<HeaderArquivo> | EntityCondition<HeaderArquivo>[],
+    fields: EntityCondition<HeaderArquivo>,
   ): Promise<HeaderArquivo> {
     return await this.headerArquivoRepository.getOne(fields);
   }

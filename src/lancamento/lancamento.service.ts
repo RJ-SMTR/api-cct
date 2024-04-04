@@ -15,7 +15,7 @@ export class LancamentoService {
     private readonly lancamentoRepository: Repository<LancamentoEntity>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async findByPeriod(
     month: number,
