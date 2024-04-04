@@ -29,7 +29,7 @@ export class HeaderArquivoService {
   /**
    * Generate new HaderArquivo from Transacao
    */
-  public async generateFromTransacao(
+  public async getDTO(
     transacao: Transacao,
     tipo_arquivo: HeaderArquivoTipoArquivo,
   ): Promise<HeaderArquivoDTO> {

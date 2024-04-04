@@ -22,43 +22,43 @@ export class HeaderArquivoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  codigoBanco?: string | null;
+  codigoBanco?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  tipoInscricao?: string | null;
+  tipoInscricao?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numeroInscricao?: string | null;
+  numeroInscricao?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  codigoConvenio?: string | null;
+  codigoConvenio?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  parametroTransmissao?: string | null;
+  parametroTransmissao?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  agencia?: string | null;
+  agencia?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dvAgencia?: string | null;
+  dvAgencia?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numeroConta?: string | null;
+  numeroConta?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  dvConta?: string | null;
+  dvConta?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  nomeEmpresa?: string | null;
+  nomeEmpresa?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

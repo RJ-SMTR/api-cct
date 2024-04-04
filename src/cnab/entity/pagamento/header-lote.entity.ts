@@ -1,5 +1,5 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { HeaderArquivo } from './header-arquivo.entity';
 import { Pagador } from './pagador.entity';
 
@@ -8,6 +8,13 @@ import { Pagador } from './pagador.entity';
  */
 @Entity()
 export class HeaderLote extends EntityHelper {
+  constructor(dto?: DeepPartial<HeaderLote>) {
+    super();
+    if (dto) {
+      Object.assign(this, dto);
+    }
+  }
+
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_HeaderLote_id' })
   id: number;
 

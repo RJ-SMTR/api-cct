@@ -9,6 +9,11 @@ import { HeaderLoteDTO } from '../../dto/pagamento/header-lote.dto';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
 import { HeaderLoteRepository } from '../../repository/pagamento/header-lote.repository';
 import { PagadorService } from './pagador.service';
+import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
+import { HeaderArquivoDTO } from 'src/cnab/dto/pagamento/header-arquivo.dto';
+import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
+
+const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
 @Injectable()
 export class HeaderLoteService {
@@ -18,6 +23,25 @@ export class HeaderLoteService {
     private headerLoteRepository: HeaderLoteRepository,
     private pagadorService: PagadorService,
   ) { }
+
+  /**
+   * From Transacao, HeaderArquivo transforms into HeaderLote.
+   */
+  public getDTO(
+    transacao: Transacao,
+    headerArquivo: HeaderArquivoDTO,
+  ): HeaderLoteDTO {
+    const dto = new HeaderLoteDTO({
+      codigoConvenioBanco: headerArquivo.codigoConvenio,
+      pagador: transacao.pagador,
+      numeroInscricao: headerArquivo.numeroInscricao,
+      parametroTransmissao: headerArquivo.parametroTransmissao,
+      tipoCompromisso: String(PgtoRegistros.headerLote.tipoCompromisso.value),
+      tipoInscricao: headerArquivo.tipoInscricao,
+      headerArquivo: headerArquivo
+    });
+    return dto;
+  }
 
   public async saveFrom104(lote: CnabLote104Pgto, headerArquivo: HeaderArquivo,
   ): Promise<SaveIfNotExists<HeaderLote>> {

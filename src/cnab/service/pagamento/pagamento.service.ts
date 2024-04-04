@@ -5,7 +5,6 @@ import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-st
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
-import { asHeaderLote104, generateHeaderLote } from 'src/cnab/utils/cnab/cnab-tables-pipe-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { logDebug, logWarn } from 'src/utils/log-utils';
 import { asDate, asString } from 'src/utils/pipe-utils';
@@ -151,11 +150,11 @@ export class RetornoService {
   public async generateCnabRemessa(transacao: Transacao
   ): Promise<{ string: string, tables: ICnabTables } | null> {
 
-    const headerArquivo = await this.headerArquivoService.generateFromTransacao(
+    const headerArquivo = await this.headerArquivoService.getDTO(
       transacao,
       HeaderArquivoTipoArquivo.Remessa,
     );
-    const headerLote = generateHeaderLote(transacao, headerArquivo);
+    const headerLote = this.headerLoteService.getDTO(transacao, headerArquivo);
 
     // Get Cnab104
     const cnab104 = await this.generateCnab104Pgto(transacao, headerArquivo, headerLote);
@@ -197,7 +196,7 @@ export class RetornoService {
       headerArquivo: headerArquivo104,
       lotes: [
         {
-          headerLote: asHeaderLote104(headerLote),
+          headerLote: this.asHeaderLote104(headerLote),
           registros: [],
           trailerLote: sc(PgtoRegistros.trailerLote),
         },
@@ -313,6 +312,25 @@ export class RetornoService {
     headerLote104: CnabHeaderLote104Pgto,
   ) {
     headerLoteDTO.loteServico = Number(headerLote104.loteServico.value);
+  }
+
+  private asHeaderLote104(
+    headerLoteDTO: HeaderLoteDTO,
+  ): CnabHeaderLote104Pgto {
+    const headerLote104: CnabHeaderLote104Pgto = sc(PgtoRegistros.headerLote);
+    const headerArquivo = headerLoteDTO.headerArquivo as HeaderArquivo;
+    headerLote104.codigoConvenioBanco.value = headerLoteDTO.codigoConvenioBanco;
+    headerLote104.numeroInscricao.value = headerLoteDTO.numeroInscricao;
+    headerLote104.parametroTransmissao.value = headerLoteDTO.parametroTransmissao;
+    headerLote104.tipoInscricao.value = headerLoteDTO.tipoInscricao;
+    // Pagador
+    headerLote104.agenciaContaCorrente.value = headerArquivo.agencia;
+    headerLote104.dvAgencia.value = headerArquivo.dvAgencia;
+    headerLote104.numeroConta.value = headerArquivo.numeroConta;
+    headerLote104.dvConta.value = headerArquivo.dvConta;
+    headerLote104.nomeEmpresa.value = headerArquivo.nomeEmpresa;
+
+    return headerLote104;
   }
 
   /**
