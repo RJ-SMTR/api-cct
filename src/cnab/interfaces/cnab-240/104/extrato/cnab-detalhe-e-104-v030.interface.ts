@@ -1,7 +1,9 @@
 import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-all/cnab-field.interface';
 
 /**
- * Cnab240_104ExtratoDetalheE
+ * EXTRATO ELETRÔNICO PARA CONCILIAÇÃO BANCÁRIA
+ * 
+ * @version v005 micro MAIO/2022
  * @extends {CnabFields}
  */
 export interface CnabDetalheE_104V030 {

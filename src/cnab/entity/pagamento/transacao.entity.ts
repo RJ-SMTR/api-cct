@@ -1,8 +1,8 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Pagador } from './pagador.entity';
-import { TransacaoStatus } from './transacao-status.entity';
 import { TransacaoOcorrencia } from './transacao-ocorrencia.entity';
+import { TransacaoStatus } from './transacao-status.entity';
 
 @Entity()
 export class Transacao extends EntityHelper {
@@ -23,8 +23,12 @@ export class Transacao extends EntityHelper {
   @Column({ type: Date, unique: false, nullable: true })
   dataPagamento: Date | null;
 
-  /** References BigqueryOrdemPagamento */
-  @Column({ type: String, unique: false, nullable: false })
+  /** 
+   * References BigqueryOrdemPagamento. Unique ID column
+   * 
+   * uniqueColumnName: `UQ_Transacao_idOrdemPagamento`
+   */
+  @Column({ type: String, unique: true, nullable: true })
   idOrdemPagamento: string;
 
   @ManyToOne(() => Pagador, { eager: true })
@@ -42,6 +46,10 @@ export class Transacao extends EntityHelper {
   @OneToMany(() => TransacaoOcorrencia, ocorrencia => ocorrencia.transacao)
   @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_ocorrencias_OneToMany' })
   ocorrencias: TransacaoOcorrencia[];
+
+  public static getUniqueId(entity: DeepPartial<Transacao>): string {
+    return `${entity.idOrdemPagamento}`;
+  }
 
   public getLogInfo(): string {
     const response = `#${this.id}`;

@@ -7,6 +7,7 @@ import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BQSInstances, BigqueryService } from '../bigquery.service';
 import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
 import { IBigqueryFindOrdemPagamento } from '../interfaces/bigquery-find-ordem-pagamento.interface';
+import { logWarn } from 'src/utils/log-utils';
 
 @Injectable()
 export class BigqueryOrdemPagamentoRepository {
@@ -106,7 +107,7 @@ export class BigqueryOrdemPagamentoRepository {
     // Args
     let offset = args?.offset;
     if (args?.offset !== undefined && args.limit === undefined) {
-      this.logger.warn(
+      logWarn(this.logger,
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
         " 'offset' will be ignored to prevent query fail",
       );

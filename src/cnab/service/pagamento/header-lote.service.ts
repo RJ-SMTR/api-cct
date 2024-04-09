@@ -1,17 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { HeaderArquivoDTO } from 'src/cnab/dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
+import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
 import { CnabLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface';
+import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
+import { DeepPartial } from 'typeorm';
 import { HeaderLoteDTO } from '../../dto/pagamento/header-lote.dto';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
 import { HeaderLoteRepository } from '../../repository/pagamento/header-lote.repository';
 import { PagadorService } from './pagador.service';
-import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
-import { HeaderArquivoDTO } from 'src/cnab/dto/pagamento/header-arquivo.dto';
-import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -26,19 +27,22 @@ export class HeaderLoteService {
 
   /**
    * From Transacao, HeaderArquivo transforms into HeaderLote.
+   * 
+   * `loteServico` should be set later before save!
+   * 
    */
   public getDTO(
     transacao: Transacao,
     headerArquivo: HeaderArquivoDTO,
-  ): HeaderLoteDTO {
-    const dto = new HeaderLoteDTO({
+  ): HeaderLote {
+    const dto = new HeaderLote({
       codigoConvenioBanco: headerArquivo.codigoConvenio,
       pagador: transacao.pagador,
       numeroInscricao: headerArquivo.numeroInscricao,
       parametroTransmissao: headerArquivo.parametroTransmissao,
       tipoCompromisso: String(PgtoRegistros.headerLote.tipoCompromisso.value),
       tipoInscricao: headerArquivo.tipoInscricao,
-      headerArquivo: headerArquivo
+      headerArquivo: headerArquivo,
     });
     return dto;
   }
@@ -59,6 +63,16 @@ export class HeaderLoteService {
     return await this.headerLoteRepository.saveIfNotExists(headerLote);
   }
 
+  /**
+   * Any DTO existing in db will be ignored.
+   * 
+   * @param dtos DTOs that can exist or not in database 
+   * @returns Saved objects not in database.
+   */
+  public saveManyIfNotExists(dtos: DeepPartial<HeaderLote>[]): Promise<HeaderLote[]> {
+    return this.headerLoteRepository.saveManyIfNotExists(dtos);
+  }
+
   public async save(dto: HeaderLoteDTO): Promise<HeaderLote> {
     await validateDTO(HeaderLoteDTO, dto);
     return await this.headerLoteRepository.save(dto);
@@ -73,6 +87,6 @@ export class HeaderLoteService {
   public async findMany(
     fields: EntityCondition<HeaderLote>,
   ): Promise<HeaderLote[]> {
-    return await this.headerLoteRepository.findMany(fields);
+    return await this.headerLoteRepository.findMany({ where: fields });
   }
 }

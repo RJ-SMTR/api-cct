@@ -73,8 +73,8 @@ export function getCnabFieldType(field: CnabField): CnabFieldType {
 }
 
 export function validateCnabFieldType(field: CnabField) {
-  if (field.value === null) {
-    throw new Error('No formats allow null item value');
+  if (field?.value === undefined) {
+    throw new Error(`No formats allow undefined item value`);
   }
 }
 
@@ -165,7 +165,7 @@ export function formatText(
   validateCnabText(field, throwIfInvalid);
   const size = getPictureTextSize(field.picture);
   const result = cropFillCnabField(
-    getStringNoSpecials(getStringUpperUnaccent(field.value)),
+    getStringNoSpecials(getStringUpperUnaccent(field.value || '')),
     size,
     'text',
     onCrop,
@@ -184,8 +184,8 @@ export function validateCnabText(
   field: CnabField,
   throwOnError = false,
 ): boolean {
-  const isCnabTextValid =
-    typeof field.value === 'string' && isStringBasicAlnumUpper(field.value);
+  const isCnabTextValid = !field.value ||
+    (typeof field.value === 'string' && isStringBasicAlnumUpper(field.value));
   if (isCnabTextValid && throwOnError) {
     throw new Error(
       `CnabField value has invalid Text format. ${cnabFieldToString(field)}`,
@@ -299,7 +299,7 @@ export function formatNumber(
   validateFormatNumber(field);
   const { integer, decimal } = getPictureNumberSize(field.picture);
 
-  let numFixed = Number(Number(field.value).toFixed(decimal)); // roundCeil
+  let numFixed = Number(Number(field.value || 0).toFixed(decimal)); // roundCeil
   if (cropDecimal === 'cropDecimals') {
     numFixed = cropDecimals(Number(field.value), decimal);
   }
@@ -321,7 +321,7 @@ export function formatNumber(
  * Performs basic validation before formatting.
  */
 function validateFormatNumber(field: CnabField) {
-  if (field.value === null || isNaN(Number(field.value))) {
+  if (field.value && isNaN(Number(field.value))) {
     throw new Error(
       `CnabField is not a valid number value. ${cnabFieldToString(field)}`,
     );
@@ -526,12 +526,18 @@ export function parseNumber(field: CnabField) {
  * But it can convert to string if field.format.force = true.
  */
 export function parseText(field: CnabField) {
-  if (field.format && field.format?.formatType !== 'string' && !field.format.force) {
-    throw new Error(`Expected CnabFieldAs<string> with formatType = 'string'. ${JSON.stringify(field)}`);
+  if (field.format && !['string', 'nullableString'].includes(field.format?.formatType) && !field.format.force) {
+    throw new Error(`Expected CnabFieldAs<string> with formatType = 'string' | 'nullableString.`
+      + JSON.stringify(field));
   }
   const str = String(field.value).trim();
-  field.convertedValue = str;
-  updateCnabFieldFormatValues(field, { formatType: 'string' });
+  if (field.format?.formatType === 'nullableString') {
+    field.convertedValue = str || null;
+    updateCnabFieldFormatValues(field, { formatType: 'nullableString' });
+  } else {
+    field.convertedValue = str;
+    updateCnabFieldFormatValues(field, { formatType: 'string' });
+  }
 }
 
 // #endregion

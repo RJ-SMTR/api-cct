@@ -64,7 +64,7 @@ export class UsersService {
     const createdUser = await this.usersRepository.save(
       this.usersRepository.create(createProfileDto),
     );
-    this.logger.log(`Usuário criado: ${createdUser.getLogInfo()}`);
+    logLog(this.logger, `Usuário criado: ${createdUser.getLogInfo()}`);
     return createdUser;
   }
 

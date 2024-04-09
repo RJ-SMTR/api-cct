@@ -1,6 +1,7 @@
 import { CnabField, CnabFieldAs, CnabFieldBase, CnabFieldFormat } from "../interfaces/cnab-all/cnab-field.interface";
 
 const format = {
+  nullableString: () => ({ formatType: 'nullableString' } as CnabFieldFormat),
   string: () => ({ formatType: 'string' } as CnabFieldFormat),
   stringForce: () => ({ formatType: 'string', force: true } as CnabFieldFormat),
   number: () => ({ formatType: 'number' } as CnabFieldFormat),
@@ -50,6 +51,12 @@ export const Cnab = {
       format: format.string(),
       ...cnab
     }),
+    nullableString: (cnab: CnabFieldBase): CnabFieldAs<string> => ({
+      stringValue: '',
+      convertedValue: '',
+      format: format.nullableString(),
+      ...cnab
+    }),
     stringForce: (cnab: CnabFieldBase): CnabFieldAs<string> => ({
       stringValue: '',
       convertedValue: '',
@@ -95,6 +102,11 @@ export const Cnab = {
       stringValue: '',
       convertedValue: '',
       format: format.string(),
+    }),
+    nullableString: () => ({
+      stringValue: '',
+      convertedValue: '',
+      format: format.nullableString(),
     }),
     stringForce: () => ({
       stringValue: '',

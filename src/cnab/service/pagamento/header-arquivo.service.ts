@@ -12,6 +12,7 @@ import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { HeaderArquivoRepository } from '../../repository/pagamento/header-arquivo.repository';
 import { PagadorService } from './pagador.service';
+import { getBRTFromUTC } from 'src/utils/date-utils';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -33,7 +34,7 @@ export class HeaderArquivoService {
     transacao: Transacao,
     tipo_arquivo: HeaderArquivoTipoArquivo,
   ): Promise<HeaderArquivoDTO> {
-    const now = new Date();
+    const now = getBRTFromUTC (new Date());
     const pagador = await this.pagadorService.getOneByIdPagador(transacao.pagador.id);
     const dto = new HeaderArquivoDTO({
       agencia: pagador.agencia,
@@ -51,7 +52,7 @@ export class HeaderArquivoService {
       numeroConta: pagador.conta,
       tipoArquivo: tipo_arquivo,
       nsa: await this.getNextNSA(),
-      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.created),
+      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessaSent),
     });
     return dto;
   }
@@ -86,6 +87,13 @@ export class HeaderArquivoService {
     fields: FindOptionsWhere<HeaderArquivo> | FindOptionsWhere<HeaderArquivo>[]
   ): Promise<HeaderArquivo[]> {
     return this.headerArquivoRepository.findMany(fields);
+  }
+
+  /**
+   * key: HeaderArquivo unique id
+   */
+  public saveManyIfNotExists(dtos: HeaderArquivoDTO[]): Promise<HeaderArquivo[]> {
+    return this.headerArquivoRepository.saveManyIfNotExists(dtos);
   }
 
   public async saveIfNotExists(dto: HeaderArquivoDTO): Promise<SaveIfNotExists<HeaderArquivo>> {

@@ -2,6 +2,8 @@ import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-all/cnab-field.
 
 /**
  * @extends {CnabFields}
+ * 
+ * @version v032 micro - FEV/2024 
  */
 export interface CnabHeaderArquivo104 {
   codigoBanco: CnabField;

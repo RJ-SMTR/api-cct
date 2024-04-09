@@ -1,6 +1,5 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { IsNull, Like, Repository } from 'typeorm';
@@ -63,12 +62,14 @@ export class SettingsService {
     defaultValueIfNotFound?: boolean,
     logContext?: string,
   ): Promise<SettingEntity> {
+    const METHOD = logContext
+      ? `${logContext}>${this.getOneBySettingData.name}`
+      : this.getOneBySettingData.name
     const dbSetting = await this.findOneBySettingData(setting);
     if (defaultValueIfNotFound && !dbSetting) {
-      logWarn(this.logger,
+      this.logger.warn(
         `Configuração 'setting.${setting.name}' não encontrada. Usando valor padrão: '${setting.value}'.`,
-        `${this.getOneBySettingData.name}()`,
-        logContext,
+        METHOD,
       );
       return new SettingEntity(setting);
     } else {

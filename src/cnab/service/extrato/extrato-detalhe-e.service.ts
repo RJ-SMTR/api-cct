@@ -3,6 +3,7 @@ import { ExtratoDetalheE } from 'src/cnab/entity/extrato/extrato-detalhe-e.entit
 import { ExtratoHeaderLote } from 'src/cnab/entity/extrato/extrato-header-lote.entity';
 import { CnabDetalheE_104V030 } from 'src/cnab/interfaces/cnab-240/104/extrato/cnab-detalhe-e-104-v030.interface';
 import { ExtratoDetalheERepository } from 'src/cnab/repository/extrato/extrato-detalhe-e.repository';
+import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial } from 'typeorm';
@@ -39,7 +40,7 @@ export class ExtratoDetalheEService {
     });
     const saved = await this.extDetalheERepository.saveIfNotExists(detalheE);
     if (!saved.isNewItem) {
-      this.logger.warn('ExtratoDetalheE já existe, ignorando...');
+      logWarn(this.logger, 'ExtratoDetalheE já existe, ignorando...');
     }
     return saved.item;
   }

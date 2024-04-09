@@ -11,6 +11,7 @@ import { IBqFindTransacao } from '../interfaces/bq-find-transacao-by.interface';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
 import { BqTransacaoTipoTransacaoMap } from '../maps/bq-transacao-tipo-transacao.map';
+import { logWarn } from 'src/utils/log-utils';
 
 @Injectable()
 export class BigqueryTransacaoRepository {
@@ -130,7 +131,7 @@ export class BigqueryTransacaoRepository {
     const queryBuilder = new QueryBuilder();
     queryBuilder.pushOR([]);
     if (args?.offset !== undefined && args.limit === undefined) {
-      this.logger.warn(
+      logWarn(this.logger,
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
         " 'offset' will be ignored to prevent query fail",
       );

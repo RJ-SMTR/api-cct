@@ -1,5 +1,5 @@
 import { Exclude, instanceToPlain } from 'class-transformer';
-import { AfterLoad, BaseEntity } from 'typeorm';
+import { AfterLoad, BaseEntity, DeepPartial } from 'typeorm';
 
 export class EntityHelper extends BaseEntity {
   @Exclude()
@@ -21,5 +21,12 @@ export class EntityHelper extends BaseEntity {
   @AfterLoad()
   setFieldValues() {
     // 
+  }
+
+  /**
+   * Get unique ID. 
+   */
+  public static getUniqueId(entity: DeepPartial<EntityHelper>): string {
+    return `${entity}`;
   }
 }

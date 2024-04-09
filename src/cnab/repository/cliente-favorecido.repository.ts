@@ -1,15 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository, UpdateResult } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 
 @Injectable()
 export class ClienteFavorecidoRepository {
 
-  private logger: Logger = new Logger('ClienteFavorecidoRepository', {
+  private logger: Logger = new CustomLogger(ClienteFavorecidoRepository.name, {
     timestamp: true,
   });
 
@@ -40,8 +41,7 @@ export class ClienteFavorecidoRepository {
     const payload = await this.clienteFavorecidoRepository.upsert(
       favorecidos, { conflictPaths: { cpfCnpj: true }, skipUpdateIfNoValuesChanged: true }
     );
-    this.logger.log(
-      `${payload.identifiers.length} ClienteFavorecidos atualizados.`,
+    this.logger.log(`${payload.identifiers.length} ClienteFavorecidos atualizados.`,
     );
     return payload;
   }
@@ -58,8 +58,7 @@ export class ClienteFavorecidoRepository {
       id: id,
       ...updateDto,
     });
-    this.logger.log(
-      `ClienteFavorecido atualizado: ${updatedItem.getLogInfo()}`,
+    this.logger.log(`ClienteFavorecido atualizado: ${updatedItem.getLogInfo()}`,
     );
     return updatePayload;
   }

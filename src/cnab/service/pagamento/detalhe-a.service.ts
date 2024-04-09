@@ -5,6 +5,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
+import { DeepPartial } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
@@ -18,6 +19,16 @@ export class DetalheAService {
     private detalheARepository: DetalheARepository,
     private clienteFavorecidoService: ClienteFavorecidoService,
   ) { }
+
+  /**
+   * Any DTO existing in db will be ignored.
+   * 
+   * @param dtos DTOs that can exist or not in database 
+   * @returns Saved objects not in database.
+   */
+  public saveManyIfNotExists(dtos: DeepPartial<DetalheA>[]): Promise<DetalheA[]> {
+    return this.detalheARepository.saveManyIfNotExists(dtos);
+  }
 
   public async saveFrom104(registro: CnabRegistros104Pgto, headerLote: HeaderLote
   ): Promise<SaveIfNotExists<DetalheA>> {
@@ -66,7 +77,7 @@ export class DetalheAService {
   public async findMany(
     fields: EntityCondition<DetalheA>,
   ): Promise<DetalheA[]> {
-    return await this.detalheARepository.findMany(fields);
+    return await this.detalheARepository.findMany({ where: fields });
   }
 
   /**

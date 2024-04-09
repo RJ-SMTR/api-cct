@@ -2,6 +2,11 @@ import { Cnab } from 'src/cnab/const/cnab.const';
 import { CnabCodigoSegmento } from 'src/cnab/enums/all/cnab-codigo-segmento.enum';
 import { CnabDetalheE_104V030 as CnabDetalheE_104V030 } from 'src/cnab/interfaces/cnab-240/104/extrato/cnab-detalhe-e-104-v030.interface';
 
+/**
+ * EXTRATO ELETRÔNICO PARA CONCILIAÇÃO BANCÁRIA
+ * 
+ * @version v005 micro MAIO/2022
+ */
 export const cnabDetalheE104V030Template: CnabDetalheE_104V030 = {
   /** Fixo: 104 (Caixa) */
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '000', ...Cnab.insert.d() },

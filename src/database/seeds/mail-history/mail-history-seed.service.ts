@@ -8,6 +8,7 @@ import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { MailHistorySeedDataService } from './mail-history-seed-data.service';
 import { UserSeedDataService } from '../user/user-seed-data.service';
+import { logLog, logWarn } from 'src/utils/log-utils';
 
 @Injectable()
 export class MailHistorySeedService {
@@ -21,7 +22,7 @@ export class MailHistorySeedService {
     private usersRepository: Repository<User>,
     private mhSeedDataService: MailHistorySeedDataService,
     private userSeedDataService: UserSeedDataService,
-  ) {}
+  ) { }
 
   async validateRun() {
     return global.force || (await this.usersRepository.count()) === 0;
@@ -53,7 +54,7 @@ export class MailHistorySeedService {
     if (this.newMails.length) {
       this.printResults();
     } else {
-      this.logger.log('No new mails changed.');
+      logLog(this.logger, 'No new mails changed.');
     }
   }
 
@@ -108,13 +109,13 @@ export class MailHistorySeedService {
   }
 
   printResults() {
-    this.logger.log('NEW USERS:');
-    this.logger.warn(
+    logLog(this.logger, 'NEW USERS:');
+    logWarn(this.logger,
       'The passwords shown are always new but if user exists the current password in DB wont be updated.\n' +
-        'Save these passwords in the first run or remove these users before seed',
+      'Save these passwords in the first run or remove these users before seed',
     );
     for (const item of this.newMails) {
-      this.logger.log(item);
+      logLog(this.logger, item);
     }
   }
 }

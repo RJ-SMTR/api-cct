@@ -22,6 +22,11 @@ export class HeaderLote extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderLote_headerArquivo_ManyToOne' })
   headerArquivo: HeaderArquivo;
 
+  /** 
+   * Unique lote Id in HeaderArquivo, incremental.
+   * 
+   * Each HeaderArquivo will have loteServico 1 for lote 1; loteServico = 2 for lote 2 etc.
+   */
   @Column({ type: Number, unique: false, nullable: true })
   loteServico: number | null;
 
@@ -46,4 +51,14 @@ export class HeaderLote extends EntityHelper {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  /**
+   * ID: headerArquivo UniqueId + headerLote columns
+   */
+  public static getUniqueId(item?: DeepPartial<HeaderLote>, headerArqUniqueId?: string): string {
+    const _headerArqUniqueId = headerArqUniqueId
+      ? `(${headerArqUniqueId})`
+      : `(${HeaderArquivo.getUniqueId(item?.headerArquivo)})`;
+    return `${_headerArqUniqueId}|${item?.loteServico}`;
+  }
 }

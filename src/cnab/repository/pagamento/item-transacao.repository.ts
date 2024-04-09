@@ -2,9 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository } from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOneOptions, FindOptionsWhere, In, InsertResult, Repository } from 'typeorm';
 import { ItemTransacaoDTO } from '../../dto/pagamento/item-transacao.dto';
 import { ItemTransacao } from '../../entity/pagamento/item-transacao.entity';
+import { logWarn } from 'src/utils/log-utils';
 
 @Injectable()
 export class ItemTransacaoRepository {
@@ -26,6 +27,36 @@ export class ItemTransacaoRepository {
       skipUpdateIfNoValuesChanged: true,
       conflictPaths: { id: true },
     });
+  }
+
+  /**
+   * Bulk save if not exists
+   */
+  public async saveManyIfNotExists(dtos: DeepPartial<ItemTransacao>[]): Promise<ItemTransacao[]> {
+    // Existing
+    const existing = await this.findMany({
+      where: dtos.reduce((l, i) => [...l, {
+        idOrdemPagamento: i.idOrdemPagamento,
+        idOperadora: i.idOperadora,
+        idConsorcio: i.idConsorcio,
+      } as FindOptionsWhere<ItemTransacao>], [])
+    });
+    const existingMap: Record<string, ItemTransacao> =
+      (existing).reduce((m, i) => ({ ...m, [ItemTransacao.getUniqueId(i)]: i }), {});
+    // Check
+    if (existing.length === dtos.length) {
+      logWarn(this.logger, `${existing.length}/${dtos.length} DetalhesB já existem, nada a fazer...`);
+    } else if (existing.length) {
+      logWarn(this.logger, `${existing.length}/${dtos.length} DetalhesB já existem, ignorando...`);
+      return [];
+    }
+    // Save new
+    const newItems = dtos.filter(i => !existingMap[ItemTransacao.getUniqueId(i)]);
+    const insert = await this.insert(newItems);
+    // Return saved
+    const insertIds = (insert.identifiers as { id: number }[]).reduce((l, i) => [...l, i.id], []);
+    const savedItems = await this.findMany({ where: { id: In(insertIds) } });
+    return savedItems;
   }
 
   /**

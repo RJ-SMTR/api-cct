@@ -17,7 +17,7 @@ import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
-import { logLog } from 'src/utils/log-utils';
+import { logLog, logWarn } from 'src/utils/log-utils';
 import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { Nullable } from '../utils/types/nullable.type';
@@ -377,7 +377,7 @@ export class AuthService {
     };
 
     if (!user) {
-      this.logger.warn(`forgotPassword(): email '${email}' does not exists`);
+      logWarn(this.logger, `forgotPassword(): email '${email}' does not exists`);
       return returnMessage;
     }
 

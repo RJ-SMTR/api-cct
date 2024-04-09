@@ -80,4 +80,8 @@ export class HeaderArquivo extends EntityHelper {
   setFieldValues() {
     this.horaGeracao = asStringOrDateTime(this.horaGeracao, this.dataGeracao);
   }
+
+  public static getUniqueId(item?: DeepPartial<HeaderArquivo>) {
+    return `${item?.nsa}|${item?.tipoArquivo}`;
+  }
 }

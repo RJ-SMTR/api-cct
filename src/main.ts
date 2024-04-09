@@ -11,9 +11,17 @@ import { AppModule } from './app.module';
 import validationOptions from './utils/validation-options';
 import { AllConfigType } from './config/config.type';
 import { AllExceptionsFilter } from './utils/all-exteptions-filter/filters/all-exceptions.filter';
+import { differenceInMinutes } from 'date-fns';
 
 async function bootstrap() {
+  const localDateStr = new Date().toString();
+  global.__localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   process.env.TZ = 'UTC';
+  global.__localTzOffset = differenceInMinutes(
+    new Date(localDateStr.split(' GMT')[0]).getTime(),
+    new Date().getTime(),
+  );
+
   const app = await NestFactory.create(AppModule, { cors: true });
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   const configService = app.get(ConfigService<AllConfigType>);

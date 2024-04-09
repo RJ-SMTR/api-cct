@@ -3,6 +3,7 @@ import { ExtratoHeaderArquivo } from 'src/cnab/entity/extrato/extrato-header-arq
 import { ExtratoHeaderLote } from 'src/cnab/entity/extrato/extrato-header-lote.entity';
 import { CnabHeaderLote104Extrato } from 'src/cnab/interfaces/cnab-240/104/extrato/cnab-header-lote-104-extrato.interface';
 import { ExtratoHeaderLoteRepository } from 'src/cnab/repository/extrato/extrato-header-lote.repository';
+import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial } from 'typeorm';
@@ -30,7 +31,7 @@ export class ExtratoHeaderLoteService {
     });
     const saveHL = await this.extHeaderLoteRepository.saveIfNotExists(extratoHeaderLote);
     if (!saveHL.isNewItem) {
-      this.logger.warn('ExtratoHeaderLote já existe, ignorando...');
+      logWarn(this.logger, 'ExtratoHeaderLote já existe, ignorando...');
     }
     return saveHL.item;
   }

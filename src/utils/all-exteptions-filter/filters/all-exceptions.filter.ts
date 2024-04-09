@@ -12,7 +12,7 @@ import {
   HttpExceptionResponse,
 } from '../interfaces/http-exception-response.interface';
 import { getCustomValidationOptions } from '../custom-validation-options';
-import { formatError } from 'src/utils/log-utils';
+import { formatError, logError } from 'src/utils/log-utils';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -27,7 +27,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       request: request,
     });
 
-    logger.error(this.getErrorLogSummary(responseData, exception));
+    logError(logger, this.getErrorLogSummary(responseData, exception));
 
     response.status(responseData.statusCode).json(
       responseData?.response || {

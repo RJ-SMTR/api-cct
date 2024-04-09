@@ -1,6 +1,9 @@
 import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-all/cnab-field.interface';
 
 /**
+ * PAGAMENTO DE SALÁRIOS, PAGAMENTO/CRÉDITO A FORNECEDOR E AUTOPAGAMENTO E DÉBITO AUTOMÁTICO
+ * 
+ * @version v032 micro - FEV/2024
  * @extends {CnabFields}
  */
 export interface CnabHeaderLote104Pgto {

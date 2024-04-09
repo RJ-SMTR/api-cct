@@ -10,7 +10,7 @@ import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.e
 import { ItemTransacaoRepository } from 'src/cnab/repository/pagamento/item-transacao.repository';
 import { logDebug } from 'src/utils/log-utils';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { Not } from 'typeorm';
+import { DeepPartial, Not } from 'typeorm';
 
 @Injectable()
 export class ItemTransacaoService {
@@ -75,7 +75,15 @@ export class ItemTransacaoService {
   /**
    * Save if composite unique columns not exist. Otherwise, update.
    */
-  public async saveIfNotExists(dto: ItemTransacaoDTO, updateIfExists?: boolean): Promise<SaveIfNotExists<ItemTransacao>> {
+  public saveManyIfNotExists(dtos: DeepPartial<ItemTransacao>[]): Promise<ItemTransacao[]> {
+    return this.itemTransacaoRepository.saveManyIfNotExists(dtos);
+  }
+
+  /**
+   * Save if composite unique columns not exist. Otherwise, update.
+   */
+  public async saveIfNotExists(dto: ItemTransacaoDTO, updateIfExists?: boolean
+  ): Promise<SaveIfNotExists<ItemTransacao>> {
     // Find by composite unique columns
     const item = await this.itemTransacaoRepository.findOne({
       where: {
@@ -129,7 +137,7 @@ export class ItemTransacaoService {
         transacao: {
           id: Not(transacaoDest.id),
           pagador: { id: transacaoDest.pagador.id },
-          status: { id: TransacaoStatusEnum.sentRemessa },
+          status: { id: TransacaoStatusEnum.remessaSent },
         }
       }
     });

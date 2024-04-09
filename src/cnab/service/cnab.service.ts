@@ -4,15 +4,14 @@ import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-or
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
 import { UsersService } from 'src/users/users.service';
-import { logError, logLog, logWarn } from 'src/utils/log-utils';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { HeaderArquivoStatus } from '../entity/pagamento/header-arquivo-status.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Pagador } from '../entity/pagamento/pagador.entity';
 import { Transacao } from '../entity/pagamento/transacao.entity';
-import { HeaderArquivoStatusEnum } from '../enums/pagamento/header-arquivo-status.enum';
 import { CnabFile104Extrato } from '../interfaces/cnab-240/104/extrato/cnab-file-104-extrato.interface';
+import { CnabRemessaDTO } from '../interfaces/cnab-all/cnab-remsesa.interface';
 import { parseCnab240Extrato, parseCnab240Pagamento } from '../utils/cnab/cnab-104-utils';
 import { ArquivoPublicacaoService } from './arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './cliente-favorecido.service';
@@ -27,7 +26,7 @@ import { TransacaoService } from './pagamento/transacao.service';
 
 @Injectable()
 export class CnabService {
-  private logger: Logger = new Logger('HeaderArquivoService', {
+  private logger: Logger = new CustomLogger('CnabService', {
     timestamp: true,
   });
 
@@ -61,7 +60,7 @@ export class CnabService {
    * Requirement: **Salvar ordem de pagamento** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3.x}
    */
   public async updatePagamento() {
-    const METHOD = 'updatePagamento()';
+    const METHOD = this.updatePagamento.name;
 
     // Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
@@ -71,9 +70,9 @@ export class CnabService {
     // Log
     const msg = `Há ${ordens.length} ordens consideradas novas.`;
     if (ordens.length) {
-      logLog(this.logger, `${msg}. Salvando os itens...`, METHOD);
+      this.logger.log(`${msg}. Salvando os itens...`, METHOD);
     } else {
-      logLog(this.logger, `${msg}. Nada a fazer.`, METHOD);
+      this.logger.log(`${msg}. Nada a fazer.`, METHOD);
       return;
     }
 
@@ -82,13 +81,13 @@ export class CnabService {
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
     const publicacaoDTOs = this.getManyPublicacaoDTO(ordens, pagador, favorecidos);
     const transacaoDTOs = this.getManyTransacaoDTO(publicacaoDTOs, pagador);
-    const createdTransacoes = await this.transacaoService.saveMany(transacaoDTOs);
-    this.updateManyPublicacaoDTO(publicacaoDTOs, createdTransacoes);
-    await this.arqPublicacaoService.saveMany(publicacaoDTOs);
-    const itensTransacaoDTO = this.getManyItemTransacaoDTO(publicacaoDTOs, pagador, favorecidos);
+    const newTransacoes = await this.transacaoService.saveManyIfNotExists(transacaoDTOs);
+    const newPublicacaoDTOs = this.updateNewPublicacaoDTO(publicacaoDTOs, newTransacoes);
+    await this.arqPublicacaoService.saveMany(newPublicacaoDTOs);
+    const itensTransacaoDTO = this.getManyItemTransacaoDTO(newPublicacaoDTOs, pagador, favorecidos);
     await this.itemTransacaoService.saveMany(itensTransacaoDTO);
 
-    logLog(this.logger, 'Transações inseridas de uma vez com sucesso', METHOD);
+    this.logger.log('Transações inseridas de uma vez com sucesso', METHOD);
   }
 
   private async updateAllFavorecidosFromUsers() {
@@ -124,14 +123,28 @@ export class CnabService {
     return publicacoes;
   }
 
-  private updateManyPublicacaoDTO(publicacoes: ArquivoPublicacao[], createdTransacoes: Transacao[]) {
+  /**
+   * @returns Only new ArquivoPublicacoes. Those associated with new Transacao.
+   */
+  private updateNewPublicacaoDTO(
+    publicacoes: ArquivoPublicacao[], createdTransacoes: Transacao[]
+  ): ArquivoPublicacao[] {
     /** key: idOrdemPagamento */
     const transacaoMap: Record<string, Transacao> = createdTransacoes
       .reduce((map, i) => ({ ...map, [i.idOrdemPagamento]: i }), {});
+    const newPublicacoes: ArquivoPublicacao[] = [];
     for (const publicacao of publicacoes) {
       const transacao = transacaoMap[publicacao.idOrdemPagamento];
-      publicacao.transacao = { id: transacao.id } as Transacao;
+      if (transacao) {
+        publicacao.transacao = { id: transacao.id } as Transacao;
+        newPublicacoes.push(publicacao);
+      }
     }
+    if (newPublicacoes.length !== publicacoes.length) {
+      this.logger.warn(`${newPublicacoes.length}/${publicacoes.length} ArquivoPublicacoes novas `
+        + '(associado com Transacao nova).')
+    }
+    return newPublicacoes;
   }
 
   private getManyTransacaoDTO(publicacoes: ArquivoPublicacao[], pagador: Pagador) {
@@ -190,50 +203,40 @@ export class CnabService {
    * @throws `Error` if any subtask throws
    */
   public async sendRemessa() {
-    const METHOD = 'sendRemessa()';
+    const METHOD = this.sendRemessa.name;
     // Read new Transacoes
     const allNewTransacao = await this.transacaoService.findAllNewTransacao();
 
     // Retry all failed ItemTransacao to first new Transacao
     if (allNewTransacao.length > 0) {
       await this.itemTransacaoService.moveAllFailedToTransacao(allNewTransacao[0]);
+    } else {
+      this.logger.log('Sem Transações novas para criar CNAB. Tarefa finalizada.', METHOD);
+      return;
     }
 
+    const cnabs: CnabRemessaDTO[] = [];
+
+    // Generate Remessas and send SFTP
     for (const transacao of allNewTransacao) {
+      const cnab = await this.pagamentoService.generateCnabRemessa(transacao);
+      if (!cnab) {
+        this.logger.warn(
+          `A Transação #${transacao.id} gerou cnab vazio (sem itens válidos), ignorando...`, METHOD);
+        continue;
+      }
       try {
-        const cnab = await this.pagamentoService.generateCnabRemessa(transacao);
-        if (!cnab) {
-          logWarn(this.logger, `A Transação #${transacao.id} gerou cnab vazio (sem itens válidos), ignorando...`, METHOD);
-          continue;
-        }
-        const savedHeaderArquivo = await this.pagamentoService.saveCnabRemessa(cnab.tables);
-        try {
-          await this.sftpService.submitCnabRemessa(cnab.string);
-          await this.headerArquivoService.save({
-            id: savedHeaderArquivo.item.id,
-            status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessaSent),
-          });
-        }
-        catch (error) {
-          logError(this.logger, `Falha ao enviar o CNAB, tentaremos enviar no próximo job...`, METHOD, error, error);
-          await this.headerArquivoService.save({
-            id: savedHeaderArquivo.item.id,
-            status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessaSendingFailed),
-          });
-        }
+        await this.sftpService.submitCnabRemessa(cnab.string);
+        cnabs.push(cnab.dto);
       }
       catch (error) {
-        logError(this.logger,
-          `Ao adicionar a transação #${transacao.id} houve erro, ignorando...`, METHOD, error, error);
+        this.logger.error(
+          `Falha ao enviar o CNAB, tentaremos enviar no próximo job...`, METHOD, error, error);
       }
     }
 
-    // Log
-    if (allNewTransacao.length === 0) {
-      logLog(this.logger, 'Sem Transações novas para criar CNAB. Tarefa finalizada.', METHOD);
-      return;
-      // TODO: if no new Transacao but there is failed items, craete new Transacao to try again
-    }
+    // Save sent Remessas
+    await this.pagamentoService.saveManyRemessa(cnabs);
   }
 
   /**
@@ -248,7 +251,7 @@ export class CnabService {
     // Get retorno
     const { cnabString, cnabName } = await this.sftpService.getFirstCnabRetorno();
     if (!cnabName || !cnabString) {
-      logLog(this.logger, 'Retorno não encontrado, abortando tarefa.', METHOD);
+      this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
       return;
     }
 
@@ -260,7 +263,7 @@ export class CnabService {
       await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess);
     }
     catch (error) {
-      logError(this.logger,
+      this.logger.error(
         'Erro ao processar CNAB retorno, movendo para backup de erros e finalizando...',
         METHOD, error, error);
       await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoFailure);
@@ -280,7 +283,7 @@ export class CnabService {
     // Get retorno
     const cnab = await this.sftpService.getFirstCnabExtrato();
     if (!cnab) {
-      logLog(this.logger, 'Extrato não encontrado, abortando tarefa.', METHOD);
+      this.logger.log('Extrato não encontrado, abortando tarefa.', METHOD);
       return;
     }
 
@@ -291,7 +294,7 @@ export class CnabService {
       await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess);
     }
     catch (error) {
-      logError(this.logger,
+      this.logger.error(
         'Erro ao processar CNAB extrato, movendo para backup de erros e finalizando...',
         METHOD, error, error);
       // await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure);

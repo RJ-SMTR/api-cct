@@ -1,14 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { asString } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DeepPartial, FindManyOptions, InsertResult, Not, Repository } from 'typeorm';
-import { Transacao } from '../../entity/pagamento/transacao.entity';
-import { TransacaoDTO } from '../../dto/pagamento/transacao.dto';
-import { TransacaoStatusEnum } from '../../enums/pagamento/transacao-status.enum';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { asString } from 'src/utils/pipe-utils';
+import { DeepPartial, FindManyOptions, In, InsertResult, Not, Repository, UpdateResult } from 'typeorm';
+import { TransacaoDTO } from '../../dto/pagamento/transacao.dto';
+import { Transacao } from '../../entity/pagamento/transacao.entity';
+import { TransacaoStatusEnum } from '../../enums/pagamento/transacao-status.enum';
 
 @Injectable()
 export class TransacaoRepository {
@@ -23,8 +23,36 @@ export class TransacaoRepository {
 
   /**
    * Save Transacao if NSA not exists
+   * 
+   * @returns All saved Transacao that not exists
    */
-  public async saveDTOIfNotExists(dto: TransacaoDTO): Promise<SaveIfNotExists<Transacao>> {
+  public async saveManyIfNotExists(dtos: DeepPartial<Transacao>[]): Promise<Transacao[]> {
+    const METHOD = this.saveManyIfNotExists.name;
+    // Existing
+    const transacaoUniqueIds =
+      dtos.reduce((l, i) => [...l, ...i.idOrdemPagamento ? [i.idOrdemPagamento] : []], []);
+    const existing = await this.findMany({ where: { idOrdemPagamento: In(transacaoUniqueIds) } });
+    const existingMap: Record<string, Transacao> =
+      existing.reduce((m, i) => ({ ...m, [Transacao.getUniqueId(i)]: i }), {});
+    // Check
+    if (existing.length === dtos.length) {
+      this.logger.warn(`${existing.length}/${dtos.length} Transacoes já existem, nada a fazer...`, METHOD);
+    } else if (existing.length) {
+      this.logger.warn(`${existing.length}/${dtos.length} Transacoes já existem, ignorando...`, METHOD);
+      return [];
+    }
+    // Save new
+    const newDTOs = dtos.filter(i => !existingMap[Transacao.getUniqueId(i)]);
+    const inserted = await this.transacaoRepository.insert(newDTOs);
+    // Return saved
+    const insertedIds = (inserted.identifiers as { id: number }[]).reduce((l, i) => [...l, i.id], []);
+    return await this.findMany({ where: { id: In(insertedIds) } });
+  }
+
+  /**
+   * Save Transacao if NSA not exists
+   */
+  public async saveIfNotExists(dto: TransacaoDTO): Promise<SaveIfNotExists<Transacao>> {
     await validateDTO(TransacaoDTO, dto);
     const transacao = await this.findOne({ idOrdemPagamento: asString(dto.idOrdemPagamento) });
     if (transacao) {
@@ -38,6 +66,19 @@ export class TransacaoRepository {
         item: await this.transacaoRepository.save(dto),
       };
     }
+  }
+
+  /**
+   * Bulk update
+   */
+  public async updateMany(ids: number[], set: DeepPartial<Transacao>): Promise<UpdateResult> {
+    const result = await this.transacaoRepository
+      .createQueryBuilder()
+      .update(Transacao)
+      .set(set)
+      .whereInIds(ids)
+      .execute();
+    return result;
   }
 
   /**
@@ -77,7 +118,7 @@ export class TransacaoRepository {
   public async findAllNewTransacao(): Promise<Transacao[]> {
     return await this.transacaoRepository.find({
       where: {
-        status: { id: Not(TransacaoStatusEnum.sentRemessa) }
+        status: { id: Not(TransacaoStatusEnum.remessaSent) }
       }
     });
   }

@@ -66,7 +66,8 @@ export interface CnabFieldFormat {
 }
 
 export type CnabFieldFormatType =
-  'string' | 'boolean' |
+  'string' | 'nullableString' |
+  'boolean' |
   'Date' | 'NullableDate' |
   'number' | 'enum';
 

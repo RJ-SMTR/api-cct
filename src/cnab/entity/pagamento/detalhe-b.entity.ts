@@ -22,6 +22,11 @@ export class DetalheB extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_DetalheB_detalheA_OneToOne' })
   detalheA: DetalheA;
 
+  /**
+   * Número Sequencial do Registro.
+   * 
+   * Detalhe unique ID per lote
+   */
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
 

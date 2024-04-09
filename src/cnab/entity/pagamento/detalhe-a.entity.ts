@@ -1,6 +1,6 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asNullableStringOrNumber, asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
 
@@ -50,7 +50,7 @@ export class DetalheA extends EntityHelper {
   })
   valorLancamento: number;
 
-  @Column({ type: Number, unique: false, nullable: true })
+  @Column({ type: String, unique: false, nullable: true })
   numeroDocumentoBanco: string | null;
 
   @Column({ type: Number, unique: false, nullable: true })
@@ -78,6 +78,11 @@ export class DetalheA extends EntityHelper {
   })
   valorRealEfetivado: number;
 
+  /** 
+   * Número Sequencial do Registro.
+   * 
+   * Detalhe unique ID per lote
+   */
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
 
@@ -92,5 +97,15 @@ export class DetalheA extends EntityHelper {
     this.quantidadeMoeda = asNullableStringOrNumber(this.quantidadeMoeda);
     this.valorLancamento = asStringOrNumber(this.valorLancamento);
     this.valorRealEfetivado = asStringOrNumber(this.valorRealEfetivado);
+  }
+
+  /**
+   * ID: headerLoteUniqueId + detalheA columns
+   */
+  public static getUniqueId(detalheA: DeepPartial<DetalheA>, headerLoteUniqueId?: string): string {
+    const _headerLoteUniqueId = headerLoteUniqueId
+      ? `(${headerLoteUniqueId})`
+      : `(${HeaderLote.getUniqueId(detalheA?.headerLote)})`;
+    return `${_headerLoteUniqueId}|${detalheA.nsr}`;
   }
 }

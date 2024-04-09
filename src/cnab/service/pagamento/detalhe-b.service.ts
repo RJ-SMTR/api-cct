@@ -1,20 +1,31 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
+import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
+import { asCnabFieldDate } from 'src/cnab/utils/cnab/cnab-field-pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
-import { DetalheBRepository } from '../../repository/pagamento/detalhe-b.repository';
-import { DetalheB } from '../../entity/pagamento/detalhe-b.entity';
-import { validateDTO } from 'src/utils/validation-utils';
-import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
-import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
-import { asCnabFieldDate } from 'src/cnab/utils/cnab/cnab-field-pipe-utils';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
+import { validateDTO } from 'src/utils/validation-utils';
+import { DeepPartial } from 'typeorm';
+import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
+import { DetalheB } from '../../entity/pagamento/detalhe-b.entity';
+import { DetalheBRepository } from '../../repository/pagamento/detalhe-b.repository';
 
 @Injectable()
 export class DetalheBService {
   private logger: Logger = new Logger('DetalheBService', { timestamp: true });
 
   constructor(private detalheBRepository: DetalheBRepository) { }
+
+  /**
+   * Any DTO existing in db will be ignored.
+   * 
+   * @param dtos DTOs that can exist or not in database 
+   * @returns Saved objects not in database.
+   */
+  public saveManyIfNotExists(dtos: DeepPartial<DetalheB>[]): Promise<DetalheB[]> {
+    return this.detalheBRepository.saveManyIfNotExists(dtos);
+  }
 
   public async saveFrom104(registro: CnabRegistros104Pgto, detalheA: DetalheA
   ): Promise<SaveIfNotExists<DetalheB>> {
@@ -40,6 +51,6 @@ export class DetalheBService {
   public async findMany(
     fields: EntityCondition<DetalheB>,
   ): Promise<DetalheB[]> {
-    return await this.detalheBRepository.findMany(fields);
+    return await this.detalheBRepository.findMany({ where: fields });
   }
 }
