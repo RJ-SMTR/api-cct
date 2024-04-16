@@ -45,6 +45,11 @@ export class CreateLancamentoDto {
   @ApiProperty()
   @IsNotEmpty()
   @IsDateString()
+  anexo: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsDateString()
   valor_a_pagar: string;
 
   @ApiProperty()

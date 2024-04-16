@@ -50,6 +50,9 @@ export class LancamentoEntity {
 
   @Column({ type: 'varchar', nullable: false })
   recurso: string;
+  
+  @Column({ type: 'varchar', nullable: false })
+  anexo: string;
 
   @Column({ type: 'varchar', nullable: false })
   valor_a_pagar: string;

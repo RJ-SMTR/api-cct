@@ -17,6 +17,7 @@ export class CreateLancamento1708975174260 implements MigrationInterface {
                 "algoritmo" character varying NOT NULL,
                 "glosa" character varying NOT NULL,
                 "recurso" character varying NOT NULL,
+                "anexo" character varying,
                 "valor_a_pagar" character varying  NOT NULL,
                 "numero_processo" character varying NOT NULL,
                 CONSTRAINT "PK_133f2e1e4c9e3e9f2f6b1b0b345" PRIMARY KEY ("id"),
