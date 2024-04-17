@@ -2,7 +2,7 @@ import { HttpStatus, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { CnabService } from 'src/cnab/service/cnab.service';
+import { CnabService } from 'src/cnab/cnab.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -26,8 +26,10 @@ export enum CrobJobsEnum {
   sendStatusReport = 'sendStatusReport',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
-  updatePagamento = 'updatePagamento',
-  updatePagamento2 = 'updatePagamento',
+  saveTransacoesJae = 'saveTransacoesJae',
+  saveTransacoesJae2 = 'saveTransacoesJae2',
+  saveTransacoesLancamento = 'saveTransacoesLancamento',
+  saveTransacoesLancamento2 = 'saveTransacoesLancamento2',
   sendRemessa = 'sendRemessa',
   updateRetorno = 'updateRetorno',
   updateExtrato = 'updateExtrato',
@@ -44,18 +46,30 @@ interface ICronJobSetting {
   isEnabledFlag?: ISettingData;
 }
 
+/**
+ * CronJob tasks and management
+ */
 @Injectable()
 export class CronJobsService implements OnModuleInit, OnModuleLoad {
   private logger = new CustomLogger(CronJobsService.name, { timestamp: true });
 
   public jobsConfig: ICronJob[] = [];
   public staticJobs = {
-    updatePagamento2: {
-      name: CrobJobsEnum.updatePagamento2,
+    saveTransacoesJae2: {
+      name: CrobJobsEnum.saveTransacoesJae2,
       cronJobParameters: {
         cronTime: '30 6 * * *',  // 03:30 BRT = 06:30 UTC
         onTick: async () => {
-          await this.updatePagamento2();
+          await this.saveTransacoesJae2();
+        },
+      },
+    } as ICronJob,
+    saveTransacoesLancamento2: {
+      name: CrobJobsEnum.saveTransacoesLancamento2,
+      cronJobParameters: {
+        cronTime: '30 6 * * *',  // 03:30 BRT = 06:30 UTC
+        onTick: async () => {
+          await this.saveTransacoesLancamento2();
         },
       },
     } as ICronJob,
@@ -77,8 +91,9 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    await this.updatePagamento1();
-    await this.sendRemessa();
+    // await this.saveTransacoesJae1();
+    // await this.saveTransacoesLancamento1();
+    // await this.sendRemessa();
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -640,33 +655,33 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     }
   }
 
-  async updatePagamento1() {
-    const METHOD = this.updatePagamento1.name;
+  async saveTransacoesLancamento1() {
+    const METHOD = this.saveTransacoesLancamento1.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.updatePagamento();
+      await this.cnabService.saveTransacoesLancamento();
       this.logger.log(
-        'Tabelas: Favorecido, Transacao e ItemTransacao atualizados com sucesso.',
+        'Tabelas para o Lancamento atualizados com sucesso.',
         METHOD
       );
     } catch (error) {
       this.logger.error(
-        `ERRO CRÍTICO - ${error}`,
+        `ERRO CRÍTICO - ${JSON.stringify(error)}`,
         error?.stack,
         METHOD,
       );
-      this.startCron(this.staticJobs.updatePagamento2);
+      this.startCron(this.staticJobs.saveTransacoesLancamento2);
       // enviar email para: raphael, william, bernardo...
     }
   }
 
-  async updatePagamento2() {
-    const METHOD = this.updatePagamento2.name;
+  async saveTransacoesLancamento2() {
+    const METHOD = this.saveTransacoesLancamento2.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.updatePagamento();
+      await this.cnabService.saveTransacoesLancamento();
       this.logger.log(
-        'Tabelas: Favorecido, Transacao e ItemTransacao atualizados com sucesso.',
+        'Tabelas para o Lancamento atualizados com sucesso.',
         METHOD
       );
     } catch (error) {
@@ -675,7 +690,47 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
         error.stack,
         METHOD,
       );
-      this.deleteCron(CrobJobsEnum.updatePagamento2);
+      this.deleteCron(CrobJobsEnum.saveTransacoesLancamento2);
+      // enviar email para: raphael, william, bernardo...
+    }
+  }
+
+  async saveTransacoesJae1() {
+    const METHOD = this.saveTransacoesJae1.name;
+    try {
+      this.logger.log('Iniciando tarefa.', METHOD);
+      await this.cnabService.saveTransacoesJae();
+      this.logger.log(
+        'Tabelas para o Jaé atualizados com sucesso.',
+        METHOD
+      );
+    } catch (error) {
+      this.logger.error(
+        `ERRO CRÍTICO - ${error}`,
+        error?.stack,
+        METHOD,
+      );
+      this.startCron(this.staticJobs.saveTransacoesJae2);
+      // enviar email para: raphael, william, bernardo...
+    }
+  }
+
+  async saveTransacoesJae2() {
+    const METHOD = this.saveTransacoesJae2.name;
+    try {
+      this.logger.log('Iniciando tarefa.', METHOD);
+      await this.cnabService.saveTransacoesJae();
+      this.logger.log(
+        'Tabelas para o Jaé atualizados com sucesso.',
+        METHOD
+      );
+    } catch (error) {
+      this.logger.error(
+        `ERRO CRÍTICO (TENTATIVA 2) = ${error}`,
+        error.stack,
+        METHOD,
+      );
+      this.deleteCron(CrobJobsEnum.saveTransacoesJae2);
       // enviar email para: raphael, william, bernardo...
     }
   }
@@ -698,7 +753,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   async updateRetorno() {
     const METHOD = this.updateRetorno.name;
     try {
-      await this.cnabService.updateRetorno();
+      await this.cnabService.saveRetorno();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(
@@ -712,7 +767,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   async updateExtrato() {
     const METHOD = this.updateExtrato.name;
     try {
-      await this.cnabService.updateExtrato();
+      await this.cnabService.saveExtrato();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(

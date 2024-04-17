@@ -3,12 +3,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { HeaderArquivoTipoArquivo } from 'src/cnab/enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { FindOptionsOrder, In, Repository } from 'typeorm';
+import { FindManyOptions, FindOneOptions, FindOptionsOrder, In, Repository } from 'typeorm';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
-import { logWarn } from 'src/utils/log-utils';
 
 @Injectable()
 export class HeaderArquivoRepository {
@@ -55,7 +55,7 @@ export class HeaderArquivoRepository {
     const insert = await this.headerArquivoRepository.insert(newDTOs);
     // Return saved
     const insertIds = (insert.identifiers as { id: number }[]).reduce((l, i) => [...l, i.id], []);
-    const saved = await this.findMany({ id: In(insertIds) });
+    const saved = await this.findMany({ where: { id: In(insertIds) } });
     return saved;
   }
 
@@ -94,18 +94,12 @@ export class HeaderArquivoRepository {
   }
 
 
-  public async findOne(
-    fields: EntityCondition<HeaderArquivo>,
-  ): Promise<HeaderArquivo | null> {
-    return await this.headerArquivoRepository.findOne({
-      where: fields,
-    });
+  public async findOne(options: FindOneOptions<HeaderArquivo>): Promise<HeaderArquivo | null> {
+    return await this.headerArquivoRepository.findOne(options);
   }
 
-  public async findMany(fields: EntityCondition<HeaderArquivo>): Promise<HeaderArquivo[]> {
-    return await this.headerArquivoRepository.find({
-      where: fields
-    });
+  public async findMany(options: FindManyOptions<HeaderArquivo>): Promise<HeaderArquivo[]> {
+    return await this.headerArquivoRepository.find(options);
   }
 
   /**
@@ -118,15 +112,5 @@ export class HeaderArquivoRepository {
         status: { id: HeaderArquivoStatusEnum.retornoSaved }
       }
     });
-  }
-
-  public async getNextNSA(): Promise<number> {
-    const nsa = (await this.headerArquivoRepository.find({
-      order: {
-        nsa: 'DESC',
-      },
-      take: 1
-    })).pop()?.nsa || 0;
-    return nsa + 1;
   }
 }

@@ -65,7 +65,7 @@ export const cnab240_104DetalheATemplateTest: CnabDetalheA_104 = {
     pos: [135, 143],
     picture: '9(009)',
     value: '000000000',
-    ...Cnab.insert.nullableString(),
+    ...Cnab.insert.number(),
   },
   filler2: { pos: [144, 146], picture: 'X(003)', value: '   ', ...Cnab.insert.d(), },
   quantidadeParcelas: { pos: [147, 148], picture: '9(002)', value: '01', ...Cnab.insert.number() },

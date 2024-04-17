@@ -42,7 +42,7 @@ export class ItemTransacaoRepository {
       } as FindOptionsWhere<ItemTransacao>], [])
     });
     const existingMap: Record<string, ItemTransacao> =
-      (existing).reduce((m, i) => ({ ...m, [ItemTransacao.getUniqueId(i)]: i }), {});
+      (existing).reduce((m, i) => ({ ...m, [ItemTransacao.getUniqueIdJae(i)]: i }), {});
     // Check
     if (existing.length === dtos.length) {
       logWarn(this.logger, `${existing.length}/${dtos.length} DetalhesB já existem, nada a fazer...`);
@@ -51,7 +51,7 @@ export class ItemTransacaoRepository {
       return [];
     }
     // Save new
-    const newItems = dtos.filter(i => !existingMap[ItemTransacao.getUniqueId(i)]);
+    const newItems = dtos.filter(i => !existingMap[ItemTransacao.getUniqueIdJae(i)]);
     const insert = await this.insert(newItems);
     // Return saved
     const insertIds = (insert.identifiers as { id: number }[]).reduce((l, i) => [...l, i.id], []);

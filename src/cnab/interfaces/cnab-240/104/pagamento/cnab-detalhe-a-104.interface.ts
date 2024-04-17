@@ -28,7 +28,7 @@ export interface CnabDetalheA_104 {
   quantidadeMoeda: CnabFieldAs<number>;
   valorLancamento: CnabFieldAs<number>;
   /** Preencher com brancos. Retornado com brancos. */
-  numeroDocumentoBanco: CnabFieldAs<string | null>;
+  numeroDocumentoBanco: CnabFieldAs<number>;
   filler2: CnabField;
   /** `1` = à vista */
   quantidadeParcelas: CnabFieldAs<number>;

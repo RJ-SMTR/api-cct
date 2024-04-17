@@ -83,7 +83,7 @@ npm run start:dev
 Rodar seed caso o banco não esteja vazio:
 
 ```bash
-npm run seed:run __force
+npm run seed:run -- --force
 ```
 
 Rodar seed apenas de alguns módulos
@@ -97,7 +97,7 @@ npm run seed:run user mailhistory
 Rodar seed com todos os módulos exceto alguns
 
 ```bash
-npm run seed:run __exclude user mailhistory
+npm run seed:run -- --exclude user mailhistory
 > A ordem dos parâmetros não influencia a execução
 ```
 

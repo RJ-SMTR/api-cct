@@ -127,7 +127,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   }
 
   async submitCnabRemessa(content: string) {
-    const METHOD = 'submitCnabRemessa()';
+    const METHOD = this.submitCnabRemessa.name;
     await this.connectClient();
     const remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);

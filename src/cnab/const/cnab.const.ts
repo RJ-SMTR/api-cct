@@ -2,10 +2,11 @@ import { CnabField, CnabFieldAs, CnabFieldBase, CnabFieldFormat } from "../inter
 
 const format = {
   nullableString: () => ({ formatType: 'nullableString' } as CnabFieldFormat),
+  nullableNumber: () => ({ formatType: 'nullableNumber' } as CnabFieldFormat),
   string: () => ({ formatType: 'string' } as CnabFieldFormat),
   stringForce: () => ({ formatType: 'string', force: true } as CnabFieldFormat),
   number: () => ({ formatType: 'number' } as CnabFieldFormat),
-  nullableDate: () => ({ dateFormat: 'ddMMyyyy', formatType: 'NullableDate' } as CnabFieldFormat),
+  nullableDate: () => ({ dateFormat: 'ddMMyyyy', formatType: 'nullableDate' } as CnabFieldFormat),
   dateFormat: () => ({ dateFormat: 'ddMMyyyy', formatType: 'Date' } as CnabFieldFormat),
   timeFormat: () => ({ dateFormat: 'HHmmss', formatType: 'Date' } as CnabFieldFormat),
 }
@@ -107,6 +108,11 @@ export const Cnab = {
       stringValue: '',
       convertedValue: '',
       format: format.nullableString(),
+    }),
+    nullableNumber: () => ({
+      stringValue: '',
+      convertedValue: null,
+      format: format.nullableNumber(),
     }),
     stringForce: () => ({
       stringValue: '',

@@ -5,7 +5,7 @@
 export interface CnabFieldBase {
   _metadata?: CnabFieldMetadata;
   format?: CnabFieldFormat;
-  
+
   pos: [number, number];
   picture: string;
   /** Input value format is `string` */
@@ -15,12 +15,12 @@ export interface CnabFieldBase {
 export interface CnabField extends CnabFieldBase {
   _metadata?: CnabFieldMetadata;
   format?: CnabFieldFormat;
-  
+
   pos: [number, number];
   picture: string;
   /** Input value. */
   value: any;
-  
+
   /** Value generated after stringify from object to CNAB text output */
   stringValue: string;
   /** Used when reading CNAB to object */
@@ -68,8 +68,9 @@ export interface CnabFieldFormat {
 export type CnabFieldFormatType =
   'string' | 'nullableString' |
   'boolean' |
-  'Date' | 'NullableDate' |
-  'number' | 'enum';
+  'Date' | 'nullableDate' |
+  'number' | 'nullableNumber'
+'enum';
 
 export type CnabFields = Record<string, CnabField>;
 

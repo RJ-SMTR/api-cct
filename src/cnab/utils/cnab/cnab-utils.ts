@@ -521,7 +521,7 @@ function validateCnabMappedField(
 }
 
 export function getTipoInscricao(cpfCnpj: string): CnabTipoInscricao {
-  const cpfCnpjType = isCpfOrCnpj(cpfCnpj);
+  const cpfCnpjType = isCpfOrCnpj(cpfCnpj, true);
   if (cpfCnpjType === 'cpf') {
     return CnabTipoInscricao.CPF;
   } else if (cpfCnpjType === 'cnpj') {

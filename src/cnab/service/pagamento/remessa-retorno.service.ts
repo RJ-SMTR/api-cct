@@ -45,7 +45,7 @@ const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
 @Injectable()
-export class RetornoService {
+export class RemessaRetornoService {
   private logger: Logger = new CustomLogger('CnabPagamentoService', {
     timestamp: true,
   });
@@ -169,7 +169,7 @@ export class RetornoService {
     const allDetalheBMap: Record<string, DeepPartial<DetalheB>[]> = {};
     for (const cnab of cnabDTOs) {
       // Transacao
-      allUpdatedTransacoes.push( new Transacao({
+      allUpdatedTransacoes.push(new Transacao({
         id: cnab.transacao.id,
         status: new TransacaoStatus(TransacaoStatusEnum.remessaSent),
       }));
@@ -241,7 +241,7 @@ export class RetornoService {
       tipoMoeda: r.detalheA.tipoMoeda.stringValue,
       quantidadeMoeda: r.detalheA.quantidadeMoeda.convertedValue,
       valorLancamento: r.detalheA.valorLancamento.convertedValue,
-      numeroDocumentoBanco: r.detalheA.numeroDocumentoBanco.convertedValue,
+      numeroDocumentoBanco: r.detalheA.numeroDocumentoBanco.stringValue,
       quantidadeParcelas: r.detalheA.quantidadeParcelas.convertedValue,
       indicadorBloqueio: r.detalheA.indicadorBloqueio.stringValue,
       indicadorFormaParcelamento: r.detalheA.indicadorFormaParcelamento.stringValue,
@@ -511,7 +511,6 @@ export class RetornoService {
     // indicadorFormaParcelamento = DataFixa
     detalheA.periodoDiaVencimento.value = format(itemTransacao.dataProcessamento, 'dd');
     detalheA.valorLancamento.value = itemTransacao.valor;
-    detalheA.dataEfetivacao.format.null = true; //send as zerores on input (null date)
 
     const detalheB: CnabDetalheB_104 = sc(PgtoRegistros.detalheB);
     detalheB.tipoInscricao.value = getTipoInscricao(asString(favorecido.cpfCnpj));

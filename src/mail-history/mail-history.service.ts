@@ -1,15 +1,16 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { startOfDay } from 'date-fns';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
-import { logLog } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import {
@@ -20,11 +21,10 @@ import {
   Repository
 } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 
 @Injectable()
 export class MailHistoryService {
-  private logger: Logger = new Logger('MailHistoryService', {
+  private logger: CustomLogger = new CustomLogger('MailHistoryService', {
     timestamp: true,
   });
 
@@ -39,14 +39,14 @@ export class MailHistoryService {
     data: DeepPartial<MailHistory>,
     logContext?: string,
   ): Promise<MailHistory> {
+    const METHOD = this.create.name;
     const createdMail = await this.mailHistoryRepository.save(
       this.mailHistoryRepository.create(data),
     );
-    logLog(this.logger,
+    this.logger.log(
       `Histórico de email ${createdMail.getLogInfoStr()}` +
       ` criado com sucesso.`,
-      'create()',
-      logContext,
+      `${logContext} from ${METHOD}`,
     );
     return createdMail;
   }
@@ -99,7 +99,10 @@ export class MailHistoryService {
   }
 
   async findManyRecentByUser(users: User[]): Promise<MailHistory[]> {
-    const userIDs = users.reduce((l, i) => [...l, i.id], []);
+    const userIDs = users.map(i => i.id);
+    if (users.length === 0) {
+      return [];
+    }
     const raw = await this.mailHistoryRepository
       .createQueryBuilder('invite')
       .select('invite.*')
@@ -167,6 +170,7 @@ export class MailHistoryService {
     payload: DeepPartial<MailHistory>,
     logContext?: string,
   ): Promise<MailHistory> {
+    const METHOD = MailHistoryService.name;
     const mailRespose = await this.mailHistoryRepository.save(
       this.mailHistoryRepository.create({
         id,
@@ -174,11 +178,10 @@ export class MailHistoryService {
       }),
     );
     const updatedMail = await this.mailHistoryRepository.findOneByOrFail({ id: id });
-    logLog(this.logger,
+    this.logger.log(
       `Histórico de email ${updatedMail.getLogInfoStr()}` +
       ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
-      'update()',
-      logContext,
+      `${METHOD} from ${logContext}`
     );
     return mailRespose;
   }

@@ -71,7 +71,7 @@ export class BigqueryOrdemPagamentoRepository {
       BQSInstances.smtr,
       query,
     );
-    const count: number = queryResult[0].count;
+    const count: number = queryResult.length;
     // Remove unwanted keys and remove last item (all null if empty)
     const items: BigqueryOrdemPagamento[] = queryResult.map((i) => {
       delete i.status;

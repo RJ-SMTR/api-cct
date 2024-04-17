@@ -10,6 +10,7 @@ import { FindOneOptions, In } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
+import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -37,6 +38,15 @@ export class ClienteFavorecidoService {
     return await this.clienteFavorecidoRepository.findOne({ where: { cpfCnpj: cpfCnpj } });
   }
 
+  public async findManyFromLancamentos(lancamentos: LancamentoEntity[]): Promise<ClienteFavorecido[]> {
+    const ids = [...new Set(lancamentos.map(i => i.id_cliente_favorecido))];
+    return await this.clienteFavorecidoRepository.findMany({
+      where: {
+        id: In(ids)
+      }
+    });
+  }
+
   public async findManyFromOrdens(ordens: BigqueryOrdemPagamentoDTO[]): Promise<ClienteFavorecido[]> {
     const documentos = ordens.reduce((l, i) => [
       ...l,
@@ -47,7 +57,8 @@ export class ClienteFavorecidoService {
     return await this.clienteFavorecidoRepository.findMany({
       where: {
         cpfCnpj: In(uniqueDocumentos)
-    } });
+      }
+    });
   }
 
   public async getCpfCnpj(cpf_cnpj: string): Promise<ClienteFavorecido> {

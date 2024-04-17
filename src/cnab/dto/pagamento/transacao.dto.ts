@@ -3,6 +3,7 @@ import { Pagador } from '../../entity/pagamento/pagador.entity';
 import { DeepPartial } from 'typeorm';
 import { TransacaoStatus } from '../../entity/pagamento/transacao-status.entity';
 import { TransacaoOcorrencia } from 'src/cnab/entity/pagamento/transacao-ocorrencia.entity';
+import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 
 function isCreate(object: TransacaoDTO): boolean {
   return object.id === undefined;
@@ -19,9 +20,9 @@ export class TransacaoDTO {
   dataOrdem?: Date;
   dataPagamento?: Date | null;
 
-  @ValidateIf(isCreate)
+  @ValidateIf((obj) => isCreate(obj) && obj.lancamentos === undefined)
   @IsNotEmpty()
-  idOrdemPagamento?: string;
+  idOrdemPagamento?: string | null;
   
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -32,4 +33,8 @@ export class TransacaoDTO {
   status?: DeepPartial<TransacaoStatus>;
   
   ocorrencias?: DeepPartial<TransacaoOcorrencia>[];
+
+  @ValidateIf((obj) => isCreate(obj) && obj.idOrdemPagamento === undefined)
+  @IsNotEmpty()
+  lancamentos?: LancamentoEntity[] | null;
 }

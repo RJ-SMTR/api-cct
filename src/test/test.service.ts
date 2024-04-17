@@ -4,6 +4,9 @@ import { CronJobsService } from 'src/cron-jobs/cron-jobs.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { UsersService } from 'src/users/users.service';
+import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { In } from 'typeorm/find-options/operator/In';
 
 @Injectable()
@@ -11,7 +14,12 @@ export class TestService {
   constructor(
     private readonly cronjobsService: CronJobsService,
     private readonly mailHistoryService: MailHistoryService,
+    private readonly usersService: UsersService,
   ) { }
+
+  async getCronJobsBulkSendInvites() {
+    await this.cronjobsService.bulkSendInvites();
+  }
 
   async getCronJobsBulkResendInvites() {
     await this.setMailsToTestResendInvites();
@@ -54,5 +62,29 @@ export class TestService {
       sentAt: null,
       inviteStatus: new InviteStatus(InviteStatusEnum.queued),
     });
+  }
+
+  async getInvaidCPFs(filter: {
+    name?: string,
+    email?: string,
+    cpfCnpj?: string,
+  }) {
+    const common = await this.usersService.findMany({
+      where: {
+        ...filter?.name ? { fullName: In(filter.name.split(',')) } : {},
+        ...filter?.email ? { email: In(filter.email.split(',')) } : {},
+        ...filter?.cpfCnpj ? { cpfCnpj: In(filter.cpfCnpj.split(',')) } : {},
+        role: { id: RoleEnum.user },
+      }
+    });
+    const invalidCpfs = common.filter(i => !isCpfOrCnpj(i.getCpfCnpj()));
+    const validCpfs = common.filter(i => isCpfOrCnpj(i.getCpfCnpj()));
+    return {
+      commonLength: common.length,
+      validCount: validCpfs.length,
+      invalidCount: invalidCpfs.length,
+      valid: validCpfs.map(i => ({ cpfCnpj: i.getCpfCnpj(), tipoDocumento: isCpfOrCnpj(i.getCpfCnpj()) })),
+      invalid: invalidCpfs.map(i => ({ nome: i.fullName, telefone: i.phone, cpfCnpj: i.cpfCnpj })),
+    }
   }
 }

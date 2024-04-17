@@ -57,11 +57,11 @@ export const CnabHeaderArquivo104Template: CnabHeaderArquivo104 = {
     value: '444773',
     ...Cnab.insert.d(),
   },
-  /** 0.08 */
+  /** 0.08 - Definido pelo banco*/
   parametroTransmissao: {
     pos: [39, 40],
     picture: '9(002)',
-    value: '01',
+    value: '02',
     ...Cnab.insert.d(),
   },
   /** 0.09 */

@@ -14,6 +14,8 @@ import { AllExceptionsFilter } from './utils/all-exteptions-filter/filters/all-e
 import { differenceInMinutes } from 'date-fns';
 
 async function bootstrap() {
+
+  // Save BRT time before set UTC
   const localDateStr = new Date().toString();
   global.__localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   process.env.TZ = 'UTC';

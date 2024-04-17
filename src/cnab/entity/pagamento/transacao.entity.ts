@@ -3,6 +3,7 @@ import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, O
 import { Pagador } from './pagador.entity';
 import { TransacaoOcorrencia } from './transacao-ocorrencia.entity';
 import { TransacaoStatus } from './transacao-status.entity';
+import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 
 @Entity()
 export class Transacao extends EntityHelper {
@@ -16,7 +17,6 @@ export class Transacao extends EntityHelper {
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Transacao_id' })
   id: number;
 
-  /**  */
   @Column({ type: Date, unique: false, nullable: true })
   dataOrdem: Date;
 
@@ -24,12 +24,12 @@ export class Transacao extends EntityHelper {
   dataPagamento: Date | null;
 
   /** 
-   * References BigqueryOrdemPagamento. Unique ID column
+   * References BigqueryOrdemPagamento. Unique ID column for Jaé
    * 
    * uniqueColumnName: `UQ_Transacao_idOrdemPagamento`
    */
   @Column({ type: String, unique: true, nullable: true })
-  idOrdemPagamento: string;
+  idOrdemPagamento: string | null;
 
   @ManyToOne(() => Pagador, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_pagador_ManyToOne' })
@@ -42,7 +42,12 @@ export class Transacao extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_status_ManyToOne' })
   status: TransacaoStatus;
 
-  /** CNAB errors */
+  /** Not a physical column */
+  @OneToMany(() => LancamentoEntity, lancamento => lancamento.transacao, { nullable: true })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_lancamentos_OneToMany' })
+  lancamentos: LancamentoEntity[] | null;
+
+  /** Not a physical column. CNAB errors */
   @OneToMany(() => TransacaoOcorrencia, ocorrencia => ocorrencia.transacao)
   @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_ocorrencias_OneToMany' })
   ocorrencias: TransacaoOcorrencia[];

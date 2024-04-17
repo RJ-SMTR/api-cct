@@ -2,6 +2,7 @@ import { Cnab } from 'src/cnab/const/cnab.const';
 import { Cnab104AvisoFavorecido } from 'src/cnab/enums/104/cnab-104-aviso-favorecido.enum';
 import { Cnab104CamaraCompensacao } from 'src/cnab/enums/104/cnab-104-camara-compensacao.enum';
 import { Cnab104FinalidadeDoc } from 'src/cnab/enums/104/cnab-104-finalidade-doc.enum';
+import { Cnab104FinalidadeTed } from 'src/cnab/enums/104/cnab-104-finalidade-ted.enum';
 import { Cnab104FormaParcelamento } from 'src/cnab/enums/104/cnab-104-forma-parcelamento.enum';
 import { Cnab104IndicadorBloqueio } from 'src/cnab/enums/104/cnab-104-indicador-bloqueio.enum';
 import { Cnab104TipoMoeda } from 'src/cnab/enums/104/cnab-104-tipo-moeda.enum';
@@ -66,7 +67,7 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
    */
   camaraCompensacao: {
     pos: [18, 20], picture: '9(003)',
-    value: Cnab104CamaraCompensacao.DocEOrdemPagamento,
+    value: Cnab104CamaraCompensacao.Ted,
     ...Cnab.insert.d(),
   },
   /** A.09 Favorecido */
@@ -126,7 +127,7 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
   },
   /** A.18 Get from favorecido.cpfCnpj */
   tipoContaFinalidadeTed: {
-    pos: [93, 93], picture: 'X(001)', value: ' ',
+    pos: [93, 93], picture: 'X(001)', value: Cnab104FinalidadeTed.ContaCorrente,
     ...Cnab.insert.d(),
   },
   /** A.19 DDMMAAAA */
@@ -158,15 +159,13 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
   /** 
    * A.23 Fixo: Brancos(9)
    * 
-   * Alteração no Segmento A da informação “Picture” do campo A.23 de ‘9(009)’ para ‘X(009)’.
-   * 
-   * Preencher com brancos. Retornado com brancos.
+   * Preencher com zeros.
    */
   numeroDocumentoBanco: {
     pos: [135, 143],
-    picture: 'X(009)',
-    value: '         ',
-    ...Cnab.insert.nullableString(),
+    picture: '9(009)',
+    value: 0,
+    ...Cnab.insert.number(),
   },
   /** A.24 */
   filler2: {

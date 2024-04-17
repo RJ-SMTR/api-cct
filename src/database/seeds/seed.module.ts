@@ -23,6 +23,7 @@ import { TransacaoStatusSeedModule } from './transacao-status/transacao-status-s
 import { ItemTransacaoStatusSeedModule } from './item-transacao-status/item-transacao-status-seed.module';
 import { HeaderArquivoStatusSeedModule } from './header-arquivo-status/header-arquivo-status-seed.module';
 import { ClienteFavorecidoSeedModule } from './cliente-favorecido/cliente-favorecido-seed.module';
+import { LancamentoSeedModule } from './lancamento/lancamento-seed.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ClienteFavorecidoSeedModule } from './cliente-favorecido/cliente-favore
     BigqueryModule,
     PagadorSeedModule,
     ClienteFavorecidoSeedModule,
+    LancamentoSeedModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, appConfig, mailConfig, googleConfig],

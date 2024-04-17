@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { isFriday, nextFriday } from 'date-fns';
+import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { logLog } from 'src/utils/log-utils';
 import { asDate } from 'src/utils/pipe-utils';
-import { DeepPartial } from 'typeorm';
+import { DeepPartial, In } from 'typeorm';
 import { ArquivoPublicacaoDTO } from '../dto/arquivo-publicacao.dto';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
+import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { HeaderArquivoStatus } from '../entity/pagamento/header-arquivo-status.entity';
 import { HeaderArquivo } from '../entity/pagamento/header-arquivo.entity';
@@ -15,9 +18,6 @@ import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.re
 import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
-import { isFriday, nextFriday } from 'date-fns';
-import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -33,12 +33,34 @@ export class ArquivoPublicacaoService {
   ) { }
 
 
+  public generateDTOs(
+    ordens: BigqueryOrdemPagamentoDTO[],
+    pagador: Pagador,
+    favorecidos: ClienteFavorecido[],
+  ): ArquivoPublicacao[] {
+    const publicacoes: ArquivoPublicacao[] = [];
+    for (const ordem of ordens) {
+      // Get ClienteFavorecido
+      const favorecido: ClienteFavorecido | undefined = favorecidos.filter(i =>
+        i.cpfCnpj === ordem.operadoraCpfCnpj ||
+        i.cpfCnpj === ordem.consorcioCnpj
+      )[0];
+      if (!favorecido) {
+        // Ignore publicacao with no ClienteFavorecidos
+        continue;
+      }
+      publicacoes.push(this.generateDTO(ordem, pagador, favorecido));
+    }
+    return publicacoes;
+  }
+
+
   /**
    * Generates a new ArquivoPublicacao.
    * 
    * **status** is Created.
    */
-  public getArquivoPublicacaoDTO(
+  public generateDTO(
     ordem: BigqueryOrdemPagamentoDTO,
     pagador: Pagador,
     favorecido: ClienteFavorecido,
@@ -50,7 +72,7 @@ export class ArquivoPublicacaoService {
     const arquivo = new ArquivoPublicacao({
       // Remessa
       headerArquivo: null,
-      transacao: { id: -1},
+      transacao: { id: -1 },
       idHeaderLote: null,
       dataGeracaoRemessa: null,
       horaGeracaoRemessa: null,
@@ -89,14 +111,17 @@ export class ArquivoPublicacaoService {
     });
     return arquivo;
   }
-  
+
   /**
    * From OrdemPagamento and others and bulk insert.
    * 
    * @returns `TransacaoBuilder`, so you can group it and add to Transacao.
    */
-  public async saveMany(publicacoes: DeepPartial<ArquivoPublicacao>[]) {
-    await this.arquivoPublicacaoRepository.insert(publicacoes);
+  public async saveMany(publicacoes: DeepPartial<ArquivoPublicacao>[]): Promise<ArquivoPublicacao[]> {
+    const insert = await this.arquivoPublicacaoRepository.insert(publicacoes);
+    const publicacaoIds = (insert.identifiers as { id: number }[]).reduce((l, i) => [...l, i.id], []);
+    const created = await this.arquivoPublicacaoRepository.findMany({ where: { id: In(publicacaoIds) } });
+    return created;
   }
 
   /**

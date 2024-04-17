@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { asString } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { validateDTO } from 'src/utils/validation-utils';
 import { DeepPartial, FindManyOptions, In, InsertResult, Not, Repository, UpdateResult } from 'typeorm';
 import { TransacaoDTO } from '../../dto/pagamento/transacao.dto';
 import { Transacao } from '../../entity/pagamento/transacao.entity';
@@ -47,25 +44,6 @@ export class TransacaoRepository {
     // Return saved
     const insertedIds = (inserted.identifiers as { id: number }[]).reduce((l, i) => [...l, i.id], []);
     return await this.findMany({ where: { id: In(insertedIds) } });
-  }
-
-  /**
-   * Save Transacao if NSA not exists
-   */
-  public async saveIfNotExists(dto: TransacaoDTO): Promise<SaveIfNotExists<Transacao>> {
-    await validateDTO(TransacaoDTO, dto);
-    const transacao = await this.findOne({ idOrdemPagamento: asString(dto.idOrdemPagamento) });
-    if (transacao) {
-      return {
-        isNewItem: false,
-        item: transacao,
-      };
-    } else {
-      return {
-        isNewItem: true,
-        item: await this.transacaoRepository.save(dto),
-      };
-    }
   }
 
   /**

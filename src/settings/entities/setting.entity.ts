@@ -66,7 +66,7 @@ export class SettingEntity extends BaseEntity {
           {
             error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
             details: {
-              value: `should be valid JSON, received '${this.value}' instead`,
+              value: `should be JSON | null, received '${this.value}' instead`,
             },
           },
           HttpStatus.INTERNAL_SERVER_ERROR,
@@ -83,7 +83,7 @@ export class SettingEntity extends BaseEntity {
         {
           error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
-            value: 'should not be null',
+            value: 'should not be json',
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -112,7 +112,7 @@ export class SettingEntity extends BaseEntity {
         {
           error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
-            value: 'should not be null',
+            value: 'should not be boolean',
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -126,7 +126,7 @@ export class SettingEntity extends BaseEntity {
         {
           error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
-            value: 'should not be null',
+            value: 'should not be string',
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,

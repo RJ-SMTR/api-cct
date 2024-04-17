@@ -1,21 +1,46 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { endOfDay, startOfDay } from 'date-fns';
+import { User } from 'src/users/entities/user.entity';
+import { Between, In, IsNull, Like, Repository } from 'typeorm';
 import { ItfLancamento } from './interfaces/lancamento.interface';
 import { LancamentoEntity } from './lancamento.entity';
-import { Between } from 'typeorm';
-import { User } from 'src/users/entities/user.entity';
-import { In } from 'typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { LancamentoRepository } from './lancamento.repository';
 
 @Injectable()
 export class LancamentoService {
   constructor(
-    @InjectRepository(LancamentoEntity)
-    private readonly lancamentoRepository: Repository<LancamentoEntity>,
+    private readonly lancamentoRepository: LancamentoRepository,
     @InjectRepository(User)
     private userRepository: Repository<User>,
   ) { }
+
+  // /**
+  //  * Get unused data (no Transacao Id) from current payment week (thu-wed / qui-qua).
+  //  */
+  // async findByLancamentos(lancamentos: LancamentoEntity[]): Promise<LancamentoEntity[]> {
+  //   const ids = lancamentos.map(i => i.id);
+  //   const found = await this.lancamentoRepository.findMany({
+  //     where: {
+  //       id: In(ids)
+  //     }
+  //   });
+  //   return found;
+  // }
+
+  /**
+   * Get unused data (no Transacao Id) from current payment week (thu-wed / qui-qua).
+   */
+  findToPayToday(): Promise<LancamentoEntity[]> {
+    const today = new Date();
+    return this.lancamentoRepository.findMany({
+      where: {
+        data_lancamento: Between(startOfDay(today), endOfDay(today)),
+        transacao: IsNull(),
+        auth_usersIds: Like('%,%'),
+      }
+    });
+  }
 
   async findByPeriod(
     month: number,
@@ -23,7 +48,7 @@ export class LancamentoService {
     year: number,
   ): Promise<ItfLancamento[]> {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
-    const lancamentos = await this.lancamentoRepository.find({
+    const lancamentos = await this.lancamentoRepository.findMany({
       where: {
         data_lancamento: Between(startDate, endDate),
       },
@@ -71,7 +96,7 @@ export class LancamentoService {
 
   async autorizarPagamento(
     userId: number,
-    lancamentoId,
+    lancamentoId: string,
   ): Promise<ItfLancamento> {
     const lancamento = await this.lancamentoRepository.findOne({
       where: { id: parseInt(lancamentoId) },
@@ -102,13 +127,13 @@ export class LancamentoService {
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
-  
+
     const { id_cliente_favorecido, ...restUpdatedData } = updatedData;
-    lancamento = { ...lancamento, ...restUpdatedData, userId, auth_usersIds: '' };
-    
+    lancamento = new LancamentoEntity({ ...lancamento, ...restUpdatedData, userId, auth_usersIds: '' });
+
     await this.lancamentoRepository.save(lancamento);
     console.log(id_cliente_favorecido);
-  
+
     return lancamento;
   }
 

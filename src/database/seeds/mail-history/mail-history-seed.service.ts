@@ -29,10 +29,10 @@ export class MailHistorySeedService {
   }
 
   async run() {
-    for (const mailFixture of await this.mhSeedDataService.getDataFromConfig()) {
+    for (const mailFixture of await this.mhSeedDataService.getData()) {
       const itemUser = await this.getHistoryUser(mailFixture);
       const itemSeedUser = (
-        await this.userSeedDataService.getDataFromConfig()
+        await this.userSeedDataService.getData()
       ).find((i) => i.email === itemUser.email);
       const foundMail = await this.mailHistoryRepository.findOne({
         where: {

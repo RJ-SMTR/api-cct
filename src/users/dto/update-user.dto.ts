@@ -3,7 +3,7 @@ import { CreateUserDto } from './create-user.dto';
 
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsOptional, MinLength, Validate } from 'class-validator';
+import { IsEmail, IsNumberString, IsOptional, MaxLength, MinLength, Validate } from 'class-validator';
 import { FileEntity } from 'src/files/entities/file.entity';
 import { Status } from 'src/statuses/entities/status.entity';
 import { lowerCaseTransformer } from 'src/utils/transformers/lower-case.transformer';
@@ -55,4 +55,22 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   status?: Status;
 
   hash?: string | null;
+
+  @ApiProperty({ type: String })
+  @IsOptional()
+  @IsNumberString()
+  @MaxLength(4)
+  bankAgency?: string | undefined;
+
+  @ApiProperty({ type: String })
+  @IsOptional()
+  @IsNumberString()
+  @MaxLength(5)
+  bankAccount?: string | undefined;
+
+  @ApiProperty({ type: String })
+  @IsOptional()
+  @IsNumberString()
+  @MaxLength(1)
+  bankAccountDigit?: string | undefined;
 }

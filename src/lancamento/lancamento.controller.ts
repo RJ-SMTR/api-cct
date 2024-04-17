@@ -1,25 +1,24 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
   HttpCode,
-  Query,
-  // SerializeOptions,
-  UseGuards,
-  Put,
+  HttpStatus,
   Param,
+  Post,
+  Put,
+  Query,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiBody, ApiTags } from '@nestjs/swagger';
-import { Request, HttpStatus } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { LancamentoService } from './lancamento.service';
-import { Body } from '@nestjs/common';
-import { ItfLancamento } from './interfaces/lancamento.interface';
-import { CreateLancamentoDto } from './createLancamentoDto';
+import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
-import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.service';
+import { CreateLancamentoDto } from './createLancamentoDto';
+import { ItfLancamento } from './interfaces/lancamento.interface';
+import { LancamentoService } from './lancamento.service';
 
 
 @ApiTags('Lancamento')
@@ -30,7 +29,6 @@ import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.se
 export class LancamentoController {
   constructor(
     private readonly lancamentoService: LancamentoService,
-    private readonly clienteFavorecidoService: ClienteFavorecidoService
   ) { }
 
   @ApiBearerAuth()

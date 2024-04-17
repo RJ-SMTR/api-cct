@@ -60,18 +60,25 @@ export class ItemTransacao extends EntityHelper {
   })
   valor: number;
 
-  // Unique columns combination
+  // Unique columns Jaé
 
-  @Column({ type: String, unique: false, nullable: false })
-  idOrdemPagamento: string;
+  @Column({ type: String, unique: false, nullable: true })
+  idOrdemPagamento: string | null;
 
   /** CPF. */
-  @Column({ type: String, unique: false, nullable: false })
-  idOperadora: string;
+  @Column({ type: String, unique: false, nullable: true })
+  idOperadora: string | null;
 
   /** CNPJ */
-  @Column({ type: String, unique: false, nullable: false })
-  idConsorcio: string;
+  @Column({ type: String, unique: false, nullable: true })
+  idConsorcio: string | null;
+
+  // Unique columns Lancamento
+
+  /** Lancamento.data_lancamento */
+  @Column({ type: Date, unique: false, nullable: true })
+  dataLancamento: Date | null;
+
 
   /** FK to know which DetalheA is related to ItemTransacao */
   @OneToOne(() => DetalheA, { eager: false, nullable: true })
@@ -96,8 +103,17 @@ export class ItemTransacao extends EntityHelper {
     return `#{ idOP: ${this.idOrdemPagamento}, op: ${this.idOperadora}, co: ${this.idConsorcio} }`;
   }
 
-  public static getUniqueId(entity: DeepPartial<ItemTransacao>): string {
+  public static getUniqueIdJae(entity: DeepPartial<ItemTransacao>): string {
     return `${entity.idOrdemPagamento}|${entity.idConsorcio}|${entity.idOperadora}`;
+  }
+
+  public static getUniqueIdLancamento(entity: DeepPartial<ItemTransacao>): string {
+    const dataLancamento = entity.dataLancamento;
+    if (dataLancamento === null || dataLancamento === undefined) {
+      return String(dataLancamento);
+    } else {
+      return (dataLancamento as Date).toISOString();
+    }
   }
 
   @AfterLoad()

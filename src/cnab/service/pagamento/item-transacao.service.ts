@@ -8,24 +8,57 @@ import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
 import { ItemTransacaoStatusEnum } from 'src/cnab/enums/pagamento/item-transacao-status.enum';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { ItemTransacaoRepository } from 'src/cnab/repository/pagamento/item-transacao.repository';
+import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { logDebug } from 'src/utils/log-utils';
+import { asObject } from 'src/utils/pipe-utils';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { DeepPartial, Not } from 'typeorm';
+import { DeepPartial, FindOptionsWhere, In, Not } from 'typeorm';
 
 @Injectable()
 export class ItemTransacaoService {
-  private logger: Logger = new Logger('ItemTransacaoService', { timestamp: true });
+  private logger: Logger = new CustomLogger('ItemTransacaoService', { timestamp: true });
 
   constructor(
     private itemTransacaoRepository: ItemTransacaoRepository,
   ) { }
+
+  // #region getManyDTOsFromPublicacoes
+
+  /**
+   * @param publicacoes Ready to save or saved Entity. Must contain valid Transacao
+   */
+  public generateDTOsFromPublicacoes(
+    publicacoes: ArquivoPublicacao[],
+    favorecidos: ClienteFavorecido[],
+  ): ItemTransacao[] {
+    /** Key: cpfCnpj ClienteFavorecido. Eficient way to find favorecido. */
+    const favorecidosMap: Record<string, ClienteFavorecido> =
+      favorecidos.reduce((map, i) => ({ ...map, [i.cpfCnpj]: i }), {});
+
+    /** Key: idOrdem, idConsorcio, idOperadora */
+    const itensMap: Record<string, ItemTransacao> = {};
+
+    // Mount DTOs
+    for (const publicacao of publicacoes) {
+      const favorecido = favorecidosMap[publicacao.cpfCnpjCliente];
+      const itemPK = `${publicacao.idOrdemPagamento}|${publicacao.idConsorcio}|${publicacao.idOperadora}`;
+      if (!itensMap[itemPK]) {
+        itensMap[itemPK] = this.getDTOFromPublicacao(publicacao, favorecido);
+      }
+      else {
+        itensMap[itemPK].valor += publicacao.valorTotalTransacaoLiquido;
+      }
+    }
+    return Object.values(itensMap);
+  }
 
   /**
    * A simple pipe thar converts BigqueryOrdemPagamento into ItemTransacaoDTO.
    * 
    * **status** is Created.
    */
-  public getItemTransacaoDTO(
+  public getDTOFromPublicacao(
     publicacao: ArquivoPublicacao,
     favorecido: ClienteFavorecido,
   ): ItemTransacao {
@@ -48,13 +81,72 @@ export class ItemTransacaoService {
     return itemTransacao;
   }
 
+  // #endregion
+
+  // #region generateDTOsFromLancamentos
+
+  /**
+   * @param publicacoes Ready to save or saved Entity. Must contain valid Transacao
+   */
+  public generateDTOsFromLancamentos(
+    lancamentos: LancamentoEntity[],
+    favorecidos: ClienteFavorecido[],
+  ): ItemTransacao[] {
+    /** Key: id ClienteFavorecido. Eficient way to find favorecido. */
+    const favorecidosMap: Record<string, ClienteFavorecido> =
+      favorecidos.reduce((map, i) => ({ ...map, [i.id]: i }), {});
+
+    const itens: ItemTransacao[] = [];
+
+    // Mount DTOs
+    for (const lancamento of lancamentos) {
+      const favorecido = favorecidosMap[lancamento.id_cliente_favorecido.id];
+      itens.push(this.generateDTOFromLancamento(lancamento, favorecido));
+    }
+    return itens;
+  }
+
+  /**
+   * A simple pipe thar converts BigqueryOrdemPagamento into ItemTransacaoDTO.
+   * 
+   * **status** is Created.
+   */
+  public generateDTOFromLancamento(
+    lancamento: LancamentoEntity,
+    favorecido: ClienteFavorecido,
+  ): ItemTransacao {
+    const transacao = asObject<Transacao>(lancamento.transacao);
+    const itemTransacao = new ItemTransacao({
+      clienteFavorecido: { id: favorecido.id },
+      favorecidoCpfCnpj: favorecido.cpfCnpj,
+      transacao: { id: transacao.id },
+      valor: lancamento.valor_a_pagar,
+      // Composite unique column
+      dataLancamento: lancamento.data_lancamento,
+      // Control columns
+      dataOrdem: lancamento.data_ordem,
+      // detalheA = null, isRegistered = false
+      status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
+    });
+    return itemTransacao;
+  }
+
+  // #endregion
+
   /**
    * Bulk save Transacao.
    */
-  public async saveMany(itens: ItemTransacao[]) {
-    await this.itemTransacaoRepository.insert(itens);
+  public async saveMany(itens: ItemTransacao[]): Promise<ItemTransacao[]> {
+    const insert = await this.itemTransacaoRepository.insert(itens);
+    const ids: number[] = insert.identifiers.map(i => i.id);
+    if (ids.length === 0) {
+      return [];
+    }
+    const newItens = await this.itemTransacaoRepository.findMany({
+      where: { id: In(ids) }
+    });
+    return newItens;
   }
-
 
   public async findManyByIdTransacao(
     id_transacao: number,
@@ -75,8 +167,68 @@ export class ItemTransacaoService {
   /**
    * Save if composite unique columns not exist. Otherwise, update.
    */
-  public saveManyIfNotExists(dtos: DeepPartial<ItemTransacao>[]): Promise<ItemTransacao[]> {
-    return this.itemTransacaoRepository.saveManyIfNotExists(dtos);
+  public async saveManyIfNotExistsJae(dtos: DeepPartial<ItemTransacao>[]): Promise<ItemTransacao[]> {
+    // Existing
+    const existing = await this.itemTransacaoRepository.findMany({
+      where: dtos.reduce((l, i) => [...l, {
+        idOrdemPagamento: i.idOrdemPagamento,
+        idOperadora: i.idOperadora,
+        idConsorcio: i.idConsorcio,
+      } as FindOptionsWhere<ItemTransacao>], [])
+    });
+    const existingMap: Record<string, ItemTransacao> =
+      (existing).reduce((m, i) => ({ ...m, [ItemTransacao.getUniqueIdJae(i)]: i }), {});
+
+    // Check
+    if (existing.length === dtos.length) {
+      this.logger.warn(`${existing.length}/${dtos.length} ItemTransacoes já existem, nada a fazer...`);
+    } else if (existing.length) {
+      this.logger.warn(`${existing.length}/${dtos.length} ItemTransacoes já existem, ignorando...`);
+      return [];
+    }
+
+    // Save new
+    const newItems = dtos.filter(i => !existingMap[ItemTransacao.getUniqueIdJae(i)]);
+    const insert = await this.itemTransacaoRepository.insert(newItems);
+
+    // Return saved
+    const insertIds = (insert.identifiers as { id: number }[]).reduce((l, i) => [...l, i.id], []);
+    const savedItems = await this.itemTransacaoRepository.findMany({ where: { id: In(insertIds) } });
+    return savedItems;
+  }
+
+  /**
+   * Save if composite unique columns not exist. Otherwise, update.
+   */
+  public async saveManyIfNotExistsLancamento(dtos: DeepPartial<ItemTransacao>[]): Promise<ItemTransacao[]> {
+    // Existing
+    const dataLancamentos = (dtos as ItemTransacao[])
+      .reduce((l, i) => [...l, ...(i.dataLancamento ? [i.dataLancamento] : [])], []);
+    if (dataLancamentos.length === 0) {
+      return [];
+    }
+    const existing = await this.itemTransacaoRepository.findMany({
+      where: { dataLancamento: In(dataLancamentos) }
+    });
+    const existingMap: Record<string, ItemTransacao> =
+      (existing).reduce((m, i) => ({ ...m, [ItemTransacao.getUniqueIdJae(i)]: i }), {});
+
+    // Check
+    if (existing.length === dtos.length) {
+      this.logger.warn(`${existing.length}/${dtos.length} ItemTransacoes já existem, nada a fazer...`);
+    } else if (existing.length) {
+      this.logger.warn(`${existing.length}/${dtos.length} ItemTransacoes já existem, ignorando...`);
+      return [];
+    }
+
+    // Save new
+    const newItems = dtos.filter(i => !existingMap[ItemTransacao.getUniqueIdJae(i)]);
+    const insert = await this.itemTransacaoRepository.insert(newItems);
+
+    // Return saved
+    const insertIds = (insert.identifiers as { id: number }[]).reduce((l, i) => [...l, i.id], []);
+    const savedItems = await this.itemTransacaoRepository.findMany({ where: { id: In(insertIds) } });
+    return savedItems;
   }
 
   /**

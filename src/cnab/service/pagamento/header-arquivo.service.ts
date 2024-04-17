@@ -13,6 +13,8 @@ import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-t
 import { HeaderArquivoRepository } from '../../repository/pagamento/header-arquivo.repository';
 import { PagadorService } from './pagador.service';
 import { getBRTFromUTC } from 'src/utils/date-utils';
+import { SettingsService } from 'src/settings/settings.service';
+import { appSettings } from 'src/settings/app.settings';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -25,6 +27,7 @@ export class HeaderArquivoService {
   constructor(
     private headerArquivoRepository: HeaderArquivoRepository,
     private pagadorService: PagadorService,
+    private settingsService: SettingsService,
   ) { }
 
   /**
@@ -34,7 +37,7 @@ export class HeaderArquivoService {
     transacao: Transacao,
     tipo_arquivo: HeaderArquivoTipoArquivo,
   ): Promise<HeaderArquivoDTO> {
-    const now = getBRTFromUTC (new Date());
+    const now = getBRTFromUTC(new Date());
     const pagador = await this.pagadorService.getOneByIdPagador(transacao.pagador.id);
     const dto = new HeaderArquivoDTO({
       agencia: pagador.agencia,
@@ -86,7 +89,7 @@ export class HeaderArquivoService {
   public async findMany(
     fields: FindOptionsWhere<HeaderArquivo> | FindOptionsWhere<HeaderArquivo>[]
   ): Promise<HeaderArquivo[]> {
-    return this.headerArquivoRepository.findMany(fields);
+    return this.headerArquivoRepository.findMany({ where: fields });
   }
 
   /**
@@ -104,8 +107,15 @@ export class HeaderArquivoService {
     return await this.headerArquivoRepository.save(dto);
   }
 
-  public async getNextNSA() {
-    return await this.headerArquivoRepository.getNextNSA();
+  public async getNextNSA(): Promise<number> {
+    const nsa = (await this.headerArquivoRepository.findMany({
+      order: {
+        nsa: 'DESC',
+      },
+      take: 1
+    })).pop()?.nsa
+      || parseInt((await this.settingsService.getOneBySettingData(appSettings.any__cnab_initial_nsa)).value)
+    return nsa + 1;
   }
 
 

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { nextFriday, subDays } from 'date-fns';
+import { isFriday, nextFriday, subDays } from 'date-fns';
 import { getPaymentWeek } from 'src/utils/payment-date-utils';
 import { BigqueryOrdemPagamentoDTO } from '../dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoRepository } from '../repositories/bigquery-ordem-pagamento.repository';
@@ -17,10 +17,12 @@ export class BigqueryOrdemPagamentoService {
   /**
    * Get data from current payment week (from thu to wed). Also with older days.
    */
-  public async getAllWeek(getOlderDays?: number): Promise<BigqueryOrdemPagamentoDTO[]> {
+  public async getFromWeek(getOlderDays?: number): Promise<BigqueryOrdemPagamentoDTO[]> {
     // Read
     const _getOlderDays = getOlderDays || 7;
-    const paymentWeek = getPaymentWeek(nextFriday(new Date()));
+    const today = new Date();
+    const friday = isFriday(today) ? today : nextFriday(today);
+    const paymentWeek = getPaymentWeek(friday);
     const ordemPgto = (await this.bigqueryOrdemPagamentoRepository.findMany({
       endDate: paymentWeek.endDate,
       startDate: subDays(paymentWeek.startDate, _getOlderDays),

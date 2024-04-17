@@ -7,7 +7,7 @@ import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
-import { UserDataInterface } from 'src/users/interfaces/user-data.interface';
+import { UserSeedDataInterface } from 'src/users/interfaces/user-seed-data.interface';
 
 @Injectable()
 export class UserSeedDataService {
@@ -23,7 +23,7 @@ export class UserSeedDataService {
       this.configService.getOrThrow('app.nodeEnv', { infer: true });
   }
 
-  async getDataFromConfig(): Promise<UserDataInterface[]> {
+  async getData(): Promise<UserSeedDataInterface[]> {
     if (this.nodeEnv() === 'local' || this.nodeEnv() === 'test') {
       if (this.cpfSamples.length === 0) {
         this.cpfSamples = (
@@ -280,7 +280,7 @@ LIMIT 5
             bankAccount: '000000012345',
             bankAccountDigit: '1',
           },
-        ] as UserDataInterface[])
+        ] as UserSeedDataInterface[])
         : []),
     ];
   }

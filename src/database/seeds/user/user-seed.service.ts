@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { UserSeedDataService } from './user-seed-data.service';
 import * as crypto from 'crypto';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
-import { UserDataInterface } from 'src/users/interfaces/user-data.interface';
+import { UserSeedDataInterface } from 'src/users/interfaces/user-seed-data.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
@@ -16,14 +16,14 @@ export class UserSeedService {
     @InjectRepository(User)
     private userSeedRepository: Repository<User>,
     private userSeedDataService: UserSeedDataService,
-  ) {}
+  ) { }
 
   async validateRun() {
     return global.force || (await this.userSeedRepository.count()) === 0;
   }
 
   async run() {
-    const userFixtures = await this.userSeedDataService.getDataFromConfig();
+    const userFixtures = await this.userSeedDataService.getData();
     for (const userFixture of userFixtures) {
       const foundUserFixture = await this.userSeedRepository.findOne({
         where: {
@@ -60,7 +60,7 @@ export class UserSeedService {
   }
 
   pushNewUser(
-    userFixture: UserDataInterface,
+    userFixture: UserSeedDataInterface,
     foundUserFixture: User | null,
     createdItem: User,
   ) {
@@ -78,7 +78,7 @@ export class UserSeedService {
     this.logger.log('NEW USERS:');
     this.logger.warn(
       'The passwords shown are always new but if user exists the current password in DB wont be updated.\n' +
-        'Save these passwords in the first run or remove these users before seed',
+      'Save these passwords in the first run or remove these users before seed',
     );
     for (const item of this.newUsers) {
       this.logger.log(item);

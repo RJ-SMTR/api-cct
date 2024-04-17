@@ -241,7 +241,10 @@ export function formatDate(
       ),
     );
   }
-
+  // If invalid date but format is nullable
+  else if ((!field.value || Number(field.value) === 0) && field?.format?.formatType === 'nullableDate') {
+    value = '0';
+  }
   // If dateFormat, convert and parse
   else if (field.format?.dateFormat) {
     const strDate = asNumberStringDate(field.value, field.format?.dateFormat, getCnabFieldNameLog(field));
@@ -267,7 +270,7 @@ function validateFormatDate(field: CnabField) {
   if (!field.format?.dateFormat) {
     throw new Error(`CnabField must have dateFormat. ${cnabFieldToString(field)}`);
   }
-  if (field.format?.null) {
+  if (field.format.formatType === 'nullableDate') {
     return;
   }
   try {
@@ -276,7 +279,6 @@ function validateFormatDate(field: CnabField) {
     }
   } catch (error) {
     throw new Error(`CnabField got an invalid date. ${cnabFieldToString(field)}`);
-
   }
 }
 
@@ -482,17 +484,17 @@ export function setCnabFieldConvertedValue(field: CnabField) {
  */
 export function parseDate(field: CnabField) {
   if (
-    (field?.format && !['Date', 'NullableDate'].includes(field.format?.formatType))
+    (field?.format && !['Date', 'nullableDate'].includes(field.format?.formatType))
     || !field?.format?.dateFormat
   ) {
-    throw new Error(`Expected CnabFieldAs<Date> with defined dateFormat. ${JSON.stringify(field)}`);
+    throw new Error(`Expected CnabFieldAs<Date> or nullableDate with defined dateFormat. ${JSON.stringify(field)}`);
   }
   const format = field.format as CnabFieldFormat;
   let date: Date | null = new Date(field.value);
   if (!isValidDate(date)) {
     date = asNumberStringDate(field.value, format.dateFormat);
   }
-  if (field.format.formatType === 'NullableDate' && Number(field.value) === 0) {
+  if (field.format.formatType === 'nullableDate' && Number(field.value) === 0) {
     date = null;
   }
   // isDate(new Date(field.value)) ? new Date(field.value) : asNumberStringDate(field.value, format.dateFormat);

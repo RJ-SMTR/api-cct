@@ -51,10 +51,10 @@ export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
     value: Cnab104TipoCompromisso.PagamentoFornecedores,
     ...Cnab.insert.d()
   },
-  /** 1.13 -  */
-  codigoCompromisso: { pos: [41, 44], picture: '9(004)', value: '0001', ...Cnab.insert.d() },
-  /** 1.14 */
-  parametroTransmissao: { pos: [45, 46], picture: 'X(002)', value: '  ', ...Cnab.insert.d() },
+  /** 1.13 - Definido pelo banco */
+  codigoCompromisso: { pos: [41, 44], picture: '9(004)', value: '0002', ...Cnab.insert.d() },
+  /** 1.14 - Preencher com código informado pelo banco */
+  parametroTransmissao: { pos: [45, 46], picture: 'X(002)', value: '02', ...Cnab.insert.d() },
   /** 1.15 */
   filler2: { pos: [47, 52], picture: 'X(006)', value: '      ', ...Cnab.insert.d() },
   /** 1.16 - Pagador */
