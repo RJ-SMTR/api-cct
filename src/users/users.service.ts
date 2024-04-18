@@ -4,32 +4,21 @@ import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
 import { Request } from 'express';
 import { BanksService } from 'src/banks/banks.service';
-import { Bank } from 'src/banks/entities/bank.entity';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
-import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { isArrayContainEqual } from 'src/utils/array-utils';
-import { Enum } from 'src/utils/enum';
 import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
 import { formatLog } from 'src/utils/log-utils';
 import { stringUppercaseUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { InvalidRowsType } from 'src/utils/types/invalid-rows.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import {
-  Brackets,
-  DeepPartial,
-  EntityManager,
-  FindOptionsWhere,
-  ILike,
-  Repository,
-  WhereExpressionBuilder,
-} from 'typeorm';
+import { DeepPartial, EntityManager } from 'typeorm';
 import * as xlsx from 'xlsx';
 import { NullableType } from '../utils/types/nullable.type';
 import { CreateUserFileDto } from './dto/create-user-file.dto';
@@ -40,6 +29,7 @@ import { IFileUser } from './interfaces/file-user.interface';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 import { FileUserMap } from './mappings/user-file.map';
+import { UsersRepository } from './users.repository';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -52,183 +42,38 @@ export class UsersService {
 
   constructor(
     @InjectRepository(User)
-    private usersRepository: Repository<User>,
+    private usersRepository: UsersRepository,
     private mailHistoryService: MailHistoryService,
     private banksService: BanksService,
     private readonly entityManager: EntityManager,
   ) {}
 
   async create(createProfileDto: CreateUserDto): Promise<User> {
-    const createdUser = await this.usersRepository.save(
-      this.usersRepository.create(createProfileDto),
-    );
+    const createdUser = await this.usersRepository.create(createProfileDto);
     this.logger.log(`Usuário criado: ${createdUser.getLogInfo()}`);
     return createdUser;
-  }
-
-  async setUserAuxColumns(user: User): Promise<User> {
-    const newUser = new User(user);
-    newUser.aux_bank = await this.getAux_bank(user);
-    newUser.aux_inviteStatus = await this.getAux_inviteSatus(user);
-    return newUser;
   }
 
   async findMany(
     fields: EntityCondition<User> | EntityCondition<User>[],
   ): Promise<User[]> {
-    const users = await this.usersRepository.find({
-      where: fields,
-    });
-    for (const i in users) {
-      users[i] = await this.setUserAuxColumns(users[i]);
-    }
-    return users;
+    return await this.usersRepository.findMany({ where: fields });
   }
 
   async findManyWithPagination(
     paginationOptions: IPaginationOptions,
     fields?: IFindUserPaginated,
   ): Promise<User[]> {
-    console.log('findManyWithPagination');
-    const isSgtuBlocked = fields?.isSgtuBlocked || fields?._anyField?.value;
-
-    let inviteStatus: any = null;
-    if (fields?.inviteStatusName) {
-      inviteStatus = {
-        id: Number(InviteStatusEnum[fields?.inviteStatusName]),
-        name: Enum.getKey(
-          InviteStatusEnum,
-          InviteStatusEnum[fields?.inviteStatusName],
-        ),
-      };
-    }
-
-    const andWhere = {
-      ...(fields?.role
-        ? {
-            role: { id: fields.role.id },
-          }
-        : {}),
-    } as FindOptionsWhere<User>;
-
-    const where = (qb: WhereExpressionBuilder) => {
-      const whereFields = [
-        ...(fields?.permitCode || fields?._anyField?.value
-          ? [
-              {
-                permitCode: ILike(
-                  `%${fields?.permitCode || fields?._anyField?.value}%`,
-                ),
-              },
-            ]
-          : []),
-
-        ...(fields?.email || fields?._anyField?.value
-          ? [{ email: ILike(`%${fields?.email || fields?._anyField?.value}%`) }]
-          : []),
-
-        ...(fields?.cpfCnpj || fields?._anyField?.value
-          ? [
-              {
-                cpfCnpj: ILike(
-                  `%${fields?.cpfCnpj || fields?._anyField?.value}%`,
-                ),
-              },
-            ]
-          : []),
-
-        ...(isSgtuBlocked === 'true' || isSgtuBlocked === 'false'
-          ? [{ isSgtuBlocked: isSgtuBlocked === 'true' }]
-          : []),
-
-        ...(fields?.passValidatorId || fields?._anyField?.value
-          ? [
-              {
-                passValidatorId: ILike(
-                  `%${fields?.passValidatorId || fields?._anyField?.value}%`,
-                ),
-              },
-            ]
-          : []),
-      ] as FindOptionsWhere<User>[];
-
-      if (fields?.name || fields?._anyField?.value) {
-        const fieldName = fields?.name || fields?._anyField?.value;
-        return qb
-          .where(() => (whereFields.length > 0 ? whereFields : '1 = 0'))
-          .orWhere(
-            'unaccent(UPPER("user"."fullName")) ILIKE unaccent(UPPER(:name))',
-            { name: `%${fieldName}%` },
-          )
-          .orWhere(
-            'unaccent(UPPER("user"."firstName")) ILIKE unaccent(UPPER(:name))',
-            { name: `%${fieldName}%` },
-          )
-          .orWhere(
-            'unaccent(UPPER("user"."lastName")) ILIKE unaccent(UPPER(:name))',
-            { name: `%${fieldName}%` },
-          );
-      } else {
-        return qb.where(whereFields);
-      }
-    };
-
-    let users = await this.usersRepository
-      .createQueryBuilder('user')
-      .where(
-        new Brackets((qb) => {
-          where(qb);
-        }),
-      )
-      .andWhere(andWhere)
-      .getMany();
-
-    let invites: NullableType<MailHistory[]> = null;
-    if (inviteStatus) {
-      invites = await this.mailHistoryService.find({ inviteStatus });
-    }
-
-    for (const i in users) {
-      users[i] = await this.setUserAuxColumns(users[i]);
-    }
-
-    users = users.filter((userItem) => {
-      return (
-        !invites ||
-        (invites.length > 0 &&
-          invites.some((inviteItem) => inviteItem.user.id === userItem.id))
-      );
-    });
-
-    return users;
-  }
-
-  private async getAux_inviteSatus(user: User): Promise<InviteStatus | null> {
-    const invite = await this.mailHistoryService.findRecentByUser(user);
-    let inviteStatus: InviteStatus | null = null;
-    if (invite?.inviteStatus !== undefined) {
-      inviteStatus = invite.inviteStatus;
-    }
-    return inviteStatus;
-  }
-
-  private async getAux_bank(user: User): Promise<Bank | null> {
-    if (user?.bankCode === undefined || user?.bankCode === null) {
-      return null;
-    }
-    return await this.banksService.findOne({ code: user?.bankCode });
+    return await this.usersRepository.findManyWithPagination(
+      paginationOptions,
+      fields,
+    );
   }
 
   async findOne(
     fields: EntityCondition<User> | EntityCondition<User>[],
   ): Promise<NullableType<User>> {
-    let user = await this.usersRepository.findOne({
-      where: fields,
-    });
-    if (user !== null) {
-      user = await this.setUserAuxColumns(user);
-    }
-    return user;
+    return this.usersRepository.findOne({ where: fields });
   }
 
   /**
@@ -243,66 +88,11 @@ export class UsersService {
     logContext?: string,
     requestUser?: DeepPartial<User>,
   ): Promise<User> {
-    const oldUser = await this.getOne({ id });
-    const history = await this.mailHistoryService.getOne({
-      user: { id: oldUser.id },
-    });
-    // const newUser = new User(oldUser);
-
-    if (dataToUpdate.email !== null && dataToUpdate.email !== undefined) {
-      const userBD = await this.findOne({ email: dataToUpdate.email });
-      if (userBD !== null && userBD.id != oldUser.id) {
-        throw new HttpException(
-          {
-            error: 'user email already exists',
-          },
-          HttpStatus.UNPROCESSABLE_ENTITY,
-        );
-      } else if (oldUser.email !== dataToUpdate.email) {
-        history.setInviteStatus(InviteStatusEnum.queued);
-        history.email = dataToUpdate.email;
-        history.hash = await this.mailHistoryService.generateHash();
-        await this.mailHistoryService.update(
-          history.id,
-          history,
-          'UsersService.update()',
-        );
-      }
-    }
-
-    let createPayload = await this.usersRepository.update(dataToUpdate);
-    createPayload = await this.setUserAuxColumns(createPayload);
-
-    // Log
-    const reqUser = new User(requestUser);
-    let logMsg = `Usuário ${oldUser.getLogInfo()} teve seus campos atualizados: [ ${Object.keys(
+    return this.usersRepository.update(
+      id,
       dataToUpdate,
-    )} ]`;
-    if (reqUser.id === oldUser.id) {
-      logMsg = `Usuário ${oldUser.getLogInfo()} atualizou seus campos: [ ${Object.keys(
-        dataToUpdate,
-      )} ]`;
-    }
-    if (reqUser.getLogInfo() !== '[VAZIO]') {
-      logMsg =
-        `Usuário ${reqUser.getLogInfo()}` +
-        ` atualizou os campos de ${oldUser.getLogInfo()}: [${Object.keys(
-          dataToUpdate,
-        )}]`;
-    }
-    this.logger.log(formatLog(logMsg, 'update()', logContext));
-
-    return createPayload;
-  }
-
-  async softDelete(id: number, logContext?: string): Promise<void> {
-    await this.usersRepository.softDelete(id);
-    this.logger.log(
-      formatLog(
-        `Usuário ${{ id }} desativado com sucesso.`,
-        'softDelete()',
-        logContext,
-      ),
+      logContext,
+      requestUser,
     );
   }
 
@@ -310,20 +100,7 @@ export class UsersService {
    * @throws `HttpException`
    */
   async getOne(fields: EntityCondition<User>): Promise<User> {
-    let user = await this.findOne(fields);
-    if (!user) {
-      throw new HttpException(
-        {
-          error: HttpErrorMessages.NOT_FOUND,
-          details: {
-            ...(!user && { user: 'userNotFound' }),
-          },
-        },
-        HttpStatus.NOT_FOUND,
-      );
-    }
-    user = await this.setUserAuxColumns(user);
-    return user;
+    return await this.usersRepository.getOne({ where: fields });
   }
 
   async getOneFromRequest(request: Request): Promise<User> {
