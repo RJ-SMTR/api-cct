@@ -8,6 +8,7 @@ import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { asDate, asString } from 'src/utils/pipe-utils';
 import { DeepPartial } from 'typeorm';
@@ -39,7 +40,6 @@ import { HeaderArquivoService } from './header-arquivo.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoService } from './item-transacao.service';
 import { TransacaoService } from './transacao.service';
-import { CustomLogger } from 'src/utils/custom-logger';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -316,7 +316,7 @@ export class RemessaRetornoService {
   ): Promise<{ cnab104: CnabFile104Pgto; itemTransacaoList: ItemTransacao[]; } | null> {
 
     const now = new Date();
-    const headerArquivo104 = await this.getHeaderArquivo104FromDTO(headerArquivo);
+    const headerArquivo104 = this.getHeaderArquivo104FromDTO(headerArquivo);
     const trailerArquivo104 = sc(PgtoRegistros.trailerArquivo);
     const itemTransacaoMany =
       await this.itemTransacaoService.findManyByIdTransacao(transacao.id);
@@ -359,13 +359,9 @@ export class RemessaRetornoService {
     }
   }
 
-  private async getHeaderArquivo104FromDTO(
+  private getHeaderArquivo104FromDTO(
     headerArquivoDTO: HeaderArquivoDTO,
-  ): Promise<CnabHeaderArquivo104> {
-    const bank = await this.banksService.getOne({
-      code: Number(headerArquivoDTO.codigoBanco),
-    });
-
+  ): CnabHeaderArquivo104 {
     const headerArquivo104: CnabHeaderArquivo104 = sc(
       PgtoRegistros.headerArquivo,
     );
@@ -381,7 +377,6 @@ export class RemessaRetornoService {
     headerArquivo104.dvAgencia.value = headerArquivoDTO.dvAgencia;
     headerArquivo104.dvConta.value = headerArquivoDTO.dvConta;
     headerArquivo104.nomeEmpresa.value = headerArquivoDTO.nomeEmpresa;
-    headerArquivo104.nomeBanco.value = bank.name;
     headerArquivo104.tipoArquivo.value = headerArquivoDTO.tipoArquivo;
     headerArquivo104.dataGeracaoArquivo.value = headerArquivoDTO.dataGeracao;
     headerArquivo104.horaGeracaoArquivo.value = headerArquivoDTO.horaGeracao;
