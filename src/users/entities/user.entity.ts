@@ -191,7 +191,7 @@ export class User extends EntityHelper {
   }
 
   @OneToMany(() => MailHistory, (mailHistory) => mailHistory.user)
-  mailHistory: MailHistory[];
+  mailHistories: MailHistory[];
 
   aux_inviteStatus?: InviteStatus | null;
 
@@ -236,5 +236,16 @@ export class User extends EntityHelper {
       response += ` (${this.role.name})`;
     }
     return response;
+  }
+
+  @AfterLoad()
+  setFieldValues() {
+    if (!this.mailHistories) {
+      this.mailHistories = [];
+    }
+    if (this.mailHistories.length > 0) {
+      this.aux_inviteHash = this.mailHistories[0].hash;
+      this.aux_inviteStatus = this.mailHistories[0].inviteStatus;
+    }
   }
 }

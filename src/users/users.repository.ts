@@ -66,11 +66,8 @@ export class UsersRepository {
     return createdUser;
   }
 
-  async setUserAuxColumns(user: User): Promise<User> {
-    const newUser = new User(user);
-    newUser.aux_bank = await this.getAux_bank(user);
-    newUser.aux_inviteStatus = await this.getAux_inviteSatus(user);
-    return newUser;
+  async setUserAuxColumns(user: User) {
+    user.aux_bank = await this.getAux_bank(user);
   }
 
   async findMany(
@@ -203,15 +200,6 @@ export class UsersRepository {
     return users;
   }
 
-  private async getAux_inviteSatus(user: User): Promise<InviteStatus | null> {
-    const invite = await this.mailHistoryService.findRecentByUser(user);
-    let inviteStatus: InviteStatus | null = null;
-    if (invite?.inviteStatus !== undefined) {
-      inviteStatus = invite.inviteStatus;
-    }
-    return inviteStatus;
-  }
-
   private async getAux_bank(user: User): Promise<Bank | null> {
     if (user?.bankCode === undefined || user?.bankCode === null) {
       return null;
@@ -248,6 +236,7 @@ export class UsersRepository {
       user: { id: oldUser.id },
     });
 
+    // Validate
     if (dataToUpdate.email !== null && dataToUpdate.email !== undefined) {
       const userBD = await this.findOne({ email: dataToUpdate.email });
       if (userBD !== null && userBD.id != oldUser.id) {
@@ -269,29 +258,19 @@ export class UsersRepository {
       }
     }
 
-    let createPayload = await this.usersRepository.update(dataToUpdate);
-    createPayload = await this.setUserAuxColumns(createPayload);
+    // Update
+    await this.usersRepository.update(id, dataToUpdate);
+    const updatedUser: User = await this.findOne({ id: id })[0];
+    await this.setUserAuxColumns(updatedUser);
 
     // Log
     const reqUser = new User(requestUser);
-    let logMsg = `Usuário ${oldUser.getLogInfo()} teve seus campos atualizados: [ ${Object.keys(
-      dataToUpdate,
-    )} ]`;
-    if (reqUser.id === oldUser.id) {
-      logMsg = `Usuário ${oldUser.getLogInfo()} atualizou seus campos: [ ${Object.keys(
-        dataToUpdate,
-      )} ]`;
-    }
-    if (reqUser.getLogInfo() !== '[VAZIO]') {
-      logMsg =
-        `Usuário ${reqUser.getLogInfo()}` +
-        ` atualizou os campos de ${oldUser.getLogInfo()}: [${Object.keys(
-          dataToUpdate,
-        )}]`;
-    }
-    this.logger.log(formatLog(logMsg, 'update()', logContext));
+    const logMsg =
+      `Usuário ${reqUser.getLogInfo()} atualizou os campos de ` +
+      +`${oldUser.getLogInfo()}: [ ${Object.keys(dataToUpdate)} ]`;
+    this.logger.log(formatLog(logMsg, 'update()', 'logContext'));
 
-    return createPayload;
+    return updatedUser;
   }
 
   async softDelete(id: number, logContext?: string): Promise<void> {
