@@ -237,7 +237,7 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
   finalidadeDOC: {
     pos: [218, 219],
     picture: '9(002)',
-    value: Cnab104FinalidadeDoc.CreditoConta,
+    value: Cnab104FinalidadeDoc.Outros,
     ...Cnab.insert.d(),
   },
   /** A.34 Espaços(10) */

@@ -234,7 +234,7 @@ export const CnabHeaderArquivo104Template: CnabHeaderArquivo104 = {
     value: '000',
     ...Cnab.insert.d(),
   },
-  /** 0.33 */
+  /** 0.33  - preencher com espaço. Retornado com espaço */
   tipoServico: {
     pos: [229, 230],
     picture: 'X(002)',

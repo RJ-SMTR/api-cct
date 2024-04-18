@@ -28,7 +28,7 @@ export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
   /** 1.05 - 20 pagamento de fornecedor */
   tipoServico: { pos: [10, 11], picture: '9(002)', value: Cnab104TipoServicoExtrato.PagamentoFornecedor, ...Cnab.insert.d() },
   /** 1.06 - Crédito em conta */
-  formaLancamento: { pos: [12, 13], picture: '9(002)', value: Cnab104FormaLancamento.CreditoContaCorrente, ...Cnab.insert.d() },
+  formaLancamento: { pos: [12, 13], picture: '9(002)', value: Cnab104FormaLancamento.TED, ...Cnab.insert.d() },
   /** 1.07 - Fixo: 041 */
   versaoLeiauteLote: { pos: [14, 16], picture: '9(003)', value: '041', ...Cnab.insert.d() },
   /** 1.08 - 2 */
