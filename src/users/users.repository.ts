@@ -47,7 +47,7 @@ export enum userUploadEnum {
 }
 
 @Injectable()
-export class UsersService {
+export class UsersRepository {
   private logger: Logger = new Logger('UsersService', { timestamp: true });
 
   constructor(
@@ -247,7 +247,6 @@ export class UsersService {
     const history = await this.mailHistoryService.getOne({
       user: { id: oldUser.id },
     });
-    // const newUser = new User(oldUser);
 
     if (dataToUpdate.email !== null && dataToUpdate.email !== undefined) {
       const userBD = await this.findOne({ email: dataToUpdate.email });
