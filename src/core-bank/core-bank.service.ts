@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ICoreBankProfile } from './interfaces/core-bank-profile.interface';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { UpdateCoreBankInterface } from './interfaces/update-core-bank.interface';
 import { CoreBankDataService } from './data/core-bank-data.service';
 import { ICoreBankStatements } from './interfaces/core-bank-statements.interface';
@@ -34,7 +34,7 @@ export class CoreBankService {
     } else if (filteredData.length > 1) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
             cpfCnpj: 'multipleCoreBankProfilesFound',
           },
@@ -44,7 +44,7 @@ export class CoreBankService {
     } else {
       throw new HttpException(
         {
-          error: HttpErrorMessages.INTERNAL_SERVER_ERROR,
+          error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
             cpfCnpj: 'coreBankProfileNotFound',
           },

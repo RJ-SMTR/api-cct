@@ -7,7 +7,7 @@ import {
   ValidationPipeOptions,
 } from '@nestjs/common';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { MailHistoryService } from '../mail-history.service';
 
 @Injectable()
@@ -31,7 +31,7 @@ export class MailHistoryValidationPipe extends ValidationPipe {
     if (!inviteFound) {
       throw new HttpException(
         {
-          message: HttpErrorMessages.UNAUTHORIZED,
+          message: HttpStatusMessage.UNAUTHORIZED,
           details: {
             [fieldName]: 'invalid invite hash',
           },
@@ -41,7 +41,7 @@ export class MailHistoryValidationPipe extends ValidationPipe {
     } else if (inviteFound.getMailStatus() === InviteStatusEnum.used) {
       throw new HttpException(
         {
-          message: HttpErrorMessages.UNAUTHORIZED,
+          message: HttpStatusMessage.UNAUTHORIZED,
           details: {
             inviteStatus: "is already 'sent'. Cant be reused.",
           },

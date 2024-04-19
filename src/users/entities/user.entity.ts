@@ -1,31 +1,33 @@
+import * as bcrypt from 'bcryptjs';
+import { Exclude, Expose } from 'class-transformer';
+import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
+import { Bank } from 'src/banks/entities/bank.entity';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
+import { EntityHelper } from 'src/utils/entity-helper';
 import {
-  Column,
   AfterLoad,
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
   CreateDateColumn,
+  DeepPartial,
   DeleteDateColumn,
   Entity,
   Index,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-  BeforeInsert,
-  BeforeUpdate,
-  DeepPartial,
 } from 'typeorm';
+import { FileEntity } from '../../files/entities/file.entity';
 import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
-import { FileEntity } from '../../files/entities/file.entity';
-import * as bcrypt from 'bcryptjs';
-import { EntityHelper } from 'src/utils/entity-helper';
-import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
-import { Exclude, Expose } from 'class-transformer';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
-import { Bank } from 'src/banks/entities/bank.entity';
 
 @Entity()
 export class User extends EntityHelper {
   newUser: User[];
-  constructor(user?: User | DeepPartial<User>) {
+  constructor(user?: DeepPartial<User>) {
     super();
     this.aux_bank = null;
     this.aux_inviteStatus = null;
@@ -62,6 +64,20 @@ export class User extends EntityHelper {
       const salt = await bcrypt.genSalt();
       this.password = await bcrypt.hash(this.password, salt);
     }
+  }
+
+  /**
+   * Password to update in database.
+   *
+   * If new password exists, get hashed password.
+   * If not, return undefined.
+   */
+  async parseNewPassword(newPassword?: string): Promise<string | undefined> {
+    if (this.previousPassword !== newPassword && newPassword) {
+      const salt = await bcrypt.genSalt();
+      return await bcrypt.hash(newPassword, salt);
+    }
+    return undefined;
   }
 
   @Column({ default: AuthProvidersEnum.email })
@@ -188,6 +204,19 @@ export class User extends EntityHelper {
     );
   }
 
+  @OneToMany(() => MailHistory, (mailHistory) => mailHistory.user.id, {
+    createForeignKeyConstraints: false,
+    // lazy: true,
+  })
+  @Exclude()
+  public mailHistories: MailHistory[];
+
+  @Exclude()
+  public __mailHistories__: MailHistory[];
+
+  @Exclude()
+  public __has_mailHistories__ = false;
+
   aux_inviteStatus?: InviteStatus | null;
 
   @Exclude()
@@ -210,6 +239,7 @@ export class User extends EntityHelper {
         (props.password as any) = undefined;
       }
     }
+    (this.mailHistories as any) = undefined;
     Object.assign(this, props);
   }
 
@@ -231,5 +261,12 @@ export class User extends EntityHelper {
       response += ` (${this.role.name})`;
     }
     return response;
+  }
+
+  @AfterLoad()
+  setFieldValues() {
+    if (!this.__has_mailHistories__) {
+      this.__has_mailHistories__ = false;
+    }
   }
 }

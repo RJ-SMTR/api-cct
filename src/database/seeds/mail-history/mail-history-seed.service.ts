@@ -40,19 +40,26 @@ export class MailHistorySeedService {
       });
 
       if (!foundItem) {
+        const hash = await this.generateInviteHash();
         const newItem = { ...item };
-        newItem.user = itemUser;
-        newItem.email = itemUser.email as string;
-        newItem.hash = await this.generateInviteHash();
         if (itemSeedUser?.inviteStatus) {
           newItem.inviteStatus = itemSeedUser.inviteStatus;
         }
-        this.logger.log(`Creating user: ${JSON.stringify(newItem)}`);
-        await this.mailHistoryRepository.save(
-          this.mailHistoryRepository.create(newItem),
-        );
-        itemUser.hash = newItem.hash;
-        await this.usersRepository.save(this.usersRepository.create(itemUser));
+        this.logger.log(`Creating mailHistory: ${JSON.stringify(newItem)}`);
+        await this.mailHistoryRepository.save({
+          ...item,
+          hash: hash,
+          email: itemUser.email as string,
+          user: { id: itemUser.id },
+          ...(itemSeedUser?.inviteStatus
+            ? {
+                inviteStatus: itemSeedUser.inviteStatus,
+              }
+            : {}),
+        });
+        await this.usersRepository.update(itemUser.id, {
+          hash: newItem.hash,
+        });
       }
     }
   }

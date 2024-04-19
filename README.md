@@ -7,7 +7,6 @@
 *API do aplicativo CCT*  
 (Centro de Compensação Tarifária)
 
-
 [Documentação completa](https://github.com/RJ-SMTR/api-cct/blob/main/docs/readme.md)
 
 Este projeto foi baseado no template [Nestjs Boilerplate](https://github.com/brocoders/nestjs-boilerplate/)
@@ -75,20 +74,22 @@ npm run start:dev
 ```
 
 Rodar seed caso o banco não esteja vazio:
-```
-npm run seed:run __force
+
+```bash
+npm run seed:run -- --force
 ```
 
 Rodar seed apenas de alguns módulos
-```
+
+```bash
 npm run seed:run user mailhistory
 ```
 
 ## Links
 
-- Swagger: http://localhost:3000/docs
-- Adminer (client for DB): http://localhost:8080
-- Maildev: http://localhost:1080
+* Swagger: <http://localhost:3000/docs>
+* Adminer (client for DB): <http://localhost:8080>
+* Maildev: <http://localhost:1080>
 
 ## Automatic update of dependencies
 
@@ -141,6 +142,7 @@ npm run test:e2e
 Exemplo de configuração no VSCode:
 
 .vscode/launch.json
+
 ```jsonc
 {
     "version": "0.2.0",
@@ -184,7 +186,6 @@ Exemplo de configuração no VSCode:
     ]
 }
 ```
-
 
 ## Testes no Docker
 

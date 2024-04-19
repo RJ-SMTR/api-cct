@@ -8,7 +8,7 @@ import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/ma
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { formatLog } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
@@ -52,15 +52,17 @@ export class MailHistoryService {
     return createdMail;
   }
 
-  async find(
+  async findMany(
     fields?: EntityCondition<MailHistory> | EntityCondition<MailHistory>[],
-  ): Promise<NullableType<MailHistory[]>> {
-    return this.inviteRepository.find({
-      where: fields,
-      order: {
-        createdAt: 'ASC',
-      },
-    });
+  ): Promise<MailHistory[]> {
+    return (
+      this.inviteRepository.find({
+        where: fields,
+        order: {
+          createdAt: 'ASC',
+        },
+      }) || []
+    );
   }
 
   async findSentToday(): Promise<NullableType<MailHistory[]>> {
@@ -176,7 +178,7 @@ export class MailHistoryService {
     if (!invite) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.NOT_FOUND,
+          error: HttpStatusMessage.NOT_FOUND,
         },
         HttpStatus.NOT_FOUND,
       );

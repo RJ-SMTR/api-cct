@@ -8,7 +8,7 @@ import { JaeService } from 'src/jae/jae.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import {
   PAYMENT_START_WEEKDAY,
@@ -75,15 +75,6 @@ export class TicketRevenuesService {
       return new TicketRevenuesGroup().toInterface();
     }
     const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
-    console.log({
-      message: 'GET GROUPED',
-      groupSum: ticketRevenuesGroupSum.transactionValueSum,
-      individualSum: Number(
-        ticketRevenuesResponse
-          .reduce((sum, i) => sum + (i?.transactionValue || 0), 0)
-          .toFixed(2),
-      ),
-    });
 
     return ticketRevenuesGroupSum;
   }
@@ -224,7 +215,7 @@ export class TicketRevenuesService {
     if (!user.permitCode) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             message: 'Maybe your token has expired, try to get a new one',
             user: {

@@ -13,7 +13,7 @@ import { SgtuService } from 'src/sgtu/sgtu.service';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
 import { BaseValidator } from 'src/utils/validators/base-validator';
 import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
@@ -54,7 +54,7 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             email: 'notFound',
           },
@@ -69,7 +69,7 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             status: 'notActive',
           },
@@ -81,7 +81,7 @@ export class AuthLicenseeService {
     if (user.provider !== AuthProvidersEnum.email) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             email: `needLoginViaProvider:${user.provider}`,
           },
@@ -98,7 +98,7 @@ export class AuthLicenseeService {
     if (!isValidPassword) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             password: 'incorrectPassword',
           },
@@ -121,7 +121,7 @@ export class AuthLicenseeService {
     if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             invite: {
               inviteStatus: `Invite is not 'sent' yet`,
@@ -137,7 +137,7 @@ export class AuthLicenseeService {
     if (user.id !== invite.user.id || typeof user.permitCode !== 'string') {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             user: {
               ...(user.id !== invite.user.id && {
@@ -161,7 +161,7 @@ export class AuthLicenseeService {
       sgtuProfile,
       SgtuDto,
       HttpStatus.UNAUTHORIZED,
-      HttpErrorMessages.UNAUTHORIZED,
+      HttpStatusMessage.UNAUTHORIZED,
     );
 
     if (
@@ -170,7 +170,7 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             user: {
               ...(sgtuProfile.permitCode !== user.permitCode && {
@@ -205,7 +205,7 @@ export class AuthLicenseeService {
     if (!invite) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             invite: {
               hash: 'inviteHashNotFound',
@@ -219,7 +219,7 @@ export class AuthLicenseeService {
     if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             invite: {
               inviteStatus: `inviteAlreadyUsed'`,
@@ -239,7 +239,7 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.UNAUTHORIZED,
+          error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             user: {
               ...(user.id !== invite.user.id && {
@@ -264,7 +264,7 @@ export class AuthLicenseeService {
       sgtuProfile,
       SgtuDto,
       HttpStatus.UNAUTHORIZED,
-      HttpErrorMessages.UNAUTHORIZED,
+      HttpStatusMessage.UNAUTHORIZED,
     );
 
     const jaeProfile: JaeProfileInterface =
@@ -289,7 +289,6 @@ export class AuthLicenseeService {
         hash: hash,
         email: email,
         fullName: sgtuProfile.fullName,
-        cpfCnpj: sgtuProfile.cpfCnpj,
         permitCode: sgtuProfile.permitCode,
         isSgtuBlocked: sgtuProfile.isSgtuBlocked,
         passValidatorId: jaeProfile.passValidatorId,

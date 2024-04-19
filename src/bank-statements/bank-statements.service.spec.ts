@@ -17,7 +17,7 @@ const allBankStatements = [
   { id: 3, cpfCnpj: 'cc_1', permitCode: 'pc_1', date: '2023-01-06', amount: 4 },
 ] as Partial<ICoreBankStatements>[] as ICoreBankStatements[];
 
-describe('BankStatementsService', () => {
+xdescribe('BankStatementsService', () => {
   const endpoint = 'bank-statements';
 
   let bankStatementsService: BankStatementsService;

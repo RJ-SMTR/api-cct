@@ -10,6 +10,7 @@ export const ADMIN_2_EMAIL = 'admin.test@example.com';
 export const ADMIN_2_PASSWORD = 'secret';
 
 export const LICENSEE_EMAIL = 'henrique@example.com';
+export const TO_UPDATE_PERMIT_CODE = '319274392832025';
 export const LICENSEE_PERMIT_CODE = '213890329890312';
 export const LICENSEE_PASSWORD = 'secret';
 export const LICENSEE_CASE_ACCENT = 'Márcia Clara Template';
