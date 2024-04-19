@@ -75,6 +75,28 @@ export class LancamentoController {
   ): Promise<ItfLancamento[]> {
     return await this.lancamentoService.findByPeriod(mes, periodo, ano, authorized);
   }
+  
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.master,
+    RoleEnum.admin_finan,
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro,
+  )
+  @Get('/getbystatus')
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'use 1 ou 0 para autorizado ou não autorizado.',
+  })
+  @HttpCode(HttpStatus.OK)
+  async findByStatus(
+    @Request() request,
+    @Query('status') status: number,
+  ): Promise<ItfLancamento[]> {
+    return await this.lancamentoService.findByStatus(status);
+  }
 
 
   @ApiBearerAuth()

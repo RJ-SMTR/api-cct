@@ -29,7 +29,7 @@ export class LancamentoService {
   ): Promise<ItfLancamento[]> {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
     console.log(startDate, endDate)
-    
+
     const lancamentos = await this.lancamentoRepository.find({
       where: {
         data_lancamento: Between(startDate, endDate),
@@ -75,8 +75,25 @@ export class LancamentoService {
         (lancamento) => lancamento.autorizadopor.length < 2,
       );
     }
-    
+
     return lancamentosComUsuarios;
+  }
+
+  async findByStatus(
+    status: number | null = null,
+  ): Promise<ItfLancamento[]> {
+    let query = this.lancamentoRepository
+      .createQueryBuilder("lancamento")
+      .where("ARRAY_LENGTH(string_to_array(lancamento.auth_userIds, ',')) >= :count", { count: 2 });
+  
+    if (status === 1) {
+      query = query.andWhere("lancamento.status = :status", { status: 1 });
+    } else if (status === 0) {
+      query = query.andWhere("ARRAY_LENGTH(string_to_array(lancamento.auth_userIds, ',')) <= :count", { count: 2 });
+    }
+  
+    const lancamentos = await query.getMany();
+    return lancamentos;
   }
 
   async getValorAutorizado(
@@ -135,7 +152,7 @@ export class LancamentoService {
       id: userId,
     });
 
-    if(!user)
+    if (!user)
       throw new HttpException('Usuário não encontrado', HttpStatus.UNAUTHORIZED);
 
     const isValidPassword = await bcrypt.compare(
@@ -143,7 +160,7 @@ export class LancamentoService {
       user.password,
     );
 
-    if(!isValidPassword)
+    if (!isValidPassword)
       throw new HttpException('Senha inválida', HttpStatus.UNAUTHORIZED);
 
     const lancamento = await this.lancamentoRepository.findOne({
@@ -221,12 +238,12 @@ export class LancamentoService {
     const year = date.getFullYear();
     const month = date.getMonth() + 1; // Os meses no JavaScript vão de 0 a 11, então é necessário adicionar 1
     const day = date.getDate();
-  
+
     if (day <= 15) {
       return { year, month, period: 1 };
     } else {
       return { year, month, period: 2 };
     }
   }
-  
+
 }
