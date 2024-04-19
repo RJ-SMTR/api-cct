@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { format } from 'date-fns';
 import { BanksService } from 'src/banks/banks.service';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { DetalheB } from 'src/cnab/entity/pagamento/detalhe-b.entity';
@@ -504,7 +503,6 @@ export class RemessaRetornoService {
     detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
     detalheA.dataVencimento.value = itemTransacao.dataProcessamento;
     // indicadorFormaParcelamento = DataFixa
-    detalheA.periodoDiaVencimento.value = format(itemTransacao.dataProcessamento, 'dd');
     detalheA.valorLancamento.value = itemTransacao.valor;
 
     const detalheB: CnabDetalheB_104 = sc(PgtoRegistros.detalheB);

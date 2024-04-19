@@ -198,9 +198,11 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
    * 
    * Fixo: "5" (5o dia útil do mês);
    * Pois se for obrigatório será a 1a sexta do mês (ou o próximo dia útil caso seja feriado).
+   * 
+   * Se não houver parcelamento, insere `00`;
    */
   periodoDiaVencimento: {
-    pos: [151, 152], picture: 'X(002)', value: '05',
+    pos: [151, 152], picture: 'X(002)', value: '00',
     ...Cnab.insert.d(),
   },
   /** A.29 Fixo: 00 (parcela única / à vista) */
