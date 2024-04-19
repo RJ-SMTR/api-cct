@@ -1,18 +1,27 @@
+import { Injectable } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-import { DataSource } from 'typeorm';
 import { ValidationArguments } from 'class-validator/types/validation/ValidationArguments';
-import { Injectable } from '@nestjs/common';
-import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
-type ValidationEntity =
-  | {
-      id?: number | string;
-    }
-  | undefined;
-
+/**
+ * @description Validate if field is unique (if does not exists in item with different id).
+ *
+ * To check if existing item is itself or not the DTO must have 'id' column.
+ *
+ * Usage example:
+ * ```typescript
+ * \@Validate(IsNotExist, ['User', {
+ *    ignoreBlankOrNull: true, // optional
+ *    idColumn: 'id', // optional
+ * }], {
+ *     message: 'emailAlreadyExists',
+ *   })
+ *   ```
+ */
 @Injectable()
 @ValidatorConstraint({ name: 'IsNotExist', async: true })
 export class IsNotExist implements ValidatorConstraintInterface {
@@ -25,14 +34,15 @@ export class IsNotExist implements ValidatorConstraintInterface {
     const repository = validationArguments.constraints[0] as string;
     const args = validationArguments.constraints[1] as any;
     const ignoreBlankOrNull = args?.ignoreBlankOrNull;
-    const currentValue = validationArguments.object as ValidationEntity;
-    const entity = (await this.dataSource.getRepository(repository).findOne({
+    const idColumn = args?.idColumn || 'id';
+    const currentValue = validationArguments.object as any;
+    const entity = await this.dataSource.getRepository(repository).findOne({
       where: {
         [validationArguments.property]: value,
       },
-    })) as ValidationEntity;
+    });
 
-    if (entity?.id === currentValue?.id || ignoreBlankOrNull === true) {
+    if (entity?.[idColumn] === currentValue?.id || ignoreBlankOrNull === true) {
       return true;
     }
 

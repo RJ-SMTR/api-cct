@@ -7,9 +7,10 @@ import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { Enum } from 'src/utils/enum';
-import { HttpErrorMessages } from 'src/utils/enums/http-error-messages.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { formatLog } from 'src/utils/log-utils';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { validateDTO } from 'src/utils/validation-utils';
 import {
   Brackets,
   DeepPartial,
@@ -18,11 +19,12 @@ import {
   FindOneOptions,
   FindOptionsWhere,
   ILike,
+  In,
   Repository,
   WhereExpressionBuilder,
 } from 'typeorm';
 import { NullableType } from '../utils/types/nullable.type';
-import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserRepositoryDto } from './dto/update-user-repository.dto';
 import { User } from './entities/user.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 
@@ -33,7 +35,9 @@ export enum userUploadEnum {
 
 @Injectable()
 export class UsersRepository {
-  private logger: Logger = new Logger('UsersService', { timestamp: true });
+  private logger: Logger = new Logger(UsersRepository.name, {
+    timestamp: true,
+  });
 
   constructor(
     @InjectRepository(User)
@@ -43,7 +47,11 @@ export class UsersRepository {
     private readonly entityManager: EntityManager,
   ) {}
 
-  async create(createProfileDto: CreateUserDto): Promise<User> {
+  /**
+   * Save or update new user in database.
+   * @returns created user.
+   */
+  async create(createProfileDto: DeepPartial<User>): Promise<User> {
     const createdUser = await this.usersRepository.save(
       this.usersRepository.create(createProfileDto),
     );
@@ -51,15 +59,58 @@ export class UsersRepository {
     return createdUser;
   }
 
-  async setUserAuxColumns(user: User) {
-    user.aux_bank = await this.getAux_bank(user);
+  // #region loadLazyRelations
+
+  /**
+   * Load data of lazy relations (not eager)
+   */
+  async loadLazyRelations(users: User[]) {
+    await this.loadLazyAux_bank(users);
+    await this.loadLazyAux_invite(users);
   }
+
+  private async loadLazyAux_invite(users: User[]) {
+    // Find
+    const ids = users.map((i) => i.id);
+    /** key: user.id */
+    const mails = await this.mailHistoryService.findMany({
+      user: { id: In(ids) },
+    });
+
+    // Set values
+    for (const user of users) {
+      const mailHistories = mails.filter((i) => i.user.id === user.id);
+      const mailHistory = mailHistories?.[0] as MailHistory | undefined;
+      user.mailHistories = mails.filter((i) => i.user.id === user.id);
+      user.aux_inviteStatus = mailHistory?.inviteStatus;
+      user.aux_inviteHash = mailHistory?.hash;
+    }
+  }
+
+  private async loadLazyAux_bank(users: User[]) {
+    // Find banks
+    const bankCodes = users.reduce(
+      (l, i) => (typeof i?.bankCode === 'number' ? [...l, i.bankCode] : l),
+      [],
+    );
+    /** key: bank code */
+    const bankMap: Record<number, Bank> = (
+      await this.banksService.findMany({ code: In(bankCodes) })
+    ).reduce((map, i) => ({ ...map, [i.code]: i }), {});
+
+    // Set banks
+    for (const user of users) {
+      if (typeof user?.bankCode === 'number') {
+        user.aux_bank = bankMap[user.bankCode];
+      }
+    }
+  }
+
+  // #endregion
 
   async findMany(options?: FindManyOptions<User>): Promise<User[]> {
     const users = await this.usersRepository.find(options);
-    for (const user of users) {
-      await this.setUserAuxColumns(user);
-    }
+    await this.loadLazyRelations(users);
     return users;
   }
 
@@ -91,14 +142,16 @@ export class UsersRepository {
       )
       .andWhere(andWhere)
       .getMany();
+    users = await this.usersRepository.find({
+      where: {
+        id: In(users.map((i) => i.id)),
+      },
+    });
+    await this.loadLazyRelations(users);
 
     let invites: NullableType<MailHistory[]> = null;
     if (inviteStatus) {
-      invites = await this.mailHistoryService.find({ inviteStatus });
-    }
-
-    for (const user of users) {
-      await this.setUserAuxColumns(user);
+      invites = await this.mailHistoryService.findMany({ inviteStatus });
     }
 
     users = users.filter((userItem) => {
@@ -191,17 +244,10 @@ export class UsersRepository {
 
   // #endregion
 
-  private async getAux_bank(user: User): Promise<Bank | null> {
-    if (user?.bankCode === undefined || user?.bankCode === null) {
-      return null;
-    }
-    return await this.banksService.findOne({ code: user?.bankCode });
-  }
-
   async findOne(options: FindOneOptions<User>): Promise<NullableType<User>> {
     const user = await this.usersRepository.findOne(options);
     if (user) {
-      await this.setUserAuxColumns(user);
+      await this.loadLazyRelations([user]);
     }
     return user;
   }
@@ -218,43 +264,43 @@ export class UsersRepository {
     logContext?: string,
     requestUser?: DeepPartial<User>,
   ): Promise<User> {
-    const oldUser = await this.getOne({ id });
-    const history = await this.mailHistoryService.getOne({
-      user: { id: oldUser.id },
-    });
+    const METHOD = `${logContext}->${this.update.name}`;
+    const user = await this.getOne({ where: { id } });
 
-    // Validate
-    if (dataToUpdate.email !== null && dataToUpdate.email !== undefined) {
-      const userBD = await this.findOne({ email: dataToUpdate.email });
-      if (userBD !== null && userBD.id != oldUser.id) {
-        throw new HttpException(
-          {
-            error: 'user email already exists',
-          },
-          HttpStatus.UNPROCESSABLE_ENTITY,
-        );
-      } else if (oldUser.email !== dataToUpdate.email) {
-        history.setInviteStatus(InviteStatusEnum.queued);
-        history.email = dataToUpdate.email;
-        history.hash = await this.mailHistoryService.generateHash();
-        await this.mailHistoryService.update(
-          history.id,
-          history,
-          'UsersService.update()',
-        );
-      }
+    // Validate email, cpfCnpj etc before update
+    await validateDTO(UpdateUserRepositoryDto, {
+      id: id,
+      ...dataToUpdate,
+    } as UpdateUserRepositoryDto);
+
+    // If email is different, reset inviteStatus
+    if (
+      dataToUpdate.email &&
+      user.mailHistories.length > 0 &&
+      user.email !== dataToUpdate.email
+    ) {
+      await this.mailHistoryService.update(
+        user.mailHistories[0].id,
+        {
+          inviteStatus: new InviteStatus(InviteStatusEnum.queued),
+          email: dataToUpdate.email,
+          hash: await this.mailHistoryService.generateHash(),
+        },
+        METHOD,
+      );
     }
 
-    // Update
+    // Update user
+    dataToUpdate.password = await user.parseNewPassword(dataToUpdate.password);
     await this.usersRepository.update(id, dataToUpdate);
-    const updatedUser: User = await this.findOne({ id: id })[0];
-    await this.setUserAuxColumns(updatedUser);
+    const updatedUser = await this.getOne({ where: { id: id } });
+    await this.loadLazyRelations([updatedUser]);
 
     // Log
     const reqUser = new User(requestUser);
     const logMsg =
       `Usuário ${reqUser.getLogInfo()} atualizou os campos de ` +
-      +`${oldUser.getLogInfo()}: [ ${Object.keys(dataToUpdate)} ]`;
+      +`${user.getLogInfo()}: [ ${Object.keys(dataToUpdate)} ]`;
     this.logger.log(formatLog(logMsg, 'update()', 'logContext'));
 
     return updatedUser;
@@ -268,7 +314,7 @@ export class UsersRepository {
     if (!user) {
       throw new HttpException(
         {
-          error: HttpErrorMessages.NOT_FOUND,
+          error: HttpStatusMessage.NOT_FOUND,
           details: {
             ...(!user && { user: 'userNotFound' }),
           },

@@ -1,7 +1,7 @@
 import { validate } from 'class-validator';
 import { plainToClass } from 'class-transformer';
 import { HttpException, HttpStatus, Injectable, Type } from '@nestjs/common';
-import { HttpErrorMessages } from '../enums/http-error-messages.enum';
+import { HttpStatusMessage } from '../enums/http-status-message.enum';
 
 @Injectable()
 export class BaseValidator {
@@ -10,8 +10,8 @@ export class BaseValidator {
     schemaMeta: Type<T>,
     httpStatus: HttpStatus = HttpStatus.UNPROCESSABLE_ENTITY,
     httpErrorMessage:
-      | HttpErrorMessages
-      | undefined = HttpErrorMessages.UNPROCESSABLE_ENTITY,
+      | HttpStatusMessage
+      | undefined = HttpStatusMessage.UNPROCESSABLE_ENTITY,
   ): Promise<T> {
     const schema: T = plainToClass(schemaMeta, inputs);
     const errors = await validate(schema as Record<string, any>, {

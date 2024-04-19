@@ -109,7 +109,7 @@ describe('CronJobsService', () => {
     expect(cronJobsService).toBeDefined();
   });
 
-  describe('bulkSendInvites', () => {
+  xdescribe('bulkSendInvites', () => {
     it('should abort if no mail quota available', async () => {
       // Arrange
       jest

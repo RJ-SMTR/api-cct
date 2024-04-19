@@ -26,7 +26,7 @@ const runSeed = async () => {
     MailHistorySeedService,
   ];
 
-  const FORCE_PARAM = '__force';
+  const FORCE_PARAM = '--force';
   const force = process.argv.slice(2).includes(FORCE_PARAM);
   global.force = force;
   const nameFilters = process.argv.slice(2).filter((i) => i !== FORCE_PARAM);

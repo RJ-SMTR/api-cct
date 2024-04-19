@@ -16,6 +16,12 @@ export class BanksService {
     return this.banksRepository.find({ where: { isAllowed: true } });
   }
 
+  public findMany(fields: EntityCondition<Bank>): Promise<Bank[]> {
+    return this.banksRepository.find({
+      where: fields,
+    });
+  }
+
   findOne(fields: EntityCondition<Bank>): Promise<NullableType<Bank>> {
     return this.banksRepository.findOne({
       where: fields,
