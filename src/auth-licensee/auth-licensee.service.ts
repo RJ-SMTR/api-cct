@@ -256,22 +256,6 @@ export class AuthLicenseeService {
       );
     }
 
-    const sgtuProfile: SgtuDto = await this.sgtuService.getGeneratedProfile(
-      invite,
-    );
-
-    await this.baseValidator.validateOrReject(
-      sgtuProfile,
-      SgtuDto,
-      HttpStatus.UNAUTHORIZED,
-      HttpStatusMessage.UNAUTHORIZED,
-    );
-
-    const jaeProfile: JaeProfileInterface =
-      this.jaeService.getGeneratedProfileByUser(user);
-
-    const email = user.email;
-
     await this.mailHistoryService.update(
       invite.id,
       {
@@ -287,11 +271,6 @@ export class AuthLicenseeService {
       {
         password: registerDto.password,
         hash: hash,
-        email: email,
-        fullName: sgtuProfile.fullName,
-        permitCode: sgtuProfile.permitCode,
-        isSgtuBlocked: sgtuProfile.isSgtuBlocked,
-        passValidatorId: jaeProfile.passValidatorId,
         status: {
           id: StatusEnum.active,
         } as Status,
