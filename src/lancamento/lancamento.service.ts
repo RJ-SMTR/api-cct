@@ -84,17 +84,19 @@ export class LancamentoService {
     });
 
     if (authorized === 1) {
+      console.log("AUTHORIZED 1")
       return lancamentosComUsuarios.filter(
-        (lancamento) => lancamento.autorizadopor.some((user) => user !== undefined),
+        (lancamento) => lancamento.autorizadopor.length === 2,
       );
     }
-
+    
     if (authorized === 0) {
+      console.log("AUTHORIZED 0")
       return lancamentosComUsuarios.filter(
         (lancamento) => lancamento.autorizadopor.length < 2,
       );
     }
-    
+
 
     return lancamentosComUsuarios;
   }
