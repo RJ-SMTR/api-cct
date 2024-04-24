@@ -46,18 +46,18 @@ export class LancamentoController {
   @Get('/')
   @ApiQuery({
     name: 'mes',
-    required: true,
+    required: false,
     description: 'Mês do lançamento',
   })
   @ApiQuery({
     name: 'periodo',
-    required: true,
+    required: false,
     description:
       'Período do lançamento. primeira quinzena ou segunda quinzena.',
   })
   @ApiQuery({
     name: 'ano',
-    required: true,
+    required: false,
     description: 'Ano do lançamento.',
   })
   @ApiQuery({
