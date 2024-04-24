@@ -94,6 +94,7 @@ export class LancamentoService {
         (lancamento) => lancamento.autorizadopor.length < 2,
       );
     }
+    
 
     return lancamentosComUsuarios;
   }
