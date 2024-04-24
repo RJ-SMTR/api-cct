@@ -79,20 +79,14 @@ export class LancamentoService {
     return lancamentosComUsuarios;
   }
 
-  async findByStatus(
-    status: number | null = null,
-  ): Promise<ItfLancamento[]> {
+  async findByStatus(status: number | null = null): Promise<ItfLancamento[]> {
     const lancamentos = await this.lancamentoRepository.find({
       relations: ['user'],
     });
 
     const allUserIds = new Set<number>();
     lancamentos.forEach((lancamento) => {
-      if (lancamento.auth_usersIds) {
-        lancamento.auth_usersIds
-          .split(',')
-          .forEach((id) => allUserIds.add(Number(id)));
-      }
+      lancamento.auth_usersIds?.split(',').forEach(id => allUserIds.add(Number(id)));
     });
 
     let usersMap = new Map<number, any>();
@@ -100,31 +94,23 @@ export class LancamentoService {
       const users = await this.userRepository.findBy({
         id: In([...allUserIds]),
       });
-      usersMap = new Map(users.map((user) => [user.id, user]));
+      usersMap = new Map(users.map(user => [user.id, user]));
     }
-    const lancamentosComUsuarios = lancamentos.map((lancamento) => {
-      const userIds = lancamento.auth_usersIds
-        ? lancamento.auth_usersIds.split(',').map(Number)
-        : [];
-      const autorizadopor = userIds
-        .map((id) => usersMap.get(id))
-        .filter((user) => user !== undefined);
+
+    const lancamentosComUsuarios = lancamentos.map(lancamento => {
+      const userIds = lancamento.auth_usersIds ? lancamento.auth_usersIds.split(',').map(Number) : [];
+      const autorizadopor = userIds.map(id => usersMap.get(id)).filter(user => user);
       return { ...lancamento, autorizadopor };
     });
 
-    if (status === 1) {
-      return lancamentosComUsuarios.filter(
-        (lancamento) => lancamento.autorizadopor.length >= 2,
-      );
-    }
-
-    if (status === 0) {
-      return lancamentosComUsuarios.filter(
-        (lancamento) => lancamento.autorizadopor.length < 2,
-      );
-    }
-
-    return lancamentosComUsuarios;
+    return lancamentosComUsuarios.filter(lancamento => {
+      if (status === 1) {
+        return lancamento.autorizadopor.length >= 2;
+      } else if (status === 0) {
+        return lancamento.autorizadopor.length < 2;
+      }
+      return true;
+    });
   }
 
   async getValorAutorizado(
