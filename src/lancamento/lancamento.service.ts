@@ -22,21 +22,29 @@ export class LancamentoService {
   ) { }
 
   async findByPeriod(
-    month: number,
-    period: number,
-    year: number,
+    month?: number,
+    period?: number,
+    year?: number,
     authorized: number | null = null,
   ): Promise<ItfLancamento[]> {
-    const [startDate, endDate] = this.getMonthDateRange(year, month, period);
-    console.log(startDate, endDate)
-
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+  
+    if (month !== undefined && period !== undefined && year !== undefined) {
+      [startDate, endDate] = this.getMonthDateRange(year, month, period);
+      console.log(startDate, endDate);
+    }
+  
+    const whereOptions: any = {};
+    if (startDate && endDate) {
+      whereOptions.data_lancamento = Between(startDate, endDate);
+    }
+  
     const lancamentos = await this.lancamentoRepository.find({
-      where: {
-        data_lancamento: Between(startDate, endDate),
-      },
+      where: whereOptions,
       relations: ['user'],
     });
-
+  
     const allUserIds = new Set<number>();
     lancamentos.forEach((lancamento) => {
       if (lancamento.auth_usersIds) {
@@ -45,7 +53,7 @@ export class LancamentoService {
           .forEach((id) => allUserIds.add(Number(id)));
       }
     });
-
+  
     let usersMap = new Map<number, any>();
     if (allUserIds.size > 0) {
       const users = await this.userRepository.findBy({
@@ -53,7 +61,7 @@ export class LancamentoService {
       });
       usersMap = new Map(users.map((user) => [user.id, user]));
     }
-
+  
     const lancamentosComUsuarios = lancamentos.map((lancamento) => {
       const userIds = lancamento.auth_usersIds
         ? lancamento.auth_usersIds.split(',').map(Number)
@@ -63,21 +71,22 @@ export class LancamentoService {
         .filter((user) => user !== undefined);
       return { ...lancamento, autorizadopor };
     });
-
+  
     if (authorized === 1) {
       return lancamentosComUsuarios.filter(
         (lancamento) => lancamento.autorizadopor.length >= 2,
       );
     }
-
+  
     if (authorized === 0) {
       return lancamentosComUsuarios.filter(
         (lancamento) => lancamento.autorizadopor.length < 2,
       );
     }
-
+  
     return lancamentosComUsuarios;
   }
+  
 
   async findByStatus(status: number | null = null): Promise<ItfLancamento[]> {
     const lancamentos = await this.lancamentoRepository.find({
