@@ -83,12 +83,12 @@ export class LancamentoService {
     const lancamentos = await this.lancamentoRepository.find({
       relations: ['user'],
     });
-
+  
     const allUserIds = new Set<number>();
     lancamentos.forEach((lancamento) => {
       lancamento.auth_usersIds?.split(',').forEach(id => allUserIds.add(Number(id)));
     });
-
+  
     let usersMap = new Map<number, any>();
     if (allUserIds.size > 0) {
       const users = await this.userRepository.findBy({
@@ -96,21 +96,18 @@ export class LancamentoService {
       });
       usersMap = new Map(users.map(user => [user.id, user]));
     }
-
+  
     const lancamentosComUsuarios = lancamentos.map(lancamento => {
       const userIds = lancamento.auth_usersIds ? lancamento.auth_usersIds.split(',').map(Number) : [];
       const autorizadopor = userIds.map(id => usersMap.get(id)).filter(user => user);
       return { ...lancamento, autorizadopor };
     });
-
-    return lancamentosComUsuarios.filter(lancamento => {
-      if (status === 1) {
-        return lancamento.autorizadopor.length >= 2;
-      } else if (status === 0) {
-        return lancamento.autorizadopor.length < 2;
-      }
-      return true;
-    });
+  
+    if (status === 1) {
+      return lancamentosComUsuarios.filter(lancamento => lancamento.autorizadopor.length === 2);
+    } else {
+      return lancamentosComUsuarios.filter(lancamento => lancamento.autorizadopor.length !== 2);
+    }
   }
 
   async getValorAutorizado(
