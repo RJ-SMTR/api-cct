@@ -82,18 +82,49 @@ export class LancamentoService {
   async findByStatus(
     status: number | null = null,
   ): Promise<ItfLancamento[]> {
-    let query = this.lancamentoRepository
-      .createQueryBuilder("lancamento")
-      .where("ARRAY_LENGTH(string_to_array(lancamento.auth_userIds, ',')) >= :count", { count: 2 });
-  
-    if (status === 1) {
-      query = query.andWhere("lancamento.status = :status", { status: 1 });
-    } else if (status === 0) {
-      query = query.andWhere("ARRAY_LENGTH(string_to_array(lancamento.auth_userIds, ',')) <= :count", { count: 2 });
+    const lancamentos = await this.lancamentoRepository.find({
+      relations: ['user'],
+    });
+
+    const allUserIds = new Set<number>();
+    lancamentos.forEach((lancamento) => {
+      if (lancamento.auth_usersIds) {
+        lancamento.auth_usersIds
+          .split(',')
+          .forEach((id) => allUserIds.add(Number(id)));
+      }
+    });
+
+    let usersMap = new Map<number, any>();
+    if (allUserIds.size > 0) {
+      const users = await this.userRepository.findBy({
+        id: In([...allUserIds]),
+      });
+      usersMap = new Map(users.map((user) => [user.id, user]));
     }
-  
-    const lancamentos = await query.getMany();
-    return lancamentos;
+    const lancamentosComUsuarios = lancamentos.map((lancamento) => {
+      const userIds = lancamento.auth_usersIds
+        ? lancamento.auth_usersIds.split(',').map(Number)
+        : [];
+      const autorizadopor = userIds
+        .map((id) => usersMap.get(id))
+        .filter((user) => user !== undefined);
+      return { ...lancamento, autorizadopor };
+    });
+
+    if (status === 1) {
+      return lancamentosComUsuarios.filter(
+        (lancamento) => lancamento.autorizadopor.length >= 2,
+      );
+    }
+
+    if (status === 0) {
+      return lancamentosComUsuarios.filter(
+        (lancamento) => lancamento.autorizadopor.length < 2,
+      );
+    }
+
+    return lancamentosComUsuarios;
   }
 
   async getValorAutorizado(
