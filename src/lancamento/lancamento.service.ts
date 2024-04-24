@@ -29,7 +29,7 @@ export class LancamentoService {
   ): Promise<ItfLancamento[]> {
     let startDate: Date | undefined;
     let endDate: Date | undefined;
-  
+
     console.log(period)
     if (
       month !== null &&
@@ -45,17 +45,17 @@ export class LancamentoService {
       [startDate, endDate] = this.getMonthDateRange(year, month, period);
       console.log(startDate, endDate);
     }
-  
+
     const whereOptions: any = {};
     if (startDate && endDate) {
       whereOptions.data_lancamento = Between(startDate, endDate);
     }
-  
+
     const lancamentos = await this.lancamentoRepository.find({
       where: whereOptions,
       relations: ['user'],
     });
-  
+
     const allUserIds = new Set<number>();
     lancamentos.forEach((lancamento) => {
       if (lancamento.auth_usersIds) {
@@ -64,7 +64,7 @@ export class LancamentoService {
           .forEach((id) => allUserIds.add(Number(id)));
       }
     });
-  
+
     let usersMap = new Map<number, any>();
     if (allUserIds.size > 0) {
       const users = await this.userRepository.findBy({
@@ -72,7 +72,7 @@ export class LancamentoService {
       });
       usersMap = new Map(users.map((user) => [user.id, user]));
     }
-  
+
     const lancamentosComUsuarios = lancamentos.map((lancamento) => {
       const userIds = lancamento.auth_usersIds
         ? lancamento.auth_usersIds.split(',').map(Number)
@@ -82,33 +82,33 @@ export class LancamentoService {
         .filter((user) => user !== undefined);
       return { ...lancamento, autorizadopor };
     });
-  
+
     if (authorized === 1) {
       return lancamentosComUsuarios.filter(
-        (lancamento) => lancamento.autorizadopor.length >= 2,
+        (lancamento) => lancamento.autorizadopor.some((user) => user !== undefined),
       );
     }
-  
+
     if (authorized === 0) {
       return lancamentosComUsuarios.filter(
         (lancamento) => lancamento.autorizadopor.length < 2,
       );
     }
-  
+
     return lancamentosComUsuarios;
   }
-  
+
 
   async findByStatus(status: number | null = null): Promise<ItfLancamento[]> {
     const lancamentos = await this.lancamentoRepository.find({
       relations: ['user'],
     });
-  
+
     const allUserIds = new Set<number>();
     lancamentos.forEach((lancamento) => {
       lancamento.auth_usersIds?.split(',').forEach(id => allUserIds.add(Number(id)));
     });
-  
+
     let usersMap = new Map<number, any>();
     if (allUserIds.size > 0) {
       const users = await this.userRepository.findBy({
@@ -116,13 +116,13 @@ export class LancamentoService {
       });
       usersMap = new Map(users.map(user => [user.id, user]));
     }
-  
+
     const lancamentosComUsuarios = lancamentos.map(lancamento => {
       const userIds = lancamento.auth_usersIds ? lancamento.auth_usersIds.split(',').map(Number) : [];
       const autorizadopor = userIds.map(id => usersMap.get(id)).filter(user => user);
       return { ...lancamento, autorizadopor };
     });
-  
+
     if (status === 1) {
       return lancamentosComUsuarios.filter(lancamento => lancamento.autorizadopor.length === 2);
     } else {
