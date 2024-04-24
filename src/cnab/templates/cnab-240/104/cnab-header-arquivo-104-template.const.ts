@@ -6,6 +6,8 @@ import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-head
  * PAGAMENTO DE SALÁRIOS, PAGAMENTO/CRÉDITO A FORNECEDOR E AUTOPAGAMENTO E DÉBITO AUTOMÁTICO
  * 
  * @version v032 micro - FEV/2024
+ * 
+ * Requirement: {@Link https://github.com/RJ-SMTR/api-cct/issues/233 #233, GitHub, 24/04/2023}
  */
 export const CnabHeaderArquivo104Template: CnabHeaderArquivo104 = {
   /** 0.01 */
@@ -57,18 +59,18 @@ export const CnabHeaderArquivo104Template: CnabHeaderArquivo104 = {
     value: '444773',
     ...Cnab.insert.d(),
   },
-  /** 0.08 - Definido pelo banco*/
+  /** 0.08 - Definido pelo banco */
   parametroTransmissao: {
     pos: [39, 40],
     picture: '9(002)',
-    value: '02',
+    value: '01',
     ...Cnab.insert.d(),
   },
   /** 0.09 */
   ambienteCliente: {
     pos: [41, 41],
     picture: 'X(001)',
-    value: 'T',
+    value: 'P',
     ...Cnab.insert.d(),
   },
   /** 0.10 */

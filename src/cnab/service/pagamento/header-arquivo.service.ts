@@ -28,7 +28,7 @@ export class HeaderArquivoService {
     private headerArquivoRepository: HeaderArquivoRepository,
     private pagadorService: PagadorService,
     private settingsService: SettingsService,
-  ) { }
+  ) {}
 
   /**
    * Generate new HaderArquivo from Transacao
@@ -38,14 +38,17 @@ export class HeaderArquivoService {
     tipo_arquivo: HeaderArquivoTipoArquivo,
   ): Promise<HeaderArquivoDTO> {
     const now = getBRTFromUTC(new Date());
-    const pagador = await this.pagadorService.getOneByIdPagador(transacao.pagador.id);
+    const pagador = await this.pagadorService.getOneByIdPagador(
+      transacao.pagador.id,
+    );
     const dto = new HeaderArquivoDTO({
       agencia: pagador.agencia,
       codigoBanco: PgtoRegistros.headerArquivo.codigoBanco.value,
       tipoInscricao: PgtoRegistros.headerArquivo.tipoInscricao.value,
       numeroInscricao: String(pagador.cpfCnpj),
       codigoConvenio: PgtoRegistros.headerArquivo.codigoConvenioBanco.value,
-      parametroTransmissao: PgtoRegistros.headerArquivo.parametroTransmissao.value,
+      parametroTransmissao:
+        PgtoRegistros.headerArquivo.parametroTransmissao.value,
       dataGeracao: now,
       horaGeracao: now,
       dvAgencia: pagador.dvAgencia,
@@ -60,7 +63,9 @@ export class HeaderArquivoService {
     return dto;
   }
 
-  public async saveRetFrom104(cnab104: CnabFile104Pgto, headerArquivoRemessa: HeaderArquivo
+  public async saveRetFrom104(
+    cnab104: CnabFile104Pgto,
+    headerArquivoRemessa: HeaderArquivo,
   ): Promise<SaveIfNotExists<HeaderArquivo>> {
     const headerArquivo = new HeaderArquivoDTO({
       tipoArquivo: HeaderArquivoTipoArquivo.Retorno,
@@ -68,7 +73,8 @@ export class HeaderArquivoService {
       tipoInscricao: cnab104.headerArquivo.tipoInscricao.stringValue,
       numeroInscricao: cnab104.headerArquivo.numeroInscricao.stringValue,
       codigoConvenio: cnab104.headerArquivo.codigoConvenioBanco.stringValue,
-      parametroTransmissao: cnab104.headerArquivo.parametroTransmissao.stringValue,
+      parametroTransmissao:
+        cnab104.headerArquivo.parametroTransmissao.stringValue,
       agencia: cnab104.headerArquivo.agenciaContaCorrente.stringValue,
       dvAgencia: cnab104.headerArquivo.dvAgencia.stringValue,
       numeroConta: cnab104.headerArquivo.numeroConta.stringValue,
@@ -87,7 +93,7 @@ export class HeaderArquivoService {
   }
 
   public async findMany(
-    fields: FindOptionsWhere<HeaderArquivo> | FindOptionsWhere<HeaderArquivo>[]
+    fields: FindOptionsWhere<HeaderArquivo> | FindOptionsWhere<HeaderArquivo>[],
   ): Promise<HeaderArquivo[]> {
     return this.headerArquivoRepository.findMany({ where: fields });
   }
@@ -95,11 +101,15 @@ export class HeaderArquivoService {
   /**
    * key: HeaderArquivo unique id
    */
-  public saveManyIfNotExists(dtos: HeaderArquivoDTO[]): Promise<HeaderArquivo[]> {
+  public saveManyIfNotExists(
+    dtos: HeaderArquivoDTO[],
+  ): Promise<HeaderArquivo[]> {
     return this.headerArquivoRepository.saveManyIfNotExists(dtos);
   }
 
-  public async saveIfNotExists(dto: HeaderArquivoDTO): Promise<SaveIfNotExists<HeaderArquivo>> {
+  public async saveIfNotExists(
+    dto: HeaderArquivoDTO,
+  ): Promise<SaveIfNotExists<HeaderArquivo>> {
     return await this.headerArquivoRepository.saveIfNotExists(dto);
   }
 
@@ -108,16 +118,29 @@ export class HeaderArquivoService {
   }
 
   public async getNextNSA(): Promise<number> {
-    const nsa = (await this.headerArquivoRepository.findMany({
-      order: {
-        nsa: 'DESC',
-      },
-      take: 1
-    })).pop()?.nsa
-      || parseInt((await this.settingsService.getOneBySettingData(appSettings.any__cnab_initial_nsa)).value)
-    return nsa + 1;
+    const maxNsa =
+      (
+        await this.headerArquivoRepository.findMany({
+          order: {
+            nsa: 'DESC',
+          },
+          take: 1,
+        })
+      ).pop()?.nsa || 0;
+    const settingNSA = parseInt(
+      (
+        await this.settingsService.getOneBySettingData(
+          appSettings.any__cnab_current_nsa,
+        )
+      ).value,
+    );
+    const nextNSA = (maxNsa > settingNSA ? maxNsa : settingNSA) + 1;
+    await this.settingsService.updateBySettingData(
+      appSettings.any__cnab_current_nsa,
+      String(nextNSA),
+    );
+    return nextNSA;
   }
-
 
   public async getOne(
     fields: EntityCondition<HeaderArquivo>,
@@ -125,4 +148,3 @@ export class HeaderArquivoService {
     return await this.headerArquivoRepository.getOne(fields);
   }
 }
-

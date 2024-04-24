@@ -34,7 +34,6 @@ import { PagadorRepository } from './repository/pagamento/pagador.repository';
 import { TransacaoRepository } from './repository/pagamento/transacao.repository';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
-import { Cnab104Service } from './service/cnab-104.service';
 import { ExtratoDetalheEService } from './service/extrato/extrato-detalhe-e.service';
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
 import { ExtratoHeaderLoteService } from './service/extrato/extrato-header-lote.service';
@@ -72,7 +71,6 @@ import { TransacaoService } from './service/pagamento/transacao.service';
   ],
   providers: [
     CnabService,
-    Cnab104Service,
     HeaderArquivoRepository,
     HeaderArquivoService,
     HeaderLoteRepository,
@@ -101,7 +99,6 @@ import { TransacaoService } from './service/pagamento/transacao.service';
   ],
   exports: [
     CnabService,
-    Cnab104Service,
     HeaderArquivoRepository,
     HeaderArquivoService,
     HeaderLoteRepository,

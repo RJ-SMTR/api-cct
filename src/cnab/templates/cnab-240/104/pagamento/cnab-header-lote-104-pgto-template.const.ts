@@ -10,6 +10,8 @@ import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagament
  * PAGAMENTO DE SALÁRIOS, PAGAMENTO/CRÉDITO A FORNECEDOR E AUTOPAGAMENTO E DÉBITO AUTOMÁTICO
  * 
  * @version v032 micro - FEV/2024
+ * 
+ * Requirement: {@Link https://github.com/RJ-SMTR/api-cct/issues/233 #233, GitHub, 24/04/2023}
  */
 export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
   /** 1.01 */
@@ -52,9 +54,9 @@ export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
     ...Cnab.insert.d()
   },
   /** 1.13 - Definido pelo banco */
-  codigoCompromisso: { pos: [41, 44], picture: '9(004)', value: '0002', ...Cnab.insert.d() },
+  codigoCompromisso: { pos: [41, 44], picture: '9(004)', value: '0001', ...Cnab.insert.d() },
   /** 1.14 - Preencher com código informado pelo banco */
-  parametroTransmissao: { pos: [45, 46], picture: 'X(002)', value: '02', ...Cnab.insert.d() },
+  parametroTransmissao: { pos: [45, 46], picture: 'X(002)', value: '01', ...Cnab.insert.d() },
   /** 1.15 */
   filler2: { pos: [47, 52], picture: 'X(006)', value: '      ', ...Cnab.insert.d() },
   /** 1.16 - Pagador */

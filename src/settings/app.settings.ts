@@ -97,14 +97,15 @@ export const appSettings = {
     settingType: SettingTypeEnum.string,
   } as ISettingData,
 
-  any__cnab_initial_nsa: {
-    name: 'cnab_initial_nsa',
-    value: '1',
+  any__cnab_current_nsa: {
+    name: 'cnab_current_nsa',
+    /** Starts with 0, next will be 1 */
+    value: '0',
     version: null,
     editable: false,
     settingType: SettingTypeEnum.number,
   } as ISettingData,
-  
+
   // v1
 
   v1__ab_test_enabled: {

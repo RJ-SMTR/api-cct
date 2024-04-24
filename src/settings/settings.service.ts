@@ -15,7 +15,7 @@ export class SettingsService {
   constructor(
     @InjectRepository(SettingEntity)
     private readonly settingsRepository: Repository<SettingEntity>,
-  ) { }
+  ) {}
 
   async find(
     fields?: EntityCondition<SettingEntity>,
@@ -64,7 +64,7 @@ export class SettingsService {
   ): Promise<SettingEntity> {
     const METHOD = logContext
       ? `${logContext}>${this.getOneBySettingData.name}`
-      : this.getOneBySettingData.name
+      : this.getOneBySettingData.name;
     const dbSetting = await this.findOneBySettingData(setting);
     if (defaultValueIfNotFound && !dbSetting) {
       this.logger.warn(
@@ -120,12 +120,19 @@ export class SettingsService {
     });
   }
 
-  async update(payload: UpdateSettingsDto): Promise<SettingEntity> {
-    const setting = await this.getOneByNameVersion(
-      payload.name,
-      payload.version,
-    );
-    setting.value = payload.value;
+  async update(dto: UpdateSettingsDto): Promise<SettingEntity> {
+    const setting = await this.getOneByNameVersion(dto.name, dto.version);
+    setting.value = dto.value;
     return this.settingsRepository.save(setting);
+  }
+
+  async updateBySettingData(
+    settingData: ISettingData,
+    value: string,
+  ): Promise<SettingEntity> {
+    const dbSetting = await this.getOneBySettingData(settingData);
+    await this.settingsRepository.update({ id: dbSetting.id }, { value: value });
+    const updated = await this.getOneBySettingData(settingData);
+    return updated;
   }
 }

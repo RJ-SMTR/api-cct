@@ -32,7 +32,6 @@ import {
   stringifyCnab104File
 } from '../../utils/cnab/cnab-104-utils';
 import { getTipoInscricao } from '../../utils/cnab/cnab-utils';
-import { Cnab104Service } from '../cnab-104.service';
 import { DetalheAService } from './detalhe-a.service';
 import { DetalheBService } from './detalhe-b.service';
 import { HeaderArquivoService } from './header-arquivo.service';
@@ -56,7 +55,6 @@ export class RemessaRetornoService {
     private transacaoService: TransacaoService,
     private detalheAService: DetalheAService,
     private detalheBService: DetalheBService,
-    private cnab104Service: Cnab104Service,
     private banksService: BanksService,
   ) { }
 
@@ -369,8 +367,6 @@ export class RemessaRetornoService {
     headerArquivo104.codigoConvenioBanco.value = headerArquivoDTO.codigoConvenio;
     headerArquivo104.parametroTransmissao.value =
       headerArquivoDTO.parametroTransmissao;
-    headerArquivo104.ambienteCliente.value =
-      this.cnab104Service.getCnab104ClienteCaixa();
     headerArquivo104.agenciaContaCorrente.value = headerArquivoDTO.agencia;
     headerArquivo104.numeroConta.value = headerArquivoDTO.numeroConta;
     headerArquivo104.dvAgencia.value = headerArquivoDTO.dvAgencia;
