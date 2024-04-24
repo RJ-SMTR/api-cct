@@ -22,15 +22,26 @@ export class LancamentoService {
   ) { }
 
   async findByPeriod(
-    month?: number,
-    period?: number,
-    year?: number,
+    month: number | null = null,
+    period: number | null = null,
+    year: number | null = null,
     authorized: number | null = null,
   ): Promise<ItfLancamento[]> {
     let startDate: Date | undefined;
     let endDate: Date | undefined;
   
-    if (month !== undefined && period !== undefined && year !== undefined) {
+    console.log(period)
+    if (
+      month !== null &&
+      period !== null &&
+      year !== null &&
+      !isNaN(month) &&
+      !isNaN(period) &&
+      !isNaN(year) &&
+      typeof month === 'number' &&
+      typeof period === 'number' &&
+      typeof year === 'number'
+    ) {
       [startDate, endDate] = this.getMonthDateRange(year, month, period);
       console.log(startDate, endDate);
     }
