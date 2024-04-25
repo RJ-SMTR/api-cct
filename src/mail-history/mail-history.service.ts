@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { startOfDay } from 'date-fns';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { RoleEnum } from 'src/roles/roles.enum';
@@ -12,13 +13,7 @@ import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { formatLog } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { NullableType } from 'src/utils/types/nullable.type';
-import {
-  DeepPartial,
-  EntityManager,
-  Equal,
-  MoreThanOrEqual,
-  Repository,
-} from 'typeorm';
+import { DeepPartial, Equal, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
 
 @Injectable()
@@ -31,7 +26,6 @@ export class MailHistoryService {
     @InjectRepository(MailHistory)
     private inviteRepository: Repository<MailHistory>,
     private configService: ConfigService,
-    private readonly entityManager: EntityManager,
   ) {}
 
   async create(
@@ -99,6 +93,64 @@ export class MailHistoryService {
         .digest('hex');
     }
     return hash;
+  }
+
+  /**
+   * Dumb get and check repeated hashes
+   * @param amount Minimum is 1
+   */
+  async generateHashes(amount: number): Promise<string[]> {
+    const hashes: string[] = [];
+    for (let i = 0; i < amount; i++) {
+      hashes.push(
+        crypto
+          .createHash('sha256')
+          .update(randomStringGenerator())
+          .digest('hex'),
+      );
+    }
+    let hasUniqueHashes = false;
+    while (!hasUniqueHashes) {
+      const repeated = await this.findMany({ hash: In(hashes) });
+      if (repeated.length === 0) {
+        hasUniqueHashes = true;
+      }
+      hashes.push(
+        crypto
+          .createHash('sha256')
+          .update(randomStringGenerator())
+          .digest('hex'),
+      );
+    }
+    return hashes;
+  }
+
+  async findManyRecentByUser(users: User[]): Promise<MailHistory[]> {
+    const userIDs = users.map((i) => i.id);
+    if (users.length === 0) {
+      return [];
+    }
+    const raw = await this.inviteRepository
+      .createQueryBuilder('invite')
+      .select('invite.*')
+      .where('invite.userId IN (:...userIds)', { userIds: userIDs })
+      // .addGroupBy('invite.userId')
+      .orderBy('invite.userId', 'DESC')
+      .getRawMany();
+    const entities: MailHistory[] = [];
+    for (let i = 0; i < raw.length; i++) {
+      const item = raw[i];
+      // user
+      item.user = { id: item['userId'] } as DeepPartial<User>;
+      delete item.userId;
+      // inviteStatus
+      item.inviteStatus = {
+        id: item['inviteStatusId'],
+      } as DeepPartial<InviteStatus>;
+      delete item.inviteStatusId;
+      entities.push(new MailHistory(item));
+    }
+    return entities;
   }
 
   findRecentByUser(user: User | null): Promise<MailHistory | null> {

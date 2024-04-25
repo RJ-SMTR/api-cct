@@ -2,7 +2,6 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
-import { JaeProfileInterface } from 'src/jae/interfaces/jae-profile.interface';
 import { JaeService } from 'src/jae/jae.service';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
@@ -18,8 +17,8 @@ import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
 import { BaseValidator } from 'src/utils/validators/base-validator';
 import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
-import { IALInviteProfile } from './interfaces/al-invite-profile.interface';
 import { IALConcludeRegistration } from './interfaces/al-conclude-registration.interface';
+import { IALInviteProfile } from './interfaces/al-invite-profile.interface';
 
 @Injectable()
 export class AuthLicenseeService {

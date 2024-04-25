@@ -23,5 +23,6 @@ import { MailCountModule } from 'src/mail-count/mail-count.module';
     MailCountModule,
   ],
   providers: [CronJobsService],
+  exports: [CronJobsService],
 })
 export class CronJobsModule {}

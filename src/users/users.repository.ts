@@ -10,7 +10,6 @@ import { Enum } from 'src/utils/enum';
 import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { formatLog } from 'src/utils/log-utils';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { validateDTO } from 'src/utils/validation-utils';
 import {
   Brackets,
   DeepPartial,
@@ -20,11 +19,13 @@ import {
   FindOptionsWhere,
   ILike,
   In,
+  QueryRunner,
   Repository,
   WhereExpressionBuilder,
 } from 'typeorm';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { UpsertOptions } from 'typeorm/repository/UpsertOptions';
 import { NullableType } from '../utils/types/nullable.type';
-import { UpdateUserRepositoryDto } from './dto/update-user-repository.dto';
 import { User } from './entities/user.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 
@@ -57,6 +58,34 @@ export class UsersRepository {
     );
     this.logger.log(`Usuário criado: ${createdUser.getLogInfo()}`);
     return createdUser;
+  }
+
+  createQueryBuilder(alias?: string, queryRunner?: QueryRunner) {
+    return this.usersRepository.createQueryBuilder(alias, queryRunner);
+  }
+
+  count(options?: FindManyOptions<User>) {
+    return this.usersRepository.count(options);
+  }
+
+  softDelete = this.usersRepository.softDelete;
+
+  upsert(
+    entityOrEntities:
+      | QueryDeepPartialEntity<User>
+      | QueryDeepPartialEntity<User>[],
+    conflictPathsOrOptions: string[] | UpsertOptions<User>,
+  ) {
+    return this.usersRepository.upsert(
+      entityOrEntities,
+      conflictPathsOrOptions,
+    );
+  }
+
+  insert(
+    entity: QueryDeepPartialEntity<User> | QueryDeepPartialEntity<User>[],
+  ) {
+    return this.usersRepository.insert(entity);
   }
 
   // #region loadLazyRelations
@@ -268,10 +297,10 @@ export class UsersRepository {
     const user = await this.getOne({ where: { id } });
 
     // Validate email, cpfCnpj etc before update
-    await validateDTO(UpdateUserRepositoryDto, {
-      id: id,
-      ...dataToUpdate,
-    } as UpdateUserRepositoryDto);
+    // await validateDTO(UpdateUserRepositoryDto, {
+    //   id: id,
+    //   ...dataToUpdate,
+    // } as UpdateUserRepositoryDto);
 
     // If email is different, reset inviteStatus
     if (

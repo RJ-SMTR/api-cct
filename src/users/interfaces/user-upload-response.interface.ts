@@ -7,4 +7,5 @@ export interface IUserUploadResponse {
   headerMap: Record<string, string>;
   invalidRows: IFileUser[];
   uploadedRows: DeepPartial<IFileUser>[];
+  changesLog?: any[];
 }

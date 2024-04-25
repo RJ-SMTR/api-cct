@@ -14,7 +14,7 @@ import {
   MAILDEV_URL,
   TO_UPDATE_PERMIT_CODE,
 } from '../utils/constants';
-import { stringUppercaseUnaccent } from 'src/utils/string-utils';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
 
 describe('Admin managing users (e2e)', () => {
   const app = APP_URL;
@@ -66,7 +66,7 @@ describe('Admin managing users (e2e)', () => {
       const licenseePartOfName = 'user';
       const args = [
         {
-          filter: { name: stringUppercaseUnaccent(LICENSEE_CASE_ACCENT) },
+          filter: { name: getStringUpperUnaccent(LICENSEE_CASE_ACCENT) },
           expect: (body: any) =>
             expect(
               body.data.some((i: any) => i.fullName === LICENSEE_CASE_ACCENT),
@@ -183,7 +183,7 @@ describe('Admin managing users (e2e)', () => {
         .expect(({ body }) => {
           expect(body.data.length).toBe(1);
           expect(body.data[0]?.fullName).toEqual(
-            stringUppercaseUnaccent(uploadUsers[0].nome),
+            getStringUpperUnaccent(uploadUsers[0].nome),
           );
           expect(body.data[0]?.aux_inviteStatus?.name).toEqual('queued');
         })

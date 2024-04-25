@@ -602,7 +602,7 @@ export class CronJobsService implements OnModuleInit {
     };
   }
 
-  async bulkResendInvites() {
+  async bulkResendInvites(): Promise<HttpStatus> {
     const THIS_METHOD = `${this.bulkResendInvites.name}()`;
     const notRegisteredUsers = await this.usersService.getNotRegisteredUsers();
 
@@ -610,7 +610,7 @@ export class CronJobsService implements OnModuleInit {
       this.logger.log(
         formatLog('Não há usuários para enviar, abortando...', THIS_METHOD),
       );
-      return;
+      return HttpStatus.NOT_FOUND;
     }
     this.logger.log(
       formatLog(
@@ -624,6 +624,7 @@ export class CronJobsService implements OnModuleInit {
     for (const user of notRegisteredUsers) {
       await this.resendInvite(user, THIS_METHOD);
     }
+    return HttpStatus.OK;
   }
 
   async resendInvite(user: User, outerMethod: string) {

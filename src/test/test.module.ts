@@ -9,6 +9,9 @@ import { CoreBankModule } from 'src/core-bank/core-bank.module';
 import { UsersModule } from 'src/users/users.module';
 import { MailCountModule } from 'src/mail-count/mail-count.module';
 import { CronJobsModule } from 'src/cron-jobs/cron-jobs.module';
+import { TestController } from './test.controller';
+import { TestEnvironmentsGuard } from './test-environments.guard';
+import { TestService } from './test.service';
 
 @Module({
   imports: [
@@ -23,5 +26,7 @@ import { CronJobsModule } from 'src/cron-jobs/cron-jobs.module';
     MailCountModule,
     CronJobsModule,
   ],
+  controllers: [TestController],
+  providers: [TestEnvironmentsGuard, TestService],
 })
 export class TestModule {}
