@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { lowerCaseTransformer } from 'src/utils/transformers/lower-case.transformer';
-import { stringTransformer } from 'src/utils/transformers/string.transformer copy';
+import { stringTransformer } from 'src/utils/transformers/string.transformer';
 import { IsCpfCnpj } from 'src/utils/validators/is-cpf-cnpj.validator';
 import { IsPhoneBr } from 'src/utils/validators/is-phone-br.validator';
 

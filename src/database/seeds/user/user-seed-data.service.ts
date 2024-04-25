@@ -183,6 +183,36 @@ LIMIT 5
         status: new Status(StatusEnum.active),
       },
 
+
+      //apagar após teste
+      {
+        fullName: 'alex test seed approval',
+        email: 'approval@example.com',
+        password: 'secret',
+        permitCode: '',
+        cpfCnpj: this.cpfSamples?.[0],
+        role: { id: RoleEnum.lancador_financeiro } as Role,
+        status: { id: StatusEnum.active } as Status,
+      },
+      {
+        fullName: 'teste approval',
+        email: 'approval@example.com',
+        password: 'secret',
+        permitCode: '',
+        cpfCnpj: this.cpfSamples?.[0],
+        role: { id: RoleEnum.lancador_financeiro } as Role,
+        status: { id: StatusEnum.active } as Status,
+      },
+      {
+        fullName: 'teste launcher',
+        email: 'launcher@example.com',
+        password: 'secret',
+        permitCode: '',
+        cpfCnpj: this.cpfSamples?.[0],
+        role: { id: RoleEnum.aprovador_financeiro } as Role,
+        status: { id: StatusEnum.active } as Status,
+      },
+
       // Development only
       ...(this.nodeEnv() === 'local' || this.nodeEnv() === 'test'
         ? ([

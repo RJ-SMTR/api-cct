@@ -9,11 +9,11 @@ export interface LancamentoSeedData {
   data_lancamento: Date;
   data_ordem: Date;
   data_pgto: Date;
-  algoritmo: number;
-  glosa: number;
-  recurso: number;
+  algoritmo: string;
+  glosa: string;
+  recurso: string;
   valor_a_pagar: number;
-  numero_processo: number;
+  numero_processo: string;
   id_cliente_favorecido: DeepPartial<ClienteFavorecido>;
   userId: number;
   /** Probably we dont need this field or userId. */

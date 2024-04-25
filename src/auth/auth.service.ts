@@ -46,26 +46,25 @@ export class AuthService {
     const user = await this.usersService.findOne({
       email: loginDto.email,
     });
+    const expectedRoles = onlyAdmin
+      ? [
+        RoleEnum.master,
+        RoleEnum.admin,
+        RoleEnum.aprovador_financeiro,
+        RoleEnum.lancador_financeiro,
+        RoleEnum.admin_finan,
+      ]
+      : [RoleEnum.user];
 
-    if (
-      !user ||
-      (user?.role &&
-        !(
-          onlyAdmin
-            ? [
-              RoleEnum.master,
-              RoleEnum.admin,
-              RoleEnum.aprovador_financeiro,
-              RoleEnum.lancador_financeiro,
-            ]
-            : [RoleEnum.user]
-        ).includes(user.role.id))
-    ) {
+    if (!user || (user?.role && !expectedRoles.includes(user.role.id))) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             email: 'notFound',
+            onlyAdmin: onlyAdmin,
+            expectedRoles: expectedRoles,
+            role: user?.role,
           },
         },
         HttpStatus.UNAUTHORIZED,

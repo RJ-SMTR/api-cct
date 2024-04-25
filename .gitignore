@@ -2,10 +2,6 @@
 /dist
 /node_modules
 
-Dockerfile
-startup.ci.sh
-startup.dev.sh
-
 # Logs
 logs
 *.log

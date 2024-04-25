@@ -1,16 +1,24 @@
 import { ClienteFavorecido } from "src/cnab/entity/cliente-favorecido.entity";
 import { DeepPartial } from "typeorm";
 
+/**
+ * Used as output data to frontend
+ */
 export interface ItfLancamento {
   id: number;
   descricao: string;
-  valor: number;
+  valor: string;
   data_ordem: Date;
   data_pgto: Date;
-  algoritmo: number,
-  glosa: number,
-  recurso: number,
-  valor_a_pagar: number,
-  numero_processo: number,
-  id_cliente_favorecido: DeepPartial<ClienteFavorecido>,
+  data_lancamento: Date;
+  algoritmo: string;
+  glosa: string;
+  recurso: string;
+  anexo: string;
+  valor_a_pagar: string;
+  numero_processo: string;
+  id_cliente_favorecido: DeepPartial<ClienteFavorecido>;
+  // Added fields
+  auth_usersIds: number[];
+  autorizadopor: number[];
 }
