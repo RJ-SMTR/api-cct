@@ -15,9 +15,10 @@ export class InviteStatus extends EntityHelper {
       Object.assign(this, inviteStatus);
     }
   }
-
+  
+  /** uniqueConstraintName: `UQ_InviteStatus_id` */
   @ApiProperty({ example: 1 })
-  @PrimaryColumn()
+  @PrimaryColumn({ primaryKeyConstraintName: 'PK_InviteStatus_id' })
   id: number;
 
   @ApiProperty({ example: 'register' })

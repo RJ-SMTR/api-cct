@@ -20,6 +20,7 @@ import {
 import { SettingsService } from 'src/settings/settings.service';
 import { appSettings } from 'src/settings/app.settings';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
+import { logWarn } from 'src/utils/log-utils';
 
 @Injectable()
 export class TicketRevenuesRepositoryService {
@@ -30,7 +31,7 @@ export class TicketRevenuesRepositoryService {
   constructor(
     private readonly bigqueryService: BigqueryService,
     private readonly settingsService: SettingsService,
-  ) {}
+  ) { }
 
   /**
    * TODO: use it only for repository services
@@ -159,9 +160,9 @@ export class TicketRevenuesRepositoryService {
     const queryBuilder = new QueryBuilder();
     queryBuilder.pushOR([]);
     if (args?.offset !== undefined && args.limit === undefined) {
-      this.logger.warn(
+      logWarn(this.logger,
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-          " 'offset' will be ignored to prevent query fail",
+        " 'offset' will be ignored to prevent query fail",
       );
       offset = undefined;
     }

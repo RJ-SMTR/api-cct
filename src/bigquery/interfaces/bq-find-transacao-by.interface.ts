@@ -1,4 +1,4 @@
-export interface IBqFetchTransacao {
+export interface IBqFindTransacao {
   cpfCnpj?: string;
   startDate?: Date;
   endDate?: Date;

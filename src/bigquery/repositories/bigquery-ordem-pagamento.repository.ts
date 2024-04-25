@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 import { appSettings } from 'src/settings/app.settings';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 import { SettingsService } from 'src/settings/settings.service';
-import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BQSInstances, BigqueryService } from '../bigquery.service';
 import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
-import { IBqFetchTransacao } from '../interfaces/bq-find-transacao-by.interface';
-import { IBigqueryQueryEntity } from '../interfaces/bq-query-entity.interface';
+import { IBigqueryFindOrdemPagamento } from '../interfaces/bigquery-find-ordem-pagamento.interface';
+import { logWarn } from 'src/utils/log-utils';
 
 @Injectable()
 export class BigqueryOrdemPagamentoRepository {
@@ -21,7 +21,7 @@ export class BigqueryOrdemPagamentoRepository {
   ) { }
 
   public async findMany(
-    filter?: IBigqueryQueryEntity,
+    filter?: IBigqueryFindOrdemPagamento,
   ): Promise<BigqueryOrdemPagamento[]> {
     const transacoes: BigqueryOrdemPagamento[] = (await this.queryData(filter))
       .data;
@@ -29,86 +29,63 @@ export class BigqueryOrdemPagamentoRepository {
   }
 
   private async queryData(
-    args?: IBigqueryQueryEntity,
+    args?: IBigqueryFindOrdemPagamento,
   ): Promise<{ data: BigqueryOrdemPagamento[]; countAll: number }> {
+    // TODO: remover tipoFavorecido
     const qArgs = await this.getQueryArgs(args);
     const query =
       `
       SELECT
         CAST(t.data_ordem AS STRING) AS dataOrdem,
-        CAST(t.data_pagamento AS STRING) AS dataPagamento,
         t.id_consorcio AS idConsorcio,
         t.consorcio AS consorcio,
         t.id_operadora AS idOperadora,
         t.operadora AS operadora,
-        t.servico AS servico,
         t.id_ordem_pagamento AS idOrdemPagamento,
-        t.id_ordem_ressarcimento AS idOrdemRessarcimento,
-        CAST(t.quantidade_transacao_debito AS STRING) AS quantidadeTransacaoDebito,
-        CAST(t.valor_debito AS STRING) AS valor_debito,
-        CAST(t.quantidade_transacao_especie AS STRING) AS quantidadeTransacaoEspecie,
-        CAST(t.valor_especie AS STRING) AS valorEspecie,
-        CAST(t.quantidade_transacao_gratuidade AS STRING) AS quantidadeTransacaoGratuidade,
-        CAST(t.valor_gratuidade AS STRING) AS valorGratuidade,
-        CAST(t.quantidade_transacao_integracao AS STRING) AS quantidadeTransacaoIntegracao,
-        CAST(t.valor_integracao AS STRING) AS valorIntegracao,
-        CAST(t.quantidade_transacao_rateio_credito AS STRING) AS quantidadeTransacaoRateioCredito,
-        CAST(t.valor_rateio_credito AS STRING) AS valorRateioCredito,
-        CAST(t.quantidade_transacao_rateio_debito AS STRING) AS quantidadeTransacaoRateioDebito,
-        CAST(t.valor_rateio_debito AS STRING) AS valorRateioDebito,
-        CAST(t.quantidade_total_transacao AS STRING) AS quantidadeTotalTransacao,
-        CAST(t.valor_total_transacao_bruto AS STRING) AS valorTotalTransacaoBruto,
-        CAST(t.valor_desconto_taxa AS STRING) AS valorDescontoTaxa,
-        CAST(t.valor_total_transacao_liquido AS STRING) AS valorTotalTransacaoLiquido,
-        CAST(t.quantidade_total_transacao_captura AS STRING) AS quantidadeTotalTransacaoCaptura,
-        CAST(t.valor_total_transacao_captura AS STRING) AS valorTotalTransacaoCaptura,
-        t.indicador_ordem_valida AS indicadorOrdemValida,
+        t.quantidade_transacao_debito AS quantidadeTransacaoDebito,
+        t.valor_debito AS valorDebito,
+        t.quantidade_transacao_especie AS quantidadeTransacaoEspecie,
+        t.valor_especie AS valorEspecie,
+        t.quantidade_transacao_gratuidade AS quantidadeTransacaoGratuidade,
+        t.valor_gratuidade AS valorGratuidade,
+        t.quantidade_transacao_integracao AS quantidadeTransacaoIntegracao,
+        t.valor_integracao AS valorIntegracao,
+        t.quantidade_transacao_rateio_credito AS quantidadeTransacaoRateioCredito,
+        t.valor_rateio_credito AS valorRateioCredito,
+        t.quantidade_transacao_rateio_debito AS quantidadeTransacaoRateioDebito,
+        t.valor_rateio_debito AS valorRateioDebito,
+        t.valor_total_transacao_bruto AS valorTotalTransacaoBruto,
+        t.valor_desconto_taxa AS valorDescontoTaxa,
+        t.valor_total_transacao_liquido AS valorTotalTransacaoLiquido,
         t.versao AS versao,
-        CAST(${qArgs.cpfCnpj} AS STRING) AS cpfCnpj,
-        -- aux columns
-        (${qArgs.countQuery}) AS count,
-        'ok' AS status
-      FROM \`${qArgs.ordemPagamento}\` t\n` +
-      qArgs.joinCpfCnpj +
-      '\n' +
+        CAST(c.cnpj AS STRING) AS consorcioCnpj,
+        CAST(o.documento AS STRING) AS operadoraCpfCnpj,
+      FROM \`${qArgs.ordemPagamento}\` t
+      ${qArgs.joinConsorcios}
+      ${qArgs.joinOperadoras}\n` +
       (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
-      `UNION ALL
-      SELECT ${'null, '.repeat(30)}
-      (${qArgs.countQuery}) AS count, 'empty' AS status` +
-      (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
+      '\nORDER BY dataOrdem DESC, idOrdemPagamento DESC\n' +
+      (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
     const queryResult = await this.bigqueryService.query(
       BQSInstances.smtr,
       query,
     );
-
-    const count: number = queryResult[0].count;
+    const count: number = queryResult.length;
     // Remove unwanted keys and remove last item (all null if empty)
-    const transacoes: BigqueryOrdemPagamento[] = queryResult.map((i) => {
+    const items: BigqueryOrdemPagamento[] = queryResult.map((i) => {
       delete i.status;
       delete i.count;
       return i;
     });
-    transacoes.pop();
-    // transacoes = this.mapBqTransacao(transacoes);
 
     return {
-      data: transacoes,
+      data: items,
       countAll: count,
     };
   }
 
-  private async getQueryArgs(args?: IBqFetchTransacao): Promise<{
-    qWhere: string;
-    bucket: string;
-    ordemPagamento: string;
-    tTipoPgto: string;
-    joinCpfCnpj: string;
-    cpfCnpj: string;
-    countQuery: string;
-    offset?: number;
-    limit?: number;
-  }> {
+  private async getQueryArgs(args?: IBigqueryFindOrdemPagamento) {
     const IS_BQ_PROD =
       (
         await this.settingsService.getOneBySettingData(
@@ -119,70 +96,80 @@ export class BigqueryOrdemPagamentoRepository {
     const Q_CONSTS = {
       bucket: IS_BQ_PROD ? 'rj-smtr' : 'rj-smtr-dev',
       ordemPagamento: IS_BQ_PROD
-        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento'
-        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.ordem_pagamento',
+        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia'
+        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia',
       tTipoPgto: IS_BQ_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
-      cpfCnpj: args?.cpfCnpj ? (isCpfOrCnpj(args.cpfCnpj) === 'cpf' ? 'b.documento' : 'b.cnpj') : '',
+      favorecidoCpfCnpj: 'NULL',
+      tipoFavorecido:
+        `CASE WHEN o.tipo_documento = 'CPF' THEN NULL ELSE ${TipoFavorecidoEnum.vanzeiro} END`,
     };
+
     // Args
     let offset = args?.offset;
-    const queryBuilder = new QueryBuilder();
-    queryBuilder.pushOR([]);
     if (args?.offset !== undefined && args.limit === undefined) {
-      this.logger.warn(
+      logWarn(this.logger,
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
         " 'offset' will be ignored to prevent query fail",
       );
       offset = undefined;
     }
 
+    const queryBuilderDate = new QueryBuilder();
+    queryBuilderDate.pushOR();
     if (args?.startDate) {
       const startDate = args.startDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(t.data_ordem) >= DATE('${startDate}')`);
+      queryBuilderDate.pushAND(`DATE(t.data_ordem) >= DATE('${startDate}')`);
     }
     if (args?.endDate) {
       const endDate = args.endDate.toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(t.data_ordem) <= DATE('${endDate}')`);
+      queryBuilderDate.pushAND(`DATE(t.data_ordem) <= DATE('${endDate}')`);
     }
     if (args?.previousDaysOnly === true) {
-      queryBuilder.pushAND('DATE(t.data_ordem) > DATE(t.datetime_transacao)');
+      queryBuilderDate.pushAND('DATE(t.data_ordem) > DATE(t.datetime_transacao)');
     }
 
-    queryBuilder.pushOR([]);
+    queryBuilderDate.pushOR();
     if (args?.getToday) {
       const nowStr = new Date(Date.now()).toISOString().slice(0, 10);
-      queryBuilder.pushAND(`DATE(t.data_ordem) = DATE('${nowStr}')`);
+      queryBuilderDate.pushAND(`DATE(t.data_ordem) = DATE('${nowStr}')`);
     }
 
-    let qWhere = queryBuilder.toSQL();
-    if (args?.cpfCnpj !== undefined) {
-      const cpfCnpj = args.cpfCnpj;
-      qWhere =
-        isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
-          ? `b.documento = '${cpfCnpj}' AND (${qWhere})`
-          : `b.cnpj = '${cpfCnpj}' AND (${qWhere})`;
+    const queryBuilder = new QueryBuilder();
+    queryBuilder.pushAND(queryBuilderDate.toSQL());
+
+    if (args?.ignoreTransacaoLiquidoZero) {
+      queryBuilder.pushAND(`t.valor_total_transacao_liquido > 0`)
     }
+
+    // We dont use this filter
+    if (args?.cpfCnpj !== undefined) {
+      if (args?.tipoFavorecido === TipoFavorecidoEnum.vanzeiro) {
+        queryBuilder.pushAND(`o.documento = ${args.cpfCnpj}`);
+      } else {
+        queryBuilder.pushAND(`(o.documento = ${args.cpfCnpj} OR c.cnpj = ${args.cpfCnpj})`);
+      }
+    } else {
+      if (args?.tipoFavorecido === TipoFavorecidoEnum.vanzeiro) {
+        queryBuilder.pushAND(`o.tipo_documento = 'CPF'`);
+      } else {
+        queryBuilder.pushAND(`(o.tipo_documento = 'CNPJ' OR c.cnpj IS NOT NULL)`);
+      }
+    }
+
+    const qWhere = queryBuilder.toSQL();
 
     // Query
-    const joinCpfCnpj =
-      isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
-        ? `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.operadoras\` b ON b.id_operadora = t.id_operadora `
-        : `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.consorcios\` b ON b.id_consorcio = t.id_consorcio `;
+    const joinOperadoras = `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora `;
+    const joinConsorcios = `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio `;
 
-    const countQuery =
-      'SELECT COUNT(*) AS count ' +
-      `FROM \`${Q_CONSTS.ordemPagamento}\` t\n` +
-      joinCpfCnpj +
-      '\n' +
-      (qWhere.length ? ` WHERE ${qWhere}\n` : '');
     return {
       qWhere,
       bucket: Q_CONSTS.bucket,
       ordemPagamento: Q_CONSTS.ordemPagamento,
       tTipoPgto: Q_CONSTS.tTipoPgto,
-      joinCpfCnpj,
-      cpfCnpj: Q_CONSTS.cpfCnpj,
-      countQuery,
+      joinOperadoras: joinOperadoras,
+      joinConsorcios: joinConsorcios,
+      tipoFavorecido: Q_CONSTS.tipoFavorecido,
       offset,
       limit: args?.limit,
     };

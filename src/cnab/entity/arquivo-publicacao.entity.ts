@@ -1,92 +1,176 @@
 import { EntityHelper } from "src/utils/entity-helper";
-import { Column, DeepPartial, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { HeaderArquivo } from "./header-arquivo.entity";
+import { AfterLoad, Column, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { HeaderArquivo } from "./pagamento/header-arquivo.entity";
+import { Transacao } from "./pagamento/transacao.entity";
+import { asStringNumber } from "src/utils/pipe-utils";
 
 @Entity()
 export class ArquivoPublicacao extends EntityHelper {
   constructor(
-    arquivoPublicacao:ArquivoPublicacao | DeepPartial<ArquivoPublicacao>,
+    arquivoPublicacao: DeepPartial<ArquivoPublicacao>,
   ) {
     super();
     if (arquivoPublicacao !== undefined) {
       Object.assign(this, arquivoPublicacao);
     }
   }
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_ArquivoPublicacao_id' })
   id: number;
 
-  @ManyToOne(() => HeaderArquivo)
-  headerArquivo: HeaderArquivo;
+  /** Remessa */
+  @ManyToOne(() => HeaderArquivo, { nullable: true })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_ArquivoPublicacao_headerArquivo_ManyToOne' })
+  headerArquivo: HeaderArquivo | null;
 
-  @Column({ type: String, unique: false, nullable: false })
-  idTransacao: number;
+  /** Remessa */
+  @ManyToOne(() => Transacao, { nullable: true })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_ArquivoPublicacao_transacao_ManyToOne' })
+  transacao: Transacao;
 
-  @Column({ type: String, unique: false, nullable: false })
-  idHeaderLote: number;
+  /** Remessa */
+  @Column({ type: String, unique: false, nullable: true })
+  idHeaderLote: number | null;
 
-  @Column({ type: Date, unique: false, nullable: false })
-  dataGeracaoRemessa: Date;
+  /** Remessa */
+  @Column({ type: Date, unique: false, nullable: true })
+  dataGeracaoRemessa: Date | null;
 
-  @Column({ type: Date, unique: false, nullable: false })
-  horaGeracaoRemessa: Date;
+  /** Remessa */
+  @Column({ type: Date, unique: false, nullable: true })
+  horaGeracaoRemessa: Date | null;
 
-  @Column({ type: Date, unique: false, nullable: false })
-  dataGeracaoRetorno: Date;
+  /** Retorno */
+  @Column({ type: Boolean, unique: false, nullable: false })
+  isPago: boolean;
 
-  @Column({ type: Date, unique: false, nullable: false })
-  horaGeracaoRetorno: Date;
+  /** Retorno */
+  @Column({ type: Date, unique: false, nullable: true })
+  dataGeracaoRetorno: Date | null;
 
-  @Column({ type: Number, unique: false, nullable: false })
-  loteServico: number;
+  /** Retorno */
+  @Column({ type: Date, unique: false, nullable: true })
+  horaGeracaoRetorno: Date | null;
 
+  /** DetalheA retorno */
+  @Column({ type: Number, unique: false, nullable: true })
+  loteServico: number | null;
+
+  /** DetalheA retorno */
   @Column({ type: String, unique: false, nullable: false })
   nomePagador: string;
 
+  /** DetalheA retorno */
   @Column({ type: String, unique: false, nullable: false })
   agenciaPagador: string;
 
+  /** DetalheA retorno */
   @Column({ type: String, unique: false, nullable: false })
   dvAgenciaPagador: string;
 
+  /** DetalheA retorno */
   @Column({ type: String, unique: false, nullable: false })
   contaPagador: string;
 
+  /** DetalheA retorno */
   @Column({ type: String, unique: false, nullable: false })
   dvContaPagador: string;
 
+  /** Favorecido */
   @Column({ type: String, unique: false, nullable: false })
-  nomeCliente:string;
+  nomeCliente: string;
 
+  /** Favorecido */
   @Column({ type: String, unique: false, nullable: false })
-  cpfCnpjCliente:string;
+  cpfCnpjCliente: string;
 
+  /** Favorecido */
   @Column({ type: String, unique: false, nullable: false })
-  codigoBancoCliente:string;
+  codigoBancoCliente: string;
 
+  /** Favorecido */
   @Column({ type: String, unique: false, nullable: false })
-  agenciaCliente:string;
+  agenciaCliente: string;
 
+  /** Favorecido */
   @Column({ type: String, unique: false, nullable: false })
-  dvAgenciaCliente:string;
+  dvAgenciaCliente: string;
 
+  /** Favorecido */
   @Column({ type: String, unique: false, nullable: false })
-  contaCorrenteCliente:string;
+  contaCorrenteCliente: string;
 
+  /** Favorecido */
   @Column({ type: String, unique: false, nullable: false })
-  dvContaCorrenteCliente:string;
+  dvContaCorrenteCliente: string;
 
-  @Column({ type: String, unique: false, nullable: false })
-  dtVencimento:Date;
+  /** Retorno CNAB. Friday week day (friday) */
+  @Column({ type: String, unique: false, nullable: true })
+  dataVencimento: Date | null;
 
-  @Column({ type: String, unique: false, nullable: false })
+  /** Retorno CNAB. */
+  @Column({ type: String, unique: false, nullable: true })
   valorLancamento: number | null;
 
-  @Column({ type: String, unique: false, nullable: false })
-  dataEfetivacao:Date;
+  /** Retorno CNAB. Payment retorno date */
+  @Column({ type: String, unique: false, nullable: true })
+  dataEfetivacao: Date | null;
 
-  @Column({ type: String, unique: false, nullable: false })
+  /** Retorno CNAB. */
+  @Column({ type: String, unique: false, nullable: true })
   valorRealEfetivado: number | null;
 
-  @Column({ type: String, unique: false, nullable: true })
-  ocorrencias: string | null;
+  /** Retorno CNAB. */
+  @Column({ type: Number, unique: false, nullable: true })
+  idDetalheARetorno: number | null;
+
+  /** OrdemPagamento */
+  @Column({ type: String, unique: false, nullable: false })
+  idOrdemPagamento: string;
+
+  /**
+   * OrdemPagamento
+   * 
+   * Id from cadastro.consorcios
+   * 
+   * id_consorcio.cnpj = CNPJ
+   */
+  @Column({ type: String, unique: false, nullable: false })
+  idConsorcio: string;
+
+  /** 
+   * OrdemPagamento
+   * 
+   * Operadora id from cadastro.operadoras
+   * 
+   * id_operadora.documento = CPF
+  */
+  @Column({ type: String, unique: false, nullable: false })
+  idOperadora: string;
+
+  /** OrdemPagamento */
+  @Column({ type: Date, unique: false, nullable: false })
+  dataOrdem: Date;
+
+  /** OrdemPagamento */
+  @Column({ type: String, unique: false, nullable: false })
+  nomeConsorcio: string;
+
+  /** OrdemPagamento */
+  @Column({ type: String, unique: false, nullable: false })
+  nomeOperadora: string;
+
+  /** OrdemPagamento */
+  @Column({
+    type: 'decimal', unique: false, nullable: false,
+    precision: 13,
+    scale: 2,
+  })
+  valorTotalTransacaoLiquido: number;
+
+  @AfterLoad()
+  setFieldValues() {
+    if (typeof this.valorTotalTransacaoLiquido === 'string') {
+      this.valorTotalTransacaoLiquido = asStringNumber(this.valorTotalTransacaoLiquido);
+    }
+  }
 }

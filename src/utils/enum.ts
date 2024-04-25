@@ -1,13 +1,25 @@
+
 /**
- * @throws exception if value not exists in enum and there is no defaultValue
+ * Get value or use default key, otherwise throw error
  */
-function getValue<T>(e: T, key: any, defaultValue?: keyof T): any {
+function getValue<T>(e: T, key: any, args?: { defaultKey?: keyof T, defaultValue: any }): any {
   const keyIndex = Object.keys(e as any).indexOf(key);
-  const valueIndexDefault = Object.values(e as any).indexOf(defaultValue);
-  if (keyIndex === -1 || valueIndexDefault === -1) {
+  const _args = args ? args : {
+    defaultKey: undefined,
+    defaultValue: null,
+  };
+  const valueIndexDefault = Object.values(e as any).indexOf(_args.defaultKey);
+  if (keyIndex === -1 && valueIndexDefault === -1) {
+    if (_args.defaultValue) {
+      return _args.defaultValue;
+    }
     throw new Error(`Value '${key}' does not exist in Enum ${e}.`);
   }
-  return e[keyIndex] || e[valueIndexDefault];
+  if (keyIndex >= 0) {
+    return e[keyIndex];
+  } else {
+    return e[valueIndexDefault];
+  }
 }
 
 function getKey<T>(e: T, value: any): string {
@@ -25,6 +37,12 @@ function findKey<T>(e: T, value: any): string | undefined {
   return key;
 }
 
+function getItems<T>(enumType: T): { key: keyof T; value: T[keyof T] }[] {
+  const keys = getKeys(enumType);
+  const values = getValues(enumType);
+  return keys.map((key, index) => ({ key, value: values[index] }));
+}
+
 function getKeys<T>(e: T): (keyof T)[] {
   const enumType = e;
   return Object.keys(enumType as any).filter(
@@ -33,13 +51,14 @@ function getKeys<T>(e: T): (keyof T)[] {
 }
 
 function getValues<T>(enumType: T): T[keyof T][] {
-  return this.getKeys(enumType).map((key) => enumType[key]);
+  return getKeys(enumType).map((key) => enumType[key]);
 }
 
 export const Enum = {
   findKey: findKey,
   getKey: getKey,
   getKeys: getKeys,
-  getValues: getValues,
   getValue: getValue,
+  getValues: getValues,
+  getItems: getItems,
 };

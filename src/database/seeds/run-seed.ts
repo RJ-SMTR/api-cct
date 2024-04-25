@@ -11,11 +11,29 @@ import { SettingTypeSeedService } from './setting-type/setting-type.service';
 import { SettingSeedService } from './setting/setting-seed.service';
 import { StatusSeedService } from './status/status-seed.service';
 import { UserSeedService } from './user/user-seed.service';
+import { TransacaoStatusSeedService } from './transacao-status/transacao-status-seed.service';
+import { ItemTransacaoStatusSeedService } from './item-transacao-status/item-transacao-status-seed.service';
+import { HeaderArquivoStatusSeedService } from './header-arquivo-status/header-arquivo-status-seed.service';
+import { ClienteFavorecidoSeedService } from './cliente-favorecido/cliente-favorecido-seed.service';
+import { LancamentoSeedService } from './lancamento/lancamento-seed.service';
+import { differenceInMinutes } from 'date-fns';
+
+// Save BRT time before set UTC
+const localDateStr = new Date().toString();
+global.__localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+process.env.TZ = 'UTC';
+global.__localTzOffset = differenceInMinutes(
+  new Date(localDateStr.split(' GMT')[0]).getTime(),
+  new Date().getTime(),
+);
 
 const runSeed = async () => {
   // filter
   let services = [
     RoleSeedService,
+    TransacaoStatusSeedService,
+    ItemTransacaoStatusSeedService,
+    HeaderArquivoStatusSeedService,
     StatusSeedService,
     InfoSeedService,
     BankSeedService,
@@ -26,10 +44,12 @@ const runSeed = async () => {
     UserSeedService,
     MailHistorySeedService,
     PagadorSeedService,
+    ClienteFavorecidoSeedService,
+    LancamentoSeedService,
   ];
 
-  const FORCE_PARAM = '__force';
-  const EXCLUDE_PARAM = '__exclude';
+  const FORCE_PARAM = '--force';
+  const EXCLUDE_PARAM = '--exclude';
   const isForce = process.argv.slice(2).includes(FORCE_PARAM);
   const isExclude = process.argv.slice(2).includes(EXCLUDE_PARAM);
   global.force = isForce;
@@ -55,7 +75,7 @@ const runSeed = async () => {
   );
   for (const module of services) {
     if (!(await app.get(module).validateRun()) && !isForce) {
-      console.log(`[${module.name}]: Database is not empty, aborting seed...`);
+      console.log(`[${module.name}]: Database is not empty or this seed is blocked by default, aborting seed...`);
       console.log(
         `Tip: Use '${FORCE_PARAM}' parameter to ignore this message.`,
       );

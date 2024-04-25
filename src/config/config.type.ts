@@ -90,6 +90,7 @@ export type SftpConfig = {
   port: number;
   username: string;
   password: string;
+  rootFolder: string;
 };
 
 export type AllConfigType = {

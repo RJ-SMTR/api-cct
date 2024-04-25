@@ -4,9 +4,10 @@ import { TestEnvironmentsGuard } from './test-environments.guard';
 import { CronJobsModule } from 'src/cron-jobs/cron-jobs.module';
 import { TestService } from './test.service';
 import { MailHistoryModule } from 'src/mail-history/mail-history.module';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
-  imports: [CronJobsModule, MailHistoryModule],
+  imports: [CronJobsModule, MailHistoryModule, UsersModule],
   controllers: [TestController],
   providers: [TestEnvironmentsGuard, TestService],
 })

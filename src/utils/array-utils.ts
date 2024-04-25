@@ -16,3 +16,34 @@ export function groupArrayBy<T>(array: T[], property: keyof T): T[][] {
   );
   return groupedArray;
 }
+
+/**
+ * Returns a list containing first item of same property
+ */
+export function getFirstOfEach<T>(array: T[], property: keyof T): T[] {
+  const groupDict = array.reduce((map: Record<string, T>, item) => {
+    if (!map[String(property)]) {
+      map[String(property)] = item;
+    }
+    return map;
+  }, {});
+  return Object.values(groupDict);
+}
+
+export function getUniqueFromArray<T>(items: T[], uniqueKeys: (keyof T)[]): T[] {
+  const uniqueItems: T[] = [];
+  const keySet = new Set<string>();
+  for (const item of items) {
+    const uniqueKeyId = uniqueKeys.map(key => String(item[key])).join('|');
+    // get only first unique item
+    if (!keySet.has(uniqueKeyId)) {
+      keySet.add(uniqueKeyId);
+      uniqueItems.push(item);
+    }
+  }
+  return uniqueItems;
+}
+
+export function filterArrayInANotInB<T>(listA: T[], listB: T[]): T[] {
+  return listA.filter(itemA => !listB.includes(itemA));
+}

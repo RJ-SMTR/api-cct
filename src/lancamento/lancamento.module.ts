@@ -1,18 +1,17 @@
 import { Module } from '@nestjs/common';
-import { LancamentoController } from './lancamento.controller';
-import { LancamentoService } from './lancamento.service';
-import { LancamentoEntity } from './lancamento.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from 'src/users/users.module';
-import { CnabModule } from 'src/cnab/cnab.module';
+import { LancamentoController } from './lancamento.controller';
+import { LancamentoEntity } from './lancamento.entity';
+import { LancamentoService } from './lancamento.service';
+import { LancamentoRepository } from './lancamento.repository';
 
 @Module({
   imports: [TypeOrmModule.forFeature([LancamentoEntity]),
     UsersModule,
-    CnabModule
   ],
   controllers: [LancamentoController],
-  providers: [LancamentoService],
-  exports: [],
+  providers: [LancamentoService, LancamentoRepository],
+  exports: [LancamentoService, LancamentoRepository],
 })
-export class LancamentoModule {}
+export class LancamentoModule { }

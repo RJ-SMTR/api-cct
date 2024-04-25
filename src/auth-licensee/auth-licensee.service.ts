@@ -28,7 +28,7 @@ export class AuthLicenseeService {
     private jwtService: JwtService,
     private usersService: UsersService,
     private mailHistoryService: MailHistoryService,
-  ) {}
+  ) { }
 
   async validateLogin(
     loginDto: AuthLicenseeLoginDto,
@@ -112,10 +112,10 @@ export class AuthLicenseeService {
       return;
     }
     const duplicatedMail = user.email
-      ? await this.usersService.findMany({ email: user.email })
+      ? await this.usersService.findMany({ where: { email: user.email } })
       : [];
     const duplicatedPermitCode = user.permitCode
-      ? await this.usersService.findMany({ permitCode: user.permitCode })
+      ? await this.usersService.findMany({where: { permitCode: user.permitCode }})
       : [];
     if (duplicatedMail.length > 1 || duplicatedPermitCode.length > 1) {
       throw new HttpException(
@@ -127,9 +127,9 @@ export class AuthLicenseeService {
               : {}),
             ...(duplicatedPermitCode.length > 1
               ? {
-                  permitCode: 'duplicated',
-                  permitCodeValue: duplicatedPermitCode[0]?.permitCode,
-                }
+                permitCode: 'duplicated',
+                permitCodeValue: duplicatedPermitCode[0]?.permitCode,
+              }
               : {}),
           },
         },

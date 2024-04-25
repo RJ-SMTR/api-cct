@@ -2,6 +2,7 @@ import { HttpStatus } from '@nestjs/common';
 import {
   endOfDay,
   format,
+  isDate,
   nextFriday,
   parse,
   startOfDay,
@@ -127,7 +128,7 @@ export function getDateFromString(
   }
   if (throwIfInvalid && isNaN(date.getDate())) {
     throw CommonHttpException.details(
-      `Invalid date format (${value})`,
+      `Invalid date format (value: ${value}, inputFormat: ${inputFormat})`,
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }
@@ -136,4 +137,8 @@ export function getDateFromString(
 
 export function getBRTFromUTC(utc: Date): Date {
   return subHours(utc, 3);
+}
+
+export function isValidDate(value: any): boolean {
+  return isDate(value) && value instanceof Date && !isNaN(value.getDate());
 }

@@ -140,26 +140,22 @@ describe('Admin managing users (e2e)', () => {
   });
 
   describe('Upload users', () => {
-    let uploadUsers: any[];
     let users: any[] = [];
-
-    beforeAll(() => {
-      const randomCode = Math.random().toString(36).slice(-8);
-      uploadUsers = [
-        {
-          codigo_permissionario: `permitCode_${randomCode}`,
-          nome: `Café_${randomCode}`,
-          email: `user.${randomCode}@test.com`,
-          telefone: `219${Math.random().toString().slice(2, 10)}`,
-          cpf: generate(),
-        },
-      ];
-    });
 
     test(`Upload users, status = 'queued'`, /**
      * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 3 - GitHub}
      */ async () => {
       // Arrange
+       const randomCode = Math.random().toString(36).slice(-8);
+       const uploadUsers = [
+         {
+           codigo_permissionario: `permitCode_${randomCode}`,
+           nome: `Café_${randomCode}`,
+           email: `user.${randomCode}@test.com`,
+           telefone: `219${Math.random().toString().slice(2, 10)}`,
+           cpf: generate(),
+         },
+       ];
       const excelFilePath = path.join(tempFolder, 'newUsers.xlsx');
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(uploadUsers);
@@ -272,6 +268,50 @@ describe('Admin managing users (e2e)', () => {
         .expect(({ body }) => {
           expect(body.token).toBeDefined();
         });
-    });
+      });
+
+    test('Upload invalid cpf, block upload', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 3 - GitHub}
+     */ async () => {
+       // Arrange
+       const randomCode = Math.random().toString(36).slice(-8);
+       const uploadUsers = [
+         {
+           codigo_permissionario: `permitCode_${randomCode}`,
+           nome: `Café_${randomCode}`,
+           email: `user.${randomCode}@mai.com`,
+           telefone: `219${Math.random().toString().slice(2, 10)}`,
+           cpf: `invalid_cpf_${randomCode}`,
+         },
+         {
+           codigo_permissionario: `permitCode_${randomCode}`,
+           nome: `Café_${randomCode}`,
+           email: `user.${randomCode}@mai.com`,
+           telefone: `219${Math.random().toString().slice(2, 10)}`,
+           cpf: `invalid_cpf_${randomCode}`,
+         },
+       ];
+        const excelFilePath = path.join(tempFolder, 'newUsers.xlsx');
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(uploadUsers);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+        XLSX.writeFile(workbook, excelFilePath);
+
+        // Assert
+        await request(app)
+          .post('/api/v1/users/upload')
+          .auth(apiToken, {
+            type: 'bearer',
+          })
+          .attach('file', excelFilePath)
+          .expect(HttpStatus.UNPROCESSABLE_ENTITY)
+          .expect(({ body }) => {
+            const invalidRows = body.error.file.invalidRows;
+            expect(invalidRows.length).toBeGreaterThan(0);
+            expect(invalidRows[0].errors).toMatchObject({
+              cpf: 'CPF inválido'
+            });
+          });
+      });
   });
 });

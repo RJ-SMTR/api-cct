@@ -9,7 +9,6 @@ import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { EntityManager, Repository } from 'typeorm';
 import * as XLSX from 'xlsx';
-import { CreateUserFileDto } from './dto/create-user-file.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
 import { ICreateUserFile } from './interfaces/create-user-file.interface';
@@ -180,10 +179,10 @@ describe('UsersService', () => {
         expectedFileUsers.push({
           row: i + 2,
           user: {
-            email: `invalidEmail_${i}#example.com`,
+            cpf: '21138266217',
           },
           errors: {
-            email: 'invalid',
+            cpf: 'invalid',
           },
         } as IFileUser);
       }
@@ -222,10 +221,7 @@ describe('UsersService', () => {
       ] as IFileUser[];
 
       // Act
-      const result = await usersService.getUserFilesFromWorksheet(
-        worksheetMock,
-        CreateUserFileDto,
-      );
+      const result = await usersService.getUserFilesFromWorksheet(worksheetMock);
 
       // Assert
       expect(result).toEqual(expectedResult);
@@ -237,9 +233,7 @@ describe('UsersService', () => {
         jest.spyOn(XLSX.utils, 'sheet_to_json').mockReturnValue([fileUser]);
         jest.spyOn(CLASS_VALIDATOR, 'validate').mockResolvedValue([]);
         jest.spyOn(usersRepository, 'find').mockResolvedValue([]);
-        return usersService.getUserFilesFromWorksheet(
-          XLSX.utils.json_to_sheet([fileUser]),
-          CreateUserFileDto,
+        return usersService.getUserFilesFromWorksheet(XLSX.utils.json_to_sheet([fileUser])
         );
       }
 
@@ -264,7 +258,7 @@ describe('UsersService', () => {
       await expect(resultMoreHeaders).rejects.toThrowError();
     });
 
-    it('should extract users when valid content even if headers are unsorted', async () => {
+    it('should extract users when valid content, even if headers are unsorted', async () => {
       // Arrange
       async function testFile(fileUser: any): Promise<{
         result: IFileUser[];
@@ -281,10 +275,7 @@ describe('UsersService', () => {
             errors: {},
           },
         ] as IFileUser[];
-        const result = await usersService.getUserFilesFromWorksheet(
-          worksheetMock,
-          CreateUserFileDto,
-        );
+        const result = await usersService.getUserFilesFromWorksheet(worksheetMock);
         return { result, expectedResult };
       }
 
@@ -307,6 +298,30 @@ describe('UsersService', () => {
       // Assert
       expect(resultSorted.result).toEqual(resultSorted.expectedResult);
       expect(resultUnsorted.result).toEqual(resultUnsorted.expectedResult);
+    });
+
+    it('should return error if invalid cpf', async () => {
+      // Arrange
+      const fileUser = {
+        codigo_permissionario: 'permitCode1',
+        email: 'test@example.com',
+        cpf: 'invalid_cpf',
+        nome: 'Henrique Santos Template',
+        telefone: '21912345678',
+      } as Partial<ICreateUserFile>;
+      jest.spyOn(usersService, 'findMany').mockResolvedValueOnce([]);
+
+      const worksheetMock = XLSX.utils.json_to_sheet([fileUser]);
+      const expectedErrors: Partial<ICreateUserFile> = {
+        cpf: "CPF inválido",
+      };
+
+      // Act
+      const result = await usersService.getUserFilesFromWorksheet(worksheetMock);
+
+      // Assert
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].errors).toEqual(expectedErrors);
     });
   });
 

@@ -3,31 +3,33 @@ import {
   Catch,
   ExceptionFilter,
   HttpException,
-  HttpStatus,
-  Logger,
+  HttpStatus
 } from '@nestjs/common';
-import { Response, Request } from 'express';
+import { Request, Response } from 'express';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { formatError } from 'src/utils/log-utils';
+import { getCustomValidationOptions } from '../custom-validation-options';
 import {
   CustomHttpExceptionResponse,
   HttpExceptionResponse,
 } from '../interfaces/http-exception-response.interface';
-import { getCustomValidationOptions } from '../custom-validation-options';
-import { formatErrorMessage } from 'src/utils/log-utils';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
+  private logger: CustomLogger = new CustomLogger(AllExceptionsFilter.name, { timestamp: true });
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const logger: Logger = new Logger('AllExceptionsFilter');
 
     const responseData = this.getResponseData({
       exception: exception,
       request: request,
     });
 
-    logger.error(this.getErrorLogSummary(responseData, exception));
+    const error = exception instanceof Error ? (exception as Error) : undefined;
+    this.logger.error(this.getErrorLogSummary(responseData), error?.stack);
 
     response.status(responseData.statusCode).json(
       responseData?.response || {
@@ -83,12 +85,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
   private getErrorLogSummary = (
     errorResponse: CustomHttpExceptionResponse,
-    exception: unknown,
+    exception?: unknown,
   ): string => {
     const { statusCode, clientMessage, method, uri, internalMessage } =
       errorResponse;
 
-    const errorLog = formatErrorMessage(
+    const errorLog = formatError(
       `Code: ${statusCode} - ${method}: ${uri}`,
       { ...clientMessage, ...internalMessage },
       exception instanceof Error ? (exception as Error) : undefined,

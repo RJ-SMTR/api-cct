@@ -1,14 +1,30 @@
-import { Pagador } from "src/cnab/entity/pagador.entity";
-import { PagadorContaEnum } from "src/cnab/enums/pagador/pagador.enum";
+import { Pagador } from "src/cnab/entity/pagamento/pagador.entity";
+import { PagadorContaEnum } from "src/cnab/enums/pagamento/pagador.enum";
 
 export const pagadorSeedData: Pagador[] = [
   new Pagador({
     id: 1,
-    nomeEmpresa: 'SECRETARIA MUNICIPAL DE TRANSPORTES - RIO DE JANEIRO',
+    nomeEmpresa: 'CONTA BILHETAGEM – CB',
     agencia: '4064',
-    /** TODO: Qual é o dvAgencia? - Anotado  */
-    dvAgencia: '0',
-    conta: PagadorContaEnum.JAE,
+    dvAgencia: '9',
+    conta: PagadorContaEnum.ContaBilhetagem,
+    dvConta: '8',
+    logradouro: 'R DONA MARIANA',
+    numero: '00048',
+    complemento: 'ANDAR 7',
+    bairro: 'CENTRO',
+    cidade: 'Rio de Janeiro',
+    cep: '22280',
+    complementoCep: '020',
+    uf: 'RJ',
+    cpfCnpj: '546037000110',
+  }),
+  new Pagador({
+    id: 2,
+    nomeEmpresa: 'CETT CTA ESTAB TARIFARIA TRANSP',
+    agencia: '4064',
+    dvAgencia: '9',
+    conta: PagadorContaEnum.CETT,
     dvConta: '0',
     logradouro: 'R DONA MARIANA',
     numero: '00048',
@@ -19,5 +35,5 @@ export const pagadorSeedData: Pagador[] = [
     complementoCep: '020',
     uf: 'RJ',
     cpfCnpj: '546037000110',
-  })
+  }),
 ];

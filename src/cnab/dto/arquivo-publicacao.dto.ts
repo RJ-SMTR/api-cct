@@ -1,4 +1,6 @@
 import { IsNotEmpty, ValidateIf } from "class-validator";
+import { DeepPartial } from "typeorm";
+import { HeaderArquivo } from "../entity/pagamento/header-arquivo.entity";
 
 function isCreate(object: ArquivoPublicacaoDTO): boolean {
   return object.id === undefined;
@@ -10,9 +12,11 @@ export class ArquivoPublicacaoDTO {
       Object.assign(this, dto);
     }
   }
-  id: number;
 
-  idHeaderArquivo: number;
+  id?: number;
+
+  // Remessa
+  headerArquivo: DeepPartial<HeaderArquivo>;
   idTransacao: number;
   idHeaderLote: number;
   dataGeracaoRemessa: Date;
@@ -20,7 +24,7 @@ export class ArquivoPublicacaoDTO {
   dataGeracaoRetorno: Date;
   horaGeracaoRetorno: Date;
 
-
+  // Pagador, DetalheA Retorno
   loteServico: number;
   nomePagador: string;
   agenciaPagador: string;
@@ -28,7 +32,7 @@ export class ArquivoPublicacaoDTO {
   contaPagador: string;
   dvContaPagador: string;
 
-
+  // Favorecido
   @ValidateIf(isCreate)
   @IsNotEmpty()
   nomeCliente?: string;
@@ -39,7 +43,7 @@ export class ArquivoPublicacaoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  codBancoCliente?: string;
+  codigoBancoCliente?: string;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -57,7 +61,7 @@ export class ArquivoPublicacaoDTO {
   @IsNotEmpty()
   dvContaCorrenteCliente?: string;
 
-
+  // Retorno CNAB
   @ValidateIf(isCreate)
   @IsNotEmpty()
   dataVencimento?: Date;
@@ -74,5 +78,13 @@ export class ArquivoPublicacaoDTO {
   @IsNotEmpty()
   valorRealEfetivado?: number;
 
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
   ocorrencias: string;
+
+  /** Unique id reference */
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  idDetalheARetorno: number;
 }

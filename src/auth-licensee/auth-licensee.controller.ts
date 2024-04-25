@@ -41,7 +41,7 @@ export class AuthLicenseeController {
   @Post('invite/:hash')
   @HttpCode(HttpStatus.OK)
   @ApiParam(MailHistoryApiParams.hash)
-  async invite(
+  async postInviteHash(
     @Param('hash', MailHistoryValidationPipe)
     hash: string,
   ): Promise<IALInviteProfile> {

@@ -4,7 +4,7 @@ import { Column, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
 @Entity()
 export class ClienteFavorecido extends EntityHelper {
   constructor(
-    clienteFavorecido?: ClienteFavorecido | DeepPartial<ClienteFavorecido>,
+    clienteFavorecido?: DeepPartial<ClienteFavorecido>,
   ) {
     super();
     if (clienteFavorecido !== undefined) {
@@ -12,29 +12,30 @@ export class ClienteFavorecido extends EntityHelper {
     }
   }
 
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_ClienteFavorecido_id' })
   id: number;
 
   @Column({ type: String, unique: false, nullable: false, length: 150 })
   nome: string;
 
-  @Column({ type: String, unique: false, nullable: true, length: 14 })
-  cpfCnpj: string | null;
+  /** uniqueConstraintName: UQ_ClienteFavorecido_cpfCnpj */
+  @Column({ type: String, unique: true, nullable: true, length: 14 })
+  cpfCnpj: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 10 })
-  codigoBanco: string | null;
+  codigoBanco: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
-  agencia: string | null;
+  agencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  dvAgencia: string | null;
+  dvAgencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 12 })
-  contaCorrente: string | null;
+  contaCorrente: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  dvContaCorrente: string | null;
+  dvContaCorrente: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   logradouro: string | null;
@@ -59,6 +60,9 @@ export class ClienteFavorecido extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   uf: string | null;
+  
+  @Column({ type: String, unique: false, nullable: true })
+  tipo: string | null;
 
   public getLogInfo(showName?: boolean): string {
     if (showName === undefined) {

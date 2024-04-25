@@ -1,6 +1,5 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { formatLog } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { IsNull, Like, Repository } from 'typeorm';
@@ -16,7 +15,7 @@ export class SettingsService {
   constructor(
     @InjectRepository(SettingEntity)
     private readonly settingsRepository: Repository<SettingEntity>,
-  ) { }
+  ) {}
 
   async find(
     fields?: EntityCondition<SettingEntity>,
@@ -63,14 +62,14 @@ export class SettingsService {
     defaultValueIfNotFound?: boolean,
     logContext?: string,
   ): Promise<SettingEntity> {
+    const METHOD = logContext
+      ? `${logContext}>${this.getOneBySettingData.name}`
+      : this.getOneBySettingData.name;
     const dbSetting = await this.findOneBySettingData(setting);
     if (defaultValueIfNotFound && !dbSetting) {
       this.logger.warn(
-        formatLog(
-          `Configuração 'setting.${setting.name}' não encontrada. Usando valor padrão: '${setting.value}'.`,
-          `${this.getOneBySettingData.name}()`,
-          logContext,
-        ),
+        `Configuração 'setting.${setting.name}' não encontrada. Usando valor padrão: '${setting.value}'.`,
+        METHOD,
       );
       return new SettingEntity(setting);
     } else {
@@ -121,12 +120,19 @@ export class SettingsService {
     });
   }
 
-  async update(payload: UpdateSettingsDto): Promise<SettingEntity> {
-    const setting = await this.getOneByNameVersion(
-      payload.name,
-      payload.version,
-    );
-    setting.value = payload.value;
+  async update(dto: UpdateSettingsDto): Promise<SettingEntity> {
+    const setting = await this.getOneByNameVersion(dto.name, dto.version);
+    setting.value = dto.value;
     return this.settingsRepository.save(setting);
+  }
+
+  async updateBySettingData(
+    settingData: ISettingData,
+    value: string,
+  ): Promise<SettingEntity> {
+    const dbSetting = await this.getOneBySettingData(settingData);
+    await this.settingsRepository.update({ id: dbSetting.id }, { value: value });
+    const updated = await this.getOneBySettingData(settingData);
+    return updated;
   }
 }

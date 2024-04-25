@@ -5,7 +5,7 @@ import { UsersService } from 'src/users/users.service';
 import { getDateNthWeek } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
-import { formatLog } from 'src/utils/log-utils';
+import { logError } from 'src/utils/log-utils';
 import {
   PAYMENT_START_WEEKDAY,
   PaymentEndpointType,
@@ -24,10 +24,11 @@ import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesRepositoryService } from './ticket-revenues-repository.service';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class TicketRevenuesService {
-  private logger: Logger = new Logger('TicketRevenuesService', {
+  private logger: Logger = new CustomLogger(TicketRevenuesService.name, {
     timestamp: true,
   });
 
@@ -180,14 +181,13 @@ export class TicketRevenuesService {
   }
 
   private getGroupSum(data: ITicketRevenue[]): ITicketRevenuesGroup {
+    const METHOD = this.getGroupSum.name;
     const groupSums = this.getTicketRevenuesGroups(data, 'all');
     if (groupSums.length >= 1) {
       if (groupSums.length > 1) {
-        this.logger.error(
-          formatLog(
-            'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
-            `${this.getMeGrouped.name}() -> ${this.getGroupSum.name}()`,
-          ),
+        logError(this.logger,
+          'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
+          METHOD,
         );
       }
       return groupSums[0];

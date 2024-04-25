@@ -14,7 +14,7 @@ import { AppConfig } from 'src/config/config.type';
 @Entity({ name: 'file' })
 export class FileEntity extends EntityHelper {
   @ApiProperty({ example: 'cbcfa8b8-3a25-4adb-a9c6-e325f0d0f3ae' })
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn('uuid', {primaryKeyConstraintName: 'PK_File_id'})
   id: string;
 
   @Allow()

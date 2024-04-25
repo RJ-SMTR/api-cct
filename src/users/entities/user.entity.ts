@@ -16,6 +16,7 @@ import {
   DeleteDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -24,6 +25,7 @@ import { FileEntity } from '../../files/entities/file.entity';
 import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
 
+/** uniqueConstraintName: `UQ_User_email` */
 @Entity()
 export class User extends EntityHelper {
   newUser: User[];
@@ -36,7 +38,7 @@ export class User extends EntityHelper {
     }
   }
 
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_User_id' })
   id: number;
 
   // For "string | null" we need to use String type.
@@ -71,44 +73,47 @@ export class User extends EntityHelper {
   @Exclude({ toPlainOnly: true })
   provider: string;
 
-  @Index()
+  @Index('IDX_User_socialId')
   @Column({ type: String, nullable: true })
   @Expose({ groups: ['me', 'admin'] })
   @Exclude({ toPlainOnly: true })
   socialId: string | null;
 
-  @Index()
+  @Index('IDX_User_firstName')
   @Column({ type: String, nullable: true })
   @Exclude({ toPlainOnly: true })
   firstName?: string | null;
 
-  @Index()
+  @Index('IDX_User_lastName')
   @Column({ type: String, nullable: true })
   @Exclude({ toPlainOnly: true })
   lastName?: string | null;
 
-  @Index()
+  @Index('IDX_User_fullName')
   @Column({ type: String, nullable: true })
   fullName?: string | null;
 
   @ManyToOne(() => FileEntity, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_User_photo_ManyToOne' })
   photo?: FileEntity | null;
 
   @ManyToOne(() => Role, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_User_role_ManyToOne' })
   role?: Role | null;
 
   @ManyToOne(() => Status, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_User_status_ManyToOne' })
   @Exclude({ toPlainOnly: true })
   status?: Status;
 
   @Column({ type: String, nullable: true })
-  @Index()
+  @Index('IDX_User_hash')
   @Exclude({ toPlainOnly: true })
   hash: string | null;
 

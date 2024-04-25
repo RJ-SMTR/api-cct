@@ -17,7 +17,7 @@ import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
-import { formatLog } from 'src/utils/log-utils';
+import { logLog, logWarn } from 'src/utils/log-utils';
 import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { Nullable } from '../utils/types/nullable.type';
@@ -46,26 +46,25 @@ export class AuthService {
     const user = await this.usersService.findOne({
       email: loginDto.email,
     });
+    const expectedRoles = onlyAdmin
+      ? [
+        RoleEnum.master,
+        RoleEnum.admin,
+        RoleEnum.aprovador_financeiro,
+        RoleEnum.lancador_financeiro,
+        RoleEnum.admin_finan,
+      ]
+      : [RoleEnum.user];
 
-    if (
-      !user ||
-      (user?.role &&
-        !(
-          onlyAdmin
-            ? [
-                RoleEnum.master,
-                RoleEnum.admin,
-                RoleEnum.aprovador_financeiro,
-                RoleEnum.lancador_financeiro,
-              ]
-            : [RoleEnum.user]
-        ).includes(user.role.id))
-    ) {
+    if (!user || (user?.role && !expectedRoles.includes(user.role.id))) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             email: 'notFound',
+            onlyAdmin: onlyAdmin,
+            expectedRoles: expectedRoles,
+            role: user?.role,
           },
         },
         HttpStatus.UNAUTHORIZED,
@@ -293,12 +292,9 @@ export class AuthService {
         },
         `AuthService.${logContext}`,
       );
-      this.logger.log(
-        formatLog(
-          `Email de cadastro enviado com sucesso (${userMailHistory.getLogInfoStr()})`,
-          logContext,
-        ),
-      );
+      logLog(this.logger,
+        `Email de cadastro enviado com sucesso (${userMailHistory.getLogInfoStr()})`,
+        logContext);
     } else {
       throw new HttpException(
         {
@@ -380,7 +376,7 @@ export class AuthService {
     };
 
     if (!user) {
-      this.logger.warn(`forgotPassword(): email '${email}' does not exists`);
+      logWarn(this.logger, `forgotPassword(): email '${email}' does not exists`);
       return returnMessage;
     }
 
@@ -401,13 +397,9 @@ export class AuthService {
 
       // Success
       if (mailSentInfo.success === true) {
-        this.logger.log(
-          formatLog(
-            'Email redefinir senha enviado com sucesso.' +
-            `\n    - Detalhes: ${JSON.stringify({ mailSentInfo })}`,
-            'forgotPassword()',
-          ),
-        );
+        logLog(this.logger, 'Email redefinir senha enviado com sucesso.' +
+          `\n    - Detalhes: ${JSON.stringify({ mailSentInfo })}`,
+          'forgotPassword()');
         return returnMessage;
       }
 

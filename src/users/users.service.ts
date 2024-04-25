@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -14,9 +14,9 @@ import { RoleEnum } from 'src/roles/roles.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { isArrayContainEqual } from 'src/utils/array-utils';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { Enum } from 'src/utils/enum';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
-import { formatLog } from 'src/utils/log-utils';
 import { getStringUpperUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { InvalidRows } from 'src/utils/types/invalid-rows.type';
@@ -25,8 +25,10 @@ import {
   Brackets,
   DeepPartial,
   EntityManager,
+  FindManyOptions,
   FindOptionsWhere,
   ILike,
+  In,
   Repository,
   WhereExpressionBuilder,
 } from 'typeorm';
@@ -48,7 +50,7 @@ export enum userUploadEnum {
 
 @Injectable()
 export class UsersService {
-  private logger: Logger = new Logger('UsersService', { timestamp: true });
+  private logger: CustomLogger = new CustomLogger(UsersService.name, { timestamp: true });
 
   constructor(
     @InjectRepository(User)
@@ -62,27 +64,51 @@ export class UsersService {
     const createdUser = await this.usersRepository.save(
       this.usersRepository.create(createProfileDto),
     );
-    this.logger.log(`Usuário criado: ${createdUser.getLogInfo()}`);
+    this.logger.log( `Usuário criado: ${createdUser.getLogInfo()}`);
     return createdUser;
   }
 
   async setUserAuxColumns(user: User): Promise<User> {
     const newUser = new User(user);
-    newUser.aux_bank = await this.getAux_bank(user);
+    await this.setManyAux_bank([newUser]);
     newUser.aux_inviteStatus = await this.getAux_inviteSatus(user);
     return newUser;
   }
 
-  async findMany(
-    fields: EntityCondition<User> | EntityCondition<User>[],
-  ): Promise<User[]> {
-    const users = await this.usersRepository.find({
-      where: fields,
-    });
-    for (const i in users) {
-      users[i] = await this.setUserAuxColumns(users[i]);
+  async setManyUserAuxColumns(users: User[]) {
+    await this.setManyAux_bank(users);
+    await this.setManyAux_invite(users);
+  }
+
+  async count(options: FindManyOptions<User>): Promise<number> {
+    return await this.usersRepository.count(options);
+  }
+
+  async findMany(options: FindManyOptions<User>, loadAuxColumns = true): Promise<User[]> {
+    const users = await this.usersRepository.find(options) || [];
+    if (loadAuxColumns) {
+      await this.setManyUserAuxColumns(users);
     }
     return users;
+  }
+
+  async findManyRegisteredUsers() {
+    const validUsers = await this.usersRepository.createQueryBuilder("user")
+      .where("user.roleId = :roleId", { roleId: RoleEnum.user })
+      .andWhere("user.fullName IS NOT NULL")
+      .andWhere("user.cpfCnpj IS NOT NULL")
+      .andWhere("user.bankCode IS NOT NULL")
+      .andWhere("user.bankAgency IS NOT NULL")
+      .andWhere("user.bankAccount IS NOT NULL")
+      .andWhere("user.bankAccountDigit IS NOT NULL")
+      .andWhere("user.fullName != ''")
+      .andWhere("user.cpfCnpj != ''")
+      .andWhere("user.bankAgency != ''")
+      .andWhere("user.bankAccount != ''")
+      .andWhere("user.bankAccountDigit != ''")
+      .getMany();
+    await this.setManyUserAuxColumns(validUsers);
+    return validUsers
   }
 
   async findManyWithPagination(
@@ -211,15 +237,40 @@ export class UsersService {
     return inviteStatus;
   }
 
-  private async getAux_bank(user: User): Promise<Bank | null> {
-    if (user?.bankCode === undefined || user?.bankCode === null) {
-      return null;
+  private async setManyAux_invite(users: User[]) {
+    // Find banks
+    const invitesMap: Record<string, MailHistory> = (await this.mailHistoryService.findManyRecentByUser(users))
+      .reduce((map, i) => ({ ...map, [i.user.id]: i }), {});
+
+    // Update
+    for (const user of users) {
+      const invite: MailHistory | undefined = invitesMap?.[user.id];
+      if (invite) {
+        user.aux_inviteHash = invite.hash;
+        user.aux_inviteStatus = invite.inviteStatus;
+      }
     }
-    return await this.banksService.findOne({ code: user?.bankCode });
+  }
+
+  private async setManyAux_bank(users: User[]) {
+    // Find banks
+    const bankCodes = users.reduce((l, i) =>
+      typeof i.bankCode === 'number' ? [...l, i.bankCode] : l
+      , []);
+    /** key: bank code */
+    const bankMap: Record<number, Bank> = (await this.banksService.findMany({ code: In(bankCodes) }))
+      .reduce((map, i) => ({ ...map, [i.code]: i }), {});
+
+    // Set banks
+    for (const user of users) {
+      if (typeof user.bankCode === 'number') {
+        user.aux_bank = bankMap[user.bankCode];
+      }
+    }
   }
 
   async findOne(
-    fields: EntityCondition<User> | EntityCondition<User>[],
+    fields: EntityCondition<User>,
   ): Promise<Nullable<User>> {
     let user = await this.usersRepository.findOne({
       where: fields,
@@ -232,18 +283,19 @@ export class UsersService {
 
   async update(
     id: number,
-    payload: DeepPartial<User>,
+    updateData: DeepPartial<User>,
     logContext?: string,
     logUser?: DeepPartial<User>,
   ): Promise<User> {
+    const METHOD = this.update.name;
+    const CLASS_METHOD = `${UsersService.name}.${this.update.name}`;
     const oldUser = await this.getOne({ id });
     const history = await this.mailHistoryService.getOne({
       user: { id: oldUser.id },
     });
-    const newUser = new User(oldUser);
 
-    if (payload.email !== null && payload.email !== undefined) {
-      const userBD = await this.findOne({ email: payload.email });
+    if (updateData.email !== null && updateData.email !== undefined) {
+      const userBD = await this.findOne({ email: updateData.email });
       if (userBD !== null && userBD.id != oldUser.id) {
         throw new HttpException(
           {
@@ -251,54 +303,45 @@ export class UsersService {
           },
           HttpStatus.UNPROCESSABLE_ENTITY,
         );
-      } else if (oldUser.email !== payload.email) {
+      } else if (oldUser.email !== updateData.email) {
         history.setInviteStatus(InviteStatusEnum.queued);
-        history.email = payload.email;
+        history.email = updateData.email;
         history.hash = await this.mailHistoryService.generateHash();
-        await this.mailHistoryService.update(
-          history.id,
-          history,
-          'UsersService.update()',
-        );
+        await this.mailHistoryService.update(history.id, history, CLASS_METHOD);
       }
     }
 
-    newUser.update(payload);
-    let createPayload = await this.usersRepository.save(
-      this.usersRepository.create(newUser),
-    );
-    createPayload = await this.setUserAuxColumns(createPayload);
+    await this.usersRepository.update({ id: id }, updateData);
+    const updatedUser = await this.getOne({ id: id });
 
     // Log
     const reqUser = new User(logUser);
     let logMsg = `Usuário ${oldUser.getLogInfo()} teve seus campos atualizados: [ ${Object.keys(
-      payload,
+      updateData,
     )} ]`;
     if (reqUser.id === oldUser.id) {
       logMsg = `Usuário ${oldUser.getLogInfo()} atualizou seus campos: [ ${Object.keys(
-        payload,
+        updateData,
       )} ]`;
     }
     if (reqUser.getLogInfo() !== '[VAZIO]') {
       logMsg =
         `Usuário ${reqUser.getLogInfo()}` +
         ` atualizou os campos de ${oldUser.getLogInfo()}: [${Object.keys(
-          payload,
+          updateData,
         )}]`;
     }
-    this.logger.log(formatLog(logMsg, 'update()', logContext));
+    this.logger.log(logMsg, `${METHOD} from ${logContext}`);
 
-    return createPayload;
+    return updatedUser;
   }
 
   async softDelete(id: number, logContext?: string): Promise<void> {
+    const METHOD = this.softDelete.name;
     await this.usersRepository.softDelete(id);
     this.logger.log(
-      formatLog(
-        `Usuário ${{ id }} desativado com sucesso.`,
-        'softDelete()',
-        logContext,
-      ),
+      `Usuário ${{ id }} desativado com sucesso.`,
+      `${METHOD} from ${logContext}`
     );
   }
 
@@ -405,7 +448,7 @@ export class UsersService {
   ): Promise<InvalidRows> {
     const schema = plainToClass(validatorDto, userFile.user);
     const errors = await validate(schema as Record<string, any>, {
-      stopAtFirstError: true,
+      stopAtFirstError: false,
     });
     const SEPARATOR = '; ';
     const errorDictionary: InvalidRows = errors.reduce((result, error) => {
@@ -423,13 +466,15 @@ export class UsersService {
       userFile.user.codigo_permissionario ||
       userFile.user.cpf
     ) {
-      const dbFoundUsers = await this.findMany([
-        ...(userFile.user.email ? [{ email: userFile.user.email }] : []),
-        ...(userFile.user.codigo_permissionario
-          ? [{ permitCode: userFile.user.codigo_permissionario }]
-          : []),
-        ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : []),
-      ]);
+      const dbFoundUsers = await this.findMany({
+        where: [
+          ...(userFile.user.email ? [{ email: userFile.user.email }] : []),
+          ...(userFile.user.codigo_permissionario
+            ? [{ permitCode: userFile.user.codigo_permissionario }]
+            : []),
+          ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : []),
+        ]
+      });
       if (dbFoundUsers.length > 0) {
         for (const dbField of fields) {
           const dtoField = FileUserMap[dbField];
@@ -476,10 +521,7 @@ export class UsersService {
     return errorDictionary;
   }
 
-  async getUserFilesFromWorksheet(
-    worksheet: xlsx.WorkSheet,
-    validatorDto,
-  ): Promise<IFileUser[]> {
+  async getUserFilesFromWorksheet(worksheet: xlsx.WorkSheet): Promise<IFileUser[]> {
     this.validateFileHeaders(worksheet);
 
     const fileData = xlsx.utils.sheet_to_json(worksheet);
@@ -495,7 +537,7 @@ export class UsersService {
       const errorDictionary = await this.validateFileValues(
         fileUser,
         fileUsers,
-        validatorDto,
+        CreateUserFileDto,
       );
       fileUsers[i] = {
         row: row,
@@ -513,15 +555,9 @@ export class UsersService {
   ): Promise<IUserUploadResponse> {
     const reqUser = new User(requestUser);
     const worksheet = this.getWorksheetFromFile(file);
-    const fileUsers = await this.getUserFilesFromWorksheet(
-      worksheet,
-      CreateUserFileDto,
-    );
+    const fileUsers = await this.getUserFilesFromWorksheet(worksheet);
     const invalidUsers = fileUsers.filter(
       (i) => Object.keys(i.errors).length > 0,
-    );
-    const validUsers = fileUsers.filter(
-      (i) => Object.keys(i.errors).length === 0,
     );
 
     if (invalidUsers.length > 0) {
@@ -532,7 +568,7 @@ export class UsersService {
             file: {
               message: 'invalidRows',
               headerMap: FileUserMap,
-              uploadedUsers: validUsers.length,
+              uploadedUsers: fileUsers.length,
               invalidUsers: invalidUsers.length,
               invalidRows: invalidUsers,
             },
@@ -542,7 +578,7 @@ export class UsersService {
       );
     }
 
-    for (const fileUser of validUsers) {
+    for (const fileUser of fileUsers) {
       const hash = await this.mailHistoryService.generateHash();
       const createdUser = this.usersRepository.create({
         permitCode: String(fileUser.user.codigo_permissionario).replace(
@@ -559,10 +595,8 @@ export class UsersService {
       } as DeepPartial<User>);
       await this.usersRepository.save(createdUser);
       this.logger.log(
-        formatLog(
-          `Usuario: ${createdUser.getLogInfo()} criado.`,
-          'createFromFile()',
-        ),
+        `Usuario: ${createdUser.getLogInfo()} criado.`,
+        'createFromFile()',
       );
 
       await this.mailHistoryService.create(
@@ -578,7 +612,7 @@ export class UsersService {
       );
     }
 
-    const uploadedRows = validUsers.reduce(
+    const uploadedRows = fileUsers.reduce(
       (part: DeepPartial<IFileUser>[], i) => [
         ...part,
         {
@@ -591,20 +625,18 @@ export class UsersService {
 
     const result: IUserUploadResponse = {
       headerMap: FileUserMap,
-      uploadedUsers: validUsers.length,
+      uploadedUsers: fileUsers.length,
       invalidUsers: invalidUsers.length,
       invalidRows: invalidUsers,
       uploadedRows: uploadedRows,
     };
     this.logger.log(
-      formatLog(
-        'Tarefa finalizada, resultado:\n' +
-        JSON.stringify({
-          requestUser: reqUser.getLogInfo(),
-          ...result,
-        }),
-        'createFromFile()',
-      ),
+      'Tarefa finalizada, resultado:\n' +
+      JSON.stringify({
+        requestUser: reqUser.getLogInfo(),
+        ...result,
+      }),
+      'createFromFile()',
     );
     return result;
   }

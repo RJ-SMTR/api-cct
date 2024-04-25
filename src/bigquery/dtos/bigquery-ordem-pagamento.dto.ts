@@ -1,4 +1,5 @@
 import { IsDateString, IsNotEmpty, IsNumber, IsNumberString, IsString, ValidateIf } from "class-validator";
+import { TipoFavorecidoEnum } from "src/tipo-favorecido/tipo-favorecido.enum";
 
 /**
  * Logic:
@@ -13,7 +14,7 @@ export class BigqueryOrdemPagamentoDTO {
    * Para filtrar e ordenar por data	
    */
   @IsNotEmpty()
-  @IsDateString(undefined)
+  @IsDateString()
   dataOrdem: string;
 
   /** 
@@ -23,7 +24,7 @@ export class BigqueryOrdemPagamentoDTO {
    * Senão, ignoramos o item.	
    */
   @ValidateIf((o, v) => v !== null)
-  @IsDateString(undefined)
+  @IsDateString()
   dataPagamento: string | null;
 
   /**
@@ -49,6 +50,8 @@ export class BigqueryOrdemPagamentoDTO {
   operadora: string;
 
   /** Nome curto da linha operada com variação de serviço (ex: 010, 011SN, ...) */
+  @IsNotEmpty()
+  @IsString()
   servico: string;
 
   /**
@@ -57,7 +60,7 @@ export class BigqueryOrdemPagamentoDTO {
    * Agrupamos um arquivo CNAB por id_ordem_pagamento.
    * 
    * Cada **data_ordem** possui um id_ordem_pagamento único.
-   * Cada **id_ordem_pagamento** possui vários **id_operadora** (favorecido CPF),
+   * Cada **id_ordem_pagamento** possui vários **id_operadora** (favorecidoBele CPF),
    * **id_consorico** (favorecido CNPJ) e **servico** (veículo que arrecadou)
    */
   @IsNotEmpty()
@@ -83,13 +86,13 @@ export class BigqueryOrdemPagamentoDTO {
   quantidadeTransacaoGratuidade: number | null;
 
   /** Valor total das transações feitas com gratuidade (R$) */
-  valor_gratuidade: number | null;
+  valorGratuidade: number | null;
 
   /** Quantidade de transações feitas com integração */
   quantidadeTransacaoIntegracao: number | null;
 
   /** Valor total das transações feitas com integração (R$) */
-  valor_integracao: number | null;
+  valorIntegracao: number | null;
 
   /** Número de transações com rateio de crédito */
   quantidadeTransacaoRateioCredito: number | null;
@@ -127,7 +130,15 @@ export class BigqueryOrdemPagamentoDTO {
   indicadorOrdemValida: boolean | null;
 
   /** Código de controle de versão do dado (SHA Github) */
-  versao: string | null;
+  versao: string;
 
-  aux_favorecidoCpfCnpj: string;
+  // CUSTOM COLUMNS
+
+  /** operadora.documento (cpf/cnpj) */
+  operadoraCpfCnpj: string | null;
+
+  /** consorcios.cnpj */
+  consorcioCnpj: string | null;
+
+  tipoFavorecido: TipoFavorecidoEnum | null;
 }

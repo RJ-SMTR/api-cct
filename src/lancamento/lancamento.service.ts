@@ -1,25 +1,61 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
+import { endOfDay, startOfDay } from 'date-fns';
+import { User } from 'src/users/entities/user.entity';
+import { UsersService } from 'src/users/users.service';
+import { Between, In, IsNull, Like, Repository } from 'typeorm';
+import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { ItfLancamento } from './interfaces/lancamento.interface';
 import { LancamentoEntity } from './lancamento.entity';
-import { Between } from 'typeorm';
-import { User } from 'src/users/entities/user.entity';
-import { In } from 'typeorm';
-import { NotFoundException } from '@nestjs/common';
-import { AutorizaLancamentoDto } from './AutorizaLancamentoDto';
-import { UsersService } from 'src/users/users.service';
-import * as bcrypt from 'bcryptjs';
+import { LancamentoRepository } from './lancamento.repository';
+import { LancamentoDto } from './dtos/lancamentoDto';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class LancamentoService {
+  private readonly logger = new CustomLogger(LancamentoService.name, {
+    timestamp: true,
+  });
+
   constructor(
-    @InjectRepository(LancamentoEntity)
-    private readonly lancamentoRepository: Repository<LancamentoEntity>,
+    private readonly lancamentoRepository: LancamentoRepository,
+    private readonly usersService: UsersService,
     @InjectRepository(User)
     private userRepository: Repository<User>,
-    private readonly usersService: UsersService,
-  ) { }
+  ) {}
+
+  // /**
+  //  * Get unused data (no Transacao Id) from current payment week (thu-wed / qui-qua).
+  //  */
+  // async findByLancamentos(lancamentos: LancamentoEntity[]): Promise<LancamentoEntity[]> {
+  //   const ids = lancamentos.map(i => i.id);
+  //   const found = await this.lancamentoRepository.findMany({
+  //     where: {
+  //       id: In(ids)
+  //     }
+  //   });
+  //   return found;
+  // }
+
+  /**
+   * Get unused data (no Transacao Id) from current payment week (thu-wed / qui-qua).
+   */
+  findToPayToday(): Promise<LancamentoEntity[]> {
+    const today = new Date();
+    return this.lancamentoRepository.findMany({
+      where: {
+        data_lancamento: Between(startOfDay(today), endOfDay(today)),
+        transacao: IsNull(),
+        auth_usersIds: Like('%,%'),
+      },
+    });
+  }
 
   async findByPeriod(
     month: number | null = null,
@@ -30,7 +66,7 @@ export class LancamentoService {
     let startDate: Date | undefined;
     let endDate: Date | undefined;
 
-    console.log(period)
+    this.logger.debug(String(`Find Lancamento by period: ${period}`));
     if (
       month !== null &&
       period !== null &&
@@ -43,7 +79,7 @@ export class LancamentoService {
       typeof year === 'number'
     ) {
       [startDate, endDate] = this.getMonthDateRange(year, month, period);
-      console.log(startDate, endDate);
+      this.logger.debug(String(`${startDate}, ${endDate}`));
     }
 
     const whereOptions: any = {};
@@ -51,7 +87,7 @@ export class LancamentoService {
       whereOptions.data_lancamento = Between(startDate, endDate);
     }
 
-    const lancamentos = await this.lancamentoRepository.find({
+    const lancamentos = await this.lancamentoRepository.findMany({
       where: whereOptions,
       relations: ['user'],
     });
@@ -77,39 +113,42 @@ export class LancamentoService {
       const userIds = lancamento.auth_usersIds
         ? lancamento.auth_usersIds.split(',').map(Number)
         : [];
-      const autorizadopor = userIds
+      const autorizadopor: number[] = userIds
         .map((id) => usersMap.get(id))
         .filter((user) => user !== undefined);
-      return { ...lancamento, autorizadopor };
+      return {
+        ...lancamento.toItfLancamento(),
+        autorizadopor: autorizadopor,
+      } as ItfLancamento;
     });
 
     if (authorized === 1) {
-      console.log("AUTHORIZED 1")
+      this.logger.debug('AUTHORIZED 1');
       return lancamentosComUsuarios.filter(
         (lancamento) => lancamento.autorizadopor.length === 2,
       );
     }
-    
+
     if (authorized === 0) {
-      console.log("AUTHORIZED 0")
+      this.logger.debug('AUTHORIZED 0');
       return lancamentosComUsuarios.filter(
         (lancamento) => lancamento.autorizadopor.length < 2,
       );
     }
 
-
     return lancamentosComUsuarios;
   }
 
-
   async findByStatus(status: number | null = null): Promise<ItfLancamento[]> {
-    const lancamentos = await this.lancamentoRepository.find({
+    const lancamentos = await this.lancamentoRepository.findMany({
       relations: ['user'],
     });
 
     const allUserIds = new Set<number>();
     lancamentos.forEach((lancamento) => {
-      lancamento.auth_usersIds?.split(',').forEach(id => allUserIds.add(Number(id)));
+      lancamento.auth_usersIds
+        ?.split(',')
+        .forEach((id) => allUserIds.add(Number(id)));
     });
 
     let usersMap = new Map<number, any>();
@@ -117,19 +156,30 @@ export class LancamentoService {
       const users = await this.userRepository.findBy({
         id: In([...allUserIds]),
       });
-      usersMap = new Map(users.map(user => [user.id, user]));
+      usersMap = new Map(users.map((user) => [user.id, user]));
     }
 
-    const lancamentosComUsuarios = lancamentos.map(lancamento => {
-      const userIds = lancamento.auth_usersIds ? lancamento.auth_usersIds.split(',').map(Number) : [];
-      const autorizadopor = userIds.map(id => usersMap.get(id)).filter(user => user);
-      return { ...lancamento, autorizadopor };
+    const lancamentosComUsuarios = lancamentos.map((lancamento) => {
+      const userIds = lancamento.auth_usersIds
+        ? lancamento.auth_usersIds.split(',').map(Number)
+        : [];
+      const autorizadopor = userIds
+        .map((id) => usersMap.get(id))
+        .filter((user) => user);
+      return {
+        ...lancamento.toItfLancamento(),
+        autorizadopor,
+      } as ItfLancamento;
     });
 
     if (status === 1) {
-      return lancamentosComUsuarios.filter(lancamento => lancamento.autorizadopor.length === 2);
+      return lancamentosComUsuarios.filter(
+        (lancamento) => lancamento.autorizadopor.length === 2,
+      );
     } else {
-      return lancamentosComUsuarios.filter(lancamento => lancamento.autorizadopor.length !== 2);
+      return lancamentosComUsuarios.filter(
+        (lancamento) => lancamento.autorizadopor.length !== 2,
+      );
     }
   }
 
@@ -140,23 +190,21 @@ export class LancamentoService {
   ): Promise<any> {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
 
-    const response = await this.lancamentoRepository.find({
+    const response = await this.lancamentoRepository.findMany({
       where: {
         data_lancamento: Between(startDate, endDate),
       },
     });
 
-
     const filteredResponse = response.filter(
-      (item) => item.auth_usersIds && item.auth_usersIds.split(',').length >= 2
+      (item) => item.auth_usersIds && item.auth_usersIds.split(',').length >= 2,
     );
-    console.log('filteredResponse', filteredResponse)
+    this.logger.debug(`filteredResponse: ${filteredResponse}`);
 
-    const sumOfValues = filteredResponse.reduce((acc, curr) => {
-      // Remove pontos dos milhares e substitui a vírgula por ponto para torná-lo um número válido
-      const valor = parseFloat(curr.valor.replace(/\./g, '').replace(',', '.'));
-      return acc + valor;
-    }, 0);
+    const sumOfValues = filteredResponse.reduce(
+      (acc, curr) => acc + curr.valor,
+      0,
+    );
 
     const formattedSum = sumOfValues.toLocaleString('pt-BR', {
       style: 'currency',
@@ -165,15 +213,15 @@ export class LancamentoService {
 
     const resp = {
       valor_autorizado: String(formattedSum),
-    }
+    };
 
     return resp;
   }
 
   async create(
-    lancamentoData: ItfLancamento,
+    lancamentoData: LancamentoDto,
     userId: number,
-  ): Promise<ItfLancamento> {
+  ): Promise<LancamentoEntity> {
     const newLancamento = this.lancamentoRepository.create(lancamentoData);
     newLancamento.userId = userId;
     return await this.lancamentoRepository.save(newLancamento);
@@ -181,16 +229,18 @@ export class LancamentoService {
 
   async autorizarPagamento(
     userId: number,
-    lancamentoId,
+    lancamentoId: string,
     AutorizaLancamentoDto: AutorizaLancamentoDto,
   ): Promise<ItfLancamento> {
-
     const user = await this.usersService.findOne({
       id: userId,
     });
 
     if (!user)
-      throw new HttpException('Usuário não encontrado', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Usuário não encontrado',
+        HttpStatus.UNAUTHORIZED,
+      );
 
     const isValidPassword = await bcrypt.compare(
       AutorizaLancamentoDto.password,
@@ -203,7 +253,6 @@ export class LancamentoService {
     const lancamento = await this.lancamentoRepository.findOne({
       where: { id: parseInt(lancamentoId) },
     });
-    console.log;
 
     if (!lancamento) {
       throw new Error('Lançamento não encontrado.');
@@ -217,12 +266,12 @@ export class LancamentoService {
     userIds.add(userId);
 
     lancamento.auth_usersIds = Array.from(userIds).join(',');
-    return await this.lancamentoRepository.save(lancamento);
+    return (await this.lancamentoRepository.save(lancamento)).toItfLancamento();
   }
 
   async update(
     id: number,
-    updatedData: ItfLancamento,
+    updatedData: LancamentoDto,
     userId: number,
   ): Promise<ItfLancamento> {
     let lancamento = await this.lancamentoRepository.findOne({ where: { id } });
@@ -231,12 +280,17 @@ export class LancamentoService {
     }
 
     const { id_cliente_favorecido, ...restUpdatedData } = updatedData;
-    lancamento = { ...lancamento, ...restUpdatedData, userId, auth_usersIds: '' };
+    lancamento = new LancamentoEntity({
+      ...lancamento,
+      ...restUpdatedData,
+      userId,
+      auth_usersIds: '',
+    });
 
     await this.lancamentoRepository.save(lancamento);
-    console.log(id_cliente_favorecido);
+    this.logger.log(`Lancamento ${id_cliente_favorecido} atualizado`);
 
-    return lancamento;
+    return lancamento.toItfLancamento();
   }
 
   async getById(id: number): Promise<ItfLancamento> {
@@ -246,7 +300,7 @@ export class LancamentoService {
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
-    return lancamento;
+    return lancamento.toItfLancamento();
   }
 
   async delete(id: number): Promise<void> {
@@ -271,9 +325,10 @@ export class LancamentoService {
     return [startDate, endDate];
   }
 
-  getDatePeriodInfo(date) {
+  getDatePeriodInfo(date: Date) {
     const year = date.getFullYear();
-    const month = date.getMonth() + 1; // Os meses no JavaScript vão de 0 a 11, então é necessário adicionar 1
+    /** Os meses no JavaScript vão de 0 a 11, então é necessário adicionar 1 */
+    const month = date.getMonth() + 1;
     const day = date.getDate();
 
     if (day <= 15) {
@@ -282,5 +337,4 @@ export class LancamentoService {
       return { year, month, period: 2 };
     }
   }
-
 }

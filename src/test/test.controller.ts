@@ -1,6 +1,6 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AllConfigType } from 'src/config/config.type';
 import { CronJobsService } from 'src/cron-jobs/cron-jobs.service';
 import { TestEnvironmentsGuard } from 'src/test/test-environments.guard';
@@ -17,7 +17,7 @@ export class TestController {
     private readonly configService: ConfigService<AllConfigType>,
     private readonly cronjobsService: CronJobsService,
     private readonly testService: TestService,
-  ) {}
+  ) { }
 
   @Get('test-environments-guard')
   @ApiOperation({
@@ -30,6 +30,16 @@ export class TestController {
       message: 'ok',
       nodeEnv: this.configService.getOrThrow('app.nodeEnv', { infer: true }),
     };
+  }
+
+  @Get('cron-jobs/bulk-send-invites')
+  @ApiOperation({
+    description:
+      'Only available in test environments.' +
+      '\n\nUsed by e2e tests to make use of cronjob task without waiting required time.',
+  })
+  async getCronJobsBulkSendInvites() {
+    await this.testService.getCronJobsBulkSendInvites();
   }
 
   @Get('cron-jobs/bulk-resend-invites')
@@ -50,5 +60,20 @@ export class TestController {
   })
   async getUsersResetTestUsers() {
     await this.testService.getResetTestingUsers();
+  }
+
+  @Get('users/invalid-cpf')
+  @ApiOperation({
+    description:
+      'Only available in test environments.' +
+      "\n\nUsed by e2e tests to reset example users' state before testing.",
+  })
+  @ApiQuery({ name: 'email', required: false })
+  @ApiQuery({ name: 'cpfCnpj', required: false })
+  async getUsersInvalidCPFs(
+    @Query('email') email?: string,
+    @Query('cpfCnpj') cpfCnpj?: string,
+  ) {
+    return await this.testService.getInvaidCPFs({ email, cpfCnpj });
   }
 }

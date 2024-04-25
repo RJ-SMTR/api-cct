@@ -3,25 +3,25 @@ import { subDays } from 'date-fns';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { IMailSeedData } from 'src/mail-history/interfaces/mail-history-data.interface';
-import { UserDataInterface } from 'src/users/interfaces/user-data.interface';
+import { UserSeedDataInterface } from 'src/users/interfaces/user-seed-data.interface';
 import { UserSeedDataService } from '../user/user-seed-data.service';
 
 @Injectable()
 export class MailHistorySeedDataService {
-  constructor(private userSeedDataService: UserSeedDataService) {}
+  constructor(private userSeedDataService: UserSeedDataService) { }
 
-  async getDataFromConfig(): Promise<IMailSeedData[]> {
+  async getData(): Promise<IMailSeedData[]> {
     const mailSeedData: IMailSeedData[] = (
-      await this.userSeedDataService.getDataFromConfig()
+      await this.userSeedDataService.getData()
     ).map(
-      (i: UserDataInterface) =>
-        ({
-          user: {
-            ...(i.id ? { id: i.id } : {}),
-            ...(i.email ? { email: i.email } : {}),
-          },
-          inviteStatus: new InviteStatus(InviteStatusEnum.used),
-        } as IMailSeedData),
+      (i: UserSeedDataInterface) =>
+      ({
+        user: {
+          ...(i.id ? { id: i.id } : {}),
+          ...(i.email ? { email: i.email } : {}),
+        },
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+      } as IMailSeedData),
     );
     for (let i = 0; i < mailSeedData.length; i++) {
       const mail = mailSeedData[i];
@@ -34,7 +34,7 @@ export class MailHistorySeedDataService {
       ) {
         mail[i] = {
           ...mail,
-          sentAt: subDays(new Date(), 16),
+          sentAt: subDays(new Date(), 31),
         } as IMailSeedData;
       }
     }

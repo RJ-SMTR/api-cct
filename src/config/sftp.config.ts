@@ -14,9 +14,12 @@ function isSftpPartiallyFilled(envValues: EnvironmentVariablesValidator) {
 }
 
 class EnvironmentVariablesValidator {
+
   @ValidateIf(isSftpPartiallyFilled)
   @IsString()
   SFTP_HOST: string;
+
+  SFTP_ROOT_FOLDER: string;
 
   @ValidateIf(isSftpPartiallyFilled)
   @IsInt()
@@ -37,6 +40,7 @@ export default registerAs<SftpConfig>('sftp', () => {
   validateConfig(process.env, EnvironmentVariablesValidator);
 
   return {
+    rootFolder: process.env.SFTP_ROOT_FOLDER || '', 
     host: String(process.env.SFTP_HOST),
     port: Number(process.env.SFTP_PORT),
     username: String(process.env.SFTP_USERNAME),

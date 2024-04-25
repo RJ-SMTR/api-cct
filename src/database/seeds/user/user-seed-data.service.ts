@@ -7,7 +7,7 @@ import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
-import { UserDataInterface } from 'src/users/interfaces/user-data.interface';
+import { UserSeedDataInterface } from 'src/users/interfaces/user-seed-data.interface';
 
 @Injectable()
 export class UserSeedDataService {
@@ -23,7 +23,7 @@ export class UserSeedDataService {
       this.configService.getOrThrow('app.nodeEnv', { infer: true });
   }
 
-  async getDataFromConfig(): Promise<UserDataInterface[]> {
+  async getData(): Promise<UserSeedDataInterface[]> {
     if (this.nodeEnv() === 'local' || this.nodeEnv() === 'test') {
       if (this.cpfSamples.length === 0) {
         this.cpfSamples = (
@@ -62,7 +62,7 @@ LIMIT 5
       {
         fullName: 'Alexander Rivail Ruiz',
         email: 'ruiz.smtr@gmail.com',
-        password: '0014d1c03e',
+        password: this.generateRandomPassword(),
         role: new Role(RoleEnum.admin),
         status: new Status(StatusEnum.active),
       },
@@ -136,7 +136,7 @@ LIMIT 5
       {
         fullName: 'Usuário lançamento',
         email: 'ruizalexander@id.uff.br',
-        password: '0014d1c03e',
+        password: this.generateRandomPassword(),
         role: new Role(RoleEnum.lancador_financeiro),
         status: new Status(StatusEnum.active),
       },
@@ -183,7 +183,6 @@ LIMIT 5
         status: new Status(StatusEnum.active),
       },
 
-
       //apagar após teste
       {
         fullName: 'alex test seed approval',
@@ -216,99 +215,101 @@ LIMIT 5
       // Development only
       ...(this.nodeEnv() === 'local' || this.nodeEnv() === 'test'
         ? ([
-          {
-            fullName: 'Henrique Santos Template Cpf Van',
-            email: 'henrique@example.com',
-            password: 'secret',
-            permitCode: '213890329890312',
-            cpfCnpj: this.cpfSamples?.[0],
-            role: { id: RoleEnum.user } as Role,
-            status: { id: StatusEnum.active } as Status,
-          },
-          {
-            fullName: 'Márcia Clara Template Cnpj Brt etc',
-            email: 'marcia@example.com',
-            password: 'secret',
-            permitCode: '319274392832023',
-            cpfCnpj: this.cnpjSamples?.[0],
-            role: { id: RoleEnum.user } as Role,
-            status: { id: StatusEnum.active } as Status,
-          },
-          {
-            fullName: 'Usuário Teste dos Santos Oliveira',
-            email: 'user@example.com',
-            password: 'secret',
-            permitCode: '213890329890749',
-            cpfCnpj: this.cpfSamples?.[0],
-            role: { id: RoleEnum.user } as Role,
-            status: { id: StatusEnum.active } as Status,
-          },
-          {
-            fullName: 'Administrador Teste',
-            email: 'admin@example.com',
-            password: 'secret',
-            permitCode: 'permitCode_admin',
-            role: { id: RoleEnum.admin } as Role,
-            status: { id: StatusEnum.active } as Status,
-          },
-          {
-            fullName: 'Administrador Teste 2',
-            email: 'admin2@example.com',
-            password: 'secret',
-            permitCode: 'permitCode_admin2',
-            role: { id: RoleEnum.admin } as Role,
-            status: { id: StatusEnum.active } as Status,
-          },
-          {
-            fullName: 'Queued user',
-            email: 'queued.user@example.com',
-            password: 'secret',
-            permitCode: '319274392832024',
-            role: { id: RoleEnum.user } as Role,
-            status: { id: StatusEnum.active } as Status,
-            inviteStatus: new InviteStatus(InviteStatusEnum.queued),
-          },
-          {
-            fullName: 'Sent user',
-            email: 'sent.user@example.com',
-            password: 'secret',
-            permitCode: '319274392832024',
-            role: { id: RoleEnum.user } as Role,
-            status: { id: StatusEnum.active } as Status,
-            inviteStatus: new InviteStatus(InviteStatusEnum.sent),
-          },
-          {
-            fullName: 'Sent user with fifteen days',
-            email: 'sent15.user@example.com',
-            password: 'secret',
-            permitCode: '319274392832025',
-            role: { id: RoleEnum.user } as Role,
-            status: { id: StatusEnum.active } as Status,
-            inviteStatus: new InviteStatus(InviteStatusEnum.sent),
-          },
-          {
-            fullName: 'Used user',
-            email: 'used.user@example.com',
-            password: 'secret',
-            permitCode: '319274392832026',
-            role: { id: RoleEnum.user } as Role,
-            status: { id: StatusEnum.active } as Status,
-            inviteStatus: new InviteStatus(InviteStatusEnum.used),
-          },
-          {
-            fullName: 'Used registered user',
-            email: 'registered.user@example.com',
-            password: 'secret',
-            permitCode: '319274392832027',
-            role: { id: RoleEnum.user } as Role,
-            status: { id: StatusEnum.active } as Status,
-            inviteStatus: new InviteStatus(InviteStatusEnum.used),
-            bankCode: 104,
-            bankAgency: '1234',
-            bankAccount: '12345',
-            bankAccountDigit: '1',
-          },
-        ] as UserDataInterface[])
+            {
+              fullName: 'Henrique Santos Template Cpf Van',
+              email: 'henrique@example.com',
+              password: 'secret',
+              permitCode: '213890329890312',
+              cpfCnpj: this.cpfSamples?.[0],
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              bankAccount: '000000000567',
+              bankAccountDigit: '8',
+            },
+            {
+              fullName: 'Márcia Clara Template Cnpj Brt etc',
+              email: 'marcia@example.com',
+              password: 'secret',
+              permitCode: '319274392832023',
+              cpfCnpj: this.cnpjSamples?.[0],
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+            },
+            {
+              fullName: 'Usuário Teste dos Santos Oliveira',
+              email: 'user@example.com',
+              password: 'secret',
+              permitCode: '213890329890749',
+              cpfCnpj: this.cpfSamples?.[0],
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+            },
+            {
+              fullName: 'Administrador Teste',
+              email: 'admin@example.com',
+              password: 'secret',
+              permitCode: 'permitCode_admin',
+              role: { id: RoleEnum.admin } as Role,
+              status: { id: StatusEnum.active } as Status,
+            },
+            {
+              fullName: 'Administrador Teste 2',
+              email: 'admin2@example.com',
+              password: 'secret',
+              permitCode: 'permitCode_admin2',
+              role: { id: RoleEnum.admin } as Role,
+              status: { id: StatusEnum.active } as Status,
+            },
+            {
+              fullName: 'Queued user',
+              email: 'queued.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832024',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.queued),
+            },
+            {
+              fullName: 'Sent user',
+              email: 'sent.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832024',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+            },
+            {
+              fullName: 'Sent user with fifteen days',
+              email: 'sent15.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832025',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+            },
+            {
+              fullName: 'Used user',
+              email: 'used.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832026',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.used),
+            },
+            {
+              fullName: 'Used registered user',
+              email: 'registered.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832027',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.used),
+              bankCode: 104,
+              bankAgency: '1234',
+              bankAccount: '000000012345',
+              bankAccountDigit: '1',
+            },
+          ] as UserSeedDataInterface[])
         : []),
     ];
   }
