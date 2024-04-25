@@ -221,10 +221,10 @@ export class LancamentoService {
   async create(
     lancamentoData: LancamentoDto,
     userId: number,
-  ): Promise<ItfLancamento> {
+  ): Promise<LancamentoEntity> {
     const newLancamento = this.lancamentoRepository.create(lancamentoData);
     newLancamento.userId = userId;
-    return (await this.lancamentoRepository.save(newLancamento)).toItfLancamento();
+    return await this.lancamentoRepository.save(newLancamento);
   }
 
   async autorizarPagamento(
