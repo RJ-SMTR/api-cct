@@ -49,6 +49,7 @@ export interface CnabDetalheA_104 {
   informacao2: CnabField;
   finalidadeDOC: CnabField;
   usoExclusivoFebraban: CnabField;
+  /**  */
   avisoAoFavorecido: CnabField;
   /** Status do retorno CNAB */
   ocorrencias: CnabField;

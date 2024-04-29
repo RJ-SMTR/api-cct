@@ -1,10 +1,16 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asNullableStringOrDateTime } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  AfterLoad,
+  Column,
+  CreateDateColumn,
+  DeepPartial,
+  Entity,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity()
 export class ExtratoHeaderArquivo extends EntityHelper {
-
   constructor(dto?: DeepPartial<ExtratoHeaderArquivo>) {
     super();
     if (dto) {
@@ -12,7 +18,9 @@ export class ExtratoHeaderArquivo extends EntityHelper {
     }
   }
 
-  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_ExtratoHeaderArquivo_id' })
+  @PrimaryGeneratedColumn({
+    primaryKeyConstraintName: 'PK_ExtratoHeaderArquivo_id',
+  })
   id: number;
 
   @Column({ type: Number, unique: false, nullable: true })
@@ -61,7 +69,10 @@ export class ExtratoHeaderArquivo extends EntityHelper {
   createdAt: Date;
 
   @AfterLoad()
-  setFieldValues() {
-    this.horaGeracao = asNullableStringOrDateTime(this.horaGeracao, this.dataGeracao);
+  setReadValues() {
+    this.horaGeracao = asNullableStringOrDateTime(
+      this.horaGeracao,
+      this.dataGeracao,
+    );
   }
 }

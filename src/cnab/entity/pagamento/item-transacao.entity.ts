@@ -1,5 +1,16 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  AfterLoad,
+  Column,
+  CreateDateColumn,
+  DeepPartial,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { Transacao } from './transacao.entity';
 import { DetalheA } from './detalhe-a.entity';
@@ -8,7 +19,6 @@ import { asStringOrNumber } from 'src/utils/pipe-utils';
 
 @Entity()
 export class ItemTransacao extends EntityHelper {
-
   constructor(dto?: DeepPartial<ItemTransacao>) {
     super();
     if (dto) {
@@ -22,7 +32,9 @@ export class ItemTransacao extends EntityHelper {
   @ManyToOne(() => Transacao, {
     eager: true,
   })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ItemTransacao_transacao_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_ItemTransacao_transacao_ManyToOne',
+  })
   transacao: Transacao;
 
   @CreateDateColumn()
@@ -39,9 +51,11 @@ export class ItemTransacao extends EntityHelper {
 
   /** If entity exists, create, if not, go standby and check later. */
   @ManyToOne(() => ClienteFavorecido, {
-    eager: true
+    eager: true,
   })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ItemTransacao_clienteFavorecido_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_ItemTransacao_clienteFavorecido_ManyToOne',
+  })
   clienteFavorecido: ClienteFavorecido;
 
   /** If no clienteFavorecido, use this static value to find if FK can be created. */
@@ -79,10 +93,11 @@ export class ItemTransacao extends EntityHelper {
   @Column({ type: Date, unique: false, nullable: true })
   dataLancamento: Date | null;
 
-
   /** FK to know which DetalheA is related to ItemTransacao */
   @OneToOne(() => DetalheA, { eager: false, nullable: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ItemTransacao_detalheA_OneToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_ItemTransacao_detalheA_OneToOne',
+  })
   detalheA: DetalheA | null;
 
   /** DataOrdem from bigquery */
@@ -107,7 +122,9 @@ export class ItemTransacao extends EntityHelper {
     return `${entity.idOrdemPagamento}|${entity.idConsorcio}|${entity.idOperadora}`;
   }
 
-  public static getUniqueIdLancamento(entity: DeepPartial<ItemTransacao>): string {
+  public static getUniqueIdLancamento(
+    entity: DeepPartial<ItemTransacao>,
+  ): string {
     const dataLancamento = entity.dataLancamento;
     if (dataLancamento === null || dataLancamento === undefined) {
       return String(dataLancamento);
@@ -117,7 +134,7 @@ export class ItemTransacao extends EntityHelper {
   }
 
   @AfterLoad()
-  setFieldValues() {
+  setReadValues() {
     this.valor = asStringOrNumber(this.valor);
   }
 }

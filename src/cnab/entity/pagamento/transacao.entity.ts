@@ -4,6 +4,7 @@ import { Pagador } from './pagador.entity';
 import { TransacaoOcorrencia } from './transacao-ocorrencia.entity';
 import { TransacaoStatus } from './transacao-status.entity';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
+import { ItemTransacao } from './item-transacao.entity';
 
 @Entity()
 export class Transacao extends EntityHelper {
@@ -23,9 +24,9 @@ export class Transacao extends EntityHelper {
   @Column({ type: Date, unique: false, nullable: true })
   dataPagamento: Date | null;
 
-  /** 
+  /**
    * References BigqueryOrdemPagamento. Unique ID column for Jaé
-   * 
+   *
    * uniqueColumnName: `UQ_Transacao_idOrdemPagamento`
    */
   @Column({ type: String, unique: true, nullable: true })
@@ -43,14 +44,27 @@ export class Transacao extends EntityHelper {
   status: TransacaoStatus;
 
   /** Not a physical column */
-  @OneToMany(() => LancamentoEntity, lancamento => lancamento.transacao, { nullable: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_lancamentos_OneToMany' })
+  @OneToMany(() => LancamentoEntity, (lancamento) => lancamento.transacao, {
+    nullable: true,
+  })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_Transacao_lancamentos_OneToMany',
+  })
   lancamentos: LancamentoEntity[] | null;
 
   /** Not a physical column. CNAB errors */
-  @OneToMany(() => TransacaoOcorrencia, ocorrencia => ocorrencia.transacao)
-  @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_ocorrencias_OneToMany' })
+  @OneToMany(() => TransacaoOcorrencia, (ocorrencia) => ocorrencia.transacao)
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_Transacao_ocorrencias_OneToMany',
+  })
   ocorrencias: TransacaoOcorrencia[];
+
+  /** Not a physical column */
+  @OneToMany(() => ItemTransacao, (item) => item.transacao)
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_Transacao_itensTransacao_OneToMany',
+  })
+  itensTransacao: ItemTransacao[];
 
   public static getUniqueId(entity: DeepPartial<Transacao>): string {
     return `${entity.idOrdemPagamento}`;

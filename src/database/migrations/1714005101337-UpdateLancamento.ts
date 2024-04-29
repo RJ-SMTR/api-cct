@@ -4,7 +4,9 @@ export class UpdateLancamento1714005101337 implements MigrationInterface {
     name = 'UpdateLancamento1714005101337'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "lancamento" ADD "anexo" character varying NOT NULL`);
+        if (!(await queryRunner.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'lancamento' AND column_name = 'anexo'`) as any[]).pop()) {
+                await queryRunner.query(`ALTER TABLE "lancamento" ADD "anexo" character varying NOT NULL`);
+        } // custom
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "algoritmo"`);
         await queryRunner.query(`ALTER TABLE "lancamento" ADD "algoritmo" character varying NOT NULL`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "glosa"`);
@@ -28,7 +30,7 @@ export class UpdateLancamento1714005101337 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "lancamento" ADD "glosa" integer NOT NULL`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "algoritmo"`);
         await queryRunner.query(`ALTER TABLE "lancamento" ADD "algoritmo" integer NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "anexo"`);
+        // await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "anexo"`);
     }
 
 }

@@ -15,49 +15,59 @@ import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 @Injectable()
 export class ClienteFavorecidoService {
   private logger: Logger = new Logger('ClienteFavorecidoService', {
-    timestamp: true
+    timestamp: true,
   });
 
   constructor(
     private clienteFavorecidoRepository: ClienteFavorecidoRepository,
-  ) { }
+  ) {}
 
   /**
    * All ClienteFavoecidos will be created or updated from users based of cpfCnpj.
-   * 
+   *
    * It also updates
-   * 
+   *
    * @returns All favorecidos after update
    */
   public async updateAllFromUsers(allUsers: User[]): Promise<void> {
+    // this.clienteFavorecidoRepository.
     const newFavorecidos = await this.getManyFavorecidoDTOsFromUsers(allUsers);
     await this.clienteFavorecidoRepository.upsert(newFavorecidos);
   }
 
   public async findCpfCnpj(cpfCnpj: string): Promise<ClienteFavorecido | null> {
-    return await this.clienteFavorecidoRepository.findOne({ where: { cpfCnpj: cpfCnpj } });
-  }
-
-  public async findManyFromLancamentos(lancamentos: LancamentoEntity[]): Promise<ClienteFavorecido[]> {
-    const ids = [...new Set(lancamentos.map(i => i.id_cliente_favorecido))];
-    return await this.clienteFavorecidoRepository.findMany({
-      where: {
-        id: In(ids)
-      }
+    return await this.clienteFavorecidoRepository.findOne({
+      where: { cpfCnpj: cpfCnpj },
     });
   }
 
-  public async findManyFromOrdens(ordens: BigqueryOrdemPagamentoDTO[]): Promise<ClienteFavorecido[]> {
-    const documentos = ordens.reduce((l, i) => [
-      ...l,
-      ...i.consorcioCnpj ? [i.consorcioCnpj] : [],
-      ...i.operadoraCpfCnpj ? [i.operadoraCpfCnpj] : [],
-    ], []);
+  public async findManyFromLancamentos(
+    lancamentos: LancamentoEntity[],
+  ): Promise<ClienteFavorecido[]> {
+    const ids = [...new Set(lancamentos.map((i) => i.id_cliente_favorecido))];
+    return await this.clienteFavorecidoRepository.findMany({
+      where: {
+        id: In(ids),
+      },
+    });
+  }
+
+  public async findManyFromOrdens(
+    ordens: BigqueryOrdemPagamentoDTO[],
+  ): Promise<ClienteFavorecido[]> {
+    const documentos = ordens.reduce(
+      (l, i) => [
+        ...l,
+        ...(i.consorcioCnpj ? [i.consorcioCnpj] : []),
+        ...(i.operadoraCpfCnpj ? [i.operadoraCpfCnpj] : []),
+      ],
+      [],
+    );
     const uniqueDocumentos = [...new Set(documentos)];
     return await this.clienteFavorecidoRepository.findMany({
       where: {
-        cpfCnpj: In(uniqueDocumentos)
-      }
+        cpfCnpj: In(uniqueDocumentos),
+      },
     });
   }
 
@@ -72,8 +82,9 @@ export class ClienteFavorecidoService {
   public async getOneByIdClienteFavorecido(
     idClienteFavorecido: number,
   ): Promise<ClienteFavorecido> {
-    const cliente_favorecido =
-      await this.clienteFavorecidoRepository.getOne({ id: idClienteFavorecido });
+    const cliente_favorecido = await this.clienteFavorecidoRepository.getOne({
+      id: idClienteFavorecido,
+    });
     if (!cliente_favorecido) {
       throw CommonHttpException.errorDetails(
         'cliente_favorecido.conta not found',
@@ -86,8 +97,9 @@ export class ClienteFavorecidoService {
   }
 
   public async getClienteFavorecido(): Promise<ClienteFavorecido[]> {
-    const cliente_favorecido =
-      await this.clienteFavorecidoRepository.findAll({});
+    const cliente_favorecido = await this.clienteFavorecidoRepository.findAll(
+      {},
+    );
     if (!cliente_favorecido) {
       throw CommonHttpException.errorDetails(
         'cliente_favorecido.conta not found',
@@ -110,10 +122,10 @@ export class ClienteFavorecidoService {
         nome: asString(user.fullName),
         cpfCnpj: asString(user.cpfCnpj),
         codigoBanco: String(user.getBankCode()),
-        agencia: user.getBankAgencyWithoutDigit(),
-        dvAgencia: user.getBankAgencyDigit(),
-        contaCorrente: user.getBankAccount(),
-        dvContaCorrente: user.getBankAccountDigit(),
+        agencia: user.getBankAgencyWithoutDigit().trim().padStart(5, '0'),
+        dvAgencia: user.getBankAgencyDigit().trim(),
+        contaCorrente: user.getBankAccount().trim().padStart(12, '0'),
+        dvContaCorrente: user.getBankAccountDigit().trim(),
         logradouro: null,
         numero: null,
         complemento: null,
@@ -172,8 +184,9 @@ export class ClienteFavorecidoService {
     }
   }
 
-  public async findOne(options: FindOneOptions<ClienteFavorecido>): Promise<ClienteFavorecido | null> {
+  public async findOne(
+    options: FindOneOptions<ClienteFavorecido>,
+  ): Promise<ClienteFavorecido | null> {
     return await this.clienteFavorecidoRepository.findOne(options);
   }
-
 }

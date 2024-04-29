@@ -1,30 +1,45 @@
-import { EntityHelper } from "src/utils/entity-helper";
-import { AfterLoad, Column, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { HeaderArquivo } from "./pagamento/header-arquivo.entity";
-import { Transacao } from "./pagamento/transacao.entity";
-import { asStringNumber } from "src/utils/pipe-utils";
+import { EntityHelper } from 'src/utils/entity-helper';
+import {
+  AfterLoad,
+  Column,
+  DeepPartial,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { HeaderArquivo } from './pagamento/header-arquivo.entity';
+import { Transacao } from './pagamento/transacao.entity';
+import { asStringNumber } from 'src/utils/pipe-utils';
 
+/**
+ * Unique Jaé FK: idOrdemPagamento, idConsorcio, idOperadora
+ */
 @Entity()
 export class ArquivoPublicacao extends EntityHelper {
-  constructor(
-    arquivoPublicacao: DeepPartial<ArquivoPublicacao>,
-  ) {
+  constructor(arquivoPublicacao: DeepPartial<ArquivoPublicacao>) {
     super();
     if (arquivoPublicacao !== undefined) {
       Object.assign(this, arquivoPublicacao);
     }
   }
-  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_ArquivoPublicacao_id' })
+  @PrimaryGeneratedColumn({
+    primaryKeyConstraintName: 'PK_ArquivoPublicacao_id',
+  })
   id: number;
 
   /** Remessa */
   @ManyToOne(() => HeaderArquivo, { nullable: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ArquivoPublicacao_headerArquivo_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_ArquivoPublicacao_headerArquivo_ManyToOne',
+  })
   headerArquivo: HeaderArquivo | null;
 
   /** Remessa */
   @ManyToOne(() => Transacao, { nullable: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ArquivoPublicacao_transacao_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_ArquivoPublicacao_transacao_ManyToOne',
+  })
   transacao: Transacao;
 
   /** Remessa */
@@ -103,12 +118,18 @@ export class ArquivoPublicacao extends EntityHelper {
   @Column({ type: String, unique: false, nullable: false })
   dvContaCorrenteCliente: string;
 
-  /** Retorno CNAB. Friday week day (friday) */
+  /** Remessa CNAB. Friday week day (friday) */
   @Column({ type: String, unique: false, nullable: true })
   dataVencimento: Date | null;
 
   /** Retorno CNAB. */
-  @Column({ type: String, unique: false, nullable: true })
+  @Column({
+    type: 'numeric',
+    unique: false,
+    nullable: true,
+    precision: 13,
+    scale: 2,
+  })
   valorLancamento: number | null;
 
   /** Retorno CNAB. Payment retorno date */
@@ -129,21 +150,21 @@ export class ArquivoPublicacao extends EntityHelper {
 
   /**
    * OrdemPagamento
-   * 
+   *
    * Id from cadastro.consorcios
-   * 
+   *
    * id_consorcio.cnpj = CNPJ
    */
   @Column({ type: String, unique: false, nullable: false })
   idConsorcio: string;
 
-  /** 
+  /**
    * OrdemPagamento
-   * 
+   *
    * Operadora id from cadastro.operadoras
-   * 
+   *
    * id_operadora.documento = CPF
-  */
+   */
   @Column({ type: String, unique: false, nullable: false })
   idOperadora: string;
 
@@ -161,16 +182,23 @@ export class ArquivoPublicacao extends EntityHelper {
 
   /** OrdemPagamento */
   @Column({
-    type: 'decimal', unique: false, nullable: false,
+    type: 'decimal',
+    unique: false,
+    nullable: false,
     precision: 13,
     scale: 2,
   })
   valorTotalTransacaoLiquido: number;
 
   @AfterLoad()
-  setFieldValues() {
+  setReadValues() {
     if (typeof this.valorTotalTransacaoLiquido === 'string') {
-      this.valorTotalTransacaoLiquido = asStringNumber(this.valorTotalTransacaoLiquido);
+      this.valorTotalTransacaoLiquido = asStringNumber(
+        this.valorTotalTransacaoLiquido,
+      );
+    }
+    if (typeof this.valorLancamento === 'string') {
+      this.valorLancamento = asStringNumber(this.valorLancamento);
     }
   }
 }

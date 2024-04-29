@@ -84,12 +84,19 @@ export class HeaderArquivoService {
       horaGeracao: cnab104.headerArquivo.horaGeracaoArquivo.convertedValue,
       transacao: { id: headerArquivoRemessa.transacao.id } as Transacao,
       nsa: cnab104.headerArquivo.nsa.convertedValue,
+      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retornoSaved),
     });
     return await this.headerArquivoRepository.saveIfNotExists(headerArquivo);
   }
 
   public async findAllNewRemessa(): Promise<HeaderArquivo[]> {
     return this.headerArquivoRepository.findAllRemessaForPublicacao();
+  }
+
+  public async findOne(
+    fields: FindOptionsWhere<HeaderArquivo> | FindOptionsWhere<HeaderArquivo>[],
+  ): Promise<HeaderArquivo | null> {
+    return (await this.headerArquivoRepository.findOne({ where: fields })) || null;
   }
 
   public async findMany(

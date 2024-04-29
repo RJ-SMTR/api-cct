@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
@@ -6,6 +6,7 @@ import { LancamentoService } from 'src/lancamento/lancamento.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
 import { UsersService } from 'src/users/users.service';
+import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asString } from 'src/utils/pipe-utils';
 import { ArquivoPublicacao } from './entity/arquivo-publicacao.entity';
@@ -21,15 +22,17 @@ import { ItemTransacaoService } from './service/pagamento/item-transacao.service
 import { PagadorService } from './service/pagamento/pagador.service';
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
-import { parseCnab240Extrato, parseCnab240Pagamento } from './utils/cnab/cnab-104-utils';
-import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
+import {
+  parseCnab240Extrato,
+  parseCnab240Pagamento,
+} from './utils/cnab/cnab-104-utils';
 
 /**
  * User cases for CNAB and Payments
  */
 @Injectable()
 export class CnabService {
-  private logger: Logger = new CustomLogger('CnabService', {
+  private logger: CustomLogger = new CustomLogger('CnabService', {
     timestamp: true,
   });
 
@@ -47,19 +50,19 @@ export class CnabService {
     private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
     private usersService: UsersService,
     private readonly lancamentoService: LancamentoService,
-  ) { }
+  ) {}
 
   // #region saveTransacoesJae
 
   /**
    * Update Transacoes tables from Jaé (bigquery)
-   * 
+   *
    * This task will:
    * 1. Update ClienteFavorecidos from Users
    * 2. Fetch ordemPgto from this week
    * 3. Save new Transacao (status = created) / ItemTransacao (status = craeted)
    * 4. Save new ArquivoPublicacao
-   * 
+   *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
   public async saveTransacoesJae() {
@@ -81,39 +84,66 @@ export class CnabService {
     }
 
     // 3. Save Transacao / ItemTransacao
-    const favorecidos = (await this.clienteFavorecidoService.findManyFromOrdens(ordens))
-      .filter(i => isCpfOrCnpj(i.cpfCnpj) !== null);
+    const favorecidos = (
+      await this.clienteFavorecidoService.findManyFromOrdens(ordens)
+    ).filter((i) => isCpfOrCnpj(i.cpfCnpj) !== null);
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
-    const publicacaoDTOs = this.arqPublicacaoService.generateDTOs(ordens, pagador, favorecidos);
-    const transacaoDTOs = this.transacaoService.generateDTOsFromPublicacoes(publicacaoDTOs, pagador);
-    const newTransacoes = await this.transacaoService.saveManyIfNotExists(transacaoDTOs);
-    const newPublicacaoDTOs = this.updateNewPublicacaoDTOs(publicacaoDTOs, newTransacoes);
-    const itemTransacaoDTOs = this.itemTransacaoService.generateDTOsFromPublicacoes(newPublicacaoDTOs, favorecidos);
-    const newItemTransacoes = await this.itemTransacaoService.saveMany(itemTransacaoDTOs);
+    const publicacaoDTOs = this.arqPublicacaoService.generateDTOs(
+      ordens,
+      pagador,
+      favorecidos,
+    );
+    const transacaoDTOs = this.transacaoService.generateDTOsFromPublicacoes(
+      publicacaoDTOs,
+      pagador,
+    );
+    const newTransacoes = await this.transacaoService.saveManyIfNotExists(
+      transacaoDTOs,
+    );
+    const newPublicacaoDTOs = this.updateNewPublicacaoDTOs(
+      publicacaoDTOs,
+      newTransacoes,
+    );
+    const itemTransacaoDTOs =
+      this.itemTransacaoService.generateDTOsFromPublicacoes(
+        newPublicacaoDTOs,
+        favorecidos,
+      );
+    const newItemTransacoes = await this.itemTransacaoService.saveMany(
+      itemTransacaoDTOs,
+    );
 
     // 4. Save new ArquivoPublicacao
-    const savedPublicacoes = await this.arqPublicacaoService.saveMany(newPublicacaoDTOs);
+    const savedPublicacoes = await this.arqPublicacaoService.saveMany(
+      newPublicacaoDTOs,
+    );
 
-    this.logger.log(`Foram inseridos com sucesso: ${newTransacoes.length} Transacoes, ` +
-      `${newItemTransacoes.length} ItemTransacoes, ${savedPublicacoes.length} ArquivoPublicacoes`, METHOD);
+    this.logger.log(
+      `Foram inseridos com sucesso: ${newTransacoes.length} Transacoes, ` +
+        `${newItemTransacoes.length} ItemTransacoes, ${savedPublicacoes.length} ArquivoPublicacoes`,
+      METHOD,
+    );
   }
 
   /**
    * Get BigqueryOrdemPagamento items.
-  */
+   */
   private async getOrdemPagamento(): Promise<BigqueryOrdemPagamentoDTO[]> {
-    return await this.bigqueryOrdemPagamentoService.getFromWeek(30);
+    return await this.bigqueryOrdemPagamentoService.getFromWeek(90);
   }
 
   /**
    * @returns Only new ArquivoPublicacoes. Those associated with new Transacao.
    */
   private updateNewPublicacaoDTOs(
-    publicacoes: ArquivoPublicacao[], createdTransacoes: Transacao[]
+    publicacoes: ArquivoPublicacao[],
+    createdTransacoes: Transacao[],
   ): ArquivoPublicacao[] {
     /** key: idOrdemPagamento */
-    const transacaoMap: Record<string, Transacao> = createdTransacoes
-      .reduce((map, i) => ({ ...map, [asString(i.idOrdemPagamento)]: i }), {});
+    const transacaoMap: Record<string, Transacao> = createdTransacoes.reduce(
+      (map, i) => ({ ...map, [asString(i.idOrdemPagamento)]: i }),
+      {},
+    );
     const newPublicacoes: ArquivoPublicacao[] = [];
     for (const publicacao of publicacoes) {
       const transacao = transacaoMap[publicacao.idOrdemPagamento];
@@ -122,8 +152,10 @@ export class CnabService {
         newPublicacoes.push(publicacao);
       }
     }
-    this.logger.debug(`${newPublicacoes.length}/${publicacoes.length} ArquivoPublicacoes novas `
-      + '(associado com Transacao nova).');
+    this.logger.debug(
+      `${newPublicacoes.length}/${publicacoes.length} ArquivoPublicacoes novas ` +
+        '(associado com Transacao nova).',
+    );
     return newPublicacoes;
   }
 
@@ -133,12 +165,12 @@ export class CnabService {
 
   /**
    * Update Transacoes tables from Lancamento (api-cct)
-   * 
+   *
    * This task will:
    * 1. Update ClienteFavorecidos from Users
    * 2. Find new Lancamento from this week (qui-qua)
    * 3. Save new Transacao (status = created) / ItemTransacao (status = created)
-   * 
+   *
    * Requirement: **Salvar Transações de Lançamento** - {@link https://github.com/RJ-SMTR/api-cct/issues/188#issuecomment-2045867616 #188, items 1}
    */
   public async saveTransacoesLancamento() {
@@ -160,20 +192,33 @@ export class CnabService {
     }
 
     // 3. Save new Transacao / ItemTransacao
-    const favorecidos = newLancamentos.map(i => i.id_cliente_favorecido);
+    const favorecidos = newLancamentos.map((i) => i.id_cliente_favorecido);
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
     // It will automatically update Lancamentos via OneToMany
-    const transacaoDTO = this.transacaoService.generateDTOForLancamento(pagador, newLancamentos);
-    const savedTransacao = await this.transacaoService.saveForLancamento(transacaoDTO);
+    const transacaoDTO = this.transacaoService.generateDTOForLancamento(
+      pagador,
+      newLancamentos,
+    );
+    const savedTransacao = await this.transacaoService.saveForLancamento(
+      transacaoDTO,
+    );
     const updatedLancamentos = savedTransacao.lancamentos as LancamentoEntity[];
-      // .findByLancamentos(savedTransacao.lancamentos as LancamentoEntity[])
-    const itemTransacaoDTOs = this.itemTransacaoService
-      .generateDTOsFromLancamentos(updatedLancamentos, favorecidos);
-    const newItemTransacoes = await this.itemTransacaoService.saveMany(itemTransacaoDTOs);
+    // .findByLancamentos(savedTransacao.lancamentos as LancamentoEntity[])
+    const itemTransacaoDTOs =
+      this.itemTransacaoService.generateDTOsFromLancamentos(
+        updatedLancamentos,
+        favorecidos,
+      );
+    const newItemTransacoes = await this.itemTransacaoService.saveMany(
+      itemTransacaoDTOs,
+    );
 
-    this.logger.log(`Foram inseridos com sucesso: 1 Transacao, ` +
-      `${newItemTransacoes.length} ItemTransacoes;` +
-      `e atualizados ${updatedLancamentos.length} Lancamentos`, METHOD);
+    this.logger.log(
+      `Foram inseridos com sucesso: 1 Transacao, ` +
+        `${newItemTransacoes.length} ItemTransacoes;` +
+        `e atualizados ${updatedLancamentos.length} Lancamentos`,
+      METHOD,
+    );
   }
 
   // #endregion
@@ -188,8 +233,8 @@ export class CnabService {
    * 1. Read new Transacoes (with no data in CNAB tables yet, like headerArquivo etc)
    * 2. Generate CnabFile
    * 3. Save CnabFile to CNAB tables in database
-   * 4. Upload CNAB string to SFTP 
-   * 
+   * 4. Upload CNAB string to SFTP
+   *
    * @throws `Error` if any subtask throws
    */
   public async sendRemessa() {
@@ -199,9 +244,14 @@ export class CnabService {
 
     // Retry all failed ItemTransacao to first new Transacao
     if (allNewTransacao.length > 0) {
-      await this.itemTransacaoService.moveAllFailedToTransacao(allNewTransacao[0]);
+      await this.itemTransacaoService.moveAllFailedToTransacao(
+        allNewTransacao[0],
+      );
     } else {
-      this.logger.log('Sem Transações novas para criar CNAB. Tarefa finalizada.', METHOD);
+      this.logger.log(
+        'Sem Transações novas para criar CNAB. Tarefa finalizada.',
+        METHOD,
+      );
       return;
     }
 
@@ -209,19 +259,25 @@ export class CnabService {
 
     // Generate Remessas and send SFTP
     for (const transacao of allNewTransacao) {
-      const cnab = await this.remessaRetornoService.generateCnabRemessa(transacao);
+      const cnab = await this.remessaRetornoService.generateCnabRemessa(
+        transacao,
+      );
       if (!cnab) {
         this.logger.warn(
-          `A Transação #${transacao.id} gerou cnab vazio (sem itens válidos), ignorando...`, METHOD);
+          `A Transação #${transacao.id} gerou cnab vazio (sem itens válidos), ignorando...`,
+          METHOD,
+        );
         continue;
       }
       try {
         await this.sftpService.submitCnabRemessa(cnab.string);
         cnabs.push(cnab.dto);
-      }
-      catch (error) {
+      } catch (error) {
         this.logger.error(
-          `Falha ao enviar o CNAB, tentaremos enviar no próximo job...`, METHOD, error, error);
+          `Falha ao enviar o CNAB, tentaremos enviar no próximo job...`,
+          METHOD,
+          error,
+        );
       }
     }
 
@@ -231,15 +287,26 @@ export class CnabService {
 
   /**
    * This task will:
-   * 1. Get retorno from SFTP
+   * 1. Get first retorno from SFTP
    * 2. Save retorno to CNAB tables
    * 3.  - If successfull, move retorno to backup folder.
    *     - If failed, move retorno to backup/failure folder
    */
-  public async saveRetorno() {
-    const METHOD = 'updateRetorno()';
+  public async updateRetorno() {
+    const METHOD = this.updateRetorno.name;
     // Get retorno
-    const { cnabString, cnabName } = await this.sftpService.getFirstCnabRetorno();
+    const { cnabString, cnabName } = {
+      cnabName: 'smtr_prefeiturarj_140324_120102.ret',
+      cnabString: `
+10400000         20054603700011044477301P    0000   0406490006000710848 CONTA BILHETAGEM  CB          CAIXA                                   12604202415342300001008001600                                                      000  00        
+10400011C2041041 20054603700011044477301000101      0406490006000710848 CONTA BILHETAGEM  CB                                                  R DONA MARIANA                00048ANDAR 7        RIO DE JANEIRO      22280020RJ                  
+1040001300001A00001803302271 0000130987857 CONCESSIONARIA DO VLT CARIOCA 000001             126042024BRL000000000000000000000000090962000000000   01N1000000000000000000000000000                                        00          000        
+1040001300002B   218201378000119                              00000                                                  00000     26042024000000000000000000000000000000000000000000000000000000000000000000000000000                              
+10400015         000004000000000000090962000000000000000000000000                                                                                                                                                                               
+10499999         000001000006000000                                                                                                                                                                                                             
+`,
+    };
+    // await this.sftpService.getFirstCnabRetorno();
     if (!cnabName || !cnabString) {
       this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
       return;
@@ -250,22 +317,29 @@ export class CnabService {
       const retorno104 = parseCnab240Pagamento(cnabString);
       await this.remessaRetornoService.saveRetorno(retorno104);
       await this.arqPublicacaoService.compareRemessaToRetorno();
-      await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess);
-    }
-    catch (error) {
+      await this.sftpService.moveToBackup(
+        cnabName,
+        SftpBackupFolder.RetornoSuccess,
+      );
+    } catch (error) {
       this.logger.error(
-        'Erro ao processar CNAB retorno, movendo para backup de erros e finalizando...',
-        METHOD, error, error);
-      await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoFailure);
+        `Erro ao processar CNAB retorno, movendo para backup de erros e finalizando... - ${error}`,
+        error.stack,
+        METHOD,
+      );
+      await this.sftpService.moveToBackup(
+        cnabName,
+        SftpBackupFolder.RetornoFailure,
+      );
       return;
     }
   }
 
   // #region saveExtrato
 
-  /*https://www.notion.so/rivassauro/f05a0701bf5740fc9cd74636d00191ca?v=b65283eaf7cb4e0b9276ea87fd16e9d5*
+  /**
    * This task will:
-   * 1. Get extrato from SFTPhttps://www.notion.so/rivassauro/d83d30147c2a417a9cbc6f26904eedeb?v=79ee5f05f3d44d07831e66ee6094582e
+   * 1. Get extrato from SFTP
    * 2. Save extrato to CNAB tables
    * 3.  - If successfull, move retorno to backup folder.
    *     - If failed, move retorno to backup/failure folder
@@ -283,28 +357,41 @@ export class CnabService {
     try {
       const retorno104 = parseCnab240Extrato(cnab.content);
       await this.saveExtratoFromCnab(retorno104);
-      await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess);
-    }
-    catch (error) {
+      await this.sftpService.moveToBackup(
+        cnab.name,
+        SftpBackupFolder.RetornoSuccess,
+      );
+    } catch (error) {
       this.logger.error(
         'Erro ao processar CNAB extrato, movendo para backup de erros e finalizando...',
-        METHOD, error, error);
-      // await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure);
+        error,
+        METHOD,
+      );
+      await this.sftpService.moveToBackup(
+        cnab.name,
+        SftpBackupFolder.RetornoFailure,
+      );
       return;
     }
   }
 
   private async saveExtratoFromCnab(cnab: CnabFile104Extrato) {
-    const saveHeaderArquivo = await this.extHeaderArquivoService.saveFrom104(cnab.headerArquivo);
+    const saveHeaderArquivo = await this.extHeaderArquivoService.saveFrom104(
+      cnab.headerArquivo,
+    );
     for (const lote of cnab.lotes) {
-      const saveHeaderLote =
-        await this.extHeaderLoteService.saveFrom104(lote.headerLote, saveHeaderArquivo.item);
+      const saveHeaderLote = await this.extHeaderLoteService.saveFrom104(
+        lote.headerLote,
+        saveHeaderArquivo.item,
+      );
       for (const registro of lote.registros) {
-        await this.extDetalheEService.saveFrom104(registro.detalheE, saveHeaderLote);
+        await this.extDetalheEService.saveFrom104(
+          registro.detalheE,
+          saveHeaderLote,
+        );
       }
     }
   }
 
   // #endregion
-
 }

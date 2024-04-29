@@ -1,6 +1,8 @@
 
 /**
  * Get value or use default key, otherwise throw error
+ * 
+ * @param args.defaulValue Instead of throw error, return this value
  */
 function getValue<T>(e: T, key: any, args?: { defaultKey?: keyof T, defaultValue: any }): any {
   const keyIndex = Object.keys(e as any).indexOf(key);

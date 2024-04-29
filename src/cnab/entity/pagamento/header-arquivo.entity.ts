@@ -1,6 +1,16 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrDateTime } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  AfterLoad,
+  BeforeInsert,
+  Column,
+  CreateDateColumn,
+  DeepPartial,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { HeaderArquivoStatus } from './header-arquivo-status.entity';
 import { Transacao } from './transacao.entity';
 
@@ -22,7 +32,7 @@ export class HeaderArquivo extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: false })
   tipoArquivo: number;
 
-  @Column({ type: String, unique: false, nullable: true, length: 10 })
+  @Column({ type: String, unique: false, nullable: true, length: 3 })
   codigoBanco: string | null;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
@@ -59,7 +69,9 @@ export class HeaderArquivo extends EntityHelper {
   horaGeracao: Date;
 
   @ManyToOne(() => Transacao, { eager: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderArquivo_transacao_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_HeaderArquivo_transacao_ManyToOne',
+  })
   transacao: Transacao;
 
   @Column({ type: Number, unique: false, nullable: false })
@@ -76,8 +88,18 @@ export class HeaderArquivo extends EntityHelper {
     return `{ transacao: ${this.transacao.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;
   }
 
+  @BeforeInsert()
+  setLoadValues() {
+    if (typeof this.codigoBanco === 'string') {
+      this.codigoBanco = this.codigoBanco.padStart(3, '0');
+    }
+    if (typeof this.numeroConta === 'string') {
+      this.numeroConta = this.numeroConta.padStart(12, '0');
+    }
+  }
+
   @AfterLoad()
-  setFieldValues() {
+  setReadValues() {
     this.horaGeracao = asStringOrDateTime(this.horaGeracao, this.dataGeracao);
   }
 

@@ -1,6 +1,18 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { asNullableStringOrNumber, asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  asNullableStringOrNumber,
+  asStringOrNumber,
+} from 'src/utils/pipe-utils';
+import {
+  AfterLoad,
+  Column,
+  CreateDateColumn,
+  DeepPartial,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
 
@@ -17,7 +29,9 @@ export class DetalheA extends EntityHelper {
   headerLote: HeaderLote;
 
   @ManyToOne(() => ClienteFavorecido, { eager: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_DetalheA_clienteFavorecido_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheA_clienteFavorecido_ManyToOne',
+  })
   clienteFavorecido: ClienteFavorecido;
 
   @Column({ type: Number, unique: false, nullable: true })
@@ -37,14 +51,18 @@ export class DetalheA extends EntityHelper {
   tipoMoeda: string | null;
 
   @Column({
-    type: 'decimal', unique: false, nullable: true,
+    type: 'decimal',
+    unique: false,
+    nullable: true,
     precision: 10,
     scale: 5,
   })
   quantidadeMoeda: number | null;
 
   @Column({
-    type: 'decimal', unique: false, nullable: true,
+    type: 'decimal',
+    unique: false,
+    nullable: true,
     precision: 13,
     scale: 2,
   })
@@ -72,15 +90,17 @@ export class DetalheA extends EntityHelper {
   dataEfetivacao: Date | null;
 
   @Column({
-    type: 'decimal', unique: false, nullable: true,
+    type: 'decimal',
+    unique: false,
+    nullable: true,
     precision: 13,
     scale: 2,
   })
   valorRealEfetivado: number;
 
-  /** 
+  /**
    * Número Sequencial do Registro.
-   * 
+   *
    * Detalhe unique ID per lote
    */
   @Column({ type: Number, unique: false, nullable: false })
@@ -93,7 +113,7 @@ export class DetalheA extends EntityHelper {
   createdAt: Date;
 
   @AfterLoad()
-  setFieldValues() {
+  setReadValues() {
     this.quantidadeMoeda = asNullableStringOrNumber(this.quantidadeMoeda);
     this.valorLancamento = asStringOrNumber(this.valorLancamento);
     this.valorRealEfetivado = asStringOrNumber(this.valorRealEfetivado);
@@ -102,7 +122,10 @@ export class DetalheA extends EntityHelper {
   /**
    * ID: headerLoteUniqueId + detalheA columns
    */
-  public static getUniqueId(detalheA: DeepPartial<DetalheA>, headerLoteUniqueId?: string): string {
+  public static getUniqueId(
+    detalheA: DeepPartial<DetalheA>,
+    headerLoteUniqueId?: string,
+  ): string {
     const _headerLoteUniqueId = headerLoteUniqueId
       ? `(${headerLoteUniqueId})`
       : `(${HeaderLote.getUniqueId(detalheA?.headerLote)})`;

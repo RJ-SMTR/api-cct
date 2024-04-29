@@ -491,7 +491,7 @@ export function parseDate(field: CnabField) {
   }
   const format = field.format as CnabFieldFormat;
   let date: Date | null = new Date(field.value);
-  if (!isValidDate(date)) {
+  if (!isValidDate(date) || typeof field.value === 'string'&& Number(field.value) > 0) {
     date = asNumberStringDate(field.value, format.dateFormat);
   }
   if (field.format.formatType === 'nullableDate' && Number(field.value) === 0) {

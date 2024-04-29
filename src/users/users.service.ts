@@ -50,7 +50,9 @@ export enum userUploadEnum {
 
 @Injectable()
 export class UsersService {
-  private logger: CustomLogger = new CustomLogger(UsersService.name, { timestamp: true });
+  private logger: CustomLogger = new CustomLogger(UsersService.name, {
+    timestamp: true,
+  });
 
   constructor(
     @InjectRepository(User)
@@ -58,13 +60,13 @@ export class UsersService {
     private mailHistoryService: MailHistoryService,
     private banksService: BanksService,
     private readonly entityManager: EntityManager,
-  ) { }
+  ) {}
 
   async create(createProfileDto: CreateUserDto): Promise<User> {
     const createdUser = await this.usersRepository.save(
       this.usersRepository.create(createProfileDto),
     );
-    this.logger.log( `Usuário criado: ${createdUser.getLogInfo()}`);
+    this.logger.log(`Usuário criado: ${createdUser.getLogInfo()}`);
     return createdUser;
   }
 
@@ -84,8 +86,11 @@ export class UsersService {
     return await this.usersRepository.count(options);
   }
 
-  async findMany(options: FindManyOptions<User>, loadAuxColumns = true): Promise<User[]> {
-    const users = await this.usersRepository.find(options) || [];
+  async findMany(
+    options: FindManyOptions<User>,
+    loadAuxColumns = true,
+  ): Promise<User[]> {
+    const users = (await this.usersRepository.find(options)) || [];
     if (loadAuxColumns) {
       await this.setManyUserAuxColumns(users);
     }
@@ -93,22 +98,25 @@ export class UsersService {
   }
 
   async findManyRegisteredUsers() {
-    const validUsers = await this.usersRepository.createQueryBuilder("user")
-      .where("user.roleId = :roleId", { roleId: RoleEnum.user })
-      .andWhere("user.fullName IS NOT NULL")
-      .andWhere("user.cpfCnpj IS NOT NULL")
-      .andWhere("user.bankCode IS NOT NULL")
-      .andWhere("user.bankAgency IS NOT NULL")
-      .andWhere("user.bankAccount IS NOT NULL")
-      .andWhere("user.bankAccountDigit IS NOT NULL")
+    const validUsers = await this.usersRepository
+      .createQueryBuilder('user')
+      .where('user.roleId = :roleId', { roleId: RoleEnum.user })
+      .andWhere('user.fullName IS NOT NULL')
+      .andWhere('user.cpfCnpj IS NOT NULL')
+      .andWhere('user.bankCode IS NOT NULL')
+      .andWhere('user.bankAgency IS NOT NULL')
+      .andWhere('user.bankAccount IS NOT NULL')
+      .andWhere('user.bankAccountDigit IS NOT NULL')
       .andWhere("user.fullName != ''")
       .andWhere("user.cpfCnpj != ''")
       .andWhere("user.bankAgency != ''")
-      .andWhere("user.bankAccount != ''")
-      .andWhere("user.bankAccountDigit != ''")
+      .andWhere('LENGTH(TRIM(user.bankAccount)) >= 1')
+      .andWhere('LENGTH(TRIM(user.bankAccount)) <= 12')
+      /**Ignore fields like "67" etc */
+      .andWhere('LENGTH(TRIM(user.bankAccountDigit)) = 1')
       .getMany();
     await this.setManyUserAuxColumns(validUsers);
-    return validUsers
+    return validUsers;
   }
 
   async findManyWithPagination(
@@ -131,8 +139,8 @@ export class UsersService {
     const andWhere = {
       ...(fields?.role
         ? {
-          role: { id: fields.role.id },
-        }
+            role: { id: fields.role.id },
+          }
         : {}),
     } as FindOptionsWhere<User>;
 
@@ -140,12 +148,12 @@ export class UsersService {
       const whereFields = [
         ...(fields?.permitCode || fields?._anyField?.value
           ? [
-            {
-              permitCode: ILike(
-                `%${fields?.permitCode || fields?._anyField?.value}%`,
-              ),
-            },
-          ]
+              {
+                permitCode: ILike(
+                  `%${fields?.permitCode || fields?._anyField?.value}%`,
+                ),
+              },
+            ]
           : []),
 
         ...(fields?.email || fields?._anyField?.value
@@ -154,12 +162,12 @@ export class UsersService {
 
         ...(fields?.cpfCnpj || fields?._anyField?.value
           ? [
-            {
-              cpfCnpj: ILike(
-                `%${fields?.cpfCnpj || fields?._anyField?.value}%`,
-              ),
-            },
-          ]
+              {
+                cpfCnpj: ILike(
+                  `%${fields?.cpfCnpj || fields?._anyField?.value}%`,
+                ),
+              },
+            ]
           : []),
 
         ...(isSgtuBlocked === 'true' || isSgtuBlocked === 'false'
@@ -168,12 +176,12 @@ export class UsersService {
 
         ...(fields?.passValidatorId || fields?._anyField?.value
           ? [
-            {
-              passValidatorId: ILike(
-                `%${fields?.passValidatorId || fields?._anyField?.value}%`,
-              ),
-            },
-          ]
+              {
+                passValidatorId: ILike(
+                  `%${fields?.passValidatorId || fields?._anyField?.value}%`,
+                ),
+              },
+            ]
           : []),
       ] as FindOptionsWhere<User>[];
 
@@ -239,8 +247,9 @@ export class UsersService {
 
   private async setManyAux_invite(users: User[]) {
     // Find banks
-    const invitesMap: Record<string, MailHistory> = (await this.mailHistoryService.findManyRecentByUser(users))
-      .reduce((map, i) => ({ ...map, [i.user.id]: i }), {});
+    const invitesMap: Record<string, MailHistory> = (
+      await this.mailHistoryService.findManyRecentByUser(users)
+    ).reduce((map, i) => ({ ...map, [i.user.id]: i }), {});
 
     // Update
     for (const user of users) {
@@ -254,12 +263,14 @@ export class UsersService {
 
   private async setManyAux_bank(users: User[]) {
     // Find banks
-    const bankCodes = users.reduce((l, i) =>
-      typeof i.bankCode === 'number' ? [...l, i.bankCode] : l
-      , []);
+    const bankCodes = users.reduce(
+      (l, i) => (typeof i.bankCode === 'number' ? [...l, i.bankCode] : l),
+      [],
+    );
     /** key: bank code */
-    const bankMap: Record<number, Bank> = (await this.banksService.findMany({ code: In(bankCodes) }))
-      .reduce((map, i) => ({ ...map, [i.code]: i }), {});
+    const bankMap: Record<number, Bank> = (
+      await this.banksService.findMany({ code: In(bankCodes) })
+    ).reduce((map, i) => ({ ...map, [i.code]: i }), {});
 
     // Set banks
     for (const user of users) {
@@ -269,9 +280,7 @@ export class UsersService {
     }
   }
 
-  async findOne(
-    fields: EntityCondition<User>,
-  ): Promise<Nullable<User>> {
+  async findOne(fields: EntityCondition<User>): Promise<Nullable<User>> {
     let user = await this.usersRepository.findOne({
       where: fields,
     });
@@ -341,7 +350,7 @@ export class UsersService {
     await this.usersRepository.softDelete(id);
     this.logger.log(
       `Usuário ${{ id }} desativado com sucesso.`,
-      `${METHOD} from ${logContext}`
+      `${METHOD} from ${logContext}`,
     );
   }
 
@@ -473,7 +482,7 @@ export class UsersService {
             ? [{ permitCode: userFile.user.codigo_permissionario }]
             : []),
           ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : []),
-        ]
+        ],
       });
       if (dbFoundUsers.length > 0) {
         for (const dbField of fields) {
@@ -521,7 +530,9 @@ export class UsersService {
     return errorDictionary;
   }
 
-  async getUserFilesFromWorksheet(worksheet: xlsx.WorkSheet): Promise<IFileUser[]> {
+  async getUserFilesFromWorksheet(
+    worksheet: xlsx.WorkSheet,
+  ): Promise<IFileUser[]> {
     this.validateFileHeaders(worksheet);
 
     const fileData = xlsx.utils.sheet_to_json(worksheet);
@@ -632,10 +643,10 @@ export class UsersService {
     };
     this.logger.log(
       'Tarefa finalizada, resultado:\n' +
-      JSON.stringify({
-        requestUser: reqUser.getLogInfo(),
-        ...result,
-      }),
+        JSON.stringify({
+          requestUser: reqUser.getLogInfo(),
+          ...result,
+        }),
       'createFromFile()',
     );
     return result;
@@ -647,12 +658,12 @@ export class UsersService {
   async getUnregisteredUsers(): Promise<User[]> {
     const results: any[] = await this.entityManager.query(
       'SELECT u."fullName", u."email", u."phone", i."sentAt", i."inviteStatusId", i."hash" ' +
-      'FROM public."user" u ' +
-      'INNER JOIN invite i ON u.id = i."userId" ' +
-      `WHERE i."inviteStatusId" = ${InviteStatusEnum.sent} ` +
-      'AND i."sentAt" <= NOW() - INTERVAL \'15 DAYS\' ' +
-      `AND u."roleId" = ${RoleEnum.user} ` +
-      'ORDER BY U."fullName", i."sentAt"',
+        'FROM public."user" u ' +
+        'INNER JOIN invite i ON u.id = i."userId" ' +
+        `WHERE i."inviteStatusId" = ${InviteStatusEnum.sent} ` +
+        'AND i."sentAt" <= NOW() - INTERVAL \'15 DAYS\' ' +
+        `AND u."roleId" = ${RoleEnum.user} ` +
+        'ORDER BY U."fullName", i."sentAt"',
     );
     const users: User[] = [];
     for (const result of results) {
@@ -678,12 +689,12 @@ export class UsersService {
   async getNotRegisteredUsers(): Promise<User[]> {
     const results: any[] = await this.entityManager.query(
       'SELECT U."fullName", u.email, u.phone, iv."name", i."sentAt", i."inviteStatusId", i."hash" ' +
-      'FROM public."user" U inner join invite i on  U.id = i."userId" ' +
-      'inner join invite_status iv on iv.id = i."inviteStatusId" ' +
-      'where u."bankCode" is null ' +
-      'and "roleId" != 1 ' +
-      'and i."inviteStatusId" != 2 ' +
-      'order by U."fullName", i."sentAt" ',
+        'FROM public."user" U inner join invite i on  U.id = i."userId" ' +
+        'inner join invite_status iv on iv.id = i."inviteStatusId" ' +
+        'where u."bankCode" is null ' +
+        'and "roleId" != 1 ' +
+        'and i."inviteStatusId" != 2 ' +
+        'order by U."fullName", i."sentAt" ',
     );
     const users: User[] = [];
     for (const result of results) {
