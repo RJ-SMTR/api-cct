@@ -3261,11 +3261,6 @@ buffer@5.6.0:
     base64-js "^1.0.2"
     ieee754 "^1.1.4"
 
-buildcheck@~0.0.6:
-  version "0.0.6"
-  resolved "https://registry.npmjs.org/buildcheck/-/buildcheck-0.0.6.tgz"
-  integrity sha512-8f9ZJCUXyT1M35Jx7MkBgmBMo3oHTTBIPLiY9xyL0pl3T5RwcPEY8cUHr5LBNfu/fk6c2T4DJZuVM/8ZZT2D2A==
-
 busboy@^0.2.11:
   version "0.2.14"
   resolved "https://registry.npmjs.org/busboy/-/busboy-0.2.14.tgz"
@@ -3754,14 +3749,6 @@ cosmiconfig@^7.0.1:
     parse-json "^5.0.0"
     path-type "^4.0.0"
     yaml "^1.10.0"
-
-cpu-features@~0.0.9:
-  version "0.0.9"
-  resolved "https://registry.npmjs.org/cpu-features/-/cpu-features-0.0.9.tgz"
-  integrity sha512-AKjgn2rP2yJyfbepsmLfiYcmtNn/2eUvocUyM/09yB0YDiz39HteK/5/T4Onf0pmdYDMgkBoGvRLvEguzyL7wQ==
-  dependencies:
-    buildcheck "~0.0.6"
-    nan "^2.17.0"
 
 crc-32@~1.2.0, crc-32@~1.2.1:
   version "1.2.2"
@@ -7369,11 +7356,6 @@ mz@^2.4.0:
     any-promise "^1.0.0"
     object-assign "^4.0.1"
     thenify-all "^1.0.0"
-
-nan@^2.17.0, nan@^2.18.0:
-  version "2.18.0"
-  resolved "https://registry.npmjs.org/nan/-/nan-2.18.0.tgz"
-  integrity sha512-W7tfG7vMOGtD30sHoZSSc/JVYiyDPEyQVso/Zz+/uQd0B0L46gtC+pHha5FFMRpil6fm/AoEcRWyOVi4+E/f8w==
 
 natural-compare-lite@^1.4.0:
   version "1.4.0"

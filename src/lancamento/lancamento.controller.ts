@@ -76,6 +76,7 @@ export class LancamentoController {
       authorized,
     );
   }
+  
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)

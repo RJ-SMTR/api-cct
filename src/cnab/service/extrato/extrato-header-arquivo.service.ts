@@ -6,13 +6,18 @@ import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { DeepPartial } from 'typeorm';
+import { DeepPartial, EntityManager } from 'typeorm';
+import { ExtratoDto } from '../dto/extrato.dto';
+import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 
 @Injectable()
 export class ExtratoHeaderArquivoService {
+  
+
   private logger: Logger = new Logger('ExtratoHeaderArquivoService', { timestamp: true });
 
-  constructor(private extHeaderArquivoRepository: ExtratoHeaderArquivoRepository) { }
+  constructor(private extHeaderArquivoRepository: ExtratoHeaderArquivoRepository,
+    private readonly entityManager:EntityManager) { }
 
   public async save(obj: DeepPartial<ExtratoHeaderArquivo>): Promise<ExtratoHeaderArquivo> {
     return await this.extHeaderArquivoRepository.save(obj);
@@ -60,4 +65,28 @@ export class ExtratoHeaderArquivoService {
   public async getNextNumeroDocumento(date: Date): Promise<number> {
     return await this.extHeaderArquivoRepository.getNextNumeroDocumento(date);
   }
+ 
+ 
+ public async getExtrato(_conta: string, _dt_inicio: number,
+    _dt_fim: number,_tipoLancamento: string
+ ):Promise<ExtratoDto[]>{
+    _conta = (_conta ==="cett")?PagadorContaEnum.CETT:PagadorContaEnum.ContaBilhetagem;
+   
+    return await this.entityManager.query(`select dthe."dataLancamento",
+    dthe.nsr as processo,
+    'Doc:'|| dthe."numeroInscricao"||'Ag.: '|| dthe.agencia || '-' || dthe."dvAgencia"||
+   'Conta: '|| dthe.conta ||'-'|| dthe."dvConta" as lancamento, 
+   'Doc: '||dthe."numeroInscricao"||'Ag.: '||dthe.agencia||'-'||dthe."dvAgencia"||
+   'Conta: '||dthe.conta||'-'||dthe."dvConta" as operacao,
+    dthe."tipoLancamento" as tipo,
+    dthe."valorLancamento" as valor   
+   FROM public.extrato_header_arquivo ha inner join public.extrato_header_lote ehl 
+                                         on ha.id = ehl."extratoHeaderArquivoId" 
+                                         inner join public.extrato_detalhe_e dthe 
+                                         on ehl.id = dthe."extratoHeaderLoteId" 
+                                         where ha."numeroConta" =${_conta}
+                                        and dthe."tipoLancamento" =${_tipoLancamento}
+                                        and dthe."dataLancamento" between (${_dt_inicio} and ${_dt_fim})`);
+ }
+  
 }
