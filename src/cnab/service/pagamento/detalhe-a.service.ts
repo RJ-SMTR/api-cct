@@ -18,26 +18,29 @@ export class DetalheAService {
   constructor(
     private detalheARepository: DetalheARepository,
     private clienteFavorecidoService: ClienteFavorecidoService,
-  ) { }
+  ) {}
 
   /**
    * Any DTO existing in db will be ignored.
-   * 
-   * @param dtos DTOs that can exist or not in database 
+   *
+   * @param dtos DTOs that can exist or not in database
    * @returns Saved objects not in database.
    */
-  public saveManyIfNotExists(dtos: DeepPartial<DetalheA>[]): Promise<DetalheA[]> {
+  public saveManyIfNotExists(
+    dtos: DeepPartial<DetalheA>[],
+  ): Promise<DetalheA[]> {
     return this.detalheARepository.saveManyIfNotExists(dtos);
   }
 
-  public async saveFrom104(registro: CnabRegistros104Pgto, headerLote: HeaderLote
+  public async saveFrom104(
+    registro: CnabRegistros104Pgto,
+    headerLote: HeaderLote,
   ): Promise<SaveIfNotExists<DetalheA>> {
     const r = registro;
-    const favorecido =
-      await this.clienteFavorecidoService.getOne({
-        contaCorrente: r.detalheA.contaCorrenteDestino.stringValue,
-        dvContaCorrente: r.detalheA.dvContaDestino.value
-      });
+    const favorecido = await this.clienteFavorecidoService.getOne({
+      contaCorrente: r.detalheA.contaCorrenteDestino.stringValue,
+      dvContaCorrente: r.detalheA.dvContaDestino.value,
+    });
 
     const detalheA = new DetalheADTO({
       headerLote: { id: headerLote.id },
@@ -52,13 +55,14 @@ export class DetalheAService {
       numeroDocumentoBanco: r.detalheA.numeroDocumentoBanco.stringValue,
       quantidadeParcelas: r.detalheA.quantidadeParcelas.convertedValue,
       indicadorBloqueio: r.detalheA.indicadorBloqueio.stringValue,
-      indicadorFormaParcelamento: r.detalheA.indicadorFormaParcelamento.stringValue,
+      indicadorFormaParcelamento:
+        r.detalheA.indicadorFormaParcelamento.stringValue,
       periodoVencimento: r.detalheA.dataVencimento.convertedValue,
       numeroParcela: r.detalheA.numeroParcela.convertedValue,
       dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
       valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
       nsr: r.detalheA.nsr.convertedValue,
-      ocorrencias: r.detalheA.ocorrencias.stringValue,
+      ocorrenciasCnab: r.detalheA.ocorrencias.stringValue,
     });
     return await this.detalheARepository.saveIfNotExists(detalheA);
   }
@@ -82,13 +86,13 @@ export class DetalheAService {
 
   /**
    * numeroDocumento:
-   * 
+   *
    * - Começa com 000001
    * - Soma 1 para cada registro no arquivo
    * - Reinicia para 1 para cada data de pagamento
-   * 
+   *
    * Usado nos Dertalhes: A, J, O, N
-   * 
+   *
    * @example
    * 01/01/2024
    * - Cnab1
@@ -97,7 +101,7 @@ export class DetalheAService {
    * - Cnab2
    *    - DetalheA = 3
    *    - DetalheA = 4
-   * 
+   *
    * 02/01/2024
    * - Cnab1
    *    - DetalheA = 1
@@ -105,7 +109,7 @@ export class DetalheAService {
    * - Cnab2
    *    - DetalheA = 3
    *    - DetalheA = 4
-   * 
+   *
    */
   public async getNextNumeroDocumento(date: Date): Promise<number> {
     return await this.detalheARepository.getNextNumeroDocumento(date);

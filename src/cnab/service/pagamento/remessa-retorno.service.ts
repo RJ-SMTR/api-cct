@@ -40,9 +40,9 @@ import { DetalheAService } from './detalhe-a.service';
 import { DetalheBService } from './detalhe-b.service';
 import { HeaderArquivoService } from './header-arquivo.service';
 import { HeaderLoteService } from './header-lote.service';
+import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
 import { TransacaoService } from './transacao.service';
-import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;

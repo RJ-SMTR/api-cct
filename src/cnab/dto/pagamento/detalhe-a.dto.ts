@@ -84,5 +84,5 @@ export class DetalheADTO {
   @IsNotEmpty()
   nsr?: number;
 
-  ocorrencias: string | null;
+  ocorrenciasCnab: string | null;
 }

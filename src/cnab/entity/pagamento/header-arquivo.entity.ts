@@ -9,11 +9,13 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { HeaderArquivoStatus } from './header-arquivo-status.entity';
 import { Transacao } from './transacao.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
+import { Ocorrencia } from './ocorrencia.entity';
 
 /**
  * Pagamento.HeaderArquivo
@@ -68,6 +70,12 @@ export class HeaderArquivo extends EntityHelper {
 
   @Column({ type: 'time', unique: false, nullable: true })
   horaGeracao: Date;
+
+  @OneToMany(() => Ocorrencia, (ocorrencia) => ocorrencia.headerArquivo, { eager: true })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_HeaderArquivo_ocorrencia_OneToMany',
+  })
+  ocorrencia: Ocorrencia[];
 
   @ManyToOne(() => Transacao, { eager: true })
   @JoinColumn({

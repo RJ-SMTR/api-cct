@@ -11,10 +11,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
+import { Ocorrencia } from './ocorrencia.entity';
 
 /**
  * Pagamento.DetalheA
@@ -33,6 +35,14 @@ export class DetalheA extends EntityHelper {
     foreignKeyConstraintName: 'FK_DetalheA_clienteFavorecido_ManyToOne',
   })
   clienteFavorecido: ClienteFavorecido;
+
+  @OneToMany(() => Ocorrencia, (ocorrencia) => ocorrencia.headerArquivo, {
+    eager: true,
+  })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheA_ocorrencia_OneToMany',
+  })
+  ocorrencia: Ocorrencia[];
 
   @Column({ type: Number, unique: false, nullable: true })
   loteServico: number;

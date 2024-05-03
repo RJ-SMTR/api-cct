@@ -46,7 +46,7 @@ export class Ocorrencia extends EntityHelper {
   /**
    * @returns A list of new TransacaoOcorrencia. Without Transacao defined
    */
-  public static newArray(ocorrenciaCodes: string): Ocorrencia[] {
+  public static newList(ocorrenciaCodes: string): Ocorrencia[] {
     const codes = ocorrenciaCodes.trim();
     const codesList: string[] = [];
     for (let i = 0; i < codes.length; i += 2) {
