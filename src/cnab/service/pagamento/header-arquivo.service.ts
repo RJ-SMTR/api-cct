@@ -85,7 +85,7 @@ export class HeaderArquivoService {
       nomeEmpresa: cnab104.headerArquivo.nomeEmpresa.convertedValue,
       dataGeracao: cnab104.headerArquivo.dataGeracaoArquivo.convertedValue,
       horaGeracao: cnab104.headerArquivo.horaGeracaoArquivo.convertedValue,
-      transacao: { id: headerArquivoRemessa.transacao.id } as Transacao,
+      transacao: { id: headerArquivoRemessa.transacao.id } as Transacao,  // TODO: salvar ou Transacao Ou Agrupado
       nsa: cnab104.headerArquivo.nsa.convertedValue,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retornoSaved),
     });
