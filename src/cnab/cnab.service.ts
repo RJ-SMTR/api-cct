@@ -480,54 +480,54 @@ export class CnabService {
    * 3.  - If successfull, move retorno to backup folder.
    *     - If failed, move retorno to backup/failure folder
    */
-    public async updateRetorno() {
-      const METHOD = this.updateRetorno.name;
-      // Get retorno
-      const { cnabString, cnabName } = {
-        cnabName: 'smtr_prefeiturarj_140324_120102.ret',
-        cnabString: `
-10400000         20054603700011044477301P    0000   0406490006000710848 CONTA BILHETAGEM  CB          CAIXA                                   10305202412573500051608001600                                                      000            
-10400011C2041041 20054603700011044477301000101      0406490006000710848 CONTA BILHETAGEM  CB                                                  R DONA MARIANA                00048ANDAR 7        RIO DE JANEIRO      22280020RJ                  
-1040001300001A000018001022349000000296001X COMPANHIA MUNICIPAL DE TRANSPO000001             103052024BRL000000000000000000000006969170000000000   01N1000000000000000000000000000                                        00          0          
-1040001300002B   244520687000161                              00000                                                  00000     03052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
-1040001300003A00001803303403 0000130044428 CONSORCIO SANTA CRUZ TRANSPORT000002             103052024BRL000000000000000000000000045975000000000   01N1000000000000000000000000000                                        00          0          
-1040001300004B   212464577000133                              00000                                                  00000     03052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
-1040001300005A00001803303403 0000130044459 CONSORCIO INTERNORTE DE TRANSP000003             103052024BRL000000000000000000000000034705000000000   01N1000000000000000000000000000                                        00          0          
-1040001300006B   212464539000180                              00000                                                  00000     03052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
-1040001300007A00001803302271 0000130987857 CONCESSIONARIA DO VLT CARIOCA 000004             103052024BRL000000000000000000000000775082000000000   01N1000000000000000000000000000                                        00          0          
-1040001300008B   218201378000119                              00000                                                  00000     03052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
-10400015         000010000000000007824932000000000000000000000000                                                                                                                                                                               
-10499999         000001000012000000                                                                                                                                                                                                             
-`,
-      };
-      // await this.sftpService.getFirstCnabRetorno();
-      if (!cnabName || !cnabString) {
-        this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
-        return;
-      }
+//     public async updateRetorno() {
+//       const METHOD = this.updateRetorno.name;
+//       // Get retorno
+//       const { cnabString, cnabName } = {
+//         cnabName: 'smtr_prefeiturarj_140324_120102.ret',
+//         cnabString: `
+// 10400000         20054603700011044477301P    0000   0406490006000710848 CONTA BILHETAGEM  CB          CAIXA                                   10305202412573500051608001600                                                      000            
+// 10400011C2041041 20054603700011044477301000101      0406490006000710848 CONTA BILHETAGEM  CB                                                  R DONA MARIANA                00048ANDAR 7        RIO DE JANEIRO      22280020RJ                  
+// 1040001300001A000018001022349000000296001X COMPANHIA MUNICIPAL DE TRANSPO000001             103052024BRL000000000000000000000006969170000000000   01N1000000000000000000000000000                                        00          0          
+// 1040001300002B   244520687000161                              00000                                                  00000     03052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
+// 1040001300003A00001803303403 0000130044428 CONSORCIO SANTA CRUZ TRANSPORT000002             103052024BRL000000000000000000000000045975000000000   01N1000000000000000000000000000                                        00          0          
+// 1040001300004B   212464577000133                              00000                                                  00000     03052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
+// 1040001300005A00001803303403 0000130044459 CONSORCIO INTERNORTE DE TRANSP000003             103052024BRL000000000000000000000000034705000000000   01N1000000000000000000000000000                                        00          0          
+// 1040001300006B   212464539000180                              00000                                                  00000     03052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
+// 1040001300007A00001803302271 0000130987857 CONCESSIONARIA DO VLT CARIOCA 000004             103052024BRL000000000000000000000000775082000000000   01N1000000000000000000000000000                                        00          0          
+// 1040001300008B   218201378000119                              00000                                                  00000     03052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
+// 10400015         000010000000000007824932000000000000000000000000                                                                                                                                                                               
+// 10499999         000001000012000000                                                                                                                                                                                                             
+// `,
+//       };
+//       // await this.sftpService.getFirstCnabRetorno();
+//       if (!cnabName || !cnabString) {
+//         this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
+//         return;
+//       }
 
-      // Save Retorno, ArquivoPublicacao, move SFTP to backup
-      try {
-        const retorno104 = parseCnab240Pagamento(cnabString);
-        await this.remessaRetornoService.saveRetorno(retorno104);
-        await this.arqPublicacaoService.compareRemessaToRetorno();
-        await this.sftpService.moveToBackup(
-          cnabName,
-          SftpBackupFolder.RetornoSuccess,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Erro ao processar CNAB retorno, movendo para backup de erros e finalizando... - ${error}`,
-          error.stack,
-          METHOD,
-        );
-        await this.sftpService.moveToBackup(
-          cnabName,
-          SftpBackupFolder.RetornoFailure,
-        );
-        return;
-      }
-    }
+//       // Save Retorno, ArquivoPublicacao, move SFTP to backup
+//       try {
+//         const retorno104 = parseCnab240Pagamento(cnabString);
+//         await this.remessaRetornoService.saveRetorno(retorno104);
+//         await this.arqPublicacaoService.compareRemessaToRetorno();
+//         await this.sftpService.moveToBackup(
+//           cnabName,
+//           SftpBackupFolder.RetornoSuccess,
+//         );
+//       } catch (error) {
+//         this.logger.error(
+//           `Erro ao processar CNAB retorno, movendo para backup de erros e finalizando... - ${error}`,
+//           error.stack,
+//           METHOD,
+//         );
+//         await this.sftpService.moveToBackup(
+//           cnabName,
+//           SftpBackupFolder.RetornoFailure,
+//         );
+//         return;
+//       }
+//     }
 
   // #region saveExtrato
 
