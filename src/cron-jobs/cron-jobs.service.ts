@@ -94,10 +94,10 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    await this.saveTransacoesJae1();
+    // await this.saveTransacoesJae1();
     // await this.saveTransacoesLancamento1();
-    await this.sendRemessa();
-    // await this.updateRetorno();
+    // await this.sendRemessa();
+    await this.updateRetorno();
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -755,7 +755,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   updateRetorno() {
     const METHOD = this.updateRetorno.name;
     try {
-      // await this.cnabService.updateRetorno();
+      await this.cnabService.updateRetorno();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`Erro, abortando. - ${error}`, error.stack, METHOD);

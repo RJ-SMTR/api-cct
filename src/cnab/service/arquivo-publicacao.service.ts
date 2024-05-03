@@ -6,7 +6,7 @@ import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
-import { TransacaoOcorrenciaService } from './pagamento/transacao-ocorrencia.service';
+import { OcorrenciaService } from './ocorrencia.service';
 import { TransacaoService } from './pagamento/transacao.service';
 
 @Injectable()
@@ -21,7 +21,7 @@ export class ArquivoPublicacaoService {
     private headerLoteService: HeaderLoteService,
     private detalheAService: DetalheAService,
     private itemTransacaoService: ItemTransacaoService,
-    private transacaoOcorrenciaService: TransacaoOcorrenciaService,
+    private transacaoOcorrenciaService: OcorrenciaService,
     private transacaoService: TransacaoService,
   ) {}
 

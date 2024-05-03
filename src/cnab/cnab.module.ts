@@ -45,9 +45,9 @@ import { ItemTransacaoService } from './service/pagamento/item-transacao.service
 import { PagadorService } from './service/pagamento/pagador.service';
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
-import { TransacaoOcorrencia } from './entity/pagamento/transacao-ocorrencia.entity';
-import { TransacaoOcorrenciaRepository } from './repository/pagamento/transacao-ocorrencia.repository';
-import { TransacaoOcorrenciaService } from './service/pagamento/transacao-ocorrencia.service';
+import { Ocorrencia } from './entity/pagamento/ocorrencia.entity';
+import { OcorrenciaRepository } from './repository/ocorrencia.repository';
+import { OcorrenciaService } from './service/ocorrencia.service';
 import { TransacaoAgrupadoRepository } from './repository/pagamento/transacao-agrupado.repository';
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { ItemTransacaoAgrupadoRepository } from './repository/pagamento/item-transacao-agrupado.repository';
@@ -72,14 +72,14 @@ import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupad
       ArquivoPublicacao,
       Transacao,
       TransacaoAgrupado,
-      TransacaoOcorrencia,
+      Ocorrencia,
       ItemTransacao,
       ItemTransacaoAgrupado,
       Pagador,
       ExtratoHeaderArquivo,
       ExtratoHeaderLote,
       ExtratoDetalheE,
-    ])
+    ]),
   ],
   providers: [
     CnabService,
@@ -101,8 +101,8 @@ import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupad
     TransacaoService,
     TransacaoAgrupadoRepository,
     TransacaoAgrupadoService,
-    TransacaoOcorrenciaRepository,
-    TransacaoOcorrenciaService,
+    OcorrenciaRepository,
+    OcorrenciaService,
     ItemTransacaoRepository,
     ItemTransacaoService,
     ItemTransacaoAgrupadoRepository,
@@ -143,6 +143,6 @@ import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupad
     ExtratoDetalheEService,
     RemessaRetornoService,
   ],
-  controllers: [CnabController]
+  controllers: [CnabController],
 })
-export class CnabModule { }
+export class CnabModule {}

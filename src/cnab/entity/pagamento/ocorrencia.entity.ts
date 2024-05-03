@@ -1,4 +1,6 @@
+import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
 import { EntityHelper } from 'src/utils/entity-helper';
+import { Enum } from 'src/utils/enum';
 import {
   Column,
   DeepPartial,
@@ -7,13 +9,12 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Transacao } from './transacao.entity';
-import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
-import { Enum } from 'src/utils/enum';
+import { DetalheA } from './detalhe-a.entity';
+import { HeaderArquivo } from './header-arquivo.entity';
 
 @Entity()
-export class TransacaoOcorrencia extends EntityHelper {
-  constructor(ocorrencias?: DeepPartial<TransacaoOcorrencia>) {
+export class Ocorrencia extends EntityHelper {
+  constructor(ocorrencias?: DeepPartial<Ocorrencia>) {
     super();
     if (ocorrencias !== undefined) {
       Object.assign(this, ocorrencias);
@@ -23,11 +24,17 @@ export class TransacaoOcorrencia extends EntityHelper {
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Ocorrencia_id' })
   id: number;
 
-  @ManyToOne(() => Transacao)
+  @ManyToOne(() => HeaderArquivo)
   @JoinColumn({
-    foreignKeyConstraintName: 'FK_TransacaoOcorrencia_transacao_ManyToOne',
+    foreignKeyConstraintName: 'FK_TransacaoOcorrencia_headerArquivo_ManyToOne',
   })
-  transacao: Transacao;
+  headerArquivo: HeaderArquivo;
+
+  @ManyToOne(() => DetalheA)
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_TransacaoOcorrencia_detalheA_ManyToOne',
+  })
+  detalheA: DetalheA;
 
   /** uniqueConstraintName: UQ_TransacaoOcorrencia_code */
   @Column({ type: String, unique: true, nullable: false, length: 2 })
@@ -39,7 +46,7 @@ export class TransacaoOcorrencia extends EntityHelper {
   /**
    * @returns A list of new TransacaoOcorrencia. Without Transacao defined
    */
-  public static newArray(ocorrenciaCodes: string): TransacaoOcorrencia[] {
+  public static newArray(ocorrenciaCodes: string): Ocorrencia[] {
     const codes = ocorrenciaCodes.trim();
     const codesList: string[] = [];
     for (let i = 0; i < codes.length; i += 2) {
@@ -48,13 +55,13 @@ export class TransacaoOcorrencia extends EntityHelper {
         codesList.push(code);
       }
     }
-    const ocorrencias: TransacaoOcorrencia[] = [];
+    const ocorrencias: Ocorrencia[] = [];
     for (const code of codesList) {
       const message: string = Enum.getValue(OcorrenciaEnum, code, {
         defaultValue: `${code} - Código desconhecido.`,
       });
       ocorrencias.push(
-        new TransacaoOcorrencia({
+        new Ocorrencia({
           code: code,
           message: message,
         }),

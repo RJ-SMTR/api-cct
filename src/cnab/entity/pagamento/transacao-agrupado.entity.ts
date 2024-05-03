@@ -12,7 +12,7 @@ import {
 } from 'typeorm';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { Pagador } from './pagador.entity';
-import { TransacaoOcorrencia } from './transacao-ocorrencia.entity';
+import { Ocorrencia } from './ocorrencia.entity';
 import { TransacaoStatus } from './transacao-status.entity';
 import { Transacao } from './transacao.entity';
 
@@ -70,11 +70,11 @@ export class TransacaoAgrupado extends EntityHelper {
   lancamentos: LancamentoEntity[] | null;
 
   /** Not a physical column. CNAB errors */
-  @OneToMany(() => TransacaoOcorrencia, (ocorrencia) => ocorrencia.transacao)
+  @OneToMany(() => Ocorrencia, (ocorrencia) => ocorrencia.headerArquivo)
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoAgrupado_ocorrencias_OneToMany',
   })
-  ocorrencias: TransacaoOcorrencia[];
+  ocorrencias: Ocorrencia[];
 
   /** Not a physical column */
   @OneToMany(() => ItemTransacaoAgrupado, (item) => item.transacaoAgrupado)
