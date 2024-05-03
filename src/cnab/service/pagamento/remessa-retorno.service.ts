@@ -1,17 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { BanksService } from 'src/banks/banks.service';
+import { ItemTransacaoDTO } from 'src/cnab/dto/pagamento/item-transacao.dto';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { DetalheB } from 'src/cnab/entity/pagamento/detalhe-b.entity';
 import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
 import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
+import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
+import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { asDate, asString } from 'src/utils/pipe-utils';
-import { DeepPartial, In } from 'typeorm';
-import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
+import { asDate, asNumber, asString } from 'src/utils/pipe-utils';
+import { DeepPartial } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
@@ -34,12 +35,14 @@ import {
 } from '../../interfaces/cnab-all/cnab-remsesa.interface';
 import { stringifyCnab104File } from '../../utils/cnab/cnab-104-utils';
 import { getTipoInscricao } from '../../utils/cnab/cnab-utils';
+import { ArquivoPublicacaoService } from '../arquivo-publicacao.service';
 import { DetalheAService } from './detalhe-a.service';
 import { DetalheBService } from './detalhe-b.service';
 import { HeaderArquivoService } from './header-arquivo.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoService } from './item-transacao.service';
 import { TransacaoService } from './transacao.service';
+import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -54,10 +57,11 @@ export class RemessaRetornoService {
     private headerArquivoService: HeaderArquivoService,
     private headerLoteService: HeaderLoteService,
     private itemTransacaoService: ItemTransacaoService,
+    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private transacaoService: TransacaoService,
     private detalheAService: DetalheAService,
     private detalheBService: DetalheBService,
-    private banksService: BanksService,
+    private arquivoPublicacaoService: ArquivoPublicacaoService,
   ) {}
 
   // #region saveRemessa
@@ -65,13 +69,16 @@ export class RemessaRetornoService {
   /**
    * Save many if not exists
    */
-  public async saveManyRemessa(cnabDTOs: CnabRemessaDTO[]) {
+  public async saveManyRemessa(
+    cnabDTOs: CnabRemessaDTO[],
+    isAgrupado: boolean,
+  ) {
     // Flatten Cnab to bulk save
     const {
       allUpdatedTransacoes,
       allHeaderArquivo,
       allHeaderLoteMap,
-      allDetalheAMap,
+      allItemDetalheAMap,
       allDetalheBMap,
     } = this.flattenCnabDTOs(cnabDTOs);
 
@@ -90,55 +97,59 @@ export class RemessaRetornoService {
 
     // Bulk save DetalheA
     const allDetalheA = this.updateDetalheAMap(
-      allDetalheAMap,
+      allItemDetalheAMap,
       allSavedHeaderLote,
     );
-    const allSavedDetalheA = await this.detalheAService.saveManyIfNotExists(
+    const savedDetalheA = await this.detalheAService.saveManyIfNotExists(
       allDetalheA,
     );
 
     // Update itemTransacao
-    await this.updateItemTransacaoRemessa(allSavedDetalheA);
+    await this.updateItemTransacaoRemessa(allItemDetalheAMap, isAgrupado);
 
     // Bulk save DetalheB
-    const allDetalheB = this.updateDetalheBMap(
-      allDetalheBMap,
-      allSavedDetalheA,
-    );
+    const allDetalheB = this.updateDetalheBMap(allDetalheBMap, savedDetalheA);
     await this.detalheBService.saveManyIfNotExists(allDetalheB);
 
     // Update Transacao status
     await this.transacaoService.updateMany(allUpdatedTransacoes);
   }
 
-  private async updateItemTransacaoRemessa(savedDetalhesA: DetalheA[]) {
+  private async updateItemTransacaoRemessa(
+    allItemDetalheAMap: Record<
+      string,
+      DeepPartial<ItemTransacao>[] | DeepPartial<ItemTransacaoAgrupado>[]
+    >,
+    isAgrupado: boolean,
+  ) {
+    const itens = Object.values(allItemDetalheAMap).reduce(
+      (l, i) => [...l, ...i],
+      [],
+    );
     const itensToUpdate: DeepPartial<ItemTransacao>[] = [];
-    const itens = await this.itemTransacaoService.findMany({
-      where: {
-        transacao: {
-          id: In(
-            savedDetalhesA.map((i) => i.headerLote.headerArquivo.transacao.id),
-          ),
-        },
-      },
-    });
-    for (const detalheA of savedDetalhesA) {
-      const itemTransacao = itens.filter(
-        (i) =>
-          i.detalheA?.headerLote.headerArquivo.nsa ===
-            detalheA.headerLote.headerArquivo.nsa &&
-          i.detalheA.nsr === detalheA.nsr,
-      )[0];
+    for (const itemTransacao of itens) {
+      const detalheA = itemTransacao.detalheA as DetalheA;
       if (!itemTransacao) {
         throw CommonHttpException.notFound('itemTransacao');
       }
       itensToUpdate.push({
         id: itemTransacao.id,
-        detalheA: {id: detalheA.id}
-      })
-      await this.itemTransacaoService.update(itemTransacao.id, {
         detalheA: { id: detalheA.id },
       });
+      const updateItemTransacao: DeepPartial<ItemTransacao> = {
+        detalheA: { id: detalheA.id },
+      };
+      if (isAgrupado) {
+        await this.itemTransacaoAgService.update(
+          asNumber(itemTransacao?.id),
+          updateItemTransacao,
+        );
+      } else {
+        await this.itemTransacaoService.update(
+          asNumber(itemTransacao?.id),
+          updateItemTransacao,
+        );
+      }
     }
   }
 
@@ -169,7 +180,7 @@ export class RemessaRetornoService {
   }
 
   private updateDetalheAMap(
-    allDetalheAMap: Record<string, DeepPartial<DetalheA>[]>,
+    allItemDetalheAMap: Record<string, DeepPartial<ItemTransacao>[]>,
     allSavedHeaderLote: HeaderLote[],
   ): DeepPartial<DetalheA>[] {
     /** key: HeaderLote unique ID */
@@ -180,13 +191,17 @@ export class RemessaRetornoService {
       );
 
     const allDetalheA: DeepPartial<DetalheA>[] = [];
-    for (const [headerLoteUniqueId, detalhesA] of Object.entries(
-      allDetalheAMap,
+    for (const [headerLoteUniqueId, itemDetalhesA] of Object.entries(
+      allItemDetalheAMap,
     )) {
-      for (const detalheA of detalhesA) {
+      for (const itemDetalheA of itemDetalhesA) {
         const headerLote = allSavedHeaderLoteMap[headerLoteUniqueId];
+        const detalheA = itemDetalheA.detalheA as DeepPartial<DetalheA>;
         if (headerLote) {
-          detalheA.headerLote = { id: headerLote.id }; // update
+          detalheA.headerLote = {
+            id: headerLote.id,
+            headerArquivo: { id: headerLote.headerArquivo.id },
+          }; // update
           allDetalheA.push(detalheA);
         }
       }
@@ -226,23 +241,24 @@ export class RemessaRetornoService {
    */
   private flattenCnabDTOs(cnabDTOs: CnabRemessaDTO[]) {
     /** Transacao to update after success */
-    const allUpdatedTransacoes: Transacao[] = [];
+    const allUpdatedTransacoes: Transacao[] | TransacaoAgrupado[] = [];
     const allHeaderArquivo: HeaderArquivoDTO[] = [];
     /** key: HeaderArquivo HeaderArquivo unique id */
     const allHeaderLoteMap: Record<string, DeepPartial<HeaderLote>[]> = {};
     /** key: HeaderLote unique ID */
-    const allDetalheAMap: Record<string, DeepPartial<DetalheA>[]> = {};
+    const allItemDetalheAMap: Record<
+      string,
+      DeepPartial<ItemTransacao>[] | DeepPartial<ItemTransacaoAgrupado>[]
+    > = {};
     /** key: HeaderLote + DetalheA nested unique ID */
     const allDetalheBMap: Record<string, DeepPartial<DetalheB>[]> = {};
 
     for (const cnab of cnabDTOs) {
       // Transacao
-      allUpdatedTransacoes.push(
-        new Transacao({
-          id: cnab.transacao.id,
-          status: new TransacaoStatus(TransacaoStatusEnum.remessaSent),
-        }),
-      );
+      allUpdatedTransacoes.push({
+        id: cnab.transacao.id,
+        status: new TransacaoStatus(TransacaoStatusEnum.remessaSent),
+      } as any);
 
       // HeaderArquivo
       allHeaderArquivo.push(cnab.headerArquivo);
@@ -259,28 +275,23 @@ export class RemessaRetornoService {
 
         for (const detalhe of lote.detalhes) {
           // DetalheA
-          const detalheA = this.getRemessaDetalheADTO(detalhe, lote.headerLote);
-          if (!allDetalheAMap[headerLoteUniqueId]) {
-            allDetalheAMap[headerLoteUniqueId] = [detalheA];
+          const itemTransacao = this.getRemessaItemDetalheADTO(
+            detalhe,
+            lote.headerLote,
+          );
+          // const publicacao =
+          //   this.arquivoPublicacaoService.generateRemessaDTO(itemTransacao);
+          // await this.arquivoPublicacaoService.save(publicacao);
+          if (!allItemDetalheAMap[headerLoteUniqueId]) {
+            allItemDetalheAMap[headerLoteUniqueId] = [itemTransacao];
           } else {
-            allDetalheAMap[headerLoteUniqueId].push(detalheA);
+            allItemDetalheAMap[headerLoteUniqueId].push(itemTransacao);
           }
 
-          // // Update ItemTransacao
-          // const itemTransacao = itens
-          //   .filter(
-          //     (i) =>
-          //       i.detalheA?.headerLote.headerArquivo.nsa ===
-          //         headerArquivo.nsa &&
-          //       i.detalheA.nsr === detalheARetorno.nsr,
-          //   )
-          //   .pop();
-          // if (!itemTransacao) {
-          //   throw CommonHttpException.notFound('itemTransacao');
-          // }
-
           // DetalheB
-          const detalheAUniqueid = DetalheA.getUniqueId(detalheA);
+          const detalheAUniqueid = DetalheA.getUniqueId(
+            itemTransacao.detalheA as DetalheA,
+          );
           const detalheB = this.getRemessaDetalheBDTO(detalhe);
           if (!allDetalheBMap[detalheAUniqueid]) {
             allDetalheBMap[detalheAUniqueid] = [detalheB];
@@ -298,7 +309,7 @@ export class RemessaRetornoService {
       /** key: HeaderArquivo HeaderArquivo unique id */
       allHeaderLoteMap,
       /** key: HeaderLote unique ID */
-      allDetalheAMap,
+      allItemDetalheAMap,
       /** key: HeaderLote + DetalheA nested unique ID */
       allDetalheBMap,
     };
@@ -307,7 +318,7 @@ export class RemessaRetornoService {
   /**
    * It will not contain `headerLote` field. You must add it later.
    */
-  public getRemessaDetalheADTO(
+  public getRemessaItemDetalheADTO(
     detalhes: CnabRemessaDetalhe,
     headerLote?: DeepPartial<HeaderLote>,
   ) {
@@ -315,29 +326,34 @@ export class RemessaRetornoService {
     const itemTransacao = detalhes.itemTransacao;
     const favorecido = itemTransacao.clienteFavorecido;
 
-    const detalheA = new DetalheADTO({
-      headerLote: headerLote || { id: -1 },
-      clienteFavorecido: { id: favorecido.id },
-      loteServico: r.detalheA.loteServico.convertedValue,
-      finalidadeDOC: r.detalheA.finalidadeDOC.stringValue,
-      numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
-      dataVencimento: r.detalheA.dataVencimento.convertedValue,
-      tipoMoeda: r.detalheA.tipoMoeda.stringValue,
-      quantidadeMoeda: r.detalheA.quantidadeMoeda.convertedValue,
-      valorLancamento: r.detalheA.valorLancamento.convertedValue,
-      numeroDocumentoBanco: r.detalheA.numeroDocumentoBanco.stringValue,
-      quantidadeParcelas: r.detalheA.quantidadeParcelas.convertedValue,
-      indicadorBloqueio: r.detalheA.indicadorBloqueio.stringValue,
-      indicadorFormaParcelamento:
-        r.detalheA.indicadorFormaParcelamento.stringValue,
-      periodoVencimento: itemTransacao.dataProcessamento,
-      numeroParcela: r.detalheA.numeroParcela.convertedValue,
-      dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
-      valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
-      nsr: Number(r.detalheA.nsr.stringValue),
-      ocorrencias: null,
-    });
-    return detalheA;
+    const itemDetalheA = new ItemTransacaoDTO({
+      id: itemTransacao.id,
+      // DetalheA
+      detalheA: {
+        headerLote: headerLote || { id: -1 },
+        clienteFavorecido: { id: favorecido.id },
+        loteServico: r.detalheA.loteServico.convertedValue,
+        finalidadeDOC: r.detalheA.finalidadeDOC.stringValue,
+        numeroDocumentoEmpresa:
+          r.detalheA.numeroDocumentoEmpresa.convertedValue,
+        dataVencimento: r.detalheA.dataVencimento.convertedValue,
+        tipoMoeda: r.detalheA.tipoMoeda.stringValue,
+        quantidadeMoeda: r.detalheA.quantidadeMoeda.convertedValue,
+        valorLancamento: r.detalheA.valorLancamento.convertedValue,
+        numeroDocumentoBanco: r.detalheA.numeroDocumentoBanco.stringValue,
+        quantidadeParcelas: r.detalheA.quantidadeParcelas.convertedValue,
+        indicadorBloqueio: r.detalheA.indicadorBloqueio.stringValue,
+        indicadorFormaParcelamento:
+          r.detalheA.indicadorFormaParcelamento.stringValue,
+        periodoVencimento: itemTransacao.dataProcessamento,
+        numeroParcela: r.detalheA.numeroParcela.convertedValue,
+        dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
+        valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
+        nsr: Number(r.detalheA.nsr.stringValue),
+        ocorrencias: null,
+      },
+    }) as ItemTransacao | ItemTransacaoAgrupado;
+    return itemDetalheA;
   }
 
   /**
@@ -363,19 +379,26 @@ export class RemessaRetornoService {
    * - Cnab Tables DTO to be saved in database
    */
   public async generateCnabRemessa(
-    transacao: Transacao,
+    transacao?: Transacao,
+    transacaoAg?: TransacaoAgrupado,
   ): Promise<CnabRemessa | null> {
     const headerArquivo = await this.headerArquivoService.getDTO(
-      transacao,
       HeaderArquivoTipoArquivo.Remessa,
+      transacao,
+      transacaoAg,
     );
-    const headerLote = this.headerLoteService.getDTO(transacao, headerArquivo);
+    const headerLote = this.headerLoteService.getDTO(
+      headerArquivo,
+      transacao,
+      transacaoAg,
+    );
 
     // Get Cnab104 with Detalhes
     const cnab104 = await this.generateCnab104Pgto(
-      transacao,
       headerArquivo,
       headerLote,
+      transacao,
+      transacaoAg,
     );
     if (!cnab104) {
       return null;
@@ -390,11 +413,12 @@ export class RemessaRetornoService {
 
     // Mount cnabTablesDTO
     const cnabTables = this.generateCnabTables(
-      transacao,
       headerArquivo,
       headerLote,
       processedCnab104,
       cnab104.itemTransacaoList,
+      transacao,
+      transacaoAg,
     );
     return {
       string: cnabString,
@@ -406,18 +430,23 @@ export class RemessaRetornoService {
    * Mount Cnab104 from tables
    */
   private async generateCnab104Pgto(
-    transacao: Transacao,
     headerArquivo: HeaderArquivoDTO,
     headerLote: HeaderLote,
+    transacao?: Transacao,
+    transacaoAg?: TransacaoAgrupado,
   ): Promise<{
     cnab104: CnabFile104Pgto;
-    itemTransacaoList: ItemTransacao[];
+    itemTransacaoList: ItemTransacao[] | ItemTransacaoAgrupado[];
   } | null> {
     const now = new Date();
     const headerArquivo104 = this.getHeaderArquivo104FromDTO(headerArquivo);
     const trailerArquivo104 = sc(PgtoRegistros.trailerArquivo);
-    const itemTransacaoMany =
-      await this.itemTransacaoService.findManyByIdTransacao(transacao.id);
+    const itemTransacaoMany = transacao
+      ? await this.itemTransacaoService.findManyByIdTransacao(transacao.id)
+      : await this.itemTransacaoAgService.findManyByIdTransacao(
+          (transacaoAg as TransacaoAgrupado).id,
+        );
+
     let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(
       now,
     );
@@ -436,7 +465,7 @@ export class RemessaRetornoService {
       trailerArquivo: trailerArquivo104,
     };
 
-    const itemTransacaoSuccess: ItemTransacao[] = [];
+    const itemTransacaoSuccess: ItemTransacao[] | ItemTransacaoAgrupado[] = [];
     for (const itemTransacao of itemTransacaoMany) {
       // add valid itemTransacao
       const successDetalhes = await this.getDetalhes104(
@@ -445,7 +474,7 @@ export class RemessaRetornoService {
       );
       if (successDetalhes) {
         cnab104.lotes[0].registros.push(successDetalhes);
-        itemTransacaoSuccess.push(itemTransacao);
+        itemTransacaoSuccess.push(itemTransacao as any);
       }
       numeroDocumento++;
     }
@@ -491,11 +520,12 @@ export class RemessaRetornoService {
    * A pipe to generate CnabTables
    */
   private generateCnabTables(
-    transacao: Transacao,
     headerArquivo: HeaderArquivoDTO,
     headerLote: HeaderLote,
     processedCnab104: CnabFile104Pgto,
-    itemTransacaoList: ItemTransacao[],
+    itemTransacaoList: ItemTransacao[] | ItemTransacaoAgrupado[],
+    transacao?: Transacao,
+    transacaoAg?: TransacaoAgrupado,
   ): CnabRemessaDTO {
     if (processedCnab104.lotes.length > 1) {
       throw CommonHttpException.details(
@@ -511,8 +541,11 @@ export class RemessaRetornoService {
       headerLote,
       processedCnab104.lotes[0].headerLote,
     );
+    const isAgrupado = transacaoAg !== undefined;
     const cnabTables: CnabRemessaDTO = {
-      transacao: transacao,
+      transacao: isAgrupado
+        ? (transacaoAg as TransacaoAgrupado)
+        : (transacao as Transacao),
       headerArquivo: headerArquivo,
       lotes: [
         {
@@ -592,7 +625,7 @@ export class RemessaRetornoService {
    * @param numeroDocumento Managed by company. It must be a new number.
    * @returns null if failed ItemTransacao to CNAB */
   public async getDetalhes104(
-    itemTransacao: ItemTransacao,
+    itemTransacao: ItemTransacao | ItemTransacaoAgrupado,
     numeroDocumento: number,
   ): Promise<CnabRegistros104Pgto | null> {
     const METHOD = 'getDetalhes104()';

@@ -112,7 +112,7 @@ export class UsersService {
       .andWhere("user.bankAgency != ''")
       .andWhere('LENGTH(TRIM(user.bankAccount)) >= 1')
       .andWhere('LENGTH(TRIM(user.bankAccount)) <= 12')
-      /**Ignore fields like "67" etc */
+      /* *Ignore fields like "67" etc */
       .andWhere('LENGTH(TRIM(user.bankAccountDigit)) = 1')
       .getMany();
     await this.setManyUserAuxColumns(validUsers);

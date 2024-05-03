@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import {
@@ -11,19 +12,17 @@ import {
   Repository,
   UpdateResult,
 } from 'typeorm';
-import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { TransacaoStatusEnum } from '../../enums/pagamento/transacao-status.enum';
-import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 
 @Injectable()
-export class TransacaoRepository {
-  private logger: Logger = new Logger('TransacaoRepository', {
+export class TransacaoAgrupadoRepository {
+  private logger: Logger = new Logger(TransacaoAgrupadoRepository.name, {
     timestamp: true,
   });
 
   constructor(
-    @InjectRepository(Transacao)
-    private transacaoRepository: Repository<Transacao>,
+    @InjectRepository(TransacaoAgrupado)
+    private transacaoAgRepository: Repository<TransacaoAgrupado>,
   ) {}
 
   /**
@@ -32,8 +31,8 @@ export class TransacaoRepository {
    * @returns All saved Transacao that not exists
    */
   public async saveManyIfNotExists(
-    dtos: DeepPartial<Transacao>[],
-  ): Promise<Transacao[]> {
+    dtos: DeepPartial<TransacaoAgrupado>[],
+  ): Promise<TransacaoAgrupado[]> {
     const METHOD = this.saveManyIfNotExists.name;
     // Existing
     const transacaoUniqueIds = dtos.reduce(
@@ -43,8 +42,8 @@ export class TransacaoRepository {
     const existing = await this.findMany({
       where: { idOrdemPagamento: In(transacaoUniqueIds) },
     });
-    const existingMap: Record<string, Transacao> = existing.reduce(
-      (m, i) => ({ ...m, [Transacao.getUniqueId(i)]: i }),
+    const existingMap: Record<string, TransacaoAgrupado> = existing.reduce(
+      (m, i) => ({ ...m, [TransacaoAgrupado.getUniqueId(i)]: i }),
       {},
     );
     // Check
@@ -61,8 +60,10 @@ export class TransacaoRepository {
       return [];
     }
     // Save new
-    const newDTOs = dtos.filter((i) => !existingMap[Transacao.getUniqueId(i)]);
-    const inserted = await this.transacaoRepository.insert(newDTOs);
+    const newDTOs = dtos.filter(
+      (i) => !existingMap[TransacaoAgrupado.getUniqueId(i)],
+    );
+    const inserted = await this.transacaoAgRepository.insert(newDTOs);
     // Return saved
     const insertedIds = (inserted.identifiers as { id: number }[]).reduce(
       (l, i) => [...l, i.id],
@@ -76,11 +77,11 @@ export class TransacaoRepository {
    */
   public async updateMany(
     ids: number[],
-    set: DeepPartial<Transacao>,
+    set: DeepPartial<TransacaoAgrupado>,
   ): Promise<UpdateResult> {
-    const result = await this.transacaoRepository
+    const result = await this.transacaoAgRepository
       .createQueryBuilder()
-      .update(Transacao)
+      .update(TransacaoAgrupado)
       .set(set)
       .whereInIds(ids)
       .execute();
@@ -90,48 +91,51 @@ export class TransacaoRepository {
   /**
    * Bulk save
    */
-  public async insert(dtos: DeepPartial<Transacao>[]): Promise<InsertResult> {
-    return this.transacaoRepository.insert(dtos);
+  public async insert(
+    dtos: DeepPartial<TransacaoAgrupado>[],
+  ): Promise<InsertResult> {
+    return this.transacaoAgRepository.insert(dtos);
   }
 
-  public async update(id: number, dto: DeepPartial<Transacao>) {
-    return this.transacaoRepository.update(id, dto);
+  public async update(id: number, dto: DeepPartial<TransacaoAgrupado>) {
+    return this.transacaoAgRepository.update(id, dto);
   }
 
-  public async save(dto: DeepPartial<Transacao>): Promise<Transacao> {
-    return this.transacaoRepository.save(dto);
+  public async save(
+    dto: DeepPartial<TransacaoAgrupado>,
+  ): Promise<TransacaoAgrupado> {
+    return this.transacaoAgRepository.save(dto);
   }
 
   public async findOne(
-    fields: EntityCondition<Transacao>,
-  ): Promise<Nullable<Transacao>> {
-    return await this.transacaoRepository.findOne({
+    fields: EntityCondition<TransacaoAgrupado>,
+  ): Promise<Nullable<TransacaoAgrupado>> {
+    return await this.transacaoAgRepository.findOne({
       where: fields,
     });
   }
 
   public async findMany(
-    options: FindManyOptions<Transacao>,
-  ): Promise<Transacao[]> {
-    return await this.transacaoRepository.find(options);
+    options: FindManyOptions<TransacaoAgrupado>,
+  ): Promise<TransacaoAgrupado[]> {
+    return await this.transacaoAgRepository.find(options);
   }
 
-  public async findAll(): Promise<Transacao[]> {
-    return await this.transacaoRepository.find({});
+  public async findAll(): Promise<TransacaoAgrupado[]> {
+    return await this.transacaoAgRepository.find({});
   }
 
-  public async getAll(): Promise<Transacao[]> {
-    return await this.transacaoRepository.find({});
+  public async getAll(): Promise<TransacaoAgrupado[]> {
+    return await this.transacaoAgRepository.find({});
   }
 
   /**
    * Get all transacao where id not exists in headerArquivo yet (new CNABS)
    */
-  public async findAllNewTransacao(): Promise<Transacao[]> {
-    return await this.transacaoRepository.find({
+  public async findAllNewTransacao(): Promise<TransacaoAgrupado[]> {
+    return await this.transacaoAgRepository.find({
       where: {
         status: { id: Not(TransacaoStatusEnum.remessaSent) },
-        pagador: { conta: PagadorContaEnum.CETT },
       },
     });
   }

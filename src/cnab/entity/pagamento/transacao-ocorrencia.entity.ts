@@ -13,10 +13,10 @@ import { Enum } from 'src/utils/enum';
 
 @Entity()
 export class TransacaoOcorrencia extends EntityHelper {
-  constructor(clienteFavorecido?: DeepPartial<TransacaoOcorrencia>) {
+  constructor(ocorrencias?: DeepPartial<TransacaoOcorrencia>) {
     super();
-    if (clienteFavorecido !== undefined) {
-      Object.assign(this, clienteFavorecido);
+    if (ocorrencias !== undefined) {
+      Object.assign(this, ocorrencias);
     }
   }
 
@@ -39,17 +39,17 @@ export class TransacaoOcorrencia extends EntityHelper {
   /**
    * @returns A list of new TransacaoOcorrencia. Without Transacao defined
    */
-  public static newList(ocorrenciaCodes: string): TransacaoOcorrencia[] {
-    const codes: string[] = [];
-    for (let i = 0; i < ocorrenciaCodes.length; i += 2) {
-      const code = ocorrenciaCodes.slice(i, i + 2);
+  public static newArray(ocorrenciaCodes: string): TransacaoOcorrencia[] {
+    const codes = ocorrenciaCodes.trim();
+    const codesList: string[] = [];
+    for (let i = 0; i < codes.length; i += 2) {
+      const code = codes.slice(i, i + 2);
       if (code.length > 0) {
-        codes.push(code);
+        codesList.push(code);
       }
     }
-
     const ocorrencias: TransacaoOcorrencia[] = [];
-    for (const code of codes) {
+    for (const code of codesList) {
       const message: string = Enum.getValue(OcorrenciaEnum, code, {
         defaultValue: `${code} - Código desconhecido.`,
       });
@@ -60,7 +60,6 @@ export class TransacaoOcorrencia extends EntityHelper {
         }),
       );
     }
-
     return ocorrencias;
   }
 }

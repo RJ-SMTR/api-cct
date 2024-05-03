@@ -13,6 +13,7 @@ import {
 } from 'typeorm';
 import { HeaderArquivoStatus } from './header-arquivo-status.entity';
 import { Transacao } from './transacao.entity';
+import { TransacaoAgrupado } from './transacao-agrupado.entity';
 
 /**
  * Pagamento.HeaderArquivo
@@ -73,6 +74,12 @@ export class HeaderArquivo extends EntityHelper {
     foreignKeyConstraintName: 'FK_HeaderArquivo_transacao_ManyToOne',
   })
   transacao: Transacao;
+
+  @ManyToOne(() => TransacaoAgrupado, { eager: true })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_HeaderArquivo_transacaoAgrupado_ManyToOne',
+  })
+  transacaoAgrupado: TransacaoAgrupado;
 
   @Column({ type: Number, unique: false, nullable: false })
   nsa: number;

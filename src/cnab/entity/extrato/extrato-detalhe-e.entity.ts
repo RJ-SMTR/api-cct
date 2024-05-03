@@ -100,6 +100,7 @@ export class ExtratoDetalheE extends EntityHelper {
   })
   valorLancamento: number;
 
+  /** @example D = Devedor, C = Credor */
   @Column({ type: String, unique: false, nullable: false })
   tipoLancamento: string;
 

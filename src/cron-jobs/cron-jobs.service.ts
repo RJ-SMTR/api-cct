@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { CnabService } from 'src/cnab/cnab.service';
+import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -155,33 +156,33 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       //     },
       //   },
       // },
+      {
+        name: CrobJobsEnum.updateRemessaJae,
+        cronJobParameters: {
+          cronTime: '30 0 * * 5',  // Every friday
+          onTick: async () => {
+            await this.updateRemessa();
+          },
+        },
+      },
       // {
-      //   name: CrobJobsEnum.updateRemessaJae,
+      //   name: CrobJobsEnum.updateRetorno,
       //   cronJobParameters: {
-      //     cronTime: '30 0 * * 5',  // Every friday
+      //     cronTime: '0 */6 * * *', // Every 6h GMT (3h BRT)
       //     onTick: async () => {
-      //       await this.updateRemessa();
+      //       await this.updateRetorno();
       //     },
       //   },
       // },
-      {
-        name: CrobJobsEnum.updateRetorno,
-        cronJobParameters: {
-          cronTime: '0 */6 * * *', // Every 6h GMT (3h BRT)
-          onTick: async () => {
-            await this.updateRetorno();
-          },
-        },
-      },
-      {
-        name: CrobJobsEnum.updateExtrato,
-        cronJobParameters: {
-          cronTime: '0 */6 * * *', // Every 6h GMT (3h BRT)
-          onTick: async () => {
-            await this.updateExtrato();
-          },
-        },
-      },
+      // {
+      //   name: CrobJobsEnum.updateExtrato,
+      //   cronJobParameters: {
+      //     cronTime: '0 */6 * * *', // Every 6h GMT (3h BRT)
+      //     onTick: async () => {
+      //       await this.updateExtrato();
+      //     },
+      //   },
+      // },
     );
 
     for (const jobConfig of this.jobsConfig) {
@@ -743,17 +744,18 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     const METHOD = this.sendRemessa.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.sendRemessa();
+      await this.cnabService.sendRemessa(PagadorContaEnum.ContaBilhetagem);
+      // await this.cnabService.sendRemessa(PagadorContaEnum.CETT);
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error('Erro, abortando.', error.stack, METHOD);
     }
   }
 
-  async updateRetorno() {
+  updateRetorno() {
     const METHOD = this.updateRetorno.name;
     try {
-      await this.cnabService.updateRetorno();
+      // await this.cnabService.updateRetorno();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`Erro, abortando. - ${error}`, error.stack, METHOD);

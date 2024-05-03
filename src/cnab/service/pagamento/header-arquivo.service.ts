@@ -1,8 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
+import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
+import { appSettings } from 'src/settings/app.settings';
+import { SettingsService } from 'src/settings/settings.service';
+import { getBRTFromUTC } from 'src/utils/date-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { FindOptionsWhere } from 'typeorm';
@@ -12,9 +16,6 @@ import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { HeaderArquivoRepository } from '../../repository/pagamento/header-arquivo.repository';
 import { PagadorService } from './pagador.service';
-import { getBRTFromUTC } from 'src/utils/date-utils';
-import { SettingsService } from 'src/settings/settings.service';
-import { appSettings } from 'src/settings/app.settings';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -34,12 +35,13 @@ export class HeaderArquivoService {
    * Generate new HaderArquivo from Transacao
    */
   public async getDTO(
-    transacao: Transacao,
     tipo_arquivo: HeaderArquivoTipoArquivo,
+    transacao?: Transacao,
+    transacaoAg?: TransacaoAgrupado,
   ): Promise<HeaderArquivoDTO> {
     const now = getBRTFromUTC(new Date());
     const pagador = await this.pagadorService.getOneByIdPagador(
-      transacao.pagador.id,
+      transacao?.pagador.id || (transacaoAg?.pagador.id as number),
     );
     const dto = new HeaderArquivoDTO({
       agencia: pagador.agencia,
@@ -54,6 +56,7 @@ export class HeaderArquivoService {
       dvAgencia: pagador.dvAgencia,
       dvConta: pagador.dvConta,
       transacao: transacao,
+      transacaoAgrupado: transacaoAg,
       nomeEmpresa: pagador.nomeEmpresa,
       numeroConta: pagador.conta,
       tipoArquivo: tipo_arquivo,
@@ -96,7 +99,9 @@ export class HeaderArquivoService {
   public async findOne(
     fields: FindOptionsWhere<HeaderArquivo> | FindOptionsWhere<HeaderArquivo>[],
   ): Promise<HeaderArquivo | null> {
-    return (await this.headerArquivoRepository.findOne({ where: fields })) || null;
+    return (
+      (await this.headerArquivoRepository.findOne({ where: fields })) || null
+    );
   }
 
   public async findMany(

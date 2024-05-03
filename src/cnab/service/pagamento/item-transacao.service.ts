@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ItemTransacaoDTO } from 'src/cnab/dto/pagamento/item-transacao.dto';
-import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { ItemTransacaoStatus } from 'src/cnab/entity/pagamento/item-transacao-status.entity';
 import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
@@ -18,7 +17,7 @@ import {
   FindManyOptions,
   FindOptionsWhere,
   In,
-  Not
+  Not,
 } from 'typeorm';
 
 @Injectable()
@@ -32,65 +31,6 @@ export class ItemTransacaoService {
   async update(id: number, dto: DeepPartial<ItemTransacao>) {
     return await this.itemTransacaoRepository.update(id, dto);
   }
-
-  // #region getManyDTOsFromPublicacoes
-
-  /**
-   * @param publicacoes Ready to save or saved Entity. Must contain valid Transacao
-   */
-  public generateDTOsFromPublicacoes(
-    publicacoes: ArquivoPublicacao[],
-    favorecidos: ClienteFavorecido[],
-  ): ItemTransacao[] {
-    /** Key: cpfCnpj ClienteFavorecido. Eficient way to find favorecido. */
-    const favorecidosMap: Record<string, ClienteFavorecido> =
-      favorecidos.reduce((map, i) => ({ ...map, [i.cpfCnpj]: i }), {});
-
-    /** Key: idOrdem, idConsorcio, idOperadora */
-    const itensMap: Record<string, ItemTransacao> = {};
-
-    // Mount DTOs
-    for (const publicacao of publicacoes) {
-      const favorecido = favorecidosMap[publicacao.cpfCnpjCliente];
-      const itemPK = `${publicacao.idOrdemPagamento}|${publicacao.idConsorcio}|${publicacao.idOperadora}`;
-      if (!itensMap[itemPK]) {
-        itensMap[itemPK] = this.getDTOFromPublicacao(publicacao, favorecido);
-      } else {
-        itensMap[itemPK].valor += publicacao.valorTotalTransacaoLiquido;
-      }
-    }
-    return Object.values(itensMap);
-  }
-
-  /**
-   * A simple pipe thar converts BigqueryOrdemPagamento into ItemTransacaoDTO.
-   *
-   * **status** is Created.
-   */
-  public getDTOFromPublicacao(
-    publicacao: ArquivoPublicacao,
-    favorecido: ClienteFavorecido,
-  ): ItemTransacao {
-    const itemTransacao = new ItemTransacao({
-      clienteFavorecido: { id: favorecido.id },
-      favorecidoCpfCnpj: favorecido.cpfCnpj,
-      transacao: { id: publicacao.transacao.id },
-      valor: publicacao.valorTotalTransacaoLiquido,
-      // Composite unique columns
-      idOrdemPagamento: publicacao.idOrdemPagamento,
-      idConsorcio: publicacao.idConsorcio,
-      idOperadora: publicacao.idOperadora,
-      // Control columns
-      dataOrdem: publicacao.dataOrdem,
-      nomeConsorcio: publicacao.nomeConsorcio,
-      nomeOperadora: publicacao.nomeOperadora,
-      // detalheA = null, isRegistered = false
-      status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
-    });
-    return itemTransacao;
-  }
-
-  // #endregion
 
   // #region generateDTOsFromLancamentos
 
@@ -127,7 +67,6 @@ export class ItemTransacaoService {
     const transacao = asObject<Transacao>(lancamento.transacao);
     const itemTransacao = new ItemTransacao({
       clienteFavorecido: { id: favorecido.id },
-      favorecidoCpfCnpj: favorecido.cpfCnpj,
       transacao: { id: transacao.id },
       valor: lancamento.valor_a_pagar,
       // Composite unique column
@@ -173,8 +112,8 @@ export class ItemTransacaoService {
     return await this.itemTransacaoRepository.findMany(options);
   }
 
-  public async save(dto: ItemTransacaoDTO): Promise<ItemTransacao> {
-    return await this.itemTransacaoRepository.saveDTO(dto);
+  public async save(dto: DeepPartial<ItemTransacao>): Promise<ItemTransacao> {
+    return await this.itemTransacaoRepository.save(dto);
   }
 
   /**

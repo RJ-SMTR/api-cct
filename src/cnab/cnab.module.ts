@@ -45,6 +45,15 @@ import { ItemTransacaoService } from './service/pagamento/item-transacao.service
 import { PagadorService } from './service/pagamento/pagador.service';
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
+import { TransacaoOcorrencia } from './entity/pagamento/transacao-ocorrencia.entity';
+import { TransacaoOcorrenciaRepository } from './repository/pagamento/transacao-ocorrencia.repository';
+import { TransacaoOcorrenciaService } from './service/pagamento/transacao-ocorrencia.service';
+import { TransacaoAgrupadoRepository } from './repository/pagamento/transacao-agrupado.repository';
+import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
+import { ItemTransacaoAgrupadoRepository } from './repository/pagamento/item-transacao-agrupado.repository';
+import { ItemTransacaoAgrupadoService } from './service/pagamento/item-transacao-agrupado.service';
+import { TransacaoAgrupado } from './entity/pagamento/transacao-agrupado.entity';
+import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 
 @Module({
   imports: [
@@ -62,7 +71,10 @@ import { TransacaoService } from './service/pagamento/transacao.service';
       ClienteFavorecido,
       ArquivoPublicacao,
       Transacao,
+      TransacaoAgrupado,
+      TransacaoOcorrencia,
       ItemTransacao,
+      ItemTransacaoAgrupado,
       Pagador,
       ExtratoHeaderArquivo,
       ExtratoHeaderLote,
@@ -87,8 +99,14 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     ArquivoPublicacaoService,
     TransacaoRepository,
     TransacaoService,
+    TransacaoAgrupadoRepository,
+    TransacaoAgrupadoService,
+    TransacaoOcorrenciaRepository,
+    TransacaoOcorrenciaService,
     ItemTransacaoRepository,
     ItemTransacaoService,
+    ItemTransacaoAgrupadoRepository,
+    ItemTransacaoAgrupadoService,
     ExtratoHeaderArquivoRepository,
     ExtratoHeaderArquivoService,
     ExtratoHeaderLoteRepository,

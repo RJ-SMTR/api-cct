@@ -77,13 +77,13 @@ export class TestService {
         role: { id: RoleEnum.user },
       }
     });
-    const invalidCpfs = common.filter(i => !isCpfOrCnpj(i.getCpfCnpj()));
-    const validCpfs = common.filter(i => isCpfOrCnpj(i.getCpfCnpj()));
+    const invalidCpfs = common.filter(i => !isCpfOrCnpj(i?.cpfCnpj));
+    const validCpfs = common.filter(i => isCpfOrCnpj(i?.cpfCnpj));
     return {
       commonLength: common.length,
       validCount: validCpfs.length,
       invalidCount: invalidCpfs.length,
-      valid: validCpfs.map(i => ({ cpfCnpj: i.getCpfCnpj(), tipoDocumento: isCpfOrCnpj(i.getCpfCnpj()) })),
+      valid: validCpfs.map(i => ({ cpfCnpj: i?.cpfCnpj, tipoDocumento: isCpfOrCnpj(i?.cpfCnpj) })),
       invalid: invalidCpfs.map(i => ({ nome: i.fullName, telefone: i.phone, cpfCnpj: i.cpfCnpj })),
     }
   }

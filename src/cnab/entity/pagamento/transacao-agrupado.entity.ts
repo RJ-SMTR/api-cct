@@ -1,3 +1,4 @@
+import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import {
   Column,
@@ -9,23 +10,27 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { Pagador } from './pagador.entity';
 import { TransacaoOcorrencia } from './transacao-ocorrencia.entity';
 import { TransacaoStatus } from './transacao-status.entity';
-import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
-import { ItemTransacao } from './item-transacao.entity';
-import { TransacaoAgrupado } from './transacao-agrupado.entity';
+import { Transacao } from './transacao.entity';
 
+/**
+ * Unique Jaé ID: [idOrdemPagamento, idConsorcio, idOperadora]
+ */
 @Entity()
-export class Transacao extends EntityHelper {
-  constructor(transacao?: Transacao | DeepPartial<Transacao>) {
+export class TransacaoAgrupado extends EntityHelper {
+  constructor(transacao?: DeepPartial<TransacaoAgrupado>) {
     super();
     if (transacao !== undefined) {
       Object.assign(this, transacao);
     }
   }
 
-  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Transacao_id' })
+  @PrimaryGeneratedColumn({
+    primaryKeyConstraintName: 'PK_TransacaoAgrupado_id',
+  })
   id: number;
 
   @Column({ type: Date, unique: false, nullable: true })
@@ -35,28 +40,24 @@ export class Transacao extends EntityHelper {
   dataPagamento: Date | null;
 
   /**
-   * References BigqueryOrdemPagamento. Unique ID column for Jaé
-   *
-   * uniqueColumnName: `UQ_Transacao_idOrdemPagamento`
+   * Unique ID BQ Jaé
    */
-  @Column({ type: String, unique: true, nullable: true })
+  @Column({ type: String, unique: false, nullable: true })
   idOrdemPagamento: string | null;
 
   @ManyToOne(() => Pagador, { eager: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_pagador_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_TransacaoAgrupado_pagador_ManyToOne',
+  })
   pagador: Pagador;
 
   @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => TransacaoAgrupado, { eager: false, nullable: false })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_Transacao_transacaoAgrupado_ManyToOne',
-  })
-  transacaoAgrupado: TransacaoAgrupado;
-
   @ManyToOne(() => TransacaoStatus, { eager: false, nullable: false })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_status_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_TransacaoAgrupado_status_ManyToOne',
+  })
   status: TransacaoStatus;
 
   /** Not a physical column */
@@ -64,23 +65,31 @@ export class Transacao extends EntityHelper {
     nullable: true,
   })
   @JoinColumn({
-    foreignKeyConstraintName: 'FK_Transacao_lancamentos_OneToMany',
+    foreignKeyConstraintName: 'FK_TransacaoAgrupado_lancamentos_OneToMany',
   })
   lancamentos: LancamentoEntity[] | null;
 
   /** Not a physical column. CNAB errors */
   @OneToMany(() => TransacaoOcorrencia, (ocorrencia) => ocorrencia.transacao)
   @JoinColumn({
-    foreignKeyConstraintName: 'FK_Transacao_ocorrencias_OneToMany',
+    foreignKeyConstraintName: 'FK_TransacaoAgrupado_ocorrencias_OneToMany',
   })
   ocorrencias: TransacaoOcorrencia[];
 
   /** Not a physical column */
-  @OneToMany(() => ItemTransacao, (item) => item.transacao)
+  @OneToMany(() => ItemTransacaoAgrupado, (item) => item.transacaoAgrupado)
   @JoinColumn({
-    foreignKeyConstraintName: 'FK_Transacao_itemTransacoes_OneToMany',
+    foreignKeyConstraintName: 'FK_TransacaoAgrupado_itemTransacoes_OneToMany',
   })
-  itemTransacoes: ItemTransacao[];
+  itemTransacoesAgrupado: ItemTransacaoAgrupado[];
+
+  @OneToMany(() => Transacao, (transacao) => transacao.transacaoAgrupado, {
+    eager: true,
+  })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_TransacaoAgrupado_transacoes_OneToMany',
+  })
+  transacoes: Transacao[];
 
   public static getUniqueId(entity: DeepPartial<Transacao>): string {
     return `${entity.idOrdemPagamento}`;

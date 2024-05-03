@@ -1,4 +1,5 @@
 import { EntityHelper } from 'src/utils/entity-helper';
+import { asStringOrNumber } from 'src/utils/pipe-utils';
 import {
   AfterLoad,
   Column,
@@ -9,33 +10,35 @@ import {
   ManyToOne,
   OneToOne,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
+  UpdateDateColumn
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
-import { Transacao } from './transacao.entity';
 import { DetalheA } from './detalhe-a.entity';
 import { ItemTransacaoStatus } from './item-transacao-status.entity';
-import { asStringOrNumber } from 'src/utils/pipe-utils';
+import { TransacaoAgrupado } from './transacao-agrupado.entity';
 
 @Entity()
-export class ItemTransacao extends EntityHelper {
-  constructor(dto?: DeepPartial<ItemTransacao>) {
+export class ItemTransacaoAgrupado extends EntityHelper {
+  constructor(dto?: DeepPartial<ItemTransacaoAgrupado>) {
     super();
     if (dto) {
       Object.assign(this, dto);
     }
   }
 
-  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_ItemTransacao_id' })
+  @PrimaryGeneratedColumn({
+    primaryKeyConstraintName: 'PK_ItemTransacaoAgrupado_id',
+  })
   id: number;
 
-  @ManyToOne(() => Transacao, {
+  @ManyToOne(() => TransacaoAgrupado, {
     eager: true,
   })
   @JoinColumn({
-    foreignKeyConstraintName: 'FK_ItemTransacao_transacao_ManyToOne',
+    foreignKeyConstraintName:
+      'FK_ItemTransacaoAgrupado_transacaoAgrupado_ManyToOne',
   })
-  transacao: Transacao;
+  transacaoAgrupado: TransacaoAgrupado;
 
   @CreateDateColumn()
   dataProcessamento: Date;
@@ -54,7 +57,8 @@ export class ItemTransacao extends EntityHelper {
     eager: true,
   })
   @JoinColumn({
-    foreignKeyConstraintName: 'FK_ItemTransacao_clienteFavorecido_ManyToOne',
+    foreignKeyConstraintName:
+      'FK_ItemTransacaoAgrupado_clienteFavorecido_ManyToOne',
   })
   clienteFavorecido: ClienteFavorecido;
 
@@ -92,7 +96,7 @@ export class ItemTransacao extends EntityHelper {
   /** FK to know which DetalheA is related to ItemTransacao */
   @OneToOne(() => DetalheA, { eager: true, nullable: true })
   @JoinColumn({
-    foreignKeyConstraintName: 'FK_ItemTransacao_detalheA_OneToOne',
+    foreignKeyConstraintName: 'FK_ItemTransacaoAgrupado_detalheA_OneToOne',
   })
   detalheA: DetalheA | null;
 
@@ -107,19 +111,23 @@ export class ItemTransacao extends EntityHelper {
   updatedAt: Date;
 
   @ManyToOne(() => ItemTransacaoStatus, { eager: false, nullable: false })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ItemTransacao_status_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_ItemTransacaoAgrupado_status_ManyToOne',
+  })
   status: ItemTransacaoStatus;
 
   public getLogInfo(): string {
     return `#{ idOP: ${this.idOrdemPagamento}, op: ${this.idOperadora}, co: ${this.idConsorcio} }`;
   }
 
-  public static getUniqueIdJae(entity: DeepPartial<ItemTransacao>): string {
+  public static getUniqueIdJae(
+    entity: DeepPartial<ItemTransacaoAgrupado>,
+  ): string {
     return `${entity.idOrdemPagamento}|${entity.idConsorcio}|${entity.idOperadora}`;
   }
 
   public static getUniqueIdLancamento(
-    entity: DeepPartial<ItemTransacao>,
+    entity: DeepPartial<ItemTransacaoAgrupado>,
   ): string {
     const dataLancamento = entity.dataLancamento;
     if (dataLancamento === null || dataLancamento === undefined) {

@@ -13,6 +13,7 @@ import { HeaderLoteDTO } from '../../dto/pagamento/header-lote.dto';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
 import { HeaderLoteRepository } from '../../repository/pagamento/header-lote.repository';
 import { PagadorService } from './pagador.service';
+import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -32,12 +33,13 @@ export class HeaderLoteService {
    * 
    */
   public getDTO(
-    transacao: Transacao,
     headerArquivo: HeaderArquivoDTO,
+    transacao?: Transacao,
+    transacaoAg?: TransacaoAgrupado,
   ): HeaderLote {
     const dto = new HeaderLote({
       codigoConvenioBanco: headerArquivo.codigoConvenio,
-      pagador: transacao.pagador,
+      pagador: transacao?.pagador || transacaoAg?.pagador,
       numeroInscricao: headerArquivo.numeroInscricao,
       parametroTransmissao: headerArquivo.parametroTransmissao,
       tipoCompromisso: String(PgtoRegistros.headerLote.tipoCompromisso.value),

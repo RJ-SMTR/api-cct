@@ -1,14 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { logWarn } from 'src/utils/log-utils';
-import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import {
   DeepPartial,
   FindManyOptions,
   InsertResult,
   Repository,
 } from 'typeorm';
-import { ArquivoPublicacaoDTO } from '../dto/arquivo-publicacao.dto';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 
 @Injectable()
@@ -39,7 +36,7 @@ export class ArquivoPublicacaoRepository {
     });
   }
 
-  public save(dto: ArquivoPublicacaoDTO): Promise<ArquivoPublicacao> {
+  public save(dto: DeepPartial<ArquivoPublicacao>): Promise<ArquivoPublicacao> {
     return this.arquivoPublicacaoRepository.save(dto);
   }
 
@@ -55,37 +52,37 @@ export class ArquivoPublicacaoRepository {
   /**
    * Save if detalheARetornoId not exists yet.
    */
-  public async saveIfNotExists(
-    dto: ArquivoPublicacaoDTO,
-    updateIfExists?: boolean,
-  ): Promise<SaveIfNotExists<ArquivoPublicacao>> {
-    const METHOD = 'saveIfNotExists()';
-    const existing = await this.arquivoPublicacaoRepository.findOne({
-      where: { idDetalheARetorno: dto.idDetalheARetorno },
-    });
-    if (existing) {
-      const itemResult = updateIfExists
-        ? await this.arquivoPublicacaoRepository.save({
-            ...dto,
-            id: existing.id,
-          })
-        : existing;
-      logWarn(
-        this.logger,
-        'detalheARetorno já existe no Arq.Pub. Ignorando...',
-        METHOD,
-      );
-      return {
-        isNewItem: false,
-        item: itemResult,
-      };
-    } else {
-      return {
-        isNewItem: true,
-        item: await this.arquivoPublicacaoRepository.save(dto),
-      };
-    }
-  }
+  // public async saveIfNotExists(
+  //   dto: ArquivoPublicacaoDTO,
+  //   updateIfExists?: boolean,
+  // ): Promise<SaveIfNotExists<ArquivoPublicacao>> {
+  //   const METHOD = 'saveIfNotExists()';
+  //   const existing = await this.arquivoPublicacaoRepository.findOne({
+  //     where: { idDetalheARetorno: dto.idDetalheARetorno },
+  //   });
+  //   if (existing) {
+  //     const itemResult = updateIfExists
+  //       ? await this.arquivoPublicacaoRepository.save({
+  //           ...dto,
+  //           id: existing.id,
+  //         })
+  //       : existing;
+  //     logWarn(
+  //       this.logger,
+  //       'detalheARetorno já existe no Arq.Pub. Ignorando...',
+  //       METHOD,
+  //     );
+  //     return {
+  //       isNewItem: false,
+  //       item: itemResult,
+  //     };
+  //   } else {
+  //     return {
+  //       isNewItem: true,
+  //       item: await this.arquivoPublicacaoRepository.save(dto),
+  //     };
+  //   }
+  // }
 
   public async getOne(
     options: FindManyOptions<ArquivoPublicacao>,
