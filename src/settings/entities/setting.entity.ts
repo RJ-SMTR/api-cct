@@ -2,7 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
 import { SettingType } from 'src/setting-types/entities/setting-type.entity';
-import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import {
   BaseEntity,
   Column,

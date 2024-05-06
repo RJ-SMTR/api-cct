@@ -372,5 +372,107 @@ describe('Admin managing users (e2e)', () => {
           expect(body.bankAccount).toEqual(String(random4Nums));
         });
     });
+
+    test('Upload invalid cpf, block upload', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 3 - GitHub}
+     */ async () => {
+      // Arrange
+      const randomCode1 = Math.random().toString(36).slice(-8);
+      const randomCode2 = Math.random().toString(36).slice(-8);
+      const uploadUsers = [
+        {
+          codigo_permissionario: `permitCode_${randomCode1}`,
+          nome: `Café_${randomCode1}`,
+          email: `user.${randomCode1}@mai.com`,
+          telefone: `219${Math.random().toString().slice(2, 10)}`,
+          cpf: `invalid_cpf_${randomCode1}`,
+        },
+        {
+          codigo_permissionario: `permitCode_${randomCode2}`,
+          nome: `Café_${randomCode2}`,
+          email: `user.${randomCode2}@mai.com`,
+          telefone: `219${Math.random().toString().slice(2, 10)}`,
+          cpf: `invalid_cpf_${randomCode2}`,
+        },
+      ];
+      const excelFilePath = path.join(tempFolder, 'newUsers.xlsx');
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(uploadUsers);
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+      XLSX.writeFile(workbook, excelFilePath);
+
+      // Assert
+      await request(app)
+        .post('/api/v1/users/upload')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .attach('file', excelFilePath)
+        .expect(HttpStatus.UNPROCESSABLE_ENTITY)
+        .expect(({ body }) => {
+          const invalidRows = body.error.file.invalidRows;
+          expect(invalidRows.length).toBeGreaterThan(0);
+          expect(invalidRows[0].errors).toMatchObject({
+            cpf: 'CPF inválido',
+          });
+        });
+    });
+
+    test('Patch cpf, throw error', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 3 - GitHub}
+     */ async () => {
+      const user = await request(app)
+        .get('/api/v1/users/')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .query({ permitCode: TO_UPDATE_PERMIT_CODE })
+        .expect(({ body }) => {
+          expect(body.data.length).toBe(1);
+        })
+        .then(({ body }) => body.data[0]);
+
+      // Assert
+      await request(app)
+        .patch(`/api/v1/users/${user.id}`)
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .send({
+          cpfCnpj: generate(),
+        })
+        .expect(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+
+    test('Patch bankAccount, success', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 3 - GitHub}
+     */ async () => {
+      //  Arrange
+      const random4Nums = Math.floor(1000 + Math.random() * 9000);
+      const user = await request(app)
+        .get('/api/v1/users/')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .query({ permitCode: TO_UPDATE_PERMIT_CODE })
+        .expect(({ body }) => {
+          expect(body.data.length).toBe(1);
+        })
+        .then(({ body }) => body.data[0]);
+
+      // Assert
+      await request(app)
+        .patch(`/api/v1/users/${user.id}`)
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .send({
+          bankAccount: random4Nums,
+        })
+        .expect(HttpStatus.OK)
+        .expect(({ body }) => {
+          expect(body.bankAccount).toEqual(String(random4Nums));
+        });
+    });
   });
 });

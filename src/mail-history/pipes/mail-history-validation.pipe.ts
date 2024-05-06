@@ -7,7 +7,7 @@ import {
   ValidationPipeOptions,
 } from '@nestjs/common';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
-import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { MailHistoryService } from '../mail-history.service';
 
 @Injectable()
