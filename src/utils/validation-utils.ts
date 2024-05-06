@@ -6,6 +6,9 @@ import { InvalidRows } from './types/invalid-rows.type';
 
 const SEPARATOR = '; ';
 
+/**
+ * @param throwOnError default: true
+ */
 export async function validateDTO(
   dto: any,
   object: any,
