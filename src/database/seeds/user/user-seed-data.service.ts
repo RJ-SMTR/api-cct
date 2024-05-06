@@ -318,7 +318,7 @@ LIMIT 5
               status: { id: StatusEnum.active } as Status,
               inviteStatus: new InviteStatus(InviteStatusEnum.used),
             },
-          ] as UserDataInterface[])
+          ] as UserSeedDataInterface[])
         : []),
     ];
   }
