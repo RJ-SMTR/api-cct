@@ -4,8 +4,6 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { plainToClass } from 'class-transformer';
 import * as crypto from 'crypto';
-import { CoreBankService } from 'src/core-bank/core-bank.service';
-import { UpdateCoreBankInterface } from 'src/core-bank/interfaces/update-core-bank.interface';
 import { ForgotService } from 'src/forgot/forgot.service';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -18,11 +16,11 @@ import { SocialInterface } from 'src/social/interfaces/social.interface';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
-import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
-import { formatLog } from 'src/utils/log-utils';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
+import { logLog, logWarn } from 'src/utils/log-utils';
 import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
-import { NullableType } from '../utils/types/nullable.type';
+import { Nullable } from '../utils/types/nullable.type';
 import { AuthProvidersEnum } from './auth-providers.enum';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
@@ -38,9 +36,8 @@ export class AuthService {
     private usersService: UsersService,
     private forgotService: ForgotService,
     private mailService: MailService,
-    private coreBankService: CoreBankService,
     private mailHistoryService: MailHistoryService,
-  ) {}
+  ) { }
 
   async validateLogin(
     loginDto: AuthEmailLoginDto,
@@ -49,19 +46,25 @@ export class AuthService {
     const user = await this.usersService.findOne({
       email: loginDto.email,
     });
+    const expectedRoles = onlyAdmin
+      ? [
+        RoleEnum.master,
+        RoleEnum.admin,
+        RoleEnum.aprovador_financeiro,
+        RoleEnum.lancador_financeiro,
+        RoleEnum.admin_finan,
+      ]
+      : [RoleEnum.user];
 
-    if (
-      !user ||
-      (user?.role &&
-        !(onlyAdmin ? [RoleEnum.admin] : [RoleEnum.user]).includes(
-          user.role.id,
-        ))
-    ) {
+    if (!user || (user?.role && !expectedRoles.includes(user.role.id))) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,
           details: {
             email: 'notFound',
+            onlyAdmin: onlyAdmin,
+            expectedRoles: expectedRoles,
+            role: user?.role,
           },
         },
         HttpStatus.UNAUTHORIZED,
@@ -109,7 +112,7 @@ export class AuthService {
     authProvider: string,
     socialData: SocialInterface,
   ): Promise<LoginResponseType> {
-    let user: NullableType<User>;
+    let user: Nullable<User>;
     const socialEmail = socialData.email?.toLowerCase();
 
     const userByEmail = await this.usersService.findOne({
@@ -285,12 +288,9 @@ export class AuthService {
         },
         `AuthService.${logContext}`,
       );
-      this.logger.log(
-        formatLog(
-          `Email de cadastro enviado com sucesso (${userMailHistory.getLogInfoStr()})`,
-          logContext,
-        ),
-      );
+      logLog(this.logger,
+        `Email de cadastro enviado com sucesso (${userMailHistory.getLogInfoStr()})`,
+        logContext);
     } else {
       throw new HttpException(
         {
@@ -372,7 +372,7 @@ export class AuthService {
     };
 
     if (!user) {
-      this.logger.warn(`forgotPassword(): email '${email}' does not exists`);
+      logWarn(this.logger, `forgotPassword(): email '${email}' does not exists`);
       return returnMessage;
     }
 
@@ -393,13 +393,9 @@ export class AuthService {
 
       // Success
       if (mailSentInfo.success === true) {
-        this.logger.log(
-          formatLog(
-            'Email redefinir senha enviado com sucesso.' +
-              `\n    - Detalhes: ${JSON.stringify({ mailSentInfo })}`,
-            'forgotPassword()',
-          ),
-        );
+        logLog(this.logger, 'Email redefinir senha enviado com sucesso.' +
+          `\n    - Detalhes: ${JSON.stringify({ mailSentInfo })}`,
+          'forgotPassword()');
         return returnMessage;
       }
 
@@ -448,16 +444,13 @@ export class AuthService {
     await this.forgotService.softDelete(forgot.id);
   }
 
-  async me(user: User): Promise<NullableType<User>> {
+  async me(user: User): Promise<Nullable<User>> {
     return this.usersService.findOne({
       id: user.id,
     });
   }
 
-  async update(
-    user: User,
-    userDto: AuthUpdateDto,
-  ): Promise<NullableType<User>> {
+  async update(user: User, userDto: AuthUpdateDto): Promise<Nullable<User>> {
     const userProfile = await this.usersService.findOne({ id: user.id });
 
     if (!userProfile || !(userProfile && userProfile?.cpfCnpj)) {
@@ -481,14 +474,6 @@ export class AuthService {
 
     userProfile.update(userDto);
     await this.usersService.update(user.id, userProfile);
-
-    const coreBankProfile: UpdateCoreBankInterface = {
-      bankAccountCode: userProfile.bankAccount,
-      bankAccountDigit: userProfile.bankAccountDigit,
-      bankAgencyCode: userProfile.bankAgency,
-      bankCode: userProfile.bankCode,
-    };
-    this.coreBankService.update(userProfile.cpfCnpj, coreBankProfile);
 
     return userProfile;
   }

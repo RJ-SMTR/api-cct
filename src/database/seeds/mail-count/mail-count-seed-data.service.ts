@@ -5,9 +5,9 @@ import { AllConfigType } from 'src/config/config.type';
 
 @Injectable()
 export class MailCountSeedDataService {
-  constructor(private configService: ConfigService<AllConfigType>) {}
+  constructor(private configService: ConfigService<AllConfigType>) { }
 
-  getDataFromConfig(): MailCountDataInterface[] {
+  getData(): MailCountDataInterface[] {
     return [
       {
         email: this.configService.getOrThrow('mail.defaultEmail', {

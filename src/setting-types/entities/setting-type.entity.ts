@@ -4,6 +4,7 @@ import { Exclude } from 'class-transformer';
 import { SettingTypeEnum } from '../setting-type.enum';
 import { Enum } from 'src/utils/enum';
 
+/** uniqueConstraintName: `UQ_SettingType_name` */
 @Entity({ name: 'setting_type' })
 export class SettingType extends BaseEntity {
   constructor(setting?: SettingTypeEnum) {
@@ -15,7 +16,7 @@ export class SettingType extends BaseEntity {
   }
   @Exclude()
   @ApiProperty({ example: 1 })
-  @PrimaryColumn()
+  @PrimaryColumn({ primaryKeyConstraintName: 'PK_SettingType_id' })
   id: number;
 
   @ApiProperty({ example: 'boolean' })

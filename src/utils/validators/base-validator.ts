@@ -1,7 +1,7 @@
 import { validate } from 'class-validator';
 import { plainToClass } from 'class-transformer';
 import { HttpException, HttpStatus, Injectable, Type } from '@nestjs/common';
-import { HttpStatusMessage } from '../enums/http-status-message.enum';
+import { HttpStatusMessage } from '../enums/http-error-message.enum';
 
 @Injectable()
 export class BaseValidator {

@@ -5,6 +5,7 @@ import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-st
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { EntityManager } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
@@ -46,6 +47,13 @@ describe('UsersService', () => {
       findOne: jest.fn(),
     },
   } as Provider;
+  const entityManagerMock = {
+    provide: EntityManager,
+    useValue: {
+      createQueryBuilder: jest.fn(),
+      transaction: jest.fn(),
+    },
+  } as Provider;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -54,6 +62,7 @@ describe('UsersService', () => {
         usersRepositoryServiceMock,
         mailHistoryServiceMock,
         banksServiceMock,
+        entityManagerMock,
       ],
     }).compile();
 
@@ -144,10 +153,10 @@ describe('UsersService', () => {
         expectedFileUsers.push({
           row: i + 2,
           user: {
-            email: `invalidEmail_${i}#example.com`,
+            cpf: '21138266217',
           },
           errors: {
-            email: 'invalid',
+            cpf: 'invalid',
           },
         } as IFileUser);
       }

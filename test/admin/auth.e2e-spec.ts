@@ -11,20 +11,17 @@ import {
 
 describe('Admin auth (e2e)', () => {
   describe('Setup tests', () => {
-    it('Should have UTC and local timezones', () => {
+    it('should have UTC and local timezones', () => {
       new Date().getTimezoneOffset();
       expect(process.env.TZ).toEqual('UTC');
       expect(global.__localTzOffset).toBeDefined();
     });
 
-    it('Should have mailDev server', async () => {
+    it('should have mailDev server', async () => {
       await request(MAILDEV_URL).get('').expect(HttpStatus.OK);
     });
   });
 
-  /**
-   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Phase 1, requirements #94 - GitHub}
-   */
   describe('Phase 1: Admin basics and user management', () => {
     test('Login admin: POST /api/v1/auth/admin/email/login', () => {
       return request(APP_URL)
@@ -37,7 +34,9 @@ describe('Admin auth (e2e)', () => {
         });
     });
 
-    test('Reset admin password', async () => {
+    test('Reset admin password', /**
+     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 1 - GitHub}
+     */ async () => {
       await request(APP_URL)
         .post('/api/v1/auth/forgot/password')
         .send({

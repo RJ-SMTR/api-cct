@@ -1,46 +1,64 @@
-import { QueryBuildType } from './query-builder.type';
+import { ANDCondition, ORCondition } from "./query-builder.type";
 
 /**
  * Simple helper to make nested queries
  */
 export class QueryBuilder {
-  private queryBuild: QueryBuildType = [];
+  private queryBuild: ORCondition[] = [[]];
 
-  constructor(queryBuild?: QueryBuildType) {
+  constructor(queryBuild?: ORCondition[]) {
     if (queryBuild !== undefined) {
       this.setQueryBuild(queryBuild);
     }
   }
 
-  public getQueryBuild(): QueryBuildType {
+  public getQueryBuild(): ORCondition[] {
     return this.queryBuild;
   }
 
-  public setQueryBuild(queryBuild: string[][]) {
+  public setQueryBuild(queryBuild: ORCondition[]) {
     this.queryBuild = queryBuild;
   }
 
-  public pushAND(condition: string, ORIndex = -1) {
-    const orIndex = ORIndex >= 0 ? ORIndex : this.queryBuild.length + ORIndex;
-    this.queryBuild[orIndex].push(condition);
-  }
-
-  public pushOR(conditions: string[]) {
-    this.queryBuild.push(conditions);
+  /**
+   * Push new ANDCondition
+   * 
+   * @param ANDCondition New condition
+   * @param ORIndex Default is last ORCondition index
+   */
+  public pushAND(ANDCondition: ANDCondition, ORIndex = -1) {
+    const orIndex = ORIndex >= 0 ? ORIndex : this.queryBuild.length - 1;
+    this.queryBuild[orIndex].push(ANDCondition);
   }
 
   /**
-   *
+   * Create a new OR condition item
+   */
+  public pushOR(ORCondition: ORCondition = []) {
+    this.queryBuild.push(ORCondition);
+  }
+
+  /**
+   * Generate AND/OR conditoins to be used in WHERE.
+   * 
    * @returns ```sql
-   * (<condition> and <condition>) OR (<conditions...>)
+   * (
+   * ㅤㅤ 'condition'
+   * ㅤㅤ AND 'condition'
+   * )
+   * OR
+   * (
+   * ㅤㅤ 'condition'
+   * ㅤㅤ AND 'condition'
+   * )
    * ```
    */
   public toSQL(): string {
     if (!this.getQueryBuild()) {
       return '';
     }
-    return this.queryBuild
-      .filter((conditions) => conditions.length > 0)
+    const queryBuild = this.queryBuild.map(or => or.filter(and => and)).filter(or => or.length);
+    return queryBuild
       .map((conditions, index) => {
         const joinedConditions = conditions.join(' AND ');
         return index === 0
@@ -54,3 +72,4 @@ export class QueryBuilder {
     return this.queryBuild.length > 0;
   }
 }
+

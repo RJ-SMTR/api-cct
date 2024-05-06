@@ -8,10 +8,12 @@ import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { MailHistorySeedDataService } from './mail-history-seed-data.service';
 import { UserSeedDataService } from '../user/user-seed-data.service';
+import { logLog, logWarn } from 'src/utils/log-utils';
 
 @Injectable()
 export class MailHistorySeedService {
   private logger = new Logger('MailHistorySeedService', { timestamp: true });
+  private newMails: any[] = [];
 
   constructor(
     @InjectRepository(MailHistory)
@@ -20,48 +22,69 @@ export class MailHistorySeedService {
     private usersRepository: Repository<User>,
     private mhSeedDataService: MailHistorySeedDataService,
     private userSeedDataService: UserSeedDataService,
-  ) {}
+  ) { }
+
+  async validateRun() {
+    return global.force || (await this.usersRepository.count()) === 0;
+  }
 
   async run() {
-    if (!(await this.validateRun())) {
-      this.logger.log('Database is not empty. Aborting seed...');
-      return;
-    }
-    this.logger.log('run()');
-    for (const item of this.mhSeedDataService.getDataFromConfig()) {
-      const itemUser = await this.getHistoryUser(item);
-      const itemSeedUser = this.userSeedDataService
-        .getDataFromConfig()
-        .find((i) => i.email === itemUser.email);
-      const foundItem = await this.mailHistoryRepository.findOne({
+    for (const mailFixture of await this.mhSeedDataService.getData()) {
+      const itemUser = await this.getHistoryUser(mailFixture);
+      const itemSeedUser = (
+        await this.userSeedDataService.getData()
+      ).find((i) => i.email === itemUser.email);
+      const foundMail = await this.mailHistoryRepository.findOne({
         where: {
           user: { email: itemUser.email as string },
         },
       });
-
-      if (!foundItem) {
-        const hash = await this.generateInviteHash();
-        const newItem = { ...item };
-        if (itemSeedUser?.inviteStatus) {
-          newItem.inviteStatus = itemSeedUser.inviteStatus;
-        }
-        this.logger.log(`Creating mailHistory: ${JSON.stringify(newItem)}`);
-        await this.mailHistoryRepository.save({
-          ...item,
-          hash: hash,
-          email: itemUser.email as string,
-          user: { id: itemUser.id },
-          ...(itemSeedUser?.inviteStatus
-            ? {
-                inviteStatus: itemSeedUser.inviteStatus,
-              }
-            : {}),
-        });
-        await this.usersRepository.update(itemUser.id, {
-          hash: newItem.hash,
-        });
+      const hash = await this.generateInviteHash();
+      const newItem = { ...mailFixture };
+      newItem.user = itemUser;
+      newItem.email = itemUser.email as string;
+      newItem.hash = hash;
+      if (itemSeedUser?.inviteStatus) {
+        newItem.inviteStatus = itemSeedUser.inviteStatus;
       }
+      await this.saveMailHistory(newItem, itemUser, foundMail);
+      this.pushNewMail(newItem, foundMail);
     }
+
+    if (this.newMails.length) {
+      this.printResults();
+    } else {
+      logLog(this.logger, 'No new mails changed.');
+    }
+  }
+
+  pushNewMail(mail: IMailSeedData, foundMail: MailHistory | null) {
+    this.newMails.push({
+      status: foundMail ? 'updated' : 'created',
+      email: mail.email,
+      hash: mail.hash,
+      inviteStatus: mail.inviteStatus,
+      sentAt: mail.sentAt,
+    });
+  }
+
+  async saveMailHistory(
+    mail: IMailSeedData,
+    itemUser: User,
+    foundMail: MailHistory | null,
+  ) {
+    await this.mailHistoryRepository.save(
+      this.mailHistoryRepository.create({
+        ...mail,
+        id: foundMail?.id || mail.id,
+      }),
+    );
+    await this.usersRepository.save(
+      this.usersRepository.create({
+        id: itemUser.id,
+        hash: mail.hash,
+      }),
+    );
   }
 
   async generateInviteHash(): Promise<string> {
@@ -85,7 +108,14 @@ export class MailHistorySeedService {
     return users[0];
   }
 
-  async validateRun() {
-    return global.force || (await this.usersRepository.count()) === 0;
+  printResults() {
+    logLog(this.logger, 'NEW USERS:');
+    logWarn(this.logger,
+      'The passwords shown are always new but if user exists the current password in DB wont be updated.\n' +
+      'Save these passwords in the first run or remove these users before seed',
+    );
+    for (const item of this.newMails) {
+      logLog(this.logger, item);
+    }
   }
 }

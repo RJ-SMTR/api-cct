@@ -9,7 +9,11 @@ export class StatusSeedService {
   constructor(
     @InjectRepository(Status)
     private repository: Repository<Status>,
-  ) {}
+  ) { }
+
+  async validateRun() {
+    return Promise.resolve(true);
+  }
 
   async run() {
     for (const value in StatusEnum) {

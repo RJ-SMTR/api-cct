@@ -10,11 +10,15 @@ export class MailCountSeedService {
     @InjectRepository(MailCount)
     private repository: Repository<MailCount>,
     private dataService: MailCountSeedDataService,
-  ) {}
+  ) { }
+
+  async validateRun() {
+    return Promise.resolve(true);
+  }
 
   async run() {
     let id = 1;
-    for (const item of this.dataService.getDataFromConfig()) {
+    for (const item of this.dataService.getData()) {
       const count = await this.repository.count({
         where: {
           email: item.email,

@@ -1,6 +1,6 @@
 {
   "name": "api-cct",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "description": "",
   "author": "",
   "private": true,
@@ -8,6 +8,7 @@
   "scripts": {
     "typeorm": "env-cmd ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "migration:generate": "npm run typeorm -- --dataSource=src/database/data-source.ts migration:generate",
+    "migration:generate1": "npm run typeorm -- --dataSource=src/database/data-source.ts migration:generate",
     "migration:create": "npm run typeorm -- migration:create",
     "migration:run": "npm run typeorm -- --dataSource=src/database/data-source.ts migration:run",
     "migration:revert": "npm run typeorm -- --dataSource=src/database/data-source.ts migration:revert",
@@ -52,6 +53,7 @@
     "class-transformer": "0.5.1",
     "class-validator": "0.14.0",
     "date-fns": "^2.30.0",
+    "dotenv": "^16.4.5",
     "fb": "2.0.0",
     "gerador-validador-cpf": "^5.0.2",
     "google-auth-library": "8.8.0",
@@ -68,6 +70,8 @@
     "rimraf": "5.0.1",
     "rxjs": "7.8.1",
     "source-map-support": "0.5.21",
+    "ssh2": "^1.15.0",
+    "ssh2-sftp-client": "^10.0.3",
     "swagger-ui-express": "4.6.3",
     "twitter": "1.7.1",
     "typeorm": "0.3.16",

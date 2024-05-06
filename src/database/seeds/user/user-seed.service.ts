@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { UserSeedDataService } from './user-seed-data.service';
 import * as crypto from 'crypto';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+import { UserSeedDataInterface } from 'src/users/interfaces/user-seed-data.interface';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class UserSeedService {
@@ -15,55 +16,69 @@ export class UserSeedService {
     @InjectRepository(User)
     private userSeedRepository: Repository<User>,
     private userSeedDataService: UserSeedDataService,
-  ) {}
+  ) { }
+
+  async validateRun() {
+    return global.force || (await this.userSeedRepository.count()) === 0;
+  }
 
   async run() {
-    const userFixtures = await this.userSeedDataService.getDataFromConfig();
-    for (const item of userFixtures) {
-      const foundItem = await this.userSeedRepository.findOne({
+    const userFixtures = await this.userSeedDataService.getData();
+    for (const userFixture of userFixtures) {
+      const foundUserFixture = await this.userSeedRepository.findOne({
         where: {
-          email: item.email,
+          email: userFixture.email,
         },
       });
 
       let createdItem: User;
-      if (foundItem) {
-        const newItem = new User(foundItem);
-        newItem.update(item, true);
+      if (foundUserFixture) {
+        const newUser = new User(foundUserFixture);
+        newUser.update(userFixture, true);
         await this.userSeedRepository.save(
-          this.userSeedRepository.create(newItem),
+          this.userSeedRepository.create(newUser),
         );
         createdItem = (await this.userSeedRepository.findOne({
           where: {
-            email: item.email as string,
+            email: userFixture.email as string,
           },
         })) as User;
       } else {
         createdItem = await this.userSeedRepository.save(
-          this.userSeedRepository.create(item),
+          this.userSeedRepository.create(userFixture),
         );
       }
-      item.hash = await this.generateHash();
-      this.newUsers.push({
-        status: foundItem ? 'updated' : 'created',
-        fullName: item.fullName,
-        email: item.email,
-        password: item.password,
-        hashedPassword: createdItem.password,
-      });
+      userFixture.hash = await this.generateHash();
+      this.pushNewUser(userFixture, foundUserFixture, createdItem);
     }
+
     if (this.newUsers.length) {
-      this.printPasswords();
+      this.printResults();
     } else {
-      this.logger.log('No new users created.');
+      this.logger.log('No new users changed.');
     }
   }
 
-  printPasswords() {
+  pushNewUser(
+    userFixture: UserSeedDataInterface,
+    foundUserFixture: User | null,
+    createdItem: User,
+  ) {
+    this.newUsers.push({
+      status: foundUserFixture ? 'updated' : 'created',
+      fullName: userFixture.fullName,
+      email: userFixture.email,
+      password: userFixture.password,
+      cpfCnpj: userFixture.cpfCnpj,
+      hashedPassword: createdItem.password,
+    });
+  }
+
+  printResults() {
     this.logger.log('NEW USERS:');
     this.logger.warn(
       'The passwords shown are always new but if user exists the current password in DB wont be updated.\n' +
-        'Save these passwords in the first run or remove these users before seed',
+      'Save these passwords in the first run or remove these users before seed',
     );
     for (const item of this.newUsers) {
       this.logger.log(item);

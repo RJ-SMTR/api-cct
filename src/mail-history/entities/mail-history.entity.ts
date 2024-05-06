@@ -4,18 +4,19 @@ import { Allow } from 'class-validator';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { User } from 'src/users/entities/user.entity';
+import { EntityHelper } from 'src/utils/entity-helper';
 import {
-  BaseEntity,
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
+  PrimaryGeneratedColumn
 } from 'typeorm';
 
 @Entity('invite')
-export class MailHistory extends BaseEntity {
+export class MailHistory extends EntityHelper {
   constructor(mailHistory?: Partial<MailHistory>) {
     super();
     if (mailHistory !== undefined) {
@@ -24,25 +25,28 @@ export class MailHistory extends BaseEntity {
   }
 
   @ApiProperty({ example: 1 })
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Invite_id' })
   id: number;
 
   @Allow()
   @ManyToOne(() => User, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Invite_user_ManyToOne' })
   user: User;
 
   @Column({ type: String })
   @Expose({ groups: ['me', 'admin'] })
   email: string;
 
+  /** uniqueConstraintname: `UQ_Invite_hash` */
   @Column({ unique: true })
   hash: string;
 
   @ManyToOne(() => InviteStatus, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Invite_inviteStatus_ManyToOne' })
   inviteStatus: InviteStatus;
 
   @Column({ type: Number, nullable: true })

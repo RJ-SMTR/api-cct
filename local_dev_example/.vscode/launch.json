@@ -1,0 +1,81 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Jest test: Arquivo Atual",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${fileDirname}",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceFolder}/node_modules/jest/bin/jest.js",
+                "${fileBasenameNoExtension}"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "attachSimplePort": 9229,
+        },
+        {
+            "name": "Jest test: Teste específico",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${fileDirname}",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceFolder}/node_modules/jest/bin/jest.js",
+                "${fileBasenameNoExtension}",
+                "--testNamePattern",
+                "\".*${selectedText}\""
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "attachSimplePort": 9230,
+        },
+        {
+            "name": "Jest e2e: Arquivo Atual",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceFolder}/node_modules/jest/bin/jest.js",
+                "--config",
+                "${workspaceFolder}/test/jest-e2e.json",
+                "${command:extension.commandvariable.file.relativeFilePosix}"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "attachSimplePort": 9231,
+        },
+        {
+            "name": "Jest e2e: Teste específico",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceFolder}/node_modules/jest/bin/jest.js",
+                "--config",
+                "${workspaceFolder}/test/jest-e2e.json",
+                "${command:extension.commandvariable.file.relativeFilePosix}",
+                "--testNamePattern",
+                "\".*${selectedText}\""
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "attachSimplePort": 9232
+        }
+    ],
+}

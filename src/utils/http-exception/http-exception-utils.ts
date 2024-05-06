@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 import { Enum } from '../enum';
-import { HttpStatusMessage } from '../enums/http-status-message.enum';
+import { HttpStatusMessage } from '../enums/http-error-message.enum';
 
 export function getHttpStatusMessage(
   httpStatusCode: HttpStatus,

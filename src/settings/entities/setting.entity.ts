@@ -7,6 +7,7 @@ import {
   BaseEntity,
   Column,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryColumn,
   Unique,
@@ -14,7 +15,7 @@ import {
 import { ISettingData } from '../interfaces/setting-data.interface';
 
 @Entity({ name: 'setting' })
-@Unique(['name', 'version'])
+@Unique('UQ_Setting_name_version', ['name', 'version'])
 export class SettingEntity extends BaseEntity {
   constructor(data?: ISettingData) {
     super();
@@ -28,7 +29,7 @@ export class SettingEntity extends BaseEntity {
   }
   @Exclude()
   @ApiProperty({ example: 1 })
-  @PrimaryColumn({ insert: true })
+  @PrimaryColumn({ insert: true, primaryKeyConstraintName: 'PK_Setting_id' })
   id: number;
 
   @ApiProperty({ example: 'activate_auto_send_invite' })
@@ -51,6 +52,7 @@ export class SettingEntity extends BaseEntity {
   @ManyToOne(() => SettingType, {
     eager: true,
   })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Setting_settingType_ManyToOne' })
   settingType: SettingType;
 
   getValueAsNullableJson(): any | null {
@@ -64,7 +66,7 @@ export class SettingEntity extends BaseEntity {
           {
             error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
             details: {
-              value: `should be valid JSON, received '${this.value}' instead`,
+              value: `should be JSON | null, received '${this.value}' instead`,
             },
           },
           HttpStatus.INTERNAL_SERVER_ERROR,
@@ -81,7 +83,7 @@ export class SettingEntity extends BaseEntity {
         {
           error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
-            value: 'should not be null',
+            value: 'should not be json',
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -110,7 +112,7 @@ export class SettingEntity extends BaseEntity {
         {
           error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
-            value: 'should not be null',
+            value: 'should not be boolean',
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -124,7 +126,7 @@ export class SettingEntity extends BaseEntity {
         {
           error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
           details: {
-            value: 'should not be null',
+            value: 'should not be string',
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { NullableType } from 'src/utils/types/nullable.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial, Repository } from 'typeorm';
 import { MailCount } from './entities/mail-count.entity';
 
@@ -42,7 +42,7 @@ export class MailCountService {
     );
   }
 
-  async getAll(): Promise<NullableType<MailCount[]>> {
+  async getAll(): Promise<Nullable<MailCount[]>> {
     return this.mailCountRepository.find();
   }
 }

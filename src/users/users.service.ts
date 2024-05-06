@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
 import { Request } from 'express';
@@ -9,15 +9,13 @@ import { RoleEnum } from 'src/roles/roles.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { isArrayContainEqual } from 'src/utils/array-utils';
-import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
-import { formatLog } from 'src/utils/log-utils';
-import { stringUppercaseUnaccent } from 'src/utils/string-utils';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { InvalidRows } from 'src/utils/types/invalid-rows.type';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
-import { DeepPartial } from 'typeorm';
+import { PaginationOptions } from 'src/utils/types/pagination-options';
+import { DeepPartial, FindManyOptions } from 'typeorm';
 import * as xlsx from 'xlsx';
-import { NullableType } from '../utils/types/nullable.type';
 import { CreateUserFileDto } from './dto/create-user-file.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
@@ -27,6 +25,8 @@ import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 import { FileUserMap } from './mappings/user-file.map';
 import { UsersRepository } from './users.repository';
+import { Nullable } from 'src/utils/types/nullable.type';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -35,7 +35,9 @@ export enum userUploadEnum {
 
 @Injectable()
 export class UsersService {
-  private logger: Logger = new Logger('UsersService', { timestamp: true });
+  private logger: CustomLogger = new CustomLogger(UsersService.name, {
+    timestamp: true,
+  });
 
   constructor(
     private usersRepository: UsersRepository,
@@ -48,14 +50,16 @@ export class UsersService {
     return createdUser;
   }
 
-  async findMany(
-    fields: EntityCondition<User> | EntityCondition<User>[],
-  ): Promise<User[]> {
-    return await this.usersRepository.findMany({ where: fields });
+  async findMany(options: FindManyOptions<User>): Promise<User[]> {
+    return await this.usersRepository.findMany(options);
+  }
+
+  async findManyRegisteredUsers() {
+    return await this.usersRepository.findManyRegisteredUsers();
   }
 
   async findManyWithPagination(
-    paginationOptions: IPaginationOptions,
+    paginationOptions: PaginationOptions,
     fields?: IFindUserPaginated,
   ): Promise<User[]> {
     return await this.usersRepository.findManyWithPagination(
@@ -64,9 +68,7 @@ export class UsersService {
     );
   }
 
-  async findOne(
-    fields: EntityCondition<User> | EntityCondition<User>[],
-  ): Promise<NullableType<User>> {
+  async findOne(fields: EntityCondition<User>): Promise<Nullable<User>> {
     return this.usersRepository.findOne({ where: fields });
   }
 
@@ -160,17 +162,15 @@ export class UsersService {
         ),
         email: fileUser.user.email,
         phone: fileUser.user.telefone,
-        fullName: stringUppercaseUnaccent(fileUser.user.nome as string),
+        fullName: getStringUpperUnaccent(fileUser.user.nome as string),
         cpfCnpj: fileUser.user.cpf,
         hash: hash,
         status: new Status(StatusEnum.register),
         role: new Role(RoleEnum.user),
       } as DeepPartial<User>);
       this.logger.log(
-        formatLog(
-          `Usuario: ${createdUser.getLogInfo()} criado.`,
-          'createFromFile()',
-        ),
+        `Usuario: ${createdUser.getLogInfo()} criado.`,
+        'createFromFile()',
       );
 
       await this.mailHistoryService.create(
@@ -205,14 +205,12 @@ export class UsersService {
       uploadedRows: uploadedRows,
     };
     this.logger.log(
-      formatLog(
-        'Tarefa finalizada, resultado:\n' +
-          JSON.stringify({
-            requestUser: reqUser.getLogInfo(),
-            ...result,
-          }),
-        'createFromFile()',
-      ),
+      'Tarefa finalizada, resultado:\n' +
+        JSON.stringify({
+          requestUser: reqUser.getLogInfo(),
+          ...result,
+        }),
+      'createFromFile()',
     );
     return result;
   }
@@ -308,7 +306,7 @@ export class UsersService {
   ): Promise<InvalidRows> {
     const schema = plainToClass(CreateUserFileDto, userFile.user);
     const errors = await validate(schema as Record<string, any>, {
-      stopAtFirstError: true,
+      stopAtFirstError: false,
     });
     const SEPARATOR = '; ';
     const errorDictionary: InvalidRows = errors.reduce((result, error) => {
@@ -326,13 +324,15 @@ export class UsersService {
       userFile.user.codigo_permissionario ||
       userFile.user.cpf
     ) {
-      const dbFoundUsers = await this.findMany([
-        ...(userFile.user.email ? [{ email: userFile.user.email }] : []),
-        ...(userFile.user.codigo_permissionario
-          ? [{ permitCode: userFile.user.codigo_permissionario }]
-          : []),
-        ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : []),
-      ]);
+      const dbFoundUsers = await this.findMany({
+        where: [
+          ...(userFile.user.email ? [{ email: userFile.user.email }] : []),
+          ...(userFile.user.codigo_permissionario
+            ? [{ permitCode: userFile.user.codigo_permissionario }]
+            : []),
+          ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : []),
+        ],
+      });
       if (dbFoundUsers.length > 0) {
         for (const dbField of fields) {
           const dtoField = FileUserMap[dbField];

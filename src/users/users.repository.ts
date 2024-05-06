@@ -8,8 +8,7 @@ import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { Enum } from 'src/utils/enum';
 import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
-import { formatLog } from 'src/utils/log-utils';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { validateDTO } from 'src/utils/validation-utils';
 import {
   Brackets,
@@ -23,10 +22,11 @@ import {
   Repository,
   WhereExpressionBuilder,
 } from 'typeorm';
-import { NullableType } from '../utils/types/nullable.type';
 import { UpdateUserRepositoryDto } from './dto/update-user-repository.dto';
 import { User } from './entities/user.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
+import { Nullable } from 'src/utils/types/nullable.type';
+import { RoleEnum } from 'src/roles/roles.enum';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -46,6 +46,28 @@ export class UsersRepository {
     private banksService: BanksService,
     private readonly entityManager: EntityManager,
   ) {}
+
+  async findManyRegisteredUsers() {
+    const validUsers = await this.usersRepository
+      .createQueryBuilder('user')
+      .where('user.roleId = :roleId', { roleId: RoleEnum.user })
+      .andWhere('user.fullName IS NOT NULL')
+      .andWhere('user.cpfCnpj IS NOT NULL')
+      .andWhere('user.bankCode IS NOT NULL')
+      .andWhere('user.bankAgency IS NOT NULL')
+      .andWhere('user.bankAccount IS NOT NULL')
+      .andWhere('user.bankAccountDigit IS NOT NULL')
+      .andWhere("user.fullName != ''")
+      .andWhere("user.cpfCnpj != ''")
+      .andWhere("user.bankAgency != ''")
+      .andWhere('LENGTH(TRIM(user.bankAccount)) >= 1')
+      .andWhere('LENGTH(TRIM(user.bankAccount)) <= 12')
+      /* *Ignore fields like "67" etc */
+      .andWhere('LENGTH(TRIM(user.bankAccountDigit)) = 1')
+      .getMany();
+    await this.loadLazyRelations(validUsers)
+    return validUsers;
+  }
 
   /**
    * Save or update new user in database.
@@ -73,7 +95,7 @@ export class UsersRepository {
     // Find
     const ids = users.map((i) => i.id);
     /** key: user.id */
-    const mails = await this.mailHistoryService.findMany({
+    const mails = await this.mailHistoryService.find({
       user: { id: In(ids) },
     });
 
@@ -117,7 +139,7 @@ export class UsersRepository {
   // #region findManyWithPagination
 
   async findManyWithPagination(
-    paginationOptions: IPaginationOptions,
+    paginationOptions: PaginationOptions,
     fields?: IFindUserPaginated,
   ): Promise<User[]> {
     let inviteStatus: any = null;
@@ -149,9 +171,9 @@ export class UsersRepository {
     });
     await this.loadLazyRelations(users);
 
-    let invites: NullableType<MailHistory[]> = null;
+    let invites: Nullable<MailHistory[]> = null;
     if (inviteStatus) {
-      invites = await this.mailHistoryService.findMany({ inviteStatus });
+      invites = await this.mailHistoryService.find({ inviteStatus });
     }
 
     users = users.filter((userItem) => {
@@ -244,7 +266,7 @@ export class UsersRepository {
 
   // #endregion
 
-  async findOne(options: FindOneOptions<User>): Promise<NullableType<User>> {
+  async findOne(options: FindOneOptions<User>): Promise<Nullable<User>> {
     const user = await this.usersRepository.findOne(options);
     if (user) {
       await this.loadLazyRelations([user]);
@@ -301,7 +323,7 @@ export class UsersRepository {
     const logMsg =
       `Usuário ${reqUser.getLogInfo()} atualizou os campos de ` +
       +`${user.getLogInfo()}: [ ${Object.keys(dataToUpdate)} ]`;
-    this.logger.log(formatLog(logMsg, 'update()', 'logContext'));
+    this.logger.log(logMsg, 'update()');
 
     return updatedUser;
   }

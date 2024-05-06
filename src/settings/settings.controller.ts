@@ -6,37 +6,45 @@ import {
   HttpStatus,
   Param,
   Patch,
-  SerializeOptions,
+  UseGuards,
 } from '@nestjs/common';
-import { SettingsService } from './settings.service';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
-import { NullableType } from 'src/utils/types/nullable.type';
-import { SettingEntity } from './entities/setting.entity';
+import { AuthGuard } from '@nestjs/passport';
+import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
+import { Roles } from 'src/roles/roles.decorator';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { SettingEntity } from './entities/setting.entity';
+import { SettingsService } from './settings.service';
 
-@ApiTags('Settings')
 @Controller('settings')
+@ApiTags('Settings')
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
   @Get()
-  async getAll(): Promise<NullableType<SettingEntity[]>> {
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  async getAll(): Promise<Nullable<SettingEntity[]>> {
     return this.settingsService.find();
   }
 
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Get('v:version')
   @ApiParam({ name: 'version', example: '1' })
   getByVersion(
     @Param('version') version: string,
-  ): Promise<NullableType<SettingEntity[]>> {
+  ): Promise<Nullable<SettingEntity[]>> {
     return this.settingsService.findByVersion(version);
   }
 
-  @SerializeOptions({
-    groups: ['admin'],
-  })
-  @Patch()
+  @ApiBearerAuth()
+  @Roles(RoleEnum.admin, RoleEnum.master)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @HttpCode(HttpStatus.OK)
+  @Patch()
   update(@Body() updateSettingDto: UpdateSettingsDto): Promise<SettingEntity> {
     return this.settingsService.update(updateSettingDto);
   }

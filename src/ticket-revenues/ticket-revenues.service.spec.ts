@@ -1,25 +1,19 @@
 import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BigqueryService } from 'src/bigquery/bigquery.service';
-import { JaeService } from 'src/jae/jae.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
+import { TicketRevenuesRepositoryService } from './ticket-revenues-repository.service';
 import { TicketRevenuesService } from './ticket-revenues.service';
+import { SettingsService } from 'src/settings/settings.service';
 
 describe('TicketRevenuesService', () => {
   let ticketRevenuesService: TicketRevenuesService;
-  let jaeService: JaeService;
+  let ticketRevenuesRepository: TicketRevenuesRepositoryService;
   let usersService: UsersService;
 
   beforeEach(async () => {
-    const jaeServiceMock = {
-      provide: JaeService,
-      useValue: {
-        getTicketRevenues: jest.fn(),
-        isPermitCodeExists: jest.fn(),
-      },
-    } as Provider;
     const usersServiceMock = {
       provide: UsersService,
       useValue: {
@@ -32,12 +26,20 @@ describe('TicketRevenuesService', () => {
         runQuery: jest.fn(),
       },
     } as Provider;
+    const settingsServiceMock = {
+      provide: SettingsService,
+      useValue: {
+        getOneBySettingData: jest.fn(),
+        findOneBySettingData: jest.fn(),
+      },
+    } as Provider;
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TicketRevenuesService,
-        jaeServiceMock,
+        TicketRevenuesRepositoryService,
         usersServiceMock,
         bigqueryServiceMock,
+        settingsServiceMock,
       ],
     }).compile();
     jest
@@ -47,8 +49,14 @@ describe('TicketRevenuesService', () => {
     ticketRevenuesService = module.get<TicketRevenuesService>(
       TicketRevenuesService,
     );
-    jaeService = module.get<JaeService>(JaeService);
+    ticketRevenuesRepository = module.get<TicketRevenuesRepositoryService>(
+      TicketRevenuesRepositoryService,
+    );
     usersService = module.get<UsersService>(UsersService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('Setup tests', () => {
@@ -61,11 +69,10 @@ describe('TicketRevenuesService', () => {
     expect(ticketRevenuesService).toBeDefined();
   });
 
-  /**
-   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 Requirements - GitHub}
-   */
   describe('getMeGroupedFromUser', () => {
-    it('should return Gratuidade = R$ 0.00', async () => {
+    it('should return Gratuidade = R$ 0.00', /**
+     * Requirement: 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 4 - GitHub}
+     */ async () => {
       // Arrange
       const revenues: ITicketRevenue[] = [];
       for (let day = 3; day >= 1; day--) {
@@ -85,7 +92,6 @@ describe('TicketRevenuesService', () => {
           transactionLat: i,
           transactionLon: i,
           vehicleId: i.toString(),
-          permitCode: `permitCode_1`,
           // Extra fields
           clientId: `clientId_${i}`,
           integrationId: i.toString(),
@@ -114,7 +120,6 @@ describe('TicketRevenuesService', () => {
           transactionLat: i,
           transactionLon: i,
           vehicleId: i.toString(),
-          permitCode: `permitCode_1`,
           // Extra fields
           clientId: `clientId_${i}`,
           integrationId: i.toString(),
@@ -128,8 +133,6 @@ describe('TicketRevenuesService', () => {
           bqDataVersion: i.toString(),
         });
       }
-      jest.spyOn(jaeService, 'getTicketRevenues').mockResolvedValue(revenues);
-      jest.spyOn(jaeService, 'isPermitCodeExists').mockReturnValue(true);
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() =>
@@ -137,18 +140,21 @@ describe('TicketRevenuesService', () => {
         );
       const user = new User();
       user.id = 1;
-      user.permitCode = 'permitCode_1';
+      user.cpfCnpj = 'cpfCnpj_1';
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest
+        .spyOn(ticketRevenuesRepository as any, 'fetchTicketRevenues')
+        .mockResolvedValue({
+          data: revenues,
+          countAll: revenues.length,
+        });
 
       // Act
-      const result = await ticketRevenuesService.getMeGroupedFromUser(
-        {
-          startDate: '2023-06-01',
-          endDate: '2023-06-01',
-          userId: 1,
-        },
-        'ticket-revenues',
-      );
+      const result = await ticketRevenuesService.getMeGrouped({
+        startDate: '2023-06-01',
+        endDate: '2023-06-01',
+        userId: 1,
+      });
 
       // Assert
       expect(
@@ -156,7 +162,9 @@ describe('TicketRevenuesService', () => {
       ).toEqual(0);
     });
 
-    it('should count and transactionValueSum match sum of transactionType properties', async () => {
+    it('should count and match transactionValueSum with sum of transactionType properties', /**
+     * Requirement: 2023/11/10 {@link https://github.com/RJ-SMTR/api-cct/issues/80#issuecomment-1806153475 #80, item 6 - GitHub}
+     */ async () => {
       // Arrange
       const revenues: ITicketRevenue[] = [];
       for (let day = 3; day >= 1; day--) {
@@ -176,7 +184,6 @@ describe('TicketRevenuesService', () => {
           transactionLat: i,
           transactionLon: i,
           vehicleId: i.toString(),
-          permitCode: `permitCode_1`,
           // Extra fields
           clientId: `clientId_${i}`,
           integrationId: i.toString(),
@@ -205,7 +212,6 @@ describe('TicketRevenuesService', () => {
           transactionLat: i,
           transactionLon: i,
           vehicleId: i.toString(),
-          permitCode: `permitCode_1`,
           // Extra fields
           clientId: `clientId_${i}`,
           integrationId: i.toString(),
@@ -219,8 +225,6 @@ describe('TicketRevenuesService', () => {
           bqDataVersion: i.toString(),
         });
       }
-      jest.spyOn(jaeService, 'getTicketRevenues').mockResolvedValue(revenues);
-      jest.spyOn(jaeService, 'isPermitCodeExists').mockReturnValue(true);
       jest
         .spyOn(global.Date, 'now')
         .mockImplementation(() =>
@@ -228,18 +232,21 @@ describe('TicketRevenuesService', () => {
         );
       const user = new User();
       user.id = 1;
-      user.permitCode = 'permitCode_1';
+      user.cpfCnpj = 'cpfCnpj_1';
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest
+        .spyOn(ticketRevenuesRepository as any, 'fetchTicketRevenues')
+        .mockResolvedValue({
+          data: revenues,
+          countAll: revenues.length,
+        });
 
       // Act
-      const result = await ticketRevenuesService.getMeGroupedFromUser(
-        {
-          startDate: '2023-06-01',
-          endDate: '2023-06-01',
-          userId: 1,
-        },
-        'ticket-revenues',
-      );
+      const result = await ticketRevenuesService.getMeGrouped({
+        startDate: '2023-06-01',
+        endDate: '2023-06-01',
+        userId: 1,
+      });
 
       // Assert
       const transactionTypeCountsSum = Object.values(

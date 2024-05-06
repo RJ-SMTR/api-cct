@@ -1,5 +1,6 @@
 import { CronExpression } from '@nestjs/schedule';
 import { SettingTypeEnum } from 'src/setting-types/setting-type.enum';
+import { BigqueryEnvironment } from './enums/bigquery-env.enum';
 import { ISettingDataGroup } from './interfaces/setting-data-group.interface';
 import { ISettingData } from './interfaces/setting-data.interface';
 
@@ -87,6 +88,23 @@ export const appSettings = {
       } as ISettingData,
     ],
   } as ISettingDataGroup,
+
+  any__bigquery_env: {
+    name: 'bigquery_env',
+    value: BigqueryEnvironment.Development,
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.string,
+  } as ISettingData,
+
+  any__cnab_current_nsa: {
+    name: 'cnab_current_nsa',
+    /** Starts with 0, next will be 1 */
+    value: '0',
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.number,
+  } as ISettingData,
 
   // v1
 
