@@ -697,6 +697,7 @@ export class RemessaRetornoService {
       nsa: Number(cnab.headerArquivo.nsa.value),
       tipoArquivo: HeaderArquivoTipoArquivo.Remessa,
     });
+    // const isAgrupado = Boolean(headerArquivoRem.transacaoAgrupado);
 
     const headerArquivoRetSave = await this.headerArquivoService.saveRetFrom104(
       cnab,

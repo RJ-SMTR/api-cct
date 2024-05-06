@@ -164,7 +164,7 @@ export class ArquivoPublicacaoService {
     pagador: Pagador,
     detalheARetorno: DetalheA,
   ) {
-    const publicacao = await this.getPublicacaoFromDetalheARet(
+    const publicacoes = await this.getPublicacoesFromDetalheARet(
       retorno,
       detalheARetorno,
     );
@@ -186,7 +186,7 @@ export class ArquivoPublicacaoService {
       },
     };
     await this.arquivoPublicacaoRepository.update(
-      publicacao.id,
+      publicacoes.id,
       publicacaoUpdateDTO,
     );
 
@@ -221,10 +221,11 @@ export class ArquivoPublicacaoService {
    * 1. retorno > ItemTransacao > detalheA === retorno > lote > detalheA
    * 2. detalheA[idConsorcio, idOperadora, idOrdem] === Publicacao[idConsorcio, idOperadora, idOrdem]
    */
-  async getPublicacaoFromDetalheARet(
+  async getPublicacoesFromDetalheARet(
     retorno: HeaderArquivo,
     detalheARetorno: DetalheA,
   ) {
+    // TODO: 07/05/2024 - detalheARetorno.
     // 1. Associate ItemTransacaoDetalheA with matching CnabDetalheA
     const itens = await this.itemTransacaoService.findManyByIdTransacao(
       retorno.transacao.id,
