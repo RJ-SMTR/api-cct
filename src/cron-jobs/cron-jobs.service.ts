@@ -150,7 +150,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       {
         name: CrobJobsEnum.saveTransacoesJae,
         cronJobParameters: {
-          cronTime: '0 3 * * *', // 00:00 BRT = 03:00 GMT
+          cronTime: '0 3 * * *', // Every day, 00:00 BRT = 03:00 GMT
           onTick: async () => {
             await this.saveTransacoesJae1();
           },
@@ -159,7 +159,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       {
         name: CrobJobsEnum.sendRemessa,
         cronJobParameters: {
-          cronTime: '0 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
+          cronTime: '4 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
           onTick: async () => {
             await this.sendRemessa();
           },
