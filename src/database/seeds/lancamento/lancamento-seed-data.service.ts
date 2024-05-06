@@ -64,6 +64,7 @@ export class LancamentoSeedDataService {
             valor_a_pagar: 110,
             userId: users[0].id,
             user: { id: users[0].id },
+            anexo: '1',
           },
           {
             algoritmo: '2',
@@ -80,6 +81,7 @@ export class LancamentoSeedDataService {
             userId: users[0].id,
             user: { id: users[0].id },
             auth_usersIds: userIds.slice(0, 1).join(','),
+            anexo: '1',
           },
           {
             algoritmo: 2,
@@ -96,6 +98,7 @@ export class LancamentoSeedDataService {
             userId: users[0].id,
             user: { id: users[0].id },
             auth_usersIds: userIds.slice(0, 2).join(','),
+            anexo: '1',
           },
         ] as LancamentoSeedData[])
         : []),

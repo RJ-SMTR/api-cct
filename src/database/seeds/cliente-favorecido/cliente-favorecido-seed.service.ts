@@ -9,7 +9,7 @@ export class ClienteFavorecidoSeedService {
   constructor(
     @InjectRepository(ClienteFavorecido)
     private repository: Repository<ClienteFavorecido>,
-  ) { }
+  ) {}
 
   async validateRun() {
     return Promise.resolve(true);
@@ -17,8 +17,14 @@ export class ClienteFavorecidoSeedService {
 
   async run() {
     const items = ClienteFavorecidoSeedData;
-    for (const ClienteFavorecido of items) {
-      await this.repository.save(ClienteFavorecido);
+    for (const favorecido of items) {
+      const existing = await this.repository.findOne({
+        where: { cpfCnpj: favorecido.cpfCnpj },
+      });
+      if (existing) {
+        favorecido.id = existing.id;
+      }
+      await this.repository.save(favorecido);
     }
   }
 }
