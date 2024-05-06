@@ -9,6 +9,8 @@ export const ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD || 'secret';
 export const ADMIN_2_EMAIL = 'admin2@example.com';
 export const ADMIN_2_PASSWORD = 'secret';
 
+export const TO_UPDATE_PERMIT_CODE = '319274392832025';
+
 export const LICENSEE_CPF_EMAIL = 'henrique@example.com';
 export const LICENSEE_CPF_PERMIT_CODE = '213890329890312';
 export const LICENSEE_CPF_PASSWORD = 'secret';

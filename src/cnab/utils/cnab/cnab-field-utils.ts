@@ -296,7 +296,7 @@ function validateFormatDate(field: CnabField) {
 export function formatNumber(
   field: CnabField,
   onCrop: CropFillOnCrop = 'cropRight',
-  cropDecimal: CropDecimal = 'cropDecimals',
+  cropDecimal: CropDecimal = 'roundCeil',
 ): string {
   validateFormatNumber(field);
   const { integer, decimal } = getPictureNumberSize(field.picture);
