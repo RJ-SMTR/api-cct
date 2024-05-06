@@ -8,6 +8,7 @@ import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BQSInstances, BigqueryService } from '../bigquery.service';
 import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
 import { IBigqueryFindOrdemPagamento } from '../interfaces/bigquery-find-ordem-pagamento.interface';
+import { bigToNumber } from 'src/utils/pipe-utils';
 
 @Injectable()
 export class BigqueryOrdemPagamentoRepository {
@@ -25,15 +26,6 @@ export class BigqueryOrdemPagamentoRepository {
   ): Promise<BigqueryOrdemPagamento[]> {
     const transacoes: BigqueryOrdemPagamento[] = (await this.queryData(filter))
       .data;
-    return transacoes;
-  }
-
-  public async findManyGrouped(
-    filter?: IBigqueryFindOrdemPagamento,
-  ): Promise<BigqueryOrdemPagamento[]> {
-    const transacoes: BigqueryOrdemPagamento[] = (
-      await this.queryDataGrouped(filter)
-    ).data;
     return transacoes;
   }
 
@@ -85,65 +77,15 @@ export class BigqueryOrdemPagamentoRepository {
     const items: BigqueryOrdemPagamento[] = queryResult.map((i) => {
       delete i.status;
       delete i.count;
-      // i.valorTotalTransacaoLiquido = i.valorTotalTransacaoLiquido.toNumber();
-      return i;
-    });
-
-    return {
-      data: items,
-      countAll: count,
-    };
-  }
-
-  private async queryDataGrouped(
-    args?: IBigqueryFindOrdemPagamento,
-  ): Promise<{ data: BigqueryOrdemPagamento[]; countAll: number }> {
-    // TODO: remover tipoFavorecido
-    const qArgs = await this.getQueryArgs(args);
-    const query =
-      `
-      SELECT
-        CAST(t.data_ordem AS STRING) AS dataOrdem,
-        t.id_consorcio AS idConsorcio,
-        t.consorcio AS consorcio,
-        t.id_operadora AS idOperadora,
-        t.operadora AS operadora,
-        STRING_AGG(t.id_ordem_pagamento) AS idOrdemPagamento,
-        COUNT(t.quantidade_transacao_debito) AS quantidadeTransacaoDebito,
-        SUM(t.valor_debito) AS valorDebito,
-        COUNT(t.quantidade_transacao_especie) AS quantidadeTransacaoEspecie,
-        SUM(t.valor_especie) AS valorEspecie,
-        COUNT(t.quantidade_transacao_gratuidade) AS quantidadeTransacaoGratuidade,
-        SUM(t.valor_gratuidade) AS valorGratuidade,
-        COUNT(t.quantidade_transacao_integracao) AS quantidadeTransacaoIntegracao,
-        SUM(t.valor_integracao) AS valorIntegracao,
-        COUNT(t.quantidade_transacao_rateio_credito) AS quantidadeTransacaoRateioCredito,
-        SUM(t.valor_rateio_credito) AS valorRateioCredito,
-        COUNT(t.quantidade_transacao_rateio_debito) AS quantidadeTransacaoRateioDebito,
-        SUM(t.valor_rateio_debito) AS valorRateioDebito,
-        SUM(t.valor_total_transacao_bruto) AS valorTotalTransacaoBruto,
-        SUM(t.valor_desconto_taxa) AS valorDescontoTaxa,
-        SUM(t.valor_total_transacao_liquido) AS valorTotalTransacaoLiquido,
-        t.versao AS versao,
-        CAST(c.cnpj AS STRING) AS consorcioCnpj,
-        CAST(o.documento AS STRING) AS operadoraCpfCnpj,
-      FROM \`${qArgs.ordemPagamento}\` t
-      ${qArgs.joinConsorcios}
-      ${qArgs.joinOperadoras}\n` +
-      (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
-      '\nGROUP BY t.id_consorcio, t.id_operadora, t.consorcio, t.operadora, consorcioCnpj, operadoraCpfCnpj';
-    '\nORDER BY dataOrdem DESC, idOrdemPagamento DESC\n' +
-      (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit}` : '') +
-      (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
-    const queryResult = await this.bigqueryService.query(
-      BQSInstances.smtr,
-      query,
-    );
-    const count: number = queryResult.length;
-    // Remove unwanted keys and remove last item (all null if empty)
-    const items: BigqueryOrdemPagamento[] = queryResult.map((i) => {
-      delete i.status;
-      delete i.count;
+      i.valorDebito = bigToNumber(i.valorDebito);
+      i.valorDescontoTaxa = bigToNumber(i.valorDescontoTaxa);
+      i.valorEspecie = bigToNumber(i.valorEspecie);
+      i.valorGratuidade = bigToNumber(i.valorGratuidade);
+      i.valorIntegracao = bigToNumber(i.valorIntegracao);
+      i.valorRateioCredito = bigToNumber(i.valorRateioCredito);
+      i.valorRateioDebito = bigToNumber(i.valorRateioDebito);
+      i.valorTotalTransacaoBruto = bigToNumber(i.valorTotalTransacaoBruto);
+      i.valorTotalTransacaoLiquido = bigToNumber(i.valorTotalTransacaoLiquido);
       return i;
     });
 
@@ -164,7 +106,7 @@ export class BigqueryOrdemPagamentoRepository {
     const Q_CONSTS = {
       bucket: IS_BQ_PROD ? 'rj-smtr' : 'rj-smtr-dev',
       ordemPagamento: IS_BQ_PROD
-        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia_teste_cct'
+        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia'
         : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia',
       tTipoPgto: IS_BQ_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
       favorecidoCpfCnpj: 'NULL',
@@ -229,6 +171,7 @@ export class BigqueryOrdemPagamentoRepository {
         );
       }
     }
+    queryBuilder.pushAND(`t.consorcio IN ("VLT", "Internorte", "MobiRio", "Santa Cruz")`);
 
     const qWhere = queryBuilder.toSQL();
 

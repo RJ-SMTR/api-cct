@@ -16,23 +16,6 @@ export class BigqueryOrdemPagamentoService {
   /**
    * Get data from current payment week (from thu to wed). Also with older days.
    */
-  public async getFromWeekGrouped(): Promise<BigqueryOrdemPagamentoDTO[]> {
-    // Read
-    const today = new Date();
-    const friday = isFriday(today) ? today : nextFriday(today);
-    const ordemPgto = (
-      await this.bigqueryOrdemPagamentoRepository.findManyGrouped({
-        endDate: subDays(friday, 2),
-        startDate: subDays(friday, 8),
-        ignoreTransacaoLiquidoZero: true,
-      })
-    ).map((i) => ({ ...i } as BigqueryOrdemPagamentoDTO));
-    return ordemPgto;
-  }
-
-/**
-   * Get data from current payment week (from thu to wed). Also with older days.
-   */
   public async getFromWeek(): Promise<BigqueryOrdemPagamentoDTO[]> {
     // Read
     const today = new Date();

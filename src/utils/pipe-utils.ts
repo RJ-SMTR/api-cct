@@ -263,3 +263,7 @@ export function asContent<T>(val: T | null, field = 'Value'): T {
   }
   return val;
 }
+
+export function bigToNumber(big: any) {
+  return big.toNumber();
+}
