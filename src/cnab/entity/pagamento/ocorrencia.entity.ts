@@ -10,7 +10,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { DetalheA } from './detalhe-a.entity';
-import { HeaderArquivo } from './header-arquivo.entity';
+import { HeaderLote } from './header-lote.entity';
 
 @Entity()
 export class Ocorrencia extends EntityHelper {
@@ -24,17 +24,17 @@ export class Ocorrencia extends EntityHelper {
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Ocorrencia_id' })
   id: number;
 
-  @ManyToOne(() => HeaderArquivo)
+  @ManyToOne(() => HeaderLote, { nullable: true })
   @JoinColumn({
-    foreignKeyConstraintName: 'FK_TransacaoOcorrencia_headerArquivo_ManyToOne',
+    foreignKeyConstraintName: 'FK_TransacaoOcorrencia_headerLote_ManyToOne',
   })
-  headerArquivo: HeaderArquivo;
+  headerLote: HeaderLote | null;
 
-  @ManyToOne(() => DetalheA)
+  @ManyToOne(() => DetalheA, { nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoOcorrencia_detalheA_ManyToOne',
   })
-  detalheA: DetalheA;
+  detalheA: DetalheA | null;
 
   /** uniqueConstraintName: UQ_TransacaoOcorrencia_code */
   @Column({ type: String, unique: true, nullable: false, length: 2 })

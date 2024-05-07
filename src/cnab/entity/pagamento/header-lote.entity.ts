@@ -1,7 +1,8 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { HeaderArquivo } from './header-arquivo.entity';
 import { Pagador } from './pagador.entity';
+import { Ocorrencia } from './ocorrencia.entity';
 
 /**
  * Pagamento.HeaderLote
@@ -19,12 +20,14 @@ export class HeaderLote extends EntityHelper {
   id: number;
 
   @ManyToOne(() => HeaderArquivo, { eager: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderLote_headerArquivo_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_HeaderLote_headerArquivo_ManyToOne',
+  })
   headerArquivo: HeaderArquivo;
 
-  /** 
+  /**
    * Unique lote Id in HeaderArquivo, incremental.
-   * 
+   *
    * Each HeaderArquivo will have loteServico 1 for lote 1; loteServico = 2 for lote 2 etc.
    */
   @Column({ type: Number, unique: false, nullable: true })
@@ -49,13 +52,27 @@ export class HeaderLote extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderLote_pagador_ManyToOne' })
   pagador: Pagador;
 
+  @OneToMany(() => Ocorrencia, (ocorrencia) => ocorrencia.headerLote, {
+    eager: true,
+  })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_HeaderLote_ocorrencias_OneToMany',
+  })
+  ocorrencias: Ocorrencia[];
+
+  @Column({ type: String, unique: false, nullable: true, length: 10 })
+  ocorrenciasCnab: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
   /**
    * ID: headerArquivo UniqueId + headerLote columns
    */
-  public static getUniqueId(item?: DeepPartial<HeaderLote>, headerArqUniqueId?: string): string {
+  public static getUniqueId(
+    item?: DeepPartial<HeaderLote>,
+    headerArqUniqueId?: string,
+  ): string {
     const _headerArqUniqueId = headerArqUniqueId
       ? `(${headerArqUniqueId})`
       : `(${HeaderArquivo.getUniqueId(item?.headerArquivo)})`;

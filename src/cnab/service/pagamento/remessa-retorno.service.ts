@@ -347,7 +347,7 @@ export class RemessaRetornoService {
         dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
         valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
         nsr: Number(r.detalheA.nsr.stringValue),
-        ocorrencias: null,
+        ocorrenciasCnab: null,
       },
     }) as ItemTransacao | ItemTransacaoAgrupado;
     return itemDetalheA;
@@ -688,39 +688,33 @@ export class RemessaRetornoService {
    * `false` if retorno already exists.
    */
   public async saveRetorno(cnab: CnabFile104Pgto) {
-    const METHOD = 'saveRetorno()';
     // Save HeaderArquivo
     const headerArquivoRem = await this.headerArquivoService.getOne({
       nsa: Number(cnab.headerArquivo.nsa.value),
       tipoArquivo: HeaderArquivoTipoArquivo.Remessa,
     });
-    // const isAgrupado = Boolean(headerArquivoRem.transacaoAgrupado);
 
-    const headerArquivoRetSave = await this.headerArquivoService.saveRetFrom104(
+    const headerArquivoUpdated = await this.headerArquivoService.saveRetFrom104(
       cnab,
       headerArquivoRem,
     );
-    if (!headerArquivoRetSave.isNewItem) {
-      this.logger.warn(
-        `Retorno HeaderArquivo Retorno ${headerArquivoRetSave.item.getIdString()} já existe no banco, ignorando...`,
-        METHOD,
-      );
-      return null;
-    }
 
     for (const l of cnab.lotes) {
       // Save HeaderLote
       const headerLoteSave = await this.headerLoteService.saveFrom104(
         l,
-        headerArquivoRetSave.item,
+        headerArquivoUpdated,
       );
 
       for (const registro of l.registros) {
         // Save Detalhes
-        const detalheASave = await this.detalheAService.saveFrom104(
+        const detalheASave = await this.detalheAService.saveRetornoFrom104(
           registro,
           headerLoteSave.item,
         );
+        if (!detalheASave) {
+          continue;
+        }
         await this.detalheBService.saveFrom104(registro, detalheASave.item);
       }
     }
@@ -731,7 +725,7 @@ export class RemessaRetornoService {
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retornoSaved),
     });
     const headerArquivoRetUpdated = await this.headerArquivoService.save({
-      id: headerArquivoRetSave.item.id,
+      id: headerArquivoUpdated.id,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retornoSaved),
     });
 

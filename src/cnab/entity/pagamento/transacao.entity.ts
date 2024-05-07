@@ -1,3 +1,4 @@
+import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import {
   Column,
@@ -9,12 +10,10 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Pagador } from './pagador.entity';
-import { Ocorrencia } from './ocorrencia.entity';
-import { TransacaoStatus } from './transacao-status.entity';
-import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { ItemTransacao } from './item-transacao.entity';
+import { Pagador } from './pagador.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
+import { TransacaoStatus } from './transacao-status.entity';
 
 @Entity()
 export class Transacao extends EntityHelper {
@@ -67,13 +66,6 @@ export class Transacao extends EntityHelper {
     foreignKeyConstraintName: 'FK_Transacao_lancamentos_OneToMany',
   })
   lancamentos: LancamentoEntity[] | null;
-
-  /** Not a physical column. CNAB errors */
-  @OneToMany(() => Ocorrencia, (ocorrencia) => ocorrencia.headerArquivo)
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_Transacao_ocorrencias_OneToMany',
-  })
-  ocorrencias: Ocorrencia[];
 
   /** Not a physical column */
   @OneToMany(() => ItemTransacao, (item) => item.transacao)

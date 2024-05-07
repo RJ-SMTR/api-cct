@@ -184,6 +184,10 @@ export class ClienteFavorecidoService {
     }
   }
 
+  public async findOneByNome(nome: string): Promise<ClienteFavorecido | null> {
+    return await this.clienteFavorecidoRepository.findOneByNome(nome);
+  }
+
   public async findOne(
     options: FindOneOptions<ClienteFavorecido>,
   ): Promise<ClienteFavorecido | null> {

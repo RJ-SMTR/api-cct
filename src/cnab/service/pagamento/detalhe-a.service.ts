@@ -32,15 +32,17 @@ export class DetalheAService {
     return this.detalheARepository.saveManyIfNotExists(dtos);
   }
 
-  public async saveFrom104(
+  public async saveRetornoFrom104(
     registro: CnabRegistros104Pgto,
     headerLote: HeaderLote,
-  ): Promise<SaveIfNotExists<DetalheA>> {
+  ): Promise<SaveIfNotExists<DetalheA> | null> {
     const r = registro;
-    const favorecido = await this.clienteFavorecidoService.getOne({
-      contaCorrente: r.detalheA.contaCorrenteDestino.stringValue,
-      dvContaCorrente: r.detalheA.dvContaDestino.value,
-    });
+    const favorecido = await this.clienteFavorecidoService.findOneByNome(
+      r.detalheA.nomeTerceiro.stringValue.trim(),
+    );
+    if (!favorecido) {
+      return null;
+    }
 
     const detalheA = new DetalheADTO({
       headerLote: { id: headerLote.id },

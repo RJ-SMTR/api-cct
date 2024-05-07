@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { isFriday, nextFriday } from 'date-fns';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { asNumber, asString } from 'src/utils/pipe-utils';
-import { DeepPartial, FindManyOptions, In } from 'typeorm';
+import { DeepPartial, FindManyOptions } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { HeaderArquivoStatus } from '../entity/pagamento/header-arquivo-status.entity';
@@ -10,7 +9,6 @@ import { HeaderArquivo } from '../entity/pagamento/header-arquivo.entity';
 import { HeaderLote } from '../entity/pagamento/header-lote.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
-import { Pagador } from '../entity/pagamento/pagador.entity';
 import { HeaderArquivoStatusEnum } from '../enums/pagamento/header-arquivo-status.enum';
 import { HeaderArquivoTipoArquivo } from '../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.repository';
@@ -18,8 +16,6 @@ import { OcorrenciaService } from './ocorrencia.service';
 import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
-import { ItemTransacaoService } from './pagamento/item-transacao.service';
-import { TransacaoService } from './pagamento/transacao.service';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -32,9 +28,7 @@ export class ArquivoPublicacaoService {
     private arquivoPublicacaoRepository: ArquivoPublicacaoRepository,
     private headerLoteService: HeaderLoteService,
     private detalheAService: DetalheAService,
-    private itemTransacaoService: ItemTransacaoService,
     private transacaoOcorrenciaService: OcorrenciaService,
-    private transacaoService: TransacaoService,
   ) {}
 
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
@@ -64,27 +58,9 @@ export class ArquivoPublicacaoService {
       dataVencimento: friday,
       dataEfetivacao: null,
       valorRealEfetivado: null,
+      
     });
     return arquivo;
-  }
-
-  /**
-   * From OrdemPagamento and others and bulk insert.
-   *
-   * @returns `TransacaoBuilder`, so you can group it and add to Transacao.
-   */
-  public async saveMany(
-    publicacoes: DeepPartial<ArquivoPublicacao>[],
-  ): Promise<ArquivoPublicacao[]> {
-    const insert = await this.arquivoPublicacaoRepository.insert(publicacoes);
-    const publicacaoIds = (insert.identifiers as { id: number }[]).reduce(
-      (l, i) => [...l, i.id],
-      [],
-    );
-    const created = await this.arquivoPublicacaoRepository.findMany({
-      where: { id: In(publicacaoIds) },
-    });
-    return created;
   }
 
   public async save(publicacao: DeepPartial<ArquivoPublicacao>) {
@@ -112,43 +88,65 @@ export class ArquivoPublicacaoService {
     }
 
     // Header Arquivo Remessa
-    for (const remessa of newRemessas) {
-      const retorno = await this.headerArquivoService.findOne({
+    for (const headerArquivoRem of newRemessas) {
+      const headerArquivoRet = await this.headerArquivoService.findOne({
         tipoArquivo: HeaderArquivoTipoArquivo.Retorno,
-        nsa: remessa.nsa,
-        transacao: { id: remessa.transacao.id },
+        nsa: headerArquivoRem.nsa,
+        transacao: { id: headerArquivoRem.transacao.id },
       });
       // If no retorno for new remessa, skip
-      if (!retorno) {
+      if (!headerArquivoRet) {
         continue;
       }
 
       // Header Arquivo Retorno
       const headersLoteRetorno = await this.headerLoteService.findMany({
-        headerArquivo: { id: retorno.id },
+        headerArquivo: { id: headerArquivoRet.id },
       });
 
       // Header lote Retorno
       for (const headerLoteRetorno of headersLoteRetorno) {
-        const pagador = headerLoteRetorno.pagador;
         const detalhesARet = await this.detalheAService.findMany({
           headerLote: { id: headerLoteRetorno.id },
         });
+        await this.salvaOcorrenciasHeaderLote(headerLoteRetorno);
 
         // DetalheA Retorno
-        for (const detalheA of detalhesARet) {
+        for (const detalheARet of detalhesARet) {
           // Save retorno and update Transacao, Lancamento
+          await this.salvaOcorrenciasDetalheA(detalheARet);
           await this.savePublicacaoRetorno(
-            remessa,
-            retorno,
-            headerLoteRetorno,
-            pagador,
-            detalheA,
+            headerArquivoRem,
+            headerArquivoRet,
+            detalheARet,
           );
         }
       }
     }
-    // const a = 1;
+  }
+
+  async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA) {
+    const ocorrenciasDetalheA = Ocorrencia.newList(
+      asString(detalheARetorno.ocorrenciasCnab),
+    );
+
+    // Update DetalheA
+    for (const ocorrencia of ocorrenciasDetalheA) {
+      ocorrencia.detalheA = detalheARetorno;
+    }
+    await this.transacaoOcorrenciaService.saveMany(ocorrenciasDetalheA);
+  }
+
+  async salvaOcorrenciasHeaderLote(headerLote: HeaderLote) {
+    const ocorrenciasHeaderLote = Ocorrencia.newList(
+      asString(headerLote.ocorrenciasCnab),
+    );
+
+    // Update DetalheA
+    for (const ocorrencia of ocorrenciasHeaderLote) {
+      ocorrencia.headerLote = headerLote;
+    }
+    await this.transacaoOcorrenciaService.saveMany(ocorrenciasHeaderLote);
   }
 
   /**
@@ -162,46 +160,9 @@ export class ArquivoPublicacaoService {
   private async savePublicacaoRetorno(
     remessa: HeaderArquivo,
     retorno: HeaderArquivo,
-    headerLoteRetorno: HeaderLote,
-    pagador: Pagador,
     detalheARetorno: DetalheA,
   ) {
-    const publicacoes = await this.getPublicacoesFromDetalheARet(
-      retorno,
-      detalheARetorno,
-    );
-    const ocorrenciasDetalheA = Ocorrencia.newList(
-      asString(detalheARetorno.ocorrencias),
-    );
-
-    // Update Publicacao
-    /** If Ocorrencia is successfull */
-    const isPago = detalheARetorno.ocorrencias?.trim() === '00';
-    const publicacaoUpdateDTO: DeepPartial<ArquivoPublicacao> = {
-      dataGeracaoRetorno: retorno.dataGeracao,
-      horaGeracaoRetorno: retorno.horaGeracao,
-      valorRealEfetivado: detalheARetorno.valorRealEfetivado,
-      dataEfetivacao: retorno.dataGeracao,
-      isPago: isPago,
-      itemTransacao: {
-        id: retorno.transacao.id,
-      },
-    };
-    await this.arquivoPublicacaoRepository.update(
-      publicacoes.id,
-      publicacaoUpdateDTO,
-    );
-
-    // Update DetalheA
-    await this.transacaoService.update({
-      id: retorno.transacao.id,
-      dataPagamento: retorno.dataGeracao,
-    });
-
-    for (const ocorrencia of ocorrenciasDetalheA) {
-      ocorrencia.headerArquivo = { id: retorno.transacao.id } as HeaderArquivo;
-    }
-    await this.transacaoOcorrenciaService.saveMany(ocorrenciasDetalheA);
+    await this.updatePublicacoesFromDetalheARet(detalheARetorno);
 
     // Update status
     await this.headerArquivoService.save({
@@ -219,53 +180,29 @@ export class ArquivoPublicacaoService {
   }
 
   /**
-   * Associate Publicacao with DetalheARet via:
-   * 1. retorno > ItemTransacao > detalheA === retorno > lote > detalheA
-   * 2. detalheA[idConsorcio, idOperadora, idOrdem] === Publicacao[idConsorcio, idOperadora, idOrdem]
+   * Atualizar publicacoes de retorno
    */
-  async getPublicacoesFromDetalheARet(
-    retorno: HeaderArquivo,
-    detalheARetorno: DetalheA,
-  ) {
-    // const transacoes =
-    //   detalheARetorno.itemTransacaoAgrupado?.transacaoAgrupado.transacoes;
-    // for (const transacao of transacoes || []) {
-    //   for (const item of transacao.itemTransacoes) {
-    //     const publicacao = await this.arquivoPublicacaoRepository.getOne({
-    //       where: {
-    //         itemTransacao: {
-    //           id: item.id,
-    //         },
-    //         idTransacao: transacao.id,
-    //       },
-    //     });
-    //   }
-    // }
-    // 1. Associate ItemTransacaoDetalheA with matching CnabDetalheA
-    const itens = await this.itemTransacaoService.findManyByIdTransacao(
-      retorno.transacao.id,
-    );
-    const itemTransacao = itens
-      .filter((i) => i.detalheA?.nsr === detalheARetorno.nsr)
-      .pop();
-    if (!itemTransacao) {
-      throw CommonHttpException.notFound('itemTransacao');
+  async updatePublicacoesFromDetalheARet(detalheARetorno: DetalheA) {
+    const transacoes =
+      detalheARetorno.itemTransacaoAgrupado?.transacaoAgrupado.transacoes;
+    for (const transacao of transacoes || []) {
+      for (const item of transacao.itemTransacoes) {
+        const publicacao = await this.arquivoPublicacaoRepository.getOne({
+          where: {
+            itemTransacao: {
+              id: item.id,
+            },
+            idTransacao: transacao.id,
+          },
+        });
+        publicacao.dataEfetivacao = detalheARetorno.itemTransacaoAgrupado
+          ?.dataProcessamento as Date;
+        publicacao.isPago = detalheARetorno.ocorrenciasCnab?.trim() === '00';
+        if (publicacao.isPago) {
+          publicacao.valorRealEfetivado = publicacao.itemTransacao.valor;
+        }
+        await this.arquivoPublicacaoRepository.save(publicacao);
+      }
     }
-
-    // 2. DetalheA with Arquivo via columns
-    const publicacao = await this.arquivoPublicacaoRepository.getOne({
-      where: {
-        itemTransacao: {
-          idConsorcio: asString(itemTransacao.idConsorcio),
-          idOperadora: asString(itemTransacao.idOperadora),
-          idOrdemPagamento: asString(itemTransacao.idOrdemPagamento),
-        },
-      },
-    });
-    return publicacao;
-  }
-
-  public updateManyFromTransacao(arquivos: DeepPartial<ArquivoPublicacao>[]) {
-    return this.arquivoPublicacaoRepository.upsert(arquivos);
   }
 }

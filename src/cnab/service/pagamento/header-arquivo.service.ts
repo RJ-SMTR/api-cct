@@ -69,7 +69,7 @@ export class HeaderArquivoService {
   public async saveRetFrom104(
     cnab104: CnabFile104Pgto,
     headerArquivoRemessa: HeaderArquivo,
-  ): Promise<SaveIfNotExists<HeaderArquivo>> {
+  ) {
     const headerArquivo = new HeaderArquivoDTO({
       tipoArquivo: HeaderArquivoTipoArquivo.Retorno,
       codigoBanco: cnab104.headerArquivo.codigoBanco.stringValue,
@@ -85,11 +85,12 @@ export class HeaderArquivoService {
       nomeEmpresa: cnab104.headerArquivo.nomeEmpresa.convertedValue,
       dataGeracao: cnab104.headerArquivo.dataGeracaoArquivo.convertedValue,
       horaGeracao: cnab104.headerArquivo.horaGeracaoArquivo.convertedValue,
-      transacao: { id: headerArquivoRemessa.transacao.id } as Transacao,  // TODO: salvar ou Transacao Ou Agrupado
+      transacaoAgrupado: headerArquivoRemessa.transacaoAgrupado,
+      transacao: headerArquivoRemessa.transacao,
       nsa: cnab104.headerArquivo.nsa.convertedValue,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retornoSaved),
     });
-    return await this.headerArquivoRepository.saveIfNotExists(headerArquivo);
+    return await this.headerArquivoRepository.save(headerArquivo);
   }
 
   public async findAllNewRemessa(): Promise<HeaderArquivo[]> {
