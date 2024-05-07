@@ -279,9 +279,6 @@ export class RemessaRetornoService {
             detalhe,
             lote.headerLote,
           );
-          // const publicacao =
-          //   this.arquivoPublicacaoService.generateRemessaDTO(itemTransacao);
-          // await this.arquivoPublicacaoService.save(publicacao);
           if (!allItemDetalheAMap[headerLoteUniqueId]) {
             allItemDetalheAMap[headerLoteUniqueId] = [itemTransacao];
           } else {

@@ -34,7 +34,10 @@ import { PagadorService } from './service/pagamento/pagador.service';
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
-import { parseCnab240Extrato, parseCnab240Pagamento } from './utils/cnab/cnab-104-utils';
+import {
+  parseCnab240Extrato,
+  parseCnab240Pagamento,
+} from './utils/cnab/cnab-104-utils';
 
 /**
  * User cases for CNAB and Payments
@@ -61,6 +64,7 @@ export class CnabService {
     private transacaoAgService: TransacaoAgrupadoService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private readonly lancamentoService: LancamentoService,
+    private arquivoPublicacaoService: ArquivoPublicacaoService,
   ) {}
 
   // #region saveTransacoesJae
@@ -305,6 +309,9 @@ export class CnabService {
       status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
     });
     await this.itemTransacaoService.save(item);
+    const publicacao =
+      this.arquivoPublicacaoService.generatePublicacaoDTO(item);
+      await this.arquivoPublicacaoService.save(publicacao);
   }
 
   /**
@@ -480,12 +487,12 @@ export class CnabService {
    * 3.  - If successfull, move retorno to backup folder.
    *     - If failed, move retorno to backup/failure folder
    */
-    public async updateRetorno() {
-      const METHOD = this.updateRetorno.name;
-      // Get retorno
-      const { cnabString, cnabName } = {
-        cnabName: 'smtr_prefeiturarj_140324_120102.ret',
-        cnabString: `
+  public async updateRetorno() {
+    const METHOD = this.updateRetorno.name;
+    // Get retorno
+    const { cnabString, cnabName } = {
+      cnabName: 'smtr_prefeiturarj_140324_120102.ret',
+      cnabString: `
 10400000         20054603700011044477301P    0000   0406490006000710848 CONTA BILHETAGEM  CB          CAIXA                                   10305202413591900052208001600                                                      000            
 10400011C2041041 20054603700011044477301000101      0406490006000710848 CONTA BILHETAGEM  CB                                                  R DONA MARIANA                00048ANDAR 7        RIO DE JANEIRO      22280020RJ                  
 1040001300001A00001803302271 0000130987857 CONCESSIONARIA DO VLT CARIOCA 000025             103052024BRL000000000000000000000001659626000000000   01N1000000000000000000000000000                                        00          000        
@@ -499,35 +506,35 @@ export class CnabService {
 10400015         000010000000000011164256000000000000000000000000                                                                                                                                                                               
 10499999         000001000012000000                                                                                                                                                                                                             
         `,
-      };
-      // await this.sftpService.getFirstCnabRetorno();
-      if (!cnabName || !cnabString) {
-        this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
-        return;
-      }
-
-      // Save Retorno, ArquivoPublicacao, move SFTP to backup
-      try {
-        const retorno104 = parseCnab240Pagamento(cnabString);
-        await this.remessaRetornoService.saveRetorno(retorno104);
-        await this.arqPublicacaoService.compareRemessaToRetorno();
-        await this.sftpService.moveToBackup(
-          cnabName,
-          SftpBackupFolder.RetornoSuccess,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Erro ao processar CNAB retorno, movendo para backup de erros e finalizando... - ${error}`,
-          error.stack,
-          METHOD,
-        );
-        await this.sftpService.moveToBackup(
-          cnabName,
-          SftpBackupFolder.RetornoFailure,
-        );
-        return;
-      }
+    };
+    // await this.sftpService.getFirstCnabRetorno();
+    if (!cnabName || !cnabString) {
+      this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
+      return;
     }
+
+    // Save Retorno, ArquivoPublicacao, move SFTP to backup
+    try {
+      const retorno104 = parseCnab240Pagamento(cnabString);
+      await this.remessaRetornoService.saveRetorno(retorno104);
+      await this.arqPublicacaoService.compareRemessaToRetorno();
+      await this.sftpService.moveToBackup(
+        cnabName,
+        SftpBackupFolder.RetornoSuccess,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Erro ao processar CNAB retorno, movendo para backup de erros e finalizando... - ${error}`,
+        error.stack,
+        METHOD,
+      );
+      await this.sftpService.moveToBackup(
+        cnabName,
+        SftpBackupFolder.RetornoFailure,
+      );
+      return;
+    }
+  }
 
   // #region saveExtrato
 

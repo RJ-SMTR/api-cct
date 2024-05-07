@@ -1,12 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { isFriday, nextFriday } from 'date-fns';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { asString } from 'src/utils/pipe-utils';
+import { asNumber, asString } from 'src/utils/pipe-utils';
 import { DeepPartial, FindManyOptions, In } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { HeaderArquivoStatus } from '../entity/pagamento/header-arquivo-status.entity';
 import { HeaderArquivo } from '../entity/pagamento/header-arquivo.entity';
 import { HeaderLote } from '../entity/pagamento/header-lote.entity';
+import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
 import { Pagador } from '../entity/pagamento/pagador.entity';
 import { HeaderArquivoStatusEnum } from '../enums/pagamento/header-arquivo-status.enum';
@@ -44,27 +46,27 @@ export class ArquivoPublicacaoService {
    *
    * **status** is Created.
    */
-  // public generateRemessaDTO(
-  //   itemTransacao: ItemTransacao | ItemTransacaoAgrupado,
-  // ): ArquivoPublicacao {
-  //   let friday = new Date();
-  //   if (isFriday(friday)) {
-  //     friday = nextFriday(friday);
-  //   }
-  //   const arquivo = new ArquivoPublicacao({
-  //     // Remessa
-  //     idTransacao: asNumber(itemTransacao.transacao?.id),
-  //     itemTransacao: { id: itemTransacao.id },
-  //     // Retorno
-  //     isPago: false,
-  //     dataGeracaoRetorno: null,
-  //     horaGeracaoRetorno: null,
-  //     dataVencimento: friday,
-  //     dataEfetivacao: null,
-  //     valorRealEfetivado: null,
-  //   });
-  //   return arquivo;
-  // }
+  public generatePublicacaoDTO(
+    itemTransacao: ItemTransacao,
+  ): ArquivoPublicacao {
+    let friday = new Date();
+    if (isFriday(friday)) {
+      friday = nextFriday(friday);
+    }
+    const arquivo = new ArquivoPublicacao({
+      // Remessa
+      idTransacao: asNumber(itemTransacao.transacao?.id),
+      itemTransacao: { id: itemTransacao.id },
+      // Retorno
+      isPago: false,
+      dataGeracaoRetorno: null,
+      horaGeracaoRetorno: null,
+      dataVencimento: friday,
+      dataEfetivacao: null,
+      valorRealEfetivado: null,
+    });
+    return arquivo;
+  }
 
   /**
    * From OrdemPagamento and others and bulk insert.
@@ -225,7 +227,20 @@ export class ArquivoPublicacaoService {
     retorno: HeaderArquivo,
     detalheARetorno: DetalheA,
   ) {
-    // TODO: 07/05/2024 - detalheARetorno.
+    // const transacoes =
+    //   detalheARetorno.itemTransacaoAgrupado?.transacaoAgrupado.transacoes;
+    // for (const transacao of transacoes || []) {
+    //   for (const item of transacao.itemTransacoes) {
+    //     const publicacao = await this.arquivoPublicacaoRepository.getOne({
+    //       where: {
+    //         itemTransacao: {
+    //           id: item.id,
+    //         },
+    //         idTransacao: transacao.id,
+    //       },
+    //     });
+    //   }
+    // }
     // 1. Associate ItemTransacaoDetalheA with matching CnabDetalheA
     const itens = await this.itemTransacaoService.findManyByIdTransacao(
       retorno.transacao.id,
