@@ -5,7 +5,7 @@ export class UpdateLancamento1714005101337 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "anexo"`);
-        await queryRunner.query(`ALTER TABLE "lancamento" ADD "anexo" character varying NOT NULL`);
+        await queryRunner.query(`ALTER TABLE "lancamento" ADD "anexo" character varying`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "algoritmo"`);
         await queryRunner.query(`ALTER TABLE "lancamento" ADD "algoritmo" character varying NOT NULL`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "glosa"`);
