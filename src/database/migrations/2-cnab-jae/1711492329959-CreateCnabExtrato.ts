@@ -82,8 +82,7 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "pagador" ADD CONSTRAINT "PK_Pagador_id" PRIMARY KEY ("id")`); // custom
         await queryRunner.query(`ALTER TABLE "item_transacao" DROP CONSTRAINT "FK_67142ca27ead7b1bccbbc968c4b"`);
         await queryRunner.query(`ALTER TABLE "item_transacao" DROP CONSTRAINT "FK_04f9231ba148125f267dd160196"`);
-        await queryRunner.query(`ALTER TABLE "item_transacao" DROP CONSTRAINT "PK_1fba4427ea668b5fd4851ce6a01"`); // custom
-        await queryRunner.query(`ALTER TABLE "transacao" DROP CONSTRAINT "PK_8a60051729f5d7e2d49c8fa91c5"`); // custom
+        await queryRunner.query(`ALTER TABLE "item_transacao" DROP CONSTRAINT "PK_1fba4427ea668b5fd4851ce6a01"`); // custom        
         await queryRunner.query(`ALTER TABLE "transacao" ADD CONSTRAINT "PK_Transacao_id" PRIMARY KEY ("id")`); // custom
         await queryRunner.query(`ALTER TABLE "cliente_favorecido" DROP CONSTRAINT "PK_fde4dc0b210ba36375b2adf9537"`); // custom
         await queryRunner.query(`ALTER TABLE "user" DROP CONSTRAINT "PK_cace4a159ff9f2512dd42373760"`); // custom
