@@ -5,13 +5,13 @@ export class UpdateLancamento1714005101337 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "anexo"`);
-        await queryRunner.query(`ALTER TABLE "lancamento" ADD "anexo" character varying`);
+        await queryRunner.query(`ALTER TABLE "lancamento" ADD "anexo" character`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "algoritmo"`);
-        await queryRunner.query(`ALTER TABLE "lancamento" ADD "algoritmo" character varying NOT NULL`);
+        await queryRunner.query(`ALTER TABLE "lancamento" ADD "algoritmo" character`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "glosa"`);
-        await queryRunner.query(`ALTER TABLE "lancamento" ADD "glosa" character varying NOT NULL`);
+        await queryRunner.query(`ALTER TABLE "lancamento" ADD "glosa" character`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "recurso"`);
-        await queryRunner.query(`ALTER TABLE "lancamento" ADD "recurso" character varying NOT NULL`);
+        await queryRunner.query(`ALTER TABLE "lancamento" ADD "recurso" character`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "valor_a_pagar"`);
         await queryRunner.query(`ALTER TABLE "lancamento" ADD "valor_a_pagar" numeric NOT NULL`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "numero_processo"`);
@@ -24,11 +24,11 @@ export class UpdateLancamento1714005101337 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "valor_a_pagar"`);
         await queryRunner.query(`ALTER TABLE "lancamento" ADD "valor_a_pagar" integer NOT NULL`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "recurso"`);
-        await queryRunner.query(`ALTER TABLE "lancamento" ADD "recurso" integer NOT NULL`);
+        await queryRunner.query(`ALTER TABLE "lancamento" ADD "recurso" integer`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "glosa"`);
-        await queryRunner.query(`ALTER TABLE "lancamento" ADD "glosa" integer NOT NULL`);
+        await queryRunner.query(`ALTER TABLE "lancamento" ADD "glosa" integer `);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "algoritmo"`);
-        await queryRunner.query(`ALTER TABLE "lancamento" ADD "algoritmo" integer NOT NULL`);
+        await queryRunner.query(`ALTER TABLE "lancamento" ADD "algoritmo" integer`);
         await queryRunner.query(`ALTER TABLE "lancamento" DROP COLUMN "anexo"`);
     }
 
