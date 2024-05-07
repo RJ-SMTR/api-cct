@@ -279,9 +279,6 @@ export class RemessaRetornoService {
             detalhe,
             lote.headerLote,
           );
-          // const publicacao =
-          //   this.arquivoPublicacaoService.generateRemessaDTO(itemTransacao);
-          // await this.arquivoPublicacaoService.save(publicacao);
           if (!allItemDetalheAMap[headerLoteUniqueId]) {
             allItemDetalheAMap[headerLoteUniqueId] = [itemTransacao];
           } else {
@@ -697,6 +694,7 @@ export class RemessaRetornoService {
       nsa: Number(cnab.headerArquivo.nsa.value),
       tipoArquivo: HeaderArquivoTipoArquivo.Remessa,
     });
+    // const isAgrupado = Boolean(headerArquivoRem.transacaoAgrupado);
 
     const headerArquivoRetSave = await this.headerArquivoService.saveRetFrom104(
       cnab,

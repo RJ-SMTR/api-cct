@@ -11,7 +11,7 @@ import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, UpdateResult } from 'typeorm';
+import { DeepPartial, FindManyOptions, UpdateResult } from 'typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 
 @Injectable()
@@ -21,6 +21,10 @@ export class TransacaoService {
   });
 
   constructor(private transacaoRepository: TransacaoRepository) {}
+
+  async findMany(options: FindManyOptions<Transacao>) {
+    return await this.transacaoRepository.findMany(options);
+  }
 
   async findOne(fields: EntityCondition<Transacao>) {
     return await this.transacaoRepository.findOne(fields);

@@ -12,11 +12,14 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
 import { Ocorrencia } from './ocorrencia.entity';
+import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
+import { ItemTransacao } from './item-transacao.entity';
 
 /**
  * Pagamento.DetalheA
@@ -116,11 +119,28 @@ export class DetalheA extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
 
+  /** CNAB */
   @Column({ type: String, unique: false, nullable: true, length: 10 })
   ocorrencias: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @OneToOne(() => ItemTransacaoAgrupado, { eager: false, nullable: true })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheA_itemTransacaoAgrupado_OneToOne',
+  })
+  itemTransacaoAgrupado: ItemTransacaoAgrupado | null;
+
+  @OneToOne(() => ItemTransacaoAgrupado, { eager: false, nullable: true })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheA_itemTransacao_OneToOne',
+  })
+  itemTransacao: ItemTransacao | null;
+
+  getOcorrenciasCnab() {
+    return (this.ocorrencias || '').trim();
+  }
 
   @AfterLoad()
   setReadValues() {
