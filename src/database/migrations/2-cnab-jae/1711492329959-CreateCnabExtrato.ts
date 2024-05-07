@@ -148,6 +148,7 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "lancamento" ADD CONSTRAINT "FK_Lancamento_idClienteFavorecido_ManyToOne" FOREIGN KEY ("id_cliente_favorecido") REFERENCES "cliente_favorecido"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "transacao" ADD CONSTRAINT "FK_Transacao_pagador_ManyToOne" FOREIGN KEY ("pagadorId") REFERENCES "pagador"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "transacao" ADD CONSTRAINT "FK_Transacao_status_ManyToOne" FOREIGN KEY ("statusId") REFERENCES "transacao_status"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "header_arquivo" DROP CONSTRAINT "FK_HeaderArquivo_transacao_ManyToOne"`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" ADD CONSTRAINT "FK_HeaderArquivo_transacao_ManyToOne" FOREIGN KEY ("transacaoId") REFERENCES "transacao"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" ADD CONSTRAINT "FK_HeaderArquivo_status_ManyToOne" FOREIGN KEY ("statusId") REFERENCES "header_arquivo_status"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "forgot" ADD CONSTRAINT "FK_Forgot_user_ManyToOne" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
@@ -198,7 +199,6 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "invite" DROP CONSTRAINT "FK_Invite_user_ManyToOne"`);
         await queryRunner.query(`ALTER TABLE "forgot" DROP CONSTRAINT "FK_Forgot_user_ManyToOne"`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" DROP CONSTRAINT "FK_HeaderArquivo_status_ManyToOne"`);
-        await queryRunner.query(`ALTER TABLE "header_arquivo" DROP CONSTRAINT "FK_HeaderArquivo_transacao_ManyToOne"`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" DROP CONSTRAINT "PK_HeaderArquivo_id"`); // custom       
         await queryRunner.query(`ALTER TABLE "transacao" ADD CONSTRAINT "PK_8a60051729f5d7e2d49c8fa91c5" PRIMARY KEY ("id")`); // custom
         await queryRunner.query(`ALTER TABLE "transacao" DROP CONSTRAINT "FK_Transacao_status_ManyToOne"`);
