@@ -1,38 +1,35 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { DetalheADTO } from 'src/cnab/dto/pagamento/detalhe-a.dto';
+import { HeaderLoteDTO } from 'src/cnab/dto/pagamento/header-lote.dto';
 import { ItemTransacaoDTO } from 'src/cnab/dto/pagamento/item-transacao.dto';
-import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
-import { DetalheB } from 'src/cnab/entity/pagamento/detalhe-b.entity';
+import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
 import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
+import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
+import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-trailer-arquivo-104.interface';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
+import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { asDate, asNumber, asString } from 'src/utils/pipe-utils';
+import { asDate, asString } from 'src/utils/pipe-utils';
 import { DeepPartial } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
 import { ItemTransacaoStatus } from '../../entity/pagamento/item-transacao-status.entity';
 import { ItemTransacao } from '../../entity/pagamento/item-transacao.entity';
-import { TransacaoStatus } from '../../entity/pagamento/transacao-status.entity';
 import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { ItemTransacaoStatusEnum } from '../../enums/pagamento/item-transacao-status.enum';
-import { TransacaoStatusEnum } from '../../enums/pagamento/transacao-status.enum';
 import { CnabHeaderArquivo104 } from '../../interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { CnabDetalheA_104 } from '../../interfaces/cnab-240/104/pagamento/cnab-detalhe-a-104.interface';
 import { CnabDetalheB_104 } from '../../interfaces/cnab-240/104/pagamento/cnab-detalhe-b-104.interface';
 import { CnabHeaderLote104Pgto } from '../../interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 import { CnabRegistros104Pgto } from '../../interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
-import {
-  CnabRemessa,
-  CnabRemessaDTO,
-  CnabRemessaDetalhe,
-} from '../../interfaces/cnab-all/cnab-remsesa.interface';
+import { CnabRemessaDetalhe } from '../../interfaces/cnab-all/cnab-remsesa.interface';
 import { stringifyCnab104File } from '../../utils/cnab/cnab-104-utils';
 import { getTipoInscricao } from '../../utils/cnab/cnab-utils';
 import { ArquivoPublicacaoService } from '../arquivo-publicacao.service';
@@ -65,252 +62,6 @@ export class RemessaRetornoService {
   ) {}
 
   // #region saveRemessa
-
-  /**
-   * Save many if not exists
-   */
-  public async saveManyRemessa(
-    cnabDTOs: CnabRemessaDTO[],
-    isAgrupado: boolean,
-  ) {
-    // Flatten Cnab to bulk save
-    const {
-      allUpdatedTransacoes,
-      allHeaderArquivo,
-      allHeaderLoteMap,
-      allItemDetalheAMap,
-      allDetalheBMap,
-    } = this.flattenCnabDTOs(cnabDTOs);
-
-    // Bulk save HeaderArquivo
-    const allSavedHeaderArquivo =
-      await this.headerArquivoService.saveManyIfNotExists(allHeaderArquivo);
-
-    // Bulk save HeaderLote
-    const allHeaderLote = this.updateHeaderLoteMap(
-      allHeaderLoteMap,
-      allSavedHeaderArquivo,
-    );
-    const allSavedHeaderLote = await this.headerLoteService.saveManyIfNotExists(
-      allHeaderLote,
-    );
-
-    // Bulk save DetalheA
-    const allDetalheA = this.updateDetalheAMap(
-      allItemDetalheAMap,
-      allSavedHeaderLote,
-    );
-    const savedDetalheA = await this.detalheAService.saveManyIfNotExists(
-      allDetalheA,
-    );
-
-    // Update itemTransacao
-    await this.updateItemTransacaoRemessa(allItemDetalheAMap, isAgrupado);
-
-    // Bulk save DetalheB
-    const allDetalheB = this.updateDetalheBMap(allDetalheBMap, savedDetalheA);
-    await this.detalheBService.saveManyIfNotExists(allDetalheB);
-
-    // Update Transacao status
-    await this.transacaoService.updateMany(allUpdatedTransacoes);
-  }
-
-  private async updateItemTransacaoRemessa(
-    allItemDetalheAMap: Record<
-      string,
-      DeepPartial<ItemTransacao>[] | DeepPartial<ItemTransacaoAgrupado>[]
-    >,
-    isAgrupado: boolean,
-  ) {
-    const itens = Object.values(allItemDetalheAMap).reduce(
-      (l, i) => [...l, ...i],
-      [],
-    );
-    const itensToUpdate: DeepPartial<ItemTransacao>[] = [];
-    for (const itemTransacao of itens) {
-      const detalheA = itemTransacao.detalheA as DetalheA;
-      if (!itemTransacao) {
-        throw CommonHttpException.notFound('itemTransacao');
-      }
-      itensToUpdate.push({
-        id: itemTransacao.id,
-        detalheA: { id: detalheA.id },
-      });
-      const updateItemTransacao: DeepPartial<ItemTransacao> = {
-        detalheA: { id: detalheA.id },
-      };
-      if (isAgrupado) {
-        await this.itemTransacaoAgService.update(
-          asNumber(itemTransacao?.id),
-          updateItemTransacao,
-        );
-      } else {
-        await this.itemTransacaoService.update(
-          asNumber(itemTransacao?.id),
-          updateItemTransacao,
-        );
-      }
-    }
-  }
-
-  private updateHeaderLoteMap(
-    allHeaderLoteMap: Record<string, DeepPartial<HeaderLote>[]>,
-    allSavedHeaderArquivo: HeaderArquivo[],
-  ): DeepPartial<HeaderLote>[] {
-    /** key: HeaderArquivo unique id */
-    const allSavedHeaderArquivoMap: Record<string, HeaderArquivo> =
-      allSavedHeaderArquivo.reduce(
-        (m, i) => ({ ...m, [HeaderArquivo.getUniqueId(i)]: i }),
-        {},
-      );
-
-    const allHeaderLote: DeepPartial<HeaderLote>[] = [];
-    for (const [uniqueHeaderArqId, headerLotes] of Object.entries(
-      allHeaderLoteMap,
-    )) {
-      for (const headerLote of headerLotes) {
-        const headerArquivo = allSavedHeaderArquivoMap[uniqueHeaderArqId];
-        if (headerArquivo) {
-          headerLote.headerArquivo = { id: headerArquivo.id }; // update
-          allHeaderLote.push(headerLote);
-        }
-      }
-    }
-    return allHeaderLote;
-  }
-
-  private updateDetalheAMap(
-    allItemDetalheAMap: Record<string, DeepPartial<ItemTransacao>[]>,
-    allSavedHeaderLote: HeaderLote[],
-  ): DeepPartial<DetalheA>[] {
-    /** key: HeaderLote unique ID */
-    const allSavedHeaderLoteMap: Record<string, HeaderLote> =
-      allSavedHeaderLote.reduce(
-        (m, i) => ({ ...m, [HeaderLote.getUniqueId(i)]: i }),
-        {},
-      );
-
-    const allDetalheA: DeepPartial<DetalheA>[] = [];
-    for (const [headerLoteUniqueId, itemDetalhesA] of Object.entries(
-      allItemDetalheAMap,
-    )) {
-      for (const itemDetalheA of itemDetalhesA) {
-        const headerLote = allSavedHeaderLoteMap[headerLoteUniqueId];
-        const detalheA = itemDetalheA.detalheA as DeepPartial<DetalheA>;
-        if (headerLote) {
-          detalheA.headerLote = {
-            id: headerLote.id,
-            headerArquivo: { id: headerLote.headerArquivo.id },
-          }; // update
-          allDetalheA.push(detalheA);
-        }
-      }
-    }
-    return allDetalheA;
-  }
-
-  private updateDetalheBMap(
-    allDetalheBMap: Record<string, DeepPartial<DetalheB>[]>,
-    allSavedDetalheA: DetalheA[],
-  ): DeepPartial<DetalheB>[] {
-    /** key: DetalheA unique ID */
-    const allSavedDetalheAMap: Record<string, DetalheA> =
-      allSavedDetalheA.reduce(
-        (m, i) => ({ ...m, [DetalheA.getUniqueId(i)]: i }),
-        {},
-      );
-
-    // Update DetalheB
-    const allDetalheB: DeepPartial<DetalheB>[] = [];
-    for (const [detalheAUniqueid, detalhesB] of Object.entries(
-      allDetalheBMap,
-    )) {
-      for (const detalheB of detalhesB) {
-        const detalheA = allSavedDetalheAMap[detalheAUniqueid];
-        if (detalheA) {
-          detalheB.detalheA = { id: detalheA.id }; // update
-          allDetalheB.push(detalheB);
-        }
-      }
-    }
-    return allDetalheB;
-  }
-
-  /**
-   * Planificar CnabDTOs
-   */
-  private flattenCnabDTOs(cnabDTOs: CnabRemessaDTO[]) {
-    /** Transacao to update after success */
-    const allUpdatedTransacoes: Transacao[] | TransacaoAgrupado[] = [];
-    const allHeaderArquivo: HeaderArquivoDTO[] = [];
-    /** key: HeaderArquivo HeaderArquivo unique id */
-    const allHeaderLoteMap: Record<string, DeepPartial<HeaderLote>[]> = {};
-    /** key: HeaderLote unique ID */
-    const allItemDetalheAMap: Record<
-      string,
-      DeepPartial<ItemTransacao>[] | DeepPartial<ItemTransacaoAgrupado>[]
-    > = {};
-    /** key: HeaderLote + DetalheA nested unique ID */
-    const allDetalheBMap: Record<string, DeepPartial<DetalheB>[]> = {};
-
-    for (const cnab of cnabDTOs) {
-      // Transacao
-      allUpdatedTransacoes.push({
-        id: cnab.transacao.id,
-        status: new TransacaoStatus(TransacaoStatusEnum.remessaSent),
-      } as any);
-
-      // HeaderArquivo
-      allHeaderArquivo.push(cnab.headerArquivo);
-      const headerArqUniqueId = HeaderArquivo.getUniqueId(cnab.headerArquivo);
-      for (const lote of cnab.lotes) {
-        lote.headerLote.headerArquivo = cnab.headerArquivo as HeaderArquivo;
-        const headerLoteUniqueId = HeaderLote.getUniqueId(lote.headerLote);
-        // HeaderLote
-        if (!allHeaderLoteMap[headerArqUniqueId]) {
-          allHeaderLoteMap[headerArqUniqueId] = [lote.headerLote];
-        } else {
-          allHeaderLoteMap[headerArqUniqueId].push(lote.headerLote);
-        }
-
-        for (const detalhe of lote.detalhes) {
-          // DetalheA
-          const itemTransacao = this.getRemessaItemDetalheADTO(
-            detalhe,
-            lote.headerLote,
-          );
-          if (!allItemDetalheAMap[headerLoteUniqueId]) {
-            allItemDetalheAMap[headerLoteUniqueId] = [itemTransacao];
-          } else {
-            allItemDetalheAMap[headerLoteUniqueId].push(itemTransacao);
-          }
-
-          // DetalheB
-          const detalheAUniqueid = DetalheA.getUniqueId(
-            itemTransacao.detalheA as DetalheA,
-          );
-          const detalheB = this.getRemessaDetalheBDTO(detalhe);
-          if (!allDetalheBMap[detalheAUniqueid]) {
-            allDetalheBMap[detalheAUniqueid] = [detalheB];
-          } else {
-            allDetalheBMap[detalheAUniqueid].push(detalheB);
-          }
-        }
-      }
-    }
-    return {
-      /** Each cnab has only 1 Transacao. These are Transacao to update after success */
-      allUpdatedTransacoes,
-      /** Each cnab has only 1 HeaderArquivo */
-      allHeaderArquivo,
-      /** key: HeaderArquivo HeaderArquivo unique id */
-      allHeaderLoteMap,
-      /** key: HeaderLote unique ID */
-      allItemDetalheAMap,
-      /** key: HeaderLote + DetalheA nested unique ID */
-      allDetalheBMap,
-    };
-  }
 
   /**
    * It will not contain `headerLote` field. You must add it later.
@@ -378,114 +129,207 @@ export class RemessaRetornoService {
   public async generateCnabRemessa(
     transacao?: Transacao,
     transacaoAg?: TransacaoAgrupado,
-  ): Promise<CnabRemessa | null> {
-    const headerArquivo = await this.headerArquivoService.getDTO(
+  ): Promise<string | null> {
+    // Get headerArquivo
+    const headerArquivoDTO = await this.headerArquivoService.getDTO(
       HeaderArquivoTipoArquivo.Remessa,
       transacao,
       transacaoAg,
     );
-    const headerLote = this.headerLoteService.getDTO(
-      headerArquivo,
+
+    // saveHeaderArquivo
+    await this.saveHeaderArquivo(headerArquivoDTO);
+
+    const pagador = transacao?.pagador || (transacaoAg?.pagador as Pagador);
+    const headerLoteDTO = this.headerLoteService.getDTO(
+      headerArquivoDTO,
+      pagador,
+    );
+    const savedHeaderLote = await this.saveHeaderLoteDTO(headerLoteDTO);
+    const detalhes = await this.getListDetalhes(
+      savedHeaderLote.id,
       transacao,
       transacaoAg,
     );
 
-    // Get Cnab104 with Detalhes
-    const cnab104 = await this.generateCnab104Pgto(
-      headerArquivo,
-      headerLote,
-      transacao,
-      transacaoAg,
+    // Generate Cnab
+    const cnab104 = this.generateCnab104Pgto(
+      headerArquivoDTO,
+      headerLoteDTO,
+      detalhes,
     );
+
     if (!cnab104) {
       return null;
     }
 
-    // read file104
+    // Process cnab
     const [cnabString, processedCnab104] = stringifyCnab104File(
-      cnab104.cnab104,
+      cnab104,
       true,
       'CnabPgtoRem',
     );
 
-    // Mount cnabTablesDTO
-    const cnabTables = this.generateCnabTables(
-      headerArquivo,
-      headerLote,
-      processedCnab104,
-      cnab104.itemTransacaoList,
-      transacao,
-      transacaoAg,
+    // Update
+    await this.updateHeaderArquivoDTOFrom104(
+      headerArquivoDTO,
+      processedCnab104.headerArquivo,
     );
-    return {
-      string: cnabString,
-      dto: cnabTables,
-    };
+    await this.updateHeaderLoteDTOFrom104(
+      headerLoteDTO,
+      processedCnab104.lotes[0].headerLote,
+    );
+
+    return cnabString;
+  }
+
+  convertCnabDetalheAToDTO(
+    detalheA: CnabDetalheA_104,
+    headerLoteId: number,
+    itemTransacao?: ItemTransacao,
+    itemTransacaoAg?: ItemTransacaoAgrupado,
+  ) {
+    const favorecidoId = (itemTransacao || itemTransacaoAg)?.clienteFavorecido
+      .id as number;
+    return new DetalheADTO({
+      nsr: Number(detalheA.nsr.value),
+      ocorrenciasCnab: detalheA.ocorrencias.value.trim(),
+      dataVencimento: getCnabFieldConverted(detalheA.dataVencimento),
+      tipoMoeda: detalheA.tipoMoeda.value,
+      finalidadeDOC: detalheA.finalidadeDOC.value,
+      indicadorBloqueio: detalheA.indicadorBloqueio.value,
+      numeroDocumentoBanco: detalheA.numeroDocumentoBanco.value,
+      quantidadeParcelas: Number(detalheA.quantidadeParcelas.value),
+      numeroDocumentoEmpresa: Number(detalheA.numeroDocumentoEmpresa.value),
+      quantidadeMoeda: Number(detalheA.quantidadeMoeda.value),
+      valorLancamento: getCnabFieldConverted(detalheA.valorLancamento),
+      valorRealEfetivado: getCnabFieldConverted(detalheA.valorRealEfetivado),
+      periodoVencimento: detalheA.dataVencimento.convertedValue,
+      loteServico: getCnabFieldConverted(detalheA.loteServico),
+      indicadorFormaParcelamento: getCnabFieldConverted(
+        detalheA.indicadorFormaParcelamento,
+      ),
+      numeroParcela: getCnabFieldConverted(detalheA.numeroParcela),
+      dataEfetivacao: getCnabFieldConverted(detalheA.dataEfetivacao),
+      headerLote: { id: headerLoteId },
+      itemTransacaoAgrupado: itemTransacaoAg,
+      itemTransacao: itemTransacao,
+      clienteFavorecido: { id: favorecidoId },
+    });
+  }
+
+  convertCnabDetalheBToDTO(detalheB: CnabDetalheB_104, detalheAId: number) {
+    return new DetalheBDTO({
+      nsr: detalheB.nsr.value,
+      detalheA: { id: detalheAId },
+      dataVencimento: getCnabFieldConverted(detalheB.dataVencimento),
+    });
+  }
+
+  async saveHeaderArquivo(headerArquivo: HeaderArquivoDTO) {
+    await this.headerArquivoService.save(headerArquivo);
+  }
+
+  async saveHeaderLoteDTO(headerLote: HeaderLoteDTO) {
+    return await this.headerLoteService.save(headerLote);
   }
 
   /**
    * Mount Cnab104 from tables
    */
-  private async generateCnab104Pgto(
+  private generateCnab104Pgto(
     headerArquivo: HeaderArquivoDTO,
-    headerLote: HeaderLote,
-    transacao?: Transacao,
-    transacaoAg?: TransacaoAgrupado,
-  ): Promise<{
-    cnab104: CnabFile104Pgto;
-    itemTransacaoList: ItemTransacao[] | ItemTransacaoAgrupado[];
-  } | null> {
-    const now = new Date();
+    headerLoteDTO: HeaderLoteDTO,
+    detalhes: CnabRegistros104Pgto[],
+  ) {
     const headerArquivo104 = this.getHeaderArquivo104FromDTO(headerArquivo);
     const trailerArquivo104 = sc(PgtoRegistros.trailerArquivo);
+
+    // Mount file104
+    const cnab104 = this.getCnabFilePgto(
+      headerArquivo104,
+      headerLoteDTO,
+      detalhes,
+      trailerArquivo104,
+    );
+
+    return cnab104;
+  }
+
+  /**
+   * Save ItemTransacao, save Detalhes
+   * Generate Detalhes
+   */
+  async getListDetalhes(
+    headerLoteId: number,
+    transacao?: Transacao,
+    transacaoAg?: TransacaoAgrupado,
+  ): Promise<CnabRegistros104Pgto[]> {
+    let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(
+      new Date(),
+    );
+
+    // Obter item transacao de transacoes
     const itemTransacaoMany = transacao
       ? await this.itemTransacaoService.findManyByIdTransacao(transacao.id)
       : await this.itemTransacaoAgService.findManyByIdTransacao(
           (transacaoAg as TransacaoAgrupado).id,
         );
+    const isTransacaoAgrupado = Boolean(transacaoAg);
 
-    let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(
-      now,
-    );
+    // Para cada itemTransacao, cria detalhe
+    const detalhes: CnabRegistros104Pgto[] = [];
+    let itemTransacaoAux: ItemTransacao | undefined;
+    let itemTransacaoAgAux: ItemTransacaoAgrupado | undefined;
+    let nsrAux = 0;
+    for (const itemTransacao of itemTransacaoMany) {
+      nsrAux += 1;
+      // add valid itemTransacao
+      if (isTransacaoAgrupado) {
+        itemTransacaoAgAux = itemTransacao as ItemTransacaoAgrupado;
+      } else {
+        itemTransacaoAux = itemTransacao as ItemTransacao;
+      }
+      const detalhe = await this.saveGetDetalhes104(
+        numeroDocumento,
+        headerLoteId,
+        nsrAux,
+        itemTransacaoAux,
+        itemTransacaoAgAux,
+      );
+      nsrAux += 1;
+      if (detalhe) {
+        detalhes.push(detalhe);
 
-    // Mount file104
+        // Save Detalhes
+      }
+      numeroDocumento++;
+    }
+    return detalhes;
+  }
 
+  getCnabFilePgto(
+    headerArquivo104: CnabHeaderArquivo104,
+    headerLoteDTO: HeaderLoteDTO,
+    detalhes: CnabRegistros104Pgto[],
+    trailerArquivo104: CnabTrailerArquivo104,
+  ) {
     const cnab104: CnabFile104Pgto = {
       headerArquivo: headerArquivo104,
       lotes: [
         {
-          headerLote: this.getHeaderLoteFrom104(headerLote),
-          registros: [],
+          headerLote: this.getHeaderLoteFrom104(headerLoteDTO),
+          registros: detalhes,
           trailerLote: sc(PgtoRegistros.trailerLote),
         },
       ],
       trailerArquivo: trailerArquivo104,
     };
-
-    const itemTransacaoSuccess: ItemTransacao[] | ItemTransacaoAgrupado[] = [];
-    for (const itemTransacao of itemTransacaoMany) {
-      // add valid itemTransacao
-      const successDetalhes = await this.getDetalhes104(
-        itemTransacao,
-        numeroDocumento,
-      );
-      if (successDetalhes) {
-        cnab104.lotes[0].registros.push(successDetalhes);
-        itemTransacaoSuccess.push(itemTransacao as any);
-      }
-      numeroDocumento++;
-    }
-    // Remove empty cnab104 lotes
     cnab104.lotes = cnab104.lotes.filter((l) => l.registros.length > 0);
-    // If empty, return null
     if (!cnab104.lotes.length) {
       return null;
     }
-
-    return {
-      cnab104: cnab104,
-      itemTransacaoList: itemTransacaoSuccess,
-    };
+    return cnab104;
   }
 
   private getHeaderArquivo104FromDTO(
@@ -513,82 +357,33 @@ export class RemessaRetornoService {
     return headerArquivo104;
   }
 
-  /**
-   * A pipe to generate CnabTables
-   */
-  private generateCnabTables(
-    headerArquivo: HeaderArquivoDTO,
-    headerLote: HeaderLote,
-    processedCnab104: CnabFile104Pgto,
-    itemTransacaoList: ItemTransacao[] | ItemTransacaoAgrupado[],
-    transacao?: Transacao,
-    transacaoAg?: TransacaoAgrupado,
-  ): CnabRemessaDTO {
-    if (processedCnab104.lotes.length > 1) {
-      throw CommonHttpException.details(
-        'Este método só gera tabelas para CNABs com 1 lote. ' +
-          `Recebeu ${processedCnab104.lotes.length}`,
-      );
-    }
-    this.updateHeaderArquivoDTOFrom104(
-      headerArquivo,
-      processedCnab104.headerArquivo,
-    );
-    this.updateHeaderLoteDTOFrom104(
-      headerLote,
-      processedCnab104.lotes[0].headerLote,
-    );
-    const isAgrupado = transacaoAg !== undefined;
-    const cnabTables: CnabRemessaDTO = {
-      transacao: isAgrupado
-        ? (transacaoAg as TransacaoAgrupado)
-        : (transacao as Transacao),
-      headerArquivo: headerArquivo,
-      lotes: [
-        {
-          headerLote: headerLote,
-          detalhes: [],
-        },
-      ],
-    };
-
-    // Mount cnabTablesDTO detalhes
-    for (let i = 0; i < itemTransacaoList.length; i++) {
-      const itemTransacao = itemTransacaoList[i];
-      cnabTables.lotes[0].detalhes.push({
-        itemTransacao: itemTransacao,
-        registroAB: processedCnab104.lotes[0].registros[
-          i
-        ] as CnabRegistros104Pgto,
-      });
-    }
-
-    // Remove empty cnabTables lotes
-    cnabTables.lotes = cnabTables.lotes.filter((l) => l.detalhes.length > 0);
-
-    return cnabTables;
-  }
-
-  private updateHeaderArquivoDTOFrom104(
+  private async updateHeaderArquivoDTOFrom104(
     headerArquivoDTO: HeaderArquivoDTO,
     headerArquivo104: CnabHeaderArquivo104,
   ) {
     headerArquivoDTO.nsa = Number(headerArquivo104.nsa.value);
+    await this.headerArquivoService.save(headerArquivoDTO);
   }
 
-  private updateHeaderLoteDTOFrom104(
-    headerLoteDTO: HeaderLote,
+  private async updateHeaderLoteDTOFrom104(
+    headerLoteDTO: HeaderLoteDTO,
     headerLote104: CnabHeaderLote104Pgto,
   ) {
     headerLoteDTO.loteServico = Number(headerLote104.loteServico.value);
+    await this.headerLoteService.save(headerLoteDTO);
   }
 
+  // private async updateDetalhesDTOFrom104(detalhes104: CnabRegistros104Pgto) {
+  //   headerLoteDTO.loteServico = Number(headerLote104.loteServico.value);
+  //   await this.headerLoteService.save(headerLoteDTO);
+  // }
+
   private getHeaderLoteFrom104(
-    headerLoteDTO: HeaderLote,
+    headerLoteDTO: HeaderLoteDTO,
   ): CnabHeaderLote104Pgto {
     const headerLote104: CnabHeaderLote104Pgto = sc(PgtoRegistros.headerLote);
     const headerArquivo = headerLoteDTO.headerArquivo as HeaderArquivo;
-    const pagador = headerLoteDTO.pagador;
+    const pagador = headerLoteDTO.pagador as DeepPartial<Pagador>;
     headerLote104.codigoConvenioBanco.value = headerLoteDTO.codigoConvenioBanco;
     headerLote104.numeroInscricao.value = headerLoteDTO.numeroInscricao;
     headerLote104.parametroTransmissao.value =
@@ -615,31 +410,49 @@ export class RemessaRetornoService {
   /**
    * Get Cnab Detalhes A,B.
    *
+   * Save Detalhes A, B.
+   *
    * If ItemTransacao is not valid yet, status = `fail`.
    *
    * indicadorBloqueio = DataFixa (see `detalheATemplate`)
    *
    * @param numeroDocumento Managed by company. It must be a new number.
    * @returns null if failed ItemTransacao to CNAB */
-  public async getDetalhes104(
-    itemTransacao: ItemTransacao | ItemTransacaoAgrupado,
+  public async saveGetDetalhes104(
     numeroDocumento: number,
+    headerLoteId: number,
+    nsr: number,
+    itemTransacao?: ItemTransacao,
+    itemTransacaoAg?: ItemTransacaoAgrupado,
   ): Promise<CnabRegistros104Pgto | null> {
     const METHOD = 'getDetalhes104()';
-    const favorecido = itemTransacao.clienteFavorecido;
+    const favorecido = (itemTransacao || (itemTransacaoAg as any))
+      .clienteFavorecido as ClienteFavorecido;
+
+    // Failure if no favorecido
     if (!favorecido) {
-      // Failure if no favorecido
-      await this.itemTransacaoService.save({
-        id: itemTransacao.id,
-        status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.failure),
-      });
+      if (itemTransacao) {
+        await this.itemTransacaoService.save({
+          id: itemTransacao.id,
+          status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.failure),
+        });
+      } else {
+        await this.itemTransacaoService.save({
+          id: (itemTransacaoAg as ItemTransacaoAgrupado).id,
+          status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.failure),
+        });
+      }
+
       this.logger.debug(
-        `Falha ao usar ItemTransacao #${itemTransacao.id}: favorecido ausente.`,
+        `Falha ao usar ItemTransacao: favorecido ausente.`,
         METHOD,
       );
       return null;
     }
 
+    // Save detalheA
+    const itemTransacaoAux = (itemTransacao ||
+      itemTransacaoAg) as ItemTransacao;
     const detalheA: CnabDetalheA_104 = sc(PgtoRegistros.detalheA);
     detalheA.codigoBancoDestino.value = favorecido.codigoBanco;
     detalheA.codigoAgenciaDestino.value = favorecido.agencia;
@@ -648,10 +461,19 @@ export class RemessaRetornoService {
     detalheA.dvContaDestino.value = favorecido.dvContaCorrente;
     detalheA.nomeTerceiro.value = favorecido.nome;
     detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
-    detalheA.dataVencimento.value = itemTransacao.dataProcessamento;
+    detalheA.dataVencimento.value = itemTransacaoAux.dataProcessamento;
     // indicadorFormaParcelamento = DataFixa
-    detalheA.valorLancamento.value = itemTransacao.valor;
+    detalheA.valorLancamento.value = itemTransacaoAux.valor;
+    detalheA.nsr.value = nsr;
 
+    const savedDetalheA = await this.saveDetalheA(
+      detalheA,
+      headerLoteId,
+      itemTransacao,
+      itemTransacaoAg,
+    );
+
+    // DetalheB
     const detalheB: CnabDetalheB_104 = sc(PgtoRegistros.detalheB);
     detalheB.tipoInscricao.value = getTipoInscricao(
       asString(favorecido.cpfCnpj),
@@ -667,11 +489,37 @@ export class RemessaRetornoService {
     detalheB.cep.value = favorecido.cep;
     detalheB.complementoCep.value = favorecido.complementoCep;
     detalheB.siglaEstado.value = favorecido.uf;
+    detalheB.nsr.value = nsr + 1;
+
+    await this.saveDetalheB(detalheB, savedDetalheA.id);
 
     return {
       detalheA: detalheA,
       detalheB: detalheB,
     };
+  }
+
+  async saveDetalheA(
+    detalheA104: CnabDetalheA_104,
+    savedHeaderLoteId: number,
+    itemTransacao?: ItemTransacao,
+    itemTransacaoAg?: ItemTransacaoAgrupado,
+  ) {
+    const detalheADTO = this.convertCnabDetalheAToDTO(
+      detalheA104,
+      savedHeaderLoteId,
+      itemTransacao,
+      itemTransacaoAg,
+    );
+    return await this.detalheAService.save(detalheADTO);
+  }
+
+  async saveDetalheB(detalheB104: CnabDetalheB_104, savedDetalheAId: number) {
+    const detalheBDTO = this.convertCnabDetalheBToDTO(
+      detalheB104,
+      savedDetalheAId,
+    );
+    await this.detalheBService.save(detalheBDTO);
   }
 
   // #endregion
@@ -699,14 +547,14 @@ export class RemessaRetornoService {
       headerArquivoRem,
     );
 
-    for (const l of cnab.lotes) {
+    for (const cnabLote of cnab.lotes) {
       // Save HeaderLote
       const headerLoteSave = await this.headerLoteService.saveFrom104(
-        l,
+        cnabLote,
         headerArquivoUpdated,
       );
 
-      for (const registro of l.registros) {
+      for (const registro of cnabLote.registros) {
         // Save Detalhes
         const detalheASave = await this.detalheAService.saveRetornoFrom104(
           registro,

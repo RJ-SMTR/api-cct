@@ -69,7 +69,9 @@ export class TransacaoAgrupado extends EntityHelper {
   lancamentos: LancamentoEntity[] | null;
 
   /** Not a physical column */
-  @OneToMany(() => ItemTransacaoAgrupado, (item) => item.transacaoAgrupado)
+  @OneToMany(() => ItemTransacaoAgrupado, (item) => item.transacaoAgrupado, {
+    eager: false,
+  })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoAgrupado_itemTransacoes_OneToMany',
   })

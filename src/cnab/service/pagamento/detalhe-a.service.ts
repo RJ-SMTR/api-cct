@@ -5,7 +5,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial } from 'typeorm';
+import { DeepPartial, ILike } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
@@ -37,9 +37,9 @@ export class DetalheAService {
     headerLote: HeaderLote,
   ): Promise<SaveIfNotExists<DetalheA> | null> {
     const r = registro;
-    const favorecido = await this.clienteFavorecidoService.findOneByNome(
-      r.detalheA.nomeTerceiro.stringValue.trim(),
-    );
+    const favorecido = await this.clienteFavorecidoService.findOne({
+      where: { nome: ILike(`%${r.detalheA.nomeTerceiro.stringValue.trim()}%`) },
+    });
     if (!favorecido) {
       return null;
     }

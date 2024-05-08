@@ -73,13 +73,13 @@ export class HeaderArquivo extends EntityHelper {
   @JoinColumn({
     foreignKeyConstraintName: 'FK_HeaderArquivo_transacao_ManyToOne',
   })
-  transacao: Transacao;
+  transacao: Transacao | null;
 
   @ManyToOne(() => TransacaoAgrupado, { eager: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_HeaderArquivo_transacaoAgrupado_ManyToOne',
   })
-  transacaoAgrupado: TransacaoAgrupado;
+  transacaoAgrupado: TransacaoAgrupado | null;
 
   @Column({ type: Number, unique: false, nullable: false })
   nsa: number;
@@ -92,7 +92,7 @@ export class HeaderArquivo extends EntityHelper {
   createdAt: Date;
 
   public getIdString(): string {
-    return `{ transacao: ${this.transacao.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;
+    return `{ transacao: ${this.transacao?.id},  transacaoAg: ${this.transacaoAgrupado?.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;
   }
 
   @BeforeInsert()

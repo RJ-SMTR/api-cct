@@ -216,7 +216,7 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
     pos: [150, 150],
     picture: '9(001)',
     value: Cnab104FormaParcelamento.DataFixa,
-    ...Cnab.insert.d(),
+    ...Cnab.insert.number(),
   },
   /**
    * A.28

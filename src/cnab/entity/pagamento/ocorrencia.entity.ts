@@ -36,8 +36,7 @@ export class Ocorrencia extends EntityHelper {
   })
   detalheA: DetalheA | null;
 
-  /** uniqueConstraintName: UQ_TransacaoOcorrencia_code */
-  @Column({ type: String, unique: true, nullable: false, length: 2 })
+  @Column({ type: String, unique: false, nullable: false, length: 2 })
   code: string;
 
   @Column({ type: String, unique: false, nullable: false, length: 100 })

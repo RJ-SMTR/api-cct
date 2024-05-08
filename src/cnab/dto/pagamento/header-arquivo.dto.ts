@@ -69,9 +69,9 @@ export class HeaderArquivoDTO {
   @IsNotEmpty()
   horaGeracao?: Date;
 
-  transacao?: DeepPartial<Transacao>;
+  transacao?: DeepPartial<Transacao> | null;
 
-  transacaoAgrupado?: DeepPartial<TransacaoAgrupado>;
+  transacaoAgrupado?: DeepPartial<TransacaoAgrupado> | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

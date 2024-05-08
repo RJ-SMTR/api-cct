@@ -42,9 +42,9 @@ export class ClienteFavorecidoRepository {
         'unaccent(UPPER("favorecido"."nome")) ILIKE unaccent(UPPER(:nome))',
         { nome: `%${nome}%` },
       )
-      .getRawOne<ClienteFavorecido>();
+      .getOne();
 
-    return cliente || null;
+    return cliente;
   }
 
   clear() {

@@ -11,7 +11,7 @@ import { Ocorrencia } from './ocorrencia.entity';
 export class HeaderLote extends EntityHelper {
   constructor(dto?: DeepPartial<HeaderLote>) {
     super();
-    if (dto) {
+  if (dto) {
       Object.assign(this, dto);
     }
   }
@@ -46,7 +46,7 @@ export class HeaderLote extends EntityHelper {
   tipoCompromisso: string | null;
 
   @Column({ type: String, unique: false, nullable: true })
-  parametroTransmissao: string | null;
+  parametroTransmissao: string;
 
   @ManyToOne(() => Pagador, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderLote_pagador_ManyToOne' })

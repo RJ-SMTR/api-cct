@@ -1,4 +1,5 @@
 import { EntityHelper } from 'src/utils/entity-helper';
+import { asStringOrNumber } from 'src/utils/pipe-utils';
 import {
   AfterLoad,
   Column,
@@ -7,15 +8,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  OneToOne,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
+  UpdateDateColumn
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
-import { Transacao } from './transacao.entity';
-import { DetalheA } from './detalhe-a.entity';
 import { ItemTransacaoStatus } from './item-transacao-status.entity';
-import { asStringOrNumber } from 'src/utils/pipe-utils';
+import { Transacao } from './transacao.entity';
 
 @Entity()
 export class ItemTransacao extends EntityHelper {
@@ -30,7 +28,7 @@ export class ItemTransacao extends EntityHelper {
   id: number;
 
   @ManyToOne(() => Transacao, {
-    eager: true,
+    eager: false,
   })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_ItemTransacao_transacao_ManyToOne',
@@ -65,7 +63,7 @@ export class ItemTransacao extends EntityHelper {
     type: 'decimal',
     unique: false,
     nullable: true,
-    precision: 10,
+    precision: 13,
     scale: 5,
   })
   valor: number;
@@ -88,13 +86,6 @@ export class ItemTransacao extends EntityHelper {
   /** Lancamento.data_lancamento */
   @Column({ type: Date, unique: false, nullable: true })
   dataLancamento: Date | null;
-
-  /** FK to know which DetalheA is related to ItemTransacao */
-  @OneToOne(() => DetalheA, { eager: true, nullable: true })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_ItemTransacao_detalheA_OneToOne',
-  })
-  detalheA: DetalheA | null;
 
   /** DataOrdem from bigquery */
   @Column({ type: Date, unique: false, nullable: false })

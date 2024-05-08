@@ -11,6 +11,7 @@ import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -31,7 +32,14 @@ export class ClienteFavorecidoService {
    */
   public async updateAllFromUsers(allUsers: User[]): Promise<void> {
     // this.clienteFavorecidoRepository.
-    const newFavorecidos = await this.getManyFavorecidoDTOsFromUsers(allUsers);
+    const newFavorecidos = (
+      await this.getManyFavorecidoDTOsFromUsers(allUsers)
+    ).map((i) => {
+      if (i.nome) {
+        i.nome = getStringUpperUnaccent(i.nome).trim();
+      }
+      return i;
+    });
     await this.clienteFavorecidoRepository.upsert(newFavorecidos);
   }
 

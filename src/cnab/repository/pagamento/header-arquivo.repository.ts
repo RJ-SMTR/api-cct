@@ -7,6 +7,7 @@ import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import {
+  DeepPartial,
   FindManyOptions,
   FindOneOptions,
   FindOptionsOrder,
@@ -28,7 +29,7 @@ export class HeaderArquivoRepository {
     private headerArquivoRepository: Repository<HeaderArquivo>,
   ) {}
 
-  public async save(dto: HeaderArquivoDTO): Promise<HeaderArquivo> {
+  public async save(dto: DeepPartial<HeaderArquivo>): Promise<HeaderArquivo> {
     return await this.headerArquivoRepository.save(dto);
   }
 

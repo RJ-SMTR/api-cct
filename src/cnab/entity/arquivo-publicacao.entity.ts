@@ -44,7 +44,7 @@ export class ArquivoPublicacao extends EntityHelper {
   idTransacao: number;
 
   /** Remessa */
-  @OneToOne(() => ItemTransacao, { nullable: true })
+  @OneToOne(() => ItemTransacao, { nullable: true, eager: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_ArquivoPublicacao_itemTransacao_OneToOne',
   })

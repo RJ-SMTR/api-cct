@@ -58,7 +58,6 @@ export class ArquivoPublicacaoService {
       dataVencimento: friday,
       dataEfetivacao: null,
       valorRealEfetivado: null,
-      
     });
     return arquivo;
   }
@@ -92,7 +91,9 @@ export class ArquivoPublicacaoService {
       const headerArquivoRet = await this.headerArquivoService.findOne({
         tipoArquivo: HeaderArquivoTipoArquivo.Retorno,
         nsa: headerArquivoRem.nsa,
-        transacao: { id: headerArquivoRem.transacao.id },
+        ...(headerArquivoRem?.transacao?.id
+          ? { transacao: { id: headerArquivoRem.transacao?.id } }
+          : { transacaoAgrupado: { id: headerArquivoRem.transacaoAgrupado?.id } }),
       });
       // If no retorno for new remessa, skip
       if (!headerArquivoRet) {
@@ -126,25 +127,37 @@ export class ArquivoPublicacaoService {
   }
 
   async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA) {
+    if (!detalheARetorno.ocorrenciasCnab) {
+      return;
+    }
     const ocorrenciasDetalheA = Ocorrencia.newList(
       asString(detalheARetorno.ocorrenciasCnab),
     );
 
-    // Update DetalheA
+    // Update
     for (const ocorrencia of ocorrenciasDetalheA) {
       ocorrencia.detalheA = detalheARetorno;
+    }
+    if (ocorrenciasDetalheA.length === 0) {
+      return;
     }
     await this.transacaoOcorrenciaService.saveMany(ocorrenciasDetalheA);
   }
 
   async salvaOcorrenciasHeaderLote(headerLote: HeaderLote) {
+    if (!headerLote.ocorrenciasCnab) {
+      return;
+    }
     const ocorrenciasHeaderLote = Ocorrencia.newList(
       asString(headerLote.ocorrenciasCnab),
     );
 
-    // Update DetalheA
+    // Update
     for (const ocorrencia of ocorrenciasHeaderLote) {
       ocorrencia.headerLote = headerLote;
+    }
+    if (ocorrenciasHeaderLote.length === 0) {
+      return;
     }
     await this.transacaoOcorrenciaService.saveMany(ocorrenciasHeaderLote);
   }
@@ -187,6 +200,7 @@ export class ArquivoPublicacaoService {
       detalheARetorno.itemTransacaoAgrupado?.transacaoAgrupado.transacoes;
     for (const transacao of transacoes || []) {
       for (const item of transacao.itemTransacoes) {
+
         const publicacao = await this.arquivoPublicacaoRepository.getOne({
           where: {
             itemTransacao: {
@@ -200,7 +214,10 @@ export class ArquivoPublicacaoService {
         publicacao.isPago = detalheARetorno.ocorrenciasCnab?.trim() === '00';
         if (publicacao.isPago) {
           publicacao.valorRealEfetivado = publicacao.itemTransacao.valor;
+          publicacao.dataEfetivacao = detalheARetorno.dataEfetivacao;
+          publicacao.horaGeracaoRetorno = detalheARetorno.headerLote.headerArquivo.horaGeracao;
         }
+
         await this.arquivoPublicacaoRepository.save(publicacao);
       }
     }

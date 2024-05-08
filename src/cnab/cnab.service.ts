@@ -22,7 +22,6 @@ import { ItemTransacaoStatusEnum } from './enums/pagamento/item-transacao-status
 import { PagadorContaEnum } from './enums/pagamento/pagador.enum';
 import { TransacaoStatusEnum } from './enums/pagamento/transacao-status.enum';
 import { CnabFile104Extrato } from './interfaces/cnab-240/104/extrato/cnab-file-104-extrato.interface';
-import { CnabRemessaDTO } from './interfaces/cnab-all/cnab-remsesa.interface';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ExtratoDetalheEService } from './service/extrato/extrato-detalhe-e.service';
@@ -437,8 +436,6 @@ export class CnabService {
       return;
     }
 
-    const cnabs: CnabRemessaDTO[] = [];
-
     // Generate Remessas and send SFTP
     for (const _transacao of transacoes) {
       let transacao: Transacao | undefined;
@@ -450,11 +447,11 @@ export class CnabService {
       }
 
       // Generate remessa
-      const cnab = await this.remessaRetornoService.generateCnabRemessa(
+      const cnabStr = await this.remessaRetornoService.generateCnabRemessa(
         transacao,
         transacaoAg,
       );
-      if (!cnab) {
+      if (!cnabStr) {
         this.logger.warn(
           `A Transação/Agrupado #${_transacao.id} gerou cnab vazio (sem itens válidos), ignorando...`,
           METHOD,
@@ -462,8 +459,8 @@ export class CnabService {
         continue;
       }
       try {
-        await this.sftpService.submitCnabRemessa(cnab.string);
-        cnabs.push(cnab.dto);
+        // saveRemessa(cnab);
+        await this.sftpService.submitCnabRemessa(cnabStr);
       } catch (error) {
         this.logger.error(
           `Falha ao enviar o CNAB, tentaremos enviar no próximo job...`,
@@ -472,12 +469,6 @@ export class CnabService {
         );
       }
     }
-
-    // Save sent Remessas
-    await this.remessaRetornoService.saveManyRemessa(
-      cnabs,
-      tipo === PagadorContaEnum.ContaBilhetagem,
-    );
   }
 
   /**
@@ -493,7 +484,7 @@ export class CnabService {
     const { cnabString, cnabName } = {
       cnabName: 'smtr_prefeiturarj_140324_120102.ret',
       cnabString: `
-10400000         20054603700011044477301P    0000   0406490006000710848 CONTA BILHETAGEM  CB          CAIXA                                   10705202413464700070408001600                                                      000            
+10400000         20054603700011044477301P    0000   0406490006000710848 CONTA BILHETAGEM  CB          CAIXA                                   10705202417384300071208001600                                                      000            
 10400011C2041041 20054603700011044477301000101      0406490006000710848 CONTA BILHETAGEM  CB                                                  R DONA MARIANA                00048ANDAR 7        RIO DE JANEIRO      22280020RJ                  
 1040001300001A00001803302271 0000130987857 CONCESSIONARIA DO VLT CARIOCA 000001             107052024BRL000000000000000000000000810690000000000   01N1000000000000000000000000000                                        00          000        
 1040001300002B   218201378000119                              00000                                                  00000     07052024000000000000000000000000000000000000000000000000000000000000000000000000000                              

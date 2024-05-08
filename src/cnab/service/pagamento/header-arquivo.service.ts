@@ -9,7 +9,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { getBRTFromUTC } from 'src/utils/date-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { FindOptionsWhere } from 'typeorm';
+import { DeepPartial, FindOptionsWhere } from 'typeorm';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
 import { Transacao } from '../../entity/pagamento/transacao.entity';
@@ -126,7 +126,7 @@ export class HeaderArquivoService {
     return await this.headerArquivoRepository.saveIfNotExists(dto);
   }
 
-  public async save(dto: HeaderArquivoDTO): Promise<HeaderArquivo> {
+  public async save(dto: DeepPartial<HeaderArquivo>): Promise<HeaderArquivo> {
     return await this.headerArquivoRepository.save(dto);
   }
 
