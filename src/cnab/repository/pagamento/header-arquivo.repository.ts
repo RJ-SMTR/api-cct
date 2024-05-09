@@ -1,12 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
-import { HeaderArquivoTipoArquivo } from 'src/cnab/enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import {
+  DeepPartial,
   FindManyOptions,
   FindOneOptions,
   FindOptionsOrder,
@@ -28,7 +27,7 @@ export class HeaderArquivoRepository {
     private headerArquivoRepository: Repository<HeaderArquivo>,
   ) {}
 
-  public async save(dto: HeaderArquivoDTO): Promise<HeaderArquivo> {
+  public async save(dto: DeepPartial<HeaderArquivo>): Promise<HeaderArquivo> {
     return await this.headerArquivoRepository.save(dto);
   }
 
@@ -133,17 +132,5 @@ export class HeaderArquivoRepository {
     options: FindManyOptions<HeaderArquivo>,
   ): Promise<HeaderArquivo[]> {
     return await this.headerArquivoRepository.find(options);
-  }
-
-  /**
-   * Find HeaderArquivo Remessa ready to save in ArquivoPublicacao
-   */
-  public async findAllRemessaForPublicacao(): Promise<HeaderArquivo[]> {
-    return await this.headerArquivoRepository.find({
-      where: {
-        tipoArquivo: HeaderArquivoTipoArquivo.Remessa,
-        status: { id: HeaderArquivoStatusEnum.retornoSaved },
-      },
-    });
   }
 }

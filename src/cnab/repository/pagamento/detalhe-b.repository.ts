@@ -75,6 +75,14 @@ export class DetalheBRepository {
     return await this.detalheBRepository.save(dto);
   }
 
+  public async getOne(
+    fields: EntityCondition<DetalheB>,
+  ): Promise<Nullable<DetalheB>> {
+    return await this.detalheBRepository.findOneOrFail({
+      where: fields,
+    });
+  }
+
   public async findOne(
     fields: EntityCondition<DetalheB>,
   ): Promise<Nullable<DetalheB>> {

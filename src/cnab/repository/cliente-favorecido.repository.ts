@@ -25,12 +25,26 @@ export class ClienteFavorecidoRepository {
     private clienteFavorecidoRepository: Repository<ClienteFavorecido>,
   ) {}
 
+  createQueryBuilder = this.clienteFavorecidoRepository.createQueryBuilder;
+
   async save(dto: SaveClienteFavorecidoDTO): Promise<void> {
     if (dto.id === undefined) {
       await this.create(dto);
     } else {
       await this.update(dto.id, dto);
     }
+  }
+
+  public async findOneByNome(nome: string): Promise<ClienteFavorecido | null> {
+    const cliente = await this.clienteFavorecidoRepository
+      .createQueryBuilder('favorecido')
+      .where(
+        'unaccent(UPPER("favorecido"."nome")) ILIKE unaccent(UPPER(:nome))',
+        { nome: `%${nome}%` },
+      )
+      .getOne();
+
+    return cliente;
   }
 
   clear() {

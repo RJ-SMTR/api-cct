@@ -9,7 +9,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { getBRTFromUTC } from 'src/utils/date-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { FindOptionsWhere } from 'typeorm';
+import { DeepPartial, FindOptionsWhere } from 'typeorm';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
 import { Transacao } from '../../entity/pagamento/transacao.entity';
@@ -61,7 +61,7 @@ export class HeaderArquivoService {
       numeroConta: pagador.conta,
       tipoArquivo: tipo_arquivo,
       nsa: await this.getNextNSA(),
-      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessaSent),
+      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessa),
     });
     return dto;
   }
@@ -69,8 +69,12 @@ export class HeaderArquivoService {
   public async saveRetFrom104(
     cnab104: CnabFile104Pgto,
     headerArquivoRemessa: HeaderArquivo,
-  ): Promise<SaveIfNotExists<HeaderArquivo>> {
+  ) {
+    const headerArquivoRem = await this.headerArquivoRepository.getOne({
+      nsa: cnab104.headerArquivo.nsa.convertedValue,
+    });
     const headerArquivo = new HeaderArquivoDTO({
+      id: headerArquivoRem.id,
       tipoArquivo: HeaderArquivoTipoArquivo.Retorno,
       codigoBanco: cnab104.headerArquivo.codigoBanco.stringValue,
       tipoInscricao: cnab104.headerArquivo.tipoInscricao.stringValue,
@@ -85,15 +89,23 @@ export class HeaderArquivoService {
       nomeEmpresa: cnab104.headerArquivo.nomeEmpresa.convertedValue,
       dataGeracao: cnab104.headerArquivo.dataGeracaoArquivo.convertedValue,
       horaGeracao: cnab104.headerArquivo.horaGeracaoArquivo.convertedValue,
-      transacao: { id: headerArquivoRemessa.transacao.id } as Transacao,  // TODO: salvar ou Transacao Ou Agrupado
+      transacaoAgrupado: headerArquivoRemessa.transacaoAgrupado,
+      transacao: headerArquivoRemessa.transacao,
       nsa: cnab104.headerArquivo.nsa.convertedValue,
-      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retornoSaved),
+      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
     });
-    return await this.headerArquivoRepository.saveIfNotExists(headerArquivo);
+    return await this.headerArquivoRepository.save(headerArquivo);
   }
-
-  public async findAllNewRemessa(): Promise<HeaderArquivo[]> {
-    return this.headerArquivoRepository.findAllRemessaForPublicacao();
+  
+  /**
+   * Find HeaderArquivo Remessa ready to save in ArquivoPublicacao
+   */
+  public async findRetornos(): Promise<HeaderArquivo[]> {
+    return this.headerArquivoRepository.findMany({
+      where: {
+        status: { id: HeaderArquivoStatusEnum.retorno },
+      },
+    });
   }
 
   public async findOne(
@@ -125,7 +137,7 @@ export class HeaderArquivoService {
     return await this.headerArquivoRepository.saveIfNotExists(dto);
   }
 
-  public async save(dto: HeaderArquivoDTO): Promise<HeaderArquivo> {
+  public async save(dto: DeepPartial<HeaderArquivo>): Promise<HeaderArquivo> {
     return await this.headerArquivoRepository.save(dto);
   }
 

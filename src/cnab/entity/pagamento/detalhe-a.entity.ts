@@ -13,13 +13,13 @@ import {
   ManyToOne,
   OneToMany,
   OneToOne,
-  PrimaryGeneratedColumn
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
-import { Ocorrencia } from './ocorrencia.entity';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { ItemTransacao } from './item-transacao.entity';
+import { Ocorrencia } from './ocorrencia.entity';
 
 /**
  * Pagamento.DetalheA
@@ -39,13 +39,16 @@ export class DetalheA extends EntityHelper {
   })
   clienteFavorecido: ClienteFavorecido;
 
-  @OneToMany(() => Ocorrencia, (ocorrencia) => ocorrencia.headerArquivo, {
+  @OneToMany(() => Ocorrencia, (ocorrencia) => ocorrencia.detalheA, {
     eager: true,
   })
   @JoinColumn({
-    foreignKeyConstraintName: 'FK_DetalheA_ocorrencia_OneToMany',
+    foreignKeyConstraintName: 'FK_DetalheA_ocorrencias_OneToMany',
   })
-  ocorrencia: Ocorrencia[];
+  ocorrencias: Ocorrencia[];
+
+  @Column({ type: String, unique: false, nullable: true, length: 10 })
+  ocorrenciasCnab: string | null;
 
   @Column({ type: Number, unique: false, nullable: true })
   loteServico: number;
@@ -119,10 +122,6 @@ export class DetalheA extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
 
-  /** CNAB */
-  @Column({ type: String, unique: false, nullable: true, length: 10 })
-  ocorrencias: string | null;
-
   @CreateDateColumn()
   createdAt: Date;
 
@@ -139,7 +138,7 @@ export class DetalheA extends EntityHelper {
   itemTransacao: ItemTransacao | null;
 
   getOcorrenciasCnab() {
-    return (this.ocorrencias || '').trim();
+    return (this.ocorrenciasCnab || '').trim();
   }
 
   @AfterLoad()

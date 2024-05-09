@@ -44,7 +44,7 @@ export class ArquivoPublicacao extends EntityHelper {
   idTransacao: number;
 
   /** Remessa */
-  @OneToOne(() => ItemTransacao, { nullable: true })
+  @OneToOne(() => ItemTransacao, { nullable: true, eager: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_ArquivoPublicacao_itemTransacao_OneToOne',
   })
@@ -66,12 +66,12 @@ export class ArquivoPublicacao extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true })
   dataVencimento: Date | null;
 
-  /** Retorno CNAB. Payment retorno date */
+  /** Remessa CNAB. Payment retorno date */
   @Column({ type: String, unique: false, nullable: true })
   dataEfetivacao: Date | null;
 
   /** Retorno CNAB. Detalhe A */
-  @Column({ type: String, unique: false, nullable: true })
+  @Column({ type: 'numeric', unique: false, nullable: true })
   valorRealEfetivado: number | null;
 
 }

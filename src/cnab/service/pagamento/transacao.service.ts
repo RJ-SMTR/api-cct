@@ -49,7 +49,6 @@ export class TransacaoService {
       lancamentos: newLancamentos, // unique id for Lancamentos
       pagador: { id: pagador.id } as Pagador,
       status: new TransacaoStatus(TransacaoStatusEnum.created),
-      ocorrencias: [],
     });
     return transacao;
   }

@@ -3,9 +3,8 @@ import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial } from 'typeorm';
+import { DeepPartial, ILike } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
@@ -32,44 +31,56 @@ export class DetalheAService {
     return this.detalheARepository.saveManyIfNotExists(dtos);
   }
 
-  public async saveFrom104(
+  public async saveRetornoFrom104(
     registro: CnabRegistros104Pgto,
-    headerLote: HeaderLote,
-  ): Promise<SaveIfNotExists<DetalheA>> {
+    headerLoteUpdated: HeaderLote,
+  ): Promise<DetalheA | null> {
     const r = registro;
-    const favorecido = await this.clienteFavorecidoService.getOne({
-      contaCorrente: r.detalheA.contaCorrenteDestino.stringValue,
-      dvContaCorrente: r.detalheA.dvContaDestino.value,
+    const favorecido = await this.clienteFavorecidoService.findOne({
+      where: { nome: ILike(`%${r.detalheA.nomeTerceiro.stringValue.trim()}%`) },
     });
-
+    if (!favorecido) {
+      return null;
+    }
+    const detalheARem = await this.detalheARepository.getOne({
+      headerLote: { id: headerLoteUpdated.id },
+      nsr: r.detalheA.nsr.convertedValue,
+    });
     const detalheA = new DetalheADTO({
-      headerLote: { id: headerLote.id },
-      loteServico: r.detalheA.loteServico.convertedValue,
+      id: detalheARem?.id,
+      headerLote: { id: headerLoteUpdated.id },
+      loteServico: Number(r.detalheA.loteServico.value),
       clienteFavorecido: { id: favorecido.id },
-      finalidadeDOC: r.detalheA.finalidadeDOC.stringValue,
-      numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
+      finalidadeDOC: r.detalheA.finalidadeDOC.value,
+      numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
       dataVencimento: r.detalheA.dataVencimento.convertedValue,
-      tipoMoeda: r.detalheA.tipoMoeda.stringValue,
-      quantidadeMoeda: r.detalheA.quantidadeMoeda.convertedValue,
+      tipoMoeda: r.detalheA.tipoMoeda.value,
+      quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
       valorLancamento: r.detalheA.valorLancamento.convertedValue,
-      numeroDocumentoBanco: r.detalheA.numeroDocumentoBanco.stringValue,
-      quantidadeParcelas: r.detalheA.quantidadeParcelas.convertedValue,
-      indicadorBloqueio: r.detalheA.indicadorBloqueio.stringValue,
+      numeroDocumentoBanco: String(r.detalheA.numeroDocumentoBanco.convertedValue),
+      quantidadeParcelas: Number(r.detalheA.quantidadeParcelas.value),
+      indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
       indicadorFormaParcelamento:
         r.detalheA.indicadorFormaParcelamento.stringValue,
       periodoVencimento: r.detalheA.dataVencimento.convertedValue,
       numeroParcela: r.detalheA.numeroParcela.convertedValue,
       dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
       valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
-      nsr: r.detalheA.nsr.convertedValue,
-      ocorrenciasCnab: r.detalheA.ocorrencias.stringValue,
+      nsr: Number(r.detalheA.nsr.value),
+      ocorrenciasCnab: r.detalheA.ocorrencias.value,
     });
-    return await this.detalheARepository.saveIfNotExists(detalheA);
+    return await this.detalheARepository.save(detalheA);
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
     await validateDTO(DetalheADTO, dto);
     return await this.detalheARepository.save(dto);
+  }
+
+  public async getOne(
+    fields: EntityCondition<DetalheA>,
+  ): Promise<Nullable<DetalheA>> {
+    return await this.detalheARepository.getOne(fields);
   }
 
   public async findOne(

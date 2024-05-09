@@ -8,12 +8,10 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
-import { DetalheA } from './detalhe-a.entity';
 import { ItemTransacaoStatus } from './item-transacao-status.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
 
@@ -69,7 +67,7 @@ export class ItemTransacaoAgrupado extends EntityHelper {
     type: 'decimal',
     unique: false,
     nullable: true,
-    precision: 10,
+    precision: 13,
     scale: 5,
   })
   valor: number;
@@ -92,13 +90,6 @@ export class ItemTransacaoAgrupado extends EntityHelper {
   /** Lancamento.data_lancamento */
   @Column({ type: Date, unique: false, nullable: true })
   dataLancamento: Date | null;
-
-  /** FK to know which DetalheA is related to ItemTransacao */
-  @OneToOne(() => DetalheA, { eager: true, nullable: true })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_ItemTransacaoAgrupado_detalheA_OneToOne',
-  })
-  detalheA: DetalheA | null;
 
   /** DataOrdem from bigquery */
   @Column({ type: Date, unique: false, nullable: false })
