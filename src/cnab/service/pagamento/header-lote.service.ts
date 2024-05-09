@@ -41,19 +41,25 @@ export class HeaderLoteService {
       tipoCompromisso: String(PgtoRegistros.headerLote.tipoCompromisso.value),
       tipoInscricao: headerArquivo.tipoInscricao,
       headerArquivo: headerArquivo,
+      loteServico: 1,
     });
     return dto;
   }
 
   public async saveFrom104(
     lote: CnabLote104Pgto,
-    headerArquivo: HeaderArquivo,
+    headerArquivoUpdated: HeaderArquivo,
   ): Promise<SaveIfNotExists<HeaderLote>> {
     const pagador = await this.pagadorService.getByConta(
       lote.headerLote.numeroConta.value,
     );
+    const headerLoteRem = await this.headerLoteRepository.findOne({
+      headerArquivo: { id: headerArquivoUpdated.id },
+      loteServico: lote.headerLote.loteServico.convertedValue,
+    });
     const headerLote = new HeaderLote({
-      headerArquivo: { id: headerArquivo.id },
+      id: headerLoteRem?.id,
+      headerArquivo: { id: headerArquivoUpdated.id },
       loteServico: lote.headerLote.loteServico.convertedValue,
       codigoConvenioBanco: lote.headerLote.codigoConvenioBanco.stringValue,
       numeroInscricao: lote.headerLote.numeroInscricao.stringValue,

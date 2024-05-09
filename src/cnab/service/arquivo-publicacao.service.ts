@@ -16,6 +16,7 @@ import { OcorrenciaService } from './ocorrencia.service';
 import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
+import { Transacao } from '../entity/pagamento/transacao.entity';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -93,7 +94,9 @@ export class ArquivoPublicacaoService {
         nsa: headerArquivoRem.nsa,
         ...(headerArquivoRem?.transacao?.id
           ? { transacao: { id: headerArquivoRem.transacao?.id } }
-          : { transacaoAgrupado: { id: headerArquivoRem.transacaoAgrupado?.id } }),
+          : {
+              transacaoAgrupado: { id: headerArquivoRem.transacaoAgrupado?.id },
+            }),
       });
       // If no retorno for new remessa, skip
       if (!headerArquivoRet) {
@@ -196,11 +199,12 @@ export class ArquivoPublicacaoService {
    * Atualizar publicacoes de retorno
    */
   async updatePublicacoesFromDetalheARet(detalheARetorno: DetalheA) {
-    const transacoes =
-      detalheARetorno.itemTransacaoAgrupado?.transacaoAgrupado.transacoes;
-    for (const transacao of transacoes || []) {
+    const transacaoAgTransacoes =
+      detalheARetorno.headerLote.headerArquivo.transacaoAgrupado?.transacoes;
+    const transacao = detalheARetorno.headerLote.headerArquivo.transacao;
+    const transacoes = transacaoAgTransacoes || [transacao as Transacao];
+    for (const transacao of transacoes) {
       for (const item of transacao.itemTransacoes) {
-
         const publicacao = await this.arquivoPublicacaoRepository.getOne({
           where: {
             itemTransacao: {
@@ -215,7 +219,10 @@ export class ArquivoPublicacaoService {
         if (publicacao.isPago) {
           publicacao.valorRealEfetivado = publicacao.itemTransacao.valor;
           publicacao.dataEfetivacao = detalheARetorno.dataEfetivacao;
-          publicacao.horaGeracaoRetorno = detalheARetorno.headerLote.headerArquivo.horaGeracao;
+          publicacao.dataGeracaoRetorno =
+            detalheARetorno.headerLote.headerArquivo.dataGeracao;
+          publicacao.horaGeracaoRetorno =
+            detalheARetorno.headerLote.headerArquivo.horaGeracao;
         }
 
         await this.arquivoPublicacaoRepository.save(publicacao);

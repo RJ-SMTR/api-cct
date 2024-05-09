@@ -146,7 +146,7 @@ export class RemessaRetornoService {
       pagador,
     );
     const savedHeaderLote = await this.saveHeaderLoteDTO(headerLoteDTO);
-    const detalhes = await this.getListDetalhes(
+    const detalhes = await this.saveListDetalhes(
       savedHeaderLote.id,
       transacao,
       transacaoAg,
@@ -260,7 +260,7 @@ export class RemessaRetornoService {
    * Save ItemTransacao, save Detalhes
    * Generate Detalhes
    */
-  async getListDetalhes(
+  async saveListDetalhes(
     headerLoteId: number,
     transacao?: Transacao,
     transacaoAg?: TransacaoAgrupado,
@@ -290,7 +290,7 @@ export class RemessaRetornoService {
       } else {
         itemTransacaoAux = itemTransacao as ItemTransacao;
       }
-      const detalhe = await this.saveGetDetalhes104(
+      const detalhe = await this.saveDetalhes104(
         numeroDocumento,
         headerLoteId,
         nsrAux,
@@ -418,7 +418,7 @@ export class RemessaRetornoService {
    *
    * @param numeroDocumento Managed by company. It must be a new number.
    * @returns null if failed ItemTransacao to CNAB */
-  public async saveGetDetalhes104(
+  public async saveDetalhes104(
     numeroDocumento: number,
     headerLoteId: number,
     nsr: number,
@@ -556,14 +556,14 @@ export class RemessaRetornoService {
 
       for (const registro of cnabLote.registros) {
         // Save Detalhes
-        const detalheASave = await this.detalheAService.saveRetornoFrom104(
+        const detalheAUpdated = await this.detalheAService.saveRetornoFrom104(
           registro,
           headerLoteSave.item,
         );
-        if (!detalheASave) {
+        if (!detalheAUpdated) {
           continue;
         }
-        await this.detalheBService.saveFrom104(registro, detalheASave.item);
+        await this.detalheBService.saveFrom104(registro, detalheAUpdated);
       }
     }
 

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ClienteFavorecidoSeedData } from './cliente-favorecido-seed-data';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
 
 @Injectable()
 export class ClienteFavorecidoSeedService {
@@ -18,6 +19,7 @@ export class ClienteFavorecidoSeedService {
   async run() {
     const items = ClienteFavorecidoSeedData;
     for (const favorecido of items) {
+      favorecido.nome = getStringUpperUnaccent(favorecido.nome);
       const existing = await this.repository.findOne({
         where: { cpfCnpj: favorecido.cpfCnpj },
       });

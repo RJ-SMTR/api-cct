@@ -108,6 +108,14 @@ export class HeaderLoteRepository {
     return await this.headerLoteRepository.save(dto);
   }
 
+  public async getOne(
+    fields: EntityCondition<HeaderLote>,
+  ): Promise<Nullable<HeaderLote>> {
+    return await this.headerLoteRepository.findOneOrFail({
+      where: fields,
+    });
+  }
+
   public async findOne(
     fields: EntityCondition<HeaderLote>,
   ): Promise<Nullable<HeaderLote>> {

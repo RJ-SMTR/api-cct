@@ -70,7 +70,11 @@ export class HeaderArquivoService {
     cnab104: CnabFile104Pgto,
     headerArquivoRemessa: HeaderArquivo,
   ) {
+    const headerArquivoRem = await this.headerArquivoRepository.getOne({
+      nsa: cnab104.headerArquivo.nsa.convertedValue,
+    });
     const headerArquivo = new HeaderArquivoDTO({
+      id: headerArquivoRem.id,
       tipoArquivo: HeaderArquivoTipoArquivo.Retorno,
       codigoBanco: cnab104.headerArquivo.codigoBanco.stringValue,
       tipoInscricao: cnab104.headerArquivo.tipoInscricao.stringValue,

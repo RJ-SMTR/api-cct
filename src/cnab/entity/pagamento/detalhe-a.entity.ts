@@ -17,9 +17,9 @@ import {
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
-import { Ocorrencia } from './ocorrencia.entity';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { ItemTransacao } from './item-transacao.entity';
+import { Ocorrencia } from './ocorrencia.entity';
 
 /**
  * Pagamento.DetalheA

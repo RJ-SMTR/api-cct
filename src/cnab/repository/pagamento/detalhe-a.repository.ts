@@ -108,8 +108,18 @@ export class DetalheARepository {
     return this.detalheARepository.insert(dtos);
   }
 
-  public save(dto: DetalheADTO): Promise<DetalheA> {
+  public save(dto: DeepPartial<DetalheA>): Promise<DetalheA> {
     return this.detalheARepository.save(dto);
+  }
+
+  public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
+    const one = await this.detalheARepository.findOneOrFail({
+      where: fields,
+    });
+    if (one) {
+      await this.forceManyEager([one]);
+    }
+    return one;
   }
 
   public async findOne(
