@@ -119,14 +119,14 @@ export class RemessaRetornoService {
 
   // #endregion
 
-  // #region generateRemessa
+  // #region generateSaveRemessa
 
   /**
    * From Transacao generate:
    * - Stringified Cnab to be exported
    * - Cnab Tables DTO to be saved in database
    */
-  public async generateCnabRemessa(
+  public async generateSaveRemessa(
     transacao?: Transacao,
     transacaoAg?: TransacaoAgrupado,
   ): Promise<string | null> {
@@ -570,11 +570,11 @@ export class RemessaRetornoService {
     // Update status
     const headerArquivoRemUpdated = await this.headerArquivoService.save({
       id: headerArquivoRem.id,
-      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retornoSaved),
+      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
     });
     const headerArquivoRetUpdated = await this.headerArquivoService.save({
       id: headerArquivoUpdated.id,
-      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retornoSaved),
+      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
     });
 
     return {

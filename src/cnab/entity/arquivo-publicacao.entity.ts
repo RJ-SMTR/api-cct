@@ -71,7 +71,7 @@ export class ArquivoPublicacao extends EntityHelper {
   dataEfetivacao: Date | null;
 
   /** Retorno CNAB. Detalhe A */
-  @Column({ type: String, unique: false, nullable: true })
+  @Column({ type: 'numeric', unique: false, nullable: true })
   valorRealEfetivado: number | null;
 
 }

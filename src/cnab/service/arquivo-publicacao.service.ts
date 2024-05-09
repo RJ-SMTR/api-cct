@@ -9,14 +9,13 @@ import { HeaderArquivo } from '../entity/pagamento/header-arquivo.entity';
 import { HeaderLote } from '../entity/pagamento/header-lote.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
+import { Transacao } from '../entity/pagamento/transacao.entity';
 import { HeaderArquivoStatusEnum } from '../enums/pagamento/header-arquivo-status.enum';
-import { HeaderArquivoTipoArquivo } from '../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.repository';
 import { OcorrenciaService } from './ocorrencia.service';
 import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
-import { Transacao } from '../entity/pagamento/transacao.entity';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -78,9 +77,9 @@ export class ArquivoPublicacaoService {
    * 3. For each DetalheA, save new ArquivoPublicacao if not exists
    */
   public async compareRemessaToRetorno(): Promise<void> {
-    const METHOD = 'compareRemessaToRetorno()';
-    const newRemessas = await this.headerArquivoService.findAllNewRemessa();
-    if (!newRemessas.length) {
+    const METHOD = this.compareRemessaToRetorno.name;
+    const headerArquivos = await this.headerArquivoService.findRetornos();
+    if (!headerArquivos.length) {
       this.logger.log(
         'Não há novas remessas para atualizar ArquivoPublicacao, ignorando sub-rotina...',
         METHOD,
@@ -88,42 +87,29 @@ export class ArquivoPublicacaoService {
     }
 
     // Header Arquivo Remessa
-    for (const headerArquivoRem of newRemessas) {
-      const headerArquivoRet = await this.headerArquivoService.findOne({
-        tipoArquivo: HeaderArquivoTipoArquivo.Retorno,
-        nsa: headerArquivoRem.nsa,
-        ...(headerArquivoRem?.transacao?.id
-          ? { transacao: { id: headerArquivoRem.transacao?.id } }
-          : {
-              transacaoAgrupado: { id: headerArquivoRem.transacaoAgrupado?.id },
-            }),
-      });
+    for (const headerArquivo of headerArquivos) {
       // If no retorno for new remessa, skip
-      if (!headerArquivoRet) {
+      if (!headerArquivo) {
         continue;
       }
 
       // Header Arquivo Retorno
-      const headersLoteRetorno = await this.headerLoteService.findMany({
-        headerArquivo: { id: headerArquivoRet.id },
+      const headersLote = await this.headerLoteService.findMany({
+        headerArquivo: { id: headerArquivo.id },
       });
 
       // Header lote Retorno
-      for (const headerLoteRetorno of headersLoteRetorno) {
-        const detalhesARet = await this.detalheAService.findMany({
-          headerLote: { id: headerLoteRetorno.id },
+      for (const headerLote of headersLote) {
+        const detalhesA = await this.detalheAService.findMany({
+          headerLote: { id: headerLote.id },
         });
-        await this.salvaOcorrenciasHeaderLote(headerLoteRetorno);
+        await this.salvaOcorrenciasHeaderLote(headerLote);
 
         // DetalheA Retorno
-        for (const detalheARet of detalhesARet) {
-          // Save retorno and update Transacao, Lancamento
-          await this.salvaOcorrenciasDetalheA(detalheARet);
-          await this.savePublicacaoRetorno(
-            headerArquivoRem,
-            headerArquivoRet,
-            detalheARet,
-          );
+        for (const detalheA of detalhesA) {
+          // Save retorno and update Transacao, Publicacao
+          await this.salvaOcorrenciasDetalheA(detalheA);
+          await this.savePublicacaoRetorno(headerArquivo, detalheA);
         }
       }
     }
@@ -174,24 +160,15 @@ export class ArquivoPublicacaoService {
    *
    */
   private async savePublicacaoRetorno(
-    remessa: HeaderArquivo,
-    retorno: HeaderArquivo,
-    detalheARetorno: DetalheA,
+    headerArquivo: HeaderArquivo,
+    detalheA: DetalheA,
   ) {
-    await this.updatePublicacoesFromDetalheARet(detalheARetorno);
+    await this.updatePublicacoesFromDetalheARet(detalheA);
 
     // Update status
     await this.headerArquivoService.save({
-      id: remessa.id,
-      status: new HeaderArquivoStatus(
-        HeaderArquivoStatusEnum.arquivoPublicacaoSaved,
-      ),
-    });
-    await this.headerArquivoService.save({
-      id: retorno.id,
-      status: new HeaderArquivoStatus(
-        HeaderArquivoStatusEnum.arquivoPublicacaoSaved,
-      ),
+      id: headerArquivo.id,
+      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.publicado),
     });
   }
 

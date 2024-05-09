@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
-import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
@@ -54,19 +53,19 @@ export class DetalheAService {
       clienteFavorecido: { id: favorecido.id },
       finalidadeDOC: r.detalheA.finalidadeDOC.value,
       numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
-      dataVencimento: getCnabFieldConverted(r.detalheA.dataVencimento),
+      dataVencimento: r.detalheA.dataVencimento.convertedValue,
       tipoMoeda: r.detalheA.tipoMoeda.value,
       quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
-      valorLancamento: getCnabFieldConverted(r.detalheA.valorLancamento),
-      numeroDocumentoBanco: r.detalheA.numeroDocumentoBanco.value,
+      valorLancamento: r.detalheA.valorLancamento.convertedValue,
+      numeroDocumentoBanco: String(r.detalheA.numeroDocumentoBanco.convertedValue),
       quantidadeParcelas: Number(r.detalheA.quantidadeParcelas.value),
       indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
       indicadorFormaParcelamento:
         r.detalheA.indicadorFormaParcelamento.stringValue,
-      periodoVencimento: getCnabFieldConverted(r.detalheA.dataVencimento),
-      numeroParcela: getCnabFieldConverted(r.detalheA.numeroParcela),
-      dataEfetivacao: getCnabFieldConverted(r.detalheA.dataEfetivacao),
-      valorRealEfetivado: getCnabFieldConverted(r.detalheA.valorRealEfetivado),
+      periodoVencimento: r.detalheA.dataVencimento.convertedValue,
+      numeroParcela: r.detalheA.numeroParcela.convertedValue,
+      dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
+      valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
       nsr: Number(r.detalheA.nsr.value),
       ocorrenciasCnab: r.detalheA.ocorrencias.value,
     });

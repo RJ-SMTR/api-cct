@@ -61,7 +61,7 @@ export class HeaderArquivoService {
       numeroConta: pagador.conta,
       tipoArquivo: tipo_arquivo,
       nsa: await this.getNextNSA(),
-      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessaSent),
+      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessa),
     });
     return dto;
   }
@@ -92,13 +92,20 @@ export class HeaderArquivoService {
       transacaoAgrupado: headerArquivoRemessa.transacaoAgrupado,
       transacao: headerArquivoRemessa.transacao,
       nsa: cnab104.headerArquivo.nsa.convertedValue,
-      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retornoSaved),
+      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
     });
     return await this.headerArquivoRepository.save(headerArquivo);
   }
-
-  public async findAllNewRemessa(): Promise<HeaderArquivo[]> {
-    return this.headerArquivoRepository.findAllRemessaForPublicacao();
+  
+  /**
+   * Find HeaderArquivo Remessa ready to save in ArquivoPublicacao
+   */
+  public async findRetornos(): Promise<HeaderArquivo[]> {
+    return this.headerArquivoRepository.findMany({
+      where: {
+        status: { id: HeaderArquivoStatusEnum.retorno },
+      },
+    });
   }
 
   public async findOne(

@@ -310,7 +310,7 @@ export class CnabService {
     await this.itemTransacaoService.save(item);
     const publicacao =
       this.arquivoPublicacaoService.generatePublicacaoDTO(item);
-      await this.arquivoPublicacaoService.save(publicacao);
+    await this.arquivoPublicacaoService.save(publicacao);
   }
 
   /**
@@ -447,7 +447,7 @@ export class CnabService {
       }
 
       // Generate remessa
-      const cnabStr = await this.remessaRetornoService.generateCnabRemessa(
+      const cnabStr = await this.remessaRetornoService.generateSaveRemessa(
         transacao,
         transacaoAg,
       );
@@ -481,24 +481,7 @@ export class CnabService {
   public async updateRetorno() {
     const METHOD = this.updateRetorno.name;
     // Get retorno
-    const { cnabString, cnabName } = {
-      cnabName: 'smtr_prefeiturarj_140324_120102.ret',
-      cnabString: `
-10400000         20054603700011044477301P    0000   0406490006000710848 CONTA BILHETAGEM  CB          CAIXA                                   10805202418201600075308001600                                                      000            
-10400011C2041041 20054603700011044477301000101      0406490006000710848 CONTA BILHETAGEM  CB                                                  R DONA MARIANA                00048ANDAR 7        RIO DE JANEIRO      22280020RJ                  
-1040001300001A00001803302271 0000130987857 CONCESSIONARIA DO VLT CARIOCA 000001             108052024BRL000000000000000000000000948050000000000   01N1000008052024000000000000000                                        00          000        
-1040001300002B   218201378000119                              00000                                                  00000     08052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
-1040001300003A00001803303403 0000130044459 CONSORCIO INTERNORTE DE TRANSP000002             108052024BRL000000000000000000000000056389000000000   01N1000008052024000000000000000                                        00          000        
-1040001300004B   212464539000180                              00000                                                  00000     08052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
-1040001300005A00001803303403 0000130044428 CONSORCIO SANTA CRUZ TRANSPORT000003             108052024BRL000000000000000000000000036086000000000   01N1000008052024000000000000000                                        00          000        
-1040001300006B   212464577000133                              00000                                                  00000     08052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
-1040001300007A000018001022349000000296001X COMPANHIA MUNICIPAL DE TRANSPO000004             108052024BRL000000000000000000000008006877000000000   01N1000008052024000000000000000                                        00          000        
-1040001300008B   244520687000161                              00000                                                  00000     08052024000000000000000000000000000000000000000000000000000000000000000000000000000                              
-10400015         000010000000000009047402000000000000000000000000                                                                                                                                                                               
-10499999         000001000012000000                                                                                                                                                                                                             
-`,
-    };
-    // await this.sftpService.getFirstCnabRetorno();
+    const { cnabString, cnabName } = await this.sftpService.getFirstCnabRetorno();
     if (!cnabName || !cnabString) {
       this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
       return;
