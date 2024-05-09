@@ -54,35 +54,46 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
   },
   /** A.06 Depende das nossas necessidades. */
   tipoMovimento: {
-    pos: [15, 15], picture: '9(001)', value: Cnab104TipoMovimento.Inclusao,
+    pos: [15, 15],
+    picture: '9(001)',
+    value: Cnab104TipoMovimento.Inclusao,
     ...Cnab.insert.d(),
   },
   /** A.07 Fixo: 00 */
   codigoInstrucaoMovimento: {
-    pos: [16, 17], picture: '9(002)', value: '00',
+    pos: [16, 17],
+    picture: '9(002)',
+    value: '00',
     ...Cnab.insert.d(),
   },
-  /** 
+  /**
    * A.08
    */
   camaraCompensacao: {
-    pos: [18, 20], picture: '9(003)',
+    pos: [18, 20],
+    picture: '9(003)',
     value: Cnab104CamaraCompensacao.Ted,
     ...Cnab.insert.d(),
   },
   /** A.09 Favorecido */
   codigoBancoDestino: {
-    pos: [21, 23], picture: '9(003)', value: '000',
+    pos: [21, 23],
+    picture: '9(003)',
+    value: '000',
     ...Cnab.insert.d(),
   },
   /** A.10 Favorecido */
   codigoAgenciaDestino: {
-    pos: [24, 28], picture: '9(005)', value: '00000',
+    pos: [24, 28],
+    picture: '9(005)',
+    value: '00000',
     ...Cnab.insert.d(),
   },
   /** A.11 Favorecido */
   dvAgenciaDestino: {
-    pos: [29, 29], picture: 'X(001)', value: ' ',
+    pos: [29, 29],
+    picture: 'X(001)',
+    value: ' ',
     ...Cnab.insert.d(),
   },
   /** A.12 Favorecido */
@@ -94,12 +105,16 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
   },
   /** A.13 Favorecido */
   dvContaDestino: {
-    pos: [42, 42], picture: 'X(001)', value: ' ',
+    pos: [42, 42],
+    picture: 'X(001)',
+    value: ' ',
     ...Cnab.insert.d(),
   },
   /** A.14 Fixo: Branco (1) */
   dvAgenciaContaDestino: {
-    pos: [43, 43], picture: 'X(001)', value: ' ',
+    pos: [43, 43],
+    picture: 'X(001)',
+    value: ' ',
     ...Cnab.insert.d(),
   },
   /** A.15 Favorecido */
@@ -109,30 +124,38 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
     value: '                              ',
     ...Cnab.insert.d(),
   },
-  /** 
+  /**
    * A.16
-   * 
+   *
    * Número Documento atribuído pela Empresa - obtido do banco
-   * 
+   *
    * Detalhes: A, J, O, N
    */
   numeroDocumentoEmpresa: {
-    pos: [74, 79], picture: '9(006)', value: '000000',
+    pos: [74, 79],
+    picture: '9(006)',
+    value: '000000',
     ...Cnab.insert.number(),
   },
   /** A.17 */
   filler: {
-    pos: [80, 92], picture: 'X(013)', value: '             ',
+    pos: [80, 92],
+    picture: 'X(013)',
+    value: '             ',
     ...Cnab.insert.d(),
   },
   /** A.18 Get from favorecido.cpfCnpj */
   tipoContaFinalidadeTed: {
-    pos: [93, 93], picture: 'X(001)', value: Cnab104FinalidadeTed.ContaCorrente,
+    pos: [93, 93],
+    picture: 'X(001)',
+    value: Cnab104FinalidadeTed.ContaCorrente,
     ...Cnab.insert.d(),
   },
   /** A.19 DDMMAAAA */
   dataVencimento: {
-    pos: [94, 101], picture: '9(008)', value: '00000000',
+    pos: [94, 101],
+    picture: '9(008)',
+    value: '00000000',
     ...Cnab.insert.date(),
   },
   /** A.20 Fixo: BRL */
@@ -156,9 +179,9 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
     value: '000000000000000',
     ...Cnab.insert.number(),
   },
-  /** 
+  /**
    * A.23 Fixo: Brancos(9)
-   * 
+   *
    * Preencher com zeros.
    */
   numeroDocumentoBanco: {
@@ -169,12 +192,16 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
   },
   /** A.24 */
   filler2: {
-    pos: [144, 146], picture: 'X(003)', value: '   ',
+    pos: [144, 146],
+    picture: 'X(003)',
+    value: '   ',
     ...Cnab.insert.d(),
   },
   /** A.25 Fixo: "01" (à vista) */
   quantidadeParcelas: {
-    pos: [147, 148], picture: '9(002)', value: 1,
+    pos: [147, 148],
+    picture: '9(002)',
+    value: 1,
     ...Cnab.insert.number(),
   },
   /** A.26 */
@@ -189,39 +216,46 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
     pos: [150, 150],
     picture: '9(001)',
     value: Cnab104FormaParcelamento.DataFixa,
-    ...Cnab.insert.d(),
+    ...Cnab.insert.number(),
   },
-  /** 
+  /**
    * A.28
-   * 
+   *
    * Data fixa, Periódico ou Dia útil
-   * 
+   *
    * Fixo: "5" (5o dia útil do mês);
    * Pois se for obrigatório será a 1a sexta do mês (ou o próximo dia útil caso seja feriado).
-   * 
+   *
    * Se não houver parcelamento, insere `00`;
    */
   periodoDiaVencimento: {
-    pos: [151, 152], picture: 'X(002)', value: '00',
+    pos: [151, 152],
+    picture: 'X(002)',
+    value: '00',
     ...Cnab.insert.d(),
   },
   /** A.29 Fixo: 00 (parcela única / à vista) */
   numeroParcela: {
-    pos: [153, 154], picture: '9(002)', value: 0,
+    pos: [153, 154],
+    picture: '9(002)',
+    value: 0,
     ...Cnab.insert.number(),
   },
-  /** 
+  /**
    * A.30
-   * 
+   *
    * Zeros
-   * 
+   *
    * Na remessa deve ser preenchido com zeros. Retornado com a data efetiva do lançamento.
    */
   dataEfetivacao: {
-    pos: [155, 162], picture: '9(008)', value: '00000000',
+    pos: [155, 162],
+    picture: '9(008)',
+    value: '00000000',
     ...Cnab.insert.nullableDate(),
   },
-  /** A.31 Zeros */
+  /** A.31 - Na remessa deve ser preenchido com zeros. Retornado com o valor efetivamente
+debitado/creditado. */
   valorRealEfetivado: {
     pos: [163, 177],
     picture: '9(013)V99',

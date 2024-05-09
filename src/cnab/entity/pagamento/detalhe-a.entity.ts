@@ -1,8 +1,25 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { asNullableStringOrNumber, asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  asNullableStringOrNumber,
+  asStringOrNumber,
+} from 'src/utils/pipe-utils';
+import {
+  AfterLoad,
+  Column,
+  CreateDateColumn,
+  DeepPartial,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
+import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
+import { ItemTransacao } from './item-transacao.entity';
+import { Ocorrencia } from './ocorrencia.entity';
 
 /**
  * Pagamento.DetalheA
@@ -17,8 +34,21 @@ export class DetalheA extends EntityHelper {
   headerLote: HeaderLote;
 
   @ManyToOne(() => ClienteFavorecido, { eager: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_DetalheA_clienteFavorecido_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheA_clienteFavorecido_ManyToOne',
+  })
   clienteFavorecido: ClienteFavorecido;
+
+  @OneToMany(() => Ocorrencia, (ocorrencia) => ocorrencia.detalheA, {
+    eager: true,
+  })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheA_ocorrencias_OneToMany',
+  })
+  ocorrencias: Ocorrencia[];
+
+  @Column({ type: String, unique: false, nullable: true, length: 10 })
+  ocorrenciasCnab: string | null;
 
   @Column({ type: Number, unique: false, nullable: true })
   loteServico: number;
@@ -37,14 +67,18 @@ export class DetalheA extends EntityHelper {
   tipoMoeda: string | null;
 
   @Column({
-    type: 'decimal', unique: false, nullable: true,
+    type: 'decimal',
+    unique: false,
+    nullable: true,
     precision: 10,
     scale: 5,
   })
   quantidadeMoeda: number | null;
 
   @Column({
-    type: 'decimal', unique: false, nullable: true,
+    type: 'decimal',
+    unique: false,
+    nullable: true,
     precision: 13,
     scale: 2,
   })
@@ -72,28 +106,43 @@ export class DetalheA extends EntityHelper {
   dataEfetivacao: Date | null;
 
   @Column({
-    type: 'decimal', unique: false, nullable: true,
+    type: 'decimal',
+    unique: false,
+    nullable: true,
     precision: 13,
     scale: 2,
   })
   valorRealEfetivado: number;
 
-  /** 
+  /**
    * Número Sequencial do Registro.
-   * 
+   *
    * Detalhe unique ID per lote
    */
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
 
-  @Column({ type: String, unique: false, nullable: true, length: 10 })
-  ocorrencias: string | null;
-
   @CreateDateColumn()
   createdAt: Date;
 
+  @OneToOne(() => ItemTransacaoAgrupado, { eager: false, nullable: true })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheA_itemTransacaoAgrupado_OneToOne',
+  })
+  itemTransacaoAgrupado: ItemTransacaoAgrupado | null;
+
+  @OneToOne(() => ItemTransacaoAgrupado, { eager: false, nullable: true })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheA_itemTransacao_OneToOne',
+  })
+  itemTransacao: ItemTransacao | null;
+
+  getOcorrenciasCnab() {
+    return (this.ocorrenciasCnab || '').trim();
+  }
+
   @AfterLoad()
-  setFieldValues() {
+  setReadValues() {
     this.quantidadeMoeda = asNullableStringOrNumber(this.quantidadeMoeda);
     this.valorLancamento = asStringOrNumber(this.valorLancamento);
     this.valorRealEfetivado = asStringOrNumber(this.valorRealEfetivado);
@@ -102,7 +151,10 @@ export class DetalheA extends EntityHelper {
   /**
    * ID: headerLoteUniqueId + detalheA columns
    */
-  public static getUniqueId(detalheA: DeepPartial<DetalheA>, headerLoteUniqueId?: string): string {
+  public static getUniqueId(
+    detalheA: DeepPartial<DetalheA>,
+    headerLoteUniqueId?: string,
+  ): string {
     const _headerLoteUniqueId = headerLoteUniqueId
       ? `(${headerLoteUniqueId})`
       : `(${HeaderLote.getUniqueId(detalheA?.headerLote)})`;

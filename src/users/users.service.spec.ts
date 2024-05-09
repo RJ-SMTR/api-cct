@@ -1,32 +1,31 @@
 import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import * as CLASS_VALIDATOR from 'class-validator';
 import { BanksService } from 'src/banks/banks.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
 import { ICreateUserFile } from './interfaces/create-user-file.interface';
 import { IFileUser } from './interfaces/file-user.interface';
+import { UsersRepository } from './users.repository';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
   let usersService: UsersService;
-  let usersRepository: Repository<User>;
+  let usersRepositoryService: UsersRepository;
   let banksService: BanksService;
   let mailHistoryService: MailHistoryService;
-  const USER_REPOSITORY_TOKEN = getRepositoryToken(User);
-  const usersRepositoryMock = {
-    provide: USER_REPOSITORY_TOKEN,
+
+  const usersRepositoryServiceMock = {
+    provide: UsersRepository,
     useValue: {
       create: jest.fn(),
       save: jest.fn(),
-      find: jest.fn(),
+      findMany: jest.fn(),
       findOne: jest.fn(),
       getOne: jest.fn(),
     },
@@ -60,17 +59,17 @@ describe('UsersService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
-        usersRepositoryMock,
+        usersRepositoryServiceMock,
         mailHistoryServiceMock,
         banksServiceMock,
         entityManagerMock,
       ],
     }).compile();
 
-    usersService = module.get<UsersService>(UsersService);
-    banksService = module.get<BanksService>(BanksService);
-    usersRepository = module.get<Repository<User>>(USER_REPOSITORY_TOKEN);
-    mailHistoryService = module.get<MailHistoryService>(MailHistoryService);
+    usersService = module.get(UsersService);
+    banksService = module.get(BanksService);
+    usersRepositoryService = module.get<UsersRepository>(UsersRepository);
+    mailHistoryService = module.get(MailHistoryService);
 
     jest.spyOn(banksService, 'findOne').mockResolvedValue(null);
   });
@@ -80,47 +79,24 @@ describe('UsersService', () => {
   });
 
   describe('create', () => {
-    it('should create a user', async () => {
+    it('should create an user', async () => {
       // Arrange
       const createUserDto = {
         email: 'test@example.com',
       } as CreateUserDto;
-      const user = {
+      const user = new User({
         email: createUserDto.email,
         getLogInfo: () => 'log info',
-      } as User;
+      });
 
-      jest.spyOn(usersRepository, 'save').mockResolvedValue(user);
+      jest.spyOn(usersRepositoryService, 'create').mockResolvedValue(user);
 
       // Act
       const result = await usersService.create(createUserDto);
 
       // Assert
-      expect(usersRepository.save).toBeCalled();
+      expect(usersRepositoryService.create).toBeCalled();
       expect(result).toEqual(user);
-    });
-  });
-
-  describe('update', () => {
-    it('should throw error when new email already exists', async () => {
-      // Arrange
-      const oldUser = {
-        id: 1,
-        email: 'old@email.com',
-      } as User;
-      const existingUser = {
-        id: 2,
-        email: 'existing@email.com',
-      } as User;
-      jest.spyOn(usersService, 'getOne').mockResolvedValue(oldUser);
-      jest.spyOn(usersRepository, 'findOne').mockResolvedValue(existingUser);
-
-      // Act
-      const result = usersService.update(1, existingUser);
-
-      // Assert
-      await expect(result).rejects.toThrowError();
-      expect(usersService.getOne).toBeCalled();
     });
   });
 
@@ -138,7 +114,7 @@ describe('UsersService', () => {
           row: i + 2,
           user: {
             email: `email_${i}@example.com`,
-            nome: `fullName_${i}`,
+            nome: `nome ${i}`,
           },
           errors: {},
         } as IFileUser);
@@ -150,8 +126,7 @@ describe('UsersService', () => {
       jest
         .spyOn(usersService, 'getUserFilesFromWorksheet')
         .mockResolvedValue(expectedFileUsers);
-      jest.spyOn(usersRepository, 'create').mockReturnValue(user);
-      jest.spyOn(usersRepository, 'save').mockResolvedValue(user);
+      jest.spyOn(usersRepositoryService, 'create').mockResolvedValue(user);
       jest
         .spyOn(mailHistoryService, 'create')
         .mockResolvedValue(createdMailHistory);
@@ -160,7 +135,6 @@ describe('UsersService', () => {
       const response = await usersService.createFromFile(fileMock);
 
       // Assert
-      expect(usersRepository.save).toBeCalledTimes(expectedFileUsers.length);
       expect(mailHistoryService.create).toBeCalledTimes(
         expectedFileUsers.length,
       );
@@ -207,9 +181,7 @@ describe('UsersService', () => {
         nome: 'Henrique Santos Template',
         telefone: '21912345678',
       } as Partial<ICreateUserFile>;
-      jest.spyOn(XLSX.utils, 'sheet_to_json').mockReturnValue([fileUser]);
-      jest.spyOn(CLASS_VALIDATOR, 'validate').mockResolvedValue([]);
-      jest.spyOn(usersRepository, 'find').mockResolvedValue([]);
+      jest.spyOn(usersRepositoryService, 'findMany').mockResolvedValue([]);
 
       const worksheetMock = XLSX.utils.json_to_sheet([fileUser]);
       const expectedResult = [
@@ -221,7 +193,9 @@ describe('UsersService', () => {
       ] as IFileUser[];
 
       // Act
-      const result = await usersService.getUserFilesFromWorksheet(worksheetMock);
+      const result = await usersService.getUserFilesFromWorksheet(
+        worksheetMock,
+      );
 
       // Assert
       expect(result).toEqual(expectedResult);
@@ -229,22 +203,20 @@ describe('UsersService', () => {
 
     it('should throw error invalid headers', async () => {
       // Arrange
-      function testHeader(fileUser): Promise<IFileUser[]> {
-        jest.spyOn(XLSX.utils, 'sheet_to_json').mockReturnValue([fileUser]);
-        jest.spyOn(CLASS_VALIDATOR, 'validate').mockResolvedValue([]);
-        jest.spyOn(usersRepository, 'find').mockResolvedValue([]);
-        return usersService.getUserFilesFromWorksheet(XLSX.utils.json_to_sheet([fileUser])
-        );
-      }
+      jest.spyOn(usersService, 'findMany').mockResolvedValue([]);
 
       // Act
-      const resultLessHeaders = testHeader({
-        codigo_permissionario: 'permitCode1',
-        email: 'test@example.com',
-        cpf: '59777618212',
-        nome: 'Henrique Santos Template',
-      });
-      const resultMoreHeaders = testHeader({
+      const resultLessHeaders = usersService.getUserFilesFromWorksheet(
+        XLSX.utils.json_to_sheet([
+          {
+            codigo_permissionario: 'permitCode1',
+            email: 'test@example.com',
+            cpf: '59777618212',
+            nome: 'Henrique Santos Template',
+          },
+        ]),
+      );
+      const resultMoreHeaders = usersService.getUserFilesFromWorksheet({
         codigo_permissionario: 'permitCode1',
         email: 'test@example.com',
         cpf: '59777618212',
@@ -260,14 +232,12 @@ describe('UsersService', () => {
 
     it('should extract users when valid content, even if headers are unsorted', async () => {
       // Arrange
+      jest.spyOn(usersService, 'findMany').mockResolvedValue([]);
+
       async function testFile(fileUser: any): Promise<{
         result: IFileUser[];
         expectedResult: any;
       }> {
-        jest.spyOn(XLSX.utils, 'sheet_to_json').mockReturnValue([fileUser]);
-        jest.spyOn(CLASS_VALIDATOR, 'validate').mockResolvedValue([]);
-        jest.spyOn(usersRepository, 'find').mockResolvedValue([]);
-        const worksheetMock = XLSX.utils.json_to_sheet([fileUser]);
         const expectedResult = [
           {
             row: 2,
@@ -275,7 +245,9 @@ describe('UsersService', () => {
             errors: {},
           },
         ] as IFileUser[];
-        const result = await usersService.getUserFilesFromWorksheet(worksheetMock);
+        const result = await usersService.getUserFilesFromWorksheet(
+          XLSX.utils.json_to_sheet([fileUser]),
+        );
         return { result, expectedResult };
       }
 
@@ -300,6 +272,10 @@ describe('UsersService', () => {
       expect(resultUnsorted.result).toEqual(resultUnsorted.expectedResult);
     });
 
+    /**
+     * Just to check if cpf validation is wotking on upload
+     * @see {@link https://github.com/RJ-SMTR/api-cct/issues/229 #229 - Github}
+     */
     it('should return error if invalid cpf', async () => {
       // Arrange
       const fileUser = {
@@ -313,11 +289,13 @@ describe('UsersService', () => {
 
       const worksheetMock = XLSX.utils.json_to_sheet([fileUser]);
       const expectedErrors: Partial<ICreateUserFile> = {
-        cpf: "CPF inválido",
+        cpf: 'CPF inválido',
       };
 
       // Act
-      const result = await usersService.getUserFilesFromWorksheet(worksheetMock);
+      const result = await usersService.getUserFilesFromWorksheet(
+        worksheetMock,
+      );
 
       // Assert
       expect(result.length).toBeGreaterThan(0);

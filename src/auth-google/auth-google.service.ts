@@ -4,7 +4,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { SocialInterface } from '../social/interfaces/social.interface';
 import { AuthGoogleLoginDto } from './dto/auth-google-login.dto';
 import { AllConfigType } from 'src/config/config.type';
-import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
+import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 
 @Injectable()
 export class AuthGoogleService {

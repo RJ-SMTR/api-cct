@@ -1,18 +1,26 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  AfterLoad,
+  Column,
+  CreateDateColumn,
+  DeepPartial,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { ExtratoHeaderLote } from './extrato-header-lote.entity';
 
 /**
  * Represents Detalhe Segmento E v030
- * 
+ *
  * Composite PK: extratoHeaderLote, loteServico, nsr
- * 
+ *
  * @see {@link https://www.caixa.gov.br/Downloads/extrato-eletronico-conciliacao-bancaria/Manual_de_Leiaute_CNAB_240_Extrato_Eletronico_Para_Conciliacao_Bancaria.pdf Caixa, page 10}
  */
 @Entity()
 export class ExtratoDetalheE extends EntityHelper {
-
   constructor(dto?: DeepPartial<ExtratoDetalheE>) {
     super();
     if (dto) {
@@ -24,7 +32,9 @@ export class ExtratoDetalheE extends EntityHelper {
   id: number;
 
   @ManyToOne(() => ExtratoHeaderLote, { eager: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ExtratoDetalheE_extratoHeaderLote_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_ExtratoDetalheE_extratoHeaderLote_ManyToOne',
+  })
   extratoHeaderLote: ExtratoHeaderLote;
 
   /**
@@ -35,12 +45,11 @@ export class ExtratoDetalheE extends EntityHelper {
 
   /**
    * Número Sequencial do Registro (no lote).
-   * 
+   *
    * Current registro number in Cnab Lote
    */
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
-
 
   /** Empresa */
   @Column({ type: String, unique: false, nullable: false })
@@ -83,12 +92,15 @@ export class ExtratoDetalheE extends EntityHelper {
   dataLancamento: Date;
 
   @Column({
-    type: 'decimal', unique: false, nullable: true,
+    type: 'decimal',
+    unique: false,
+    nullable: true,
     precision: 16,
     scale: 2,
   })
   valorLancamento: number;
 
+  /** @example D = Devedor, C = Credor */
   @Column({ type: String, unique: false, nullable: false })
   tipoLancamento: string;
 
@@ -101,9 +113,9 @@ export class ExtratoDetalheE extends EntityHelper {
   @Column({ type: String, unique: false, nullable: false })
   descricaoHistoricoBanco: string;
 
-  /** 
+  /**
    * Número Documento / Complemento
-   * 
+   *
    * TODO: Is this field "Número Documento atribuído pela Empresa" (unique id per date)?
    */
   @Column({ type: String, unique: false, nullable: false })
@@ -113,7 +125,7 @@ export class ExtratoDetalheE extends EntityHelper {
   createdAt: Date;
 
   @AfterLoad()
-  setFieldValues() {
+  setReadValues() {
     this.valorLancamento = asStringOrNumber(this.valorLancamento);
   }
 }

@@ -45,6 +45,15 @@ import { ItemTransacaoService } from './service/pagamento/item-transacao.service
 import { PagadorService } from './service/pagamento/pagador.service';
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
+import { Ocorrencia } from './entity/pagamento/ocorrencia.entity';
+import { OcorrenciaRepository } from './repository/ocorrencia.repository';
+import { OcorrenciaService } from './service/ocorrencia.service';
+import { TransacaoAgrupadoRepository } from './repository/pagamento/transacao-agrupado.repository';
+import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
+import { ItemTransacaoAgrupadoRepository } from './repository/pagamento/item-transacao-agrupado.repository';
+import { ItemTransacaoAgrupadoService } from './service/pagamento/item-transacao-agrupado.service';
+import { TransacaoAgrupado } from './entity/pagamento/transacao-agrupado.entity';
+import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 
 @Module({
   imports: [
@@ -62,12 +71,15 @@ import { TransacaoService } from './service/pagamento/transacao.service';
       ClienteFavorecido,
       ArquivoPublicacao,
       Transacao,
+      TransacaoAgrupado,
+      Ocorrencia,
       ItemTransacao,
+      ItemTransacaoAgrupado,
       Pagador,
       ExtratoHeaderArquivo,
       ExtratoHeaderLote,
       ExtratoDetalheE,
-    ])
+    ]),
   ],
   providers: [
     CnabService,
@@ -87,8 +99,14 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     ArquivoPublicacaoService,
     TransacaoRepository,
     TransacaoService,
+    TransacaoAgrupadoRepository,
+    TransacaoAgrupadoService,
+    OcorrenciaRepository,
+    OcorrenciaService,
     ItemTransacaoRepository,
     ItemTransacaoService,
+    ItemTransacaoAgrupadoRepository,
+    ItemTransacaoAgrupadoService,
     ExtratoHeaderArquivoRepository,
     ExtratoHeaderArquivoService,
     ExtratoHeaderLoteRepository,
@@ -125,6 +143,6 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     ExtratoDetalheEService,
     RemessaRetornoService,
   ],
-  controllers: [CnabController]
+  controllers: [CnabController],
 })
-export class CnabModule { }
+export class CnabModule {}

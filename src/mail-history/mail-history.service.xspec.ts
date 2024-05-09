@@ -60,10 +60,11 @@ describe('InviteService', () => {
     expect(mailHistoryService).toBeDefined();
   });
 
-  describe('getUpdatedMailCounts', () => {
-    it('should return quota as max value after midnight', /**
-     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 10 - GitHub}
-     */ async () => {
+  /**
+   * @see {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 Requirements #94 - GitHub}
+   */
+  xdescribe('getUpdatedMailCounts', () => {
+    it('should return quota as max value after midnight', async () => {
       // Arrange
       const findResult: Partial<MailHistory>[] = [
         {

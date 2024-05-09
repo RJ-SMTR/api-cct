@@ -309,6 +309,15 @@ LIMIT 5
               bankAccount: '000000012345',
               bankAccountDigit: '1',
             },
+            {
+              fullName: 'User to update',
+              email: 'to_update.user@example.com',
+              password: 'secret',
+              permitCode: '319274392832025',
+              role: { id: RoleEnum.user } as Role,
+              status: { id: StatusEnum.active } as Status,
+              inviteStatus: new InviteStatus(InviteStatusEnum.used),
+            },
           ] as UserSeedDataInterface[])
         : []),
     ];

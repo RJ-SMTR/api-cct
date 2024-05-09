@@ -1,13 +1,11 @@
-
 /**
  * table: `ordem_pagamento_consorcio_operador_dia`
- * 
+ *
  * Logic:
  * - It has 1 `id_ordem_pagamento` per day.
  * - id_ordem_pagamento repeats by combination of id_consorcio (CNPJ), id_operadora (CPF), servico (vehicle)
  */
 export class BigqueryOrdemPagamento {
-
   // DATABASE COLUMNS
 
   /** Data da ordem de pagamento (partição) */
@@ -15,7 +13,7 @@ export class BigqueryOrdemPagamento {
 
   /**
    *  Id de cadastro.consorcios
-   * 
+   *
    * id_consorcio.cnpj = CNPJ
    */
   idConsorcio: string;
@@ -23,9 +21,9 @@ export class BigqueryOrdemPagamento {
   /** Nome do consórcio */
   consorcio: string | null;
 
-  /** 
+  /**
    * Identificador da operadora na tabela cadastro.operadoras
-   * 
+   *
    * id_operadora.documento = CPF
    */
   idOperadora: string;
@@ -83,4 +81,8 @@ export class BigqueryOrdemPagamento {
 
   /** Código de controle de versão do dado (SHA Github) */
   versao: string;
+
+  public static getGroupId(ordem: BigqueryOrdemPagamento) {
+    return `${ordem.idOrdemPagamento},${ordem.idConsorcio},${ordem.idOperadora}`;
+  }
 }

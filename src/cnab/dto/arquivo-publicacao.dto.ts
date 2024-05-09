@@ -1,6 +1,7 @@
-import { IsNotEmpty, ValidateIf } from "class-validator";
-import { DeepPartial } from "typeorm";
-import { HeaderArquivo } from "../entity/pagamento/header-arquivo.entity";
+import { IsNotEmpty, ValidateIf } from 'class-validator';
+import { DeepPartial } from 'typeorm';
+import { HeaderArquivo } from '../entity/pagamento/header-arquivo.entity';
+import { Transacao } from '../entity/pagamento/transacao.entity';
 
 function isCreate(object: ArquivoPublicacaoDTO): boolean {
   return object.id === undefined;
@@ -16,21 +17,58 @@ export class ArquivoPublicacaoDTO {
   id?: number;
 
   // Remessa
-  headerArquivo: DeepPartial<HeaderArquivo>;
-  idTransacao: number;
-  idHeaderLote: number;
-  dataGeracaoRemessa: Date;
-  horaGeracaoRemessa: Date;
-  dataGeracaoRetorno: Date;
-  horaGeracaoRetorno: Date;
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  headerArquivo?: DeepPartial<HeaderArquivo>;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  transacao?: DeepPartial<Transacao>;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  idHeaderLote?: number;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  dataGeracaoRemessa?: Date;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  horaGeracaoRemessa?: Date;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  dataGeracaoRetorno?: Date;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  horaGeracaoRetorno?: Date;
 
   // Pagador, DetalheA Retorno
-  loteServico: number;
-  nomePagador: string;
-  agenciaPagador: string;
-  dvAgenciaPagador: string;
-  contaPagador: string;
-  dvContaPagador: string;
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  loteServico?: number;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  nomePagador?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  agenciaPagador?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  dvAgenciaPagador?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  contaPagador?: string;
+
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  dvContaPagador?: string;
 
   // Favorecido
   @ValidateIf(isCreate)
@@ -80,11 +118,13 @@ export class ArquivoPublicacaoDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  ocorrencias: string;
+  ocorrencias?: string;
 
   /** Unique id reference */
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  idDetalheARetorno: number;
+  idDetalheARetorno?: number;
+
+  isPago?: boolean;
 }

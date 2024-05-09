@@ -4,18 +4,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { endOfDay, startOfDay } from 'date-fns';
-import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import { Between, In, IsNull, Like, Repository } from 'typeorm';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { Between, In, IsNull, Like } from 'typeorm';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
+import { LancamentoDto } from './dtos/lancamentoDto';
 import { ItfLancamento } from './interfaces/lancamento.interface';
 import { LancamentoEntity } from './lancamento.entity';
 import { LancamentoRepository } from './lancamento.repository';
-import { LancamentoDto } from './dtos/lancamentoDto';
-import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class LancamentoService {
@@ -26,8 +24,6 @@ export class LancamentoService {
   constructor(
     private readonly lancamentoRepository: LancamentoRepository,
     private readonly usersService: UsersService,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
   ) {}
 
   // /**
@@ -103,8 +99,10 @@ export class LancamentoService {
 
     let usersMap = new Map<number, any>();
     if (allUserIds.size > 0) {
-      const users = await this.userRepository.findBy({
-        id: In([...allUserIds]),
+      const users = await this.usersService.findMany({
+        where: {
+          id: In([...allUserIds]),
+        },
       });
       usersMap = new Map(users.map((user) => [user.id, user]));
     }
@@ -153,8 +151,10 @@ export class LancamentoService {
 
     let usersMap = new Map<number, any>();
     if (allUserIds.size > 0) {
-      const users = await this.userRepository.findBy({
-        id: In([...allUserIds]),
+      const users = await this.usersService.findMany({
+        where: {
+          id: In([...allUserIds]),
+        },
       });
       usersMap = new Map(users.map((user) => [user.id, user]));
     }

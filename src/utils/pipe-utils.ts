@@ -162,7 +162,7 @@ export function asStringNumber(str: string | null | undefined, fieldName?: strin
   return asNumber(Number(asString(str, field)), field, allowNaN);
 }
 
-export function asNumber(num: number | null | undefined, fieldName?: string, allowNaN = false): number {
+export function asNumber(num: number | bigint | null | undefined, fieldName?: string, allowNaN = false): number {
   const field = fieldName || 'Number';
   if (typeof num !== 'number') {
     throw CommonHttpException.details(
@@ -262,4 +262,8 @@ export function asContent<T>(val: T | null, field = 'Value'): T {
     throw CommonHttpException.details(`${field} should not be undefined.`);
   }
   return val;
+}
+
+export function bigToNumber(big: any) {
+  return big.toNumber();
 }

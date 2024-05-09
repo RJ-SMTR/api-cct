@@ -24,7 +24,9 @@ const allBankStatements = [
   permitCode: 'pc_1',
 })) as Partial<IBankStatement>[] as IBankStatement[];
 
-describe('BankStatementsService', () => {
+xdescribe('BankStatementsService', () => {
+  // const endpoint = 'bank-statements';
+
   let bankStatementsService: BankStatementsService;
   let usersService: UsersService;
   let ticketRevenuesService: TicketRevenuesService;

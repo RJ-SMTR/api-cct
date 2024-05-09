@@ -1,18 +1,24 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  BeforeInsert,
+  Column,
+  DeepPartial,
+  Entity,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity()
 export class ClienteFavorecido extends EntityHelper {
-  constructor(
-    clienteFavorecido?: DeepPartial<ClienteFavorecido>,
-  ) {
+  constructor(clienteFavorecido?: DeepPartial<ClienteFavorecido>) {
     super();
     if (clienteFavorecido !== undefined) {
       Object.assign(this, clienteFavorecido);
     }
   }
 
-  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_ClienteFavorecido_id' })
+  @PrimaryGeneratedColumn({
+    primaryKeyConstraintName: 'PK_ClienteFavorecido_id',
+  })
   id: number;
 
   @Column({ type: String, unique: false, nullable: false, length: 150 })
@@ -22,19 +28,19 @@ export class ClienteFavorecido extends EntityHelper {
   @Column({ type: String, unique: true, nullable: true, length: 14 })
   cpfCnpj: string;
 
-  @Column({ type: String, unique: false, nullable: true, length: 10 })
+  @Column({ type: String, unique: false, nullable: true, length: 3 })
   codigoBanco: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
   agencia: string;
 
-  @Column({ type: String, unique: false, nullable: true, length: 2 })
+  @Column({ type: String, unique: false, nullable: true, length: 1 })
   dvAgencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 12 })
   contaCorrente: string;
 
-  @Column({ type: String, unique: false, nullable: true, length: 2 })
+  @Column({ type: String, unique: false, nullable: true, length: 1 })
   dvContaCorrente: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
@@ -60,9 +66,22 @@ export class ClienteFavorecido extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   uf: string | null;
-  
+
   @Column({ type: String, unique: false, nullable: true })
   tipo: string | null;
+
+  @BeforeInsert()
+  setWriteValues() {
+    if (typeof this.codigoBanco === 'string') {
+      this.codigoBanco = this.codigoBanco.trim().padStart(3, '0');
+    }
+    if (typeof this.contaCorrente === 'string') {
+      this.contaCorrente = this.contaCorrente.trim().padStart(12, '0');
+    }
+    if (typeof this.dvContaCorrente === 'string') {
+      this.dvContaCorrente = this.dvContaCorrente.trim().padStart(1, '0');
+    }
+  }
 
   public getLogInfo(showName?: boolean): string {
     if (showName === undefined) {

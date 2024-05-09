@@ -20,4 +20,5 @@ export interface LancamentoSeedData {
   user: DeepPartial<User>;
   /** @example `1,2,3` */
   auth_usersIds?: string;
+  anexo: string;
 }

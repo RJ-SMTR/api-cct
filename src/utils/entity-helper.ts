@@ -19,12 +19,12 @@ export class EntityHelper extends BaseEntity {
    * are received as string instead as Date, Number
    */
   @AfterLoad()
-  setFieldValues() {
-    // 
+  setReadValues() {
+    //
   }
 
   /**
-   * Get unique ID. 
+   * Get unique ID.
    */
   public static getUniqueId(entity: DeepPartial<EntityHelper>): string {
     return `${entity}`;

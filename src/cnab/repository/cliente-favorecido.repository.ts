@@ -3,13 +3,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository, UpdateResult } from 'typeorm';
+import {
+  DeepPartial,
+  FindManyOptions,
+  FindOneOptions,
+  InsertResult,
+  Repository,
+  UpdateResult,
+} from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 
 @Injectable()
 export class ClienteFavorecidoRepository {
-
   private logger: Logger = new CustomLogger(ClienteFavorecidoRepository.name, {
     timestamp: true,
   });
@@ -17,7 +23,9 @@ export class ClienteFavorecidoRepository {
   constructor(
     @InjectRepository(ClienteFavorecido)
     private clienteFavorecidoRepository: Repository<ClienteFavorecido>,
-  ) { }
+  ) {}
+
+  createQueryBuilder = this.clienteFavorecidoRepository.createQueryBuilder;
 
   async save(dto: SaveClienteFavorecidoDTO): Promise<void> {
     if (dto.id === undefined) {
@@ -25,6 +33,22 @@ export class ClienteFavorecidoRepository {
     } else {
       await this.update(dto.id, dto);
     }
+  }
+
+  public async findOneByNome(nome: string): Promise<ClienteFavorecido | null> {
+    const cliente = await this.clienteFavorecidoRepository
+      .createQueryBuilder('favorecido')
+      .where(
+        'unaccent(UPPER("favorecido"."nome")) ILIKE unaccent(UPPER(:nome))',
+        { nome: `%${nome}%` },
+      )
+      .getOne();
+
+    return cliente;
+  }
+
+  clear() {
+    return this.clienteFavorecidoRepository.clear();
   }
 
   async create(
@@ -37,11 +61,15 @@ export class ClienteFavorecidoRepository {
     return createdUser;
   }
 
-  async upsert(favorecidos: DeepPartial<ClienteFavorecido>[]): Promise<InsertResult> {
-    const payload = await this.clienteFavorecidoRepository.upsert(
-      favorecidos, { conflictPaths: { cpfCnpj: true }, skipUpdateIfNoValuesChanged: true }
-    );
-    this.logger.log(`${payload.identifiers.length} ClienteFavorecidos atualizados.`,
+  async upsert(
+    favorecidos: DeepPartial<ClienteFavorecido>[],
+  ): Promise<InsertResult> {
+    const payload = await this.clienteFavorecidoRepository.upsert(favorecidos, {
+      conflictPaths: { cpfCnpj: true },
+      skipUpdateIfNoValuesChanged: true,
+    });
+    this.logger.log(
+      `${payload.identifiers.length} ClienteFavorecidos atualizados.`,
     );
     return payload;
   }
@@ -58,7 +86,8 @@ export class ClienteFavorecidoRepository {
       id: id,
       ...updateDto,
     });
-    this.logger.log(`ClienteFavorecido atualizado: ${updatedItem.getLogInfo()}`,
+    this.logger.log(
+      `ClienteFavorecido atualizado: ${updatedItem.getLogInfo()}`,
     );
     return updatePayload;
   }
@@ -70,9 +99,8 @@ export class ClienteFavorecidoRepository {
       where: fields,
     });
     if (!result) {
-      throw CommonHttpException.notFound(Object.keys(fields).join(','));
-    }
-    else return result;
+      throw CommonHttpException.notFound(Object.entries(fields).join(','));
+    } else return result;
   }
 
   public async findAll(
@@ -83,12 +111,18 @@ export class ClienteFavorecidoRepository {
     });
   }
 
-  public async findMany(options: FindManyOptions<ClienteFavorecido>): Promise<ClienteFavorecido[]> {
+  public async findMany(
+    options: FindManyOptions<ClienteFavorecido>,
+  ): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.find(options);
   }
 
-  public async findOne(options: FindOneOptions<ClienteFavorecido>): Promise<ClienteFavorecido | null> {
-    const first = (await this.clienteFavorecidoRepository.find(options)).shift();
+  public async findOne(
+    options: FindOneOptions<ClienteFavorecido>,
+  ): Promise<ClienteFavorecido | null> {
+    const first = (
+      await this.clienteFavorecidoRepository.find(options)
+    ).shift();
     return first || null;
   }
 }

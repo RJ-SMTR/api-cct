@@ -1,40 +1,45 @@
-
 import { Injectable, Logger } from '@nestjs/common';
 import { TransacaoDTO } from '../../dto/pagamento/transacao.dto';
 import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { TransacaoRepository } from '../../repository/pagamento/transacao.repository';
 
 import { isFriday, nextFriday } from 'date-fns';
-import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
+import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, UpdateResult } from 'typeorm';
-import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
+import { DeepPartial, FindManyOptions, UpdateResult } from 'typeorm';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
 
 @Injectable()
 export class TransacaoService {
-  private logger: Logger = new Logger('TransacaoService', {
+  private logger: Logger = new Logger(TransacaoService.name, {
     timestamp: true,
   });
 
-  constructor(
-    private transacaoRepository: TransacaoRepository,
-  ) { }
+  constructor(private transacaoRepository: TransacaoRepository) {}
+
+  async findMany(options: FindManyOptions<Transacao>) {
+    return await this.transacaoRepository.findMany(options);
+  }
+
+  async findOne(fields: EntityCondition<Transacao>) {
+    return await this.transacaoRepository.findOne(fields);
+  }
 
   /**
    * **status** is Created.
-   * 
+   *
    * It will automatically update Lancamentos via OneToMany
-   * 
+   *
    * @param newLancamentos It must have at least 1 unused Lancamento
    */
   public generateDTOForLancamento(
     pagador: Pagador,
-    newLancamentos: LancamentoEntity[]
+    newLancamentos: LancamentoEntity[],
   ): Transacao {
     const today = new Date();
     const friday = isFriday(today) ? today : nextFriday(today);
@@ -44,54 +49,62 @@ export class TransacaoService {
       lancamentos: newLancamentos, // unique id for Lancamentos
       pagador: { id: pagador.id } as Pagador,
       status: new TransacaoStatus(TransacaoStatusEnum.created),
-      ocorrencias: [],
     });
     return transacao;
+  }
+
+  public update(dto: DeepPartial<Transacao>) {
+    return this.transacaoRepository.update(asNumber(dto.id), dto);
   }
 
   // #region generateDTOsFromPublicacoes
 
-  public generateDTOsFromPublicacoes(publicacoes: ArquivoPublicacao[], pagador: Pagador) {
-    const transacoes: Transacao[] = [];
-    /** key: idOrdemPagamento */
-    const transacaoMap: Record<string, Transacao> = {};
-    for (const publicacao of publicacoes) {
-      const transacaoPK = publicacao.idOrdemPagamento;
-      const newTransacao = this.generateDTOFromPublicacao(publicacao, pagador);
-      if (!transacaoMap[transacaoPK]) {
-        transacoes.push(newTransacao);
-        transacaoMap[transacaoPK] = newTransacao;
-      }
-    }
-    return transacoes;
-  }
+  // public generateDTOsFromPublicacoes(
+  //   publicacoes: ArquivoPublicacao[],
+  //   pagador: Pagador,
+  // ) {
+  //   const transacoes: Transacao[] = [];
+  //   /** key: idOrdemPagamento */
+  //   const transacaoMap: Record<string, Transacao> = {};
+  //   for (const publicacao of publicacoes) {
+  //     const transacaoPK = publicacao.idOrdemPagamento;
+  //     const newTransacao = this.generateDTOFromPublicacao(publicacao, pagador);
+  //     if (!transacaoMap[transacaoPK]) {
+  //       transacoes.push(newTransacao);
+  //       transacaoMap[transacaoPK] = newTransacao;
+  //     }
+  //   }
+  //   return transacoes;
+  // }
 
   /**
    * getTransacaoFromOrdem()
-   * 
+   *
    * **status** is Created.
    */
-  public generateDTOFromPublicacao(
-    publicacao: ArquivoPublicacao,
-    pagador: Pagador,
-  ): Transacao {
-    const transacao = new Transacao({
-      dataOrdem: publicacao.dataOrdem,
-      dataPagamento: null,
-      idOrdemPagamento: publicacao.idOrdemPagamento, // unique id for Ordem
-      pagador: { id: pagador.id } as Pagador,
-      status: new TransacaoStatus(TransacaoStatusEnum.created),
-      ocorrencias: [],
-    });
-    return transacao;
-  }
+  // public generateDTOFromPublicacao(
+  //   publicacao: ArquivoPublicacao,
+  //   pagador: Pagador,
+  // ): Transacao {
+  //   const transacao = new Transacao({
+  //     dataOrdem: publicacao.dataOrdem,
+  //     dataPagamento: null,
+  //     idOrdemPagamento: publicacao.idOrdemPagamento, // unique id for Ordem
+  //     pagador: { id: pagador.id } as Pagador,
+  //     status: new TransacaoStatus(TransacaoStatusEnum.created),
+  //     ocorrencias: [],
+  //   });
+  //   return transacao;
+  // }
 
   // #endregion
 
   /**
    * Use first Transacao as set to update and all Transacoes to get ids.
    */
-  public updateMany(transacoes: DeepPartial<Transacao>[]): Promise<UpdateResult> {
+  public updateMany(
+    transacoes: DeepPartial<Transacao>[],
+  ): Promise<UpdateResult> {
     const ids = transacoes.reduce((l, i) => [...l, asNumber(i.id)], []);
     const set = transacoes[0];
     if ('id' in set) {
@@ -100,14 +113,18 @@ export class TransacaoService {
     return this.transacaoRepository.updateMany(ids, set);
   }
 
-  public saveManyIfNotExists(transacoes: DeepPartial<Transacao>[]): Promise<Transacao[]> {
+  public saveManyIfNotExists(
+    transacoes: DeepPartial<Transacao>[],
+  ): Promise<Transacao[]> {
     return this.transacaoRepository.saveManyIfNotExists(transacoes);
   }
 
-  public async saveMany(transacoes: DeepPartial<Transacao>[]): Promise<Transacao[]> {
+  public async saveMany(
+    transacoes: DeepPartial<Transacao>[],
+  ): Promise<Transacao[]> {
     const insertResult = await this.transacaoRepository.insert(transacoes);
     return await this.transacaoRepository.findMany({
-      where: insertResult.identifiers
+      where: insertResult.identifiers,
     });
   }
 
@@ -135,9 +152,13 @@ export class TransacaoService {
   /**
    * Save Transacao if Jae unique column not exists
    */
-  public async saveForJaeIfNotExists(dto: TransacaoDTO): Promise<SaveIfNotExists<Transacao>> {
+  public async saveForJaeIfNotExists(
+    dto: TransacaoDTO,
+  ): Promise<SaveIfNotExists<Transacao>> {
     await validateDTO(TransacaoDTO, dto);
-    const transacao = await this.transacaoRepository.findOne({ idOrdemPagamento: asString(dto.idOrdemPagamento) });
+    const transacao = await this.transacaoRepository.findOne({
+      idOrdemPagamento: asString(dto.idOrdemPagamento),
+    });
     if (transacao) {
       return {
         isNewItem: false,

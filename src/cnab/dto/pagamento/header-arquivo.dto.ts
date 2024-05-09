@@ -2,6 +2,7 @@ import { DeepPartial } from "typeorm";
 import { Transacao } from "../../entity/pagamento/transacao.entity";
 import { IsNotEmpty, ValidateIf } from "class-validator";
 import { HeaderArquivoStatus } from "src/cnab/entity/pagamento/header-arquivo-status.entity";
+import { TransacaoAgrupado } from "src/cnab/entity/pagamento/transacao-agrupado.entity";
 
 function isCreate(object: HeaderArquivoDTO): boolean {
   return object.id === undefined;
@@ -68,9 +69,9 @@ export class HeaderArquivoDTO {
   @IsNotEmpty()
   horaGeracao?: Date;
 
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  transacao?: DeepPartial<Transacao>;
+  transacao?: DeepPartial<Transacao> | null;
+
+  transacaoAgrupado?: DeepPartial<TransacaoAgrupado> | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

@@ -128,11 +128,7 @@ export class AuthService {
       if (socialEmail && !userByEmail) {
         user.email = socialEmail;
       }
-      await this.usersService.update(
-        user.id,
-        user,
-        'AuthService.validateSocialLogin()',
-      );
+      await this.usersService.update(user.id, user);
     } else if (userByEmail) {
       user = userByEmail;
     } else {
@@ -477,16 +473,8 @@ export class AuthService {
     }
 
     userProfile.update(userDto);
-    await this.usersService.update(
-      user.id,
-      userProfile,
-      'AuthService.update()',
-    );
+    await this.usersService.update(user.id, userProfile);
 
     return userProfile;
-  }
-
-  async softDelete(user: User): Promise<void> {
-    await this.usersService.softDelete(user.id, 'AuthService.softDelete()');
   }
 }

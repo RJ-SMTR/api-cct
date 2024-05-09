@@ -2,6 +2,9 @@ import { IsNotEmpty, ValidateIf } from 'class-validator';
 import { DeepPartial } from 'typeorm';
 import { ClienteFavorecido } from '../../entity/cliente-favorecido.entity';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
+import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
+import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 
 function isCreate(object: DetalheADTO): boolean {
   return object.id === undefined;
@@ -23,6 +26,10 @@ export class DetalheADTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   clienteFavorecido?: DeepPartial<ClienteFavorecido>;
+
+  ocorrencias?: Ocorrencia[];
+
+  ocorrenciasCnab?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
@@ -78,11 +85,14 @@ export class DetalheADTO {
   numeroParcela?: number | null;
 
   dataEfetivacao?: Date | null;
+
   valorRealEfetivado?: number;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
   nsr?: number;
 
-  ocorrencias: string | null;
+  itemTransacaoAgrupado?: ItemTransacaoAgrupado | null;
+
+  itemTransacao?: ItemTransacao | null;
 }

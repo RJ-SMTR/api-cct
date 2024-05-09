@@ -1,5 +1,14 @@
-import { IsDateString, IsNotEmpty, IsNumber, IsNumberString, IsString, ValidateIf } from "class-validator";
-import { TipoFavorecidoEnum } from "src/tipo-favorecido/tipo-favorecido.enum";
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsNumber,
+  IsNumberString,
+  IsString,
+  ValidateIf,
+} from 'class-validator';
+import { isSameDay, nextFriday } from 'date-fns';
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
+import { DeepPartial } from 'typeorm';
 
 /**
  * Logic:
@@ -7,21 +16,26 @@ import { TipoFavorecidoEnum } from "src/tipo-favorecido/tipo-favorecido.enum";
  * - id_ordem_pagamento repeats by combination of id_consorcio (CNPJ), id_operadora (CPF), servico (vehicle)
  */
 export class BigqueryOrdemPagamentoDTO {
+  constructor(bqOrdem?: DeepPartial<BigqueryOrdemPagamentoDTO>) {
+    if (bqOrdem !== undefined) {
+      Object.assign(this, bqOrdem);
+    }
+  }
 
-  /** 
+  /**
    * Data da ordem de pagamento (partição)
-   * 
-   * Para filtrar e ordenar por data	
+   *
+   * Para filtrar e ordenar por data
    */
   @IsNotEmpty()
   @IsDateString()
   dataOrdem: string;
 
-  /** 
+  /**
    * Data de pagamento da ordem
-   * 
+   *
    * Se a dataPagamento for nula, iremos efetuar o pagamento.
-   * Senão, ignoramos o item.	
+   * Senão, ignoramos o item.
    */
   @ValidateIf((o, v) => v !== null)
   @IsDateString()
@@ -39,9 +53,9 @@ export class BigqueryOrdemPagamentoDTO {
   /** Nome do consórcio, para referência */
   consorcio: string;
 
-  /** 
+  /**
    * Identificador da operadora na tabela cadastro.operadoras
-   * 
+   *
    * id_operadora.documento = CPF
    */
   idOperadora: string;
@@ -56,9 +70,9 @@ export class BigqueryOrdemPagamentoDTO {
 
   /**
    * Identificador da ordem pagamento no banco de dados da Jaé
-   * 
+   *
    * Agrupamos um arquivo CNAB por id_ordem_pagamento.
-   * 
+   *
    * Cada **data_ordem** possui um id_ordem_pagamento único.
    * Cada **id_ordem_pagamento** possui vários **id_operadora** (favorecidoBele CPF),
    * **id_consorico** (favorecido CNPJ) e **servico** (veículo que arrecadou)
@@ -141,4 +155,17 @@ export class BigqueryOrdemPagamentoDTO {
   consorcioCnpj: string | null;
 
   tipoFavorecido: TipoFavorecidoEnum | null;
+
+  public static findAgrupado(
+    ordemAgs: BigqueryOrdemPagamentoDTO[],
+    ordem: BigqueryOrdemPagamentoDTO,
+    newDataOrdem = nextFriday(new Date()),
+  ) {
+    const filtered = ordemAgs.filter(
+      (i) =>
+        isSameDay(new Date(i.dataOrdem), newDataOrdem) &&
+        i.idConsorcio === ordem.idConsorcio,
+    )[0];
+    return filtered ? filtered : null;
+  }
 }

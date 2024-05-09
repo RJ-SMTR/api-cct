@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Chalk } from 'chalk';
 import { addMinutes, format } from 'date-fns';
 import { asJSONStrOrObj } from './pipe-utils';
-import { Chalk } from 'chalk';
 // import chalk from 'chalk';
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
-const chalk: Chalk = require("chalk");
+const chalk: Chalk = require('chalk');
 chalk.level = 1;
 
 enum colors {
@@ -18,7 +18,6 @@ enum colors {
 
 @Injectable()
 export class CustomLogger extends Logger {
-
   private IS_LOCAL = undefined;
   private color(
     type: 'error' | 'warn' | 'debug' | 'level',
@@ -26,7 +25,6 @@ export class CustomLogger extends Logger {
     level?: 'VERBOSE' | 'DEBUG' | 'LOG' | 'WARN' | 'ERROR',
     reset = true,
   ): string {
-
     let _default = 'log';
     if (level === 'WARN') {
       _default = 'warn';
@@ -45,11 +43,12 @@ export class CustomLogger extends Logger {
       return chalk.yellow(message);
     } else if (_type === 'debug') {
       return chalk.magenta(message);
-    } else { // log
+    } else {
+      // log
       return chalk.green(message);
     }
 
-    // Printing the text 
+    // Printing the text
     // return `${colors[_type]}${message}${colors.reset}`;
   }
 
@@ -57,14 +56,16 @@ export class CustomLogger extends Logger {
     public readonly context: string,
     options?: {
       timestamp?: boolean;
-    }
+    },
   ) {
     super(context, options);
   }
 
-
   private isLocal() {
-    return ['local', 'development'].includes(process.env.NODE_ENV || '') && this.IS_LOCAL !== false;
+    return (
+      ['local', 'development'].includes(process.env.NODE_ENV || '') &&
+      this.IS_LOCAL !== false
+    );
   }
 
   private getContext(isLocal: boolean, context?: string) {
@@ -80,7 +81,7 @@ export class CustomLogger extends Logger {
   private getTimestamp() {
     let now = new Date();
     now = addMinutes(now, global.__localTzOffset);
-    const formattedTimestamp = format(now, 'dd/MM/yyyy, HH:mm:ss')
+    const formattedTimestamp = format(now, 'dd/MM/yyyy, HH:mm:ss');
     return formattedTimestamp;
   }
 
@@ -96,11 +97,11 @@ export class CustomLogger extends Logger {
     }
   }
 
-  error(message: string, trace?: string, context?: string): void {
+  error(message: string, stack?: string, context?: string): void {
     if (this.isLocal()) {
-      console.log(this.formatMessage(message, 'ERROR', context), trace);
+      console.log(this.formatMessage(message, 'ERROR', context, stack));
     } else {
-      super.error(this.formatMessage(message, 'ERROR', context, trace));
+      super.error(this.formatMessage(message, 'ERROR', context, stack));
     }
   }
 
@@ -132,18 +133,19 @@ export class CustomLogger extends Logger {
     message: string,
     level: 'VERBOSE' | 'DEBUG' | 'LOG' | 'WARN' | 'ERROR',
     context?: string,
-    trace?: string,
+    stack?: string,
   ): string {
     const IS_LOCAL = this.isLocal();
     const nest = this.color('level', `[Nest] ${this.getProcessId()}`, level);
     const levelStr = this.color('level', level.padStart(7, ' '), level);
     const contextStr = this.getContext(IS_LOCAL, context);
     const timestampStr = this.options.timestamp
-      ? this.color('level', ' - ', level) + this.getTimestamp() + ' ' : '';
-
-    let messageStr = level === 'ERROR'
-      ? this.formatError(message, undefined, trace)
-      : message;
+      ? this.color('level', ' - ', level) + this.getTimestamp() + ' '
+      : '';
+    // const details = (trace as any)?.response;
+    // const stack = (trace as any)?.stack;
+    let messageStr =
+      level === 'ERROR' ? this.formatError(message, undefined, stack) : message;
     messageStr = this.color('level', messageStr, level, !(level === 'ERROR'));
     const formattedMessage = IS_LOCAL
       ? `${nest} ${timestampStr}${levelStr} ${contextStr} ${messageStr}`
@@ -161,10 +163,10 @@ export class CustomLogger extends Logger {
   ): string {
     let formattedString = firstLine;
     if (message) {
-      formattedString += `\n    - Message: ${asJSONStrOrObj(message)}`;
+      formattedString += `\n${asJSONStrOrObj(message)}`;
     }
     if (traceback) {
-      formattedString += `\n    - Traceback:\n ${traceback}`;
+      formattedString += `\n${traceback}`;
     }
     return formattedString;
   }

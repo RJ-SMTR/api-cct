@@ -18,7 +18,7 @@ import {
   EntityManager,
   Equal,
   MoreThanOrEqual,
-  Repository
+  Repository,
 } from 'typeorm';
 import { MailHistory } from './entities/mail-history.entity';
 
@@ -33,7 +33,7 @@ export class MailHistoryService {
     private mailHistoryRepository: Repository<MailHistory>,
     private configService: ConfigService,
     private readonly entityManager: EntityManager,
-  ) { }
+  ) {}
 
   async create(
     data: DeepPartial<MailHistory>,
@@ -45,15 +45,13 @@ export class MailHistoryService {
     );
     this.logger.log(
       `Histórico de email ${createdMail.getLogInfoStr()}` +
-      ` criado com sucesso.`,
+        ` criado com sucesso.`,
       `${logContext} from ${METHOD}`,
     );
     return createdMail;
   }
 
-  async find(
-    fields?: EntityCondition<MailHistory>,
-  ): Promise<Nullable<MailHistory[]>> {
+  async find(fields?: EntityCondition<MailHistory>): Promise<MailHistory[]> {
     return this.mailHistoryRepository.find({
       where: fields,
       order: {
@@ -99,7 +97,7 @@ export class MailHistoryService {
   }
 
   async findManyRecentByUser(users: User[]): Promise<MailHistory[]> {
-    const userIDs = users.map(i => i.id);
+    const userIDs = users.map((i) => i.id);
     if (users.length === 0) {
       return [];
     }
@@ -117,7 +115,9 @@ export class MailHistoryService {
       item.user = { id: item['userId'] } as DeepPartial<User>;
       delete item.userId;
       // inviteStatus
-      item.inviteStatus = { id: item['inviteStatusId'] } as DeepPartial<InviteStatus>;
+      item.inviteStatus = {
+        id: item['inviteStatusId'],
+      } as DeepPartial<InviteStatus>;
       delete item.inviteStatusId;
       entities.push(new MailHistory(item));
     }
@@ -177,11 +177,13 @@ export class MailHistoryService {
         ...payload,
       }),
     );
-    const updatedMail = await this.mailHistoryRepository.findOneByOrFail({ id: id });
+    const updatedMail = await this.mailHistoryRepository.findOneByOrFail({
+      id: id,
+    });
     this.logger.log(
       `Histórico de email ${updatedMail.getLogInfoStr()}` +
-      ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
-      `${METHOD} from ${logContext}`
+        ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
+      `${METHOD} from ${logContext}`,
     );
     return mailRespose;
   }
@@ -224,20 +226,20 @@ export class MailHistoryService {
         'invite.inviteStatus as status_id',
         'COUNT(invite.inviteStatus) as status_count',
         `CASE ` +
-        `WHEN ( ` +
-        `"user"."fullName" IS NOT NULL AND "user"."fullName" != '' AND ` +
-        `"user"."cpfCnpj" IS NOT NULL AND "user"."cpfCnpj" != '' AND ` +
-        `"user"."permitCode" IS NOT NULL AND "user"."permitCode" != '' AND ` +
-        `"user"."email" IS NOT NULL AND "user"."email" != '' AND ` +
-        `"user"."phone" IS NOT NULL AND "user"."phone" != '' AND ` +
-        `"user"."bankCode" IS NOT NULL AND ` +
-        `"user"."bankAgency" IS NOT NULL AND "user"."bankAgency" != '' AND ` +
-        `"user"."bankAccount" IS NOT NULL AND "user"."bankAccount" != '' AND ` +
-        `"user"."bankAccountDigit" IS NOT NULL AND "user"."bankAccountDigit" != '' ` +
-        ')' +
-        'THEN true ' +
-        'ELSE false ' +
-        'END AS is_filled',
+          `WHEN ( ` +
+          `"user"."fullName" IS NOT NULL AND "user"."fullName" != '' AND ` +
+          `"user"."cpfCnpj" IS NOT NULL AND "user"."cpfCnpj" != '' AND ` +
+          `"user"."permitCode" IS NOT NULL AND "user"."permitCode" != '' AND ` +
+          `"user"."email" IS NOT NULL AND "user"."email" != '' AND ` +
+          `"user"."phone" IS NOT NULL AND "user"."phone" != '' AND ` +
+          `"user"."bankCode" IS NOT NULL AND ` +
+          `"user"."bankAgency" IS NOT NULL AND "user"."bankAgency" != '' AND ` +
+          `"user"."bankAccount" IS NOT NULL AND "user"."bankAccount" != '' AND ` +
+          `"user"."bankAccountDigit" IS NOT NULL AND "user"."bankAccountDigit" != '' ` +
+          ')' +
+          'THEN true ' +
+          'ELSE false ' +
+          'END AS is_filled',
       ])
       .leftJoin('invite.user', 'user')
       .leftJoin('user.role', 'role')

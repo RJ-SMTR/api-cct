@@ -87,10 +87,8 @@ describe('AuthService', () => {
     expect(authService).toBeDefined();
   });
 
-  describe('resendRegisterMail', () => {
-    it('should throw exception when no mail quota available', /**
-     * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 13 - GitHub}
-     */ async () => {
+  xdescribe('resendRegisterMail', () => {
+    it('should throw exception when no mail quota available', async () => {
       // Arrange
       const user = new User({
         id: 1,

@@ -1,13 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 import { appSettings } from 'src/settings/app.settings';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 import { SettingsService } from 'src/settings/settings.service';
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
+import { logWarn } from 'src/utils/log-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BQSInstances, BigqueryService } from '../bigquery.service';
 import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
 import { IBigqueryFindOrdemPagamento } from '../interfaces/bigquery-find-ordem-pagamento.interface';
-import { logWarn } from 'src/utils/log-utils';
+import { bigToNumber } from 'src/utils/pipe-utils';
 
 @Injectable()
 export class BigqueryOrdemPagamentoRepository {
@@ -18,7 +19,7 @@ export class BigqueryOrdemPagamentoRepository {
   constructor(
     private readonly bigqueryService: BigqueryService,
     private readonly settingsService: SettingsService,
-  ) { }
+  ) {}
 
   public async findMany(
     filter?: IBigqueryFindOrdemPagamento,
@@ -64,7 +65,7 @@ export class BigqueryOrdemPagamentoRepository {
       ${qArgs.joinConsorcios}
       ${qArgs.joinOperadoras}\n` +
       (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
-      '\nORDER BY dataOrdem DESC, idOrdemPagamento DESC\n' +
+      '\nORDER BY dataOrdem ASC, idConsorcio ASC\n' +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
     const queryResult = await this.bigqueryService.query(
@@ -76,6 +77,15 @@ export class BigqueryOrdemPagamentoRepository {
     const items: BigqueryOrdemPagamento[] = queryResult.map((i) => {
       delete i.status;
       delete i.count;
+      i.valorDebito = bigToNumber(i.valorDebito);
+      i.valorDescontoTaxa = bigToNumber(i.valorDescontoTaxa);
+      i.valorEspecie = bigToNumber(i.valorEspecie);
+      i.valorGratuidade = bigToNumber(i.valorGratuidade);
+      i.valorIntegracao = bigToNumber(i.valorIntegracao);
+      i.valorRateioCredito = bigToNumber(i.valorRateioCredito);
+      i.valorRateioDebito = bigToNumber(i.valorRateioDebito);
+      i.valorTotalTransacaoBruto = bigToNumber(i.valorTotalTransacaoBruto);
+      i.valorTotalTransacaoLiquido = bigToNumber(i.valorTotalTransacaoLiquido);
       return i;
     });
 
@@ -100,16 +110,16 @@ export class BigqueryOrdemPagamentoRepository {
         : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia',
       tTipoPgto: IS_BQ_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
       favorecidoCpfCnpj: 'NULL',
-      tipoFavorecido:
-        `CASE WHEN o.tipo_documento = 'CPF' THEN NULL ELSE ${TipoFavorecidoEnum.vanzeiro} END`,
+      tipoFavorecido: `CASE WHEN o.tipo_documento = 'CPF' THEN NULL ELSE ${TipoFavorecidoEnum.vanzeiro} END`,
     };
 
     // Args
     let offset = args?.offset;
     if (args?.offset !== undefined && args.limit === undefined) {
-      logWarn(this.logger,
+      logWarn(
+        this.logger,
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-        " 'offset' will be ignored to prevent query fail",
+          " 'offset' will be ignored to prevent query fail",
       );
       offset = undefined;
     }
@@ -125,7 +135,9 @@ export class BigqueryOrdemPagamentoRepository {
       queryBuilderDate.pushAND(`DATE(t.data_ordem) <= DATE('${endDate}')`);
     }
     if (args?.previousDaysOnly === true) {
-      queryBuilderDate.pushAND('DATE(t.data_ordem) > DATE(t.datetime_transacao)');
+      queryBuilderDate.pushAND(
+        'DATE(t.data_ordem) > DATE(t.datetime_transacao)',
+      );
     }
 
     queryBuilderDate.pushOR();
@@ -138,7 +150,7 @@ export class BigqueryOrdemPagamentoRepository {
     queryBuilder.pushAND(queryBuilderDate.toSQL());
 
     if (args?.ignoreTransacaoLiquidoZero) {
-      queryBuilder.pushAND(`t.valor_total_transacao_liquido > 0`)
+      queryBuilder.pushAND(`t.valor_total_transacao_liquido > 0`);
     }
 
     // We dont use this filter
@@ -146,15 +158,20 @@ export class BigqueryOrdemPagamentoRepository {
       if (args?.tipoFavorecido === TipoFavorecidoEnum.vanzeiro) {
         queryBuilder.pushAND(`o.documento = ${args.cpfCnpj}`);
       } else {
-        queryBuilder.pushAND(`(o.documento = ${args.cpfCnpj} OR c.cnpj = ${args.cpfCnpj})`);
+        queryBuilder.pushAND(
+          `(o.documento = ${args.cpfCnpj} OR c.cnpj = ${args.cpfCnpj})`,
+        );
       }
     } else {
       if (args?.tipoFavorecido === TipoFavorecidoEnum.vanzeiro) {
         queryBuilder.pushAND(`o.tipo_documento = 'CPF'`);
       } else {
-        queryBuilder.pushAND(`(o.tipo_documento = 'CNPJ' OR c.cnpj IS NOT NULL)`);
+        queryBuilder.pushAND(
+          `(o.tipo_documento = 'CNPJ' OR c.cnpj IS NOT NULL)`,
+        );
       }
     }
+    queryBuilder.pushAND(`t.consorcio IN ("VLT", "Internorte", "MobiRio", "Santa Cruz")`);
 
     const qWhere = queryBuilder.toSQL();
 
