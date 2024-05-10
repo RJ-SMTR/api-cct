@@ -95,15 +95,13 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     // await this.saveTransacoesLancamento1();
-    const nsa = await this.settingsService.getOneBySettingData(
-      appSettings.any__cnab_current_nsa,
-    );
-    if (nsa.value === '0') {
-      this.logger.log("Rodando CNAb para NSA 1");
-      await this.saveTransacoesJae1(); // OK
-      await this.sendRemessa(); // OK
-    }
+
+    await this.updateRetorno(); // hotfix/sftp-naming - 2024-05-10
+    
+    // await this.saveTransacoesJae1(); // OK
+    // await this.sendRemessa(); // OK
     // await this.updateRetorno(); // OK (jaé)
+
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
