@@ -13,6 +13,7 @@ import {
   Unique,
 } from 'typeorm';
 import { ISettingData } from '../interfaces/setting-data.interface';
+import { isNumber } from 'class-validator';
 
 @Entity({ name: 'setting' })
 @Unique('UQ_Setting_name_version', ['name', 'version'])
@@ -133,6 +134,22 @@ export class SettingEntity extends BaseEntity {
       );
     } else {
       return this.value;
+    }
+  }
+
+  getValueAsNumber(): number {
+    if (!isNumber(this?.value)) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.INTERNAL_SERVER_ERROR,
+          details: {
+            value: 'should be number',
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } else {
+      return Number(this.value);
     }
   }
 }
