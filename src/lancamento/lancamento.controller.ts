@@ -41,22 +41,26 @@ export class LancamentoController {
   @Get('/')
   @ApiQuery({
     name: 'mes',
+    type: Number,
     required: false,
     description: 'Mês do lançamento',
   })
   @ApiQuery({
     name: 'periodo',
+    type: Number,
     required: false,
     description:
       'Período do lançamento. primeira quinzena ou segunda quinzena.',
   })
   @ApiQuery({
     name: 'ano',
+    type: Number,
     required: false,
     description: 'Ano do lançamento.',
   })
   @ApiQuery({
     name: 'autorizado',
+    type: Number,
     required: false,
     description:
       'use 1 ou 0 (ou deixe vazio) para filtrar por autorizado ou não autorizado.',

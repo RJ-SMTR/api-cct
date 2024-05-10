@@ -99,7 +99,11 @@ export class ExtratoHeaderArquivoService {
     FROM public.extrato_header_arquivo ha
     INNER JOIN public.extrato_header_lote ehl on ha.id = ehl."extratoHeaderArquivoId" 
     INNER JOIN public.extrato_detalhe_e dthe on ehl.id = dthe."extratoHeaderLoteId" 
-    WHERE ha."numeroConta" = '${_conta}' ${_tipoLancamento ? `\nAND dthe."tipoLancamento" = '${_tipoLancamento}'` : ''}
+    WHERE ha."numeroConta" = '${_conta}' ${
+      _tipoLancamento
+        ? `\nAND dthe."tipoLancamento" = '${_tipoLancamento}'`
+        : ''
+    }
     AND dthe."dataLancamento" between '${_dt_inicio}' AND '${_dt_fim}'`;
     return await this.entityManager.query(query);
   }
