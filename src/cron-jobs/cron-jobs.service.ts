@@ -98,7 +98,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     const nsa = await this.settingsService.getOneBySettingData(
       appSettings.any__cnab_current_nsa,
     );
-    if (nsa.getValueAsNumber() === 0) {
+    if (nsa.value === '0') {
       this.logger.log("Rodando CNAb para NSA 1");
       await this.saveTransacoesJae1(); // OK
       await this.sendRemessa(); // OK
