@@ -465,7 +465,7 @@ export class CnabService {
         this.logger.error(
           `Falha ao enviar o CNAB, tentaremos enviar no próximo job...`,
           METHOD,
-          error,
+          error.stack,
         );
       }
     }
