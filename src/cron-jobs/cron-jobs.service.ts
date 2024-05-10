@@ -33,7 +33,7 @@ export enum CrobJobsEnum {
   saveTransacoesLancamento2 = 'saveTransacoesLancamento2',
   sendRemessa = 'sendRemessa',
   updateRetorno = 'updateRetorno',
-  updateExtrato = 'updateExtrato',
+  saveExtrato = 'saveExtrato',
 }
 
 interface ICronJob {
@@ -98,6 +98,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     // await this.saveTransacoesJae1(); // OK
     // await this.sendRemessa(); // OK
     // await this.updateRetorno(); // OK (jaé)
+    await this.saveExtrato();
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -175,11 +176,11 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
         },
       },
       // {
-      //   name: CrobJobsEnum.updateExtrato,
+      //   name: CrobJobsEnum.saveExtrato,
       //   cronJobParameters: {
       //     cronTime: '0 */6 * * *', // Every 6h GMT (3h BRT)
       //     onTick: async () => {
-      //       await this.updateExtrato();
+      //       await this.saveExtrato();
       //     },
       //   },
       // },
@@ -761,8 +762,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     }
   }
 
-  async updateExtrato() {
-    const METHOD = this.updateExtrato.name;
+  async saveExtrato() {
+    const METHOD = this.saveExtrato.name;
     try {
       await this.cnabService.saveExtrato();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);

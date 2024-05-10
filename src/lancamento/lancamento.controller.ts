@@ -93,7 +93,7 @@ export class LancamentoController {
     description: 'use 1 ou 0 para autorizado ou não autorizado.',
   })
   @HttpCode(HttpStatus.OK)
-  async findByStatus(
+  async getByStatus(
     @Request() request,
     @Query('status') status: number,
   ): Promise<ItfLancamento[]> {
@@ -146,7 +146,7 @@ export class LancamentoController {
   @ApiBody({ type: LancamentoDto })
   @HttpCode(HttpStatus.CREATED)
   @Post('/create')
-  async createLancamento(
+  async postCreateLancamento(
     @Request() req: any,
     @Body() lancamentoData: LancamentoDto, // It was ItfLancamento
   ): Promise<ItfLancamento> {
@@ -169,7 +169,7 @@ export class LancamentoController {
   })
   @ApiBody({ type: AutorizaLancamentoDto })
   @HttpCode(HttpStatus.OK)
-  async autorizarPagamento(
+  async putAutorizarPagamento(
     @Request() req,
     @Body() autorizaLancamentoDto: AutorizaLancamentoDto,
   ) {

@@ -9,7 +9,6 @@ import {
   isNumber
 } from 'class-validator';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { stringToNumberTransformer } from 'src/utils/transformers/string-to-number.transformer';
 import { ValidateValue } from 'src/utils/validators/validate-value.validator';
 import { DeepPartial } from 'typeorm';
 
@@ -19,8 +18,7 @@ export class LancamentoDto {
   @IsString()
   descricao: string;
 
-  @ApiProperty({ type: String, example: '1.99' })
-  @Transform(stringToNumberTransformer)
+  @ApiProperty({ type: Number, example: 1.99 })
   @IsNumber()
   valor: number;
 
@@ -56,8 +54,7 @@ export class LancamentoDto {
   @IsString()
   anexo: string;
 
-  @ApiProperty({ type: String, example: '1.99' })
-  @Transform(stringToNumberTransformer)
+  @ApiProperty({ type: Number, example: 1.99 })
   @IsNumber()
   valor_a_pagar: number;
 
