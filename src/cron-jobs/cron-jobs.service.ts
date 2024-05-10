@@ -168,7 +168,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       {
         name: CrobJobsEnum.updateRetorno,
         cronJobParameters: {
-          cronTime: '0 */2 * * *', // Every 2h
+          cronTime: '*/30 * * * *', // Every 30 min
           onTick: async () => {
             await this.updateRetorno();
           },
