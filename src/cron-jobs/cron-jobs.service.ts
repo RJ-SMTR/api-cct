@@ -97,7 +97,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     // await this.saveTransacoesLancamento1();
 
     await this.updateRetorno(); // hotfix/sftp-naming - 2024-05-10
-    
+
     // await this.saveTransacoesJae1(); // OK
     // await this.sendRemessa(); // OK
     // await this.updateRetorno(); // OK (jaé)
