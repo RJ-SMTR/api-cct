@@ -190,17 +190,17 @@ export class ArquivoPublicacaoService {
             idTransacao: transacao.id,
           },
         });
-        publicacao.dataEfetivacao = detalheARetorno.itemTransacaoAgrupado
-          ?.dataProcessamento as Date;
-        publicacao.isPago = detalheARetorno.ocorrenciasCnab?.trim() === '00';
+        publicacao.isPago =
+          detalheARetorno.ocorrenciasCnab?.trim() === '00' ||
+          detalheARetorno.ocorrenciasCnab?.trim() === 'BD';
         if (publicacao.isPago) {
           publicacao.valorRealEfetivado = publicacao.itemTransacao.valor;
           publicacao.dataEfetivacao = detalheARetorno.dataEfetivacao;
-          publicacao.dataGeracaoRetorno =
-            detalheARetorno.headerLote.headerArquivo.dataGeracao;
-          publicacao.horaGeracaoRetorno =
-            detalheARetorno.headerLote.headerArquivo.horaGeracao;
         }
+        publicacao.dataGeracaoRetorno =
+          detalheARetorno.headerLote.headerArquivo.dataGeracao;
+        publicacao.horaGeracaoRetorno =
+          detalheARetorno.headerLote.headerArquivo.horaGeracao;
 
         await this.arquivoPublicacaoRepository.save(publicacao);
       }
