@@ -27,12 +27,12 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     '/backup/retorno/success',
   ];
   private readonly REGEX = {
-    /** smtr_prefeiturarj_ddMMyyyy_hhmmss_.rem */
-    REMESSA: new RegExp(`smtr_prefeiturarj_\\d{10}_\\d{6}\\.rem`),
-    /** smtr_prefeiturarj_ddMMyy_hhmmss.ret */
-    RETORNO: new RegExp(`smtr_prefeiturarj_\\d{6}_\\d{6}\\.ret`),
-    /** smtr_prefeiturarj_eerdiario_ddMMyy_hhmmss_.ext */
-    EXTRATO: new RegExp(`smtr_prefeiturarj_eediario_\\d{6}_\\d{6}\\.ext`),
+    /** smtr_prefeiturarj_ddMMyy_hhmmss.rem */
+    REMESSA: new RegExp(`smtr_prefeiturarj_\\d{6}_\\d{6}\\.rem`),
+    /** smtr_prefeiturarj_ddMMyyyy_hhmmss.ret */
+    RETORNO: new RegExp(`smtr_prefeiturarj_\\d{8}_\\d{6}\\.ret`),
+    /** smtr_prefeiturarj_eerdiario_ddMMyyyy_hhmmss.ext */
+    EXTRATO: new RegExp(`smtr_prefeiturarj_eediario_\\d{8}_\\d{6}\\.ext`),
   };
 
   constructor(

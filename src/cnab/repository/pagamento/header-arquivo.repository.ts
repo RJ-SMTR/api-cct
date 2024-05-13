@@ -108,10 +108,11 @@ export class HeaderArquivoRepository {
     fields: EntityCondition<HeaderArquivo>,
     order?: FindOptionsOrder<HeaderArquivo>,
   ): Promise<HeaderArquivo> {
-    const header = await this.headerArquivoRepository.findOne({
+    const headers = await this.headerArquivoRepository.find({
       where: fields,
       order: order,
     });
+    const header = headers.pop() || null;
     if (!header) {
       const fieldsList = Object.entries(fields).map((i) => `(${i})`);
       throw CommonHttpException.notFound(

@@ -44,7 +44,12 @@ export class DetalheAService {
     }
     const detalheARem = await this.detalheARepository.getOne({
       headerLote: { id: headerLoteUpdated.id },
-      nsr: r.detalheA.nsr.convertedValue,
+      // nsr: r.detalheA.nsr.convertedValue,
+      clienteFavorecido: {
+        nome: ILike(`%${r.detalheA.nomeTerceiro.value.trim()}%`),
+        codigoBanco: r.detalheA.codigoBancoDestino.value,
+        contaCorrente: r.detalheA.contaCorrenteDestino.value,
+      },
     });
     const detalheA = new DetalheADTO({
       id: detalheARem?.id,
