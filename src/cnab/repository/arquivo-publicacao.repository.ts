@@ -95,4 +95,11 @@ export class ArquivoPublicacaoRepository {
   ): Promise<ArquivoPublicacao[]> {
     return await this.arquivoPublicacaoRepository.find(options);
   }
+
+  public async findOne(
+    options: FindManyOptions<ArquivoPublicacao>,
+  ): Promise<ArquivoPublicacao | null> {
+    const many = await this.arquivoPublicacaoRepository.find(options);
+    return many.pop() || null;
+  }
 }

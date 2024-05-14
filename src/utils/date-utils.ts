@@ -142,3 +142,12 @@ export function getBRTFromUTC(utc: Date): Date {
 export function isValidDate(value: any): boolean {
   return isDate(value) && value instanceof Date && !isNaN(value.getDate());
 }
+
+/**
+ * Converts year-month=day string into Date with correct weekday
+ * 
+ * @param ymd Example: `2024-05-10`
+ */
+export function yearMonthDayToDate(ymd: string) {
+  return new Date(ymd + ' ');
+}

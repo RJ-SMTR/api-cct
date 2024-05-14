@@ -14,6 +14,7 @@ import {
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
@@ -122,9 +123,7 @@ export class DetalheA extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
+  /** `UQ_DetalheA_itemTransacaoAgrupado` */
   @OneToOne(() => ItemTransacaoAgrupado, { eager: false, nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_DetalheA_itemTransacaoAgrupado_OneToOne',
@@ -136,6 +135,12 @@ export class DetalheA extends EntityHelper {
     foreignKeyConstraintName: 'FK_DetalheA_itemTransacao_OneToOne',
   })
   itemTransacao: ItemTransacao | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   getOcorrenciasCnab() {
     return (this.ocorrenciasCnab || '').trim();

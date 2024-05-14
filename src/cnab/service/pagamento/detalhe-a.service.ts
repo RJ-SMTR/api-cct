@@ -4,7 +4,7 @@ import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, ILike } from 'typeorm';
+import { DeepPartial, FindOneOptions, ILike } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
@@ -57,7 +57,9 @@ export class DetalheAService {
       tipoMoeda: r.detalheA.tipoMoeda.value,
       quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
       valorLancamento: r.detalheA.valorLancamento.convertedValue,
-      numeroDocumentoBanco: String(r.detalheA.numeroDocumentoBanco.convertedValue),
+      numeroDocumentoBanco: String(
+        r.detalheA.numeroDocumentoBanco.convertedValue,
+      ),
       quantidadeParcelas: Number(r.detalheA.quantidadeParcelas.value),
       indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
       indicadorFormaParcelamento:
@@ -84,9 +86,9 @@ export class DetalheAService {
   }
 
   public async findOne(
-    fields: EntityCondition<DetalheA>,
+    options: FindOneOptions<DetalheA>,
   ): Promise<Nullable<DetalheA>> {
-    return await this.detalheARepository.findOne(fields);
+    return await this.detalheARepository.findOne(options);
   }
 
   public async findMany(

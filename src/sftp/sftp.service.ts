@@ -25,14 +25,14 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     '/retorno',
     '/backup/retorno/failure',
     '/backup/retorno/success',
-  ]
+  ];
   private readonly REGEX = {
-    /** smtr_prefeiturarj_ddMMyy_hhmmss_.rem */
+    /** smtr_prefeiturarj_ddMMyy_hhmmss.rem */
     REMESSA: new RegExp(`smtr_prefeiturarj_\\d{6}_\\d{6}\\.rem`),
-    /** smtr_prefeiturarj_ddMMyy_hhmmss_.ret */
-    RETORNO: new RegExp(`smtr_prefeiturarj_\\d{6}_\\d{6}\\.ret`),
-    /** smtr_prefeiturarj_eerdiario_ddMMyyhhmmss_.EXT */
-    EXTRATO: new RegExp(`smtr_prefeiturarj_eediario_\\d{12}\\.EXT`),
+    /** smtr_prefeiturarj_ddMMyyyy_hhmmss.ret */
+    RETORNO: new RegExp(`smtr_prefeiturarj_\\d{8}_\\d{6}\\.ret`),
+    /** smtr_prefeiturarj_eerdiario_ddMMyyyy_hhmmss.ext */
+    EXTRATO: new RegExp(`smtr_prefeiturarj_eediario_\\d{8}_\\d{6}\\.ext`),
   };
 
   constructor(
@@ -43,11 +43,15 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   }
 
   onModuleInit() {
-    this.onModuleLoad().catch((error: Error) => { throw error; });
+    this.onModuleLoad().catch((error: Error) => {
+      throw error;
+    });
   }
 
   async onModuleLoad() {
-    this.rootFolder = await this.configService.getOrThrow('sftp.rootFolder', { infer: true });
+    this.rootFolder = await this.configService.getOrThrow('sftp.rootFolder', {
+      infer: true,
+    });
     await this.createMainFolders();
   }
 
@@ -70,7 +74,11 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       }
       this.logger.log('As pastas SFTP estão preparadas.', METHOD);
     } catch (error) {
-      this.logger.error(`Falha ao preparar pastas SFTP. - ${error}`, error.stack, METHOD);
+      this.logger.error(
+        `Falha ao preparar pastas SFTP. - ${error}`,
+        error.stack,
+        METHOD,
+      );
     }
   }
 
@@ -80,7 +88,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       port: this.configService.getOrThrow('sftp.port', { infer: true }),
       username: this.configService.getOrThrow('sftp.username', { infer: true }),
       password: this.configService.getOrThrow('sftp.password', { infer: true }),
-    }
+    };
   }
 
   /**
@@ -94,7 +102,10 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     remotePath: string,
     localPath: string,
   ): Promise<string | NodeJS.ReadableStream | Buffer> {
-    return await this.sftpClient.download(remotePath, localPath) as unknown as Promise<string | NodeJS.ReadableStream | Buffer>;
+    return (await this.sftpClient.download(
+      remotePath,
+      localPath,
+    )) as unknown as Promise<string | NodeJS.ReadableStream | Buffer>;
   }
 
   public async downloadToString(remotePath: string): Promise<string> {
@@ -115,7 +126,10 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     remotePath: string,
     localPath: string,
   ): Promise<string | NodeJS.ReadableStream | Buffer> {
-    return await this.sftpClient.upload(this.dir(remotePath), this.dir(localPath));
+    return await this.sftpClient.upload(
+      this.dir(remotePath),
+      this.dir(localPath),
+    );
   }
 
   async submitFromString(content: string, remotePath: string) {
@@ -129,7 +143,9 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   async submitCnabRemessa(content: string) {
     const METHOD = this.submitCnabRemessa.name;
     await this.connectClient();
-    const remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
+    const remotePath = this.dir(
+      `${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`,
+    );
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
     this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
   }
@@ -145,57 +161,59 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
 
   /**
    * Get first Cnab in Retorno and read it
-   * 
+   *
    * @returns CnabName: file name with extension (no folder)
    */
   public async getFirstCnabRetorno(): Promise<{
-    cnabName: string | null,
-    cnabString: string | null,
+    cnabName: string | null;
+    cnabString: string | null;
   }> {
     await this.connectClient();
-    const firstFile = (await this.sftpClient.list(
-      this.dir(this.FOLDERS.RETORNO),
-      this.REGEX.RETORNO,
-    )).pop();
+    const firstFile = (
+      await this.sftpClient.list(
+        this.dir(this.FOLDERS.RETORNO),
+        this.REGEX.RETORNO,
+      )
+    ).pop();
 
     if (!firstFile) {
       return { cnabName: null, cnabString: null };
     }
 
     const cnabPath = this.dir(`${this.FOLDERS.RETORNO}/${firstFile.name}`);
-    const cnabString =
-      await this.downloadToString(cnabPath);
+    const cnabString = await this.downloadToString(cnabPath);
     return { cnabName: firstFile.name, cnabString };
   }
 
   /**
    * Get first Cnab Extrato (eediario) in Retorno and read it
-   * 
+   *
    * @returns CnabName: file name with extension (no folder)
    */
   public async getFirstCnabExtrato(): Promise<{
-    name: string,
-    content: string,
+    name: string;
+    content: string;
   } | null> {
     await this.connectClient();
-    const firstFile = (await this.sftpClient.list(
-      this.dir(this.FOLDERS.RETORNO),
-      this.REGEX.EXTRATO,
-    )).pop();
+    const firstFile = (
+      await this.sftpClient.list(
+        this.dir(this.FOLDERS.RETORNO),
+        this.REGEX.EXTRATO,
+      )
+    ).pop();
 
     if (!firstFile) {
       return null;
     }
 
     const cnabPath = this.dir(`${this.FOLDERS.RETORNO}/${firstFile.name}`);
-    const cnabString =
-      await this.downloadToString(cnabPath);
+    const cnabString = await this.downloadToString(cnabPath);
     return { name: firstFile.name, content: cnabString };
   }
 
   /**
    * Move CNAB Retorno to backup folder
-   * 
+   *
    * @param cnabName Name with extension. No folder path.
    */
   public async moveToBackup(cnabName: string, folder: SftpBackupFolder) {
@@ -204,6 +222,9 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     const destPath = this.dir(`${folder}/${cnabName}`);
     await this.connectClient();
     await this.sftpClient.rename(originPath, destPath);
-    this.logger.debug(`Arquivo CNAB movido de '${originPath}' para ${destPath}`, METHOD);
+    this.logger.debug(
+      `Arquivo CNAB movido de '${originPath}' para ${destPath}`,
+      METHOD,
+    );
   }
 }
