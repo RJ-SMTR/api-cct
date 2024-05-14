@@ -35,6 +35,13 @@ export class ArquivoPublicacaoService {
     return this.arquivoPublicacaoRepository.findMany(options);
   }
 
+  public async findManyByDate(startDate: Date, endDate: Date) {
+    return await this.arquivoPublicacaoRepository.findManyByDate(
+      startDate,
+      endDate,
+    );
+  }
+
   /**
    * Generates a new ArquivoPublicacao.
    *

@@ -64,11 +64,11 @@ export class ArquivoPublicacao extends EntityHelper {
   @Column({ type: Date, unique: false, nullable: true })
   horaGeracaoRetorno: Date | null;
 
-  /** Remessa CNAB. Friday week day (friday) */
+  /** Remessa CNAB. Sexta-feira de pagamento. */
   @Column({ type: String, unique: false, nullable: true })
   dataVencimento: Date | null;
 
-  /** Remessa CNAB. Payment retorno date */
+  /** Remessa CNAB. Data em que o retorno foi feito e efetuado o pagamento. */
   @Column({ type: String, unique: false, nullable: true })
   dataEfetivacao: Date | null;
 
@@ -81,4 +81,5 @@ export class ArquivoPublicacao extends EntityHelper {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
 }

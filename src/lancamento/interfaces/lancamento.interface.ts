@@ -7,7 +7,7 @@ import { DeepPartial } from "typeorm";
 export interface ItfLancamento {
   id: number;
   descricao: string;
-  valor: string;
+  valor: number;
   data_ordem: Date;
   data_pgto: Date;
   data_lancamento: Date;
@@ -15,7 +15,7 @@ export interface ItfLancamento {
   glosa: string;
   recurso: string;
   anexo: string;
-  valor_a_pagar: string;
+  valor_a_pagar: number;
   numero_processo: string;
   id_cliente_favorecido: DeepPartial<ClienteFavorecido>;
   // Added fields

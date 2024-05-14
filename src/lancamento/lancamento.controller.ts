@@ -41,22 +41,26 @@ export class LancamentoController {
   @Get('/')
   @ApiQuery({
     name: 'mes',
+    type: Number,
     required: false,
     description: 'Mês do lançamento',
   })
   @ApiQuery({
     name: 'periodo',
+    type: Number,
     required: false,
     description:
       'Período do lançamento. primeira quinzena ou segunda quinzena.',
   })
   @ApiQuery({
     name: 'ano',
+    type: Number,
     required: false,
     description: 'Ano do lançamento.',
   })
   @ApiQuery({
     name: 'autorizado',
+    type: Number,
     required: false,
     description:
       'use 1 ou 0 (ou deixe vazio) para filtrar por autorizado ou não autorizado.',
@@ -93,7 +97,7 @@ export class LancamentoController {
     description: 'use 1 ou 0 para autorizado ou não autorizado.',
   })
   @HttpCode(HttpStatus.OK)
-  async findByStatus(
+  async getByStatus(
     @Request() request,
     @Query('status') status: number,
   ): Promise<ItfLancamento[]> {
@@ -146,7 +150,7 @@ export class LancamentoController {
   @ApiBody({ type: LancamentoDto })
   @HttpCode(HttpStatus.CREATED)
   @Post('/create')
-  async createLancamento(
+  async postCreateLancamento(
     @Request() req: any,
     @Body() lancamentoData: LancamentoDto, // It was ItfLancamento
   ): Promise<ItfLancamento> {
@@ -169,7 +173,7 @@ export class LancamentoController {
   })
   @ApiBody({ type: AutorizaLancamentoDto })
   @HttpCode(HttpStatus.OK)
-  async autorizarPagamento(
+  async putAutorizarPagamento(
     @Request() req,
     @Body() autorizaLancamentoDto: AutorizaLancamentoDto,
   ) {

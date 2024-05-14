@@ -98,7 +98,7 @@ export class LancamentoEntity extends EntityHelper {
     return {
       id: this.id,
       descricao: this.descricao,
-      valor: String(this.valor),
+      valor: this.valor,
       data_ordem: this.data_ordem,
       data_pgto: this.data_pgto,
       data_lancamento: this.data_lancamento,
@@ -106,7 +106,7 @@ export class LancamentoEntity extends EntityHelper {
       glosa: this.glosa,
       recurso: this.recurso,
       anexo: this.anexo,
-      valor_a_pagar: String(this.valor_a_pagar),
+      valor_a_pagar: this.valor_a_pagar,
       numero_processo: this.numero_processo,
       id_cliente_favorecido: this.id_cliente_favorecido,
       auth_usersIds: this.auth_usersIds?.split(',')?.map(Number) || [],
