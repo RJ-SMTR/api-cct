@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { format, nextFriday, startOfDay } from 'date-fns';
+import { nextFriday, nextThursday, startOfDay } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
@@ -8,8 +8,8 @@ import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacaoStatus } from './entity/pagamento/item-transacao-status.entity';
@@ -125,46 +125,9 @@ export class CnabService {
         favorecido,
       );
 
-      const { item: transacao } = await this.saveTransacaoIfNotExists(
-        ordem,
-        pagador,
-        transacaoAgId,
-      );
+      const transacao = await this.saveTransacao(ordem, pagador, transacaoAgId);
       await this.saveItemTransacao(ordem, favorecido, transacao);
     }
-  }
-
-  getOrdemAgs(_ordens: BigqueryOrdemPagamentoDTO[]) {
-    const ordens = structuredClone(_ordens);
-    const newDataOrdemStr = format(nextFriday(new Date()), 'yyyy-MM-dd');
-    let ordemTransacaoAgs = ordens.map((i) => ({
-      ...i,
-      dataOrdem: newDataOrdemStr,
-    }));
-    ordemTransacaoAgs = ordemTransacaoAgs.reduce(
-      (g: BigqueryOrdemPagamentoDTO[], i) => {
-        const existingAg = BigqueryOrdemPagamentoDTO.findAgrupado(g, i);
-        if (!existingAg) {
-          return [
-            ...g,
-            { ...i, dataOrdem: newDataOrdemStr } as BigqueryOrdemPagamentoDTO,
-          ];
-        } else {
-          return [
-            ...g,
-            {
-              ...i,
-              valorTotalTransacaoLiquido:
-                existingAg.valorTotalTransacaoLiquido +
-                i.valorTotalTransacaoLiquido,
-              dataOrdem: newDataOrdemStr,
-            } as BigqueryOrdemPagamentoDTO,
-          ];
-        }
-      },
-      [],
-    );
-    return ordemTransacaoAgs;
   }
 
   async saveAgrupamentos(
@@ -173,8 +136,10 @@ export class CnabService {
     favorecido: ClienteFavorecido,
   ) {
     // 1. Verificar se as colunas de agrupamento existem nas tabelas agrupadas
+    const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
+    const fridayOrdem = nextFriday(nextThursday(startOfDay(dataOrdem)));
     let transacaoAg = await this.transacaoAgService.findOne({
-      dataOrdem: nextFriday(startOfDay(new Date())),
+      dataOrdem: fridayOrdem,
       pagador: { id: pagador.id },
     });
 
@@ -213,40 +178,21 @@ export class CnabService {
     return transacaoAg.id;
   }
 
-  async saveTransacaoIfNotExists(
-    ordem: BigqueryOrdemPagamentoDTO,
-    pagador: Pagador,
-    transacaoAgId: number,
-  ): Promise<SaveIfNotExists<Transacao>> {
-    const existing = await this.transacaoService.findOne({
-      idOrdemPagamento: ordem.idOrdemPagamento,
-    });
-    if (existing) {
-      return {
-        isNewItem: false,
-        item: existing,
-      };
-    }
-    const transacao = new Transacao({
-      dataOrdem: ordem.dataOrdem,
-      dataPagamento: ordem.dataPagamento,
-      pagador: pagador,
-      idOrdemPagamento: ordem.idOrdemPagamento,
-      status: new TransacaoStatus(TransacaoStatusEnum.created),
-      transacaoAgrupado: { id: transacaoAgId },
-    });
-    return {
-      isNewItem: true,
-      item: await this.transacaoService.save(transacao),
-    };
-  }
-
+  /**
+   * Save or update Transacao.
+   *
+   * Unique id: `idOrdemPagamento`
+   */
   async saveTransacao(
     ordem: BigqueryOrdemPagamentoDTO,
     pagador: Pagador,
     transacaoAgId: number,
-  ) {
+  ): Promise<Transacao> {
+    const existing = await this.transacaoService.findOne({
+      idOrdemPagamento: ordem.idOrdemPagamento,
+    });
     const transacao = new Transacao({
+      ...(existing ? { id: existing.id } : {}),
       dataOrdem: ordem.dataOrdem,
       dataPagamento: ordem.dataPagamento,
       pagador: pagador,
@@ -258,8 +204,10 @@ export class CnabService {
   }
 
   getTransacaoAgrupadoDTO(ordem: BigqueryOrdemPagamentoDTO, pagador: Pagador) {
+    const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
+    const fridayOrdem = nextFriday(nextThursday(startOfDay(dataOrdem)));
     const transacao = new TransacaoAgrupado({
-      dataOrdem: nextFriday(startOfDay(new Date())),
+      dataOrdem: fridayOrdem,
       dataPagamento: ordem.dataPagamento,
       pagador: pagador,
       idOrdemPagamento: ordem.idOrdemPagamento,
@@ -273,10 +221,12 @@ export class CnabService {
     favorecido: ClienteFavorecido,
     transacaoAg: TransacaoAgrupado,
   ) {
+    const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
+    const fridayOrdem = nextFriday(nextThursday(startOfDay(dataOrdem)));
     const item = new ItemTransacaoAgrupado({
       clienteFavorecido: favorecido,
       dataCaptura: ordem.dataOrdem,
-      dataOrdem: ordem.dataOrdem,
+      dataOrdem: fridayOrdem,
       idConsorcio: ordem.idConsorcio,
       idOperadora: ordem.idOperadora,
       idOrdemPagamento: ordem.idOrdemPagamento,
@@ -285,6 +235,7 @@ export class CnabService {
       valor: ordem.valorTotalTransacaoLiquido,
       transacaoAgrupado: transacaoAg,
       status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
+      dataLancamento: fridayOrdem,
     });
     return item;
   }
@@ -294,7 +245,16 @@ export class CnabService {
     favorecido: ClienteFavorecido,
     transacao: Transacao,
   ) {
+    const existing = await this.itemTransacaoService.findOne({
+      where: {
+        transacao: { id: transacao.id },
+        idConsorcio: ordem.idConsorcio,
+        idOperadora: ordem.idOperadora,
+        idOrdemPagamento: ordem.idOrdemPagamento,
+      },
+    });
     const item = new ItemTransacao({
+      ...(existing ? { id: existing.id } : {}),
       clienteFavorecido: favorecido,
       dataCaptura: ordem.dataOrdem,
       dataOrdem: ordem.dataOrdem,
@@ -309,7 +269,7 @@ export class CnabService {
     });
     await this.itemTransacaoService.save(item);
     const publicacao =
-      this.arquivoPublicacaoService.generatePublicacaoDTO(item);
+      await this.arquivoPublicacaoService.generatePublicacaoDTO(item);
     await this.arquivoPublicacaoService.save(publicacao);
   }
 
@@ -481,7 +441,8 @@ export class CnabService {
   public async updateRetorno() {
     const METHOD = this.updateRetorno.name;
     // Get retorno
-    const { cnabString, cnabName } = await this.sftpService.getFirstCnabRetorno();
+    const { cnabString, cnabName } =
+      await this.sftpService.getFirstCnabRetorno();
     if (!cnabName || !cnabString) {
       this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
       return;

@@ -9,7 +9,8 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
 } from 'typeorm';
 import { HeaderArquivoStatus } from './header-arquivo-status.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
@@ -90,6 +91,9 @@ export class HeaderArquivo extends EntityHelper {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   public getIdString(): string {
     return `{ transacao: ${this.transacao?.id},  transacaoAg: ${this.transacaoAgrupado?.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;

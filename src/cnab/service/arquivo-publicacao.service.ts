@@ -40,14 +40,20 @@ export class ArquivoPublicacaoService {
    *
    * **status** is Created.
    */
-  public generatePublicacaoDTO(
+  async generatePublicacaoDTO(
     itemTransacao: ItemTransacao,
-  ): ArquivoPublicacao {
+  ): Promise<ArquivoPublicacao> {
     let friday = new Date();
     if (isFriday(friday)) {
       friday = nextFriday(friday);
     }
+    const existing = await this.arquivoPublicacaoRepository.findOne({
+      where: {
+        itemTransacao: { id: itemTransacao.id },
+      },
+    });
     const arquivo = new ArquivoPublicacao({
+      ...(existing ? { id: existing.id } : {}),
       // Remessa
       idTransacao: asNumber(itemTransacao.transacao?.id),
       itemTransacao: { id: itemTransacao.id },
@@ -190,17 +196,17 @@ export class ArquivoPublicacaoService {
             idTransacao: transacao.id,
           },
         });
-        publicacao.dataEfetivacao = detalheARetorno.itemTransacaoAgrupado
-          ?.dataProcessamento as Date;
-        publicacao.isPago = detalheARetorno.ocorrenciasCnab?.trim() === '00';
+        publicacao.isPago =
+          detalheARetorno.ocorrenciasCnab?.trim() === '00' ||
+          detalheARetorno.ocorrenciasCnab?.trim() === 'BD';
         if (publicacao.isPago) {
           publicacao.valorRealEfetivado = publicacao.itemTransacao.valor;
           publicacao.dataEfetivacao = detalheARetorno.dataEfetivacao;
-          publicacao.dataGeracaoRetorno =
-            detalheARetorno.headerLote.headerArquivo.dataGeracao;
-          publicacao.horaGeracaoRetorno =
-            detalheARetorno.headerLote.headerArquivo.horaGeracao;
         }
+        publicacao.dataGeracaoRetorno =
+          detalheARetorno.headerLote.headerArquivo.dataGeracao;
+        publicacao.horaGeracaoRetorno =
+          detalheARetorno.headerLote.headerArquivo.horaGeracao;
 
         await this.arquivoPublicacaoRepository.save(publicacao);
       }

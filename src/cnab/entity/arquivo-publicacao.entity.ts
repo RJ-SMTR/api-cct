@@ -15,11 +15,13 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import {
   Column,
+  CreateDateColumn,
   DeepPartial,
   Entity,
   JoinColumn,
   OneToOne,
-  PrimaryGeneratedColumn
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
 } from 'typeorm';
 import { ItemTransacao } from './pagamento/item-transacao.entity';
 
@@ -74,4 +76,9 @@ export class ArquivoPublicacao extends EntityHelper {
   @Column({ type: 'numeric', unique: false, nullable: true })
   valorRealEfetivado: number | null;
 
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

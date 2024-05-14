@@ -9,7 +9,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  UpdateDateColumn
+  UpdateDateColumn,
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { ItemTransacaoStatus } from './item-transacao-status.entity';
@@ -96,15 +96,15 @@ export class ItemTransacao extends EntityHelper {
   @Column({ type: Date, unique: false, nullable: false })
   dataOrdem: Date;
 
+  @ManyToOne(() => ItemTransacaoStatus, { eager: false, nullable: false })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_ItemTransacao_status_ManyToOne' })
+  status: ItemTransacaoStatus;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  @ManyToOne(() => ItemTransacaoStatus, { eager: false, nullable: false })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ItemTransacao_status_ManyToOne' })
-  status: ItemTransacaoStatus;
 
   public getLogInfo(): string {
     return `#{ idOP: ${this.idOrdemPagamento}, op: ${this.idOperadora}, co: ${this.idConsorcio} }`;

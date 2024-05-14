@@ -9,6 +9,7 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { Pagador } from './pagador.entity';
@@ -50,9 +51,6 @@ export class TransacaoAgrupado extends EntityHelper {
   })
   pagador: Pagador;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
   @ManyToOne(() => TransacaoStatus, { eager: false, nullable: false })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoAgrupado_status_ManyToOne',
@@ -84,6 +82,12 @@ export class TransacaoAgrupado extends EntityHelper {
     foreignKeyConstraintName: 'FK_TransacaoAgrupado_transacoes_OneToMany',
   })
   transacoes: Transacao[];
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   public static getUniqueId(entity: DeepPartial<Transacao>): string {
     return `${entity.idOrdemPagamento}`;
