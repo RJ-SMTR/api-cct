@@ -4,11 +4,13 @@ import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import {
   Column,
+  CreateDateColumn,
   DeepPartial,
   Entity,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { ItfLancamento } from './interfaces/lancamento.interface';
 
@@ -85,6 +87,12 @@ export class LancamentoEntity extends EntityHelper {
 
   @Column({ type: 'varchar', nullable: false })
   numero_processo: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   toItfLancamento(): ItfLancamento {
     return {

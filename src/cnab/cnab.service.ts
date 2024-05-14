@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { format, nextFriday, startOfDay } from 'date-fns';
+import { nextFriday, nextThursday, startOfDay } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
@@ -8,6 +8,7 @@ import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
@@ -86,7 +87,7 @@ export class CnabService {
     await this.updateAllFavorecidosFromUsers();
 
     // 2. Fetch ordemPgto
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(7);
     await this.saveOrdens(ordens);
 
     // Log
@@ -134,47 +135,16 @@ export class CnabService {
     }
   }
 
-  getOrdemAgs(_ordens: BigqueryOrdemPagamentoDTO[]) {
-    const ordens = structuredClone(_ordens);
-    const newDataOrdemStr = format(nextFriday(new Date()), 'yyyy-MM-dd');
-    let ordemTransacaoAgs = ordens.map((i) => ({
-      ...i,
-      dataOrdem: newDataOrdemStr,
-    }));
-    ordemTransacaoAgs = ordemTransacaoAgs.reduce(
-      (g: BigqueryOrdemPagamentoDTO[], i) => {
-        const existingAg = BigqueryOrdemPagamentoDTO.findAgrupado(g, i);
-        if (!existingAg) {
-          return [
-            ...g,
-            { ...i, dataOrdem: newDataOrdemStr } as BigqueryOrdemPagamentoDTO,
-          ];
-        } else {
-          return [
-            ...g,
-            {
-              ...i,
-              valorTotalTransacaoLiquido:
-                existingAg.valorTotalTransacaoLiquido +
-                i.valorTotalTransacaoLiquido,
-              dataOrdem: newDataOrdemStr,
-            } as BigqueryOrdemPagamentoDTO,
-          ];
-        }
-      },
-      [],
-    );
-    return ordemTransacaoAgs;
-  }
-
   async saveAgrupamentos(
     ordem: BigqueryOrdemPagamentoDTO,
     pagador: Pagador,
     favorecido: ClienteFavorecido,
   ) {
     // 1. Verificar se as colunas de agrupamento existem nas tabelas agrupadas
+    const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
+    const fridayOrdem = nextFriday(nextThursday(startOfDay(dataOrdem)));
     let transacaoAg = await this.transacaoAgService.findOne({
-      dataOrdem: nextFriday(startOfDay(new Date())),
+      dataOrdem: fridayOrdem,
       pagador: { id: pagador.id },
     });
 
@@ -258,8 +228,10 @@ export class CnabService {
   }
 
   getTransacaoAgrupadoDTO(ordem: BigqueryOrdemPagamentoDTO, pagador: Pagador) {
+    const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
+    const fridayOrdem = nextFriday(nextThursday(startOfDay(dataOrdem)));
     const transacao = new TransacaoAgrupado({
-      dataOrdem: nextFriday(startOfDay(new Date())),
+      dataOrdem: fridayOrdem,
       dataPagamento: ordem.dataPagamento,
       pagador: pagador,
       idOrdemPagamento: ordem.idOrdemPagamento,
@@ -273,10 +245,12 @@ export class CnabService {
     favorecido: ClienteFavorecido,
     transacaoAg: TransacaoAgrupado,
   ) {
+    const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
+    const fridayOrdem = nextFriday(nextThursday(startOfDay(dataOrdem)));
     const item = new ItemTransacaoAgrupado({
       clienteFavorecido: favorecido,
       dataCaptura: ordem.dataOrdem,
-      dataOrdem: ordem.dataOrdem,
+      dataOrdem: fridayOrdem,
       idConsorcio: ordem.idConsorcio,
       idOperadora: ordem.idOperadora,
       idOrdemPagamento: ordem.idOrdemPagamento,
@@ -285,6 +259,7 @@ export class CnabService {
       valor: ordem.valorTotalTransacaoLiquido,
       transacaoAgrupado: transacaoAg,
       status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
+      dataLancamento: fridayOrdem,
     });
     return item;
   }
@@ -481,7 +456,8 @@ export class CnabService {
   public async updateRetorno() {
     const METHOD = this.updateRetorno.name;
     // Get retorno
-    const { cnabString, cnabName } = await this.sftpService.getFirstCnabRetorno();
+    const { cnabString, cnabName } =
+      await this.sftpService.getFirstCnabRetorno();
     if (!cnabName || !cnabString) {
       this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
       return;

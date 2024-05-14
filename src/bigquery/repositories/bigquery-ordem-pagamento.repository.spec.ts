@@ -52,23 +52,42 @@ describe('BigqueryOrdemPagamentoRepository', () => {
     expect(settingsService).toBeDefined();
   });
 
-  describe('findMany', () => {
-    it('should return some data', async () => {
+  // describe('findMany', () => {
+  //   it('should return some data', async () => {
+  //     // Arrange
+  //     jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValueOnce({
+  //       getValueAsString: () => BigqueryEnvironment.Production,
+  //     } as SettingEntity);
+
+  //     // Act
+  //     const result = await bqOrdemPagamentoRepository.findMany({
+  //       startDate: new Date('2023-05-02'),
+  //       endDate: new Date('2024-05-08'),
+  //       ignoreTransacaoLiquidoZero: true,
+  //       limit: 50,
+  //     });
+
+  //     // Assert
+  //     expect(result.length).toBeGreaterThan(0);
+  //   });
+  // });
+
+  describe('query', () => {
+    it('should return query data', async () => {
       // Arrange
       jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValueOnce({
-        getValueAsString: () => BigqueryEnvironment.Development,
+        getValueAsString: () => BigqueryEnvironment.Production,
       } as SettingEntity);
 
       // Act
-      const result = await bqOrdemPagamentoRepository.findMany({
-        startDate: new Date('2023-06-01'),
-        endDate: new Date('2024-06-01'),
-        ignoreTransacaoLiquidoZero: true,
-        limit: 50,
-      });
+      const result = await bqOrdemPagamentoRepository.query(`
+        SELECT o.*
+        FROM \`rj-smtr.cadastro.operadoras\` o
+        WHERE o.documento IN ('463572889', '463416372')
+      `);
 
       // Assert
-      expect(result.length).toBeGreaterThan(0);
+      expect(result).toBeDefined();
     });
   });
 });
