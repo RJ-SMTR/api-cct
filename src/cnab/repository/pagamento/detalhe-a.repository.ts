@@ -8,6 +8,7 @@ import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import {
   DeepPartial,
   FindManyOptions,
+  FindOneOptions,
   In,
   InsertResult,
   LessThanOrEqual,
@@ -123,11 +124,9 @@ export class DetalheARepository {
   }
 
   public async findOne(
-    fields: EntityCondition<DetalheA>,
+    options: FindOneOptions<DetalheA>,
   ): Promise<Nullable<DetalheA>> {
-    const one = await this.detalheARepository.findOne({
-      where: fields,
-    });
+    const one = await this.detalheARepository.findOne(options);
     if (one) {
       await this.forceManyEager([one]);
     }

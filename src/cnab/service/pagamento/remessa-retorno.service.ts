@@ -183,15 +183,25 @@ export class RemessaRetornoService {
     return cnabString;
   }
 
-  convertCnabDetalheAToDTO(
+  async convertCnabDetalheAToDTO(
     detalheA: CnabDetalheA_104,
     headerLoteId: number,
     itemTransacao?: ItemTransacao,
     itemTransacaoAg?: ItemTransacaoAgrupado,
   ) {
+    const existing = await this.detalheAService.findOne({
+      where: {
+        nsr: Number(detalheA.nsr.value),
+        ...(itemTransacao ? { itemTransacao: { id: itemTransacao?.id } } : {}),
+        ...(itemTransacaoAg
+          ? { itemTransacaoAgrupado: { id: itemTransacaoAg?.id } }
+          : {}),
+      },
+    });
     const favorecidoId = (itemTransacao || itemTransacaoAg)?.clienteFavorecido
       .id as number;
     return new DetalheADTO({
+      ...(existing ? { id: existing.id } : {}),
       nsr: Number(detalheA.nsr.value),
       ocorrenciasCnab: detalheA.ocorrencias.value.trim(),
       dataVencimento: getCnabFieldConverted(detalheA.dataVencimento),
@@ -218,8 +228,15 @@ export class RemessaRetornoService {
     });
   }
 
-  convertCnabDetalheBToDTO(detalheB: CnabDetalheB_104, detalheAId: number) {
+  async convertCnabDetalheBToDTO(
+    detalheB: CnabDetalheB_104,
+    detalheAId: number,
+  ) {
+    const existing = await this.detalheBService.findOne({
+      detalheA: { id: detalheAId },
+    });
     return new DetalheBDTO({
+      ...(existing ? { id: existing.id } : {}),
       nsr: detalheB.nsr.value,
       detalheA: { id: detalheAId },
       dataVencimento: getCnabFieldConverted(detalheB.dataVencimento),
@@ -505,7 +522,7 @@ export class RemessaRetornoService {
     itemTransacao?: ItemTransacao,
     itemTransacaoAg?: ItemTransacaoAgrupado,
   ) {
-    const detalheADTO = this.convertCnabDetalheAToDTO(
+    const detalheADTO = await this.convertCnabDetalheAToDTO(
       detalheA104,
       savedHeaderLoteId,
       itemTransacao,
@@ -515,7 +532,7 @@ export class RemessaRetornoService {
   }
 
   async saveDetalheB(detalheB104: CnabDetalheB_104, savedDetalheAId: number) {
-    const detalheBDTO = this.convertCnabDetalheBToDTO(
+    const detalheBDTO = await this.convertCnabDetalheBToDTO(
       detalheB104,
       savedDetalheAId,
     );

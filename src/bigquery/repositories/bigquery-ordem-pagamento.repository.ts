@@ -29,6 +29,28 @@ export class BigqueryOrdemPagamentoRepository {
     return transacoes;
   }
 
+  public async query(
+    sql: string,
+  ): Promise<{ data: BigqueryOrdemPagamento[]; countAll: number }> {
+    // TODO: remover tipoFavorecido
+    const queryResult = await this.bigqueryService.query(
+      BQSInstances.smtr,
+      sql,
+    );
+    const count: number = queryResult.length;
+    // Remove unwanted keys and remove last item (all null if empty)
+    const items: BigqueryOrdemPagamento[] = queryResult.map((i) => {
+      delete i.status;
+      delete i.count;
+      return i;
+    });
+
+    return {
+      data: items,
+      countAll: count,
+    };
+  }
+
   private async queryData(
     args?: IBigqueryFindOrdemPagamento,
   ): Promise<{ data: BigqueryOrdemPagamento[]; countAll: number }> {
@@ -171,7 +193,22 @@ export class BigqueryOrdemPagamentoRepository {
         );
       }
     }
-    queryBuilder.pushAND(`t.consorcio IN ("VLT", "Internorte", "MobiRio", "Santa Cruz")`);
+
+    /**
+     * Temporary filter.
+     *
+     * CPF 102.041.537-19   Permissão 46.357288-9
+     *
+     * CPF 038.184.294-05   Permissão 46.341637-2
+     */
+    // consorcio +  operadora
+    // null         valor
+    // valor        null
+    // valor        valor
+    // queryBuilder.pushAND(`o.documento IN ('463572889', '463416372')`);
+    queryBuilder.pushAND(
+      `t.consorcio IN ("VLT", "Internorte", "MobiRio", "Santa Cruz")`,
+    );
 
     const qWhere = queryBuilder.toSQL();
 
