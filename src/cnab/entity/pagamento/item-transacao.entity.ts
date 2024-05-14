@@ -40,7 +40,7 @@ export class ItemTransacao extends EntityHelper {
 
   /**
    * Data em que o Bigquery obteve o dado e salvou no banco deles.
-   * 
+   *
    * Como o Bigquery.dataCaptura foi removido, estamos salvando dataCaptura = dataOrdem apenas por conveniência.
    */
   @CreateDateColumn()

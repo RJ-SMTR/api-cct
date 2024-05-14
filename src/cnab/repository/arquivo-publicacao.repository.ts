@@ -6,6 +6,7 @@ import {
   InsertResult,
   Repository,
 } from 'typeorm';
+import { ArquivoPublicacaoReturnDTO } from '../dto/arquivo-publicacao-return.dto';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 
 @Injectable()
@@ -47,6 +48,45 @@ export class ArquivoPublicacaoRepository {
     await this.arquivoPublicacaoRepository.update(id, dto);
     const updated = await this.getOne({ where: { id: id } });
     return updated;
+  }
+
+  async findManyByDate(startDate: Date, endDate: Date) {
+    const result: any[] = await this.arquivoPublicacaoRepository.query(
+      `
+        SELECT
+          ap.*,
+          it.*,
+          cf.nome as favorecido,
+          da.id as "detalheAId",
+          o.message as "ocorrenciaMessage"
+        FROM arquivo_publicacao ap
+        LEFT JOIN item_transacao it on ap."itemTransacaoId" = it.id
+        LEFT JOIN cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
+        LEFT JOIN detalhe_a da on da."itemTransacaoAgrupadoId" = it.id
+        LEFT JOIN ocorrencia o on o."detalheAId" = da.id
+        WHERE it."dataOrdem" BETWEEN $1 AND $2
+        ORDER BY
+          ap.id, it.id, da.id
+      `,
+      [startDate, endDate],
+    );
+    const publicacaoDTOs: ArquivoPublicacaoReturnDTO[] = [];
+    for (const item of result) {
+      if (!publicacaoDTOs.map((i) => i.id).includes(item.id)) {
+        const ocorrencias = result
+          .filter((r) => r.id === item.id && r.ocorrenciaMessage)
+          .map((r) => r.ocorrenciaMessage);
+        const publicacao = new ArquivoPublicacaoReturnDTO({
+          ...item,
+          ocorrencias,
+        }) as any;
+        delete publicacao.clienteFavorecidoId;
+        delete publicacao.transacaoId;
+        delete publicacao.nomeOperadora;
+        publicacaoDTOs.push(publicacao);
+      }
+    }
+    return publicacaoDTOs;
   }
 
   /**

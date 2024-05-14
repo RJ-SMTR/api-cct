@@ -81,4 +81,5 @@ export class ArquivoPublicacao extends EntityHelper {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
 }

@@ -131,6 +131,13 @@ LIMIT 5
         role: new Role(RoleEnum.admin),
         status: new Status(StatusEnum.active),
       },
+      {
+        fullName: 'Admin bigquery',
+        email: 'admin_bigquery@example.com',
+        password: 'secret',
+        role: { id: RoleEnum.admin } as Role,
+        status: { id: StatusEnum.active } as Status,
+      },
 
       // Usuários lançamento financeiro
       {

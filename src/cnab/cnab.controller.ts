@@ -12,7 +12,6 @@ import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
-import { Between } from 'typeorm';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
@@ -105,17 +104,9 @@ export class CnabController {
     dt_inicio: string,
     @Query('dt_fim', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/)) dt_fim: string,
   ) {
-    return await this.arquivoPublicacaoService.findMany({
-      where: {
-        itemTransacao: {
-          dataOrdem: Between(new Date(dt_inicio + ' '), new Date(dt_fim + ' ')),
-        },
-      },
-      order: {
-        itemTransacao: {
-          dataOrdem: 'ASC',
-        },
-      },
-    });
+    return await this.arquivoPublicacaoService.findManyByDate(
+      new Date(dt_inicio + ' '),
+      new Date(dt_fim + ' '),
+    );
   }
 }
