@@ -95,8 +95,14 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     // await this.saveTransacoesLancamento1();
-    // await this.saveTransacoesJae1(); // OK
-    // await this.sendRemessa(); // OK
+    const nsa = await this.settingsService.getOneBySettingData(
+      appSettings.any__cnab_current_nsa,
+    );
+    if (nsa.value === '0') {
+      this.logger.log("Rodando CNAb para NSA 1");
+      await this.saveTransacoesJae1(); // OK
+      await this.sendRemessa(); // OK
+    }
     // await this.updateRetorno(); // OK (jaé)
     await this.saveExtrato();
     this.jobsConfig.push(
@@ -169,7 +175,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       {
         name: CrobJobsEnum.updateRetorno,
         cronJobParameters: {
-          cronTime: '0 */2 * * *', // Every 2h
+          cronTime: '*/30 * * * *', // Every 30 min
           onTick: async () => {
             await this.updateRetorno();
           },
