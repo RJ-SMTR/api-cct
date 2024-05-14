@@ -40,14 +40,20 @@ export class ArquivoPublicacaoService {
    *
    * **status** is Created.
    */
-  public generatePublicacaoDTO(
+  async generatePublicacaoDTO(
     itemTransacao: ItemTransacao,
-  ): ArquivoPublicacao {
+  ): Promise<ArquivoPublicacao> {
     let friday = new Date();
     if (isFriday(friday)) {
       friday = nextFriday(friday);
     }
+    const existing = await this.arquivoPublicacaoRepository.findOne({
+      where: {
+        itemTransacao: { id: itemTransacao.id },
+      },
+    });
     const arquivo = new ArquivoPublicacao({
+      ...(existing ? { id: existing.id } : {}),
       // Remessa
       idTransacao: asNumber(itemTransacao.transacao?.id),
       itemTransacao: { id: itemTransacao.id },

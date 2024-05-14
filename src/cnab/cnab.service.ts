@@ -10,7 +10,6 @@ import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacaoStatus } from './entity/pagamento/item-transacao-status.entity';
@@ -87,7 +86,7 @@ export class CnabService {
     await this.updateAllFavorecidosFromUsers();
 
     // 2. Fetch ordemPgto
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(7);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
     await this.saveOrdens(ordens);
 
     // Log
@@ -126,11 +125,7 @@ export class CnabService {
         favorecido,
       );
 
-      const { item: transacao } = await this.saveTransacaoIfNotExists(
-        ordem,
-        pagador,
-        transacaoAgId,
-      );
+      const transacao = await this.saveTransacao(ordem, pagador, transacaoAgId);
       await this.saveItemTransacao(ordem, favorecido, transacao);
     }
   }
@@ -183,40 +178,21 @@ export class CnabService {
     return transacaoAg.id;
   }
 
-  async saveTransacaoIfNotExists(
-    ordem: BigqueryOrdemPagamentoDTO,
-    pagador: Pagador,
-    transacaoAgId: number,
-  ): Promise<SaveIfNotExists<Transacao>> {
-    const existing = await this.transacaoService.findOne({
-      idOrdemPagamento: ordem.idOrdemPagamento,
-    });
-    if (existing) {
-      return {
-        isNewItem: false,
-        item: existing,
-      };
-    }
-    const transacao = new Transacao({
-      dataOrdem: ordem.dataOrdem,
-      dataPagamento: ordem.dataPagamento,
-      pagador: pagador,
-      idOrdemPagamento: ordem.idOrdemPagamento,
-      status: new TransacaoStatus(TransacaoStatusEnum.created),
-      transacaoAgrupado: { id: transacaoAgId },
-    });
-    return {
-      isNewItem: true,
-      item: await this.transacaoService.save(transacao),
-    };
-  }
-
+  /**
+   * Save or update Transacao.
+   *
+   * Unique id: `idOrdemPagamento`
+   */
   async saveTransacao(
     ordem: BigqueryOrdemPagamentoDTO,
     pagador: Pagador,
     transacaoAgId: number,
-  ) {
+  ): Promise<Transacao> {
+    const existing = await this.transacaoService.findOne({
+      idOrdemPagamento: ordem.idOrdemPagamento,
+    });
     const transacao = new Transacao({
+      ...(existing ? { id: existing.id } : {}),
       dataOrdem: ordem.dataOrdem,
       dataPagamento: ordem.dataPagamento,
       pagador: pagador,
@@ -269,7 +245,16 @@ export class CnabService {
     favorecido: ClienteFavorecido,
     transacao: Transacao,
   ) {
+    const existing = await this.itemTransacaoService.findOne({
+      where: {
+        transacao: { id: transacao.id },
+        idConsorcio: ordem.idConsorcio,
+        idOperadora: ordem.idOperadora,
+        idOrdemPagamento: ordem.idOrdemPagamento,
+      },
+    });
     const item = new ItemTransacao({
+      ...(existing ? { id: existing.id } : {}),
       clienteFavorecido: favorecido,
       dataCaptura: ordem.dataOrdem,
       dataOrdem: ordem.dataOrdem,
@@ -284,7 +269,7 @@ export class CnabService {
     });
     await this.itemTransacaoService.save(item);
     const publicacao =
-      this.arquivoPublicacaoService.generatePublicacaoDTO(item);
+      await this.arquivoPublicacaoService.generatePublicacaoDTO(item);
     await this.arquivoPublicacaoService.save(publicacao);
   }
 

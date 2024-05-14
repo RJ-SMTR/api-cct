@@ -112,6 +112,11 @@ export class ItemTransacaoService {
     return await this.itemTransacaoRepository.findMany(options);
   }
 
+  public async findOne(options: FindManyOptions<ItemTransacao>) {
+    const many = await this.itemTransacaoRepository.findMany(options);
+    return many.pop() || null;
+  }
+
   public async save(dto: DeepPartial<ItemTransacao>): Promise<ItemTransacao> {
     return await this.itemTransacaoRepository.save(dto);
   }

@@ -123,6 +123,7 @@ export class DetalheA extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: false })
   nsr: number;
 
+  /** `UQ_DetalheA_itemTransacaoAgrupado` */
   @OneToOne(() => ItemTransacaoAgrupado, { eager: false, nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_DetalheA_itemTransacaoAgrupado_OneToOne',
