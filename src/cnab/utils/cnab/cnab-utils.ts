@@ -250,11 +250,11 @@ function processCnabRegistros(lote: CnabLote, loteIndex: number) {
       'registroLoteSequenceField',
       loteIndex + 1,
     );
-    setCnabMappedValue(
-      lote.registros[i],
-      'detalheLoteRegistroSequenceField',
-      i + 1,
-    );
+    // setCnabMappedValue(
+    //   lote.registros[i],
+    //   'nsrField',
+    //   i + 1,
+    // );
   }
 }
 

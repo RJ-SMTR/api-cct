@@ -8,11 +8,11 @@ import {
   FindManyOptions,
   In,
   InsertResult,
-  Not,
   Repository,
   UpdateResult,
 } from 'typeorm';
 import { TransacaoStatusEnum } from '../../enums/pagamento/transacao-status.enum';
+import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 
 @Injectable()
 export class TransacaoAgrupadoRepository {
@@ -132,10 +132,13 @@ export class TransacaoAgrupadoRepository {
   /**
    * Get all transacao where id not exists in headerArquivo yet (new CNABS)
    */
-  public async findAllNewTransacao(): Promise<TransacaoAgrupado[]> {
+  public async findAllNewTransacao(
+    tipo: PagadorContaEnum,
+  ): Promise<TransacaoAgrupado[]> {
     return await this.transacaoAgRepository.find({
       where: {
-        status: { id: Not(TransacaoStatusEnum.remessaSent) },
+        status: { id: TransacaoStatusEnum.created },
+        pagador: { conta: tipo },
       },
     });
   }

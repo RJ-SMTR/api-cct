@@ -16,6 +16,10 @@ import { OcorrenciaService } from './ocorrencia.service';
 import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
+import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
+import { TransacaoService } from './pagamento/transacao.service';
+import { TransacaoStatus } from '../entity/pagamento/transacao-status.entity';
+import { TransacaoStatusEnum } from '../enums/pagamento/transacao-status.enum';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -29,6 +33,8 @@ export class ArquivoPublicacaoService {
     private headerLoteService: HeaderLoteService,
     private detalheAService: DetalheAService,
     private transacaoOcorrenciaService: OcorrenciaService,
+    private transacaoAgService: TransacaoAgrupadoService,
+    private transacaoService: TransacaoService,
   ) {}
 
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
@@ -217,6 +223,22 @@ export class ArquivoPublicacaoService {
 
         await this.arquivoPublicacaoRepository.save(publicacao);
       }
+
+      // Update Transacao status
+      await this.transacaoService.save({
+        id: transacao.id,
+        status: new TransacaoStatus(TransacaoStatusEnum.publicado),
+      });
+    }
+
+    // Update status
+    const transacaoAg =
+      detalheARetorno.headerLote.headerArquivo.transacaoAgrupado;
+    if (transacaoAg) {
+      await this.transacaoAgService.save({
+        id: transacaoAg.id,
+        status: new TransacaoStatus(TransacaoStatusEnum.publicado),
+      });
     }
   }
 }

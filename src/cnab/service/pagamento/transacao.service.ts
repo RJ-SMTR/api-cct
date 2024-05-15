@@ -13,6 +13,7 @@ import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
 import { DeepPartial, FindManyOptions, UpdateResult } from 'typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
+import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 
 @Injectable()
 export class TransacaoService {
@@ -187,7 +188,9 @@ export class TransacaoService {
   /**
    * Get all transacao where id not exists in headerArquivo yet (new CNABS)
    */
-  public async findAllNewTransacao(): Promise<Transacao[]> {
-    return await this.transacaoRepository.findAllNewTransacao();
+  public async findAllNewTransacao(
+    tipo: PagadorContaEnum,
+  ): Promise<Transacao[]> {
+    return await this.transacaoRepository.findAllNewTransacao(tipo);
   }
 }

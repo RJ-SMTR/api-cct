@@ -17,12 +17,14 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     REMESSA: '/remessa',
     RETORNO: '/retorno',
     BACKUP: '/backup',
+    BACKUP_REMESSA: '/backup/remessa',
     BACKUP_RETORNO_FAILURE: '/backup/retorno/failure',
     BACKUP_RETORNO_SUCCESS: '/backup/retorno/success',
   };
   private RECURSIVE_MKDIR: string[] = [
     '/remessa',
     '/retorno',
+    '/backup/remessa',
     '/backup/retorno/failure',
     '/backup/retorno/success',
   ];
@@ -146,7 +148,11 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     const remotePath = this.dir(
       `${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`,
     );
+    const bkpPath = this.dir(
+      `${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`,
+    );
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
+    await this.sftpClient.upload(Buffer.from(content, 'utf-8'), bkpPath);
     this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
   }
 
