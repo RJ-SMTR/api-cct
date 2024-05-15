@@ -290,7 +290,7 @@ export class ItemTransacaoService {
         transacao: {
           id: Not(transacaoDest.id),
           pagador: { id: transacaoDest.pagador.id },
-          status: { id: TransacaoStatusEnum.remessaSent },
+          status: { id: TransacaoStatusEnum.remessa },
         },
       },
     });

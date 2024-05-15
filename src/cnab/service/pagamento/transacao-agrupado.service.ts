@@ -11,6 +11,7 @@ import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { asNumber } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DeepPartial, UpdateResult } from 'typeorm';
+import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 
 @Injectable()
 export class TransacaoAgrupadoService {
@@ -96,7 +97,9 @@ export class TransacaoAgrupadoService {
   /**
    * Get all transacao where id not exists in headerArquivo yet (new CNABS)
    */
-  public async findAllNewTransacao(): Promise<TransacaoAgrupado[]> {
-    return await this.transacaoAgRepository.findAllNewTransacao();
+  public async findAllNewTransacao(
+    tipo: PagadorContaEnum,
+  ): Promise<TransacaoAgrupado[]> {
+    return await this.transacaoAgRepository.findAllNewTransacao(tipo);
   }
 }

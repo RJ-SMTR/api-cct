@@ -106,6 +106,24 @@ export const appSettings = {
     settingType: SettingTypeEnum.number,
   } as ISettingData,
 
+  any__cnab_current_nsr_sequence: {
+    name: 'cnab_current_nsr_sequence',
+    /** Starts with 0, next will be 1 */
+    value: '0',
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.number,
+  } as ISettingData,
+
+  any__cnab_current_nsr_date: {
+    name: 'cnab_current_nsr_date',
+    /** Starts with 0, next will be 1 */
+    value: '0001-01-01',
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.string,
+  } as ISettingData,
+
   // v1
 
   v1__ab_test_enabled: {

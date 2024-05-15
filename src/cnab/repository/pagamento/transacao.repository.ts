@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import {
@@ -7,13 +8,11 @@ import {
   FindManyOptions,
   In,
   InsertResult,
-  Not,
   Repository,
   UpdateResult,
 } from 'typeorm';
 import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { TransacaoStatusEnum } from '../../enums/pagamento/transacao-status.enum';
-import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 
 @Injectable()
 export class TransacaoRepository {
@@ -127,11 +126,13 @@ export class TransacaoRepository {
   /**
    * Get all transacao where id not exists in headerArquivo yet (new CNABS)
    */
-  public async findAllNewTransacao(): Promise<Transacao[]> {
+  public async findAllNewTransacao(
+    tipo: PagadorContaEnum,
+  ): Promise<Transacao[]> {
     return await this.transacaoRepository.find({
       where: {
-        status: { id: Not(TransacaoStatusEnum.remessaSent) },
-        pagador: { conta: PagadorContaEnum.CETT },
+        status: { id: TransacaoStatusEnum.created },
+        pagador: { conta: tipo },
       },
     });
   }

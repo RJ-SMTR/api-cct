@@ -60,7 +60,7 @@ export interface ICnabFieldMap {
    *
    * @example "1", "2", "3"
    */
-  detalheLoteRegistroSequenceField?: string;
+  nsrField?: string;
 
   /**
    * For Segmento Detalhe Registros

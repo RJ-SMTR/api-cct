@@ -382,9 +382,9 @@ export class CnabService {
     const METHOD = this.sendRemessa.name;
     let transacoes: Transacao[];
     if (tipo === PagadorContaEnum.CETT) {
-      transacoes = await this.transacaoService.findAllNewTransacao();
+      transacoes = await this.transacaoService.findAllNewTransacao(tipo);
     } else {
-      const transacoesAg = await this.transacaoAgService.findAllNewTransacao();
+      const transacoesAg = await this.transacaoAgService.findAllNewTransacao(tipo);
       transacoes = transacoesAg as unknown as Transacao[];
     }
 

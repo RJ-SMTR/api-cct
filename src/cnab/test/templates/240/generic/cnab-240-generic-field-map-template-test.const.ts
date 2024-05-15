@@ -5,7 +5,7 @@ const base: ICnabFieldMap = {
   registroLoteSequenceField: 'loteServico',
   trailerLoteRegistroCountField: 'quantidadeRegistrosLote',
   detalheSegmentoCodeField: 'codigoSegmento',
-  detalheLoteRegistroSequenceField: 'nsr',
+  nsrField: 'nsr',
   trailerArquivoLoteCountField: 'quantidadeLotesArquivo',
   trailerArquivoRegistroCountField: 'quantidadeRegistrosArquivo',
 };
@@ -15,7 +15,7 @@ const detalheB: ICnabFieldMap = {
   registroLoteSequenceField: 'loteServico2',
   trailerLoteRegistroCountField: 'quantidadeRegistrosLote',
   detalheSegmentoCodeField: 'codigoSegmento',
-  detalheLoteRegistroSequenceField: 'nsr',
+  nsrField: 'nsr',
   trailerArquivoLoteCountField: 'quantidadeLotesArquivo',
   trailerArquivoRegistroCountField: 'quantidadeRegistrosArquivo',
 };
