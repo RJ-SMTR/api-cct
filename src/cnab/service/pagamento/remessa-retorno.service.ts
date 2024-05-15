@@ -9,7 +9,9 @@ import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
+import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
+import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-trailer-arquivo-104.interface';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
@@ -41,10 +43,9 @@ import { HeaderArquivoService } from './header-arquivo.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
-import { TransacaoService } from './transacao.service';
-import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
-import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
+import { TransacaoService } from './transacao.service';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -562,22 +563,53 @@ export class RemessaRetornoService {
     await this.saveDetalheB(detalheB, savedDetalheA.id);
 
     // Update status
-    if (itemTransacao) {
+    if (itemTransacaoAux) {
       await this.itemTransacaoService.save({
-        id: itemTransacao.id,
+        id: itemTransacaoAux.id,
         status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.remessa),
       });
-    } else if (itemTransacaoAg) {
-      await this.itemTransacaoService.save({
+    }
+    if (itemTransacaoAg) {
+      await this.itemTransacaoAgService.save({
         id: itemTransacaoAg.id,
         status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.remessa),
       });
     }
+    await this.updateItemTransacoesStatus(
+      savedDetalheA,
+      TransacaoStatusEnum.remessa,
+      ItemTransacaoStatusEnum.remessa,
+    );
 
     return {
       detalheA: detalheA,
       detalheB: detalheB,
     };
+  }
+
+  async updateItemTransacoesStatus(
+    detalheA: DetalheA,
+    transacaoStatus: TransacaoStatusEnum,
+    itemTransacaoStatus: ItemTransacaoStatusEnum,
+  ) {
+    const transacaoAgTransacoes =
+      detalheA.headerLote.headerArquivo.transacaoAgrupado?.transacoes;
+    const transacao = detalheA.headerLote.headerArquivo.transacao;
+    const transacoes = transacaoAgTransacoes || [transacao as Transacao];
+    for (const transacao of transacoes) {
+      for (const item of transacao.itemTransacoes) {
+        // Update ItemTransacaoStatus
+        await this.itemTransacaoService.save({
+          id: item.id,
+          status: { id: itemTransacaoStatus },
+        });
+      }
+      // Update Transacao status
+      await this.transacaoService.save({
+        id: transacao.id,
+        status: { id: transacaoStatus },
+      });
+    }
   }
 
   async saveDetalheA(
@@ -617,43 +649,27 @@ export class RemessaRetornoService {
    * `false` if retorno already exists.
    */
   public async saveRetorno(cnab: CnabFile104Pgto) {
-    // Save HeaderArquivo
-    const headerArquivoRem = await this.headerArquivoService.getOne({
-      nsa: Number(cnab.headerArquivo.nsa.value),
-      tipoArquivo: HeaderArquivoTipoArquivo.Remessa,
-    });
-
-    const headerArquivoUpdated = await this.headerArquivoService.saveRetFrom104(
-      cnab,
-      headerArquivoRem,
-    );
-
     for (const cnabLote of cnab.lotes) {
-      // Save HeaderLote
-      const headerLoteSave = await this.headerLoteService.saveFrom104(
-        cnabLote,
-        headerArquivoUpdated,
-      );
-
       for (const registro of cnabLote.registros) {
         // Save Detalhes
         const detalheAUpdated = await this.detalheAService.saveRetornoFrom104(
           registro,
-          headerLoteSave.item,
         );
         if (!detalheAUpdated) {
           continue;
         }
         await this.detalheBService.saveFrom104(registro, detalheAUpdated);
+
+        /**
+         * Atualizar status - Assumimos que todos os Detalhes em HeaderArquivo são salvos de uma vez.
+         */
+        await this.headerArquivoService.save({
+          id: detalheAUpdated.headerLote.headerArquivo.id,
+          status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
+        });
       }
     }
 
-    // Update status
-    const headerArquivoRetUpdated = await this.headerArquivoService.save({
-      id: headerArquivoUpdated.id,
-      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
-    });
-
-    headerArquivoRetUpdated;
+    // headerArquivoRetUpdated;
   }
 }

@@ -106,7 +106,6 @@ export class CnabService {
     // 3. Save Transacao / ItemTransacao
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
     for (const ordem of ordens) {
-      console.log('ORD => ' + JSON.stringify(ordem));
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
 
       if (!cpfCnpj) {

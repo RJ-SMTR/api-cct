@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
@@ -33,7 +32,6 @@ export class DetalheAService {
 
   public async saveRetornoFrom104(
     registro: CnabRegistros104Pgto,
-    headerLoteUpdated: HeaderLote,
   ): Promise<DetalheA | null> {
     const r = registro;
     const favorecido = await this.clienteFavorecidoService.findOne({
@@ -43,12 +41,12 @@ export class DetalheAService {
       return null;
     }
     const detalheARem = await this.detalheARepository.getOne({
-      headerLote: { id: headerLoteUpdated.id },
+      dataVencimento: registro.detalheA.dataVencimento.convertedValue,
       nsr: r.detalheA.nsr.convertedValue,
     });
     const detalheA = new DetalheADTO({
-      id: detalheARem?.id,
-      headerLote: { id: headerLoteUpdated.id },
+      id: detalheARem.id,
+      headerLote: { id: detalheARem.id },
       loteServico: Number(r.detalheA.loteServico.value),
       clienteFavorecido: { id: favorecido.id },
       finalidadeDOC: r.detalheA.finalidadeDOC.value,

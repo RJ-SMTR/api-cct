@@ -5,21 +5,22 @@ import { DeepPartial, FindManyOptions } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { HeaderArquivoStatus } from '../entity/pagamento/header-arquivo-status.entity';
-import { HeaderArquivo } from '../entity/pagamento/header-arquivo.entity';
 import { HeaderLote } from '../entity/pagamento/header-lote.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
+import { TransacaoStatus } from '../entity/pagamento/transacao-status.entity';
 import { Transacao } from '../entity/pagamento/transacao.entity';
 import { HeaderArquivoStatusEnum } from '../enums/pagamento/header-arquivo-status.enum';
+import { ItemTransacaoStatusEnum } from '../enums/pagamento/item-transacao-status.enum';
+import { TransacaoStatusEnum } from '../enums/pagamento/transacao-status.enum';
 import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.repository';
 import { OcorrenciaService } from './ocorrencia.service';
 import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
+import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
 import { TransacaoService } from './pagamento/transacao.service';
-import { TransacaoStatus } from '../entity/pagamento/transacao-status.entity';
-import { TransacaoStatusEnum } from '../enums/pagamento/transacao-status.enum';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -35,6 +36,7 @@ export class ArquivoPublicacaoService {
     private transacaoOcorrenciaService: OcorrenciaService,
     private transacaoAgService: TransacaoAgrupadoService,
     private transacaoService: TransacaoService,
+    private itemTransacaoService: ItemTransacaoService,
   ) {}
 
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
@@ -128,9 +130,15 @@ export class ArquivoPublicacaoService {
         for (const detalheA of detalhesA) {
           // Save retorno and update Transacao, Publicacao
           await this.salvaOcorrenciasDetalheA(detalheA);
-          await this.savePublicacaoRetorno(headerArquivo, detalheA);
+          await this.savePublicacaoRetorno(detalheA);
         }
       }
+
+      // Update HeaderArquivo Status
+      await this.headerArquivoService.save({
+        id: headerArquivo.id,
+        status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.publicado),
+      });
     }
   }
 
@@ -171,30 +179,9 @@ export class ArquivoPublicacaoService {
   }
 
   /**
-   * This task will:
-   * - Save new item from Pagamento.
-   * - Then update status.
-   *
-   * Each ArqPublicacao represents 1 unique ItemTransacao (detalhe A)
-   *
-   */
-  private async savePublicacaoRetorno(
-    headerArquivo: HeaderArquivo,
-    detalheA: DetalheA,
-  ) {
-    await this.updatePublicacoesFromDetalheARet(detalheA);
-
-    // Update status
-    await this.headerArquivoService.save({
-      id: headerArquivo.id,
-      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.publicado),
-    });
-  }
-
-  /**
    * Atualizar publicacoes de retorno
    */
-  async updatePublicacoesFromDetalheARet(detalheARetorno: DetalheA) {
+  async savePublicacaoRetorno(detalheARetorno: DetalheA) {
     const transacaoAgTransacoes =
       detalheARetorno.headerLote.headerArquivo.transacaoAgrupado?.transacoes;
     const transacao = detalheARetorno.headerLote.headerArquivo.transacao;
@@ -222,6 +209,12 @@ export class ArquivoPublicacaoService {
           detalheARetorno.headerLote.headerArquivo.horaGeracao;
 
         await this.arquivoPublicacaoRepository.save(publicacao);
+
+        // Update ItemTransacaoStatus
+        await this.itemTransacaoService.save({
+          id: publicacao.itemTransacao.id,
+          status: { id: ItemTransacaoStatusEnum.publicado },
+        });
       }
 
       // Update Transacao status
