@@ -8,6 +8,8 @@ import { SftpBackupFolder } from './enums/sftp-backup-folder.enum';
 import { ConnectConfig } from './interfaces/connect-config.interface';
 import { SftpClientService } from './sftp-client/sftp-client.service';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { SettingsService } from 'src/settings/settings.service';
+import { appSettings } from 'src/settings/app.settings';
 
 @Injectable()
 export class SftpService implements OnModuleInit, OnModuleLoad {
@@ -40,6 +42,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly sftpClient: SftpClientService,
+    private readonly settingsService: SettingsService,
   ) {
     this.logger = new CustomLogger(SftpService.name, { timestamp: true });
   }
@@ -51,9 +54,16 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   }
 
   async onModuleLoad() {
-    this.rootFolder = await this.configService.getOrThrow('sftp.rootFolder', {
-      infer: true,
-    });
+    const apiEnv = await this.settingsService.getOneBySettingData(
+      appSettings.any__api_env,
+    );
+    if (apiEnv.getValueAsString() === 'stag') {
+      this.rootFolder = '/backup/stag';
+    } else if (apiEnv.getValueAsString() === 'local') {
+      this.rootFolder = await this.configService.getOrThrow('sftp.rootFolder', {
+        infer: true,
+      });
+    }
     await this.createMainFolders();
   }
 

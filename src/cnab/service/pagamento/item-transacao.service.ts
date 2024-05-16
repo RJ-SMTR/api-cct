@@ -65,15 +65,12 @@ export class ItemTransacaoService {
     favorecido: ClienteFavorecido,
   ): ItemTransacao {
     const transacao = asObject<Transacao>(lancamento.transacao);
+    /** detalheA = null, isRegistered = false */
     const itemTransacao = new ItemTransacao({
       clienteFavorecido: { id: favorecido.id },
       transacao: { id: transacao.id },
       valor: lancamento.valor_a_pagar,
-      // Composite unique column
-      dataLancamento: lancamento.data_lancamento,
-      // Control columns
       dataOrdem: lancamento.data_ordem,
-      // detalheA = null, isRegistered = false
       status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
     });
     return itemTransacao;
@@ -140,57 +137,6 @@ export class ItemTransacaoService {
         ],
         [],
       ),
-    });
-    const existingMap: Record<string, ItemTransacao> = existing.reduce(
-      (m, i) => ({ ...m, [ItemTransacao.getUniqueIdJae(i)]: i }),
-      {},
-    );
-
-    // Check
-    if (existing.length === dtos.length) {
-      this.logger.warn(
-        `${existing.length}/${dtos.length} ItemTransacoes já existem, nada a fazer...`,
-      );
-    } else if (existing.length) {
-      this.logger.warn(
-        `${existing.length}/${dtos.length} ItemTransacoes já existem, ignorando...`,
-      );
-      return [];
-    }
-
-    // Save new
-    const newItems = dtos.filter(
-      (i) => !existingMap[ItemTransacao.getUniqueIdJae(i)],
-    );
-    const insert = await this.itemTransacaoRepository.insert(newItems);
-
-    // Return saved
-    const insertIds = (insert.identifiers as { id: number }[]).reduce(
-      (l, i) => [...l, i.id],
-      [],
-    );
-    const savedItems = await this.itemTransacaoRepository.findMany({
-      where: { id: In(insertIds) },
-    });
-    return savedItems;
-  }
-
-  /**
-   * Save if composite unique columns not exist. Otherwise, update.
-   */
-  public async saveManyIfNotExistsLancamento(
-    dtos: DeepPartial<ItemTransacao>[],
-  ): Promise<ItemTransacao[]> {
-    // Existing
-    const dataLancamentos = (dtos as ItemTransacao[]).reduce(
-      (l, i) => [...l, ...(i.dataLancamento ? [i.dataLancamento] : [])],
-      [],
-    );
-    if (dataLancamentos.length === 0) {
-      return [];
-    }
-    const existing = await this.itemTransacaoRepository.findMany({
-      where: { dataLancamento: In(dataLancamentos) },
     });
     const existingMap: Record<string, ItemTransacao> = existing.reduce(
       (m, i) => ({ ...m, [ItemTransacao.getUniqueIdJae(i)]: i }),

@@ -1,14 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { isSameDay, startOfDay } from 'date-fns';
+import { isSameDay, nextFriday, nextThursday, startOfDay } from 'date-fns';
 import { DetalheADTO } from 'src/cnab/dto/pagamento/detalhe-a.dto';
 import { HeaderLoteDTO } from 'src/cnab/dto/pagamento/header-lote.dto';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
-import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-trailer-arquivo-104.interface';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
@@ -199,7 +197,6 @@ export class RemessaRetornoService {
       dataEfetivacao: getCnabFieldConverted(detalheA.dataEfetivacao),
       headerLote: { id: headerLoteId },
       itemTransacaoAgrupado: itemTransacaoAg,
-      itemTransacao: itemTransacao,
       clienteFavorecido: { id: favorecidoId },
     });
   }
@@ -498,6 +495,10 @@ export class RemessaRetornoService {
     let nsr = await this.getNextNSR();
     const itemTransacaoAux = (itemTransacao ||
       itemTransacaoAg) as ItemTransacao;
+    const fridayOrdem =
+      itemTransacao
+        ? nextFriday(nextThursday(startOfDay(itemTransacaoAux.dataOrdem)))
+        : itemTransacaoAux.dataOrdem;
     const detalheA: CnabDetalheA_104 = sc(PgtoRegistros.detalheA);
     detalheA.codigoBancoDestino.value = favorecido.codigoBanco;
     detalheA.codigoAgenciaDestino.value = favorecido.agencia;
@@ -506,7 +507,7 @@ export class RemessaRetornoService {
     detalheA.dvContaDestino.value = favorecido.dvContaCorrente;
     detalheA.nomeTerceiro.value = favorecido.nome;
     detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
-    detalheA.dataVencimento.value = itemTransacaoAux.dataProcessamento;
+    detalheA.dataVencimento.value = fridayOrdem;
     // indicadorFormaParcelamento = DataFixa
     detalheA.valorLancamento.value = itemTransacaoAux.valor;
     detalheA.nsr.value = String(nsr);
@@ -614,14 +615,6 @@ export class RemessaRetornoService {
           continue;
         }
         await this.detalheBService.saveFrom104(registro, detalheAUpdated);
-
-        /**
-         * Atualizar status - Assumimos que todos os Detalhes em HeaderArquivo são salvos de uma vez.
-         */
-        await this.headerArquivoService.save({
-          id: detalheAUpdated.headerLote.headerArquivo.id,
-          status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
-        });
       }
     }
 

@@ -9,7 +9,6 @@ import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
 import { TransacaoAgrupado } from '../entity/pagamento/transacao-agrupado.entity';
 import { TransacaoStatus } from '../entity/pagamento/transacao-status.entity';
-import { Transacao } from '../entity/pagamento/transacao.entity';
 import { ItemTransacaoStatusEnum } from '../enums/pagamento/item-transacao-status.enum';
 import { TransacaoStatusEnum } from '../enums/pagamento/transacao-status.enum';
 import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.repository';
@@ -20,6 +19,7 @@ import { HeaderLoteService } from './pagamento/header-lote.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
 import { TransacaoService } from './pagamento/transacao.service';
+import { ItemTransacaoAgrupadoService } from './pagamento/item-transacao-agrupado.service';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -36,6 +36,7 @@ export class ArquivoPublicacaoService {
     private transacaoAgService: TransacaoAgrupadoService,
     private transacaoService: TransacaoService,
     private itemTransacaoService: ItemTransacaoService,
+    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
   ) {}
 
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
@@ -101,7 +102,7 @@ export class ArquivoPublicacaoService {
     const headerArquivos = await this.headerArquivoService.findRetornos();
     if (!headerArquivos.length) {
       this.logger.log(
-        'Não há novas remessas para atualizar ArquivoPublicacao, ignorando sub-rotina...',
+        'Não há novas retornos para atualizar ArquivoPublicacao, ignorando sub-rotina...',
         METHOD,
       );
     }
@@ -131,10 +132,14 @@ export class ArquivoPublicacaoService {
           // Save retorno and update Transacao, Publicacao
           await this.salvaOcorrenciasDetalheA(detalheA);
 
-          if (auxiliarTransacaoAgrupado !== detalheA.headerLote.headerArquivo.transacaoAgrupado) {
+          if (
+            auxiliarTransacaoAgrupado !==
+            detalheA.headerLote.headerArquivo.transacaoAgrupado
+          ) {
             await this.savePublicacaoRetorno(detalheA);
           }
-          auxiliarTransacaoAgrupado = detalheA.headerLote.headerArquivo.transacaoAgrupado;
+          auxiliarTransacaoAgrupado =
+            detalheA.headerLote.headerArquivo.transacaoAgrupado;
         }
       }
 
@@ -185,44 +190,44 @@ export class ArquivoPublicacaoService {
    * Atualizar publicacoes de retorno
    */
   async savePublicacaoRetorno(detalheARetorno: DetalheA) {
-    const transacaoAgTransacoes =
-      detalheARetorno.headerLote.headerArquivo.transacaoAgrupado?.transacoes;
-    const transacao = detalheARetorno.headerLote.headerArquivo?.transacao;
-    const transacoes = transacaoAgTransacoes || [transacao as Transacao];
-    for (const transacao of transacoes) {
-      for (const item of transacao.itemTransacoes) {
-        const publicacao = await this.arquivoPublicacaoRepository.getOne({
-          where: {
-            itemTransacao: {
-              id: item.id,
-            },
-            idTransacao: transacao.id,
+    const itens = await this.itemTransacaoService.findMany({
+      where: {
+        itemTransacaoAgrupado: {
+          id: detalheARetorno.itemTransacaoAgrupado.id,
+        },
+      },
+    });
+    for (const item of itens) {
+      const publicacao = await this.arquivoPublicacaoRepository.getOne({
+        where: {
+          itemTransacao: {
+            id: item.id,
           },
-        });
-        publicacao.isPago =
-          detalheARetorno.ocorrenciasCnab?.trim() === '00' ||
-          detalheARetorno.ocorrenciasCnab?.trim() === 'BD';
-        if (publicacao.isPago) {
-          publicacao.valorRealEfetivado = publicacao.itemTransacao.valor;
-          publicacao.dataEfetivacao = detalheARetorno.dataEfetivacao;
-        }
-        publicacao.dataGeracaoRetorno =
-          detalheARetorno.headerLote.headerArquivo.dataGeracao;
-        publicacao.horaGeracaoRetorno =
-          detalheARetorno.headerLote.headerArquivo.horaGeracao;
-
-        await this.arquivoPublicacaoRepository.save(publicacao);
-
-        // Update ItemTransacaoStatus
-        await this.itemTransacaoService.save({
-          id: publicacao.itemTransacao.id,
-          status: { id: ItemTransacaoStatusEnum.publicado },
-        });
+        },
+      });
+      publicacao.isPago =
+        detalheARetorno.ocorrenciasCnab?.trim() === '00' ||
+        detalheARetorno.ocorrenciasCnab?.trim() === 'BD';
+      if (publicacao.isPago) {
+        publicacao.valorRealEfetivado = publicacao.itemTransacao.valor;
+        publicacao.dataEfetivacao = detalheARetorno.dataEfetivacao;
       }
+      publicacao.dataGeracaoRetorno =
+        detalheARetorno.headerLote.headerArquivo.dataGeracao;
+      publicacao.horaGeracaoRetorno =
+        detalheARetorno.headerLote.headerArquivo.horaGeracao;
+
+      await this.arquivoPublicacaoRepository.save(publicacao);
+
+      // Update ItemTransacaoStatus
+      await this.itemTransacaoService.save({
+        id: publicacao.itemTransacao.id,
+        status: { id: ItemTransacaoStatusEnum.retorno },
+      });
 
       // Update Transacao status
       await this.transacaoService.save({
-        id: transacao.id,
+        id: publicacao.idTransacao,
         status: new TransacaoStatus(TransacaoStatusEnum.retorno),
       });
     }

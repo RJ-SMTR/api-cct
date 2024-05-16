@@ -124,6 +124,14 @@ export const appSettings = {
     settingType: SettingTypeEnum.string,
   } as ISettingData,
 
+  any__api_env: {
+    name: 'api_env',
+    value: 'dev',
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.string,
+  } as ISettingData,
+
   // v1
 
   v1__ab_test_enabled: {

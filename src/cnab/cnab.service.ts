@@ -167,7 +167,7 @@ export class CnabService {
     }
 
     const transacao = await this.saveTransacao(ordem, pagador, transacaoAg.id);
-    await this.saveItemTransacao(ordem, favorecido, transacao);
+    await this.saveItemTransacao(ordem, favorecido, transacao, itemAg);
   }
 
   /**
@@ -227,7 +227,6 @@ export class CnabService {
       valor: ordem.valorTotalTransacaoLiquido,
       transacaoAgrupado: transacaoAg,
       status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
-      dataLancamento: fridayOrdem,
     });
     return item;
   }
@@ -236,7 +235,7 @@ export class CnabService {
     ordem: BigqueryOrdemPagamentoDTO,
     favorecido: ClienteFavorecido,
     transacao: Transacao,
-    // itemTransacaoAg: ItemTransacaoAgrupado,
+    itemTransacaoAg: ItemTransacaoAgrupado,
   ) {
     const existing = await this.itemTransacaoService.findOne({
       where: {
@@ -259,7 +258,7 @@ export class CnabService {
       valor: ordem.valorTotalTransacaoLiquido,
       transacao: transacao,
       status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
-      // itemTransacaoAgrupado: { id: itemTransacaoAg.id },
+      itemTransacaoAgrupado: { id: itemTransacaoAg.id },
     });
     await this.itemTransacaoService.save(item);
     const publicacao =

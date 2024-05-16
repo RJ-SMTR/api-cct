@@ -105,10 +105,10 @@ export class HeaderArquivoService {
     return this.headerArquivoRepository.findMany({
       where: [
         {
-          transacao: { status: { id: TransacaoStatusEnum.retorno } },
+          transacao: { status: { id: TransacaoStatusEnum.remessa } },
         },
         {
-          transacaoAgrupado: { status: { id: TransacaoStatusEnum.retorno } },
+          transacaoAgrupado: { status: { id: TransacaoStatusEnum.remessa } },
         },
       ],
     });

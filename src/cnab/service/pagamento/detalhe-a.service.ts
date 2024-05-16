@@ -41,8 +41,11 @@ export class DetalheAService {
     if (!favorecido) {
       return null;
     }
+    const dataVencimento = startOfDay(
+      registro.detalheA.dataVencimento.convertedValue,
+    );
     const detalheARem = await this.detalheARepository.getOne({
-      dataVencimento: startOfDay(registro.detalheA.dataVencimento.convertedValue),
+      dataVencimento: dataVencimento,
       nsr: r.detalheA.nsr.convertedValue,
     });
     const detalheA = new DetalheADTO({
@@ -71,6 +74,8 @@ export class DetalheAService {
       ocorrenciasCnab: r.detalheA.ocorrencias.value,
     });
     return await this.detalheARepository.save(detalheA);
+
+    // Update Transacao status
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
