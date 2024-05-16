@@ -1,15 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { isSameDay } from 'date-fns';
+import { isSameDay, nextFriday, nextThursday, startOfDay } from 'date-fns';
 import { DetalheADTO } from 'src/cnab/dto/pagamento/detalhe-a.dto';
 import { HeaderLoteDTO } from 'src/cnab/dto/pagamento/header-lote.dto';
-import { ItemTransacaoDTO } from 'src/cnab/dto/pagamento/item-transacao.dto';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
-import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
-import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
+import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
+import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-trailer-arquivo-104.interface';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
@@ -41,10 +39,8 @@ import { HeaderArquivoService } from './header-arquivo.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
-import { TransacaoService } from './transacao.service';
-import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
-import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
+import { TransacaoService } from './transacao.service';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -70,54 +66,13 @@ export class RemessaRetornoService {
   // #region saveRemessa
 
   /**
-   * It will not contain `headerLote` field. You must add it later.
-   */
-  public getRemessaItemDetalheADTO(
-    detalhes: CnabRemessaDetalhe,
-    headerLote?: DeepPartial<HeaderLote>,
-  ) {
-    const r = detalhes.registroAB;
-    const itemTransacao = detalhes.itemTransacao;
-    const favorecido = itemTransacao.clienteFavorecido;
-
-    const itemDetalheA = new ItemTransacaoDTO({
-      id: itemTransacao.id,
-      // DetalheA
-      detalheA: {
-        headerLote: headerLote || { id: -1 },
-        clienteFavorecido: { id: favorecido.id },
-        loteServico: r.detalheA.loteServico.convertedValue,
-        finalidadeDOC: r.detalheA.finalidadeDOC.stringValue,
-        numeroDocumentoEmpresa:
-          r.detalheA.numeroDocumentoEmpresa.convertedValue,
-        dataVencimento: r.detalheA.dataVencimento.convertedValue,
-        tipoMoeda: r.detalheA.tipoMoeda.stringValue,
-        quantidadeMoeda: r.detalheA.quantidadeMoeda.convertedValue,
-        valorLancamento: r.detalheA.valorLancamento.convertedValue,
-        numeroDocumentoBanco: r.detalheA.numeroDocumentoBanco.stringValue,
-        quantidadeParcelas: r.detalheA.quantidadeParcelas.convertedValue,
-        indicadorBloqueio: r.detalheA.indicadorBloqueio.stringValue,
-        indicadorFormaParcelamento:
-          r.detalheA.indicadorFormaParcelamento.stringValue,
-        periodoVencimento: itemTransacao.dataProcessamento,
-        numeroParcela: r.detalheA.numeroParcela.convertedValue,
-        dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
-        valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
-        nsr: Number(r.detalheA.nsr.stringValue),
-        ocorrenciasCnab: null,
-      },
-    }) as ItemTransacao | ItemTransacaoAgrupado;
-    return itemDetalheA;
-  }
-
-  /**
    * It will not contain `detalheA` field. You must add it later.
    */
   public getRemessaDetalheBDTO(detalhe: CnabRemessaDetalhe) {
     const itemTransacao = detalhe.itemTransacao;
     const r = detalhe.registroAB;
     const detalheB = new DetalheBDTO({
-      dataVencimento: asDate(itemTransacao.dataProcessamento),
+      dataVencimento: startOfDay(asDate(itemTransacao.dataProcessamento)),
       nsr: Number(r.detalheB.nsr.value),
     });
     return detalheB;
@@ -221,7 +176,9 @@ export class RemessaRetornoService {
       ...(existing ? { id: existing.id } : {}),
       nsr: Number(detalheA.nsr.value),
       ocorrenciasCnab: detalheA.ocorrencias.value.trim(),
-      dataVencimento: getCnabFieldConverted(detalheA.dataVencimento),
+      dataVencimento: startOfDay(
+        getCnabFieldConverted(detalheA.dataVencimento),
+      ),
       tipoMoeda: detalheA.tipoMoeda.value,
       finalidadeDOC: detalheA.finalidadeDOC.value,
       indicadorBloqueio: detalheA.indicadorBloqueio.value,
@@ -231,7 +188,7 @@ export class RemessaRetornoService {
       quantidadeMoeda: Number(detalheA.quantidadeMoeda.value),
       valorLancamento: getCnabFieldConverted(detalheA.valorLancamento),
       valorRealEfetivado: getCnabFieldConverted(detalheA.valorRealEfetivado),
-      periodoVencimento: detalheA.dataVencimento.convertedValue,
+      periodoVencimento: startOfDay(detalheA.dataVencimento.convertedValue),
       loteServico: getCnabFieldConverted(detalheA.loteServico),
       indicadorFormaParcelamento: getCnabFieldConverted(
         detalheA.indicadorFormaParcelamento,
@@ -240,7 +197,6 @@ export class RemessaRetornoService {
       dataEfetivacao: getCnabFieldConverted(detalheA.dataEfetivacao),
       headerLote: { id: headerLoteId },
       itemTransacaoAgrupado: itemTransacaoAg,
-      itemTransacao: itemTransacao,
       clienteFavorecido: { id: favorecidoId },
     });
   }
@@ -256,7 +212,9 @@ export class RemessaRetornoService {
       ...(existing ? { id: existing.id } : {}),
       nsr: detalheB.nsr.value,
       detalheA: { id: detalheAId },
-      dataVencimento: getCnabFieldConverted(detalheB.dataVencimento),
+      dataVencimento: startOfDay(
+        getCnabFieldConverted(detalheB.dataVencimento),
+      ),
     });
   }
 
@@ -331,7 +289,24 @@ export class RemessaRetornoService {
       if (detalhe) {
         detalhes.push(detalhe);
 
-        // Save Detalhes
+        // Update status
+        if (itemTransacaoAux) {
+          await this.itemTransacaoService.save({
+            id: itemTransacaoAux.id,
+            status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.remessa),
+          });
+        }
+        if (itemTransacaoAgAux) {
+          await this.itemTransacaoAgService.save({
+            id: itemTransacaoAgAux.id,
+            status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.remessa),
+          });
+          await this.updateTransacoesStatus(
+            itemTransacaoAgAux.transacaoAgrupado.transacoes,
+            TransacaoStatusEnum.remessa,
+            ItemTransacaoStatusEnum.remessa,
+          );
+        }
       }
       numeroDocumento++;
     }
@@ -520,6 +495,10 @@ export class RemessaRetornoService {
     let nsr = await this.getNextNSR();
     const itemTransacaoAux = (itemTransacao ||
       itemTransacaoAg) as ItemTransacao;
+    const fridayOrdem =
+      itemTransacao
+        ? nextFriday(nextThursday(startOfDay(itemTransacaoAux.dataOrdem)))
+        : itemTransacaoAux.dataOrdem;
     const detalheA: CnabDetalheA_104 = sc(PgtoRegistros.detalheA);
     detalheA.codigoBancoDestino.value = favorecido.codigoBanco;
     detalheA.codigoAgenciaDestino.value = favorecido.agencia;
@@ -528,7 +507,7 @@ export class RemessaRetornoService {
     detalheA.dvContaDestino.value = favorecido.dvContaCorrente;
     detalheA.nomeTerceiro.value = favorecido.nome;
     detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
-    detalheA.dataVencimento.value = itemTransacaoAux.dataProcessamento;
+    detalheA.dataVencimento.value = fridayOrdem;
     // indicadorFormaParcelamento = DataFixa
     detalheA.valorLancamento.value = itemTransacaoAux.valor;
     detalheA.nsr.value = String(nsr);
@@ -561,23 +540,31 @@ export class RemessaRetornoService {
 
     await this.saveDetalheB(detalheB, savedDetalheA.id);
 
-    // Update status
-    if (itemTransacao) {
-      await this.itemTransacaoService.save({
-        id: itemTransacao.id,
-        status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.remessa),
-      });
-    } else if (itemTransacaoAg) {
-      await this.itemTransacaoService.save({
-        id: itemTransacaoAg.id,
-        status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.remessa),
-      });
-    }
-
     return {
       detalheA: detalheA,
       detalheB: detalheB,
     };
+  }
+
+  async updateTransacoesStatus(
+    transacoes: Transacao[],
+    transacaoStatus: TransacaoStatusEnum,
+    itemTransacaoStatus: ItemTransacaoStatusEnum,
+  ) {
+    for (const transacao of transacoes) {
+      for (const item of transacao.itemTransacoes) {
+        // Update ItemTransacaoStatus
+        await this.itemTransacaoService.save({
+          id: item.id,
+          status: { id: itemTransacaoStatus },
+        });
+      }
+      // Update Transacao status
+      await this.transacaoService.save({
+        id: transacao.id,
+        status: { id: transacaoStatus },
+      });
+    }
   }
 
   async saveDetalheA(
@@ -592,7 +579,8 @@ export class RemessaRetornoService {
       itemTransacao,
       itemTransacaoAg,
     );
-    return await this.detalheAService.save(detalheADTO);
+    const saved = await this.detalheAService.save(detalheADTO);
+    return await this.detalheAService.getOne({ id: saved.id });
   }
 
   async saveDetalheB(detalheB104: CnabDetalheB_104, savedDetalheAId: number) {
@@ -617,29 +605,11 @@ export class RemessaRetornoService {
    * `false` if retorno already exists.
    */
   public async saveRetorno(cnab: CnabFile104Pgto) {
-    // Save HeaderArquivo
-    const headerArquivoRem = await this.headerArquivoService.getOne({
-      nsa: Number(cnab.headerArquivo.nsa.value),
-      tipoArquivo: HeaderArquivoTipoArquivo.Remessa,
-    });
-
-    const headerArquivoUpdated = await this.headerArquivoService.saveRetFrom104(
-      cnab,
-      headerArquivoRem,
-    );
-
     for (const cnabLote of cnab.lotes) {
-      // Save HeaderLote
-      const headerLoteSave = await this.headerLoteService.saveFrom104(
-        cnabLote,
-        headerArquivoUpdated,
-      );
-
       for (const registro of cnabLote.registros) {
         // Save Detalhes
         const detalheAUpdated = await this.detalheAService.saveRetornoFrom104(
           registro,
-          headerLoteSave.item,
         );
         if (!detalheAUpdated) {
           continue;
@@ -648,12 +618,6 @@ export class RemessaRetornoService {
       }
     }
 
-    // Update status
-    const headerArquivoRetUpdated = await this.headerArquivoService.save({
-      id: headerArquivoUpdated.id,
-      status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
-    });
-
-    headerArquivoRetUpdated;
+    // headerArquivoRetUpdated;
   }
 }

@@ -206,9 +206,11 @@ export class BigqueryOrdemPagamentoRepository {
     // valor        null
     // valor        valor
     // queryBuilder.pushAND(`o.documento IN ('463572889', '463416372')`);
-    queryBuilder.pushAND(
-      `t.consorcio IN ("VLT", "Internorte", "MobiRio", "Santa Cruz")`,
-    );
+
+    // WIP: Permitir todos os consórcios - 16/05/2024
+    // queryBuilder.pushAND(
+    //   `t.consorcio IN ("VLT", "Internorte", "MobiRio", "Santa Cruz")`,
+    // );
 
     const qWhere = queryBuilder.toSQL();
 

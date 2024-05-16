@@ -87,11 +87,7 @@ export class ItemTransacaoAgrupado extends EntityHelper {
 
   // Unique columns Lancamento
 
-  /** Data em que será feito o pagamento (sexta). */
-  @Column({ type: Date, unique: false, nullable: true })
-  dataLancamento: Date | null;
-
-  /** DataOrdem from bigquery */
+  /** Data em que será feito o apgamento. (também vem do bigquery) */
   @Column({ type: Date, unique: false, nullable: false })
   dataOrdem: Date;
 
@@ -115,17 +111,6 @@ export class ItemTransacaoAgrupado extends EntityHelper {
     entity: DeepPartial<ItemTransacaoAgrupado>,
   ): string {
     return `${entity.idOrdemPagamento}|${entity.idConsorcio}|${entity.idOperadora}`;
-  }
-
-  public static getUniqueIdLancamento(
-    entity: DeepPartial<ItemTransacaoAgrupado>,
-  ): string {
-    const dataLancamento = entity.dataLancamento;
-    if (dataLancamento === null || dataLancamento === undefined) {
-      return String(dataLancamento);
-    } else {
-      return (dataLancamento as Date).toISOString();
-    }
   }
 
   @AfterLoad()

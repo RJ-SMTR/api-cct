@@ -2,10 +2,12 @@ import { DynamicModule, Module } from '@nestjs/common';
 import * as SftpClient from 'ssh2-sftp-client';
 import { SftpClientService } from './sftp-client/sftp-client.service';
 
+import { SettingsModule } from 'src/settings/settings.module';
 import { ConnectConfig } from './interfaces/connect-config.interface';
 import { SftpService } from './sftp.service';
 
 @Module({
+  imports: [SettingsModule],
   providers: [SftpClientService, SftpService],
   exports: [SftpClientService, SftpService],
 })

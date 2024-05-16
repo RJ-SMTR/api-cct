@@ -1,10 +1,9 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
+import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { DeepPartial } from 'typeorm';
 import { ClienteFavorecido } from '../../entity/cliente-favorecido.entity';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
-import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
-import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
-import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 
 function isCreate(object: DetalheADTO): boolean {
   return object.id === undefined;
@@ -92,7 +91,5 @@ export class DetalheADTO {
   @IsNotEmpty()
   nsr?: number;
 
-  itemTransacaoAgrupado?: ItemTransacaoAgrupado | null;
-
-  itemTransacao?: ItemTransacao | null;
+  itemTransacaoAgrupado?: ItemTransacaoAgrupado;
 }

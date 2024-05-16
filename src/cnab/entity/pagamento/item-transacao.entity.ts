@@ -14,6 +14,7 @@ import {
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { ItemTransacaoStatus } from './item-transacao-status.entity';
 import { Transacao } from './transacao.entity';
+import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 
 @Entity()
 export class ItemTransacao extends EntityHelper {
@@ -34,6 +35,15 @@ export class ItemTransacao extends EntityHelper {
     foreignKeyConstraintName: 'FK_ItemTransacao_transacao_ManyToOne',
   })
   transacao: Transacao;
+
+  @ManyToOne(() => ItemTransacaoAgrupado, {
+    eager: false,
+  })
+  @JoinColumn({
+    foreignKeyConstraintName:
+      'FK_ItemTransacao_itemTransacaoAgrupado_ManyToOne',
+  })
+  itemTransacaoAgrupado: ItemTransacaoAgrupado;
 
   @CreateDateColumn()
   dataProcessamento: Date;
@@ -88,10 +98,6 @@ export class ItemTransacao extends EntityHelper {
 
   // Unique columns Lancamento
 
-  /** Lancamento.data_lancamento */
-  @Column({ type: Date, unique: false, nullable: true })
-  dataLancamento: Date | null;
-
   /** DataOrdem from bigquery */
   @Column({ type: Date, unique: false, nullable: false })
   dataOrdem: Date;
@@ -112,17 +118,6 @@ export class ItemTransacao extends EntityHelper {
 
   public static getUniqueIdJae(entity: DeepPartial<ItemTransacao>): string {
     return `${entity.idOrdemPagamento}|${entity.idConsorcio}|${entity.idOperadora}`;
-  }
-
-  public static getUniqueIdLancamento(
-    entity: DeepPartial<ItemTransacao>,
-  ): string {
-    const dataLancamento = entity.dataLancamento;
-    if (dataLancamento === null || dataLancamento === undefined) {
-      return String(dataLancamento);
-    } else {
-      return (dataLancamento as Date).toISOString();
-    }
   }
 
   @AfterLoad()
