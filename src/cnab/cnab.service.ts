@@ -452,6 +452,8 @@ export class CnabService {
       const retorno104 = parseCnab240Pagamento(cnabString);
       await this.remessaRetornoService.saveRetorno(retorno104);
       await this.arqPublicacaoService.compareRemessaToRetorno();
+
+      // Success
       await this.sftpService.moveToBackup(
         cnabName,
         SftpBackupFolder.RetornoSuccess,

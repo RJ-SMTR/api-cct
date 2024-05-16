@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { endOfDay, startOfDay } from 'date-fns';
+import { logWarn } from 'src/utils/log-utils';
 import { asNumber } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
@@ -18,7 +19,6 @@ import {
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { ClienteFavorecido } from '../../entity/cliente-favorecido.entity';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
-import { logWarn } from 'src/utils/log-utils';
 
 @Injectable()
 export class DetalheARepository {
@@ -109,8 +109,11 @@ export class DetalheARepository {
     return this.detalheARepository.insert(dtos);
   }
 
-  public save(dto: DeepPartial<DetalheA>): Promise<DetalheA> {
-    return this.detalheARepository.save(dto);
+  public async save(dto: DeepPartial<DetalheA>): Promise<DetalheA> {
+    const saved = await this.detalheARepository.save(dto);
+    return await this.detalheARepository.findOneOrFail({
+      where: { id: saved.id },
+    });
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {

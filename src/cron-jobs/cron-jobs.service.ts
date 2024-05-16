@@ -95,9 +95,9 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
-    await this.saveTransacoesJae1();
-    await this.sendRemessa();
-    // await this.updateRetorno(); // hotfix/sftp-naming - 2024-05-10
+    // await this.saveTransacoesJae1();
+    // await this.sendRemessa();
+    await this.updateRetorno(); // hotfix/sftp-naming - 2024-05-10
 
     this.jobsConfig.push(
       {

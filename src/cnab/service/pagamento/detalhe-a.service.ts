@@ -8,6 +8,7 @@ import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
 import { ClienteFavorecidoService } from '../cliente-favorecido.service';
+import { startOfDay } from 'date-fns';
 
 @Injectable()
 export class DetalheAService {
@@ -41,17 +42,17 @@ export class DetalheAService {
       return null;
     }
     const detalheARem = await this.detalheARepository.getOne({
-      dataVencimento: registro.detalheA.dataVencimento.convertedValue,
+      dataVencimento: startOfDay(registro.detalheA.dataVencimento.convertedValue),
       nsr: r.detalheA.nsr.convertedValue,
     });
     const detalheA = new DetalheADTO({
       id: detalheARem.id,
-      headerLote: { id: detalheARem.id },
+      headerLote: { id: detalheARem.headerLote.id },
       loteServico: Number(r.detalheA.loteServico.value),
       clienteFavorecido: { id: favorecido.id },
       finalidadeDOC: r.detalheA.finalidadeDOC.value,
       numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
-      dataVencimento: r.detalheA.dataVencimento.convertedValue,
+      dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
       tipoMoeda: r.detalheA.tipoMoeda.value,
       quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
       valorLancamento: r.detalheA.valorLancamento.convertedValue,
@@ -62,7 +63,7 @@ export class DetalheAService {
       indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
       indicadorFormaParcelamento:
         r.detalheA.indicadorFormaParcelamento.stringValue,
-      periodoVencimento: r.detalheA.dataVencimento.convertedValue,
+      periodoVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
       numeroParcela: r.detalheA.numeroParcela.convertedValue,
       dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
       valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
@@ -77,9 +78,7 @@ export class DetalheAService {
     return await this.detalheARepository.save(dto);
   }
 
-  public async getOne(
-    fields: EntityCondition<DetalheA>,
-  ): Promise<Nullable<DetalheA>> {
+  public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
     return await this.detalheARepository.getOne(fields);
   }
 

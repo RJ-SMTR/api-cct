@@ -21,6 +21,7 @@ import { HeaderLoteService } from './pagamento/header-lote.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
 import { TransacaoService } from './pagamento/transacao.service';
+import { TransacaoAgrupado } from '../entity/pagamento/transacao-agrupado.entity';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -127,10 +128,15 @@ export class ArquivoPublicacaoService {
         await this.salvaOcorrenciasHeaderLote(headerLote);
 
         // DetalheA Retorno
+        let auxiliarTransacaoAgrupado: TransacaoAgrupado | null = null;
         for (const detalheA of detalhesA) {
           // Save retorno and update Transacao, Publicacao
           await this.salvaOcorrenciasDetalheA(detalheA);
-          await this.savePublicacaoRetorno(detalheA);
+
+          if (auxiliarTransacaoAgrupado !== detalheA.headerLote.headerArquivo.transacaoAgrupado) {
+            await this.savePublicacaoRetorno(detalheA);
+          }
+          auxiliarTransacaoAgrupado = detalheA.headerLote.headerArquivo.transacaoAgrupado;
         }
       }
 
@@ -184,7 +190,7 @@ export class ArquivoPublicacaoService {
   async savePublicacaoRetorno(detalheARetorno: DetalheA) {
     const transacaoAgTransacoes =
       detalheARetorno.headerLote.headerArquivo.transacaoAgrupado?.transacoes;
-    const transacao = detalheARetorno.headerLote.headerArquivo.transacao;
+    const transacao = detalheARetorno.headerLote.headerArquivo?.transacao;
     const transacoes = transacaoAgTransacoes || [transacao as Transacao];
     for (const transacao of transacoes) {
       for (const item of transacao.itemTransacoes) {
@@ -220,7 +226,7 @@ export class ArquivoPublicacaoService {
       // Update Transacao status
       await this.transacaoService.save({
         id: transacao.id,
-        status: new TransacaoStatus(TransacaoStatusEnum.publicado),
+        status: new TransacaoStatus(TransacaoStatusEnum.retorno),
       });
     }
 
@@ -230,7 +236,7 @@ export class ArquivoPublicacaoService {
     if (transacaoAg) {
       await this.transacaoAgService.save({
         id: transacaoAg.id,
-        status: new TransacaoStatus(TransacaoStatusEnum.publicado),
+        status: new TransacaoStatus(TransacaoStatusEnum.retorno),
       });
     }
   }

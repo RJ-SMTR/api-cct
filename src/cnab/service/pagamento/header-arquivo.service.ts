@@ -16,6 +16,7 @@ import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { HeaderArquivoRepository } from '../../repository/pagamento/header-arquivo.repository';
 import { PagadorService } from './pagador.service';
+import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -96,15 +97,20 @@ export class HeaderArquivoService {
     });
     return await this.headerArquivoRepository.save(headerArquivo);
   }
-  
+
   /**
    * Find HeaderArquivo Remessa ready to save in ArquivoPublicacao
    */
   public async findRetornos(): Promise<HeaderArquivo[]> {
     return this.headerArquivoRepository.findMany({
-      where: {
-        status: { id: HeaderArquivoStatusEnum.retorno },
-      },
+      where: [
+        {
+          transacao: { status: { id: TransacaoStatusEnum.retorno } },
+        },
+        {
+          transacaoAgrupado: { status: { id: TransacaoStatusEnum.retorno } },
+        },
+      ],
     });
   }
 
