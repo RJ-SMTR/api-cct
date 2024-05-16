@@ -19,7 +19,6 @@ import {
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLote } from './header-lote.entity';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
-import { ItemTransacao } from './item-transacao.entity';
 import { Ocorrencia } from './ocorrencia.entity';
 
 /**
@@ -124,17 +123,11 @@ export class DetalheA extends EntityHelper {
   nsr: number;
 
   /** `UQ_DetalheA_itemTransacaoAgrupado` */
-  @OneToOne(() => ItemTransacaoAgrupado, { eager: false, nullable: true })
+  @OneToOne(() => ItemTransacaoAgrupado, { eager: true, nullable: false })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_DetalheA_itemTransacaoAgrupado_OneToOne',
   })
-  itemTransacaoAgrupado: ItemTransacaoAgrupado | null;
-
-  @OneToOne(() => ItemTransacaoAgrupado, { eager: false, nullable: true })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_DetalheA_itemTransacao_OneToOne',
-  })
-  itemTransacao: ItemTransacao | null;
+  itemTransacaoAgrupado: ItemTransacaoAgrupado;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -9,6 +9,7 @@ import { DeepPartial } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { DetalheB } from '../../entity/pagamento/detalhe-b.entity';
 import { DetalheBRepository } from '../../repository/pagamento/detalhe-b.repository';
+import { startOfDay } from 'date-fns';
 
 @Injectable()
 export class DetalheBService {
@@ -39,7 +40,7 @@ export class DetalheBService {
       id: detalheBRem?.id,
       detalheA: { id: detalheAUpdated.id },
       nsr: registro.detalheB.nsr.convertedValue,
-      dataVencimento: asCnabFieldDate(registro.detalheB.dataVencimento),
+      dataVencimento: startOfDay(asCnabFieldDate(registro.detalheB.dataVencimento)),
     });
     return await this.detalheBRepository.save(detalheB);
   }

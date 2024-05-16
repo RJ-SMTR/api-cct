@@ -10,9 +10,8 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  UpdateDateColumn
+  UpdateDateColumn,
 } from 'typeorm';
-import { HeaderArquivoStatus } from './header-arquivo-status.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
 import { Transacao } from './transacao.entity';
 
@@ -84,10 +83,6 @@ export class HeaderArquivo extends EntityHelper {
 
   @Column({ type: Number, unique: false, nullable: false })
   nsa: number;
-
-  @ManyToOne(() => HeaderArquivoStatus, { eager: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderArquivo_status_ManyToOne' })
-  status: HeaderArquivoStatus;
 
   @CreateDateColumn()
   createdAt: Date;

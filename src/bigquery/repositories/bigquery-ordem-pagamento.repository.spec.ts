@@ -81,7 +81,7 @@ describe('BigqueryOrdemPagamentoRepository', () => {
 
       // Act
       const result = await bqOrdemPagamentoRepository.query(`
-        SELECT o.*
+        SELECT o.documento
         FROM \`rj-smtr.cadastro.operadoras\` o
         WHERE o.documento IN ('463572889', '463416372')
       `);

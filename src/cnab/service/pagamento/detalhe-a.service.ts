@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
@@ -9,6 +8,7 @@ import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
 import { ClienteFavorecidoService } from '../cliente-favorecido.service';
+import { startOfDay } from 'date-fns';
 
 @Injectable()
 export class DetalheAService {
@@ -33,7 +33,6 @@ export class DetalheAService {
 
   public async saveRetornoFrom104(
     registro: CnabRegistros104Pgto,
-    headerLoteUpdated: HeaderLote,
   ): Promise<DetalheA | null> {
     const r = registro;
     const favorecido = await this.clienteFavorecidoService.findOne({
@@ -42,18 +41,21 @@ export class DetalheAService {
     if (!favorecido) {
       return null;
     }
+    const dataVencimento = startOfDay(
+      registro.detalheA.dataVencimento.convertedValue,
+    );
     const detalheARem = await this.detalheARepository.getOne({
-      headerLote: { id: headerLoteUpdated.id },
+      dataVencimento: dataVencimento,
       nsr: r.detalheA.nsr.convertedValue,
     });
     const detalheA = new DetalheADTO({
-      id: detalheARem?.id,
-      headerLote: { id: headerLoteUpdated.id },
+      id: detalheARem.id,
+      headerLote: { id: detalheARem.headerLote.id },
       loteServico: Number(r.detalheA.loteServico.value),
       clienteFavorecido: { id: favorecido.id },
       finalidadeDOC: r.detalheA.finalidadeDOC.value,
       numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
-      dataVencimento: r.detalheA.dataVencimento.convertedValue,
+      dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
       tipoMoeda: r.detalheA.tipoMoeda.value,
       quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
       valorLancamento: r.detalheA.valorLancamento.convertedValue,
@@ -64,7 +66,7 @@ export class DetalheAService {
       indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
       indicadorFormaParcelamento:
         r.detalheA.indicadorFormaParcelamento.stringValue,
-      periodoVencimento: r.detalheA.dataVencimento.convertedValue,
+      periodoVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
       numeroParcela: r.detalheA.numeroParcela.convertedValue,
       dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
       valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
@@ -72,6 +74,8 @@ export class DetalheAService {
       ocorrenciasCnab: r.detalheA.ocorrencias.value,
     });
     return await this.detalheARepository.save(detalheA);
+
+    // Update Transacao status
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
@@ -79,9 +83,7 @@ export class DetalheAService {
     return await this.detalheARepository.save(dto);
   }
 
-  public async getOne(
-    fields: EntityCondition<DetalheA>,
-  ): Promise<Nullable<DetalheA>> {
+  public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
     return await this.detalheARepository.getOne(fields);
   }
 
