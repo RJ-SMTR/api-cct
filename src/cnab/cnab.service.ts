@@ -118,14 +118,7 @@ export class CnabService {
         continue;
       }
 
-      const transacaoAgId = await this.saveAgrupamentos(
-        ordem,
-        pagador,
-        favorecido,
-      );
-
-      const transacao = await this.saveTransacao(ordem, pagador, transacaoAgId);
-      await this.saveItemTransacao(ordem, favorecido, transacao);
+      await this.saveAgrupamentos(ordem, pagador, favorecido);
     }
   }
 
@@ -142,10 +135,11 @@ export class CnabService {
       pagador: { id: pagador.id },
     });
 
+    let itemAg: ItemTransacaoAgrupado | null = null;
     // Se existe TransacaoAgrupado
     if (transacaoAg) {
       // Create or update item
-      let itemAg = await this.itemTransacaoAgService.findOne({
+      itemAg = await this.itemTransacaoAgService.findOne({
         where: {
           transacaoAgrupado: { id: transacaoAg.id },
           idConsorcio: ordem.idConsorcio, // business rule
@@ -162,19 +156,18 @@ export class CnabService {
       }
       await this.itemTransacaoAgService.save(itemAg);
     }
+
     // Senão, cria Transacao e Item
     else {
       transacaoAg = this.getTransacaoAgrupadoDTO(ordem, pagador);
       transacaoAg = await this.transacaoAgService.save(transacaoAg);
       // Create item
-      const itemAg = this.getItemTransacaoAgrupadoDTO(
-        ordem,
-        favorecido,
-        transacaoAg,
-      );
-      await this.itemTransacaoAgService.save(itemAg);
+      itemAg = this.getItemTransacaoAgrupadoDTO(ordem, favorecido, transacaoAg);
+      itemAg = await this.itemTransacaoAgService.save(itemAg);
     }
-    return transacaoAg.id;
+
+    const transacao = await this.saveTransacao(ordem, pagador, transacaoAg.id);
+    await this.saveItemTransacao(ordem, favorecido, transacao);
   }
 
   /**
@@ -243,6 +236,7 @@ export class CnabService {
     ordem: BigqueryOrdemPagamentoDTO,
     favorecido: ClienteFavorecido,
     transacao: Transacao,
+    // itemTransacaoAg: ItemTransacaoAgrupado,
   ) {
     const existing = await this.itemTransacaoService.findOne({
       where: {
@@ -265,6 +259,7 @@ export class CnabService {
       valor: ordem.valorTotalTransacaoLiquido,
       transacao: transacao,
       status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
+      // itemTransacaoAgrupado: { id: itemTransacaoAg.id },
     });
     await this.itemTransacaoService.save(item);
     const publicacao =
@@ -383,7 +378,9 @@ export class CnabService {
     if (tipo === PagadorContaEnum.CETT) {
       transacoes = await this.transacaoService.findAllNewTransacao(tipo);
     } else {
-      const transacoesAg = await this.transacaoAgService.findAllNewTransacao(tipo);
+      const transacoesAg = await this.transacaoAgService.findAllNewTransacao(
+        tipo,
+      );
       transacoes = transacoesAg as unknown as Transacao[];
     }
 

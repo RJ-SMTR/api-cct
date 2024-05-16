@@ -4,13 +4,12 @@ import { asNumber, asString } from 'src/utils/pipe-utils';
 import { DeepPartial, FindManyOptions } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
-import { HeaderArquivoStatus } from '../entity/pagamento/header-arquivo-status.entity';
 import { HeaderLote } from '../entity/pagamento/header-lote.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
+import { TransacaoAgrupado } from '../entity/pagamento/transacao-agrupado.entity';
 import { TransacaoStatus } from '../entity/pagamento/transacao-status.entity';
 import { Transacao } from '../entity/pagamento/transacao.entity';
-import { HeaderArquivoStatusEnum } from '../enums/pagamento/header-arquivo-status.enum';
 import { ItemTransacaoStatusEnum } from '../enums/pagamento/item-transacao-status.enum';
 import { TransacaoStatusEnum } from '../enums/pagamento/transacao-status.enum';
 import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.repository';
@@ -21,7 +20,6 @@ import { HeaderLoteService } from './pagamento/header-lote.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
 import { TransacaoService } from './pagamento/transacao.service';
-import { TransacaoAgrupado } from '../entity/pagamento/transacao-agrupado.entity';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -143,7 +141,6 @@ export class ArquivoPublicacaoService {
       // Update HeaderArquivo Status
       await this.headerArquivoService.save({
         id: headerArquivo.id,
-        status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.publicado),
       });
     }
   }
