@@ -414,7 +414,7 @@ export class UsersService {
     for (const i in files) {
       const file = files[i];
       const worksheet = this.getWorksheetFromFile(file);
-      const userFiles = this.getUserFilesFromWorksheet(worksheet);
+      const userFiles = this.getUserFilesFromWorksheet(worksheet, true);
       await this.validateUpdateFileValues(userFiles);
       uploadDatas.push(
         await this.getDTOsFromFile(userFiles, requestUser, Number(i) + 1),
@@ -690,12 +690,24 @@ export class UsersService {
     return worksheet;
   }
 
-  getUserFilesFromWorksheet(worksheet: xlsx.WorkSheet): IFileUser[] {
+  getUserFilesFromWorksheet(
+    worksheet: xlsx.WorkSheet,
+    fixCpfZeroes = false,
+  ): IFileUser[] {
     this.validateFileHeaders(worksheet);
     const fileData = xlsx.utils.sheet_to_json(worksheet);
     const userFile: IFileUser[] = fileData.map(
-      (item: Partial<ICreateUserFile>) => ({
-        user: item,
+      (userData: Partial<ICreateUserFile>) => ({
+        user: {
+          ...userData,
+          ...(userData.cpf
+            ? {
+                cpf: fixCpfZeroes
+                  ? String(userData.cpf).padStart(11, '0')
+                  : userData.cpf,
+              }
+            : {}),
+        },
         errors: {},
       }),
     );
