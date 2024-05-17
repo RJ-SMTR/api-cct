@@ -7,7 +7,6 @@ import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { HeaderLote } from '../entity/pagamento/header-lote.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
-import { TransacaoAgrupado } from '../entity/pagamento/transacao-agrupado.entity';
 import { TransacaoStatus } from '../entity/pagamento/transacao-status.entity';
 import { ItemTransacaoStatusEnum } from '../enums/pagamento/item-transacao-status.enum';
 import { TransacaoStatusEnum } from '../enums/pagamento/transacao-status.enum';
@@ -16,10 +15,10 @@ import { OcorrenciaService } from './ocorrencia.service';
 import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
+import { ItemTransacaoAgrupadoService } from './pagamento/item-transacao-agrupado.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
 import { TransacaoService } from './pagamento/transacao.service';
-import { ItemTransacaoAgrupadoService } from './pagamento/item-transacao-agrupado.service';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -55,7 +54,7 @@ export class ArquivoPublicacaoService {
    *
    * **status** is Created.
    */
-  async generatePublicacaoDTO(
+  async savePublicacaoDTO(
     itemTransacao: ItemTransacao,
   ): Promise<ArquivoPublicacao> {
     let friday = new Date();
@@ -64,7 +63,9 @@ export class ArquivoPublicacaoService {
     }
     const existing = await this.arquivoPublicacaoRepository.findOne({
       where: {
-        itemTransacao: { id: itemTransacao.id },
+        itemTransacao: {
+          id: itemTransacao.id,
+        },
       },
     });
     const arquivo = new ArquivoPublicacao({
@@ -127,19 +128,10 @@ export class ArquivoPublicacaoService {
         await this.salvaOcorrenciasHeaderLote(headerLote);
 
         // DetalheA Retorno
-        let auxiliarTransacaoAgrupado: TransacaoAgrupado | null = null;
         for (const detalheA of detalhesA) {
           // Save retorno and update Transacao, Publicacao
           await this.salvaOcorrenciasDetalheA(detalheA);
-
-          if (
-            auxiliarTransacaoAgrupado !==
-            detalheA.headerLote.headerArquivo.transacaoAgrupado
-          ) {
-            await this.savePublicacaoRetorno(detalheA);
-          }
-          auxiliarTransacaoAgrupado =
-            detalheA.headerLote.headerArquivo.transacaoAgrupado;
+          await this.savePublicacaoRetorno(detalheA);
         }
       }
 

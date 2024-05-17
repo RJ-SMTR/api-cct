@@ -133,6 +133,7 @@ export class CnabService {
     let transacaoAg = await this.transacaoAgService.findOne({
       dataOrdem: fridayOrdem,
       pagador: { id: pagador.id },
+      status: { id: TransacaoStatusEnum.created },
     });
 
     let itemAg: ItemTransacaoAgrupado | null = null;
@@ -143,6 +144,7 @@ export class CnabService {
         where: {
           transacaoAgrupado: { id: transacaoAg.id },
           idConsorcio: ordem.idConsorcio, // business rule
+          status: { id: ItemTransacaoStatusEnum.created },
         },
       });
       if (itemAg) {
@@ -182,6 +184,7 @@ export class CnabService {
   ): Promise<Transacao> {
     const existing = await this.transacaoService.findOne({
       idOrdemPagamento: ordem.idOrdemPagamento,
+      transacaoAgrupado: { id: transacaoAgId },
     });
     const transacao = new Transacao({
       ...(existing ? { id: existing.id } : {}),
@@ -243,6 +246,7 @@ export class CnabService {
         idConsorcio: ordem.idConsorcio,
         idOperadora: ordem.idOperadora,
         idOrdemPagamento: ordem.idOrdemPagamento,
+        status: { id: ItemTransacaoStatusEnum.created },
       },
     });
     const item = new ItemTransacao({
@@ -261,8 +265,9 @@ export class CnabService {
       itemTransacaoAgrupado: { id: itemTransacaoAg.id },
     });
     await this.itemTransacaoService.save(item);
-    const publicacao =
-      await this.arquivoPublicacaoService.generatePublicacaoDTO(item);
+    const publicacao = await this.arquivoPublicacaoService.savePublicacaoDTO(
+      item,
+    );
     await this.arquivoPublicacaoService.save(publicacao);
   }
 
@@ -450,6 +455,10 @@ export class CnabService {
       await this.arqPublicacaoService.compareRemessaToRetorno();
 
       // Success
+      this.logger.log(
+        'Retorno lido com sucesso, enviando para o backup...',
+        METHOD,
+      );
       await this.sftpService.moveToBackup(
         cnabName,
         SftpBackupFolder.RetornoSuccess,

@@ -495,10 +495,9 @@ export class RemessaRetornoService {
     let nsr = await this.getNextNSR();
     const itemTransacaoAux = (itemTransacao ||
       itemTransacaoAg) as ItemTransacao;
-    const fridayOrdem =
-      itemTransacao
-        ? nextFriday(nextThursday(startOfDay(itemTransacaoAux.dataOrdem)))
-        : itemTransacaoAux.dataOrdem;
+    const fridayOrdem = itemTransacao
+      ? nextFriday(nextThursday(startOfDay(itemTransacaoAux.dataOrdem)))
+      : itemTransacaoAux.dataOrdem;
     const detalheA: CnabDetalheA_104 = sc(PgtoRegistros.detalheA);
     detalheA.codigoBancoDestino.value = favorecido.codigoBanco;
     detalheA.codigoAgenciaDestino.value = favorecido.agencia;
@@ -605,11 +604,13 @@ export class RemessaRetornoService {
    * `false` if retorno already exists.
    */
   public async saveRetorno(cnab: CnabFile104Pgto) {
+    const dataEfetivacao = new Date();
     for (const cnabLote of cnab.lotes) {
       for (const registro of cnabLote.registros) {
         // Save Detalhes
         const detalheAUpdated = await this.detalheAService.saveRetornoFrom104(
           registro,
+          dataEfetivacao,
         );
         if (!detalheAUpdated) {
           continue;
