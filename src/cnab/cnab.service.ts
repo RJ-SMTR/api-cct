@@ -37,6 +37,8 @@ import {
   parseCnab240Extrato,
   parseCnab240Pagamento,
 } from './utils/cnab/cnab-104-utils';
+import { SettingsService } from 'src/settings/settings.service';
+import { appSettings } from 'src/settings/app.settings';
 
 /**
  * User cases for CNAB and Payments
@@ -64,6 +66,7 @@ export class CnabService {
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private readonly lancamentoService: LancamentoService,
     private arquivoPublicacaoService: ArquivoPublicacaoService,
+    private settingsService: SettingsService,
   ) {}
 
   // #region saveTransacoesJae
@@ -407,6 +410,9 @@ export class CnabService {
       }
 
       // Generate remessa
+      const nsrSequence = await this.settingsService.getOneBySettingData(
+        appSettings.any__cnab_current_nsr_sequence,
+      );
       const cnabStr = await this.remessaRetornoService.generateSaveRemessa(
         transacao,
         transacaoAg,
@@ -415,6 +421,10 @@ export class CnabService {
         this.logger.warn(
           `A Transação/Agrupado #${_transacao.id} gerou cnab vazio (sem itens válidos), ignorando...`,
           METHOD,
+        );
+        await this.settingsService.updateBySettingData(
+          appSettings.any__cnab_current_nsr_sequence,
+          nsrSequence.value,
         );
         continue;
       }

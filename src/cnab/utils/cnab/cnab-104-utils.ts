@@ -1,5 +1,4 @@
 import { CnabCodigoSegmento } from 'src/cnab/enums/all/cnab-codigo-segmento.enum';
-import { CnabField } from 'src/cnab/interfaces/cnab-all/cnab-field.interface';
 import { CnabFile104 } from '../../interfaces/cnab-240/104/cnab-file-104.interface';
 import { CnabHeaderArquivo104 } from '../../interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { CnabLote104 } from '../../interfaces/cnab-240/104/cnab-lote-104.interface';
@@ -15,7 +14,6 @@ import { CnabRegistro } from '../../interfaces/cnab-all/cnab-registro.interface'
 import { cnab104ExtratoTemplates } from '../../templates/cnab-240/104/extrato/cnab-104-extrato-templates.const';
 import { Cnab104PgtoTemplates as PgtoTemplates } from '../../templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { getCnabFileFrom104 } from './cnab-104-pipe-utils';
-import { getCnabNumber, getPictureNumberSize } from './cnab-field-utils';
 import { setCnabFileMetadata } from './cnab-metadata-utils';
 import {
   getCnabMappedValue,
@@ -125,28 +123,16 @@ function processCnab104Lotes(lotes: CnabLote104[]) {
 }
 
 function processCnab104TrailerLote(lote: CnabLote104) {
-  const somatorioValores = getSomarioValoresCnabLote(
-    lote,
-    lote.trailerLote.somatorioValores,
-  );
+  const somatorioValores = getSomarioValoresCnabLote(lote);
   lote.trailerLote.somatorioValores.value = somatorioValores;
 }
 
-function getSomarioValoresCnabLote(
-  lote: CnabLote104,
-  somatorioField: CnabField,
-): number {
-  const sum = lote.registros.reduce((s2, regGroup) => {
-    const valorLancamento = regGroup.detalheA?.valorLancamento;
-    let value = 0;
-    if (valorLancamento) {
-      value = getCnabNumber(valorLancamento);
-    }
-    return s2 + value;
-  }, 0);
-
-  const { decimal } = getPictureNumberSize(somatorioField.picture);
-  return Number(sum.toFixed(decimal));
+function getSomarioValoresCnabLote(lote: CnabLote104): number {
+  return lote.registros.reduce(
+    (s2, regGroup) =>
+      s2 + Number(regGroup.detalheA?.valorLancamento?.convertedValue || 0),
+    0,
+  );
 }
 
 // #region getCnab104FromFile

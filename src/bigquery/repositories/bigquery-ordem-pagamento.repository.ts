@@ -205,7 +205,7 @@ export class BigqueryOrdemPagamentoRepository {
     // null         valor
     // valor        null
     // valor        valor
-    // queryBuilder.pushAND(`o.documento IN ('463572889', '463416372')`);
+    queryBuilder.pushAND(`o.documento IN ('03818429405')`);
 
     // WIP: Permitir todos os consórcios - 16/05/2024
     // queryBuilder.pushAND(

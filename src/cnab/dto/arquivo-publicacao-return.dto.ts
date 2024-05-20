@@ -1,9 +1,13 @@
 export class ArquivoPublicacaoReturnDTO {
-  constructor(dto?: ArquivoPublicacaoReturnDTO) {
+  constructor(
+    dto?: ArquivoPublicacaoReturnDTO
+    // publicacao: ArquivoPublicacao,
+    // detalheA: DetalheA,
+    // ocorrencias: Ocorrencia[],
+  ) {
     if (dto) {
       this.id = dto.id;
-      this.dataGeracaoRetorno = dto.dataGeracaoRetorno;
-      this.horaGeracaoRetorno = dto.horaGeracaoRetorno;
+      this.dataHoraGeracaoRetorno = (dto as any).dataGeracaoRetorno;
       this.dataEfetivacao = dto.dataEfetivacao;
       this.dataVencimento = dto.dataVencimento;
       this.isPago = dto.isPago;
@@ -23,8 +27,7 @@ export class ArquivoPublicacaoReturnDTO {
   }
 
   id?: number;
-  dataGeracaoRetorno: Date;
-  horaGeracaoRetorno: Date;
+  dataHoraGeracaoRetorno: Date;
   dataEfetivacao: Date;
   dataVencimento: Date;
   isPago: boolean;
