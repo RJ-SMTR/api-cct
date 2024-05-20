@@ -184,18 +184,15 @@ export class MailService {
     }
 
     try {
-      const appName = this.configService.get('app.name', {
-        infer: true,
-      });
       const response = await this.safeSendMail({
         from,
         to: mailData.to,
-        subject: mailTitle,
+        subject: 'Projeto CCT - Atualização do relatório diário',
         text: mailTitle,
         template: 'report',
         context: {
           title: mailTitle,
-          headerTitle: appName,
+          headerTitle: 'Estatística Atualizada dos Dados',
           mailQueued: mailData.data.statusCount.queued,
           mailSent: mailData.data.statusCount.sent,
           mailUsed: mailData.data.statusCount.used,
