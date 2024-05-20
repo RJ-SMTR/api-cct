@@ -32,9 +32,8 @@ export class ClienteFavorecidoService {
    */
   public async updateAllFromUsers(allUsers: User[]): Promise<void> {
     // this.clienteFavorecidoRepository.
-    const newFavorecidos = (
-      await this.getManyFavorecidoDTOsFromUsers(allUsers)
-    ).map((i) => {
+    const saveFavorecidos = await this.getManyFavorecidoDTOsFromUsers(allUsers);
+    const newFavorecidos = saveFavorecidos.map((i) => {
       if (i.nome) {
         i.nome = getStringUpperUnaccent(i.nome).trim();
       }
@@ -130,8 +129,8 @@ export class ClienteFavorecidoService {
         nome: asString(user.fullName),
         cpfCnpj: asString(user.cpfCnpj),
         codigoBanco: String(user.getBankCode()),
-        agencia: user.getBankAgencyWithoutDigit().trim().padStart(5, '0'),
-        dvAgencia: user.getBankAgencyDigit().trim(),
+        agencia: (user.bankAgency as string).padStart(5, '0'),
+        dvAgencia: '',
         contaCorrente: user.getBankAccount().trim().padStart(12, '0'),
         dvContaCorrente: user.getBankAccountDigit().trim(),
         logradouro: null,

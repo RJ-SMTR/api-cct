@@ -184,14 +184,6 @@ export class BigqueryOrdemPagamentoRepository {
           `(o.documento = ${args.cpfCnpj} OR c.cnpj = ${args.cpfCnpj})`,
         );
       }
-    } else {
-      if (args?.tipoFavorecido === TipoFavorecidoEnum.vanzeiro) {
-        queryBuilder.pushAND(`o.tipo_documento = 'CPF'`);
-      } else {
-        queryBuilder.pushAND(
-          `(o.tipo_documento = 'CNPJ' OR c.cnpj IS NOT NULL)`,
-        );
-      }
     }
 
     /**

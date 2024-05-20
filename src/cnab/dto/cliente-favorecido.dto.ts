@@ -24,8 +24,6 @@ export class SaveClienteFavorecidoDTO {
   @IsNotEmpty()
   agencia?: string;
 
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
   dvAgencia?: string;
 
   @ValidateIf(isCreate)

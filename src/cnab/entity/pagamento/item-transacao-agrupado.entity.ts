@@ -30,7 +30,7 @@ export class ItemTransacaoAgrupado extends EntityHelper {
   id: number;
 
   @ManyToOne(() => TransacaoAgrupado, {
-    eager: false,
+    eager: true,
   })
   @JoinColumn({
     foreignKeyConstraintName:
