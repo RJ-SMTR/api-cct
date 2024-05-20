@@ -1,13 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
+  Between,
   DeepPartial,
   FindManyOptions,
+  In,
   InsertResult,
   Repository,
 } from 'typeorm';
-import { ArquivoPublicacaoReturnDTO } from '../dto/arquivo-publicacao-return.dto';
+import { ArquivoPublicacaoResultDTO } from '../dto/arquivo-publicacao-result.dto';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
+import { DetalheAService } from '../service/pagamento/detalhe-a.service';
+import { OcorrenciaService } from '../service/ocorrencia.service';
+import { ItemTransacaoAgrupadoService } from '../service/pagamento/item-transacao-agrupado.service';
 
 @Injectable()
 export class ArquivoPublicacaoRepository {
@@ -18,6 +23,9 @@ export class ArquivoPublicacaoRepository {
   constructor(
     @InjectRepository(ArquivoPublicacao)
     private arquivoPublicacaoRepository: Repository<ArquivoPublicacao>,
+    private detalheAService: DetalheAService,
+    private ocorrenciaService: OcorrenciaService,
+    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
   ) {}
 
   /**
@@ -51,42 +59,34 @@ export class ArquivoPublicacaoRepository {
   }
 
   async findManyByDate(startDate: Date, endDate: Date) {
-    const result: any[] = await this.arquivoPublicacaoRepository.query(
-      `
-        SELECT
-          ap.*,
-          it.*,
-          cf.nome as favorecido,
-          da.id as "detalheAId",
-          o.message as "ocorrenciaMessage"
-        FROM arquivo_publicacao ap
-        LEFT JOIN item_transacao it on ap."itemTransacaoId" = it.id
-        LEFT JOIN cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
-        LEFT JOIN detalhe_a da on da."itemTransacaoAgrupadoId" = it.id
-        LEFT JOIN ocorrencia o on o."detalheAId" = da.id
-        WHERE it."dataOrdem" BETWEEN $1 AND $2
-        ORDER BY
-          ap.id, it.id, da.id
-      `,
-      [startDate, endDate],
-    );
-    const publicacaoDTOs: ArquivoPublicacaoReturnDTO[] = [];
-    for (const item of result) {
-      if (!publicacaoDTOs.map((i) => i.id).includes(item.id)) {
-        const ocorrencias = result
-          .filter((r) => r.id === item.id && r.ocorrenciaMessage)
-          .map((r) => r.ocorrenciaMessage);
-        const publicacao = new ArquivoPublicacaoReturnDTO({
-          ...item,
-          ocorrencias,
-        }) as any;
-        delete publicacao.clienteFavorecidoId;
-        delete publicacao.transacaoId;
-        delete publicacao.nomeOperadora;
-        publicacaoDTOs.push(publicacao);
-      }
+    const publicacoes = await this.findMany({
+      where: {
+        itemTransacao: {
+          dataOrdem: Between(startDate, endDate),
+        },
+      },
+    });
+    const detalheAList = await this.detalheAService.findMany({
+      itemTransacaoAgrupado: {
+        id: In(
+          publicacoes.map((i) => i.itemTransacao.itemTransacaoAgrupado.id),
+        ),
+      },
+    });
+
+    const publicacaoResults: ArquivoPublicacaoResultDTO[] = [];
+    for (const publicacao of publicacoes) {
+      const detalheA = detalheAList.filter(
+        (i) =>
+          i.itemTransacaoAgrupado.id && 
+          i.itemTransacaoAgrupado.id ===
+          publicacao.itemTransacao.itemTransacaoAgrupado.id,
+      )[0];
+      publicacaoResults.push(
+        new ArquivoPublicacaoResultDTO(publicacao, detalheA.ocorrencias),
+      );
     }
-    return publicacaoDTOs;
+    return publicacaoResults;
   }
 
   /**
