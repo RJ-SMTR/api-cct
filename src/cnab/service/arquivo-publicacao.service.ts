@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { isFriday, nextFriday } from 'date-fns';
+import { isFriday, nextFriday, startOfDay } from 'date-fns';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { DeepPartial, FindManyOptions } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
@@ -15,7 +15,6 @@ import { OcorrenciaService } from './ocorrencia.service';
 import { DetalheAService } from './pagamento/detalhe-a.service';
 import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
-import { ItemTransacaoAgrupadoService } from './pagamento/item-transacao-agrupado.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
 import { TransacaoService } from './pagamento/transacao.service';
@@ -35,7 +34,6 @@ export class ArquivoPublicacaoService {
     private transacaoAgService: TransacaoAgrupadoService,
     private transacaoService: TransacaoService,
     private itemTransacaoService: ItemTransacaoService,
-    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
   ) {}
 
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
@@ -58,7 +56,7 @@ export class ArquivoPublicacaoService {
     itemTransacao: ItemTransacao,
   ): Promise<ArquivoPublicacao> {
     let friday = new Date();
-    if (isFriday(friday)) {
+    if (!isFriday(friday)) {
       friday = nextFriday(friday);
     }
     const existing = await this.arquivoPublicacaoRepository.findOne({
@@ -77,15 +75,17 @@ export class ArquivoPublicacaoService {
       isPago: false,
       dataGeracaoRetorno: null,
       horaGeracaoRetorno: null,
-      dataVencimento: friday,
+      dataVencimento: startOfDay(friday),
       dataEfetivacao: null,
       valorRealEfetivado: null,
     });
     return arquivo;
   }
 
-  public async save(publicacao: DeepPartial<ArquivoPublicacao>) {
-    await this.arquivoPublicacaoRepository.save(publicacao);
+  public async save(
+    publicacao: DeepPartial<ArquivoPublicacao>,
+  ): Promise<ArquivoPublicacao> {
+    return await this.arquivoPublicacaoRepository.save(publicacao);
   }
 
   /**

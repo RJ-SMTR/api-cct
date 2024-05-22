@@ -2,10 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { nextFriday, nextThursday, startOfDay } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
+import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
+import { appSettings } from 'src/settings/app.settings';
+import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
+import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
+import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
@@ -37,8 +42,6 @@ import {
   parseCnab240Extrato,
   parseCnab240Pagamento,
 } from './utils/cnab/cnab-104-utils';
-import { SettingsService } from 'src/settings/settings.service';
-import { appSettings } from 'src/settings/app.settings';
 
 /**
  * User cases for CNAB and Payments
@@ -61,6 +64,8 @@ export class CnabService {
     private clienteFavorecidoService: ClienteFavorecidoService,
     private pagadorService: PagadorService,
     private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
+    private bigqueryTransacaoService: BigqueryTransacaoService,
+    private transacaoViewService: TransacaoViewService,
     private usersService: UsersService,
     private transacaoAgService: TransacaoAgrupadoService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
@@ -74,21 +79,18 @@ export class CnabService {
   /**
    * Update Transacoes tables from Jaé (bigquery)
    *
-   * This task will:
-   * 1. Update ClienteFavorecidos from Users
-   * 2. Fetch ordemPgto from this week
-   * 3. Save new Transacao (status = created) / ItemTransacao (status = craeted)
-   * 4. Save new ArquivoPublicacao
-   *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
   public async saveTransacoesJae() {
     const METHOD = this.saveTransacoesJae.name;
 
     // 1. Update cliente favorecido
-    await this.updateAllFavorecidosFromUsers();
+    // await this.updateAllFavorecidosFromUsers();
 
-    // 2. Fetch ordemPgto
+    // 2. Update TransacaoBigquery
+    await this.updateTransacaoBigquery();
+
+    // 3. Update ordens
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
     await this.saveOrdens(ordens);
 
@@ -100,6 +102,14 @@ export class CnabService {
       this.logger.log(`${msg}. Nada a fazer.`, METHOD);
       return;
     }
+  }
+
+  async updateTransacaoBigquery() {
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek();
+    const transacoesView = transacoesBq.map((i) =>
+      TransacaoView.newFromBigquery(i),
+    );
+    await this.transacaoViewService.upsert(transacoesView);
   }
 
   /**
@@ -172,7 +182,12 @@ export class CnabService {
     }
 
     const transacao = await this.saveTransacao(ordem, pagador, transacaoAg.id);
-    await this.saveItemTransacao(ordem, favorecido, transacao, itemAg);
+    await this.saveItemTransacaoPublicacao(
+      ordem,
+      favorecido,
+      transacao,
+      itemAg,
+    );
   }
 
   /**
@@ -237,7 +252,7 @@ export class CnabService {
     return item;
   }
 
-  async saveItemTransacao(
+  async saveItemTransacaoPublicacao(
     ordem: BigqueryOrdemPagamentoDTO,
     favorecido: ClienteFavorecido,
     transacao: Transacao,
@@ -271,7 +286,12 @@ export class CnabService {
     const publicacao = await this.arquivoPublicacaoService.savePublicacaoDTO(
       item,
     );
-    await this.arquivoPublicacaoService.save(publicacao);
+    const publicacaoSaved = await this.arquivoPublicacaoService.save(
+      publicacao,
+    );
+
+    // Add relation between Publicacao and TransacaoView
+    await this.transacaoViewService.updateForArquivoPublicacao(publicacaoSaved);
   }
 
   /**

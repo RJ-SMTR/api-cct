@@ -77,7 +77,7 @@ describe('BigqueryTransacaoRepository', () => {
       } as SettingEntity);
 
       // Act
-      const result = await bqTransacaoRepository.findTransacaoBy({
+      const result = await bqTransacaoRepository.findMany({
         startDate: new Date('2023-06-01'),
         endDate: new Date('2024-06-01'),
         limit: 50,

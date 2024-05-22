@@ -98,7 +98,11 @@ export class ItemTransacao extends EntityHelper {
 
   // Unique columns Lancamento
 
-  /** DataOrdem from bigquery */
+  /** 
+   * DataOrdem from bigquery
+   * 
+   * D+1 (sex-qui)
+   */
   @Column({ type: Date, unique: false, nullable: false })
   dataOrdem: Date;
 

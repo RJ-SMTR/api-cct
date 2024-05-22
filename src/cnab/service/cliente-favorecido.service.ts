@@ -1,17 +1,17 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
+import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 import { User } from 'src/users/entities/user.entity';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { asString } from 'src/utils/pipe-utils';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { validateDTO } from 'src/utils/validation-utils';
 import { FindOneOptions, In } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
-import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
-import { getStringUpperUnaccent } from 'src/utils/string-utils';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -83,7 +83,7 @@ export class ClienteFavorecidoService {
   }
 
   public async getAll(): Promise<ClienteFavorecido[]> {
-    return await this.clienteFavorecidoRepository.findAll({});
+    return await this.clienteFavorecidoRepository.findAll();
   }
 
   public async getOneByIdClienteFavorecido(
@@ -104,9 +104,7 @@ export class ClienteFavorecidoService {
   }
 
   public async getClienteFavorecido(): Promise<ClienteFavorecido[]> {
-    const cliente_favorecido = await this.clienteFavorecidoRepository.findAll(
-      {},
-    );
+    const cliente_favorecido = await this.clienteFavorecidoRepository.findAll();
     if (!cliente_favorecido) {
       throw CommonHttpException.errorDetails(
         'cliente_favorecido.conta not found',
@@ -141,7 +139,7 @@ export class ClienteFavorecidoService {
         cep: null,
         complementoCep: null,
         uf: null,
-        tipo: TipoFavorecidoEnum.vanzeiro,
+        tipo: TipoFavorecidoEnum.operadora,
       };
       await validateDTO(SaveClienteFavorecidoDTO, newItem);
       newItems.push(newItem);
@@ -170,7 +168,7 @@ export class ClienteFavorecidoService {
       cep: null,
       complementoCep: null,
       uf: null,
-      tipo: TipoFavorecidoEnum.vanzeiro,
+      tipo: TipoFavorecidoEnum.operadora,
     };
     await validateDTO(SaveClienteFavorecidoDTO, saveObject);
     await this.clienteFavorecidoRepository.save(saveObject);

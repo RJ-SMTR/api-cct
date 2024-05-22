@@ -148,6 +148,8 @@ export class BigqueryOrdemPagamentoDTO {
 
   // CUSTOM COLUMNS
 
+  operadoraTipoDocumento: string;
+
   /** operadora.documento (cpf/cnpj) */
   operadoraCpfCnpj: string | null;
 
