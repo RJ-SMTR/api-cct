@@ -1,4 +1,4 @@
 export enum TipoFavorecidoEnum {
-  vanzeiro = 'vanzeiro',
+  operadora = 'vanzeiro',
   consorcio = 'consorcio',
 }

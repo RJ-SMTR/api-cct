@@ -1,10 +1,10 @@
-import { TipoFavorecidoEnum } from "src/tipo-favorecido/tipo-favorecido.enum";
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 
 export interface IBigqueryFindOrdemPagamento {
-  cpfCnpj?: string;
+  operadorCpfs?: string[];
   tipoFavorecido?: TipoFavorecidoEnum | null;
-  startDate?: Date;
-  endDate?: Date;
+  startDate: Date;
+  endDate: Date;
   limit?: number;
   offset?: number;
   getToday?: boolean;

@@ -5,19 +5,19 @@ export class BigqueryTransacao {
   datetime_transacao: string | null;
   datetime_processamento: string | null;
   datetime_captura: string | null;
-  modo: string | null;
-  id_consorcio: string | null;
+  modo: string;
+  id_consorcio: string;
   /** Nome do consórcio */
-  consorcio: string | null;
-  id_operadora: string | null;
+  consorcio: string;
+  id_operadora: string;
   /** Nome da operadora */
-  operadora: string | null;
+  operadora: string;
   servico: string | null;
   sentido: string | null;
   id_veiculo: number | null;
   id_cliente: string | null;
-  id_transacao: string | null;
-  tipo_pagamento: string | null;
+  id_transacao: string;
+  tipo_pagamento: string;
   tipo_transacao: string | null;
   tipo_gratuidade: string | null;
   tipo_integracao: string | null;
@@ -27,6 +27,6 @@ export class BigqueryTransacao {
   stop_id: number | null;
   stop_lat: number | null;
   stop_lon: number | null;
-  valor_transacao: number | null;
+  valor_transacao: number;
   versao: string | null;
 }

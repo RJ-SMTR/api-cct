@@ -81,10 +81,27 @@ describe('BigqueryOrdemPagamentoRepository', () => {
 
       // Act
       const result = await bqOrdemPagamentoRepository.query(`
-        SELECT o.documento
-        FROM \`rj-smtr.cadastro.operadoras\` o
-        WHERE o.documento IN ('463572889', '463416372')
+        SELECT t.*, o.documento
+        FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+        INNER JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
+        WHERE o.documento IN ('03818429405')
       `);
+      // const result2 = await bqOrdemPagamentoRepository.query(`
+      //   SELECT t.*, o.documento
+      //   FROM
+      //     \`rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia\` t
+      //   LEFT JOIN
+      //     \`rj-smtr.cadastro.consorcios\` c
+      //   ON
+      //     c.id_consorcio = t.id_consorcio
+      //   LEFT JOIN
+      //     \`rj-smtr.cadastro.operadoras\` o
+      //   ON
+      //     o.id_operadora = t.id_operadora
+      //   WHERE ((DATE(t.data_ordem) >= DATE('2024-05-10') AND DATE(t.data_ordem) <= DATE('2024-05-16'))
+      //   AND o.documento IN ('03818429405', '10204153719'))
+      //   AND t.valor_total_transacao_liquido > 0
+      // `);
 
       // Assert
       expect(result).toBeDefined();

@@ -22,17 +22,16 @@ export class BigqueryTransacaoRepository {
   constructor(
     private readonly bigqueryService: BigqueryService,
     private readonly settingsService: SettingsService,
-  ) { }
+  ) {}
 
-  public async findTransacaoBy(
+  public async findMany(
     filter?: IBqFindTransacao,
   ): Promise<BigqueryTransacao[]> {
-    const transacoes: BigqueryTransacao[] = (await this.fetchTransacao(filter))
-      .data;
+    const transacoes: BigqueryTransacao[] = (await this.queryData(filter)).data;
     return transacoes;
   }
 
-  private async fetchTransacao(
+  private async queryData(
     args?: IBqFindTransacao,
   ): Promise<{ data: BigqueryTransacao[]; countAll: number }> {
     const qArgs = await this.getQueryArgs(args);
@@ -41,11 +40,11 @@ export class BigqueryTransacaoRepository {
       SELECT
         CAST(t.data AS STRING) AS \`data\`,
         t.hora AS hora,
+        CAST(t.datetime_captura AS STRING) AS datetime_captura,
         CAST(t.datetime_transacao AS STRING) AS datetime_transacao,
         CAST(t.datetime_processamento AS STRING) AS datetime_processamento,
         t.datetime_captura AS captureDateTime,
         t.modo AS modo,
-        t.servico AS servico,
         t.sentido AS sentido,
         t.id_veiculo AS id_veiculo,
         t.id_cliente AS id_cliente,
@@ -62,6 +61,10 @@ export class BigqueryTransacaoRepository {
         CASE WHEN t.tipo_transacao = 'Integração' THEN i.valor_transacao_total ELSE t.valor_transacao END AS valor_transacao,
         t.versao AS bqDataVersion,
         CAST(DATE_ADD(t.data, INTERVAL MOD(6 - EXTRACT(DAYOFWEEK FROM t.data) + 7, 7) DAY) AS STRING) AS aux_nextFriday,
+        t.consorcio AS consorcio,
+        t.operadora AS operadora,
+        t.id_consorcio AS id_consorcio,
+        t.id_operadora AS id_operadora,
         (${qArgs.countQuery}) AS count,
         'ok' AS status
       FROM \`${qArgs.transacao}\` t\n` +
@@ -71,9 +74,9 @@ export class BigqueryTransacaoRepository {
       '\n' +
       (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
       `UNION ALL
-      SELECT ${'null, '.repeat(23)}
+      SELECT ${'null, '.repeat(27)}
       (${qArgs.countQuery}) AS count, 'empty' AS status` +
-      `\nt.datetime_processamento DESC` +
+      `\nORDER BY datetime_processamento DESC` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
     const queryResult = await this.bigqueryService.query(
@@ -131,9 +134,10 @@ export class BigqueryTransacaoRepository {
     const queryBuilder = new QueryBuilder();
     queryBuilder.pushOR([]);
     if (args?.offset !== undefined && args.limit === undefined) {
-      logWarn(this.logger,
+      logWarn(
+        this.logger,
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-        " 'offset' will be ignored to prevent query fail",
+          " 'offset' will be ignored to prevent query fail",
       );
       offset = undefined;
     }
@@ -213,6 +217,7 @@ export class BigqueryTransacaoRepository {
       Object.values(TRIntegrationTypeMap[0]);
       return {
         ...item,
+        valor_transacao: item.valor_transacao || 0,
         paymentMediaType:
           tipo_pagamento !== null
             ? BqTransacaoTipoPagamentoMap?.[tipo_pagamento] || tipo_pagamento

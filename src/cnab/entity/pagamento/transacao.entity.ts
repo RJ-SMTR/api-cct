@@ -39,7 +39,7 @@ export class Transacao extends EntityHelper {
    *
    * uniqueColumnName: `UQ_Transacao_idOrdemPagamento`
    */
-  @Column({ type: String, unique: true, nullable: true })
+  @Column({ type: String, nullable: true })
   idOrdemPagamento: string | null;
 
   @ManyToOne(() => Pagador, { eager: true })

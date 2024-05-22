@@ -43,6 +43,8 @@ import { SftpModule } from './sftp/sftp.module';
 import { TestModule } from './test/test.module';
 import { TicketRevenuesModule } from './ticket-revenues/ticket-revenues.module';
 import { UsersModule } from './users/users.module';
+import { TransacaoViewService } from './transacao-bq/transacao-view.service';
+import { TransacaoViewModule } from './transacao-bq/transacao-view.module';
 
 @Module({
   imports: [
@@ -114,6 +116,8 @@ import { UsersModule } from './users/users.module';
     TestModule,
     CnabModule,
     SftpModule,
+    TransacaoViewModule,
   ],
+  providers: [TransacaoViewService],
 })
 export class AppModule {}

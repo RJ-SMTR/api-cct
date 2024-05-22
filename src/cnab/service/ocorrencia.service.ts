@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { OcorrenciaRepository } from 'src/cnab/repository/ocorrencia.repository';
-import { DeepPartial } from 'typeorm';
+import { DeepPartial, FindManyOptions } from 'typeorm';
 
 @Injectable()
 export class OcorrenciaService {
@@ -10,16 +10,20 @@ export class OcorrenciaService {
     timestamp: true,
   });
 
-  constructor(private tOcorrenciaRepository: OcorrenciaRepository) {}
+  constructor(private ocorrenciaRepository: OcorrenciaRepository) {}
+
+  async findMany(options: FindManyOptions<Ocorrencia>) {
+    return await this.ocorrenciaRepository.findMany(options);
+  }
 
   /**
    * Save Transacao if NSA not exists
    */
   public async save(dto: DeepPartial<Ocorrencia>): Promise<Ocorrencia> {
-    return await this.tOcorrenciaRepository.save(dto);
+    return await this.ocorrenciaRepository.save(dto);
   }
 
   public async saveMany(ocorrencias: DeepPartial<Ocorrencia>[]) {
-    return this.tOcorrenciaRepository.insert(ocorrencias);
+    return this.ocorrenciaRepository.insert(ocorrencias);
   }
 }

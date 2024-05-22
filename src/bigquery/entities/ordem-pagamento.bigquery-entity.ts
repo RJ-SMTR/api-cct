@@ -79,6 +79,8 @@ export class BigqueryOrdemPagamento {
   /** Valor total das transações menos o valor_desconto_taxa (R$) */
   valorTotalTransacaoLiquido: number | null;
 
+  operadoraTipoDocumento: string;
+
   /** Código de controle de versão do dado (SHA Github) */
   versao: string;
 

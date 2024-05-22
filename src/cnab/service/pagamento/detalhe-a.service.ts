@@ -9,6 +9,7 @@ import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
 import { ClienteFavorecidoService } from '../cliente-favorecido.service';
 import { startOfDay } from 'date-fns';
+import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 
 @Injectable()
 export class DetalheAService {
@@ -33,6 +34,7 @@ export class DetalheAService {
 
   public async saveRetornoFrom104(
     registro: CnabRegistros104Pgto,
+    dataEfetivacao: Date,
   ): Promise<DetalheA | null> {
     const r = registro;
     const favorecido = await this.clienteFavorecidoService.findOne({
@@ -47,6 +49,13 @@ export class DetalheAService {
     const detalheARem = await this.detalheARepository.getOne({
       dataVencimento: dataVencimento,
       nsr: r.detalheA.nsr.convertedValue,
+      headerLote: {
+        headerArquivo: {
+          transacaoAgrupado: {
+            status: { id: TransacaoStatusEnum.remessa },
+          },
+        },
+      },
     });
     const detalheA = new DetalheADTO({
       id: detalheARem.id,
@@ -56,6 +65,7 @@ export class DetalheAService {
       finalidadeDOC: r.detalheA.finalidadeDOC.value,
       numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
       dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
+      dataEfetivacao: dataEfetivacao,
       tipoMoeda: r.detalheA.tipoMoeda.value,
       quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
       valorLancamento: r.detalheA.valorLancamento.convertedValue,
@@ -68,7 +78,6 @@ export class DetalheAService {
         r.detalheA.indicadorFormaParcelamento.stringValue,
       periodoVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
       numeroParcela: r.detalheA.numeroParcela.convertedValue,
-      dataEfetivacao: r.detalheA.dataEfetivacao.convertedValue,
       valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
       nsr: Number(r.detalheA.nsr.value),
       ocorrenciasCnab: r.detalheA.ocorrencias.value,
