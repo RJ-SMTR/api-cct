@@ -1,11 +1,23 @@
 import { Injectable } from '@nestjs/common';
-import { nextFriday, nextThursday, startOfDay } from 'date-fns';
+import {
+  endOfDay,
+  isFriday,
+  nextFriday,
+  nextThursday,
+  startOfDay,
+  subDays,
+} from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
+import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
+import { appSettings } from 'src/settings/app.settings';
+import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
+import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
+import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
@@ -37,6 +49,7 @@ import {
   parseCnab240Extrato,
   parseCnab240Pagamento,
 } from './utils/cnab/cnab-104-utils';
+import { Between } from 'typeorm';
 
 /**
  * User cases for CNAB and Payments
@@ -59,23 +72,20 @@ export class CnabService {
     private clienteFavorecidoService: ClienteFavorecidoService,
     private pagadorService: PagadorService,
     private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
+    private bigqueryTransacaoService: BigqueryTransacaoService,
+    private transacaoViewService: TransacaoViewService,
     private usersService: UsersService,
     private transacaoAgService: TransacaoAgrupadoService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private readonly lancamentoService: LancamentoService,
     private arquivoPublicacaoService: ArquivoPublicacaoService,
+    private settingsService: SettingsService,
   ) {}
 
   // #region saveTransacoesJae
 
   /**
    * Update Transacoes tables from Jaé (bigquery)
-   *
-   * This task will:
-   * 1. Update ClienteFavorecidos from Users
-   * 2. Fetch ordemPgto from this week
-   * 3. Save new Transacao (status = created) / ItemTransacao (status = craeted)
-   * 4. Save new ArquivoPublicacao
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
@@ -85,7 +95,10 @@ export class CnabService {
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
 
-    // 2. Fetch ordemPgto
+    // 2. Update TransacaoBigquery
+    await this.updateTransacaoBigquery();
+
+    // 3. Update ordens
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
     await this.saveOrdens(ordens);
 
@@ -97,6 +110,14 @@ export class CnabService {
       this.logger.log(`${msg}. Nada a fazer.`, METHOD);
       return;
     }
+  }
+
+  async updateTransacaoBigquery() {
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek();
+    const transacoesView = transacoesBq.map((i) =>
+      TransacaoView.newFromBigquery(i),
+    );
+    await this.transacaoViewService.insertMany(transacoesView);
   }
 
   /**
@@ -120,6 +141,42 @@ export class CnabService {
 
       await this.saveAgrupamentos(ordem, pagador, favorecido);
     }
+
+    await this.compareTransacaoViewPublicacao();
+  }
+
+  async compareTransacaoViewPublicacao() {
+    const transacoesView = await this.getTransacoesView();
+    const publicacoes = await this.getPublicacoes();
+    for (const publicacao of publicacoes) {
+      const transacaoViewIds = transacoesView
+        .filter(
+          (transacaoView) =>
+            transacaoView.idOperadora ===
+              publicacao.itemTransacao.idOperadora &&
+            transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio,
+        )
+        .map((i) => i.id);
+      await this.transacaoViewService.updateMany(transacaoViewIds, {
+        arquivoPublicacao: { id: publicacao.id },
+      });
+    }
+  }
+
+  async getPublicacoes() {
+    let friday = new Date();
+    if (!isFriday(friday)) {
+      friday = nextFriday(friday);
+    }
+    const qui = startOfDay(subDays(friday, 8));
+    const qua = endOfDay(subDays(friday, 2));
+    return await this.arqPublicacaoService.findMany({
+      where: {
+        itemTransacao: {
+          dataOrdem: Between(qui, qua),
+        },
+      },
+    });
   }
 
   async saveAgrupamentos(
@@ -133,6 +190,7 @@ export class CnabService {
     let transacaoAg = await this.transacaoAgService.findOne({
       dataOrdem: fridayOrdem,
       pagador: { id: pagador.id },
+      status: { id: TransacaoStatusEnum.created },
     });
 
     let itemAg: ItemTransacaoAgrupado | null = null;
@@ -143,6 +201,7 @@ export class CnabService {
         where: {
           transacaoAgrupado: { id: transacaoAg.id },
           idConsorcio: ordem.idConsorcio, // business rule
+          status: { id: ItemTransacaoStatusEnum.created },
         },
       });
       if (itemAg) {
@@ -167,7 +226,12 @@ export class CnabService {
     }
 
     const transacao = await this.saveTransacao(ordem, pagador, transacaoAg.id);
-    await this.saveItemTransacao(ordem, favorecido, transacao, itemAg);
+    await this.saveItemTransacaoPublicacao(
+      ordem,
+      favorecido,
+      transacao,
+      itemAg,
+    );
   }
 
   /**
@@ -182,6 +246,7 @@ export class CnabService {
   ): Promise<Transacao> {
     const existing = await this.transacaoService.findOne({
       idOrdemPagamento: ordem.idOrdemPagamento,
+      transacaoAgrupado: { id: transacaoAgId },
     });
     const transacao = new Transacao({
       ...(existing ? { id: existing.id } : {}),
@@ -231,7 +296,7 @@ export class CnabService {
     return item;
   }
 
-  async saveItemTransacao(
+  async saveItemTransacaoPublicacao(
     ordem: BigqueryOrdemPagamentoDTO,
     favorecido: ClienteFavorecido,
     transacao: Transacao,
@@ -243,13 +308,14 @@ export class CnabService {
         idConsorcio: ordem.idConsorcio,
         idOperadora: ordem.idOperadora,
         idOrdemPagamento: ordem.idOrdemPagamento,
+        status: { id: ItemTransacaoStatusEnum.created },
       },
     });
     const item = new ItemTransacao({
       ...(existing ? { id: existing.id } : {}),
       clienteFavorecido: favorecido,
       dataCaptura: ordem.dataOrdem,
-      dataOrdem: ordem.dataOrdem,
+      dataOrdem: startOfDay(new Date(ordem.dataOrdem)),
       idConsorcio: ordem.idConsorcio,
       idOperadora: ordem.idOperadora,
       idOrdemPagamento: ordem.idOrdemPagamento,
@@ -261,9 +327,23 @@ export class CnabService {
       itemTransacaoAgrupado: { id: itemTransacaoAg.id },
     });
     await this.itemTransacaoService.save(item);
-    const publicacao =
-      await this.arquivoPublicacaoService.generatePublicacaoDTO(item);
+    const publicacao = await this.arquivoPublicacaoService.savePublicacaoDTO(
+      item,
+    );
     await this.arquivoPublicacaoService.save(publicacao);
+  }
+
+  async getTransacoesView() {
+    let friday = new Date();
+    if (!isFriday(friday)) {
+      friday = nextFriday(friday);
+    }
+    const qua = startOfDay(subDays(friday, 9));
+    const ter = endOfDay(subDays(friday, 3));
+    const transacoesView = await this.transacaoViewService.find({
+      datetimeProcessamento: Between(qua, ter),
+    });
+    return transacoesView;
   }
 
   /**
@@ -402,6 +482,9 @@ export class CnabService {
       }
 
       // Generate remessa
+      const nsrSequence = await this.settingsService.getOneBySettingData(
+        appSettings.any__cnab_current_nsr_sequence,
+      );
       const cnabStr = await this.remessaRetornoService.generateSaveRemessa(
         transacao,
         transacaoAg,
@@ -410,6 +493,10 @@ export class CnabService {
         this.logger.warn(
           `A Transação/Agrupado #${_transacao.id} gerou cnab vazio (sem itens válidos), ignorando...`,
           METHOD,
+        );
+        await this.settingsService.updateBySettingData(
+          appSettings.any__cnab_current_nsr_sequence,
+          nsrSequence.value,
         );
         continue;
       }
@@ -450,6 +537,10 @@ export class CnabService {
       await this.arqPublicacaoService.compareRemessaToRetorno();
 
       // Success
+      this.logger.log(
+        'Retorno lido com sucesso, enviando para o backup...',
+        METHOD,
+      );
       await this.sftpService.moveToBackup(
         cnabName,
         SftpBackupFolder.RetornoSuccess,

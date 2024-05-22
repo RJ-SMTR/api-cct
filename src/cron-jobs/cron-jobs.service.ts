@@ -94,7 +94,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-
+    
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -144,33 +144,33 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
           },
         },
       },
-      {
-        name: CrobJobsEnum.saveTransacoesJae,
-        cronJobParameters: {
-          cronTime: '0 3 * * 5', // Every friday, 00:00 BRT = 03:00 GMT
-          onTick: async () => {
-            await this.saveTransacoesJae1();
-          },
-        },
-      },
-      {
-        name: CrobJobsEnum.sendRemessa,
-        cronJobParameters: {
-          cronTime: '0 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
-          onTick: async () => {
-            await this.sendRemessa();
-          },
-        },
-      },
-      {
-        name: CrobJobsEnum.updateRetorno,
-        cronJobParameters: {
-          cronTime: '*/30 * * * *', // Every 30 min
-          onTick: async () => {
-            await this.updateRetorno();
-          },
-        },
-      },
+      // {
+      //   name: CrobJobsEnum.saveTransacoesJae,
+      //   cronJobParameters: {
+      //     cronTime: '0 3 * * 5', // Every friday, 00:00 BRT = 03:00 GMT
+      //     onTick: async () => {
+      //       await this.saveTransacoesJae1();
+      //     },
+      //   },
+      // },
+      // {
+      //   name: CrobJobsEnum.sendRemessa,
+      //   cronJobParameters: {
+      //     cronTime: '0 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
+      //     onTick: async () => {
+      //       await this.sendRemessa();
+      //     },
+      //   },
+      // },
+      // {
+      //   name: CrobJobsEnum.updateRetorno,
+      //   cronJobParameters: {
+      //     cronTime: '*/30 * * * *', // Every 30 min
+      //     onTick: async () => {
+      //       await this.updateRetorno();
+      //     },
+      //   },
+      // },
       // {
       //   name: CrobJobsEnum.saveExtrato,
       //   cronJobParameters: {

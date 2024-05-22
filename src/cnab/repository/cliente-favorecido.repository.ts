@@ -103,12 +103,8 @@ export class ClienteFavorecidoRepository {
     } else return result;
   }
 
-  public async findAll(
-    fields: EntityCondition<ClienteFavorecido>,
-  ): Promise<ClienteFavorecido[]> {
-    return await this.clienteFavorecidoRepository.find({
-      where: fields,
-    });
+  public async findAll(): Promise<ClienteFavorecido[]> {
+    return await this.clienteFavorecidoRepository.find();
   }
 
   public async findMany(

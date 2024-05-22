@@ -15,7 +15,7 @@ import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
 import { appSettings } from 'src/settings/app.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { asDate, asString } from 'src/utils/pipe-utils';
+import { asString } from 'src/utils/pipe-utils';
 import { DeepPartial } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
@@ -30,7 +30,6 @@ import { CnabDetalheA_104 } from '../../interfaces/cnab-240/104/pagamento/cnab-d
 import { CnabDetalheB_104 } from '../../interfaces/cnab-240/104/pagamento/cnab-detalhe-b-104.interface';
 import { CnabHeaderLote104Pgto } from '../../interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 import { CnabRegistros104Pgto } from '../../interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
-import { CnabRemessaDetalhe } from '../../interfaces/cnab-all/cnab-remsesa.interface';
 import { stringifyCnab104File } from '../../utils/cnab/cnab-104-utils';
 import { getTipoInscricao } from '../../utils/cnab/cnab-utils';
 import { DetalheAService } from './detalhe-a.service';
@@ -62,23 +61,6 @@ export class RemessaRetornoService {
     private detalheBService: DetalheBService,
     private settingsService: SettingsService,
   ) {}
-
-  // #region saveRemessa
-
-  /**
-   * It will not contain `detalheA` field. You must add it later.
-   */
-  public getRemessaDetalheBDTO(detalhe: CnabRemessaDetalhe) {
-    const itemTransacao = detalhe.itemTransacao;
-    const r = detalhe.registroAB;
-    const detalheB = new DetalheBDTO({
-      dataVencimento: startOfDay(asDate(itemTransacao.dataProcessamento)),
-      nsr: Number(r.detalheB.nsr.value),
-    });
-    return detalheB;
-  }
-
-  // #endregion
 
   // #region generateSaveRemessa
 
@@ -495,10 +477,9 @@ export class RemessaRetornoService {
     let nsr = await this.getNextNSR();
     const itemTransacaoAux = (itemTransacao ||
       itemTransacaoAg) as ItemTransacao;
-    const fridayOrdem =
-      itemTransacao
-        ? nextFriday(nextThursday(startOfDay(itemTransacaoAux.dataOrdem)))
-        : itemTransacaoAux.dataOrdem;
+    const fridayOrdem = itemTransacao
+      ? nextFriday(nextThursday(startOfDay(itemTransacaoAux.dataOrdem)))
+      : itemTransacaoAux.dataOrdem;
     const detalheA: CnabDetalheA_104 = sc(PgtoRegistros.detalheA);
     detalheA.codigoBancoDestino.value = favorecido.codigoBanco;
     detalheA.codigoAgenciaDestino.value = favorecido.agencia;
@@ -605,11 +586,13 @@ export class RemessaRetornoService {
    * `false` if retorno already exists.
    */
   public async saveRetorno(cnab: CnabFile104Pgto) {
+    const dataEfetivacao = new Date();
     for (const cnabLote of cnab.lotes) {
       for (const registro of cnabLote.registros) {
         // Save Detalhes
         const detalheAUpdated = await this.detalheAService.saveRetornoFrom104(
           registro,
+          dataEfetivacao,
         );
         if (!detalheAUpdated) {
           continue;

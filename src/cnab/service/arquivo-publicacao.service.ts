@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { isFriday, nextFriday } from 'date-fns';
+import { isDate, isFriday, nextFriday, startOfDay } from 'date-fns';
+import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { DeepPartial, FindManyOptions } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
@@ -7,7 +8,6 @@ import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { HeaderLote } from '../entity/pagamento/header-lote.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
-import { TransacaoAgrupado } from '../entity/pagamento/transacao-agrupado.entity';
 import { TransacaoStatus } from '../entity/pagamento/transacao-status.entity';
 import { ItemTransacaoStatusEnum } from '../enums/pagamento/item-transacao-status.enum';
 import { TransacaoStatusEnum } from '../enums/pagamento/transacao-status.enum';
@@ -19,7 +19,6 @@ import { HeaderLoteService } from './pagamento/header-lote.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
 import { TransacaoService } from './pagamento/transacao.service';
-import { ItemTransacaoAgrupadoService } from './pagamento/item-transacao-agrupado.service';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -35,8 +34,8 @@ export class ArquivoPublicacaoService {
     private transacaoOcorrenciaService: OcorrenciaService,
     private transacaoAgService: TransacaoAgrupadoService,
     private transacaoService: TransacaoService,
+    private transacaoViewService: TransacaoViewService,
     private itemTransacaoService: ItemTransacaoService,
-    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
   ) {}
 
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
@@ -55,18 +54,21 @@ export class ArquivoPublicacaoService {
    *
    * **status** is Created.
    */
-  async generatePublicacaoDTO(
+  async savePublicacaoDTO(
     itemTransacao: ItemTransacao,
   ): Promise<ArquivoPublicacao> {
-    let friday = new Date();
-    if (isFriday(friday)) {
-      friday = nextFriday(friday);
-    }
     const existing = await this.arquivoPublicacaoRepository.findOne({
       where: {
-        itemTransacao: { id: itemTransacao.id },
+        itemTransacao: {
+          id: itemTransacao.id,
+        },
       },
     });
+    const ordem = itemTransacao.dataOrdem;
+    if (!isDate(ordem) || !ordem) {
+      console.warn('erro')
+    }
+    const friday = isFriday(ordem) ? ordem : nextFriday(ordem);
     const arquivo = new ArquivoPublicacao({
       ...(existing ? { id: existing.id } : {}),
       // Remessa
@@ -76,15 +78,17 @@ export class ArquivoPublicacaoService {
       isPago: false,
       dataGeracaoRetorno: null,
       horaGeracaoRetorno: null,
-      dataVencimento: friday,
+      dataVencimento: startOfDay(friday),
       dataEfetivacao: null,
       valorRealEfetivado: null,
     });
     return arquivo;
   }
 
-  public async save(publicacao: DeepPartial<ArquivoPublicacao>) {
-    await this.arquivoPublicacaoRepository.save(publicacao);
+  public async save(
+    publicacao: DeepPartial<ArquivoPublicacao>,
+  ): Promise<ArquivoPublicacao> {
+    return await this.arquivoPublicacaoRepository.save(publicacao);
   }
 
   /**
@@ -127,19 +131,10 @@ export class ArquivoPublicacaoService {
         await this.salvaOcorrenciasHeaderLote(headerLote);
 
         // DetalheA Retorno
-        let auxiliarTransacaoAgrupado: TransacaoAgrupado | null = null;
         for (const detalheA of detalhesA) {
           // Save retorno and update Transacao, Publicacao
           await this.salvaOcorrenciasDetalheA(detalheA);
-
-          if (
-            auxiliarTransacaoAgrupado !==
-            detalheA.headerLote.headerArquivo.transacaoAgrupado
-          ) {
-            await this.savePublicacaoRetorno(detalheA);
-          }
-          auxiliarTransacaoAgrupado =
-            detalheA.headerLote.headerArquivo.transacaoAgrupado;
+          await this.savePublicacaoRetorno(detalheA);
         }
       }
 

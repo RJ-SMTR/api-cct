@@ -328,6 +328,21 @@ export function formatNumber(
   return result;
 }
 
+export function getCnabNumber(
+  field: CnabField,
+  cropDecimal: CropDecimal = 'roundCeil',
+): number {
+  validateFormatNumber(field);
+  const { decimal } = getPictureNumberSize(field.picture);
+
+  let numFixed = Number(Number(field.value || 0).toFixed(decimal)); // roundCeil
+  if (cropDecimal === 'cropDecimals') {
+    numFixed = cropDecimals(Number(field.value), decimal);
+  }
+  const num = numFixed.toFixed(decimal);
+  return Number(num);
+}
+
 /**
  * Performs basic validation before formatting.
  */
@@ -556,7 +571,7 @@ export function parseNumber(field: CnabField) {
       ? field.value
       : Number(field.value) / Number(`10e${decimal - 1}`);
   field.convertedValue = num;
-  updateCnabFieldFormatValues(field, { formatType: 'Date' });
+  updateCnabFieldFormatValues(field, { formatType: 'number' });
 }
 
 /**
