@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { nextFriday, nextThursday, startOfDay } from 'date-fns';
+import {
+  endOfDay,
+  isFriday,
+  nextFriday,
+  nextThursday,
+  startOfDay,
+  subDays,
+} from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
@@ -42,6 +49,7 @@ import {
   parseCnab240Extrato,
   parseCnab240Pagamento,
 } from './utils/cnab/cnab-104-utils';
+import { Between } from 'typeorm';
 
 /**
  * User cases for CNAB and Payments
@@ -85,7 +93,7 @@ export class CnabService {
     const METHOD = this.saveTransacoesJae.name;
 
     // 1. Update cliente favorecido
-    // await this.updateAllFavorecidosFromUsers();
+    await this.updateAllFavorecidosFromUsers();
 
     // 2. Update TransacaoBigquery
     await this.updateTransacaoBigquery();
@@ -109,7 +117,7 @@ export class CnabService {
     const transacoesView = transacoesBq.map((i) =>
       TransacaoView.newFromBigquery(i),
     );
-    await this.transacaoViewService.upsert(transacoesView);
+    await this.transacaoViewService.insertMany(transacoesView);
   }
 
   /**
@@ -133,6 +141,38 @@ export class CnabService {
 
       await this.saveAgrupamentos(ordem, pagador, favorecido);
     }
+
+    const transacoesView = await this.getTransacoesView();
+    const publicacoes = await this.getPublicacoes();
+    for (const transacaoView of transacoesView) {
+      for (const publicacao of publicacoes) {
+        if (
+          transacaoView.idOperadora === publicacao.itemTransacao.idOperadora &&
+          transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio
+        ) {
+          await this.transacaoViewService.save({
+            id: transacaoView.id,
+            arquivoPublicacao: { id: publicacao.id },
+          });
+        }
+      }
+    }
+  }
+
+  async getPublicacoes() {
+    let friday = new Date();
+    if (!isFriday(friday)) {
+      friday = nextFriday(friday);
+    }
+    const qui = startOfDay(subDays(friday, 8));
+    const qua = endOfDay(subDays(friday, 2));
+    return await this.arqPublicacaoService.findMany({
+      where: {
+        itemTransacao: {
+          dataOrdem: Between(qui, qua),
+        },
+      },
+    });
   }
 
   async saveAgrupamentos(
@@ -271,7 +311,7 @@ export class CnabService {
       ...(existing ? { id: existing.id } : {}),
       clienteFavorecido: favorecido,
       dataCaptura: ordem.dataOrdem,
-      dataOrdem: ordem.dataOrdem,
+      dataOrdem: startOfDay(new Date(ordem.dataOrdem)),
       idConsorcio: ordem.idConsorcio,
       idOperadora: ordem.idOperadora,
       idOrdemPagamento: ordem.idOrdemPagamento,
@@ -286,12 +326,20 @@ export class CnabService {
     const publicacao = await this.arquivoPublicacaoService.savePublicacaoDTO(
       item,
     );
-    const publicacaoSaved = await this.arquivoPublicacaoService.save(
-      publicacao,
-    );
+    await this.arquivoPublicacaoService.save(publicacao);
+  }
 
-    // Add relation between Publicacao and TransacaoView
-    await this.transacaoViewService.updateForArquivoPublicacao(publicacaoSaved);
+  async getTransacoesView() {
+    let friday = new Date();
+    if (!isFriday(friday)) {
+      friday = nextFriday(friday);
+    }
+    const qua = startOfDay(subDays(friday, 9));
+    const ter = endOfDay(subDays(friday, 3));
+    const transacoesView = await this.transacaoViewService.find({
+      datetimeProcessamento: Between(qua, ter),
+    });
+    return transacoesView;
   }
 
   /**

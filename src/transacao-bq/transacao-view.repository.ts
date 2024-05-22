@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { TransacaoView } from './transacao-view.entity';
-import { DeepPartial, FindManyOptions, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { DeepPartial, FindManyOptions, Repository } from 'typeorm';
+import { UpsertOptions } from 'typeorm/repository/UpsertOptions';
+import { TransacaoView } from './transacao-view.entity';
 
 @Injectable()
 export class TransacaoViewRepository {
@@ -14,12 +15,11 @@ export class TransacaoViewRepository {
     return this.transacaoViewRepository.save(dto);
   }
 
-  public async upsert(dtos: DeepPartial<TransacaoView>[]) {
-    return await this.transacaoViewRepository.upsert(dtos, {
-      conflictPaths: {
-        datetimeProcessamento: true,
-      },
-    });
+  public async upsert(
+    dtos: DeepPartial<TransacaoView>[],
+    conditions: UpsertOptions<TransacaoView>,
+  ) {
+    return await this.transacaoViewRepository.upsert(dtos, conditions);
   }
 
   public async getOne(
@@ -28,9 +28,7 @@ export class TransacaoViewRepository {
     return await this.transacaoViewRepository.findOneOrFail(options);
   }
 
-  public async findMany(
-    options: FindManyOptions<TransacaoView>,
-  ): Promise<TransacaoView[]> {
+  public async find(options: FindManyOptions<TransacaoView>): Promise<TransacaoView[]> {
     return await this.transacaoViewRepository.find(options);
   }
 
@@ -40,4 +38,15 @@ export class TransacaoViewRepository {
     const many = await this.transacaoViewRepository.find(options);
     return many.pop() || null;
   }
+
+  async updateMany(ids: number[], dto: DeepPartial<TransacaoView>) {
+    await this.transacaoViewRepository
+      .createQueryBuilder('t')
+      .update()
+      .set(dto)
+      .whereInIds(ids)
+      .execute();
+  }
+
+  createQueryBuilder = this.transacaoViewRepository.createQueryBuilder;
 }

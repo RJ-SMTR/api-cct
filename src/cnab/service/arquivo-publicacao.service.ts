@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { isFriday, nextFriday, startOfDay } from 'date-fns';
+import { isDate, isFriday, nextFriday, startOfDay } from 'date-fns';
+import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { DeepPartial, FindManyOptions } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
@@ -33,6 +34,7 @@ export class ArquivoPublicacaoService {
     private transacaoOcorrenciaService: OcorrenciaService,
     private transacaoAgService: TransacaoAgrupadoService,
     private transacaoService: TransacaoService,
+    private transacaoViewService: TransacaoViewService,
     private itemTransacaoService: ItemTransacaoService,
   ) {}
 
@@ -55,10 +57,6 @@ export class ArquivoPublicacaoService {
   async savePublicacaoDTO(
     itemTransacao: ItemTransacao,
   ): Promise<ArquivoPublicacao> {
-    let friday = new Date();
-    if (!isFriday(friday)) {
-      friday = nextFriday(friday);
-    }
     const existing = await this.arquivoPublicacaoRepository.findOne({
       where: {
         itemTransacao: {
@@ -66,6 +64,11 @@ export class ArquivoPublicacaoService {
         },
       },
     });
+    const ordem = itemTransacao.dataOrdem;
+    if (!isDate(ordem) || !ordem) {
+      console.warn('erro')
+    }
+    const friday = isFriday(ordem) ? ordem : nextFriday(ordem);
     const arquivo = new ArquivoPublicacao({
       ...(existing ? { id: existing.id } : {}),
       // Remessa

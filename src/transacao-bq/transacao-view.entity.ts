@@ -67,7 +67,7 @@ export class TransacaoView {
   @Column({ type: 'numeric' })
   valorTransacao: number;
 
-  @ManyToOne(() => ArquivoPublicacao, { eager: true })
+  @ManyToOne(() => ArquivoPublicacao, { eager: true, nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoView_arquivoPublicacao_ManyToOne',
   })
