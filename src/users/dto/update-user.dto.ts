@@ -59,13 +59,13 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @ApiProperty({ type: String })
   @IsOptional()
   @IsNumberString()
-  @MaxLength(4)
+  @MaxLength(5)
   bankAgency?: string | undefined;
 
   @ApiProperty({ type: String })
   @IsOptional()
   @IsNumberString()
-  @MaxLength(5)
+  @MaxLength(12)
   bankAccount?: string | undefined;
 
   @ApiProperty({ type: String })
