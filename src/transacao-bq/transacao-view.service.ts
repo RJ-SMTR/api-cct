@@ -28,7 +28,7 @@ export class TransacaoViewService {
   }
 
   async updateMany(ids: number[], update: DeepPartial<TransacaoView>) {
-    return await this.updateMany(ids, update);
+    return await this.transacaoViewRepository.updateMany(ids, update);
   }
 
   async insertMany(dtos: TransacaoView[]) {

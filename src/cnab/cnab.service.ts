@@ -142,20 +142,24 @@ export class CnabService {
       await this.saveAgrupamentos(ordem, pagador, favorecido);
     }
 
+    await this.compareTransacaoViewPublicacao();
+  }
+
+  async compareTransacaoViewPublicacao() {
     const transacoesView = await this.getTransacoesView();
     const publicacoes = await this.getPublicacoes();
-    for (const transacaoView of transacoesView) {
-      for (const publicacao of publicacoes) {
-        if (
-          transacaoView.idOperadora === publicacao.itemTransacao.idOperadora &&
-          transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio
-        ) {
-          await this.transacaoViewService.save({
-            id: transacaoView.id,
-            arquivoPublicacao: { id: publicacao.id },
-          });
-        }
-      }
+    for (const publicacao of publicacoes) {
+      const transacaoViewIds = transacoesView
+        .filter(
+          (transacaoView) =>
+            transacaoView.idOperadora ===
+              publicacao.itemTransacao.idOperadora &&
+            transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio,
+        )
+        .map((i) => i.id);
+      await this.transacaoViewService.updateMany(transacaoViewIds, {
+        arquivoPublicacao: { id: publicacao.id },
+      });
     }
   }
 
