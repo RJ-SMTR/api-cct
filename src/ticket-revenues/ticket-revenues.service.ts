@@ -1,7 +1,10 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { isToday } from 'date-fns';
+import { endOfDay, isToday, startOfDay } from 'date-fns';
+import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
+import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { getDateNthWeek } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
@@ -13,6 +16,7 @@ import {
 } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
+import { Between, FindOptionsWhere } from 'typeorm';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
 import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
@@ -21,10 +25,9 @@ import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response
 import { ITRGetMeIndividualArgs } from './interfaces/tr-get-me-individual-args.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
-import { TicketRevenuesRepositoryService } from './ticket-revenues-repository.service';
+import { TicketRevenuesRepositoryService as TicketRevenuesRepository } from './ticket-revenues-repository';
 import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
-import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -34,8 +37,9 @@ export class TicketRevenuesService {
 
   constructor(
     private readonly usersService: UsersService,
-    private readonly ticketRevenuesRepository: TicketRevenuesRepositoryService,
-  ) { }
+    private readonly ticketRevenuesRepository: TicketRevenuesRepository,
+    private readonly transacaoViewService: TransacaoViewService,
+  ) {}
 
   /**
    * TODO: refactor - use repository method
@@ -57,15 +61,12 @@ export class TicketRevenuesService {
     });
 
     // Get data
-    const fetchArgs: IFetchTicketRevenues = {
-      cpfCnpj: user.getCpfCnpj(),
-      startDate,
-      endDate,
-    };
-
-    const ticketRevenuesResponse: ITicketRevenue[] = (
-      await this.ticketRevenuesRepository.fetchTicketRevenues(fetchArgs)
-    ).data;
+    const ticketRevenuesResponse: ITicketRevenue[] =
+      await this.findTransacaoView({
+        cpfCnpj: user.getCpfCnpj(),
+        startDate,
+        endDate,
+      });
 
     if (ticketRevenuesResponse.length === 0) {
       return new TicketRevenuesGroup().toInterface();
@@ -101,17 +102,9 @@ export class TicketRevenuesService {
     const groupBy = args?.groupBy || 'day';
 
     // Repository tasks
-    let ticketRevenuesResponse: ITicketRevenue[] = [];
-    const fetchArgs: IFetchTicketRevenues = {
-      cpfCnpj: user.getCpfCnpj(),
-      startDate,
-      endDate,
-      getToday: true,
-    };
-
-    ticketRevenuesResponse = (
-      await this.ticketRevenuesRepository.fetchTicketRevenues(fetchArgs)
-    ).data;
+    let ticketRevenuesResponse: ITicketRevenue[] = await this.findTransacaoView(
+      { cpfCnpj: user.getCpfCnpj(), startDate, endDate },
+    );
 
     if (ticketRevenuesResponse.length === 0) {
       return {
@@ -175,6 +168,49 @@ export class TicketRevenuesService {
     };
   }
 
+  private async findTransacaoView(fetchArgs: IFetchTicketRevenues) {
+    const betweenDate: FindOptionsWhere<TransacaoView> = {
+      datetimeProcessamento: Between(
+        fetchArgs?.startDate || new Date(0),
+        fetchArgs?.endDate || new Date(),
+      ),
+    };
+    const findOperadora: FindOptionsWhere<TransacaoView> = fetchArgs?.cpfCnpj
+      ? { operadoraCpfCnpj: fetchArgs.cpfCnpj }
+      : {};
+    const findConsorcio: FindOptionsWhere<TransacaoView> = fetchArgs?.cpfCnpj
+      ? { consorcioCnpj: fetchArgs.cpfCnpj }
+      : {};
+    const where: FindOptionsWhere<TransacaoView>[] = [
+      {
+        ...betweenDate,
+        ...findOperadora,
+      },
+      {
+        ...betweenDate,
+        ...findConsorcio,
+      },
+    ];
+    const today = new Date();
+    if (fetchArgs.getToday) {
+      const isTodayDate: FindOptionsWhere<TransacaoView> = {
+        datetimeProcessamento: Between(startOfDay(today), endOfDay(today)),
+      };
+      where.push({
+        ...isTodayDate,
+        ...findOperadora,
+      });
+      where.push({
+        ...isTodayDate,
+        ...findConsorcio,
+      });
+    }
+
+    return (await this.transacaoViewService.find(where)).map((i) =>
+      i.toTicketRevenue(),
+    );
+  }
+
   private async validateGetMe(args: ITRGetMeGroupedArgs): Promise<User> {
     const user = await this.usersService.getOne({ id: args?.userId });
     return user;
@@ -185,7 +221,8 @@ export class TicketRevenuesService {
     const groupSums = this.getTicketRevenuesGroups(data, 'all');
     if (groupSums.length >= 1) {
       if (groupSums.length > 1) {
-        logError(this.logger,
+        logError(
+          this.logger,
           'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
           METHOD,
         );
@@ -215,7 +252,7 @@ export class TicketRevenuesService {
     const result = ticketRevenues.reduce(
       (accumulator: TicketRevenuesGroupsType, item: ITicketRevenue) => {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
-        const itemDate = new Date(item.partitionDate);
+        const itemDate = new Date(item.processingDateTime);
         const nthWeek = getDateNthWeek(itemDate, startWeekday);
 
         // 'day', default,

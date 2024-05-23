@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { nextFriday } from 'date-fns';
-import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository.service';
+import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository';
 import { User } from 'src/users/entities/user.entity';
 import { getDateYMDString, isPaymentWeekComplete } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';

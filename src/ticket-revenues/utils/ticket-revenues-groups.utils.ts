@@ -69,9 +69,8 @@ export function appendItem(
 ) {
   group.count += 1;
   if (newItem.transactionValue) {
-    group.transactionValueSum = Number(
-      (group.transactionValueSum + newItem.transactionValue).toFixed(2),
-    );
+    const value = group.transactionValueSum + newItem.transactionValue;
+    group.transactionValueSum = Number(value.toFixed(2));
   }
 
   for (const [groupPropName, groupPropValue] of Object.entries(group)) {

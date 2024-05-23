@@ -37,44 +37,48 @@ export class BigqueryTransacaoRepository {
     const qArgs = await this.getQueryArgs(args);
     const query =
       `
-      SELECT
-        CAST(t.data AS STRING) AS \`data\`,
-        t.hora AS hora,
-        CAST(t.datetime_captura AS STRING) AS datetime_captura,
-        CAST(t.datetime_transacao AS STRING) AS datetime_transacao,
-        CAST(t.datetime_processamento AS STRING) AS datetime_processamento,
-        t.datetime_captura AS captureDateTime,
-        t.modo AS modo,
-        t.sentido AS sentido,
-        t.id_veiculo AS id_veiculo,
-        t.id_cliente AS id_cliente,
-        t.id_transacao AS id_transacao,
-        t.${qArgs.tTipoPgto} AS tipo_pagamento,
-        t.tipo_transacao AS tipo_transacao,
-        t.id_tipo_integracao AS id_tipo_integracao,
-        t.id_integracao AS id_integracao,
-        t.latitude AS latitude,
-        t.longitude AS longitude,
-        t.stop_id AS stop_id,
-        t.stop_lat AS stop_lat,
-        t.stop_lon AS stop_lon,
-        CASE WHEN t.tipo_transacao = 'Integração' THEN i.valor_transacao_total ELSE t.valor_transacao END AS valor_transacao,
-        t.versao AS bqDataVersion,
-        CAST(DATE_ADD(t.data, INTERVAL MOD(6 - EXTRACT(DAYOFWEEK FROM t.data) + 7, 7) DAY) AS STRING) AS aux_nextFriday,
-        t.consorcio AS consorcio,
-        t.operadora AS operadora,
-        t.id_consorcio AS id_consorcio,
-        t.id_operadora AS id_operadora,
-        (${qArgs.countQuery}) AS count,
-        'ok' AS status
-      FROM \`${qArgs.transacao}\` t\n` +
-      qArgs.joinCpfCnpj +
+        SELECT
+          CAST(t.data AS STRING) AS \`data\`,
+          t.hora AS hora,
+          CAST(t.datetime_captura AS STRING) AS datetime_captura,
+          CAST(t.datetime_transacao AS STRING) AS datetime_transacao,
+          CAST(t.datetime_processamento AS STRING) AS datetime_processamento,
+          t.datetime_captura AS captureDateTime,
+          t.modo AS modo,
+          t.sentido AS sentido,
+          t.id_veiculo AS id_veiculo,
+          t.id_cliente AS id_cliente,
+          t.id_transacao AS id_transacao,
+          t.${qArgs.tTipoPgto} AS tipo_pagamento,
+          t.tipo_transacao AS tipo_transacao,
+          t.id_tipo_integracao AS id_tipo_integracao,
+          t.id_integracao AS id_integracao,
+          t.latitude AS latitude,
+          t.longitude AS longitude,
+          t.stop_id AS stop_id,
+          t.stop_lat AS stop_lat,
+          t.stop_lon AS stop_lon,
+          CASE WHEN t.tipo_transacao = 'Integração' THEN i.valor_transacao_total ELSE t.valor_transacao END AS valor_transacao,
+          t.versao AS bqDataVersion,
+          CAST(DATE_ADD(t.data, INTERVAL MOD(6 - EXTRACT(DAYOFWEEK FROM t.data) + 7, 7) DAY) AS STRING) AS aux_nextFriday,
+          t.consorcio AS consorcio,
+          t.operadora AS operadora,
+          t.id_consorcio AS id_consorcio,
+          t.id_operadora AS id_operadora,
+          o.documento AS operadoraCpfCnpj,
+          c.cnpj AS consorcioCnpj,
+          (${qArgs.countQuery}) AS count,
+          'ok' AS status
+        FROM \`${qArgs.transacao}\` t\n
+        LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
+        LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+      ` +
       '\n' +
       qArgs.joinIntegracao +
       '\n' +
       (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
       `UNION ALL
-      SELECT ${'null, '.repeat(27)}
+      SELECT ${'null, '.repeat(29)}
       (${qArgs.countQuery}) AS count, 'empty' AS status` +
       `\nORDER BY datetime_processamento DESC` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
@@ -106,7 +110,6 @@ export class BigqueryTransacaoRepository {
     transacao: string;
     integracao: string;
     tTipoPgto: string;
-    joinCpfCnpj: string;
     joinIntegracao: string;
     countQuery: string;
     offset?: number;
@@ -173,21 +176,19 @@ export class BigqueryTransacaoRepository {
       const cpfCnpj = args.cpfCnpj;
       qWhere =
         isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
-          ? `b.documento = '${cpfCnpj}' AND (${qWhere})`
-          : `b.cnpj = '${cpfCnpj}' AND (${qWhere})`;
+          ? `o.documento = '${cpfCnpj}' AND (${qWhere})`
+          : `c.cnpj = '${cpfCnpj}' AND (${qWhere})`;
     }
 
     // Query
-    const joinCpfCnpj =
-      isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
-        ? `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.operadoras\` b ON b.id_operadora = t.id_operadora `
-        : `LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.consorcios\` b ON b.id_consorcio = t.id_consorcio `;
-    const joinIntegracao = `INNER JOIN ${Q_CONSTS.integracao} i ON i.id_transacao = t.id_transacao`;
+    const joinIntegracao = `LEFT JOIN ${Q_CONSTS.integracao} i ON i.id_transacao = t.id_transacao`;
 
     const countQuery =
       'SELECT COUNT(*) AS count ' +
-      `FROM \`${Q_CONSTS.transacao}\` t\n` +
-      joinCpfCnpj +
+      `FROM \`${Q_CONSTS.transacao}\` t\n
+       LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora 
+       LEFT JOIN \`${Q_CONSTS.bucket}.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio 
+      ` +
       '\n' +
       joinIntegracao +
       '\n' +
@@ -198,7 +199,6 @@ export class BigqueryTransacaoRepository {
       transacao: Q_CONSTS.transacao,
       integracao: Q_CONSTS.integracao,
       tTipoPgto: Q_CONSTS.tTipoPgto,
-      joinCpfCnpj,
       joinIntegracao,
       countQuery,
       offset,

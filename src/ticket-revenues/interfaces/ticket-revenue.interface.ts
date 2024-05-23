@@ -47,7 +47,7 @@ export interface ITicketRevenue {
    * @description Data e hora de processamento da transação em GMT-3 (formato `YYYY-MM-ddTHH:mm:ss.ssssss`)
    * @example '2023-09-12T14:48:52.709319'
    */
-  processingDateTime: string | null;
+  processingDateTime: string;
 
   /**
    * Represents `datetime_captura`
