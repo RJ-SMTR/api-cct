@@ -14,19 +14,9 @@ export interface ITicketRevenuesGroup {
   count: number;
 
   /**
-   * **Grouping primary key**
-   *
-   * Represents `data`
-   *
-   * Is recommended to use this field to filter by date in bigquery
-   *
-   * Partition, GMT0
-   *
-   * @description Data de processamento da transação (partição)
-   * @type BigQueryDate | null
    * @example '2023-09-12'
    */
-  partitionDate: string;
+  date: string;
 
   /**
    * Represents counts of `transportType` (`modo`)
@@ -134,4 +124,11 @@ export interface ITicketRevenuesGroup {
    * @example '2023-10-02T15:01:23.000Z'
    */
   aux_groupDateTime: string;
+
+  isPago: boolean;
+
+  /**
+   * CNAB retorno error message list.
+   */
+  errors: string[];
 }

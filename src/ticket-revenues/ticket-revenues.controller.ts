@@ -23,6 +23,8 @@ import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interfa
 import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import { TicketRevenuesService } from './ticket-revenues.service';
+import { getRequestLog } from 'src/utils/request-utils';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -30,6 +32,11 @@ import { TicketRevenuesService } from './ticket-revenues.service';
   version: '1',
 })
 export class TicketRevenuesController {
+
+  private logger = new CustomLogger(TicketRevenuesController.name, {
+    timestamp: true,
+  });
+
   constructor(private readonly ticketRevenuesService: TicketRevenuesService) {}
 
   @SerializeOptions({
@@ -60,6 +67,7 @@ export class TicketRevenuesController {
     @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<ITRGetMeGroupedResponse> {
+    this.logger.log(getRequestLog(request));
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     return await this.ticketRevenuesService.getMe(
       {

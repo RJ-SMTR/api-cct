@@ -47,9 +47,9 @@ export class TicketRevenuesRepositoryService {
     data: T[],
     endDate: Date,
   ): T[] {
-    const mostRecentDate = startOfDay(new Date(data[0].partitionDate));
+    const mostRecentDate = startOfDay(new Date(data[0].date));
     if (mostRecentDate > endOfDay(endDate)) {
-      return data.filter((i) => !isToday(new Date(i.partitionDate)));
+      return data.filter((i) => !isToday(new Date(i.date)));
     } else {
       return data;
     }
@@ -367,9 +367,7 @@ export class TicketRevenuesRepositoryService {
     data: T[],
   ): number {
     return Number(
-      data
-        .reduce((sum, i) => sum + (this.getTransactionValue(i)), 0)
-        .toFixed(2),
+      data.reduce((sum, i) => sum + this.getTransactionValue(i), 0).toFixed(2),
     );
   }
 

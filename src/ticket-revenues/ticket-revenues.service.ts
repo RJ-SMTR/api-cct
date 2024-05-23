@@ -16,7 +16,7 @@ import {
 } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
-import { Between, FindOptionsWhere } from 'typeorm';
+import { Between, FindOptionsWhere, In } from 'typeorm';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
 import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
@@ -26,8 +26,10 @@ import { ITRGetMeIndividualArgs } from './interfaces/tr-get-me-individual-args.i
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesRepositoryService as TicketRevenuesRepository } from './ticket-revenues-repository';
-import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
+import { TicketRevenuesGroups } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
+import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -39,6 +41,7 @@ export class TicketRevenuesService {
     private readonly usersService: UsersService,
     private readonly ticketRevenuesRepository: TicketRevenuesRepository,
     private readonly transacaoViewService: TransacaoViewService,
+    private readonly detalheAService: DetalheAService,
   ) {}
 
   /**
@@ -71,7 +74,19 @@ export class TicketRevenuesService {
     if (ticketRevenuesResponse.length === 0) {
       return new TicketRevenuesGroup().toInterface();
     }
-    const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
+    const detalhesA = await this.detalheAService.findMany({
+      itemTransacaoAgrupado: {
+        id: In(
+          ticketRevenuesResponse.map(
+            (i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
+          ),
+        ),
+      },
+    });
+    const ticketRevenuesGroupSum = this.getGroupSum(
+      ticketRevenuesResponse,
+      detalhesA,
+    );
 
     return ticketRevenuesGroupSum;
   }
@@ -118,9 +133,19 @@ export class TicketRevenuesService {
       };
     }
 
+    const detalhesA = await this.detalheAService.findMany({
+      itemTransacaoAgrupado: {
+        id: In(
+          ticketRevenuesResponse.map(
+            (i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
+          ),
+        ),
+      },
+    });
     let ticketRevenuesGroups = this.getTicketRevenuesGroups(
       ticketRevenuesResponse,
       groupBy,
+      detalhesA,
     );
 
     if (pagination) {
@@ -133,7 +158,7 @@ export class TicketRevenuesService {
 
     const transactionValueLastDay = Number(
       ticketRevenuesResponse
-        .filter((i) => isToday(new Date(i.partitionDate)))
+        .filter((i) => isToday(new Date(i.processingDateTime)))
         .reduce((sum, i) => sum + (i?.transactionValue || 0), 0)
         .toFixed(2),
     );
@@ -158,8 +183,8 @@ export class TicketRevenuesService {
     return {
       startDate:
         ticketRevenuesResponse[ticketRevenuesResponse.length - 1]
-          ?.partitionDate || null,
-      endDate: ticketRevenuesResponse[0]?.partitionDate || null,
+          ?.processingDateTime || null,
+      endDate: ticketRevenuesResponse[0]?.processingDateTime || null,
       amountSum,
       todaySum: transactionValueLastDay,
       count: ticketRevenuesGroups.length,
@@ -216,9 +241,12 @@ export class TicketRevenuesService {
     return user;
   }
 
-  private getGroupSum(data: ITicketRevenue[]): ITicketRevenuesGroup {
+  private getGroupSum(
+    data: ITicketRevenue[],
+    detalhesA: DetalheA[],
+  ): ITicketRevenuesGroup {
     const METHOD = this.getGroupSum.name;
-    const groupSums = this.getTicketRevenuesGroups(data, 'all');
+    const groupSums = this.getTicketRevenuesGroups(data, 'all', detalhesA);
     if (groupSums.length >= 1) {
       if (groupSums.length > 1) {
         logError(
@@ -248,15 +276,30 @@ export class TicketRevenuesService {
   private getTicketRevenuesGroups(
     ticketRevenues: ITicketRevenue[],
     groupBy: 'day' | 'week' | 'month' | 'all' | string,
+    detalhesA: DetalheA[],
   ): ITicketRevenuesGroup[] {
     const result = ticketRevenues.reduce(
-      (accumulator: TicketRevenuesGroupsType, item: ITicketRevenue) => {
+      (group: TicketRevenuesGroups, item: ITicketRevenue) => {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
         const itemDate = new Date(item.processingDateTime);
         const nthWeek = getDateNthWeek(itemDate, startWeekday);
+        const foundDetalhesA = detalhesA.filter(
+          (i) =>
+            i.itemTransacaoAgrupado.id ===
+            item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
+        );
+        const errors = foundDetalhesA.reduce(
+          (l, i) => [
+            ...l,
+            ...i.ocorrencias
+              .filter((j) => !['00', 'BD'].includes(j.code))
+              .map((j) => j.message),
+          ],
+          [],
+        );
 
         // 'day', default,
-        let dateGroup: string | number = item.partitionDate;
+        let dateGroup: string | number = item.processingDateTime.slice(0, 10);
         if (groupBy === 'week') {
           dateGroup = nthWeek;
         }
@@ -267,10 +310,10 @@ export class TicketRevenuesService {
           dateGroup = 'all';
         }
 
-        if (!accumulator[dateGroup]) {
-          accumulator[dateGroup] = {
+        if (!group[dateGroup]) {
+          group[dateGroup] = {
             count: 0,
-            partitionDate: item.partitionDate,
+            date: item.processingDateTime,
             transportTypeCounts: {},
             directionIdCounts: {},
             paymentMediaTypeCounts: {},
@@ -282,11 +325,18 @@ export class TicketRevenuesService {
             transactionValueSum: 0,
             aux_epochWeek: nthWeek,
             aux_groupDateTime: itemDate.toISOString(),
+            /** Se encontrar 1 item não pago, muda para falso */
+            isPago: true,
+            errors: errors,
           };
+        } else {
+          group[dateGroup].errors = [
+            ...new Set([...group[dateGroup].errors, ...errors]),
+          ];
         }
 
-        TicketRevenuesGroupList.appendItem(accumulator[dateGroup], item);
-        return accumulator;
+        TicketRevenuesGroupList.appendItem(group[dateGroup], item, detalhesA);
+        return group;
       },
       {},
     );
