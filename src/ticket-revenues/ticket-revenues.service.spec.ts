@@ -4,7 +4,7 @@ import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
-import { TicketRevenuesRepositoryService } from './ticket-revenues-repository.service';
+import { TicketRevenuesRepositoryService } from './ticket-revenues-repository';
 import { TicketRevenuesService } from './ticket-revenues.service';
 import { SettingsService } from 'src/settings/settings.service';
 

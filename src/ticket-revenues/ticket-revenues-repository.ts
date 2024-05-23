@@ -1,12 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { endOfDay, isToday, startOfDay } from 'date-fns';
 import { BQSInstances, BigqueryService } from 'src/bigquery/bigquery.service';
+import { appSettings } from 'src/settings/app.settings';
+import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
+import { SettingsService } from 'src/settings/settings.service';
+import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
+import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { getPagination } from 'src/utils/get-pagination';
+import { logWarn } from 'src/utils/log-utils';
 import { getPaymentDates } from 'src/utils/payment-date-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
+import { Between, FindOptionsWhere } from 'typeorm';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
 import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
@@ -17,21 +24,18 @@ import {
   TRPaymentTypeMap,
   TRTransactionTypeMap,
 } from './maps/ticket-revenues.map';
-import { SettingsService } from 'src/settings/settings.service';
-import { appSettings } from 'src/settings/app.settings';
-import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
-import { logWarn } from 'src/utils/log-utils';
 
 @Injectable()
 export class TicketRevenuesRepositoryService {
-  private logger: Logger = new Logger('TicketRevenuesService', {
+  private logger: Logger = new Logger('TicketRevenuesRepository', {
     timestamp: true,
   });
 
   constructor(
     private readonly bigqueryService: BigqueryService,
     private readonly settingsService: SettingsService,
-  ) { }
+    private readonly transacaoViewService: TransacaoViewService,
+  ) {}
 
   /**
    * TODO: use it only for repository services
@@ -160,9 +164,10 @@ export class TicketRevenuesRepositoryService {
     const queryBuilder = new QueryBuilder();
     queryBuilder.pushOR([]);
     if (args?.offset !== undefined && args.limit === undefined) {
-      logWarn(this.logger,
+      logWarn(
+        this.logger,
         "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-        " 'offset' will be ignored to prevent query fail",
+          " 'offset' will be ignored to prevent query fail",
       );
       offset = undefined;
     }
@@ -271,15 +276,9 @@ export class TicketRevenuesRepositoryService {
       timeInterval: validArgs.timeInterval,
     });
 
-    const result = await this.fetchTicketRevenues({
-      cpfCnpj: validArgs.user.getCpfCnpj(),
-      startDate,
-      endDate,
-      getToday: true,
-      limit: paginationArgs.limit,
-      offset: (paginationArgs.page - 1) * paginationArgs.limit,
-    });
-    let ticketRevenuesResponse = result.data;
+    const result = await this.findTransacaoView(startDate, endDate, validArgs);
+    const countAll = result.length;
+    let ticketRevenuesResponse = result;
 
     if (ticketRevenuesResponse.length === 0) {
       return getPagination<ITRGetMeIndividualResponse>(
@@ -307,9 +306,57 @@ export class TicketRevenuesRepositoryService {
       },
       {
         dataLenght: ticketRevenuesResponse.length,
-        maxCount: result.countAll,
+        maxCount: countAll,
       },
       paginationArgs,
+    );
+  }
+
+  private async findTransacaoView(
+    startDate: Date,
+    endDate: Date,
+    validArgs: ITRGetMeIndividualValidArgs,
+  ) {
+    const fetchArgs: IFetchTicketRevenues = {
+      cpfCnpj: validArgs.user.getCpfCnpj(),
+      startDate,
+      endDate,
+      getToday: true,
+    };
+
+    const betweenDate: FindOptionsWhere<TransacaoView> = {
+      datetimeProcessamento: Between(
+        fetchArgs.startDate as Date,
+        fetchArgs.endDate as Date,
+      ),
+    };
+    const where: FindOptionsWhere<TransacaoView>[] = [
+      {
+        ...betweenDate,
+        operadoraCpfCnpj: validArgs.user.getCpfCnpj(),
+      },
+      {
+        ...betweenDate,
+        consorcioCnpj: validArgs.user.getCpfCnpj(),
+      },
+    ];
+    const today = new Date();
+    if (fetchArgs.getToday) {
+      const isTodayDate: FindOptionsWhere<TransacaoView> = {
+        datetimeProcessamento: Between(startOfDay(today), endOfDay(today)),
+      };
+      where.push({
+        ...isTodayDate,
+        operadoraCpfCnpj: validArgs.user.getCpfCnpj(),
+      });
+      where.push({
+        ...isTodayDate,
+        consorcioCnpj: validArgs.user.getCpfCnpj(),
+      });
+    }
+
+    return (await this.transacaoViewService.find(where)).map((i) =>
+      i.toTicketRevenue(),
     );
   }
 
@@ -321,7 +368,7 @@ export class TicketRevenuesRepositoryService {
   ): number {
     return Number(
       data
-        .reduce((sum, i) => sum + (this.getTransactionValue(i) || 0), 0)
+        .reduce((sum, i) => sum + (this.getTransactionValue(i)), 0)
         .toFixed(2),
     );
   }

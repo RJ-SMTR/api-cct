@@ -4,7 +4,7 @@ import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
 export class ArquivoPublicacaoResultDTO {
   constructor(
     dto: ArquivoPublicacao,
-    ocorrencias: Ocorrencia[],
+    ocorrencias?: Ocorrencia[],
   ) {
     this.id = dto.id;
     this.dataHoraGeracaoRetorno = (dto as any).dataGeracaoRetorno;
@@ -22,7 +22,7 @@ export class ArquivoPublicacaoResultDTO {
     this.idConsorcio = dto.itemTransacao.idConsorcio as string;
     this.nomeOperadora = dto.itemTransacao.nomeOperadora as string;
     this.dataOrdem = dto.itemTransacao.dataOrdem;
-    this.ocorrencias = ocorrencias.map((i) => i.message);
+    this.ocorrencias = ocorrencias ? ocorrencias.map((i) => i.message) : [];
   }
 
   id?: number;

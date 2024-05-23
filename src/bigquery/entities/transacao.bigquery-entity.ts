@@ -10,6 +10,8 @@ export class BigqueryTransacao {
   /** Nome do consórcio */
   consorcio: string;
   id_operadora: string;
+  operadoraCpfCnpj: string | null;
+  consorcioCnpj: string | null;
   /** Nome da operadora */
   operadora: string;
   servico: string | null;

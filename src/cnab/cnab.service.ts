@@ -56,7 +56,7 @@ import { Between } from 'typeorm';
  */
 @Injectable()
 export class CnabService {
-  private logger: CustomLogger = new CustomLogger('CnabService', {
+  private logger: CustomLogger = new CustomLogger(CnabService.name, {
     timestamp: true,
   });
 
@@ -113,9 +113,25 @@ export class CnabService {
   }
 
   async updateTransacaoBigquery() {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek();
+    const countAll = await this.transacaoViewService.count();
+    if (countAll === 0) {
+      this.logger.log(
+        'Tabela TransacaoView vazia, obtendo todos os itens do Bigquery...',
+      );
+    } else {
+      this.logger.log(
+        'Tabela TransacaoView contém dados, obtendo dados semanais do Bigquery...',
+      );
+    }
+    const transacoesBq =
+      countAll === 0
+        ? await this.bigqueryTransacaoService.getAll()
+        : await this.bigqueryTransacaoService.getFromWeek();
     const transacoesView = transacoesBq.map((i) =>
       TransacaoView.newFromBigquery(i),
+    );
+    this.logger.log(
+      `Inserindo ${transacoesView.length} itens em TransacaoView...`,
     );
     await this.transacaoViewService.insertMany(transacoesView);
   }
