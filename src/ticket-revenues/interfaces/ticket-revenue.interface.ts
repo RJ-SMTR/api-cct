@@ -1,3 +1,5 @@
+import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
+
 /**
  * Internal representation of `IBqApiTicketRevenues`
  *
@@ -17,7 +19,7 @@ export interface ITicketRevenue {
    * @type `BigQueryDate | null`
    * @example '2023-09-12'
    */
-  partitionDate: string;
+  date: string;
 
   /**
    * Represents `hora`
@@ -47,7 +49,7 @@ export interface ITicketRevenue {
    * @description Data e hora de processamento da transação em GMT-3 (formato `YYYY-MM-ddTHH:mm:ss.ssssss`)
    * @example '2023-09-12T14:48:52.709319'
    */
-  processingDateTime: string | null;
+  processingDateTime: string;
 
   /**
    * Represents `datetime_captura`
@@ -219,4 +221,6 @@ export interface ITicketRevenue {
    * @example
    */
   bqDataVersion: string | null;
+
+  arquivoPublicacao?: ArquivoPublicacao;
 }

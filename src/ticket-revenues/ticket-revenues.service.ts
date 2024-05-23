@@ -1,7 +1,10 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { isToday } from 'date-fns';
+import { endOfDay, isToday, startOfDay } from 'date-fns';
+import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
+import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { getDateNthWeek } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
@@ -13,6 +16,7 @@ import {
 } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
+import { Between, FindOptionsWhere, In } from 'typeorm';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
 import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
@@ -21,10 +25,11 @@ import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response
 import { ITRGetMeIndividualArgs } from './interfaces/tr-get-me-individual-args.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
-import { TicketRevenuesRepositoryService } from './ticket-revenues-repository.service';
-import { TicketRevenuesGroupsType } from './types/ticket-revenues-groups.type';
+import { TicketRevenuesRepositoryService as TicketRevenuesRepository } from './ticket-revenues-repository';
+import { TicketRevenuesGroups } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
-import { CustomLogger } from 'src/utils/custom-logger';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
+import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -34,8 +39,10 @@ export class TicketRevenuesService {
 
   constructor(
     private readonly usersService: UsersService,
-    private readonly ticketRevenuesRepository: TicketRevenuesRepositoryService,
-  ) { }
+    private readonly ticketRevenuesRepository: TicketRevenuesRepository,
+    private readonly transacaoViewService: TransacaoViewService,
+    private readonly detalheAService: DetalheAService,
+  ) {}
 
   /**
    * TODO: refactor - use repository method
@@ -57,20 +64,29 @@ export class TicketRevenuesService {
     });
 
     // Get data
-    const fetchArgs: IFetchTicketRevenues = {
-      cpfCnpj: user.getCpfCnpj(),
-      startDate,
-      endDate,
-    };
-
-    const ticketRevenuesResponse: ITicketRevenue[] = (
-      await this.ticketRevenuesRepository.fetchTicketRevenues(fetchArgs)
-    ).data;
+    const ticketRevenuesResponse: ITicketRevenue[] =
+      await this.findTransacaoView({
+        cpfCnpj: user.getCpfCnpj(),
+        startDate,
+        endDate,
+      });
 
     if (ticketRevenuesResponse.length === 0) {
       return new TicketRevenuesGroup().toInterface();
     }
-    const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse);
+    const detalhesA = await this.detalheAService.findMany({
+      itemTransacaoAgrupado: {
+        id: In(
+          ticketRevenuesResponse.map(
+            (i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
+          ),
+        ),
+      },
+    });
+    const ticketRevenuesGroupSum = this.getGroupSum(
+      ticketRevenuesResponse,
+      detalhesA,
+    );
 
     return ticketRevenuesGroupSum;
   }
@@ -101,17 +117,9 @@ export class TicketRevenuesService {
     const groupBy = args?.groupBy || 'day';
 
     // Repository tasks
-    let ticketRevenuesResponse: ITicketRevenue[] = [];
-    const fetchArgs: IFetchTicketRevenues = {
-      cpfCnpj: user.getCpfCnpj(),
-      startDate,
-      endDate,
-      getToday: true,
-    };
-
-    ticketRevenuesResponse = (
-      await this.ticketRevenuesRepository.fetchTicketRevenues(fetchArgs)
-    ).data;
+    let ticketRevenuesResponse: ITicketRevenue[] = await this.findTransacaoView(
+      { cpfCnpj: user.getCpfCnpj(), startDate, endDate },
+    );
 
     if (ticketRevenuesResponse.length === 0) {
       return {
@@ -125,9 +133,19 @@ export class TicketRevenuesService {
       };
     }
 
+    const detalhesA = await this.detalheAService.findMany({
+      itemTransacaoAgrupado: {
+        id: In(
+          ticketRevenuesResponse.map(
+            (i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
+          ),
+        ),
+      },
+    });
     let ticketRevenuesGroups = this.getTicketRevenuesGroups(
       ticketRevenuesResponse,
       groupBy,
+      detalhesA,
     );
 
     if (pagination) {
@@ -140,7 +158,7 @@ export class TicketRevenuesService {
 
     const transactionValueLastDay = Number(
       ticketRevenuesResponse
-        .filter((i) => isToday(new Date(i.partitionDate)))
+        .filter((i) => isToday(new Date(i.processingDateTime)))
         .reduce((sum, i) => sum + (i?.transactionValue || 0), 0)
         .toFixed(2),
     );
@@ -165,8 +183,8 @@ export class TicketRevenuesService {
     return {
       startDate:
         ticketRevenuesResponse[ticketRevenuesResponse.length - 1]
-          ?.partitionDate || null,
-      endDate: ticketRevenuesResponse[0]?.partitionDate || null,
+          ?.processingDateTime || null,
+      endDate: ticketRevenuesResponse[0]?.processingDateTime || null,
       amountSum,
       todaySum: transactionValueLastDay,
       count: ticketRevenuesGroups.length,
@@ -175,17 +193,64 @@ export class TicketRevenuesService {
     };
   }
 
+  private async findTransacaoView(fetchArgs: IFetchTicketRevenues) {
+    const betweenDate: FindOptionsWhere<TransacaoView> = {
+      datetimeProcessamento: Between(
+        fetchArgs?.startDate || new Date(0),
+        fetchArgs?.endDate || new Date(),
+      ),
+    };
+    const findOperadora: FindOptionsWhere<TransacaoView> = fetchArgs?.cpfCnpj
+      ? { operadoraCpfCnpj: fetchArgs.cpfCnpj }
+      : {};
+    const findConsorcio: FindOptionsWhere<TransacaoView> = fetchArgs?.cpfCnpj
+      ? { consorcioCnpj: fetchArgs.cpfCnpj }
+      : {};
+    const where: FindOptionsWhere<TransacaoView>[] = [
+      {
+        ...betweenDate,
+        ...findOperadora,
+      },
+      {
+        ...betweenDate,
+        ...findConsorcio,
+      },
+    ];
+    const today = new Date();
+    if (fetchArgs.getToday) {
+      const isTodayDate: FindOptionsWhere<TransacaoView> = {
+        datetimeProcessamento: Between(startOfDay(today), endOfDay(today)),
+      };
+      where.push({
+        ...isTodayDate,
+        ...findOperadora,
+      });
+      where.push({
+        ...isTodayDate,
+        ...findConsorcio,
+      });
+    }
+
+    return (await this.transacaoViewService.find(where)).map((i) =>
+      i.toTicketRevenue(),
+    );
+  }
+
   private async validateGetMe(args: ITRGetMeGroupedArgs): Promise<User> {
     const user = await this.usersService.getOne({ id: args?.userId });
     return user;
   }
 
-  private getGroupSum(data: ITicketRevenue[]): ITicketRevenuesGroup {
+  private getGroupSum(
+    data: ITicketRevenue[],
+    detalhesA: DetalheA[],
+  ): ITicketRevenuesGroup {
     const METHOD = this.getGroupSum.name;
-    const groupSums = this.getTicketRevenuesGroups(data, 'all');
+    const groupSums = this.getTicketRevenuesGroups(data, 'all', detalhesA);
     if (groupSums.length >= 1) {
       if (groupSums.length > 1) {
-        logError(this.logger,
+        logError(
+          this.logger,
           'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
           METHOD,
         );
@@ -211,15 +276,30 @@ export class TicketRevenuesService {
   private getTicketRevenuesGroups(
     ticketRevenues: ITicketRevenue[],
     groupBy: 'day' | 'week' | 'month' | 'all' | string,
+    detalhesA: DetalheA[],
   ): ITicketRevenuesGroup[] {
     const result = ticketRevenues.reduce(
-      (accumulator: TicketRevenuesGroupsType, item: ITicketRevenue) => {
+      (group: TicketRevenuesGroups, item: ITicketRevenue) => {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
-        const itemDate = new Date(item.partitionDate);
+        const itemDate = new Date(item.processingDateTime);
         const nthWeek = getDateNthWeek(itemDate, startWeekday);
+        const foundDetalhesA = detalhesA.filter(
+          (i) =>
+            i.itemTransacaoAgrupado.id ===
+            item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
+        );
+        const errors = foundDetalhesA.reduce(
+          (l, i) => [
+            ...l,
+            ...i.ocorrencias
+              .filter((j) => !['00', 'BD'].includes(j.code))
+              .map((j) => j.message),
+          ],
+          [],
+        );
 
         // 'day', default,
-        let dateGroup: string | number = item.partitionDate;
+        let dateGroup: string | number = item.processingDateTime.slice(0, 10);
         if (groupBy === 'week') {
           dateGroup = nthWeek;
         }
@@ -230,10 +310,10 @@ export class TicketRevenuesService {
           dateGroup = 'all';
         }
 
-        if (!accumulator[dateGroup]) {
-          accumulator[dateGroup] = {
+        if (!group[dateGroup]) {
+          group[dateGroup] = {
             count: 0,
-            partitionDate: item.partitionDate,
+            date: item.processingDateTime,
             transportTypeCounts: {},
             directionIdCounts: {},
             paymentMediaTypeCounts: {},
@@ -245,11 +325,18 @@ export class TicketRevenuesService {
             transactionValueSum: 0,
             aux_epochWeek: nthWeek,
             aux_groupDateTime: itemDate.toISOString(),
+            /** Se encontrar 1 item não pago, muda para falso */
+            isPago: true,
+            errors: errors,
           };
+        } else {
+          group[dateGroup].errors = [
+            ...new Set([...group[dateGroup].errors, ...errors]),
+          ];
         }
 
-        TicketRevenuesGroupList.appendItem(accumulator[dateGroup], item);
-        return accumulator;
+        TicketRevenuesGroupList.appendItem(group[dateGroup], item, detalhesA);
+        return group;
       },
       {},
     );

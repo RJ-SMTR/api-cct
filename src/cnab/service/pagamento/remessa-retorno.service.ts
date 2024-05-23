@@ -16,7 +16,7 @@ import { appSettings } from 'src/settings/app.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asString } from 'src/utils/pipe-utils';
-import { DeepPartial } from 'typeorm';
+import { DeepPartial, In } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
@@ -532,8 +532,14 @@ export class RemessaRetornoService {
     transacaoStatus: TransacaoStatusEnum,
     itemTransacaoStatus: ItemTransacaoStatusEnum,
   ) {
+    const allItemTransacoes = await this.itemTransacaoService.findMany({
+      where: {
+        transacao: { id: In(transacoes.map((i) => i.id)) },
+      },
+    });
     for (const transacao of transacoes) {
-      for (const item of transacao.itemTransacoes) {
+      const itemTransacoes = allItemTransacoes.filter(i => i.transacao.id === transacao.id);
+      for (const item of itemTransacoes) {
         // Update ItemTransacaoStatus
         await this.itemTransacaoService.save({
           id: item.id,

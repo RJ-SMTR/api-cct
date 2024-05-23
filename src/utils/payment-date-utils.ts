@@ -109,16 +109,16 @@ export function getPaymentDates(args: {
     if (endpoint === 'ticket-revenues') {
       return {
         startDate: new Date(startDateStr),
-        endDate: new Date(endDateStr),
+        endDate: endOfDay(new Date(endDateStr)),
       };
     } else {
       return {
         startDate: nextFriday(new Date(startDateStr)),
-        endDate: nextFriday(new Date(endDateStr)),
+        endDate: nextFriday(endOfDay(new Date(endDateStr))),
       };
     }
   } else if (endDateStr && !startDateStr && !timeInterval) {
-    let endDate = new Date(endDateStr);
+    let endDate = endOfDay(new Date(endDateStr));
     if (!isFriday(endDate)) {
       endDate = nextFriday(endDate);
     }

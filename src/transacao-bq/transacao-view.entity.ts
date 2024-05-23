@@ -1,7 +1,9 @@
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
+import { ITicketRevenue } from 'src/ticket-revenues/interfaces/ticket-revenue.interface';
 import { asStringDate } from 'src/utils/pipe-utils';
 import {
+  AfterLoad,
   Column,
   DeepPartial,
   Entity,
@@ -31,7 +33,7 @@ export class TransacaoView {
    *
    * D+0 (qui-qua)
    */
-  @Column({ type: Date, unique: true })
+  @Column({ type: Date })
   datetimeProcessamento: Date;
 
   @Column({ type: Date })
@@ -67,27 +69,67 @@ export class TransacaoView {
   @Column({ type: 'numeric' })
   valorTransacao: number;
 
+  @Column({ type: String, nullable: true })
+  operadoraCpfCnpj: string | null;
+
+  @Column({ type: String, nullable: true })
+  consorcioCnpj: string | null;
+
   @ManyToOne(() => ArquivoPublicacao, { eager: true, nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoView_arquivoPublicacao_ManyToOne',
   })
   arquivoPublicacao: ArquivoPublicacao | null;
 
-  public static newFromBigquery(transacao: BigqueryTransacao) {
+  @AfterLoad()
+  setReadValues() {
+    this.valorTransacao = Number(this.valorTransacao);
+  }
+
+  public static newFromBigquery(bq: BigqueryTransacao) {
     return new TransacaoView({
-      datetimeCaptura: asStringDate(transacao.datetime_captura),
-      datetimeProcessamento: asStringDate(transacao.datetime_processamento),
-      datetimeTransacao: asStringDate(transacao.datetime_transacao),
-      idConsorcio: transacao.id_consorcio,
-      idOperadora: transacao.id_operadora,
-      idTransacao: transacao.id_transacao,
-      modo: transacao.modo,
-      nomeConsorcio: transacao.consorcio,
-      nomeOperadora: transacao.operadora,
-      tipoGratuidade: transacao.tipo_gratuidade,
-      tipoPagamento: transacao.tipo_pagamento,
-      tipoTransacao: transacao.tipo_transacao,
-      valorTransacao: transacao.valor_transacao,
+      datetimeCaptura: asStringDate(bq.datetime_captura),
+      datetimeProcessamento: asStringDate(bq.datetime_processamento),
+      datetimeTransacao: asStringDate(bq.datetime_transacao),
+      idConsorcio: bq.id_consorcio,
+      idOperadora: bq.id_operadora,
+      idTransacao: bq.id_transacao,
+      modo: bq.modo,
+      nomeConsorcio: bq.consorcio,
+      nomeOperadora: bq.operadora,
+      tipoGratuidade: bq.tipo_gratuidade,
+      tipoPagamento: bq.tipo_pagamento,
+      tipoTransacao: bq.tipo_transacao,
+      valorTransacao: bq.valor_transacao,
+      operadoraCpfCnpj: bq.operadoraCpfCnpj,
+      consorcioCnpj: bq.consorcioCnpj,
     });
+  }
+
+  toTicketRevenue() {
+    return {
+      bqDataVersion: '',
+      captureDateTime: this.datetimeCaptura.toISOString(),
+      clientId: null,
+      directionId: null,
+      integrationId: null,
+      date: this.datetimeProcessamento.toISOString(),
+      paymentMediaType: this.tipoPagamento,
+      processingDateTime: this.datetimeProcessamento.toISOString(),
+      processingHour: this.datetimeProcessamento.getHours(),
+      stopId: null,
+      stopLat: null,
+      stopLon: null,
+      transactionDateTime: this.datetimeTransacao.toISOString(),
+      transactionId: this.idTransacao,
+      transactionLat: null,
+      transactionLon: null,
+      transactionType: this.tipoTransacao,
+      transactionValue: this.valorTransacao,
+      transportIntegrationType: null,
+      transportType: null,
+      vehicleId: null,
+      vehicleService: null,
+    } as ITicketRevenue;
   }
 }

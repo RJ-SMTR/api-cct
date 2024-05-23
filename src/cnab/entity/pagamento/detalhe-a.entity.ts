@@ -158,4 +158,5 @@ export class DetalheA extends EntityHelper {
       : `(${HeaderLote.getUniqueId(detalheA?.headerLote)})`;
     return `${_headerLoteUniqueId}|${detalheA.nsr}`;
   }
+
 }

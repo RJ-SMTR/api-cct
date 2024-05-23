@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { nextFriday } from 'date-fns';
-import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository.service';
+import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository';
 import { User } from 'src/users/entities/user.entity';
 import { getDateYMDString, isPaymentWeekComplete } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
@@ -93,8 +93,7 @@ export class BankStatementsRepositoryService {
         statusCode: isPaid ? 'paid' : 'toPay',
         bankStatus: isPaid ? '00' : null,
         bankStatusCode: isPaid ? 'Crédito ou Débito Efetivado' : null,
-        error: null,
-        errorCode: null,
+        errors: [],
       } as IBankStatement;
     });
     return getPagination<{ data: IBankStatement[] }>(
@@ -114,14 +113,14 @@ export class BankStatementsRepositoryService {
   ): Record<string, IBSCounts> {
     const statusCounts: Record<string, IBSCounts> = {};
     for (const item of data) {
-      if (!statusCounts?.[item.statusCode]) {
-        statusCounts[item.statusCode] = {
+      if (!statusCounts?.[item.status]) {
+        statusCounts[item.status] = {
           count: 1,
           amountSum: item.amount,
         };
       } else {
-        statusCounts[item.statusCode].count += 1;
-        statusCounts[item.statusCode].amountSum += item.amount;
+        statusCounts[item.status].count += 1;
+        statusCounts[item.status].amountSum += item.amount;
       }
     }
     return statusCounts;

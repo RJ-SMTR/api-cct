@@ -12,7 +12,7 @@ export class BigqueryTransacaoService {
   constructor(
     private readonly bigqueryTransacaoRepository: BigqueryTransacaoRepository,
   ) {}
-
+  
   /**
    * Get data from current payment week (qui-qua). Also with older days.
    */
@@ -26,6 +26,17 @@ export class BigqueryTransacaoService {
         endDate: subDays(friday, 2 + daysBack), // qua (D+0)
       })
     ).map((i) => ({ ...i } as BigqueryTransacao));
+    return ordemPgto;
+  }
+
+  /**
+   * Get data from current payment week (qui-qua). Also with older days.
+   */
+  public async getAll(): Promise<BigqueryTransacao[]> {
+    // Read
+    const ordemPgto = (await this.bigqueryTransacaoRepository.findMany()).map(
+      (i) => ({ ...i } as BigqueryTransacao),
+    );
     return ordemPgto;
   }
 }

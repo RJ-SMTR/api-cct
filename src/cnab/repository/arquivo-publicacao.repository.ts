@@ -13,6 +13,7 @@ import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheAService } from '../service/pagamento/detalhe-a.service';
 import { OcorrenciaService } from '../service/ocorrencia.service';
 import { ItemTransacaoAgrupadoService } from '../service/pagamento/item-transacao-agrupado.service';
+import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 
 @Injectable()
 export class ArquivoPublicacaoRepository {
@@ -76,14 +77,15 @@ export class ArquivoPublicacaoRepository {
 
     const publicacaoResults: ArquivoPublicacaoResultDTO[] = [];
     for (const publicacao of publicacoes) {
+      /** DetalheA é undefined se rodamos `saveNewTransacoesJae()` mas ainda não rodamos `sendRemessa()` */
       const detalheA = detalheAList.filter(
         (i) =>
-          i.itemTransacaoAgrupado.id && 
+          i.itemTransacaoAgrupado.id &&
           i.itemTransacaoAgrupado.id ===
-          publicacao.itemTransacao.itemTransacaoAgrupado.id,
-      )[0];
+            publicacao.itemTransacao.itemTransacaoAgrupado.id,
+      )[0] as DetalheA | undefined;
       publicacaoResults.push(
-        new ArquivoPublicacaoResultDTO(publicacao, detalheA.ocorrencias),
+        new ArquivoPublicacaoResultDTO(publicacao, detalheA?.ocorrencias),
       );
     }
     return publicacaoResults;

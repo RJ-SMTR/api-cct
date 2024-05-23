@@ -2,7 +2,7 @@ import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { ITicketRevenuesGroup } from 'src/ticket-revenues/interfaces/ticket-revenues-group.interface';
-import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository.service';
+import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
@@ -152,7 +152,7 @@ xdescribe('BankStatementsService', () => {
         date.setDate(date.getDate() - day);
         revenuesGroup.push({
           count: 1,
-          partitionDate: getDateYMDString(date),
+          date: getDateYMDString(date),
           transportTypeCounts: {
             [`tt_${day.toString()}`]: { count: 1, transactionValue: 10 },
           },
@@ -306,7 +306,7 @@ xdescribe('BankStatementsService', () => {
         date.setDate(date.getDate() - day);
         revenuesGroup.push({
           count: 1,
-          partitionDate: getDateYMDString(date),
+          date: getDateYMDString(date),
           transportTypeCounts: {
             [`tt_${day.toString()}`]: { count: 1, transactionValue: 10 },
           },
@@ -454,7 +454,7 @@ xdescribe('BankStatementsService', () => {
         date.setDate(date.getDate() - day);
         revenuesGroup.push({
           count: 1,
-          partitionDate: getDateYMDString(date),
+          date: getDateYMDString(date),
           transportTypeCounts: {
             [`tt_${day.toString()}`]: { count: 1, transactionValue: 10 },
           },
@@ -563,7 +563,7 @@ xdescribe('BankStatementsService', () => {
 
     xit('should filter by start-end dates, where weeks include only the interval', /**
      * Requirement: 2024/01/18 {@link https://github.com/RJ-SMTR/api-cct/issues/215#issuecomment-1986233087 #215, item 1 - GitHub}
-     * 
+     *
      * Tested manually only. It would be better to make unit test later.
      */ async () => {
       // Arrange

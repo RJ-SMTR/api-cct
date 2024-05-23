@@ -4,7 +4,7 @@ import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
-import { TicketRevenuesRepositoryService } from './ticket-revenues-repository.service';
+import { TicketRevenuesRepositoryService } from './ticket-revenues-repository';
 import { TicketRevenuesService } from './ticket-revenues.service';
 import { SettingsService } from 'src/settings/settings.service';
 
@@ -80,7 +80,7 @@ describe('TicketRevenuesService', () => {
         let dayStr = day.toString().padStart(2, '0');
         let hourStr = (i * 2).toString().padStart(2, '0');
         revenues.push({
-          partitionDate: `2023-06-${dayStr}`,
+          date: `2023-06-${dayStr}`,
           processingHour: i,
           transportType: i.toString(),
           transactionId: i.toString(),
@@ -108,7 +108,7 @@ describe('TicketRevenuesService', () => {
         dayStr = day.toString().padStart(2, '0');
         hourStr = (i * 2).toString().padStart(2, '0');
         revenues.push({
-          partitionDate: `2023-06-${dayStr}`,
+          date: `2023-06-${dayStr}`,
           processingHour: i,
           transportType: i.toString(),
           transactionId: i.toString(),
@@ -172,7 +172,7 @@ describe('TicketRevenuesService', () => {
         let dayStr = day.toString().padStart(2, '0');
         let hourStr = (i * 2).toString().padStart(2, '0');
         revenues.push({
-          partitionDate: `2023-06-${dayStr}`,
+          date: `2023-06-${dayStr}`,
           processingHour: i,
           transportType: i.toString(),
           transactionId: i.toString(),
@@ -200,7 +200,7 @@ describe('TicketRevenuesService', () => {
         dayStr = day.toString().padStart(2, '0');
         hourStr = (i * 2).toString().padStart(2, '0');
         revenues.push({
-          partitionDate: `2023-06-${dayStr}`,
+          date: `2023-06-${dayStr}`,
           processingHour: i,
           transportType: i.toString(),
           transactionId: i.toString(),
