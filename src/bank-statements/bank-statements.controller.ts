@@ -26,6 +26,8 @@ import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-inter
 import { BSMeTimeIntervalEnum } from './enums/bs-me-time-interval.enum';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
 import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { getRequestLog } from 'src/utils/request-utils';
 
 @ApiTags('BankStatements')
 @Controller({
@@ -33,6 +35,10 @@ import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
   version: '1',
 })
 export class BankStatementsController {
+  private logger = new CustomLogger(BankStatementsController.name, {
+    timestamp: true,
+  });
+
   constructor(private readonly bankStatementsService: BankStatementsService) {}
 
   @SerializeOptions({
@@ -47,7 +53,7 @@ export class BankStatementsController {
   @ApiQuery(CommonApiParams.userId)
   @HttpCode(HttpStatus.OK)
   async getMe(
-    @Request() request,
+    @Request() request: IRequest,
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query(...DateQueryParams.endDate) endDate?: string,
     @Query(...DateQueryParams.timeInterval)
@@ -55,6 +61,7 @@ export class BankStatementsController {
     @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<IBSGetMeResponse> {
+    this.logger.log(getRequestLog(request));
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     return this.bankStatementsService.getMe({
       startDate,

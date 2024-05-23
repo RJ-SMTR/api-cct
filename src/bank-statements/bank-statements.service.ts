@@ -3,7 +3,7 @@ import { differenceInDays, subDays } from 'date-fns';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import { getDateYMDString, isPaymentWeekComplete } from 'src/utils/date-utils';
+import { getDateYMDString } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { getPaymentDates, getPaymentWeek } from 'src/utils/payment-date-utils';
@@ -95,24 +95,17 @@ export class BankStatementsService {
     timeInterval?: TimeIntervalEnum;
     user: User;
   }): Promise<IGetBSResponse> {
-    const intervalBSDates = getPaymentDates({
-      endpoint: 'bank-statements',
-      startDateStr: args?.startDate,
-      endDateStr: args?.endDate,
-      timeInterval: args?.timeInterval,
-    });
-    const dailyTRDates = getPaymentDates({
+    // 1. Obter catracadas diárias do TransacaoView
+    const transacaoViewDaily = getPaymentDates({
       endpoint: 'ticket-revenues',
       startDateStr: args?.startDate,
       endDateStr: args?.endDate,
       timeInterval: args?.timeInterval,
     });
-
-    // Get daily data form tickets/me
     const revenuesResponse = await this.ticketRevenuesService.getMe(
       {
-        startDate: getDateYMDString(dailyTRDates.startDate),
-        endDate: getDateYMDString(dailyTRDates.endDate),
+        startDate: getDateYMDString(transacaoViewDaily.startDate),
+        endDate: getDateYMDString(transacaoViewDaily.endDate),
         userId: args?.user.id,
         groupBy: 'day',
       },
@@ -120,22 +113,34 @@ export class BankStatementsService {
       'ticket-revenues',
     );
 
+    // 2. Agrupar por semana e somar
+    const bankStatementsInterval = getPaymentDates({
+      endpoint: 'bank-statements',
+      startDateStr: args?.startDate,
+      endDateStr: args?.endDate,
+      timeInterval: args?.timeInterval,
+    });
+
     const todaySum = revenuesResponse.todaySum;
     let allSum = 0;
-    const newStatements: IBankStatement[] = [];
-
-    // for each week in interval (bankStatements)
-    const dayDiff = args.groupBy === 'week' ? 7 : 1;
+    /** Agrupar por semana (7 em 7 dias) ou por dia (1 em 1 dia) */
+    const groupBy = args.groupBy === 'week' ? 7 : 1;
+    /** Como estamos fazendo slice, temos que equalizar o id de cada item */
     const maxId =
       Math.ceil(
-        differenceInDays(intervalBSDates.endDate, intervalBSDates.startDate) /
-          dayDiff,
+        differenceInDays(
+          bankStatementsInterval.endDate,
+          bankStatementsInterval.startDate,
+        ) / groupBy,
       ) + 1;
     let id = 0;
+    const newStatements: IBankStatement[] = [];
+
+    // 2.1 Gerar itens para cada dia/semana, mesmo que não tenha dados
     for (
-      let endDate = intervalBSDates.endDate;
-      endDate >= intervalBSDates.startDate;
-      endDate = subDays(endDate, dayDiff)
+      let endDate = bankStatementsInterval.endDate;
+      endDate >= bankStatementsInterval.startDate;
+      endDate = subDays(endDate, groupBy)
     ) {
       const dateInterval =
         args.groupBy === 'week'
@@ -144,30 +149,27 @@ export class BankStatementsService {
 
       const revenuesWeek = revenuesResponse.data.filter(
         (i) =>
-          new Date(i.partitionDate) >= dateInterval.startDate &&
-          new Date(i.partitionDate) <= dateInterval.endDate,
+          new Date(i.date) >= dateInterval.startDate &&
+          new Date(i.date) <= dateInterval.endDate,
       );
       const weekAmount = revenuesWeek.reduce(
         (sum, i) => sum + i.transactionValueSum,
         0,
       );
-      const isPaid = isPaymentWeekComplete(subDays(endDate, 2));
+      const isPago =
+        revenuesWeek.length > 0 && revenuesWeek.every((i) => i.isPago);
+      const errors = [
+        ...new Set(revenuesWeek.reduce((l, i) => [...l, ...i.errors], [])),
+      ];
       newStatements.push({
         id: maxId - id,
         amount: Number(weekAmount.toFixed(2)),
         cpfCnpj: args.user.getCpfCnpj(),
         date: getDateYMDString(endDate),
-        processingDate: getDateYMDString(endDate),
-        transactionDate: getDateYMDString(endDate),
-        paymentOrderDate: getDateYMDString(endDate),
-        effectivePaymentDate: isPaid ? getDateYMDString(endDate) : null,
+        effectivePaymentDate: isPago ? getDateYMDString(endDate) : null,
         permitCode: args.user.getPermitCode(),
-        status: isPaid ? 'Pago' : 'A pagar',
-        statusCode: isPaid ? 'paid' : 'toPay',
-        bankStatus: isPaid ? '00' : null,
-        bankStatusCode: isPaid ? 'Crédito ou Débito Efetivado' : null,
-        error: null,
-        errorCode: null,
+        status: isPago ? 'Pago' : 'A pagar',
+        errors: errors,
       });
       allSum += Number(weekAmount.toFixed(2));
       id += 1;

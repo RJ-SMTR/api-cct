@@ -6,6 +6,7 @@ import { TicketRevenuesController } from './ticket-revenues.controller';
 import { TicketRevenuesService } from './ticket-revenues.service';
 import { SettingsModule } from 'src/settings/settings.module';
 import { TransacaoViewModule } from 'src/transacao-bq/transacao-view.module';
+import { CnabModule } from 'src/cnab/cnab.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { TransacaoViewModule } from 'src/transacao-bq/transacao-view.module';
     UsersModule,
     SettingsModule,
     TransacaoViewModule,
+    CnabModule,
   ],
   providers: [TicketRevenuesService, TicketRevenuesRepositoryService],
   controllers: [TicketRevenuesController],

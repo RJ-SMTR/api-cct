@@ -113,7 +113,7 @@ export class TransacaoView {
       clientId: null,
       directionId: null,
       integrationId: null,
-      partitionDate: '',
+      date: this.datetimeProcessamento.toISOString(),
       paymentMediaType: this.tipoPagamento,
       processingDateTime: this.datetimeProcessamento.toISOString(),
       processingHour: this.datetimeProcessamento.getHours(),

@@ -1,6 +1,9 @@
-import { User } from 'src/users/entities/user.entity';
-import { DeepPartial } from 'typeorm';
-
 export interface IRequest {
-  user?: DeepPartial<User>;
+  user: {
+    id: number;
+  };
+  method: string;
+  protocol: string;
+  originalUrl: string;
+  get(x: string): any;
 }

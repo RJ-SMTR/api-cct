@@ -1,3 +1,4 @@
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ITicketRevenue } from '../interfaces/ticket-revenue.interface';
 import { ITicketRevenuesGroup } from '../interfaces/ticket-revenues-group.interface';
 import { ITRCounts } from '../interfaces/tr-counts.interface';
@@ -66,19 +67,42 @@ export function appendCountsValue(
 export function appendItem(
   group: ITicketRevenuesGroup,
   newItem: ITicketRevenue,
+  detalhesA: DetalheA[]
 ) {
   group.count += 1;
   if (newItem.transactionValue) {
     const value = group.transactionValueSum + newItem.transactionValue;
     group.transactionValueSum = Number(value.toFixed(2));
   }
+  const foundDetalhesA = detalhesA.filter(
+    (i) =>
+      i.itemTransacaoAgrupado.id ===
+      newItem.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
+  );
+  const errors = foundDetalhesA.reduce(
+    (l, i) => [
+      ...l,
+      ...i.ocorrencias
+        .filter((j) => !['00', 'BD'].includes(j.code))
+        .map((j) => j.message),
+    ],
+    [],
+  );
 
-  for (const [groupPropName, groupPropValue] of Object.entries(group)) {
-    if (COUNTS_KEYS.includes(groupPropName)) {
-      const itemKey = groupPropName.replace('Counts', '');
-      appendCountsGroup(group, groupPropName as any, newItem, itemKey);
-    } else if (typeof groupPropValue === 'string') {
-      group[groupPropName] = newItem[groupPropName];
+  for (const [groupKey, groupValue] of Object.entries(group)) {
+    if (groupKey === 'isPago') {
+      if (!newItem.arquivoPublicacao?.isPago) {
+        group[groupKey] = false;
+      }
+    } else if (groupKey === 'errors') {
+      if (!newItem.arquivoPublicacao?.isPago) {
+        group[groupKey] = [...new Set([...group[groupKey], ...errors])];
+      }
+    } else if (COUNTS_KEYS.includes(groupKey)) {
+      const itemKey = groupKey.replace('Counts', '');
+      appendCountsGroup(group, groupKey as any, newItem, itemKey);
+    } else if (typeof groupValue === 'string') {
+      group[groupKey] = newItem[groupKey];
     }
   }
 }

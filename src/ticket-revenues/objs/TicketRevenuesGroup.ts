@@ -6,7 +6,7 @@ export class TicketRevenuesGroup implements ITicketRevenuesGroup {
   public aux_groupDateTime = '';
   public count = 0;
   public directionIdCounts: Record<string, ITRCounts> = {};
-  public partitionDate = '';
+  public date = '';
   public paymentMediaTypeCounts: Record<string, ITRCounts> = {};
   public permitCode = '';
   public stopIdCounts: Record<number, ITRCounts> = {};
@@ -16,6 +16,8 @@ export class TicketRevenuesGroup implements ITicketRevenuesGroup {
   public transactionValueSum = 0;
   public transportIntegrationTypeCounts: Record<string, ITRCounts> = {};
   public transportTypeCounts: Record<string, ITRCounts> = {};
+  public isPago = false;
+  public errors: string[] = [];
 
   public toInterface(): ITicketRevenuesGroup {
     return {
@@ -23,7 +25,7 @@ export class TicketRevenuesGroup implements ITicketRevenuesGroup {
       aux_groupDateTime: this.aux_groupDateTime,
       count: this.count,
       directionIdCounts: this.directionIdCounts,
-      partitionDate: this.partitionDate,
+      date: this.date,
       paymentMediaTypeCounts: this.paymentMediaTypeCounts,
       stopIdCounts: this.stopIdCounts,
       stopLatCounts: this.stopLatCounts,
@@ -32,6 +34,8 @@ export class TicketRevenuesGroup implements ITicketRevenuesGroup {
       transactionValueSum: this.transactionValueSum,
       transportIntegrationTypeCounts: this.transportIntegrationTypeCounts,
       transportTypeCounts: this.transportTypeCounts,
+      isPago: this.isPago,
+      errors: this.errors,
     };
   }
 }

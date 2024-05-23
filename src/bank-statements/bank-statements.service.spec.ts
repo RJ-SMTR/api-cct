@@ -152,7 +152,7 @@ xdescribe('BankStatementsService', () => {
         date.setDate(date.getDate() - day);
         revenuesGroup.push({
           count: 1,
-          partitionDate: getDateYMDString(date),
+          date: getDateYMDString(date),
           transportTypeCounts: {
             [`tt_${day.toString()}`]: { count: 1, transactionValue: 10 },
           },
@@ -306,7 +306,7 @@ xdescribe('BankStatementsService', () => {
         date.setDate(date.getDate() - day);
         revenuesGroup.push({
           count: 1,
-          partitionDate: getDateYMDString(date),
+          date: getDateYMDString(date),
           transportTypeCounts: {
             [`tt_${day.toString()}`]: { count: 1, transactionValue: 10 },
           },
@@ -454,7 +454,7 @@ xdescribe('BankStatementsService', () => {
         date.setDate(date.getDate() - day);
         revenuesGroup.push({
           count: 1,
-          partitionDate: getDateYMDString(date),
+          date: getDateYMDString(date),
           transportTypeCounts: {
             [`tt_${day.toString()}`]: { count: 1, transactionValue: 10 },
           },
