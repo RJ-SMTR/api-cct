@@ -143,6 +143,7 @@ export class ArquivoPublicacaoService {
     }
   }
 
+
   async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA) {
     if (!detalheARetorno.ocorrenciasCnab) {
       return;
@@ -177,9 +178,7 @@ export class ArquivoPublicacaoService {
           },
         },
       });
-      publicacao.isPago =
-        detalheARetorno.ocorrenciasCnab?.trim() === '00' ||
-        detalheARetorno.ocorrenciasCnab?.trim() === 'BD';
+      publicacao.isPago = detalheARetorno.isPago();
       if (publicacao.isPago) {
         publicacao.valorRealEfetivado = publicacao.itemTransacao.valor;
         publicacao.dataEfetivacao = detalheARetorno.dataEfetivacao;
@@ -204,7 +203,7 @@ export class ArquivoPublicacaoService {
       });
     }
 
-    // Update status
+    // Update TransacaoAgrupado
     const transacaoAg =
       detalheARetorno.headerLote.headerArquivo.transacaoAgrupado;
     if (transacaoAg) {

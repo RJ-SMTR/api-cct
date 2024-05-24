@@ -12,6 +12,9 @@ import { startOfDay } from 'date-fns';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
+import { TransacaoAgrupadoService } from './transacao-agrupado.service';
+import { ItemTransacaoStatusEnum } from 'src/cnab/enums/pagamento/item-transacao-status.enum';
+import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 
 @Injectable()
 export class DetalheAService {
@@ -20,6 +23,8 @@ export class DetalheAService {
   constructor(
     private detalheARepository: DetalheARepository,
     private clienteFavorecidoService: ClienteFavorecidoService,
+    private transacaoAgrupadoService: TransacaoAgrupadoService,
+    private itemTransacaoAgrupadoService: ItemTransacaoAgrupadoService,
   ) {}
 
   /**
@@ -53,13 +58,11 @@ export class DetalheAService {
     const detalheARem = await this.detalheARepository.getOne({
       dataVencimento: dataVencimento,
       nsr: r.detalheA.nsr.convertedValue,
-      headerLote: {
-        headerArquivo: {
-          transacaoAgrupado: {
-            status: { id: TransacaoStatusEnum.remessa },
-          },
-        },
-      },
+      itemTransacaoAgrupado: {
+        transacaoAgrupado: {
+          status: { id: TransacaoStatusEnum.remessa },
+        }
+      }
     });
     const detalheA = new DetalheADTO({
       id: detalheARem.id,
@@ -85,13 +88,25 @@ export class DetalheAService {
       valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
       nsr: Number(r.detalheA.nsr.value),
       ocorrenciasCnab:
-        r.detalheA.ocorrencias.value +
-        headerArq.ocorrenciaCobrancaSemPapel.value +
-        headerLotePgto.ocorrencias.value,
+        headerArq.ocorrenciaCobrancaSemPapel.value.trim() ||
+        headerLotePgto.ocorrencias.value.trim() ||
+        r.detalheA.ocorrencias.value.trim(),
     });
-    return await this.detalheARepository.save(detalheA);
+    const saved = await this.detalheARepository.save(detalheA);
 
     // Update Transacao status
+    await this.transacaoAgrupadoService.update({
+      id: detalheARem.itemTransacaoAgrupado.transacaoAgrupado.id,
+      status: { id: TransacaoStatusEnum.retorno },
+    });
+    await this.itemTransacaoAgrupadoService.update(
+      detalheARem.itemTransacaoAgrupado.id,
+      {
+        status: { id: ItemTransacaoStatusEnum.retorno },
+      },
+    );
+
+    return saved;
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {

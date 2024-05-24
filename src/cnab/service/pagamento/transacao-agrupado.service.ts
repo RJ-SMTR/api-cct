@@ -25,6 +25,12 @@ export class TransacaoAgrupadoService {
     return await this.transacaoAgRepository.findOne(fields);
   }
 
+  async find(fields: EntityCondition<TransacaoAgrupado>) {
+    return await this.transacaoAgRepository.findMany({
+      where: fields,
+    });
+  }
+
   /**
    * **status** is Created.
    *

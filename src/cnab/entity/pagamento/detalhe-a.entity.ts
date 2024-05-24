@@ -159,4 +159,9 @@ export class DetalheA extends EntityHelper {
     return `${_headerLoteUniqueId}|${detalheA.nsr}`;
   }
 
+  public isPago() {
+    const errors = Ocorrencia.getErrorCodes(this.ocorrenciasCnab || '');
+    return errors.length === 0;
+  }
+
 }

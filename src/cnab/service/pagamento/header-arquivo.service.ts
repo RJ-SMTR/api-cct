@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
+import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { appSettings } from 'src/settings/app.settings';
@@ -16,7 +17,6 @@ import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { HeaderArquivoRepository } from '../../repository/pagamento/header-arquivo.repository';
 import { PagadorService } from './pagador.service';
-import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -104,9 +104,6 @@ export class HeaderArquivoService {
   public async findRetornos(): Promise<HeaderArquivo[]> {
     return this.headerArquivoRepository.findMany({
       where: [
-        {
-          transacao: { status: { id: TransacaoStatusEnum.remessa } },
-        },
         {
           transacaoAgrupado: { status: { id: TransacaoStatusEnum.remessa } },
         },
