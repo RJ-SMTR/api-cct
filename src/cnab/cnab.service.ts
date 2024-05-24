@@ -93,11 +93,13 @@ export class CnabService {
   public async saveTransacoesJae() {
     const METHOD = this.saveTransacoesJae.name;
 
+    await this.compareTransacaoViewPublicacao();
+    
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
 
     // 2. Update TransacaoBigquery
-    // await this.updateTransacaoBigquery();
+    await this.updateTransacaoBigquery();
 
     // 3. Update ordens
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
@@ -114,20 +116,7 @@ export class CnabService {
   }
 
   async updateTransacaoBigquery() {
-    const countAll = await this.transacaoViewService.count();
-    if (countAll === 0) {
-      this.logger.log(
-        'Tabela TransacaoView vazia, obtendo todos os itens do Bigquery...',
-      );
-    } else {
-      this.logger.log(
-        'Tabela TransacaoView contém dados, obtendo dados semanais do Bigquery...',
-      );
-    }
-    const transacoesBq =
-      countAll === 0
-        ? await this.bigqueryTransacaoService.getAll()
-        : await this.bigqueryTransacaoService.getFromWeek();
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek();
     const transacoesView = transacoesBq.map((i) =>
       TransacaoView.newFromBigquery(i),
     );
@@ -180,6 +169,9 @@ export class CnabService {
     }
   }
 
+  /**
+   * 
+   */
   async getPublicacoes() {
     let friday = new Date();
     if (!isFriday(friday)) {

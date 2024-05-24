@@ -22,8 +22,8 @@ export class BigqueryOrdemPagamentoService {
     const friday = isFriday(today) ? today : nextFriday(today);
     const ordemPgto = (
       await this.bigqueryOrdemPagamentoRepository.findMany({
-        startDate: subDays(friday, 8), // qui
-        endDate: subDays(friday, 2), // qua
+        startDate: subDays(friday, 7), // sex
+        endDate: subDays(friday, 1), // qui
       })
     ).map((i) => ({ ...i } as BigqueryOrdemPagamentoDTO));
     return ordemPgto;
