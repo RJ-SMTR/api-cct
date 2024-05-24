@@ -46,6 +46,7 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import {
+  isCnabAccepted as isCnab104Accepted,
   parseCnab240Extrato,
   parseCnab240Pagamento,
 } from './utils/cnab/cnab-104-utils';
@@ -525,11 +526,20 @@ export class CnabService {
       await this.remessaRetornoService.saveRetorno(retorno104);
       await this.arqPublicacaoService.compareRemessaToRetorno();
 
-      // Success
+      const isCnabAccepted = isCnab104Accepted(retorno104);
+
+      const logHasErrors = isCnabAccepted
+        ? 'possui erros de aceitação do banco.'
+        : 'foi aceito. ';
       this.logger.log(
-        'Retorno lido com sucesso, enviando para o backup...',
+        `Retorno lido com sucesso, ${logHasErrors} Enviando para o backup...`,
         METHOD,
       );
+      if (!isCnabAccepted) {
+        await this.settingsService.revertNSR();
+      } else {
+        await this.settingsService.confirmNSR();
+      }
       await this.sftpService.moveToBackup(
         cnabName,
         SftpBackupFolder.RetornoSuccess,
@@ -540,6 +550,13 @@ export class CnabService {
         error.stack,
         METHOD,
       );
+
+      /**
+       * Reverte o NSR pois o sistema está preparado para ler um retorno no formato acordado.
+       * Se a leitura falhar, entendemos que não é um retorno válido, ignoramos o arquivo.
+       */
+      await this.settingsService.revertNSR();
+
       await this.sftpService.moveToBackup(
         cnabName,
         SftpBackupFolder.RetornoFailure,

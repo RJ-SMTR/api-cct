@@ -7,6 +7,7 @@ import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { SettingEntity } from './entities/setting.entity';
 import { ISettingDataGroup } from './interfaces/setting-data-group.interface';
 import { ISettingData } from './interfaces/setting-data.interface';
+import { appSettings } from './app.settings';
 
 @Injectable()
 export class SettingsService {
@@ -131,8 +132,31 @@ export class SettingsService {
     value: string,
   ): Promise<SettingEntity> {
     const dbSetting = await this.getOneBySettingData(settingData);
-    await this.settingsRepository.update({ id: dbSetting.id }, { value: value });
+    await this.settingsRepository.update(
+      { id: dbSetting.id },
+      { value: value },
+    );
     const updated = await this.getOneBySettingData(settingData);
     return updated;
+  }
+
+  async confirmNSR() {
+    const currentNsrSequence = await this.getOneBySettingData(
+      appSettings.any__cnab_current_nsr_sequence,
+    );
+    await this.updateBySettingData(
+      appSettings.any__cnab_last_nsr_sequence,
+      currentNsrSequence.value,
+    );
+  }
+
+  async revertNSR() {
+    const lastNsrSequence = await this.getOneBySettingData(
+      appSettings.any__cnab_last_nsr_sequence,
+    );
+    await this.updateBySettingData(
+      appSettings.any__cnab_current_nsr_sequence,
+      lastNsrSequence.value,
+    );
   }
 }
