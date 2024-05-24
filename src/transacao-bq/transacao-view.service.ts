@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DeepPartial, FindManyOptions, In } from 'typeorm';
 import { TransacaoView } from './transacao-view.entity';
 import { TransacaoViewRepository } from './transacao-view.repository';
-import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class TransacaoViewService {
@@ -66,7 +66,7 @@ export class TransacaoViewService {
   async ignoreExisting(dtos: TransacaoView[]) {
     const existing = await this.transacaoViewRepository.find({
       where: {
-        id: In(dtos.map((i) => i.datetimeProcessamento)),
+        idTransacao: In(dtos.map((i) => i.idTransacao)),
       },
     });
     if (existing.length) {
