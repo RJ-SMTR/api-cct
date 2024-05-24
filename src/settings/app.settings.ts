@@ -142,7 +142,6 @@ export const appSettings = {
   } as ISettingData,
 
   // v1
-
   v1__ab_test_enabled: {
     name: 'ab_test_enabled',
     value: 'false',

@@ -10,6 +10,8 @@ import { DetalheARepository } from '../../repository/pagamento/detalhe-a.reposit
 import { ClienteFavorecidoService } from '../cliente-favorecido.service';
 import { startOfDay } from 'date-fns';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
+import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
+import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 
 @Injectable()
 export class DetalheAService {
@@ -33,6 +35,8 @@ export class DetalheAService {
   }
 
   public async saveRetornoFrom104(
+    headerArq: CnabHeaderArquivo104,
+    headerLotePgto: CnabHeaderLote104Pgto,
     registro: CnabRegistros104Pgto,
     dataEfetivacao: Date,
   ): Promise<DetalheA | null> {
@@ -80,7 +84,10 @@ export class DetalheAService {
       numeroParcela: r.detalheA.numeroParcela.convertedValue,
       valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
       nsr: Number(r.detalheA.nsr.value),
-      ocorrenciasCnab: r.detalheA.ocorrencias.value,
+      ocorrenciasCnab:
+        r.detalheA.ocorrencias.value +
+        headerArq.ocorrenciaCobrancaSemPapel.value +
+        headerLotePgto.ocorrencias.value,
     });
     return await this.detalheARepository.save(detalheA);
 

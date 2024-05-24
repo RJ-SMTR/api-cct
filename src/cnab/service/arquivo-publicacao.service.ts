@@ -1,11 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { isDate, isFriday, nextFriday, startOfDay } from 'date-fns';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
-import { asNumber, asString } from 'src/utils/pipe-utils';
+import { asNumber } from 'src/utils/pipe-utils';
 import { DeepPartial, FindManyOptions } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
-import { HeaderLote } from '../entity/pagamento/header-lote.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
 import { TransacaoStatus } from '../entity/pagamento/transacao-status.entity';
@@ -66,7 +65,7 @@ export class ArquivoPublicacaoService {
     });
     const ordem = itemTransacao.dataOrdem;
     if (!isDate(ordem) || !ordem) {
-      console.warn('erro')
+      console.warn('erro');
     }
     const friday = isFriday(ordem) ? ordem : nextFriday(ordem);
     const arquivo = new ArquivoPublicacao({
@@ -128,7 +127,6 @@ export class ArquivoPublicacaoService {
         const detalhesA = await this.detalheAService.findMany({
           headerLote: { id: headerLote.id },
         });
-        await this.salvaOcorrenciasHeaderLote(headerLote);
 
         // DetalheA Retorno
         for (const detalheA of detalhesA) {
@@ -149,36 +147,15 @@ export class ArquivoPublicacaoService {
     if (!detalheARetorno.ocorrenciasCnab) {
       return;
     }
-    const ocorrenciasDetalheA = Ocorrencia.newList(
-      asString(detalheARetorno.ocorrenciasCnab),
-    );
-
+    const ocorrencias = Ocorrencia.newList(detalheARetorno.ocorrenciasCnab);
     // Update
-    for (const ocorrencia of ocorrenciasDetalheA) {
+    for (const ocorrencia of ocorrencias) {
       ocorrencia.detalheA = detalheARetorno;
     }
-    if (ocorrenciasDetalheA.length === 0) {
+    if (ocorrencias.length === 0) {
       return;
     }
-    await this.transacaoOcorrenciaService.saveMany(ocorrenciasDetalheA);
-  }
-
-  async salvaOcorrenciasHeaderLote(headerLote: HeaderLote) {
-    if (!headerLote.ocorrenciasCnab) {
-      return;
-    }
-    const ocorrenciasHeaderLote = Ocorrencia.newList(
-      asString(headerLote.ocorrenciasCnab),
-    );
-
-    // Update
-    for (const ocorrencia of ocorrenciasHeaderLote) {
-      ocorrencia.headerLote = headerLote;
-    }
-    if (ocorrenciasHeaderLote.length === 0) {
-      return;
-    }
-    await this.transacaoOcorrenciaService.saveMany(ocorrenciasHeaderLote);
+    await this.transacaoOcorrenciaService.saveMany(ocorrencias);
   }
 
   /**

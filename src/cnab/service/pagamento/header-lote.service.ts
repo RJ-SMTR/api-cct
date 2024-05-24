@@ -67,7 +67,6 @@ export class HeaderLoteService {
       tipoCompromisso: lote.headerLote.tipoCompromisso.stringValue,
       tipoInscricao: lote.headerLote.tipoInscricao.stringValue,
       pagador: { id: pagador.id },
-      ocorrenciasCnab: lote.headerLote.ocorrencias.stringValue.trim(),
     });
     return await this.headerLoteRepository.saveIfNotExists(headerLote);
   }

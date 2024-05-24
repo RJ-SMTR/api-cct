@@ -67,7 +67,7 @@ export class HeaderArquivoService {
     return dto;
   }
 
-  public async saveRetFrom104(
+  public async saveRetornoFrom104(
     cnab104: CnabFile104Pgto,
     headerArquivoRemessa: HeaderArquivo,
   ) {

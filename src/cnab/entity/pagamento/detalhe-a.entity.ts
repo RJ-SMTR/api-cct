@@ -47,7 +47,7 @@ export class DetalheA extends EntityHelper {
   })
   ocorrencias: Ocorrencia[];
 
-  @Column({ type: String, unique: false, nullable: true, length: 10 })
+  @Column({ type: String, unique: false, nullable: true, length: 30 })
   ocorrenciasCnab: string | null;
 
   @Column({ type: Number, unique: false, nullable: true })

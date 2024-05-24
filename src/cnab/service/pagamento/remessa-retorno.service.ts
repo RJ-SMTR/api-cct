@@ -603,6 +603,8 @@ export class RemessaRetornoService {
       for (const registro of cnabLote.registros) {
         // Save Detalhes
         const detalheAUpdated = await this.detalheAService.saveRetornoFrom104(
+          cnab.headerArquivo,
+          cnabLote.headerLote,
           registro,
           dataEfetivacao,
         );
