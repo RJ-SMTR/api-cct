@@ -362,33 +362,6 @@ export class CnabService {
     return transacoesView;
   }
 
-  /**
-   * @returns Only new ArquivoPublicacoes. Those associated with new Transacao.
-   */
-  // private updateNewPublicacaoDTOs(
-  //   publicacoes: ArquivoPublicacao[],
-  //   createdTransacoes: Transacao[],
-  // ): ArquivoPublicacao[] {
-  //   /** key: idOrdemPagamento */
-  //   const transacaoMap: Record<string, Transacao> = createdTransacoes.reduce(
-  //     (map, i) => ({ ...map, [asString(i.idOrdemPagamento)]: i }),
-  //     {},
-  //   );
-  //   const newPublicacoes: ArquivoPublicacao[] = [];
-  //   for (const publicacao of publicacoes) {
-  //     const transacao = transacaoMap[publicacao.idOrdemPagamento];
-  //     if (transacao) {
-  //       publicacao.itemTransacao = { id: transacao.id } as Transacao;
-  //       newPublicacoes.push(publicacao);
-  //     }
-  //   }
-  //   this.logger.debug(
-  //     `${newPublicacoes.length}/${publicacoes.length} ArquivoPublicacoes novas ` +
-  //       '(associado com Transacao nova).',
-  //   );
-  //   return newPublicacoes;
-  // }
-
   // #endregion
 
   // #region saveTransacoesLancamento
