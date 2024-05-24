@@ -213,7 +213,7 @@ function isCnabRegistroNewLote(registro: CnabRegistro): boolean {
 
 // #endregion
 
-export function isCnabAccepted(cnab: CnabFile104Pgto) {
+export function getCnab104Errors(cnab: CnabFile104Pgto) {
   const cnabErrors = [
     ...Ocorrencia.getErrorCodes(
       cnab.headerArquivo.ocorrenciaCobrancaSemPapel.value,
@@ -232,5 +232,5 @@ export function isCnabAccepted(cnab: CnabFile104Pgto) {
       [],
     ),
   ];
-  return cnabErrors.length;
+  return cnabErrors;
 }

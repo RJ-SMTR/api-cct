@@ -307,11 +307,15 @@ export class RemessaRetornoService {
       ).value,
     );
 
-    // Se data é diferente, reinicia o sequence
+    // Se data é diferente, reinicia o nsr
     if (!isSameDay(new Date(), nsrDate)) {
       await this.settingsService.updateBySettingData(
         appSettings.any__cnab_current_nsr_date,
         String(new Date().toISOString()),
+      );
+      await this.settingsService.updateBySettingData(
+        appSettings.any__cnab_last_nsr_sequence,
+        '0',
       );
       const nsr = 1;
       await this.settingsService.updateBySettingData(
@@ -538,7 +542,9 @@ export class RemessaRetornoService {
       },
     });
     for (const transacao of transacoes) {
-      const itemTransacoes = allItemTransacoes.filter(i => i.transacao.id === transacao.id);
+      const itemTransacoes = allItemTransacoes.filter(
+        (i) => i.transacao.id === transacao.id,
+      );
       for (const item of itemTransacoes) {
         // Update ItemTransacaoStatus
         await this.itemTransacaoService.save({

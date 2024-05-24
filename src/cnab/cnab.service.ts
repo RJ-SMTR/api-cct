@@ -46,7 +46,7 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import {
-  isCnabAccepted as isCnab104Accepted,
+  getCnab104Errors,
   parseCnab240Extrato,
   parseCnab240Pagamento,
 } from './utils/cnab/cnab-104-utils';
@@ -94,7 +94,7 @@ export class CnabService {
     const METHOD = this.saveTransacoesJae.name;
 
     await this.compareTransacaoViewPublicacao();
-    
+
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
 
@@ -170,7 +170,7 @@ export class CnabService {
   }
 
   /**
-   * 
+   *
    */
   async getPublicacoes() {
     let friday = new Date();
@@ -515,14 +515,14 @@ export class CnabService {
     // Save Retorno, ArquivoPublicacao, move SFTP to backup
     try {
       const retorno104 = parseCnab240Pagamento(cnabString);
-      // await this.remessaRetornoService.saveRetorno(retorno104);
-      // await this.arqPublicacaoService.compareRemessaToRetorno();
+      await this.remessaRetornoService.saveRetorno(retorno104);
+      await this.arqPublicacaoService.compareRemessaToRetorno();
 
-      const isCnabAccepted = isCnab104Accepted(retorno104);
+      const isCnabAccepted = getCnab104Errors(retorno104).length === 0;
 
       const logHasErrors = isCnabAccepted
-        ? 'possui erros de aceitação do banco.'
-        : 'foi aceito. ';
+        ? 'foi aceito.'
+        : 'possui erros de aceitação do banco.';
       this.logger.log(
         `Retorno lido com sucesso, ${logHasErrors} Enviando para o backup...`,
         METHOD,
