@@ -70,9 +70,9 @@ export class TransacaoViewService {
       },
     });
     if (existing.length) {
-      const existingIds = existing.map((i) => i.id);
+      const existingIds = existing.map((i) => i.idTransacao);
       const lengthBefore = dtos.length;
-      const filtered = dtos.filter((i) => !existingIds.includes(i.id));
+      const filtered = dtos.filter((i) => !existingIds.includes(i.idTransacao));
       this.logger.log(
         `Há ${existing.length} TransacaoViews existentes no banco, ignorando antes de inserir... `
         + `(${lengthBefore} -> ${filtered.length} itens)`,
