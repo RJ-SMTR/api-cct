@@ -7,7 +7,9 @@ export class RemoveHeaderArquivoStatus1715882993008 implements MigrationInterfac
         await queryRunner.query(`ALTER TABLE "item_transacao" DROP CONSTRAINT "FK_ItemTransacao_detalheA_OneToOne"`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" DROP CONSTRAINT "FK_HeaderArquivo_status_ManyToOne"`);
         await queryRunner.query(`ALTER TABLE "item_transacao_agrupado" DROP COLUMN "dataLancamento"`);
-        await queryRunner.query(`ALTER TABLE "item_transacao" DROP COLUMN "dataLancamento"`);
+        if ((await queryRunner.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'lancamento' AND column_name = 'dataLancamento'`) as any[]).pop()) {
+            await queryRunner.query(`ALTER TABLE "item_transacao" DROP COLUMN "dataLancamento"`);
+        } // custom
         await queryRunner.query(`ALTER TABLE "item_transacao" DROP CONSTRAINT "UQ_ItemTransacao_detalheA"`);
         await queryRunner.query(`ALTER TABLE "item_transacao" DROP COLUMN "detalheAId"`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" DROP COLUMN "statusId"`);

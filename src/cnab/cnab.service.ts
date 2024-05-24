@@ -46,6 +46,7 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import {
+  isCnabAccepted as isCnab104Accepted,
   parseCnab240Extrato,
   parseCnab240Pagamento,
 } from './utils/cnab/cnab-104-utils';
@@ -362,33 +363,6 @@ export class CnabService {
     return transacoesView;
   }
 
-  /**
-   * @returns Only new ArquivoPublicacoes. Those associated with new Transacao.
-   */
-  // private updateNewPublicacaoDTOs(
-  //   publicacoes: ArquivoPublicacao[],
-  //   createdTransacoes: Transacao[],
-  // ): ArquivoPublicacao[] {
-  //   /** key: idOrdemPagamento */
-  //   const transacaoMap: Record<string, Transacao> = createdTransacoes.reduce(
-  //     (map, i) => ({ ...map, [asString(i.idOrdemPagamento)]: i }),
-  //     {},
-  //   );
-  //   const newPublicacoes: ArquivoPublicacao[] = [];
-  //   for (const publicacao of publicacoes) {
-  //     const transacao = transacaoMap[publicacao.idOrdemPagamento];
-  //     if (transacao) {
-  //       publicacao.itemTransacao = { id: transacao.id } as Transacao;
-  //       newPublicacoes.push(publicacao);
-  //     }
-  //   }
-  //   this.logger.debug(
-  //     `${newPublicacoes.length}/${publicacoes.length} ArquivoPublicacoes novas ` +
-  //       '(associado com Transacao nova).',
-  //   );
-  //   return newPublicacoes;
-  // }
-
   // #endregion
 
   // #region saveTransacoesLancamento
@@ -549,14 +523,23 @@ export class CnabService {
     // Save Retorno, ArquivoPublicacao, move SFTP to backup
     try {
       const retorno104 = parseCnab240Pagamento(cnabString);
-      await this.remessaRetornoService.saveRetorno(retorno104);
-      await this.arqPublicacaoService.compareRemessaToRetorno();
+      // await this.remessaRetornoService.saveRetorno(retorno104);
+      // await this.arqPublicacaoService.compareRemessaToRetorno();
 
-      // Success
+      const isCnabAccepted = isCnab104Accepted(retorno104);
+
+      const logHasErrors = isCnabAccepted
+        ? 'possui erros de aceitação do banco.'
+        : 'foi aceito. ';
       this.logger.log(
-        'Retorno lido com sucesso, enviando para o backup...',
+        `Retorno lido com sucesso, ${logHasErrors} Enviando para o backup...`,
         METHOD,
       );
+      if (!isCnabAccepted) {
+        await this.settingsService.revertNSR();
+      } else {
+        await this.settingsService.confirmNSR();
+      }
       await this.sftpService.moveToBackup(
         cnabName,
         SftpBackupFolder.RetornoSuccess,
@@ -567,6 +550,13 @@ export class CnabService {
         error.stack,
         METHOD,
       );
+
+      /**
+       * Reverte o NSR pois o sistema está preparado para ler um retorno no formato acordado.
+       * Se a leitura falhar, entendemos que não é um retorno válido, ignoramos o arquivo.
+       */
+      await this.settingsService.revertNSR();
+
       await this.sftpService.moveToBackup(
         cnabName,
         SftpBackupFolder.RetornoFailure,

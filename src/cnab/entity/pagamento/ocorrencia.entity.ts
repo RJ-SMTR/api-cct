@@ -42,10 +42,7 @@ export class Ocorrencia extends EntityHelper {
   @Column({ type: String, unique: false, nullable: false, length: 100 })
   message: string;
 
-  /**
-   * @returns A list of new TransacaoOcorrencia. Without Transacao defined
-   */
-  public static newList(ocorrenciaCodes: string): Ocorrencia[] {
+  public static getCodesList(ocorrenciaCodes: string) {
     const codes = ocorrenciaCodes.trim();
     const codesList: string[] = [];
     for (let i = 0; i < codes.length; i += 2) {
@@ -54,6 +51,14 @@ export class Ocorrencia extends EntityHelper {
         codesList.push(code);
       }
     }
+    return codesList;
+  }
+
+  /**
+   * @returns A list of new TransacaoOcorrencia. Without Transacao defined
+   */
+  public static newList(ocorrenciaCodes: string): Ocorrencia[] {
+    const codesList = Ocorrencia.getCodesList(ocorrenciaCodes);
     const ocorrencias: Ocorrencia[] = [];
     for (const code of codesList) {
       const message: string = Enum.getValue(OcorrenciaEnum, code, {
@@ -67,5 +72,11 @@ export class Ocorrencia extends EntityHelper {
       );
     }
     return ocorrencias;
+  }
+
+  public static getErrorCodes(ocorrenciaCodes: string) {
+    const codesList = Ocorrencia.getCodesList(ocorrenciaCodes);
+    const errors = codesList.filter((c) => !['00', 'BD'].includes(c));
+    return errors;
   }
 }
