@@ -97,7 +97,7 @@ export class CnabService {
     await this.updateAllFavorecidosFromUsers();
 
     // 2. Update TransacaoBigquery
-    await this.updateTransacaoBigquery();
+    // await this.updateTransacaoBigquery();
 
     // 3. Update ordens
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
