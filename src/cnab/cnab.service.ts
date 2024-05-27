@@ -12,7 +12,7 @@ import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-or
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
-import { appSettings } from 'src/settings/app.settings';
+import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
@@ -22,6 +22,7 @@ import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
+import { Between } from 'typeorm';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacaoStatus } from './entity/pagamento/item-transacao-status.entity';
@@ -50,7 +51,6 @@ import {
   parseCnab240Extrato,
   parseCnab240Pagamento,
 } from './utils/cnab/cnab-104-utils';
-import { Between } from 'typeorm';
 
 /**
  * User cases for CNAB and Payments
@@ -465,7 +465,7 @@ export class CnabService {
 
       // Generate remessa
       const nsrSequence = await this.settingsService.getOneBySettingData(
-        appSettings.any__cnab_current_nsr_sequence,
+        cnabSettings.any__cnab_current_nsr_sequence,
       );
       const cnabStr = await this.remessaRetornoService.generateSaveRemessa(
         transacao,
@@ -477,7 +477,7 @@ export class CnabService {
           METHOD,
         );
         await this.settingsService.updateBySettingData(
-          appSettings.any__cnab_current_nsr_sequence,
+          cnabSettings.any__cnab_current_nsr_sequence,
           nsrSequence.value,
         );
         continue;

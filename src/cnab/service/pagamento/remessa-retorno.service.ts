@@ -12,7 +12,7 @@ import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-tra
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
-import { appSettings } from 'src/settings/app.settings';
+import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asString } from 'src/utils/pipe-utils';
@@ -299,12 +299,12 @@ export class RemessaRetornoService {
 
   async getNextNSR() {
     const nsrSequence = await this.settingsService.getOneBySettingData(
-      appSettings.any__cnab_current_nsr_sequence,
+      cnabSettings.any__cnab_current_nsr_sequence,
     );
     const nsrDate = new Date(
       (
         await this.settingsService.getOneBySettingData(
-          appSettings.any__cnab_current_nsr_date,
+          cnabSettings.any__cnab_current_nsr_date,
         )
       ).value,
     );
@@ -312,16 +312,16 @@ export class RemessaRetornoService {
     // Se data é diferente, reinicia o nsr
     if (!isSameDay(new Date(), nsrDate)) {
       await this.settingsService.updateBySettingData(
-        appSettings.any__cnab_current_nsr_date,
+        cnabSettings.any__cnab_current_nsr_date,
         String(new Date().toISOString()),
       );
       await this.settingsService.updateBySettingData(
-        appSettings.any__cnab_last_nsr_sequence,
+        cnabSettings.any__cnab_last_nsr_sequence,
         '0',
       );
       const nsr = 1;
       await this.settingsService.updateBySettingData(
-        appSettings.any__cnab_current_nsr_sequence,
+        cnabSettings.any__cnab_current_nsr_sequence,
         String(nsr),
       );
       return nsr;
@@ -331,7 +331,7 @@ export class RemessaRetornoService {
     else {
       const nsr = Number(nsrSequence.value) + 1;
       await this.settingsService.updateBySettingData(
-        appSettings.any__cnab_current_nsr_sequence,
+        cnabSettings.any__cnab_current_nsr_sequence,
         String(nsr),
       );
       return nsr;

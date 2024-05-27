@@ -5,7 +5,7 @@ import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
-import { appSettings } from 'src/settings/app.settings';
+import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { getBRTFromUTC } from 'src/utils/date-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
@@ -157,13 +157,13 @@ export class HeaderArquivoService {
     const settingNSA = parseInt(
       (
         await this.settingsService.getOneBySettingData(
-          appSettings.any__cnab_current_nsa,
+          cnabSettings.any__cnab_current_nsa,
         )
       ).value,
     );
     const nextNSA = (maxNsa > settingNSA ? maxNsa : settingNSA) + 1;
     await this.settingsService.updateBySettingData(
-      appSettings.any__cnab_current_nsa,
+      cnabSettings.any__cnab_current_nsa,
       String(nextNSA),
     );
     return nextNSA;
