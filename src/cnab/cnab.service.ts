@@ -515,6 +515,7 @@ export class CnabService {
     // Save Retorno, ArquivoPublicacao, move SFTP to backup
     try {
       const retorno104 = parseCnab240Pagamento(cnabString);
+      /** Busca remessa, salva status = retorno */
       await this.remessaRetornoService.saveRetorno(retorno104);
       await this.arqPublicacaoService.compareRemessaToRetorno();
 

@@ -14,6 +14,10 @@
 
 import { EntityHelper } from 'src/utils/entity-helper';
 import {
+  asNullableStringOrNumber
+} from 'src/utils/pipe-utils';
+import {
+  AfterLoad,
   Column,
   CreateDateColumn,
   DeepPartial,
@@ -21,7 +25,7 @@ import {
   JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
-  UpdateDateColumn
+  UpdateDateColumn,
 } from 'typeorm';
 import { ItemTransacao } from './pagamento/item-transacao.entity';
 
@@ -82,4 +86,8 @@ export class ArquivoPublicacao extends EntityHelper {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @AfterLoad()
+  setReadValues() {
+    this.valorRealEfetivado = asNullableStringOrNumber(this.valorRealEfetivado);
+  }
 }

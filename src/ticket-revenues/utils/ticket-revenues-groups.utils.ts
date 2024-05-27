@@ -2,6 +2,8 @@ import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ITicketRevenue } from '../interfaces/ticket-revenue.interface';
 import { ITicketRevenuesGroup } from '../interfaces/ticket-revenues-group.interface';
 import { ITRCounts } from '../interfaces/tr-counts.interface';
+import { getDateNthWeek } from 'src/utils/date-utils';
+import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 
 const COUNTS_KEYS = [
   'transportTypeCounts',
@@ -67,12 +69,21 @@ export function appendCountsValue(
 export function appendItem(
   group: ITicketRevenuesGroup,
   newItem: ITicketRevenue,
-  detalhesA: DetalheA[]
+  detalhesA: DetalheA[],
 ) {
   group.count += 1;
   if (newItem.transactionValue) {
     const value = group.transactionValueSum + newItem.transactionValue;
     group.transactionValueSum = Number(value.toFixed(2));
+  }
+  const nthWeek = getDateNthWeek(
+    new Date(newItem.date),
+    WeekdayEnum._4_THURSDAY,
+  );
+  if (newItem.paidValue && !group.aux_nthWeeks.includes(nthWeek)) {
+    const value = group.paidValueSum + newItem.paidValue;
+    group.paidValueSum = Number(value.toFixed(2));
+    group.aux_nthWeeks.push(nthWeek);
   }
   const foundDetalhesA = detalhesA.filter(
     (i) =>

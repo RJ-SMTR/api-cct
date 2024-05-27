@@ -3,7 +3,7 @@ import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, FindOneOptions, ILike } from 'typeorm';
+import { DeepPartial, FindOneOptions, ILike, In } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
@@ -15,6 +15,7 @@ import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagament
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
 import { ItemTransacaoStatusEnum } from 'src/cnab/enums/pagamento/item-transacao-status.enum';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
+import { CnabLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface';
 
 @Injectable()
 export class DetalheAService {
@@ -26,6 +27,40 @@ export class DetalheAService {
     private transacaoAgrupadoService: TransacaoAgrupadoService,
     private itemTransacaoAgrupadoService: ItemTransacaoAgrupadoService,
   ) {}
+
+  /**
+   * Assumimos que todos os detalheA do retorno têm dataVencimento na mesma semana.
+   */
+  async updateDetalheAStatus(lote: CnabLote104Pgto) {
+    const dataVencimento = startOfDay(
+      lote.registros[0].detalheA.dataVencimento.convertedValue,
+    );
+    const detalhesA = await this.detalheARepository.findMany({
+      where: {
+        dataVencimento: dataVencimento,
+        nsr: In(lote.registros.map((i) => i.detalheA.nsr.convertedValue)),
+        itemTransacaoAgrupado: {
+          transacaoAgrupado: {
+            status: { id: TransacaoStatusEnum.remessa },
+          },
+        },
+      },
+    });
+
+    // Update Transacao status
+    await this.transacaoAgrupadoService.updateMany(
+      DetalheA.getTransacaoAgIds(detalhesA),
+      {
+        status: { id: TransacaoStatusEnum.retorno },
+      },
+    );
+    await this.itemTransacaoAgrupadoService.updateMany(
+      DetalheA.getItemTransacaoAgIds(detalhesA),
+      {
+        status: { id: ItemTransacaoStatusEnum.retorno },
+      },
+    );
+  }
 
   /**
    * Any DTO existing in db will be ignored.
@@ -61,8 +96,8 @@ export class DetalheAService {
       itemTransacaoAgrupado: {
         transacaoAgrupado: {
           status: { id: TransacaoStatusEnum.remessa },
-        }
-      }
+        },
+      },
     });
     const detalheA = new DetalheADTO({
       id: detalheARem.id,
@@ -93,18 +128,6 @@ export class DetalheAService {
         r.detalheA.ocorrencias.value.trim(),
     });
     const saved = await this.detalheARepository.save(detalheA);
-
-    // Update Transacao status
-    await this.transacaoAgrupadoService.update({
-      id: detalheARem.itemTransacaoAgrupado.transacaoAgrupado.id,
-      status: { id: TransacaoStatusEnum.retorno },
-    });
-    await this.itemTransacaoAgrupadoService.update(
-      detalheARem.itemTransacaoAgrupado.id,
-      {
-        status: { id: ItemTransacaoStatusEnum.retorno },
-      },
-    );
 
     return saved;
   }

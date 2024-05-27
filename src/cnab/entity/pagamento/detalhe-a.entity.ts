@@ -164,4 +164,15 @@ export class DetalheA extends EntityHelper {
     return errors.length === 0;
   }
 
+  public static getItemTransacaoAgIds(detalhesA: DetalheA[]) {
+    return [...new Set(detalhesA.map((i) => i.itemTransacaoAgrupado.id))];
+  }
+
+  public static getTransacaoAgIds(detalhesA: DetalheA[]) {
+    return [
+      ...new Set(
+        detalhesA.map((i) => i.itemTransacaoAgrupado.transacaoAgrupado.id),
+      ),
+    ];
+  }
 }

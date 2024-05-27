@@ -143,7 +143,6 @@ export class ArquivoPublicacaoService {
     }
   }
 
-
   async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA) {
     if (!detalheARetorno.ocorrenciasCnab) {
       return;
@@ -199,7 +198,7 @@ export class ArquivoPublicacaoService {
       // Update Transacao status
       await this.transacaoService.save({
         id: publicacao.idTransacao,
-        status: new TransacaoStatus(TransacaoStatusEnum.retorno),
+        status: new TransacaoStatus(TransacaoStatusEnum.publicado),
       });
     }
 
@@ -209,7 +208,7 @@ export class ArquivoPublicacaoService {
     if (transacaoAg) {
       await this.transacaoAgService.save({
         id: transacaoAg.id,
-        status: new TransacaoStatus(TransacaoStatusEnum.retorno),
+        status: new TransacaoStatus(TransacaoStatusEnum.publicado),
       });
     }
   }

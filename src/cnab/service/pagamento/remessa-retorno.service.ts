@@ -60,6 +60,8 @@ export class RemessaRetornoService {
     private detalheAService: DetalheAService,
     private detalheBService: DetalheBService,
     private settingsService: SettingsService,
+    private transacaoAgrupadoService: TransacaoAgrupadoService,
+    private itemTransacaoAgrupadoService: ItemTransacaoAgrupadoService,
   ) {}
 
   // #region generateSaveRemessa
@@ -613,8 +615,10 @@ export class RemessaRetornoService {
         }
         await this.detalheBService.saveFrom104(registro, detalheAUpdated);
       }
+      await this.detalheAService.updateDetalheAStatus(cnabLote);
     }
 
     // headerArquivoRetUpdated;
   }
+
 }
