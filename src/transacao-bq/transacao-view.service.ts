@@ -64,18 +64,27 @@ export class TransacaoViewService {
   }
 
   async ignoreExisting(dtos: TransacaoView[]) {
-    const existing = await this.transacaoViewRepository.find({
-      where: {
-        idTransacao: In(dtos.map((i) => i.idTransacao)),
-      },
-    });
+    const ids = dtos.map((i) => i.idTransacao);
+    const chunks: string[][] = [];
+    while (ids.length) {
+      chunks.push(ids.splice(0, 1000));
+    }
+    const existing: TransacaoView[] = [];
+    for (const transacaoIds of chunks) {
+      const existingSlice = await this.transacaoViewRepository.find({
+        where: {
+          idTransacao: In(transacaoIds),
+        },
+      });
+      existing.push(...existingSlice);
+    }
     if (existing.length) {
       const existingIds = existing.map((i) => i.idTransacao);
       const lengthBefore = dtos.length;
       const filtered = dtos.filter((i) => !existingIds.includes(i.idTransacao));
       this.logger.log(
-        `Há ${existing.length} TransacaoViews existentes no banco, ignorando antes de inserir... `
-        + `(${lengthBefore} -> ${filtered.length} itens)`,
+        `Há ${existing.length} TransacaoViews existentes no banco, ignorando antes de inserir... ` +
+          `(${lengthBefore} -> ${filtered.length} itens)`,
       );
       return filtered;
     }

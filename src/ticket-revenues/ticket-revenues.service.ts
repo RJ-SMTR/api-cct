@@ -323,7 +323,9 @@ export class TicketRevenuesService {
             stopLatCounts: {},
             stopLonCounts: {},
             transactionValueSum: 0,
+            paidValueSum: 0,
             aux_epochWeek: nthWeek,
+            aux_nthWeeks: [],
             aux_groupDateTime: itemDate.toISOString(),
             /** Se encontrar 1 item não pago, muda para falso */
             isPago: true,

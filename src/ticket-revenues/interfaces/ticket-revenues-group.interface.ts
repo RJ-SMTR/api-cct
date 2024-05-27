@@ -115,9 +115,21 @@ export interface ITicketRevenuesGroup {
    */
   transactionValueSum: number;
 
+  /**
+   * **Important field**
+   *
+   * Represents the sum of `transactionValue` (`valor_transacao`)
+   *
+   * @description Valor debitado na transação atual (R$)
+   * @type `float`
+   */
+  paidValueSum: number;
+
   // Internal helper fields
 
   aux_epochWeek: number;
+
+  aux_nthWeeks: number[];
 
   /**
    * The first valid date or datetime string of this group.

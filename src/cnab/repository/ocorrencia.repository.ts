@@ -17,7 +17,8 @@ export class OcorrenciaRepository {
   ) {}
 
   public async save(dto: DeepPartial<Ocorrencia>): Promise<Ocorrencia> {
-    return this.ocorrenciaRepository.save(dto);
+    const createdOcorrencia = this.ocorrenciaRepository.create(dto);
+    return this.ocorrenciaRepository.save(createdOcorrencia);
   }
 
   async insert(ocorrencias: DeepPartial<Ocorrencia>[]) {

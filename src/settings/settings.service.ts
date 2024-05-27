@@ -3,11 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { IsNull, Like, Repository } from 'typeorm';
+import { cnabSettings } from './cnab.settings';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { SettingEntity } from './entities/setting.entity';
 import { ISettingDataGroup } from './interfaces/setting-data-group.interface';
 import { ISettingData } from './interfaces/setting-data.interface';
-import { appSettings } from './app.settings';
 
 @Injectable()
 export class SettingsService {
@@ -142,20 +142,20 @@ export class SettingsService {
 
   async confirmNSR() {
     const currentNsrSequence = await this.getOneBySettingData(
-      appSettings.any__cnab_current_nsr_sequence,
+      cnabSettings.any__cnab_current_nsr_sequence,
     );
     await this.updateBySettingData(
-      appSettings.any__cnab_last_nsr_sequence,
+      cnabSettings.any__cnab_last_nsr_sequence,
       currentNsrSequence.value,
     );
   }
 
   async revertNSR() {
     const lastNsrSequence = await this.getOneBySettingData(
-      appSettings.any__cnab_last_nsr_sequence,
+      cnabSettings.any__cnab_last_nsr_sequence,
     );
     await this.updateBySettingData(
-      appSettings.any__cnab_current_nsr_sequence,
+      cnabSettings.any__cnab_current_nsr_sequence,
       lastNsrSequence.value,
     );
   }

@@ -24,6 +24,9 @@ export class OcorrenciaService {
   }
 
   public async saveMany(ocorrencias: DeepPartial<Ocorrencia>[]) {
-    return this.ocorrenciaRepository.insert(ocorrencias);
+    for (const ocorrencia of ocorrencias) {
+      return this.ocorrenciaRepository.save(ocorrencia);
+      
+    }
   }
 }

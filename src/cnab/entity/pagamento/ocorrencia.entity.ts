@@ -10,7 +10,6 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { DetalheA } from './detalhe-a.entity';
-import { HeaderLote } from './header-lote.entity';
 
 @Entity()
 export class Ocorrencia extends EntityHelper {
@@ -23,12 +22,6 @@ export class Ocorrencia extends EntityHelper {
 
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Ocorrencia_id' })
   id: number;
-
-  @ManyToOne(() => HeaderLote, { nullable: true })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_TransacaoOcorrencia_headerLote_ManyToOne',
-  })
-  headerLote: HeaderLote | null;
 
   @ManyToOne(() => DetalheA, { nullable: true })
   @JoinColumn({
@@ -43,7 +36,7 @@ export class Ocorrencia extends EntityHelper {
   message: string;
 
   public static getCodesList(ocorrenciaCodes: string) {
-    const codes = ocorrenciaCodes.trim();
+    const codes = ocorrenciaCodes.replace(/ /gm, '');
     const codesList: string[] = [];
     for (let i = 0; i < codes.length; i += 2) {
       const code = codes.slice(i, i + 2);

@@ -47,7 +47,7 @@ export class DetalheA extends EntityHelper {
   })
   ocorrencias: Ocorrencia[];
 
-  @Column({ type: String, unique: false, nullable: true, length: 10 })
+  @Column({ type: String, unique: false, nullable: true, length: 30 })
   ocorrenciasCnab: string | null;
 
   @Column({ type: Number, unique: false, nullable: true })
@@ -159,4 +159,20 @@ export class DetalheA extends EntityHelper {
     return `${_headerLoteUniqueId}|${detalheA.nsr}`;
   }
 
+  public isPago() {
+    const errors = Ocorrencia.getErrorCodes(this.ocorrenciasCnab || '');
+    return errors.length === 0;
+  }
+
+  public static getItemTransacaoAgIds(detalhesA: DetalheA[]) {
+    return [...new Set(detalhesA.map((i) => i.itemTransacaoAgrupado.id))];
+  }
+
+  public static getTransacaoAgIds(detalhesA: DetalheA[]) {
+    return [
+      ...new Set(
+        detalhesA.map((i) => i.itemTransacaoAgrupado.transacaoAgrupado.id),
+      ),
+    ];
+  }
 }

@@ -10,6 +10,7 @@ import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { MailService } from 'src/mail/mail.service';
 import { appSettings } from 'src/settings/app.settings';
+import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
 import { ISettingData } from 'src/settings/interfaces/setting-data.interface';
 import { SettingsService } from 'src/settings/settings.service';
@@ -94,10 +95,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    
-    await this.saveTransacoesJae1();
-    await this.sendRemessa();
-    // await this.updateRetorno();
+
+    await this.sendRemessa()
     
     this.jobsConfig.push(
       {
@@ -151,8 +150,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       {
         name: CrobJobsEnum.saveTransacoesJae,
         cronJobParameters: {
-          // cronTime: '0 3 * * 5', // Every friday, 00:00 BRT = 03:00 GMT
-          cronTime: '25 13 * * 5', // sexta, 10:25
+          cronTime: '0 3 * * 5', // Every friday, 00:00 BRT = 03:00 GMT
           onTick: async () => {
             await this.saveTransacoesJae1();
           },
@@ -161,8 +159,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       {
         name: CrobJobsEnum.sendRemessa,
         cronJobParameters: {
-          // cronTime: '0 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
-          cronTime: '35 13 * * 5', // sexta, 10:35
+          cronTime: '0 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
           onTick: async () => {
             await this.sendRemessa();
           },
@@ -712,8 +709,24 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     }
   }
 
+  async getIsCnabJobEnabled() {
+    const cnabJobEnabled = await this.settingsService.getOneBySettingData(
+      cnabSettings.any__cnab_jobs_enabled,
+    );
+    return cnabJobEnabled.getValueAsBoolean();
+  }
+
   async saveTransacoesJae1() {
     const METHOD = this.saveTransacoesJae1.name;
+    
+    if (!this.getIsCnabJobEnabled()) {
+      this.logger.log(
+        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
+        METHOD,
+      );
+      return;
+    }
+
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
       await this.cnabService.saveTransacoesJae();
@@ -721,12 +734,21 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     } catch (error) {
       this.logger.error(`ERRO CRÍTICO - ${error}`, error?.stack, METHOD);
       this.startCron(this.staticJobs.saveTransacoesJae2);
-      // enviar email para: raphael, william, bernardo...
+      // TODO: enviar email para: raphael, william, bernardo...
     }
   }
 
   async saveTransacoesJae2() {
     const METHOD = this.saveTransacoesJae2.name;
+        
+    if (!this.getIsCnabJobEnabled()) {
+      this.logger.log(
+        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
+        METHOD,
+      );
+      return;
+    }
+
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
       await this.cnabService.saveTransacoesJae();
@@ -744,6 +766,15 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async sendRemessa() {
     const METHOD = this.sendRemessa.name;
+        
+    if (!await this.getIsCnabJobEnabled()) {
+      this.logger.log(
+        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
+        METHOD,
+      );
+      return;
+    }
+
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
       await this.cnabService.sendRemessa(PagadorContaEnum.ContaBilhetagem);
@@ -756,6 +787,15 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async updateRetorno() {
     const METHOD = this.updateRetorno.name;
+        
+    if (!this.getIsCnabJobEnabled()) {
+      this.logger.log(
+        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
+        METHOD,
+      );
+      return;
+    }
+
     try {
       await this.cnabService.updateRetorno();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
@@ -766,6 +806,15 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async saveExtrato() {
     const METHOD = this.saveExtrato.name;
+        
+    if (!this.getIsCnabJobEnabled()) {
+      this.logger.log(
+        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
+        METHOD,
+      );
+      return;
+    }
+
     try {
       await this.cnabService.saveExtrato();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);

@@ -1,8 +1,7 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { HeaderArquivo } from './header-arquivo.entity';
 import { Pagador } from './pagador.entity';
-import { Ocorrencia } from './ocorrencia.entity';
 
 /**
  * Pagamento.HeaderLote
@@ -51,17 +50,6 @@ export class HeaderLote extends EntityHelper {
   @ManyToOne(() => Pagador, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderLote_pagador_ManyToOne' })
   pagador: Pagador;
-
-  @OneToMany(() => Ocorrencia, (ocorrencia) => ocorrencia.headerLote, {
-    eager: true,
-  })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_HeaderLote_ocorrencias_OneToMany',
-  })
-  ocorrencias: Ocorrencia[];
-
-  @Column({ type: String, unique: false, nullable: true, length: 10 })
-  ocorrenciasCnab: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
