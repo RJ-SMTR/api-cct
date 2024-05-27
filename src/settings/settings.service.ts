@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { IsNull, Like, Repository } from 'typeorm';
+import { cnabSettings } from './cnab.settings';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { SettingEntity } from './entities/setting.entity';
 import { ISettingDataGroup } from './interfaces/setting-data-group.interface';
@@ -131,8 +132,31 @@ export class SettingsService {
     value: string,
   ): Promise<SettingEntity> {
     const dbSetting = await this.getOneBySettingData(settingData);
-    await this.settingsRepository.update({ id: dbSetting.id }, { value: value });
+    await this.settingsRepository.update(
+      { id: dbSetting.id },
+      { value: value },
+    );
     const updated = await this.getOneBySettingData(settingData);
     return updated;
+  }
+
+  async confirmNSR() {
+    const currentNsrSequence = await this.getOneBySettingData(
+      cnabSettings.any__cnab_current_nsr_sequence,
+    );
+    await this.updateBySettingData(
+      cnabSettings.any__cnab_last_nsr_sequence,
+      currentNsrSequence.value,
+    );
+  }
+
+  async revertNSR() {
+    const lastNsrSequence = await this.getOneBySettingData(
+      cnabSettings.any__cnab_last_nsr_sequence,
+    );
+    await this.updateBySettingData(
+      cnabSettings.any__cnab_current_nsr_sequence,
+      lastNsrSequence.value,
+    );
   }
 }

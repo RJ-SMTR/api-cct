@@ -12,7 +12,7 @@ import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-or
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
-import { appSettings } from 'src/settings/app.settings';
+import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
@@ -22,6 +22,7 @@ import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
+import { Between } from 'typeorm';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacaoStatus } from './entity/pagamento/item-transacao-status.entity';
@@ -46,10 +47,10 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import {
+  getCnab104Errors,
   parseCnab240Extrato,
   parseCnab240Pagamento,
 } from './utils/cnab/cnab-104-utils';
-import { Between } from 'typeorm';
 
 /**
  * User cases for CNAB and Payments
@@ -92,6 +93,8 @@ export class CnabService {
   public async saveTransacoesJae() {
     const METHOD = this.saveTransacoesJae.name;
 
+    await this.compareTransacaoViewPublicacao();
+
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
 
@@ -113,20 +116,7 @@ export class CnabService {
   }
 
   async updateTransacaoBigquery() {
-    const countAll = await this.transacaoViewService.count();
-    if (countAll === 0) {
-      this.logger.log(
-        'Tabela TransacaoView vazia, obtendo todos os itens do Bigquery...',
-      );
-    } else {
-      this.logger.log(
-        'Tabela TransacaoView contém dados, obtendo dados semanais do Bigquery...',
-      );
-    }
-    const transacoesBq =
-      countAll === 0
-        ? await this.bigqueryTransacaoService.getAll()
-        : await this.bigqueryTransacaoService.getFromWeek();
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek();
     const transacoesView = transacoesBq.map((i) =>
       TransacaoView.newFromBigquery(i),
     );
@@ -179,6 +169,9 @@ export class CnabService {
     }
   }
 
+  /**
+   *
+   */
   async getPublicacoes() {
     let friday = new Date();
     if (!isFriday(friday)) {
@@ -472,7 +465,7 @@ export class CnabService {
 
       // Generate remessa
       const nsrSequence = await this.settingsService.getOneBySettingData(
-        appSettings.any__cnab_current_nsr_sequence,
+        cnabSettings.any__cnab_current_nsr_sequence,
       );
       const cnabStr = await this.remessaRetornoService.generateSaveRemessa(
         transacao,
@@ -484,7 +477,7 @@ export class CnabService {
           METHOD,
         );
         await this.settingsService.updateBySettingData(
-          appSettings.any__cnab_current_nsr_sequence,
+          cnabSettings.any__cnab_current_nsr_sequence,
           nsrSequence.value,
         );
         continue;
@@ -522,14 +515,24 @@ export class CnabService {
     // Save Retorno, ArquivoPublicacao, move SFTP to backup
     try {
       const retorno104 = parseCnab240Pagamento(cnabString);
+      /** Busca remessa, salva status = retorno */
       await this.remessaRetornoService.saveRetorno(retorno104);
       await this.arqPublicacaoService.compareRemessaToRetorno();
 
-      // Success
+      const isCnabAccepted = getCnab104Errors(retorno104).length === 0;
+
+      const logHasErrors = isCnabAccepted
+        ? 'foi aceito.'
+        : 'possui erros de aceitação do banco.';
       this.logger.log(
-        'Retorno lido com sucesso, enviando para o backup...',
+        `Retorno lido com sucesso, ${logHasErrors} Enviando para o backup...`,
         METHOD,
       );
+      if (!isCnabAccepted) {
+        await this.settingsService.revertNSR();
+      } else {
+        await this.settingsService.confirmNSR();
+      }
       await this.sftpService.moveToBackup(
         cnabName,
         SftpBackupFolder.RetornoSuccess,
@@ -540,6 +543,13 @@ export class CnabService {
         error.stack,
         METHOD,
       );
+
+      /**
+       * Reverte o NSR pois o sistema está preparado para ler um retorno no formato acordado.
+       * Se a leitura falhar, entendemos que não é um retorno válido, ignoramos o arquivo.
+       */
+      await this.settingsService.revertNSR();
+
       await this.sftpService.moveToBackup(
         cnabName,
         SftpBackupFolder.RetornoFailure,

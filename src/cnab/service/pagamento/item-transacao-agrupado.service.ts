@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacaoAgrupadoRepository } from 'src/cnab/repository/pagamento/item-transacao-agrupado.repository';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { DeepPartial, FindManyOptions, FindOneOptions, FindOptionsWhere, In } from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOneOptions, FindOptionsWhere, In, UpdateResult } from 'typeorm';
 
 @Injectable()
 export class ItemTransacaoAgrupadoService {
@@ -17,7 +17,17 @@ export class ItemTransacaoAgrupadoService {
   async findOne(options: FindOneOptions<ItemTransacaoAgrupado>) {
     return await this.itemTransacaoAgRepository.findOne(options);
   }
-  
+
+  /**
+   * Use first Transacao as set to update and all Transacoes to get ids.
+   */
+  public updateMany(
+    ids: number[],
+    set: DeepPartial<ItemTransacaoAgrupado>,
+  ): Promise<UpdateResult> {
+    return this.itemTransacaoAgRepository.updateMany(ids, set);
+  }
+
   async update(id: number, dto: DeepPartial<ItemTransacaoAgrupado>) {
     return await this.itemTransacaoAgRepository.update(id, dto);
   }

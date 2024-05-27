@@ -1,3 +1,6 @@
+// @Exclude({ toPlainOnly: true })
+
+import { Exclude } from 'class-transformer';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
 
 /**
@@ -7,7 +10,13 @@ import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
  *
  * **Important fields** wont accept null values because frontend may need them.
  */
-export interface ITicketRevenue {
+export class TicketRevenueDTO {
+  constructor(dto?: TicketRevenueDTO) {
+    if (dto) {
+      Object.assign(this, dto);
+    }
+  }
+
   /**
    * Represents `data`
    *
@@ -214,6 +223,7 @@ export interface ITicketRevenue {
    */
   transactionValue: number | null;
 
+  @Exclude()
   /** Valor efetivado */
   paidValue: number;
 

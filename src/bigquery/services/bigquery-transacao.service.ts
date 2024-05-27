@@ -22,8 +22,8 @@ export class BigqueryTransacaoService {
     const friday = isFriday(today) ? today : nextFriday(today);
     const ordemPgto = (
       await this.bigqueryTransacaoRepository.findMany({
-        startDate: subDays(friday, 8 + daysBack), // qui (D+0)
-        endDate: subDays(friday, 2 + daysBack), // qua (D+0)
+        startDate: subDays(friday, 7 + daysBack), // sex
+        endDate: subDays(friday, 1 + daysBack), // qui
       })
     ).map((i) => ({ ...i } as BigqueryTransacao));
     return ordemPgto;

@@ -1,8 +1,7 @@
+import { IsNotEmpty, ValidateIf } from 'class-validator';
 import { DeepPartial } from 'typeorm';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
-import { IsNotEmpty, ValidateIf } from 'class-validator';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
-import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 
 function isCreate(object: HeaderLoteDTO): boolean {
   return object.id === undefined;
@@ -49,7 +48,5 @@ export class HeaderLoteDTO {
   @IsNotEmpty()
   pagador?: DeepPartial<Pagador>;
 
-  ocorrencias?: Ocorrencia[];
-
-  ocorrenciasCnab?: string | null;
+  ocorrenciasCnab?: string;
 }

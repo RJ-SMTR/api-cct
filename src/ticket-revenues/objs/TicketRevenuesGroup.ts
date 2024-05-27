@@ -3,6 +3,7 @@ import { ITRCounts } from '../interfaces/tr-counts.interface';
 
 export class TicketRevenuesGroup implements ITicketRevenuesGroup {
   public aux_epochWeek = 0;
+  public aux_nthWeeks = [];
   public aux_groupDateTime = '';
   public count = 0;
   public directionIdCounts: Record<string, ITRCounts> = {};
@@ -14,6 +15,7 @@ export class TicketRevenuesGroup implements ITicketRevenuesGroup {
   public stopLonCounts: Record<number, ITRCounts> = {};
   public transactionTypeCounts: Record<string, ITRCounts> = {};
   public transactionValueSum = 0;
+  public paidValueSum = 0;
   public transportIntegrationTypeCounts: Record<string, ITRCounts> = {};
   public transportTypeCounts: Record<string, ITRCounts> = {};
   public isPago = false;
@@ -22,6 +24,7 @@ export class TicketRevenuesGroup implements ITicketRevenuesGroup {
   public toInterface(): ITicketRevenuesGroup {
     return {
       aux_epochWeek: this.aux_epochWeek,
+      aux_nthWeeks: this.aux_nthWeeks,
       aux_groupDateTime: this.aux_groupDateTime,
       count: this.count,
       directionIdCounts: this.directionIdCounts,
@@ -32,6 +35,7 @@ export class TicketRevenuesGroup implements ITicketRevenuesGroup {
       stopLonCounts: this.stopLonCounts,
       transactionTypeCounts: this.transactionTypeCounts,
       transactionValueSum: this.transactionValueSum,
+      paidValueSum: this.paidValueSum,
       transportIntegrationTypeCounts: this.transportIntegrationTypeCounts,
       transportTypeCounts: this.transportTypeCounts,
       isPago: this.isPago,

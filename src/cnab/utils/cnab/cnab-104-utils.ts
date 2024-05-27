@@ -22,6 +22,7 @@ import {
   removeCnabDetalheZ,
   stringifyCnabFile,
 } from './cnab-utils';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 
 const sc = structuredClone;
 
@@ -211,3 +212,25 @@ function isCnabRegistroNewLote(registro: CnabRegistro): boolean {
 }
 
 // #endregion
+
+export function getCnab104Errors(cnab: CnabFile104Pgto) {
+  const cnabErrors = [
+    ...Ocorrencia.getErrorCodes(
+      cnab.headerArquivo.ocorrenciaCobrancaSemPapel.value,
+    ),
+    ...cnab.lotes.reduce(
+      (l, i) => [
+        ...l,
+        ...i.registros.reduce(
+          (l1, i1) => [
+            ...l1,
+            ...Ocorrencia.getErrorCodes(i1.detalheA.ocorrencias.value),
+          ],
+          [],
+        ),
+      ],
+      [],
+    ),
+  ];
+  return cnabErrors;
+}

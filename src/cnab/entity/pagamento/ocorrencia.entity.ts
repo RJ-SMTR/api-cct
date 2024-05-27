@@ -10,7 +10,6 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { DetalheA } from './detalhe-a.entity';
-import { HeaderLote } from './header-lote.entity';
 
 @Entity()
 export class Ocorrencia extends EntityHelper {
@@ -24,12 +23,6 @@ export class Ocorrencia extends EntityHelper {
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Ocorrencia_id' })
   id: number;
 
-  @ManyToOne(() => HeaderLote, { nullable: true })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_TransacaoOcorrencia_headerLote_ManyToOne',
-  })
-  headerLote: HeaderLote | null;
-
   @ManyToOne(() => DetalheA, { nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoOcorrencia_detalheA_ManyToOne',
@@ -42,11 +35,8 @@ export class Ocorrencia extends EntityHelper {
   @Column({ type: String, unique: false, nullable: false, length: 100 })
   message: string;
 
-  /**
-   * @returns A list of new TransacaoOcorrencia. Without Transacao defined
-   */
-  public static newList(ocorrenciaCodes: string): Ocorrencia[] {
-    const codes = ocorrenciaCodes.trim();
+  public static getCodesList(ocorrenciaCodes: string) {
+    const codes = ocorrenciaCodes.replace(/ /gm, '');
     const codesList: string[] = [];
     for (let i = 0; i < codes.length; i += 2) {
       const code = codes.slice(i, i + 2);
@@ -54,6 +44,14 @@ export class Ocorrencia extends EntityHelper {
         codesList.push(code);
       }
     }
+    return codesList;
+  }
+
+  /**
+   * @returns A list of new TransacaoOcorrencia. Without Transacao defined
+   */
+  public static newList(ocorrenciaCodes: string): Ocorrencia[] {
+    const codesList = Ocorrencia.getCodesList(ocorrenciaCodes);
     const ocorrencias: Ocorrencia[] = [];
     for (const code of codesList) {
       const message: string = Enum.getValue(OcorrenciaEnum, code, {
@@ -67,5 +65,11 @@ export class Ocorrencia extends EntityHelper {
       );
     }
     return ocorrencias;
+  }
+
+  public static getErrorCodes(ocorrenciaCodes: string) {
+    const codesList = Ocorrencia.getCodesList(ocorrenciaCodes);
+    const errors = codesList.filter((c) => !['00', 'BD'].includes(c));
+    return errors;
   }
 }

@@ -1,6 +1,6 @@
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
-import { ITicketRevenue } from 'src/ticket-revenues/interfaces/ticket-revenue.interface';
+import { TicketRevenueDTO } from 'src/ticket-revenues/dtos/ticket-revenue.dto';
 import { asStringDate } from 'src/utils/pipe-utils';
 import {
   AfterLoad,
@@ -107,7 +107,7 @@ export class TransacaoView {
   }
 
   toTicketRevenue() {
-    return {
+    return new TicketRevenueDTO({
       bqDataVersion: '',
       captureDateTime: this.datetimeCaptura.toISOString(),
       clientId: null,
@@ -125,11 +125,12 @@ export class TransacaoView {
       transactionLat: null,
       transactionLon: null,
       transactionType: this.tipoTransacao,
+      paidValue: this.arquivoPublicacao?.valorRealEfetivado || 0,
       transactionValue: this.valorTransacao,
       transportIntegrationType: null,
       transportType: null,
       vehicleId: null,
       vehicleService: null,
-    } as ITicketRevenue;
+    });
   }
 }

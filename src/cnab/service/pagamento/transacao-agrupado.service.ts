@@ -25,6 +25,12 @@ export class TransacaoAgrupadoService {
     return await this.transacaoAgRepository.findOne(fields);
   }
 
+  async find(fields: EntityCondition<TransacaoAgrupado>) {
+    return await this.transacaoAgRepository.findMany({
+      where: fields,
+    });
+  }
+
   /**
    * **status** is Created.
    *
@@ -56,13 +62,9 @@ export class TransacaoAgrupadoService {
    * Use first Transacao as set to update and all Transacoes to get ids.
    */
   public updateMany(
-    transacoes: DeepPartial<Transacao>[],
+    ids: number[],
+    set: DeepPartial<Transacao>,
   ): Promise<UpdateResult> {
-    const ids = transacoes.reduce((l, i) => [...l, asNumber(i.id)], []);
-    const set = transacoes[0];
-    if ('id' in set) {
-      delete set['id'];
-    }
     return this.transacaoAgRepository.updateMany(ids, set);
   }
 

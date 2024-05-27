@@ -1,13 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { DeepPartial, FindManyOptions } from 'typeorm';
+import { DeepPartial, FindManyOptions, In } from 'typeorm';
 import { TransacaoView } from './transacao-view.entity';
 import { TransacaoViewRepository } from './transacao-view.repository';
-import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class TransacaoViewService {
-  private logger = new CustomLogger(TransacaoViewService.name, { timestamp: true });
+  private logger = new CustomLogger(TransacaoViewService.name, {
+    timestamp: true,
+  });
 
   constructor(private transacaoViewRepository: TransacaoViewRepository) {}
 
@@ -43,7 +45,7 @@ export class TransacaoViewService {
   }
 
   async insertMany(dtos: TransacaoView[]) {
-    const _dtos = structuredClone(dtos);
+    const _dtos = await this.ignoreExisting(structuredClone(dtos));
     const chunks: TransacaoView[][] = [];
     while (_dtos.length) {
       chunks.push(_dtos.splice(0, 1000));
@@ -51,7 +53,7 @@ export class TransacaoViewService {
 
     let count = 1;
     for (const chunk of chunks) {
-      this.logger.log(`Inserindo TransacaoViews ${count}/${chunks.length}`)
+      this.logger.log(`Inserindo TransacaoViews ${count}/${chunks.length}`);
       await this.transacaoViewRepository.upsert(chunk, {
         conflictPaths: {
           id: true,
@@ -59,5 +61,33 @@ export class TransacaoViewService {
       });
       count += 1;
     }
+  }
+
+  async ignoreExisting(dtos: TransacaoView[]) {
+    const ids = dtos.map((i) => i.idTransacao);
+    const chunks: string[][] = [];
+    while (ids.length) {
+      chunks.push(ids.splice(0, 1000));
+    }
+    const existing: TransacaoView[] = [];
+    for (const transacaoIds of chunks) {
+      const existingSlice = await this.transacaoViewRepository.find({
+        where: {
+          idTransacao: In(transacaoIds),
+        },
+      });
+      existing.push(...existingSlice);
+    }
+    if (existing.length) {
+      const existingIds = existing.map((i) => i.idTransacao);
+      const lengthBefore = dtos.length;
+      const filtered = dtos.filter((i) => !existingIds.includes(i.idTransacao));
+      this.logger.log(
+        `Há ${existing.length} TransacaoViews existentes no banco, ignorando antes de inserir... ` +
+          `(${lengthBefore} -> ${filtered.length} itens)`,
+      );
+      return filtered;
+    }
+    return dtos;
   }
 }

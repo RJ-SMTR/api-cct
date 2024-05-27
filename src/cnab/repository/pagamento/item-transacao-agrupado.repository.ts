@@ -11,6 +11,7 @@ import {
   In,
   InsertResult,
   Repository,
+  UpdateResult,
 } from 'typeorm';
 import { ItemTransacaoDTO } from '../../dto/pagamento/item-transacao.dto';
 
@@ -22,24 +23,27 @@ export class ItemTransacaoAgrupadoRepository {
 
   constructor(
     @InjectRepository(ItemTransacaoAgrupado)
-    private itemTransacaoRepository: Repository<ItemTransacaoAgrupado>,
+    private itemTransacaoAgRepository: Repository<ItemTransacaoAgrupado>,
   ) {}
 
   /**
    * Bulk update
    */
   public async updateMany(
-    dtos: DeepPartial<ItemTransacaoAgrupado>[],
-  ): Promise<InsertResult> {
-    return this.itemTransacaoRepository.upsert(dtos, {
-      skipUpdateIfNoValuesChanged: true,
-      conflictPaths: { id: true },
-    });
+    ids: number[],
+    set: DeepPartial<ItemTransacaoAgrupado>,
+  ): Promise<UpdateResult> {
+    return await this.itemTransacaoAgRepository
+      .createQueryBuilder()
+      .update(ItemTransacaoAgrupado)
+      .set(set)
+      .whereInIds(ids)
+      .execute();
   }
 
   public async update(id: number, dto: DeepPartial<ItemTransacaoAgrupado>) {
-    await this.itemTransacaoRepository.update({ id: id }, dto);
-    const updated = await this.itemTransacaoRepository.findOneOrFail({
+    await this.itemTransacaoAgRepository.update({ id: id }, dto);
+    const updated = await this.itemTransacaoAgRepository.findOneOrFail({
       where: {
         id: id,
       },
@@ -104,35 +108,35 @@ export class ItemTransacaoAgrupadoRepository {
   public async insert(
     dtos: DeepPartial<ItemTransacaoAgrupado>[],
   ): Promise<InsertResult> {
-    return this.itemTransacaoRepository.insert(dtos);
+    return this.itemTransacaoAgRepository.insert(dtos);
   }
 
   public async save(
     itemTransacao: DeepPartial<ItemTransacaoAgrupado>,
   ): Promise<ItemTransacaoAgrupado> {
-    return await this.itemTransacaoRepository.save(itemTransacao);
+    return await this.itemTransacaoAgRepository.save(itemTransacao);
   }
 
   public async saveDTO(
     itemTransacao: ItemTransacaoDTO,
   ): Promise<ItemTransacaoAgrupado> {
     await validateDTO(ItemTransacaoDTO, itemTransacao);
-    return await this.itemTransacaoRepository.save(itemTransacao);
+    return await this.itemTransacaoAgRepository.save(itemTransacao);
   }
 
   public async findOne(
     options: FindOneOptions<ItemTransacaoAgrupado>,
   ): Promise<ItemTransacaoAgrupado | null> {
-    return (await this.itemTransacaoRepository.find(options)).shift() || null;
+    return (await this.itemTransacaoAgRepository.find(options)).shift() || null;
   }
 
   public async findAll(): Promise<ItemTransacaoAgrupado[]> {
-    return await this.itemTransacaoRepository.find();
+    return await this.itemTransacaoAgRepository.find();
   }
 
   public async findMany(
     options: FindManyOptions<ItemTransacaoAgrupado>,
   ): Promise<ItemTransacaoAgrupado[]> {
-    return await this.itemTransacaoRepository.find(options);
+    return await this.itemTransacaoAgRepository.find(options);
   }
 }
