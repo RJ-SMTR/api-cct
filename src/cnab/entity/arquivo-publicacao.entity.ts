@@ -1,17 +1,3 @@
-/**
-  // Remessa
-  idTransacao: idTransacao,
-  itemTransacao: { id: idItemTransacao },
-  // Retorno
-  isPago: false,
-  dataGeracaoRetorno: null,
-  horaGeracaoRetorno: null,
-  dataVencimento: friday,
-  valorLancamento: null,
-  dataEfetivacao: null,
-  valorRealEfetivado: null,
- */
-
 import { EntityHelper } from 'src/utils/entity-helper';
 import {
   asNullableStringOrNumber

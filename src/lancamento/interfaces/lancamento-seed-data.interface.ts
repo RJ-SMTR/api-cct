@@ -10,8 +10,8 @@ export interface LancamentoSeedData {
   data_ordem: Date;
   data_pgto: Date;
   algoritmo: string;
-  glosa: string;
-  recurso: string;
+  glosa: number;
+  recurso: number;
   valor_a_pagar: number;
   numero_processo: string;
   id_cliente_favorecido: DeepPartial<ClienteFavorecido>;
@@ -20,5 +20,5 @@ export interface LancamentoSeedData {
   user: DeepPartial<User>;
   /** @example `1,2,3` */
   auth_usersIds?: string;
-  anexo: string;
+  anexo: number;
 }

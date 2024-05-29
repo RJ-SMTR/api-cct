@@ -37,22 +37,22 @@ export class LancamentoDto {
   @IsDate()
   data_lancamento: Date;
 
-  @ApiProperty({ example: '1' })
+  @ApiProperty({ example: 1 })
   @IsNumberString()
   algoritmo: string;
 
-  @ApiProperty({ example: '1' })
-  @IsNumberString()
-  glosa: string;
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  glosa: number;
 
-  @ApiProperty({ example: '1' })
-  @IsNumberString()
-  recurso: string;
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  recurso: number;
 
   @ApiProperty()
   @IsNotEmpty()
-  @IsString()
-  anexo: string;
+  @IsNumber()
+  anexo: number;
 
   @ApiProperty({ type: Number, example: 1.99 })
   @IsNumber()

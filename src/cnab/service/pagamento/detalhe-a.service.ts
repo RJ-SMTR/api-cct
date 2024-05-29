@@ -13,7 +13,6 @@ import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.e
 import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
-import { ItemTransacaoStatusEnum } from 'src/cnab/enums/pagamento/item-transacao-status.enum';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { CnabLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface';
 
@@ -52,12 +51,6 @@ export class DetalheAService {
       DetalheA.getTransacaoAgIds(detalhesA),
       {
         status: { id: TransacaoStatusEnum.retorno },
-      },
-    );
-    await this.itemTransacaoAgrupadoService.updateMany(
-      DetalheA.getItemTransacaoAgIds(detalhesA),
-      {
-        status: { id: ItemTransacaoStatusEnum.retorno },
       },
     );
   }

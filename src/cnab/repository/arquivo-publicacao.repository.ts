@@ -62,9 +62,7 @@ export class ArquivoPublicacaoRepository {
   async findManyByDate(startDate: Date, endDate: Date) {
     const publicacoes = await this.findMany({
       where: {
-        itemTransacao: {
-          dataOrdem: Between(startDate, endDate),
-        },
+        dataVencimento: Between(startDate, endDate),
       },
     });
     const detalheAList = await this.detalheAService.findMany({

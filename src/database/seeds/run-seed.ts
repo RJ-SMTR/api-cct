@@ -12,7 +12,6 @@ import { SettingSeedService } from './setting/setting-seed.service';
 import { StatusSeedService } from './status/status-seed.service';
 import { UserSeedService } from './user/user-seed.service';
 import { TransacaoStatusSeedService } from './transacao-status/transacao-status-seed.service';
-import { ItemTransacaoStatusSeedService } from './item-transacao-status/item-transacao-status-seed.service';
 import { HeaderArquivoStatusSeedService } from './header-arquivo-status/header-arquivo-status-seed.service';
 import { ClienteFavorecidoSeedService } from './cliente-favorecido/cliente-favorecido-seed.service';
 import { LancamentoSeedService } from './lancamento/lancamento-seed.service';
@@ -32,7 +31,6 @@ const runSeed = async () => {
   let services = [
     RoleSeedService,
     TransacaoStatusSeedService,
-    ItemTransacaoStatusSeedService,
     HeaderArquivoStatusSeedService,
     StatusSeedService,
     InfoSeedService,

@@ -4,14 +4,12 @@ import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { isFriday, nextFriday } from 'date-fns';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
-import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
-import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
+import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { TransacaoAgrupadoRepository } from 'src/cnab/repository/pagamento/transacao-agrupado.repository';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { asNumber } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DeepPartial, UpdateResult } from 'typeorm';
-import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 
 @Injectable()
 export class TransacaoAgrupadoService {
@@ -49,7 +47,6 @@ export class TransacaoAgrupadoService {
       dataPagamento: null,
       lancamentos: newLancamentos, // unique id for Lancamentos
       pagador: { id: pagador.id } as Pagador,
-      status: new TransacaoStatus(TransacaoStatusEnum.created),
     });
     return transacao;
   }
@@ -63,7 +60,7 @@ export class TransacaoAgrupadoService {
    */
   public updateMany(
     ids: number[],
-    set: DeepPartial<Transacao>,
+    set: DeepPartial<TransacaoAgrupado>,
   ): Promise<UpdateResult> {
     return this.transacaoAgRepository.updateMany(ids, set);
   }

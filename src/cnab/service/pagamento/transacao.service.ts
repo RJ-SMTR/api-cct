@@ -5,15 +5,13 @@ import { TransacaoRepository } from '../../repository/pagamento/transacao.reposi
 
 import { isFriday, nextFriday } from 'date-fns';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
-import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
-import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
+import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { asNumber, asString } from 'src/utils/pipe-utils';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
 import { DeepPartial, FindManyOptions, UpdateResult } from 'typeorm';
-import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 
 @Injectable()
 export class TransacaoService {
@@ -49,7 +47,6 @@ export class TransacaoService {
       dataPagamento: null,
       lancamentos: newLancamentos, // unique id for Lancamentos
       pagador: { id: pagador.id } as Pagador,
-      status: new TransacaoStatus(TransacaoStatusEnum.created),
     });
     return transacao;
   }

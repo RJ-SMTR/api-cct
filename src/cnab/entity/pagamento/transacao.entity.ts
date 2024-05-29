@@ -14,7 +14,6 @@ import {
 import { ItemTransacao } from './item-transacao.entity';
 import { Pagador } from './pagador.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
-import { TransacaoStatus } from './transacao-status.entity';
 
 @Entity()
 export class Transacao extends EntityHelper {
@@ -51,10 +50,6 @@ export class Transacao extends EntityHelper {
     foreignKeyConstraintName: 'FK_Transacao_transacaoAgrupado_ManyToOne',
   })
   transacaoAgrupado: TransacaoAgrupado;
-
-  @ManyToOne(() => TransacaoStatus, { eager: false, nullable: false })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_Transacao_status_ManyToOne' })
-  status: TransacaoStatus;
 
   /** Not a physical column */
   @OneToMany(() => LancamentoEntity, (lancamento) => lancamento.transacao, {

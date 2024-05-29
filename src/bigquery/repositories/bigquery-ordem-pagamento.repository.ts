@@ -125,14 +125,18 @@ export class BigqueryOrdemPagamentoRepository {
   private getQueryArgsConsorcio(args: IBigqueryFindOrdemPagamento) {
     const startDate = args.startDate.toISOString().slice(0, 10);
     const endDate = args.endDate.toISOString().slice(0, 10);
-    const qWhere = `t.data_ordem BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CNPJ'`;
+    const qWhere =
+      `t.data_ordem BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CNPJ' ` +
+      'AND t.valor_total_transacao_liquido > 0';
     return qWhere;
   }
 
   private getQueryArgsOperadora(args: IBigqueryFindOrdemPagamento) {
     const startDate = args.startDate.toISOString().slice(0, 10);
     const endDate = args.endDate.toISOString().slice(0, 10);
-    const qWhere = `t.data_ordem BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CPF'`;
+    const qWhere =
+      `t.data_ordem BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CPF' ` +
+      'AND t.valor_total_transacao_liquido > 0';
     return qWhere;
   }
 }

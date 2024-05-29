@@ -1,11 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ItemTransacaoDTO } from 'src/cnab/dto/pagamento/item-transacao.dto';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { ItemTransacaoStatus } from 'src/cnab/entity/pagamento/item-transacao-status.entity';
 import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
-import { ItemTransacaoStatusEnum } from 'src/cnab/enums/pagamento/item-transacao-status.enum';
-import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { ItemTransacaoRepository } from 'src/cnab/repository/pagamento/item-transacao.repository';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { CustomLogger } from 'src/utils/custom-logger';
@@ -71,7 +68,6 @@ export class ItemTransacaoService {
       transacao: { id: transacao.id },
       valor: lancamento.valor_a_pagar,
       dataOrdem: lancamento.data_ordem,
-      status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
     });
     return itemTransacao;
   }
@@ -232,11 +228,9 @@ export class ItemTransacaoService {
     const METHOD = 'moveAllFailedToTransacao()';
     const allFailed = await this.itemTransacaoRepository.findMany({
       where: {
-        status: { id: ItemTransacaoStatusEnum.failure },
         transacao: {
           id: Not(transacaoDest.id),
           pagador: { id: transacaoDest.pagador.id },
-          status: { id: TransacaoStatusEnum.remessa },
         },
       },
     });
@@ -247,7 +241,6 @@ export class ItemTransacaoService {
       await this.itemTransacaoRepository.saveDTO({
         id: item.id,
         transacao: { id: transacaoDest.id },
-        status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
       });
     }
 
