@@ -96,8 +96,10 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
-    await this.sendRemessa()
-    
+    await this.saveTransacoesJae1();
+    await this.sendRemessa();
+    // await this.updateRetorno();
+
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -709,21 +711,23 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     }
   }
 
-  async getIsCnabJobEnabled() {
+  async getIsCnabJobEnabled(method?: string) {
     const cnabJobEnabled = await this.settingsService.getOneBySettingData(
       cnabSettings.any__cnab_jobs_enabled,
     );
+    if (method !== undefined && !cnabJobEnabled.getValueAsBoolean()) {
+      this.logger.log(
+        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
+        method,
+      );
+    }
     return cnabJobEnabled.getValueAsBoolean();
   }
 
   async saveTransacoesJae1() {
     const METHOD = this.saveTransacoesJae1.name;
-    
-    if (!this.getIsCnabJobEnabled()) {
-      this.logger.log(
-        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
-        METHOD,
-      );
+
+    if (!(await this.getIsCnabJobEnabled(METHOD))) {
       return;
     }
 
@@ -740,12 +744,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async saveTransacoesJae2() {
     const METHOD = this.saveTransacoesJae2.name;
-        
-    if (!this.getIsCnabJobEnabled()) {
-      this.logger.log(
-        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
-        METHOD,
-      );
+
+    if (!(await this.getIsCnabJobEnabled(METHOD))) {
       return;
     }
 
@@ -766,12 +766,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async sendRemessa() {
     const METHOD = this.sendRemessa.name;
-        
-    if (!await this.getIsCnabJobEnabled()) {
-      this.logger.log(
-        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
-        METHOD,
-      );
+
+    if (!(await this.getIsCnabJobEnabled(METHOD))) {
       return;
     }
 
@@ -787,12 +783,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async updateRetorno() {
     const METHOD = this.updateRetorno.name;
-        
-    if (!this.getIsCnabJobEnabled()) {
-      this.logger.log(
-        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
-        METHOD,
-      );
+
+    if (!(await this.getIsCnabJobEnabled(METHOD))) {
       return;
     }
 
@@ -806,12 +798,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async saveExtrato() {
     const METHOD = this.saveExtrato.name;
-        
-    if (!this.getIsCnabJobEnabled()) {
-      this.logger.log(
-        `Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`,
-        METHOD,
-      );
+
+    if (!(await this.getIsCnabJobEnabled(METHOD))) {
       return;
     }
 

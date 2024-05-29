@@ -3,6 +3,7 @@ import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import {
+  AfterLoad,
   Column,
   CreateDateColumn,
   DeepPartial,
@@ -13,6 +14,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ItfLancamento } from './interfaces/lancamento.interface';
+import { asStringOrNumber } from 'src/utils/pipe-utils';
 
 @Entity('lancamento')
 export class LancamentoEntity extends EntityHelper {
@@ -73,14 +75,14 @@ export class LancamentoEntity extends EntityHelper {
   @Column({ type: 'varchar', nullable: false })
   algoritmo: string;
 
-  @Column({ type: 'varchar', nullable: false })
-  glosa: string;
+  @Column({ type: 'numeric', nullable: false })
+  glosa: number;
 
-  @Column({ type: 'varchar', nullable: false })
-  recurso: string;
+  @Column({ type: 'numeric', nullable: false })
+  recurso: number;
 
-  @Column({ type: 'varchar', nullable: false })
-  anexo: string;
+  @Column({ type: 'numeric', nullable: false })
+  anexo: number;
 
   @Column({ type: 'numeric', nullable: false })
   valor_a_pagar: number;
@@ -112,5 +114,13 @@ export class LancamentoEntity extends EntityHelper {
       auth_usersIds: this.auth_usersIds?.split(',')?.map(Number) || [],
       autorizadopor: [],
     };
+  }
+
+  @AfterLoad()
+  setReadValues() {
+    this.glosa = asStringOrNumber(this.glosa);
+    this.recurso = asStringOrNumber(this.recurso);
+    this.anexo = asStringOrNumber(this.anexo);
+    this.valor_a_pagar = asStringOrNumber(this.valor_a_pagar);
   }
 }

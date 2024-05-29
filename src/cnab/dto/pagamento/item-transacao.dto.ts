@@ -3,7 +3,6 @@ import { DeepPartial } from "typeorm";
 import { ClienteFavorecido } from "../../entity/cliente-favorecido.entity";
 import { Transacao } from "../../entity/pagamento/transacao.entity";
 import { DetalheA } from "../../entity/pagamento/detalhe-a.entity";
-import { ItemTransacaoStatus } from "../../entity/pagamento/item-transacao-status.entity";
 
 function isCreate(object: ItemTransacaoDTO): boolean {
   return object.id === undefined;
@@ -59,15 +58,9 @@ export class ItemTransacaoDTO {
   @IsNotEmpty()
   dataOrdem?: Date;
 
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  status?: DeepPartial<ItemTransacaoStatus>;
-
   detalheA?: DeepPartial<DetalheA> | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
   versaoOrdemPagamento?: string;
-
 }

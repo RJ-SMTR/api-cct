@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { isSameDay, nextFriday, nextThursday, startOfDay } from 'date-fns';
+import { isSameDay, startOfDay } from 'date-fns';
 import { DetalheADTO } from 'src/cnab/dto/pagamento/detalhe-a.dto';
 import { HeaderLoteDTO } from 'src/cnab/dto/pagamento/header-lote.dto';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
@@ -16,15 +16,11 @@ import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asString } from 'src/utils/pipe-utils';
-import { DeepPartial, In } from 'typeorm';
+import { DeepPartial } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
-import { ItemTransacaoStatus } from '../../entity/pagamento/item-transacao-status.entity';
-import { ItemTransacao } from '../../entity/pagamento/item-transacao.entity';
-import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
-import { ItemTransacaoStatusEnum } from '../../enums/pagamento/item-transacao-status.enum';
 import { CnabHeaderArquivo104 } from '../../interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { CnabDetalheA_104 } from '../../interfaces/cnab-240/104/pagamento/cnab-detalhe-a-104.interface';
 import { CnabDetalheB_104 } from '../../interfaces/cnab-240/104/pagamento/cnab-detalhe-b-104.interface';
@@ -72,20 +68,18 @@ export class RemessaRetornoService {
    * - Cnab Tables DTO to be saved in database
    */
   public async generateSaveRemessa(
-    transacao?: Transacao,
-    transacaoAg?: TransacaoAgrupado,
+    transacaoAg: TransacaoAgrupado,
   ): Promise<string | null> {
     // Get headerArquivo
     const headerArquivoDTO = await this.headerArquivoService.getDTO(
       HeaderArquivoTipoArquivo.Remessa,
-      transacao,
       transacaoAg,
     );
 
     // saveHeaderArquivo
     await this.saveHeaderArquivo(headerArquivoDTO);
 
-    const pagador = transacao?.pagador || (transacaoAg?.pagador as Pagador);
+    const pagador = transacaoAg.pagador;
     const headerLoteDTO = this.headerLoteService.getDTO(
       headerArquivoDTO,
       pagador,
@@ -93,7 +87,6 @@ export class RemessaRetornoService {
     const savedHeaderLote = await this.saveHeaderLoteDTO(headerLoteDTO);
     const detalhes = await this.saveListDetalhes(
       savedHeaderLote.id,
-      transacao,
       transacaoAg,
     );
 
@@ -124,17 +117,10 @@ export class RemessaRetornoService {
       headerLoteDTO,
       processedCnab104.lotes[0].headerLote,
     );
-    if (transacaoAg) {
-      await this.transacaoAgService.save({
-        id: transacaoAg.id,
-        status: new TransacaoStatus(TransacaoStatusEnum.remessa),
-      });
-    } else if (transacao) {
-      await this.transacaoService.save({
-        id: transacao.id,
-        status: new TransacaoStatus(TransacaoStatusEnum.remessa),
-      });
-    }
+    await this.transacaoAgService.save({
+      id: transacaoAg.id,
+      status: new TransacaoStatus(TransacaoStatusEnum.remessa),
+    });
 
     return cnabString;
   }
@@ -142,20 +128,15 @@ export class RemessaRetornoService {
   async convertCnabDetalheAToDTO(
     detalheA: CnabDetalheA_104,
     headerLoteId: number,
-    itemTransacao?: ItemTransacao,
-    itemTransacaoAg?: ItemTransacaoAgrupado,
+    itemTransacaoAg: ItemTransacaoAgrupado,
   ) {
     const existing = await this.detalheAService.findOne({
       where: {
         nsr: Number(detalheA.nsr.value),
-        ...(itemTransacao ? { itemTransacao: { id: itemTransacao?.id } } : {}),
-        ...(itemTransacaoAg
-          ? { itemTransacaoAgrupado: { id: itemTransacaoAg?.id } }
-          : {}),
+        itemTransacaoAgrupado: { id: itemTransacaoAg?.id },
       },
     });
-    const favorecidoId = (itemTransacao || itemTransacaoAg)?.clienteFavorecido
-      .id as number;
+    const favorecidoId = itemTransacaoAg.clienteFavorecido.id as number;
     return new DetalheADTO({
       ...(existing ? { id: existing.id } : {}),
       nsr: Number(detalheA.nsr.value),
@@ -238,59 +219,31 @@ export class RemessaRetornoService {
    */
   async saveListDetalhes(
     headerLoteId: number,
-    transacao?: Transacao,
-    transacaoAg?: TransacaoAgrupado,
+    transacaoAg: TransacaoAgrupado,
   ): Promise<CnabRegistros104Pgto[]> {
     let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(
       new Date(),
     );
 
     // Obter item transacao de transacoes
-    const itemTransacaoMany = transacao
-      ? await this.itemTransacaoService.findManyByIdTransacao(transacao.id)
-      : await this.itemTransacaoAgService.findManyByIdTransacao(
-          (transacaoAg as TransacaoAgrupado).id,
-        );
-    const isTransacaoAgrupado = Boolean(transacaoAg);
+    const itemTransacaoMany =
+      await this.itemTransacaoAgService.findManyByIdTransacao(
+        (transacaoAg as TransacaoAgrupado).id,
+      );
 
     // Para cada itemTransacao, cria detalhe
     const detalhes: CnabRegistros104Pgto[] = [];
-    let itemTransacaoAux: ItemTransacao | undefined;
     let itemTransacaoAgAux: ItemTransacaoAgrupado | undefined;
     for (const itemTransacao of itemTransacaoMany) {
       // add valid itemTransacao
-      if (isTransacaoAgrupado) {
-        itemTransacaoAgAux = itemTransacao as ItemTransacaoAgrupado;
-      } else {
-        itemTransacaoAux = itemTransacao as ItemTransacao;
-      }
+      itemTransacaoAgAux = itemTransacao as ItemTransacaoAgrupado;
       const detalhe = await this.saveDetalhes104(
         numeroDocumento,
         headerLoteId,
-        itemTransacaoAux,
         itemTransacaoAgAux,
       );
       if (detalhe) {
         detalhes.push(detalhe);
-
-        // Update status
-        if (itemTransacaoAux) {
-          await this.itemTransacaoService.save({
-            id: itemTransacaoAux.id,
-            status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.remessa),
-          });
-        }
-        if (itemTransacaoAgAux) {
-          await this.itemTransacaoAgService.save({
-            id: itemTransacaoAgAux.id,
-            status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.remessa),
-          });
-          await this.updateTransacoesStatus(
-            itemTransacaoAgAux.transacaoAgrupado.transacoes,
-            TransacaoStatusEnum.remessa,
-            ItemTransacaoStatusEnum.remessa,
-          );
-        }
       }
       numeroDocumento++;
     }
@@ -451,26 +404,16 @@ export class RemessaRetornoService {
   public async saveDetalhes104(
     numeroDocumento: number,
     headerLoteId: number,
-    itemTransacao?: ItemTransacao,
-    itemTransacaoAg?: ItemTransacaoAgrupado,
+    itemTransacaoAg: ItemTransacaoAgrupado,
   ): Promise<CnabRegistros104Pgto | null> {
     const METHOD = 'getDetalhes104()';
-    const favorecido = (itemTransacao || (itemTransacaoAg as any))
-      .clienteFavorecido as ClienteFavorecido;
+    const favorecido = itemTransacaoAg.clienteFavorecido as ClienteFavorecido;
 
     // Failure if no favorecido
     if (!favorecido) {
-      if (itemTransacao) {
-        await this.itemTransacaoService.save({
-          id: itemTransacao.id,
-          status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.failure),
-        });
-      } else if (itemTransacaoAg) {
-        await this.itemTransacaoService.save({
-          id: itemTransacaoAg.id,
-          status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.failure),
-        });
-      }
+      await this.itemTransacaoService.save({
+        id: itemTransacaoAg.id,
+      });
 
       this.logger.debug(
         `Falha ao usar ItemTransacao: favorecido ausente.`,
@@ -481,11 +424,8 @@ export class RemessaRetornoService {
 
     // Save detalheA
     let nsr = await this.getNextNSR();
-    const itemTransacaoAux = (itemTransacao ||
-      itemTransacaoAg) as ItemTransacao;
-    const fridayOrdem = itemTransacao
-      ? nextFriday(nextThursday(startOfDay(itemTransacaoAux.dataOrdem)))
-      : itemTransacaoAux.dataOrdem;
+    const itemTransacaoAgAux = itemTransacaoAg;
+    const fridayOrdem = itemTransacaoAgAux.dataOrdem;
     const detalheA: CnabDetalheA_104 = sc(PgtoRegistros.detalheA);
     detalheA.codigoBancoDestino.value = favorecido.codigoBanco;
     detalheA.codigoAgenciaDestino.value = favorecido.agencia;
@@ -496,13 +436,12 @@ export class RemessaRetornoService {
     detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
     detalheA.dataVencimento.value = fridayOrdem;
     // indicadorFormaParcelamento = DataFixa
-    detalheA.valorLancamento.value = itemTransacaoAux.valor;
+    detalheA.valorLancamento.value = itemTransacaoAgAux.valor;
     detalheA.nsr.value = String(nsr);
 
     const savedDetalheA = await this.saveDetalheA(
       detalheA,
       headerLoteId,
-      itemTransacao,
       itemTransacaoAg,
     );
 
@@ -533,45 +472,14 @@ export class RemessaRetornoService {
     };
   }
 
-  async updateTransacoesStatus(
-    transacoes: Transacao[],
-    transacaoStatus: TransacaoStatusEnum,
-    itemTransacaoStatus: ItemTransacaoStatusEnum,
-  ) {
-    const allItemTransacoes = await this.itemTransacaoService.findMany({
-      where: {
-        transacao: { id: In(transacoes.map((i) => i.id)) },
-      },
-    });
-    for (const transacao of transacoes) {
-      const itemTransacoes = allItemTransacoes.filter(
-        (i) => i.transacao.id === transacao.id,
-      );
-      for (const item of itemTransacoes) {
-        // Update ItemTransacaoStatus
-        await this.itemTransacaoService.save({
-          id: item.id,
-          status: { id: itemTransacaoStatus },
-        });
-      }
-      // Update Transacao status
-      await this.transacaoService.save({
-        id: transacao.id,
-        status: { id: transacaoStatus },
-      });
-    }
-  }
-
   async saveDetalheA(
     detalheA104: CnabDetalheA_104,
     savedHeaderLoteId: number,
-    itemTransacao?: ItemTransacao,
-    itemTransacaoAg?: ItemTransacaoAgrupado,
+    itemTransacaoAg: ItemTransacaoAgrupado,
   ) {
     const detalheADTO = await this.convertCnabDetalheAToDTO(
       detalheA104,
       savedHeaderLoteId,
-      itemTransacao,
       itemTransacaoAg,
     );
     const saved = await this.detalheAService.save(detalheADTO);
@@ -620,5 +528,4 @@ export class RemessaRetornoService {
 
     // headerArquivoRetUpdated;
   }
-
 }

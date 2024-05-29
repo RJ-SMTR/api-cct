@@ -25,13 +25,11 @@ import { asNumber } from 'src/utils/pipe-utils';
 import { Between } from 'typeorm';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
-import { ItemTransacaoStatus } from './entity/pagamento/item-transacao-status.entity';
 import { ItemTransacao } from './entity/pagamento/item-transacao.entity';
 import { Pagador } from './entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from './entity/pagamento/transacao-agrupado.entity';
 import { TransacaoStatus } from './entity/pagamento/transacao-status.entity';
 import { Transacao } from './entity/pagamento/transacao.entity';
-import { ItemTransacaoStatusEnum } from './enums/pagamento/item-transacao-status.enum';
 import { PagadorContaEnum } from './enums/pagamento/pagador.enum';
 import { TransacaoStatusEnum } from './enums/pagamento/transacao-status.enum';
 import { CnabFile104Extrato } from './interfaces/cnab-240/104/extrato/cnab-file-104-extrato.interface';
@@ -86,14 +84,16 @@ export class CnabService {
   // #region saveTransacoesJae
 
   /**
+   * Gera status = 1 (criado)
+   *
+   * Cria ArquivoPublicacao
+   *
    * Update Transacoes tables from Jaé (bigquery)
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
   public async saveTransacoesJae() {
     const METHOD = this.saveTransacoesJae.name;
-
-    await this.compareTransacaoViewPublicacao();
 
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
@@ -203,14 +203,17 @@ export class CnabService {
     });
 
     let itemAg: ItemTransacaoAgrupado | null = null;
-    // Se existe TransacaoAgrupado
+
+    // Se existir TransacaoAgrupado
     if (transacaoAg) {
-      // Create or update item
+      // Cria ou atualiza item
       itemAg = await this.itemTransacaoAgService.findOne({
         where: {
-          transacaoAgrupado: { id: transacaoAg.id },
+          transacaoAgrupado: {
+            id: transacaoAg.id,
+            status: { id: TransacaoStatusEnum.created },
+          },
           idConsorcio: ordem.idConsorcio, // business rule
-          status: { id: ItemTransacaoStatusEnum.created },
         },
       });
       if (itemAg) {
@@ -225,7 +228,7 @@ export class CnabService {
       await this.itemTransacaoAgService.save(itemAg);
     }
 
-    // Senão, cria Transacao e Item
+    // Se não existir, cria Transacao e Item
     else {
       transacaoAg = this.getTransacaoAgrupadoDTO(ordem, pagador);
       transacaoAg = await this.transacaoAgService.save(transacaoAg);
@@ -253,17 +256,11 @@ export class CnabService {
     pagador: Pagador,
     transacaoAgId: number,
   ): Promise<Transacao> {
-    const existing = await this.transacaoService.findOne({
-      idOrdemPagamento: ordem.idOrdemPagamento,
-      transacaoAgrupado: { id: transacaoAgId },
-    });
     const transacao = new Transacao({
-      ...(existing ? { id: existing.id } : {}),
       dataOrdem: ordem.dataOrdem,
       dataPagamento: ordem.dataPagamento,
       pagador: pagador,
       idOrdemPagamento: ordem.idOrdemPagamento,
-      status: new TransacaoStatus(TransacaoStatusEnum.created),
       transacaoAgrupado: { id: transacaoAgId },
     });
     return await this.transacaoService.save(transacao);
@@ -271,7 +268,8 @@ export class CnabService {
 
   getTransacaoAgrupadoDTO(ordem: BigqueryOrdemPagamentoDTO, pagador: Pagador) {
     const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
-    const fridayOrdem = nextFriday(nextThursday(startOfDay(dataOrdem)));
+    /** semana de pagamento: sex-qui */
+    const fridayOrdem = nextFriday(startOfDay(dataOrdem));
     const transacao = new TransacaoAgrupado({
       dataOrdem: fridayOrdem,
       dataPagamento: ordem.dataPagamento,
@@ -300,7 +298,6 @@ export class CnabService {
       nomeOperadora: ordem.operadora,
       valor: ordem.valorTotalTransacaoLiquido,
       transacaoAgrupado: transacaoAg,
-      status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
     });
     return item;
   }
@@ -311,17 +308,7 @@ export class CnabService {
     transacao: Transacao,
     itemTransacaoAg: ItemTransacaoAgrupado,
   ) {
-    const existing = await this.itemTransacaoService.findOne({
-      where: {
-        transacao: { id: transacao.id },
-        idConsorcio: ordem.idConsorcio,
-        idOperadora: ordem.idOperadora,
-        idOrdemPagamento: ordem.idOrdemPagamento,
-        status: { id: ItemTransacaoStatusEnum.created },
-      },
-    });
     const item = new ItemTransacao({
-      ...(existing ? { id: existing.id } : {}),
       clienteFavorecido: favorecido,
       dataCaptura: ordem.dataOrdem,
       dataOrdem: startOfDay(new Date(ordem.dataOrdem)),
@@ -332,7 +319,6 @@ export class CnabService {
       nomeOperadora: ordem.operadora,
       valor: ordem.valorTotalTransacaoLiquido,
       transacao: transacao,
-      status: new ItemTransacaoStatus(ItemTransacaoStatusEnum.created),
       itemTransacaoAgrupado: { id: itemTransacaoAg.id },
     });
     await this.itemTransacaoService.save(item);
@@ -425,6 +411,8 @@ export class CnabService {
   }
 
   /**
+   * Muda status de criado para remessa
+   *
    * This task will:
    * 1. Read new Transacoes (with no data in CNAB tables yet, like headerArquivo etc)
    * 2. Generate CnabFile
@@ -435,17 +423,11 @@ export class CnabService {
    */
   public async sendRemessa(tipo: PagadorContaEnum) {
     const METHOD = this.sendRemessa.name;
-    let transacoes: Transacao[];
-    if (tipo === PagadorContaEnum.CETT) {
-      transacoes = await this.transacaoService.findAllNewTransacao(tipo);
-    } else {
-      const transacoesAg = await this.transacaoAgService.findAllNewTransacao(
-        tipo,
-      );
-      transacoes = transacoesAg as unknown as Transacao[];
-    }
+    const transacoesAg = await this.transacaoAgService.findAllNewTransacao(
+      tipo,
+    );
 
-    if (!transacoes.length) {
+    if (!transacoesAg.length) {
       this.logger.log(
         `Não há transações novas para gerar remessa, nada a fazer...`,
         METHOD,
@@ -454,26 +436,16 @@ export class CnabService {
     }
 
     // Generate Remessas and send SFTP
-    for (const _transacao of transacoes) {
-      let transacao: Transacao | undefined;
-      let transacaoAg: TransacaoAgrupado | undefined;
-      if (tipo === PagadorContaEnum.ContaBilhetagem) {
-        transacaoAg = _transacao as unknown as TransacaoAgrupado;
-      } else {
-        transacao = _transacao;
-      }
-
-      // Generate remessa
+    for (const transacaoAg of transacoesAg) {
       const nsrSequence = await this.settingsService.getOneBySettingData(
         cnabSettings.any__cnab_current_nsr_sequence,
       );
       const cnabStr = await this.remessaRetornoService.generateSaveRemessa(
-        transacao,
         transacaoAg,
       );
       if (!cnabStr) {
         this.logger.warn(
-          `A Transação/Agrupado #${_transacao.id} gerou cnab vazio (sem itens válidos), ignorando...`,
+          `A TransaçãoAgrupado #${transacaoAg.id} gerou cnab vazio (sem itens válidos), ignorando...`,
           METHOD,
         );
         await this.settingsService.updateBySettingData(
@@ -515,8 +487,9 @@ export class CnabService {
     // Save Retorno, ArquivoPublicacao, move SFTP to backup
     try {
       const retorno104 = parseCnab240Pagamento(cnabString);
-      /** Busca remessa, salva status = retorno */
+      /** Pega o status 2, muda para 3 */
       await this.remessaRetornoService.saveRetorno(retorno104);
+      /** Pega status 3, muda para 4 */
       await this.arqPublicacaoService.compareRemessaToRetorno();
 
       const isCnabAccepted = getCnab104Errors(retorno104).length === 0;

@@ -1,5 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { isDate, isFriday, nextFriday, startOfDay } from 'date-fns';
+import {
+  addDays,
+  isDate,
+  isFriday,
+  isThursday,
+  nextFriday,
+  startOfDay,
+} from 'date-fns';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { asNumber } from 'src/utils/pipe-utils';
 import { DeepPartial, FindManyOptions } from 'typeorm';
@@ -8,7 +15,6 @@ import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
 import { TransacaoStatus } from '../entity/pagamento/transacao-status.entity';
-import { ItemTransacaoStatusEnum } from '../enums/pagamento/item-transacao-status.enum';
 import { TransacaoStatusEnum } from '../enums/pagamento/transacao-status.enum';
 import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.repository';
 import { OcorrenciaService } from './ocorrencia.service';
@@ -67,7 +73,10 @@ export class ArquivoPublicacaoService {
     if (!isDate(ordem) || !ordem) {
       console.warn('erro');
     }
-    const friday = isFriday(ordem) ? ordem : nextFriday(ordem);
+
+    /** Como é data relativa, se for quinta, pega a sexta da próxima semana */
+    const friday = isThursday(ordem) ? addDays(ordem, 8) : nextFriday(ordem);
+
     const arquivo = new ArquivoPublicacao({
       ...(existing ? { id: existing.id } : {}),
       // Remessa
@@ -109,6 +118,7 @@ export class ArquivoPublicacaoService {
         METHOD,
       );
     }
+    let transacaoAgrupado = -1;
 
     // Header Arquivo Remessa
     for (const headerArquivo of headerArquivos) {
@@ -133,6 +143,11 @@ export class ArquivoPublicacaoService {
           // Save retorno and update Transacao, Publicacao
           await this.salvaOcorrenciasDetalheA(detalheA);
           await this.savePublicacaoRetorno(detalheA);
+
+          if (transacaoAgrupado === -1) {
+            transacaoAgrupado =
+              detalheA?.itemTransacaoAgrupado?.transacaoAgrupado?.id;
+          }
         }
       }
 
@@ -141,6 +156,15 @@ export class ArquivoPublicacaoService {
         id: headerArquivo.id,
       });
     }
+
+    // Update TransacaoAgrupado
+    const today = new Date();
+    const friday = isFriday(today) ? today : nextFriday(today);
+    await this.transacaoAgService.save({
+      id: transacaoAgrupado,
+      status: new TransacaoStatus(TransacaoStatusEnum.publicado),
+      dataPagamento: startOfDay(friday),
+    });
   }
 
   async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA) {
@@ -188,28 +212,6 @@ export class ArquivoPublicacaoService {
         detalheARetorno.headerLote.headerArquivo.horaGeracao;
 
       await this.arquivoPublicacaoRepository.save(publicacao);
-
-      // Update ItemTransacaoStatus
-      await this.itemTransacaoService.save({
-        id: publicacao.itemTransacao.id,
-        status: { id: ItemTransacaoStatusEnum.retorno },
-      });
-
-      // Update Transacao status
-      await this.transacaoService.save({
-        id: publicacao.idTransacao,
-        status: new TransacaoStatus(TransacaoStatusEnum.publicado),
-      });
-    }
-
-    // Update TransacaoAgrupado
-    const transacaoAg =
-      detalheARetorno.headerLote.headerArquivo.transacaoAgrupado;
-    if (transacaoAg) {
-      await this.transacaoAgService.save({
-        id: transacaoAg.id,
-        status: new TransacaoStatus(TransacaoStatusEnum.publicado),
-      });
     }
   }
 }

@@ -12,7 +12,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
-import { ItemTransacaoStatus } from './item-transacao-status.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
 
 @Entity()
@@ -90,12 +89,6 @@ export class ItemTransacaoAgrupado extends EntityHelper {
   /** Data em que será feito o apgamento. (também vem do bigquery) */
   @Column({ type: Date, unique: false, nullable: false })
   dataOrdem: Date;
-
-  @ManyToOne(() => ItemTransacaoStatus, { eager: false, nullable: false })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_ItemTransacaoAgrupado_status_ManyToOne',
-  })
-  status: ItemTransacaoStatus;
 
   @CreateDateColumn()
   createdAt: Date;

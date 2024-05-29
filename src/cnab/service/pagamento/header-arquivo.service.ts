@@ -13,7 +13,6 @@ import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { DeepPartial, FindOptionsWhere } from 'typeorm';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
-import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { HeaderArquivoRepository } from '../../repository/pagamento/header-arquivo.repository';
 import { PagadorService } from './pagador.service';
@@ -37,12 +36,11 @@ export class HeaderArquivoService {
    */
   public async getDTO(
     tipo_arquivo: HeaderArquivoTipoArquivo,
-    transacao?: Transacao,
-    transacaoAg?: TransacaoAgrupado,
+    transacaoAg: TransacaoAgrupado,
   ): Promise<HeaderArquivoDTO> {
     const now = getBRTFromUTC(new Date());
     const pagador = await this.pagadorService.getOneByIdPagador(
-      transacao?.pagador.id || (transacaoAg?.pagador.id as number),
+      transacaoAg?.pagador.id,
     );
     const dto = new HeaderArquivoDTO({
       agencia: pagador.agencia,
@@ -56,7 +54,6 @@ export class HeaderArquivoService {
       horaGeracao: now,
       dvAgencia: pagador.dvAgencia,
       dvConta: pagador.dvConta,
-      transacao: transacao,
       transacaoAgrupado: transacaoAg,
       nomeEmpresa: pagador.nomeEmpresa,
       numeroConta: pagador.conta,

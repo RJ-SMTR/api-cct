@@ -1,9 +1,8 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
-import { Pagador } from '../../entity/pagamento/pagador.entity';
-import { DeepPartial } from 'typeorm';
-import { TransacaoStatus } from '../../entity/pagamento/transacao-status.entity';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
+import { DeepPartial } from 'typeorm';
+import { Pagador } from '../../entity/pagamento/pagador.entity';
 
 function isCreate(object: TransacaoDTO): boolean {
   return object.id === undefined;
@@ -27,10 +26,6 @@ export class TransacaoDTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   pagador?: Pagador;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  status?: DeepPartial<TransacaoStatus>;
 
   ocorrencias?: DeepPartial<Ocorrencia>[];
 
