@@ -85,12 +85,14 @@ export class CnabController {
 
   @ApiQuery({
     name: 'dt_inicio',
+    description: 'dataOrdem',
     required: true,
     type: String,
     example: '2024-01-01',
   })
   @ApiQuery({
     name: 'dt_fim',
+    description: 'dataOrdem',
     required: true,
     type: String,
     example: '2024-12-25',

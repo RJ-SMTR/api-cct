@@ -12,9 +12,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
-import { ItemTransacaoStatus } from './item-transacao-status.entity';
-import { Transacao } from './transacao.entity';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
+import { Transacao } from './transacao.entity';
 
 @Entity()
 export class ItemTransacao extends EntityHelper {
@@ -105,10 +104,6 @@ export class ItemTransacao extends EntityHelper {
    */
   @Column({ type: Date, unique: false, nullable: false })
   dataOrdem: Date;
-
-  @ManyToOne(() => ItemTransacaoStatus, { eager: false, nullable: false })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_ItemTransacao_status_ManyToOne' })
-  status: ItemTransacaoStatus;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -12,9 +12,9 @@ export interface ItfLancamento {
   data_pgto: Date;
   data_lancamento: Date;
   algoritmo: string;
-  glosa: string;
-  recurso: string;
-  anexo: string;
+  glosa: number;
+  recurso: number;
+  anexo: number;
   valor_a_pagar: number;
   numero_processo: string;
   id_cliente_favorecido: DeepPartial<ClienteFavorecido>;

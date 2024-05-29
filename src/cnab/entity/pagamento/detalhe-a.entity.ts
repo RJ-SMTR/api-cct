@@ -168,7 +168,7 @@ export class DetalheA extends EntityHelper {
     return [...new Set(detalhesA.map((i) => i.itemTransacaoAgrupado.id))];
   }
 
-  public static getTransacaoAgIds(detalhesA: DetalheA[]) {
+  public static getTransacaoAgIds(detalhesA: DetalheA[]): number[] {
     return [
       ...new Set(
         detalhesA.map((i) => i.itemTransacaoAgrupado.transacaoAgrupado.id),

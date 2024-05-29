@@ -131,7 +131,9 @@ export class TransacaoRepository {
   ): Promise<Transacao[]> {
     return await this.transacaoRepository.find({
       where: {
-        status: { id: TransacaoStatusEnum.created },
+        transacaoAgrupado: {
+          status: { id: TransacaoStatusEnum.created },
+        },
         pagador: { conta: tipo },
       },
     });

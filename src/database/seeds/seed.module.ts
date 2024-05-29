@@ -20,7 +20,6 @@ import { BigqueryModule } from 'src/bigquery/bigquery.module';
 import googleConfig from 'src/config/google.config';
 import { PagadorSeedModule } from './pagador/pagador-seed.module';
 import { TransacaoStatusSeedModule } from './transacao-status/transacao-status-seed.module';
-import { ItemTransacaoStatusSeedModule } from './item-transacao-status/item-transacao-status-seed.module';
 import { HeaderArquivoStatusSeedModule } from './header-arquivo-status/header-arquivo-status-seed.module';
 import { ClienteFavorecidoSeedModule } from './cliente-favorecido/cliente-favorecido-seed.module';
 import { LancamentoSeedModule } from './lancamento/lancamento-seed.module';
@@ -29,7 +28,6 @@ import { LancamentoSeedModule } from './lancamento/lancamento-seed.module';
   imports: [
     RoleSeedModule,
     TransacaoStatusSeedModule,
-    ItemTransacaoStatusSeedModule,
     HeaderArquivoStatusSeedModule,
     StatusSeedModule,
     InfoSeedModule,
