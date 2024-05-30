@@ -195,7 +195,9 @@ export class CnabService {
   ) {
     // 1. Verificar se as colunas de agrupamento existem nas tabelas agrupadas
     const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
-    const fridayOrdem = nextFriday(nextThursday(startOfDay(dataOrdem)));
+    const fridayOrdem = nextFriday(startOfDay(dataOrdem));
+
+    /** Requisito: 1 transação por pagador, status e dataOrdem (sexta) */
     let transacaoAg = await this.transacaoAgService.findOne({
       dataOrdem: fridayOrdem,
       pagador: { id: pagador.id },
