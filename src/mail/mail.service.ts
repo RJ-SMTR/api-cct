@@ -192,7 +192,7 @@ export class MailService {
         template: 'report',
         context: {
           title: mailTitle,
-          headerTitle: 'Estatística Atualizada dos Dados',
+          headerTitle: 'Estatística dos Dados',
           mailQueued: mailData.data.statusCount.queued,
           mailSent: mailData.data.statusCount.sent,
           mailUsed: mailData.data.statusCount.used,

@@ -48,7 +48,7 @@ export class TransacaoViewService {
     const _dtos = await this.ignoreExisting(structuredClone(dtos));
     const chunks: TransacaoView[][] = [];
     while (_dtos.length) {
-      chunks.push(_dtos.splice(0, 1000));
+      chunks.push(_dtos.splice(0, 50));
     }
 
     let count = 1;
