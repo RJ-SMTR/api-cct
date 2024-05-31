@@ -1,3 +1,4 @@
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { CnabCodigoSegmento } from 'src/cnab/enums/all/cnab-codigo-segmento.enum';
 import { CnabFile104 } from '../../interfaces/cnab-240/104/cnab-file-104.interface';
 import { CnabHeaderArquivo104 } from '../../interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
@@ -22,7 +23,6 @@ import {
   removeCnabDetalheZ,
   stringifyCnabFile,
 } from './cnab-utils';
-import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 
 const sc = structuredClone;
 
@@ -129,11 +129,12 @@ function processCnab104TrailerLote(lote: CnabLote104) {
 }
 
 function getSomarioValoresCnabLote(lote: CnabLote104): number {
-  return lote.registros.reduce(
-    (s2, regGroup) =>
-      s2 + Number(regGroup.detalheA?.valorLancamento?.convertedValue || 0),
-    0,
+  const original = lote.registros.map((i) =>
+    Number(i.detalheA?.valorLancamento?.convertedValue || 0),
   );
+  const rounded = original.map((i) => Number(i.toFixed(2)));
+  const sum = rounded.reduce((num, sum) => sum + num, 0);
+  return sum;
 }
 
 // #region getCnab104FromFile

@@ -19,9 +19,10 @@ export class TransacaoViewService {
 
   save = this.transacaoViewRepository.save;
 
-  async find(fields: EntityCondition<TransacaoView>) {
+  async find(fields: EntityCondition<TransacaoView>, eager = true) {
     return await this.transacaoViewRepository.find({
       where: fields,
+      loadEagerRelations: eager,
     });
   }
 
@@ -75,6 +76,7 @@ export class TransacaoViewService {
         where: {
           idTransacao: In(transacaoIds),
         },
+        loadEagerRelations: false
       });
       existing.push(...existingSlice);
     }
