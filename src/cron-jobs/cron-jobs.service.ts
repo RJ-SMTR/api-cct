@@ -96,6 +96,9 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
+    await this.saveTransacoesJae1();
+    await this.sendRemessa();
+
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
