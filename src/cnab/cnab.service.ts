@@ -339,7 +339,7 @@ export class CnabService {
     const ter = endOfDay(subDays(friday, 3));
     const transacoesView = await this.transacaoViewService.find({
       datetimeProcessamento: Between(qua, ter),
-    });
+    }, false);
     return transacoesView;
   }
 
