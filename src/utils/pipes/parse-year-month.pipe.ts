@@ -12,7 +12,7 @@ export class ParseYearMonthPipe implements PipeTransform<string, string> {
         return value;
       }
       throw new BadRequestException(
-        'Formato inválido. O formato year-month deve ser yyyy-mm.',
+        'Campo obrigatório. E o formato year-month deve ser yyyy-mm.',
       );
     }
 

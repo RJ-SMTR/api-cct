@@ -9,7 +9,7 @@ import { TimeIntervalEnum } from '../enums/time-interval.enum';
 export const DateApiParams = {
   yearMonth: {
     name: 'yearMonth',
-    required: true,
+    required: false,
     example: '2024-01',
   } as ApiParamOptions,
 

@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { endOfMonth } from 'date-fns';
+import { endOfMonth, startOfMonth } from 'date-fns';
 import { User } from 'src/users/entities/user.entity';
 import { CommonApiParams } from 'src/utils/api-param/common-api-params';
 import { DateApiParams } from 'src/utils/api-param/date-api-param';
@@ -63,9 +63,10 @@ export class BankStatementsController {
     this.logger.log(getRequestLog(request));
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     
+    const yearMonthDate = yearMonth ? new Date(yearMonth) : new Date();
     return this.bankStatementsService.getMe({
-      startDate: new Date(yearMonth).toISOString(),
-      endDate: endOfMonth(new Date(yearMonth)).toISOString(),
+      startDate: startOfMonth(yearMonthDate).toISOString(),
+      endDate: endOfMonth(yearMonthDate).toISOString(),
       timeInterval: timeInterval
         ? (timeInterval as unknown as TimeIntervalEnum)
         : undefined,
