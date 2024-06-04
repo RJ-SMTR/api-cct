@@ -89,6 +89,7 @@ export class BankStatementsRepositoryService {
         cpfCnpj: validArgs.user.getCpfCnpj(),
         permitCode: validArgs.user.getPermitCode(),
         amount: item.transactionValue,
+        paidAmount: item.paidValue,
         status: isPaid ? 'Pago' : 'A pagar',
         statusCode: isPaid ? 'paid' : 'toPay',
         bankStatus: isPaid ? '00' : null,
@@ -113,14 +114,15 @@ export class BankStatementsRepositoryService {
   ): Record<string, IBSCounts> {
     const statusCounts: Record<string, IBSCounts> = {};
     for (const item of data) {
-      if (!statusCounts?.[item.status]) {
-        statusCounts[item.status] = {
+      const status = String(item.status);
+      if (!statusCounts?.[status]) {
+        statusCounts[status] = {
           count: 1,
           amountSum: item.amount,
         };
       } else {
-        statusCounts[item.status].count += 1;
-        statusCounts[item.status].amountSum += item.amount;
+        statusCounts[status].count += 1;
+        statusCounts[status].amountSum += item.amount;
       }
     }
     return statusCounts;

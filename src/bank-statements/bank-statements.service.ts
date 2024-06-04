@@ -45,10 +45,16 @@ export class BankStatementsService {
     const amountSum = Number(
       bsData.statements.reduce((sum, item) => sum + item.amount, 0).toFixed(2),
     );
+    const paidSum = Number(
+      bsData.statements
+        .reduce((sum, item) => sum + item.paidAmount, 0)
+        .toFixed(2),
+    );
     const ticketCount = bsData.countSum;
 
     return {
       amountSum,
+      paidSum,
       todaySum,
       count: bsData.statements.length,
       ticketCount,
@@ -156,19 +162,26 @@ export class BankStatementsService {
         (sum, i) => sum + i.transactionValueSum,
         0,
       );
+      const weekPaidAmount = revenuesWeek.reduce(
+        (sum, i) => sum + i.paidValueSum,
+        0,
+      );
       const isPago =
         revenuesWeek.length > 0 && revenuesWeek.every((i) => i.isPago);
       const errors = [
         ...new Set(revenuesWeek.reduce((l, i) => [...l, ...i.errors], [])),
       ];
+      const amount = Number(weekPaidAmount.toFixed(2));
+      const paidAmount = Number(weekAmount.toFixed(2));
       newStatements.push({
         id: maxId - id,
-        amount: Number(weekAmount.toFixed(2)),
+        amount,
+        paidAmount,
         cpfCnpj: args.user.getCpfCnpj(),
         date: getDateYMDString(endDate),
         effectivePaymentDate: isPago ? getDateYMDString(endDate) : null,
         permitCode: args.user.getPermitCode(),
-        status: isPago ? 'Pago' : 'A pagar',
+        status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
         errors: errors,
       });
       allSum += Number(weekAmount.toFixed(2));
