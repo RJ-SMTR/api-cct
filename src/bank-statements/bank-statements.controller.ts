@@ -3,6 +3,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  ParseEnumPipe,
   Query,
   Request,
   SerializeOptions,
@@ -62,7 +63,7 @@ export class BankStatementsController {
   ): Promise<IBSGetMeResponse> {
     this.logger.log(getRequestLog(request));
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
-    
+
     const yearMonthDate = yearMonth ? new Date(yearMonth) : new Date();
     return this.bankStatementsService.getMe({
       startDate: startOfMonth(yearMonthDate).toISOString(),
@@ -74,6 +75,15 @@ export class BankStatementsController {
     });
   }
 
+  /**
+   * Requisito: {@link https://github.com/RJ-SMTR/api-cct/issues/237 Github #237 }
+   *
+   * Escopo:
+   * - Ler TransacaoView em um dia X (dataProcessamento)
+   * - Uma transação é dia anteior quando dataProcessamento > dataTransacao (dia)
+   * - O endpoint retorna todas transações de dias anteriores
+   * - Exibir o status (pago, não pago, nulo)
+   */
   @SerializeOptions({
     groups: ['me'],
   })
@@ -97,7 +107,8 @@ export class BankStatementsController {
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
     @Query(...DateQueryParams.getDate('endDate', true)) endDate: string,
-    @Query('timeInterval') timeInterval: BSMePrevDaysTimeIntervalEnum,
+    @Query('timeInterval', new ParseEnumPipe(BSMePrevDaysTimeIntervalEnum))
+    timeInterval: BSMePrevDaysTimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<Pagination<IBSGetMePreviousDaysResponse>> {
