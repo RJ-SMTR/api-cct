@@ -7,6 +7,12 @@ import { TimeIntervalEnum } from '../enums/time-interval.enum';
  * @type `Record<string, ApiParamOptions>`
  */
 export const DateApiParams = {
+  yearMonth: {
+    name: 'yearMonth',
+    required: true,
+    example: '2024-01',
+  } as ApiParamOptions,
+
   startDate: {
     name: 'startDate',
     required: false,

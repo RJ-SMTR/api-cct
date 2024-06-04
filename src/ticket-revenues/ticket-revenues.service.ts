@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { endOfDay, isToday, startOfDay } from 'date-fns';
+import { endOfDay, isToday, nextFriday, startOfDay } from 'date-fns';
 import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
@@ -231,9 +231,8 @@ export class TicketRevenuesService {
       });
     }
 
-    return (await this.transacaoViewService.find(where)).map((i) =>
-      i.toTicketRevenue(),
-    );
+    const transacoes = await this.transacaoViewService.find(where);
+    return transacoes.map((i) => i.toTicketRevenue());
   }
 
   private async validateGetMe(args: ITRGetMeGroupedArgs): Promise<User> {
@@ -311,9 +310,14 @@ export class TicketRevenuesService {
         }
 
         if (!group[dateGroup]) {
+          const friday = nextFriday(
+            new Date(item.processingDateTime),
+          ).toISOString();
+          const day = item.processingDateTime;
+          const procsesingDate = groupBy === 'week' ? friday : day;
           group[dateGroup] = {
             count: 0,
-            date: item.processingDateTime,
+            date: procsesingDate,
             transportTypeCounts: {},
             directionIdCounts: {},
             paymentMediaTypeCounts: {},

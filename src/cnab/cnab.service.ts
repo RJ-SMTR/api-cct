@@ -102,8 +102,10 @@ export class CnabService {
     await this.updateTransacaoBigquery();
 
     // 3. Update ordens
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(7);
     await this.saveOrdens(ordens);
+
+    await this.compareTransacaoViewPublicacao(7);
 
     // Log
     const msg = `Há ${ordens.length} ordens consideradas novas.`;
@@ -147,13 +149,11 @@ export class CnabService {
 
       await this.saveAgrupamentos(ordem, pagador, favorecido);
     }
-
-    await this.compareTransacaoViewPublicacao();
   }
 
-  async compareTransacaoViewPublicacao() {
-    const transacoesView = await this.getTransacoesView();
-    const publicacoes = await this.getPublicacoes();
+  async compareTransacaoViewPublicacao(daysBefore=0) {
+    const transacoesView = await this.getTransacoesViewWeek(daysBefore);
+    const publicacoes = await this.getPublicacoesWeek(daysBefore);
     for (const publicacao of publicacoes) {
       const transacaoViewIds = transacoesView
         .filter(
@@ -170,22 +170,28 @@ export class CnabService {
   }
 
   /**
-   *
+   * Publicacao está associada com a ordem, portanto é sex-qui
    */
-  async getPublicacoes() {
+  async getPublicacoesWeek(daysBefore = 0) {
     let friday = new Date();
     if (!isFriday(friday)) {
       friday = nextFriday(friday);
     }
-    const qui = startOfDay(subDays(friday, 8));
-    const qua = endOfDay(subDays(friday, 2));
-    return await this.arqPublicacaoService.findMany({
+    const sex = startOfDay(subDays(friday, 7 + daysBefore));
+    const qui = endOfDay(subDays(friday, 1 + daysBefore));
+    const result = await this.arqPublicacaoService.findMany({
       where: {
         itemTransacao: {
-          dataOrdem: Between(qui, qua),
+          dataOrdem: Between(sex, qui),
         },
       },
+      order: {
+        itemTransacao: {
+          dataOrdem: 'ASC',
+        }
+      }
     });
+    return result;
   }
 
   async saveAgrupamentos(
@@ -330,22 +336,23 @@ export class CnabService {
     await this.arquivoPublicacaoService.save(publicacao);
   }
 
-  async getTransacoesView() {
+  async getTransacoesViewWeek(daysBefore = 0) {
     let friday = new Date();
     if (!isFriday(friday)) {
       friday = nextFriday(friday);
     }
-    const qua = startOfDay(subDays(friday, 9));
-    const ter = endOfDay(subDays(friday, 3));
-    const transacoesView = await this.transacaoViewService.find({
-      datetimeProcessamento: Between(qua, ter),
-    }, false);
+    const qui = startOfDay(subDays(friday, 8 + daysBefore));
+    const qua = endOfDay(subDays(friday, 2 + daysBefore));
+    const transacoesView = await this.transacaoViewService.find(
+      {
+        datetimeProcessamento: Between(qui, qua),
+      },
+      false,
+    );
     return transacoesView;
   }
 
   // #endregion
-
-  // #region saveTransacoesLancamento
 
   /**
    * Update Transacoes tables from Lancamento (api-cct)
@@ -364,7 +371,7 @@ export class CnabService {
     await this.updateAllFavorecidosFromUsers();
 
     // 2. Find new Lancamento from this week
-    const newLancamentos = await this.lancamentoService.findToPayToday();
+    const newLancamentos = await this.lancamentoService.findToPayWeek();
 
     // Log
     const msg = `Há ${newLancamentos.length} Lancamentos considerados novos.`;
@@ -404,8 +411,6 @@ export class CnabService {
       METHOD,
     );
   }
-
-  // #endregion
 
   private async updateAllFavorecidosFromUsers() {
     const allUsers = await this.usersService.findManyRegisteredUsers();

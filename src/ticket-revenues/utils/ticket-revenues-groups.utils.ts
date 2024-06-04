@@ -102,7 +102,7 @@ export function appendItem(
 
   for (const [groupKey, groupValue] of Object.entries(group)) {
     if (groupKey === 'isPago') {
-      if (!newItem.arquivoPublicacao?.isPago) {
+      if (!newItem?.arquivoPublicacao?.isPago) {
         group[groupKey] = false;
       }
     } else if (groupKey === 'errors') {

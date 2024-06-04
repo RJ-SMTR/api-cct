@@ -10,24 +10,25 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { endOfMonth } from 'date-fns';
 import { User } from 'src/users/entities/user.entity';
 import { CommonApiParams } from 'src/utils/api-param/common-api-params';
 import { DateApiParams } from 'src/utils/api-param/date-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPagination } from 'src/utils/get-pagination';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
+import { getRequestLog } from 'src/utils/request-utils';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { BankStatementsService } from './bank-statements.service';
 import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-interval.enum';
 import { BSMeTimeIntervalEnum } from './enums/bs-me-time-interval.enum';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
 import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
-import { CustomLogger } from 'src/utils/custom-logger';
-import { getRequestLog } from 'src/utils/request-utils';
 
 @ApiTags('BankStatements')
 @Controller({
@@ -47,15 +48,13 @@ export class BankStatementsController {
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
-  @ApiQuery(DateApiParams.startDate)
-  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery(DateApiParams.yearMonth)
   @ApiQuery(DateApiParams.timeInterval)
   @ApiQuery(CommonApiParams.userId)
   @HttpCode(HttpStatus.OK)
   async getMe(
     @Request() request: IRequest,
-    @Query(...DateQueryParams.startDate) startDate?: string,
-    @Query(...DateQueryParams.endDate) endDate?: string,
+    @Query(...DateQueryParams.yearMonth) yearMonth: string,
     @Query(...DateQueryParams.timeInterval)
     timeInterval?: BSMeTimeIntervalEnum | undefined,
     @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
@@ -63,9 +62,10 @@ export class BankStatementsController {
   ): Promise<IBSGetMeResponse> {
     this.logger.log(getRequestLog(request));
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    
     return this.bankStatementsService.getMe({
-      startDate,
-      endDate,
+      startDate: new Date(yearMonth).toISOString(),
+      endDate: endOfMonth(new Date(yearMonth)).toISOString(),
       timeInterval: timeInterval
         ? (timeInterval as unknown as TimeIntervalEnum)
         : undefined,
