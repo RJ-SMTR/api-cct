@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { endOfDay, isToday, nextFriday, startOfDay } from 'date-fns';
+import { endOfDay, isSameDay, isToday, nextFriday, startOfDay } from 'date-fns';
 import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
@@ -193,7 +193,7 @@ export class TicketRevenuesService {
     };
   }
 
-  private async findTransacaoView(fetchArgs: IFetchTicketRevenues) {
+  public async findTransacaoView(fetchArgs: IFetchTicketRevenues) {
     const betweenDate: FindOptionsWhere<TransacaoView> = {
       datetimeProcessamento: Between(
         fetchArgs?.startDate || new Date(0),
@@ -231,7 +231,23 @@ export class TicketRevenuesService {
       });
     }
 
-    const transacoes = await this.transacaoViewService.find(where);
+    let transacoes = await this.transacaoViewService.findRaw({
+      where,
+      order: {
+        datetimeProcessamento: 'ASC',
+      },
+      ...(fetchArgs?.offset ? { skip: fetchArgs.offset } : {}),
+      ...(fetchArgs?.limit ? { take: fetchArgs.limit } : {}),
+    });
+
+    // Filtrar apenas dias anteriores (dataProcessamento > dataTransacao - dia)
+    if (fetchArgs.previousDays) {
+      transacoes = transacoes.filter(
+        (i) =>
+          !isSameDay(i.datetimeProcessamento, i.datetimeTransacao) &&
+          i.datetimeProcessamento > i.datetimeTransacao,
+      );
+    }
     return transacoes.map((i) => i.toTicketRevenue());
   }
 

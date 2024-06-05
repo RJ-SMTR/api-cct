@@ -1,17 +1,23 @@
 import { Injectable } from '@nestjs/common';
-import { nextFriday } from 'date-fns';
-import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository';
+import {
+  endOfDay,
+  nextFriday,
+  startOfDay,
+  subDays
+} from 'date-fns';
+import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
+import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { getDateYMDString, isPaymentWeekComplete } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPagination } from 'src/utils/get-pagination';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
+import { In } from 'typeorm';
 import { IBankStatement } from './interfaces/bank-statement.interface';
 import { IBSCounts } from './interfaces/bs-counts.interface';
 import { IBSGetMePreviousDaysValidArgs } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
-import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 
 /**
  * Get weekly statements
@@ -19,10 +25,23 @@ import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.servi
 @Injectable()
 export class BankStatementsRepositoryService {
   constructor(
-    private readonly ticketRevenuesRepository: TicketRevenuesRepositoryService,
     private readonly ticketRevenuesService: TicketRevenuesService,
+    private readonly detalheAService: DetalheAService,
   ) {}
 
+  /**
+   * Parâmetros validados:
+   * - startDate (não existe, valor = startDate - mesmo dia)
+   * - endDate
+   * - timeInterval (não usado pelo front - padrão: mesmo dia)
+   * - user (obrigatório)
+   * - pagination: limit, offset
+   *
+   * Tarefas:
+   * 1. Obter transacaoView no intervalo e filtros
+   * 2. Agrupar por dia/semana e somar
+   * 3. Retornar o resultado do transacaoView, sem tratamentos.
+   */
   public async getPreviousDays(
     validArgs: IBSGetMePreviousDaysValidArgs,
     paginationOptions: PaginationOptions,
@@ -48,6 +67,18 @@ export class BankStatementsRepositoryService {
     );
   }
 
+  /**
+   * Parâmetros:
+   * - endDate
+   * - startDate (não existe)
+   * - timeInterval (dia/semana)
+   * - paginação
+   * - previousDays (true?)
+   *
+   * Requisitos:
+   * - Mostra sempre as transações individuais
+   * -
+   */
   private async buildPreviousDays(validArgs: {
     user: User;
     endDate: string;
@@ -57,17 +88,57 @@ export class BankStatementsRepositoryService {
     const pagination = validArgs.paginationArgs
       ? validArgs.paginationArgs
       : { limit: 9999, page: 1 };
-    const revenues = await this.ticketRevenuesRepository.fetchTicketRevenues({
-      startDate: new Date(validArgs.endDate),
-      endDate: new Date(validArgs.endDate),
+
+    const friday = new Date(validArgs.endDate);
+    const qui = startOfDay(subDays(friday, 8));
+    const qua = endOfDay(subDays(friday, 2));
+
+    const startDate =
+      validArgs?.timeInterval === TimeIntervalEnum.LAST_DAY
+        ? new Date(validArgs.endDate)
+        : qui;
+
+    const endDate =
+      validArgs?.timeInterval === TimeIntervalEnum.LAST_DAY
+        ? endOfDay(new Date(validArgs.endDate))
+        : qua;
+
+    const revenues = await this.ticketRevenuesService.findTransacaoView({
+      startDate: startOfDay(startDate),
+      endDate: endOfDay(endDate),
       cpfCnpj: validArgs.user.getCpfCnpj(),
       limit: pagination.limit,
       offset: (pagination.page - 1) * pagination.limit,
       previousDays: true,
     });
-    const statements = revenues.data.map((item, index) => {
-      const isPaid = isPaymentWeekComplete(
+    const detalhesA = await this.detalheAService.findMany({
+      itemTransacaoAgrupado: {
+        id: In(
+          revenues.map(
+            (i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
+          ),
+        ),
+      },
+    });
+    const statements = revenues.map((item, index) => {
+      const isPago = isPaymentWeekComplete(
         new Date(String(item.processingDateTime)),
+      );
+      const amount = Number((item.transactionValue || 0).toFixed(2));
+      const paidAmount = Number(item.paidValue.toFixed(2));
+      const foundDetalhesA = detalhesA.filter(
+        (i) =>
+          i.itemTransacaoAgrupado.id ===
+          item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
+      );
+      const errors = foundDetalhesA.reduce(
+        (l, i) => [
+          ...l,
+          ...i.ocorrencias
+            .filter((j) => !['00', 'BD'].includes(j.code))
+            .map((j) => j.message),
+        ],
+        [],
       );
       return {
         id: index,
@@ -81,20 +152,17 @@ export class BankStatementsRepositoryService {
         paymentOrderDate: getDateYMDString(
           nextFriday(new Date(String(item.processingDateTime))),
         ),
-        effectivePaymentDate: isPaid
+        effectivePaymentDate: isPago
           ? getDateYMDString(
               nextFriday(new Date(String(item.processingDateTime))),
             )
           : null,
         cpfCnpj: validArgs.user.getCpfCnpj(),
         permitCode: validArgs.user.getPermitCode(),
-        amount: item.transactionValue,
-        paidAmount: item.paidValue,
-        status: isPaid ? 'Pago' : 'A pagar',
-        statusCode: isPaid ? 'paid' : 'toPay',
-        bankStatus: isPaid ? '00' : null,
-        bankStatusCode: isPaid ? 'Crédito ou Débito Efetivado' : null,
-        errors: [],
+        amount: amount,
+        paidAmount: paidAmount,
+        status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
+        errors,
       } as IBankStatement;
     });
     return getPagination<{ data: IBankStatement[] }>(
@@ -103,7 +171,7 @@ export class BankStatementsRepositoryService {
       },
       {
         dataLenght: statements.length,
-        maxCount: revenues.countAll,
+        maxCount: revenues.length,
       },
       pagination,
     );

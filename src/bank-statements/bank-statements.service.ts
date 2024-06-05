@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { differenceInDays, subDays } from 'date-fns';
+import { differenceInDays, isFriday, subDays } from 'date-fns';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
@@ -10,6 +10,7 @@ import { getPaymentDates, getPaymentWeek } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { BankStatementsRepositoryService } from './bank-statements-repository.service';
+import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-interval.enum';
 import { IBankStatement } from './interfaces/bank-statement.interface';
 import { IBSGetMeArgs } from './interfaces/bs-get-me-args.interface';
 import {
@@ -31,6 +32,18 @@ export class BankStatementsService {
     private readonly ticketRevenuesService: TicketRevenuesService,
   ) {}
 
+  /**
+   * - startDate
+   * - endDate
+   * - timeInterval
+   * - user (mandatory)
+   *
+   * Tasks:
+   * 1. Validar argumentos
+   * 2. Obter transacaoView no intervalo e filtros
+   * 3. Agrupar por dia/semana e somar
+   * 4. Reteornar variáveis a partir do próprio resultado do transacaoView.
+   */
   public async getMe(args: IBSGetMeArgs): Promise<IBSGetMeResponse> {
     const validArgs = await this.validateGetMe(args);
     let todaySum = 0;
@@ -93,6 +106,16 @@ export class BankStatementsService {
   /**
    * Get grouped bank statements
    * @throws `HttpException`
+   *
+   * - groupBy
+   * - startDate
+   * - endDate
+   * - timeInterval
+   * - user (mandatory)
+   *
+   * Tasks:
+   * 1. Obter transacaoView no intervalo e filtros
+   * 2. agrupar por dia/semana e somar
    */
   private async generateBankStatements(args: {
     groupBy: 'day' | 'week';
@@ -191,6 +214,26 @@ export class BankStatementsService {
     return { todaySum, allSum, countSum, statements: newStatements };
   }
 
+  // #region getMePreviousDays
+
+  /**
+   * - startDate (não existe, valor = startDate - mesmo dia)
+   * - endDate
+   * - timeInterval (não usado - padrão: mesmo dia)
+   * - user (obrigatório)
+   * - pagination: limit, offset
+   *
+   * Tarefas:
+   * 1. Validar argumentos
+   * 2. Obter transacaoView no intervalo e filtros
+   * 3. Agrupar por dia/semana e somar
+   * 4. Retornar o resultado do transacaoView, sem tratamentos.
+   *
+   * @param args.timeInterval
+   * `lastDay`: recebe o dia e retorna os dias anteriores desse dia
+   * `lastMonth`: recebe uma sexta-feira e retorna os dias de qui-qua dessa semana de pagamento.
+   *  Se não for sexta-feira, reotrna erro.
+   */
   public async getMePreviousDays(
     args: IBSGetMePreviousDaysArgs,
     paginationOptions: PaginationOptions,
@@ -202,11 +245,6 @@ export class BankStatementsService {
     );
   }
 
-  /**
-   * TODO: refactor
-   *
-   * Service: previous-days
-   */
   private async validateGetMePreviousDays(
     args: IBSGetMePreviousDaysArgs,
   ): Promise<IBSGetMePreviousDaysValidArgs> {
@@ -214,7 +252,14 @@ export class BankStatementsService {
       throw CommonHttpException.argNotType('userId', 'number', args?.userId);
     }
     const user = await this.usersService.getOne({ id: args?.userId });
-    if (!args?.endDate) {
+    if (
+      args?.timeInterval === BSMePrevDaysTimeIntervalEnum.LAST_WEEK &&
+      (!args?.endDate || !isFriday(new Date(args.endDate)))
+    ) {
+      throw CommonHttpException.message(
+        'timeInterval = `lastWeek` mas endDate não é sexta-feira.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
     }
     return {
       user: user,
@@ -222,4 +267,6 @@ export class BankStatementsService {
       timeInterval: args.timeInterval as unknown as TimeIntervalEnum,
     };
   }
+
+  // #endregion
 }
