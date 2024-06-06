@@ -35,7 +35,7 @@ export class BankStatementsService {
   /**
    * - startDate
    * - endDate
-   * - timeInterval
+   * - timeInterval (lastMonth)
    * - user (mandatory)
    *
    * Tasks:
@@ -96,8 +96,6 @@ export class BankStatementsService {
     const user = await this.usersService.getOne({ id: args?.userId });
 
     return {
-      startDate: args?.startDate,
-      endDate: args?.endDate,
       timeInterval: args?.timeInterval,
       user: user,
     };
@@ -116,6 +114,10 @@ export class BankStatementsService {
    * Tasks:
    * 1. Obter transacaoView no intervalo e filtros
    * 2. agrupar por dia/semana e somar
+   *
+   * Requisitos:
+   * - Cada semana exibe os valores de qui-qua
+   * - Não exibir semanas futuras
    */
   private async generateBankStatements(args: {
     groupBy: 'day' | 'week';
@@ -143,12 +145,19 @@ export class BankStatementsService {
     );
 
     // 2. Agrupar por semana e somar
-    const bankStatementsInterval = getPaymentDates({
+    let interval = getPaymentDates({
       endpoint: 'bank-statements',
       startDateStr: args?.startDate,
       endDateStr: args?.endDate,
       timeInterval: args?.timeInterval,
     });
+    if (args.timeInterval === TimeIntervalEnum.LAST_MONTH) {
+      // Ignorar a semana seguinte
+      interval = {
+        endDate: subDays(interval.endDate, 7),
+        startDate: interval.startDate,
+      };
+    }
 
     const todaySum = revenuesResponse.todaySum;
     let allSum = 0;
@@ -157,18 +166,15 @@ export class BankStatementsService {
     /** Como estamos fazendo slice, temos que equalizar o id de cada item */
     const maxId =
       Math.ceil(
-        differenceInDays(
-          bankStatementsInterval.endDate,
-          bankStatementsInterval.startDate,
-        ) / groupBy,
+        differenceInDays(interval.endDate, interval.startDate) / groupBy,
       ) + 1;
     let id = 0;
     const newStatements: IBankStatement[] = [];
 
     // 2.1 Gerar itens para cada dia/semana, mesmo que não tenha dados
     for (
-      let endDate = bankStatementsInterval.endDate;
-      endDate >= bankStatementsInterval.startDate;
+      let endDate = interval.endDate;
+      endDate >= interval.startDate;
       endDate = subDays(endDate, groupBy)
     ) {
       const dateInterval =
@@ -219,7 +225,7 @@ export class BankStatementsService {
   /**
    * - startDate (não existe, valor = startDate - mesmo dia)
    * - endDate
-   * - timeInterval (não usado - padrão: mesmo dia)
+   * - timeInterval (lastDay, lastWeek)
    * - user (obrigatório)
    * - pagination: limit, offset
    *

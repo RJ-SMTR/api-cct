@@ -111,7 +111,7 @@ export class BigqueryService {
           details: {
             message: String(error),
             error,
-          },
+        },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );

@@ -16,7 +16,10 @@ import { DateIntervalType } from './types/date-interval.type';
 export const PAYMENT_WEEKDAY = WeekdayEnum._5_FRIDAY;
 export const PAYMENT_START_WEEKDAY = WeekdayEnum._4_THURSDAY;
 export const PAYMENT_END_WEEKDAY = WeekdayEnum._3_WEDNESDAY;
-export type PaymentEndpointType = 'bank-statements' | 'ticket-revenues';
+export type PaymentEndpointType =
+  | 'bank-statements'
+  | 'bank-statements/previous-days'
+  | 'ticket-revenues';
 
 /**
  * From friday get starting thursday and ending wednesday
@@ -112,10 +115,19 @@ export function getPaymentDates(args: {
         endDate: endOfDay(new Date(endDateStr)),
       };
     } else {
-      return {
-        startDate: nextFriday(new Date(startDateStr)),
-        endDate: nextFriday(endOfDay(new Date(endDateStr))),
-      };
+      if (endpoint === 'bank-statements/previous-days') {
+        const qui = subDays(new Date(startDateStr), 1);
+        const qua = subDays(endOfDay(new Date(endDateStr)), 9);
+        return {
+          startDate: qui,
+          endDate: qua,
+        };
+      } else {
+        return {
+          startDate: nextFriday(new Date(startDateStr)),
+          endDate: nextFriday(endOfDay(new Date(endDateStr))),
+        };
+      }
     }
   } else if (endDateStr && !startDateStr && !timeInterval) {
     let endDate = endOfDay(new Date(endDateStr));
