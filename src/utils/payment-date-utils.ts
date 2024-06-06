@@ -96,6 +96,7 @@ export function getPaymentDates(args: {
   timeInterval?: TimeIntervalEnum;
 }): DateIntervalType {
   const { endpoint, endDateStr, startDateStr, timeInterval } = args;
+
   if (!validateDate(startDateStr, endDateStr, timeInterval)) {
     throw new HttpException(
       {
@@ -125,20 +126,33 @@ export function getPaymentDates(args: {
     return getPaymentWeek(endDate);
   } else if (timeInterval) {
     let endDate = new Date(endDateStr ? endDateStr : Date.now());
+
     if (!isFriday(endDate)) {
-      if (isSameMonth(endDate, nextFriday(endDate))) {
-        endDate = nextFriday(endDate);
+      const nextFri = nextFriday(endDate);
+      if (isSameMonth(endDate, nextFri)) {
+        endDate = nextFri;
       } else {
         endDate = previousFriday(endDate);
       }
     }
 
-    if (timeInterval === TimeIntervalEnum.LAST_WEEK) {
-      return getPaymentWeek(endDate, endpoint);
-    } else if (timeInterval === TimeIntervalEnum.LAST_2_WEEKS) {
-      return getPayment2Weeks(endDate, endpoint);
-    } else if (timeInterval === TimeIntervalEnum.LAST_MONTH) {
-      return getPaymentMonth(endDate, endpoint);
+    switch (timeInterval) {
+      case TimeIntervalEnum.LAST_WEEK:
+        return getPaymentWeek(endDate, endpoint);
+      case TimeIntervalEnum.LAST_2_WEEKS:
+        return getPayment2Weeks(endDate, endpoint);
+      case TimeIntervalEnum.LAST_MONTH:
+        return getPaymentMonth(endDate, endpoint);
+      default:
+        throw new HttpException(
+          {
+            errors: {
+              message: 'invalid request - unhandled combination',
+              args: { startDateStr, endDateStr, timeInterval },
+            },
+          },
+          HttpStatus.BAD_REQUEST,
+        );
     }
   } else {
     throw new HttpException(
@@ -151,6 +165,7 @@ export function getPaymentDates(args: {
       HttpStatus.BAD_REQUEST,
     );
   }
+
   return { startDate: new Date(Date.now()), endDate: new Date(Date.now()) };
 }
 
