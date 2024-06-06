@@ -5,11 +5,13 @@ import { asStringDate } from 'src/utils/pipe-utils';
 import {
   AfterLoad,
   Column,
+  CreateDateColumn,
   DeepPartial,
   Entity,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 @Entity()
@@ -81,6 +83,12 @@ export class TransacaoView {
   })
   arquivoPublicacao: ArquivoPublicacao | null;
 
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
   @AfterLoad()
   setReadValues() {
     this.valorTransacao = Number(this.valorTransacao);
@@ -131,6 +139,7 @@ export class TransacaoView {
       transportType: null,
       vehicleId: null,
       vehicleService: null,
+      arquivoPublicacao: this.arquivoPublicacao || undefined,
     });
   }
 }

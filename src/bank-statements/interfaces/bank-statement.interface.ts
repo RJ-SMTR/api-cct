@@ -18,9 +18,10 @@ export interface IBankStatement {
   permitCode: string;
   cpfCnpj: string;
   amount: number;
+  paidAmount: number;
 
   /** Business status message */
-  status: string;
+  status: string | null;
 
   /** Bank error message */
   errors: string[];

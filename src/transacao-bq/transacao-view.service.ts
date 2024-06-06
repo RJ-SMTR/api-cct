@@ -22,6 +22,9 @@ export class TransacaoViewService {
   async find(fields: EntityCondition<TransacaoView>, eager = true) {
     return await this.transacaoViewRepository.find({
       where: fields,
+      order: {
+        datetimeProcessamento: 'ASC',
+      },
       loadEagerRelations: eager,
     });
   }
@@ -76,7 +79,7 @@ export class TransacaoViewService {
         where: {
           idTransacao: In(transacaoIds),
         },
-        loadEagerRelations: false
+        loadEagerRelations: false,
       });
       existing.push(...existingSlice);
     }

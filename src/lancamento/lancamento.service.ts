@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { endOfDay, startOfDay } from 'date-fns';
+import { endOfDay, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { Between, In, IsNull, Like } from 'typeorm';
@@ -40,15 +40,18 @@ export class LancamentoService {
   // }
 
   /**
-   * Get unused data (no Transacao Id) from current payment week (thu-wed / qui-qua).
+   * Get unused data (no Transacao Id) from current payment week (sex-qui).
    */
-  findToPayToday(): Promise<LancamentoEntity[]> {
+  findToPayWeek(): Promise<LancamentoEntity[]> {
     const today = new Date();
+    const friday = isFriday(today) ? today : nextFriday(today);
+    const sex = startOfDay(subDays(friday, 7));
+    const qui = endOfDay(subDays(friday, 1));
     return this.lancamentoRepository.findMany({
       where: {
-        data_lancamento: Between(startOfDay(today), endOfDay(today)),
+        data_lancamento: Between(sex, qui),
         transacao: IsNull(),
-        auth_usersIds: Like('%,%'),
+        auth_usersIds: Like('%,%'), // At least 2 approved (1 comma)
       },
     });
   }

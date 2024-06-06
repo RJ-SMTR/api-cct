@@ -7,6 +7,12 @@ import { TimeIntervalEnum } from '../enums/time-interval.enum';
  * @type `Record<string, ApiParamOptions>`
  */
 export const DateApiParams = {
+  yearMonth: {
+    name: 'yearMonth',
+    required: false,
+    example: '2024-01',
+  } as ApiParamOptions,
+
   startDate: {
     name: 'startDate',
     required: false,
@@ -44,6 +50,9 @@ export const DateApiParams = {
       required: required,
       description: DescriptionApiParam({
         default: defaultEnumValue,
+        about:
+          '`lastDay`: recebe o dia e retorna os dias anteriores desse dia. <br>' +
+          '`lastMonth`: recebe uma sexta-feira e retorna os dias de qui-qua dessa semana de pagamento.',
       }),
       example: defaultEnumValue,
       enum: enumType,

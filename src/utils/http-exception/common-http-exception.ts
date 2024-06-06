@@ -16,6 +16,15 @@ export const CommonHttpException = {
       },
       httpStatusCode,
     ),
+  message: (errorMessage: string, httpStatusCode?: HttpStatus) =>
+    new HttpException(
+      {
+        error: {
+          message: errorMessage,
+        },
+      },
+      httpStatusCode || HttpStatus.INTERNAL_SERVER_ERROR,
+    ),
   invalidField: (
     entity: string,
     fieldName: string,
@@ -65,10 +74,10 @@ export const CommonHttpException = {
         error: error || getHttpStatusMessage(httpStatusCode),
         ...(notFoundProp
           ? {
-            details: {
-              [notFoundProp]: 'not found',
-            },
-          }
+              details: {
+                [notFoundProp]: 'not found',
+              },
+            }
           : {}),
       },
       httpStatusCode,
@@ -86,8 +95,8 @@ export const CommonHttpException = {
         ...(detailsOnly
           ? {}
           : {
-            error: `O campo ${field} deveria ser um ${expectedType} mas recebeu '${value}'`,
-          }),
+              error: `O campo ${field} deveria ser um ${expectedType} mas recebeu '${value}'`,
+            }),
         details: {
           [field]: `O campo ${field} deveria ser um ${expectedType} mas recebeu '${value}'`,
         },

@@ -669,6 +669,11 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async saveTransacoesLancamento1() {
     const METHOD = this.saveTransacoesLancamento1.name;
+
+    if (!(await this.getIsCnabJobEnabled(METHOD))) {
+      return;
+    }
+
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
       await this.cnabService.saveTransacoesLancamento();
