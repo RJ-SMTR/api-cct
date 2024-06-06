@@ -64,6 +64,12 @@ export class TransacaoView {
 
   @Column({ type: String, nullable: true })
   tipoTransacao: string | null;
+ 
+  @Column({ type: String, nullable: true })
+  tipoTransacaoSMTR: string | null;
+
+  @Column({ type: 'numeric' })
+  valorPagamento: number;
 
   @Column({ type: String, nullable: true })
   tipoGratuidade: string | null;
