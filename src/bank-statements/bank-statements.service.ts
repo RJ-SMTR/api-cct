@@ -194,8 +194,8 @@ export class BankStatementsService {
       const errors = [
         ...new Set(revenuesWeek.reduce((l, i) => [...l, ...i.errors], [])),
       ];
-      const amount = Number(weekPaidAmount.toFixed(2));
-      const paidAmount = Number(weekAmount.toFixed(2));
+      const paidAmount = Number(weekPaidAmount.toFixed(2));
+      const amount = Number(weekAmount.toFixed(2));
       newStatements.push({
         id: maxId - id,
         amount,
