@@ -151,6 +151,11 @@ export function getPaymentDates(args: {
           } else {
             r.endDate = previousFriday(r.endDate);
           }
+          const today = new Date();
+          const thisFriday = isFriday(today) ? today : nextFriday(today);
+          if (r.endDate > thisFriday) {
+            r.endDate = thisFriday;
+          }
         }
         return r;
       } else {
@@ -208,11 +213,13 @@ export function validateDate(
   endDateStr?: string,
   timeInterval?: TimeIntervalEnum,
 ): boolean {
-  if (
+  const invalidCombination =
     startDateStr === undefined &&
     endDateStr === undefined &&
-    timeInterval === undefined
-  ) {
+    timeInterval === undefined;
+  const invalidDate =
+    startDateStr && startOfDay(new Date(startDateStr)) > startOfDay(new Date());
+  if (invalidCombination || invalidDate) {
     return false;
   } else {
     return true;
