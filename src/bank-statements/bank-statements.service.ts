@@ -1,5 +1,13 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { differenceInDays, isFriday, subDays } from 'date-fns';
+import {
+  differenceInDays,
+  endOfDay,
+  endOfMonth,
+  isFriday,
+  startOfDay,
+  startOfMonth,
+  subDays,
+} from 'date-fns';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
@@ -35,7 +43,7 @@ export class BankStatementsService {
   /**
    * - startDate
    * - endDate
-   * - timeInterval
+   * - timeInterval (lastMonth)
    * - user (mandatory)
    *
    * Tasks:
@@ -46,7 +54,6 @@ export class BankStatementsService {
    */
   public async getMe(args: IBSGetMeArgs): Promise<IBSGetMeResponse> {
     const validArgs = await this.validateGetMe(args);
-    let todaySum = 0;
     const bsData = await this.generateBankStatements({
       groupBy: 'week',
       startDate: validArgs.startDate,
@@ -54,7 +61,6 @@ export class BankStatementsService {
       timeInterval: validArgs.timeInterval,
       user: validArgs.user,
     });
-    todaySum = bsData.todaySum;
     const amountSum = Number(
       bsData.statements.reduce((sum, item) => sum + item.amount, 0).toFixed(2),
     );
@@ -65,6 +71,7 @@ export class BankStatementsService {
     );
     const ticketCount = bsData.countSum;
 
+    const todaySum = bsData.todaySum;
     return {
       amountSum,
       paidSum,
@@ -95,10 +102,14 @@ export class BankStatementsService {
     // For now it validates if user exists
     const user = await this.usersService.getOne({ id: args?.userId });
 
+    // convert timeInterval into start/endDates
+
     return {
-      startDate: args?.startDate,
-      endDate: args?.endDate,
       timeInterval: args?.timeInterval,
+      startDate: startOfMonth(
+        startOfDay(new Date(args.yearMonth)),
+      ).toISOString(),
+      endDate: endOfMonth(endOfDay(new Date(args.yearMonth))).toISOString(),
       user: user,
     };
   }
@@ -116,6 +127,10 @@ export class BankStatementsService {
    * Tasks:
    * 1. Obter transacaoView no intervalo e filtros
    * 2. agrupar por dia/semana e somar
+   *
+   * Requisitos:
+   * - Cada semana exibe os valores de qui-qua
+   * - Não exibir semanas futuras
    */
   private async generateBankStatements(args: {
     groupBy: 'day' | 'week';
@@ -143,12 +158,16 @@ export class BankStatementsService {
     );
 
     // 2. Agrupar por semana e somar
-    const bankStatementsInterval = getPaymentDates({
+    const fridays = getPaymentDates({
       endpoint: 'bank-statements',
       startDateStr: args?.startDate,
       endDateStr: args?.endDate,
       timeInterval: args?.timeInterval,
     });
+    // const quiQuaInterval = {
+    //   startDate: subDays(fridays.startDate, 8),
+    //   endDate: subDays(fridays.endDate, 2),
+    // }
 
     const todaySum = revenuesResponse.todaySum;
     let allSum = 0;
@@ -157,20 +176,18 @@ export class BankStatementsService {
     /** Como estamos fazendo slice, temos que equalizar o id de cada item */
     const maxId =
       Math.ceil(
-        differenceInDays(
-          bankStatementsInterval.endDate,
-          bankStatementsInterval.startDate,
-        ) / groupBy,
+        differenceInDays(fridays.endDate, fridays.startDate) / groupBy,
       ) + 1;
     let id = 0;
     const newStatements: IBankStatement[] = [];
 
-    // 2.1 Gerar itens para cada dia/semana, mesmo que não tenha dados
+    // 2.1 Gerar itens para cada dia/semana, mesmo que não tenha dados (qui-qua por semana)
     for (
-      let endDate = bankStatementsInterval.endDate;
-      endDate >= bankStatementsInterval.startDate;
+      let endDate = fridays.endDate;
+      endDate >= fridays.startDate;
       endDate = subDays(endDate, groupBy)
     ) {
+      /** Se for semanal, pega de qui-qua */
       const dateInterval =
         args.groupBy === 'week'
           ? getPaymentWeek(endDate)
@@ -194,8 +211,8 @@ export class BankStatementsService {
       const errors = [
         ...new Set(revenuesWeek.reduce((l, i) => [...l, ...i.errors], [])),
       ];
-      const paidAmount = Number(weekPaidAmount.toFixed(2));
       const amount = Number(weekAmount.toFixed(2));
+      const paidAmount = Number(weekPaidAmount.toFixed(2));
       newStatements.push({
         id: maxId - id,
         amount,
@@ -219,7 +236,7 @@ export class BankStatementsService {
   /**
    * - startDate (não existe, valor = startDate - mesmo dia)
    * - endDate
-   * - timeInterval (não usado - padrão: mesmo dia)
+   * - timeInterval (lastDay, lastWeek)
    * - user (obrigatório)
    * - pagination: limit, offset
    *

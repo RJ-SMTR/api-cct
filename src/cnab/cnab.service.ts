@@ -102,10 +102,10 @@ export class CnabService {
     await this.updateTransacaoBigquery();
 
     // 3. Update ordens
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(7);
     await this.saveOrdens(ordens);
 
-    await this.compareTransacaoViewPublicacao();
+    await this.compareTransacaoViewPublicacao(21);
 
     // Log
     const msg = `Há ${ordens.length} ordens consideradas novas.`;

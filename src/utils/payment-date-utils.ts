@@ -12,11 +12,15 @@ import {
 import { TimeIntervalEnum } from './enums/time-interval.enum';
 import { WeekdayEnum } from './enums/weekday.enum';
 import { DateIntervalType } from './types/date-interval.type';
+import { isSameNthWeek } from './date-utils';
 
 export const PAYMENT_WEEKDAY = WeekdayEnum._5_FRIDAY;
 export const PAYMENT_START_WEEKDAY = WeekdayEnum._4_THURSDAY;
 export const PAYMENT_END_WEEKDAY = WeekdayEnum._3_WEDNESDAY;
-export type PaymentEndpointType = 'bank-statements' | 'ticket-revenues';
+export type PaymentEndpointType =
+  | 'bank-statements'
+  | 'bank-statements/previous-days'
+  | 'ticket-revenues';
 
 /**
  * From friday get starting thursday and ending wednesday
@@ -105,17 +109,62 @@ export function getPaymentDates(args: {
     );
   }
 
-  if (endDateStr && startDateStr) {
+  if (startDateStr && endDateStr) {
     if (endpoint === 'ticket-revenues') {
       return {
         startDate: new Date(startDateStr),
         endDate: endOfDay(new Date(endDateStr)),
       };
     } else {
-      return {
-        startDate: nextFriday(new Date(startDateStr)),
-        endDate: nextFriday(endOfDay(new Date(endDateStr))),
-      };
+      if (endpoint === 'bank-statements/previous-days') {
+        const qui = subDays(new Date(startDateStr), 1);
+        const qua = subDays(endOfDay(new Date(endDateStr)), 9);
+        return {
+          startDate: qui,
+          endDate: qua,
+        };
+      } else if (timeInterval) {
+        /**
+         * r = rseult.
+         * endpoint = bank-statements.
+         * start/end dates recebidos são início e fim do mês.
+         * Deve retornar a 1a e última sexta do mês.
+         */
+        const r = {
+          startDate: new Date(startDateStr),
+          endDate: new Date(endDateStr),
+        };
+        // startDate: sexta atual ou a próxima sexta
+        if (!isFriday(r.startDate)) {
+          r.startDate = nextFriday(r.startDate);
+        }
+        // endDate: sexta atual ou a próxima sexta se for mesmo mês, senão, sexta anterior
+        if (!isFriday(r.endDate)) {
+          const isSameInterval =
+            timeInterval === TimeIntervalEnum.LAST_MONTH
+              ? isSameMonth
+              : (d1: Date, d2: Date) =>
+                  isSameNthWeek(d1, d2, WeekdayEnum._4_THURSDAY);
+
+          if (isSameInterval(r.endDate, nextFriday(r.endDate))) {
+            r.endDate = nextFriday(r.endDate);
+          } else {
+            r.endDate = previousFriday(r.endDate);
+          }
+        }
+        return r;
+      } else {
+        throw new HttpException(
+          {
+            errors: {
+              message:
+                'requisição inválida - bank-statements precisa de timeInterval',
+              args: { startDateStr, endDateStr, timeInterval },
+            },
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
     }
   } else if (endDateStr && !startDateStr && !timeInterval) {
     let endDate = endOfDay(new Date(endDateStr));
