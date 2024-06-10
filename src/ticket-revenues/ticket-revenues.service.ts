@@ -5,7 +5,7 @@ import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { getDateNthWeek } from 'src/utils/date-utils';
+import { getNthWeek } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import { logError } from 'src/utils/log-utils';
@@ -328,7 +328,7 @@ export class TicketRevenuesService {
       (group: TicketRevenuesGroups, item: ITicketRevenue) => {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
         const itemDate = new Date(item.processingDateTime);
-        const nthWeek = getDateNthWeek(itemDate, startWeekday);
+        const nthWeek = getNthWeek(itemDate, startWeekday);
         const foundDetalhesA = detalhesA.filter(
           (i) =>
             i.itemTransacaoAgrupado.id ===

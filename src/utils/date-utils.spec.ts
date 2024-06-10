@@ -1,4 +1,5 @@
-import { isPaymentWeekComplete } from './date-utils';
+import { getNthWeek, isPaymentWeekComplete, isSameNthWeek } from './date-utils';
+import { WeekdayEnum } from './enums/weekday.enum';
 
 process.env.TZ = 'UTC';
 
@@ -210,6 +211,75 @@ describe('date-utils', () => {
 
       // Assert
       expect(isComplete).toBeFalsy();
+    });
+  });
+
+  describe('isSameNthWeek', () => {
+    it('Should be true if fri - thu is the same payment week', /**
+     * Expected logic:
+     * ```
+     * Payment week
+     * ╔════════════════════╗
+     * ║ Febuary       2023 ║
+     * ╟──┬──┬──┬──┬──┬──┬──╢
+     * ║Su│Mo│Tu│We│Th│Fr│Sa║
+     * ╟──┼──┼──┼──┼──╔══╗──╢
+     * ║  |  |  |01│02║03║04║
+     * ╟──┼──┼──┼──╔══╗══╝──╢
+     * ║05│06│07│08║09║10│11║
+     * ╟──┼──┼──┼──╚══╝──┼──╢
+     * ║12│13│14│15│16│17│18║
+     * ╟──┼──┼──┼──┼──┼──┼──╢
+     * ║19│20│21│22│23│24│25║
+     * ╟──┼──┼──┼──┼──┼──┼──╢
+     * ║26│27│28|29|30|  |  ║
+     * ╚══╧══╧══╧══╧══╧══╧══╝
+     * ```
+     */ () => {
+      // Act
+      const isTheSame = isSameNthWeek(
+        new Date('2023-02-03'),
+        new Date('2023-02-09'),
+        WeekdayEnum._5_FRIDAY,
+      );
+
+      // Assert
+      expect(isTheSame).toBeTruthy();
+    });
+  });
+
+  describe('getNthWeek', () => {
+    it('Should match nthWeek correctly', () => {
+      // Act
+      const testWeekDay = WeekdayEnum._5_FRIDAY;
+      const test = {
+        _01dom: getNthWeek(new Date('2024-06-02'), testWeekDay),
+        _02seg: getNthWeek(new Date('2024-06-03'), testWeekDay),
+        _03ter: getNthWeek(new Date('2024-06-04'), testWeekDay),
+        _04qua: getNthWeek(new Date('2024-06-05'), testWeekDay),
+        _05qui: getNthWeek(new Date('2024-06-06'), testWeekDay),
+        _06sex: getNthWeek(new Date('2024-06-07'), testWeekDay),
+        _07sab: getNthWeek(new Date('2024-06-08'), testWeekDay),
+        _08dom: getNthWeek(new Date('2024-06-09'), testWeekDay),
+        _09seg: getNthWeek(new Date('2024-06-10'), testWeekDay),
+        _10ter: getNthWeek(new Date('2024-06-11'), testWeekDay),
+        _11qua: getNthWeek(new Date('2024-06-12'), testWeekDay),
+        _12qui: getNthWeek(new Date('2024-06-13'), testWeekDay),
+        _13sex: getNthWeek(new Date('2024-06-14'), testWeekDay),
+        _14sab: getNthWeek(new Date('2024-06-15'), testWeekDay),
+      };
+
+      // Assert
+      expect(test._04qua).toEqual(2839);
+      expect(test._05qui).toEqual(2839);
+      expect(test._06sex).toEqual(2840);
+      expect(test._07sab).toEqual(2840);
+      expect(test._08dom).toEqual(2840);
+      expect(test._09seg).toEqual(2840);
+      expect(test._10ter).toEqual(2840);
+      expect(test._11qua).toEqual(2840);
+      expect(test._12qui).toEqual(2840);
+      expect(test._13sex).toEqual(2841);
     });
   });
 });

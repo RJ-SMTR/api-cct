@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { differenceInDays, isFriday, subDays } from 'date-fns';
+import { differenceInDays, endOfDay, endOfMonth, isFriday, startOfDay, startOfMonth, subDays } from 'date-fns';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
@@ -95,8 +95,12 @@ export class BankStatementsService {
     // For now it validates if user exists
     const user = await this.usersService.getOne({ id: args?.userId });
 
+    // convert timeInterval into start/endDates
+
     return {
       timeInterval: args?.timeInterval,
+      startDate: startOfMonth(startOfDay(new Date(args.yearMonth))).toISOString(),
+      endDate: endOfMonth(endOfDay(new Date(args.yearMonth))).toISOString(),
       user: user,
     };
   }
@@ -145,19 +149,12 @@ export class BankStatementsService {
     );
 
     // 2. Agrupar por semana e somar
-    let interval = getPaymentDates({
+    const interval = getPaymentDates({
       endpoint: 'bank-statements',
       startDateStr: args?.startDate,
       endDateStr: args?.endDate,
       timeInterval: args?.timeInterval,
     });
-    if (args.timeInterval === TimeIntervalEnum.LAST_MONTH) {
-      // Ignorar a semana seguinte
-      interval = {
-        endDate: subDays(interval.endDate, 7),
-        startDate: interval.startDate,
-      };
-    }
 
     const todaySum = revenuesResponse.todaySum;
     let allSum = 0;

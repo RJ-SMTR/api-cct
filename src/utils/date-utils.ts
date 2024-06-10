@@ -33,16 +33,23 @@ function getDaysToAdd(currentWeekday: number, desiredWeekday: number) {
   return daysToAdd;
 }
 
-export function getDateNthWeek(dateInput: Date, startWeekday: number): number {
-  const epochDate = new Date(1970, 0, 1);
+export function getNthWeek(dateInput: Date, startDay: number): number {
+  const epochDate = new Date(1970, 0, 4);
+  const epochStartDay = epochDate.getDay();
   epochDate.setDate(
-    epochDate.getDate() + getDaysToAdd(epochDate.getDay(), startWeekday),
+    epochDate.getDate() + getDaysToAdd(epochStartDay, startDay),
   );
   const millisecondsDifference = dateInput.getTime() - epochDate.getTime();
   const millisecondsInAWeek = 7 * 24 * 60 * 60 * 1000;
   const nthWeekNumber =
     Math.floor(millisecondsDifference / millisecondsInAWeek) + 1;
   return nthWeekNumber;
+}
+
+export function isSameNthWeek(date1: Date, date2: Date, startDay: number) {
+  const nthWeek1 = getNthWeek(date1, startDay);
+  const nthWeek2 = getNthWeek(date2, startDay);
+  return nthWeek1 === nthWeek2;
 }
 
 export function getStartEndDates(args: {
@@ -145,7 +152,7 @@ export function isValidDate(value: any): boolean {
 
 /**
  * Converts year-month=day string into Date with correct weekday
- * 
+ *
  * @param ymd Example: `2024-05-10`
  */
 export function yearMonthDayToDate(ymd: string) {
