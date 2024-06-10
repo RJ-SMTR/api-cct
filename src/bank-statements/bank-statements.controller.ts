@@ -48,6 +48,7 @@ export class BankStatementsController {
    * 1. Ler TransacaoView e agrupar por cada semana (qui-qua)
    * 2. Para o mês selecionado pega todas as sextas do mês
    * 3. Para cada sexta mostrará a soma dos valores de qui-qua
+   *    Incluindo dias anteriores se a dataProcessamento estiver naquela semana.
    *
    * @param timeInterval Apenas mensal
    */
