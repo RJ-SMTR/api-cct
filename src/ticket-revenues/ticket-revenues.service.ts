@@ -116,17 +116,6 @@ export class TicketRevenuesService {
     });
     const groupBy = args?.groupBy || 'day';
 
-    /**
-     * TransacaoView (catracada)
-     * 4,9
-     * 4,9
-     * 4,9
-     * 4,9
-     *
-     * ArquivoPublicacao (pagamento das catracadas)
-     * 16,1
-     */
-
     // Repository tasks
     let ticketRevenuesResponse: ITicketRevenue[] = await this.findTransacaoView(
       { cpfCnpj: user.getCpfCnpj(), startDate, endDate },
@@ -134,7 +123,10 @@ export class TicketRevenuesService {
 
     const publicacaoIdsAux: number[] = [];
     const paidSum = ticketRevenuesResponse.reduce((s, i) => {
-      const publicacaoId: number = i.arquivoPublicacao?.id || -1;
+      const publicacaoId = i.arquivoPublicacao?.id;
+      if (!publicacaoId) {
+        return s;
+      }
       if (publicacaoId && publicacaoIdsAux.includes(publicacaoId)) {
         return s;
       } else {
@@ -345,9 +337,9 @@ export class TicketRevenuesService {
         );
 
         // 'day', default,
-        let dateGroup: string | number = item.processingDateTime.slice(0, 10);
+        let dateGroup = item.processingDateTime.slice(0, 10);
         if (groupBy === 'week') {
-          dateGroup = nthWeek;
+          dateGroup = String(nthWeek);
         }
         if (groupBy === 'month') {
           dateGroup = itemDate.toISOString().slice(0, 7);
