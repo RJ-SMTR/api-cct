@@ -67,7 +67,10 @@ import { TransacaoViewModule } from './transacao-bq/transacao-view.module';
     TypeOrmModule.forRootAsync({
       useClass: TypeOrmConfigService,
       dataSourceFactory: async (options: DataSourceOptions) => {
-        return new DataSource(options).initialize();
+        return new DataSource({
+          ...options,
+          logging: true,
+        }).initialize();
       },
     }),
     MailerModule.forRootAsync({
