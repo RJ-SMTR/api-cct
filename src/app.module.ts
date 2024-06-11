@@ -1,5 +1,5 @@
 import { MailerModule } from '@nestjs-modules/mailer';
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HeaderResolver } from 'nestjs-i18n';
@@ -45,6 +45,7 @@ import { TicketRevenuesModule } from './ticket-revenues/ticket-revenues.module';
 import { UsersModule } from './users/users.module';
 import { TransacaoViewService } from './transacao-bq/transacao-view.service';
 import { TransacaoViewModule } from './transacao-bq/transacao-view.module';
+import { AppLoggerMiddleware } from './utils/logger-middleware';
 
 @Module({
   imports: [
@@ -123,4 +124,8 @@ import { TransacaoViewModule } from './transacao-bq/transacao-view.module';
   ],
   providers: [TransacaoViewService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AppLoggerMiddleware).forRoutes('*');
+  }
+}
