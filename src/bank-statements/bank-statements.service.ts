@@ -154,7 +154,7 @@ export class BankStatementsService {
         groupBy: 'day',
       },
       { limit: 9999, page: 1 },
-      'ticket-revenues',
+      'bank-statements>ticket-revenues',
     );
 
     // 2. Agrupar por semana e somar

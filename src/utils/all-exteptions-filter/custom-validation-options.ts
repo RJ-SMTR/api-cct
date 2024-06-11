@@ -4,6 +4,7 @@
  */
 
 import { ValidationOptions } from 'class-validator';
+import { asJSONStrOrObj } from '../pipe-utils';
 import { HttpExceptionResponse } from './interfaces/http-exception-response.interface';
 
 export interface CustomValidationOptions extends ValidationOptions {
@@ -76,7 +77,7 @@ export function getCustomValidationOptions(
   };
   let decodedLowestStatus: SerializedValidationOptions | undefined;
   for (const [errorKey, errorValue] of Object.entries(errorResponse.errors)) {
-    const substrings = errorValue
+    const substrings = asJSONStrOrObj(errorValue)
       .split(/,(?![^{}]*})/)
       .map((substring) => substring.trim());
     const list: DecodedList = {
