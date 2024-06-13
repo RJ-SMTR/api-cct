@@ -23,6 +23,8 @@ export class ItemTransacaoAgrupado extends EntityHelper {
     }
   }
 
+  private readonly FKs = ['transacaoAgrupado', 'clienteFavorecido'];
+
   @PrimaryGeneratedColumn({
     primaryKeyConstraintName: 'PK_ItemTransacaoAgrupado_id',
   })

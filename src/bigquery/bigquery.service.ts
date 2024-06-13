@@ -2,17 +2,23 @@ import { BigQuery } from '@google-cloud/bigquery';
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AllConfigType } from 'src/config/config.type';
-import { formatSqlQuery, formatSqlTitle, formatSqlTitleFailed } from 'src/utils/console-utils';
+import {
+  formatSqlQuery,
+  formatSqlTitle,
+  formatSqlTitleFailed,
+} from 'src/utils/console-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 
-export enum BQSInstances {
+export enum BigquerySource {
   smtr = 'smtr',
 }
 
 @Injectable()
 export class BigqueryService {
   private bigQueryInstances: Record<string, BigQuery> = {};
-  private logger: Logger = new CustomLogger(BigqueryService.name, { timestamp: true });
+  private logger: Logger = new CustomLogger(BigqueryService.name, {
+    timestamp: true,
+  });
 
   constructor(private configService: ConfigService<AllConfigType>) {
     const jsonCredentials = () => {
@@ -70,7 +76,7 @@ export class BigqueryService {
     });
   }
 
-  public getBqInstance(option: BQSInstances): BigQuery {
+  public getBqInstance(option: BigquerySource): BigQuery {
     const bqInstance = this.bigQueryInstances[option];
     if (bqInstance !== undefined) {
       return bqInstance;
@@ -81,7 +87,7 @@ export class BigqueryService {
         details: {
           message: 'invalid bqService chosen',
           bqInstances: Object.keys(this.bigQueryInstances),
-          availableOptions: Object.values(BQSInstances),
+          availableOptions: Object.values(BigquerySource),
         },
       },
       HttpStatus.INTERNAL_SERVER_ERROR,
@@ -92,12 +98,12 @@ export class BigqueryService {
    * Run bigquery query with complete log and error handling
    * @throws `HttpException`
    */
-  public async query(bqInstance: BQSInstances, query: string) {
+  public async query(source: BigquerySource, query: string) {
     this.logger.debug('Query fetch started');
     const _query = query.replace(/\n(\s +)(?=\S)/g, ' ').replace(/\n+/gm, ' ');
-    console.log(`${formatSqlTitle('bigquery')} ${formatSqlQuery(_query)}`);
+    console.log(`${formatSqlTitle('bigquery:')} ${formatSqlQuery(_query)}`);
     try {
-      const [rows] = await this.getBqInstance(bqInstance).query({
+      const [rows] = await this.getBqInstance(source).query({
         query: _query,
       });
       this.logger.debug(`Query fetch finished. Count: ${rows.length}`);
@@ -111,7 +117,7 @@ export class BigqueryService {
           details: {
             message: String(error),
             error,
-        },
+          },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );

@@ -121,19 +121,7 @@ export class TicketRevenuesService {
       { cpfCnpj: user.getCpfCnpj(), startDate, endDate },
     );
 
-    const publicacaoIdsAux: number[] = [];
-    const paidSum = ticketRevenuesResponse.reduce((s, i) => {
-      const publicacaoId = i.arquivoPublicacao?.id;
-      if (!publicacaoId) {
-        return s;
-      }
-      if (publicacaoId && publicacaoIdsAux.includes(publicacaoId)) {
-        return s;
-      } else {
-        publicacaoIdsAux.push(publicacaoId);
-        return s + (i.arquivoPublicacao?.valorRealEfetivado || 0);
-      }
-    }, 0);
+    const paidSum = ticketRevenuesResponse.reduce((s, i) => s + i.paidValue, 0);
 
     if (ticketRevenuesResponse.length === 0) {
       return {

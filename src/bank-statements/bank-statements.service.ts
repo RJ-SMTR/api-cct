@@ -19,15 +19,15 @@ import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { BankStatementsRepositoryService } from './bank-statements-repository.service';
 import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-interval.enum';
-import { IBankStatement } from './interfaces/bank-statement.interface';
+import { BankStatementDTO } from './dtos/bank-statement.dto';
 import { IBSGetMeArgs } from './interfaces/bs-get-me-args.interface';
 import {
   IBSGetMePreviousDaysArgs,
   IBSGetMePreviousDaysValidArgs,
 } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
-import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
 import { IGetBSResponse } from './interfaces/get-bs-response.interface';
+import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
 
 /**
  * Get weekly statements
@@ -66,6 +66,7 @@ export class BankStatementsService {
     );
     const paidSum = Number(
       bsData.statements
+        .filter(i => i.status === 'Pago')
         .reduce((sum, item) => sum + item.paidAmount, 0)
         .toFixed(2),
     );
@@ -179,7 +180,7 @@ export class BankStatementsService {
         differenceInDays(fridays.endDate, fridays.startDate) / groupBy,
       ) + 1;
     let id = 0;
-    const newStatements: IBankStatement[] = [];
+    const newStatements: BankStatementDTO[] = [];
 
     // 2.1 Gerar itens para cada dia/semana, mesmo que não tenha dados (qui-qua por semana)
     for (
@@ -213,17 +214,19 @@ export class BankStatementsService {
       ];
       const amount = Number(weekAmount.toFixed(2));
       const paidAmount = Number(weekPaidAmount.toFixed(2));
-      newStatements.push({
-        id: maxId - id,
-        amount,
-        paidAmount,
-        cpfCnpj: args.user.getCpfCnpj(),
-        date: getDateYMDString(endDate),
-        effectivePaymentDate: isPago ? getDateYMDString(endDate) : null,
-        permitCode: args.user.getPermitCode(),
-        status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
-        errors: errors,
-      });
+      newStatements.push(
+        new BankStatementDTO({
+          id: maxId - id,
+          amount,
+          paidAmount,
+          cpfCnpj: args.user.getCpfCnpj(),
+          date: getDateYMDString(endDate),
+          effectivePaymentDate: isPago ? getDateYMDString(endDate) : null,
+          permitCode: args.user.getPermitCode(),
+          status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
+          errors: errors,
+        }),
+      );
       allSum += Number(weekAmount.toFixed(2));
       id += 1;
     }

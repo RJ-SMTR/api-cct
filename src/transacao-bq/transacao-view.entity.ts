@@ -14,6 +14,13 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+/**
+ * Unique: [datetimeTransacao, datetimeProcessamento]
+ */
+// @Unique('UQ_TransacaoView_datetimeTransacao_datetimeProcessamento', [
+//   'datetimeTransacao',
+//   'datetimeProcessamento',
+// ])
 @Entity()
 export class TransacaoView {
   constructor(transacao?: DeepPartial<TransacaoView>) {
@@ -71,6 +78,9 @@ export class TransacaoView {
   @Column({ type: 'numeric' })
   valorTransacao: number;
 
+  @Column({ type: 'numeric', nullable: true })
+  valorPago: number | null;
+
   @Column({ type: String, nullable: true })
   operadoraCpfCnpj: string | null;
 
@@ -92,6 +102,7 @@ export class TransacaoView {
   @AfterLoad()
   setReadValues() {
     this.valorTransacao = Number(this.valorTransacao);
+    this.valorPago = Number(this.valorPago);
   }
 
   public static newFromBigquery(bq: BigqueryTransacao) {
@@ -109,6 +120,7 @@ export class TransacaoView {
       tipoPagamento: bq.tipo_pagamento,
       tipoTransacao: bq.tipo_transacao,
       valorTransacao: bq.valor_transacao,
+      valorPago: bq.valor_pagamento,
       operadoraCpfCnpj: bq.operadoraCpfCnpj,
       consorcioCnpj: bq.consorcioCnpj,
     });
@@ -133,7 +145,7 @@ export class TransacaoView {
       transactionLat: null,
       transactionLon: null,
       transactionType: this.tipoTransacao,
-      paidValue: this.arquivoPublicacao?.valorRealEfetivado || 0,
+      paidValue: this.valorPago || 0,
       transactionValue: this.valorTransacao,
       transportIntegrationType: null,
       transportType: null,
@@ -141,5 +153,30 @@ export class TransacaoView {
       vehicleService: null,
       arquivoPublicacao: this.arquivoPublicacao || undefined,
     });
+  }
+
+  getProperties() {
+    return {
+      id: this.id,
+      datetimeTransacao: this.datetimeTransacao,
+      datetimeProcessamento: this.datetimeProcessamento,
+      datetimeCaptura: this.datetimeCaptura,
+      modo: this.modo,
+      idConsorcio: this.idConsorcio,
+      nomeConsorcio: this.nomeConsorcio,
+      idOperadora: this.idOperadora,
+      nomeOperadora: this.nomeOperadora,
+      idTransacao: this.idTransacao,
+      tipoPagamento: this.tipoPagamento,
+      tipoTransacao: this.tipoTransacao,
+      tipoGratuidade: this.tipoGratuidade,
+      valorTransacao: this.valorTransacao,
+      valorPago: this.valorPago,
+      operadoraCpfCnpj: this.operadoraCpfCnpj,
+      consorcioCnpj: this.consorcioCnpj,
+      arquivoPublicacao: this.arquivoPublicacao,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 }

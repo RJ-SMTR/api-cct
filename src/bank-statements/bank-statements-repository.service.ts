@@ -1,10 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  endOfDay,
-  nextFriday,
-  startOfDay,
-  subDays
-} from 'date-fns';
+import { endOfDay, nextFriday, startOfDay, subDays } from 'date-fns';
 import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
@@ -14,7 +9,7 @@ import { getPagination } from 'src/utils/get-pagination';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { In } from 'typeorm';
-import { IBankStatement } from './interfaces/bank-statement.interface';
+import { BankStatementDTO } from './dtos/bank-statement.dto';
 import { IBSCounts } from './interfaces/bs-counts.interface';
 import { IBSGetMePreviousDaysValidArgs } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
@@ -84,7 +79,7 @@ export class BankStatementsRepositoryService {
     endDate: string;
     timeInterval?: TimeIntervalEnum;
     paginationArgs?: PaginationOptions;
-  }): Promise<Pagination<{ data: IBankStatement[] }>> {
+  }): Promise<Pagination<{ data: BankStatementDTO[] }>> {
     const pagination = validArgs.paginationArgs
       ? validArgs.paginationArgs
       : { limit: 9999, page: 1 };
@@ -163,9 +158,9 @@ export class BankStatementsRepositoryService {
         paidAmount: paidAmount,
         status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
         errors,
-      } as IBankStatement;
+      } as BankStatementDTO;
     });
-    return getPagination<{ data: IBankStatement[] }>(
+    return getPagination<{ data: BankStatementDTO[] }>(
       {
         data: statements,
       },
@@ -178,7 +173,7 @@ export class BankStatementsRepositoryService {
   }
 
   private generateStatusCounts(
-    data: IBankStatement[],
+    data: BankStatementDTO[],
   ): Record<string, IBSCounts> {
     const statusCounts: Record<string, IBSCounts> = {};
     for (const item of data) {

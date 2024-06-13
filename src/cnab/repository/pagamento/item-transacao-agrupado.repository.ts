@@ -26,6 +26,31 @@ export class ItemTransacaoAgrupadoRepository {
     private itemTransacaoAgRepository: Repository<ItemTransacaoAgrupado>,
   ) {}
 
+  public async insertAsNew(
+    dto: DeepPartial<ItemTransacaoAgrupado>,
+  ): Promise<ItemTransacaoAgrupado> {
+    const _dto = structuredClone(dto);
+    if (!_dto.id) {
+      _dto.id = (await this.getMaxId()) + 1;
+    }
+    await this.itemTransacaoAgRepository
+      .createQueryBuilder()
+      .insert()
+      .into(ItemTransacaoAgrupado)
+      .values([_dto])
+      .orIgnore()
+      .execute();
+    return new ItemTransacaoAgrupado(_dto);
+  }
+
+  async getMaxId(): Promise<number> {
+    const maxId = await this.itemTransacaoAgRepository
+      .createQueryBuilder('t')
+      .select('MAX(t.id)', 'max')
+      .getRawOne();
+    return maxId.max;
+  }
+
   /**
    * Bulk update
    */

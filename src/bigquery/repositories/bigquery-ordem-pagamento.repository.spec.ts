@@ -5,7 +5,7 @@ import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 import { SettingsService } from 'src/settings/settings.service';
-import { testLoadEnv, testGetBigqueryCredentials } from 'src/test/test-utils';
+import { testGetBigqueryCredentials, testLoadEnv } from 'src/test/test-utils';
 import { BigqueryOrdemPagamentoRepository } from './bigquery-ordem-pagamento.repository';
 
 describe('BigqueryOrdemPagamentoRepository', () => {
@@ -80,14 +80,28 @@ describe('BigqueryOrdemPagamentoRepository', () => {
       } as SettingEntity);
 
       // Act
-      const transacao = await bqOrdemPagamentoRepository.query(`
-        SELECT *
-        FROM \`rj-smtr-dev.br_rj_riodejaneiro_bilhetagem.transacao\`
-        LIMIT 10
-      `);
+//       const operadora = await bqOrdemPagamentoRepository.query(
+//         `
+// SELECT t.modo, o.operadora, c.consorcio, c.cnpj, o.documento, t.id_consorcio, t.id_operadora
+// FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+// LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+// LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
+// WHERE o.documento IN ('03818429405', '10204153719')
+//         `,
+//       );
+      const consorcio = await bqOrdemPagamentoRepository.query(
+        `
+SELECT t.modo, c.consorcio, o.operadora, c.cnpj, o.documento, t.id_consorcio, t.id_operadora
+FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
+LIMIT 10
+        `,
+      );
+      const len = consorcio[0].length;
 
       // Assert
-      expect(transacao).toBeDefined();
+      expect(len).toBeDefined();
     });
   });
 });
