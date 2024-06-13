@@ -5,7 +5,7 @@ import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { getDateNthWeek } from 'src/utils/date-utils';
+import { getNthWeek } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import { logError } from 'src/utils/log-utils';
@@ -121,11 +121,14 @@ export class TicketRevenuesService {
       { cpfCnpj: user.getCpfCnpj(), startDate, endDate },
     );
 
+    const paidSum = ticketRevenuesResponse.reduce((s, i) => s + i.paidValue, 0);
+
     if (ticketRevenuesResponse.length === 0) {
       return {
         startDate: null,
         endDate: null,
         amountSum: 0,
+        paidSum,
         todaySum: 0,
         count: 0,
         ticketCount: 0,
@@ -186,6 +189,7 @@ export class TicketRevenuesService {
           ?.processingDateTime || null,
       endDate: ticketRevenuesResponse[0]?.processingDateTime || null,
       amountSum,
+      paidSum,
       todaySum: transactionValueLastDay,
       count: ticketRevenuesGroups.length,
       ticketCount,
@@ -194,8 +198,11 @@ export class TicketRevenuesService {
   }
 
   public async findTransacaoView(fetchArgs: IFetchTicketRevenues) {
+    const datetimeField: keyof TransacaoView = fetchArgs.previousDays
+      ? 'datetimeTransacao'
+      : 'datetimeProcessamento';
     const betweenDate: FindOptionsWhere<TransacaoView> = {
-      datetimeProcessamento: Between(
+      [datetimeField]: Between(
         fetchArgs?.startDate || new Date(0),
         fetchArgs?.endDate || new Date(),
       ),
@@ -219,7 +226,7 @@ export class TicketRevenuesService {
     const today = new Date();
     if (fetchArgs.getToday) {
       const isTodayDate: FindOptionsWhere<TransacaoView> = {
-        datetimeProcessamento: Between(startOfDay(today), endOfDay(today)),
+        [datetimeField]: Between(startOfDay(today), endOfDay(today)),
       };
       where.push({
         ...isTodayDate,
@@ -234,7 +241,7 @@ export class TicketRevenuesService {
     let transacoes = await this.transacaoViewService.findRaw({
       where,
       order: {
-        datetimeProcessamento: 'ASC',
+        [datetimeField]: 'ASC',
       },
       ...(fetchArgs?.offset ? { skip: fetchArgs.offset } : {}),
       ...(fetchArgs?.limit ? { take: fetchArgs.limit } : {}),
@@ -242,11 +249,15 @@ export class TicketRevenuesService {
 
     // Filtrar apenas dias anteriores (dataProcessamento > dataTransacao - dia)
     if (fetchArgs.previousDays) {
-      transacoes = transacoes.filter(
-        (i) =>
-          !isSameDay(i.datetimeProcessamento, i.datetimeTransacao) &&
-          i.datetimeProcessamento > i.datetimeTransacao,
-      );
+      transacoes = transacoes.filter((i) => {
+        const notSameDay = !isSameDay(
+          i.datetimeProcessamento,
+          i.datetimeTransacao,
+        );
+        const processamentoGTtransacao =
+          i.datetimeProcessamento > i.datetimeTransacao;
+        return notSameDay && processamentoGTtransacao;
+      });
     }
     return transacoes.map((i) => i.toTicketRevenue());
   }
@@ -297,7 +308,7 @@ export class TicketRevenuesService {
       (group: TicketRevenuesGroups, item: ITicketRevenue) => {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
         const itemDate = new Date(item.processingDateTime);
-        const nthWeek = getDateNthWeek(itemDate, startWeekday);
+        const nthWeek = getNthWeek(itemDate, startWeekday);
         const foundDetalhesA = detalhesA.filter(
           (i) =>
             i.itemTransacaoAgrupado.id ===
@@ -314,9 +325,9 @@ export class TicketRevenuesService {
         );
 
         // 'day', default,
-        let dateGroup: string | number = item.processingDateTime.slice(0, 10);
+        let dateGroup = item.processingDateTime.slice(0, 10);
         if (groupBy === 'week') {
-          dateGroup = nthWeek;
+          dateGroup = String(nthWeek);
         }
         if (groupBy === 'month') {
           dateGroup = itemDate.toISOString().slice(0, 7);

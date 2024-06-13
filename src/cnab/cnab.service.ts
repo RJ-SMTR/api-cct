@@ -19,6 +19,7 @@ import { SftpService } from 'src/sftp/sftp.service';
 import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { UsersService } from 'src/users/users.service';
+import { forChunk } from 'src/utils/array-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
@@ -98,8 +99,8 @@ export class CnabService {
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
 
-    // 2. Update TransacaoBigquery
-    await this.updateTransacaoBigquery();
+    // 2. Update TransacaoView
+    await this.updateTransacaoViewBigquery();
 
     // 3. Update ordens
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
@@ -117,22 +118,57 @@ export class CnabService {
     }
   }
 
-  async updateTransacaoBigquery() {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek();
-    const transacoesView = transacoesBq.map((i) =>
-      TransacaoView.newFromBigquery(i),
+  /**
+   * Atualiza a tabela TransacaoView
+   */
+  async updateTransacaoViewBigquery(daysBack = 0) {
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(daysBack);
+    let chunkSize = 0;
+    forChunk(transacoesBq, 1000, async (chunk) => {
+      chunkSize += 1000;
+      this.logger.log(
+        `Inserindo ${chunkSize}/${chunk.length} itens em TransacaoView...`,
+      );
+      const transacoes = chunk.map((i) => TransacaoView.newFromBigquery(i));
+      await this.transacaoViewService.findExisting(
+        transacoes,
+        async (existing) => {
+          await this.transacaoViewService.saveMany(existing, transacoes);
+        },
+      );
+    });
+
+    // const transacoesView = transacoesBq.map((i) =>
+    //   TransacaoView.newFromBigquery(i),
+    // );
+  }
+
+  async debugUpdateAllTransacaoView() {
+    await this.bigqueryTransacaoService.getAllPaginated(
+      (transacoesBq) => {
+        let chunkSize = 0;
+        forChunk(transacoesBq, 1000, async (chunk) => {
+          chunkSize += 1000;
+          this.logger.log(
+            `Inserindo ${chunkSize}/${chunk.length} itens em TransacaoView...`,
+          );
+          const transacoes = chunk.map((i) => TransacaoView.newFromBigquery(i));
+          await this.transacaoViewService.findExisting(
+            transacoes,
+            async (existing) => {
+              await this.transacaoViewService.saveMany(existing, transacoes);
+            },
+          );
+        });
+      },
+      ['03818429405', '10204153719'],
     );
-    this.logger.log(
-      `Inserindo ${transacoesView.length} itens em TransacaoView...`,
-    );
-    await this.transacaoViewService.insertMany(transacoesView);
   }
 
   /**
-   * Salvar transacoes e agrupados
+   * Salvar Transacao / ItemTransacao e agrupados
    */
   async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[]) {
-    // 3. Save Transacao / ItemTransacao
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
@@ -151,7 +187,7 @@ export class CnabService {
     }
   }
 
-  async compareTransacaoViewPublicacao(daysBefore=0) {
+  async compareTransacaoViewPublicacao(daysBefore = 0) {
     const transacoesView = await this.getTransacoesViewWeek(daysBefore);
     const publicacoes = await this.getPublicacoesWeek(daysBefore);
     for (const publicacao of publicacoes) {
@@ -178,7 +214,7 @@ export class CnabService {
       friday = nextFriday(friday);
     }
     const sex = startOfDay(subDays(friday, 7 + daysBefore));
-    const qui = endOfDay(subDays(friday, 1 + daysBefore));
+    const qui = endOfDay(subDays(friday, 1));
     const result = await this.arqPublicacaoService.findMany({
       where: {
         itemTransacao: {
@@ -188,8 +224,8 @@ export class CnabService {
       order: {
         itemTransacao: {
           dataOrdem: 'ASC',
-        }
-      }
+        },
+      },
     });
     return result;
   }
@@ -199,29 +235,41 @@ export class CnabService {
     pagador: Pagador,
     favorecido: ClienteFavorecido,
   ) {
-    // 1. Verificar se as colunas de agrupamento existem nas tabelas agrupadas
+    /** TransaçãoAg por pagador(cpfCnpj), dataOrdem (sexta) e status = criado
+     * Status criado
+     */
     const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
     const fridayOrdem = nextFriday(startOfDay(dataOrdem));
-
-    /** Requisito: 1 transação por pagador, status e dataOrdem (sexta) */
+    /**
+     * Um TransacaoAgrupado representa um pagador.
+     * Pois cada CNAB representa 1 conta bancária de origem
+     */
     let transacaoAg = await this.transacaoAgService.findOne({
       dataOrdem: fridayOrdem,
       pagador: { id: pagador.id },
       status: { id: TransacaoStatusEnum.created },
     });
 
+    /** ItemTransacaoAg representa o destinatário (operador ou consórcio) */
     let itemAg: ItemTransacaoAgrupado | null = null;
 
-    // Se existir TransacaoAgrupado
     if (transacaoAg) {
-      // Cria ou atualiza item
+      // Cria ou atualiza itemTransacao (somar o valor a ser pago na sexta de pagamento)
       itemAg = await this.itemTransacaoAgService.findOne({
         where: {
           transacaoAgrupado: {
             id: transacaoAg.id,
             status: { id: TransacaoStatusEnum.created },
           },
-          idConsorcio: ordem.idConsorcio, // business rule
+          /**
+           * Agrupar por destinatário (idOperadora).
+           *
+           * Se consorcio for STPC, agrupa pela operadora
+           * Senão, agrupa pelo consórico
+           */
+          ...(ordem.consorcio === 'STPC'
+            ? { idOperadora: ordem.idOperadora }
+            : { idConsorcio: ordem.idConsorcio }),
         },
       });
       if (itemAg) {
@@ -342,7 +390,7 @@ export class CnabService {
       friday = nextFriday(friday);
     }
     const qui = startOfDay(subDays(friday, 8 + daysBefore));
-    const qua = endOfDay(subDays(friday, 2 + daysBefore));
+    const qua = endOfDay(subDays(friday, 2));
     const transacoesView = await this.transacaoViewService.find(
       {
         datetimeProcessamento: Between(qui, qua),

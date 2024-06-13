@@ -5,7 +5,7 @@ import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { SettingEntity } from 'src/settings/entities/setting.entity';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 import { SettingsService } from 'src/settings/settings.service';
-import { testLoadEnv, testGetBigqueryCredentials } from 'src/test/test-utils';
+import { testGetBigqueryCredentials, testLoadEnv } from 'src/test/test-utils';
 import { BigqueryOrdemPagamentoRepository } from './bigquery-ordem-pagamento.repository';
 
 describe('BigqueryOrdemPagamentoRepository', () => {
@@ -80,32 +80,28 @@ describe('BigqueryOrdemPagamentoRepository', () => {
       } as SettingEntity);
 
       // Act
-      const transacao = await bqOrdemPagamentoRepository.query(`
-        SELECT t.*, o.documento
-        FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
-        INNER JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
-        WHERE o.documento IN ('03818429405')
-      `);
-      const ordem = await bqOrdemPagamentoRepository.query(`
-        SELECT t.*, o.documento
-        FROM
-          \`rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia\` t
-        LEFT JOIN
-          \`rj-smtr.cadastro.consorcios\` c
-        ON
-          c.id_consorcio = t.id_consorcio
-        LEFT JOIN
-          \`rj-smtr.cadastro.operadoras\` o
-        ON
-          o.id_operadora = t.id_operadora
-        WHERE ((DATE(t.data_ordem) >= DATE('2024-05-10') AND DATE(t.data_ordem) <= DATE('2024-05-16'))
-        AND o.documento IN ('03818429405', '10204153719'))
-        AND t.valor_total_transacao_liquido > 0
-      `);
+//       const operadora = await bqOrdemPagamentoRepository.query(
+//         `
+// SELECT t.modo, o.operadora, c.consorcio, c.cnpj, o.documento, t.id_consorcio, t.id_operadora
+// FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+// LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+// LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
+// WHERE o.documento IN ('03818429405', '10204153719')
+//         `,
+//       );
+      const consorcio = await bqOrdemPagamentoRepository.query(
+        `
+SELECT t.modo, c.consorcio, o.operadora, c.cnpj, o.documento, t.id_consorcio, t.id_operadora
+FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
+LIMIT 10
+        `,
+      );
+      const len = consorcio[0].length;
 
       // Assert
-      expect(transacao).toBeDefined();
-      expect(ordem).toBeDefined();
+      expect(len).toBeDefined();
     });
   });
 });

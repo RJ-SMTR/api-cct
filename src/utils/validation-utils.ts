@@ -45,3 +45,7 @@ export function getInvalidRows(errors: ValidationError[]): InvalidRows {
     return result;
   }, {});
 }
+
+export function hasValue(value: any) {
+  return value !== undefined && value !== null
+}

@@ -10,13 +10,15 @@ export class ValidateEnumPipe implements PipeTransform {
   constructor(
     private readonly enumType: Record<string, any>,
     private readonly required: boolean = false,
+    private readonly defaultValue?: any,
   ) {}
 
   transform(value: any, metadata: ArgumentMetadata) {
-    if (!this.isEnumValue(value, this.enumType)) {
-      if (value === undefined && !this.required) {
-        return value;
-      }
+    if (value === undefined) {
+      return this.defaultValue;
+    }
+    const enumValue = this.isEnumValue(value, this.enumType);
+    if (!enumValue) {
       throw new BadRequestException(
         `Invalid ${metadata.type} value. It must be one of [${Object.values(
           this.enumType,
@@ -27,7 +29,8 @@ export class ValidateEnumPipe implements PipeTransform {
   }
 
   private isEnumValue(value: any, enumType: Record<string, any>): boolean {
-    return Object.values(enumType).includes(value);
+    const enumValues = Object.values(enumType);
+    return enumValues.includes(value);
   }
 }
 

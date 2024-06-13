@@ -1,4 +1,12 @@
-export interface IBankStatement {
+import { SetValueIf } from 'src/utils/decorators/set-value-if.decorator';
+
+export class BankStatementDTO {
+  constructor(dto?: BankStatementDTO) {
+    if (dto) {
+      Object.assign(this, dto);
+    }
+  }
+
   id: number;
   /**
    * feiday date.
@@ -18,9 +26,11 @@ export interface IBankStatement {
   permitCode: string;
   cpfCnpj: string;
   amount: number;
+
+  @SetValueIf((o) => o.status !== 'Pago', 0)
   paidAmount: number;
 
-  /** Business status message */
+  /** Payment status */
   status: string | null;
 
   /** Bank error message */

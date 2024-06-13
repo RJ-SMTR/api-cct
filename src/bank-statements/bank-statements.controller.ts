@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { endOfMonth, startOfMonth } from 'date-fns';
 import { User } from 'src/users/entities/user.entity';
 import { CommonApiParams } from 'src/utils/api-param/common-api-params';
 import { DateApiParams } from 'src/utils/api-param/date-api-param';
@@ -21,6 +20,7 @@ import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPagination } from 'src/utils/get-pagination';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
+import { ValidateEnumPipe } from 'src/utils/pipes/validate-enum.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
 import { getRequestLog } from 'src/utils/request-utils';
@@ -43,6 +43,15 @@ export class BankStatementsController {
 
   constructor(private readonly bankStatementsService: BankStatementsService) {}
 
+  /**
+   * Escopo:
+   * 1. Ler TransacaoView e agrupar por cada semana (qui-qua)
+   * 2. Para o mês selecionado pega todas as sextas do mês
+   * 3. Para cada sexta mostrará a soma dos valores de qui-qua
+   *    Incluindo dias anteriores se a dataProcessamento estiver naquela semana.
+   *
+   * @param timeInterval Apenas mensal
+   */
   @SerializeOptions({
     groups: ['me'],
   })
@@ -56,21 +65,29 @@ export class BankStatementsController {
   async getMe(
     @Request() request: IRequest,
     @Query(...DateQueryParams.yearMonth) yearMonth: string,
-    @Query(...DateQueryParams.timeInterval)
+    @Query(
+      'timeInterval',
+      new ValidateEnumPipe(
+        BSMeTimeIntervalEnum,
+        false,
+        BSMeTimeIntervalEnum.LAST_MONTH,
+      ),
+    )
     timeInterval?: BSMeTimeIntervalEnum | undefined,
     @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<IBSGetMeResponse> {
     this.logger.log(getRequestLog(request));
-    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
 
+    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     const yearMonthDate = yearMonth ? new Date(yearMonth) : new Date();
+    const _timeInterval = timeInterval
+      ? (timeInterval as unknown as TimeIntervalEnum)
+      : undefined;
+
     return this.bankStatementsService.getMe({
-      startDate: startOfMonth(yearMonthDate).toISOString(),
-      endDate: endOfMonth(yearMonthDate).toISOString(),
-      timeInterval: timeInterval
-        ? (timeInterval as unknown as TimeIntervalEnum)
-        : undefined,
+      yearMonth: yearMonthDate,
+      timeInterval: _timeInterval,
       userId: isUserIdNumber ? userId : request.user.id,
     });
   }
