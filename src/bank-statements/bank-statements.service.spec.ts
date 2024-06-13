@@ -10,7 +10,7 @@ import { getDateYMDString } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { BankStatementsRepositoryService } from './bank-statements-repository.service';
 import { BankStatementsService } from './bank-statements.service';
-import { IBankStatement } from './interfaces/bank-statement.interface';
+import { BankStatementDTO } from './dtos/bank-statement.dto';
 import { SettingsService } from 'src/settings/settings.service';
 
 const allBankStatements = [
@@ -22,7 +22,7 @@ const allBankStatements = [
   ...i,
   cpfCnpj: 'cc_1',
   permitCode: 'pc_1',
-})) as Partial<IBankStatement>[] as IBankStatement[];
+})) as Partial<BankStatementDTO>[] as BankStatementDTO[];
 
 xdescribe('BankStatementsService', () => {
   // const endpoint = 'bank-statements';

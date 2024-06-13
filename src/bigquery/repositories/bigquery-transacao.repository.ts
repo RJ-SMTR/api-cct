@@ -5,7 +5,10 @@ import { SettingsService } from 'src/settings/settings.service';
 import { TRIntegrationTypeMap } from 'src/ticket-revenues/maps/ticket-revenues.map';
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import { BQSInstances, BigqueryService } from '../bigquery.service';
+import {
+  BigquerySource,
+  BigqueryService,
+} from '../bigquery.service';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { IBqFindTransacao } from '../interfaces/bq-find-transacao-by.interface';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
@@ -24,6 +27,15 @@ export class BigqueryTransacaoRepository {
     private readonly settingsService: SettingsService,
   ) {}
 
+  public async countAll() {
+    const result = await this.bigqueryService.query(
+      BigquerySource.smtr,
+      'SELECT COUNT(*) as length FROM `rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao`',
+    );
+    const len = result[0].length;
+    return len;
+  }
+
   public async findMany(
     filter?: IBqFindTransacao,
   ): Promise<BigqueryTransacao[]> {
@@ -34,37 +46,44 @@ export class BigqueryTransacaoRepository {
   private async queryData(
     args?: IBqFindTransacao,
   ): Promise<{ data: BigqueryTransacao[]; countAll: number }> {
-    const qArgs = await this.getQueryArgs(args);
+    const isBqProd =
+      (
+        await this.settingsService.getOneBySettingData(
+          appSettings.any__bigquery_env,
+          true,
+        )
+      ).getValueAsString() === BigqueryEnvironment.Production;
+    const qArgs = await this.getQueryArgs(isBqProd, args);
     const query =
       `
         SELECT
           CAST(t.data AS STRING) AS \`data\`,
-          t.hora AS hora,
+          t.hora,
           CAST(t.datetime_captura AS STRING) AS datetime_captura,
           CAST(t.datetime_transacao AS STRING) AS datetime_transacao,
           CAST(t.datetime_processamento AS STRING) AS datetime_processamento,
           t.datetime_captura AS captureDateTime,
-          t.modo AS modo,
-          t.sentido AS sentido,
-          t.id_veiculo AS id_veiculo,
-          t.id_cliente AS id_cliente,
-          t.id_transacao AS id_transacao,
+          t.modo,
+          t.sentido,
+          t.id_veiculo,
+          t.id_cliente,
+          t.id_transacao,
           t.${qArgs.tTipoPgto} AS tipo_pagamento,
-          t.tipo_transacao AS tipo_transacao,
-          t.id_tipo_integracao AS id_tipo_integracao,
-          t.id_integracao AS id_integracao,
-          t.latitude AS latitude,
-          t.longitude AS longitude,
-          t.stop_id AS stop_id,
-          t.stop_lat AS stop_lat,
-          t.stop_lon AS stop_lon,
-          CASE WHEN t.tipo_transacao = 'Integração' THEN i.valor_transacao_total ELSE t.valor_transacao END AS valor_transacao,
+          t.tipo_transacao_smtr AS tipo_transacao,
+          t.id_tipo_integracao,
+          t.id_integracao,
+          t.latitude,
+          t.longitude,
+          t.stop_id,
+          t.stop_lat,
+          t.stop_lon,
+          t.valor_transacao,
+          t.valor_pagamento,
           t.versao AS bqDataVersion,
-          CAST(DATE_ADD(t.data, INTERVAL MOD(6 - EXTRACT(DAYOFWEEK FROM t.data) + 7, 7) DAY) AS STRING) AS aux_nextFriday,
-          t.consorcio AS consorcio,
-          t.operadora AS operadora,
-          t.id_consorcio AS id_consorcio,
-          t.id_operadora AS id_operadora,
+          t.consorcio,
+          t.operadora,
+          t.id_consorcio,
+          t.id_operadora,
           o.documento AS operadoraCpfCnpj,
           c.cnpj AS consorcioCnpj,
           (${qArgs.countQuery}) AS count,
@@ -77,18 +96,15 @@ export class BigqueryTransacaoRepository {
       qArgs.joinIntegracao +
       '\n' +
       (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
-      `UNION ALL
-      SELECT ${'null, '.repeat(29)}
-      (${qArgs.countQuery}) AS count, 'empty' AS status` +
       `\nORDER BY datetime_processamento DESC` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
     const queryResult = await this.bigqueryService.query(
-      BQSInstances.smtr,
+      BigquerySource.smtr,
       query,
     );
 
-    const count: number = queryResult[0].count;
+    const count = 0;
     // Remove unwanted keys and remove last item (all null if empty)
     let transacoes: BigqueryTransacao[] = queryResult.map((i) => {
       delete i.status;
@@ -104,33 +120,16 @@ export class BigqueryTransacaoRepository {
     };
   }
 
-  private async getQueryArgs(args?: IBqFindTransacao): Promise<{
-    qWhere: string;
-    bucket: string;
-    transacao: string;
-    integracao: string;
-    tTipoPgto: string;
-    joinIntegracao: string;
-    countQuery: string;
-    offset?: number;
-    limit?: number;
-  }> {
-    const IS_BQ_PROD =
-      (
-        await this.settingsService.getOneBySettingData(
-          appSettings.any__bigquery_env,
-          true,
-        )
-      ).getValueAsString() === BigqueryEnvironment.Production;
+  private getQueryArgs(isBqProd: boolean, args?: IBqFindTransacao) {
     const Q_CONSTS = {
-      bucket: IS_BQ_PROD ? 'rj-smtr' : 'rj-smtr-dev',
-      transacao: IS_BQ_PROD
+      bucket: isBqProd ? 'rj-smtr' : 'rj-smtr-dev',
+      transacao: isBqProd
         ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao'
         : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao',
-      integracao: IS_BQ_PROD
+      integracao: isBqProd
         ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.integracao'
         : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.integracao',
-      tTipoPgto: IS_BQ_PROD ? 'tipo_pagamento' : 'id_tipo_pagamento',
+      tTipoPgto: isBqProd ? 'tipo_pagamento' : 'id_tipo_pagamento',
     };
     // Args
     let offset = args?.offset;
@@ -178,6 +177,23 @@ export class BigqueryTransacaoRepository {
         isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
           ? `o.documento = '${cpfCnpj}' AND (${qWhere})`
           : `c.cnpj = '${cpfCnpj}' AND (${qWhere})`;
+    }
+    if (args?.manyCpfCnpj && args.manyCpfCnpj.length > 0) {
+      const cpfs = args.manyCpfCnpj.filter((i) => isCpfOrCnpj(i) === 'cpf');
+      const cnpjs = args.manyCpfCnpj.filter((i) => isCpfOrCnpj(i) === 'cnpj');
+      let where = '';
+      if (cpfs.length > 0) {
+        where += ` o.documento IN ('${cpfs.join(`','`)}')`;
+      }
+      if (cnpjs.length > 0) {
+        if (where.length) {
+          where += ' AND ';
+        }
+        where += ` c.cnpj IN ('${cnpjs.join(`','`)}')`;
+      }
+      if ((cpfs.length || cnpjs.length) && where) {
+        qWhere = where + (qWhere ? ` AND (${qWhere})` : '');
+      }
     }
 
     // Query

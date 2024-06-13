@@ -1,4 +1,4 @@
-import { IBankStatement } from './bank-statement.interface';
+import { BankStatementDTO } from "../dtos/bank-statement.dto";
 
 export interface IBSGetMeResponse {
   amountSum: number;
@@ -6,5 +6,5 @@ export interface IBSGetMeResponse {
   paidSum: number;
   count: number;
   ticketCount: number;
-  data: IBankStatement[];
+  data: BankStatementDTO[];
 }

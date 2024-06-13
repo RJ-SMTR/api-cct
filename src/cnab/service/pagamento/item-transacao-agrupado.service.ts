@@ -2,7 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacaoAgrupadoRepository } from 'src/cnab/repository/pagamento/item-transacao-agrupado.repository';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { DeepPartial, FindManyOptions, FindOneOptions, FindOptionsWhere, In, UpdateResult } from 'typeorm';
+import {
+  DeepPartial,
+  FindManyOptions,
+  FindOneOptions,
+  FindOptionsWhere,
+  In,
+  UpdateResult,
+} from 'typeorm';
 
 @Injectable()
 export class ItemTransacaoAgrupadoService {
@@ -13,6 +20,10 @@ export class ItemTransacaoAgrupadoService {
   constructor(
     private itemTransacaoAgRepository: ItemTransacaoAgrupadoRepository,
   ) {}
+
+  async getMaxId(): Promise<number> {
+    return await this.itemTransacaoAgRepository.getMaxId();
+  }
 
   async findOne(options: FindOneOptions<ItemTransacaoAgrupado>) {
     return await this.itemTransacaoAgRepository.findOne(options);
@@ -63,6 +74,15 @@ export class ItemTransacaoAgrupadoService {
 
   public async findMany(options: FindManyOptions<ItemTransacaoAgrupado>) {
     return await this.itemTransacaoAgRepository.findMany(options);
+  }
+
+  /**
+   * Insert with a new generated id
+   */
+  public async insert(
+    dto: DeepPartial<ItemTransacaoAgrupado>,
+  ): Promise<ItemTransacaoAgrupado> {
+    return await this.itemTransacaoAgRepository.insertAsNew(dto);
   }
 
   public async save(

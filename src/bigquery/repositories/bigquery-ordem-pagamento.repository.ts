@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SettingsService } from 'src/settings/settings.service';
 import { bigToNumber } from 'src/utils/pipe-utils';
-import { BQSInstances, BigqueryService } from '../bigquery.service';
+import { BigquerySource, BigqueryService } from '../bigquery.service';
 import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
 import { IBigqueryFindOrdemPagamento } from '../interfaces/bigquery-find-ordem-pagamento.interface';
 
@@ -29,7 +29,7 @@ export class BigqueryOrdemPagamentoRepository {
   ): Promise<{ data: BigqueryOrdemPagamento[]; countAll: number }> {
     // TODO: remover tipoFavorecido
     const queryResult = await this.bigqueryService.query(
-      BQSInstances.smtr,
+      BigquerySource.smtr,
       sql,
     );
     const count: number = queryResult.length;
@@ -52,7 +52,7 @@ export class BigqueryOrdemPagamentoRepository {
     // TODO: remover tipoFavorecido
     const query = this.getQuery(args);
     const queryResult = await this.bigqueryService.query(
-      BQSInstances.smtr,
+      BigquerySource.smtr,
       query,
     );
     const count: number = queryResult.length;
@@ -78,6 +78,10 @@ export class BigqueryOrdemPagamentoRepository {
     };
   }
 
+  /**
+   * Regra de negócio:
+   * - 13/06/2024: STPL é considerado STPC também
+   */
   private getQuery(args: IBigqueryFindOrdemPagamento) {
     const qArgsConsorcio = this.getQueryArgsConsorcio(args);
     const qArgsOperadora = this.getQueryArgsOperadora(args);
@@ -85,7 +89,7 @@ export class BigqueryOrdemPagamentoRepository {
       SELECT
         CAST(t.data_ordem AS STRING) AS dataOrdem,
         t.id_consorcio AS idConsorcio,
-        t.consorcio AS consorcio,
+        CASE WHEN t.consorcio = 'STPL' THEN 'STPC' ELSE t.consorcio AS consorcio,
         t.id_operadora AS idOperadora,
         t.operadora AS operadora,
         t.id_ordem_pagamento AS idOrdemPagamento,
@@ -112,6 +116,10 @@ export class BigqueryOrdemPagamentoRepository {
       LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora 
       LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio \n
     `;
+    /**
+     * Pesquisar separadamente apenas por consórcio e apenas por operadoras.
+     * Assim evita misturar os resultados e dar problema no pagamento.
+     */
     const query =
       select +
       `WHERE ${qArgsConsorcio}\n` +
@@ -122,12 +130,18 @@ export class BigqueryOrdemPagamentoRepository {
     return query;
   }
 
+  /**
+   * Ao buscar por consórcios, ignorar o STPC.
+   * 
+   * STPC apensar de ser tecnicamente um consórcio, ele não é tratado como um.
+   * Pois ele representa todos os operadores.
+   */
   private getQueryArgsConsorcio(args: IBigqueryFindOrdemPagamento) {
     const startDate = args.startDate.toISOString().slice(0, 10);
     const endDate = args.endDate.toISOString().slice(0, 10);
     const qWhere =
       `t.data_ordem BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CNPJ' ` +
-      'AND t.valor_total_transacao_liquido > 0';
+      'AND t.valor_total_transacao_liquido > 0 AND c.consorcio <> \'STPC\'';
     return qWhere;
   }
 

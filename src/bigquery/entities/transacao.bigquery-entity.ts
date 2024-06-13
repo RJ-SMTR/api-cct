@@ -30,5 +30,6 @@ export class BigqueryTransacao {
   stop_lat: number | null;
   stop_lon: number | null;
   valor_transacao: number;
+  valor_pagamento: number;
   versao: string | null;
 }

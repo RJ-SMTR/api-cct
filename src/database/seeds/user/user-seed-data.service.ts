@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BQSInstances, BigqueryService } from 'src/bigquery/bigquery.service';
+import { BigquerySource, BigqueryService } from 'src/bigquery/bigquery.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { Role } from 'src/roles/entities/role.entity';
@@ -28,7 +28,7 @@ export class UserSeedDataService {
       if (this.cpfSamples.length === 0) {
         this.cpfSamples = (
           await this.bigqueryService.query(
-            BQSInstances.smtr,
+            BigquerySource.smtr,
             `
 SELECT
   DISTINCT o.documento,
@@ -43,7 +43,7 @@ LIMIT 5
       if (this.cnpjSamples.length === 0) {
         this.cnpjSamples = (
           await this.bigqueryService.query(
-            BQSInstances.smtr,
+            BigquerySource.smtr,
             `
 SELECT
   DISTINCT c.cnpj,

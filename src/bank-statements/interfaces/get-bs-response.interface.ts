@@ -1,8 +1,8 @@
-import { IBankStatement } from './bank-statement.interface';
+import { BankStatementDTO } from '../dtos/bank-statement.dto';
 
 export interface IGetBSResponse {
   todaySum: number;
   allSum: number;
   countSum: number;
-  statements: IBankStatement[];
+  statements: BankStatementDTO[];
 }

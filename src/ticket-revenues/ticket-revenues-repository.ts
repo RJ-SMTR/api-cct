@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { endOfDay, isToday, startOfDay } from 'date-fns';
-import { BQSInstances, BigqueryService } from 'src/bigquery/bigquery.service';
+import { BigquerySource, BigqueryService } from 'src/bigquery/bigquery.service';
 import { appSettings } from 'src/settings/app.settings';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 import { SettingsService } from 'src/settings/settings.service';
@@ -110,7 +110,7 @@ export class TicketRevenuesRepositoryService {
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
     const queryResult = await this.bigqueryService.query(
-      BQSInstances.smtr,
+      BigquerySource.smtr,
       query,
     );
 

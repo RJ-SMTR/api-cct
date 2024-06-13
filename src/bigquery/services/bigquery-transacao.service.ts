@@ -12,18 +12,22 @@ export class BigqueryTransacaoService {
   constructor(
     private readonly bigqueryTransacaoRepository: BigqueryTransacaoRepository,
   ) {}
-  
+
   /**
-   * Get data from current payment week (qui-qua). Also with older days.
+   * Obter dados da semana de pagamento (qui-qua).
+   *
+   * @param [daysBack=0] Pega a semana atual ou N dias atrás.
    */
   public async getFromWeek(daysBack = 0): Promise<BigqueryTransacao[]> {
     // Read
     const today = new Date();
     const friday = isFriday(today) ? today : nextFriday(today);
+    const qui = subDays(friday, 8 + daysBack);
+    const qua = subDays(friday, 2 + daysBack);
     const ordemPgto = (
       await this.bigqueryTransacaoRepository.findMany({
-        startDate: subDays(friday, 8 + daysBack), // sex
-        endDate: subDays(friday, 2 + daysBack), // qui
+        startDate: qui,
+        endDate: qua,
       })
     ).map((i) => ({ ...i } as BigqueryTransacao));
     return ordemPgto;
@@ -38,5 +42,19 @@ export class BigqueryTransacaoService {
       (i) => ({ ...i } as BigqueryTransacao),
     );
     return ordemPgto;
+  }
+
+  /**
+   * A cada 10 dias, de hoje até a dataInicio, pesquisa e chama o callback
+   */
+  public async getAllPaginated(
+    callback: (transacoes: BigqueryTransacao[]) => void,
+    cpfCnpjs: string[] = [],
+  ) {
+    const transacoes: BigqueryTransacao[] =
+    await this.bigqueryTransacaoRepository.findMany({
+      manyCpfCnpj: cpfCnpjs,
+    });
+    callback(transacoes);
   }
 }

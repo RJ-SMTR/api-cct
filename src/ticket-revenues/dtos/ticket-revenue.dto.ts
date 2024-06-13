@@ -1,7 +1,7 @@
 // @Exclude({ toPlainOnly: true })
 
-import { Exclude } from 'class-transformer';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
+import { SetValueIf } from 'src/utils/decorators/set-value-if.decorator';
 
 /**
  * Internal representation of `IBqApiTicketRevenues`
@@ -223,8 +223,10 @@ export class TicketRevenueDTO {
    */
   transactionValue: number | null;
 
-  @Exclude()
-  /** Valor efetivado */
+  /** Valor a ser pago - valor líquido calculado
+   * Não significa que foi pago
+   */
+  @SetValueIf((o) => !o.isPago, 0)
   paidValue: number;
 
   /**
