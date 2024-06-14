@@ -16,7 +16,7 @@ import { Pagination } from 'src/utils/types/pagination.type';
 import { Between, FindOptionsWhere } from 'typeorm';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
-import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
+import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { ITRGetMeIndividualValidArgs } from './interfaces/tr-get-me-individual-args.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import {
@@ -43,7 +43,7 @@ export class TicketRevenuesRepositoryService {
    * Filter: used by:
    * - ticket-revenues/get/me
    */
-  removeTodayData<T extends ITicketRevenue | ITicketRevenuesGroup>(
+  removeTodayData<T extends ITicketRevenue | TicketRevenuesGroupDto>(
     data: T[],
     endDate: Date,
   ): T[] {
@@ -363,7 +363,7 @@ export class TicketRevenuesRepositoryService {
   /**
    * TODO: use it only in repository
    */
-  getAmountSum<T extends ITicketRevenue | ITicketRevenuesGroup>(
+  getAmountSum<T extends ITicketRevenue | TicketRevenuesGroupDto>(
     data: T[],
   ): number {
     return Number(
@@ -372,7 +372,7 @@ export class TicketRevenuesRepositoryService {
   }
 
   private getTransactionValue(
-    item: ITicketRevenue | ITicketRevenuesGroup,
+    item: ITicketRevenue | TicketRevenuesGroupDto,
   ): number {
     if ('transactionValue' in item) {
       return item.transactionValue || 0;

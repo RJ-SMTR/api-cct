@@ -1,7 +1,7 @@
-import { ITicketRevenuesGroup } from '../interfaces/ticket-revenues-group.interface';
+import { TicketRevenuesGroupDto } from '../dtos/ticket-revenues-group.dto';
 import { ITRCounts } from '../interfaces/tr-counts.interface';
 
-export class TicketRevenuesGroup implements ITicketRevenuesGroup {
+export class TicketRevenuesGroup implements TicketRevenuesGroupDto {
   public aux_epochWeek = 0;
   public aux_nthWeeks = [];
   public aux_groupDateTime = '';
@@ -21,7 +21,7 @@ export class TicketRevenuesGroup implements ITicketRevenuesGroup {
   public isPago = false;
   public errors: string[] = [];
 
-  public toInterface(): ITicketRevenuesGroup {
+  public toInterface(): TicketRevenuesGroupDto {
     return {
       aux_epochWeek: this.aux_epochWeek,
       aux_nthWeeks: this.aux_nthWeeks,

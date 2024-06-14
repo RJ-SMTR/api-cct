@@ -1,5 +1,15 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { endOfDay, isSameDay, isToday, nextFriday, startOfDay } from 'date-fns';
+import {
+  endOfDay,
+  isSameDay,
+  isToday,
+  nextFriday,
+  startOfDay,
+  subDays,
+} from 'date-fns';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
+import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.service';
+import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
 import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
@@ -17,9 +27,9 @@ import {
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { Between, FindOptionsWhere, In } from 'typeorm';
+import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
-import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
 import { ITRGetMeGroupedArgs } from './interfaces/tr-get-me-grouped-args.interface';
 import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response.interface';
 import { ITRGetMeIndividualArgs } from './interfaces/tr-get-me-individual-args.interface';
@@ -28,8 +38,6 @@ import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesRepositoryService as TicketRevenuesRepository } from './ticket-revenues-repository';
 import { TicketRevenuesGroups } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
-import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
-import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -41,6 +49,7 @@ export class TicketRevenuesService {
     private readonly usersService: UsersService,
     private readonly ticketRevenuesRepository: TicketRevenuesRepository,
     private readonly transacaoViewService: TransacaoViewService,
+    private readonly arrquivoPublicacaoService: ArquivoPublicacaoService,
     private readonly detalheAService: DetalheAService,
   ) {}
 
@@ -51,7 +60,7 @@ export class TicketRevenuesService {
    */
   public async getMeGrouped(
     args: ITRGetMeGroupedArgs,
-  ): Promise<ITicketRevenuesGroup> {
+  ): Promise<TicketRevenuesGroupDto> {
     // Args
     const user = await this.validateGetMeGrouped(args);
 
@@ -97,15 +106,14 @@ export class TicketRevenuesService {
   }
 
   /**
-   * TODO: refactor - use repository method
    *
-   * Service method
    */
   public async getMe(
     args: ITRGetMeGroupedArgs,
     pagination: PaginationOptions,
     endpoint: PaymentEndpointType,
   ): Promise<ITRGetMeGroupedResponse> {
+    const METHOD = 'getMe';
     // TODO: set groupBy as validation response
     const user = await this.validateGetMe(args);
     const { startDate, endDate } = getPaymentDates({
@@ -151,6 +159,13 @@ export class TicketRevenuesService {
       detalhesA,
     );
 
+    ticketRevenuesGroups = this.fillDatesInGroups(
+      ticketRevenuesGroups,
+      groupBy,
+      startDate,
+      endDate,
+    );
+
     if (pagination) {
       const offset = pagination?.limit * (pagination?.page - 1);
       ticketRevenuesGroups = ticketRevenuesGroups.slice(
@@ -166,6 +181,7 @@ export class TicketRevenuesService {
         .toFixed(2),
     );
 
+    this.logger.debug('Remove today', METHOD);
     ticketRevenuesResponse = this.ticketRevenuesRepository.removeTodayData(
       ticketRevenuesResponse,
       endDate,
@@ -175,6 +191,7 @@ export class TicketRevenuesService {
       endDate,
     );
 
+    this.logger.debug('Sum', METHOD);
     const amountSum =
       this.ticketRevenuesRepository.getAmountSum(ticketRevenuesGroups);
 
@@ -197,7 +214,38 @@ export class TicketRevenuesService {
     };
   }
 
+  fillDatesInGroups(
+    groups: TicketRevenuesGroupDto[],
+    groupBy: 'day' | 'week' | 'month' | 'all' | string,
+    startDate: Date,
+    endDate: Date,
+  ) {
+    const newGroups: TicketRevenuesGroupDto[] = [];
+    if (groupBy === 'day') {
+      /**
+       * Para cada dia, do dataFim ao dataInicio,
+       * adiciona item existente ou adiciona vazio
+       */
+      for (let day = endDate; day >= startDate; day = subDays(day, 1)) {
+        const existing = groups.filter((i) =>
+          isSameDay(new Date(i.date), day),
+        )[0] as TicketRevenuesGroupDto | undefined;
+        if (existing) {
+          newGroups.push(existing);
+        } else {
+          newGroups.push(
+            new TicketRevenuesGroupDto({
+              date: startOfDay(day).toISOString(),
+            }),
+          );
+        }
+      }
+    }
+    return newGroups;
+  }
+
   public async findTransacaoView(fetchArgs: IFetchTicketRevenues) {
+    const METHOD = 'findTransacaoView';
     const datetimeField: keyof TransacaoView = fetchArgs.previousDays
       ? 'datetimeTransacao'
       : 'datetimeProcessamento';
@@ -238,6 +286,7 @@ export class TicketRevenuesService {
       });
     }
 
+    this.logger.debug('FindRaw start', METHOD);
     let transacoes = await this.transacaoViewService.findRaw({
       where,
       order: {
@@ -246,6 +295,7 @@ export class TicketRevenuesService {
       ...(fetchArgs?.offset ? { skip: fetchArgs.offset } : {}),
       ...(fetchArgs?.limit ? { take: fetchArgs.limit } : {}),
     });
+    this.logger.debug('FindRaw end', METHOD);
 
     // Filtrar apenas dias anteriores (dataProcessamento > dataTransacao - dia)
     if (fetchArgs.previousDays) {
@@ -270,7 +320,7 @@ export class TicketRevenuesService {
   private getGroupSum(
     data: ITicketRevenue[],
     detalhesA: DetalheA[],
-  ): ITicketRevenuesGroup {
+  ): TicketRevenuesGroupDto {
     const METHOD = this.getGroupSum.name;
     const groupSums = this.getTicketRevenuesGroups(data, 'all', detalhesA);
     if (groupSums.length >= 1) {
@@ -303,7 +353,7 @@ export class TicketRevenuesService {
     ticketRevenues: ITicketRevenue[],
     groupBy: 'day' | 'week' | 'month' | 'all' | string,
     detalhesA: DetalheA[],
-  ): ITicketRevenuesGroup[] {
+  ): TicketRevenuesGroupDto[] {
     const result = ticketRevenues.reduce(
       (group: TicketRevenuesGroups, item: ITicketRevenue) => {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
@@ -342,7 +392,7 @@ export class TicketRevenuesService {
           ).toISOString();
           const day = item.processingDateTime;
           const procsesingDate = groupBy === 'week' ? friday : day;
-          group[dateGroup] = {
+          group[dateGroup] = new TicketRevenuesGroupDto({
             count: 0,
             date: procsesingDate,
             transportTypeCounts: {},
@@ -361,7 +411,7 @@ export class TicketRevenuesService {
             /** Se encontrar 1 item não pago, muda para falso */
             isPago: true,
             errors: errors,
-          };
+          });
         } else {
           group[dateGroup].errors = [
             ...new Set([...group[dateGroup].errors, ...errors]),

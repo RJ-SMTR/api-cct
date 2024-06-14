@@ -154,7 +154,7 @@ export class BankStatementsService {
         userId: args?.user.id,
         groupBy: 'day',
       },
-      { limit: 9999, page: 1 },
+      { limit: 100, page: 1 },
       'bank-statements>ticket-revenues',
     );
 
