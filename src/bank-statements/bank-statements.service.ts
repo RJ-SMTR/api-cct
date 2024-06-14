@@ -17,7 +17,7 @@ import { CommonHttpException } from 'src/utils/http-exception/common-http-except
 import { getPaymentDates, getPaymentWeek } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
-import { BankStatementsRepositoryService } from './bank-statements-repository.service';
+import { BankStatementsRepositoryService } from './bank-statements.repository';
 import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-interval.enum';
 import { BankStatementDTO } from './dtos/bank-statement.dto';
 import { IBSGetMeArgs } from './interfaces/bs-get-me-args.interface';
@@ -66,7 +66,7 @@ export class BankStatementsService {
     );
     const paidSum = Number(
       bsData.statements
-        .filter(i => i.status === 'Pago')
+        .filter((i) => i.status === 'Pago')
         .reduce((sum, item) => sum + item.paidAmount, 0)
         .toFixed(2),
     );
@@ -214,6 +214,7 @@ export class BankStatementsService {
       ];
       const amount = Number(weekAmount.toFixed(2));
       const paidAmount = Number(weekPaidAmount.toFixed(2));
+      const ticketCount = revenuesWeek.reduce((s,i) => s + i.count, 0);
       newStatements.push(
         new BankStatementDTO({
           id: maxId - id,
@@ -225,6 +226,7 @@ export class BankStatementsService {
           permitCode: args.user.getPermitCode(),
           status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
           errors: errors,
+          ticketCount,
         }),
       );
       allSum += Number(weekAmount.toFixed(2));
