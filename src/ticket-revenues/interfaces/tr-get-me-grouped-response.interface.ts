@@ -1,4 +1,4 @@
-import { ITicketRevenuesGroup } from './ticket-revenues-group.interface';
+import { TicketRevenuesGroupDto } from '../dtos/ticket-revenues-group.dto';
 
 export interface ITRGetMeGroupedResponse {
   startDate: string | null;
@@ -8,5 +8,5 @@ export interface ITRGetMeGroupedResponse {
   todaySum: number;
   ticketCount: number;
   count: number;
-  data: ITicketRevenuesGroup[];
+  data: TicketRevenuesGroupDto[];
 }

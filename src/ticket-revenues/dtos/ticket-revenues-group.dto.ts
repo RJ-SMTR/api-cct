@@ -1,22 +1,30 @@
-import { ITRCounts } from './tr-counts.interface';
+import { SetValueIf } from 'src/utils/decorators/set-value-if.decorator';
+import { ITRCounts } from '../interfaces/tr-counts.interface';
+import { DeepPartial } from 'typeorm';
 
 /**
  * This object represents a group of `IBqTicketRevenues`
  *
  * Grouped by: `partitionDate`, `permitCode`
  */
-export interface ITicketRevenuesGroup {
+export class TicketRevenuesGroupDto {
+  constructor(data?: DeepPartial<TicketRevenuesGroupDto>) {
+    if (data) {
+      Object.assign(this, data);
+    }
+  }
+
   /**
    * Represents the total number of TicketRevenues in this group
    *
    * @example 345
    */
-  count: number;
+  count = 0;
 
   /**
    * @example '2023-09-12'
    */
-  date: string;
+  date = '';
 
   /**
    * Represents counts of `transportType` (`modo`)
@@ -34,7 +42,7 @@ export interface ITicketRevenuesGroup {
    *    }
    * }
    */
-  transportTypeCounts: Record<string, ITRCounts>;
+  transportTypeCounts: Record<string, ITRCounts> = {};
 
   /**
    * Represents `sentido`
@@ -45,7 +53,7 @@ export interface ITicketRevenuesGroup {
    * @type JSON
    * @example = {'0': 13, '1': 32}
    */
-  directionIdCounts: Record<string, ITRCounts>;
+  directionIdCounts: Record<string, ITRCounts> = {};
 
   /**
    * **Important field**
@@ -55,7 +63,7 @@ export interface ITicketRevenuesGroup {
    * @description Código do tipo de pagamento utilizado
    * @example {'0': 13, '1': 32}
    */
-  paymentMediaTypeCounts: Record<string, ITRCounts>;
+  paymentMediaTypeCounts: Record<string, ITRCounts> = {};
 
   /**
    * **Important field**
@@ -65,7 +73,7 @@ export interface ITicketRevenuesGroup {
    * @description Tipo de transação realizada
    * @example {'0': 13, '1': 32}
    */
-  transactionTypeCounts: Record<string, ITRCounts>;
+  transactionTypeCounts: Record<string, ITRCounts> = {};
 
   /**
    * Represents counts for `transportIntegrationType` (`id_tipo_integracao`)
@@ -73,7 +81,7 @@ export interface ITicketRevenuesGroup {
    * @description Tipo da integração realizada (identificador relacionado à matriz de integração)
    * @example {'0': 13, '1': 32}
    */
-  transportIntegrationTypeCounts: Record<string, ITRCounts>;
+  transportIntegrationTypeCounts: Record<string, ITRCounts> = {};
 
   /**
    * **Important field**
@@ -83,7 +91,7 @@ export interface ITicketRevenuesGroup {
    * @description Código identificador do ponto de embarque (GTFS)
    * @type `Record<integer, number>`
    */
-  stopIdCounts: Record<number, ITRCounts>;
+  stopIdCounts: Record<number, ITRCounts> = {};
 
   /**
    * **Important field**
@@ -93,7 +101,7 @@ export interface ITicketRevenuesGroup {
    * @description Latitude do ponto de embarque (GTFS)
    * @type `Record<float, number>`
    */
-  stopLatCounts: Record<number, ITRCounts>;
+  stopLatCounts: Record<number, ITRCounts> = {};
 
   /**
    * **Important field**
@@ -103,7 +111,7 @@ export interface ITicketRevenuesGroup {
    * @description Longitude do ponto de embarque (GTFS)
    * @type `Record<float, number>`
    */
-  stopLonCounts: Record<number, ITRCounts>;
+  stopLonCounts: Record<number, ITRCounts> = {};
 
   /**
    * **Important field**
@@ -111,9 +119,9 @@ export interface ITicketRevenuesGroup {
    * Represents the sum of `transactionValue` (`valor_transacao`)
    *
    * @description Valor debitado na transação atual (R$)
-   * @type `float`
+   * type `float`
    */
-  transactionValueSum: number;
+  transactionValueSum = 0;
 
   /**
    * **Important field**
@@ -121,26 +129,27 @@ export interface ITicketRevenuesGroup {
    * Represents the sum of `transactionValue` (`valor_transacao`)
    *
    * @description Valor debitado na transação atual (R$)
-   * @type `float`
+   * type `float`
    */
-  paidValueSum: number;
+  @SetValueIf((o) => !o.isPago, 0)
+  paidValueSum = 0;
 
   // Internal helper fields
 
-  aux_epochWeek: number;
+  aux_epochWeek = 0;
 
-  aux_nthWeeks: number[];
+  aux_nthWeeks: number[] = [];
 
   /**
    * The first valid date or datetime string of this group.
    * @example '2023-10-02T15:01:23.000Z'
    */
-  aux_groupDateTime: string;
+  aux_groupDateTime = '';
 
-  isPago: boolean;
+  isPago = false;
 
   /**
    * CNAB retorno error message list.
    */
-  errors: string[];
+  errors: string[] = [];
 }

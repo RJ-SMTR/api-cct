@@ -117,9 +117,9 @@ export class DetalheARepository {
   public async findMany(
     options?: FindManyOptions<DetalheA>,
   ): Promise<DetalheA[]> {
-    const favorecidos = await this.detalheARepository.find(options);
-    await this.forceManyEager(favorecidos);
-    return favorecidos;
+    const detalheA = await this.detalheARepository.find(options);
+    await this.forceManyEager(detalheA);
+    return detalheA;
   }
 
   /**

@@ -70,7 +70,7 @@ import { AppLoggerMiddleware } from './utils/logger-middleware';
       dataSourceFactory: async (options: DataSourceOptions) => {
         return new DataSource({
           ...options,
-          logging: true,
+          // logging: true,
         }).initialize();
       },
     }),

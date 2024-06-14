@@ -1,6 +1,6 @@
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ITicketRevenue } from '../interfaces/ticket-revenue.interface';
-import { ITicketRevenuesGroup } from '../interfaces/ticket-revenues-group.interface';
+import { TicketRevenuesGroupDto } from '../dtos/ticket-revenues-group.dto';
 import { ITRCounts } from '../interfaces/tr-counts.interface';
 
 const COUNTS_KEYS = [
@@ -15,8 +15,8 @@ const COUNTS_KEYS = [
 ];
 
 export function appendCountsGroup(
-  group: ITicketRevenuesGroup,
-  groupKey: keyof ITicketRevenuesGroup,
+  group: TicketRevenuesGroupDto,
+  groupKey: keyof TicketRevenuesGroupDto,
   newItem: ITicketRevenue,
   itemKey: string,
 ) {
@@ -46,8 +46,8 @@ export function appendCountsGroup(
 }
 
 export function appendCountsValue(
-  group: ITicketRevenuesGroup,
-  groupPropName: keyof ITicketRevenuesGroup,
+  group: TicketRevenuesGroupDto,
+  groupPropName: keyof TicketRevenuesGroupDto,
   newItemKey: string | number,
   ignoreNullUndefinedValue = true,
 ) {
@@ -65,7 +65,7 @@ export function appendCountsValue(
 }
 
 export function appendItem(
-  group: ITicketRevenuesGroup,
+  group: TicketRevenuesGroupDto,
   newItem: ITicketRevenue,
   detalhesA: DetalheA[],
 ) {
