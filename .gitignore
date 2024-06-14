@@ -41,3 +41,4 @@ temp/
 *.local.Dockerfile
 local.Dockerfile
 docker-compose*.local.yaml
+env-local-docker
