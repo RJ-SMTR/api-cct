@@ -27,6 +27,7 @@ import {
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { Between, FindOptionsWhere, In } from 'typeorm';
+import { TicketRevenueDTO } from './dtos/ticket-revenue.dto';
 import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITRGetMeGroupedArgs } from './interfaces/tr-get-me-grouped-args.interface';
@@ -36,7 +37,6 @@ import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-re
 import { TicketRevenuesRepositoryService as TicketRevenuesRepository } from './ticket-revenues-repository';
 import { TicketRevenuesGroups } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
-import { TicketRevenueDTO } from './dtos/ticket-revenue.dto';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -243,22 +243,21 @@ export class TicketRevenuesService {
     return newGroups;
   }
 
-  public async findTransacaoView(fetchArgs: IFetchTicketRevenues) {
-    const METHOD = 'findTransacaoView';
-    const datetimeField: keyof TransacaoView = fetchArgs.previousDays
+  public async findTransacaoView(args: IFetchTicketRevenues) {
+    const datetimeField: keyof TransacaoView = args.previousDays
       ? 'datetimeTransacao'
       : 'datetimeProcessamento';
     const betweenDate: FindOptionsWhere<TransacaoView> = {
       [datetimeField]: Between(
-        fetchArgs?.startDate || new Date(0),
-        fetchArgs?.endDate || new Date(),
+        args?.startDate || new Date(0),
+        args?.endDate || new Date(),
       ),
     };
-    const findOperadora: FindOptionsWhere<TransacaoView> = fetchArgs?.cpfCnpj
-      ? { operadoraCpfCnpj: fetchArgs.cpfCnpj }
+    const findOperadora: FindOptionsWhere<TransacaoView> = args?.cpfCnpj
+      ? { operadoraCpfCnpj: args.cpfCnpj }
       : {};
-    const findConsorcio: FindOptionsWhere<TransacaoView> = fetchArgs?.cpfCnpj
-      ? { consorcioCnpj: fetchArgs.cpfCnpj }
+    const findConsorcio: FindOptionsWhere<TransacaoView> = args?.cpfCnpj
+      ? { consorcioCnpj: args.cpfCnpj }
       : {};
     const where: FindOptionsWhere<TransacaoView>[] = [
       {
@@ -271,7 +270,7 @@ export class TicketRevenuesService {
       },
     ];
     const today = new Date();
-    if (fetchArgs.getToday) {
+    if (args.getToday) {
       const isTodayDate: FindOptionsWhere<TransacaoView> = {
         [datetimeField]: Between(startOfDay(today), endOfDay(today)),
       };
@@ -285,19 +284,17 @@ export class TicketRevenuesService {
       });
     }
 
-    this.logger.debug('FindRaw start', METHOD);
     let transacoes = await this.transacaoViewService.findRaw({
       where,
       order: {
         [datetimeField]: 'ASC',
       },
-      ...(fetchArgs?.offset ? { skip: fetchArgs.offset } : {}),
-      ...(fetchArgs?.limit ? { take: fetchArgs.limit } : {}),
+      ...(args?.offset ? { skip: args.offset } : {}),
+      ...(args?.limit ? { take: args.limit } : {}),
     });
-    this.logger.debug('FindRaw end', METHOD);
 
     // Filtrar apenas dias anteriores (dataProcessamento > dataTransacao - dia)
-    if (fetchArgs.previousDays) {
+    if (args.previousDays) {
       transacoes = transacoes.filter((i) => {
         const notSameDay = !isSameDay(
           i.datetimeProcessamento,

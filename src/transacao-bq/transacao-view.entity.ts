@@ -149,6 +149,7 @@ export class TransacaoView {
       vehicleService: null,
       arquivoPublicacao: this.arquivoPublicacao || undefined,
       isPago: Boolean(this.arquivoPublicacao?.isPago),
+      count: 1,
     });
   }
 

@@ -358,9 +358,8 @@ export class TicketRevenuesRepositoryService {
       });
     }
 
-    return (await this.transacaoViewService.find(where)).map((i) =>
-      i.toTicketRevenue(),
-    );
+    const transacaoViews = await this.transacaoViewService.find(where);
+    return transacaoViews.map((i) => i.toTicketRevenue());
   }
 
   /**

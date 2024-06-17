@@ -65,10 +65,8 @@ export class BankStatementsRepositoryService {
   /**
    * Parâmetros:
    * - endDate
-   * - startDate (não existe)
    * - timeInterval (dia/semana)
    * - paginação
-   * - previousDays (true?)
    *
    * Requisitos:
    * - Mostra sempre as transações individuais
@@ -84,6 +82,7 @@ export class BankStatementsRepositoryService {
       ? validArgs.paginationArgs
       : { limit: 9999, page: 1 };
 
+    // LastWeek
     const friday = new Date(validArgs.endDate);
     const qui = startOfDay(subDays(friday, 8));
     const qua = endOfDay(subDays(friday, 2));

@@ -20,6 +20,11 @@ export class TicketRevenueDTO {
   }
 
   /**
+   * Para o frontend exibir o número de passagens arrecadadas - individual é sempre 1
+   */
+  count: number;
+
+  /**
    * Represents `data`
    *
    * Is recommended to use this field to filter by date in bigquery

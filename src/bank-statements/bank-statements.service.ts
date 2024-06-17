@@ -241,7 +241,6 @@ export class BankStatementsService {
   // #region getMePreviousDays
 
   /**
-   * - startDate (não existe, valor = startDate - mesmo dia)
    * - endDate
    * - timeInterval (lastDay, lastWeek)
    * - user (obrigatório)
@@ -276,6 +275,8 @@ export class BankStatementsService {
       throw CommonHttpException.argNotType('userId', 'number', args?.userId);
     }
     const user = await this.usersService.getOne({ id: args?.userId });
+
+    // Se filtrar pela última semana o endDate deve ser sexta-feira
     if (
       args?.timeInterval === BSMePrevDaysTimeIntervalEnum.LAST_WEEK &&
       (!args?.endDate || !isFriday(new Date(args.endDate)))
@@ -285,6 +286,7 @@ export class BankStatementsService {
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
+
     return {
       user: user,
       endDate: args.endDate || getDateYMDString(new Date(Date.now())),
