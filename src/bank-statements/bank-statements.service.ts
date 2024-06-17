@@ -66,7 +66,6 @@ export class BankStatementsService {
     );
     const paidSum = Number(
       bsData.statements
-        .filter((i) => i.status === 'Pago')
         .reduce((sum, item) => sum + item.paidAmount, 0)
         .toFixed(2),
     );
