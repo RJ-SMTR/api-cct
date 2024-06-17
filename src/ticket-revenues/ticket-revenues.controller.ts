@@ -149,7 +149,7 @@ export class TicketRevenuesController {
     name: 'userId',
     type: Number,
     required: false,
-    description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
+    description: DescriptionApiParam({ default: 'Your logged userId (me)' }),
   })
   async getMeIndividual(
     @Request() request,
