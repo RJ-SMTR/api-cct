@@ -29,10 +29,13 @@ export class BankStatementDTO {
 
   @SetValueIf((o) => o.status !== 'Pago', 0)
   paidAmount: number;
-
+  
   /** Payment status */
   status: string | null;
-
+  
   /** Bank error message */
   errors: string[];
+  
+  // Debug
+  ticketCount: number;
 }

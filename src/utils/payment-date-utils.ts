@@ -1,13 +1,15 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
+  addDays,
   endOfDay,
   isFriday,
   isSameMonth,
+  isThursday,
   nextFriday,
   previousFriday,
   startOfDay,
   startOfMonth,
-  subDays
+  subDays,
 } from 'date-fns';
 import { isSameNthWeek } from './date-utils';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
@@ -127,7 +129,7 @@ export function getPaymentDates(args: {
       } else if (endpoint === 'bank-statements') {
         if (timeInterval) {
           /**
-           * r = rseult.
+           * r = result.
            * endpoint = bank-statements, bank-statements>ticket-revenues.
            * start/end dates recebidos são início e fim do mês.
            * Deve retornar a 1a e última sexta do mês.
@@ -136,7 +138,7 @@ export function getPaymentDates(args: {
             startDate: new Date(startDateStr),
             endDate: new Date(endDateStr),
           };
-          return getFirstLastFridays(r, timeInterval);
+          return getFirstLastFridays(endpoint, r, timeInterval);
         } else {
           throw new HttpException(
             {
@@ -161,7 +163,7 @@ export function getPaymentDates(args: {
             startDate: new Date(startDateStr),
             endDate: new Date(endDateStr),
           };
-          r = getFirstLastFridays(r, timeInterval);
+          r = getFirstLastFridays(endpoint, r, timeInterval);
           const qui = subDays(r.startDate, 8);
           const qua = subDays(r.endDate, 2);
           return {
@@ -224,6 +226,7 @@ export function getPaymentDates(args: {
 }
 
 function getFirstLastFridays(
+  endpoint: PaymentEndpointType,
   interval: DateIntervalType,
   timeInterval?: TimeIntervalEnum,
 ) {
@@ -245,8 +248,13 @@ function getFirstLastFridays(
     } else {
       r.endDate = previousFriday(r.endDate);
     }
+
+    // Remover semanas do futuro
     const today = new Date();
-    const thisFriday = isFriday(today) ? today : nextFriday(today);
+    /** Pega de qui-qua */
+    const thisFriday = isThursday(today)
+      ? addDays(today, 8)
+      : nextFriday(today);
     if (r.endDate > thisFriday) {
       r.endDate = thisFriday;
     }

@@ -17,10 +17,6 @@ import {
 /**
  * Unique: [datetimeTransacao, datetimeProcessamento]
  */
-// @Unique('UQ_TransacaoView_datetimeTransacao_datetimeProcessamento', [
-//   'datetimeTransacao',
-//   'datetimeProcessamento',
-// ])
 @Entity()
 export class TransacaoView {
   constructor(transacao?: DeepPartial<TransacaoView>) {
@@ -152,6 +148,8 @@ export class TransacaoView {
       vehicleId: null,
       vehicleService: null,
       arquivoPublicacao: this.arquivoPublicacao || undefined,
+      isPago: Boolean(this.arquivoPublicacao?.isPago),
+      count: 1,
     });
   }
 

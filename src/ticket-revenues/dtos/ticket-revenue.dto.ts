@@ -1,5 +1,6 @@
 // @Exclude({ toPlainOnly: true })
 
+import { Exclude } from 'class-transformer';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
 import { SetValueIf } from 'src/utils/decorators/set-value-if.decorator';
 
@@ -14,8 +15,14 @@ export class TicketRevenueDTO {
   constructor(dto?: TicketRevenueDTO) {
     if (dto) {
       Object.assign(this, dto);
+      this.isPago = Boolean(this.arquivoPublicacao?.isPago);
     }
   }
+
+  /**
+   * Para o frontend exibir o número de passagens arrecadadas - individual é sempre 1
+   */
+  count: number;
 
   /**
    * Represents `data`
@@ -226,7 +233,7 @@ export class TicketRevenueDTO {
   /** Valor a ser pago - valor líquido calculado
    * Não significa que foi pago
    */
-  @SetValueIf((o) => !o.isPago, 0)
+  @SetValueIf((o) => o.isPago === false, 0)
   paidValue: number;
 
   /**
@@ -235,7 +242,11 @@ export class TicketRevenueDTO {
    * @description Código de controle de versão do dado (SHA Github)
    * @example
    */
+  @Exclude()
   bqDataVersion: string | null;
 
+  isPago = false;
+
+  @Exclude()
   arquivoPublicacao?: ArquivoPublicacao;
 }

@@ -3,7 +3,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  ParseEnumPipe,
   Query,
   Request,
   SerializeOptions,
@@ -96,10 +95,22 @@ export class BankStatementsController {
    * Requisito: {@link https://github.com/RJ-SMTR/api-cct/issues/237 Github #237 }
    *
    * Escopo:
-   * - Ler TransacaoView em um dia X (dataProcessamento)
    * - Uma transação é dia anteior quando dataProcessamento > dataTransacao (dia)
    * - O endpoint retorna todas transações de dias anteriores
    * - Exibir o status (pago, não pago, nulo)
+   *
+   * Para intervalo = dia:
+   * - Ler TransacaoView em um dia X (dataProcessamento)
+   * - endDate = dia
+   * - timeInterval = lastDay
+   *
+   * Para intervalo = semana:
+   * - Ler TransacaoView em uma sexta de pagamento (pega semana de qui-qua)
+   * - endDate = sexta de pagamento
+   * - timeInterval = lastWeek
+   * 
+   * Não é usado:
+   * - startDate
    */
   @SerializeOptions({
     groups: ['me'],
@@ -111,12 +122,12 @@ export class BankStatementsController {
   @ApiQuery(PaginationApiParams.limit)
   @ApiQuery(DateApiParams.startDate)
   @ApiQuery(DateApiParams.getEndDate(true))
-  @ApiQuery(
-    DateApiParams.getTimeInterval(
-      BSMePrevDaysTimeIntervalEnum,
-      BSMePrevDaysTimeIntervalEnum.LAST_WEEK,
-    ),
-  )
+  @ApiQuery({
+    name: 'timeInterval',
+    required: true,
+    example: BSMePrevDaysTimeIntervalEnum.LAST_DAY,
+    enum: BSMePrevDaysTimeIntervalEnum,
+  })
   @ApiQuery(CommonApiParams.userId)
   @HttpCode(HttpStatus.OK)
   async getMePreviousDays(
@@ -124,7 +135,10 @@ export class BankStatementsController {
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
     @Query(...DateQueryParams.getDate('endDate', true)) endDate: string,
-    @Query('timeInterval', new ParseEnumPipe(BSMePrevDaysTimeIntervalEnum))
+    @Query(
+      'timeInterval',
+      new ValidateEnumPipe(BSMePrevDaysTimeIntervalEnum, true),
+    )
     timeInterval: BSMePrevDaysTimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,

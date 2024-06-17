@@ -1,3 +1,3 @@
-import { ITicketRevenuesGroup } from '../interfaces/ticket-revenues-group.interface';
+import { TicketRevenuesGroupDto } from '../dtos/ticket-revenues-group.dto';
 
-export type TicketRevenuesGroups = Record<string, ITicketRevenuesGroup>;
+export type TicketRevenuesGroups = Record<string, TicketRevenuesGroupDto>;

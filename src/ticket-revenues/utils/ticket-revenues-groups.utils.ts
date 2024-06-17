@@ -1,7 +1,7 @@
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
-import { ITicketRevenue } from '../interfaces/ticket-revenue.interface';
-import { ITicketRevenuesGroup } from '../interfaces/ticket-revenues-group.interface';
+import { TicketRevenuesGroupDto } from '../dtos/ticket-revenues-group.dto';
 import { ITRCounts } from '../interfaces/tr-counts.interface';
+import { TicketRevenueDTO } from '../dtos/ticket-revenue.dto';
 
 const COUNTS_KEYS = [
   'transportTypeCounts',
@@ -15,9 +15,9 @@ const COUNTS_KEYS = [
 ];
 
 export function appendCountsGroup(
-  group: ITicketRevenuesGroup,
-  groupKey: keyof ITicketRevenuesGroup,
-  newItem: ITicketRevenue,
+  group: TicketRevenuesGroupDto,
+  groupKey: keyof TicketRevenuesGroupDto,
+  newItem: TicketRevenueDTO,
   itemKey: string,
 ) {
   const IGNORE_NULL_UNDEFINED = true;
@@ -46,8 +46,8 @@ export function appendCountsGroup(
 }
 
 export function appendCountsValue(
-  group: ITicketRevenuesGroup,
-  groupPropName: keyof ITicketRevenuesGroup,
+  group: TicketRevenuesGroupDto,
+  groupPropName: keyof TicketRevenuesGroupDto,
   newItemKey: string | number,
   ignoreNullUndefinedValue = true,
 ) {
@@ -65,8 +65,8 @@ export function appendCountsValue(
 }
 
 export function appendItem(
-  group: ITicketRevenuesGroup,
-  newItem: ITicketRevenue,
+  group: TicketRevenuesGroupDto,
+  newItem: TicketRevenueDTO,
   detalhesA: DetalheA[],
 ) {
   group.count += 1;

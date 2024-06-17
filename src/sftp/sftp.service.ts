@@ -86,7 +86,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       }
       this.logger.log('As pastas SFTP estão preparadas.', METHOD);
     } catch (error) {
-      this.logger.error(
+      this.logger.warn(
         `Falha ao preparar pastas SFTP. - ${error}`,
         error.stack,
         METHOD,

@@ -19,7 +19,7 @@ import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { TRTimeIntervalEnum } from './enums/tr-time-interval.enum';
-import { ITicketRevenuesGroup } from './interfaces/ticket-revenues-group.interface';
+import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import { TicketRevenuesService } from './ticket-revenues.service';
@@ -32,13 +32,27 @@ import { CustomLogger } from 'src/utils/custom-logger';
   version: '1',
 })
 export class TicketRevenuesController {
-
   private logger = new CustomLogger(TicketRevenuesController.name, {
     timestamp: true,
   });
 
   constructor(private readonly ticketRevenuesService: TicketRevenuesService) {}
 
+  /**
+   * # Cenários:
+   *
+   * ## Dado semanal
+   *
+   * @param endDate sexta de pagamento
+   *
+   * ## Dado diário
+   *
+   * @param startDate dia selecionado
+   * @param endDate dia selecionado
+   *
+   * ## Não utilizado
+   * @param timeInterval
+   */
   @SerializeOptions({
     groups: ['me'],
   })
@@ -104,7 +118,7 @@ export class TicketRevenuesController {
     @Query('timeInterval') timeInterval?: TimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
-  ): Promise<ITicketRevenuesGroup> {
+  ): Promise<TicketRevenuesGroupDto> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     return await this.ticketRevenuesService.getMeGrouped({
       startDate,
@@ -135,7 +149,7 @@ export class TicketRevenuesController {
     name: 'userId',
     type: Number,
     required: false,
-    description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
+    description: DescriptionApiParam({ default: 'Your logged userId (me)' }),
   })
   async getMeIndividual(
     @Request() request,

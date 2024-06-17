@@ -1,14 +1,14 @@
 import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BigqueryService } from 'src/bigquery/bigquery.service';
-import { ITicketRevenuesGroup } from 'src/ticket-revenues/interfaces/ticket-revenues-group.interface';
+import { TicketRevenuesGroupDto } from 'src/ticket-revenues/dtos/ticket-revenues-group.dto';
 import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { getDateYMDString } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
-import { BankStatementsRepositoryService } from './bank-statements-repository.service';
+import { BankStatementsRepositoryService } from './bank-statements.repository';
 import { BankStatementsService } from './bank-statements.service';
 import { BankStatementDTO } from './dtos/bank-statement.dto';
 import { SettingsService } from 'src/settings/settings.service';
@@ -145,7 +145,7 @@ xdescribe('BankStatementsService', () => {
         (i) => i.permitCode === 'pc_1',
       );
 
-      const revenuesGroup: ITicketRevenuesGroup[] = [];
+      const revenuesGroup: TicketRevenuesGroupDto[] = [];
       // from 2023-01-22 to 2023-01-12 (calendar d.)
       for (let day = 0; day < 11; day++) {
         const date = new Date('2023-01-22');
@@ -299,7 +299,7 @@ xdescribe('BankStatementsService', () => {
         (i) => i.cpfCnpj === 'cc_1',
       );
 
-      const revenuesGroup: ITicketRevenuesGroup[] = [];
+      const revenuesGroup: TicketRevenuesGroupDto[] = [];
       // from 2023-01-22 to 2023-01-12 (calendar d.)
       for (let day = 0; day < 7; day++) {
         const date = new Date('2023-01-25');
@@ -447,7 +447,7 @@ xdescribe('BankStatementsService', () => {
         (i) => i.cpfCnpj === 'cc_1',
       );
 
-      const revenuesGroup: ITicketRevenuesGroup[] = [];
+      const revenuesGroup: TicketRevenuesGroupDto[] = [];
       // from 2023-01-17 to 2022-12-29 (28 days)
       for (let day = 0; day < 20; day++) {
         const date = new Date('2023-01-17');

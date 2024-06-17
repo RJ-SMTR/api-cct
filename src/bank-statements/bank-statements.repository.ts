@@ -65,10 +65,8 @@ export class BankStatementsRepositoryService {
   /**
    * Parâmetros:
    * - endDate
-   * - startDate (não existe)
    * - timeInterval (dia/semana)
    * - paginação
-   * - previousDays (true?)
    *
    * Requisitos:
    * - Mostra sempre as transações individuais
@@ -84,6 +82,7 @@ export class BankStatementsRepositoryService {
       ? validArgs.paginationArgs
       : { limit: 9999, page: 1 };
 
+    // LastWeek
     const friday = new Date(validArgs.endDate);
     const qui = startOfDay(subDays(friday, 8));
     const qua = endOfDay(subDays(friday, 2));
@@ -121,6 +120,7 @@ export class BankStatementsRepositoryService {
       );
       const amount = Number((item.transactionValue || 0).toFixed(2));
       const paidAmount = Number(item.paidValue.toFixed(2));
+      const ticketCount = 1;
       const foundDetalhesA = detalhesA.filter(
         (i) =>
           i.itemTransacaoAgrupado.id ===
@@ -135,18 +135,9 @@ export class BankStatementsRepositoryService {
         ],
         [],
       );
-      return {
+      return new BankStatementDTO({
         id: index,
         date: getDateYMDString(new Date(String(item.processingDateTime))),
-        processingDate: getDateYMDString(
-          new Date(String(item.processingDateTime)),
-        ),
-        transactionDate: getDateYMDString(
-          new Date(String(item.transactionDateTime)),
-        ),
-        paymentOrderDate: getDateYMDString(
-          nextFriday(new Date(String(item.processingDateTime))),
-        ),
         effectivePaymentDate: isPago
           ? getDateYMDString(
               nextFriday(new Date(String(item.processingDateTime))),
@@ -158,7 +149,8 @@ export class BankStatementsRepositoryService {
         paidAmount: paidAmount,
         status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
         errors,
-      } as BankStatementDTO;
+        ticketCount,
+      });
     });
     return getPagination<{ data: BankStatementDTO[] }>(
       {
