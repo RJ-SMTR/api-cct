@@ -1,6 +1,5 @@
-import { SetValueIf } from 'src/utils/decorators/set-value-if.decorator';
-import { ITRCounts } from '../interfaces/tr-counts.interface';
 import { DeepPartial } from 'typeorm';
+import { ITRCounts } from '../interfaces/tr-counts.interface';
 
 /**
  * This object represents a group of `IBqTicketRevenues`
@@ -131,7 +130,6 @@ export class TicketRevenuesGroupDto {
    * @description Valor debitado na transação atual (R$)
    * type `float`
    */
-  @SetValueIf((o) => !o.isPago, 0)
   paidValueSum = 0;
 
   // Internal helper fields

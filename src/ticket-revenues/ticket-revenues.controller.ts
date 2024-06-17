@@ -10,21 +10,30 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  endOfMonth,
+  isFriday,
+  nextFriday,
+  previousFriday,
+  startOfMonth,
+  subDays,
+} from 'date-fns';
 import { DateApiParams } from 'src/utils/api-param/date-api-param';
 import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
+import { getRequestLog } from 'src/utils/request-utils';
 import { Pagination } from 'src/utils/types/pagination.type';
-import { TRTimeIntervalEnum } from './enums/tr-time-interval.enum';
 import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
+import { TRTimeIntervalEnum } from './enums/tr-time-interval.enum';
 import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import { TicketRevenuesService } from './ticket-revenues.service';
-import { getRequestLog } from 'src/utils/request-utils';
-import { CustomLogger } from 'src/utils/custom-logger';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -104,6 +113,7 @@ export class TicketRevenuesController {
   @HttpCode(HttpStatus.OK)
   @ApiQuery(DateApiParams.startDate)
   @ApiQuery(DateApiParams.endDate)
+  @ApiQuery(DateApiParams.yearMonth)
   @ApiQuery(DateApiParams.timeInterval)
   @ApiQuery({
     name: 'userId',
@@ -113,13 +123,35 @@ export class TicketRevenuesController {
   })
   async getMeGrouped(
     @Request() request,
-    @Query(...DateQueryParams.endDate) endDate: string,
-    @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query('endDate', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/, true))
+    endDate?: string,
+    @Query('startDate', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/, true))
+    startDate?: string,
+    @Query(...DateQueryParams.yearMonth) yearMonth?: string,
     @Query('timeInterval') timeInterval?: TimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
   ): Promise<TicketRevenuesGroupDto> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    if (yearMonth) {
+      const month = new Date(yearMonth + '-01');
+      let _startDate = startOfMonth(month);
+      let _endDate = endOfMonth(month);
+      if (!isFriday(_startDate)) {
+        _startDate = nextFriday(_startDate);
+      }
+      _startDate = subDays(_startDate, 8);
+      if (!isFriday(_endDate)) {
+        _endDate = previousFriday(_endDate);
+      }
+      _endDate = subDays(_endDate, 2);
+      return await this.ticketRevenuesService.getMeGrouped({
+        startDate: _startDate.toISOString().slice(0, 10),
+        endDate: _endDate.toISOString().slice(0, 10),
+        timeInterval,
+        userId: isUserIdNumber ? userId : request.user.id,
+      });
+    }
     return await this.ticketRevenuesService.getMeGrouped({
       startDate,
       endDate,

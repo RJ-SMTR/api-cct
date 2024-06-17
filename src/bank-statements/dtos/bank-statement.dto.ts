@@ -1,4 +1,3 @@
-import { SetValueIf } from 'src/utils/decorators/set-value-if.decorator';
 
 export class BankStatementDTO {
   constructor(dto?: BankStatementDTO) {
@@ -27,7 +26,6 @@ export class BankStatementDTO {
   cpfCnpj: string;
   amount: number;
 
-  @SetValueIf((o) => o.status !== 'Pago', 0)
   paidAmount: number;
   
   /** Payment status */
