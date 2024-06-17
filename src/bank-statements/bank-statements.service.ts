@@ -207,14 +207,16 @@ export class BankStatementsService {
         (sum, i) => sum + i.paidValueSum,
         0,
       );
+      /** Se todos os itens não vazios foram pagos */
       const isPago =
-        revenuesWeek.length > 0 && revenuesWeek.every((i) => i.isPago);
+        revenuesWeek.length > 0 &&
+        revenuesWeek.filter((i) => i.count).every((i) => i.isPago);
       const errors = [
         ...new Set(revenuesWeek.reduce((l, i) => [...l, ...i.errors], [])),
       ];
       const amount = Number(weekAmount.toFixed(2));
       const paidAmount = Number(weekPaidAmount.toFixed(2));
-      const ticketCount = revenuesWeek.reduce((s,i) => s + i.count, 0);
+      const ticketCount = revenuesWeek.reduce((s, i) => s + i.count, 0);
       newStatements.push(
         new BankStatementDTO({
           id: maxId - id,

@@ -29,15 +29,14 @@ import { Pagination } from 'src/utils/types/pagination.type';
 import { Between, FindOptionsWhere, In } from 'typeorm';
 import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
-import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
 import { ITRGetMeGroupedArgs } from './interfaces/tr-get-me-grouped-args.interface';
 import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response.interface';
 import { ITRGetMeIndividualArgs } from './interfaces/tr-get-me-individual-args.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
-import { TicketRevenuesGroup } from './objs/TicketRevenuesGroup';
 import { TicketRevenuesRepositoryService as TicketRevenuesRepository } from './ticket-revenues-repository';
 import { TicketRevenuesGroups } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
+import { TicketRevenueDTO } from './dtos/ticket-revenue.dto';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -73,7 +72,7 @@ export class TicketRevenuesService {
     });
 
     // Get data
-    const ticketRevenuesResponse: ITicketRevenue[] =
+    const ticketRevenuesResponse: TicketRevenueDTO[] =
       await this.findTransacaoView({
         cpfCnpj: user.getCpfCnpj(),
         startDate,
@@ -81,7 +80,7 @@ export class TicketRevenuesService {
       });
 
     if (ticketRevenuesResponse.length === 0) {
-      return new TicketRevenuesGroup().toInterface();
+      return new TicketRevenuesGroupDto();
     }
     const detalhesA = await this.detalheAService.findMany({
       itemTransacaoAgrupado: {
@@ -125,7 +124,7 @@ export class TicketRevenuesService {
     const groupBy = args?.groupBy || 'day';
 
     // Repository tasks
-    let ticketRevenuesResponse: ITicketRevenue[] = await this.findTransacaoView(
+    let ticketRevenuesResponse: TicketRevenueDTO[] = await this.findTransacaoView(
       { cpfCnpj: user.getCpfCnpj(), startDate, endDate },
     );
 
@@ -318,7 +317,7 @@ export class TicketRevenuesService {
   }
 
   private getGroupSum(
-    data: ITicketRevenue[],
+    data: TicketRevenueDTO[],
     detalhesA: DetalheA[],
   ): TicketRevenuesGroupDto {
     const METHOD = this.getGroupSum.name;
@@ -350,12 +349,12 @@ export class TicketRevenuesService {
    * Filter method: ticket-revenues/me
    */
   private getTicketRevenuesGroups(
-    ticketRevenues: ITicketRevenue[],
+    ticketRevenues: TicketRevenueDTO[],
     groupBy: 'day' | 'week' | 'month' | 'all' | string,
     detalhesA: DetalheA[],
   ): TicketRevenuesGroupDto[] {
     const result = ticketRevenues.reduce(
-      (group: TicketRevenuesGroups, item: ITicketRevenue) => {
+      (group: TicketRevenuesGroups, item: TicketRevenueDTO) => {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
         const itemDate = new Date(item.processingDateTime);
         const nthWeek = getNthWeek(itemDate, startWeekday);
@@ -392,7 +391,7 @@ export class TicketRevenuesService {
           ).toISOString();
           const day = item.processingDateTime;
           const procsesingDate = groupBy === 'week' ? friday : day;
-          group[dateGroup] = new TicketRevenuesGroupDto({
+          const newGroup =  new TicketRevenuesGroupDto({
             count: 0,
             date: procsesingDate,
             transportTypeCounts: {},
@@ -412,6 +411,7 @@ export class TicketRevenuesService {
             isPago: true,
             errors: errors,
           });
+          group[dateGroup] = newGroup;
         } else {
           group[dateGroup].errors = [
             ...new Set([...group[dateGroup].errors, ...errors]),
