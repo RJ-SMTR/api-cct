@@ -1,6 +1,9 @@
-import { ITicketRevenue } from './ticket-revenue.interface';
+import { TicketRevenueDTO } from "../dtos/ticket-revenue.dto";
 
 export interface ITRGetMeIndividualResponse {
+  /** Card - Valor Transacao: acumulado semanal */
   amountSum: number;
-  data: ITicketRevenue[];
+  /** Card - Valor Transacao: acumulado semanal */
+  paidSum: number;
+  data: TicketRevenueDTO[];
 }

@@ -15,7 +15,6 @@ import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { Between, FindOptionsWhere } from 'typeorm';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
-import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
 import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { ITRGetMeIndividualValidArgs } from './interfaces/tr-get-me-individual-args.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
@@ -24,6 +23,7 @@ import {
   TRPaymentTypeMap,
   TRTransactionTypeMap,
 } from './maps/ticket-revenues.map';
+import { TicketRevenueDTO } from './dtos/ticket-revenue.dto';
 
 @Injectable()
 export class TicketRevenuesRepositoryService {
@@ -43,7 +43,7 @@ export class TicketRevenuesRepositoryService {
    * Filter: used by:
    * - ticket-revenues/get/me
    */
-  removeTodayData<T extends ITicketRevenue | TicketRevenuesGroupDto>(
+  removeTodayData<T extends TicketRevenueDTO | TicketRevenuesGroupDto>(
     data: T[],
     endDate: Date,
   ): T[] {
@@ -58,7 +58,7 @@ export class TicketRevenuesRepositoryService {
   /**
    * TODO: use it only in repository
    *
-   * Repository: query `ITicketRevenue[]` with pagination
+   * Repository: query `TicketRevenueDTO[]` with pagination
    *
    * Used by:
    * - ticket-revenues/me/individual
@@ -68,7 +68,7 @@ export class TicketRevenuesRepositoryService {
    */
   async fetchTicketRevenues(
     args?: IFetchTicketRevenues,
-  ): Promise<{ data: ITicketRevenue[]; countAll: number }> {
+  ): Promise<{ data: TicketRevenueDTO[]; countAll: number }> {
     const qArgs = await this.getQueryArgs(args);
     const query =
       `
@@ -116,10 +116,10 @@ export class TicketRevenuesRepositoryService {
 
     const count: number = queryResult[0].count;
     // Remove unwanted keys and remove last item (all null if empty)
-    let ticketRevenues: ITicketRevenue[] = queryResult.map((i) => {
+    let ticketRevenues: TicketRevenueDTO[] = queryResult.map((i) => {
       delete i.status;
       delete i.count;
-      return i;
+      return new TicketRevenueDTO(i);
     });
     ticketRevenues.pop();
     ticketRevenues = this.mapTicketRevenues(ticketRevenues);
@@ -240,14 +240,14 @@ export class TicketRevenuesRepositoryService {
    * Convert id or some values into desired string values
    */
   private mapTicketRevenues(
-    ticketRevenues: ITicketRevenue[],
-  ): ITicketRevenue[] {
-    return ticketRevenues.map((item: ITicketRevenue) => {
+    ticketRevenues: TicketRevenueDTO[],
+  ): TicketRevenueDTO[] {
+    return ticketRevenues.map((item: TicketRevenueDTO) => {
       const transactionType = item.transactionType;
       const paymentType = item.paymentMediaType;
       const integrationType = item.transportIntegrationType;
       Object.values(TRIntegrationTypeMap[0]);
-      return {
+      return new TicketRevenueDTO({
         ...item,
         paymentMediaType:
           paymentType !== null
@@ -261,7 +261,7 @@ export class TicketRevenuesRepositoryService {
           transactionType !== null
             ? TRTransactionTypeMap?.[transactionType] || transactionType
             : transactionType,
-      };
+      });
     });
   }
 
@@ -277,6 +277,7 @@ export class TicketRevenuesRepositoryService {
     });
 
     const result = await this.findTransacaoView(startDate, endDate, validArgs);
+    const paidSum = +result.reduce((s, i) => s + i.paidValue, 0).toFixed(2);
     const countAll = result.length;
     let ticketRevenuesResponse = result;
 
@@ -284,6 +285,7 @@ export class TicketRevenuesRepositoryService {
       return getPagination<ITRGetMeIndividualResponse>(
         {
           amountSum: 0,
+          paidSum: 0,
           data: [],
         },
         {
@@ -301,6 +303,7 @@ export class TicketRevenuesRepositoryService {
 
     return getPagination<ITRGetMeIndividualResponse>(
       {
+        paidSum,
         amountSum: this.getAmountSum(ticketRevenuesResponse),
         data: ticketRevenuesResponse,
       },
@@ -363,7 +366,7 @@ export class TicketRevenuesRepositoryService {
   /**
    * TODO: use it only in repository
    */
-  getAmountSum<T extends ITicketRevenue | TicketRevenuesGroupDto>(
+  getAmountSum<T extends TicketRevenueDTO | TicketRevenuesGroupDto>(
     data: T[],
   ): number {
     return Number(
@@ -372,7 +375,7 @@ export class TicketRevenuesRepositoryService {
   }
 
   private getTransactionValue(
-    item: ITicketRevenue | TicketRevenuesGroupDto,
+    item: TicketRevenueDTO | TicketRevenuesGroupDto,
   ): number {
     if ('transactionValue' in item) {
       return item.transactionValue || 0;
