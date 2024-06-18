@@ -3,7 +3,6 @@ import {
   differenceInDays,
   endOfDay,
   endOfMonth,
-  isFriday,
   startOfDay,
   startOfMonth,
   subDays,
@@ -18,16 +17,16 @@ import { getPaymentDates, getPaymentWeek } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { BankStatementsRepositoryService } from './bank-statements.repository';
-import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-interval.enum';
 import { BankStatementDTO } from './dtos/bank-statement.dto';
+import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-interval.enum';
 import { IBSGetMeArgs } from './interfaces/bs-get-me-args.interface';
 import {
   IBSGetMePreviousDaysArgs,
   IBSGetMePreviousDaysValidArgs,
 } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
-import { IGetBSResponse } from './interfaces/get-bs-response.interface';
 import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
+import { IGetBSResponse } from './interfaces/get-bs-response.interface';
 
 /**
  * Get weekly statements
@@ -216,20 +215,19 @@ export class BankStatementsService {
       const amount = Number(weekAmount.toFixed(2));
       const paidAmount = Number(weekPaidAmount.toFixed(2));
       const ticketCount = revenuesWeek.reduce((s, i) => s + i.count, 0);
-      newStatements.push(
-        new BankStatementDTO({
-          id: maxId - id,
-          amount,
-          paidAmount,
-          cpfCnpj: args.user.getCpfCnpj(),
-          date: getDateYMDString(endDate),
-          effectivePaymentDate: isPago ? getDateYMDString(endDate) : null,
-          permitCode: args.user.getPermitCode(),
-          status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
-          errors: errors,
-          ticketCount,
-        }),
-      );
+      const newStatement = new BankStatementDTO({
+        id: maxId - id,
+        amount,
+        paidAmount,
+        cpfCnpj: args.user.getCpfCnpj(),
+        date: getDateYMDString(endDate),
+        effectivePaymentDate: isPago ? getDateYMDString(endDate) : null,
+        permitCode: args.user.getPermitCode(),
+        status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
+        errors: errors,
+        ticketCount,
+      });
+      newStatements.push(newStatement);
       allSum += Number(weekAmount.toFixed(2));
       id += 1;
     }
@@ -275,13 +273,13 @@ export class BankStatementsService {
     }
     const user = await this.usersService.getOne({ id: args?.userId });
 
-    // Se filtrar pela última semana o endDate deve ser sexta-feira
+    // O filtro mensal sempre retorna start/end dates
     if (
-      args?.timeInterval === BSMePrevDaysTimeIntervalEnum.LAST_WEEK &&
-      (!args?.endDate || !isFriday(new Date(args.endDate)))
+      args?.timeInterval === BSMePrevDaysTimeIntervalEnum.LAST_MONTH &&
+      !args?.endDate
     ) {
       throw CommonHttpException.message(
-        'timeInterval = `lastWeek` mas endDate não é sexta-feira.',
+        'timeInterval = `lastWeek` mas endDate não foi enviado.',
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }

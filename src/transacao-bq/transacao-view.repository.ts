@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import {
   DataSource,
@@ -9,8 +10,8 @@ import {
   Repository,
 } from 'typeorm';
 import { UpsertOptions } from 'typeorm/repository/UpsertOptions';
+import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { TransacaoView } from './transacao-view.entity';
-import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class TransacaoViewRepository {
@@ -65,6 +66,55 @@ export class TransacaoViewRepository {
     options: FindManyOptions<TransacaoView>,
   ): Promise<TransacaoView> {
     return await this.transacaoViewRepository.findOneOrFail(options);
+  }
+
+  public async findPreviousDays(
+    args: IPreviousDaysArgs,
+  ): Promise<TransacaoView[]> {
+    // Filter date
+    let query = this.transacaoViewRepository
+      .createQueryBuilder()
+      /** Se transacao < processamento */
+      .where('"datetimeTransacao" < "datetimeProcessamento"')
+      /** E se não for no mesmo dia */
+      .andWhere(
+        `TO_CHAR(date_trunc('day', "datetimeTransacao"),'YYYY-MM-DD')
+        <> TO_CHAR(date_trunc('day', "datetimeProcessamento"),'YYYY-MM-DD')`,
+      )
+      /** E dentro do intervalo */
+      .andWhere(`"datetimeProcessamento" BETWEEN :startDate AND :endDate`, {
+        startDate: args.startDate,
+        endDate: args.endDate,
+      });
+
+    // cpfCnpj
+    if (args.cpfCnpjs.length) {
+      const cpfCnpjsStr = args.cpfCnpjs.join("','");
+      query = query.andWhere(
+        `("operadoraCpfCnpj" IN (:cpfCnpjs) OR "consorcioCnpj" IN (:cpfCnpjs))`,
+        { cpfCnpjs: cpfCnpjsStr },
+      );
+    }
+    query = query.orderBy('"datetimeProcessamento"', 'ASC');
+
+    // Pagination
+    if (args.pageStart) {
+      query = query.skip(args.pageStart);
+    }
+    if (args.pageLimit) {
+      query = query.take(args.pageLimit);
+    }
+
+    const items = await query.getMany();
+    const joinedItems = await this.find({
+      where: {
+        id: In(items.map((i) => i.id)),
+      },
+      order: {
+        datetimeProcessamento: 'DESC',
+      },
+    });
+    return joinedItems;
   }
 
   public async find(

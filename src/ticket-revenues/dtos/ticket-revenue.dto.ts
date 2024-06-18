@@ -54,7 +54,7 @@ export class TicketRevenueDTO {
    * @type `BigQueryDateTime | null`
    * @example '2023-09-12T14:48:52.709319'
    */
-  transactionDateTime: string | null;
+  transactionDateTime: string;
 
   /**
    * **Important field**

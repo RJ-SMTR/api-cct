@@ -95,20 +95,18 @@ export class BankStatementsController {
    * Requisito: {@link https://github.com/RJ-SMTR/api-cct/issues/237 Github #237 }
    *
    * Escopo:
-   * - Uma transação é dia anteior quando dataProcessamento > dataTransacao (dia)
+   * - Uma transação é dia anteior quando dataTransacao < dataProcessamento (dia)
    * - O endpoint retorna todas transações de dias anteriores
    * - Exibir o status (pago, não pago, nulo)
+   * - Exibir campos:
+   *  - dataOrdemPagamento = quinta
+   *  - dataPagamentoEfetivo = sexta (pega do banco)
    *
-   * Para intervalo = dia:
-   * - Ler TransacaoView em um dia X (dataProcessamento)
-   * - endDate = dia
-   * - timeInterval = lastDay
+   * Para intervalo = mês:
+   * - Ler TransacaoView em um mês (pega qui da 1a semana até qua da última semana)
+   * - endDate = data contendo o mês
+   * - timeInterval = lastMonth
    *
-   * Para intervalo = semana:
-   * - Ler TransacaoView em uma sexta de pagamento (pega semana de qui-qua)
-   * - endDate = sexta de pagamento
-   * - timeInterval = lastWeek
-   * 
    * Não é usado:
    * - startDate
    */
@@ -125,7 +123,7 @@ export class BankStatementsController {
   @ApiQuery({
     name: 'timeInterval',
     required: true,
-    example: BSMePrevDaysTimeIntervalEnum.LAST_DAY,
+    example: BSMePrevDaysTimeIntervalEnum.LAST_MONTH,
     enum: BSMePrevDaysTimeIntervalEnum,
   })
   @ApiQuery(CommonApiParams.userId)

@@ -5,6 +5,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DataSource, DeepPartial, FindManyOptions, In } from 'typeorm';
 import { TransacaoView } from './transacao-view.entity';
 import { TransacaoViewRepository } from './transacao-view.repository';
+import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 
 @Injectable()
 export class TransacaoViewService {
@@ -22,6 +23,10 @@ export class TransacaoViewService {
   }
 
   save = this.transacaoViewRepository.save;
+
+ async findPreviousDays(args: IPreviousDaysArgs) {
+   return await this.transacaoViewRepository.findPreviousDays(args);
+  }
 
   async find(fields: EntityCondition<TransacaoView>, eager = true) {
     return await this.transacaoViewRepository.find({
