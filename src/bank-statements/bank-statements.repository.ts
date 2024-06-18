@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import {
-  endOfMonth,
+  endOfDay,
   isFriday,
   nextFriday,
   nextThursday,
-  previousFriday,
   startOfDay,
-  startOfMonth,
   subDays,
 } from 'date-fns';
 import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
@@ -105,22 +103,26 @@ export class BankStatementsRepositoryService {
       ? validArgs.paginationArgs
       : { limit: 9999, page: 1 };
 
-    // LastMonth
+    // LastDay
     const day = new Date(validArgs.endDate);
-    let startFriday = startOfMonth(startOfDay(day));
-    if (!isFriday(startFriday)) {
-      startFriday = nextFriday(startFriday);
+    let startDate = startOfDay(day);
+    let endDate = endOfDay(day);
+
+    // LastWeek
+    if (validArgs.timeInterval === TimeIntervalEnum.LAST_WEEK) {
+      let friday = startOfDay(day);
+      if (!isFriday(friday)) {
+        friday = nextFriday(friday);
+      }
+      const qui = subDays(friday, 8);
+      const qua = subDays(friday, 2);
+      startDate = qui;
+      endDate = qua;
     }
-    let endFriday = endOfMonth(day);
-    if (!isFriday(endFriday)) {
-      endFriday = previousFriday(endFriday);
-    }
-    const qui = subDays(startFriday, 8);
-    const qua = subDays(endFriday, 2);
 
     const transacoes = await this.transacaoViewService.findPreviousDays({
-      startDate: qui,
-      endDate: qua,
+      startDate: startDate,
+      endDate: endDate,
       cpfCnpjs: [validArgs.user.getCpfCnpj()],
     });
     const revenues = transacoes.map((i) => i.toTicketRevenue());
