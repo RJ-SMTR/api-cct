@@ -102,7 +102,12 @@ export class BankStatementsController {
    *  - dataOrdemPagamento = quinta
    *  - dataPagamentoEfetivo = sexta (pega do banco)
    *
-   * Para intervalo = mês:
+   * Para intervalo = semana:
+   * - Ler TransacaoView em um mês (pega qui da 1a semana até qua da última semana)
+   * - endDate = data contendo o mês
+   * - timeInterval = lastMonth
+   *
+   * Para intervalo = day:
    * - Ler TransacaoView em um mês (pega qui da 1a semana até qua da última semana)
    * - endDate = data contendo o mês
    * - timeInterval = lastMonth
