@@ -58,10 +58,22 @@ export class BankStatementsRepositoryService {
       paginationArgs: paginationOptions,
     });
     const statusCounts = this.generateStatusCounts(previousDays.data);
+    const toPay = previousDays.data
+      .filter((i) => i.status === 'A pagar' && i.errors.length === 0)
+      .reduce((s, i) => s + i.paidAmount, 0);
+    const paid = previousDays.data
+      .filter((i) => i.status === 'Pago' && i.errors.length === 0)
+      .reduce((s, i) => s + i.paidAmount, 0);
+    const pending = previousDays.data
+      .filter((i) => i.errors.length > 0)
+      .reduce((s, i) => s + i.paidAmount, 0);
 
-    return getPagination<IBSGetMePreviousDaysResponse>(
+    const response = getPagination<IBSGetMePreviousDaysResponse>(
       {
         data: previousDays.data,
+        paidValue: paid,
+        pendingValue: pending,
+        toPayValue: toPay,
         statusCounts: statusCounts,
       },
       {
@@ -70,6 +82,7 @@ export class BankStatementsRepositoryService {
       },
       paginationOptions,
     );
+    return response;
   }
 
   /**
