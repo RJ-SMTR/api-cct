@@ -287,7 +287,7 @@ export class TicketRevenuesService {
     let transacoes = await this.transacaoViewService.findRaw({
       where,
       order: {
-        [datetimeField]: 'ASC',
+        datetimeProcessamento: 'DESC',
       },
       ...(args?.offset ? { skip: args.offset } : {}),
       ...(args?.limit ? { take: args.limit } : {}),
