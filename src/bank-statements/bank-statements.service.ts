@@ -275,7 +275,7 @@ export class BankStatementsService {
 
     // O filtro mensal sempre retorna start/end dates
     if (
-      args?.timeInterval === BSMePrevDaysTimeIntervalEnum.LAST_MONTH &&
+      args?.timeInterval === BSMePrevDaysTimeIntervalEnum.LAST_WEEK &&
       !args?.endDate
     ) {
       throw CommonHttpException.message(

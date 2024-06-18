@@ -103,12 +103,10 @@ export class BankStatementsController {
    *  - dataPagamentoEfetivo = sexta (pega do banco)
    *
    * Para intervalo = semana:
-   * - Ler TransacaoView em um mês (pega qui da 1a semana até qua da última semana)
-   * - endDate = data contendo o mês
-   * - timeInterval = lastMonth
+   * - endDate = sexta feira
+   * - timeInterval = lastWeek
    *
    * Para intervalo = day:
-   * - Ler TransacaoView em um mês (pega qui da 1a semana até qua da última semana)
    * - endDate = data contendo o mês
    * - timeInterval = lastMonth
    *
@@ -128,7 +126,7 @@ export class BankStatementsController {
   @ApiQuery({
     name: 'timeInterval',
     required: true,
-    example: BSMePrevDaysTimeIntervalEnum.LAST_MONTH,
+    example: BSMePrevDaysTimeIntervalEnum.LAST_WEEK,
     enum: BSMePrevDaysTimeIntervalEnum,
   })
   @ApiQuery(CommonApiParams.userId)
