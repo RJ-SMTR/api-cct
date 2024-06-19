@@ -48,19 +48,24 @@ export class TicketRevenuesController {
   constructor(private readonly ticketRevenuesService: TicketRevenuesService) {}
 
   /**
-   * # Cenários:
-   *
-   * ## Dado semanal
+   * Dado semanal
    *
    * @param endDate sexta de pagamento
    *
-   * ## Dado diário
+   * Dado diário
    *
    * @param startDate dia selecionado
    * @param endDate dia selecionado
    *
-   * ## Não utilizado
+   * Não utilizado
    * @param timeInterval
+   *
+   * Retorno:
+   * 
+   * - status:
+   *  - Se não tiver valor: nulo
+   *  - Se tiver valor e for tudo pago: Pago
+   *  - Se tiver valor e tiver algum item não pago: A pagar
    */
   @SerializeOptions({
     groups: ['me'],

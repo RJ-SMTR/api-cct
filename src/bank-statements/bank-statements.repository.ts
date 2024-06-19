@@ -159,6 +159,7 @@ export class BankStatementsRepositoryService {
       const orderDate = nextThursday(
         startOfDay(new Date(item.processingDateTime)),
       );
+      const status = amount ? (isPago ? 'Pago' : 'A pagar') : 'Sem valor';
       const dataEfetivacao = item.arquivoPublicacao?.dataEfetivacao;
       return new BankStatementPreviousDaysDTO({
         id: index + 1,
@@ -174,7 +175,7 @@ export class BankStatementsRepositoryService {
         permitCode: validArgs.user.getPermitCode(),
         amount: amount,
         paidAmount: paidAmount,
-        status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
+        status,
         errors,
         ticketCount,
       });

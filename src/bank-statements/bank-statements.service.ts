@@ -5,7 +5,7 @@ import {
   endOfMonth,
   startOfDay,
   startOfMonth,
-  subDays,
+  subDays
 } from 'date-fns';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
@@ -206,15 +206,17 @@ export class BankStatementsService {
         0,
       );
       /** Se todos os itens não vazios foram pagos */
+      const nonEmptyRevenues = revenuesWeek.filter((i) => i.count);
       const isPago =
-        revenuesWeek.length > 0 &&
-        revenuesWeek.filter((i) => i.count).every((i) => i.isPago);
+        nonEmptyRevenues.length > 0 &&
+        nonEmptyRevenues.every((i) => i.isPago === true);
       const errors = [
         ...new Set(revenuesWeek.reduce((l, i) => [...l, ...i.errors], [])),
       ];
       const amount = Number(weekAmount.toFixed(2));
       const paidAmount = Number(weekPaidAmount.toFixed(2));
       const ticketCount = revenuesWeek.reduce((s, i) => s + i.count, 0);
+      const status = amount ? (isPago ? 'Pago' : 'A pagar') : 'Sem valor';
       const newStatement = new BankStatementDTO({
         id: maxId - id,
         amount,
@@ -223,7 +225,7 @@ export class BankStatementsService {
         date: getDateYMDString(endDate),
         effectivePaymentDate: isPago ? getDateYMDString(endDate) : null,
         permitCode: args.user.getPermitCode(),
-        status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
+        status,
         errors: errors,
         ticketCount,
       });
