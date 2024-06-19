@@ -159,7 +159,7 @@ export class BankStatementsRepositoryService {
       const orderDate = nextThursday(
         startOfDay(new Date(item.processingDateTime)),
       );
-      const status = amount ? (isPago ? 'Pago' : 'A pagar') : 'Sem valor';
+      const status = amount ? (isPago ? 'Pago' : 'A pagar') : null;
       const dataEfetivacao = item.arquivoPublicacao?.dataEfetivacao;
       return new BankStatementPreviousDaysDTO({
         id: index + 1,

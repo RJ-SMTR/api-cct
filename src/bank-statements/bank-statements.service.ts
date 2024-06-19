@@ -216,7 +216,7 @@ export class BankStatementsService {
       const amount = Number(weekAmount.toFixed(2));
       const paidAmount = Number(weekPaidAmount.toFixed(2));
       const ticketCount = revenuesWeek.reduce((s, i) => s + i.count, 0);
-      const status = amount ? (isPago ? 'Pago' : 'A pagar') : 'Sem valor';
+      const status = amount ? (isPago ? 'Pago' : 'A pagar') : null;
       const newStatement = new BankStatementDTO({
         id: maxId - id,
         amount,
