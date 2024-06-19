@@ -32,7 +32,8 @@ export class TransacaoViewService {
     return await this.transacaoViewRepository.find({
       where: fields,
       order: {
-        datetimeProcessamento: 'ASC',
+        datetimeProcessamento: 'DESC',
+        datetimeTransacao: 'DESC',
       },
       loadEagerRelations: eager,
     });
