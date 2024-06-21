@@ -171,7 +171,9 @@ export class ArquivoPublicacaoService {
     if (!detalheARetorno.ocorrenciasCnab) {
       return;
     }
-    const ocorrencias = Ocorrencia.newList(detalheARetorno.ocorrenciasCnab);
+    const ocorrencias = Ocorrencia.fromCodesString(
+      detalheARetorno.ocorrenciasCnab,
+    );
     // Update
     for (const ocorrencia of ocorrencias) {
       ocorrencia.detalheA = detalheARetorno;

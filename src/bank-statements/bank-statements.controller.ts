@@ -44,10 +44,17 @@ export class BankStatementsController {
 
   /**
    * Escopo:
-   * 1. Ler TransacaoView e agrupar por cada semana (qui-qua)
-   * 2. Para o mês selecionado pega todas as sextas do mês
-   * 3. Para cada sexta mostrará a soma dos valores de qui-qua
+   * - Ler TransacaoView e agrupar por cada semana (qui-qua)
+   * - Para o mês selecionado pega todas as sextas do mês
+   * - Para cada sexta mostrará a soma dos valores de qui-qua
    *    Incluindo dias anteriores se a dataProcessamento estiver naquela semana.
+   *
+   * Na linha de cada transacao bancária:
+   * - "ValorTransacao" soma tudo, mesmo os status pago
+   * - "ValorPago" soma apenas os status pago
+   *
+   * Nos cards do front:
+   * - SomaValorPago
    *
    * @param timeInterval Apenas mensal
    */
@@ -97,10 +104,11 @@ export class BankStatementsController {
    * Escopo:
    * - Uma transação é dia anteior quando dataTransacao < dataProcessamento (dia)
    * - O endpoint retorna todas transações de dias anteriores
-   * - Exibir o status (pago, não pago, nulo)
-   * - Exibir campos:
-   *  - dataOrdemPagamento = quinta
-   *  - dataPagamentoEfetivo = sexta (pega do banco)
+   *
+   * Nas linhas da tabela do front:
+   * - dataOrdemPagamento = quinta
+   * - dataPagamentoEfetivo = sexta (pega do banco)
+   * - Status = A pagar se tiver erro ou isPago = false
    *
    * Para intervalo = semana:
    * - endDate = sexta feira

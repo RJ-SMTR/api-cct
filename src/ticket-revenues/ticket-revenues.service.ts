@@ -360,15 +360,7 @@ export class TicketRevenuesService {
             i.itemTransacaoAgrupado.id ===
             item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
         );
-        const errors = foundDetalhesA.reduce(
-          (l, i) => [
-            ...l,
-            ...i.ocorrencias
-              .filter((j) => !['00', 'BD'].includes(j.code))
-              .map((j) => j.message),
-          ],
-          [],
-        );
+        const errors = DetalheA.getOcorrenciaErrors(foundDetalhesA);
 
         // 'day', default,
         let dateGroup = item.processingDateTime.slice(0, 10);

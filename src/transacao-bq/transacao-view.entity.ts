@@ -101,7 +101,7 @@ export class TransacaoView {
     this.valorPago = Number(this.valorPago);
   }
 
-  public static newFromBigquery(bq: BigqueryTransacao) {
+  public static fromBigqueryTransacao(bq: BigqueryTransacao) {
     return new TransacaoView({
       datetimeCaptura: asStringDate(bq.datetime_captura),
       datetimeProcessamento: asStringDate(bq.datetime_processamento),

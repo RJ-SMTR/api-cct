@@ -22,10 +22,8 @@ export class TransacaoViewService {
     return await this.transacaoViewRepository.count(fields);
   }
 
-  save = this.transacaoViewRepository.save;
-
- async findPreviousDays(args: IPreviousDaysArgs) {
-   return await this.transacaoViewRepository.findPreviousDays(args);
+  async findPreviousDays(args: IPreviousDaysArgs) {
+    return await this.transacaoViewRepository.findPreviousDays(args);
   }
 
   async find(fields: EntityCondition<TransacaoView>, eager = true) {
@@ -47,7 +45,7 @@ export class TransacaoViewService {
   getOne = this.transacaoViewRepository.getOne;
 
   async upsertId(dtos: TransacaoView[]) {
-    return await this.transacaoViewRepository.upsertById(dtos, {
+    return await this.transacaoViewRepository.upsert(dtos, {
       conflictPaths: {
         id: true,
       },
@@ -69,7 +67,7 @@ export class TransacaoViewService {
     // const len = await this.transacaoViewRepository.count();
     // for (let i = 0; i < len; i += chunkSize) {
     const existing = await this.transacaoViewRepository.findExisting(
-      transacoes ,
+      transacoes,
     );
     callback(existing);
     // }

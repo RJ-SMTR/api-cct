@@ -5,7 +5,7 @@ import {
   endOfMonth,
   startOfDay,
   startOfMonth,
-  subDays
+  subDays,
 } from 'date-fns';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
@@ -60,14 +60,13 @@ export class BankStatementsService {
       timeInterval: validArgs.timeInterval,
       user: validArgs.user,
     });
-    const amountSum = Number(
-      bsData.statements.reduce((sum, item) => sum + item.amount, 0).toFixed(2),
-    );
-    const paidSum = Number(
-      bsData.statements
-        .reduce((sum, item) => sum + item.paidAmount, 0)
-        .toFixed(2),
-    );
+    const amountSum = +bsData.statements
+      .reduce((sum, item) => sum + item.amount, 0)
+      .toFixed(2);
+    const paidSum = +bsData.statements
+      .filter((i) => i.status === 'Pago')
+      .reduce((sum, item) => sum + item.paidAmount, 0)
+      .toFixed(2);
     const ticketCount = bsData.countSum;
 
     const todaySum = bsData.todaySum;
@@ -201,10 +200,9 @@ export class BankStatementsService {
         (sum, i) => sum + i.transactionValueSum,
         0,
       );
-      const weekPaidAmount = revenuesWeek.reduce(
-        (sum, i) => sum + i.paidValueSum,
-        0,
-      );
+      const weekPaidAmount = revenuesWeek
+        .filter((i) => i.isPago)
+        .reduce((sum, i) => sum + i.paidValueSum, 0);
       /** Se todos os itens não vazios foram pagos */
       const nonEmptyRevenues = revenuesWeek.filter((i) => i.count);
       const isPago =
@@ -216,7 +214,13 @@ export class BankStatementsService {
       const amount = Number(weekAmount.toFixed(2));
       const paidAmount = Number(weekPaidAmount.toFixed(2));
       const ticketCount = revenuesWeek.reduce((s, i) => s + i.count, 0);
-      const status = amount ? (isPago ? 'Pago' : 'A pagar') : null;
+      const status = !errors.length
+        ? amount
+          ? isPago
+            ? 'Pago'
+            : 'A pagar'
+          : null
+        : 'Pendente';
       const newStatement = new BankStatementDTO({
         id: maxId - id,
         amount,

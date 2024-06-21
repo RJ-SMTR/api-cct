@@ -1,3 +1,4 @@
+import { Ocorrencia } from "src/cnab/entity/pagamento/ocorrencia.entity";
 
 export class BankStatementDTO {
   constructor(dto?: BankStatementDTO) {
@@ -32,7 +33,7 @@ export class BankStatementDTO {
   status: string | null;
   
   /** Bank error message */
-  errors: string[];
+  errors: Ocorrencia[];
   
   // Debug
   ticketCount: number;

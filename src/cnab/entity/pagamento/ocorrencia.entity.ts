@@ -10,6 +10,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { DetalheA } from './detalhe-a.entity';
+import { Exclude } from 'class-transformer';
 
 @Entity()
 export class Ocorrencia extends EntityHelper {
@@ -20,9 +21,11 @@ export class Ocorrencia extends EntityHelper {
     }
   }
 
+  @Exclude()
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Ocorrencia_id' })
   id: number;
 
+  @Exclude()
   @ManyToOne(() => DetalheA, { nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoOcorrencia_detalheA_ManyToOne',
@@ -50,7 +53,7 @@ export class Ocorrencia extends EntityHelper {
   /**
    * @returns A list of new TransacaoOcorrencia. Without Transacao defined
    */
-  public static newList(ocorrenciaCodes: string): Ocorrencia[] {
+  public static fromCodesString(ocorrenciaCodes: string): Ocorrencia[] {
     const codesList = Ocorrencia.getCodesList(ocorrenciaCodes);
     const ocorrencias: Ocorrencia[] = [];
     for (const code of codesList) {
@@ -71,5 +74,15 @@ export class Ocorrencia extends EntityHelper {
     const codesList = Ocorrencia.getCodesList(ocorrenciaCodes);
     const errors = codesList.filter((c) => !['00', 'BD'].includes(c));
     return errors;
+  }
+
+  public static joinUniqueCode(old: Ocorrencia[], inserted: Ocorrencia[]) {
+    const joined: Ocorrencia[] = [];
+    for (const ocorrencia of [...old, ...inserted]) {
+      if (joined.filter((i) => i.code === ocorrencia.code).length === 0) {
+        joined.push(ocorrencia);
+      }
+    }
+    return joined;
   }
 }

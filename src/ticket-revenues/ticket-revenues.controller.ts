@@ -63,9 +63,10 @@ export class TicketRevenuesController {
    * Retorno:
    * 
    * - status:
-   *  - Se não tiver valor: nulo
-   *  - Se tiver valor e for tudo pago: Pago
-   *  - Se tiver valor e tiver algum item não pago: A pagar
+   *  - _Nulo_: Se não tiver valor
+   *  - Pago: Se tiver valor e for tudo pago
+   *  - A pagar: Se tiver valor e tiver algum item não pago
+   *  - Pendente: Quando tiver erros
    */
   @SerializeOptions({
     groups: ['me'],
