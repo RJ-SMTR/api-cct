@@ -2,6 +2,7 @@ import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { TicketRevenuesGroupDto } from '../dtos/ticket-revenues-group.dto';
 import { ITRCounts } from '../interfaces/tr-counts.interface';
 import { TicketRevenueDTO } from '../dtos/ticket-revenue.dto';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 
 const COUNTS_KEYS = [
   'transportTypeCounts',
@@ -80,15 +81,7 @@ export function appendItem(
       i.itemTransacaoAgrupado.id ===
       newItem.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
   );
-  const errors = foundDetalhesA.reduce(
-    (l, i) => [
-      ...l,
-      ...i.ocorrencias
-        .filter((j) => !['00', 'BD'].includes(j.code))
-        .map((j) => j.message),
-    ],
-    [],
-  );
+  const errors = DetalheA.getOcorrenciaErrors(foundDetalhesA);
 
   for (const [groupKey, groupValue] of Object.entries(group)) {
     if (groupKey === 'isPago') {
@@ -97,7 +90,7 @@ export function appendItem(
       }
     } else if (groupKey === 'errors') {
       if (!newItem.arquivoPublicacao?.isPago) {
-        group[groupKey] = [...new Set([...group[groupKey], ...errors])];
+        group[groupKey] = Ocorrencia.joinUniqueCode(group[groupKey], errors);
       }
     } else if (COUNTS_KEYS.includes(groupKey)) {
       const itemKey = groupKey.replace('Counts', '');

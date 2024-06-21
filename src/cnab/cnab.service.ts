@@ -129,7 +129,9 @@ export class CnabService {
       this.logger.log(
         `Inserindo ${chunkSize}/${chunk.length} itens em TransacaoView...`,
       );
-      const transacoes = chunk.map((i) => TransacaoView.newFromBigquery(i));
+      const transacoes = chunk.map((i) =>
+        TransacaoView.fromBigqueryTransacao(i),
+      );
       await this.transacaoViewService.findExisting(
         transacoes,
         async (existing) => {
@@ -137,32 +139,6 @@ export class CnabService {
         },
       );
     });
-
-    // const transacoesView = transacoesBq.map((i) =>
-    //   TransacaoView.newFromBigquery(i),
-    // );
-  }
-
-  async debugUpdateAllTransacaoView() {
-    await this.bigqueryTransacaoService.getAllPaginated(
-      (transacoesBq) => {
-        let chunkSize = 0;
-        forChunk(transacoesBq, 1000, async (chunk) => {
-          chunkSize += 1000;
-          this.logger.log(
-            `Inserindo ${chunkSize}/${chunk.length} itens em TransacaoView...`,
-          );
-          const transacoes = chunk.map((i) => TransacaoView.newFromBigquery(i));
-          await this.transacaoViewService.findExisting(
-            transacoes,
-            async (existing) => {
-              await this.transacaoViewService.saveMany(existing, transacoes);
-            },
-          );
-        });
-      },
-      ['03818429405', '10204153719'],
-    );
   }
 
   /**

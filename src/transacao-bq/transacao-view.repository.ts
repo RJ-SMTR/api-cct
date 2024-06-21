@@ -45,7 +45,7 @@ export class TransacaoViewRepository {
     return this.transacaoViewRepository.save(dto);
   }
 
-  public async upsertById(
+  public async upsert(
     dtos: DeepPartial<TransacaoView>[],
     conditions: UpsertOptions<TransacaoView>,
   ) {

@@ -276,10 +276,17 @@ export class TicketRevenuesRepositoryService {
       timeInterval: validArgs.timeInterval,
     });
 
-    const result = await this.findTransacaoView(startDate, endDate, validArgs);
-    const paidSum = +result.reduce((s, i) => s + i.paidValue, 0).toFixed(2);
-    const countAll = result.length;
-    let ticketRevenuesResponse = result;
+    const revenues = await this.findTransacaoView(
+      startDate,
+      endDate,
+      validArgs,
+    );
+    const paidSum = +revenues
+      .filter((i) => i.isPago)
+      .reduce((s, i) => s + i.paidValue, 0)
+      .toFixed(2);
+    const countAll = revenues.length;
+    let ticketRevenuesResponse = revenues;
 
     if (ticketRevenuesResponse.length === 0) {
       return getPagination<ITRGetMeIndividualResponse>(
@@ -363,14 +370,14 @@ export class TicketRevenuesRepositoryService {
   }
 
   /**
-   * TODO: use it only in repository
+   * Apenas soma se status = pago
    */
   getAmountSum<T extends TicketRevenueDTO | TicketRevenuesGroupDto>(
     data: T[],
   ): number {
-    return Number(
-      data.reduce((sum, i) => sum + this.getTransactionValue(i), 0).toFixed(2),
-    );
+    return +data
+      .reduce((sum, i) => sum + this.getTransactionValue(i), 0)
+      .toFixed(2);
   }
 
   private getTransactionValue(

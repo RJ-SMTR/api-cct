@@ -164,6 +164,16 @@ export class DetalheA extends EntityHelper {
     return errors.length === 0;
   }
 
+  public static getOcorrenciaErrors(detalhes: DetalheA[]) {
+    return detalhes.reduce(
+      (l, i) => [
+        ...l,
+        ...i.ocorrencias.filter((j) => !['00', 'BD'].includes(j.code)),
+      ],
+      [],
+    );
+  }
+
   public static getItemTransacaoAgIds(detalhesA: DetalheA[]) {
     return [...new Set(detalhesA.map((i) => i.itemTransacaoAgrupado.id))];
   }

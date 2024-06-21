@@ -21,6 +21,7 @@ import { BankStatementDTO } from './dtos/bank-statement.dto';
 import { IBSCounts } from './interfaces/bs-counts.interface';
 import { IBSGetMePreviousDaysValidArgs } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 
 /**
  * Get weekly statements
@@ -147,19 +148,18 @@ export class BankStatementsRepositoryService {
           i.itemTransacaoAgrupado.id ===
           item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
       );
-      const errors = foundDetalhesA.reduce(
-        (l, i) => [
-          ...l,
-          ...i.ocorrencias
-            .filter((j) => !['00', 'BD'].includes(j.code))
-            .map((j) => j.message),
-        ],
-        [],
-      );
+      const errors = DetalheA.getOcorrenciaErrors(foundDetalhesA);
       const orderDate = nextThursday(
         startOfDay(new Date(item.processingDateTime)),
       );
-      const status = amount ? (isPago ? 'Pago' : 'A pagar') : null;
+      const status =
+        !errors.length
+          ? amount
+            ? isPago
+              ? 'Pago'
+              : 'A pagar'
+            : null
+          : 'Pendente';
       const dataEfetivacao = item.arquivoPublicacao?.dataEfetivacao;
       return new BankStatementPreviousDaysDTO({
         id: index + 1,
