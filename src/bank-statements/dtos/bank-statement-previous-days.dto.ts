@@ -1,21 +1,23 @@
 import { Ocorrencia } from "src/cnab/entity/pagamento/ocorrencia.entity";
 
-export class BankStatementDTO {
-  constructor(dto?: BankStatementDTO) {
+export class BankStatementPreviousDaysDTO {
+  constructor(dto?: BankStatementPreviousDaysDTO) {
     if (dto) {
       Object.assign(this, dto);
     }
   }
 
   id: number;
+
   /**
-   * feiday date.
+   * date for reference - e.g. friday date, month date.
    *
    * Format: `yyyy-mm-dd`
    */
-
   date: string;
-  
+
+  paymentOrderDate: string;
+
   /**
    * Date when payment was made in bank.
    *
@@ -23,18 +25,21 @@ export class BankStatementDTO {
    */
   effectivePaymentDate: string | null;
 
+  transactionDate: string;
+  processingDate: string;
+
   permitCode: string;
   cpfCnpj: string;
   amount: number;
 
   paidAmount: number;
-  
+
   /** Payment status */
   status: string | null;
-  
+
   /** Bank error message */
   errors: Ocorrencia[];
-  
+
   // Debug
   ticketCount: number;
 }

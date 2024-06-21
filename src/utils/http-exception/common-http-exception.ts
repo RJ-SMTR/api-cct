@@ -64,6 +64,14 @@ export const CommonHttpException = {
       },
       httpStatusCode,
     ),
+  invalidRequestParams: (invalidParams?: any, errorMessage?: string) =>
+    new HttpException(
+      {
+        error: errorMessage || 'Parâmetros inválidos da requisição',
+        ...(invalidParams ? { params: invalidParams } : {}),
+      },
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    ),
   notFound: (
     notFoundProp: string,
     httpStatusCode: HttpStatus = HttpStatus.NOT_FOUND,

@@ -1,7 +1,13 @@
-import { BankStatementDTO } from '../dtos/bank-statement.dto';
+import { BankStatementPreviousDaysDTO } from '../dtos/bank-statement-previous-days.dto';
 import { IBSCounts } from './bs-counts.interface';
 
 export class IBSGetMePreviousDaysResponse {
+  /** Valor pago */
+  paidValue: number;
+  /** Valor a pagar */
+  toPayValue: number;
+  /** Valor com erro */
+  pendingValue: number;
   statusCounts: Record<string, IBSCounts>;
-  data: BankStatementDTO[];
+  data: BankStatementPreviousDaysDTO[];
 }

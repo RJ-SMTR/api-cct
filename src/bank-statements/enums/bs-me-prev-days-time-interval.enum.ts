@@ -1,4 +1,4 @@
 export enum BSMePrevDaysTimeIntervalEnum {
-  LAST_DAY = 'lastDay',
   LAST_WEEK = 'lastWeek',
+  LAST_DAY = 'lastDay',
 }

@@ -2,7 +2,6 @@
 
 import { Exclude } from 'class-transformer';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
-import { SetValueIf } from 'src/utils/decorators/set-value-if.decorator';
 
 /**
  * Internal representation of `IBqApiTicketRevenues`
@@ -55,7 +54,7 @@ export class TicketRevenueDTO {
    * @type `BigQueryDateTime | null`
    * @example '2023-09-12T14:48:52.709319'
    */
-  transactionDateTime: string | null;
+  transactionDateTime: string;
 
   /**
    * **Important field**
@@ -233,7 +232,6 @@ export class TicketRevenueDTO {
   /** Valor a ser pago - valor líquido calculado
    * Não significa que foi pago
    */
-  @SetValueIf((o) => o.isPago === false, 0)
   paidValue: number;
 
   /**

@@ -44,10 +44,17 @@ export class BankStatementsController {
 
   /**
    * Escopo:
-   * 1. Ler TransacaoView e agrupar por cada semana (qui-qua)
-   * 2. Para o mês selecionado pega todas as sextas do mês
-   * 3. Para cada sexta mostrará a soma dos valores de qui-qua
+   * - Ler TransacaoView e agrupar por cada semana (qui-qua)
+   * - Para o mês selecionado pega todas as sextas do mês
+   * - Para cada sexta mostrará a soma dos valores de qui-qua
    *    Incluindo dias anteriores se a dataProcessamento estiver naquela semana.
+   *
+   * Na linha de cada transacao bancária:
+   * - "ValorTransacao" soma tudo, mesmo os status pago
+   * - "ValorPago" soma apenas os status pago
+   *
+   * Nos cards do front:
+   * - SomaValorPago
    *
    * @param timeInterval Apenas mensal
    */
@@ -95,20 +102,22 @@ export class BankStatementsController {
    * Requisito: {@link https://github.com/RJ-SMTR/api-cct/issues/237 Github #237 }
    *
    * Escopo:
-   * - Uma transação é dia anteior quando dataProcessamento > dataTransacao (dia)
+   * - Uma transação é dia anteior quando dataTransacao < dataProcessamento (dia)
    * - O endpoint retorna todas transações de dias anteriores
-   * - Exibir o status (pago, não pago, nulo)
    *
-   * Para intervalo = dia:
-   * - Ler TransacaoView em um dia X (dataProcessamento)
-   * - endDate = dia
-   * - timeInterval = lastDay
+   * Nas linhas da tabela do front:
+   * - dataOrdemPagamento = quinta
+   * - dataPagamentoEfetivo = sexta (pega do banco)
+   * - Status = A pagar se tiver erro ou isPago = false
    *
    * Para intervalo = semana:
-   * - Ler TransacaoView em uma sexta de pagamento (pega semana de qui-qua)
-   * - endDate = sexta de pagamento
+   * - endDate = sexta feira
    * - timeInterval = lastWeek
-   * 
+   *
+   * Para intervalo = day:
+   * - endDate = data contendo o mês
+   * - timeInterval = lastMonth
+   *
    * Não é usado:
    * - startDate
    */
@@ -125,7 +134,7 @@ export class BankStatementsController {
   @ApiQuery({
     name: 'timeInterval',
     required: true,
-    example: BSMePrevDaysTimeIntervalEnum.LAST_DAY,
+    example: BSMePrevDaysTimeIntervalEnum.LAST_WEEK,
     enum: BSMePrevDaysTimeIntervalEnum,
   })
   @ApiQuery(CommonApiParams.userId)

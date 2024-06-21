@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+
 export class BigqueryTransacao {
   id: number | null;
   data: string | null;
@@ -32,4 +34,10 @@ export class BigqueryTransacao {
   valor_transacao: number;
   valor_pagamento: number;
   versao: string | null;
+
+  public static fromJson(absPath: string) {
+    const file = readFileSync(absPath, 'utf8');
+    const obj: BigqueryTransacao[] = JSON.parse(file);
+    return obj;
+  }
 }

@@ -5,6 +5,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DataSource, DeepPartial, FindManyOptions, In } from 'typeorm';
 import { TransacaoView } from './transacao-view.entity';
 import { TransacaoViewRepository } from './transacao-view.repository';
+import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 
 @Injectable()
 export class TransacaoViewService {
@@ -21,13 +22,16 @@ export class TransacaoViewService {
     return await this.transacaoViewRepository.count(fields);
   }
 
-  save = this.transacaoViewRepository.save;
+  async findPreviousDays(args: IPreviousDaysArgs) {
+    return await this.transacaoViewRepository.findPreviousDays(args);
+  }
 
   async find(fields: EntityCondition<TransacaoView>, eager = true) {
     return await this.transacaoViewRepository.find({
       where: fields,
       order: {
-        datetimeProcessamento: 'ASC',
+        datetimeProcessamento: 'DESC',
+        datetimeTransacao: 'DESC',
       },
       loadEagerRelations: eager,
     });
@@ -41,7 +45,7 @@ export class TransacaoViewService {
   getOne = this.transacaoViewRepository.getOne;
 
   async upsertId(dtos: TransacaoView[]) {
-    return await this.transacaoViewRepository.upsertById(dtos, {
+    return await this.transacaoViewRepository.upsert(dtos, {
       conflictPaths: {
         id: true,
       },
@@ -63,7 +67,7 @@ export class TransacaoViewService {
     // const len = await this.transacaoViewRepository.count();
     // for (let i = 0; i < len; i += chunkSize) {
     const existing = await this.transacaoViewRepository.findExisting(
-      transacoes ,
+      transacoes,
     );
     callback(existing);
     // }

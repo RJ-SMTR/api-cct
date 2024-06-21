@@ -1,18 +1,27 @@
 import { Injectable } from '@nestjs/common';
-import { endOfDay, nextFriday, startOfDay, subDays } from 'date-fns';
+import {
+  endOfDay,
+  isFriday,
+  nextFriday,
+  nextThursday,
+  startOfDay,
+  subDays,
+} from 'date-fns';
 import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
-import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
+import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
-import { getDateYMDString, isPaymentWeekComplete } from 'src/utils/date-utils';
+import { getDateYMDString } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPagination } from 'src/utils/get-pagination';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { In } from 'typeorm';
+import { BankStatementPreviousDaysDTO } from './dtos/bank-statement-previous-days.dto';
 import { BankStatementDTO } from './dtos/bank-statement.dto';
 import { IBSCounts } from './interfaces/bs-counts.interface';
 import { IBSGetMePreviousDaysValidArgs } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 
 /**
  * Get weekly statements
@@ -20,7 +29,7 @@ import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-da
 @Injectable()
 export class BankStatementsRepositoryService {
   constructor(
-    private readonly ticketRevenuesService: TicketRevenuesService,
+    private readonly transacaoViewService: TransacaoViewService,
     private readonly detalheAService: DetalheAService,
   ) {}
 
@@ -48,10 +57,22 @@ export class BankStatementsRepositoryService {
       paginationArgs: paginationOptions,
     });
     const statusCounts = this.generateStatusCounts(previousDays.data);
+    const toPay = previousDays.data
+      .filter((i) => i.status === 'A pagar' && i.errors.length === 0)
+      .reduce((s, i) => s + i.paidAmount, 0);
+    const paid = previousDays.data
+      .filter((i) => i.status === 'Pago' && i.errors.length === 0)
+      .reduce((s, i) => s + i.paidAmount, 0);
+    const pending = previousDays.data
+      .filter((i) => i.errors.length > 0)
+      .reduce((s, i) => s + i.paidAmount, 0);
 
-    return getPagination<IBSGetMePreviousDaysResponse>(
+    const response = getPagination<IBSGetMePreviousDaysResponse>(
       {
         data: previousDays.data,
+        paidValue: paid,
+        pendingValue: pending,
+        toPayValue: toPay,
         statusCounts: statusCounts,
       },
       {
@@ -60,6 +81,7 @@ export class BankStatementsRepositoryService {
       },
       paginationOptions,
     );
+    return response;
   }
 
   /**
@@ -77,34 +99,34 @@ export class BankStatementsRepositoryService {
     endDate: string;
     timeInterval?: TimeIntervalEnum;
     paginationArgs?: PaginationOptions;
-  }): Promise<Pagination<{ data: BankStatementDTO[] }>> {
+  }): Promise<Pagination<{ data: BankStatementPreviousDaysDTO[] }>> {
     const pagination = validArgs.paginationArgs
       ? validArgs.paginationArgs
       : { limit: 9999, page: 1 };
 
+    // LastDay
+    const day = new Date(validArgs.endDate);
+    let startDate = startOfDay(day);
+    let endDate = endOfDay(day);
+
     // LastWeek
-    const friday = new Date(validArgs.endDate);
-    const qui = startOfDay(subDays(friday, 8));
-    const qua = endOfDay(subDays(friday, 2));
+    if (validArgs.timeInterval === TimeIntervalEnum.LAST_WEEK) {
+      let friday = startOfDay(day);
+      if (!isFriday(friday)) {
+        friday = nextFriday(friday);
+      }
+      const qui = subDays(friday, 8);
+      const qua = subDays(friday, 2);
+      startDate = qui;
+      endDate = qua;
+    }
 
-    const startDate =
-      validArgs?.timeInterval === TimeIntervalEnum.LAST_DAY
-        ? new Date(validArgs.endDate)
-        : qui;
-
-    const endDate =
-      validArgs?.timeInterval === TimeIntervalEnum.LAST_DAY
-        ? endOfDay(new Date(validArgs.endDate))
-        : qua;
-
-    const revenues = await this.ticketRevenuesService.findTransacaoView({
-      startDate: startOfDay(startDate),
-      endDate: endOfDay(endDate),
-      cpfCnpj: validArgs.user.getCpfCnpj(),
-      limit: pagination.limit,
-      offset: (pagination.page - 1) * pagination.limit,
-      previousDays: true,
+    const transacoes = await this.transacaoViewService.findPreviousDays({
+      startDate: startDate,
+      endDate: endDate,
+      cpfCnpjs: [validArgs.user.getCpfCnpj()],
     });
+    const revenues = transacoes.map((i) => i.toTicketRevenue());
     const detalhesA = await this.detalheAService.findMany({
       itemTransacaoAgrupado: {
         id: In(
@@ -114,10 +136,10 @@ export class BankStatementsRepositoryService {
         ),
       },
     });
+
+    // Gerar BankStatements
     const statements = revenues.map((item, index) => {
-      const isPago = isPaymentWeekComplete(
-        new Date(String(item.processingDateTime)),
-      );
+      const isPago = item.arquivoPublicacao?.isPago;
       const amount = Number((item.transactionValue || 0).toFixed(2));
       const paidAmount = Number(item.paidValue.toFixed(2));
       const ticketCount = 1;
@@ -126,33 +148,40 @@ export class BankStatementsRepositoryService {
           i.itemTransacaoAgrupado.id ===
           item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
       );
-      const errors = foundDetalhesA.reduce(
-        (l, i) => [
-          ...l,
-          ...i.ocorrencias
-            .filter((j) => !['00', 'BD'].includes(j.code))
-            .map((j) => j.message),
-        ],
-        [],
+      const errors = DetalheA.getOcorrenciaErrors(foundDetalhesA);
+      const orderDate = nextThursday(
+        startOfDay(new Date(item.processingDateTime)),
       );
-      return new BankStatementDTO({
-        id: index,
+      const status =
+        !errors.length
+          ? amount
+            ? isPago
+              ? 'Pago'
+              : 'A pagar'
+            : null
+          : 'Pendente';
+      const dataEfetivacao = item.arquivoPublicacao?.dataEfetivacao;
+      return new BankStatementPreviousDaysDTO({
+        id: index + 1,
         date: getDateYMDString(new Date(String(item.processingDateTime))),
-        effectivePaymentDate: isPago
-          ? getDateYMDString(
-              nextFriday(new Date(String(item.processingDateTime))),
-            )
-          : null,
+        effectivePaymentDate:
+          isPago && dataEfetivacao
+            ? getDateYMDString(new Date(dataEfetivacao))
+            : null,
+        paymentOrderDate: getDateYMDString(orderDate),
+        transactionDate: getDateYMDString(new Date(item.transactionDateTime)),
+        processingDate: getDateYMDString(new Date(item.processingDateTime)),
         cpfCnpj: validArgs.user.getCpfCnpj(),
         permitCode: validArgs.user.getPermitCode(),
         amount: amount,
         paidAmount: paidAmount,
-        status: amount ? (isPago ? 'Pago' : 'A pagar') : null,
+        status,
         errors,
         ticketCount,
       });
     });
-    return getPagination<{ data: BankStatementDTO[] }>(
+
+    return getPagination<{ data: BankStatementPreviousDaysDTO[] }>(
       {
         data: statements,
       },
