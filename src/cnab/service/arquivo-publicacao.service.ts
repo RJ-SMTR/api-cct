@@ -41,8 +41,8 @@ export class ArquivoPublicacaoService {
     private transacaoService: TransacaoService,
     private transacaoViewService: TransacaoViewService,
     private itemTransacaoService: ItemTransacaoService,
-  ) {}
-
+  ) { }
+  
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
     return this.arquivoPublicacaoRepository.findMany(options);
   }

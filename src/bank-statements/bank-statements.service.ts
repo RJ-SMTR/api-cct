@@ -200,8 +200,7 @@ export class BankStatementsService {
         (sum, i) => sum + i.transactionValueSum,
         0,
       );
-      const weekPaidAmount = revenuesWeek
-        .filter((i) => i.isPago)
+      const weekToPayAmount = revenuesWeek
         .reduce((sum, i) => sum + i.paidValueSum, 0);
       /** Se todos os itens não vazios foram pagos */
       const nonEmptyRevenues = revenuesWeek.filter((i) => i.count);
@@ -212,7 +211,7 @@ export class BankStatementsService {
         ...new Set(revenuesWeek.reduce((l, i) => [...l, ...i.errors], [])),
       ];
       const amount = Number(weekAmount.toFixed(2));
-      const paidAmount = Number(weekPaidAmount.toFixed(2));
+      const paidAmount = Number(weekToPayAmount.toFixed(2));
       const ticketCount = revenuesWeek.reduce((s, i) => s + i.count, 0);
       const status = !errors.length
         ? amount
