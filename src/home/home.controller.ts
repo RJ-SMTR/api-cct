@@ -8,8 +8,8 @@ import { HomeService } from './home.service';
 export class HomeController {
   constructor(private service: HomeService) {}
 
-  @Get()
-  appInfo() {
+  @Get(['/', 'about'])
+  getRoot() {
     return this.service.appInfo();
   }
 }

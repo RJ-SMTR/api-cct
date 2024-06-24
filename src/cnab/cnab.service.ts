@@ -122,7 +122,7 @@ export class CnabService {
    * Atualiza a tabela TransacaoView
    */
   async updateTransacaoViewBigquery(daysBack = 0) {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(daysBack);
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(daysBack, false);
     let chunkSize = 0;
     forChunk(transacoesBq, 1000, async (chunk) => {
       chunkSize += 1000;

@@ -18,12 +18,15 @@ export class BigqueryTransacaoService {
    *
    * @param [daysBack=0] Pega a semana atual ou N dias atrás.
    */
-  public async getFromWeek(daysBack = 0): Promise<BigqueryTransacao[]> {
+  public async getFromWeek(
+    daysBack = 0,
+    startDateOnly = false,
+  ): Promise<BigqueryTransacao[]> {
     // Read
     const today = new Date();
     const friday = isFriday(today) ? today : nextFriday(today);
     const qui = subDays(friday, 8 + daysBack);
-    const qua = subDays(friday, 2 + daysBack);
+    const qua = subDays(friday, 2 + (startDateOnly ? 0 : daysBack));
     const ordemPgto = (
       await this.bigqueryTransacaoRepository.findMany({
         startDate: qui,
@@ -52,9 +55,9 @@ export class BigqueryTransacaoService {
     cpfCnpjs: string[] = [],
   ) {
     const transacoes: BigqueryTransacao[] =
-    await this.bigqueryTransacaoRepository.findMany({
-      manyCpfCnpj: cpfCnpjs,
-    });
+      await this.bigqueryTransacaoRepository.findMany({
+        manyCpfCnpj: cpfCnpjs,
+      });
     callback(transacoes);
   }
 }
