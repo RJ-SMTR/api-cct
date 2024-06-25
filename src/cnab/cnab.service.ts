@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 import {
   endOfDay,
   isFriday,
+  isSameDay,
   nextFriday,
   nextThursday,
   startOfDay,
-  subDays,
+  subDays
 } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
@@ -24,6 +25,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
 import { Between } from 'typeorm';
+import { ArquivoPublicacao } from './entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacao } from './entity/pagamento/item-transacao.entity';
@@ -122,7 +124,13 @@ export class CnabService {
    * Atualiza a tabela TransacaoView
    */
   async updateTransacaoViewBigquery(daysBack = 0) {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(daysBack, false);
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(
+      daysBack,
+      false,
+    );
+    //   BigqueryTransacao.fromJson(
+    //   `${__dirname}/test/cnab-service/data/data/update-transaca-view/bq-transacao-d0.json`,
+    // );
     let chunkSize = 0;
     forChunk(transacoesBq, 1000, async (chunk) => {
       chunkSize += 1000;
@@ -165,20 +173,55 @@ export class CnabService {
 
   async compareTransacaoViewPublicacao(daysBefore = 0) {
     const transacoesView = await this.getTransacoesViewWeek(daysBefore);
-    const publicacoes = await this.getPublicacoesWeek(daysBefore);
+    const publicacoes = this.getUniqueUpdatePublicacoes(
+      await this.getPublicacoesWeek(daysBefore),
+    );
     for (const publicacao of publicacoes) {
-      const transacaoViewIds = transacoesView
-        .filter(
-          (transacaoView) =>
-            transacaoView.idOperadora ===
-              publicacao.itemTransacao.idOperadora &&
-            transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio,
-        )
-        .map((i) => i.id);
-      await this.transacaoViewService.updateMany(transacaoViewIds, {
+      const transacoes = transacoesView.filter(
+        (transacaoView) =>
+          transacaoView.idOperadora === publicacao.itemTransacao.idOperadora &&
+          transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio &&
+          isSameDay(
+            // Se a data é a mesma (d+0 vs d+1)
+            transacaoView.datetimeProcessamento, // d+0
+            subDays(publicacao.itemTransacao.dataOrdem, 1), // d+1
+          ),
+      );
+      const transacaoIds = transacoes.map((i) => i.id);
+      await this.transacaoViewService.updateMany(transacaoIds, {
         arquivoPublicacao: { id: publicacao.id },
       });
     }
+  }
+
+  getUniqueUpdatePublicacoes(publicacoes: ArquivoPublicacao[]) {
+    const unique: ArquivoPublicacao[] = [];
+    publicacoes.forEach((publicacao) => {
+      const existing = ArquivoPublicacao.filterUnique(unique, publicacao)[0] as
+        | ArquivoPublicacao
+        | undefined;
+      const ocourences = ArquivoPublicacao.filterUnique(
+        publicacoes,
+        publicacao,
+      ).sort(
+        (a, b) =>
+          b.itemTransacao.dataOrdem.getTime() -
+          a.itemTransacao.dataOrdem.getTime(),
+      );
+      const paid = ocourences.filter((i) => i.isPago)[0] as
+        | ArquivoPublicacao
+        | undefined;
+      const noErrors = ocourences.filter((i) => !i.getIsError())[0] as
+        | ArquivoPublicacao
+        | undefined;
+      const recent = ocourences[0] as ArquivoPublicacao;
+
+      if (!existing) {
+        const newPublicacao = paid || noErrors || recent;
+        unique.push(newPublicacao);
+      }
+    });
+    return unique;
   }
 
   /**

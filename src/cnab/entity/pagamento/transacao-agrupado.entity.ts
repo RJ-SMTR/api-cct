@@ -33,6 +33,7 @@ export class TransacaoAgrupado extends EntityHelper {
   })
   id: number;
 
+  /** sexta de pagamento (baseado no BigqueryOrdemPgto.dataOrdem) */
   @Column({ type: Date, unique: false, nullable: true })
   dataOrdem: Date;
 
