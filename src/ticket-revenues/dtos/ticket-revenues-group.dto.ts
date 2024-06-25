@@ -1,6 +1,7 @@
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
+import { SetValue } from 'src/utils/decorators/set-value.decorator';
 import { DeepPartial } from 'typeorm';
 import { ITRCounts } from '../interfaces/tr-counts.interface';
-import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 
 /**
  * This object represents a group of `IBqTicketRevenues`
@@ -150,5 +151,6 @@ export class TicketRevenuesGroupDto {
   /**
    * CNAB retorno error message list.
    */
+  @SetValue((v) => Ocorrencia.toUserErrors(v))
   errors: Ocorrencia[] = [];
 }

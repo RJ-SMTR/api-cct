@@ -14,6 +14,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ItemTransacao } from './pagamento/item-transacao.entity';
+import { isSameDay } from 'date-fns';
 
 /**
  * Unique Jaé FK: idOrdemPagamento, idConsorcio, idOperadora
@@ -75,5 +76,19 @@ export class ArquivoPublicacao extends EntityHelper {
   @AfterLoad()
   setReadValues() {
     this.valorRealEfetivado = asNullableStringOrNumber(this.valorRealEfetivado);
+  }
+
+  /** Evita acessar o itemTransacao.DetalheA.Ocorrencia para saber se teve erro. */
+  getIsError() {
+    return !this.isPago && this.dataEfetivacao;
+  }
+
+  public static filterUnique(publicacoes: ArquivoPublicacao[], compare: ArquivoPublicacao) {
+    return publicacoes.filter(
+      (p) =>
+        p.itemTransacao.idConsorcio === compare.itemTransacao.idConsorcio &&
+        p.itemTransacao.idOperadora === compare.itemTransacao.idOperadora &&
+        isSameDay(p.itemTransacao.dataOrdem, compare.itemTransacao.dataOrdem),
+    );
   }
 }

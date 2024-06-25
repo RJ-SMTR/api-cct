@@ -93,4 +93,6 @@ export enum OcorrenciaEnum {
   'ZK' = 'Pagamento Rejeitado - Boleto Já Liquidado',
   'ZY' = 'Pagamento Rejeitado - Beneficiário Divergente',
   'ZW' = 'Dados do Pagador Incorretos',
+  /** Ocorrências X são erros customizados do CCT. Não existem no CNAB */
+  '  ' = 'Ocorreu um erro! Por favor, aguarde a liberação do pagamento.',
 }

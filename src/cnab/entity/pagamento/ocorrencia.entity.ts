@@ -12,6 +12,20 @@ import {
 import { DetalheA } from './detalhe-a.entity';
 import { Exclude } from 'class-transformer';
 
+const userErrors = [
+  'AG',
+  'AL',
+  'AM',
+  'AN',
+  'AO',
+  'AS',
+  'BG',
+  'DA',
+  'DB',
+  'ZA',
+  'ZY',
+];
+
 @Entity()
 export class Ocorrencia extends EntityHelper {
   constructor(ocorrencias?: DeepPartial<Ocorrencia>) {
@@ -19,6 +33,13 @@ export class Ocorrencia extends EntityHelper {
     if (ocorrencias !== undefined) {
       Object.assign(this, ocorrencias);
     }
+  }
+
+  public static fromEnum(value: OcorrenciaEnum) {
+    return new Ocorrencia({
+      code: Enum.getKey(OcorrenciaEnum, value),
+      message: value,
+    });
   }
 
   @Exclude()
@@ -84,5 +105,22 @@ export class Ocorrencia extends EntityHelper {
       }
     }
     return joined;
+  }
+
+  /**
+   * Oculta erros técnicos do usuário, exibindo uma mensagem genérica no lugar
+   */
+  public static toUserErrors(ocorrencias: Ocorrencia[]) {
+    let newOcorrencias = ocorrencias.map((j) =>
+      !userErrors.includes(j.code)
+        ? new Ocorrencia({ ...j, code: '  ', message: OcorrenciaEnum['  '] })
+        : j,
+    );
+    newOcorrencias = newOcorrencias.reduce(
+      (l: Ocorrencia[], j) =>
+        l.map((k) => k.code).includes(j.code) ? l : [...l, j],
+      [],
+    );
+    return newOcorrencias;
   }
 }
