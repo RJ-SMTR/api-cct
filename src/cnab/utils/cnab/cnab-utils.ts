@@ -50,10 +50,9 @@ export function stringifyCnabFile(cnab: CnabFile): [string, CnabFile] {
  */
 export function stringifyCnabRegistro(registro: CnabRegistro): string {
   validateCnabRegistro(registro);
-  return getSortedCnabFieldList(registro.fields).reduce(
-    (s, i) => s + stringifyCnabField(i),
-    '',
-  );
+  const sorted = getSortedCnabFieldList(registro.fields);
+  const stringified = sorted.reduce((s, i) => s + stringifyCnabField(i), '');
+  return stringified;
 }
 
 /**

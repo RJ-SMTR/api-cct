@@ -42,10 +42,13 @@ export class HeaderLote extends EntityHelper {
   codigoConvenioBanco: string | null;
 
   @Column({ type: String, unique: false, nullable: true })
-  tipoCompromisso: string | null;
+  tipoCompromisso: string;
 
   @Column({ type: String, unique: false, nullable: true })
   parametroTransmissao: string;
+
+  @Column({ type: String, unique: false, nullable: true })
+  formaLancamento: string;
 
   @ManyToOne(() => Pagador, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderLote_pagador_ManyToOne' })

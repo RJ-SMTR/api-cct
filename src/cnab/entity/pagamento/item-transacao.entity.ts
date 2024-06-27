@@ -15,6 +15,18 @@ import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { Transacao } from './transacao.entity';
 
+/**
+ * Representa uma BqOrdemPgto (ArquivoPublicacao)
+ * 
+ * Colunas:
+ * - dataOrdem: BqOrdemPgto.dataOrdem
+ * 
+ * Identificador:
+ * - ItemTransacaoAgrupado
+ * - dataTransacao
+ * - dataProcessamento
+ * - clienteFavorecido
+ */
 @Entity()
 export class ItemTransacao extends EntityHelper {
   constructor(dto?: DeepPartial<ItemTransacao>) {

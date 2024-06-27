@@ -96,9 +96,6 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
-    // await this.cnabService.updateTransacaoViewBigquery();
-    // await this.cnabService.compareTransacaoViewPublicacao(14);
-
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,

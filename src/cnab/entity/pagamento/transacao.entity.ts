@@ -15,6 +15,22 @@ import { ItemTransacao } from './item-transacao.entity';
 import { Pagador } from './pagador.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
 
+/**
+ * Representa um BigqueryOrdemPagamento (ou seja, um ArquivoPublicacao),
+ * associado a um pagador.
+ *
+ * Colunas:
+ * - dataOrdem: BqOrdem.dataOrdem
+ *
+ * Identificador:
+ * - transacaoAgrupado
+ * - idOrdemPagamento (diaPagamento) - BqOrdem
+ *
+ * Propósito dessa tabela:
+ * - Agrupar uma remessa CNAB por ordemPagamento
+ * - Não é usada para geração de remessa, mas é salva no banco mesmo assim
+ * - É usada no LancamentoFinanceiro
+ */
 @Entity()
 export class Transacao extends EntityHelper {
   constructor(transacao?: Transacao | DeepPartial<Transacao>) {

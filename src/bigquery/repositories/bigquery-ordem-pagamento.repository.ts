@@ -89,7 +89,7 @@ export class BigqueryOrdemPagamentoRepository {
       SELECT
         CAST(t.data_ordem AS STRING) AS dataOrdem,
         t.id_consorcio AS idConsorcio,
-        CASE WHEN t.consorcio = 'STPL' THEN 'STPC' ELSE t.consorcio AS consorcio,
+        t.consorcio,
         t.id_operadora AS idOperadora,
         t.operadora AS operadora,
         t.id_ordem_pagamento AS idOrdemPagamento,
