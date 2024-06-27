@@ -7,6 +7,7 @@ import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
+import { Cnab104FormaLancamento } from 'src/cnab/enums/104/cnab-104-forma-lancamento.enum';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-trailer-arquivo-104.interface';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
@@ -15,7 +16,7 @@ import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
 import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { asString } from 'src/utils/pipe-utils';
+import { asNumber, asString } from 'src/utils/pipe-utils';
 import { DeepPartial } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
@@ -35,7 +36,6 @@ import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
-import { TransacaoService } from './transacao.service';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -52,20 +52,17 @@ export class RemessaRetornoService {
     private transacaoAgService: TransacaoAgrupadoService,
     private itemTransacaoService: ItemTransacaoService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
-    private transacaoService: TransacaoService,
     private detalheAService: DetalheAService,
     private detalheBService: DetalheBService,
     private settingsService: SettingsService,
-    private transacaoAgrupadoService: TransacaoAgrupadoService,
-    private itemTransacaoAgrupadoService: ItemTransacaoAgrupadoService,
   ) {}
 
   // #region generateSaveRemessa
 
   /**
-   * From Transacao generate:
-   * - Stringified Cnab to be exported
-   * - Cnab Tables DTO to be saved in database
+   * A partir de TransacaoAgrupado:
+   * - Gera string do CNAB para salvar no SFTP
+   * - Salva tabelas CNAB no banco
    */
   public async generateSaveRemessa(
     transacaoAg: TransacaoAgrupado,
@@ -77,24 +74,18 @@ export class RemessaRetornoService {
     );
 
     // saveHeaderArquivo
-    await this.saveHeaderArquivo(headerArquivoDTO);
+    await this.headerArquivoService.save(headerArquivoDTO);
 
     const pagador = transacaoAg.pagador;
-    const headerLoteDTO = this.headerLoteService.getDTO(
-      headerArquivoDTO,
+    const savedHeaderLotes = await this.saveGetRemessaLotes(
       pagador,
-    );
-    const savedHeaderLote = await this.saveHeaderLoteDTO(headerLoteDTO);
-    const detalhes = await this.saveListDetalhes(
-      savedHeaderLote.id,
-      transacaoAg,
+      headerArquivoDTO,
     );
 
     // Generate Cnab
     const cnab104 = this.generateCnab104Pgto(
       headerArquivoDTO,
-      headerLoteDTO,
-      detalhes,
+      savedHeaderLotes,
     );
 
     if (!cnab104) {
@@ -113,16 +104,75 @@ export class RemessaRetornoService {
       headerArquivoDTO,
       processedCnab104.headerArquivo,
     );
-    await this.updateHeaderLoteDTOFrom104(
-      headerLoteDTO,
-      processedCnab104.lotes[0].headerLote,
-    );
+    for (const processedLote of processedCnab104.lotes) {
+      const savedLote = savedHeaderLotes.filter(i => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
+      await this.updateHeaderLoteDTOFrom104(
+        savedLote,
+        processedLote.headerLote,
+      );
+    }
     await this.transacaoAgService.save({
       id: transacaoAg.id,
       status: new TransacaoStatus(TransacaoStatusEnum.remessa),
     });
 
     return cnabString;
+  }
+
+  /**
+   * Cada lote é separado por:
+   * - tipoCompromisso
+   * - formaLancamento
+   *
+   * Regras:
+   *
+   * tipoCompromisso: fixo
+   * formaLancamento:
+   *  - se banco favorecido = Caixa, CreditoContaCorrente (01)
+   *    (se banco do favorecido = banco do pagador - pagador é sempre Caixa)
+   *  - senão, TED (41)
+   */
+  async saveGetRemessaLotes(
+    pagador: Pagador,
+    headerArquivoDTO: HeaderArquivoDTO,
+  ) {
+    const transacaoAg = headerArquivoDTO.transacaoAgrupado as TransacaoAgrupado;
+    const itemTransacaoAgs =
+      await this.itemTransacaoAgService.findManyByIdTransacaoAg(transacaoAg.id);
+
+    // Agrupar por Lotes
+    /** Agrupa por: formaLancamento */
+    const lotes: HeaderLoteDTO[] = [];
+    for (const item of itemTransacaoAgs) {
+      const formaLancamento =
+        item.clienteFavorecido.codigoBanco === '104'
+          ? Cnab104FormaLancamento.CreditoContaCorrente
+          : Cnab104FormaLancamento.TED;
+      const loteUnique = lotes.filter(
+        (i) => i.formaLancamento === formaLancamento,
+      )[0] as HeaderLoteDTO | undefined;
+
+      // Se existir, salva/insere os detalhes
+      if (loteUnique) {
+        const detalhes104 = await this.saveListDetalhes(loteUnique, [item]);
+        loteUnique.registros104.push(...detalhes104);
+      }
+
+      // Senão, salva/gera novo Lote e salva/insere o primeiro detalhe
+      else {
+        const newLote = this.headerLoteService.getDTO(
+          headerArquivoDTO,
+          pagador,
+          formaLancamento,
+        );
+        const savedHeaderLote = await this.headerLoteService.saveDto(newLote);
+        newLote.id = savedHeaderLote.id;
+        const detalhes104 = await this.saveListDetalhes(newLote, [item]);
+        newLote.registros104.push(...detalhes104);
+        lotes.push(newLote);
+      }
+    }
+    return lotes;
   }
 
   async convertCnabDetalheAToDTO(
@@ -183,21 +233,12 @@ export class RemessaRetornoService {
     });
   }
 
-  async saveHeaderArquivo(headerArquivo: HeaderArquivoDTO) {
-    await this.headerArquivoService.save(headerArquivo);
-  }
-
-  async saveHeaderLoteDTO(headerLote: HeaderLoteDTO) {
-    return await this.headerLoteService.save(headerLote);
-  }
-
   /**
-   * Mount Cnab104 from tables
+   * Montar Cnab104 a partir dos DTOs de tabelas
    */
   private generateCnab104Pgto(
     headerArquivo: HeaderArquivoDTO,
-    headerLoteDTO: HeaderLoteDTO,
-    detalhes: CnabRegistros104Pgto[],
+    headerLoteDTOs: HeaderLoteDTO[],
   ) {
     const headerArquivo104 = this.getHeaderArquivo104FromDTO(headerArquivo);
     const trailerArquivo104 = sc(PgtoRegistros.trailerArquivo);
@@ -205,8 +246,7 @@ export class RemessaRetornoService {
     // Mount file104
     const cnab104 = this.getCnabFilePgto(
       headerArquivo104,
-      headerLoteDTO,
-      detalhes,
+      headerLoteDTOs,
       trailerArquivo104,
     );
 
@@ -214,32 +254,30 @@ export class RemessaRetornoService {
   }
 
   /**
-   * Save ItemTransacao, save Detalhes
-   * Generate Detalhes
+   * Salva no banco e gera Detalhes104 para o lote
+   *
+   * Para cada ItemTransacaoAg:
+   * - Salva no banco
+   * - Gera Detalhes104
+   *
+   * @returns Detalhes104 gerados a partir dos ItemTransacaoAg
    */
   async saveListDetalhes(
-    headerLoteId: number,
-    transacaoAg: TransacaoAgrupado,
+    headerLoteDto: HeaderLoteDTO,
+    itemTransacoes: ItemTransacaoAgrupado[],
   ): Promise<CnabRegistros104Pgto[]> {
     let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(
       new Date(),
     );
-
-    // Obter item transacao de transacoes
-    const itemTransacaoMany =
-      await this.itemTransacaoAgService.findManyByIdTransacao(
-        (transacaoAg as TransacaoAgrupado).id,
-      );
-
     // Para cada itemTransacao, cria detalhe
     const detalhes: CnabRegistros104Pgto[] = [];
     let itemTransacaoAgAux: ItemTransacaoAgrupado | undefined;
-    for (const itemTransacao of itemTransacaoMany) {
+    for (const itemTransacao of itemTransacoes) {
       // add valid itemTransacao
       itemTransacaoAgAux = itemTransacao as ItemTransacaoAgrupado;
       const detalhe = await this.saveDetalhes104(
         numeroDocumento,
-        headerLoteId,
+        headerLoteDto,
         itemTransacaoAgAux,
       );
       if (detalhe) {
@@ -293,19 +331,16 @@ export class RemessaRetornoService {
 
   getCnabFilePgto(
     headerArquivo104: CnabHeaderArquivo104,
-    headerLoteDTO: HeaderLoteDTO,
-    detalhes: CnabRegistros104Pgto[],
+    headerLoteDTOs: HeaderLoteDTO[],
     trailerArquivo104: CnabTrailerArquivo104,
   ) {
     const cnab104: CnabFile104Pgto = {
       headerArquivo: headerArquivo104,
-      lotes: [
-        {
-          headerLote: this.getHeaderLoteFrom104(headerLoteDTO),
-          registros: detalhes,
-          trailerLote: sc(PgtoRegistros.trailerLote),
-        },
-      ],
+      lotes: headerLoteDTOs.map((headerLote) => ({
+        headerLote: this.getHeaderLoteFrom104(headerLote),
+        registros: headerLote.registros104,
+        trailerLote: sc(PgtoRegistros.trailerLote),
+      })),
       trailerArquivo: trailerArquivo104,
     };
     cnab104.lotes = cnab104.lotes.filter((l) => l.registros.length > 0);
@@ -372,6 +407,7 @@ export class RemessaRetornoService {
     headerLote104.parametroTransmissao.value =
       headerLoteDTO.parametroTransmissao;
     headerLote104.tipoInscricao.value = headerLoteDTO.tipoInscricao;
+    headerLote104.formaLancamento.value = headerLoteDTO.formaLancamento;
     // Pagador
     headerLote104.agenciaContaCorrente.value = headerArquivo.agencia;
     headerLote104.dvAgencia.value = headerArquivo.dvAgencia;
@@ -403,7 +439,7 @@ export class RemessaRetornoService {
    * @returns null if failed ItemTransacao to CNAB */
   public async saveDetalhes104(
     numeroDocumento: number,
-    headerLoteId: number,
+    headerLote: HeaderLoteDTO,
     itemTransacaoAg: ItemTransacaoAgrupado,
   ): Promise<CnabRegistros104Pgto | null> {
     const METHOD = 'getDetalhes104()';
@@ -441,7 +477,7 @@ export class RemessaRetornoService {
 
     const savedDetalheA = await this.saveDetalheA(
       detalheA,
-      headerLoteId,
+      asNumber(headerLote.id),
       itemTransacaoAg,
     );
 

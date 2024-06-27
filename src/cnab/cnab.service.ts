@@ -249,6 +249,13 @@ export class CnabService {
     return result;
   }
 
+  /**
+   * Salvar:
+   * - TransacaoAgrupado (CNAB)
+   * - ItemTransacaoAgrupado ()
+   * - Transacao
+   * - 
+   */
   async saveAgrupamentos(
     ordem: BigqueryOrdemPagamentoDTO,
     pagador: Pagador,

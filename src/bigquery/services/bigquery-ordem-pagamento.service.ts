@@ -22,7 +22,7 @@ export class BigqueryOrdemPagamentoService {
     const friday = isFriday(today) ? today : nextFriday(today);
 
     const sex = subDays(friday, 7 + daysBefore);
-    const qui = subDays(friday, 1 + daysBefore);
+    const qui = subDays(friday, 1);
     const ordemPgto = (
       await this.bigqueryOrdemPagamentoRepository.findMany({
         startDate: sex,
