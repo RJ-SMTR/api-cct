@@ -14,6 +14,19 @@ import {
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
 
+/**
+ * Representa um destinatário, a ser pago pelo remetente (TransacaoAgrupado).
+ * 
+ * Esta tabela contém a soma de todas as transações (ItemTransacao)
+ * a serem feitas neste CNAB (TransacaoAgrupado).
+ * 
+ * Colunas:
+ * - dataOrdem: sexta de pagamento (baseado no BigqueryOrdemPgto.dataOrdem (dia da ordem D+1))
+ * 
+ * Identificador:
+ *   - TransacaoAgrupado (CNAB / remetente)
+ *   - ClienteFavorecido (destinatário)
+ */
 @Entity()
 export class ItemTransacaoAgrupado extends EntityHelper {
   constructor(dto?: DeepPartial<ItemTransacaoAgrupado>) {

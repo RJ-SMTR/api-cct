@@ -12,6 +12,11 @@ import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagament
  * @version v032 micro - FEV/2024
  * 
  * Requirement: {@Link https://github.com/RJ-SMTR/api-cct/issues/233 #233, GitHub, 24/04/2023}
+ * 
+ * Um lote por:
+ * - tipoCompromisso
+ * - formaLancamento
+ * 
  */
 export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
   /** 1.01 */
@@ -29,7 +34,12 @@ export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
   tipoOperacao: { pos: [9, 9], picture: 'X(001)', value: Cnab104TipoOperacao.Pagamento, ...Cnab.insert.d() },
   /** 1.05 - 20 pagamento de fornecedor */
   tipoServico: { pos: [10, 11], picture: '9(002)', value: Cnab104TipoServicoExtrato.PagamentoFornecedor, ...Cnab.insert.d() },
-  /** 1.06 - Crédito em conta */
+  /** 
+   * 1.06 - Crédito em conta
+   * 
+   * Regras:
+   * - Se o banco do favorecido
+   */
   formaLancamento: { pos: [12, 13], picture: '9(002)', value: Cnab104FormaLancamento.TED, ...Cnab.insert.d() },
   /** 1.07 - Fixo: 041 */
   versaoLeiauteLote: { pos: [14, 16], picture: '9(003)', value: '041', ...Cnab.insert.d() },

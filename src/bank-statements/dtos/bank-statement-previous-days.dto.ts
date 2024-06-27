@@ -1,4 +1,5 @@
 import { Ocorrencia } from "src/cnab/entity/pagamento/ocorrencia.entity";
+import { SetValue } from "src/utils/decorators/set-value.decorator";
 
 export class BankStatementPreviousDaysDTO {
   constructor(dto?: BankStatementPreviousDaysDTO) {
@@ -38,6 +39,7 @@ export class BankStatementPreviousDaysDTO {
   status: string | null;
 
   /** Bank error message */
+  @SetValue((v) => Ocorrencia.toUserErrors(v))
   errors: Ocorrencia[];
 
   // Debug
