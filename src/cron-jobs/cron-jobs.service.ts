@@ -95,7 +95,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-
+    await this.saveTransacoesJae1(0,'Van');
+    await this.sendRemessa();
     // await this.cnabService.updateTransacaoViewBigquery();
     // await this.cnabService.compareTransacaoViewPublicacao(14);
 
@@ -728,7 +729,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     return cnabJobEnabled.getValueAsBoolean();
   }
 
-  async saveTransacoesJae1() {
+  async saveTransacoesJae1(daysBefore = 0,consorcio='Todos') {
     const METHOD = this.saveTransacoesJae1.name;
 
     if (!(await this.getIsCnabJobEnabled(METHOD))) {
@@ -737,7 +738,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesJae();
+      await this.cnabService.saveTransacoesJae(daysBefore,consorcio);
       this.logger.log('Tabelas para o Jaé atualizados com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`ERRO CRÍTICO - ${error}`, error?.stack, METHOD);

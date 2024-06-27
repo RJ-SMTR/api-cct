@@ -95,7 +95,7 @@ export class CnabService {
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
-  public async saveTransacoesJae() {
+  public async saveTransacoesJae(daysBefore = 0,consorcio='Todos') {
     const METHOD = this.saveTransacoesJae.name;
 
     // 1. Update cliente favorecido
@@ -105,8 +105,8 @@ export class CnabService {
     await this.updateTransacaoViewBigquery();
 
     // 3. Update ordens
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
-    await this.saveOrdens(ordens);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(daysBefore);
+    await this.saveOrdens(ordens,consorcio);
 
     await this.compareTransacaoViewPublicacao();
 
@@ -152,7 +152,7 @@ export class CnabService {
   /**
    * Salvar Transacao / ItemTransacao e agrupados
    */
-  async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[]) {
+  async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[],consorcio="Todos") {
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
@@ -167,7 +167,17 @@ export class CnabService {
         continue;
       }
 
-      await this.saveAgrupamentos(ordem, pagador, favorecido);
+      if (consorcio =='Todos'){
+        await this.saveAgrupamentos(ordem, pagador, favorecido); 
+      }else if(consorcio =='Van'){
+        if(ordem.consorcio =='STPC' || ordem.consorcio == 'STPL'){          
+      //     await this.saveAgrupamentos(ordem, pagador, favorecido);              
+         }  
+      }else if(consorcio =='Empresa'){
+        if(ordem.consorcio !='STPC' && ordem.consorcio != 'STPL'){          
+           await this.saveAgrupamentos(ordem, pagador, favorecido);              
+         }  
+      }
     }
   }
 
