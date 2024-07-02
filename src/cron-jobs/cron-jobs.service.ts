@@ -95,6 +95,10 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
+    await this.saveTransacoesJae1(0,'Todos');
+    await this.saveAndSendRemessa();
+    // await this.cnabService.updateTransacaoViewBigquery();
+    // await this.cnabService.compareTransacaoViewPublicacao(14);
 
     this.jobsConfig.push(
       {
@@ -159,7 +163,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
         cronJobParameters: {
           cronTime: '0 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
           onTick: async () => {
-            await this.sendRemessa();
+            await this.saveAndSendRemessa();
           },
         },
       },
@@ -195,6 +199,12 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     const job = new CronJob(jobConfig.cronJobParameters);
     this.schedulerRegistry.addCronJob(jobConfig.name, job);
     job.start();
+  }
+
+  public async saveAndSendRemessa(){
+    const listCnabStr = await this.cnabService.saveRemessa(PagadorContaEnum.ContaBilhetagem);
+    if(listCnabStr)
+      await this.sendRemessa(listCnabStr);
   }
 
   deleteCron(jobName: string) {
@@ -725,7 +735,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     return cnabJobEnabled.getValueAsBoolean();
   }
 
-  async saveTransacoesJae1() {
+  async saveTransacoesJae1(daysBefore = 0,consorcio='Todos') {
     const METHOD = this.saveTransacoesJae1.name;
 
     if (!(await this.getIsCnabJobEnabled(METHOD))) {
@@ -734,7 +744,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesJae();
+      await this.cnabService.saveTransacoesJae(daysBefore,consorcio);
       this.logger.log('Tabelas para o Jaé atualizados com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`ERRO CRÍTICO - ${error}`, error?.stack, METHOD);
@@ -760,12 +770,11 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
         error.stack,
         METHOD,
       );
-      this.deleteCron(CrobJobsEnum.saveTransacoesJae2);
-      // enviar email para: raphael, william, bernardo...
+      this.deleteCron(CrobJobsEnum.saveTransacoesJae2);      
     }
   }
 
-  async sendRemessa() {
+  async sendRemessa(listCnab:string[]) {
     const METHOD = this.sendRemessa.name;
 
     if (!(await this.getIsCnabJobEnabled(METHOD))) {
@@ -774,8 +783,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.sendRemessa(PagadorContaEnum.ContaBilhetagem);
-      // await this.cnabService.sendRemessa(PagadorContaEnum.CETT);
+      await this.cnabService.sendRemessa(listCnab);      
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error('Erro, abortando.', error.stack, METHOD);

@@ -152,7 +152,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     this.logger.log(`Arquivo carregado em ${_remotePath}`, METHOD);
   }
 
-  async submitCnabRemessa(content: string) {
+  public async submitCnabRemessa(content: string) {
     const METHOD = this.submitCnabRemessa.name;
     await this.connectClient();
     const remotePath = this.dir(

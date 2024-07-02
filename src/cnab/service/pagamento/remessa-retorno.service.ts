@@ -1,5 +1,6 @@
+import { HeaderArquivoDTO } from './../../dto/pagamento/header-arquivo.dto';
 import { Injectable, Logger } from '@nestjs/common';
-import { isSameDay, startOfDay } from 'date-fns';
+import { startOfDay } from 'date-fns';
 import { DetalheADTO } from 'src/cnab/dto/pagamento/detalhe-a.dto';
 import { HeaderLoteDTO } from 'src/cnab/dto/pagamento/header-lote.dto';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
@@ -13,13 +14,11 @@ import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-tra
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
-import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { DeepPartial } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
-import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { CnabHeaderArquivo104 } from '../../interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
@@ -57,66 +56,11 @@ export class RemessaRetornoService {
     private settingsService: SettingsService,
   ) {}
 
-  // #region generateSaveRemessa
-
-  /**
-   * A partir de TransacaoAgrupado:
-   * - Gera string do CNAB para salvar no SFTP
-   * - Salva tabelas CNAB no banco
-   */
-  public async generateSaveRemessa(
-    transacaoAg: TransacaoAgrupado,
-  ): Promise<string | null> {
-    // Get headerArquivo
-    const headerArquivoDTO = await this.headerArquivoService.getDTO(
-      HeaderArquivoTipoArquivo.Remessa,
-      transacaoAg,
-    );
-
-    // saveHeaderArquivo
-    await this.headerArquivoService.save(headerArquivoDTO);
-
-    const pagador = transacaoAg.pagador;
-    const savedHeaderLotes = await this.saveGetRemessaLotes(
-      pagador,
-      headerArquivoDTO,
-    );
-
-    // Generate Cnab
-    const cnab104 = this.generateCnab104Pgto(
-      headerArquivoDTO,
-      savedHeaderLotes,
-    );
-
-    if (!cnab104) {
-      return null;
-    }
-
-    // Process cnab
-    const [cnabString, processedCnab104] = stringifyCnab104File(
-      cnab104,
-      true,
-      'CnabPgtoRem',
-    );
-
-    // Update
-    await this.updateHeaderArquivoDTOFrom104(
-      headerArquivoDTO,
-      processedCnab104.headerArquivo,
-    );
-    for (const processedLote of processedCnab104.lotes) {
-      const savedLote = savedHeaderLotes.filter(i => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
-      await this.updateHeaderLoteDTOFrom104(
-        savedLote,
-        processedLote.headerLote,
-      );
-    }
-    await this.transacaoAgService.save({
-      id: transacaoAg.id,
-      status: new TransacaoStatus(TransacaoStatusEnum.remessa),
-    });
-
-    return cnabString;
+  public async saveHeaderArquivoDTO(transacaoAg: TransacaoAgrupado): Promise<HeaderArquivoDTO>{
+    const headerArquivoDTO = await this.headerArquivoService.getDTO(HeaderArquivoTipoArquivo.Remessa,transacaoAg);
+    const headerArquivo = await this.headerArquivoService.save(headerArquivoDTO);
+    headerArquivoDTO.id = headerArquivo.id; 
+    return headerArquivoDTO;
   }
 
   /**
@@ -132,7 +76,7 @@ export class RemessaRetornoService {
    *    (se banco do favorecido = banco do pagador - pagador é sempre Caixa)
    *  - senão, TED (41)
    */
-  async saveGetRemessaLotes(
+  public async getLotes(
     pagador: Pagador,
     headerArquivoDTO: HeaderArquivoDTO,
   ) {
@@ -143,34 +87,36 @@ export class RemessaRetornoService {
     // Agrupar por Lotes
     /** Agrupa por: formaLancamento */
     const lotes: HeaderLoteDTO[] = [];
-    for (const item of itemTransacaoAgs) {
-      const formaLancamento =
-        item.clienteFavorecido.codigoBanco === '104'
-          ? Cnab104FormaLancamento.CreditoContaCorrente
-          : Cnab104FormaLancamento.TED;
-      const loteUnique = lotes.filter(
-        (i) => i.formaLancamento === formaLancamento,
-      )[0] as HeaderLoteDTO | undefined;
-
-      // Se existir, salva/insere os detalhes
-      if (loteUnique) {
-        const detalhes104 = await this.saveListDetalhes(loteUnique, [item]);
-        loteUnique.registros104.push(...detalhes104);
-      }
-
-      // Senão, salva/gera novo Lote e salva/insere o primeiro detalhe
-      else {
-        const newLote = this.headerLoteService.getDTO(
-          headerArquivoDTO,
-          pagador,
-          formaLancamento,
-        );
-        const savedHeaderLote = await this.headerLoteService.saveDto(newLote);
-        newLote.id = savedHeaderLote.id;
-        const detalhes104 = await this.saveListDetalhes(newLote, [item]);
-        newLote.registros104.push(...detalhes104);
-        lotes.push(newLote);
-      }
+    let nsrTed = 0;
+    let nsrCC  = 0;    
+    let loteTed;
+    let loteCC;
+    for (const item of itemTransacaoAgs) {      
+      if(item.clienteFavorecido.codigoBanco !== '104'){ //TED   
+        nsrTed ++; 
+        if(loteTed == undefined){          
+          loteTed = this.headerLoteService.getDTO(headerArquivoDTO,pagador,Cnab104FormaLancamento.TED)   
+          loteTed = await this.headerLoteService.saveDto(loteTed);       
+        }       
+        const detalhes104 = await this.saveListDetalhes(loteTed,[item],nsrTed);
+        nsrTed ++; 
+        loteTed.registros104.push(...detalhes104);
+      }else{ //Credito em Conta
+        nsrCC++;        
+        if(loteCC == undefined){
+          loteCC = this.headerLoteService.getDTO(headerArquivoDTO,pagador,Cnab104FormaLancamento.CreditoContaCorrente)  
+          loteCC = await this.headerLoteService.saveDto(loteCC);       
+        }       
+        const detalhes104 = await this.saveListDetalhes(loteCC, [item],nsrCC);
+        nsrCC++;
+        loteCC.registros104.push(...detalhes104);       
+      }       
+    }
+    if(loteTed != undefined){
+      lotes.push(loteTed);
+    }
+    if(loteCC != undefined){
+      lotes.push(loteCC);
     }
     return lotes;
   }
@@ -236,21 +182,10 @@ export class RemessaRetornoService {
   /**
    * Montar Cnab104 a partir dos DTOs de tabelas
    */
-  private generateCnab104Pgto(
-    headerArquivo: HeaderArquivoDTO,
-    headerLoteDTOs: HeaderLoteDTO[],
-  ) {
+  public generateFile(headerArquivo: HeaderArquivoDTO, headerLoteDTOs: HeaderLoteDTO[]) {
     const headerArquivo104 = this.getHeaderArquivo104FromDTO(headerArquivo);
     const trailerArquivo104 = sc(PgtoRegistros.trailerArquivo);
-
-    // Mount file104
-    const cnab104 = this.getCnabFilePgto(
-      headerArquivo104,
-      headerLoteDTOs,
-      trailerArquivo104,
-    );
-
-    return cnab104;
+    return this.getCnabFilePgto(headerArquivo104,headerLoteDTOs,trailerArquivo104);
   }
 
   /**
@@ -262,24 +197,14 @@ export class RemessaRetornoService {
    *
    * @returns Detalhes104 gerados a partir dos ItemTransacaoAg
    */
-  async saveListDetalhes(
-    headerLoteDto: HeaderLoteDTO,
-    itemTransacoes: ItemTransacaoAgrupado[],
-  ): Promise<CnabRegistros104Pgto[]> {
-    let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(
-      new Date(),
-    );
+  async saveListDetalhes(headerLoteDto: HeaderLoteDTO,itemTransacoes: ItemTransacaoAgrupado[], nsr): Promise<CnabRegistros104Pgto[]> {
+    let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());
     // Para cada itemTransacao, cria detalhe
     const detalhes: CnabRegistros104Pgto[] = [];
-    let itemTransacaoAgAux: ItemTransacaoAgrupado | undefined;
-    for (const itemTransacao of itemTransacoes) {
-      // add valid itemTransacao
-      itemTransacaoAgAux = itemTransacao as ItemTransacaoAgrupado;
-      const detalhe = await this.saveDetalhes104(
-        numeroDocumento,
-        headerLoteDto,
-        itemTransacaoAgAux,
-      );
+    let itemTransacaoAgAux: ItemTransacaoAgrupado | undefined;    
+    for (const itemTransacao of itemTransacoes) {      
+      itemTransacaoAgAux = itemTransacao as ItemTransacaoAgrupado;    
+      const detalhe = await this.saveDetalhes104(numeroDocumento,headerLoteDto, itemTransacaoAgAux,nsr);   
       if (detalhe) {
         detalhes.push(detalhe);
       }
@@ -288,47 +213,7 @@ export class RemessaRetornoService {
     return detalhes;
   }
 
-  async getNextNSR() {
-    const nsrSequence = await this.settingsService.getOneBySettingData(
-      cnabSettings.any__cnab_current_nsr_sequence,
-    );
-    const nsrDate = new Date(
-      (
-        await this.settingsService.getOneBySettingData(
-          cnabSettings.any__cnab_current_nsr_date,
-        )
-      ).value,
-    );
-
-    // Se data é diferente, reinicia o nsr
-    if (!isSameDay(new Date(), nsrDate)) {
-      await this.settingsService.updateBySettingData(
-        cnabSettings.any__cnab_current_nsr_date,
-        String(new Date().toISOString()),
-      );
-      await this.settingsService.updateBySettingData(
-        cnabSettings.any__cnab_last_nsr_sequence,
-        '0',
-      );
-      const nsr = 1;
-      await this.settingsService.updateBySettingData(
-        cnabSettings.any__cnab_current_nsr_sequence,
-        String(nsr),
-      );
-      return nsr;
-    }
-
-    // Se data é igual, pega o próximo número
-    else {
-      const nsr = Number(nsrSequence.value) + 1;
-      await this.settingsService.updateBySettingData(
-        cnabSettings.any__cnab_current_nsr_sequence,
-        String(nsr),
-      );
-      return nsr;
-    }
-  }
-
+  
   getCnabFilePgto(
     headerArquivo104: CnabHeaderArquivo104,
     headerLoteDTOs: HeaderLoteDTO[],
@@ -375,7 +260,7 @@ export class RemessaRetornoService {
     return headerArquivo104;
   }
 
-  private async updateHeaderArquivoDTOFrom104(
+  public async updateHeaderArquivoDTOFrom104(
     headerArquivoDTO: HeaderArquivoDTO,
     headerArquivo104: CnabHeaderArquivo104,
   ) {
@@ -383,7 +268,7 @@ export class RemessaRetornoService {
     await this.headerArquivoService.save(headerArquivoDTO);
   }
 
-  private async updateHeaderLoteDTOFrom104(
+  public async updateHeaderLoteDTOFrom104(
     headerLoteDTO: HeaderLoteDTO,
     headerLote104: CnabHeaderLote104Pgto,
   ) {
@@ -437,11 +322,8 @@ export class RemessaRetornoService {
    *
    * @param numeroDocumento Managed by company. It must be a new number.
    * @returns null if failed ItemTransacao to CNAB */
-  public async saveDetalhes104(
-    numeroDocumento: number,
-    headerLote: HeaderLoteDTO,
-    itemTransacaoAg: ItemTransacaoAgrupado,
-  ): Promise<CnabRegistros104Pgto | null> {
+  public async saveDetalhes104(numeroDocumento: number, headerLote: HeaderLoteDTO, itemTransacaoAg: ItemTransacaoAgrupado, nsr: number)
+  : Promise<CnabRegistros104Pgto | null> {
     const METHOD = 'getDetalhes104()';
     const favorecido = itemTransacaoAg.clienteFavorecido as ClienteFavorecido;
 
@@ -459,7 +341,7 @@ export class RemessaRetornoService {
     }
 
     // Save detalheA
-    let nsr = await this.getNextNSR();
+    
     const itemTransacaoAgAux = itemTransacaoAg;
     const fridayOrdem = itemTransacaoAgAux.dataOrdem;
     const detalheA: CnabDetalheA_104 = sc(PgtoRegistros.detalheA);
@@ -470,10 +352,9 @@ export class RemessaRetornoService {
     detalheA.dvContaDestino.value = favorecido.dvContaCorrente;
     detalheA.nomeTerceiro.value = favorecido.nome;
     detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
-    detalheA.dataVencimento.value = fridayOrdem;
-    // indicadorFormaParcelamento = DataFixa
+    detalheA.dataVencimento.value = fridayOrdem;    
     detalheA.valorLancamento.value = itemTransacaoAgAux.valor;
-    detalheA.nsr.value = String(nsr);
+    detalheA.nsr.value = nsr;
 
     const savedDetalheA = await this.saveDetalheA(
       detalheA,
@@ -481,8 +362,7 @@ export class RemessaRetornoService {
       itemTransacaoAg,
     );
 
-    // DetalheB
-    nsr = await this.getNextNSR();
+    // DetalheB    
     const detalheB: CnabDetalheB_104 = sc(PgtoRegistros.detalheB);
     detalheB.tipoInscricao.value = getTipoInscricao(
       asString(favorecido.cpfCnpj),
@@ -498,7 +378,7 @@ export class RemessaRetornoService {
     detalheB.cep.value = favorecido.cep;
     detalheB.complementoCep.value = favorecido.complementoCep;
     detalheB.siglaEstado.value = favorecido.uf;
-    detalheB.nsr.value = nsr;
+    detalheB.nsr.value = nsr + 1;
 
     await this.saveDetalheB(detalheB, savedDetalheA.id);
 

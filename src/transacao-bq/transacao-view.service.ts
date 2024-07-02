@@ -63,14 +63,11 @@ export class TransacaoViewService {
   async findExisting(
     transacoes: DeepPartial<TransacaoView>[],
     callback: (existing: TransacaoView[]) => void,
-  ) {
-    // const len = await this.transacaoViewRepository.count();
-    // for (let i = 0; i < len; i += chunkSize) {
+  ) {    
     const existing = await this.transacaoViewRepository.findExisting(
-      transacoes,
+      transacoes
     );
-    callback(existing);
-    // }
+    callback(existing); 
   }
 
   /**

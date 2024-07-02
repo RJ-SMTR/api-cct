@@ -7,6 +7,7 @@ import {
   DeepPartial,
   FindManyOptions,
   In,
+  LessThanOrEqual,
   Repository,
 } from 'typeorm';
 import { UpsertOptions } from 'typeorm/repository/UpsertOptions';
@@ -127,10 +128,11 @@ export class TransacaoViewRepository {
     dtos: DeepPartial<TransacaoView>[],
     skip?: number,
     take?: number,
-  ) {
+  ){
     const transacoes = await this.transacaoViewRepository.find({
-      where: {
+      where: {        
         idTransacao: In(dtos.map((i) => i.idTransacao)),
+        updatedAt: LessThanOrEqual(new Date())
       },
       loadEagerRelations: false,
       skip,
