@@ -60,7 +60,7 @@ export class ItemTransacaoAgrupadoService {
     return newItens;
   }
 
-  public async findManyByIdTransacao(
+  public async findManyByIdTransacaoAg(
     id_transacao: number,
   ): Promise<ItemTransacaoAgrupado[]> {
     return await this.itemTransacaoAgRepository.findMany({

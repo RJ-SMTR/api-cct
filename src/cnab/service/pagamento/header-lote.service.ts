@@ -12,6 +12,7 @@ import { HeaderLoteDTO } from '../../dto/pagamento/header-lote.dto';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
 import { HeaderLoteRepository } from '../../repository/pagamento/header-lote.repository';
 import { PagadorService } from './pagador.service';
+import { Cnab104FormaLancamento } from 'src/cnab/enums/104/cnab-104-forma-lancamento.enum';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -27,11 +28,12 @@ export class HeaderLoteService {
   /**
    * From Transacao, HeaderArquivo transforms into HeaderLote.
    *
-   * `loteServico` should be set later before save!
+   * `loteServico` será atualizado com o valor gerado automaticamente em `updateHeaderLoteDTOFrom104()`!
    */
   public getDTO(
     headerArquivo: HeaderArquivoDTO,
     pagador: Pagador,
+    formaLancamento: Cnab104FormaLancamento,
   ): HeaderLoteDTO {
     const dto = new HeaderLoteDTO({
       codigoConvenioBanco: headerArquivo.codigoConvenio,
@@ -42,6 +44,7 @@ export class HeaderLoteService {
       tipoInscricao: headerArquivo.tipoInscricao,
       headerArquivo: headerArquivo,
       loteServico: 1,
+      formaLancamento,
     });
     return dto;
   }
@@ -65,6 +68,7 @@ export class HeaderLoteService {
       numeroInscricao: lote.headerLote.numeroInscricao.stringValue,
       parametroTransmissao: lote.headerLote.parametroTransmissao.stringValue,
       tipoCompromisso: lote.headerLote.tipoCompromisso.stringValue,
+      formaLancamento: lote.headerLote.formaLancamento.stringValue,
       tipoInscricao: lote.headerLote.tipoInscricao.stringValue,
       pagador: { id: pagador.id },
     });
@@ -85,6 +89,10 @@ export class HeaderLoteService {
 
   public async save(dto: DeepPartial<HeaderLote>): Promise<HeaderLote> {
     // await validateDTO(HeaderLoteDTO, dto);
+    return await this.headerLoteRepository.save(dto);
+  }
+
+  public async saveDto(dto: HeaderLoteDTO): Promise<HeaderLote> {
     return await this.headerLoteRepository.save(dto);
   }
 

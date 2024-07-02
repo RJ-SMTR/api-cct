@@ -1,4 +1,7 @@
-import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-all/cnab-field.interface';
+import {
+  CnabField,
+  CnabFieldAs,
+} from 'src/cnab/interfaces/cnab-all/cnab-field.interface';
 
 /**
  * @extends {CnabFields}
@@ -9,6 +12,12 @@ export interface CnabTrailerLote104 {
   loteServico: CnabField;
   codigoRegistro: CnabFieldAs<number>;
   usoExclusivoFebraban: CnabField;
+  /**
+   * Preencher com a quantidade de registros dentro do lote,
+   * considerar inclusive "HEADER" e "Trailer" do lote.
+   * 
+   * Retornado conforme recebido.
+   */
   quantidadeRegistrosLote: CnabField;
   /** Soma de todos os valores: detalhe A, I, O, N */
   somatorioValores: CnabField;

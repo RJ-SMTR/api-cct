@@ -51,6 +51,7 @@ export function stringifyCnab104File<T extends CnabFile104>(
 ): [string, T] {
   const _cnab104 = process ? getProcessedCnab104(cnab104, cnabName) : cnab104;
   const cnab = getCnabFileFrom104(_cnab104);
+  // TODO: não está setando formaLancamento = 01 vs 41 no stringify CONTINUAR AQUI...
   const [cnabString, cnabFormatted] = stringifyCnabFile(cnab);
   const cnab104Formatted = getCnab104FromFile(cnabFormatted);
   return [cnabString, cnab104Formatted as T];
