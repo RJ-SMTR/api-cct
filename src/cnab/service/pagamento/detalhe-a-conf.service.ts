@@ -6,7 +6,6 @@ import { validateDTO } from 'src/utils/validation-utils';
 import { DeepPartial, FindOneOptions, ILike, In } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
-import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
 import { ClienteFavorecidoService } from '../cliente-favorecido.service';
 import { startOfDay } from 'date-fns';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
@@ -14,13 +13,14 @@ import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-head
 import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
 import { CnabLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface';
+import { DetalheAConfRepository } from 'src/cnab/repository/pagamento/detalhe-a-conf.repository';
 
 @Injectable()
-export class DetalheAService {
-  private logger: Logger = new Logger('DetalheAService', { timestamp: true });
+export class DetalheAConfService {
+  private logger: Logger = new Logger('DetalheAConfService', { timestamp: true });
 
   constructor(
-    private detalheARepository: DetalheARepository,
+    private detalheAConfRepository: DetalheAConfRepository,
     private clienteFavorecidoService: ClienteFavorecidoService,
     private transacaoAgrupadoService: TransacaoAgrupadoService   
   ) {}
@@ -32,7 +32,7 @@ export class DetalheAService {
     const dataVencimento = startOfDay(
       lote.registros[0].detalheA.dataVencimento.convertedValue,
     );
-    const detalhesA = await this.detalheARepository.findMany({
+    const detalhesA = await this.detalheAConfRepository.findMany({
       where: {
         dataVencimento: dataVencimento,
         nsr: In(lote.registros.map((i) => i.detalheA.nsr.convertedValue)),
@@ -62,7 +62,7 @@ export class DetalheAService {
   public saveManyIfNotExists(
     dtos: DeepPartial<DetalheA>[],
   ): Promise<DetalheA[]> {
-    return this.detalheARepository.saveManyIfNotExists(dtos);
+    return this.detalheAConfRepository.saveManyIfNotExists(dtos);
   }
 
   public async saveRetornoFrom104(
@@ -81,7 +81,7 @@ export class DetalheAService {
     const dataVencimento = startOfDay(
       registro.detalheA.dataVencimento.convertedValue,
     );
-    const detalheARem = await this.detalheARepository.getOne({
+    const detalheARem = await this.detalheAConfRepository.getOne({
       dataVencimento: dataVencimento,
       nsr: r.detalheA.nsr.convertedValue,
       itemTransacaoAgrupado: {
@@ -118,30 +118,30 @@ export class DetalheAService {
         headerLotePgto.ocorrencias.value.trim() ||
         r.detalheA.ocorrencias.value.trim(),
     });
-    const saved = await this.detalheARepository.save(detalheA);
+    const saved = await this.detalheAConfRepository.save(detalheA);
 
     return saved;
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
     await validateDTO(DetalheADTO, dto);
-    return await this.detalheARepository.save(dto);
+    return await this.detalheAConfRepository.save(dto);
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
-    return await this.detalheARepository.getOne(fields);
+    return await this.detalheAConfRepository.getOne(fields);
   }
 
   public async findOne(
     options: FindOneOptions<DetalheA>,
   ): Promise<Nullable<DetalheA>> {
-    return await this.detalheARepository.findOne(options);
+    return await this.detalheAConfRepository.findOne(options);
   }
 
   public async findMany(
     fields: EntityCondition<DetalheA>,
   ): Promise<DetalheA[]> {
-    return await this.detalheARepository.findMany({ where: fields });
+    return await this.detalheAConfRepository.findMany({ where: fields });
   }
 
   /**
@@ -172,6 +172,6 @@ export class DetalheAService {
    *
    */
   public async getNextNumeroDocumento(date: Date): Promise<number> {
-    return await this.detalheARepository.getNextNumeroDocumento(date);
+    return await this.detalheAConfRepository.getNextNumeroDocumento(date);
   }
 }
