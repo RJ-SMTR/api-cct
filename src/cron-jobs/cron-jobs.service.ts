@@ -95,10 +95,10 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    await this.saveTransacoesJae1(0,'Todos');
-    await this.saveAndSendRemessa();
+    //await this.saveTransacoesJae1(0,'Todos',new Date());
+    //await this.saveAndSendRemessa(new Date(),true);
     // await this.cnabService.updateTransacaoViewBigquery();
-    // await this.cnabService.compareTransacaoViewPublicacao(14);
+    //await this.cnabService.compareTransacaoViewPublicacao(14);
 
     this.jobsConfig.push(
       {
@@ -154,7 +154,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
         cronJobParameters: {
           cronTime: '0 3 * * 5', // Every friday, 00:00 BRT = 03:00 GMT
           onTick: async () => {
-            await this.saveTransacoesJae1();
+            await this.saveTransacoesJae1(0,'Todos',undefined);
           },
         },
       },
@@ -163,7 +163,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
         cronJobParameters: {
           cronTime: '0 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
           onTick: async () => {
-            await this.saveAndSendRemessa();
+            await this.saveAndSendRemessa(undefined);
           },
         },
       },
@@ -201,8 +201,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     job.start();
   }
 
-  public async saveAndSendRemessa(){
-    const listCnabStr = await this.cnabService.saveRemessa(PagadorContaEnum.ContaBilhetagem);
+  public async saveAndSendRemessa(dataPgto: Date | undefined,isConference=false){
+    const listCnabStr = await this.cnabService.saveRemessa(PagadorContaEnum.ContaBilhetagem,dataPgto,isConference);
     if(listCnabStr)
       await this.sendRemessa(listCnabStr);
   }
@@ -735,7 +735,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     return cnabJobEnabled.getValueAsBoolean();
   }
 
-  async saveTransacoesJae1(daysBefore = 0,consorcio='Todos') {
+  async saveTransacoesJae1(daysBefore = 0,consorcio='Todos',dataPgto: Date | undefined) {
     const METHOD = this.saveTransacoesJae1.name;
 
     if (!(await this.getIsCnabJobEnabled(METHOD))) {
@@ -744,7 +744,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesJae(daysBefore,consorcio);
+      await this.cnabService.saveTransacoesJae(daysBefore,consorcio,dataPgto);
       this.logger.log('Tabelas para o Jaé atualizados com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`ERRO CRÍTICO - ${error}`, error?.stack, METHOD);
@@ -762,13 +762,13 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesJae();
+      await this.cnabService.saveTransacoesJae(0,'Todos',undefined);
       this.logger.log('Tabelas para o Jaé atualizados com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(
         `ERRO CRÍTICO (TENTATIVA 2) = ${error}`,
         error.stack,
-        METHOD,
+        METHOD
       );
       this.deleteCron(CrobJobsEnum.saveTransacoesJae2);      
     }

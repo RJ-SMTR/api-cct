@@ -18,19 +18,24 @@ export class BigqueryTransacaoService {
    *
    * @param [daysBack=0] Pega a semana atual ou N dias atrás.
    */
-  public async getFromWeek(
-    daysBack = 0,
-    startDateOnly = false,
-  ): Promise<BigqueryTransacao[]> {
+  public async getFromWeek(daysBack = 0,dataPgto: Date | undefined,startDateOnly = false): Promise<BigqueryTransacao[]> {
     // Read
+    let startDate;
+    let endDate;
+
     const today = new Date();
-    const friday = isFriday(today) ? today : nextFriday(today);
-    const qui = subDays(friday, 8 + daysBack);
-    const qua = subDays(friday, 2 + (startDateOnly ? 0 : daysBack));
+    if(dataPgto == undefined){
+      const friday = isFriday(today) ? today : nextFriday(today);
+      startDate = subDays(friday, 8 + daysBack);
+      endDate = subDays(friday, 2 + (startDateOnly ? 0 : daysBack));
+    }else{
+      startDate = subDays(dataPgto,1);
+      endDate = subDays(dataPgto,1);
+    }
     const ordemPgto = (
       await this.bigqueryTransacaoRepository.findMany({
-        startDate: qui,
-        endDate: qua,
+        startDate: startDate,
+        endDate: endDate,
       })
     ).map((i) => ({ ...i } as BigqueryTransacao));
     return ordemPgto;

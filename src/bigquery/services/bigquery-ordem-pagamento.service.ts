@@ -16,17 +16,24 @@ export class BigqueryOrdemPagamentoService {
   /**
    * Get data from current payment week (qui-qua). Also with older days.
    */
-  public async getFromWeek(daysBefore = 0): Promise<BigqueryOrdemPagamentoDTO[]> {
+  public async getFromWeek(daysBefore:number,dataPgto:Date | undefined): Promise<BigqueryOrdemPagamentoDTO[]> {
     // Read
-    const today = new Date();
-    const friday = isFriday(today) ? today : nextFriday(today);
+    let startDate;
+    let endDate;
 
-    const sex = subDays(friday, 7 + daysBefore);
-    const qui = subDays(friday, 1);
+    const today = new Date();
+    if(dataPgto == undefined){    
+      const friday = isFriday(today) ? today : nextFriday(today);    
+      startDate = subDays(friday, 7 + daysBefore);
+      endDate = subDays(friday, 1);
+    }else{
+      startDate = dataPgto;
+      endDate = dataPgto;
+    }
     const ordemPgto = (
       await this.bigqueryOrdemPagamentoRepository.findMany({
-        startDate: sex,
-        endDate: qui,
+        startDate: startDate,
+        endDate: endDate
       })
     ).map((i) => ({ ...i } as BigqueryOrdemPagamentoDTO));
     return ordemPgto;
