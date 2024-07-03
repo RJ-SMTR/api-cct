@@ -95,17 +95,17 @@ export class CnabService {
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
-  public async saveTransacoesJae(daysBefore = 0,consorcio='Todos') {
+  public async saveTransacoesJae(daysBefore:number,consorcio:string,dataPgto: Date | undefined) {
     const METHOD = this.saveTransacoesJae.name;
 
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
 
     // 2. Update TransacaoView
-    await this.updateTransacaoViewBigquery(daysBefore);
+    await this.updateTransacaoViewBigquery(daysBefore,dataPgto);
 
     // 3. Update ordens
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(daysBefore);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(daysBefore,dataPgto);
     await this.saveOrdens(ordens,consorcio);
 
     //await this.compareTransacaoViewPublicacao();
@@ -123,11 +123,9 @@ export class CnabService {
   /**
    * Atualiza a tabela TransacaoView
    */
-  async updateTransacaoViewBigquery(daysBack = 0) {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(
-      daysBack,
-      false,
-    );
+  async updateTransacaoViewBigquery(daysBack:number,dataPgto: Date | undefined) {
+    const transacoesBq = 
+    await this.bigqueryTransacaoService.getFromWeek(daysBack,dataPgto,false);
 
     forChunk(transacoesBq, 1000, async (chunk) => {   
       const transacoes = chunk.map((i) =>
@@ -505,7 +503,7 @@ export class CnabService {
    *
    * @throws `Error` if any subtask throws
    */
-  public async saveRemessa(tipo: PagadorContaEnum) {
+  public async saveRemessa(tipo: PagadorContaEnum, dataPgto: Date | undefined, isConference: boolean) {
     const METHOD = this.sendRemessa.name;
     const transacoesAg = 
     await this.transacaoAgService.findAllNewTransacao(tipo);
@@ -522,11 +520,10 @@ export class CnabService {
 
     // Generate Remessas and send SFTP
     for (const transacaoAg of transacoesAg) {   
-
       // Get headerArquivo
-      const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg);
+      const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg,isConference);
 
-      const lotes = await this.remessaRetornoService.getLotes(transacaoAg.pagador,headerArquivoDTO);
+      const lotes = await this.remessaRetornoService.getLotes(transacaoAg.pagador,headerArquivoDTO,dataPgto,isConference);
       
       const cnab104 = this.remessaRetornoService.generateFile(headerArquivoDTO,lotes);
 
@@ -544,9 +541,10 @@ export class CnabService {
       }
   
       // Update
-      await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO,processedCnab104.headerArquivo);
-
-      await this.transacaoAgService.save({ id: transacaoAg.id, status: new TransacaoStatus(TransacaoStatusEnum.remessa) });
+      if(isConference){
+        await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO,processedCnab104.headerArquivo);
+        await this.transacaoAgService.save({ id: transacaoAg.id, status: new TransacaoStatus(TransacaoStatusEnum.remessa) });
+      }
 
       if (!cnabStr) {
         this.logger.warn(

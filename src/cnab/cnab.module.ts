@@ -55,6 +55,18 @@ import { PagadorService } from './service/pagamento/pagador.service';
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
+import { DetalheAConfRepository } from './repository/pagamento/detalhe-a-conf.repository';
+import { DetalheBConfRepository } from './repository/pagamento/detalhe-b-conf.repository';
+import { HeaderArquivoConfRepository } from './repository/pagamento/header-arquivo-conf.repository';
+import { HeaderLoteConfRepository } from './repository/pagamento/header-lote-conf.repository';
+import { DetalheAConfService } from './service/pagamento/detalhe-a-conf.service';
+import { DetalheBConfService } from './service/pagamento/detalhe-b-conf.service';
+import { HeaderArquivoConfService } from './service/pagamento/header-arquivo-conf.service';
+import { HeaderLoteConfService } from './service/pagamento/header-lote-conf.service';
+import { DetalheAConf } from './entity/conference/detalhe-a-conf.entity';
+import { DetalheBConf } from './entity/conference/detalhe-b-conf.entity';
+import { HeaderArquivoConf } from './entity/conference/header-arquivo-conf.entity';
+import { HeaderLoteConf } from './entity/conference/header-lote-conf.entity';
 
 @Module({
   imports: [
@@ -66,6 +78,10 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     SettingsModule,
     TransacaoViewModule,
     TypeOrmModule.forFeature([
+      HeaderArquivoConf,
+      HeaderLoteConf,
+      DetalheAConf,
+      DetalheBConf,
       HeaderArquivo,
       HeaderLote,
       DetalheA,
@@ -93,6 +109,16 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     DetalheAService,
     DetalheBRepository,
     DetalheBService,
+
+    HeaderArquivoConfRepository,
+    HeaderArquivoConfService,
+    HeaderLoteConfRepository,
+    HeaderLoteConfService,
+    DetalheAConfRepository,
+    DetalheAConfService,
+    DetalheBConfRepository,
+    DetalheBConfService,
+
     ClienteFavorecidoRepository,
     ClienteFavorecidoService,
     PagadorRepository,
@@ -127,6 +153,16 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     DetalheAService,
     DetalheBRepository,
     DetalheBService,
+
+    HeaderArquivoConfRepository,
+    HeaderArquivoConfService,
+    HeaderLoteConfRepository,
+    HeaderLoteConfService,
+    DetalheAConfRepository,
+    DetalheAConfService,
+    DetalheBConfRepository,
+    DetalheBConfService,
+
     ClienteFavorecidoRepository,
     ClienteFavorecidoService,
     PagadorRepository,
