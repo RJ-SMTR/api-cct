@@ -30,7 +30,7 @@ export class HeaderLote extends EntityHelper {
    * Each HeaderArquivo will have loteServico 1 for lote 1; loteServico = 2 for lote 2 etc.
    */
   @Column({ type: Number, unique: false, nullable: true })
-  loteServico: number | null;
+  loteServico: number;
 
   @Column({ type: String, unique: false, nullable: true })
   tipoInscricao: string | null;

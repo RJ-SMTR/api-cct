@@ -1,3 +1,4 @@
+import { Cnab104TipoMovimento } from './../../enums/104/cnab-104-tipo-movimento.enum';
 import { HeaderArquivoDTO } from './../../dto/pagamento/header-arquivo.dto';
 import { Injectable, Logger } from '@nestjs/common';
 import { startOfDay } from 'date-fns';
@@ -124,7 +125,7 @@ export class RemessaRetornoService {
             loteCC = await this.headerLoteConfService.saveDto(loteCC);    
           }
         }       
-        const detalhes104 = await this.saveListDetalhes(loteCC, [item],nsrCC,dataPgto,isConference);
+        const detalhes104 = await this.saveListDetalhes(loteCC,[item],nsrCC,dataPgto,isConference);
         nsrCC++;
         loteCC.registros104.push(...detalhes104);       
       }       
@@ -211,10 +212,10 @@ export class RemessaRetornoService {
   /**
    * Montar Cnab104 a partir dos DTOs de tabelas
    */
-  public generateFile(headerArquivo: HeaderArquivoDTO, headerLoteDTOs: HeaderLoteDTO[]) {
+  public generateFile(headerArquivo: HeaderArquivoDTO, headerLoteDTOs: HeaderLoteDTO[],isCancelamento = false,dataCancelamento=new Date()) {
     const headerArquivo104 = this.getHeaderArquivo104FromDTO(headerArquivo);
     const trailerArquivo104 = sc(PgtoRegistros.trailerArquivo);
-    return this.getCnabFilePgto(headerArquivo104,headerLoteDTOs,trailerArquivo104);
+    return this.getCnabFilePgto(headerArquivo104,headerLoteDTOs,trailerArquivo104,isCancelamento,dataCancelamento);
   }
 
   /**
@@ -242,12 +243,13 @@ export class RemessaRetornoService {
     }
     return detalhes;
   }
-
   
   getCnabFilePgto(
     headerArquivo104: CnabHeaderArquivo104,
     headerLoteDTOs: HeaderLoteDTO[],
     trailerArquivo104: CnabTrailerArquivo104,
+    isCancelamento:boolean,
+    dataCancelamento = new Date()
   ) {
     const cnab104: CnabFile104Pgto = {
       headerArquivo: headerArquivo104,
@@ -262,11 +264,20 @@ export class RemessaRetornoService {
     if (!cnab104.lotes.length) {
       return null;
     }
+    if(isCancelamento){
+      cnab104.lotes.forEach((l) => {
+        l.registros.forEach( r =>{
+            r.detalheA.tipoMovimento.value = Cnab104TipoMovimento.Exclusao;  
+            r.detalheA.dataVencimento.value =  dataCancelamento           
+            r.detalheB.dataVencimento.value =  dataCancelamento
+        })
+      });
+    }
     return cnab104;
   }
 
   private getHeaderArquivo104FromDTO(
-    headerArquivoDTO: HeaderArquivoDTO,
+    headerArquivoDTO: HeaderArquivoDTO
   ): CnabHeaderArquivo104 {
     const headerArquivo104: CnabHeaderArquivo104 = sc(
       PgtoRegistros.headerArquivo,
@@ -353,7 +364,7 @@ export class RemessaRetornoService {
    * @param numeroDocumento Managed by company. It must be a new number.
    * @returns null if failed ItemTransacao to CNAB */
   public async saveDetalhes104(numeroDocumento: number, headerLote: HeaderLoteDTO, 
-    itemTransacaoAg: ItemTransacaoAgrupado, nsr: number, dataPgto: Date | undefined, isConference: boolean)
+    itemTransacaoAg: ItemTransacaoAgrupado, nsr: number, dataPgto: Date | undefined, isConference: boolean,isCancelamento=false)
   : Promise<CnabRegistros104Pgto | null> {
     const METHOD = 'getDetalhes104()';
     const favorecido = itemTransacaoAg.clienteFavorecido as ClienteFavorecido;
@@ -395,10 +406,8 @@ export class RemessaRetornoService {
     }
     detalheA.valorLancamento.value = itemTransacaoAgAux.valor;
     detalheA.nsr.value = nsr;
-
-    const savedDetalheA = await this.saveDetalheA(
-      detalheA, asNumber(headerLote.id),itemTransacaoAg,isConference);
-
+   
+    
     // DetalheB    
     const detalheB: CnabDetalheB_104 = sc(PgtoRegistros.detalheB);
     detalheB.tipoInscricao.value = getTipoInscricao(
@@ -421,7 +430,10 @@ export class RemessaRetornoService {
     detalheB.siglaEstado.value = favorecido.uf;
     detalheB.nsr.value = nsr + 1;
 
-    await this.saveDetalheB(detalheB,savedDetalheA.id,isConference);
+    if(!isCancelamento){
+      const savedDetalheA = await this.saveDetalheA(detalheA, asNumber(headerLote.id),itemTransacaoAg,isConference);      
+      await this.saveDetalheB(detalheB,savedDetalheA.id,isConference);
+    }
 
     return {
       detalheA: detalheA,

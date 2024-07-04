@@ -21,6 +21,12 @@ const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
 @Injectable()
 export class HeaderArquivoService {
+
+
+  public async getHeaderArquivoNsa(index: number) {
+    return this.getOne({ nsa: index });  
+  }
+
   private logger: Logger = new Logger('HeaderArquivoService', {
     timestamp: true,
   });

@@ -95,8 +95,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    //await this.saveTransacoesJae1(0,'Todos',new Date());
-    //await this.saveAndSendRemessa(new Date(),true);
+   // await this.saveTransacoesJae1(0,'Todos',new Date());
+    await this.saveAndSendRemessa(new Date(),false,true,101,0,new Date('2024-07-05'));
     // await this.cnabService.updateTransacaoViewBigquery();
     //await this.cnabService.compareTransacaoViewPublicacao(14);
 
@@ -201,8 +201,11 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     job.start();
   }
 
-  public async saveAndSendRemessa(dataPgto: Date | undefined,isConference=false){
-    const listCnabStr = await this.cnabService.saveRemessa(PagadorContaEnum.ContaBilhetagem,dataPgto,isConference);
+  public async saveAndSendRemessa(dataPgto: Date | undefined,isConference=false,
+    isCancelamento=false,nsaInicial=0,nsaFinal=0,dataCancelamento=new Date()){
+
+    const listCnabStr = await this.cnabService.saveRemessa(PagadorContaEnum.ContaBilhetagem,dataPgto,
+           isConference,isCancelamento,nsaInicial,nsaFinal,dataCancelamento);
     if(listCnabStr)
       await this.sendRemessa(listCnabStr);
   }

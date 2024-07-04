@@ -107,4 +107,5 @@ export class HeaderLoteService {
   ): Promise<HeaderLote[]> {
     return await this.headerLoteRepository.findMany({ where: fields });
   }
+
 }

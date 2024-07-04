@@ -52,6 +52,12 @@ import {
   parseCnab240Pagamento,
   stringifyCnab104File,
 } from './utils/cnab/cnab-104-utils';
+import { HeaderArquivoService } from './service/pagamento/header-arquivo.service';
+import { HeaderLoteService } from './service/pagamento/header-lote.service';
+import { DetalheAService } from './service/pagamento/detalhe-a.service';
+import { Cnab104FormaLancamento } from './enums/104/cnab-104-forma-lancamento.enum';
+import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
+import { CnabRegistros104Pgto } from './interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 
 /**
  * User cases for CNAB and Payments
@@ -82,6 +88,10 @@ export class CnabService {
     private readonly lancamentoService: LancamentoService,
     private arquivoPublicacaoService: ArquivoPublicacaoService,
     private settingsService: SettingsService,
+    private headerArquivoService: HeaderArquivoService,
+    private headerLoteService: HeaderLoteService,
+    private detalheAService: DetalheAService,
+    private detalheBService: DetalheAService
   ) {}
 
   // #region saveTransacoesJae
@@ -108,7 +118,7 @@ export class CnabService {
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(daysBefore,dataPgto);
     await this.saveOrdens(ordens,consorcio);
 
-    //await this.compareTransacaoViewPublicacao();
+    await this.compareTransacaoViewPublicacao();
 
     // Log
     const msg = `Há ${ordens.length} ordens consideradas novas.`;
@@ -503,68 +513,123 @@ export class CnabService {
    *
    * @throws `Error` if any subtask throws
    */
-  public async saveRemessa(tipo: PagadorContaEnum, dataPgto: Date | undefined, isConference: boolean) {
-    const METHOD = this.sendRemessa.name;
-    const transacoesAg = 
-    await this.transacaoAgService.findAllNewTransacao(tipo);
-
-    if (!transacoesAg.length) {
-      this.logger.log(
-        `Não há transações novas para gerar remessa, nada a fazer...`,
-        METHOD,
-      );
-      return;
-    }
+  public async saveRemessa(tipo: PagadorContaEnum, dataPgto: Date | undefined, isConference: boolean,
+     isCancelamento: boolean, nsaInicial: number, nsaFinal: number,dataCancelamento=new Date()) {//101 - 147 
+    const METHOD = this.sendRemessa.name;    
 
     const listCnab:string[] = [];
 
-    // Generate Remessas and send SFTP
-    for (const transacaoAg of transacoesAg) {   
-      // Get headerArquivo
-      const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg,isConference);
+    if(!isCancelamento){
 
-      const lotes = await this.remessaRetornoService.getLotes(transacaoAg.pagador,headerArquivoDTO,dataPgto,isConference);
-      
-      const cnab104 = this.remessaRetornoService.generateFile(headerArquivoDTO,lotes);
+      const transacoesAg =  await this.transacaoAgService.findAllNewTransacao(tipo);
 
-      if (!cnab104){
-        return null;
-      }
-  
-      // Process cnab
-      const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104,true,'CnabPgtoRem');
-
-      for (const processedLote of processedCnab104.lotes){
-        const savedLote =
-         lotes.filter(i => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
-        await this.remessaRetornoService.updateHeaderLoteDTOFrom104(savedLote, processedLote.headerLote);
-      }
-  
-      // Update
-      if(isConference){
-        await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO,processedCnab104.headerArquivo);
-        await this.transacaoAgService.save({ id: transacaoAg.id, status: new TransacaoStatus(TransacaoStatusEnum.remessa) });
-      }
-
-      if (!cnabStr) {
-        this.logger.warn(
-          `A TransaçãoAgrupado #${transacaoAg.id} gerou cnab vazio (sem itens válidos), ignorando...`,
+      if (!transacoesAg.length) {
+        this.logger.log(
+          `Não há transações novas para gerar remessa, nada a fazer...`,
           METHOD,
-        );        
-        continue;
-      }
-      try {
-        listCnab.push(cnabStr);
-       
-      } catch (error) {
-        this.logger.error(
-          `Falha ao enviar o CNAB, tentaremos enviar no próximo job...`,
-          METHOD,
-          error.stack,
         );
-      }      
-    }
+        return;
+      }
+    // Generate Remessas and send SFTP
+      for (const transacaoAg of transacoesAg){   
+        // Get headerArquivo      
+        const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg,isConference);
+
+        const lotes = await this.remessaRetornoService.getLotes(transacaoAg.pagador,headerArquivoDTO,dataPgto,isConference);
+        
+        const cnab104 = this.remessaRetornoService.generateFile(headerArquivoDTO,lotes);
+
+        if (!cnab104){
+          return null;
+        }
+    
+        // Process cnab
+        const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104,true,'CnabPgtoRem');
+        for (const processedLote of processedCnab104.lotes){
+          const savedLote =
+          lotes.filter(i => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
+          await this.remessaRetornoService.updateHeaderLoteDTOFrom104(savedLote, processedLote.headerLote);
+        }
+      
+        // Update
+        if(isConference){
+          await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO,processedCnab104.headerArquivo);
+          await this.transacaoAgService.save({ id: transacaoAg.id, status: new TransacaoStatus(TransacaoStatusEnum.remessa) });
+        }
+
+          if (!cnabStr) {
+            this.logger.warn(
+              `A TransaçãoAgrupado #${transacaoAg.id} gerou cnab vazio (sem itens válidos), ignorando...`,
+              METHOD,
+            );        
+            continue;
+          }
+          try {
+            listCnab.push(cnabStr);
+          
+          } catch (error) {
+            this.logger.error(
+              `Falha ao enviar o CNAB, tentaremos enviar no próximo job...`,
+              METHOD,
+              error.stack,
+            );
+          }      
+        }
+      }else{ //Se for cancelamento 
+        if(nsaInicial == undefined && nsaFinal ==undefined || (nsaFinal!=0 && nsaFinal < nsaInicial)){
+          return [];
+        }
+        if(nsaFinal == undefined || nsaFinal == 0){
+          nsaFinal = nsaInicial;
+        }
+
+        for (let index = nsaInicial; nsaInicial < nsaFinal+1; index++) {
+          const headerArquivoDTO = await this.getHeaderArquivoCancelar(index);
+          headerArquivoDTO.nsa = await this.headerArquivoService.getNextNSA();
+          const lotes =  await this.getLotesCancelar(index);
+         
+          const lotesDto: HeaderLoteDTO[] = [];
+          const detalhes: CnabRegistros104Pgto[] = [];
+          for(const lote of lotes){
+            const dto = this.headerLoteService.getDTO(headerArquivoDTO,lote.pagador,
+              lote.formaLancamento == '41'?Cnab104FormaLancamento.TED:Cnab104FormaLancamento.CreditoContaCorrente);
+            const detalhesA  = (await (this.detalheAService.findMany({ headerLote:{ id: lote.id } }))).sort((a,b) => a.nsr - b.nsr);
+            for(const detalheA of detalhesA){            
+              const detalhe = await this.remessaRetornoService.saveDetalhes104(detalheA.numeroDocumentoEmpresa, dto,
+                detalheA.itemTransacaoAgrupado, detalheA.nsr, detalheA.dataVencimento,false,true);
+              if(detalhe){             
+                detalhes.push(detalhe);
+              }
+            }
+            dto.registros104 = detalhes;               
+            lotesDto.push(dto);  
+            
+          }           
+
+          if(headerArquivoDTO){
+            const cnab104 = this.remessaRetornoService.generateFile(headerArquivoDTO,lotesDto,true,dataCancelamento);
+
+            if (!cnab104){
+              return null;
+            }
+            const [cnabStr, ] = stringifyCnab104File(cnab104,true,'CnabPgtoRem');
+            if (!cnabStr) {           
+              continue;
+            }          
+            listCnab.push(cnabStr);
+          }
+        }
+      }
     return listCnab;
+  }
+  
+  
+  public async getLotesCancelar(nsa: number) {
+     return (await (this.headerLoteService.findMany({ headerArquivo:{ nsa: nsa }}))).sort((a,b) => a.loteServico - b.loteServico);
+  }
+ 
+  public async getHeaderArquivoCancelar(nsa: number) {
+    return await this.headerArquivoService.getHeaderArquivoNsa(nsa); 
   }
   
   public async sendRemessa(listCnab:string[]){
