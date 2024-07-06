@@ -88,7 +88,7 @@ export class ArquivoPublicacao extends EntityHelper {
       (p) =>
         p.itemTransacao.idConsorcio === compare.itemTransacao.idConsorcio &&
         p.itemTransacao.idOperadora === compare.itemTransacao.idOperadora &&
-        isSameDay(p.itemTransacao.dataOrdem, compare.itemTransacao.dataOrdem),
+        p.itemTransacao.idOrdemPagamento === compare.itemTransacao.idOrdemPagamento,
     );
   }
 }

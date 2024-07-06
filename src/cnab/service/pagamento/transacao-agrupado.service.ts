@@ -29,28 +29,6 @@ export class TransacaoAgrupadoService {
     });
   }
 
-  /**
-   * **status** is Created.
-   *
-   * It will automatically update Lancamentos via OneToMany
-   *
-   * @param newLancamentos It must have at least 1 unused Lancamento
-   */
-  public generateDTOForLancamento(
-    pagador: Pagador,
-    newLancamentos: LancamentoEntity[],
-  ): Transacao {
-    const today = new Date();
-    const friday = isFriday(today) ? today : nextFriday(today);
-    const transacao = new Transacao({
-      dataOrdem: friday,
-      dataPagamento: null,
-      lancamentos: newLancamentos, // unique id for Lancamentos
-      pagador: { id: pagador.id } as Pagador,
-    });
-    return transacao;
-  }
-
   public update(dto: DeepPartial<Transacao>) {
     return this.transacaoAgRepository.update(asNumber(dto.id), dto);
   }

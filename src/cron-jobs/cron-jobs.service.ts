@@ -96,10 +96,15 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
+    // await this.cnabService.saveTransacoesJae();
+    // await this.cnabService.compareTransacaoViewPublicacao(21);
+    // await this.sendRemessa();
+    // await this.updateRetorno();
+    
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
-        cronJobParameters: {
+      cronJobParameters: {
           cronTime: (
             await this.settingsService.getOneBySettingData(
               appSettings.any__mail_invite_cronjob,

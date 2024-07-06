@@ -127,7 +127,11 @@ export const cnabDetalheA104Template: CnabDetalheA_104 = {
   /**
    * A.16
    *
-   * Número Documento atribuído pela Empresa - obtido do banco
+   * Número Documento atribuído pela Empresa - gerado por nós
+   *
+   * Este número evoluir de 1 em 1 para cada registro dentro do arquivo.
+   *
+   * O campo deverá ser numérico e **não se repetir para mesma data de pagamento**.
    *
    * Detalhes: A, J, O, N
    */

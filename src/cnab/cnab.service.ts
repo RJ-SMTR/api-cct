@@ -6,7 +6,7 @@ import {
   nextFriday,
   nextThursday,
   startOfDay,
-  subDays
+  subDays,
 } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
@@ -52,6 +52,36 @@ import {
   parseCnab240Extrato,
   parseCnab240Pagamento,
 } from './utils/cnab/cnab-104-utils';
+import { remessaCnabOrdem } from './local_dev/remessa_21062024_121513';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
+
+const vanzeirosNomeList = [
+  'MARIA DA GUIA BARROS DA COSTA', // err
+  'LUCIANE PEREIRA LIMA LOUREIRO',
+  'AGUINALDO PAIVA RIBEIRO',
+  'MARCIA DUARTE SEIXAS',
+  'JOCIMAR GOMES DUARTE',
+  'INES FERNANDES', // err
+  'CARLOS DOS SANTOS SOARES',
+  'JOAO SALES DE ALBUQUERQUE',
+  'MARIO FELIX SEIXAS',
+  'JOSE DIAS XIMENES',
+  'JOSE MARTINS CORREIA', // err
+  'DIMAS CASCIMIRO DE ARAUJO JUNIOR',
+  'RENATO MAXIQUEIRA',
+  'LUIZ CARLOS FURTADO DE MELO',
+  'ANDRE LUIS LOPES',
+  'YURI DELLATORE MACIQUEIRA',
+  'MARIO LUIS ROMAO NUNES',
+  'JOSE ALIRIO PEREIRA DELFINO',
+  'ELIANE VIEIRA DA SILVA',
+  'RICARDO HENRIQUE DA SILVA FERNANDES',
+  'ROSEMAR FURTADO GONZALEZ',
+  'FEORAVANTE RODRIGUES SILVA',
+  'ROZEMERI VIEIRA DA SILVA',
+  'ROSEVAL PEREIRA DE SOUZA',
+  'SILVIA REIS MACIQUEIRA',
+];
 
 /**
  * User cases for CNAB and Payments
@@ -99,14 +129,31 @@ export class CnabService {
     const METHOD = this.saveTransacoesJae.name;
 
     // 1. Update cliente favorecido
-    await this.updateAllFavorecidosFromUsers();
+    // await this.updateAllFavorecidosFromUsers();
 
     // 2. Update TransacaoView
-    await this.updateTransacaoViewBigquery();
+    // await this.updateTransacaoViewBigquery();
 
     // 3. Update ordens
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek();
-    await this.saveOrdens(ordens);
+    const ordens = remessaCnabOrdem.map(
+      (i) => new BigqueryOrdemPagamentoDTO(i),
+    );
+    // await this.bigqueryOrdemPagamentoService.getFromWeek(14);
+    const favorecidos = await this.clienteFavorecidoService.findManyFromOrdens(
+      ordens,
+    );
+    const vanzeirosComNome = ordens
+      .map((i) => {
+        const favorecido = favorecidos.filter(
+          (f) => (f.cpfCnpj as string) == i.operadoraCpfCnpj,
+        )[0];
+        (i as any).nome = favorecido?.nome || null;
+        return i;
+      })
+      .filter((i) => vanzeirosNomeList.includes((i as any)?.nome));
+
+    const nomes = vanzeirosComNome.map((i) => (i as any).nome);
+    await this.saveOrdens(vanzeirosComNome);
 
     await this.compareTransacaoViewPublicacao();
 
@@ -173,9 +220,19 @@ export class CnabService {
 
   async compareTransacaoViewPublicacao(daysBefore = 0) {
     const transacoesView = await this.getTransacoesViewWeek(daysBefore);
-    const publicacoes = this.getUniqueUpdatePublicacoes(
-      await this.getPublicacoesWeek(daysBefore),
+    const publicacoesWeek = await this.getPublicacoesWeek(daysBefore);
+    const publicacoesWeekFiltered = publicacoesWeek.filter(
+      (i) => vanzeirosNomeList.includes(i.itemTransacao.clienteFavorecido.nome),
     );
+    const publicacoes = this.getUniqueUpdatePublicacoes(
+      publicacoesWeekFiltered,
+    );
+    // const publicacoesWeekHoje = publicacoesWeek.filter((i) =>
+    //   isSameDay(new Date('2024-07-02'), i.itemTransacao.createdAt),
+    // );
+    // const publicacoesHoje = publicacoes.filter((i) =>
+    //   isSameDay(new Date('2024-07-02'), i.itemTransacao.createdAt),
+    // );
     for (const publicacao of publicacoes) {
       const transacoes = transacoesView.filter(
         (transacaoView) =>
@@ -195,18 +252,23 @@ export class CnabService {
   }
 
   getUniqueUpdatePublicacoes(publicacoes: ArquivoPublicacao[]) {
-    const unique: ArquivoPublicacao[] = [];
-    publicacoes.forEach((publicacao) => {
-      const existing = ArquivoPublicacao.filterUnique(unique, publicacao)[0] as
-        | ArquivoPublicacao
-        | undefined;
+    const uniques: ArquivoPublicacao[] = [];
+
+    for (const publicacao of publicacoes) {
+      const existing = ArquivoPublicacao.filterUnique(
+        uniques,
+        publicacao,
+      )[0] as ArquivoPublicacao | undefined;
+      const existingIndex = uniques.findIndex((i) => i.id === existing?.id);
       const ocourences = ArquivoPublicacao.filterUnique(
         publicacoes,
         publicacao,
-      ).sort(
-        (a, b) =>
-          b.itemTransacao.dataOrdem.getTime() -
-          a.itemTransacao.dataOrdem.getTime(),
+      ).sort((a, b) =>
+        !isSameDay(a.itemTransacao.dataOrdem, b.itemTransacao.dataOrdem)
+          ? b.itemTransacao.dataOrdem.getTime() -
+            a.itemTransacao.dataOrdem.getTime()
+          : b.itemTransacao.createdAt.getTime() -
+            a.itemTransacao.createdAt.getTime(),
       );
       const paid = ocourences.filter((i) => i.isPago)[0] as
         | ArquivoPublicacao
@@ -216,12 +278,78 @@ export class CnabService {
         | undefined;
       const recent = ocourences[0] as ArquivoPublicacao;
 
+      const newPublicacao = paid || noErrors || recent;
+
+      // const _publicacao = ((i) =>
+      //   `#${i.id}|${
+      //     i.itemTransacao.idOrdemPagamento
+      //   }|${i.createdAt.toISOString()}`)(publicacao);
+      // const _newPublicacao = ((i) =>
+      //   `#${i.id}|${
+      //     i.itemTransacao.idOrdemPagamento
+      //   }|${i.createdAt.toISOString()}`)(newPublicacao);
+      // const _ocourences = ocourences
+      //   .filter((i) =>
+      //     i.itemTransacao.clienteFavorecido.nome.includes('MARIA DA GUIA'),
+      //   )
+      //   .map(
+      //     (i) =>
+      //       `#${i.id}|${
+      //         i.itemTransacao.idOrdemPagamento
+      //       }|${i.createdAt.toISOString()}`,
+      //   );
+      // const _uniques = uniques
+      //   .filter((i) =>
+      //     i.itemTransacao.clienteFavorecido.nome.includes('MARIA DA GUIA'),
+      //   )
+      //   .map(
+      //     (i) =>
+      //       `#${i.id}|${
+      //         i.itemTransacao.idOrdemPagamento
+      //       }|${i.createdAt.toISOString()}`,
+      //   );
+
       if (!existing) {
-        const newPublicacao = paid || noErrors || recent;
-        unique.push(newPublicacao);
+        // if (
+        //   ['MARIA DA GUIA BARROS DA COSTA'].includes(
+        //     publicacao.itemTransacao.clienteFavorecido.nome,
+        //   )
+        // ) {
+        //   let a = 1;
+        // }
+        uniques.push(newPublicacao);
+      } else {
+        // if (
+        //   ['MARIA DA GUIA BARROS DA COSTA'].includes(
+        //     publicacao.itemTransacao.clienteFavorecido.nome,
+        //   )
+        // ) {
+        //   let a = 1;
+        // }
+        uniques[existingIndex] = newPublicacao;
       }
-    });
-    return unique;
+    }
+    // const _publicacoes = publicacoes
+    //   .filter((i) =>
+    //     ['INES FERNANDES'].includes(i.itemTransacao.clienteFavorecido.nome),
+    //   )
+    //   .map(
+    //     (i) =>
+    //       `#${i.id}|${i.itemTransacao.clienteFavorecido.nome.slice(0, 10)}|${
+    //         i.itemTransacao.idOrdemPagamento
+    //       }|${i.createdAt.toISOString()}`,
+    //   );
+    // const _uniques = uniques
+    //   .filter((i) =>
+    //     ['INES FERNANDES'].includes(i.itemTransacao.clienteFavorecido.nome),
+    //   )
+    //   .map(
+    //     (i) =>
+    //       `#${i.id}|${i.itemTransacao.clienteFavorecido.nome.slice(0, 10)}|${
+    //         i.itemTransacao.idOrdemPagamento
+    //       }|${i.createdAt.toISOString()}`,
+    //   );
+    return uniques;
   }
 
   /**
@@ -246,6 +374,9 @@ export class CnabService {
         },
       },
     });
+    const today = result.filter((i) =>
+      isSameDay(new Date(), i.itemTransacao.createdAt),
+    );
     return result;
   }
 
@@ -254,7 +385,7 @@ export class CnabService {
    * - TransacaoAgrupado (CNAB)
    * - ItemTransacaoAgrupado ()
    * - Transacao
-   * - 
+   * -
    */
   async saveAgrupamentos(
     ordem: BigqueryOrdemPagamentoDTO,
@@ -264,8 +395,9 @@ export class CnabService {
     /** TransaçãoAg por pagador(cpfCnpj), dataOrdem (sexta) e status = criado
      * Status criado
      */
-    const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
-    const fridayOrdem = nextFriday(startOfDay(dataOrdem));
+    // const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
+    // const fridayOrdem = nextFriday(startOfDay(dataOrdem));
+    const fridayOrdem = startOfDay(new Date('2024-06-21'));
     /**
      * Um TransacaoAgrupado representa um pagador.
      * Pois cada CNAB representa 1 conta bancária de origem
@@ -278,6 +410,10 @@ export class CnabService {
 
     /** ItemTransacaoAg representa o destinatário (operador ou consórcio) */
     let itemAg: ItemTransacaoAgrupado | null = null;
+
+    if (getStringUpperUnaccent(favorecido.nome).includes('AGUINALDO')) {
+      const a = 1;
+    }
 
     if (transacaoAg) {
       // Cria ou atualiza itemTransacao (somar o valor a ser pago na sexta de pagamento)
@@ -293,7 +429,7 @@ export class CnabService {
            * Se consorcio for STPC, agrupa pela operadora
            * Senão, agrupa pelo consórico
            */
-          ...(ordem.consorcio === 'STPC'
+          ...(ordem.isVanzeiro()
             ? { idOperadora: ordem.idOperadora }
             : { idConsorcio: ordem.idConsorcio }),
         },
@@ -349,9 +485,10 @@ export class CnabService {
   }
 
   getTransacaoAgrupadoDTO(ordem: BigqueryOrdemPagamentoDTO, pagador: Pagador) {
-    const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
+    // const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
     /** semana de pagamento: sex-qui */
-    const fridayOrdem = nextFriday(startOfDay(dataOrdem));
+    // const fridayOrdem = nextFriday(startOfDay(dataOrdem));
+    const fridayOrdem = startOfDay(new Date('2024-06-21'));
     const transacao = new TransacaoAgrupado({
       dataOrdem: fridayOrdem,
       dataPagamento: ordem.dataPagamento,
@@ -558,8 +695,11 @@ export class CnabService {
   public async updateRetorno() {
     const METHOD = this.updateRetorno.name;
     // Get retorno
-    const { cnabString, cnabName } =
-      await this.sftpService.getFirstCnabRetorno();
+    const { cnabString, cnabName } = {
+      cnabName: 'smtr_prefeiturarj_21062024_121513.ret',
+      cnabString: `await fetch('api-cct/src/cnab/local_dev/cnab_21062024_121513.ret')`,
+    };
+    // await this.sftpService.getFirstCnabRetorno();
     if (!cnabName || !cnabString) {
       this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
       return;
@@ -571,7 +711,9 @@ export class CnabService {
       /** Pega o status 2, muda para 3 */
       await this.remessaRetornoService.saveRetorno(retorno104);
       /** Pega status 3, muda para 4 */
-      await this.arqPublicacaoService.compareRemessaToRetorno();
+      await this.arqPublicacaoService.compareRemessaToRetorno(
+        retorno104.headerArquivo.dataGeracaoArquivo.convertedValue,
+      );
 
       const isCnabAccepted = getCnab104Errors(retorno104).length === 0;
 

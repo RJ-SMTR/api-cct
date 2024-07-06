@@ -105,7 +105,10 @@ export class RemessaRetornoService {
       processedCnab104.headerArquivo,
     );
     for (const processedLote of processedCnab104.lotes) {
-      const savedLote = savedHeaderLotes.filter(i => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
+      const savedLote = savedHeaderLotes.filter(
+        (i) =>
+          i.formaLancamento === processedLote.headerLote.formaLancamento.value,
+      )[0];
       await this.updateHeaderLoteDTOFrom104(
         savedLote,
         processedLote.headerLote,
@@ -436,7 +439,8 @@ export class RemessaRetornoService {
    * indicadorBloqueio = DataFixa (see `detalheATemplate`)
    *
    * @param numeroDocumento Managed by company. It must be a new number.
-   * @returns null if failed ItemTransacao to CNAB */
+   * @returns null if failed ItemTransacao to CNAB
+   */
   public async saveDetalhes104(
     numeroDocumento: number,
     headerLote: HeaderLoteDTO,
@@ -559,8 +563,8 @@ export class RemessaRetornoService {
         }
         await this.detalheBService.saveFrom104(registro, detalheAUpdated);
       }
-      await this.detalheAService.updateDetalheAStatus(cnabLote);
     }
+    await this.detalheAService.updateDetalheAStatus(cnab);
 
     // headerArquivoRetUpdated;
   }

@@ -128,7 +128,7 @@ export class DetalheARepository {
    * Baseado no mesmo dia.
    */
   public async getNextNumeroDocumento(date: Date): Promise<number> {
-    return (
+    let next = (
       (await this.detalheARepository.count({
         where: [
           { createdAt: MoreThanOrEqual(startOfDay(date)) },
@@ -136,6 +136,10 @@ export class DetalheARepository {
         ],
       })) + 1
     );
+    if (next === 1) {
+      next = 49;
+    }
+    return next;
   }
 
   /**

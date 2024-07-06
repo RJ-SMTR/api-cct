@@ -19,7 +19,17 @@ export interface CnabDetalheA_104 {
   dvContaDestino: CnabField;
   dvAgenciaContaDestino: CnabField;
   nomeTerceiro: CnabField;
-  /** Atribuído pela empresa. Sequencial, automático. */
+  /**
+   * A.16
+   *
+   * Número Documento atribuído pela Empresa - gerado por nós
+   *
+   * Este número evoluir de 1 em 1 para cada registro dentro do arquivo.
+   *
+   * O campo deverá ser numérico e **não se repetir para mesma data de pagamento**.
+   *
+   * Detalhes: A, J, O, N
+   */
   numeroDocumentoEmpresa: CnabFieldAs<number>;
   filler: CnabField;
   tipoContaFinalidadeTed: CnabField;

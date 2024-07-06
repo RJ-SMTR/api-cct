@@ -76,6 +76,7 @@ export class ArquivoPublicacaoService {
 
     /** Como é data relativa, se for quinta, pega a sexta da próxima semana */
     const friday = isThursday(ordem) ? addDays(ordem, 8) : nextFriday(ordem);
+    // new Date('2024-06-')
 
     const arquivo = new ArquivoPublicacao({
       ...(existing ? { id: existing.id } : {}),
@@ -109,9 +110,11 @@ export class ArquivoPublicacaoService {
    * 2. For each remessa get corresponding Retorno, HeaderLote and Detalhes
    * 3. For each DetalheA, save new ArquivoPublicacao if not exists
    */
-  public async compareRemessaToRetorno(): Promise<void> {
+  public async compareRemessaToRetorno(dataGeracao?:Date): Promise<void> {
     const METHOD = this.compareRemessaToRetorno.name;
-    const headerArquivos = await this.headerArquivoService.findRetornos();
+    const headerArquivos = await this.headerArquivoService.findRetornos(
+      dataGeracao,
+    );
     if (!headerArquivos.length) {
       this.logger.log(
         'Não há novas retornos para atualizar ArquivoPublicacao, ignorando sub-rotina...',

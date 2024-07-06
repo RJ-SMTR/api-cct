@@ -1,0 +1,943 @@
+-- SQLBook: Markup
+## BACK -  Ler retorno com 2 HeaderArquivo sem dar erro
+-- SQLBook: Markup
+### Testando leitura do retorno sem dar erro
+Arquivo retorno: `smtr_prefeiturarj_21062024_121513.ret`
+
+O que esperamos ler?
+- Um CNAB com 2 lotes
+
+Como vamos identificar o CNAB salvo no banco?
+- NSA = 200 (Caixa, não é o nosso NSA, não serve)
+- DataHora do NSA: 21062024120949
+- Possui um desses numeroDocumento (49)
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+SELECT a.id AS "detalheA", a."numeroDocumentoEmpresa", ha.*
+FROM header_arquivo ha
+INNER JOIN header_lote hl ON hl."headerArquivoId" = ha.id
+INNER JOIN detalhe_a a ON a."headerLoteId" = hl.id
+WHERE a."numeroDocumentoEmpresa" = 49
+ORDER BY ha."createdAt" DESC
+-- SQLBook: Markup
+Há itens faltando no banco.
+
+NúmeroSequencialEmpresa esperados: 49-73
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+SELECT ta.id AS "trAg", ia.id AS "itemTrAg", a.*
+FROM detalhe_a a
+LEFT JOIN item_transacao_agrupado ia ON a."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN transacao_agrupado ta ON ia."transacaoAgrupadoId" = ta.id
+WHERE CAST(a."numeroDocumentoEmpresa" AS INTEGER) BETWEEN 49 AND 73
+ORDER BY "numeroDocumentoEmpresa" ASC
+-- SQLBook: Markup
+<div style="overflow: scroll; white-space: nowrap; font-size: 14px;">
+<table><tbody><th>trAg</th><th>itemTrAg</th><th>id</th><th>dataVencimento</th><th>tipoMoeda</th><th>indicadorBloqueio</th><th>indicadorFormaParcelamento</th><th>periodoVencimento</th><th>dataEfetivacao</th><th>nsr</th><th>headerLoteId</th><th>clienteFavorecidoId</th><th>valorLancamento</th><th>valorRealEfetivado</th><th>quantidadeMoeda</th><th>finalidadeDOC</th><th>numeroDocumentoEmpresa</th><th>createdAt</th><th>loteServico</th><th>quantidadeParcelas</th><th>numeroParcela</th><th>numeroDocumentoBanco</th><th>itemTransacaoAgrupadoId</th><th>updatedAt</th><th>ocorrenciasCnab</th></tr><tr class="odd"><td>30</td><td>114</td><td>109</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>13</td><td>29</td><td>14</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>56</td><td>2024-06-21 14:07:18.627</td><td>1</td><td>1</td><td>1</td><td>37</td><td>114</td><td>2024-06-21 16:00:08.326</td><td>00</td></tr>
+<tr><td>30</td><td>115</td><td>110</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>15</td><td>29</td><td>703</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>58</td><td>2024-06-21 14:07:24.893</td><td>1</td><td>1</td><td>1</td><td>38</td><td>115</td><td>2024-06-21 16:00:09.353</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>116</td><td>111</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>17</td><td>29</td><td>42</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>59</td><td>2024-06-21 14:07:31.307</td><td>1</td><td>1</td><td>1</td><td>39</td><td>116</td><td>2024-06-21 16:00:10.358</td><td>00</td></tr>
+<tr><td>30</td><td>117</td><td>112</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>19</td><td>29</td><td>57</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>60</td><td>2024-06-21 14:07:37.623</td><td>1</td><td>1</td><td>1</td><td>40</td><td>117</td><td>2024-06-21 16:00:11.213</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>118</td><td>113</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>21</td><td>29</td><td>10</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>61</td><td>2024-06-21 14:07:43.887</td><td>1</td><td>1</td><td>1</td><td>41</td><td>118</td><td>2024-06-21 16:00:12.000</td><td>00</td></tr>
+<tr><td>30</td><td>119</td><td>114</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>23</td><td>29</td><td>30</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>62</td><td>2024-06-21 14:07:50.091</td><td>1</td><td>1</td><td>1</td><td>42</td><td>119</td><td>2024-06-21 16:00:12.856</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>120</td><td>115</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>25</td><td>29</td><td>67</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>63</td><td>2024-06-21 14:07:56.349</td><td>1</td><td>1</td><td>1</td><td>43</td><td>120</td><td>2024-06-21 16:00:13.673</td><td>00</td></tr>
+<tr><td>30</td><td>121</td><td>116</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>27</td><td>29</td><td>619</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>64</td><td>2024-06-21 14:08:02.557</td><td>1</td><td>1</td><td>1</td><td>44</td><td>121</td><td>2024-06-21 16:00:14.395</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>122</td><td>117</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>29</td><td>29</td><td>682</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>65</td><td>2024-06-21 14:08:08.639</td><td>1</td><td>1</td><td>1</td><td>45</td><td>122</td><td>2024-06-21 16:00:15.272</td><td>00</td></tr>
+<tr><td>30</td><td>123</td><td>118</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>31</td><td>29</td><td>34</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>67</td><td>2024-06-21 14:08:15.311</td><td>1</td><td>1</td><td>1</td><td>46</td><td>123</td><td>2024-06-21 16:00:16.093</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>107</td><td>122</td><td>2024-06-14 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-14 00:00:00.000</td><td>&nbsp;</td><td>39</td><td>29</td><td>33</td><td>12,38</td><td>0</td><td>0</td><td>00</td><td>68</td><td>2024-06-21 14:08:39.769</td><td>0</td><td>1</td><td>0</td><td>0</td><td>107</td><td>2024-06-21 14:08:39.769</td><td></td></tr>
+<tr><td>30</td><td>124</td><td>119</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>33</td><td>29</td><td>52</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>69</td><td>2024-06-21 14:08:21.635</td><td>1</td><td>1</td><td>1</td><td>47</td><td>124</td><td>2024-06-21 16:00:16.821</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>127</td><td>123</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-21 00:00:00.000</td><td>&nbsp;</td><td>41</td><td>29</td><td>32.182</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>69</td><td>2024-06-21 14:08:45.917</td><td>0</td><td>1</td><td>0</td><td>0</td><td>127</td><td>2024-06-21 14:08:45.917</td><td></td></tr>
+<tr><td>30</td><td>125</td><td>120</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>35</td><td>29</td><td>46.733</td><td>8,26</td><td>0</td><td>0</td><td>00</td><td>70</td><td>2024-06-21 14:08:27.627</td><td>1</td><td>1</td><td>1</td><td>48</td><td>125</td><td>2024-06-21 16:00:17.565</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>128</td><td>124</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-21 00:00:00.000</td><td>&nbsp;</td><td>43</td><td>29</td><td>46.733</td><td>8,26</td><td>0</td><td>0</td><td>00</td><td>70</td><td>2024-06-21 14:08:51.942</td><td>0</td><td>1</td><td>0</td><td>0</td><td>128</td><td>2024-06-21 14:08:51.942</td><td></td></tr>
+<tr><td>30</td><td>129</td><td>125</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-21 00:00:00.000</td><td>&nbsp;</td><td>45</td><td>29</td><td>379</td><td>8,26</td><td>0</td><td>0</td><td>00</td><td>71</td><td>2024-06-21 14:08:58.320</td><td>0</td><td>1</td><td>0</td><td>0</td><td>129</td><td>2024-06-21 14:08:58.320</td><td></td></tr>
+<tr class="odd"><td>30</td><td>126</td><td>121</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>37</td><td>29</td><td>379</td><td>8,26</td><td>0</td><td>0</td><td>00</td><td>71</td><td>2024-06-21 14:08:33.685</td><td>1</td><td>1</td><td>1</td><td>49</td><td>126</td><td>2024-06-21 16:00:18.342</td><td>00</td></tr>
+<tr><td>30</td><td>130</td><td>126</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-21 00:00:00.000</td><td>&nbsp;</td><td>47</td><td>29</td><td>201</td><td>8,26</td><td>0</td><td>0</td><td>00</td><td>72</td><td>2024-06-21 14:09:04.390</td><td>0</td><td>1</td><td>0</td><td>0</td><td>130</td><td>2024-06-21 14:09:04.390</td><td></td></tr>
+<tr class="odd"><td>30</td><td>131</td><td>127</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-21 00:00:00.000</td><td>&nbsp;</td><td>49</td><td>29</td><td>32.179</td><td>16,51</td><td>0</td><td>0</td><td>00</td><td>73</td><td>2024-06-21 14:09:10.619</td><td>0</td><td>1</td><td>0</td><td>0</td><td>131</td><td>2024-06-21 14:09:10.619</td><td></td></tr>
+</tbody></table>
+<div\>
+-- SQLBook: Markup
+[2024_06_27_retorno_header_sem_erro.ipynb - Há itens faltando no banco](2024_06_27_retorno_header_sem_erro.ipynb)
+-- SQLBook: Code
+encontrados = [56,58,59,60,61,62,63,64,65,67,68,69,69,70,70,71,71,72,73]
+faltantes = [for i in range(49,73) if i not in encontrados]
+print(faltantes)
+-- SQLBook: Markup
+NumeroSequencialEmpresa:
+- Encontrados: [56,58,59,60,61,62,63,64,65,67,68,69,69,70,70,71,71,72,73]
+- Faltantes: [49,50,51,52,53,54,55,57,66]
+
+Solução:
+- Recuperar esses DetalheA em algum backup do banco
+- Ou recriar do zero manualmente
+-- SQLBook: Markup
+Procurando no backup
+
+- Não há backup
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_test@public
+SELECT a.id AS "detalheA", a."numeroDocumentoEmpresa", ha.*
+FROM header_arquivo ha
+INNER JOIN header_lote hl ON hl."headerArquivoId" = ha.id
+INNER JOIN detalhe_a a ON a."headerLoteId" = hl.id
+WHERE a."numeroDocumentoEmpresa" = 49
+ORDER BY ha."createdAt" DESC
+-- SQLBook: Markup
+#### Gerando DetalhesA
+
+Critérios:
+- Usar ItemTransacaoAgrupado que não possua DetalheA como fonte
+- itemTransacaoAgrupado = ItemTransacaoAgrupado com mesmo valor, clienteFavorecido
+- numeroDocumentoBanco = 0
+- numeroParcela = 0
+- dataVencimento = 2024-06-21
+- periodoVencimento = 2024-06-21
+
+Todos os DetalheA do TransagaoAgrupado 30:
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+SELECT ta.id AS "trAg"
+    ,ia.id AS "iaId", ia.valor
+    ,c.nome
+    ,a.id AS "aId", a."numeroDocumentoEmpresa" AS "numDocEmp"
+    ,ha.id AS "haId"
+FROM transacao_agrupado ta
+INNER JOIN item_transacao_agrupado ia ON ia."transacaoAgrupadoId" = ta.id
+LEFT JOIN cliente_favorecido c ON c.id = ia."clienteFavorecidoId"
+LEFT JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN header_lote hl ON a."headerLoteId" = hl.id
+LEFT JOIN header_arquivo ha ON hl."headerArquivoId" = ha.id
+WHERE ta.id = 30
+ORDER BY a."numeroDocumentoEmpresa" ASC
+-- SQLBook: Markup
+<div style="overflow: scroll; white-space: nowrap; font-size: 14px;">
+<table><tbody><tr><th>trAg</th><th>iaId</th><th>valor</th><th>nome</th><th>aId</th><th>numDocEmp</th><th>haId</th></tr><tr class="odd"><td>30</td><td>114</td><td>4,128</td><td>JOAO SALES DE ALBUQUERQUE</td><td>109</td><td>56</td><td>29</td></tr>
+<tr><td>30</td><td>115</td><td>4,128</td><td>MARIO FELIX SEIXAS</td><td>110</td><td>58</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>116</td><td>4,128</td><td>JOSE DIAS XIMENES</td><td>111</td><td>59</td><td>29</td></tr>
+<tr><td>30</td><td>117</td><td>4,128</td><td>JOSE MARTINS CORREIA</td><td>112</td><td>60</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>118</td><td>4,128</td><td>DIMAS CASCIMIRO DE ARAUJO JUNIOR</td><td>113</td><td>61</td><td>29</td></tr>
+<tr><td>30</td><td>119</td><td>4,128</td><td>RENATO MAXIQUEIRA</td><td>114</td><td>62</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>120</td><td>4,128</td><td>LUIZ CARLOS FURTADO DE MELO</td><td>115</td><td>63</td><td>29</td></tr>
+<tr><td>30</td><td>121</td><td>4,128</td><td>ANDRE LUIS LOPES</td><td>116</td><td>64</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>122</td><td>4,128</td><td>YURI DELLATORE MACIQUEIRA</td><td>117</td><td>65</td><td>29</td></tr>
+<tr><td>30</td><td>123</td><td>4,128</td><td>MARIO LUIS ROMAO NUNES</td><td>118</td><td>67</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>107</td><td>12,384</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>122</td><td>68</td><td>29</td></tr>
+<tr><td>30</td><td>124</td><td>4,128</td><td>JOSE ALIRIO PEREIRA DELFINO</td><td>119</td><td>69</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>127</td><td>4,128</td><td>ROSEMAR FURTADO GONZALEZ</td><td>123</td><td>69</td><td>29</td></tr>
+<tr><td>30</td><td>128</td><td>8,256</td><td>FEORAVANTE RODRIGUES SILVA</td><td>124</td><td>70</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>125</td><td>4,128</td><td>ELIANE VIEIRA DA SILVA</td><td>120</td><td>70</td><td>29</td></tr>
+<tr><td>30</td><td>129</td><td>8,256</td><td>ROZEMERI VIEIRA DA SILVA</td><td>125</td><td>71</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>126</td><td>4,128</td><td>RICARDO HENRIQUE DA SILVA FERNANDES</td><td>121</td><td>71</td><td>29</td></tr>
+<tr><td>30</td><td>130</td><td>8,256</td><td>ROSEVAL PEREIRA DE SOUZA</td><td>126</td><td>72</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>131</td><td>16,512</td><td>SILVIA REIS MACIQUEIRA</td><td>127</td><td>73</td><td>29</td></tr>
+<tr><td>30</td><td>108</td><td>4,128</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>103</td><td>87</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>109</td><td>4,128</td><td>AGUINALDO PAIVA RIBEIRO</td><td>104</td><td>88</td><td>29</td></tr>
+<tr><td>30</td><td>110</td><td>4,128</td><td>MARCIA DUARTE SEIXAS</td><td>105</td><td>89</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>111</td><td>4,128</td><td>JOCIMAR GOMES DUARTE</td><td>106</td><td>90</td><td>29</td></tr>
+<tr><td>30</td><td>112</td><td>4,128</td><td>INES FERNANDES</td><td>107</td><td>91</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>113</td><td>4,128</td><td>CARLOS DOS SANTOS SOARES</td><td>108</td><td>92</td><td>29</td></tr>
+</tbody></table>
+<div\>
+-- SQLBook: Markup
+Todos os ItemTransacaoAgrupado foram usados.
+
+Verificar se algum ItemTransacao não foi usado:
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+SELECT ta.id AS "trAg"
+    ,ia.id AS "iaId", ia.valor
+    ,i.id AS "iId"
+    ,i."idOperadora"
+    ,c.nome
+    ,a.id AS "aId", a."numeroDocumentoEmpresa" AS "numDocEmp"
+    ,ha.id AS "haId"
+FROM transacao_agrupado ta
+INNER JOIN item_transacao_agrupado ia ON ia."transacaoAgrupadoId" = ta.id
+INNER JOIN item_transacao i ON i."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN cliente_favorecido c ON c.id = ia."clienteFavorecidoId"
+LEFT JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN header_lote hl ON a."headerLoteId" = hl.id
+LEFT JOIN header_arquivo ha ON hl."headerArquivoId" = ha.id
+WHERE ta.id = 30
+ORDER BY a."numeroDocumentoEmpresa" ASC, i.id ASC
+-- SQLBook: Markup
+<div style="overflow: scroll; white-space: nowrap; font-size: 14px;">
+<table><tbody><tr><th>trAg</th><th>iaId</th><th>valor</th><th>iId</th><th>nome</th><th>aId</th><th>numDocEmp</th><th>haId</th></tr><tr class="odd"><td>30</td><td>114</td><td>4,128</td><td>963</td><td>JOAO SALES DE ALBUQUERQUE</td><td>109</td><td>56</td><td>29</td></tr>
+<tr><td>30</td><td>115</td><td>4,128</td><td>964</td><td>MARIO FELIX SEIXAS</td><td>110</td><td>58</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>116</td><td>4,128</td><td>965</td><td>JOSE DIAS XIMENES</td><td>111</td><td>59</td><td>29</td></tr>
+<tr><td>30</td><td>117</td><td>4,128</td><td>966</td><td>JOSE MARTINS CORREIA</td><td>112</td><td>60</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>118</td><td>4,128</td><td>967</td><td>DIMAS CASCIMIRO DE ARAUJO JUNIOR</td><td>113</td><td>61</td><td>29</td></tr>
+<tr><td>30</td><td>119</td><td>4,128</td><td>968</td><td>RENATO MAXIQUEIRA</td><td>114</td><td>62</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>120</td><td>4,128</td><td>969</td><td>LUIZ CARLOS FURTADO DE MELO</td><td>115</td><td>63</td><td>29</td></tr>
+<tr><td>30</td><td>121</td><td>4,128</td><td>970</td><td>ANDRE LUIS LOPES</td><td>116</td><td>64</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>122</td><td>4,128</td><td>971</td><td>YURI DELLATORE MACIQUEIRA</td><td>117</td><td>65</td><td>29</td></tr>
+<tr><td>30</td><td>123</td><td>4,128</td><td>972</td><td>MARIO LUIS ROMAO NUNES</td><td>118</td><td>67</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>107</td><td>12,384</td><td>955</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>122</td><td>68</td><td>29</td></tr>
+<tr><td>30</td><td>107</td><td>12,384</td><td>956</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>122</td><td>68</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>107</td><td>12,384</td><td>976</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>122</td><td>68</td><td>29</td></tr>
+<tr><td>30</td><td>124</td><td>4,128</td><td>973</td><td>JOSE ALIRIO PEREIRA DELFINO</td><td>119</td><td>69</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>127</td><td>4,128</td><td>977</td><td>ROSEMAR FURTADO GONZALEZ</td><td>123</td><td>69</td><td>29</td></tr>
+<tr><td>30</td><td>125</td><td>4,128</td><td>974</td><td>ELIANE VIEIRA DA SILVA</td><td>120</td><td>70</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>128</td><td>8,256</td><td>978</td><td>FEORAVANTE RODRIGUES SILVA</td><td>124</td><td>70</td><td>29</td></tr>
+<tr><td>30</td><td>126</td><td>4,128</td><td>975</td><td>RICARDO HENRIQUE DA SILVA FERNANDES</td><td>121</td><td>71</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>129</td><td>8,256</td><td>979</td><td>ROZEMERI VIEIRA DA SILVA</td><td>125</td><td>71</td><td>29</td></tr>
+<tr><td>30</td><td>130</td><td>8,256</td><td>980</td><td>ROSEVAL PEREIRA DE SOUZA</td><td>126</td><td>72</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>131</td><td>16,512</td><td>981</td><td>SILVIA REIS MACIQUEIRA</td><td>127</td><td>73</td><td>29</td></tr>
+<tr><td>30</td><td>108</td><td>4,128</td><td>957</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>103</td><td>87</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>109</td><td>4,128</td><td>958</td><td>AGUINALDO PAIVA RIBEIRO</td><td>104</td><td>88</td><td>29</td></tr>
+<tr><td>30</td><td>110</td><td>4,128</td><td>959</td><td>MARCIA DUARTE SEIXAS</td><td>105</td><td>89</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>111</td><td>4,128</td><td>960</td><td>JOCIMAR GOMES DUARTE</td><td>106</td><td>90</td><td>29</td></tr>
+<tr><td>30</td><td>112</td><td>4,128</td><td>961</td><td>INES FERNANDES</td><td>107</td><td>91</td><td>29</td></tr>
+<tr class="odd"><td>30</td><td>113</td><td>4,128</td><td>962</td><td>CARLOS DOS SANTOS SOARES</td><td>108</td><td>92</td><td>29</td></tr>
+</tbody></table>
+<div\>
+-- SQLBook: Markup
+Todos foram usados.
+
+Provavelmente foi feito um `DELETE CASCADE`, deletando todos os itens relacionados.
+
+Para resolver temos que criar cada item da tabela.
+
+Antes, vamos ver se tem algum item em TransacaoView não utilizado:
+
+```mermaid
+flowchart LR
+    A["TransacaoView (BQ)"] -->|n-1| A1[ArquivoPublicacao]
+    A1 --> |"n-1"| B[ItemTransacao]
+    B --> |"n-1"| C1["ItemTransacaoAgrupado..."]
+    C["...ItemTransacaoAgrupado"] --> |"n-1"| D[TransacaoAgrupado]
+    D --> |"n-1"| E["Transacao (CNAB)"]
+```
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+
+SELECT ap.id AS "apId"
+    ,i.id AS "iId"
+    ,c.nome
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    ,ta.id AS "taId"
+    ,ap.id AS "apId", ap."dataVencimento", ap."isPago"
+    ,tv.*
+FROM transacao_view tv
+LEFT JOIN arquivo_publicacao ap ON tv."arquivoPublicacaoId" = ap.id
+LEFT JOIN item_transacao i ON ap."itemTransacaoId" = i.id
+LEFT JOIN cliente_favorecido c ON ap."itemTransacaoId" = i.id
+LEFT JOIN item_transacao_agrupado ia ON i."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN transacao_agrupado ta ON ia."transacaoAgrupadoId" = ta.id
+WHERE ta.id = 30
+ORDER BY ta.id ASC, ia.id ASC, i.id ASC, ap.id ASC, tv.id ASC
+-- SQLBook: Markup
+Total: 33
+Todos foram utilizados.
+<div style="overflow: scroll; white-space: nowrap; font-size: 14px;">
+<table><tbody><th>apId</th><th>iId</th><th>iaId</th><th>taId</th><th>apId</th><th>dataVencimento</th><th>isPago</th><th>id</th><th>datetimeTransacao</th><th>datetimeProcessamento</th><th>datetimeCaptura</th><th>modo</th><th>idConsorcio</th><th>nomeConsorcio</th><th>idOperadora</th><th>nomeOperadora</th><th>idTransacao</th><th>tipoPagamento</th><th>tipoTransacao</th><th>tipoGratuidade</th><th>valorTransacao</th><th>arquivoPublicacaoId</th><th>operadoraCpfCnpj</th><th>consorcioCnpj</th><th>createdAt</th><th>updatedAt</th><th>valorPago</th></><tr class="odd"><td>955</td><td>955</td><td>107</td><td>30</td><td>955</td><td>2024-06-14T00:00:00.000+00:00</td><td>true</td><td>997.334</td><td>2024-06-07 19:13:46.648</td><td>2024-06-07 19:13:56.346</td><td>2024-06-07 19:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>d4dc427a-2047-4ee9-87e4-181ba5537270</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>955</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:55:20.200</td><td>2024-06-25 20:24:20.722</td><td>4,128</td></tr>
+<tr><td>956</td><td>956</td><td>107</td><td>30</td><td>956</td><td>2024-06-14T00:00:00.000+00:00</td><td>true</td><td>980.692</td><td>2024-06-11 19:04:46.648</td><td>2024-06-11 19:05:08.251</td><td>2024-06-11 19:06:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>c487e5e2-dfad-4c07-b691-577f7ba17c59</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>956</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:49.320</td><td>2024-06-25 20:24:48.065</td><td>4,128</td></tr>
+<tr class="odd"><td>976</td><td>976</td><td>107</td><td>30</td><td>976</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.182</td><td>2024-06-12 10:33:29.615</td><td>2024-06-12 10:33:42.391</td><td>2024-06-12 10:34:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>44742e99-a477-478a-8df9-d792cafaca0e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>976</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:42.075</td><td>2024-06-25 20:24:54.001</td><td>4,128</td></tr>
+<tr><td>957</td><td>957</td><td>108</td><td>30</td><td>957</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.898</td><td>2024-06-12 12:06:37.214</td><td>2024-06-12 12:06:47.219</td><td>2024-06-12 12:07:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463453401</td><td>******* ******* **** ********</td><td>0dcd1e4b-670b-47a6-9a88-1f2b2a4c906e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>957</td><td>82773335791</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:59.499</td><td>4,128</td></tr>
+<tr class="odd"><td>958</td><td>958</td><td>109</td><td>30</td><td>958</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.071</td><td>2024-06-12 11:05:16.297</td><td>2024-06-12 11:05:28.838</td><td>2024-06-12 11:06:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463422751</td><td>********* ***** *******</td><td>7ed81dff-8f60-4826-9e8b-633ef9f19273</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>958</td><td>36980439715</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:24:53.522</td><td>4,128</td></tr>
+<tr><td>959</td><td>959</td><td>110</td><td>30</td><td>959</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.795</td><td>2024-06-12 12:31:57.334</td><td>2024-06-12 12:32:00.309</td><td>2024-06-12 12:33:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463453085</td><td>****** ****** ******</td><td>38d24711-1cdb-4f3d-b7bd-946a61331e33</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>959</td><td>02817598717</td><td>&nbsp;</td><td>2024-06-21 13:53:39.952</td><td>2024-06-25 20:24:51.139</td><td>4,128</td></tr>
+<tr class="odd"><td>960</td><td>960</td><td>111</td><td>30</td><td>960</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.041</td><td>2024-06-12 11:19:34.914</td><td>2024-06-12 11:19:40.177</td><td>2024-06-12 11:20:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423222</td><td>******* ***** ******</td><td>1ce38941-5554-4cdc-9c06-089dc3339829</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>960</td><td>02486069720</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:24:52.569</td><td>4,128</td></tr>
+<tr><td>961</td><td>961</td><td>112</td><td>30</td><td>961</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.133</td><td>2024-06-12 10:47:13.552</td><td>2024-06-12 10:47:17.649</td><td>2024-06-12 10:48:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413106</td><td>**** *********</td><td>b682eb35-9cee-48ee-ab3f-5b96df9de887</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>961</td><td>79464637749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:51.605</td><td>4,128</td></tr>
+<tr class="odd"><td>962</td><td>962</td><td>113</td><td>30</td><td>962</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.583</td><td>2024-06-12 13:46:53.249</td><td>2024-06-12 13:47:01.929</td><td>2024-06-12 13:48:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463516487</td><td>****** *** ****** ******</td><td>291d7294-078f-492b-8bb3-319f27c20a19</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>962</td><td>11686961782</td><td>&nbsp;</td><td>2024-06-21 13:53:38.960</td><td>2024-06-25 20:24:53.055</td><td>4,128</td></tr>
+<tr><td>963</td><td>963</td><td>114</td><td>30</td><td>963</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.146</td><td>2024-06-12 10:44:11.254</td><td>2024-06-12 10:44:19.149</td><td>2024-06-12 10:45:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413258</td><td>**** ***** ** ***********</td><td>6ca3eef4-0426-44df-b13d-d462043b0b73</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>963</td><td>29709920782</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:52.087</td><td>4,128</td></tr>
+<tr class="odd"><td>964</td><td>964</td><td>115</td><td>30</td><td>964</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.864</td><td>2024-06-12 12:18:44.230</td><td>2024-06-12 12:18:50.117</td><td>2024-06-12 12:19:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463453182</td><td>***** ***** ******</td><td>dea6a196-a8c7-486c-af58-dec87d3d115a</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>964</td><td>99427036753</td><td>&nbsp;</td><td>2024-06-21 13:53:40.210</td><td>2024-06-25 20:24:49.132</td><td>4,128</td></tr>
+<tr><td>965</td><td>965</td><td>116</td><td>30</td><td>965</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.890</td><td>2024-06-12 12:09:19.525</td><td>2024-06-12 12:09:26.935</td><td>2024-06-12 12:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463494930</td><td>**** **** *******</td><td>71d7527c-449b-4386-a145-cc7efba68445</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>965</td><td>46285911649</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:55.299</td><td>4,128</td></tr>
+<tr class="odd"><td>966</td><td>966</td><td>117</td><td>30</td><td>966</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.493</td><td>2024-06-12 14:23:03.210</td><td>2024-06-12 14:23:08.285</td><td>2024-06-12 14:24:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463553996</td><td>**** ******* *******</td><td>a7c52ce3-18f5-45d8-baa0-b7a5a6deb8b2</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>966</td><td>54810183734</td><td>&nbsp;</td><td>2024-06-21 13:53:38.495</td><td>2024-06-25 20:24:54.516</td><td>4,128</td></tr>
+<tr><td>967</td><td>967</td><td>118</td><td>30</td><td>967</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.471</td><td>2024-06-12 14:27:32.829</td><td>2024-06-12 14:27:40.583</td><td>2024-06-12 14:28:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463553589</td><td>***** ********* ** ****** ******</td><td>28984de8-bf64-44f5-99c9-b5e54b5ae739</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>967</td><td>02950233767</td><td>&nbsp;</td><td>2024-06-21 13:53:38.245</td><td>2024-06-25 20:24:48.581</td><td>4,128</td></tr>
+<tr class="odd"><td>968</td><td>968</td><td>119</td><td>30</td><td>968</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.944</td><td>2024-06-12 11:50:57.699</td><td>2024-06-12 11:51:06.301</td><td>2024-06-12 11:52:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463452921</td><td>****** **********</td><td>87786e3b-35be-4b71-badc-068e6548d850</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>968</td><td>01228098743</td><td>&nbsp;</td><td>2024-06-21 13:53:40.682</td><td>2024-06-25 20:25:00.965</td><td>4,128</td></tr>
+<tr><td>969</td><td>969</td><td>120</td><td>30</td><td>969</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.047</td><td>2024-06-12 11:17:41.761</td><td>2024-06-12 11:17:44.697</td><td>2024-06-12 11:18:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423091</td><td>**** ****** ******* ** ****</td><td>5ae47468-310f-4963-b705-b00dee235853</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>969</td><td>66172969749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:25:00.479</td><td>4,128</td></tr>
+<tr class="odd"><td>970</td><td>970</td><td>121</td><td>30</td><td>970</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.570</td><td>2024-06-12 13:52:33.599</td><td>2024-06-12 13:52:40.886</td><td>2024-06-12 13:53:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463554555</td><td>***** **** *****</td><td>ba9e4118-4c1b-4628-930a-c490e0552e0b</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>970</td><td>07713033785</td><td>&nbsp;</td><td>2024-06-21 13:53:38.728</td><td>2024-06-25 20:24:50.635</td><td>4,128</td></tr>
+<tr><td>971</td><td>971</td><td>122</td><td>30</td><td>971</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.307</td><td>2024-06-12 09:55:39.748</td><td>2024-06-12 09:55:47.449</td><td>2024-06-12 09:56:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463575620</td><td>**** ********* **********</td><td>6509fce3-aa2d-4acc-bec0-fcf09f8121cd</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>971</td><td>16494896766</td><td>&nbsp;</td><td>2024-06-21 13:53:42.557</td><td>2024-06-25 20:25:00.005</td><td>4,128</td></tr>
+<tr class="odd"><td>972</td><td>972</td><td>123</td><td>30</td><td>972</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.813</td><td>2024-06-12 12:28:19.099</td><td>2024-06-12 12:28:28.476</td><td>2024-06-12 12:29:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463556092</td><td>***** **** ***** *****</td><td>17fd2be6-a89d-41a9-a6f4-4c1ae7967ea5</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>972</td><td>92432395700</td><td>&nbsp;</td><td>2024-06-21 13:53:39.952</td><td>2024-06-25 20:24:56.893</td><td>4,128</td></tr>
+<tr><td>973</td><td>973</td><td>124</td><td>30</td><td>973</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.243</td><td>2024-06-12 10:11:51.164</td><td>2024-06-12 10:11:57.229</td><td>2024-06-12 10:12:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463572898</td><td>**** ****** ******* *******</td><td>1254ddef-e827-4ba4-8f3a-abb6adb21a82</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>973</td><td>67293352700</td><td>&nbsp;</td><td>2024-06-21 13:53:42.316</td><td>2024-06-25 20:24:49.659</td><td>4,128</td></tr>
+<tr class="odd"><td>974</td><td>974</td><td>125</td><td>30</td><td>974</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.057</td><td>2024-06-12 11:13:01.739</td><td>2024-06-12 11:13:05.512</td><td>2024-06-12 11:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423161</td><td>****** ****** ** *****</td><td>51e21bab-4a4e-4ce8-ab01-16b649f9d519</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>974</td><td>07575981705</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:24:56.361</td><td>4,128</td></tr>
+<tr><td>975</td><td>975</td><td>126</td><td>30</td><td>975</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.698</td><td>2024-06-12 13:03:53.709</td><td>2024-06-12 13:04:01.318</td><td>2024-06-12 13:05:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463513752</td><td>******* ******** ** ***** *********</td><td>418b7a79-fa66-4b69-8fbd-b00c0556478e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>975</td><td>30828026807</td><td>&nbsp;</td><td>2024-06-21 13:53:39.445</td><td>2024-06-25 20:24:55.852</td><td>4,128</td></tr>
+<tr class="odd"><td>977</td><td>977</td><td>127</td><td>30</td><td>977</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.229</td><td>2024-06-12 10:17:17.054</td><td>2024-06-12 10:17:23.424</td><td>2024-06-12 10:18:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463573350</td><td>******* ******* ********</td><td>c5bdf4fc-c37d-438f-a340-9853a94f0a87</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>977</td><td>90885783700</td><td>&nbsp;</td><td>2024-06-21 13:53:42.316</td><td>2024-06-25 20:24:59.014</td><td>4,128</td></tr>
+<tr><td>978</td><td>978</td><td>128</td><td>30</td><td>978</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>977.717</td><td>2024-06-12 17:11:50.284</td><td>2024-06-12 17:11:56.338</td><td>2024-06-12 17:12:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463565416</td><td>********** ********* *****</td><td>0e0f1fc2-5e58-4248-a820-3d6557fa1106</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>978</td><td>07077394700</td><td>&nbsp;</td><td>2024-06-21 13:53:34.804</td><td>2024-06-25 20:24:58.493</td><td>4,128</td></tr>
+<tr class="odd"><td>978</td><td>978</td><td>128</td><td>30</td><td>978</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.280</td><td>2024-06-12 10:02:40.096</td><td>2024-06-12 10:02:45.554</td><td>2024-06-12 10:03:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463565416</td><td>********** ********* *****</td><td>ff4810f3-8019-4b3d-bf27-aa0fad13cff1</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>978</td><td>07077394700</td><td>&nbsp;</td><td>2024-06-21 13:53:42.557</td><td>2024-06-25 20:24:58.493</td><td>4,128</td></tr>
+<tr><td>979</td><td>979</td><td>129</td><td>30</td><td>979</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>976.815</td><td>2024-06-12 19:09:05.817</td><td>2024-06-12 19:09:12.772</td><td>2024-06-12 19:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>235952a2-dabe-438c-9601-8403b4ce3d41</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:30.458</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr class="odd"><td>979</td><td>979</td><td>129</td><td>30</td><td>979</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>977.461</td><td>2024-06-12 17:41:50.719</td><td>2024-06-12 17:41:59.654</td><td>2024-06-12 17:42:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>3539ec71-b266-40b3-836b-1131926fb7eb</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:33.651</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr><td>980</td><td>980</td><td>130</td><td>30</td><td>980</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>977.001</td><td>2024-06-12 18:43:15.158</td><td>2024-06-12 18:43:21.953</td><td>2024-06-12 18:44:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463554591</td><td>******* ******* ** *****</td><td>67ee64c0-8039-40f1-ba45-67038d42f815</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>980</td><td>86660098704</td><td>&nbsp;</td><td>2024-06-21 13:53:31.410</td><td>2024-06-25 20:24:57.962</td><td>4,128</td></tr>
+<tr class="odd"><td>980</td><td>980</td><td>130</td><td>30</td><td>980</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>977.030</td><td>2024-06-12 18:37:08.399</td><td>2024-06-12 18:37:12.364</td><td>2024-06-12 18:38:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463554591</td><td>******* ******* ** *****</td><td>59b3d836-1f73-48b2-9916-dba9a7fdadc1</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>980</td><td>86660098704</td><td>&nbsp;</td><td>2024-06-21 13:53:31.654</td><td>2024-06-25 20:24:57.962</td><td>4,128</td></tr>
+<tr><td>981</td><td>981</td><td>131</td><td>30</td><td>981</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.914</td><td>2024-06-12 12:00:05.023</td><td>2024-06-12 12:00:12.074</td><td>2024-06-12 12:01:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463415449</td><td>****** **** **********</td><td>7287e656-8410-452d-ae5f-c5fdbff38587</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>981</td><td>07490817757</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:57.417</td><td>4,128</td></tr>
+<tr class="odd"><td>981</td><td>981</td><td>131</td><td>30</td><td>981</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.918</td><td>2024-06-12 11:59:40.539</td><td>2024-06-12 11:59:47.045</td><td>2024-06-12 12:00:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463415449</td><td>****** **** **********</td><td>a366de35-1712-420f-9970-e59a66b254b5</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>981</td><td>07490817757</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:57.417</td><td>4,128</td></tr>
+<tr><td>981</td><td>981</td><td>131</td><td>30</td><td>981</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>978.921</td><td>2024-06-12 11:59:18.130</td><td>2024-06-12 11:59:22.234</td><td>2024-06-12 12:00:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463415449</td><td>****** **** **********</td><td>267b4bc5-29fc-4e01-ac60-d0f1838ce8d1</td><td>QRCode</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>981</td><td>07490817757</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:57.417</td><td>4,128</td></tr>
+<tr class="odd"><td>981</td><td>981</td><td>131</td><td>30</td><td>981</td><td>2024-06-21T00:00:00.000+00:00</td><td>true</td><td>979.199</td><td>2024-06-12 10:27:44.439</td><td>2024-06-12 10:27:50.854</td><td>2024-06-12 10:28:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463415449</td><td>****** **** **********</td><td>2235942f-b90c-46d2-9956-308063116cbf</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>981</td><td>07490817757</td><td>&nbsp;</td><td>2024-06-21 13:53:42.075</td><td>2024-06-25 20:24:57.417</td><td>4,128</td></tr>
+</tbody></table>
+<div\>
+-- SQLBook: Markup
+#### Quais TransacaoViews buscar?
+- datetimeProcessamento = 6-12/06/2024
+- idConsorcio = usuários
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+SELECT DISTINCT(c.nome), i."idOperadora", u.id AS "uId"
+FROM cliente_favorecido c
+INNER JOIN item_transacao i ON i."clienteFavorecidoId" = c.id
+INNER JOIN "user" u ON u."cpfCnpj" = c."cpfCnpj"
+WHERE
+    c.nome ILIKE '%LUCIANE PEREIRA LIMA LOUREIRO%'
+    OR c.nome ILIKE '%AGUINALDO PAIVA RIBEIRO%'
+    OR c.nome ILIKE '%MARCIA DUARTE SEIXAS%'
+    OR c.nome ILIKE '%JOCIMAR GOMES DUARTE%'
+    OR c.nome ILIKE '%INES FERNANDES%'
+    OR c.nome ILIKE '%CARLOS DOS SANTOS SOARES%'
+    OR c.nome ILIKE '%MARIO FELIX SEIXAS%'
+    OR c.nome ILIKE '%JOSE MARTINS CORREIA%'
+    OR c.nome ILIKE '%DIMAS CASCIMIRO DE ARAUJO JUNI%'
+    OR c.nome ILIKE '%RENATO MAXIQUEIRA%'
+    OR c.nome ILIKE '%LUIZ CARLOS FURTADO DE MELO%'
+    OR c.nome ILIKE '%ANDRE LUIS LOPES%'
+    OR c.nome ILIKE '%YURI DELLATORE MACIQUEIRA%'
+    OR c.nome ILIKE '%MARIO LUIS ROMAO NUNES%'
+    OR c.nome ILIKE '%JOSE ALIRIO PEREIRA DELFINO%'
+    OR c.nome ILIKE '%RICARDO HENRIQUE DA SILVA FERN%'
+    OR c.nome ILIKE '%ROSEMAR FURTADO GONZALEZ%'
+    OR c.nome ILIKE '%FEORAVANTE RODRIGUES SILVA%'
+    OR c.nome ILIKE '%ROZEMERI VIEIRA DA SILVA%'
+    OR c.nome ILIKE '%SILVIA REIS MACIQUEIRA%'
+    OR c.nome ILIKE '%MARIA DA GUIA BARROS DA COSTA%'
+    OR c.nome ILIKE '%JOAO SALES DE ALBUQUERQUE%'
+    OR c.nome ILIKE '%JOSE DIAS XIMENES%'
+    OR c.nome ILIKE '%ELIANE VIEIRA DA SILVA%'
+    OR c.nome ILIKE '%ROSEVAL PEREIRA DE SOUZA%'
+-- SQLBook: Markup
+<div style="overflow: scroll; white-space: nowrap; font-size: 14px;">
+<table><tbody><tr><th>nome</th><th>idOperadora</th></tr><tr class="odd"><td>AGUINALDO PAIVA RIBEIRO</td><td>463422751</td></tr>
+<tr><td>ANDRE LUIS LOPES</td><td>463554555</td></tr>
+<tr class="odd"><td>CARLOS DOS SANTOS SOARES</td><td>463516487</td></tr>
+<tr><td>DIMAS CASCIMIRO DE ARAUJO JUNIOR</td><td>463553589</td></tr>
+<tr class="odd"><td>ELIANE VIEIRA DA SILVA</td><td>463423161</td></tr>
+<tr><td>FEORAVANTE RODRIGUES SILVA</td><td>463565416</td></tr>
+<tr class="odd"><td>INES FERNANDES</td><td>463413106</td></tr>
+<tr><td>JOAO SALES DE ALBUQUERQUE</td><td>463413258</td></tr>
+<tr class="odd"><td>JOCIMAR GOMES DUARTE</td><td>463423222</td></tr>
+<tr><td>JOSE ALIRIO PEREIRA DELFINO</td><td>463572898</td></tr>
+<tr class="odd"><td>JOSE DIAS XIMENES</td><td>463494930</td></tr>
+<tr><td>JOSE MARTINS CORREIA</td><td>463553996</td></tr>
+<tr class="odd"><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>463453401</td></tr>
+<tr><td>LUIZ CARLOS FURTADO DE MELO</td><td>463423091</td></tr>
+<tr class="odd"><td>MARCIA DUARTE SEIXAS</td><td>463453085</td></tr>
+<tr><td>MARIA DA GUIA BARROS DA COSTA</td><td>463416372</td></tr>
+<tr class="odd"><td>MARIO FELIX SEIXAS</td><td>463453182</td></tr>
+<tr><td>MARIO LUIS ROMAO NUNES</td><td>463556092</td></tr>
+<tr class="odd"><td>RENATO MAXIQUEIRA</td><td>463452921</td></tr>
+<tr><td>RICARDO HENRIQUE DA SILVA FERNANDES</td><td>463513752</td></tr>
+<tr class="odd"><td>ROSEMAR FURTADO GONZALEZ</td><td>463573350</td></tr>
+<tr><td>ROSEVAL PEREIRA DE SOUZA</td><td>463554591</td></tr>
+<tr class="odd"><td>ROZEMERI VIEIRA DA SILVA</td><td>463423170</td></tr>
+<tr><td>SILVIA REIS MACIQUEIRA</td><td>463415449</td></tr>
+<tr class="odd"><td>YURI DELLATORE MACIQUEIRA</td><td>463575620</td></tr>
+</tbody></table>
+<div\>
+-- SQLBook: Markup
+TransacaoView para os usuários na semana 14/06/2024
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+
+SELECT ap.id AS "apId"
+    ,i.id AS "iId"
+    ,ap.id AS "apId", ap."isPago"
+    ,ia.id AS "iaId"
+    ,ta.id AS "taId"
+    ,c.nome
+    ,tv.*
+FROM transacao_view tv
+LEFT JOIN item_transacao i ON i."idConsorcio" = tv."idConsorcio" AND i."idOperadora" = tv."idOperadora"
+LEFT JOIN cliente_favorecido c ON c.id = i."clienteFavorecidoId"
+LEFT JOIN item_transacao_agrupado ia ON i."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN arquivo_publicacao ap ON tv."arquivoPublicacaoId" = ap.id
+LEFT JOIN transacao_agrupado ta ON ia."transacaoAgrupadoId" = ta.id
+WHERE DATE(tv."datetimeProcessamento") BETWEEN '2024-06-06' AND '2024-06-12'
+    AND tv."idOperadora" IN ('463422751','463554555','463516487','463553589','463423161','463565416','463413106','463413258','463423222','463572898','463494930','463553996','463453401','463423091','463453085','463416372','463453182','463556092','463452921','463513752','463573350','463554591','463423170','463415449','463575620')
+ORDER BY ta.id ASC, tv."datetimeProcessamento" DESC
+-- SQLBook: Markup
+Total: 93
+<div style="overflow: scroll; white-space: nowrap; font-size: 14px;">
+<table><tbody><tr><th>apId</th><th>iId</th><th>iaId</th><th>taId</th><th>nome</th><th>id</th><th>datetimeTransacao</th><th>datetimeProcessamento</th><th>datetimeCaptura</th><th>modo</th><th>idConsorcio</th><th>nomeConsorcio</th><th>idOperadora</th><th>nomeOperadora</th><th>idTransacao</th><th>tipoPagamento</th><th>tipoTransacao</th><th>tipoGratuidade</th><th>valorTransacao</th><th>arquivoPublicacaoId</th><th>operadoraCpfCnpj</th><th>consorcioCnpj</th><th>createdAt</th><th>updatedAt</th><th>valorPago</th></tr><tr class="odd"><td>979</td><td>1.230</td><td>151</td><td>33</td><td>ROZEMERI VIEIRA DA SILVA</td><td>976.815</td><td>2024-06-12 19:09:05.817</td><td>2024-06-12 19:09:12.772</td><td>2024-06-12 19:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>235952a2-dabe-438c-9601-8403b4ce3d41</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:30.458</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr><td>979</td><td>1.240</td><td>159</td><td>35</td><td>ROZEMERI VIEIRA DA SILVA</td><td>976.815</td><td>2024-06-12 19:09:05.817</td><td>2024-06-12 19:09:12.772</td><td>2024-06-12 19:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>235952a2-dabe-438c-9601-8403b4ce3d41</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:30.458</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr class="odd"><td>979</td><td>1.235</td><td>155</td><td>34</td><td>ROZEMERI VIEIRA DA SILVA</td><td>976.815</td><td>2024-06-12 19:09:05.817</td><td>2024-06-12 19:09:12.772</td><td>2024-06-12 19:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>235952a2-dabe-438c-9601-8403b4ce3d41</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:30.458</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr><td>979</td><td>979</td><td>129</td><td>30</td><td>ROZEMERI VIEIRA DA SILVA</td><td>976.815</td><td>2024-06-12 19:09:05.817</td><td>2024-06-12 19:09:12.772</td><td>2024-06-12 19:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>235952a2-dabe-438c-9601-8403b4ce3d41</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:30.458</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr class="odd"><td>979</td><td>1.020</td><td>138</td><td>31</td><td>ROZEMERI VIEIRA DA SILVA</td><td>976.815</td><td>2024-06-12 19:09:05.817</td><td>2024-06-12 19:09:12.772</td><td>2024-06-12 19:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>235952a2-dabe-438c-9601-8403b4ce3d41</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:30.458</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr><td>980</td><td>980</td><td>130</td><td>30</td><td>ROSEVAL PEREIRA DE SOUZA</td><td>977.001</td><td>2024-06-12 18:43:15.158</td><td>2024-06-12 18:43:21.953</td><td>2024-06-12 18:44:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463554591</td><td>******* ******* ** *****</td><td>67ee64c0-8039-40f1-ba45-67038d42f815</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>980</td><td>86660098704</td><td>&nbsp;</td><td>2024-06-21 13:53:31.410</td><td>2024-06-25 20:24:57.962</td><td>4,128</td></tr>
+<tr class="odd"><td>980</td><td>980</td><td>130</td><td>30</td><td>ROSEVAL PEREIRA DE SOUZA</td><td>977.030</td><td>2024-06-12 18:37:08.399</td><td>2024-06-12 18:37:12.364</td><td>2024-06-12 18:38:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463554591</td><td>******* ******* ** *****</td><td>59b3d836-1f73-48b2-9916-dba9a7fdadc1</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>980</td><td>86660098704</td><td>&nbsp;</td><td>2024-06-21 13:53:31.654</td><td>2024-06-25 20:24:57.962</td><td>4,128</td></tr>
+<tr><td>979</td><td>1.235</td><td>155</td><td>34</td><td>ROZEMERI VIEIRA DA SILVA</td><td>977.461</td><td>2024-06-12 17:41:50.719</td><td>2024-06-12 17:41:59.654</td><td>2024-06-12 17:42:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>3539ec71-b266-40b3-836b-1131926fb7eb</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:33.651</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr class="odd"><td>979</td><td>1.230</td><td>151</td><td>33</td><td>ROZEMERI VIEIRA DA SILVA</td><td>977.461</td><td>2024-06-12 17:41:50.719</td><td>2024-06-12 17:41:59.654</td><td>2024-06-12 17:42:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>3539ec71-b266-40b3-836b-1131926fb7eb</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:33.651</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr><td>979</td><td>1.020</td><td>138</td><td>31</td><td>ROZEMERI VIEIRA DA SILVA</td><td>977.461</td><td>2024-06-12 17:41:50.719</td><td>2024-06-12 17:41:59.654</td><td>2024-06-12 17:42:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>3539ec71-b266-40b3-836b-1131926fb7eb</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:33.651</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr class="odd"><td>979</td><td>979</td><td>129</td><td>30</td><td>ROZEMERI VIEIRA DA SILVA</td><td>977.461</td><td>2024-06-12 17:41:50.719</td><td>2024-06-12 17:41:59.654</td><td>2024-06-12 17:42:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>3539ec71-b266-40b3-836b-1131926fb7eb</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:33.651</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr><td>979</td><td>1.240</td><td>159</td><td>35</td><td>ROZEMERI VIEIRA DA SILVA</td><td>977.461</td><td>2024-06-12 17:41:50.719</td><td>2024-06-12 17:41:59.654</td><td>2024-06-12 17:42:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423170</td><td>******** ****** ** *****</td><td>3539ec71-b266-40b3-836b-1131926fb7eb</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>979</td><td>01867921740</td><td>&nbsp;</td><td>2024-06-21 13:53:33.651</td><td>2024-06-25 20:24:50.154</td><td>4,128</td></tr>
+<tr class="odd"><td>978</td><td>978</td><td>128</td><td>30</td><td>FEORAVANTE RODRIGUES SILVA</td><td>977.717</td><td>2024-06-12 17:11:50.284</td><td>2024-06-12 17:11:56.338</td><td>2024-06-12 17:12:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463565416</td><td>********** ********* *****</td><td>0e0f1fc2-5e58-4248-a820-3d6557fa1106</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>978</td><td>07077394700</td><td>&nbsp;</td><td>2024-06-21 13:53:34.804</td><td>2024-06-25 20:24:58.493</td><td>4,128</td></tr>
+<tr><td>978</td><td>1.269</td><td>170</td><td>36</td><td>FEORAVANTE RODRIGUES SILVA</td><td>977.717</td><td>2024-06-12 17:11:50.284</td><td>2024-06-12 17:11:56.338</td><td>2024-06-12 17:12:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463565416</td><td>********** ********* *****</td><td>0e0f1fc2-5e58-4248-a820-3d6557fa1106</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>978</td><td>07077394700</td><td>&nbsp;</td><td>2024-06-21 13:53:34.804</td><td>2024-06-25 20:24:58.493</td><td>4,128</td></tr>
+<tr class="odd"><td>967</td><td>967</td><td>118</td><td>30</td><td>DIMAS CASCIMIRO DE ARAUJO JUNIOR</td><td>978.471</td><td>2024-06-12 14:27:32.829</td><td>2024-06-12 14:27:40.583</td><td>2024-06-12 14:28:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463553589</td><td>***** ********* ** ****** ******</td><td>28984de8-bf64-44f5-99c9-b5e54b5ae739</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>967</td><td>02950233767</td><td>&nbsp;</td><td>2024-06-21 13:53:38.245</td><td>2024-06-25 20:24:48.581</td><td>4,128</td></tr>
+<tr><td>966</td><td>1.062</td><td>142</td><td>31</td><td>JOSE MARTINS CORREIA</td><td>978.493</td><td>2024-06-12 14:23:03.210</td><td>2024-06-12 14:23:08.285</td><td>2024-06-12 14:24:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463553996</td><td>**** ******* *******</td><td>a7c52ce3-18f5-45d8-baa0-b7a5a6deb8b2</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>966</td><td>54810183734</td><td>&nbsp;</td><td>2024-06-21 13:53:38.495</td><td>2024-06-25 20:24:54.516</td><td>4,128</td></tr>
+<tr class="odd"><td>966</td><td>1.237</td><td>157</td><td>34</td><td>JOSE MARTINS CORREIA</td><td>978.493</td><td>2024-06-12 14:23:03.210</td><td>2024-06-12 14:23:08.285</td><td>2024-06-12 14:24:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463553996</td><td>**** ******* *******</td><td>a7c52ce3-18f5-45d8-baa0-b7a5a6deb8b2</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>966</td><td>54810183734</td><td>&nbsp;</td><td>2024-06-21 13:53:38.495</td><td>2024-06-25 20:24:54.516</td><td>4,128</td></tr>
+<tr><td>966</td><td>1.242</td><td>161</td><td>35</td><td>JOSE MARTINS CORREIA</td><td>978.493</td><td>2024-06-12 14:23:03.210</td><td>2024-06-12 14:23:08.285</td><td>2024-06-12 14:24:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463553996</td><td>**** ******* *******</td><td>a7c52ce3-18f5-45d8-baa0-b7a5a6deb8b2</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>966</td><td>54810183734</td><td>&nbsp;</td><td>2024-06-21 13:53:38.495</td><td>2024-06-25 20:24:54.516</td><td>4,128</td></tr>
+<tr class="odd"><td>966</td><td>966</td><td>117</td><td>30</td><td>JOSE MARTINS CORREIA</td><td>978.493</td><td>2024-06-12 14:23:03.210</td><td>2024-06-12 14:23:08.285</td><td>2024-06-12 14:24:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463553996</td><td>**** ******* *******</td><td>a7c52ce3-18f5-45d8-baa0-b7a5a6deb8b2</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>966</td><td>54810183734</td><td>&nbsp;</td><td>2024-06-21 13:53:38.495</td><td>2024-06-25 20:24:54.516</td><td>4,128</td></tr>
+<tr><td>966</td><td>1.232</td><td>153</td><td>33</td><td>JOSE MARTINS CORREIA</td><td>978.493</td><td>2024-06-12 14:23:03.210</td><td>2024-06-12 14:23:08.285</td><td>2024-06-12 14:24:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463553996</td><td>**** ******* *******</td><td>a7c52ce3-18f5-45d8-baa0-b7a5a6deb8b2</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>966</td><td>54810183734</td><td>&nbsp;</td><td>2024-06-21 13:53:38.495</td><td>2024-06-25 20:24:54.516</td><td>4,128</td></tr>
+<tr class="odd"><td>970</td><td>1.268</td><td>169</td><td>36</td><td>ANDRE LUIS LOPES</td><td>978.570</td><td>2024-06-12 13:52:33.599</td><td>2024-06-12 13:52:40.886</td><td>2024-06-12 13:53:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463554555</td><td>***** **** *****</td><td>ba9e4118-4c1b-4628-930a-c490e0552e0b</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>970</td><td>07713033785</td><td>&nbsp;</td><td>2024-06-21 13:53:38.728</td><td>2024-06-25 20:24:50.635</td><td>4,128</td></tr>
+<tr><td>970</td><td>970</td><td>121</td><td>30</td><td>ANDRE LUIS LOPES</td><td>978.570</td><td>2024-06-12 13:52:33.599</td><td>2024-06-12 13:52:40.886</td><td>2024-06-12 13:53:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463554555</td><td>***** **** *****</td><td>ba9e4118-4c1b-4628-930a-c490e0552e0b</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>970</td><td>07713033785</td><td>&nbsp;</td><td>2024-06-21 13:53:38.728</td><td>2024-06-25 20:24:50.635</td><td>4,128</td></tr>
+<tr class="odd"><td>962</td><td>962</td><td>113</td><td>30</td><td>CARLOS DOS SANTOS SOARES</td><td>978.583</td><td>2024-06-12 13:46:53.249</td><td>2024-06-12 13:47:01.929</td><td>2024-06-12 13:48:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463516487</td><td>****** *** ****** ******</td><td>291d7294-078f-492b-8bb3-319f27c20a19</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>962</td><td>11686961782</td><td>&nbsp;</td><td>2024-06-21 13:53:38.960</td><td>2024-06-25 20:24:53.055</td><td>4,128</td></tr>
+<tr><td>975</td><td>975</td><td>126</td><td>30</td><td>RICARDO HENRIQUE DA SILVA FERNANDES</td><td>978.698</td><td>2024-06-12 13:03:53.709</td><td>2024-06-12 13:04:01.318</td><td>2024-06-12 13:05:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463513752</td><td>******* ******** ** ***** *********</td><td>418b7a79-fa66-4b69-8fbd-b00c0556478e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>975</td><td>30828026807</td><td>&nbsp;</td><td>2024-06-21 13:53:39.445</td><td>2024-06-25 20:24:55.852</td><td>4,128</td></tr>
+<tr class="odd"><td>975</td><td>1.416</td><td>178</td><td>36</td><td>RICARDO HENRIQUE DA SILVA FERNANDES</td><td>978.698</td><td>2024-06-12 13:03:53.709</td><td>2024-06-12 13:04:01.318</td><td>2024-06-12 13:05:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463513752</td><td>******* ******** ** ***** *********</td><td>418b7a79-fa66-4b69-8fbd-b00c0556478e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>975</td><td>30828026807</td><td>&nbsp;</td><td>2024-06-21 13:53:39.445</td><td>2024-06-25 20:24:55.852</td><td>4,128</td></tr>
+<tr><td>959</td><td>959</td><td>110</td><td>30</td><td>MARCIA DUARTE SEIXAS</td><td>978.795</td><td>2024-06-12 12:31:57.334</td><td>2024-06-12 12:32:00.309</td><td>2024-06-12 12:33:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463453085</td><td>****** ****** ******</td><td>38d24711-1cdb-4f3d-b7bd-946a61331e33</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>959</td><td>02817598717</td><td>&nbsp;</td><td>2024-06-21 13:53:39.952</td><td>2024-06-25 20:24:51.139</td><td>4,128</td></tr>
+<tr class="odd"><td>972</td><td>1.360</td><td>177</td><td>36</td><td>MARIO LUIS ROMAO NUNES</td><td>978.813</td><td>2024-06-12 12:28:19.099</td><td>2024-06-12 12:28:28.476</td><td>2024-06-12 12:29:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463556092</td><td>***** **** ***** *****</td><td>17fd2be6-a89d-41a9-a6f4-4c1ae7967ea5</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>972</td><td>92432395700</td><td>&nbsp;</td><td>2024-06-21 13:53:39.952</td><td>2024-06-25 20:24:56.893</td><td>4,128</td></tr>
+<tr><td>972</td><td>972</td><td>123</td><td>30</td><td>MARIO LUIS ROMAO NUNES</td><td>978.813</td><td>2024-06-12 12:28:19.099</td><td>2024-06-12 12:28:28.476</td><td>2024-06-12 12:29:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463556092</td><td>***** **** ***** *****</td><td>17fd2be6-a89d-41a9-a6f4-4c1ae7967ea5</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>972</td><td>92432395700</td><td>&nbsp;</td><td>2024-06-21 13:53:39.952</td><td>2024-06-25 20:24:56.893</td><td>4,128</td></tr>
+<tr class="odd"><td>964</td><td>964</td><td>115</td><td>30</td><td>MARIO FELIX SEIXAS</td><td>978.864</td><td>2024-06-12 12:18:44.230</td><td>2024-06-12 12:18:50.117</td><td>2024-06-12 12:19:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463453182</td><td>***** ***** ******</td><td>dea6a196-a8c7-486c-af58-dec87d3d115a</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>964</td><td>99427036753</td><td>&nbsp;</td><td>2024-06-21 13:53:40.210</td><td>2024-06-25 20:24:49.132</td><td>4,128</td></tr>
+<tr><td>965</td><td>965</td><td>116</td><td>30</td><td>JOSE DIAS XIMENES</td><td>978.890</td><td>2024-06-12 12:09:19.525</td><td>2024-06-12 12:09:26.935</td><td>2024-06-12 12:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463494930</td><td>**** **** *******</td><td>71d7527c-449b-4386-a145-cc7efba68445</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>965</td><td>46285911649</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:55.299</td><td>4,128</td></tr>
+<tr class="odd"><td>965</td><td>1.390</td><td>171</td><td>36</td><td>JOSE DIAS XIMENES</td><td>978.890</td><td>2024-06-12 12:09:19.525</td><td>2024-06-12 12:09:26.935</td><td>2024-06-12 12:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463494930</td><td>**** **** *******</td><td>71d7527c-449b-4386-a145-cc7efba68445</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>965</td><td>46285911649</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:55.299</td><td>4,128</td></tr>
+<tr><td>965</td><td>1.417</td><td>171</td><td>36</td><td>JOSE DIAS XIMENES</td><td>978.890</td><td>2024-06-12 12:09:19.525</td><td>2024-06-12 12:09:26.935</td><td>2024-06-12 12:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463494930</td><td>**** **** *******</td><td>71d7527c-449b-4386-a145-cc7efba68445</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>965</td><td>46285911649</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:55.299</td><td>4,128</td></tr>
+<tr class="odd"><td>965</td><td>1.293</td><td>171</td><td>36</td><td>JOSE DIAS XIMENES</td><td>978.890</td><td>2024-06-12 12:09:19.525</td><td>2024-06-12 12:09:26.935</td><td>2024-06-12 12:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463494930</td><td>**** **** *******</td><td>71d7527c-449b-4386-a145-cc7efba68445</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>965</td><td>46285911649</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:55.299</td><td>4,128</td></tr>
+<tr><td>965</td><td>1.108</td><td>143</td><td>31</td><td>JOSE DIAS XIMENES</td><td>978.890</td><td>2024-06-12 12:09:19.525</td><td>2024-06-12 12:09:26.935</td><td>2024-06-12 12:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463494930</td><td>**** **** *******</td><td>71d7527c-449b-4386-a145-cc7efba68445</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>965</td><td>46285911649</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:55.299</td><td>4,128</td></tr>
+<tr class="odd"><td>965</td><td>1.085</td><td>143</td><td>31</td><td>JOSE DIAS XIMENES</td><td>978.890</td><td>2024-06-12 12:09:19.525</td><td>2024-06-12 12:09:26.935</td><td>2024-06-12 12:10:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463494930</td><td>**** **** *******</td><td>71d7527c-449b-4386-a145-cc7efba68445</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>965</td><td>46285911649</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:55.299</td><td>4,128</td></tr>
+<tr><td>957</td><td>1.243</td><td>160</td><td>35</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>978.898</td><td>2024-06-12 12:06:37.214</td><td>2024-06-12 12:06:47.219</td><td>2024-06-12 12:07:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463453401</td><td>******* ******* **** ********</td><td>0dcd1e4b-670b-47a6-9a88-1f2b2a4c906e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>957</td><td>82773335791</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:59.499</td><td>4,128</td></tr>
+<tr class="odd"><td>957</td><td>1.241</td><td>160</td><td>35</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>978.898</td><td>2024-06-12 12:06:37.214</td><td>2024-06-12 12:06:47.219</td><td>2024-06-12 12:07:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463453401</td><td>******* ******* **** ********</td><td>0dcd1e4b-670b-47a6-9a88-1f2b2a4c906e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>957</td><td>82773335791</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:59.499</td><td>4,128</td></tr>
+<tr><td>957</td><td>1.238</td><td>156</td><td>34</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>978.898</td><td>2024-06-12 12:06:37.214</td><td>2024-06-12 12:06:47.219</td><td>2024-06-12 12:07:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463453401</td><td>******* ******* **** ********</td><td>0dcd1e4b-670b-47a6-9a88-1f2b2a4c906e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>957</td><td>82773335791</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:59.499</td><td>4,128</td></tr>
+<tr class="odd"><td>957</td><td>1.236</td><td>156</td><td>34</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>978.898</td><td>2024-06-12 12:06:37.214</td><td>2024-06-12 12:06:47.219</td><td>2024-06-12 12:07:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463453401</td><td>******* ******* **** ********</td><td>0dcd1e4b-670b-47a6-9a88-1f2b2a4c906e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>957</td><td>82773335791</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:59.499</td><td>4,128</td></tr>
+<tr><td>957</td><td>1.233</td><td>152</td><td>33</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>978.898</td><td>2024-06-12 12:06:37.214</td><td>2024-06-12 12:06:47.219</td><td>2024-06-12 12:07:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463453401</td><td>******* ******* **** ********</td><td>0dcd1e4b-670b-47a6-9a88-1f2b2a4c906e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>957</td><td>82773335791</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:59.499</td><td>4,128</td></tr>
+<tr class="odd"><td>957</td><td>1.231</td><td>152</td><td>33</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>978.898</td><td>2024-06-12 12:06:37.214</td><td>2024-06-12 12:06:47.219</td><td>2024-06-12 12:07:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463453401</td><td>******* ******* **** ********</td><td>0dcd1e4b-670b-47a6-9a88-1f2b2a4c906e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>957</td><td>82773335791</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:59.499</td><td>4,128</td></tr>
+<tr><td>957</td><td>1.084</td><td>140</td><td>31</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>978.898</td><td>2024-06-12 12:06:37.214</td><td>2024-06-12 12:06:47.219</td><td>2024-06-12 12:07:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463453401</td><td>******* ******* **** ********</td><td>0dcd1e4b-670b-47a6-9a88-1f2b2a4c906e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>957</td><td>82773335791</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:59.499</td><td>4,128</td></tr>
+<tr class="odd"><td>957</td><td>1.040</td><td>140</td><td>31</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>978.898</td><td>2024-06-12 12:06:37.214</td><td>2024-06-12 12:06:47.219</td><td>2024-06-12 12:07:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463453401</td><td>******* ******* **** ********</td><td>0dcd1e4b-670b-47a6-9a88-1f2b2a4c906e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>957</td><td>82773335791</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:59.499</td><td>4,128</td></tr>
+<tr><td>957</td><td>957</td><td>108</td><td>30</td><td>LUCIANE PEREIRA LIMA LOUREIRO</td><td>978.898</td><td>2024-06-12 12:06:37.214</td><td>2024-06-12 12:06:47.219</td><td>2024-06-12 12:07:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463453401</td><td>******* ******* **** ********</td><td>0dcd1e4b-670b-47a6-9a88-1f2b2a4c906e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>957</td><td>82773335791</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:59.499</td><td>4,128</td></tr>
+<tr class="odd"><td>981</td><td>981</td><td>131</td><td>30</td><td>SILVIA REIS MACIQUEIRA</td><td>978.914</td><td>2024-06-12 12:00:05.023</td><td>2024-06-12 12:00:12.074</td><td>2024-06-12 12:01:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463415449</td><td>****** **** **********</td><td>7287e656-8410-452d-ae5f-c5fdbff38587</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>981</td><td>07490817757</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:57.417</td><td>4,128</td></tr>
+<tr><td>981</td><td>981</td><td>131</td><td>30</td><td>SILVIA REIS MACIQUEIRA</td><td>978.918</td><td>2024-06-12 11:59:40.539</td><td>2024-06-12 11:59:47.045</td><td>2024-06-12 12:00:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463415449</td><td>****** **** **********</td><td>a366de35-1712-420f-9970-e59a66b254b5</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>981</td><td>07490817757</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:57.417</td><td>4,128</td></tr>
+<tr class="odd"><td>981</td><td>981</td><td>131</td><td>30</td><td>SILVIA REIS MACIQUEIRA</td><td>978.921</td><td>2024-06-12 11:59:18.130</td><td>2024-06-12 11:59:22.234</td><td>2024-06-12 12:00:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463415449</td><td>****** **** **********</td><td>267b4bc5-29fc-4e01-ac60-d0f1838ce8d1</td><td>QRCode</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>981</td><td>07490817757</td><td>&nbsp;</td><td>2024-06-21 13:53:40.443</td><td>2024-06-25 20:24:57.417</td><td>4,128</td></tr>
+<tr><td>968</td><td>968</td><td>119</td><td>30</td><td>RENATO MAXIQUEIRA</td><td>978.944</td><td>2024-06-12 11:50:57.699</td><td>2024-06-12 11:51:06.301</td><td>2024-06-12 11:52:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463452921</td><td>****** **********</td><td>87786e3b-35be-4b71-badc-068e6548d850</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>968</td><td>01228098743</td><td>&nbsp;</td><td>2024-06-21 13:53:40.682</td><td>2024-06-25 20:25:00.965</td><td>4,128</td></tr>
+<tr class="odd"><td>960</td><td>960</td><td>111</td><td>30</td><td>JOCIMAR GOMES DUARTE</td><td>979.041</td><td>2024-06-12 11:19:34.914</td><td>2024-06-12 11:19:40.177</td><td>2024-06-12 11:20:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423222</td><td>******* ***** ******</td><td>1ce38941-5554-4cdc-9c06-089dc3339829</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>960</td><td>02486069720</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:24:52.569</td><td>4,128</td></tr>
+<tr><td>969</td><td>969</td><td>120</td><td>30</td><td>LUIZ CARLOS FURTADO DE MELO</td><td>979.047</td><td>2024-06-12 11:17:41.761</td><td>2024-06-12 11:17:44.697</td><td>2024-06-12 11:18:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423091</td><td>**** ****** ******* ** ****</td><td>5ae47468-310f-4963-b705-b00dee235853</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>969</td><td>66172969749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:25:00.479</td><td>4,128</td></tr>
+<tr class="odd"><td>969</td><td>1.355</td><td>173</td><td>36</td><td>LUIZ CARLOS FURTADO DE MELO</td><td>979.047</td><td>2024-06-12 11:17:41.761</td><td>2024-06-12 11:17:44.697</td><td>2024-06-12 11:18:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423091</td><td>**** ****** ******* ** ****</td><td>5ae47468-310f-4963-b705-b00dee235853</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>969</td><td>66172969749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:25:00.479</td><td>4,128</td></tr>
+<tr><td>969</td><td>1.328</td><td>173</td><td>36</td><td>LUIZ CARLOS FURTADO DE MELO</td><td>979.047</td><td>2024-06-12 11:17:41.761</td><td>2024-06-12 11:17:44.697</td><td>2024-06-12 11:18:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423091</td><td>**** ****** ******* ** ****</td><td>5ae47468-310f-4963-b705-b00dee235853</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>969</td><td>66172969749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:25:00.479</td><td>4,128</td></tr>
+<tr class="odd"><td>974</td><td>1.357</td><td>175</td><td>36</td><td>ELIANE VIEIRA DA SILVA</td><td>979.057</td><td>2024-06-12 11:13:01.739</td><td>2024-06-12 11:13:05.512</td><td>2024-06-12 11:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423161</td><td>****** ****** ** *****</td><td>51e21bab-4a4e-4ce8-ab01-16b649f9d519</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>974</td><td>07575981705</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:24:56.361</td><td>4,128</td></tr>
+<tr><td>974</td><td>974</td><td>125</td><td>30</td><td>ELIANE VIEIRA DA SILVA</td><td>979.057</td><td>2024-06-12 11:13:01.739</td><td>2024-06-12 11:13:05.512</td><td>2024-06-12 11:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463423161</td><td>****** ****** ** *****</td><td>51e21bab-4a4e-4ce8-ab01-16b649f9d519</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>974</td><td>07575981705</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:24:56.361</td><td>4,128</td></tr>
+<tr class="odd"><td>958</td><td>958</td><td>109</td><td>30</td><td>AGUINALDO PAIVA RIBEIRO</td><td>979.071</td><td>2024-06-12 11:05:16.297</td><td>2024-06-12 11:05:28.838</td><td>2024-06-12 11:06:00.000</td><td>Van</td><td>8</td><td>STPL</td><td>463422751</td><td>********* ***** *******</td><td>7ed81dff-8f60-4826-9e8b-633ef9f19273</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>958</td><td>36980439715</td><td>&nbsp;</td><td>2024-06-21 13:53:41.275</td><td>2024-06-25 20:24:53.522</td><td>4,128</td></tr>
+<tr><td>961</td><td>1.109</td><td>144</td><td>31</td><td>INES FERNANDES</td><td>979.133</td><td>2024-06-12 10:47:13.552</td><td>2024-06-12 10:47:17.649</td><td>2024-06-12 10:48:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413106</td><td>**** *********</td><td>b682eb35-9cee-48ee-ab3f-5b96df9de887</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>961</td><td>79464637749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:51.605</td><td>4,128</td></tr>
+<tr class="odd"><td>961</td><td>961</td><td>112</td><td>30</td><td>INES FERNANDES</td><td>979.133</td><td>2024-06-12 10:47:13.552</td><td>2024-06-12 10:47:17.649</td><td>2024-06-12 10:48:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413106</td><td>**** *********</td><td>b682eb35-9cee-48ee-ab3f-5b96df9de887</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>961</td><td>79464637749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:51.605</td><td>4,128</td></tr>
+<tr><td>961</td><td>1.234</td><td>154</td><td>33</td><td>INES FERNANDES</td><td>979.133</td><td>2024-06-12 10:47:13.552</td><td>2024-06-12 10:47:17.649</td><td>2024-06-12 10:48:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413106</td><td>**** *********</td><td>b682eb35-9cee-48ee-ab3f-5b96df9de887</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>961</td><td>79464637749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:51.605</td><td>4,128</td></tr>
+<tr class="odd"><td>961</td><td>1.239</td><td>158</td><td>34</td><td>INES FERNANDES</td><td>979.133</td><td>2024-06-12 10:47:13.552</td><td>2024-06-12 10:47:17.649</td><td>2024-06-12 10:48:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413106</td><td>**** *********</td><td>b682eb35-9cee-48ee-ab3f-5b96df9de887</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>961</td><td>79464637749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:51.605</td><td>4,128</td></tr>
+<tr><td>961</td><td>1.244</td><td>162</td><td>35</td><td>INES FERNANDES</td><td>979.133</td><td>2024-06-12 10:47:13.552</td><td>2024-06-12 10:47:17.649</td><td>2024-06-12 10:48:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413106</td><td>**** *********</td><td>b682eb35-9cee-48ee-ab3f-5b96df9de887</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>961</td><td>79464637749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:51.605</td><td>4,128</td></tr>
+<tr class="odd"><td>961</td><td>1.418</td><td>179</td><td>36</td><td>INES FERNANDES</td><td>979.133</td><td>2024-06-12 10:47:13.552</td><td>2024-06-12 10:47:17.649</td><td>2024-06-12 10:48:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413106</td><td>**** *********</td><td>b682eb35-9cee-48ee-ab3f-5b96df9de887</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>961</td><td>79464637749</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:51.605</td><td>4,128</td></tr>
+<tr><td>963</td><td>1.294</td><td>172</td><td>36</td><td>JOAO SALES DE ALBUQUERQUE</td><td>979.146</td><td>2024-06-12 10:44:11.254</td><td>2024-06-12 10:44:19.149</td><td>2024-06-12 10:45:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413258</td><td>**** ***** ** ***********</td><td>6ca3eef4-0426-44df-b13d-d462043b0b73</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>963</td><td>29709920782</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:52.087</td><td>4,128</td></tr>
+<tr class="odd"><td>963</td><td>963</td><td>114</td><td>30</td><td>JOAO SALES DE ALBUQUERQUE</td><td>979.146</td><td>2024-06-12 10:44:11.254</td><td>2024-06-12 10:44:19.149</td><td>2024-06-12 10:45:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413258</td><td>**** ***** ** ***********</td><td>6ca3eef4-0426-44df-b13d-d462043b0b73</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>963</td><td>29709920782</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:52.087</td><td>4,128</td></tr>
+<tr><td>963</td><td>1.041</td><td>141</td><td>31</td><td>JOAO SALES DE ALBUQUERQUE</td><td>979.146</td><td>2024-06-12 10:44:11.254</td><td>2024-06-12 10:44:19.149</td><td>2024-06-12 10:45:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413258</td><td>**** ***** ** ***********</td><td>6ca3eef4-0426-44df-b13d-d462043b0b73</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>963</td><td>29709920782</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:52.087</td><td>4,128</td></tr>
+<tr class="odd"><td>963</td><td>1.359</td><td>172</td><td>36</td><td>JOAO SALES DE ALBUQUERQUE</td><td>979.146</td><td>2024-06-12 10:44:11.254</td><td>2024-06-12 10:44:19.149</td><td>2024-06-12 10:45:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413258</td><td>**** ***** ** ***********</td><td>6ca3eef4-0426-44df-b13d-d462043b0b73</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>963</td><td>29709920782</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:52.087</td><td>4,128</td></tr>
+<tr><td>963</td><td>1.110</td><td>141</td><td>31</td><td>JOAO SALES DE ALBUQUERQUE</td><td>979.146</td><td>2024-06-12 10:44:11.254</td><td>2024-06-12 10:44:19.149</td><td>2024-06-12 10:45:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463413258</td><td>**** ***** ** ***********</td><td>6ca3eef4-0426-44df-b13d-d462043b0b73</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>963</td><td>29709920782</td><td>&nbsp;</td><td>2024-06-21 13:53:41.847</td><td>2024-06-25 20:24:52.087</td><td>4,128</td></tr>
+<tr class="odd"><td>976</td><td>463</td><td>55</td><td>10</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>979.182</td><td>2024-06-12 10:33:29.615</td><td>2024-06-12 10:33:42.391</td><td>2024-06-12 10:34:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>44742e99-a477-478a-8df9-d792cafaca0e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>976</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:42.075</td><td>2024-06-25 20:24:54.001</td><td>4,128</td></tr>
+<tr><td>976</td><td>1.032</td><td>139</td><td>31</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>979.182</td><td>2024-06-12 10:33:29.615</td><td>2024-06-12 10:33:42.391</td><td>2024-06-12 10:34:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>44742e99-a477-478a-8df9-d792cafaca0e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>976</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:42.075</td><td>2024-06-25 20:24:54.001</td><td>4,128</td></tr>
+<tr class="odd"><td>976</td><td>976</td><td>107</td><td>30</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>979.182</td><td>2024-06-12 10:33:29.615</td><td>2024-06-12 10:33:42.391</td><td>2024-06-12 10:34:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>44742e99-a477-478a-8df9-d792cafaca0e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>976</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:42.075</td><td>2024-06-25 20:24:54.001</td><td>4,128</td></tr>
+<tr><td>976</td><td>956</td><td>107</td><td>30</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>979.182</td><td>2024-06-12 10:33:29.615</td><td>2024-06-12 10:33:42.391</td><td>2024-06-12 10:34:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>44742e99-a477-478a-8df9-d792cafaca0e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>976</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:42.075</td><td>2024-06-25 20:24:54.001</td><td>4,128</td></tr>
+<tr class="odd"><td>976</td><td>955</td><td>107</td><td>30</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>979.182</td><td>2024-06-12 10:33:29.615</td><td>2024-06-12 10:33:42.391</td><td>2024-06-12 10:34:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>44742e99-a477-478a-8df9-d792cafaca0e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>976</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:42.075</td><td>2024-06-25 20:24:54.001</td><td>4,128</td></tr>
+<tr><td>976</td><td>826</td><td>99</td><td>28</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>979.182</td><td>2024-06-12 10:33:29.615</td><td>2024-06-12 10:33:42.391</td><td>2024-06-12 10:34:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>44742e99-a477-478a-8df9-d792cafaca0e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>976</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:42.075</td><td>2024-06-25 20:24:54.001</td><td>4,128</td></tr>
+<tr class="odd"><td>976</td><td>793</td><td>99</td><td>28</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>979.182</td><td>2024-06-12 10:33:29.615</td><td>2024-06-12 10:33:42.391</td><td>2024-06-12 10:34:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>44742e99-a477-478a-8df9-d792cafaca0e</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>976</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:42.075</td><td>2024-06-25 20:24:54.001</td><td>4,128</td></tr>
+<tr><td>981</td><td>981</td><td>131</td><td>30</td><td>SILVIA REIS MACIQUEIRA</td><td>979.199</td><td>2024-06-12 10:27:44.439</td><td>2024-06-12 10:27:50.854</td><td>2024-06-12 10:28:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463415449</td><td>****** **** **********</td><td>2235942f-b90c-46d2-9956-308063116cbf</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>981</td><td>07490817757</td><td>&nbsp;</td><td>2024-06-21 13:53:42.075</td><td>2024-06-25 20:24:57.417</td><td>4,128</td></tr>
+<tr class="odd"><td>977</td><td>977</td><td>127</td><td>30</td><td>ROSEMAR FURTADO GONZALEZ</td><td>979.229</td><td>2024-06-12 10:17:17.054</td><td>2024-06-12 10:17:23.424</td><td>2024-06-12 10:18:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463573350</td><td>******* ******* ********</td><td>c5bdf4fc-c37d-438f-a340-9853a94f0a87</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>977</td><td>90885783700</td><td>&nbsp;</td><td>2024-06-21 13:53:42.316</td><td>2024-06-25 20:24:59.014</td><td>4,128</td></tr>
+<tr><td>973</td><td>973</td><td>124</td><td>30</td><td>JOSE ALIRIO PEREIRA DELFINO</td><td>979.243</td><td>2024-06-12 10:11:51.164</td><td>2024-06-12 10:11:57.229</td><td>2024-06-12 10:12:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463572898</td><td>**** ****** ******* *******</td><td>1254ddef-e827-4ba4-8f3a-abb6adb21a82</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>973</td><td>67293352700</td><td>&nbsp;</td><td>2024-06-21 13:53:42.316</td><td>2024-06-25 20:24:49.659</td><td>4,128</td></tr>
+<tr class="odd"><td>978</td><td>1.269</td><td>170</td><td>36</td><td>FEORAVANTE RODRIGUES SILVA</td><td>979.280</td><td>2024-06-12 10:02:40.096</td><td>2024-06-12 10:02:45.554</td><td>2024-06-12 10:03:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463565416</td><td>********** ********* *****</td><td>ff4810f3-8019-4b3d-bf27-aa0fad13cff1</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>978</td><td>07077394700</td><td>&nbsp;</td><td>2024-06-21 13:53:42.557</td><td>2024-06-25 20:24:58.493</td><td>4,128</td></tr>
+<tr><td>978</td><td>978</td><td>128</td><td>30</td><td>FEORAVANTE RODRIGUES SILVA</td><td>979.280</td><td>2024-06-12 10:02:40.096</td><td>2024-06-12 10:02:45.554</td><td>2024-06-12 10:03:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463565416</td><td>********** ********* *****</td><td>ff4810f3-8019-4b3d-bf27-aa0fad13cff1</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>978</td><td>07077394700</td><td>&nbsp;</td><td>2024-06-21 13:53:42.557</td><td>2024-06-25 20:24:58.493</td><td>4,128</td></tr>
+<tr class="odd"><td>971</td><td>971</td><td>122</td><td>30</td><td>YURI DELLATORE MACIQUEIRA</td><td>979.307</td><td>2024-06-12 09:55:39.748</td><td>2024-06-12 09:55:47.449</td><td>2024-06-12 09:56:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463575620</td><td>**** ********* **********</td><td>6509fce3-aa2d-4acc-bec0-fcf09f8121cd</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>971</td><td>16494896766</td><td>&nbsp;</td><td>2024-06-21 13:53:42.557</td><td>2024-06-25 20:25:00.005</td><td>4,128</td></tr>
+<tr><td>956</td><td>955</td><td>107</td><td>30</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>980.692</td><td>2024-06-11 19:04:46.648</td><td>2024-06-11 19:05:08.251</td><td>2024-06-11 19:06:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>c487e5e2-dfad-4c07-b691-577f7ba17c59</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>956</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:49.320</td><td>2024-06-25 20:24:48.065</td><td>4,128</td></tr>
+<tr class="odd"><td>956</td><td>826</td><td>99</td><td>28</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>980.692</td><td>2024-06-11 19:04:46.648</td><td>2024-06-11 19:05:08.251</td><td>2024-06-11 19:06:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>c487e5e2-dfad-4c07-b691-577f7ba17c59</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>956</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:49.320</td><td>2024-06-25 20:24:48.065</td><td>4,128</td></tr>
+<tr><td>956</td><td>793</td><td>99</td><td>28</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>980.692</td><td>2024-06-11 19:04:46.648</td><td>2024-06-11 19:05:08.251</td><td>2024-06-11 19:06:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>c487e5e2-dfad-4c07-b691-577f7ba17c59</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>956</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:49.320</td><td>2024-06-25 20:24:48.065</td><td>4,128</td></tr>
+<tr class="odd"><td>956</td><td>463</td><td>55</td><td>10</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>980.692</td><td>2024-06-11 19:04:46.648</td><td>2024-06-11 19:05:08.251</td><td>2024-06-11 19:06:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>c487e5e2-dfad-4c07-b691-577f7ba17c59</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>956</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:49.320</td><td>2024-06-25 20:24:48.065</td><td>4,128</td></tr>
+<tr><td>956</td><td>1.032</td><td>139</td><td>31</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>980.692</td><td>2024-06-11 19:04:46.648</td><td>2024-06-11 19:05:08.251</td><td>2024-06-11 19:06:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>c487e5e2-dfad-4c07-b691-577f7ba17c59</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>956</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:49.320</td><td>2024-06-25 20:24:48.065</td><td>4,128</td></tr>
+<tr class="odd"><td>956</td><td>976</td><td>107</td><td>30</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>980.692</td><td>2024-06-11 19:04:46.648</td><td>2024-06-11 19:05:08.251</td><td>2024-06-11 19:06:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>c487e5e2-dfad-4c07-b691-577f7ba17c59</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>956</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:49.320</td><td>2024-06-25 20:24:48.065</td><td>4,128</td></tr>
+<tr><td>956</td><td>956</td><td>107</td><td>30</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>980.692</td><td>2024-06-11 19:04:46.648</td><td>2024-06-11 19:05:08.251</td><td>2024-06-11 19:06:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>c487e5e2-dfad-4c07-b691-577f7ba17c59</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>956</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:53:49.320</td><td>2024-06-25 20:24:48.065</td><td>4,128</td></tr>
+<tr class="odd"><td>955</td><td>826</td><td>99</td><td>28</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>997.334</td><td>2024-06-07 19:13:46.648</td><td>2024-06-07 19:13:56.346</td><td>2024-06-07 19:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>d4dc427a-2047-4ee9-87e4-181ba5537270</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>955</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:55:20.200</td><td>2024-06-25 20:24:20.722</td><td>4,128</td></tr>
+<tr><td>955</td><td>956</td><td>107</td><td>30</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>997.334</td><td>2024-06-07 19:13:46.648</td><td>2024-06-07 19:13:56.346</td><td>2024-06-07 19:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>d4dc427a-2047-4ee9-87e4-181ba5537270</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>955</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:55:20.200</td><td>2024-06-25 20:24:20.722</td><td>4,128</td></tr>
+<tr class="odd"><td>955</td><td>955</td><td>107</td><td>30</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>997.334</td><td>2024-06-07 19:13:46.648</td><td>2024-06-07 19:13:56.346</td><td>2024-06-07 19:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>d4dc427a-2047-4ee9-87e4-181ba5537270</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>955</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:55:20.200</td><td>2024-06-25 20:24:20.722</td><td>4,128</td></tr>
+<tr><td>955</td><td>976</td><td>107</td><td>30</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>997.334</td><td>2024-06-07 19:13:46.648</td><td>2024-06-07 19:13:56.346</td><td>2024-06-07 19:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>d4dc427a-2047-4ee9-87e4-181ba5537270</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>955</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:55:20.200</td><td>2024-06-25 20:24:20.722</td><td>4,128</td></tr>
+<tr class="odd"><td>955</td><td>793</td><td>99</td><td>28</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>997.334</td><td>2024-06-07 19:13:46.648</td><td>2024-06-07 19:13:56.346</td><td>2024-06-07 19:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>d4dc427a-2047-4ee9-87e4-181ba5537270</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>955</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:55:20.200</td><td>2024-06-25 20:24:20.722</td><td>4,128</td></tr>
+<tr><td>955</td><td>463</td><td>55</td><td>10</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>997.334</td><td>2024-06-07 19:13:46.648</td><td>2024-06-07 19:13:56.346</td><td>2024-06-07 19:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>d4dc427a-2047-4ee9-87e4-181ba5537270</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>955</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:55:20.200</td><td>2024-06-25 20:24:20.722</td><td>4,128</td></tr>
+<tr class="odd"><td>955</td><td>1.032</td><td>139</td><td>31</td><td>MARIA DA GUIA BARROS DA COSTA</td><td>997.334</td><td>2024-06-07 19:13:46.648</td><td>2024-06-07 19:13:56.346</td><td>2024-06-07 19:14:00.000</td><td>Van</td><td>9</td><td>STPC</td><td>463416372</td><td>***** ** **** ****** ** *****</td><td>d4dc427a-2047-4ee9-87e4-181ba5537270</td><td>Cartão</td><td>Integral</td><td>&nbsp;</td><td>4,3</td><td>955</td><td>03818429405</td><td>&nbsp;</td><td>2024-06-21 13:55:20.200</td><td>2024-06-25 20:24:20.722</td><td>4,128</td></tr>
+</tbody></table>
+<div\>
+-- SQLBook: Markup
+No Bigquery
+-- SQLBook: Code
+-- Active: 1719265207126@@127.0.0.1@3306
+SELECT
+    CAST(t.data AS STRING) AS data,
+    CAST(t.datetime_transacao AS STRING) AS datetime_transacao,
+    CAST(t.datetime_processamento AS STRING) AS datetime_processamento,
+    t.valor_pagamento,
+    t.valor_transacao,
+    t.id_operadora
+FROM
+    br_rj_riodejaneiro_bilhetagem.transacao t
+WHERE
+    t.id_operadora IN ('463422751','463554555','463516487','463553589','463423161','463565416','463413106','463413258','463423222','463572898','463494930','463553996','463453401','463423091','463453085','463416372','463453182','463556092','463452921','463513752','463573350','463554591','463423170','463415449','463575620')
+    AND DATE(t.datetime_processamento) BETWEEN '2024-06-06' AND '2024-06-12'
+ORDER BY
+    t.datetime_processamento DESC
+-- SQLBook: Markup
+Conclusão até aqui:
+- TransacaoView do TransacaoAgrupado 30
+  - tem 33 itens
+  - ArquivosPublicacao da semana 14 e 21 associados ao CNAB 14
+    > Pode ser data errada, vamos ignorar por ora
+- TransacaoView da semana 14/06/2024 para os usuários do CNAB tem:
+  - 8 TransacaoAgrupados (10,28,30,31,33,34,35,36)
+  - 93 itens no total
+
+A partir daqui podemos verificar o seguinte:
+- Algum TransacaoView, dos 93, não possui status = pago e possui o mesmo valor a ser pago para cada usuário faltante?
+  > Não. Todos foram pagos.
+
+O que podemos fazer então?
+- Verificar no frontend local quais TransacaoViews foram chamdas e possuem status = a pagar, para cada vanzeiro do CNAB, e mapear os IDs
+- Se existe TransacaoView associado com ArquivoPublicacao (ItemTrasnacao, DetalheA), alinhar se é melhor definir o status manualmente ou recriar os DetalhesA e outros itens para ler o retorno.
+-- SQLBook: Markup
+#### Verificar no frontend local os TransacaoViews dos usuários daquela CNAB
+
+[2024_06_27_retorno_header_sem_erro.ipynb - Verificar no front local os TransacaoViews dos usuários](2024_06_27_retorno_header_sem_erro.ipynb)
+-- SQLBook: Markup
+Podemos, ao invés de ver no front, ver no Banco todos os usuários que queremos corrigir:
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+
+SELECT ap.id AS "apId"
+    ,i.id AS "iId"
+    ,ap.id AS "apId", ap."isPago"
+    ,ia.id AS "iaId"
+    ,ta.id AS "taId"
+    ,c.nome
+    ,tv.*
+FROM transacao_view tv
+LEFT JOIN item_transacao i ON i."idConsorcio" = tv."idConsorcio" AND i."idOperadora" = tv."idOperadora"
+LEFT JOIN cliente_favorecido c ON c.id = i."clienteFavorecidoId"
+LEFT JOIN item_transacao_agrupado ia ON i."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN arquivo_publicacao ap ON tv."arquivoPublicacaoId" = ap.id
+LEFT JOIN transacao_agrupado ta ON ia."transacaoAgrupadoId" = ta.id
+WHERE DATE(tv."datetimeProcessamento") BETWEEN '2024-06-06' AND '2024-06-12'
+    AND tv."idOperadora" IN ('463422751','463554555','463516487','463553589','463423161','463565416','463413106','463413258','463423222','463572898','463494930','463553996','463453401','463423091','463453085','463416372','463453182','463556092','463452921','463513752','463573350','463554591','463423170','463415449','463575620')
+ORDER BY ta.id ASC, tv."datetimeProcessamento" DESC
+-- SQLBook: Markup
+Está demorando horas sem avanço, é preciso mudarde estratégia:
+
+- Verificar usuário por usuário, manualmente, qual DetalheA vamos associar
+- Com cada DetalheA, iremos atualizar manualmente no banco de dados fia hotfix SQL
+
+1. Verificar se os usuários com NumeroDocumentoEmpresa estão com status = pago. Caso sim, ignorá-los.
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+SELECT ta.id AS "trAg", a."numeroDocumentoEmpresa" AS "numDocEmp", ia.id AS "itemTrAg", p."isPago", a.*
+FROM detalhe_a a
+LEFT JOIN item_transacao_agrupado ia ON a."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN item_transacao i ON i."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN arquivo_publicacao p ON p."itemTransacaoId" = i.id
+LEFT JOIN transacao_agrupado ta ON ia."transacaoAgrupadoId" = ta.id
+-- LEFT JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = 
+WHERE CAST(a."numeroDocumentoEmpresa" AS INTEGER) IN (56,58,59,60,61,62,63,64,65,67,68,69,70,71,72,73)
+ORDER BY "numeroDocumentoEmpresa" ASC
+-- SQLBook: Markup
+Essas transações DetalheA estão OK
+<div style="overflow: scroll; white-space: nowrap; font-size: 14px;">
+<table><tbody><tr><th>trAg</th><th>numDocEmp</th><th>itemTrAg</th><th>isPago</th><th>id</th><th>dataVencimento</th><th>tipoMoeda</th><th>indicadorBloqueio</th><th>indicadorFormaParcelamento</th><th>periodoVencimento</th><th>dataEfetivacao</th><th>nsr</th><th>headerLoteId</th><th>clienteFavorecidoId</th><th>valorLancamento</th><th>valorRealEfetivado</th><th>quantidadeMoeda</th><th>finalidadeDOC</th><th>numeroDocumentoEmpresa</th><th>createdAt</th><th>loteServico</th><th>quantidadeParcelas</th><th>numeroParcela</th><th>numeroDocumentoBanco</th><th>itemTransacaoAgrupadoId</th><th>updatedAt</th><th>ocorrenciasCnab</th></tr><tr class="odd"><td>30</td><td>56</td><td>114</td><td>true</td><td>109</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>13</td><td>29</td><td>14</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>56</td><td>2024-06-21 14:07:18.627</td><td>1</td><td>1</td><td>1</td><td>37</td><td>114</td><td>2024-06-21 16:00:08.326</td><td>00</td></tr>
+<tr><td>30</td><td>58</td><td>115</td><td>true</td><td>110</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>15</td><td>29</td><td>703</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>58</td><td>2024-06-21 14:07:24.893</td><td>1</td><td>1</td><td>1</td><td>38</td><td>115</td><td>2024-06-21 16:00:09.353</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>59</td><td>116</td><td>true</td><td>111</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>17</td><td>29</td><td>42</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>59</td><td>2024-06-21 14:07:31.307</td><td>1</td><td>1</td><td>1</td><td>39</td><td>116</td><td>2024-06-21 16:00:10.358</td><td>00</td></tr>
+<tr><td>30</td><td>60</td><td>117</td><td>true</td><td>112</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>19</td><td>29</td><td>57</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>60</td><td>2024-06-21 14:07:37.623</td><td>1</td><td>1</td><td>1</td><td>40</td><td>117</td><td>2024-06-21 16:00:11.213</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>61</td><td>118</td><td>true</td><td>113</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>21</td><td>29</td><td>10</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>61</td><td>2024-06-21 14:07:43.887</td><td>1</td><td>1</td><td>1</td><td>41</td><td>118</td><td>2024-06-21 16:00:12.000</td><td>00</td></tr>
+<tr><td>30</td><td>62</td><td>119</td><td>true</td><td>114</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>23</td><td>29</td><td>30</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>62</td><td>2024-06-21 14:07:50.091</td><td>1</td><td>1</td><td>1</td><td>42</td><td>119</td><td>2024-06-21 16:00:12.856</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>63</td><td>120</td><td>true</td><td>115</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>25</td><td>29</td><td>67</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>63</td><td>2024-06-21 14:07:56.349</td><td>1</td><td>1</td><td>1</td><td>43</td><td>120</td><td>2024-06-21 16:00:13.673</td><td>00</td></tr>
+<tr><td>30</td><td>64</td><td>121</td><td>true</td><td>116</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>27</td><td>29</td><td>619</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>64</td><td>2024-06-21 14:08:02.557</td><td>1</td><td>1</td><td>1</td><td>44</td><td>121</td><td>2024-06-21 16:00:14.395</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>65</td><td>122</td><td>true</td><td>117</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>29</td><td>29</td><td>682</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>65</td><td>2024-06-21 14:08:08.639</td><td>1</td><td>1</td><td>1</td><td>45</td><td>122</td><td>2024-06-21 16:00:15.272</td><td>00</td></tr>
+<tr><td>30</td><td>67</td><td>123</td><td>true</td><td>118</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>31</td><td>29</td><td>34</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>67</td><td>2024-06-21 14:08:15.311</td><td>1</td><td>1</td><td>1</td><td>46</td><td>123</td><td>2024-06-21 16:00:16.093</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>68</td><td>107</td><td>true</td><td>122</td><td>2024-06-14 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-14 00:00:00.000</td><td>&nbsp;</td><td>39</td><td>29</td><td>33</td><td>12,38</td><td>0</td><td>0</td><td>00</td><td>68</td><td>2024-06-21 14:08:39.769</td><td>0</td><td>1</td><td>0</td><td>0</td><td>107</td><td>2024-06-21 14:08:39.769</td><td></td></tr>
+<tr><td>30</td><td>68</td><td>107</td><td>true</td><td>122</td><td>2024-06-14 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-14 00:00:00.000</td><td>&nbsp;</td><td>39</td><td>29</td><td>33</td><td>12,38</td><td>0</td><td>0</td><td>00</td><td>68</td><td>2024-06-21 14:08:39.769</td><td>0</td><td>1</td><td>0</td><td>0</td><td>107</td><td>2024-06-21 14:08:39.769</td><td></td></tr>
+<tr class="odd"><td>30</td><td>68</td><td>107</td><td>true</td><td>122</td><td>2024-06-14 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-14 00:00:00.000</td><td>&nbsp;</td><td>39</td><td>29</td><td>33</td><td>12,38</td><td>0</td><td>0</td><td>00</td><td>68</td><td>2024-06-21 14:08:39.769</td><td>0</td><td>1</td><td>0</td><td>0</td><td>107</td><td>2024-06-21 14:08:39.769</td><td></td></tr>
+<tr><td>30</td><td>69</td><td>124</td><td>true</td><td>119</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>33</td><td>29</td><td>52</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>69</td><td>2024-06-21 14:08:21.635</td><td>1</td><td>1</td><td>1</td><td>47</td><td>124</td><td>2024-06-21 16:00:16.821</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>69</td><td>127</td><td>true</td><td>123</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-21 00:00:00.000</td><td>&nbsp;</td><td>41</td><td>29</td><td>32.182</td><td>4,13</td><td>0</td><td>0</td><td>00</td><td>69</td><td>2024-06-21 14:08:45.917</td><td>0</td><td>1</td><td>0</td><td>0</td><td>127</td><td>2024-06-21 14:08:45.917</td><td></td></tr>
+<tr><td>30</td><td>70</td><td>128</td><td>true</td><td>124</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-21 00:00:00.000</td><td>&nbsp;</td><td>43</td><td>29</td><td>46.733</td><td>8,26</td><td>0</td><td>0</td><td>00</td><td>70</td><td>2024-06-21 14:08:51.942</td><td>0</td><td>1</td><td>0</td><td>0</td><td>128</td><td>2024-06-21 14:08:51.942</td><td></td></tr>
+<tr class="odd"><td>30</td><td>70</td><td>125</td><td>true</td><td>120</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>35</td><td>29</td><td>46.733</td><td>8,26</td><td>0</td><td>0</td><td>00</td><td>70</td><td>2024-06-21 14:08:27.627</td><td>1</td><td>1</td><td>1</td><td>48</td><td>125</td><td>2024-06-21 16:00:17.565</td><td>00</td></tr>
+<tr><td>30</td><td>71</td><td>126</td><td>true</td><td>121</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>0</td><td>2024-06-21 00:00:00.000</td><td>2024-06-21 16:00:02.954</td><td>37</td><td>29</td><td>379</td><td>8,26</td><td>0</td><td>0</td><td>00</td><td>71</td><td>2024-06-21 14:08:33.685</td><td>1</td><td>1</td><td>1</td><td>49</td><td>126</td><td>2024-06-21 16:00:18.342</td><td>00</td></tr>
+<tr class="odd"><td>30</td><td>71</td><td>129</td><td>true</td><td>125</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-21 00:00:00.000</td><td>&nbsp;</td><td>45</td><td>29</td><td>379</td><td>8,26</td><td>0</td><td>0</td><td>00</td><td>71</td><td>2024-06-21 14:08:58.320</td><td>0</td><td>1</td><td>0</td><td>0</td><td>129</td><td>2024-06-21 14:08:58.320</td><td></td></tr>
+<tr><td>30</td><td>72</td><td>130</td><td>true</td><td>126</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-21 00:00:00.000</td><td>&nbsp;</td><td>47</td><td>29</td><td>201</td><td>8,26</td><td>0</td><td>0</td><td>00</td><td>72</td><td>2024-06-21 14:09:04.390</td><td>0</td><td>1</td><td>0</td><td>0</td><td>130</td><td>2024-06-21 14:09:04.390</td><td></td></tr>
+<tr class="odd"><td>30</td><td>73</td><td>131</td><td>true</td><td>127</td><td>2024-06-21 00:00:00.000</td><td>BRL</td><td>N</td><td>1</td><td>2024-06-21 00:00:00.000</td><td>&nbsp;</td><td>49</td><td>29</td><td>32.179</td><td>16,51</td><td>0</td><td>0</td><td>00</td><td>73</td><td>2024-06-21 14:09:10.619</td><td>0</td><td>1</td><td>0</td><td>0</td><td>131</td><td>2024-06-21 14:09:10.619</td><td></td></tr>
+</tbody></table>
+<div\>
+-- SQLBook: Markup
+2. Mapear para cada DetalheA do Cnab (NumeroSequencialEmpresa) com as transacoes encontradas no front (api back)
+
+```js
+NumDocEmp_inexistentes = [
+    49: 'LUCIANE PEREIRA LIMA LOUREIRO',    // 463453401
+    50: 'AGUINALDO PAIVA RIBEIRO',          // 463422751
+    51: 'MARCIA DUARTE SEIXAS',             // 463453085
+    52: 'JOCIMAR GOMES DUARTE',             // 463423222
+    53: 'INES FERNANDES',                   // 463413106
+    54: 'CARLOS DOS SANTOS SOARES',         // 463516487
+    55: 'JOAO SALES DE ALBUQUERQUE',        // 463413258
+    57: 'JOSE DIAS XIMENES',                // 463494930
+    54: 'CARLOS DOS SANTOS SOARES',         // 463516487
+    66: 'ELIANE VIEIRA DA SILVA'            // 463423161
+    ]
+```
+
+E como faremos esse mapeamento?
+- Para cada NumeroSequencialEmpresa, obter cada usuário, valor
+- Como vimos no fornt (via API python), fizemos uma query no banco que também mostra as semanas 14 e 21 associadas com o mesmo Cnab. Vamos filtrar pelos usuários que queremos corrigir:
+
+-- SQLBook: Code
+select DISTINCT(c.nome), i."idOperadora"
+FROM cliente_favorecido c
+INNER JOIN item_transacao i ON i."clienteFavorecidoId" = c.id
+INNER JOIN "user" u ON u."cpfCnpj" = c."cpfCnpj"
+WHERE c.nome ILIKE '%JOSE DIAS XIMENES%'
+    OR c.nome ILIKE '%LUCIANE PEREIRA LIMA LOUREIRO%'
+    OR c.nome ILIKE '%AGUINALDO PAIVA RIBEIRO%'
+    OR c.nome ILIKE '%MARCIA DUARTE SEIXAS%'
+    OR c.nome ILIKE '%JOCIMAR GOMES DUARTE%'
+    OR c.nome ILIKE '%INES FERNANDES%'
+    OR c.nome ILIKE '%CARLOS DOS SANTOS SOARES%'
+    OR c.nome ILIKE '%JOAO SALES DE ALBUQUERQUE%'
+    OR c.nome ILIKE '%ELIANE VIEIRA DA SILVA%'
+-- SQLBook: Markup
+##### José dias
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+SELECT ap.id AS "apId"
+    ,i.id AS "iId"
+    ,ap.id AS "apId", ap."isPago"
+    ,ia.id AS "iaId"
+    ,ta.id AS "taId"
+    ,a.id AS "aId"
+    ,c.nome
+    ,o.id AS "oID", o.code AS "ocorr", o.message AS "ocorrMsg", CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+    ,tv.*
+FROM transacao_view tv
+LEFT JOIN item_transacao i ON i."idConsorcio" = tv."idConsorcio" AND i."idOperadora" = tv."idOperadora"
+LEFT JOIN cliente_favorecido c ON c.id = i."clienteFavorecidoId"
+LEFT JOIN item_transacao_agrupado ia ON i."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN arquivo_publicacao ap ON tv."arquivoPublicacaoId" = ap.id
+LEFT JOIN transacao_agrupado ta ON ia."transacaoAgrupadoId" = ta.id
+LEFT JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+WHERE DATE(tv."datetimeProcessamento") BETWEEN '2024-06-13' AND '2024-06-19'
+    AND tv."idOperadora" IN ('463453401','463422751','463453085','463423222','463413106','463516487','463413258','463494930','463516487','463423161')
+    AND c.nome ILIKE '%JOSE%'
+ORDER BY tv."datetimeProcessamento" DESC, ta.id ASC
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_test@public
+INSERT INTO ocorrencia (code, message, "detalheAId") VALUES ('AL', 'Código do banco favorecido ou depositário inválido', 132);
+-- SQLBook: Markup
+##### DetalhesA a verificar
+
+CNAB 11:31
+
+- [ ] LUCIANE PEREIRA LIMA LOUREIRO
+- [ ] AGUINALDO PAIVA RIBEIRO
+- [ ] MARCIA DUARTE SEIXAS
+- [ ] JOCIMAR GOMES DUARTE
+- [ ] INES FERNANDES
+- [ ] CARLOS DOS SANTOS SOARES
+- [ ] MARIO FELIX SEIXAS
+- [ ] JOSE MARTINS CORREIA
+- [ ] DIMAS CASCIMIRO DE ARAUJO JUNI
+- [ ] RENATO MAXIQUEIRA
+- [ ] LUIZ CARLOS FURTADO DE MELO
+- [ ] ANDRE LUIS LOPES
+- [ ] YURI DELLATORE MACIQUEIRA
+- [ ] MARIO LUIS ROMAO NUNES
+- [ ] JOSE ALIRIO PEREIRA DELFINO
+- [ ] RICARDO HENRIQUE DA SILVA FERN
+- [ ] ROSEMAR FURTADO GONZALEZ
+- [ ] FEORAVANTE RODRIGUES SILVA
+- [ ] ROZEMERI VIEIRA DA SILVA
+- [ ] SILVIA REIS MACIQUEIRA
+- [ ] MARIA DA GUIA BARROS DA COSTA - 14/06/2024
+- [ ] JOAO SALES DE ALBUQUERQUE
+- [ ] JOSE DIAS XIMENES
+- [ ] ELIANE VIEIRA DA SILVA (empurrou para 28)
+- [ ] ROSEVAL PEREIRA DE SOUZA
+
+CNAB 12:15
+
+- [x] LUCIANE PEREIRA LIMA LOUREIRO
+- [x] AGUINALDO PAIVA RIBEIRO
+- [x] MARCIA DUARTE SEIXAS
+- [x] JOCIMAR GOMES DUARTE
+- [x] INES FERNANDES
+- [x] CARLOS DOS SANTOS SOARES
+- [x] MARIO FELIX SEIXAS
+- [x] JOSE MARTINS CORREIA
+- [x] DIMAS CASCIMIRO DE ARAUJO JUNI
+- [x] RENATO MAXIQUEIRA
+- [x] LUIZ CARLOS FURTADO DE MELO
+- [x] ANDRE LUIS LOPES
+- [x] YURI DELLATORE MACIQUEIRA
+- [x] MARIO LUIS ROMAO NUNES
+- [x] JOSE ALIRIO PEREIRA DELFINO
+- [x] RICARDO HENRIQUE DA SILVA FERN
+- [x] ROSEMAR FURTADO GONZALEZ
+- [x] FEORAVANTE RODRIGUES SILVA
+- [x] ROZEMERI VIEIRA DA SILVA
+- [x] SILVIA REIS MACIQUEIRA
+- [x] MARIA DA GUIA BARROS DA COSTA - 14/06/2024
+- [x] JOAO SALES DE ALBUQUERQUE
+- [x] JOSE DIAS XIMENES
+- [x] ELIANE VIEIRA DA SILVA (empurrou para 28)
+- [x] ROSEVAL PEREIRA DE SOUZA
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_test@public
+SELECT ap.id AS "apId"
+    ,i.id AS "iId", i.valor
+    ,ap.id AS "apId", ap."isPago", DATE(ap."dataVencimento") AS "apVenc", ap."dataEfetivacao"
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    ,ta.id AS "taId"
+    ,ha.nsa
+    ,a.id AS "aId", a."numeroDocumentoEmpresa" AS "aNumDoc"
+    ,u.id AS "uId"
+    ,c.nome
+    ,o.id AS "oID", o.code AS "ocorr", o.message AS "ocorrMsg", CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+    ,tv.id AS "tvId", tv."valorPago", tv."datetimeProcessamento"
+FROM transacao_view tv
+LEFT JOIN item_transacao i ON i."idConsorcio" = tv."idConsorcio" AND i."idOperadora" = tv."idOperadora"
+LEFT JOIN cliente_favorecido c ON c.id = i."clienteFavorecidoId"
+LEFT JOIN "user" u ON u."cpfCnpj" = c."cpfCnpj"
+LEFT JOIN item_transacao_agrupado ia ON i."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN arquivo_publicacao ap ON tv."arquivoPublicacaoId" = ap.id
+LEFT JOIN transacao_agrupado ta ON ia."transacaoAgrupadoId" = ta.id
+LEFT JOIN header_arquivo ha ON ha."transacaoAgrupadoId" = ta.id
+LEFT JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+WHERE 1=1--DATE(tv."datetimeProcessamento") BETWEEN '2024-06-13' AND '2024-07-19'
+    -- AND tv."idOperadora" IN ('463453401','463422751','463453085','463423222','463413106','463516487','463413258','463494930','463516487','463423161')
+    AND c.nome ILIKE '%joao sales%'
+    AND a."numeroDocumentoEmpresa" = 82
+ORDER BY
+    tv."datetimeProcessamento" DESC
+    ,ta.id DESC, a.id DESC, tv.id DESC
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_test@public
+-- rosemar
+INSERT INTO ocorrencia (code, message, "detalheAId") VALUES ('BD', 'Inclusão efetuada com sucesso', 123);
+-- feoravante
+INSERT INTO ocorrencia (code, message, "detalheAId") VALUES ('BD', 'Inclusão efetuada com sucesso', 124);
+INSERT INTO ocorrencia (code, message, "detalheAId") VALUES ('BD', 'Inclusão efetuada com sucesso', 160);
+-- maria da guia
+INSERT INTO ocorrencia (code, message, "detalheAId") VALUES ('EA', 'Erro interno da AcessStage', 122);
+UPDATE arquivo_publicacao SET "isPago" = false WHERE id IN (976,956,955)
+
+-- joao sales
+INSERT INTO ocorrencia (code, message, "detalheAId") VALUES ('AL', 'Código do banco favorecido ou depositário inválido', 136);
+-- jose dias
+INSERT INTO ocorrencia (code, message, "detalheAId") VALUES ('AL', 'Código do banco favorecido ou depositário inválido', 132);
+-- eliane
+INSERT INTO ocorrencia (code, message, "detalheAId") VALUES ('AL', 'Código do banco favorecido ou depositário inválido', 167);
+-- roseval
+INSERT INTO ocorrencia (code, message, "detalheAId") VALUES ('AL', 'Código do banco favorecido ou depositário inválido', 126);
+
+delete from ocorrencia WHERE id = 110
+
+-- SQLBook: Markup
+##### Pagamento da Eliane (ArqPub)
+
+*usando ArqPub para saber qual detalheA botar ocorrência*
+
+Pagamentos:
+- 01/07; 4,13; pago
+- 28/06 (pagou errado porque botou data 21); 4,13; Pendente
+
+Tem 1 detalheA apontando para 2 transações
+
+Usando 
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_test@public
+SELECT
+    c.nome
+    -- ,ta.id AS "taId", ta."createdAt" AS "taCreated"
+    ,a.id AS "aId", a."numeroDocumentoEmpresa" AS "numDoc", a."valorLancamento" AS "aValorLanc", a."dataVencimento"
+    -- ,ha.nsa, ha."dataGeracao"
+    ,DATE(ap."dataVencimento") AS "apVenc", ap.id AS "apId", ap."isPago", ap."dataEfetivacao", ap."createdAt"
+    ,o.id AS "oId", o.code, o.message
+    -- ,i.*
+FROM arquivo_publicacao ap
+INNER JOIN item_transacao i ON ap."itemTransacaoId" = i.id
+INNER JOIN cliente_favorecido c ON i."clienteFavorecidoId" = c.id
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
+INNER JOIN item_transacao_agrupado ia ON ia.id = a."itemTransacaoAgrupadoId"
+INNER JOIN transacao_agrupado ta ON ta.id = ia."transacaoAgrupadoId"
+INNER JOIN header_arquivo ha ON ha."transacaoAgrupadoId" = ta.id
+LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+WHERE c.nome ILIKE '%maria da guia%'
+ORDER BY ap."dataEfetivacao" ASC
+-- 2024-06-21T19:30:02.806+00:00
+-- SQLBook: Markup
+#### Verificar retornos de outras semanas
+
+Maria da Guia 14/06:
+- Possui erro `EA` - o que representa?
+- Retorno: [smtr_prefeiturarj_21062024_121513.ret](smtr_prefeiturarj_21062024_121513.ret)
+
+Semana 21/06
+- Erro AH; 4,13
+- Publicacao 1032
+- Retorno: [smtr_prefeiturarj_21062024_113132.ret](smtr_prefeiturarj_21062024_113132.ret)
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_test@public
+SELECT *
+FROM transacao_agrupado ta
+WHERE DATE(ta."dataOrdem") = '2024-06-14'
+-- SQLBook: Markup
+Erros:
+
+| Vanzeiro              | Valor  | DataPagamento       | Erro                            |
+| --------------------- | ------ | ------------------- | :------------------------------ |
+| Eliane                | 4,13   | 28/06           | Data=21/06 ao invés de 28/06   |
+| Maria da Guia         | 16,51  | 14/06, 21/06    | Banco errado                   |
+| Rosemar Furtado       | 4,13   | 14/06, 21/06    | Usa Itaú                       |
+| Roseval Pereira       | 8,26   | 14/06, 21/06    | Falou que o banco tá ok        |
+| Joao sales            | 24,77  | 14/06, 21/06, 28/06 | Morreu                          |
+| Jose Dias Ximenes     | 33,02  | 41/06, 21/06, 28/06 | Trocou de banco mas não no CCT |
+| Eduardo Carlos        | 8,26   | 28/06               | Cód banco favorecido inválido |
+| Francisco de Oliveira | 4,13   | 28/06               | Já tem conta                   |
+| Luciano Calixto       | 4,13   | 28/06               | Não fez login                  |
+| Richard da Silva      | 8,26   | 28/06               | Não fez login                  |
+| TOTAL                 | 115,60 |                     |                                 |
+
+joao sales; 24,77:
+
+| Vanzeiro              | Valor  | DataPagamento       | Erro CNAB                       |
+| --------------------- | ------ | ------------------- | :------------------------------ |
+| Joao sales            | 4,13   | 21/06               | Morreu                          |
+| TOTAL                 | 24,77  |                     |                                 |
+
+
+  - joao sales 4,13; erro: AL; numDoc: 55; cnab: smtr_prefeiturarj_21062024_121513.ret
+---
+
+![Referência erros](image.png)
+-- SQLBook: Markup
+Joao sales
+
+Todas as transações precme estar ligadas ao CNAB 21062024_113132 (nsa=12). Porém este cnab apenas paga os 8,26 apenas.
+Provavelmente o sistema de associar TransacaoView com ArquivoPublicacao deu problema.
+Não encontramos um CNAB que comprove que pagamos o Joao para as 3 semanas de pagamento.
+
+- O CNAB que aponta para todas as semanas representa qual arquivoCnab?
+-- SQLBook: Markup
+### Testando leitura do retorno sem dar erro (tentativa 2)
+
+Erros dos vanzeiros
+
+![Referência erros](image.png)
+
+-- SQLBook: Markup
+Comportamento esperado:
+
+- Ao ler o retorno, o TransacaoView deve associar com o retorno mais recente,
+-- SQLBook: Markup
+Problemas:
+
+- Elane, na semana 28/06, possui status = pago, deveria mostrar o erro `AL` (retorno 21062024_121513)
+- Maria da Guia, na semana 14/06, possui status pago, deveria mostrar o erro  `EA` (retorno 21062024_121513)
+- Rosemar Furtado, semana 14/06, possui status pago (ocorrencia `BD`), mas a tabela acima diz que houve erro
+- Roseval, semana 14/06, tem status pago, deveria ter erro `AL` (cód banco 184, chamado na CEF), retorno 21062024_121513
+- Joao sales, semana 14/06, tem status pago, mas teve erro `AL` (cód banco 184, chamado na CEF), retorno 21062024_121513 
+
+Notas
+- Rosemar, semana 21/06, não tem valores a pagar.
+- Roseval, semana 21/06, não tem valores a pagar.
+- Joao sales, semana 28/06, falhou ao ler retorno com erro `AL` (chamado da CEF), retorno 28062024_195122
+
+OK
+- Maria da Guia, na semana 21/06, tem o erro AH
+- Joao sales, semana 21/06, tem erro `AH`, apesar de fazer parte do prolema 'cód banco 184, chamado na CEF', retorno 21062024_113132
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+SELECT
+    c.nome
+    -- ,ta.id AS "taId", ta."createdAt" AS "taCreated"
+    ,a.id AS "aId", a."numeroDocumentoEmpresa" AS "numDoc", a."valorLancamento" AS "aValorLanc", a."dataVencimento"
+    -- ,ha.nsa, ha."dataGeracao"
+    ,DATE(ap."dataVencimento") AS "apVenc", ap.id AS "apId", ap."isPago", ap."dataEfetivacao", ap."createdAt"
+    ,o.id AS "oId", o.code, o.message, CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+    -- ,i.*
+FROM arquivo_publicacao ap
+INNER JOIN item_transacao i ON ap."itemTransacaoId" = i.id
+INNER JOIN cliente_favorecido c ON i."clienteFavorecidoId" = c.id
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
+INNER JOIN item_transacao_agrupado ia ON ia.id = a."itemTransacaoAgrupadoId"
+INNER JOIN transacao_agrupado ta ON ta.id = ia."transacaoAgrupadoId"
+INNER JOIN header_arquivo ha ON ha."transacaoAgrupadoId" = ta.id
+LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+WHERE c.nome ILIKE '%joao sales%'
+ORDER BY ap."dataEfetivacao" ASC
+-- 2024-06-21T19:30:02.806+00:00
+-- SQLBook: Markup
+O que fazer a partir desse problema:
+
+1. Ajustar leitura do retorno (garantir que o retorno tá funcionando)
+   1. Testar 1 retorno por vez
+   2. Alterar dados para status `remessa`
+   3. Se tiver problema de pular a leitura do headerLote do CNAB retorno, fazer com que o código leia e guarde
+   4. Se tiver detalheA e afins faltando, testar gearção de remessa para ver se o problema está lá
+
+-- SQLBook: Markup
+#### 1.1 Testar 1 retorno por vez
+
+##### Retorno 21062024_113132:
+
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+-- Quais itens usam numDoc 64-76 (desse CNAB)?
+SELECT
+    c.nome
+    ,ta.id AS "taId"
+    ,ia.valor AS "iaValor"
+    ,i.id AS "iId", i.valor AS "iValor"
+    ,a.id AS "aId", a."numeroDocumentoEmpresa" AS "numDoc", a."valorLancamento" AS "aValorLanc", a."dataVencimento"
+    ,ha.nsa, ha."dataGeracao"
+    ,DATE(ap."dataVencimento") AS "apVenc", ap.id AS "apId", ap."isPago", ap."dataEfetivacao", ap."createdAt"
+    ,o.id AS "oId", o.code, o.message, CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+FROM arquivo_publicacao ap
+INNER JOIN item_transacao i ON ap."itemTransacaoId" = i.id
+INNER JOIN cliente_favorecido c ON i."clienteFavorecidoId" = c.id
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
+INNER JOIN item_transacao_agrupado ia ON ia.id = a."itemTransacaoAgrupadoId"
+INNER JOIN transacao_agrupado ta ON ta.id = ia."transacaoAgrupadoId"
+INNER JOIN header_arquivo ha ON ha."transacaoAgrupadoId" = ta.id
+LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+WHERE
+    a."numeroDocumentoEmpresa" BETWEEN 74 AND 86
+    -- c.nome ILIKE '%joao sales%'
+ORDER BY a."numeroDocumentoEmpresa" ASC--ta.id DESC, ia.id DESC, i.id DESC, a.id DESC, o.id DESC
+-- 2024-06-21T19:30:02.806+00:00
+
+-- NumeroDocumentoEmpresa único?
+SELECT
+    ta.id AS "taId"
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    ,a.id AS "aId", a."valorLancamento" AS "aValor", a."numeroDocumentoEmpresa"
+FROM transacao_agrupado ta
+INNER JOIN item_transacao_agrupado ia ON ia."transacaoAgrupadoId" = ta.id
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+WHERE ta.id = 31
+ORDER BY a."numeroDocumentoEmpresa" ASC
+
+-- Erro AH em todos os itens?
+SELECT
+    ta.id AS "taId"
+    ,c.nome
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    ,a.id AS "aId", a."valorLancamento" AS "aValor", a."numeroDocumentoEmpresa"
+    , o.id AS "oId", o.code, o.message
+FROM transacao_agrupado ta
+INNER JOIN item_transacao_agrupado ia ON ia."transacaoAgrupadoId" = ta.id
+INNER JOIN item_transacao i ON i."itemTransacaoAgrupadoId" = ia.id
+INNER JOIN cliente_favorecido c ON c.id = i."clienteFavorecidoId"
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+INNER JOIN ocorrencia o ON o."detalheAId" = a.id
+WHERE ta.id = 31
+ORDER BY a."numeroDocumentoEmpresa" ASC
+-- SQLBook: Markup
+
+- ✅ Lido com sucesso
+- ✅ numeroDocEmpresa: único
+- ✅ Erro AH em todos reflete no banco?
+- Esses erros aparecem no front?
+
+Até aqui já há uma inconsistência. Há problema na geração do remessa pois o numero Documento Empresa vem de lá.
+
+Para simplificação (pois nosso foco é testar apenas o retorno) ieremos:
+
+- Verificar se o CNAB
+- Mudar o status para remessa
+- Verificar se o código usa o numeroDocumento para ler os DetalheA
+- Atualizar retorno com sucesso desse CNAB

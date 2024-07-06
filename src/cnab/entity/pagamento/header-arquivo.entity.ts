@@ -84,6 +84,12 @@ export class HeaderArquivo extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: false })
   nsa: number;
 
+  // @Column({ type: String, unique: false, nullable: false, default: '' })
+  // cnabName: string;
+
+  // @Column({ type: String, unique: false, nullable: false, default: '' })
+  // cnabString: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

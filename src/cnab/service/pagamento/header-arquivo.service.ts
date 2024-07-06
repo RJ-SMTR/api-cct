@@ -10,12 +10,13 @@ import { SettingsService } from 'src/settings/settings.service';
 import { getBRTFromUTC } from 'src/utils/date-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { DeepPartial, FindOptionsWhere } from 'typeorm';
+import { Between, DeepPartial, FindOptionsWhere } from 'typeorm';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { HeaderArquivoRepository } from '../../repository/pagamento/header-arquivo.repository';
 import { PagadorService } from './pagador.service';
+import { endOfDay, startOfDay } from 'date-fns';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -98,11 +99,12 @@ export class HeaderArquivoService {
   /**
    * Find HeaderArquivo Remessa ready to save in ArquivoPublicacao
    */
-  public async findRetornos(): Promise<HeaderArquivo[]> {
+  public async findRetornos(dataGeracao?: Date): Promise<HeaderArquivo[]> {
     return this.headerArquivoRepository.findMany({
       where: [
         {
           transacaoAgrupado: { status: { id: TransacaoStatusEnum.retorno } },
+          ...(dataGeracao ? {dataGeracao: Between(startOfDay(dataGeracao), endOfDay(dataGeracao))} : {})
         },
       ],
     });

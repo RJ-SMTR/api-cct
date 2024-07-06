@@ -3,18 +3,20 @@ import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, FindOneOptions, ILike, In } from 'typeorm';
+import { Between, DeepPartial, FindOneOptions, ILike, In } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
 import { ClienteFavorecidoService } from '../cliente-favorecido.service';
-import { startOfDay } from 'date-fns';
+import { endOfDay, startOfDay } from 'date-fns';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { CnabLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface';
+import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 
 @Injectable()
 export class DetalheAService {
@@ -28,16 +30,29 @@ export class DetalheAService {
   ) {}
 
   /**
-   * Assumimos que todos os detalheA do retorno têm dataVencimento na mesma semana.
+   * Usamos HeaderArquivo.dataGeracao como parâmetro
    */
-  async updateDetalheAStatus(lote: CnabLote104Pgto) {
-    const dataVencimento = startOfDay(
-      lote.registros[0].detalheA.dataVencimento.convertedValue,
-    );
+  async updateDetalheAStatus(cnab: CnabFile104Pgto) {
+    const registros = cnab.lotes.reduce((l, i) => [...l, ...i.registros], []);
+    const dataGeracao = cnab.headerArquivo.dataGeracaoArquivo.convertedValue;
     const detalhesA = await this.detalheARepository.findMany({
       where: {
-        dataVencimento: dataVencimento,
-        nsr: In(lote.registros.map((i) => i.detalheA.nsr.convertedValue)),
+        // no mesmo dia do CNAB (numDocEmpresa)
+        headerLote: {
+          headerArquivo: {
+            dataGeracao: Between(
+              startOfDay(dataGeracao),
+              endOfDay(dataGeracao),
+            ),
+          },
+        },
+        // numDocEmpresa único por dia
+        numeroDocumentoEmpresa: In(
+          registros.map(
+            (i) => i.detalheA.numeroDocumentoEmpresa.convertedValue,
+          ),
+        ),
+        // Se não foi lido
         itemTransacaoAgrupado: {
           transacaoAgrupado: {
             status: { id: TransacaoStatusEnum.remessa },
@@ -47,8 +62,9 @@ export class DetalheAService {
     });
 
     // Update Transacao status
+    const transacaoAgIds = DetalheA.getTransacaoAgIds(detalhesA);
     await this.transacaoAgrupadoService.updateMany(
-      DetalheA.getTransacaoAgIds(detalhesA),
+      transacaoAgIds,
       {
         status: { id: TransacaoStatusEnum.retorno },
       },
@@ -67,6 +83,12 @@ export class DetalheAService {
     return this.detalheARepository.saveManyIfNotExists(dtos);
   }
 
+  /**
+   * @param headerArq Obter ocorrências
+   * @param headerLotePgto Obter ocorrências
+   * @param registro Atualizar DetalheA e ocorrêncisa
+   * @param dataEfetivacao Definir data de efeticação
+   */
   public async saveRetornoFrom104(
     headerArq: CnabHeaderArquivo104,
     headerLotePgto: CnabHeaderLote104Pgto,
@@ -80,18 +102,38 @@ export class DetalheAService {
     if (!favorecido) {
       return null;
     }
-    const dataVencimento = startOfDay(
-      registro.detalheA.dataVencimento.convertedValue,
-    );
+    const dataGeracao = startOfDay(headerArq.dataGeracaoArquivo.convertedValue);
     const detalheARem = await this.detalheARepository.getOne({
-      dataVencimento: dataVencimento,
-      nsr: r.detalheA.nsr.convertedValue,
+      // Se é CNAB do mesmo dia (numDocEmpresa)
+      headerLote: {
+        headerArquivo: {
+          dataGeracao: Between(startOfDay(dataGeracao), endOfDay(dataGeracao)),
+        },
+      },
+      // numDocEmpresa único por dia
+      numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
+      // Apenas CNABs que não leram retorno ainda
       itemTransacaoAgrupado: {
         transacaoAgrupado: {
           status: { id: TransacaoStatusEnum.remessa },
         },
       },
     });
+
+    // Ocorrencias do DetalheA
+    const ocorrenciaHeaderArq = headerArq.ocorrenciaCobrancaSemPapel.value.trim();
+    const errorsHeaderArq = Ocorrencia.getErrorCodes(ocorrenciaHeaderArq);
+    const ocorrenciaHeaderLote = headerLotePgto.ocorrencias.value.trim();
+    const errorsHeaderLote = Ocorrencia.getErrorCodes(ocorrenciaHeaderLote);
+    const ocorrenciaDetalheA = r.detalheA.ocorrencias.value.trim();
+    let ocorrenciaDetalheAResult = ocorrenciaDetalheA;
+    if (errorsHeaderArq.length > 0) {
+      ocorrenciaDetalheAResult = ocorrenciaHeaderArq;
+    }
+    else if (errorsHeaderLote.length > 0) {
+      ocorrenciaDetalheAResult = ocorrenciaHeaderLote;
+    }
+
     const detalheA = new DetalheADTO({
       id: detalheARem.id,
       headerLote: { id: detalheARem.headerLote.id },
@@ -115,10 +157,7 @@ export class DetalheAService {
       numeroParcela: r.detalheA.numeroParcela.convertedValue,
       valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
       nsr: Number(r.detalheA.nsr.value),
-      ocorrenciasCnab:
-        headerArq.ocorrenciaCobrancaSemPapel.value.trim() ||
-        headerLotePgto.ocorrencias.value.trim() ||
-        r.detalheA.ocorrencias.value.trim(),
+      ocorrenciasCnab: ocorrenciaDetalheAResult,
     });
     const saved = await this.detalheARepository.save(detalheA);
 

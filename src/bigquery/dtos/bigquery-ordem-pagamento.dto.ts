@@ -170,4 +170,8 @@ export class BigqueryOrdemPagamentoDTO {
     )[0];
     return filtered ? filtered : null;
   }
+
+  isVanzeiro() {
+    return ['STPL', 'STPC'].includes(this.consorcio);
+  }
 }

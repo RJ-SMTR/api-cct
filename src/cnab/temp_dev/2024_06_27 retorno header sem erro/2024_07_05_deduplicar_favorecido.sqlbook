@@ -1,0 +1,11 @@
+-- SQLBook: Markup
+## BACK - Deduplicar Favorecidos
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_test@public
+SELECT f.*
+FROM cliente_favorecido f
+WHERE f."userId" IS NULL
+
+SELECT u.*
+FROM "user" u
+WHERE u."fullName" ILIKE '%BATISTA MARTINS%'

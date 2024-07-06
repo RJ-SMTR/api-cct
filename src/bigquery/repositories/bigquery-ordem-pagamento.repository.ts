@@ -121,9 +121,9 @@ export class BigqueryOrdemPagamentoRepository {
      * Assim evita misturar os resultados e dar problema no pagamento.
      */
     const query =
-      select +
-      `WHERE ${qArgsConsorcio}\n` +
-      'UNION ALL\n' +
+      // select +
+      // `WHERE ${qArgsConsorcio}\n` +
+      // 'UNION ALL\n' +
       select +
       `WHERE ${qArgsOperadora}\n` +
       '\nORDER BY dataOrdem ASC, idConsorcio ASC\n';
@@ -141,7 +141,7 @@ export class BigqueryOrdemPagamentoRepository {
     const endDate = args.endDate.toISOString().slice(0, 10);
     const qWhere =
       `t.data_ordem BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CNPJ' ` +
-      'AND t.valor_total_transacao_liquido > 0 AND c.consorcio <> \'STPC\'';
+      "AND t.valor_total_transacao_liquido > 0 AND (c.consorcio <> 'STPC' OR c.consorcio <> 'STPL')";
     return qWhere;
   }
 

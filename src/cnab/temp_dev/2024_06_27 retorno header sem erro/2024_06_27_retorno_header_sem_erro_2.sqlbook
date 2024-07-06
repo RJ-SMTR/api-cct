@@ -1,0 +1,342 @@
+-- SQLBook: Markup
+## BACK -  Ler retorno com 2 HeaderArquivo sem dar erro
+-- SQLBook: Markup
+### Testando leitura do retorno sem dar erro (tentativa 2)
+
+Erros dos vanzeiros
+
+![Referência erros](image.png)
+
+-- SQLBook: Markup
+Comportamento esperado:
+
+- Ao ler o retorno, o TransacaoView deve associar com o retorno mais recente,
+-- SQLBook: Markup
+Problemas:
+
+- Elane, na semana 28/06, possui status = pago, deveria mostrar o erro `AL` (retorno 21062024_121513)
+- Maria da Guia, na semana 14/06, possui status pago, deveria mostrar o erro  `EA` (retorno 21062024_121513)
+- Rosemar Furtado, semana 14/06, possui status pago (ocorrencia `BD`), mas a tabela acima diz que houve erro
+- Roseval, semana 14/06, tem status pago, deveria ter erro `AL` (cód banco 184, chamado na CEF), retorno 21062024_121513
+- Joao sales, semana 14/06, tem status pago, mas teve erro `AL` (cód banco 184, chamado na CEF), retorno 21062024_121513 
+
+Notas
+- Rosemar, semana 21/06, não tem valores a pagar.
+- Roseval, semana 21/06, não tem valores a pagar.
+- Joao sales, semana 28/06, falhou ao ler retorno com erro `AL` (chamado da CEF), retorno 28062024_195122
+
+OK
+- Maria da Guia, na semana 21/06, tem o erro AH
+- Joao sales, semana 21/06, tem erro `AH`, apesar de fazer parte do prolema 'cód banco 184, chamado na CEF', retorno 21062024_113132
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+SELECT
+    c.nome
+    -- ,ta.id AS "taId", ta."createdAt" AS "taCreated"
+    ,a.id AS "aId", a."numeroDocumentoEmpresa" AS "numDoc", a."valorLancamento" AS "aValorLanc", a."dataVencimento"
+    -- ,ha.nsa, ha."dataGeracao"
+    ,DATE(ap."dataVencimento") AS "apVenc", ap.id AS "apId", ap."isPago", ap."dataEfetivacao", ap."createdAt"
+    ,o.id AS "oId", o.code, o.message, CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+    -- ,i.*
+FROM arquivo_publicacao ap
+INNER JOIN item_transacao i ON ap."itemTransacaoId" = i.id
+INNER JOIN cliente_favorecido c ON i."clienteFavorecidoId" = c.id
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
+INNER JOIN item_transacao_agrupado ia ON ia.id = a."itemTransacaoAgrupadoId"
+INNER JOIN transacao_agrupado ta ON ta.id = ia."transacaoAgrupadoId"
+INNER JOIN header_arquivo ha ON ha."transacaoAgrupadoId" = ta.id
+LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+WHERE c.nome ILIKE '%joao sales%'
+ORDER BY ap."dataEfetivacao" ASC
+-- 2024-06-21T19:30:02.806+00:00
+-- SQLBook: Markup
+O que fazer a partir desse problema:
+
+1. Ajustar leitura do retorno (garantir que o retorno tá funcionando)
+   1. Testar 1 retorno por vez
+   2. Alterar dados para status `remessa`
+   3. Se tiver problema de pular a leitura do headerLote do CNAB retorno, fazer com que o código leia e guarde
+   4. Se tiver detalheA e afins faltando, testar gearção de remessa para ver se o problema está lá
+
+-- SQLBook: Markup
+#### 1.1 Testar 1 retorno por vez
+
+##### Retorno 21062024_113132:
+
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+-- Quais itens usam numDoc 64-76 (desse CNAB)?
+SELECT
+    c.nome
+    ,ta.id AS "taId"
+    ,ia.valor AS "iaValor"
+    ,i.id AS "iId", i.valor AS "iValor"
+    ,a.id AS "aId", a."numeroDocumentoEmpresa" AS "numDoc", a."valorLancamento" AS "aValorLanc", a."dataVencimento"
+    ,ha.nsa, ha."dataGeracao"
+    ,DATE(ap."dataVencimento") AS "apVenc", ap.id AS "apId", ap."isPago", ap."dataEfetivacao", ap."createdAt"
+    ,o.id AS "oId", o.code, o.message, CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+FROM arquivo_publicacao ap
+INNER JOIN item_transacao i ON ap."itemTransacaoId" = i.id
+INNER JOIN cliente_favorecido c ON i."clienteFavorecidoId" = c.id
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
+INNER JOIN item_transacao_agrupado ia ON ia.id = a."itemTransacaoAgrupadoId"
+INNER JOIN transacao_agrupado ta ON ta.id = ia."transacaoAgrupadoId"
+INNER JOIN header_arquivo ha ON ha."transacaoAgrupadoId" = ta.id
+LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+WHERE
+    a."numeroDocumentoEmpresa" BETWEEN 74 AND 86
+    -- c.nome ILIKE '%joao sales%'
+ORDER BY a."numeroDocumentoEmpresa" ASC--ta.id DESC, ia.id DESC, i.id DESC, a.id DESC, o.id DESC
+-- 2024-06-21T19:30:02.806+00:00
+
+-- NumeroDocumentoEmpresa único?
+SELECT
+    ta.id AS "taId"
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    ,a.id AS "aId", a."valorLancamento" AS "aValor", a."numeroDocumentoEmpresa"
+FROM transacao_agrupado ta
+INNER JOIN item_transacao_agrupado ia ON ia."transacaoAgrupadoId" = ta.id
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+WHERE ta.id = 31
+ORDER BY a."numeroDocumentoEmpresa" ASC
+
+-- Erro AH em todos os itens?
+-- Os erros ou sucessos aparecem no front igual no banco?
+SELECT
+    ta.id AS "taId"
+    ,u.id AS "uId"
+    ,c.nome
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    ,a.id AS "aId", a."valorLancamento" AS "aValor", a."numeroDocumentoEmpresa" AS "aNumDoc"
+    , o.id AS "oId", o.code, o.message, CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+    ,p."isPago"
+    ,tv.id AS "tvId", DATE(tv."datetimeProcessamento") AS "tvProc"
+FROM transacao_agrupado ta
+INNER JOIN item_transacao_agrupado ia ON ia."transacaoAgrupadoId" = ta.id
+INNER JOIN item_transacao i ON i."itemTransacaoAgrupadoId" = ia.id
+INNER JOIN cliente_favorecido c ON c.id = i."clienteFavorecidoId"
+INNER JOIN "user" u ON u."cpfCnpj" = c."cpfCnpj"
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+INNER JOIN ocorrencia o ON o."detalheAId" = a.id
+INNER JOIN arquivo_publicacao p ON p."itemTransacaoId" = i.id
+LEFT JOIN transacao_view tv ON tv."arquivoPublicacaoId" = p.id
+WHERE ta.id = 31
+    AND c.nome ILIKE '%JOSE DIAS XIMENES%'
+ORDER BY a."numeroDocumentoEmpresa" ASC
+-- SQLBook: Markup
+Resultado:
+- NumDoc: 74-86
+- ✅ Lido com sucesso?
+- ✅ numeroDocEmpresa único?
+- ✅ Erro AH em todos reflete no banco?
+- ✅ Esses erros aparecem no front?
+  - Amostras: Maria da Guia, Jose Dias
+
+Este arquivo se mostrou correto.
+
+---
+
+Caso dê problema
+
+
+Para simplificação (pois nosso foco é testar apenas o retorno) ieremos:
+
+- Verificar se o CNAB
+- Mudar o status para remessa
+- Verificar se o código usa o numeroDocumento para ler os DetalheA
+- Atualizar retorno com sucesso desse CNAB
+
+-- SQLBook: Markup
+##### Retorno 21062024_121513
+
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_main@public
+-- Qual TransacaoAgrupado é esse CNAB?
+-- Possui todos os NumDocEmpresa?
+SELECT
+    c.nome
+    ,ta.id AS "taId"
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    ,i.id AS "iId", i.valor AS "iValor"
+    ,a.id AS "aId", a."numeroDocumentoEmpresa" AS "numDoc", a."valorLancamento" AS "aValorLanc", a."dataVencimento"
+    ,ha.nsa, ha."dataGeracao"
+    ,DATE(ap."dataVencimento") AS "apVenc", ap.id AS "apId", ap."isPago", ap."dataEfetivacao", ap."createdAt"
+    ,o.id AS "oId", o.code, o.message, CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+FROM arquivo_publicacao ap
+INNER JOIN item_transacao i ON ap."itemTransacaoId" = i.id
+INNER JOIN cliente_favorecido c ON i."clienteFavorecidoId" = c.id
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
+INNER JOIN item_transacao_agrupado ia ON ia.id = a."itemTransacaoAgrupadoId"
+INNER JOIN transacao_agrupado ta ON ta.id = ia."transacaoAgrupadoId"
+INNER JOIN header_arquivo ha ON ha."transacaoAgrupadoId" = ta.id
+LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+WHERE
+    a."numeroDocumentoEmpresa" BETWEEN 49 AND 73
+ORDER BY a."numeroDocumentoEmpresa" ASC
+
+-- Quais os numDoc repetidos?
+-- Tem itens fora do CNAB?
+SELECT
+    c.nome
+    ,ta.id AS "taId"
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    ,i.id AS "iId", i.valor AS "iValor"
+    ,a.id AS "aId", a."numeroDocumentoEmpresa" AS "numDoc", a."valorLancamento" AS "aValorLanc", a."dataVencimento"
+    ,ha.nsa, ha."dataGeracao"
+    ,DATE(ap."dataVencimento") AS "apVenc", ap.id AS "apId", ap."isPago", ap."dataEfetivacao", ap."createdAt"
+    ,o.id AS "oId", o.code, o.message, CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+FROM arquivo_publicacao ap
+INNER JOIN item_transacao i ON ap."itemTransacaoId" = i.id
+INNER JOIN cliente_favorecido c ON i."clienteFavorecidoId" = c.id
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
+INNER JOIN item_transacao_agrupado ia ON ia.id = a."itemTransacaoAgrupadoId"
+INNER JOIN transacao_agrupado ta ON ta.id = ia."transacaoAgrupadoId"
+INNER JOIN header_arquivo ha ON ha."transacaoAgrupadoId" = ta.id
+LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+WHERE ta.id = 30
+ORDER BY a."numeroDocumentoEmpresa" ASC
+
+-- O TransacaoAgrupado possui NumDoc extras, além dos do retorno?
+-- NumeroDocumentoEmpresa único?
+SELECT
+    ta.id AS "taId"
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    ,a.id AS "aId", a."valorLancamento" AS "aValor", a."numeroDocumentoEmpresa"
+FROM transacao_agrupado ta
+INNER JOIN item_transacao_agrupado ia ON ia."transacaoAgrupadoId" = ta.id
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+WHERE ta.id = 30
+ORDER BY a."numeroDocumentoEmpresa" ASC
+
+-- Erro AH em todos os itens?
+-- Os erros ou sucessos aparecem no front igual no banco?
+SELECT
+    ta.id AS "taId", ta."dataOrdem", ta."dataPagamento"
+    ,u.id AS "uId"
+    ,c.nome
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    ,a.id AS "aId", a."valorLancamento" AS "aValor", a."numeroDocumentoEmpresa" AS "aNumDoc"
+    , o.id AS "oId", o.code, o.message, CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+    ,p."isPago"
+    ,tv.id AS "tvId", DATE(tv."datetimeProcessamento") AS "tvProc"
+FROM transacao_agrupado ta
+INNER JOIN item_transacao_agrupado ia ON ia."transacaoAgrupadoId" = ta.id
+INNER JOIN item_transacao i ON i."itemTransacaoAgrupadoId" = ia.id
+INNER JOIN cliente_favorecido c ON c.id = i."clienteFavorecidoId"
+INNER JOIN "user" u ON u."cpfCnpj" = c."cpfCnpj"
+INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+INNER JOIN ocorrencia o ON o."detalheAId" = a.id
+INNER JOIN arquivo_publicacao p ON p."itemTransacaoId" = i.id
+LEFT JOIN transacao_view tv ON tv."arquivoPublicacaoId" = p.id
+WHERE ta.id = 30
+    -- AND c.nome ILIKE '%JOSE DIAS XIMENES%'
+ORDER BY a."numeroDocumentoEmpresa" ASC
+-- SQLBook: Markup
+Resultado:
+- TransacaoAgrupado: 30
+- NumDoc: 74-86
+- ❌ Lido com sucesso?
+  - Está na pasta failure, pois há itens faltantes, deve ter dado erro.
+  - Status do TA 30 = `remessa`, falhou ao ler.
+- ❌ numeroDocEmpresa único?
+  > - detalheA = id: 119; numDoc: 69
+  > - detalheA = id: 123; numDoc: 69
+  > - Tem até numDocEmpresa fora do CNAB
+  - O retorno está lendo um numDoc errado e sobrescrevendo?
+    - Pelo código o retorno lê pelo NSR, que reinicia no novo lote.
+- ✅ Erro AH em todos reflete no banco?
+- ✅ Esses erros aparecem no front?
+  - Amostras: Maria da Guia, Jose Dias
+
+Este arquivo se mostrou correto.
+
+---
+
+O retorno está lendo um numDoc errado e sobrescrevendo?
+
+- Mudar status do TransacaoAgrupado para `remessa`
+- Botar retorno como string mockado e debugar
+-- SQLBook: Markup
+saveOrdens()
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_test@public
+SELECT
+    -- DISTINCT(p.id), p."isPago", p."dataVencimento", p."valorRealEfetivado",c.nome
+    ta.id AS "taId", ta."dataOrdem" AS "taDataOrdem", ta."dataPagamento" AS "taDataPgto", ta."statusId" AS "taStatus"
+    ,u.id AS "uId"
+    ,c.nome
+    ,ia.id AS "iaId", ia.valor AS "iaValor"
+    -- ,i.*
+    ,i.id AS "iId", i."createdAt" AS "iCreated", i.valor AS "iValor", i."dataOrdem" AS "iDataOrdem", i."idOrdemPagamento", i."dataProcessamento", i."transacaoId"
+    ,a.id AS "aId", a."valorLancamento" AS "aValor", a."numeroDocumentoEmpresa" AS "aNumDoc", a."ocorrenciasCnab" AS "aOcorrencias"
+    ,o.id AS "oId", o.code, o.message, CASE WHEN o.code NOT IN ('AG','AL','AM','AN','AO','AS','BG','DA','DB','ZA','ZY','00','BD') THEN 1 ELSE 0 END AS "oErrInterno"
+    ,p.id AS "pId", p."isPago", p."dataVencimento", p."valorRealEfetivado"
+    ,tv.id AS "tvId", DATE(tv."datetimeProcessamento") AS "tvProc", DATE(tv."createdAt") AS "tvCreated"
+FROM transacao_agrupado ta
+LEFT JOIN item_transacao_agrupado ia ON ia."transacaoAgrupadoId" = ta.id
+LEFT JOIN item_transacao i ON i."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN cliente_favorecido c ON c.id = i."clienteFavorecidoId"
+LEFT JOIN "user" u ON u."cpfCnpj" = c."cpfCnpj"
+LEFT JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = ia.id
+LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+LEFT JOIN arquivo_publicacao p ON p."itemTransacaoId" = i.id
+LEFT JOIN transacao_view tv ON tv."arquivoPublicacaoId" = p.id
+WHERE
+    -- a."numeroDocumentoEmpresa" = 71
+    (
+        DATE(ta."createdAt") = '2024-07-05'
+        -- OR
+        -- ta.id = 49
+        -- ta.id = 30
+    )
+    -- AND c.nome ILIKE '%AGUINALDO%'
+ORDER BY ta.id DESC, a."numeroDocumentoEmpresa" ASC--c.nome ASC
+
+-- Publicacoes hoje
+SELECT *
+FROM arquivo_publicacao p
+INNER JOIN item_transacao i ON p."itemTransacaoId" = i.id
+-- WHERE i."dataOrdem" BETWEEN '2024-06-07T00:00:00.000Z' AND '2024-07-04T23:59:59.999Z'
+WHERE i."itemTransacaoAgrupadoId" = 30
+-- AND DATE(i."createdAt") <> '2024-07-02'
+
+-- Remover publicacoes isPago, para associar com os de hoje
+UPDATE arquivo_publicacao SET "isPago" = false WHERE id IN (955, 956, 957, 958, 959, 960, 961, 962, 963, 964, 965, 966, 967, 968, 969, 970, 971, 972, 973, 974, 975, 976, 977, 978, 979, 980, 981)
+
+-- Atualizar Transacoes incorretas
+UPDATE item_transacao SET
+    "idOrdemPagamento" = '331',
+    "dataOrdem" = '2024-06-13',
+    "dataProcessamento" = '2024-06-21 13:56:50.912331',
+    "dataCaptura" = '2024-06-13'
+WHERE id = 1634
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_test@public
+SELECT nome, COUNT(*)
+FROM cliente_favorecido
+GROUP BY nome
+HAVING COUNT(*) > 1
+
+SELECT nome FROM "cliente_favorecido" "favorecido" GROUP BY nome HAVING COUNT(*) > 1
+
+SELECT *
+FROM cliente_favorecido
+WHERE nome = 'HILARIO RUSSIN'
+
+SELECT ia.* 
+FROM item_transacao_agrupado ia
+    LEFT JOIN "cliente_favorecido" f ON f."id" = ia."clienteFavorecidoId"
+WHERE f."id" IN (32144)
+
+DELETE FROM "cliente_favorecido" WHERE "id" = 32144 -- PARAMETERS: [32144]
+
+
+SELECT "fullName", COUNT(*)
+FROM "user"
+GROUP BY "fullName"
+HAVING COUNT(*) > 1
+-- SQLBook: Code
+-- Active: 1712962951866@@127.0.0.1@5433@api_test
+drop EXTENSION unaccent
+
+create EXTENSION unaccent
