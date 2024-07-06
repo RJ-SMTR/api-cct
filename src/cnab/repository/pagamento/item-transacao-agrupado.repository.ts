@@ -26,6 +26,13 @@ export class ItemTransacaoAgrupadoRepository {
     private itemTransacaoAgRepository: Repository<ItemTransacaoAgrupado>,
   ) {}
 
+  public async updateBy(
+    options: FindOptionsWhere<ItemTransacaoAgrupado>,
+    update: DeepPartial<ItemTransacaoAgrupado>,
+  ) {
+    return await this.itemTransacaoAgRepository.update(options, update);
+  }
+
   public async insertAsNew(
     dto: DeepPartial<ItemTransacaoAgrupado>,
   ): Promise<ItemTransacaoAgrupado> {

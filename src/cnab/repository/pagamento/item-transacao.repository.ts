@@ -26,6 +26,13 @@ export class ItemTransacaoRepository {
     private itemTransacaoRepository: Repository<ItemTransacao>,
   ) {}
 
+  public async updateBy(
+    options: FindOptionsWhere<ItemTransacao>,
+    update: DeepPartial<ItemTransacao>,
+  ) {
+    return await this.itemTransacaoRepository.update(options, update);
+  }
+
   /**
    * Bulk update
    */
@@ -39,10 +46,7 @@ export class ItemTransacaoRepository {
   }
 
   public async update(id: number, dto: DeepPartial<ItemTransacao>) {
-    await this.itemTransacaoRepository.update(
-      { id: id },
-      dto,
-    );
+    await this.itemTransacaoRepository.update({ id: id }, dto);
     const updated = await this.itemTransacaoRepository.findOneOrFail({
       where: {
         id: id,

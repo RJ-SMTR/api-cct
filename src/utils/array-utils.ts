@@ -65,7 +65,7 @@ export function getChunks<T>(array: T[], length: number) {
 export function forChunk<T>(
   array: T[],
   length: number,
-  callback: (chunk: T[]) => void,
+  callback: (chunk: T[]) => any,
 ) {
   const buffer = structuredClone(array);
   while (buffer.length) {

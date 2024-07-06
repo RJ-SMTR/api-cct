@@ -9,6 +9,7 @@ import {
   DeepPartial,
   FindManyOptions,
   FindOneOptions,
+  FindOptionsWhere,
   In,
   InsertResult,
   LessThanOrEqual,
@@ -92,6 +93,13 @@ export class DetalheARepository {
     return await this.detalheARepository.findOneOrFail({
       where: { id: saved.id },
     });
+  }
+
+  public async update(
+    options: FindOptionsWhere<DetalheA>,
+    update: DeepPartial<DetalheA>,
+  ) {
+    return await this.detalheARepository.update(options, update);
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {

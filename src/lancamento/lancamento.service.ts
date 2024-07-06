@@ -8,12 +8,13 @@ import * as bcrypt from 'bcryptjs';
 import { endOfDay, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { Between, In, IsNull, Like } from 'typeorm';
+import { Between, DeepPartial, FindOptionsWhere, In, IsNull, Like } from 'typeorm';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoDto } from './dtos/lancamentoDto';
 import { ItfLancamento } from './interfaces/lancamento.interface';
 import { LancamentoEntity } from './lancamento.entity';
 import { LancamentoRepository } from './lancamento.repository';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
 
 @Injectable()
 export class LancamentoService {
@@ -38,6 +39,19 @@ export class LancamentoService {
   //   });
   //   return found;
   // }
+
+  public async updateBy(
+    options: FindOptionsWhere<LancamentoEntity>,
+    update: DeepPartial<LancamentoEntity>,
+  ) {
+    return await this.lancamentoRepository.update(options, update);
+  }
+
+  async findManyBy(options: EntityCondition<LancamentoEntity>) {
+    return await this.lancamentoRepository.findMany({
+      where: options,
+    });
+  }
 
   /**
    * Get unused data (no Transacao Id) from current payment week (sex-qui).

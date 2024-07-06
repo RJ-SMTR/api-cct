@@ -3,7 +3,7 @@ import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, FindOneOptions, ILike, In } from 'typeorm';
+import { DeepPartial, FindOneOptions, FindOptionsWhere, ILike, In } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
@@ -22,7 +22,7 @@ export class DetalheAService {
   constructor(
     private detalheARepository: DetalheARepository,
     private clienteFavorecidoService: ClienteFavorecidoService,
-    private transacaoAgrupadoService: TransacaoAgrupadoService   
+    private transacaoAgrupadoService: TransacaoAgrupadoService,
   ) {}
 
   /**
@@ -126,6 +126,13 @@ export class DetalheAService {
   public async save(dto: DetalheADTO): Promise<DetalheA> {
     await validateDTO(DetalheADTO, dto);
     return await this.detalheARepository.save(dto);
+  }
+
+  public async update(
+    options: FindOptionsWhere<DetalheA>,
+    update: DeepPartial<DetalheA>,
+  ) {
+    return await this.detalheARepository.update(options, update);
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {

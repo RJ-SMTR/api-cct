@@ -6,7 +6,7 @@ import {
   nextFriday,
   nextThursday,
   startOfDay,
-  subDays
+  subDays,
 } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
@@ -19,11 +19,11 @@ import { SftpService } from 'src/sftp/sftp.service';
 import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { UsersService } from 'src/users/users.service';
-import { forChunk } from 'src/utils/array-utils';
+import { forChunk, getChunks } from 'src/utils/array-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { Between } from 'typeorm';
+import { Between, In, IsNull } from 'typeorm';
 import { ArquivoPublicacao } from './entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
@@ -52,6 +52,10 @@ import {
   parseCnab240Pagamento,
   stringifyCnab104File,
 } from './utils/cnab/cnab-104-utils';
+import { DetalheA } from './entity/pagamento/detalhe-a.entity';
+import { DetalheAService } from './service/pagamento/detalhe-a.service';
+import { User } from 'src/users/entities/user.entity';
+import { SaveClienteFavorecidoDTO } from './dto/cliente-favorecido.dto';
 
 /**
  * User cases for CNAB and Payments
@@ -79,9 +83,10 @@ export class CnabService {
     private usersService: UsersService,
     private transacaoAgService: TransacaoAgrupadoService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
-    private readonly lancamentoService: LancamentoService,
+    private lancamentoService: LancamentoService,
     private arquivoPublicacaoService: ArquivoPublicacaoService,
     private settingsService: SettingsService,
+    private detalheAService: DetalheAService,
   ) {}
 
   // #region saveTransacoesJae
@@ -95,18 +100,25 @@ export class CnabService {
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
-  public async saveTransacoesJae(daysBefore:number,consorcio:string,dataPgto: Date | undefined) {
+  public async saveTransacoesJae(
+    daysBefore: number,
+    consorcio: string,
+    dataPgto: Date | undefined,
+  ) {
     const METHOD = this.saveTransacoesJae.name;
 
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
 
     // 2. Update TransacaoView
-    await this.updateTransacaoViewBigquery(daysBefore,dataPgto);
+    await this.updateTransacaoViewBigquery(daysBefore, dataPgto);
 
     // 3. Update ordens
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(daysBefore,dataPgto);
-    await this.saveOrdens(ordens,consorcio);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(
+      daysBefore,
+      dataPgto,
+    );
+    await this.saveOrdens(ordens, consorcio);
 
     //await this.compareTransacaoViewPublicacao();
 
@@ -123,11 +135,17 @@ export class CnabService {
   /**
    * Atualiza a tabela TransacaoView
    */
-  async updateTransacaoViewBigquery(daysBack:number,dataPgto: Date | undefined) {
-    const transacoesBq = 
-    await this.bigqueryTransacaoService.getFromWeek(daysBack,dataPgto,false);
+  async updateTransacaoViewBigquery(
+    daysBack: number,
+    dataPgto: Date | undefined,
+  ) {
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(
+      daysBack,
+      dataPgto,
+      false,
+    );
 
-    forChunk(transacoesBq, 1000, async (chunk) => {   
+    forChunk(transacoesBq, 1000, async (chunk) => {
       const transacoes = chunk.map((i) =>
         TransacaoView.fromBigqueryTransacao(i),
       );
@@ -143,7 +161,7 @@ export class CnabService {
   /**
    * Salvar Transacao / ItemTransacao e agrupados
    */
-  async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[],consorcio="Todos") {
+  async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[], consorcio = 'Todos') {
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
@@ -154,20 +172,20 @@ export class CnabService {
       const favorecido = await this.clienteFavorecidoService.findOne({
         where: { cpfCnpj: cpfCnpj },
       });
-      if (!favorecido) {      
+      if (!favorecido) {
         continue;
       }
-      
-      if (consorcio =='Todos'){
-        await this.saveAgrupamentos(ordem, pagador, favorecido); 
-      }else if(consorcio =='Van'){
-        if(ordem.consorcio =='STPC' || ordem.consorcio == 'STPL'){          
-           await this.saveAgrupamentos(ordem, pagador, favorecido);  
-        }  
-      }else if(consorcio =='Empresa'){
-        if(ordem.consorcio !='STPC' && ordem.consorcio != 'STPL'){          
-           await this.saveAgrupamentos(ordem, pagador, favorecido);              
-         }  
+
+      if (consorcio == 'Todos') {
+        await this.saveAgrupamentos(ordem, pagador, favorecido);
+      } else if (consorcio == 'Van') {
+        if (ordem.consorcio == 'STPC' || ordem.consorcio == 'STPL') {
+          await this.saveAgrupamentos(ordem, pagador, favorecido);
+        }
+      } else if (consorcio == 'Empresa') {
+        if (ordem.consorcio != 'STPC' && ordem.consorcio != 'STPL') {
+          await this.saveAgrupamentos(ordem, pagador, favorecido);
+        }
       }
     }
   }
@@ -255,7 +273,7 @@ export class CnabService {
    * - TransacaoAgrupado (CNAB)
    * - ItemTransacaoAgrupado ()
    * - Transacao
-   * - 
+   * -
    */
   async saveAgrupamentos(
     ordem: BigqueryOrdemPagamentoDTO,
@@ -487,8 +505,13 @@ export class CnabService {
     );
   }
 
-  private async updateAllFavorecidosFromUsers() {
-    const allUsers = await this.usersService.findManyRegisteredUsers();
+  public async updateAllFavorecidosFromUsers() {
+    const allUsers = await this.usersService.findMany({
+      where: {
+        fullName: In(['MARIA DA GUIA BARROS DA COSTA', 'JOSE DIAS XIMENES']),
+      },
+    });
+    // findManyRegisteredUsers();
     await this.clienteFavorecidoService.updateAllFromUsers(allUsers);
   }
 
@@ -503,10 +526,15 @@ export class CnabService {
    *
    * @throws `Error` if any subtask throws
    */
-  public async saveRemessa(tipo: PagadorContaEnum, dataPgto: Date | undefined, isConference: boolean) {
+  public async saveRemessa(
+    tipo: PagadorContaEnum,
+    dataPgto: Date | undefined,
+    isConference: boolean,
+  ) {
     const METHOD = this.sendRemessa.name;
-    const transacoesAg = 
-    await this.transacaoAgService.findAllNewTransacao(tipo);
+    const transacoesAg = await this.transacaoAgService.findAllNewTransacao(
+      tipo,
+    );
 
     if (!transacoesAg.length) {
       this.logger.log(
@@ -516,60 +544,183 @@ export class CnabService {
       return;
     }
 
-    const listCnab:string[] = [];
+    const listCnab: string[] = [];
 
     // Generate Remessas and send SFTP
-    for (const transacaoAg of transacoesAg) {   
+    for (const transacaoAg of transacoesAg) {
       // Get headerArquivo
-      const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg,isConference);
+      const headerArquivoDTO =
+        await this.remessaRetornoService.saveHeaderArquivoDTO(
+          transacaoAg,
+          isConference,
+        );
 
-      const lotes = await this.remessaRetornoService.getLotes(transacaoAg.pagador,headerArquivoDTO,dataPgto,isConference);
-      
-      const cnab104 = this.remessaRetornoService.generateFile(headerArquivoDTO,lotes);
+      const lotes = await this.remessaRetornoService.getLotes(
+        transacaoAg.pagador,
+        headerArquivoDTO,
+        dataPgto,
+        isConference,
+      );
 
-      if (!cnab104){
+      const cnab104 = this.remessaRetornoService.generateFile(
+        headerArquivoDTO,
+        lotes,
+      );
+
+      if (!cnab104) {
         return null;
       }
-  
-      // Process cnab
-      const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104,true,'CnabPgtoRem');
 
-      for (const processedLote of processedCnab104.lotes){
-        const savedLote =
-         lotes.filter(i => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
-        await this.remessaRetornoService.updateHeaderLoteDTOFrom104(savedLote, processedLote.headerLote);
+      // Process cnab
+      const [cnabStr, processedCnab104] = stringifyCnab104File(
+        cnab104,
+        true,
+        'CnabPgtoRem',
+      );
+
+      for (const processedLote of processedCnab104.lotes) {
+        const savedLote = lotes.filter(
+          (i) =>
+            i.formaLancamento ===
+            processedLote.headerLote.formaLancamento.value,
+        )[0];
+        await this.remessaRetornoService.updateHeaderLoteDTOFrom104(
+          savedLote,
+          processedLote.headerLote,
+        );
       }
-  
+
       // Update
-      if(isConference){
-        await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO,processedCnab104.headerArquivo);
-        await this.transacaoAgService.save({ id: transacaoAg.id, status: new TransacaoStatus(TransacaoStatusEnum.remessa) });
+      if (isConference) {
+        await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(
+          headerArquivoDTO,
+          processedCnab104.headerArquivo,
+        );
+        await this.transacaoAgService.save({
+          id: transacaoAg.id,
+          status: new TransacaoStatus(TransacaoStatusEnum.remessa),
+        });
       }
 
       if (!cnabStr) {
         this.logger.warn(
           `A TransaçãoAgrupado #${transacaoAg.id} gerou cnab vazio (sem itens válidos), ignorando...`,
           METHOD,
-        );        
+        );
         continue;
       }
       try {
         listCnab.push(cnabStr);
-       
       } catch (error) {
         this.logger.error(
           `Falha ao enviar o CNAB, tentaremos enviar no próximo job...`,
           METHOD,
           error.stack,
         );
-      }      
+      }
     }
     return listCnab;
   }
-  
-  public async sendRemessa(listCnab:string[]){
-    for(const cnabStr of listCnab){      
-      await this.sftpService.submitCnabRemessa(cnabStr);       
+
+  public async sendRemessa(listCnab: string[]) {
+    for (const cnabStr of listCnab) {
+      await this.sftpService.submitCnabRemessa(cnabStr);
+    }
+  }
+
+  public async deduplicateFavorecidos() {
+    const findDuplicated = await this.clienteFavorecidoService.findDuplicated();
+    const duplicatedGroups = findDuplicated.reduce(
+      (r: Record<string, ClienteFavorecido[]>, i) => {
+        if (r[i.nome]) {
+          r[i.nome].push(i);
+        } else {
+          r[i.nome] = [i];
+        }
+        return r;
+      },
+      {},
+    );
+    for (const nome in duplicatedGroups) {
+      const first = duplicatedGroups[nome][0];
+      const others = duplicatedGroups[nome].slice(1);
+      const otherIds = others.map((i) => i.id);
+
+      if (others.length) {
+        const detalheAs = await this.detalheAService.findMany({
+          clienteFavorecido: { id: In(otherIds) },
+        });
+        await this.detalheAService.update(
+          { id: In(detalheAs.map((i) => i.id)) },
+          {
+            clienteFavorecido: { id: first.id },
+          },
+        );
+
+        const itemAgs = await this.itemTransacaoAgService.findMany({
+          where: {
+            clienteFavorecido: { id: In(otherIds) },
+          },
+        });
+        await this.itemTransacaoAgService.updateBy(
+          { id: In(itemAgs.map((i) => i.id)) },
+          {
+            clienteFavorecido: { id: first.id },
+          },
+        );
+
+        const itens = await this.itemTransacaoService.findMany({
+          where: {
+            clienteFavorecido: { id: In(otherIds) },
+          },
+        });
+        await this.itemTransacaoService.updateBy(
+          { id: In(itens.map((i) => i.id)) },
+          {
+            clienteFavorecido: { id: first.id },
+          },
+        );
+
+        const lancamentos = await this.lancamentoService.findManyBy({
+          id_cliente_favorecido: { id: In(otherIds) },
+        });
+        await this.lancamentoService.updateBy(
+          { id: In(lancamentos.map((i) => i.id)) },
+          {
+            id_cliente_favorecido: { id: first.id },
+          },
+        );
+
+        await this.clienteFavorecidoService.remove(others);
+      }
+    }
+  }
+
+  public async upgradeFavorecidos() {
+    const oldFavorecidos = await this.clienteFavorecidoService.findMany({
+      user: IsNull(),
+    });
+
+    const chunks = getChunks(oldFavorecidos, 100);
+    const users: User[] = [];
+    for (const chunk of chunks) {
+      const usersChunk = await this.usersService.findManyByNames(
+        chunk.map((i) => i.nome),
+      );
+      users.push(...usersChunk);
+    }
+
+    for (const favorecido of oldFavorecidos) {
+      const favorecidoUser = users.find(
+        (i) => i.getFullName() == favorecido.nome,
+      );
+      if (favorecidoUser) {
+        favorecido.user = favorecidoUser;
+        await this.clienteFavorecidoService.updateBy(
+          { id: favorecido.id },
+          { user: { id: favorecidoUser.id } },
+        );
+      }
     }
   }
 

@@ -21,6 +21,13 @@ export class ItemTransacaoAgrupadoService {
     private itemTransacaoAgRepository: ItemTransacaoAgrupadoRepository,
   ) {}
 
+  public async updateBy(
+    options: FindOptionsWhere<ItemTransacaoAgrupado>,
+    update: DeepPartial<ItemTransacaoAgrupado>,
+  ) {
+    return await this.itemTransacaoAgRepository.updateBy(options, update);
+  }
+
   async getMaxId(): Promise<number> {
     return await this.itemTransacaoAgRepository.getMaxId();
   }

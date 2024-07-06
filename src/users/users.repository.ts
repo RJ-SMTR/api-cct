@@ -19,7 +19,9 @@ import {
   FindOptionsWhere,
   ILike,
   In,
+  ObjectLiteral,
   Repository,
+  SelectQueryBuilder,
   WhereExpressionBuilder,
 } from 'typeorm';
 import { UpdateUserRepositoryDto } from './dto/update-user-repository.dto';
@@ -65,7 +67,7 @@ export class UsersRepository {
       /* *Ignore fields like "67" etc */
       .andWhere('LENGTH(TRIM(user.bankAccountDigit)) = 1')
       .getMany();
-    await this.loadLazyRelations(validUsers)
+    await this.loadLazyRelations(validUsers);
     return validUsers;
   }
 
@@ -378,6 +380,21 @@ export class UsersRepository {
         }),
       );
     }
+    return users;
+  }
+
+  public async findManyByNames(names: string[]): Promise<User[]> {
+    let query = this.usersRepository.createQueryBuilder('user');
+
+
+    for (const index in names) {
+      const name = names[index];
+      query = query[+index === 0 ? 'where' : 'orWhere'](
+        `unaccent(UPPER("user"."fullName")) ILIKE unaccent(UPPER('${name}'))`,
+      );
+    }
+
+    const users = await query.getMany();
     return users;
   }
 }

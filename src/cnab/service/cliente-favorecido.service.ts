@@ -8,7 +8,7 @@ import { asString } from 'src/utils/pipe-utils';
 import { getStringUpperUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { FindOneOptions, In } from 'typeorm';
+import { DeepPartial, FindOneOptions, FindOptionsWhere, In } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
@@ -23,6 +23,17 @@ export class ClienteFavorecidoService {
     private clienteFavorecidoRepository: ClienteFavorecidoRepository,
   ) {}
 
+  public async updateBy(
+    options: FindOptionsWhere<ClienteFavorecido>,
+    update: DeepPartial<ClienteFavorecido>,
+  ) {
+    return await this.clienteFavorecidoRepository.updateBy(options, update);
+  }
+
+  async remove(entities: ClienteFavorecido[]) {
+    return await this.clienteFavorecidoRepository.remove(entities);
+  }
+
   /**
    * All ClienteFavoecidos will be created or updated from users based of cpfCnpj.
    *
@@ -31,15 +42,18 @@ export class ClienteFavorecidoService {
    * @returns All favorecidos after update
    */
   public async updateAllFromUsers(allUsers: User[]): Promise<void> {
+    //
     // this.clienteFavorecidoRepository.
-    const saveFavorecidos = await this.getManyFavorecidoDTOsFromUsers(allUsers);
-    const newFavorecidos = saveFavorecidos.map((i) => {
+    const saveFavorecidos = await this.generateManyFavorecidoDTOsFromUsers(
+      allUsers,
+    );
+    const upsertFavorecidos = saveFavorecidos.map((i) => {
       if (i.nome) {
         i.nome = getStringUpperUnaccent(i.nome).trim();
       }
       return i;
     });
-    await this.clienteFavorecidoRepository.upsert(newFavorecidos);
+    await this.clienteFavorecidoRepository.upsert(upsertFavorecidos);
   }
 
   public async findCpfCnpj(cpfCnpj: string): Promise<ClienteFavorecido | null> {
@@ -86,6 +100,10 @@ export class ClienteFavorecidoService {
     return await this.clienteFavorecidoRepository.findAll();
   }
 
+  public async findDuplicated() {
+    return await this.clienteFavorecidoRepository.findDuplicated();
+  }
+
   public async getOneByIdClienteFavorecido(
     idClienteFavorecido: number,
   ): Promise<ClienteFavorecido> {
@@ -116,7 +134,7 @@ export class ClienteFavorecidoService {
     }
   }
 
-  private async getManyFavorecidoDTOsFromUsers(
+  private async generateManyFavorecidoDTOsFromUsers(
     users: User[],
     existingId_facorecido?: number,
   ): Promise<SaveClienteFavorecidoDTO[]> {
@@ -140,6 +158,7 @@ export class ClienteFavorecidoService {
         complementoCep: null,
         uf: null,
         tipo: TipoFavorecidoEnum.operadora,
+        user: { id: user.id } as User,
       };
       await validateDTO(SaveClienteFavorecidoDTO, newItem);
       newItems.push(newItem);
@@ -197,5 +216,13 @@ export class ClienteFavorecidoService {
     options: FindOneOptions<ClienteFavorecido>,
   ): Promise<ClienteFavorecido | null> {
     return await this.clienteFavorecidoRepository.findOne(options);
+  }
+
+  public async findMany(
+    options: EntityCondition<ClienteFavorecido>,
+  ): Promise<ClienteFavorecido[]> {
+    return await this.clienteFavorecidoRepository.findMany({
+      where: options,
+    });
   }
 }

@@ -3,11 +3,13 @@ import { EntityHelper } from 'src/utils/entity-helper';
 import { Enum } from 'src/utils/enum';
 import {
   Column,
+  CreateDateColumn,
   DeepPartial,
   Entity,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { DetalheA } from './detalhe-a.entity';
 import { Exclude } from 'class-transformer';
@@ -59,6 +61,12 @@ export class Ocorrencia extends EntityHelper {
   @Column({ type: String, unique: false, nullable: false, length: 100 })
   message: string;
 
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+  
   public static getCodesList(ocorrenciaCodes: string) {
     const codes = ocorrenciaCodes.replace(/ /gm, '');
     const codesList: string[] = [];

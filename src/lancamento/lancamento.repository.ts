@@ -5,6 +5,7 @@ import {
   DeleteResult,
   FindManyOptions,
   FindOneOptions,
+  FindOptionsWhere,
   Repository,
   SaveOptions,
 } from 'typeorm';
@@ -16,6 +17,13 @@ export class LancamentoRepository {
     @InjectRepository(LancamentoEntity)
     private readonly lancamentoRepository: Repository<LancamentoEntity>,
   ) {}
+
+  public async update(
+    options: FindOptionsWhere<LancamentoEntity>,
+    update: DeepPartial<LancamentoEntity>,
+  ) {
+    return await this.lancamentoRepository.update(options, update);
+  }
 
   create(entityLike: DeepPartial<LancamentoEntity>): LancamentoEntity {
     return this.lancamentoRepository.create(entityLike);

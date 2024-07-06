@@ -7,12 +7,16 @@ import {
   DeepPartial,
   FindManyOptions,
   FindOneOptions,
+  FindOptionsWhere,
+  In,
   InsertResult,
+  IsNull,
   Repository,
   UpdateResult,
 } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
+import { forChunk, getChunks } from 'src/utils/array-utils';
 
 @Injectable()
 export class ClienteFavorecidoRepository {
@@ -24,8 +28,18 @@ export class ClienteFavorecidoRepository {
     @InjectRepository(ClienteFavorecido)
     private clienteFavorecidoRepository: Repository<ClienteFavorecido>,
   ) {}
+  async remove(entities: ClienteFavorecido[]) {
+    return await this.clienteFavorecidoRepository.remove(entities);
+  }
 
   createQueryBuilder = this.clienteFavorecidoRepository.createQueryBuilder;
+
+  public async updateBy(
+    options: FindOptionsWhere<ClienteFavorecido>,
+    update: DeepPartial<ClienteFavorecido>,
+  ) {
+    return await this.clienteFavorecidoRepository.update(options, update);
+  }
 
   async save(dto: SaveClienteFavorecidoDTO): Promise<void> {
     if (dto.id === undefined) {
@@ -64,8 +78,15 @@ export class ClienteFavorecidoRepository {
   async upsert(
     favorecidos: DeepPartial<ClienteFavorecido>[],
   ): Promise<InsertResult> {
+    const noUser = await this.clienteFavorecidoRepository.findBy({
+      user: IsNull(),
+    });
+    if (noUser.length) {
+      this.logger.log(`Removendo ${noUser.length} ClienteFavorecidos`);
+    }
+    await this.clienteFavorecidoRepository.remove(noUser);
     const payload = await this.clienteFavorecidoRepository.upsert(favorecidos, {
-      conflictPaths: { cpfCnpj: true },
+      conflictPaths: { user: true },
       skipUpdateIfNoValuesChanged: true,
     });
     this.logger.log(
@@ -105,6 +126,21 @@ export class ClienteFavorecidoRepository {
 
   public async findAll(): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.find();
+  }
+
+  public async findDuplicated(): Promise<ClienteFavorecido[]> {
+    const duplicatedRaw: { nome: string; count: number }[] =
+      await this.clienteFavorecidoRepository
+        .createQueryBuilder('favorecido')
+        .select('nome')
+        .addSelect('COUNT(*) AS count')
+        .groupBy('nome')
+        .having('COUNT(*) > 1')
+        .getRawMany();
+    const duplicated = await this.clienteFavorecidoRepository.findBy({
+      nome: In(duplicatedRaw.map((i) => i.nome)),
+    });
+    return duplicated;
   }
 
   public async findMany(

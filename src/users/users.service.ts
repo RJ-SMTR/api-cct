@@ -44,6 +44,10 @@ export class UsersService {
     private mailHistoryService: MailHistoryService,
   ) {}
 
+  public async findManyByNames(names: string[]): Promise<User[]> {
+    return this.usersRepository.findManyByNames(names);
+  }
+
   async create(createProfileDto: CreateUserDto): Promise<User> {
     const createdUser = await this.usersRepository.create(createProfileDto);
     this.logger.log(`Usuário criado: ${createdUser.getLogInfo()}`);

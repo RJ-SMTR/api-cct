@@ -25,6 +25,13 @@ export class ItemTransacaoService {
 
   constructor(private itemTransacaoRepository: ItemTransacaoRepository) {}
 
+  public async updateBy(
+    options: FindOptionsWhere<ItemTransacao>,
+    update: DeepPartial<ItemTransacao>,
+  ) {
+    return await this.itemTransacaoRepository.updateBy(options, update);
+  }
+
   async update(id: number, dto: DeepPartial<ItemTransacao>) {
     return await this.itemTransacaoRepository.update(id, dto);
   }

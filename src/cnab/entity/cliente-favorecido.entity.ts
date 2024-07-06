@@ -1,10 +1,14 @@
+import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import {
   BeforeInsert,
   Column,
   DeepPartial,
   Entity,
+  JoinColumn,
+  OneToOne,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 
 @Entity()
@@ -69,6 +73,12 @@ export class ClienteFavorecido extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true })
   tipo: string | null;
+
+  @OneToOne(() => User, { nullable: true, eager: true })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_ClienteFavorecido_user_OneToOne',
+  })
+  user: User;
 
   @BeforeInsert()
   setWriteValues() {
