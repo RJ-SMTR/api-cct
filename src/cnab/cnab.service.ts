@@ -87,7 +87,7 @@ export class CnabService {
     private arquivoPublicacaoService: ArquivoPublicacaoService,
     private settingsService: SettingsService,
     private detalheAService: DetalheAService,
-  ) {}
+  ) { }
 
   // #region saveTransacoesJae
 
@@ -499,8 +499,8 @@ export class CnabService {
 
     this.logger.log(
       `Foram inseridos com sucesso: 1 Transacao, ` +
-        `${newItemTransacoes.length} ItemTransacoes;` +
-        `e atualizados ${updatedLancamentos.length} Lancamentos`,
+      `${newItemTransacoes.length} ItemTransacoes;` +
+      `e atualizados ${updatedLancamentos.length} Lancamentos`,
       METHOD,
     );
   }
@@ -628,9 +628,14 @@ export class CnabService {
     }
   }
 
-  public async deduplicateFavorecidos() {
-    const findDuplicated = await this.clienteFavorecidoService.findDuplicated();
-    const duplicatedGroups = findDuplicated.reduce(
+  public async deduplicateFavorecidos(steps: {
+    _1removeNoValue?: boolean,
+  }) {
+    const duplicatedFavorecidos = await this.clienteFavorecidoService.findDuplicated();
+    const users = await this.usersService.findMany({ where: { cpfCnpj: In(duplicatedFavorecidos.map(i => i.cpfCnpj)) } });
+
+    // Elimina CPF errado sem valor associado
+    const duplicatedGroups = duplicatedFavorecidos.reduce(
       (r: Record<string, ClienteFavorecido[]>, i) => {
         if (r[i.nome]) {
           r[i.nome].push(i);
@@ -642,57 +647,95 @@ export class CnabService {
       {},
     );
     for (const nome in duplicatedGroups) {
-      const first = duplicatedGroups[nome][0];
-      const others = duplicatedGroups[nome].slice(1);
-      const otherIds = others.map((i) => i.id);
+      if (steps._1removeNoValue) {
+        const existingUser = users.find(u => u.fullName == nome);
+        // Ignora se nome do favorecido não existe em usuarios
+        if (!existingUser) {
+          continue;
+        }
+        const favorecidosByName = duplicatedGroups[nome];
+        const validFavorecido = favorecidosByName.find(f => f.cpfCnpj = existingUser.getCpfCnpj());
+        // Ignora favorecidos com CPF inexistente em usuários
+        if (!validFavorecido) {
+          continue;
+        }
+        const invalids = favorecidosByName.filter(f => f.cpfCnpj != validFavorecido.cpfCnpj);
 
-      if (others.length) {
-        const detalheAs = await this.detalheAService.findMany({
-          clienteFavorecido: { id: In(otherIds) },
-        });
-        await this.detalheAService.update(
-          { id: In(detalheAs.map((i) => i.id)) },
-          {
-            clienteFavorecido: { id: first.id },
-          },
-        );
+        for (const invalid of invalids) {
+          const itemAgs = await this.itemTransacaoAgService.findMany({
+              where: {
+                clienteFavorecido: { id: invalid.id },
+              },
+            });
+          const itens = await this.itemTransacaoService.findMany({
+            where: {
+              clienteFavorecido: { id: invalid.id },
+            },
+          });
+          const lancamentos = await this.lancamentoService.findManyBy({
+            id_cliente_favorecido: { id: invalid.id },
+          });
 
-        const itemAgs = await this.itemTransacaoAgService.findMany({
-          where: {
-            clienteFavorecido: { id: In(otherIds) },
-          },
-        });
-        await this.itemTransacaoAgService.updateBy(
-          { id: In(itemAgs.map((i) => i.id)) },
-          {
-            clienteFavorecido: { id: first.id },
-          },
-        );
+        }
 
-        const itens = await this.itemTransacaoService.findMany({
-          where: {
-            clienteFavorecido: { id: In(otherIds) },
-          },
-        });
-        await this.itemTransacaoService.updateBy(
-          { id: In(itens.map((i) => i.id)) },
-          {
-            clienteFavorecido: { id: first.id },
-          },
-        );
-
-        const lancamentos = await this.lancamentoService.findManyBy({
-          id_cliente_favorecido: { id: In(otherIds) },
-        });
-        await this.lancamentoService.updateBy(
-          { id: In(lancamentos.map((i) => i.id)) },
-          {
-            id_cliente_favorecido: { id: first.id },
-          },
-        );
-
-        await this.clienteFavorecidoService.remove(others);
+        const first = duplicatedGroups[nome][0];
+        const otherIds = invalids.map((i) => i.id);
       }
+      else {
+        continue;
+      }
+
+      // const first = duplicatedGroups[nome][0];
+      // const others = duplicatedGroups[nome].slice(1);
+      // const otherIds = others.map((i) => i.id);
+
+      // if (others.length) {
+      //   const detalheAs = await this.detalheAService.findMany({
+      //     clienteFavorecido: { id: In(otherIds) },
+      //   });
+      //   await this.detalheAService.update(
+      //     { id: In(detalheAs.map((i) => i.id)) },
+      //     {
+      //       clienteFavorecido: { id: first.id },
+      //     },
+      //   );
+
+      //   const itemAgs = await this.itemTransacaoAgService.findMany({
+      //     where: {
+      //       clienteFavorecido: { id: In(otherIds) },
+      //     },
+      //   });
+      //   await this.itemTransacaoAgService.updateBy(
+      //     { id: In(itemAgs.map((i) => i.id)) },
+      //     {
+      //       clienteFavorecido: { id: first.id },
+      //     },
+      //   );
+
+      //   const itens = await this.itemTransacaoService.findMany({
+      //     where: {
+      //       clienteFavorecido: { id: In(otherIds) },
+      //     },
+      //   });
+      //   await this.itemTransacaoService.updateBy(
+      //     { id: In(itens.map((i) => i.id)) },
+      //     {
+      //       clienteFavorecido: { id: first.id },
+      //     },
+      //   );
+
+      //   const lancamentos = await this.lancamentoService.findManyBy({
+      //     id_cliente_favorecido: { id: In(otherIds) },
+      //   });
+      //   await this.lancamentoService.updateBy(
+      //     { id: In(lancamentos.map((i) => i.id)) },
+      //     {
+      //       id_cliente_favorecido: { id: first.id },
+      //     },
+      //   );
+
+      //   await this.clienteFavorecidoService.remove(others);
+      // }
     }
   }
 
