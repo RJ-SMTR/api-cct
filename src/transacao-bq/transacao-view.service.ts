@@ -70,6 +70,10 @@ export class TransacaoViewService {
     callback(existing); 
   }
 
+  public async save(transacao: TransacaoView){
+    await this.transacaoViewRepository.save(transacao);
+  }
+
   /**
    * Tarefas:
    * 1. Atualizar separadamente os campos: valor_pago e tipo_transacao (smtr)

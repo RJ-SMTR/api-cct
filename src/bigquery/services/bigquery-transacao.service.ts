@@ -24,9 +24,9 @@ export class BigqueryTransacaoService {
     let endDate;
 
     const today = new Date();
-    if(dataPgto == undefined){
+    if(dataPgto === undefined){
       const friday = isFriday(today) ? today : nextFriday(today);
-      startDate = subDays(friday, 8 + daysBack);
+      startDate = subDays(friday, 7 + daysBack);
       endDate = subDays(friday, 2 + (startDateOnly ? 0 : daysBack));
     }else{
       startDate = subDays(dataPgto,1);

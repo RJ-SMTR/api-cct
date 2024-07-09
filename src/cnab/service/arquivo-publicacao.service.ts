@@ -24,6 +24,7 @@ import { HeaderLoteService } from './pagamento/header-lote.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
 import { TransacaoService } from './pagamento/transacao.service';
+import { ItemTransacaoAgrupado } from '../entity/pagamento/item-transacao-agrupado.entity';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -59,7 +60,7 @@ export class ArquivoPublicacaoService {
    *
    * **status** is Created.
    */
-  async savePublicacaoDTO(
+  async convertPublicacaoDTO(
     itemTransacao: ItemTransacao,
   ): Promise<ArquivoPublicacao> {
     const existing = await this.arquivoPublicacaoRepository.findOne({
@@ -93,9 +94,8 @@ export class ArquivoPublicacaoService {
     return arquivo;
   }
 
-  public async save(
-    publicacao: DeepPartial<ArquivoPublicacao>,
-  ): Promise<ArquivoPublicacao> {
+  public async save(itemTransacaoAg: ItemTransacao): Promise<ArquivoPublicacao> {
+    const publicacao = await this.convertPublicacaoDTO(itemTransacaoAg);
     return await this.arquivoPublicacaoRepository.save(publicacao);
   }
 

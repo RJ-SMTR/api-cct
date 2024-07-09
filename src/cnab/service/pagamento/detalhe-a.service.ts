@@ -125,7 +125,7 @@ export class DetalheAService {
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
     await validateDTO(DetalheADTO, dto);
-    return await this.detalheARepository.save(dto);
+    return await this.detalheARepository.save(dto);//100
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {

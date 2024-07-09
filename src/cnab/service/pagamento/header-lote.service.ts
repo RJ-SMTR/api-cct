@@ -30,7 +30,7 @@ export class HeaderLoteService {
    *
    * `loteServico` será atualizado com o valor gerado automaticamente em `updateHeaderLoteDTOFrom104()`!
    */
-  public getDTO(
+  public convertHeaderLoteDTO(
     headerArquivo: HeaderArquivoDTO,
     pagador: Pagador,
     formaLancamento: Cnab104FormaLancamento,

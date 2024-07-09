@@ -90,7 +90,7 @@ export class DetalheAConfRepository {
   public async save(dto: DeepPartial<DetalheAConf>): Promise<DetalheAConf> {
     const saved = await this.DetalheAConfRepository.save(dto);
     return await this.DetalheAConfRepository.findOneOrFail({
-      where: { id: saved.id },
+      where: { id: saved.id }
     });
   }
 
