@@ -56,6 +56,7 @@ import { DetalheA } from './entity/pagamento/detalhe-a.entity';
 import { DetalheAService } from './service/pagamento/detalhe-a.service';
 import { User } from 'src/users/entities/user.entity';
 import { SaveClienteFavorecidoDTO } from './dto/cliente-favorecido.dto';
+import { getStringUpperUnaccent } from 'src/utils/string-utils';
 
 /**
  * User cases for CNAB and Payments
@@ -628,9 +629,7 @@ export class CnabService {
     }
   }
 
-  public async deduplicateFavorecidos(steps: {
-    _1removeNoValue?: boolean,
-  }) {
+  public async deduplicateFavorecidos() {
     const duplicatedFavorecidos = await this.clienteFavorecidoService.findDuplicated();
     const users = await this.usersService.findMany({ where: { cpfCnpj: In(duplicatedFavorecidos.map(i => i.cpfCnpj)) } });
 
@@ -647,26 +646,28 @@ export class CnabService {
       {},
     );
     for (const nome in duplicatedGroups) {
-      if (steps._1removeNoValue) {
-        const existingUser = users.find(u => u.fullName == nome);
-        // Ignora se nome do favorecido não existe em usuarios
-        if (!existingUser) {
-          continue;
-        }
-        const favorecidosByName = duplicatedGroups[nome];
-        const validFavorecido = favorecidosByName.find(f => f.cpfCnpj = existingUser.getCpfCnpj());
-        // Ignora favorecidos com CPF inexistente em usuários
-        if (!validFavorecido) {
-          continue;
-        }
-        const invalids = favorecidosByName.filter(f => f.cpfCnpj != validFavorecido.cpfCnpj);
+      const userForNome = users.find(u => u.fullName == nome);
+      const favorecidosByName = duplicatedGroups[nome];
+      const favorecidoValid = favorecidosByName.find(f => f.cpfCnpj == userForNome?.cpfCnpj);
+      const favorecidoInvalids = favorecidosByName.filter(f => f.cpfCnpj != favorecidoValid?.cpfCnpj);
 
-        for (const invalid of invalids) {
+      for (const invalid of favorecidoInvalids) {
+        // Se tem usuário com o cpf, atualiza favorecido
+        const userForInvalid = users.find(u => u.cpfCnpj == invalid.cpfCnpj);
+        if (userForInvalid) {
+          const updatedFavorecido = (await this.clienteFavorecidoService.generateFavorecidosFromUsers([userForInvalid], invalid.id))[0];
+          updatedFavorecido.nome = getStringUpperUnaccent(updatedFavorecido.nome as string).trim();
+          await this.clienteFavorecidoService.updateBy({ id: updatedFavorecido.id, }, updatedFavorecido)
+        }
+        else {
+          const detalheAs = await this.detalheAService.findMany({
+            clienteFavorecido: { id: invalid.id },
+          });
           const itemAgs = await this.itemTransacaoAgService.findMany({
-              where: {
-                clienteFavorecido: { id: invalid.id },
-              },
-            });
+            where: {
+              clienteFavorecido: { id: invalid.id },
+            },
+          });
           const itens = await this.itemTransacaoService.findMany({
             where: {
               clienteFavorecido: { id: invalid.id },
@@ -676,14 +677,43 @@ export class CnabService {
             id_cliente_favorecido: { id: invalid.id },
           });
 
+          // Se não tiver transações apontando para o favorecido inválido, remove
+          if (!detalheAs.length && !itemAgs.length && !itens.length && !lancamentos.length) {
+            await this.clienteFavorecidoService.remove([invalid]);
+          }
+          // Caso contrário, associa o errado com o correto e remove o errado
+          else {
+            await this.lancamentoService.updateBy(
+              { id: In(lancamentos.map((i) => i.id)) },
+              {
+                id_cliente_favorecido: { id: favorecidoValid?.id },
+              },
+            );
+            await this.itemTransacaoService.updateBy(
+              { id: In(itens.map((i) => i.id)) },
+              {
+                clienteFavorecido: { id: favorecidoValid?.id },
+              },
+            );
+            await this.itemTransacaoAgService.updateBy(
+              { id: In(itemAgs.map((i) => i.id)) },
+              {
+                clienteFavorecido: { id: favorecidoValid?.id },
+              },
+            );
+            await this.detalheAService.update(
+              { id: In(detalheAs.map((i) => i.id)) },
+              {
+                clienteFavorecido: { id: favorecidoValid?.id },
+              },
+            );
+            await this.clienteFavorecidoService.remove([invalid]);
+          }
         }
+      }
 
-        const first = duplicatedGroups[nome][0];
-        const otherIds = invalids.map((i) => i.id);
-      }
-      else {
-        continue;
-      }
+      // const first = duplicatedGroups[nome][0];
+      // const otherIds = favorecidoInvalids.map((i) => i.id);
 
       // const first = duplicatedGroups[nome][0];
       // const others = duplicatedGroups[nome].slice(1);

@@ -44,7 +44,7 @@ export class ClienteFavorecidoService {
   public async updateAllFromUsers(allUsers: User[]): Promise<void> {
     //
     // this.clienteFavorecidoRepository.
-    const saveFavorecidos = await this.generateManyFavorecidoDTOsFromUsers(
+    const saveFavorecidos = await this.generateFavorecidosFromUsers(
       allUsers,
     );
     const upsertFavorecidos = saveFavorecidos.map((i) => {
@@ -60,6 +60,10 @@ export class ClienteFavorecidoService {
     return await this.clienteFavorecidoRepository.findOne({
       where: { cpfCnpj: cpfCnpj },
     });
+  }
+
+  async upsert(favorecidos: DeepPartial<ClienteFavorecido>[]) {
+    return await this.clienteFavorecidoRepository.upsert(favorecidos)
   }
 
   public async findManyFromLancamentos(
@@ -134,7 +138,7 @@ export class ClienteFavorecidoService {
     }
   }
 
-  private async generateManyFavorecidoDTOsFromUsers(
+  public async generateFavorecidosFromUsers(
     users: User[],
     existingId_facorecido?: number,
   ): Promise<SaveClienteFavorecidoDTO[]> {
@@ -164,33 +168,6 @@ export class ClienteFavorecidoService {
       newItems.push(newItem);
     }
     return newItems;
-  }
-
-  private async saveFavorecidoFromUser(
-    user: User,
-    existingId_facorecido?: number,
-  ): Promise<void> {
-    const saveObject: SaveClienteFavorecidoDTO = {
-      id: existingId_facorecido,
-      nome: asString(user.fullName),
-      cpfCnpj: asString(user.cpfCnpj),
-      codigoBanco: String(user.getBankCode()),
-      agencia: user.getBankAgencyWithoutDigit(),
-      dvAgencia: user.getBankAgencyDigit(),
-      contaCorrente: user.getBankAccount(),
-      dvContaCorrente: user.getBankAccountDigit(),
-      logradouro: null,
-      numero: null,
-      complemento: null,
-      bairro: null,
-      cidade: null,
-      cep: null,
-      complementoCep: null,
-      uf: null,
-      tipo: TipoFavorecidoEnum.operadora,
-    };
-    await validateDTO(SaveClienteFavorecidoDTO, saveObject);
-    await this.clienteFavorecidoRepository.save(saveObject);
   }
 
   public async getOne(
