@@ -60,6 +60,7 @@ import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
 import { CnabRegistros104Pgto } from './interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { CnabHeaderArquivo104 } from './interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
+import { completeCPFCharacter } from 'src/utils/cpf-cnpj';
 
 /**
  * User cases for CNAB and Payments
@@ -106,24 +107,30 @@ export class CnabService {
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
-  public async saveTransacoesJae(daysBefore=0,consorcio:string,dataPgto: Date | undefined) {    
+  public async saveTransacoesJae(dayCurrentBefore=0,daysBefore=0,consorcio:string) {    
     // 1. Update cliente favorecido
-     await this.updateAllFavorecidosFromUsers();
+    await this.updateAllFavorecidosFromUsers();    
     // 2. Update TransacaoView
-    await this.updateTransacaoViewBigquery(daysBefore,dataPgto);
+    await this.updateTransacaoViewBigquery(dayCurrentBefore,daysBefore,consorcio);
     // 3. Update ordens
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(daysBefore);
-    await this.saveOrdens(ordens,consorcio);
-    //TODO: Colocar na leitura do retorno
-    //await this.compareTransacaoViewPublicacao();
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dayCurrentBefore,daysBefore);
+    await this.saveOrdens(ordens,consorcio);    
   }
 
   /**
    * Atualiza a tabela TransacaoView
    */
-  async updateTransacaoViewBigquery(daysBack=0,dataPgto: Date | undefined) {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(daysBack,dataPgto,false)
-    const trs = transacoesBq.filter(tr => new Date(tr.datetime_transacao) >= subDays(new Date(),daysBack));
+  async updateTransacaoViewBigquery(dayCurrentBefore=0,daysBack=0,consorcio:string) {
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(dayCurrentBefore,daysBack)
+    
+    let trs =  transacoesBq;
+    if(consorcio==='Van'){
+       trs = transacoesBq.filter(tr => tr.modo===consorcio);
+    }else if(consorcio=='Empresa'){
+      trs = transacoesBq.filter(tr => tr.modo!=='Van');
+    }else if(consorcio!='Todos' && consorcio!='Empresa' && consorcio!='Todos'){
+      trs = transacoesBq.filter(tr => tr.consorcio == consorcio);
+    }
    
     forChunk(trs, 1000, async (chunk) => {   
       const transacoes = chunk.map((i) =>TransacaoView.fromBigqueryTransacao(i));
@@ -132,10 +139,7 @@ export class CnabService {
           continue;
         }
         await this.transacaoViewService.save(tr);        
-      }       
-      // await this.transacaoViewService.findExisting(transacoes,async (existing) => {
-      //   await this.transacaoViewService.saveMany(existing, transacoes);
-      // });
+      }
     });
   }
 
@@ -143,8 +147,7 @@ export class CnabService {
    * Salvar Transacao / ItemTransacao e agrupados
    */
   async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[],consorcio="Todos") {
-    const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
-   
+    const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;   
 
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
@@ -153,32 +156,30 @@ export class CnabService {
         continue;
       }
       const favorecido = await this.clienteFavorecidoService.findOne({
-        where: { cpfCnpj: cpfCnpj }});
+        where: { cpfCnpj: completeCPFCharacter(cpfCnpj,0) }});
+
       if (!favorecido) {      
         continue;
       }      
     
-      if (consorcio =='Todos'){
+      if (consorcio =='Todos' || consorcio == ordem.consorcio){
         await this.saveAgrupamentos(ordem, pagador, favorecido); 
       }else if(consorcio =='Van'){
-        if(ordem.consorcio =='STPC' || ordem.consorcio == 'STPL'){ 
-           if(
-            //(favorecido.nome =='MARIA DA GUIA BARROS DA COSTA' && (ordem.dataOrdem >='2024-06-06' && ordem.dataOrdem <='2024-06-19'))
-            //|| (favorecido.nome =='ROSEMAR FURTADO GONZALEZ' && (ordem.dataOrdem >='2024-06-06' && ordem.dataOrdem <='2024-06-19'))
-            // || (favorecido.nome =='ROSEVAL PEREIRA DE SOUZA' && (ordem.dataOrdem >='2024-06-06' && ordem.dataOrdem <='2024-06-19'))
-            // || (favorecido.nome =='JOAO SALES DE ALBUQUERQUE' && (ordem.dataOrdem >='2024-06-06' && ordem.dataOrdem <='2024-06-26'))
-            // || (favorecido.nome =='JOSE DIAS XIMENES' && (ordem.dataOrdem >='2024-06-06' && ordem.dataOrdem <='2024-06-26'))
-            // || (favorecido.nome =='EDUARDO CARLOS DE OLIVEIRA' && (ordem.dataOrdem >='2024-06-20' && ordem.dataOrdem <='2024-06-26'))
-            // || (favorecido.nome =='FRANCISCO DE OLIVEIRA FARIAS' && (ordem.dataOrdem >='2024-06-20' && ordem.dataOrdem <='2024-06-26'))
-            // || (favorecido.nome =='LUCIANO CALIXTO MARQUES' && (ordem.dataOrdem >='2024-06-20' && ordem.dataOrdem <='2024-06-26')) 
-             (favorecido.nome =='RICHARD DA SILVA FILLIES')){                      
-            await this.saveAgrupamentos(ordem, pagador, favorecido);  
-           }          
+        if(ordem.consorcio =='STPC' || ordem.consorcio == 'STPL'){
+          if((favorecido.nome=='ROSEVAL PEREIRA DE SOUZA' && ordem.dataOrdem>='2024-06-06' && ordem.dataOrdem<='2024-06-19') || 
+            favorecido.nome=='JOAO SALES DE ALBUQUERQUE' && ordem.dataOrdem>='2024-06-06' && ordem.dataOrdem<='2024-06-26' ||
+            favorecido.nome=='JOSE DIAS XIMENES' && ordem.dataOrdem>='2024-06-06' && ordem.dataOrdem<='2024-06-26' ||
+            favorecido.nome == 'EDUARDO CARLOS DE OLIVEIRA' && ordem.dataOrdem>='2024-06-20' && ordem.dataOrdem<='2024-07-03' ||
+            favorecido.nome == 'LUCIANO CALIXTO MARQUES' && ordem.dataOrdem>='2024-06-20' && ordem.dataOrdem<='2024-06-26' ||
+            favorecido.nome == 'AGUINALDO PAIVA RIBEIRO' && ordem.dataOrdem>='2024-06-27' && ordem.dataOrdem<='2024-07-03'||
+            favorecido.nome == 'DOMINGOS VIANA DA SILVA' && ordem.dataOrdem>='2024-06-27' && ordem.dataOrdem<='2024-07-03'){
+              await this.saveAgrupamentos(ordem, pagador, favorecido);  
+            }
         }  
       }else if(consorcio =='Empresa'){
-        if(ordem.consorcio !='STPC' && ordem.consorcio != 'STPL'){          
-           await this.saveAgrupamentos(ordem, pagador, favorecido);              
-         }  
+        if(ordem.consorcio !='STPC' && ordem.consorcio != 'STPL'){    
+          await this.saveAgrupamentos(ordem, pagador, favorecido);            
+        }          
       }
     }
   }
@@ -271,13 +272,8 @@ export class CnabService {
       itemAg = await this.itemTransacaoAgService.findOne({
         where: {
           transacaoAgrupado: { id: transacaoAg.id, status: { id: TransacaoStatusEnum.created }},
-          /**
-           * Agrupar por destinatário (idOperadora).
-           *
-           * Se consorcio for STPC, agrupa pela operadora
-           * Senão, agrupa pelo consórico
-           */
-          ...(ordem.consorcio === 'STPC' ? { idOperadora: ordem.idOperadora }: { idConsorcio: ordem.idConsorcio }),
+                 ...(ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' ?
+                   { idOperadora: ordem.idOperadora }: { idConsorcio: ordem.idConsorcio })
         },
       });
       if (itemAg) {
@@ -548,7 +544,9 @@ export class CnabService {
    */
   public async updateRetorno() {
     const METHOD = this.updateRetorno.name;
-    // Get retorno
+    //Atualiza transacaoView com dados da publicacao
+    await this.compareTransacaoViewPublicacao();
+
     const { cnabString, cnabName } =
       await this.sftpService.getFirstCnabRetorno();
     if (!cnabName || !cnabString) {
@@ -583,9 +581,7 @@ export class CnabService {
     } catch (error) {
       this.logger.error(
         `Erro ao processar CNAB retorno, movendo para backup de erros e finalizando... - ${error}`,
-        error.stack,
-        METHOD,
-      );
+        error.stack, METHOD);
 
       /**
        * Reverte o NSR pois o sistema está preparado para ler um retorno no formato acordado.

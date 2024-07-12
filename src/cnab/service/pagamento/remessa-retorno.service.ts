@@ -500,6 +500,8 @@ detalheA104: CnabDetalheA_104, savedHeaderLoteId: number, itemTransacaoAg: ItemT
     const dataEfetivacao = new Date();
     for (const cnabLote of cnab.lotes) {
       for (const registro of cnabLote.registros) {
+        this.logger.debug(`Header Arquivo NSA:`,cnab.headerArquivo.nsa.value);
+        this.logger.debug(`Header lote :`,cnabLote.headerLote.codigoRegistro.value)
         // Save Detalhes
         const detalheAUpdated = await this.detalheAService.saveRetornoFrom104(
           cnab.headerArquivo,

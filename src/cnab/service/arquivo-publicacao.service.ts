@@ -7,9 +7,8 @@ import {
   nextFriday,
   startOfDay,
 } from 'date-fns';
-import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { asNumber } from 'src/utils/pipe-utils';
-import { DeepPartial, FindManyOptions } from 'typeorm';
+import { FindManyOptions } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
@@ -23,8 +22,7 @@ import { HeaderArquivoService } from './pagamento/header-arquivo.service';
 import { HeaderLoteService } from './pagamento/header-lote.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
-import { TransacaoService } from './pagamento/transacao.service';
-import { ItemTransacaoAgrupado } from '../entity/pagamento/item-transacao-agrupado.entity';
+
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -39,8 +37,6 @@ export class ArquivoPublicacaoService {
     private detalheAService: DetalheAService,
     private transacaoOcorrenciaService: OcorrenciaService,
     private transacaoAgService: TransacaoAgrupadoService,
-    private transacaoService: TransacaoService,
-    private transacaoViewService: TransacaoViewService,
     private itemTransacaoService: ItemTransacaoService,
   ) { }
   

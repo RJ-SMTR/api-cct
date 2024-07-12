@@ -69,9 +69,11 @@ export class CnabController {
   }
 
 
-  @ApiQuery({name: 'diasAnteriores',description: 'Qtde dias Anteriores a sexta',
-     required: false, type: Number, example: 7})
-  @ApiQuery({name: 'consorcio',description: 'Nome Consorcio',required: false, type: String, example: 'Todos / Van / Empresa'})
+  @ApiQuery({name: 'diasAnterioresAtual',description: 'Qtde dias Anteriores a data Atual',
+    required: false, type: Number, example: 1})     
+  @ApiQuery({name: 'diasAnterioresSexta',description: 'Qtde dias Anteriores a sexta',
+     required: false, type: Number, example: 7}) 
+  @ApiQuery({name: 'consorcio',description: 'Nome Consorcio',required: false, type: String, example: 'Todos / Van / Empresa /Nome Consorcio'})
   @ApiQuery({name: 'dt_pagamento',description: 'Data Pagamento', required: false, type: String})
   @ApiQuery({name: 'isConference',description: 'Conferencia',required: false, type: Boolean, example: 'true or false'})
   @ApiQuery({name: 'isCancelamento',description: 'Cancelamento',required: false, type: Boolean, example: 'true or false'})
@@ -83,7 +85,8 @@ export class CnabController {
   @UseGuards(AuthGuard('jwt'))
   @Get('generateRemessa')
   async generateRemessa(
-    @Query('diasAnteriores') diasAnteriores:number,
+    @Query('diasAnterioresAtual') diasAnterioresAtual:number | 0,
+    @Query('diasAnterioresSexta') diasAnteriores:number | 0,
     @Query('consorcio') consorcio='Todos',
     @Query('dt_pagamento', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/)) dt_pagamento: string | undefined,
     @Query('isConference') isConference: boolean,
@@ -93,15 +96,23 @@ export class CnabController {
     @Query('dataCancelamento', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/)) dataCancelamento: string) {
     let listCnab;
     if(dt_pagamento !==null && dt_pagamento !==undefined){
-      await this.cnabService.saveTransacoesJae(diasAnteriores,consorcio,new Date(dt_pagamento));
+      await this.cnabService.saveTransacoesJae(diasAnterioresAtual,diasAnteriores,consorcio);
       listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem,
         new Date(dt_pagamento),isConference,isCancelamento,nsaInicial,nsaFinal,new Date(dataCancelamento)); 
     }else{
-      await this.cnabService.saveTransacoesJae(diasAnteriores,consorcio,undefined);
+      await this.cnabService.saveTransacoesJae(diasAnterioresAtual,diasAnteriores,consorcio);
       listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem,
         undefined,isConference,isCancelamento,nsaInicial,nsaFinal,new Date(dataCancelamento)); 
     }      
     await this.cnabService.sendRemessa(listCnab); 
     return listCnab; 
+  }
+ 
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('updateRetorno')
+  async updateRetorno(){
+    return await this.cnabService.updateRetorno();   
   }
 }

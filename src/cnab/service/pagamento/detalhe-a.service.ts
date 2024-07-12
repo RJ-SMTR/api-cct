@@ -1,3 +1,4 @@
+import { PagamentosPendentes } from './../../entity/pagamento/pagamentos-pendentes.entity';
 import { Injectable, Logger } from '@nestjs/common';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
@@ -14,6 +15,7 @@ import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-head
 import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
 import { CnabLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface';
+import { PagamentosPendentesService } from './pagamentos-pendentes.service';
 
 @Injectable()
 export class DetalheAService {
@@ -22,7 +24,8 @@ export class DetalheAService {
   constructor(
     private detalheARepository: DetalheARepository,
     private clienteFavorecidoService: ClienteFavorecidoService,
-    private transacaoAgrupadoService: TransacaoAgrupadoService   
+    private transacaoAgrupadoService: TransacaoAgrupadoService,
+    private pagamentosPendentesService: PagamentosPendentesService   
   ) {}
 
   /**
@@ -65,67 +68,76 @@ export class DetalheAService {
     return this.detalheARepository.saveManyIfNotExists(dtos);
   }
 
-  public async saveRetornoFrom104(
-    headerArq: CnabHeaderArquivo104,
-    headerLotePgto: CnabHeaderLote104Pgto,
-    registro: CnabRegistros104Pgto,
-    dataEfetivacao: Date,
-  ): Promise<DetalheA | null> {
-    const r = registro;
+  public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto,
+    r: CnabRegistros104Pgto, dataEfetivacao: Date): Promise<DetalheA | null>{
+    
     const favorecido = await this.clienteFavorecidoService.findOne({
       where: { nome: ILike(`%${r.detalheA.nomeTerceiro.stringValue.trim()}%`) },
     });
-    if (!favorecido) {
+   
+    if (!favorecido) {     
       return null;
     }
-    const dataVencimento = startOfDay(
-      registro.detalheA.dataVencimento.convertedValue,
-    );
-    const detalheARem = await this.detalheARepository.getOne({
-      dataVencimento: dataVencimento,
-      nsr: r.detalheA.nsr.convertedValue,
-      itemTransacaoAgrupado: {
-        transacaoAgrupado: {
-          status: { id: TransacaoStatusEnum.remessa },
-        },
-      },
-    });
-    const detalheA = new DetalheADTO({
-      id: detalheARem.id,
-      headerLote: { id: detalheARem.headerLote.id },
-      loteServico: Number(r.detalheA.loteServico.value),
-      clienteFavorecido: { id: favorecido.id },
-      finalidadeDOC: r.detalheA.finalidadeDOC.value,
-      numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
-      dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
-      dataEfetivacao: dataEfetivacao,
-      tipoMoeda: r.detalheA.tipoMoeda.value,
-      quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
-      valorLancamento: r.detalheA.valorLancamento.convertedValue,
-      numeroDocumentoBanco: String(
-        r.detalheA.numeroDocumentoBanco.convertedValue,
-      ),
-      quantidadeParcelas: Number(r.detalheA.quantidadeParcelas.value),
-      indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
-      indicadorFormaParcelamento:
-        r.detalheA.indicadorFormaParcelamento.stringValue,
-      periodoVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
-      numeroParcela: r.detalheA.numeroParcela.convertedValue,
-      valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
-      nsr: Number(r.detalheA.nsr.value),
-      ocorrenciasCnab:
-        headerArq.ocorrenciaCobrancaSemPapel.value.trim() ||
-        headerLotePgto.ocorrencias.value.trim() ||
-        r.detalheA.ocorrencias.value.trim(),
-    });
-    const saved = await this.detalheARepository.save(detalheA);
-
-    return saved;
+    const dataVencimento = startOfDay(r.detalheA.dataVencimento.convertedValue);
+  
+    try{
+      const detalheARem = await this.detalheARepository.getOne({
+        dataVencimento: dataVencimento,
+        //nsr: r.detalheA.nsr.convertedValue,
+        numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue        
+      });
+      if((detalheARem.ocorrenciasCnab===undefined || detalheARem.ocorrenciasCnab==='')
+        || (detalheARem.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim() 
+        && detalheARem.ocorrenciasCnab !== '00' && detalheARem.ocorrenciasCnab !== 'BD')){
+        const detalheA = new DetalheADTO({
+          id: detalheARem.id,
+          headerLote: { id: detalheARem.headerLote.id },
+          loteServico: Number(r.detalheA.loteServico.value),
+          clienteFavorecido: { id: favorecido.id },
+          finalidadeDOC: r.detalheA.finalidadeDOC.value,
+          numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
+          dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
+          dataEfetivacao: dataEfetivacao,
+          tipoMoeda: r.detalheA.tipoMoeda.value,
+          quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
+          valorLancamento: r.detalheA.valorLancamento.convertedValue,
+          numeroDocumentoBanco: String(
+            r.detalheA.numeroDocumentoBanco.convertedValue,
+          ),
+          quantidadeParcelas: Number(r.detalheA.quantidadeParcelas.value),
+          indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
+          indicadorFormaParcelamento:
+            r.detalheA.indicadorFormaParcelamento.stringValue,
+          periodoVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
+          numeroParcela: r.detalheA.numeroParcela.convertedValue,
+          valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
+          nsr: Number(r.detalheA.nsr.value),
+          ocorrenciasCnab:
+            headerArq.ocorrenciaCobrancaSemPapel.value.trim() ||
+            headerLotePgto.ocorrencias.value.trim() ||
+            r.detalheA.ocorrencias.value.trim(),
+        });
+        return await this.detalheARepository.save(detalheA);
+      }
+    }catch (err) {       
+       this.logger.error(err);
+       this.logger.debug(`Detalhe não encontrado para o favorecido: `,favorecido?.nome);
+    }
+    if(r.detalheA.ocorrencias!==undefined && r.detalheA.ocorrencias.value.trim()!=='' &&
+       r.detalheA.ocorrencias.value.trim()!=='BD' && r.detalheA.ocorrencias.value.trim()!=='00'){
+      const pagamentosPendentes = new PagamentosPendentes();
+      pagamentosPendentes.nomeFavorecido = r.detalheA.nomeTerceiro.stringValue;
+      pagamentosPendentes.dataVencimento = r.detalheA.dataVencimento.convertedValue;
+      pagamentosPendentes.nsr = r.detalheA.nsr.value;                
+      pagamentosPendentes.ocorrenciaErro = r.detalheA.ocorrencias.value.trim();     
+      await this.pagamentosPendentesService.save(pagamentosPendentes);
+    }
+    return null;
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
     await validateDTO(DetalheADTO, dto);
-    return await this.detalheARepository.save(dto);//100
+    return await this.detalheARepository.save(dto);
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
