@@ -98,7 +98,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     //await this.saveTransacoesJae1(0,'Todos',new Date());
     //await this.saveAndSendRemessa(new Date(),true);
     // await this.cnabService.updateTransacaoViewBigquery(7);
-    await this.cnabService.testUpdateTransacaoView();
+    // await this.cnabService.testUpdateTransacaoView();
 
     this.jobsConfig.push(
       {
