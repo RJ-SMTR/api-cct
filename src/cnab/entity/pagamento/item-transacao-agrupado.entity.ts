@@ -11,7 +11,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ClienteFavorecido } from '../cliente-favorecido.entity';
+
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
 
 /**
@@ -63,16 +63,6 @@ export class ItemTransacaoAgrupado extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   nomeOperadora: string | null;
-
-  /** If entity exists, create, if not, go standby and check later. */
-  @ManyToOne(() => ClienteFavorecido, {
-    eager: true,
-  })
-  @JoinColumn({
-    foreignKeyConstraintName:
-      'FK_ItemTransacaoAgrupado_clienteFavorecido_ManyToOne',
-  })
-  clienteFavorecido: ClienteFavorecido;
 
   /**
    * Valor do lançamento.

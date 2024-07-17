@@ -13,7 +13,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
-import { Transacao } from './transacao.entity';
 
 /**
  * Pagamento.HeaderArquivo
@@ -68,12 +67,7 @@ export class HeaderArquivo extends EntityHelper {
 
   @Column({ type: 'time', unique: false, nullable: true })
   horaGeracao: Date;
-
-  @ManyToOne(() => Transacao, { eager: true })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_HeaderArquivo_transacao_ManyToOne',
-  })
-  transacao: Transacao | null;
+ 
 
   @ManyToOne(() => TransacaoAgrupado, { eager: true })
   @JoinColumn({
@@ -89,10 +83,7 @@ export class HeaderArquivo extends EntityHelper {
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  public getIdString(): string {
-    return `{ transacao: ${this.transacao?.id},  transacaoAg: ${this.transacaoAgrupado?.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;
-  }
+  
 
   @BeforeInsert()
   setLoadValues() {

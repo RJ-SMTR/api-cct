@@ -93,8 +93,7 @@ export class DetalheAConfService {
     const detalheA = new DetalheADTO({
       id: detalheARem.id,
       headerLote: { id: detalheARem.headerLote.id },
-      loteServico: Number(r.detalheA.loteServico.value),
-      clienteFavorecido: { id: favorecido.id },
+      loteServico: Number(r.detalheA.loteServico.value),      
       finalidadeDOC: r.detalheA.finalidadeDOC.value,
       numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
       dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),

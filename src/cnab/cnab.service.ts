@@ -13,7 +13,6 @@ import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-or
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
-import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
 import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
@@ -46,8 +45,7 @@ import { PagadorService } from './service/pagamento/pagador.service';
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
-import {
-  getCnab104Errors,
+import {  
   parseCnab240Extrato,
   parseCnab240Pagamento,
   stringifyCnab104File,
@@ -89,8 +87,7 @@ export class CnabService {
     private transacaoAgService: TransacaoAgrupadoService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private readonly lancamentoService: LancamentoService,
-    private arquivoPublicacaoService: ArquivoPublicacaoService,
-    private settingsService: SettingsService,
+    private arquivoPublicacaoService: ArquivoPublicacaoService,    
     private headerArquivoService: HeaderArquivoService,
     private headerLoteService: HeaderLoteService,
     private detalheAService: DetalheAService,    
@@ -107,21 +104,21 @@ export class CnabService {
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
-  public async saveTransacoesJae(dayCurrentBefore=0,daysBefore=0,consorcio:string) {    
+  public async saveTransacoesJae(dataOrdemIncial,dataOrdemFinal,daysBefore=0,consorcio:string) {    
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();    
     // 2. Update TransacaoView
-    await this.updateTransacaoViewBigquery(dayCurrentBefore,daysBefore,consorcio);
+    await this.updateTransacaoViewBigquery(dataOrdemIncial,dataOrdemFinal,daysBefore,consorcio);
     // 3. Update ordens
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dayCurrentBefore,daysBefore);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemIncial,dataOrdemFinal,daysBefore);
     await this.saveOrdens(ordens,consorcio);    
   }
 
   /**
    * Atualiza a tabela TransacaoView
    */
-  async updateTransacaoViewBigquery(dayCurrentBefore=0,daysBack=0,consorcio:string) {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(dayCurrentBefore,daysBack)
+  async updateTransacaoViewBigquery(dataOrdemIncial,dataOrdemFinal,daysBack=0,consorcio:string) {
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(dataOrdemIncial,dataOrdemFinal,daysBack)
     
     let trs =  transacoesBq;
     if(consorcio==='Van'){
@@ -135,7 +132,7 @@ export class CnabService {
     forChunk(trs, 1000, async (chunk) => {   
       const transacoes = chunk.map((i) =>TransacaoView.fromBigqueryTransacao(i));
       for(const tr of transacoes) {
-        if(tr.modo == undefined || tr.modo == null) {
+        if((tr.modo == undefined || tr.modo == null) || tr.nomeOperadora == undefined || tr.nomeOperadora == null){
           continue;
         }
         await this.transacaoViewService.save(tr);        
@@ -166,15 +163,7 @@ export class CnabService {
         await this.saveAgrupamentos(ordem, pagador, favorecido); 
       }else if(consorcio =='Van'){
         if(ordem.consorcio =='STPC' || ordem.consorcio == 'STPL'){
-          if((favorecido.nome=='ROSEVAL PEREIRA DE SOUZA' && ordem.dataOrdem>='2024-06-06' && ordem.dataOrdem<='2024-06-19') || 
-            favorecido.nome=='JOAO SALES DE ALBUQUERQUE' && ordem.dataOrdem>='2024-06-06' && ordem.dataOrdem<='2024-06-26' ||
-            favorecido.nome=='JOSE DIAS XIMENES' && ordem.dataOrdem>='2024-06-06' && ordem.dataOrdem<='2024-06-26' ||
-            favorecido.nome == 'EDUARDO CARLOS DE OLIVEIRA' && ordem.dataOrdem>='2024-06-20' && ordem.dataOrdem<='2024-07-03' ||
-            favorecido.nome == 'LUCIANO CALIXTO MARQUES' && ordem.dataOrdem>='2024-06-20' && ordem.dataOrdem<='2024-06-26' ||
-            favorecido.nome == 'AGUINALDO PAIVA RIBEIRO' && ordem.dataOrdem>='2024-06-27' && ordem.dataOrdem<='2024-07-03'||
-            favorecido.nome == 'DOMINGOS VIANA DA SILVA' && ordem.dataOrdem>='2024-06-27' && ordem.dataOrdem<='2024-07-03'){
-              await this.saveAgrupamentos(ordem, pagador, favorecido);  
-            }
+          await this.saveAgrupamentos(ordem, pagador, favorecido);          
         }  
       }else if(consorcio =='Empresa'){
         if(ordem.consorcio !='STPC' && ordem.consorcio != 'STPL'){    
@@ -338,8 +327,7 @@ export class CnabService {
     favorecido: ClienteFavorecido,transacaoAg: TransacaoAgrupado) {
     const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
     const fridayOrdem = nextFriday(nextThursday(startOfDay(dataOrdem)));
-    const item = new ItemTransacaoAgrupado({
-      clienteFavorecido: favorecido,
+    const item = new ItemTransacaoAgrupado({      
       dataCaptura: ordem.dataOrdem,
       dataOrdem: fridayOrdem,
       idConsorcio: ordem.idConsorcio,
@@ -556,49 +544,17 @@ export class CnabService {
 
     // Save Retorno, ArquivoPublicacao, move SFTP to backup
     try {
-      const retorno104 = parseCnab240Pagamento(cnabString);
-      /** Pega o status 2, muda para 3 */
+      const retorno104 = parseCnab240Pagamento(cnabString);      
       await this.remessaRetornoService.saveRetorno(retorno104);
-      /** Pega status 3, muda para 4 */
-      await this.arqPublicacaoService.compareRemessaToRetorno();
-      const isCnabAccepted = getCnab104Errors(retorno104).length === 0;
-
-      const logHasErrors = isCnabAccepted
-        ? 'foi aceito.'
-        : 'possui erros de aceitação do banco.';
-      this.logger.log(
-        `Retorno lido com sucesso, ${logHasErrors} Enviando para o backup...`,
-        METHOD,
-      );
-      if (!isCnabAccepted) {
-        await this.settingsService.revertNSR();
-      } else {
-        await this.settingsService.confirmNSR();
-      }
-      await this.sftpService.moveToBackup(
-        cnabName,
-        SftpBackupFolder.RetornoSuccess);
+      await this.sftpService.moveToBackup(cnabName,SftpBackupFolder.RetornoSuccess);
     } catch (error) {
       this.logger.error(
         `Erro ao processar CNAB retorno, movendo para backup de erros e finalizando... - ${error}`,
-        error.stack, METHOD);
-
-      /**
-       * Reverte o NSR pois o sistema está preparado para ler um retorno no formato acordado.
-       * Se a leitura falhar, entendemos que não é um retorno válido, ignoramos o arquivo.
-       */
-      await this.settingsService.revertNSR();
-
-      await this.sftpService.moveToBackup(
-        cnabName,
-        SftpBackupFolder.RetornoFailure,
-      );
+        error.stack, METHOD);     
+      await this.sftpService.moveToBackup( cnabName,SftpBackupFolder.RetornoFailure);
       return;
     }
   }
-
-  // #region saveExtrato
-
   /**
    * This task will:
    * 1. Get extrato from SFTP

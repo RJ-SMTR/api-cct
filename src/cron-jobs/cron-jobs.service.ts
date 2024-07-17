@@ -710,11 +710,11 @@ export class CronJobsService  {
     return cnabJobEnabled.getValueAsBoolean();
   }
 
-  async saveTransacoesJae1(daysCurrentBefore=0,daysBefore = 0,consorcio='Todos') {
+  async saveTransacoesJae1(dataOrdemIncial,dataOrdemFinal,daysBefore = 0,consorcio='Todos') {
     const METHOD = this.saveTransacoesJae1.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesJae(daysCurrentBefore,daysBefore,consorcio);
+      await this.cnabService.saveTransacoesJae(dataOrdemIncial,dataOrdemFinal,daysBefore,consorcio);
       this.logger.log('Tabelas para o Jaé atualizados com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`ERRO CRÍTICO - ${error}`, error?.stack, METHOD);
@@ -722,11 +722,11 @@ export class CronJobsService  {
     }
   }
 
-  async saveTransacoesJae2(daysCurrentBefore=0,daysBefore = 0,consorcio='Todos') {
+  async saveTransacoesJae2(dataOrdemIncial,dataOrdemFinal,daysBefore = 0,consorcio='Todos') {
     const METHOD = this.saveTransacoesJae2.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesJae(daysCurrentBefore,daysBefore,consorcio);
+      await this.cnabService.saveTransacoesJae(dataOrdemIncial,dataOrdemFinal,daysBefore,consorcio);
       this.logger.log('Tabelas para o Jaé atualizados com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(

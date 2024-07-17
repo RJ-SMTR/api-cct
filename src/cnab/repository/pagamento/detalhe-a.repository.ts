@@ -15,7 +15,7 @@ import {
   MoreThanOrEqual,
   Repository,
 } from 'typeorm';
-import { ClienteFavorecido } from '../../entity/cliente-favorecido.entity';
+
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 
 @Injectable()
@@ -95,23 +95,15 @@ export class DetalheARepository {
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
-    const one = await this.detalheARepository.findOneOrFail({
+    return await this.detalheARepository.findOneOrFail({
       where: fields,
     });
-    if (one) {
-      await this.forceManyEager([one]);
-    }
-    return one;
   }
 
   public async findOne(
     options: FindOneOptions<DetalheA>,
   ): Promise<Nullable<DetalheA>> {
-    const one = await this.detalheARepository.findOne(options);
-    if (one) {
-      await this.forceManyEager([one]);
-    }
-    return one;
+    return await this.detalheARepository.findOne(options);
   }
 
   public async findMany(
@@ -143,24 +135,24 @@ export class DetalheARepository {
    *
    * So we query separately the Entity and use it.
    */
-  private async forceManyEager(detalhesA: DetalheA[]) {
-    const favorecidoIds = detalhesA.reduce(
-      (l, i) => [...l, i.clienteFavorecido.id],
-      [],
-    );
-    if (favorecidoIds.length === 0) {
-      return;
-    }
-    const favorecidos: ClienteFavorecido[] =
-      await this.detalheARepository.query(
-        `SELECT * from cliente_favorecido c WHERE c.id IN (${favorecidoIds.join(
-          ',',
-        )})`,
-      );
-    const favorecidosMap: Record<number, ClienteFavorecido> =
-      favorecidos.reduce((m, i) => ({ ...m, [i.id]: i }), {});
-    for (const one of detalhesA) {
-      one.clienteFavorecido = favorecidosMap[one.clienteFavorecido.id];
-    }
-  }
+  // private async forceManyEager(detalhesA: DetalheA[]) {
+  //   const favorecidoIds = detalhesA.reduce(
+  //     (l, i) => [...l, i.clienteFavorecido.id],
+  //     [],
+  //   );
+  //   if (favorecidoIds.length === 0) {
+  //     return;
+  //   }
+  //   const favorecidos: ClienteFavorecido[] =
+  //     await this.detalheARepository.query(
+  //       `SELECT * from cliente_favorecido c WHERE c.id IN (${favorecidoIds.join(
+  //         ',',
+  //       )})`,
+  //     );
+  //   const favorecidosMap: Record<number, ClienteFavorecido> =
+  //     favorecidos.reduce((m, i) => ({ ...m, [i.id]: i }), {});
+  //   for (const one of detalhesA) {
+  //     one.clienteFavorecido = favorecidosMap[one.clienteFavorecido.id];
+  //   }
+  // }
 }
