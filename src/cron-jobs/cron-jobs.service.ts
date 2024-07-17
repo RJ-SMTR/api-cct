@@ -97,8 +97,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     //await this.saveTransacoesJae1(0,'Todos',new Date());
     //await this.saveAndSendRemessa(new Date(),true);
-    // await this.cnabService.updateTransacaoViewBigquery();
-    //await this.cnabService.compareTransacaoViewPublicacao(14);
+    // await this.cnabService.updateTransacaoViewBigquery(7);
+    // await this.cnabService.testUpdateTransacaoView();
 
     this.jobsConfig.push(
       {

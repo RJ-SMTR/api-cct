@@ -41,36 +41,29 @@ export class TransacaoViewService {
     return await this.transacaoViewRepository.find(options);
   }
 
-  findOne = this.transacaoViewRepository.findOne;
-  getOne = this.transacaoViewRepository.getOne;
-
-  async upsertId(dtos: TransacaoView[]) {
-    return await this.transacaoViewRepository.upsert(dtos, {
-      conflictPaths: {
-        id: true,
-      },
-    });
-  }
-
-  async updateMany(ids: number[], dto: DeepPartial<TransacaoView>) {
-    await this.transacaoViewRepository.updateMany(ids, dto);
-  }
-
   /**
    * Tarefas:
    * 1. Faz paginação de cada i
    */
   async findExisting(
     transacoes: DeepPartial<TransacaoView>[],
-    callback: (existing: TransacaoView[]) => void,
-  ) {    
+    callback: (
+      existing: TransacaoView[],
+      newItems: DeepPartial<TransacaoView>[],
+    ) => void,
+  ) {
     const existing = await this.transacaoViewRepository.findExisting(
-      transacoes
+      transacoes,
     );
-    callback(existing); 
+    const existingIds = existing.map((i) => i.idTransacao);
+    const newItems = transacoes.filter(
+      (i) => i?.idTransacao && existingIds.includes(i.idTransacao),
+    );
+    callback(existing, newItems);
   }
 
   /**
+   * Cria ou atualiza TransacaoViews
    * Tarefas:
    * 1. Atualizar separadamente os campos: valor_pago e tipo_transacao (smtr)
    * 2. Para cada campo, agrupar pelo valor - para fazer um updateMany
@@ -88,28 +81,31 @@ export class TransacaoViewService {
     await queryRunner.connect();
     try {
       await queryRunner.startTransaction();
-      let index = 1;
+      let transacoesIndex = 1;
       let maxId = await this.transacaoViewRepository.getMaxId();
-      for (const item of transacoes) {
+      for (const transacao of transacoes) {
         const existing = existings.filter(
-          (i) => i.idTransacao === item.idTransacao,
+          (i) => i.idTransacao === transacao.idTransacao,
         )[0] as TransacaoView | undefined;
+        // Se existe, atualiza
         if (existing) {
           this.logger.debug(
-            `Atualizando item ${existing.id} - ${index}/${transacoes.length}`,
+            `Atualizando item ${existing.id} - ${transacoesIndex}/${transacoes.length}`,
           );
           await queryRunner.manager.save(TransacaoView, {
             id: existing.id,
-            ...item,
+            ...transacao,
           });
-        } else {
-          this.logger.debug(
-            `Inserindo novo item - ${index}/${transacoes.length}`,
-          );
-          item.id = ++maxId;
-          await queryRunner.manager.save(TransacaoView, item);
         }
-        index++;
+        // Senão, cria
+        else {
+          this.logger.debug(
+            `Inserindo novo item - ${transacoesIndex}/${transacoes.length}`,
+          );
+          transacao.id = ++maxId;
+          await queryRunner.manager.save(TransacaoView, transacao);
+        }
+        transacoesIndex++;
       }
       await queryRunner.commitTransaction();
     } catch (error) {
@@ -121,75 +117,5 @@ export class TransacaoViewService {
     } finally {
       await queryRunner.release();
     }
-  }
-
-  async updateManyBy(
-    existing: DeepPartial<TransacaoView>[],
-    property: keyof TransacaoView,
-  ) {
-    const allProp = existing.filter((i) => i.id && i[property]);
-    const groupByProp = groupBy(allProp, property);
-    for (const prop of groupByProp) {
-      const chunks = getChunks(prop, 100);
-      for (const chunk of chunks) {
-        const ids = chunk.map((i) => i.id as number);
-        await this.transacaoViewRepository.updateMany(ids, {
-          [property]: chunk[0][property] as string,
-        });
-      }
-    }
-  }
-
-  async insertMany(dtos: DeepPartial<TransacaoView>[]) {
-    for (const item of dtos) {
-      await this.transacaoViewRepository.save(item);
-    }
-    // const _dtos = await this.ignoreExisting(structuredClone(dtos));
-    // const chunks: TransacaoView[][] = [];
-    // while (dtos.length) {
-    //   chunks.push(dtos.splice(0, 100));
-    // }
-
-    // let count = 1;
-    // for (const chunk of chunks) {
-    //   this.logger.log(`Inserindo TransacaoViews ${count}/${chunks.length}`);
-    //   await this.transacaoViewRepository.insertByDatetime(chunk);
-    //   // await this.transacaoViewRepository.upsert(chunk, {
-    //   //   conflictPaths: {
-    //   //     datetimeTransacao: true,
-    //   //     datetimeProcessamento: true,
-    //   //   },
-    //   // });
-    //   count += 1;
-    // }
-  }
-
-  async ignoreExisting(dtos: TransacaoView[]) {
-    const ids = dtos.map((i) => i.idTransacao);
-    const chunks: string[][] = [];
-    while (ids.length) {
-      chunks.push(ids.splice(0, 1000));
-    }
-    const existing: TransacaoView[] = [];
-    for (const transacaoIds of chunks) {
-      const existingSlice = await this.transacaoViewRepository.find({
-        where: {
-          idTransacao: In(transacaoIds),
-        },
-        loadEagerRelations: false,
-      });
-      existing.push(...existingSlice);
-    }
-    if (existing.length) {
-      const existingIds = existing.map((i) => i.idTransacao);
-      const lengthBefore = dtos.length;
-      const filtered = dtos.filter((i) => !existingIds.includes(i.idTransacao));
-      this.logger.log(
-        `Há ${existing.length} TransacaoViews existentes no banco, ignorando antes de inserir... ` +
-          `(${lengthBefore} -> ${filtered.length} itens)`,
-      );
-      return filtered;
-    }
-    return dtos;
   }
 }
