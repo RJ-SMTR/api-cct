@@ -131,23 +131,5 @@ export class TransacaoViewRepository {
     return many.pop() || null;
   }
 
-  async updateMany(ids: number[], dto: DeepPartial<TransacaoView>) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      await queryRunner.startTransaction();
-      await queryRunner.manager.update(TransacaoView, { id: In(ids) }, dto);
-      await queryRunner.commitTransaction();
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `Falha ao atualizar${ids.length} TransacaoViews - ${error?.message}`,
-        error?.stack,
-      );
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
   createQueryBuilder = this.transacaoViewRepository.createQueryBuilder;
 }

@@ -23,7 +23,7 @@ import { forChunk } from 'src/utils/array-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { Between } from 'typeorm';
+import { Between, DeepPartial } from 'typeorm';
 import { ArquivoPublicacao } from './entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
@@ -187,10 +187,12 @@ export class CnabService {
   }
 
   async testUpdateTransacaoView() {
-    const ids = (await this.transacaoViewService.findRaw({ skip: 0, take: 100, order: { id: 'ASC' } })).map(i => i.id);
-    await this.transacaoViewService.updateMany(ids, {
-      arquivoPublicacao: null,
-    });
+    const transacoesView = await this.getTransacoesViewWeek(0);
+    const toUpdate: DeepPartial<TransacaoView>[] = transacoesView.map((i) => ({
+      ...i,
+      arquivoPublicacao: { id: 130 },
+    }));
+    await this.transacaoViewService.saveMany(transacoesView, toUpdate);
   }
 
   async compareTransacaoViewPublicacao(daysBefore = 0) {
@@ -209,10 +211,11 @@ export class CnabService {
             subDays(publicacao.itemTransacao.dataOrdem, 1), // d+1
           ),
       );
-      const transacaoIds = transacoes.map((i) => i.id);
-      await this.transacaoViewService.updateMany(transacaoIds, {
-        arquivoPublicacao: { id: publicacao.id },
-      });
+      const toUpdate: DeepPartial<TransacaoView>[] = transacoes.map((i) => ({
+        ...i,
+        arquivoPublicacao: { id: 130 },
+      }));
+      await this.transacaoViewService.saveMany(transacoes, toUpdate);
     }
   }
 

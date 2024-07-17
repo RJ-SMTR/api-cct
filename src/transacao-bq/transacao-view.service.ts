@@ -41,10 +41,6 @@ export class TransacaoViewService {
     return await this.transacaoViewRepository.find(options);
   }
 
-  async updateMany(ids: number[], dto: DeepPartial<TransacaoView>) {
-    await this.transacaoViewRepository.updateMany(ids, dto);
-  }
-
   /**
    * Tarefas:
    * 1. Faz paginação de cada i
