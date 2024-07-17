@@ -46,23 +46,6 @@ export class TransacaoViewRepository {
     return this.transacaoViewRepository.save(dto);
   }
 
-  public async upsert(
-    dtos: DeepPartial<TransacaoView>[],
-    conditions: UpsertOptions<TransacaoView>,
-  ) {
-    return await this.transacaoViewRepository.upsert(dtos, conditions);
-  }
-
-  public async insertByDatetime(dtos: DeepPartial<TransacaoView>[]) {
-    return await this.transacaoViewRepository
-      .createQueryBuilder()
-      .insert()
-      .into(TransacaoView)
-      .values(dtos)
-      .orIgnore()
-      .execute();
-  }
-
   public async getOne(
     options: FindManyOptions<TransacaoView>,
   ): Promise<TransacaoView> {
