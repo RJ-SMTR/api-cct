@@ -16,7 +16,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ClienteFavorecido } from '../cliente-favorecido.entity';
+
 import { HeaderLote } from './header-lote.entity';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { Ocorrencia } from './ocorrencia.entity';
@@ -32,12 +32,6 @@ export class DetalheA extends EntityHelper {
   @ManyToOne(() => HeaderLote, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_DetalheA_headerLote_ManyToOne' })
   headerLote: HeaderLote;
-
-  @ManyToOne(() => ClienteFavorecido, { eager: true })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_DetalheA_clienteFavorecido_ManyToOne',
-  })
-  clienteFavorecido: ClienteFavorecido;
 
   @OneToMany(() => Ocorrencia, (ocorrencia) => ocorrencia.detalheA, {
     eager: true,
@@ -178,11 +172,4 @@ export class DetalheA extends EntityHelper {
     return [...new Set(detalhesA.map((i) => i.itemTransacaoAgrupado.id))];
   }
 
-  public static getTransacaoAgIds(detalhesA: DetalheA[]): number[] {
-    return [
-      ...new Set(
-        detalhesA.map((i) => i.itemTransacaoAgrupado.transacaoAgrupado.id),
-      ),
-    ];
-  }
 }

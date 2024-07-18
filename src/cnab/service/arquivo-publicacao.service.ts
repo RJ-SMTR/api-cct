@@ -1,29 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   addDays,
-  isDate,
-  isFriday,
+  isDate,  
   isThursday,
   nextFriday,
   startOfDay,
 } from 'date-fns';
-import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { asNumber } from 'src/utils/pipe-utils';
-import { DeepPartial, FindManyOptions } from 'typeorm';
+import { FindManyOptions } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
-import { TransacaoStatus } from '../entity/pagamento/transacao-status.entity';
-import { TransacaoStatusEnum } from '../enums/pagamento/transacao-status.enum';
 import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.repository';
 import { OcorrenciaService } from './ocorrencia.service';
-import { DetalheAService } from './pagamento/detalhe-a.service';
-import { HeaderArquivoService } from './pagamento/header-arquivo.service';
-import { HeaderLoteService } from './pagamento/header-lote.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
-import { TransacaoAgrupadoService } from './pagamento/transacao-agrupado.service';
-import { TransacaoService } from './pagamento/transacao.service';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -31,15 +22,9 @@ export class ArquivoPublicacaoService {
     timestamp: true,
   });
 
-  constructor(
-    private headerArquivoService: HeaderArquivoService,
-    private arquivoPublicacaoRepository: ArquivoPublicacaoRepository,
-    private headerLoteService: HeaderLoteService,
-    private detalheAService: DetalheAService,
+  constructor(    
+    private arquivoPublicacaoRepository: ArquivoPublicacaoRepository,    
     private transacaoOcorrenciaService: OcorrenciaService,
-    private transacaoAgService: TransacaoAgrupadoService,
-    private transacaoService: TransacaoService,
-    private transacaoViewService: TransacaoViewService,
     private itemTransacaoService: ItemTransacaoService,
   ) { }
   
@@ -59,7 +44,7 @@ export class ArquivoPublicacaoService {
    *
    * **status** is Created.
    */
-  async savePublicacaoDTO(
+  async convertPublicacaoDTO(
     itemTransacao: ItemTransacao,
   ): Promise<ArquivoPublicacao> {
     const existing = await this.arquivoPublicacaoRepository.findOne({
@@ -93,9 +78,8 @@ export class ArquivoPublicacaoService {
     return arquivo;
   }
 
-  public async save(
-    publicacao: DeepPartial<ArquivoPublicacao>,
-  ): Promise<ArquivoPublicacao> {
+  public async save(itemTransacaoAg: ItemTransacao): Promise<ArquivoPublicacao> {
+    const publicacao = await this.convertPublicacaoDTO(itemTransacaoAg);
     return await this.arquivoPublicacaoRepository.save(publicacao);
   }
 
@@ -109,62 +93,11 @@ export class ArquivoPublicacaoService {
    * 2. For each remessa get corresponding Retorno, HeaderLote and Detalhes
    * 3. For each DetalheA, save new ArquivoPublicacao if not exists
    */
-  public async compareRemessaToRetorno(): Promise<void> {
-    const METHOD = this.compareRemessaToRetorno.name;
-    const headerArquivos = await this.headerArquivoService.findRetornos();
-    if (!headerArquivos.length) {
-      this.logger.log(
-        'Não há novas retornos para atualizar ArquivoPublicacao, ignorando sub-rotina...',
-        METHOD,
-      );
-    }
-    let transacaoAgrupado = -1;
-
-    // Header Arquivo Remessa
-    for (const headerArquivo of headerArquivos) {
-      // If no retorno for new remessa, skip
-      if (!headerArquivo) {
-        continue;
-      }
-
-      // Header Arquivo Retorno
-      const headersLote = await this.headerLoteService.findMany({
-        headerArquivo: { id: headerArquivo.id },
-      });
-
-      // Header lote Retorno
-      for (const headerLote of headersLote) {
-        const detalhesA = await this.detalheAService.findMany({
-          headerLote: { id: headerLote.id },
-        });
-
-        // DetalheA Retorno
-        for (const detalheA of detalhesA) {
-          // Save retorno and update Transacao, Publicacao
-          await this.salvaOcorrenciasDetalheA(detalheA);
-          await this.savePublicacaoRetorno(detalheA);
-
-          if (transacaoAgrupado === -1) {
-            transacaoAgrupado =
-              detalheA?.itemTransacaoAgrupado?.transacaoAgrupado?.id;
-          }
-        }
-      }
-
-      // Update HeaderArquivo Status
-      await this.headerArquivoService.save({
-        id: headerArquivo.id,
-      });
-    }
-
-    // Update TransacaoAgrupado
-    const today = new Date();
-    const friday = isFriday(today) ? today : nextFriday(today);
-    await this.transacaoAgService.save({
-      id: transacaoAgrupado,
-      status: new TransacaoStatus(TransacaoStatusEnum.publicado),
-      dataPagamento: startOfDay(friday),
-    });
+  public async compareRemessaToRetorno(detalheA: DetalheA): Promise<void> {
+    //Inclui ocorrencias
+    await this.salvaOcorrenciasDetalheA(detalheA);
+    //Atualiza publicação
+    await this.savePublicacaoRetorno(detalheA);   
   }
 
   async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA) {

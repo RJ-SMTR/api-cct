@@ -62,6 +62,10 @@ export class TransacaoViewService {
     callback(existing, newItems);
   }
 
+  public async save(transacao: TransacaoView){
+    await this.transacaoViewRepository.save(transacao);
+  }
+
   /**
    * Cria ou atualiza TransacaoViews
    * Tarefas:
