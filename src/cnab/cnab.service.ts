@@ -6,7 +6,7 @@ import {
   nextFriday,
   nextThursday,
   startOfDay,
-  subDays
+  subDays,
 } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
@@ -22,7 +22,7 @@ import { forChunk } from 'src/utils/array-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { Between } from 'typeorm';
+import { Between, DeepPartial } from 'typeorm';
 import { ArquivoPublicacao } from './entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
@@ -105,13 +105,14 @@ export class CnabService {
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
   public async saveTransacoesJae(dataOrdemIncial,dataOrdemFinal,daysBefore=0,consorcio:string) {    
+
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();    
     // 2. Update TransacaoView
     await this.updateTransacaoViewBigquery(dataOrdemIncial,dataOrdemFinal,daysBefore,consorcio);
     // 3. Update ordens
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemIncial,dataOrdemFinal,daysBefore);
-    await this.saveOrdens(ordens,consorcio);    
+    await this.saveOrdens(ordens,consorcio); 
   }
 
   /**
@@ -143,9 +144,9 @@ export class CnabService {
   /**
    * Salvar Transacao / ItemTransacao e agrupados
    */
+
   async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[],consorcio="Todos") {
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;   
-
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
 
@@ -168,9 +169,18 @@ export class CnabService {
       }else if(consorcio =='Empresa'){
         if(ordem.consorcio !='STPC' && ordem.consorcio != 'STPL'){    
           await this.saveAgrupamentos(ordem, pagador, favorecido);            
-        }          
+        }    
       }
     }
+  }
+
+  async testUpdateTransacaoView() {
+    const transacoesView = await this.getTransacoesViewWeek(0);
+    const toUpdate: DeepPartial<TransacaoView>[] = transacoesView.map((i) => ({
+      ...i,
+      arquivoPublicacao: { id: 130 },
+    }));
+    await this.transacaoViewService.saveMany(transacoesView, toUpdate);
   }
 
   async compareTransacaoViewPublicacao(daysBefore = 0) {
@@ -182,10 +192,11 @@ export class CnabService {
           transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio &&
           isSameDay(transacaoView.datetimeProcessamento, subDays(publicacao.itemTransacao.dataOrdem, 1))
       );
-      const transacaoIds = transacoes.map((i) => i.id);
-      await this.transacaoViewService.updateMany(transacaoIds, {
-        arquivoPublicacao: { id: publicacao.id },
-      });
+      const toUpdate: DeepPartial<TransacaoView>[] = transacoes.map((i) => ({
+        ...i,
+        arquivoPublicacao: { id: 130 },
+      }));
+      await this.transacaoViewService.saveMany(transacoes, toUpdate);
     }
   }
 
@@ -506,8 +517,7 @@ export class CnabService {
 
   private validateCancel(nsaInicial:number,nsaFinal:number){
     return (nsaInicial == undefined && nsaFinal ==undefined || (nsaFinal!=0 && nsaFinal < nsaInicial));      
-  }
-  
+  }  
   
   private async getLotesCancelar(nsa: number) {
      return (await (this.headerLoteService.findMany({ headerArquivo:{ nsa: nsa }}))).sort((a,b) => a.loteServico - b.loteServico);
@@ -516,10 +526,10 @@ export class CnabService {
   private async getHeaderArquivoCancelar(nsa: number) {
     return await this.headerArquivoService.getHeaderArquivoNsa(nsa); 
   }
-  
-  public async sendRemessa(listCnab:string[]){
-    for(const cnabStr of listCnab){      
-      await this.sftpService.submitCnabRemessa(cnabStr);       
+
+  public async sendRemessa(listCnab: string[]) {
+    for (const cnabStr of listCnab) {
+      await this.sftpService.submitCnabRemessa(cnabStr);
     }
   }
 
