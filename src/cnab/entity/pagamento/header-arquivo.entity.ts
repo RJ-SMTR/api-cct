@@ -13,7 +13,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
-import { Transacao } from './transacao.entity';
 
 /**
  * Pagamento.HeaderArquivo
@@ -34,46 +33,41 @@ export class HeaderArquivo extends EntityHelper {
   tipoArquivo: number;
 
   @Column({ type: String, unique: false, nullable: true, length: 3 })
-  codigoBanco: string | null;
+  codigoBanco: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  tipoInscricao: string | null;
+  tipoInscricao: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 14 })
-  numeroInscricao: string | null;
+  numeroInscricao: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 6 })
-  codigoConvenio: string | null;
+  codigoConvenio: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  parametroTransmissao: string | null;
+  parametroTransmissao: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
-  agencia: string | null;
+  agencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 1 })
-  dvAgencia: string | null;
+  dvAgencia: string ;
 
   @Column({ type: String, unique: false, nullable: true, length: 12 })
-  numeroConta: string | null;
+  numeroConta: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 1 })
-  dvConta: string | null;
+  dvConta: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 100 })
-  nomeEmpresa: string | null;
+  nomeEmpresa: string;
 
   @Column({ type: Date, unique: false, nullable: true })
   dataGeracao: Date;
 
   @Column({ type: 'time', unique: false, nullable: true })
   horaGeracao: Date;
-
-  @ManyToOne(() => Transacao, { eager: true })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_HeaderArquivo_transacao_ManyToOne',
-  })
-  transacao: Transacao | null;
+ 
 
   @ManyToOne(() => TransacaoAgrupado, { eager: true })
   @JoinColumn({
@@ -89,10 +83,7 @@ export class HeaderArquivo extends EntityHelper {
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  public getIdString(): string {
-    return `{ transacao: ${this.transacao?.id},  transacaoAg: ${this.transacaoAgrupado?.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;
-  }
+  
 
   @BeforeInsert()
   setLoadValues() {

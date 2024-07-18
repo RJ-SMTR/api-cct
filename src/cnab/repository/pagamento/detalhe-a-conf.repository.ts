@@ -16,7 +16,6 @@ import {
   Repository,
 } from 'typeorm';
 import { ClienteFavorecido } from '../../entity/cliente-favorecido.entity';
-import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheAConf } from 'src/cnab/entity/conference/detalhe-a-conf.entity';
 
 @Injectable()
@@ -88,14 +87,14 @@ export class DetalheAConfRepository {
     return this.DetalheAConfRepository.insert(dtos);
   }
 
-  public async save(dto: DeepPartial<DetalheA>): Promise<DetalheA> {
+  public async save(dto: DeepPartial<DetalheAConf>): Promise<DetalheAConf> {
     const saved = await this.DetalheAConfRepository.save(dto);
     return await this.DetalheAConfRepository.findOneOrFail({
-      where: { id: saved.id },
+      where: { id: saved.id }
     });
   }
 
-  public async getOne(fields: EntityCondition<DetalheAConf>): Promise<DetalheA> {
+  public async getOne(fields: EntityCondition<DetalheAConf>): Promise<DetalheAConf> {
     const one = await this.DetalheAConfRepository.findOneOrFail({
       where: fields,
     });
@@ -117,7 +116,7 @@ export class DetalheAConfRepository {
 
   public async findMany(
     options?: FindManyOptions<DetalheAConf>,
-  ): Promise<DetalheA[]> {
+  ): Promise<DetalheAConf[]> {
     const detalheA = await this.DetalheAConfRepository.find(options);
     await this.forceManyEager(detalheA);
     return detalheA;

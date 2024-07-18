@@ -1,3 +1,4 @@
+import { PagamentosPendentesRepository } from 'src/cnab/repository/pagamento/pagamentos-pendentes.repository';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BanksModule } from 'src/banks/banks.module';
@@ -67,6 +68,8 @@ import { DetalheAConf } from './entity/conference/detalhe-a-conf.entity';
 import { DetalheBConf } from './entity/conference/detalhe-b-conf.entity';
 import { HeaderArquivoConf } from './entity/conference/header-arquivo-conf.entity';
 import { HeaderLoteConf } from './entity/conference/header-lote-conf.entity';
+import { PagamentosPendentes } from './entity/pagamento/pagamentos-pendentes.entity';
+import { PagamentosPendentesService } from './service/pagamento/pagamentos-pendentes.service';
 
 @Module({
   imports: [
@@ -86,6 +89,7 @@ import { HeaderLoteConf } from './entity/conference/header-lote-conf.entity';
       HeaderLote,
       DetalheA,
       DetalheB,
+      PagamentosPendentes,
       ClienteFavorecido,
       ArquivoPublicacao,
       Transacao,
@@ -109,6 +113,8 @@ import { HeaderLoteConf } from './entity/conference/header-lote-conf.entity';
     DetalheAService,
     DetalheBRepository,
     DetalheBService,
+    PagamentosPendentesRepository,
+    PagamentosPendentesService,
 
     HeaderArquivoConfRepository,
     HeaderArquivoConfService,
@@ -162,6 +168,8 @@ import { HeaderLoteConf } from './entity/conference/header-lote-conf.entity';
     DetalheAConfService,
     DetalheBConfRepository,
     DetalheBConfService,
+    PagamentosPendentesRepository,
+    PagamentosPendentesService,
 
     ClienteFavorecidoRepository,
     ClienteFavorecidoService,

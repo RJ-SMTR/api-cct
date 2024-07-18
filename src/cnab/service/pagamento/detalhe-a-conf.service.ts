@@ -5,7 +5,6 @@ import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
 import { DeepPartial, FindOneOptions, ILike, In } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
-import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { ClienteFavorecidoService } from '../cliente-favorecido.service';
 import { startOfDay } from 'date-fns';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
@@ -14,6 +13,7 @@ import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagament
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
 import { CnabLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface';
 import { DetalheAConfRepository } from 'src/cnab/repository/pagamento/detalhe-a-conf.repository';
+import { DetalheAConf } from 'src/cnab/entity/conference/detalhe-a-conf.entity';
 
 @Injectable()
 export class DetalheAConfService {
@@ -46,7 +46,7 @@ export class DetalheAConfService {
 
     // Update Transacao status
     await this.transacaoAgrupadoService.updateMany(
-      DetalheA.getTransacaoAgIds(detalhesA),
+      DetalheAConf.getTransacaoAgIds(detalhesA),
       {
         status: { id: TransacaoStatusEnum.retorno },
       },
@@ -60,8 +60,8 @@ export class DetalheAConfService {
    * @returns Saved objects not in database.
    */
   public saveManyIfNotExists(
-    dtos: DeepPartial<DetalheA>[],
-  ): Promise<DetalheA[]> {
+    dtos: DeepPartial<DetalheAConf>[],
+  ): Promise<DetalheAConf[]> {
     return this.detalheAConfRepository.saveManyIfNotExists(dtos);
   }
 
@@ -70,7 +70,7 @@ export class DetalheAConfService {
     headerLotePgto: CnabHeaderLote104Pgto,
     registro: CnabRegistros104Pgto,
     dataEfetivacao: Date,
-  ): Promise<DetalheA | null> {
+  ): Promise<DetalheAConf | null> {
     const r = registro;
     const favorecido = await this.clienteFavorecidoService.findOne({
       where: { nome: ILike(`%${r.detalheA.nomeTerceiro.stringValue.trim()}%`) },
@@ -93,8 +93,7 @@ export class DetalheAConfService {
     const detalheA = new DetalheADTO({
       id: detalheARem.id,
       headerLote: { id: detalheARem.headerLote.id },
-      loteServico: Number(r.detalheA.loteServico.value),
-      clienteFavorecido: { id: favorecido.id },
+      loteServico: Number(r.detalheA.loteServico.value),      
       finalidadeDOC: r.detalheA.finalidadeDOC.value,
       numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
       dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
@@ -123,24 +122,24 @@ export class DetalheAConfService {
     return saved;
   }
 
-  public async save(dto: DetalheADTO): Promise<DetalheA> {
+  public async save(dto: DetalheADTO): Promise<DetalheAConf> {
     await validateDTO(DetalheADTO, dto);
     return await this.detalheAConfRepository.save(dto);
   }
 
-  public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
+  public async getOne(fields: EntityCondition<DetalheAConf>): Promise<DetalheAConf> {
     return await this.detalheAConfRepository.getOne(fields);
   }
 
   public async findOne(
-    options: FindOneOptions<DetalheA>,
-  ): Promise<Nullable<DetalheA>> {
+    options: FindOneOptions<DetalheAConf>,
+  ): Promise<Nullable<DetalheAConf>> {
     return await this.detalheAConfRepository.findOne(options);
   }
 
   public async findMany(
-    fields: EntityCondition<DetalheA>,
-  ): Promise<DetalheA[]> {
+    fields: EntityCondition<DetalheAConf>,
+  ): Promise<DetalheAConf[]> {
     return await this.detalheAConfRepository.findMany({ where: fields });
   }
 

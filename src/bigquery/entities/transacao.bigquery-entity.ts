@@ -4,7 +4,7 @@ export class BigqueryTransacao {
   id: number | null;
   data: string | null;
   hora: number | null;
-  datetime_transacao: string | null;
+  datetime_transacao: string;
   datetime_processamento: string | null;
   datetime_captura: string | null;
   modo: string;
