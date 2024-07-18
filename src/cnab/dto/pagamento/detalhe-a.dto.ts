@@ -2,7 +2,6 @@ import { IsNotEmpty, ValidateIf } from 'class-validator';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { DeepPartial } from 'typeorm';
-import { ClienteFavorecido } from '../../entity/cliente-favorecido.entity';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
 
 function isCreate(object: DetalheADTO): boolean {
@@ -21,10 +20,6 @@ export class DetalheADTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   headerLote?: DeepPartial<HeaderLote>;
-
-  @ValidateIf(isCreate)
-  @IsNotEmpty()
-  clienteFavorecido?: DeepPartial<ClienteFavorecido>;
 
   ocorrencias?: Ocorrencia[];
 

@@ -16,14 +16,17 @@ export class BigqueryOrdemPagamentoService {
   /**
    * Get data from current payment week (qui-qua). Also with older days.
    */
-  public async getFromWeek(dayCurrentBefore=0,daysBefore=0): Promise<BigqueryOrdemPagamentoDTO[]> {
+  public async getFromWeek(dataOrdemInicial,dataOrdemFinal,daysBefore=0): Promise<BigqueryOrdemPagamentoDTO[]> {
     const today = new Date();
     let startDate;
     let endDate;
 
-    if(dayCurrentBefore != undefined && dayCurrentBefore > 0) {//D-1 D-2 etc
-      startDate = subDays(today, dayCurrentBefore);
-      endDate = today;
+    if(dataOrdemInicial != undefined && dataOrdemFinal!=undefined) {
+      startDate = new Date(dataOrdemInicial);
+      endDate = new Date(dataOrdemFinal);
+    }else if(dataOrdemInicial != undefined && dataOrdemFinal==undefined){
+      startDate = new Date(dataOrdemInicial);
+      endDate = new Date(dataOrdemInicial);
     }else{ //Sexta a Quinta
       const friday = isFriday(today) ? today : nextFriday(today);
       startDate = subDays(friday,7 + daysBefore);

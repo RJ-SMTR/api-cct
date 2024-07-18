@@ -102,17 +102,14 @@ export class TransacaoAgrupadoRepository {
   }
 
   public async save(
-    dto: DeepPartial<TransacaoAgrupado>,
-  ): Promise<TransacaoAgrupado> {
+    dto: DeepPartial<TransacaoAgrupado>): Promise<TransacaoAgrupado> {
     return this.transacaoAgRepository.save(dto);
   }
 
   public async findOne(
     fields: EntityCondition<TransacaoAgrupado>,
   ): Promise<Nullable<TransacaoAgrupado>> {
-    return await this.transacaoAgRepository.findOne({
-      where: fields,
-    });
+    return await this.transacaoAgRepository.findOne({ where: fields });
   }
 
   public async findMany(

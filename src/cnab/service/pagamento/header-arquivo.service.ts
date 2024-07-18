@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
-import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { cnabSettings } from 'src/settings/cnab.settings';
@@ -93,26 +92,13 @@ export class HeaderArquivoService {
       nomeEmpresa: cnab104.headerArquivo.nomeEmpresa.convertedValue,
       dataGeracao: cnab104.headerArquivo.dataGeracaoArquivo.convertedValue,
       horaGeracao: cnab104.headerArquivo.horaGeracaoArquivo.convertedValue,
-      transacaoAgrupado: headerArquivoRemessa.transacaoAgrupado,
-      transacao: headerArquivoRemessa.transacao,
+      transacaoAgrupado: headerArquivoRemessa.transacaoAgrupado,      
       nsa: cnab104.headerArquivo.nsa.convertedValue,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
     });
     return await this.headerArquivoRepository.save(headerArquivo);
   }
 
-  /**
-   * Find HeaderArquivo Remessa ready to save in ArquivoPublicacao
-   */
-  public async findRetornos(): Promise<HeaderArquivo[]> {
-    return this.headerArquivoRepository.findMany({
-      where: [
-        {
-          transacaoAgrupado: { status: { id: TransacaoStatusEnum.retorno } },
-        },
-      ],
-    });
-  }
 
   public async findOne(
     fields: FindOptionsWhere<HeaderArquivo> | FindOptionsWhere<HeaderArquivo>[],
