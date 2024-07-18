@@ -4,7 +4,7 @@ import {
   HttpCode,
   HttpStatus,
   Query,
-  UseGuards,
+  UseGuards
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
@@ -12,13 +12,13 @@ import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
+import { CnabService } from './cnab.service';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
+import { PagadorContaEnum } from './enums/pagamento/pagador.enum';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ExtratoDto } from './service/dto/extrato.dto';
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
-import { PagadorContaEnum } from './enums/pagamento/pagador.enum';
-import { CnabService } from './cnab.service';
 
 @ApiTags('Cnab')
 @Controller({
@@ -31,7 +31,8 @@ export class CnabController {
     private readonly clienteFavorecidoService: ClienteFavorecidoService,
     private readonly extratoHeaderArquivoService: ExtratoHeaderArquivoService,
     private readonly arquivoPublicacaoService: ArquivoPublicacaoService,
-    private readonly cnabService: CnabService) {}
+    private readonly cnabService: CnabService,
+  ) { }
 
   @Get('clientes-favorecidos')
   getClienteFavorecido(): Promise<ClienteFavorecido[]> {

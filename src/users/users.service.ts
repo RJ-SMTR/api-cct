@@ -27,6 +27,7 @@ import { FileUserMap } from './mappings/user-file.map';
 import { UsersRepository } from './users.repository';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { getStringUpperUnaccent } from 'src/utils/string-utils';
+import { IRequest, IRequestMaybeUser } from 'src/utils/interfaces/request.interface';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -99,8 +100,8 @@ export class UsersService {
     return await this.usersRepository.getOne({ where: fields });
   }
 
-  async getOneFromRequest(request: Request): Promise<User> {
-    const userId = request?.user?.['id'];
+  async getOneFromRequest(request: IRequestMaybeUser): Promise<User> {
+    const userId = request?.user?.id;
     if (!userId) {
       throw new HttpException(
         {

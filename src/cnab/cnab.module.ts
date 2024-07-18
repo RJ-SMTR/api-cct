@@ -1,8 +1,8 @@
-import { PagamentosPendentesRepository } from 'src/cnab/repository/pagamento/pagamentos-pendentes.repository';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BanksModule } from 'src/banks/banks.module';
 import { BigqueryModule } from 'src/bigquery/bigquery.module';
+import { PagamentosPendentesRepository } from 'src/cnab/repository/pagamento/pagamentos-pendentes.repository';
 import { LancamentoModule } from 'src/lancamento/lancamento.module';
 import { SettingsModule } from 'src/settings/settings.module';
 import { SftpModule } from 'src/sftp/sftp.module';
@@ -12,6 +12,10 @@ import { CnabController } from './cnab.controller';
 import { CnabService } from './cnab.service';
 import { ArquivoPublicacao } from './entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
+import { DetalheAConf } from './entity/conference/detalhe-a-conf.entity';
+import { DetalheBConf } from './entity/conference/detalhe-b-conf.entity';
+import { HeaderArquivoConf } from './entity/conference/header-arquivo-conf.entity';
+import { HeaderLoteConf } from './entity/conference/header-lote-conf.entity';
 import { ExtratoDetalheE } from './entity/extrato/extrato-detalhe-e.entity';
 import { ExtratoHeaderArquivo } from './entity/extrato/extrato-header-arquivo.entity';
 import { ExtratoHeaderLote } from './entity/extrato/extrato-header-lote.entity';
@@ -23,6 +27,7 @@ import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupad
 import { ItemTransacao } from './entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from './entity/pagamento/ocorrencia.entity';
 import { Pagador } from './entity/pagamento/pagador.entity';
+import { PagamentosPendentes } from './entity/pagamento/pagamentos-pendentes.entity';
 import { TransacaoAgrupado } from './entity/pagamento/transacao-agrupado.entity';
 import { Transacao } from './entity/pagamento/transacao.entity';
 import { ArquivoPublicacaoRepository } from './repository/arquivo-publicacao.repository';
@@ -31,9 +36,13 @@ import { ExtratoDetalheERepository } from './repository/extrato/extrato-detalhe-
 import { ExtratoHeaderArquivoRepository } from './repository/extrato/extrato-header-arquivo.repository';
 import { ExtratoHeaderLoteRepository } from './repository/extrato/extrato-header-lote.repository';
 import { OcorrenciaRepository } from './repository/ocorrencia.repository';
+import { DetalheAConfRepository } from './repository/pagamento/detalhe-a-conf.repository';
 import { DetalheARepository } from './repository/pagamento/detalhe-a.repository';
+import { DetalheBConfRepository } from './repository/pagamento/detalhe-b-conf.repository';
 import { DetalheBRepository } from './repository/pagamento/detalhe-b.repository';
+import { HeaderArquivoConfRepository } from './repository/pagamento/header-arquivo-conf.repository';
 import { HeaderArquivoRepository } from './repository/pagamento/header-arquivo.repository';
+import { HeaderLoteConfRepository } from './repository/pagamento/header-lote-conf.repository';
 import { HeaderLoteRepository } from './repository/pagamento/header-lote.repository';
 import { ItemTransacaoAgrupadoRepository } from './repository/pagamento/item-transacao-agrupado.repository';
 import { ItemTransacaoRepository } from './repository/pagamento/item-transacao.repository';
@@ -46,30 +55,21 @@ import { ExtratoDetalheEService } from './service/extrato/extrato-detalhe-e.serv
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
 import { ExtratoHeaderLoteService } from './service/extrato/extrato-header-lote.service';
 import { OcorrenciaService } from './service/ocorrencia.service';
+import { DetalheAConfService } from './service/pagamento/detalhe-a-conf.service';
 import { DetalheAService } from './service/pagamento/detalhe-a.service';
+import { DetalheBConfService } from './service/pagamento/detalhe-b-conf.service';
 import { DetalheBService } from './service/pagamento/detalhe-b.service';
+import { HeaderArquivoConfService } from './service/pagamento/header-arquivo-conf.service';
 import { HeaderArquivoService } from './service/pagamento/header-arquivo.service';
+import { HeaderLoteConfService } from './service/pagamento/header-lote-conf.service';
 import { HeaderLoteService } from './service/pagamento/header-lote.service';
 import { ItemTransacaoAgrupadoService } from './service/pagamento/item-transacao-agrupado.service';
 import { ItemTransacaoService } from './service/pagamento/item-transacao.service';
 import { PagadorService } from './service/pagamento/pagador.service';
+import { PagamentosPendentesService } from './service/pagamento/pagamentos-pendentes.service';
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
-import { DetalheAConfRepository } from './repository/pagamento/detalhe-a-conf.repository';
-import { DetalheBConfRepository } from './repository/pagamento/detalhe-b-conf.repository';
-import { HeaderArquivoConfRepository } from './repository/pagamento/header-arquivo-conf.repository';
-import { HeaderLoteConfRepository } from './repository/pagamento/header-lote-conf.repository';
-import { DetalheAConfService } from './service/pagamento/detalhe-a-conf.service';
-import { DetalheBConfService } from './service/pagamento/detalhe-b-conf.service';
-import { HeaderArquivoConfService } from './service/pagamento/header-arquivo-conf.service';
-import { HeaderLoteConfService } from './service/pagamento/header-lote-conf.service';
-import { DetalheAConf } from './entity/conference/detalhe-a-conf.entity';
-import { DetalheBConf } from './entity/conference/detalhe-b-conf.entity';
-import { HeaderArquivoConf } from './entity/conference/header-arquivo-conf.entity';
-import { HeaderLoteConf } from './entity/conference/header-lote-conf.entity';
-import { PagamentosPendentes } from './entity/pagamento/pagamentos-pendentes.entity';
-import { PagamentosPendentesService } from './service/pagamento/pagamentos-pendentes.service';
 
 @Module({
   imports: [

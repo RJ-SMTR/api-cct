@@ -4,7 +4,7 @@ import {
   Column,
   DeepPartial,
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryGeneratedColumn
 } from 'typeorm';
 
 @Entity()
@@ -69,6 +69,13 @@ export class ClienteFavorecido extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true })
   tipo: string | null;
+
+  // @ManyToOne(() => AgendamentoPagamento, { eager: false, nullable: true })
+  // @JoinColumn({
+  //   foreignKeyConstraintName:
+  //     'FK_ClienteFavorecido_agendamentoPagamento_ManyToOne',
+  // })
+  // agendamentoPagamento: DeepPartial<AgendamentoPagamento> | null;
 
   @BeforeInsert()
   setWriteValues() {

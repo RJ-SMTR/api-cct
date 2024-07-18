@@ -11,3 +11,8 @@ export function cropDecimals(x: number, maxDecimals = 0): number {
   const result = Number(s.slice(0, i + d));
   return result;
 }
+
+
+export function toNumberList(v: string) {
+  return v.split(',').map((i: string) => +i);
+}
