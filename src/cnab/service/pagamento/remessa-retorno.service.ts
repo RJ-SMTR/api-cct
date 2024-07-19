@@ -48,30 +48,43 @@ export class RemessaRetornoService {
     timestamp: true,
   });
 
-  constructor(   
+  constructor(
     private arqPublicacaoService: ArquivoPublicacaoService,
     private itemTransacaoService: ItemTransacaoService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private headerArquivoService: HeaderArquivoService,
-    private headerLoteService: HeaderLoteService,    
+    private headerLoteService: HeaderLoteService,
     private detalheAService: DetalheAService,
     private detalheBService: DetalheBService,
     private headerArquivoConfService: HeaderArquivoConfService,
-    private headerLoteConfService: HeaderLoteConfService,    
+    private headerLoteConfService: HeaderLoteConfService,
     private detalheAConfService: DetalheAConfService,
-    private detalheBConfService: DetalheBConfService    
+    private detalheBConfService: DetalheBConfService,
   ) {}
 
-  public async saveHeaderArquivoDTO(transacaoAg: TransacaoAgrupado,isConference): Promise<HeaderArquivoDTO>{
+  public async saveHeaderArquivoDTO(
+    transacaoAg: TransacaoAgrupado,
+    isConference,
+  ): Promise<HeaderArquivoDTO> {
     let headerArquivoDTO;
-    if(!isConference){
-      headerArquivoDTO = await this.headerArquivoService.getDTO(HeaderArquivoTipoArquivo.Remessa,transacaoAg);
-      const headerArquivo = await this.headerArquivoService.save(headerArquivoDTO);
-      headerArquivoDTO.id = headerArquivo.id; 
-    }else{
-      headerArquivoDTO = await this.headerArquivoConfService.getDTO(HeaderArquivoTipoArquivo.Remessa,transacaoAg);
-      const headerArquivo = await this.headerArquivoConfService.save(headerArquivoDTO);
-      headerArquivoDTO.id = headerArquivo.id; 
+    if (!isConference) {
+      headerArquivoDTO = await this.headerArquivoService.getDTO(
+        HeaderArquivoTipoArquivo.Remessa,
+        transacaoAg,
+      );
+      const headerArquivo = await this.headerArquivoService.save(
+        headerArquivoDTO,
+      );
+      headerArquivoDTO.id = headerArquivo.id;
+    } else {
+      headerArquivoDTO = await this.headerArquivoConfService.getDTO(
+        HeaderArquivoTipoArquivo.Remessa,
+        transacaoAg,
+      );
+      const headerArquivo = await this.headerArquivoConfService.save(
+        headerArquivoDTO,
+      );
+      headerArquivoDTO.id = headerArquivo.id;
     }
     return headerArquivoDTO;
   }
@@ -89,8 +102,11 @@ export class RemessaRetornoService {
    *    (se banco do favorecido = banco do pagador - pagador é sempre Caixa)
    *  - senão, TED (41)
    */
-  public async getLotes(pagador: Pagador,headerArquivoDTO: HeaderArquivoDTO,
-    dataPgto: Date | undefined,isConference:boolean
+  public async getLotes(
+    pagador: Pagador,
+    headerArquivoDTO: HeaderArquivoDTO,
+    dataPgto: Date | undefined,
+    isConference: boolean,
   ) {
     const transacaoAg = headerArquivoDTO.transacaoAgrupado as TransacaoAgrupado;
     const itemTransacaoAgs =
@@ -100,48 +116,80 @@ export class RemessaRetornoService {
     /** Agrupa por: formaLancamento */
     const lotes: HeaderLoteDTO[] = [];
     let nsrTed = 0;
-    let nsrCC  = 0;    
+    let nsrCC = 0;
     let loteTed;
     let loteCC;
-    for (const itemTransacaoAgrupado of itemTransacaoAgs) {      
-      const itemTransacao = await this.itemTransacaoService.findOne({ where: {
-         itemTransacaoAgrupado: { id: itemTransacaoAgrupado.id}}
+    for (const itemTransacaoAgrupado of itemTransacaoAgs) {
+      const itemTransacao = await this.itemTransacaoService.findOne({
+        where: {
+          itemTransacaoAgrupado: { id: itemTransacaoAgrupado.id },
+        },
       });
-      if(itemTransacao){
-        if(itemTransacao.clienteFavorecido.codigoBanco !== '104'){ //TED   
-          nsrTed ++; 
-          if(loteTed == undefined){   
-            if(!isConference){                 
-              loteTed = this.headerLoteService.convertHeaderLoteDTO(headerArquivoDTO,pagador,Cnab104FormaLancamento.TED)   
-              loteTed = await this.headerLoteService.saveDto(loteTed);       
-            }else{
-              loteTed = this.headerLoteConfService.convertHeaderLoteDTO(headerArquivoDTO,pagador,Cnab104FormaLancamento.TED)   
-              loteTed = await this.headerLoteConfService.saveDto(loteTed); 
+      if (itemTransacao) {
+        if (itemTransacao.clienteFavorecido.codigoBanco !== '104') {
+          //TED
+          nsrTed++;
+          if (loteTed == undefined) {
+            if (!isConference) {
+              loteTed = this.headerLoteService.convertHeaderLoteDTO(
+                headerArquivoDTO,
+                pagador,
+                Cnab104FormaLancamento.TED,
+              );
+              loteTed = await this.headerLoteService.saveDto(loteTed);
+            } else {
+              loteTed = this.headerLoteConfService.convertHeaderLoteDTO(
+                headerArquivoDTO,
+                pagador,
+                Cnab104FormaLancamento.TED,
+              );
+              loteTed = await this.headerLoteConfService.saveDto(loteTed);
             }
-          }       
-          const detalhes104 = await this.saveListDetalhes(loteTed,[itemTransacaoAgrupado],nsrTed,dataPgto,isConference);
-          nsrTed ++; 
+          }
+          const detalhes104 = await this.saveListDetalhes(
+            loteTed,
+            [itemTransacaoAgrupado],
+            nsrTed,
+            dataPgto,
+            isConference,
+          );
+          nsrTed++;
           loteTed.registros104.push(...detalhes104);
-        }else{ //Credito em Conta
-          nsrCC++;        
-          if(loteCC == undefined){
-            if(!isConference){
-              loteCC = this.headerLoteService.convertHeaderLoteDTO(headerArquivoDTO,pagador,Cnab104FormaLancamento.CreditoContaCorrente)  
-              loteCC = await this.headerLoteService.saveDto(loteCC);       
-            }else{
-              loteCC = this.headerLoteConfService.convertHeaderLoteDTO(headerArquivoDTO,pagador,Cnab104FormaLancamento.CreditoContaCorrente)  
-              loteCC = await this.headerLoteConfService.saveDto(loteCC);    
-            }
-          }       
-          const detalhes104 = await this.saveListDetalhes(loteCC,[itemTransacaoAgrupado],nsrCC,dataPgto,isConference);
+        } else {
+          //Credito em Conta
           nsrCC++;
-          loteCC.registros104.push(...detalhes104);       
-        }       
+          if (loteCC == undefined) {
+            if (!isConference) {
+              loteCC = this.headerLoteService.convertHeaderLoteDTO(
+                headerArquivoDTO,
+                pagador,
+                Cnab104FormaLancamento.CreditoContaCorrente,
+              );
+              loteCC = await this.headerLoteService.saveDto(loteCC);
+            } else {
+              loteCC = this.headerLoteConfService.convertHeaderLoteDTO(
+                headerArquivoDTO,
+                pagador,
+                Cnab104FormaLancamento.CreditoContaCorrente,
+              );
+              loteCC = await this.headerLoteConfService.saveDto(loteCC);
+            }
+          }
+          const detalhes104 = await this.saveListDetalhes(
+            loteCC,
+            [itemTransacaoAgrupado],
+            nsrCC,
+            dataPgto,
+            isConference,
+          );
+          nsrCC++;
+          loteCC.registros104.push(...detalhes104);
+        }
       }
-      if(loteTed != undefined){
+      if (loteTed != undefined) {
         lotes.push(loteTed);
       }
-      if(loteCC != undefined){
+      if (loteCC != undefined) {
         lotes.push(loteCC);
       }
     }
@@ -152,17 +200,17 @@ export class RemessaRetornoService {
     detalheA: CnabDetalheA_104,
     headerLoteId: number,
     itemTransacaoAg: ItemTransacaoAgrupado,
-    isConference:boolean
+    isConference: boolean,
   ) {
     let existing;
-    if(!isConference){
+    if (!isConference) {
       existing = await this.detalheAService.findOne({
         where: {
           nsr: Number(detalheA.nsr.value),
           itemTransacaoAgrupado: { id: itemTransacaoAg?.id },
         },
       });
-    }else{
+    } else {
       existing = await this.detalheAConfService.findOne({
         where: {
           nsr: Number(detalheA.nsr.value),
@@ -195,7 +243,7 @@ export class RemessaRetornoService {
       numeroParcela: getCnabFieldConverted(detalheA.numeroParcela),
       dataEfetivacao: getCnabFieldConverted(detalheA.dataEfetivacao),
       headerLote: { id: headerLoteId },
-      itemTransacaoAgrupado: itemTransacaoAg      
+      itemTransacaoAgrupado: itemTransacaoAg,
     });
   }
 
@@ -219,10 +267,21 @@ export class RemessaRetornoService {
   /**
    * Montar Cnab104 a partir dos DTOs de tabelas
    */
-  public generateFile(headerArquivo: HeaderArquivoDTO, headerLoteDTOs: HeaderLoteDTO[],isCancelamento = false,dataCancelamento=new Date()) {
+  public generateFile(
+    headerArquivo: HeaderArquivoDTO,
+    headerLoteDTOs: HeaderLoteDTO[],
+    isCancelamento = false,
+    dataCancelamento = new Date(),
+  ) {
     const headerArquivo104 = this.getHeaderArquivo104FromDTO(headerArquivo);
     const trailerArquivo104 = sc(PgtoRegistros.trailerArquivo);
-    return this.getCnabFilePgto(headerArquivo104,headerLoteDTOs,trailerArquivo104,isCancelamento,dataCancelamento);
+    return this.getCnabFilePgto(
+      headerArquivo104,
+      headerLoteDTOs,
+      trailerArquivo104,
+      isCancelamento,
+      dataCancelamento,
+    );
   }
 
   /**
@@ -234,15 +293,29 @@ export class RemessaRetornoService {
    *
    * @returns Detalhes104 gerados a partir dos ItemTransacaoAg
    */
-  async saveListDetalhes(headerLoteDto: HeaderLoteDTO, itemTransacoes: ItemTransacaoAgrupado[],
-     nsr: number, dataPgto: Date | undefined, isConference: boolean): Promise<CnabRegistros104Pgto[]> {
-    let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());
+  async saveListDetalhes(
+    headerLoteDto: HeaderLoteDTO,
+    itemTransacoes: ItemTransacaoAgrupado[],
+    nsr: number,
+    dataPgto: Date | undefined,
+    isConference: boolean,
+  ): Promise<CnabRegistros104Pgto[]> {
+    let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(
+      new Date(),
+    );
     // Para cada itemTransacao, cria detalhe
     const detalhes: CnabRegistros104Pgto[] = [];
-    let itemTransacaoAgAux: ItemTransacaoAgrupado | undefined;    
-    for (const itemTransacao of itemTransacoes) {      
-      itemTransacaoAgAux = itemTransacao as ItemTransacaoAgrupado;    
-      const detalhe = await this.saveDetalhes104(numeroDocumento,headerLoteDto, itemTransacaoAgAux,nsr,dataPgto,isConference);   
+    let itemTransacaoAgAux: ItemTransacaoAgrupado | undefined;
+    for (const itemTransacao of itemTransacoes) {
+      itemTransacaoAgAux = itemTransacao as ItemTransacaoAgrupado;
+      const detalhe = await this.saveDetalhes104(
+        numeroDocumento,
+        headerLoteDto,
+        itemTransacaoAgAux,
+        nsr,
+        dataPgto,
+        isConference,
+      );
       if (detalhe) {
         detalhes.push(detalhe);
       }
@@ -250,13 +323,13 @@ export class RemessaRetornoService {
     }
     return detalhes;
   }
-  
+
   getCnabFilePgto(
     headerArquivo104: CnabHeaderArquivo104,
     headerLoteDTOs: HeaderLoteDTO[],
     trailerArquivo104: CnabTrailerArquivo104,
-    isCancelamento:boolean,
-    dataCancelamento = new Date()
+    isCancelamento: boolean,
+    dataCancelamento = new Date(),
   ) {
     const cnab104: CnabFile104Pgto = {
       headerArquivo: headerArquivo104,
@@ -271,20 +344,20 @@ export class RemessaRetornoService {
     if (!cnab104.lotes.length) {
       return null;
     }
-    if(isCancelamento){
+    if (isCancelamento) {
       cnab104.lotes.forEach((l) => {
-        l.registros.forEach( r =>{
-            r.detalheA.tipoMovimento.value = Cnab104TipoMovimento.Exclusao;  
-            r.detalheA.dataVencimento.value =  dataCancelamento           
-            r.detalheB.dataVencimento.value =  dataCancelamento
-        })
+        l.registros.forEach((r) => {
+          r.detalheA.tipoMovimento.value = Cnab104TipoMovimento.Exclusao;
+          r.detalheA.dataVencimento.value = dataCancelamento;
+          r.detalheB.dataVencimento.value = dataCancelamento;
+        });
       });
     }
     return cnab104;
   }
 
   private getHeaderArquivo104FromDTO(
-    headerArquivoDTO: HeaderArquivoDTO
+    headerArquivoDTO: HeaderArquivoDTO,
   ): CnabHeaderArquivo104 {
     const headerArquivo104: CnabHeaderArquivo104 = sc(
       PgtoRegistros.headerArquivo,
@@ -319,15 +392,15 @@ export class RemessaRetornoService {
   public async updateHeaderLoteDTOFrom104(
     headerLoteDTO: HeaderLoteDTO,
     headerLote104: CnabHeaderLote104Pgto,
-    isConference: boolean
-  ) {    
+    isConference: boolean,
+  ) {
     headerLoteDTO.loteServico = Number(headerLote104.loteServico.value);
-    if(!isConference){
+    if (!isConference) {
       await this.headerLoteService.save(headerLoteDTO);
-    }else{
+    } else {
       await this.headerLoteConfService.save(headerLoteDTO);
     }
-  }  
+  }
 
   private getHeaderLoteFrom104(
     headerLoteDTO: HeaderLoteDTO,
@@ -369,39 +442,53 @@ export class RemessaRetornoService {
    *
    * @param numeroDocumento Managed by company. It must be a new number.
    * @returns null if failed ItemTransacao to CNAB */
-  public async saveDetalhes104(numeroDocumento: number, headerLote: HeaderLoteDTO, 
-    itemTransacaoAg: ItemTransacaoAgrupado, nsr: number,dataPgto: Date | undefined,
-    isConference: boolean,isCancelamento=false,detalheAC = new DetalheA): Promise<CnabRegistros104Pgto | null> {
+  public async saveDetalhes104(
+    numeroDocumento: number,
+    headerLote: HeaderLoteDTO,
+    itemTransacaoAg: ItemTransacaoAgrupado,
+    nsr: number,
+    dataPgto: Date | undefined,
+    isConference: boolean,
+    isCancelamento = false,
+    detalheAC = new DetalheA(),
+  ): Promise<CnabRegistros104Pgto | null> {
     const METHOD = 'getDetalhes104()';
     let favorecido;
-    if(itemTransacaoAg != undefined){
-      const itemTransacao  =  await this.itemTransacaoService.findOne({
-        where:{ itemTransacaoAgrupado: { id: itemTransacaoAg.id } } });
+    if (itemTransacaoAg != undefined) {
+      const itemTransacao = await this.itemTransacaoService.findOne({
+        where: { itemTransacaoAgrupado: { id: itemTransacaoAg.id } },
+      });
       favorecido = itemTransacao?.clienteFavorecido;
-    }else{      
-      const itemTransacaoAg = detalheAC.headerLote.headerArquivo.transacaoAgrupado?.itemTransacoesAgrupado[0];
-      const itemTransacao = await this.itemTransacaoService.findOne({where: {
-                            itemTransacaoAgrupado: { id: itemTransacaoAg?.id }
-                          }});
+    } else {
+      const itemTransacaoAg =
+        detalheAC.headerLote.headerArquivo.transacaoAgrupado
+          ?.itemTransacoesAgrupado[0];
+      const itemTransacao = await this.itemTransacaoService.findOne({
+        where: {
+          itemTransacaoAgrupado: { id: itemTransacaoAg?.id },
+        },
+      });
 
       favorecido = itemTransacao?.clienteFavorecido;
     }
 
     // Failure if no favorecido
     if (!favorecido && !isCancelamento) {
-      await this.itemTransacaoService.save({id: itemTransacaoAg.id });
-      this.logger.debug(`Falha ao usar ItemTransacao: favorecido ausente.`,
-        METHOD);
+      await this.itemTransacaoService.save({ id: itemTransacaoAg.id });
+      this.logger.debug(
+        `Falha ao usar ItemTransacao: favorecido ausente.`,
+        METHOD,
+      );
       return null;
     }
 
-    if(dataPgto){
-      if(dataPgto < new Date()){
+    if (dataPgto) {
+      if (dataPgto < new Date()) {
         dataPgto = new Date();
       }
     }
 
-    // Save detalheA 
+    // Save detalheA
     const detalheA: CnabDetalheA_104 = sc(PgtoRegistros.detalheA);
     detalheA.codigoBancoDestino.value = favorecido.codigoBanco;
     detalheA.codigoAgenciaDestino.value = favorecido.agencia;
@@ -409,33 +496,33 @@ export class RemessaRetornoService {
     detalheA.contaCorrenteDestino.value = favorecido.contaCorrente;
     detalheA.dvContaDestino.value = favorecido.dvContaCorrente;
     detalheA.nomeTerceiro.value = favorecido.nome;
-    detalheA.numeroDocumentoEmpresa.value = numeroDocumento;  
+    detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
 
     const fridayOrdem = itemTransacaoAg.dataOrdem;
     detalheA.dataVencimento.value = fridayOrdem;
-    if(dataPgto === undefined){
+    if (dataPgto === undefined) {
       detalheA.dataVencimento.value = detalheA.dataVencimento.value;
-    }else{
+    } else {
       detalheA.dataVencimento.value = dataPgto;
-    }   
-
-    if(!isCancelamento){
-      detalheA.valorLancamento.value = itemTransacaoAg.valor;      
-    }else{
-      detalheA.valorLancamento.value = detalheAC.valorLancamento;     
     }
-    
-    detalheA.nsr.value = nsr; 
-    
-    // DetalheB    
+
+    if (!isCancelamento) {
+      detalheA.valorLancamento.value = itemTransacaoAg.valor;
+    } else {
+      detalheA.valorLancamento.value = detalheAC.valorLancamento;
+    }
+
+    detalheA.nsr.value = nsr;
+
+    // DetalheB
     const detalheB: CnabDetalheB_104 = sc(PgtoRegistros.detalheB);
     detalheB.tipoInscricao.value = getTipoInscricao(
       asString(favorecido.cpfCnpj),
     );
     detalheB.numeroInscricao.value = asString(favorecido.cpfCnpj);
-    if(dataPgto == undefined){
+    if (dataPgto == undefined) {
       detalheB.dataVencimento.value = detalheA.dataVencimento.value;
-    }else{
+    } else {
       detalheB.dataVencimento.value = dataPgto;
     }
     // Favorecido address
@@ -449,9 +536,14 @@ export class RemessaRetornoService {
     detalheB.siglaEstado.value = favorecido.uf;
     detalheB.nsr.value = nsr + 1;
 
-    if(!isCancelamento){
-      const savedDetalheA = await this.saveDetalheA(detalheA, asNumber(headerLote.id),itemTransacaoAg,isConference);      
-      await this.saveDetalheB(detalheB,savedDetalheA.id,isConference);
+    if (!isCancelamento) {
+      const savedDetalheA = await this.saveDetalheA(
+        detalheA,
+        asNumber(headerLote.id),
+        itemTransacaoAg,
+        isConference,
+      );
+      await this.saveDetalheB(detalheB, savedDetalheA.id, isConference);
     }
 
     return {
@@ -461,52 +553,69 @@ export class RemessaRetornoService {
   }
 
   async saveDetalheA(
-detalheA104: CnabDetalheA_104, savedHeaderLoteId: number, itemTransacaoAg: ItemTransacaoAgrupado, isConference: boolean,
+    detalheA104: CnabDetalheA_104,
+    savedHeaderLoteId: number,
+    itemTransacaoAg: ItemTransacaoAgrupado,
+    isConference: boolean,
   ) {
     const detalheADTO = await this.convertCnabDetalheAToDTO(
       detalheA104,
       savedHeaderLoteId,
       itemTransacaoAg,
-      isConference
+      isConference,
     );
-    if(!isConference){
+    if (!isConference) {
       const saved = await this.detalheAService.save(detalheADTO);
       return await this.detalheAService.getOne({ id: saved.id });
-    }else{
+    } else {
       const saved = await this.detalheAConfService.save(detalheADTO);
       return await this.detalheAConfService.getOne({ id: saved.id });
     }
   }
 
-  async saveDetalheB(detalheB104: CnabDetalheB_104, savedDetalheAId: number, isConference: boolean) {
+  async saveDetalheB(
+    detalheB104: CnabDetalheB_104,
+    savedDetalheAId: number,
+    isConference: boolean,
+  ) {
     const detalheBDTO = await this.convertCnabDetalheBToDTO(
       detalheB104,
       savedDetalheAId,
     );
-    if(!isConference){
+    if (!isConference) {
       await this.detalheBService.save(detalheBDTO);
-    }else{
+    } else {
       await this.detalheBConfService.save(detalheBDTO);
     }
   }
 
   public async saveRetorno(cnab: CnabFile104Pgto) {
     const dataEfetivacao = new Date();
-    let detalheAUpdated;    
+    let detalheAUpdated: DetalheA | null = null;
     for (const cnabLote of cnab.lotes) {
-      for (const registro of cnabLote.registros){
-        this. logger.debug(`Header Arquivo NSA: `+cnab.headerArquivo.nsa.value);
-        this.logger.debug(`Header lote : `+cnabLote.headerLote.codigoRegistro.value)
+      for (const registro of cnabLote.registros) {
+        this.logger.debug(
+          `Header Arquivo NSA: ` + cnab.headerArquivo.nsa.value,
+        );
+        this.logger.debug(
+          `Header lote : ` + cnabLote.headerLote.codigoRegistro.value,
+        );
         // Save Detalhes
         detalheAUpdated = await this.detalheAService.saveRetornoFrom104(
-          cnab.headerArquivo, cnabLote.headerLote,registro, dataEfetivacao);
+          cnab.headerArquivo,
+          cnabLote.headerLote,
+          registro,
+          dataEfetivacao,
+        );
         if (!detalheAUpdated) {
           continue;
         }
-        this.logger.debug(`Detalhe A : `+ detalheAUpdated.id);
-        await this.detalheBService.saveFrom104(registro, detalheAUpdated); 
-        await this.arqPublicacaoService.compareRemessaToRetorno(detalheAUpdated); 
-        await this.detalheAService.updateDetalheAStatus(detalheAUpdated);     
+        this.logger.debug(`Detalhe A : ` + detalheAUpdated.id);
+        await this.detalheBService.saveFrom104(registro, detalheAUpdated);
+        await this.arqPublicacaoService.compareRemessaToRetorno(
+          detalheAUpdated,
+        );
+        await this.detalheAService.updateDetalheAStatus(detalheAUpdated);
       }
     }
   }
