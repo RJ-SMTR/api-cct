@@ -83,7 +83,7 @@ export class TransacaoView {
   @Column({ type: String, nullable: true })
   consorcioCnpj: string | null;
 
-  @ManyToOne(() => ArquivoPublicacao, { eager: false, nullable: true })
+  @ManyToOne(() => ArquivoPublicacao, { eager: true, nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoView_arquivoPublicacao_ManyToOne',
   })
