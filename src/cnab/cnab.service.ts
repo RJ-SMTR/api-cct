@@ -120,12 +120,8 @@ export class CnabService {
       consorcio,
     );
     // 3. Update ordens
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(
-      dataOrdemIncial,
-      dataOrdemFinal,
-      daysBefore,
-    );
-    await this.saveOrdens(ordens, consorcio);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemIncial,dataOrdemFinal,daysBefore);
+    await this.saveOrdens(ordens,consorcio);  
   }
 
   /**
@@ -180,6 +176,7 @@ export class CnabService {
 
   async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[], consorcio = 'Todos') {
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
+
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
 
@@ -364,6 +361,7 @@ export class CnabService {
     const transacaoAg = this.convertTransacaoAgrupadoDTO(ordem, pagador);
     return await this.transacaoAgService.save(transacaoAg);
   }
+
 
   private async saveItemTransacaoAgrupado(
     ordem: BigqueryOrdemPagamentoDTO,
@@ -714,6 +712,18 @@ export class CnabService {
 
   private async getHeaderArquivoCancelar(nsa: number) {
     return await this.headerArquivoService.getHeaderArquivoNsa(nsa);
+  }
+
+  private validateCancel(nsaInicial:number,nsaFinal:number){
+    return (nsaInicial == undefined && nsaFinal ==undefined || (nsaFinal!=0 && nsaFinal < nsaInicial));      
+  }  
+  
+  private async getLotesCancelar(nsa: number) {
+     return (await (this.headerLoteService.findMany({ headerArquivo:{ nsa: nsa }}))).sort((a,b) => a.loteServico - b.loteServico);
+  }
+ 
+  private async getHeaderArquivoCancelar(nsa: number) {
+    return await this.headerArquivoService.getHeaderArquivoNsa(nsa); 
   }
 
   public async sendRemessa(listCnab: string[]) {
