@@ -86,69 +86,100 @@ export class CronJobsService  {
     private cnabService: CnabService,
   ) {}
 
-  
-  // onModuleLoad() {
-    // const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    // await this.saveTransacoesJae1(0,'Todos',new Date());
-    // await this.saveAndSendRemessa(new Date(),false,true,101,0,new Date('2024-07-05'));
-    // await this.cnabService.updateTransacaoViewBigquery();
-    //await this.cnabService.compareTransacaoViewPublicacao(14);
 
-    // this.jobsConfig.push(
-    //   {
-    //     name: CrobJobsEnum.bulkSendInvites,
-    //     cronJobParameters: {
-    //       cronTime: (
-    //         await this.settingsService.getOneBySettingData(
-    //           appSettings.any__mail_invite_cronjob,
-    //           true,
-    //           THIS_CLASS_WITH_METHOD,
-    //         )
-    //       ).getValueAsString(),
-    //       onTick: async () => this.bulkSendInvites(),
-    //     },
-    //   },
-    //   {
-    //     name: CrobJobsEnum.sendStatusReport,
-    //     cronJobParameters: {
-    //       cronTime: (
-    //         await this.settingsService.getOneBySettingData(
-    //           appSettings.any__mail_report_cronjob,
-    //           true,
-    //           THIS_CLASS_WITH_METHOD,
-    //         )
-    //       ).getValueAsString(),
-    //       onTick: () => this.sendStatusReport(),
-    //     },
-    //   },
-    //   {
-    //     name: CrobJobsEnum.pollDb,
-    //     cronJobParameters: {
-    //       cronTime: (
-    //         await this.settingsService.getOneBySettingData(
-    //           appSettings.any__poll_db_cronjob,
-    //           true,
-    //           THIS_CLASS_WITH_METHOD,
-    //         )
-    //       ).getValueAsString(),
-    //       onTick: () => this.pollDb(),
-    //     },
-    //   },
-    //   {
-    //     name: CrobJobsEnum.bulkResendInvites,
-    //     cronJobParameters: {
-    //       cronTime: '45 14 15 * *', // Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
-    //       onTick: async () => {
-    //         await this.bulkResendInvites();
-    //       },
-    //     },
-    //   },
+  onModuleInit() {
+    this.onModuleLoad().catch((error: Error) => {
+      throw error;
+    });
+  }
+
+  async onModuleLoad() {
+    const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
+    // await this.saveTransacoesJae1(0, 'Todos', new Date());
+    // await this.saveAndSendRemessa(
+    //   new Date(),
+    //   false,
+    //   true,
+    //   101,
+    //   0,
+    //   new Date('2024-07-05'),
+    // );
+    // await this.cnabService.updateTransacaoViewBigquery();
+    // await this.cnabService.compareTransacaoViewPublicacao(14);
+
+    this.jobsConfig.push(
+      {
+        name: CrobJobsEnum.bulkSendInvites,
+        cronJobParameters: {
+          cronTime: (
+            await this.settingsService.getOneBySettingData(
+              appSettings.any__mail_invite_cronjob,
+              true,
+              THIS_CLASS_WITH_METHOD,
+            )
+          ).getValueAsString(),
+          onTick: async () => this.bulkSendInvites(),
+        },
+      },
+      {
+        name: CrobJobsEnum.sendStatusReport,
+        cronJobParameters: {
+          cronTime: (
+            await this.settingsService.getOneBySettingData(
+              appSettings.any__mail_report_cronjob,
+              true,
+              THIS_CLASS_WITH_METHOD,
+            )
+          ).getValueAsString(),
+          onTick: () => this.sendStatusReport(),
+        },
+      },
+      {
+        name: CrobJobsEnum.pollDb,
+        cronJobParameters: {
+          cronTime: (
+            await this.settingsService.getOneBySettingData(
+              appSettings.any__poll_db_cronjob,
+              true,
+              THIS_CLASS_WITH_METHOD,
+            )
+          ).getValueAsString(),
+          onTick: () => this.pollDb(),
+        },
+      },
+      {
+        name: CrobJobsEnum.bulkResendInvites,
+        cronJobParameters: {
+          cronTime: '45 14 15 * *', // Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
+          onTick: async () => {
+            await this.bulkResendInvites();
+          },
+        },
+      },
       // {
       //   name: CrobJobsEnum.saveTransacoesJae,
       //   cronJobParameters: {
       //     cronTime: '0 3 * * 5', // Every friday, 00:00 BRT = 03:00 GMT
       //     onTick: async () => {
-      //       await this.saveTransacoesJae1(0,'Todos',undefined);
+      //       await this.saveTransacoesJae1(0, 'Todos', undefined);
+      //     },
+      //   },
+      // },
+      // {
+      //   name: CrobJobsEnum.sendRemessa,
+      //   cronJobParameters: {
+      //     cronTime: '0 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
+      //     onTick: async () => {
+      //       await this.saveAndSendRemessa(undefined);
+      //     },
+      //   },
+      // },
+      // {
+      //   name: CrobJobsEnum.updateRetorno,
+      //   cronJobParameters: {
+      //     cronTime: '*/30 * * * *', // Every 30 min
+      //     onTick: async () => {
+      //       await this.updateRetorno();
       //     },
       //   },
       // },
@@ -186,15 +217,24 @@ export class CronJobsService  {
     job.start();
   }
 
-  public async saveAndSendRemessa(dataPgto: Date,isConference=false,
-    isCancelamento=false,nsaInicial=0,nsaFinal=0,dataCancelamento=new Date()){
-
+  public async saveAndSendRemessa(
+    dataPgto: Date,
+    isConference = false,
+    isCancelamento = false,
+    nsaInicial = 0,
+    nsaFinal = 0,
+    dataCancelamento = new Date(),
+  ) {
     const listCnabStr = await this.cnabService.generateRemessa(
-          PagadorContaEnum.ContaBilhetagem,dataPgto,isConference,
-          isCancelamento,nsaInicial,nsaFinal,dataCancelamento);
-
-    if(listCnabStr)
-      await this.sendRemessa(listCnabStr);
+      PagadorContaEnum.ContaBilhetagem,
+      dataPgto,
+      isConference,
+      isCancelamento,
+      nsaInicial,
+      nsaFinal,
+      dataCancelamento,
+    );
+    if (listCnabStr) await this.sendRemessa(listCnabStr);
   }
 
   deleteCron(jobName: string) {
@@ -228,8 +268,11 @@ export class CronJobsService  {
     const dailyQuota = () => this.configService.getOrThrow('mail.dailyQuota');
 
     this.logger.log(
-      `Iniciando tarefa - a enviar: ${unsent.length},enviado: ${sentToday.length}/${dailyQuota()},falta enviar: ${remainingQuota}`,METHOD);
-
+      `Iniciando tarefa - a enviar: ${unsent.length},enviado: ${
+        sentToday.length
+      }/${dailyQuota()},falta enviar: ${remainingQuota}`,
+      METHOD,
+    );
     for (let i = 0; i < remainingQuota && i < unsent.length; i++) {
       const invite = new MailHistory(unsent[i]);
 
@@ -637,7 +680,7 @@ export class CronJobsService  {
         await this.mailHistoryService.update(mailHistory.id, {
           sentAt: new Date(Date.now()),
         });
-      }else {
+      } else {
         this.logger.error(
           'Email enviado retornou erro.' +
             ` - mailSentInfo: ${JSON.stringify(mailSentInfo)}`,
@@ -645,7 +688,7 @@ export class CronJobsService  {
           THIS_METHOD,
         );
       }
-    } catch (httpException) {      
+    } catch (httpException) {
       this.logger.error(
         'Email falhou ao enviar.',
         httpException.stack,
@@ -693,7 +736,7 @@ export class CronJobsService  {
         error.stack,
         METHOD,
       );
-      this.deleteCron(CrobJobsEnum.saveTransacoesLancamento2);      
+      this.deleteCron(CrobJobsEnum.saveTransacoesLancamento2);
     }
   }
 
@@ -710,38 +753,59 @@ export class CronJobsService  {
     return cnabJobEnabled.getValueAsBoolean();
   }
 
-  async saveTransacoesJae1(dataOrdemIncial,dataOrdemFinal,daysBefore = 0,consorcio='Todos') {
+  async saveTransacoesJae1(
+    dataOrdemIncial,
+    dataOrdemFinal,
+    daysBefore = 0,
+    consorcio = 'Todos',
+  ) {
     const METHOD = this.saveTransacoesJae1.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesJae(dataOrdemIncial,dataOrdemFinal,daysBefore,consorcio);
+      await this.cnabService.saveTransacoesJae(
+        dataOrdemIncial,
+        dataOrdemFinal,
+        daysBefore,
+        consorcio,
+      );
       this.logger.log('Tabelas para o Jaé atualizados com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`ERRO CRÍTICO - ${error}`, error?.stack, METHOD);
-      // this.startCron(this.staticJobs.saveTransacoesJae2);      
+      // this.startCron(this.staticJobs.saveTransacoesJae2);
     }
   }
 
-  async saveTransacoesJae2(dataOrdemIncial,dataOrdemFinal,daysBefore = 0,consorcio='Todos') {
+  async saveTransacoesJae2(
+    dataOrdemIncial,
+    dataOrdemFinal,
+    daysBefore = 0,
+    consorcio = 'Todos',
+  ) {
     const METHOD = this.saveTransacoesJae2.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesJae(dataOrdemIncial,dataOrdemFinal,daysBefore,consorcio);
+      await this.cnabService.saveTransacoesJae(
+        dataOrdemIncial,
+        dataOrdemFinal,
+        daysBefore,
+        consorcio,
+      );
       this.logger.log('Tabelas para o Jaé atualizados com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(
         `ERRO CRÍTICO (TENTATIVA 2) = ${error}`,
         error.stack,
-        METHOD);
-      this.deleteCron(CrobJobsEnum.saveTransacoesJae2);      
+        METHOD,
+      );
+      this.deleteCron(CrobJobsEnum.saveTransacoesJae2);
     }
   }
 
-  async sendRemessa(listCnab:string[]) {
-    const METHOD = this.sendRemessa.name;   
+  async sendRemessa(listCnab: string[]) {
+    const METHOD = this.sendRemessa.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.sendRemessa(listCnab);      
+      await this.cnabService.sendRemessa(listCnab);
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error('Erro, abortando.', error.stack, METHOD);
