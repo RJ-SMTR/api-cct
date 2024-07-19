@@ -25,13 +25,13 @@ export class DetalheAService {
     private detalheARepository: DetalheARepository,
     private clienteFavorecidoService: ClienteFavorecidoService,
     private transacaoAgrupadoService: TransacaoAgrupadoService,
-    private pagamentosPendentesService: PagamentosPendentesService   
+    private pagamentosPendentesService: PagamentosPendentesService,
   ) {}
 
   /**
    * Assumimos que todos os detalheA do retorno têm dataVencimento na mesma semana.
    */
-  async updateDetalheAStatus(detalheA:DetalheA){
+  async updateDetalheAStatus(detalheA: DetalheA) {
     // Update Transacao status
     const transacaoAgrupada = detalheA.itemTransacaoAgrupado.transacaoAgrupado;
     const status = new TransacaoStatus();
@@ -52,33 +52,43 @@ export class DetalheAService {
     return this.detalheARepository.saveManyIfNotExists(dtos);
   }
 
-  public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto,
-    r: CnabRegistros104Pgto, dataEfetivacao: Date): Promise<DetalheA | null>{
-    
+  public async saveRetornoFrom104(
+    headerArq: CnabHeaderArquivo104,
+    headerLotePgto: CnabHeaderLote104Pgto,
+    r: CnabRegistros104Pgto,
+    dataEfetivacao: Date,
+  ): Promise<DetalheA | null> {
     const favorecido = await this.clienteFavorecidoService.findOne({
       where: { nome: ILike(`%${r.detalheA.nomeTerceiro.stringValue.trim()}%`) },
     });
-   
-    if (!favorecido) {     
+
+    if (!favorecido) {
       return null;
     }
     const dataVencimento = startOfDay(r.detalheA.dataVencimento.convertedValue);
     let detalheARem;
-    try{
-        detalheARem = await this.detalheARepository.getOne({
-        dataVencimento: dataVencimento,        
-        numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
-        valorLancamento: r.detalheA.valorLancamento.convertedValue        
+    try {
+      detalheARem = await this.detalheARepository.getOne({
+        dataVencimento: dataVencimento,
+        numeroDocumentoEmpresa:
+          r.detalheA.numeroDocumentoEmpresa.convertedValue,
+        valorLancamento: r.detalheA.valorLancamento.convertedValue,
       });
-      if((detalheARem.ocorrenciasCnab===undefined || detalheARem.ocorrenciasCnab==='')
-        || (detalheARem.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim() 
-        && detalheARem.ocorrenciasCnab !== '00' && detalheARem.ocorrenciasCnab !== 'BD')){
+      if (
+        detalheARem.ocorrenciasCnab === undefined ||
+        detalheARem.ocorrenciasCnab === '' ||
+        (detalheARem.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim() &&
+          detalheARem.ocorrenciasCnab !== '00' &&
+          detalheARem.ocorrenciasCnab !== 'BD')
+      ) {
         const detalheA = new DetalheADTO({
           id: detalheARem.id,
-         // headerLote: { id: detalheARem.headerLote.id },
-          loteServico: Number(r.detalheA.loteServico.value),          
+          // headerLote: { id: detalheARem.headerLote.id },
+          loteServico: Number(r.detalheA.loteServico.value),
           finalidadeDOC: r.detalheA.finalidadeDOC.value,
-          numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
+          numeroDocumentoEmpresa: Number(
+            r.detalheA.numeroDocumentoEmpresa.value,
+          ),
           dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
           dataEfetivacao: dataEfetivacao,
           tipoMoeda: r.detalheA.tipoMoeda.value,
@@ -91,36 +101,50 @@ export class DetalheAService {
           indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
           indicadorFormaParcelamento:
             r.detalheA.indicadorFormaParcelamento.stringValue,
-          periodoVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
+          periodoVencimento: startOfDay(
+            r.detalheA.dataVencimento.convertedValue,
+          ),
           numeroParcela: r.detalheA.numeroParcela.convertedValue,
           valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
           nsr: Number(r.detalheA.nsr.value),
           ocorrenciasCnab:
-            r.detalheA.ocorrencias.value.trim()||             
+            r.detalheA.ocorrencias.value.trim() ||
             headerLotePgto.ocorrencias.value.trim() ||
-            headerArq.ocorrenciaCobrancaSemPapel.value.trim()            
+            headerArq.ocorrenciaCobrancaSemPapel.value.trim(),
         });
         return await this.detalheARepository.save(detalheA);
       }
-    }catch (err) {       
-       this.logger.error(err);
-       this.logger.debug(`Detalhe não encontrado para o favorecido: `,favorecido?.nome);
+    } catch (err) {
+      this.logger.error(err);
+      this.logger.debug(
+        `Detalhe não encontrado para o favorecido: `,
+        favorecido?.nome,
+      );
     }
-    if(r.detalheA.ocorrencias!==undefined && r.detalheA.ocorrencias.value.trim()!=='' &&
-       r.detalheA.ocorrencias.value.trim()!=='BD' && r.detalheA.ocorrencias.value.trim()!=='00'){
-      
-      const pg = await this.pagamentosPendentesService.findOne({ numeroDocumento : r.detalheA.numeroDocumentoEmpresa.value.trim(),
-         valorLancamento: r.detalheA.valorLancamento.convertedValue,
-         nomeFavorecido : r.detalheA.nomeTerceiro.convertedValue
-      })
+    if (
+      r.detalheA.ocorrencias !== undefined &&
+      r.detalheA.ocorrencias.value.trim() !== '' &&
+      r.detalheA.ocorrencias.value.trim() !== 'BD' &&
+      r.detalheA.ocorrencias.value.trim() !== '00'
+    ) {
+      const pg = await this.pagamentosPendentesService.findOne({
+        numeroDocumento: r.detalheA.numeroDocumentoEmpresa.value.trim(),
+        valorLancamento: r.detalheA.valorLancamento.convertedValue,
+        nomeFavorecido: r.detalheA.nomeTerceiro.convertedValue,
+      });
 
-      if(!pg){
-        const pagamentosPendentes = new PagamentosPendentes();      
-        pagamentosPendentes.nomeFavorecido = r.detalheA.nomeTerceiro.stringValue.trim();
-        pagamentosPendentes.dataVencimento = r.detalheA.dataVencimento.convertedValue;
-        pagamentosPendentes.valorLancamento = r.detalheA.valorLancamento.convertedValue;
-        pagamentosPendentes.numeroDocumento = r.detalheA.numeroDocumentoEmpresa.value.trim();
-        pagamentosPendentes.ocorrenciaErro = r.detalheA.ocorrencias.value.trim();     
+      if (!pg) {
+        const pagamentosPendentes = new PagamentosPendentes();
+        pagamentosPendentes.nomeFavorecido =
+          r.detalheA.nomeTerceiro.stringValue.trim();
+        pagamentosPendentes.dataVencimento =
+          r.detalheA.dataVencimento.convertedValue;
+        pagamentosPendentes.valorLancamento =
+          r.detalheA.valorLancamento.convertedValue;
+        pagamentosPendentes.numeroDocumento =
+          r.detalheA.numeroDocumentoEmpresa.value.trim();
+        pagamentosPendentes.ocorrenciaErro =
+          r.detalheA.ocorrencias.value.trim();
         await this.pagamentosPendentesService.save(pagamentosPendentes);
       }
     }

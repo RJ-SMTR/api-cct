@@ -24,6 +24,7 @@ const userErrors = [
   'DB',
   'ZA',
   'ZY',
+  '02',
 ];
 
 @Entity()
