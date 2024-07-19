@@ -14,5 +14,4 @@ export class TransacaoView1720214573088 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "transacao_view" ALTER COLUMN "modo" SET NOT NULL`);
         await queryRunner.query(`ALTER TABLE "file" ALTER COLUMN "id" DROP DEFAULT`);
     }
-
 }

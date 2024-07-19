@@ -105,14 +105,13 @@ export class CnabService {
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
   public async saveTransacoesJae(dataOrdemIncial,dataOrdemFinal,daysBefore=0,consorcio:string) {    
-
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();    
     // 2. Update TransacaoView
     await this.updateTransacaoViewBigquery(dataOrdemIncial,dataOrdemFinal,daysBefore,consorcio);
     // 3. Update ordens
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemIncial,dataOrdemFinal,daysBefore);
-    await this.saveOrdens(ordens,consorcio); 
+    await this.saveOrdens(ordens,consorcio);  
   }
 
   /**
@@ -146,7 +145,7 @@ export class CnabService {
    */
 
   async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[],consorcio="Todos") {
-    const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;   
+    const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem; 
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
 
@@ -168,7 +167,7 @@ export class CnabService {
         }  
       }else if(consorcio =='Empresa'){
         if(ordem.consorcio !='STPC' && ordem.consorcio != 'STPL'){    
-          await this.saveAgrupamentos(ordem, pagador, favorecido);            
+          await this.saveAgrupamentos(ordem, pagador, favorecido); 
         }    
       }
     }
@@ -294,7 +293,7 @@ export class CnabService {
     const transacaoAg = this.convertTransacaoAgrupadoDTO(ordem, pagador);
     return await this.transacaoAgService.save(transacaoAg);      
   }
-
+  
   private async saveItemTransacaoAgrupado(ordem: BigqueryOrdemPagamentoDTO,favorecido:ClienteFavorecido,transacaoAg:TransacaoAgrupado){
     const itemAg = this.convertItemTransacaoAgrupadoDTO(ordem, favorecido,transacaoAg);
     return await this.itemTransacaoAgService.save(itemAg);
@@ -513,6 +512,18 @@ export class CnabService {
   private async updateStatusRemessa(headerArquivoDTO:HeaderArquivoDTO,cnabHeaderArquivo:CnabHeaderArquivo104,transacaoAgId:number){
     await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO,cnabHeaderArquivo);
     await this.transacaoAgService.save({ id: transacaoAgId, status: new TransacaoStatus(TransacaoStatusEnum.remessa) });
+  }
+
+  private validateCancel(nsaInicial:number,nsaFinal:number){
+    return (nsaInicial == undefined && nsaFinal ==undefined || (nsaFinal!=0 && nsaFinal < nsaInicial));      
+  }  
+  
+  private async getLotesCancelar(nsa: number) {
+     return (await (this.headerLoteService.findMany({ headerArquivo:{ nsa: nsa }}))).sort((a,b) => a.loteServico - b.loteServico);
+  }
+ 
+  private async getHeaderArquivoCancelar(nsa: number) {
+    return await this.headerArquivoService.getHeaderArquivoNsa(nsa);
   }
 
   private validateCancel(nsaInicial:number,nsaFinal:number){
