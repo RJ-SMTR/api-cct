@@ -22,7 +22,7 @@ import { forChunk, getChunks } from 'src/utils/array-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { Between, DeepPartial } from 'typeorm';
+import { Between, DeepPartial, In } from 'typeorm';
 import { ArquivoPublicacao } from './entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
@@ -179,7 +179,8 @@ export class CnabService {
         ) {
           continue;
         }
-        await this.transacaoViewService.save(tr);
+        const existing = await this.transacaoViewService.find({ idTransacao: tr.idTransacao });
+        await this.transacaoViewService.saveMany(existing, [tr]);
       }
     }
   }
