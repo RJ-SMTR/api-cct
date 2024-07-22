@@ -19,10 +19,6 @@ export class BigqueryTransacaoService {
    * @param [daysBack=0] Pega a semana atual ou N dias atrás.
    */
   public async getFromWeek(dataOrdemInicial,dataOrdemFinal,daysBack = 0): Promise<BigqueryTransacao[]> {
-    // Read
-    const today = new Date();
-    let startDate;
-    let endDate;
     if(dataOrdemInicial != undefined && dataOrdemFinal !=undefined){
       startDate = subDays(new Date(dataOrdemInicial),1);
       endDate = subDays(new Date(dataOrdemFinal),1);

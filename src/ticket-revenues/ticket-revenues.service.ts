@@ -50,7 +50,7 @@ export class TicketRevenuesService {
     private readonly transacaoViewService: TransacaoViewService,
     private readonly arrquivoPublicacaoService: ArquivoPublicacaoService,
     private readonly detalheAService: DetalheAService,
-  ) {}
+  ) { }
 
   /**
    * TODO: refactor - use repository method
@@ -139,7 +139,12 @@ export class TicketRevenuesService {
         todaySum: 0,
         count: 0,
         ticketCount: 0,
-        data: [],
+        data: this.fillDatesInGroups(
+          [],
+          groupBy,
+          startDate,
+          endDate,
+        ),
       };
     }
 
@@ -380,7 +385,7 @@ export class TicketRevenuesService {
           ).toISOString();
           const day = item.processingDateTime;
           const procsesingDate = groupBy === 'week' ? friday : day;
-          const newGroup =  new TicketRevenuesGroupDto({
+          const newGroup = new TicketRevenuesGroupDto({
             count: 0,
             date: procsesingDate,
             transportTypeCounts: {},

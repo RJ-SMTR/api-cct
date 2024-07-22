@@ -174,19 +174,23 @@ export class CnabService {
     }
   }
 
-  async compareTransacaoViewPublicacao(publicacao, detalheA: DetalheA) {
+  async compareTransacaoViewPublicacao(detalheA: DetalheA) {
     const transacoesView = await 
-    this.getTransacoesViewWeek(subDays(detalheA.dataVencimento,8),
-    detalheA.dataVencimento);    
-    const transacoes = transacoesView.filter(
-      (transacaoView) => transacaoView.idOperadora === publicacao.itemTransacao.idOperadora &&
-        transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio &&
-        isSameDay(transacaoView.datetimeProcessamento, subDays(publicacao.itemTransacao.dataOrdem, 1))
-    );
-    const transacaoIds = transacoes.map((i) => i.id);
-    await this.transacaoViewService.updateMany(transacaoIds, {
-      arquivoPublicacao: { id: publicacao.id },
-    });   
+    this.getTransacoesViewWeek(subDays(detalheA.dataVencimento,1),
+    detalheA.dataVencimento);
+    const publicacoesDetalhe = await this.getPublicacoesWeek(detalheA)
+    const publicacoes = this.getUniqueUpdatePublicacoes(publicacoesDetalhe);
+    for (const publicacao of publicacoes) {
+      const transacoes = transacoesView.filter(
+        (transacaoView) => transacaoView.idOperadora === publicacao.itemTransacao.idOperadora &&
+          transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio &&
+          isSameDay(transacaoView.datetimeProcessamento, subDays(publicacao.itemTransacao.dataOrdem, 1))
+      );
+      const transacaoIds = transacoes.map((i) => i.id);
+      await this.transacaoViewService.updateMany(transacaoIds, {
+        arquivoPublicacao: { id: publicacao.id },
+      });
+    }
   }
 
   getUniqueUpdatePublicacoes(publicacoes: ArquivoPublicacao[]) {
