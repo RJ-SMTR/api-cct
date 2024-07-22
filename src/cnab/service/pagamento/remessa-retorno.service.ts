@@ -3,8 +3,7 @@ import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   endOfDay,
-  isFriday,
-  isSameDay,
+  isFriday,  
   nextFriday,
   startOfDay,
   subDays,
@@ -709,7 +708,7 @@ export class RemessaRetornoService {
 
   async compareTransacaoViewPublicacao(detalheA: DetalheA) {
     const transacoesView = await this.getTransacoesViewWeek(
-      subDays(detalheA.dataVencimento, 1),
+      subDays(detalheA.dataVencimento, 8),
       detalheA.dataVencimento,
     );
     const publicacoesDetalhe =
@@ -720,11 +719,11 @@ export class RemessaRetornoService {
       const transacoes = transacoesView.filter(
         (transacaoView) =>
           transacaoView.idOperadora === publicacao.itemTransacao.idOperadora &&
-          transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio &&
-          isSameDay(
-            transacaoView.datetimeProcessamento,
-            subDays(publicacao.itemTransacao.dataProcessamento, 1),
-          ),
+          transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio &&  
+          transacaoView.operadoraCpfCnpj === publicacao.itemTransacao.clienteFavorecido.cpfCnpj &&
+          transacaoView.datetimeProcessamento >= subDays(detalheA.dataVencimento,8) &&
+          transacaoView.datetimeProcessamento <= subDays(detalheA.dataVencimento,1) &&        
+          transacaoView.valorPago === publicacao.itemTransacao.valor
       );
       const updateTransacoes = transacoes.map((i) => ({
         ...i,
@@ -742,7 +741,6 @@ export class RemessaRetornoService {
     if (!isFriday(friday)) {
       friday = nextFriday(friday);
     }
-
     if (dataInicio != undefined && dataFim != undefined) {
       startDate = dataInicio;
       endDate = dataFim;

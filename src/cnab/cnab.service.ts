@@ -56,6 +56,7 @@ import {
   parseCnab240Pagamento,
   stringifyCnab104File,
 } from './utils/cnab/cnab-104-utils';
+import { Between } from 'typeorm';
 
 /**
  * User cases for CNAB and Payments
@@ -412,11 +413,10 @@ export class CnabService {
       startDate = startOfDay(subDays(friday, 8));
       endDate = endOfDay(subDays(friday, 2));
     }
-    // return await this.transacaoViewService.find(
-    //   { datetimeProcessamento: Between(startDate, endDate) },
-    //   false,
-    // );
-    return null as any;
+    return await this.transacaoViewService.find(
+      { datetimeProcessamento: Between(startDate, endDate) },
+      false,
+    );   
   }
 
   // #endregion
