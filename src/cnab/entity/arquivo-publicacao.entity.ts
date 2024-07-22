@@ -83,12 +83,44 @@ export class ArquivoPublicacao extends EntityHelper {
     return !this.isPago && this.dataEfetivacao;
   }
 
-  public static filterUnique(publicacoes: ArquivoPublicacao[], compare: ArquivoPublicacao) {
+  public static filterUnique(
+    publicacoes: ArquivoPublicacao[],
+    compare: ArquivoPublicacao,
+  ) {
     return publicacoes.filter(
       (p) =>
         p.itemTransacao.idConsorcio === compare.itemTransacao.idConsorcio &&
         p.itemTransacao.idOperadora === compare.itemTransacao.idOperadora &&
         isSameDay(p.itemTransacao.dataOrdem, compare.itemTransacao.dataOrdem),
     );
+  }
+
+  public static getUniqueUpdatePublicacoes(publicacoes: ArquivoPublicacao[]) {
+    const unique: ArquivoPublicacao[] = [];
+    publicacoes.forEach((publicacao) => {
+      const existing = ArquivoPublicacao.filterUnique(unique, publicacao)[0] as
+        | ArquivoPublicacao
+        | undefined;
+      const ocourences = ArquivoPublicacao.filterUnique(
+        publicacoes,
+        publicacao,
+      ).sort(
+        (a, b) =>
+          b.itemTransacao.dataOrdem.getTime() -
+          a.itemTransacao.dataOrdem.getTime(),
+      );
+      const paid = ocourences.filter((i) => i.isPago)[0] as
+        | ArquivoPublicacao
+        | undefined;
+      const noErrors = ocourences.filter((i) => !i.getIsError())[0] as
+        | ArquivoPublicacao
+        | undefined;
+      const recent = ocourences[0] as ArquivoPublicacao;
+      if (!existing) {
+        const newPublicacao = paid || noErrors || recent;
+        unique.push(newPublicacao);
+      }
+    });
+    return unique;
   }
 }

@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { getChunks, groupBy } from 'src/utils/array-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { DataSource, DeepPartial, FindManyOptions, In } from 'typeorm';
+import { DataSource, DeepPartial, FindManyOptions } from 'typeorm';
+import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { TransacaoView } from './transacao-view.entity';
 import { TransacaoViewRepository } from './transacao-view.repository';
-import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 
 @Injectable()
 export class TransacaoViewService {
@@ -62,20 +61,26 @@ export class TransacaoViewService {
     callback(existing, newItems);
   }
 
-  public async save(transacao: TransacaoView){
+  public async save(transacao: TransacaoView) {
     await this.transacaoViewRepository.save(transacao);
   }
 
   /**
    * Cria ou atualiza TransacaoViews
+   *
+   * Usamos este mesmo método para tudo para melhor manutenção do código
+   *
    * Tarefas:
    * 1. Atualizar separadamente os campos: valor_pago e tipo_transacao (smtr)
    * 2. Para cada campo, agrupar pelo valor - para fazer um updateMany
    * 3. Separar cada update em chunks para não sobrecarregar
+   *
+   * @param [existings=[]] verifica se item existe baseado no idTransacao.
+   * Se a lsita for vazia, verifica se `transacoes` possui id
    */
   async saveMany(
-    existings: TransacaoView[],
     transacoes: DeepPartial<TransacaoView>[],
+    existings: TransacaoView[] = [],
   ) {
     this.logger.log(
       `Há Atualizando ou inserindo ${transacoes.length} ` +
@@ -92,12 +97,14 @@ export class TransacaoViewService {
           (i) => i.idTransacao === transacao.idTransacao,
         )[0] as TransacaoView | undefined;
         // Se existe, atualiza
-        if (existing) {
+        if (existing || transacao?.id) {
           this.logger.debug(
-            `Atualizando item ${existing.id} - ${transacoesIndex}/${transacoes.length}`,
+            `Atualizando item ${
+              existing?.id || transacao?.id
+            } - ${transacoesIndex}/${transacoes.length}`,
           );
           await queryRunner.manager.save(TransacaoView, {
-            id: existing.id,
+            ...(existing ? { id: existing.id } : {}),
             ...transacao,
           });
         }
