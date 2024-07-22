@@ -126,8 +126,8 @@ export class RemessaRetornoService {
         },
       });
       if (itemTransacao) {
+        //TED
         if (itemTransacao.clienteFavorecido.codigoBanco !== '104') {
-          //TED
           nsrTed++;
           if (loteTed == undefined) {
             if (!isConference) {
@@ -155,9 +155,12 @@ export class RemessaRetornoService {
           );
           nsrTed++;
           loteTed.registros104.push(...detalhes104);
-        } else {
-          //Credito em Conta
+        }
+
+        //Credito em Conta
+        else {
           nsrCC++;
+          // Atual
           if (loteCC == undefined) {
             if (!isConference) {
               loteCC = this.headerLoteService.convertHeaderLoteDTO(
@@ -186,6 +189,8 @@ export class RemessaRetornoService {
           loteCC.registros104.push(...detalhes104);
         }
       }
+
+      // Adicionar lote
       if (loteTed != undefined) {
         lotes.push(loteTed);
       }
