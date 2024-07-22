@@ -18,7 +18,7 @@ import { SftpService } from 'src/sftp/sftp.service';
 import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { UsersService } from 'src/users/users.service';
-import { forChunk } from 'src/utils/array-utils';
+import { forChunk, getChunks } from 'src/utils/array-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
@@ -59,6 +59,7 @@ import { CnabRegistros104Pgto } from './interfaces/cnab-240/104/pagamento/cnab-r
 import { CnabHeaderArquivo104 } from './interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
 import { completeCPFCharacter } from 'src/utils/cpf-cnpj';
+import { ConsorcioType } from './types/consorcio.type';
 
 /**
  * User cases for CNAB and Payments
@@ -110,19 +111,23 @@ export class CnabService {
     daysBefore = 0,
     consorcio: string,
   ) {
+    const dataOrdemInicialDate = startOfDay(new Date(dataOrdemIncial));
+    const dataOrdemFinalDate = endOfDay(new Date(dataOrdemFinal));
+    const consorcioType = consorcio as ConsorcioType;
+
     // 1. Update cliente favorecido
     await this.updateAllFavorecidosFromUsers();
     // 2. Update TransacaoView
     await this.updateTransacaoViewBigquery(
-      dataOrdemIncial,
-      dataOrdemFinal,
+      dataOrdemInicialDate,
+      dataOrdemFinalDate,
       daysBefore,
-      consorcio,
+      consorcioType,
     );
     // 3. Update ordens
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(
-      dataOrdemIncial,
-      dataOrdemFinal,
+      dataOrdemInicialDate,
+      dataOrdemFinalDate,
       daysBefore,
     );
     await this.saveOrdens(ordens, consorcio);
@@ -132,11 +137,12 @@ export class CnabService {
    * Atualiza a tabela TransacaoView
    */
   async updateTransacaoViewBigquery(
-    dataOrdemIncial,
-    dataOrdemFinal,
+    dataOrdemIncial: Date,
+    dataOrdemFinal: Date,
     daysBack = 0,
-    consorcio: string,
+    consorcio: ConsorcioType = 'Todos',
   ) {
+    const METHOD = this.updateTransacaoViewBigquery.name;
     const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(
       dataOrdemIncial,
       dataOrdemFinal,
@@ -156,7 +162,11 @@ export class CnabService {
       trs = transacoesBq.filter((tr) => tr.consorcio == consorcio);
     }
 
-    forChunk(trs, 1000, async (chunk) => {
+    const chunks = getChunks(trs, 1000);
+    let iChunk = 0;
+    for (const chunk of chunks) {
+      iChunk += 1;
+      this.logger.log(`Atualizando ${iChunk}/${chunks.length} chunks`, METHOD);
       const transacoes = chunk.map((i) =>
         TransacaoView.fromBigqueryTransacao(i),
       );
@@ -171,7 +181,7 @@ export class CnabService {
         }
         await this.transacaoViewService.save(tr);
       }
-    });
+    }
   }
 
   /**

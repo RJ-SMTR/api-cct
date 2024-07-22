@@ -2,6 +2,7 @@ import { HttpStatus, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
+import { endOfDay, startOfDay, subDays } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
@@ -35,6 +36,7 @@ export enum CrobJobsEnum {
   sendRemessa = 'sendRemessa',
   updateRetorno = 'updateRetorno',
   saveExtrato = 'saveExtrato',
+  updateTransacaoView = 'updateTransacaoView',
 }
 
 interface ICronJob {
@@ -94,6 +96,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   }
 
   async onModuleLoad() {
+    await this.updateTransacaoView();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     // await this.saveTransacoesJae1(0, 'Todos', new Date());
     // await this.saveAndSendRemessa(
@@ -156,6 +159,16 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
           },
         },
       },
+      {
+        name: CrobJobsEnum.updateTransacaoView,
+        cronJobParameters: {
+          cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
+          onTick: async () => {
+            await this.updateTransacaoView();
+          },
+        },
+      },
+
       // {
       //   name: CrobJobsEnum.saveTransacoesJae,
       //   cronJobParameters: {
@@ -222,6 +235,27 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   deleteCron(jobName: string) {
     this.schedulerRegistry.deleteCronJob(jobName);
+  }
+
+  /**
+   * Atualiza todos os itens do dia de ontem.
+   */
+  async updateTransacaoView() {
+    const METHOD = this.updateTransacaoView.name;
+    const startDate = subDays(startOfDay(new Date()), 1);
+    const endDate = subDays(endOfDay(new Date()), 1);
+
+    try {
+      this.logger.log('Iniciando tarefa.', METHOD);
+      await this.cnabService.updateTransacaoViewBigquery(startDate, endDate);
+      this.logger.log('TramsacaoViews atualizados com sucesso.', METHOD);
+    } catch (error) {
+      this.logger.error(
+        `ERRO CRÍTICO - ${JSON.stringify(error)}`,
+        error?.stack,
+        METHOD,
+      );
+    }
   }
 
   async bulkSendInvites() {
