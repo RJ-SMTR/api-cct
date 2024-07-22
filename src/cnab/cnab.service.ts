@@ -59,6 +59,7 @@ import { CnabRegistros104Pgto } from './interfaces/cnab-240/104/pagamento/cnab-r
 import { CnabHeaderArquivo104 } from './interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
 import { completeCPFCharacter } from 'src/utils/cpf-cnpj';
+import { DetalheA } from './entity/pagamento/detalhe-a.entity';
 
 /**
  * User cases for CNAB and Payments
@@ -166,27 +167,26 @@ export class CnabService {
           await this.saveAgrupamentos(ordem, pagador, favorecido);          
         }  
       }else if(consorcio =='Empresa'){
-        if(ordem.consorcio !='STPC' && ordem.consorcio != 'STPL'){    
+        if(ordem.consorcio !='STPC' && ordem.consorcio != 'STPL' && ordem.consorcio!='VLT'){    
           await this.saveAgrupamentos(ordem, pagador, favorecido);            
         }          
       }
     }
   }
 
-  async compareTransacaoViewPublicacao(daysBefore = 0) {
-    const transacoesView = await this.getTransacoesViewWeek(daysBefore);
-    const publicacoes = this.getUniqueUpdatePublicacoes(await this.getPublicacoesWeek(daysBefore));
-    for (const publicacao of publicacoes) {
-      const transacoes = transacoesView.filter(
-        (transacaoView) => transacaoView.idOperadora === publicacao.itemTransacao.idOperadora &&
-          transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio &&
-          isSameDay(transacaoView.datetimeProcessamento, subDays(publicacao.itemTransacao.dataOrdem, 1))
-      );
-      const transacaoIds = transacoes.map((i) => i.id);
-      await this.transacaoViewService.updateMany(transacaoIds, {
-        arquivoPublicacao: { id: publicacao.id },
-      });
-    }
+  async compareTransacaoViewPublicacao(publicacao, detalheA: DetalheA) {
+    const transacoesView = await 
+    this.getTransacoesViewWeek(subDays(detalheA.dataVencimento,8),
+    detalheA.dataVencimento);    
+    const transacoes = transacoesView.filter(
+      (transacaoView) => transacaoView.idOperadora === publicacao.itemTransacao.idOperadora &&
+        transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio &&
+        isSameDay(transacaoView.datetimeProcessamento, subDays(publicacao.itemTransacao.dataOrdem, 1))
+    );
+    const transacaoIds = transacoes.map((i) => i.id);
+    await this.transacaoViewService.updateMany(transacaoIds, {
+      arquivoPublicacao: { id: publicacao.id },
+    });   
   }
 
   getUniqueUpdatePublicacoes(publicacoes: ArquivoPublicacao[]) {
@@ -213,16 +213,10 @@ export class CnabService {
   /**
    * Publicacao está associada com a ordem, portanto é sex-qui
    */
-  async getPublicacoesWeek(daysBefore = 0) {
-    let friday = new Date();
-    if (!isFriday(friday)) {
-      friday = nextFriday(friday);
-    }
-    const sex = startOfDay(subDays(friday, 7 + daysBefore));
-    const qui = endOfDay(subDays(friday, 1));
+  async getPublicacoesWeek(detalheA:DetalheA) {
+
     const result = await this.arqPublicacaoService.findMany({
-      where: { itemTransacao: { dataOrdem: Between(sex, qui)} },
-      order: { itemTransacao: { dataOrdem: 'ASC' } }
+      where: { itemTransacao: { itemTransacaoAgrupado: { id: detalheA.itemTransacaoAgrupado.id } }}
     });
     return result;
   }
@@ -369,13 +363,22 @@ export class CnabService {
       });
     }
 
-  async getTransacoesViewWeek(daysBefore = 0) {
+  async getTransacoesViewWeek(dataInicio:Date,dataFim:Date) {
     let friday = new Date();
+    let startDate;
+    let endDate;
+    
     if (!isFriday(friday)) {
       friday = nextFriday(friday);
     }
-    const startDate = startOfDay(subDays(friday, 8 + daysBefore));
-    const endDate = endOfDay(subDays(friday, 2));
+
+    if(dataInicio!=undefined && dataFim!=undefined) {
+      startDate = dataInicio;
+      endDate = dataFim;
+    }else{    
+      startDate = startOfDay(subDays(friday, 8));
+      endDate = endOfDay(subDays(friday, 2));
+    }
     return await this.transacaoViewService.find({datetimeProcessamento: Between(startDate,endDate)},false);
   }
 
@@ -533,15 +536,14 @@ export class CnabService {
   public async updateRetorno() {
     const METHOD = this.updateRetorno.name;
     //Atualiza transacaoView com dados da publicacao
-    await this.compareTransacaoViewPublicacao();
+   
 
     const { cnabString, cnabName } =
       await this.sftpService.getFirstCnabRetorno();
     if (!cnabName || !cnabString) {
       this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
       return;
-    }
-
+    }    
     // Save Retorno, ArquivoPublicacao, move SFTP to backup
     try {
       const retorno104 = parseCnab240Pagamento(cnabString);      
@@ -554,6 +556,7 @@ export class CnabService {
       await this.sftpService.moveToBackup( cnabName,SftpBackupFolder.RetornoFailure);
       return;
     }
+    
   }
   /**
    * This task will:

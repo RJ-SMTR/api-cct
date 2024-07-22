@@ -1,3 +1,4 @@
+
 import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
 
 import { Cnab104TipoMovimento } from './../../enums/104/cnab-104-tipo-movimento.enum';
@@ -93,8 +94,7 @@ export class RemessaRetornoService {
     dataPgto: Date | undefined,isConference:boolean
   ) {
     const transacaoAg = headerArquivoDTO.transacaoAgrupado as TransacaoAgrupado;
-    const itemTransacaoAgs =
-      await this.itemTransacaoAgService.findManyByIdTransacaoAg(transacaoAg.id);
+    const itemTransacaoAgs = await this.itemTransacaoAgService.findManyByIdTransacaoAg(transacaoAg.id);
 
     // Agrupar por Lotes
     /** Agrupa por: formaLancamento */
@@ -137,13 +137,13 @@ export class RemessaRetornoService {
           nsrCC++;
           loteCC.registros104.push(...detalhes104);       
         }       
-      }
-      if(loteTed != undefined){
-        lotes.push(loteTed);
-      }
-      if(loteCC != undefined){
-        lotes.push(loteCC);
-      }
+      }     
+    }
+    if(loteTed != undefined){
+      lotes.push(loteTed);
+    }
+    if(loteCC != undefined){
+      lotes.push(loteCC);
     }
     return lotes;
   }
@@ -505,7 +505,7 @@ detalheA104: CnabDetalheA_104, savedHeaderLoteId: number, itemTransacaoAg: ItemT
         }
         this.logger.debug(`Detalhe A : `+ detalheAUpdated.id);
         await this.detalheBService.saveFrom104(registro, detalheAUpdated); 
-        await this.arqPublicacaoService.compareRemessaToRetorno(detalheAUpdated); 
+        await this.arqPublicacaoService.compareRemessaToRetorno(detalheAUpdated);         
         await this.detalheAService.updateDetalheAStatus(detalheAUpdated);     
       }
     }

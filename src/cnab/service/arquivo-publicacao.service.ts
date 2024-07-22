@@ -1,10 +1,11 @@
+import { CnabService } from 'src/cnab/cnab.service';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   addDays,
   isDate,  
   isThursday,
   nextFriday,
-  startOfDay,
+  startOfDay,  
 } from 'date-fns';
 import { asNumber } from 'src/utils/pipe-utils';
 import { FindManyOptions } from 'typeorm';
@@ -26,6 +27,7 @@ export class ArquivoPublicacaoService {
     private arquivoPublicacaoRepository: ArquivoPublicacaoRepository,    
     private transacaoOcorrenciaService: OcorrenciaService,
     private itemTransacaoService: ItemTransacaoService,
+    private cnabService: CnabService
   ) { }
   
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
@@ -97,7 +99,9 @@ export class ArquivoPublicacaoService {
     //Inclui ocorrencias
     await this.salvaOcorrenciasDetalheA(detalheA);
     //Atualiza publicação
-    await this.savePublicacaoRetorno(detalheA);   
+    const publicacao  = await this.savePublicacaoRetorno(detalheA); 
+    //Compara com a Transacao
+    await this.cnabService.compareTransacaoViewPublicacao(publicacao,detalheA);
   }
 
   async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA) {
@@ -146,7 +150,7 @@ export class ArquivoPublicacaoService {
       publicacao.horaGeracaoRetorno =
         detalheARetorno.headerLote.headerArquivo.horaGeracao;
 
-      await this.arquivoPublicacaoRepository.save(publicacao);
+      return await this.arquivoPublicacaoRepository.save(publicacao);
     }
   }
 }
