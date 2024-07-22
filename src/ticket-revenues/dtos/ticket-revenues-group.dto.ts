@@ -2,6 +2,7 @@ import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { SetValue } from 'src/utils/decorators/set-value.decorator';
 import { DeepPartial } from 'typeorm';
 import { ITRCounts } from '../interfaces/tr-counts.interface';
+import { SetValueIf } from 'src/utils/decorators/set-value-if.decorator';
 
 /**
  * This object represents a group of `IBqTicketRevenues`
@@ -153,4 +154,8 @@ export class TicketRevenuesGroupDto {
    */
   @SetValue((v) => Ocorrencia.toUserErrors(v))
   errors: Ocorrencia[] = [];
+
+  getIsEmpty() {
+    return !this.count;
+  }
 }
