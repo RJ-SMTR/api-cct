@@ -31,7 +31,7 @@ import { getRequestLog } from 'src/utils/request-utils';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { TRTimeIntervalEnum } from './enums/tr-time-interval.enum';
-import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response.interface';
+import { TRGetMeGroupedResponseDto } from './interfaces/tr-get-me-grouped-response.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import { TicketRevenuesService } from './ticket-revenues.service';
 
@@ -61,7 +61,7 @@ export class TicketRevenuesController {
    * @param timeInterval
    *
    * Retorno:
-   * 
+   *
    * - status:
    *  - _Nulo_: Se não tiver valor
    *  - Pago: Se tiver valor e for tudo pago
@@ -95,7 +95,7 @@ export class TicketRevenuesController {
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
     userId?: number | null,
-  ): Promise<ITRGetMeGroupedResponse> {
+  ): Promise<TRGetMeGroupedResponseDto> {
     this.logger.log(getRequestLog(request));
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     return await this.ticketRevenuesService.getMe(
