@@ -96,20 +96,7 @@ export class TransacaoViewService {
         const existing = existings.filter(
           (i) => i.idTransacao === transacao.idTransacao,
         )[0] as TransacaoView | undefined;
-        // Se existe, atualiza
-        if (existing || transacao?.id) {
-          this.logger.debug(
-            `Atualizando item ${
-              existing?.id || transacao?.id
-            } - ${transacoesIndex}/${transacoes.length}`,
-          );
-          await queryRunner.manager.save(TransacaoView, {
-            ...(existing ? { id: existing.id } : {}),
-            ...transacao,
-          });
-        }
-        // Senão, cria
-        else {
+        if (!existing){
           this.logger.debug(
             `Inserindo novo item - ${transacoesIndex}/${transacoes.length}`,
           );

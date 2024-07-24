@@ -19,6 +19,7 @@ import { ExtratoDto } from './service/dto/extrato.dto';
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
 import { PagadorContaEnum } from './enums/pagamento/pagador.enum';
 import { CnabService } from './cnab.service';
+import { startOfDay } from 'date-fns';
 
 @ApiTags('Cnab')
 @Controller({

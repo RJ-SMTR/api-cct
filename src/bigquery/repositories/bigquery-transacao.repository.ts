@@ -86,7 +86,6 @@ export class BigqueryTransacaoRepository {
           t.id_operadora,
           o.documento AS operadoraCpfCnpj,
           c.cnpj AS consorcioCnpj,
-          (${qArgs.countQuery}) AS count,
           'ok' AS status
         FROM \`${qArgs.transacao}\` t\n
         LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
@@ -95,7 +94,9 @@ export class BigqueryTransacaoRepository {
       '\n' +
       qArgs.joinIntegracao +
       '\n' +
-      (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
+      (qArgs.qWhere.length
+        ? `WHERE ${qArgs.qWhere}\n`
+        : '') +
       `\nORDER BY datetime_processamento DESC` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
@@ -108,10 +109,8 @@ export class BigqueryTransacaoRepository {
     // Remove unwanted keys and remove last item (all null if empty)
     let transacoes: BigqueryTransacao[] = queryResult.map((i) => {
       delete i.status;
-      delete i.count;
       return i;
     });
-    transacoes.pop();
     transacoes = this.mapBqTransacao(transacoes);
 
     return {

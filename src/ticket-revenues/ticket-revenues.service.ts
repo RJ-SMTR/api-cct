@@ -31,7 +31,7 @@ import { TicketRevenueDTO } from './dtos/ticket-revenue.dto';
 import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITRGetMeGroupedArgs } from './interfaces/tr-get-me-grouped-args.interface';
-import { ITRGetMeGroupedResponse } from './interfaces/tr-get-me-grouped-response.interface';
+import { TRGetMeGroupedResponseDto } from './interfaces/tr-get-me-grouped-response.interface';
 import { ITRGetMeIndividualArgs } from './interfaces/tr-get-me-individual-args.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import { TicketRevenuesRepositoryService as TicketRevenuesRepository } from './ticket-revenues-repository';
@@ -50,7 +50,7 @@ export class TicketRevenuesService {
     private readonly transacaoViewService: TransacaoViewService,
     private readonly arrquivoPublicacaoService: ArquivoPublicacaoService,
     private readonly detalheAService: DetalheAService,
-  ) { }
+  ) {}
 
   /**
    * TODO: refactor - use repository method
@@ -111,7 +111,7 @@ export class TicketRevenuesService {
     args: ITRGetMeGroupedArgs,
     pagination: PaginationOptions,
     endpoint: PaymentEndpointType,
-  ): Promise<ITRGetMeGroupedResponse> {
+  ): Promise<TRGetMeGroupedResponseDto> {
     const METHOD = 'getMe';
     // TODO: set groupBy as validation response
     const user = await this.validateGetMe(args);
@@ -124,14 +124,17 @@ export class TicketRevenuesService {
     const groupBy = args?.groupBy || 'day';
 
     // Repository tasks
-    let ticketRevenuesResponse: TicketRevenueDTO[] = await this.findTransacaoView(
-      { cpfCnpj: user.getCpfCnpj(), startDate, endDate },
-    );
+    let ticketRevenuesResponse: TicketRevenueDTO[] =
+      await this.findTransacaoView({
+        cpfCnpj: user.getCpfCnpj(),
+        startDate,
+        endDate,
+      });
 
     const paidSum = ticketRevenuesResponse.reduce((s, i) => s + i.paidValue, 0);
 
     if (ticketRevenuesResponse.length === 0) {
-      return {
+      return new TRGetMeGroupedResponseDto({
         startDate: null,
         endDate: null,
         amountSum: 0,
@@ -139,13 +142,8 @@ export class TicketRevenuesService {
         todaySum: 0,
         count: 0,
         ticketCount: 0,
-        data: this.fillDatesInGroups(
-          [],
-          groupBy,
-          startDate,
-          endDate,
-        ),
-      };
+        data: this.fillDatesInGroups([], groupBy, startDate, endDate),
+      });
     }
 
     const detalhesA = await this.detalheAService.findMany({
@@ -204,7 +202,7 @@ export class TicketRevenuesService {
       0,
     );
 
-    return {
+    return new TRGetMeGroupedResponseDto({
       startDate:
         ticketRevenuesResponse[ticketRevenuesResponse.length - 1]
           ?.processingDateTime || null,
@@ -215,7 +213,7 @@ export class TicketRevenuesService {
       count: ticketRevenuesGroups.length,
       ticketCount,
       data: ticketRevenuesGroups,
-    };
+    });
   }
 
   fillDatesInGroups(
