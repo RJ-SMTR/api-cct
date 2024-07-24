@@ -718,12 +718,7 @@ export class RemessaRetornoService {
     for (const publicacao of publicacoes) {
       const transacoes = transacoesView.filter(
         (transacaoView) =>
-          transacaoView.idOperadora === publicacao.itemTransacao.idOperadora &&
-          transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio &&  
-          transacaoView.operadoraCpfCnpj === publicacao.itemTransacao.clienteFavorecido.cpfCnpj &&
-          transacaoView.datetimeProcessamento >= subDays(detalheA.dataVencimento,8) &&
-          transacaoView.datetimeProcessamento <= subDays(detalheA.dataVencimento,1) &&        
-          transacaoView.valorPago === publicacao.itemTransacao.valor
+          transacaoView.idTransacao === publicacao.itemTransacao.idTransacaoView         
       );
       const updateTransacoes = transacoes.map((i) => ({
         ...i,

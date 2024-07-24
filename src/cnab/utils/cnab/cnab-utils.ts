@@ -347,21 +347,26 @@ function getCnabLoteRegistroIdDTO(
   registroId: string;
   registroDTO: CnabRegistro;
 } {
-  const { registroId, registroDTO } = getCnabRegistroIdDTO(
-    cnabRegistroLine,
-    loteDTO,
-  );
-  if (registroId === CnabCodigoRegistro.DetalheSegmento) {
-    return {
-      registroId: registroId,
-      registroDTO: getCnabDetalheDTO(cnabRegistroLine, loteDTO.slice(1, -1)),
-    };
-  } else {
-    return {
-      registroId: registroId,
-      registroDTO: registroDTO,
-    };
-  }
+  try{
+    const { registroId, registroDTO } = getCnabRegistroIdDTO(
+      cnabRegistroLine,
+      loteDTO,
+    );
+    if (registroId === CnabCodigoRegistro.DetalheSegmento) {
+      return {
+        registroId: registroId,
+        registroDTO: getCnabDetalheDTO(cnabRegistroLine, loteDTO.slice(1, -1)),
+      };
+    } else {
+      return {
+        registroId: registroId,
+        registroDTO: registroDTO,
+      };
+    }
+  }catch(error){
+    this.logger.error(error);  
+    throw new Error(`No registroId found. ${error}`);   
+  } 
 }
 
 function getCnabRegistroIdDTO(

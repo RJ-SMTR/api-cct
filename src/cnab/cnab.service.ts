@@ -146,8 +146,7 @@ export class CnabService {
       trs = transacoesBq.filter((tr) => tr.modo !== 'Van');
     } else if (
       consorcio != 'Todos' &&
-      consorcio != 'Empresa' &&
-      consorcio != 'Todos'
+      consorcio != 'Empresa'    
     ) {
       trs = transacoesBq.filter((tr) => tr.consorcio == consorcio);
     }
@@ -156,6 +155,7 @@ export class CnabService {
         TransacaoView.fromBigqueryTransacao(i),
       );
       for (const tr of transacoes) {
+        // const tr = TransacaoView.fromBigqueryTransacao(tra);
         if (
           tr.modo == undefined ||
           tr.modo == null ||
@@ -163,10 +163,23 @@ export class CnabService {
           tr.nomeOperadora == null
         ) {
           continue;
-        }
+        }        
         await this.transacaoViewService.save(tr);
       }
     });
+  }
+
+  public async getTransacoesViewOrdem(ordem: BigqueryOrdemPagamentoDTO,clienteFavorecido: ClienteFavorecido){
+      const trsDia = await this.getTransacoesViewWeek(
+        subDays(new Date(ordem.dataOrdem), 1),subDays(new Date(ordem.dataOrdem), 1));
+      
+      const trsOrdem = trsDia.filter(
+        (transacaoView) =>
+          transacaoView.idOperadora === ordem.idOperadora &&
+          transacaoView.idConsorcio === ordem.idConsorcio &&  
+          transacaoView.operadoraCpfCnpj === clienteFavorecido.cpfCnpj          
+      );    
+      return trsOrdem;     
   }
 
   /**
@@ -185,19 +198,20 @@ export class CnabService {
       if (!favorecido) {
         continue;
       }
+      const transacoesView = await this.getTransacoesViewOrdem(ordem,favorecido)
+
       if (consorcio == 'Todos' || consorcio == ordem.consorcio) {
-        await this.saveAgrupamentos(ordem, pagador, favorecido);
+        await this.saveAgrupamentos(ordem, pagador, favorecido,transacoesView);
       } else if (consorcio == 'Van') {
         if (ordem.consorcio == 'STPC' || ordem.consorcio == 'STPL') {
-          await this.saveAgrupamentos(ordem, pagador, favorecido);
+          await this.saveAgrupamentos(ordem, pagador, favorecido,transacoesView);
         }
       } else if (consorcio == 'Empresa') {
         if (
           ordem.consorcio != 'STPC' &&
           ordem.consorcio != 'STPL' &&
-          ordem.consorcio != 'VLT'
-        ) {
-          await this.saveAgrupamentos(ordem, pagador, favorecido);
+          ordem.consorcio != 'VLT' ) {
+          await this.saveAgrupamentos(ordem, pagador, favorecido,transacoesView);
         }
       }
     }
@@ -213,6 +227,7 @@ export class CnabService {
     ordem: BigqueryOrdemPagamentoDTO,
     pagador: Pagador,
     favorecido: ClienteFavorecido,
+    transacoesView: TransacaoView[]
   ) {
     /** TransaçãoAg por pagador(cpfCnpj), dataOrdem (sexta) e status = criado
      * Status criado
@@ -226,7 +241,7 @@ export class CnabService {
     let transacaoAg = await this.transacaoAgService.findOne({
       dataOrdem: fridayOrdem,
       pagador: { id: pagador.id },
-      status: { id: TransacaoStatusEnum.created },
+      status: { id: TransacaoStatusEnum.created }
     });
     /** ItemTransacaoAg representa o destinatário (operador ou consórcio) */
     let itemAg: ItemTransacaoAgrupado | null = null;
@@ -247,8 +262,7 @@ export class CnabService {
         itemAg.valor += asNumber(ordem.valorTotalTransacaoLiquido);
       } else {
         itemAg = this.convertItemTransacaoAgrupadoDTO(
-          ordem,
-          favorecido,
+          ordem,       
           transacaoAg,
         );
       }
@@ -257,19 +271,21 @@ export class CnabService {
       // Se não existir, cria Transacao e Item
       transacaoAg = await this.saveTransacaoAgrupado(ordem, pagador);
       itemAg = await this.saveItemTransacaoAgrupado(
-        ordem,
-        favorecido,
+        ordem,   
         transacaoAg,
       );
     }
     const transacao = await this.saveTransacao(ordem, pagador, transacaoAg.id);
-    await this.saveItemTransacaoPublicacao(
-      ordem,
-      favorecido,
-      transacao,
-      itemAg,
-    );
+    let idTransacaoView ='';
+    for(const transacaoView of transacoesView){
+       if(transacaoView.valorTransacao === ordem.valorTotalTransacaoLiquido){
+         idTransacaoView = transacaoView.idTransacao;
+       } 
+    }
+    await this.saveItemTransacaoPublicacao(ordem,favorecido,transacao,itemAg,idTransacaoView);
+    
   }
+
   private async saveTransacaoAgrupado(
     ordem: BigqueryOrdemPagamentoDTO,
     pagador: Pagador,
@@ -280,12 +296,10 @@ export class CnabService {
 
   private async saveItemTransacaoAgrupado(
     ordem: BigqueryOrdemPagamentoDTO,
-    favorecido: ClienteFavorecido,
-    transacaoAg: TransacaoAgrupado,
+    transacaoAg: TransacaoAgrupado
   ) {
     const itemAg = this.convertItemTransacaoAgrupadoDTO(
-      ordem,
-      favorecido,
+      ordem,     
       transacaoAg,
     );
     return await this.itemTransacaoAgService.save(itemAg);
@@ -338,7 +352,6 @@ export class CnabService {
 
   convertItemTransacaoAgrupadoDTO(
     ordem: BigqueryOrdemPagamentoDTO,
-    favorecido: ClienteFavorecido,
     transacaoAg: TransacaoAgrupado,
   ) {
     const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
@@ -358,21 +371,13 @@ export class CnabService {
   }
 
   async saveItemTransacaoPublicacao(
-    ordem: BigqueryOrdemPagamentoDTO,
-    favorecido: ClienteFavorecido,
-    transacao: Transacao,
-    itemTransacaoAg: ItemTransacaoAgrupado,
-  ) {
-    const item = this.convertItemTransacao(
-      ordem,
-      favorecido,
-      transacao,
-      itemTransacaoAg,
-    );
+    ordem: BigqueryOrdemPagamentoDTO, favorecido: ClienteFavorecido,
+     transacao: Transacao, itemTransacaoAg: ItemTransacaoAgrupado,idTransacaoView:string) {
+    const item = this.convertItemTransacao(ordem,favorecido,transacao,itemTransacaoAg);
+    item.idTransacaoView = idTransacaoView;   
     await this.itemTransacaoService.save(item);
-    const publicacao = await this.arquivoPublicacaoService.convertPublicacaoDTO(
-      item,
-    );
+    const publicacao = 
+      await this.arquivoPublicacaoService.convertPublicacaoDTO(item);
     await this.arquivoPublicacaoService.save(publicacao);
   }
 
