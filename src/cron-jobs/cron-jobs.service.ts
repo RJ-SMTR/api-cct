@@ -242,8 +242,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
    */
   async updateTransacaoView() {
     const METHOD = this.updateTransacaoView.name;
-    const startDate = subDays(startOfDay(new Date()), 30);
-    const endDate = subDays(endOfDay(new Date()), 0);
+    const startDate = subDays(startOfDay(new Date()), 3);
+    const endDate = subDays(endOfDay(new Date()), 1);
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
