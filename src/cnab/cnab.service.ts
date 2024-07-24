@@ -2,11 +2,10 @@ import { Injectable } from '@nestjs/common';
 import {
   endOfDay,
   isFriday,
-  isSameDay,
   nextFriday,
   nextThursday,
   startOfDay,
-  subDays,
+  subDays
 } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
@@ -18,12 +17,12 @@ import { SftpService } from 'src/sftp/sftp.service';
 import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { UsersService } from 'src/users/users.service';
-import { forChunk, getChunks } from 'src/utils/array-utils';
+
+import { getChunks } from 'src/utils/array-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { Between, DeepPartial, In } from 'typeorm';
-import { ArquivoPublicacao } from './entity/arquivo-publicacao.entity';
+import { Between } from 'typeorm';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacao } from './entity/pagamento/item-transacao.entity';
@@ -31,14 +30,20 @@ import { Pagador } from './entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from './entity/pagamento/transacao-agrupado.entity';
 import { TransacaoStatus } from './entity/pagamento/transacao-status.entity';
 import { Transacao } from './entity/pagamento/transacao.entity';
+import { Cnab104FormaLancamento } from './enums/104/cnab-104-forma-lancamento.enum';
 import { PagadorContaEnum } from './enums/pagamento/pagador.enum';
 import { TransacaoStatusEnum } from './enums/pagamento/transacao-status.enum';
+import { CnabHeaderArquivo104 } from './interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { CnabFile104Extrato } from './interfaces/cnab-240/104/extrato/cnab-file-104-extrato.interface';
+import { CnabRegistros104Pgto } from './interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ExtratoDetalheEService } from './service/extrato/extrato-detalhe-e.service';
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
 import { ExtratoHeaderLoteService } from './service/extrato/extrato-header-lote.service';
+import { DetalheAService } from './service/pagamento/detalhe-a.service';
+import { HeaderArquivoService } from './service/pagamento/header-arquivo.service';
+import { HeaderLoteService } from './service/pagamento/header-lote.service';
 import { ItemTransacaoAgrupadoService } from './service/pagamento/item-transacao-agrupado.service';
 import { ItemTransacaoService } from './service/pagamento/item-transacao.service';
 import { PagadorService } from './service/pagamento/pagador.service';
@@ -50,13 +55,7 @@ import {
   parseCnab240Pagamento,
   stringifyCnab104File,
 } from './utils/cnab/cnab-104-utils';
-import { HeaderArquivoService } from './service/pagamento/header-arquivo.service';
-import { HeaderLoteService } from './service/pagamento/header-lote.service';
-import { DetalheAService } from './service/pagamento/detalhe-a.service';
-import { Cnab104FormaLancamento } from './enums/104/cnab-104-forma-lancamento.enum';
 import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
-import { CnabRegistros104Pgto } from './interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
-import { CnabHeaderArquivo104 } from './interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
 import { completeCPFCharacter } from 'src/utils/cpf-cnpj';
 import { ConsorcioType } from './types/consorcio.type';
@@ -71,27 +70,26 @@ export class CnabService {
   });
 
   constructor(
-    private remessaRetornoService: RemessaRetornoService,
-    private arqPublicacaoService: ArquivoPublicacaoService,
-    private transacaoService: TransacaoService,
-    private itemTransacaoService: ItemTransacaoService,
-    private sftpService: SftpService,
-    private extHeaderArquivoService: ExtratoHeaderArquivoService,
-    private extHeaderLoteService: ExtratoHeaderLoteService,
-    private extDetalheEService: ExtratoDetalheEService,
-    private clienteFavorecidoService: ClienteFavorecidoService,
-    private pagadorService: PagadorService,
+    private arquivoPublicacaoService: ArquivoPublicacaoService,
     private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
     private bigqueryTransacaoService: BigqueryTransacaoService,
-    private transacaoViewService: TransacaoViewService,
-    private usersService: UsersService,
-    private transacaoAgService: TransacaoAgrupadoService,
-    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
-    private readonly lancamentoService: LancamentoService,
-    private arquivoPublicacaoService: ArquivoPublicacaoService,
+    private clienteFavorecidoService: ClienteFavorecidoService,
+    private detalheAService: DetalheAService,
+    private extDetalheEService: ExtratoDetalheEService,
+    private extHeaderArquivoService: ExtratoHeaderArquivoService,
+    private extHeaderLoteService: ExtratoHeaderLoteService,
     private headerArquivoService: HeaderArquivoService,
     private headerLoteService: HeaderLoteService,
-    private detalheAService: DetalheAService,
+    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
+    private itemTransacaoService: ItemTransacaoService,
+    private lancamentoService: LancamentoService,
+    private pagadorService: PagadorService,
+    private remessaRetornoService: RemessaRetornoService,
+    private sftpService: SftpService,
+    private transacaoAgService: TransacaoAgrupadoService,
+    private transacaoService: TransacaoService,
+    private transacaoViewService: TransacaoViewService,
+    private usersService: UsersService,
   ) {}
 
   // #region saveTransacoesJae
@@ -148,7 +146,6 @@ export class CnabService {
       dataOrdemFinal,
       daysBack,
     );
-
     let trs = transacoesBq;
     if (consorcio === 'Van') {
       trs = transacoesBq.filter((tr) => tr.modo === consorcio);
@@ -156,11 +153,11 @@ export class CnabService {
       trs = transacoesBq.filter((tr) => tr.modo !== 'Van');
     } else if (
       consorcio != 'Todos' &&
-      consorcio != 'Empresa' &&
-      consorcio != 'Todos'
+      consorcio != 'Empresa'    
     ) {
       trs = transacoesBq.filter((tr) => tr.consorcio == consorcio);
     }
+
 
     const chunks = getChunks(trs, 1000);
     let iChunk = 0;
@@ -171,6 +168,7 @@ export class CnabService {
         TransacaoView.fromBigqueryTransacao(i),
       );
       for (const tr of transacoes) {
+        // const tr = TransacaoView.fromBigqueryTransacao(tra);
         if (
           tr.modo == undefined ||
           tr.modo == null ||
@@ -185,25 +183,36 @@ export class CnabService {
     }
   }
 
+  public async getTransacoesViewOrdem(ordem: BigqueryOrdemPagamentoDTO,clienteFavorecido: ClienteFavorecido){
+      const trsDia = await this.getTransacoesViewWeek(
+        subDays(new Date(ordem.dataOrdem), 1),new Date(ordem.dataOrdem));
+      
+      const trsOrdem = trsDia.filter(
+        (transacaoView) =>
+          transacaoView.idOperadora === ordem.idOperadora &&
+          transacaoView.idConsorcio === ordem.idConsorcio &&  
+          transacaoView.operadoraCpfCnpj === clienteFavorecido.cpfCnpj          
+      );    
+      return trsOrdem;     
+  }
+
   /**
    * Salvar Transacao / ItemTransacao e agrupados
    */
-
   async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[], consorcio = 'Todos') {
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
-
       if (!cpfCnpj) {
         continue;
       }
       const favorecido = await this.clienteFavorecidoService.findOne({
         where: { cpfCnpj: completeCPFCharacter(cpfCnpj, 0) },
       });
-
       if (!favorecido) {
         continue;
       }
+           
 
       if (consorcio == 'Todos' || consorcio == ordem.consorcio) {
         await this.saveAgrupamentos(ordem, pagador, favorecido);
@@ -212,90 +221,14 @@ export class CnabService {
           await this.saveAgrupamentos(ordem, pagador, favorecido);
         }
       } else if (consorcio == 'Empresa') {
-        if (ordem.consorcio != 'STPC' && ordem.consorcio != 'STPL') {
+        if (
+          ordem.consorcio != 'STPC' &&
+          ordem.consorcio != 'STPL' &&
+          ordem.consorcio != 'VLT' ) {
           await this.saveAgrupamentos(ordem, pagador, favorecido);
         }
       }
     }
-  }
-
-  async testUpdateTransacaoView() {
-    const transacoesView = await this.getTransacoesViewWeek(0);
-    const toUpdate: DeepPartial<TransacaoView>[] = transacoesView.map((i) => ({
-      ...i,
-      arquivoPublicacao: { id: 130 },
-    }));
-    await this.transacaoViewService.saveMany(transacoesView, toUpdate);
-  }
-
-  async compareTransacaoViewPublicacao(daysBefore = 0) {
-    const transacoesView = await this.getTransacoesViewWeek(daysBefore);
-    const publicacoes = this.getUniqueUpdatePublicacoes(
-      await this.getPublicacoesWeek(daysBefore),
-    );
-    for (const publicacao of publicacoes) {
-      const transacoes = transacoesView.filter(
-        (transacaoView) =>
-          transacaoView.idOperadora === publicacao.itemTransacao.idOperadora &&
-          transacaoView.idConsorcio === publicacao.itemTransacao.idConsorcio &&
-          isSameDay(
-            transacaoView.datetimeProcessamento,
-            subDays(publicacao.itemTransacao.dataProcessamento, 1),
-          ),
-      );
-      const toUpdate: DeepPartial<TransacaoView>[] = transacoes.map((i) => ({
-        ...i,
-        arquivoPublicacao: { id: 130 },
-      }));
-      await this.transacaoViewService.saveMany(transacoes, toUpdate);
-    }
-  }
-
-  getUniqueUpdatePublicacoes(publicacoes: ArquivoPublicacao[]) {
-    const unique: ArquivoPublicacao[] = [];
-    publicacoes.forEach((publicacao) => {
-      const existing = ArquivoPublicacao.filterUnique(unique, publicacao)[0] as
-        | ArquivoPublicacao
-        | undefined;
-      const ocourences = ArquivoPublicacao.filterUnique(
-        publicacoes,
-        publicacao,
-      ).sort(
-        (a, b) =>
-          b.itemTransacao.dataOrdem.getTime() -
-          a.itemTransacao.dataOrdem.getTime(),
-      );
-      const paid = ocourences.filter((i) => i.isPago)[0] as
-        | ArquivoPublicacao
-        | undefined;
-      const noErrors = ocourences.filter((i) => !i.getIsError())[0] as
-        | ArquivoPublicacao
-        | undefined;
-      const recent = ocourences[0] as ArquivoPublicacao;
-
-      if (!existing) {
-        const newPublicacao = paid || noErrors || recent;
-        unique.push(newPublicacao);
-      }
-    });
-    return unique;
-  }
-
-  /**
-   * Publicacao está associada com a ordem, portanto é sex-qui
-   */
-  async getPublicacoesWeek(daysBefore = 0) {
-    let friday = new Date();
-    if (!isFriday(friday)) {
-      friday = nextFriday(friday);
-    }
-    const sex = startOfDay(subDays(friday, 7 + daysBefore));
-    const qui = endOfDay(subDays(friday, 1));
-    const result = await this.arqPublicacaoService.findMany({
-      where: { itemTransacao: { dataOrdem: Between(sex, qui) } },
-      order: { itemTransacao: { dataOrdem: 'ASC' } },
-    });
-    return result;
   }
 
   /**
@@ -307,8 +240,10 @@ export class CnabService {
   async saveAgrupamentos(
     ordem: BigqueryOrdemPagamentoDTO,
     pagador: Pagador,
-    favorecido: ClienteFavorecido,
+    favorecido: ClienteFavorecido   
   ) {
+
+    const transacoesView = await this.getTransacoesViewOrdem(ordem,favorecido); 
     /** TransaçãoAg por pagador(cpfCnpj), dataOrdem (sexta) e status = criado
      * Status criado
      */
@@ -321,12 +256,10 @@ export class CnabService {
     let transacaoAg = await this.transacaoAgService.findOne({
       dataOrdem: fridayOrdem,
       pagador: { id: pagador.id },
-      status: { id: TransacaoStatusEnum.created },
+      status: { id: TransacaoStatusEnum.created }
     });
-
     /** ItemTransacaoAg representa o destinatário (operador ou consórcio) */
     let itemAg: ItemTransacaoAgrupado | null = null;
-
     if (transacaoAg) {
       // Cria ou atualiza itemTransacao (somar o valor a ser pago na sexta de pagamento)
       itemAg = await this.itemTransacaoAgService.findOne({
@@ -344,8 +277,7 @@ export class CnabService {
         itemAg.valor += asNumber(ordem.valorTotalTransacaoLiquido);
       } else {
         itemAg = this.convertItemTransacaoAgrupadoDTO(
-          ordem,
-          favorecido,
+          ordem,       
           transacaoAg,
         );
       }
@@ -354,18 +286,18 @@ export class CnabService {
       // Se não existir, cria Transacao e Item
       transacaoAg = await this.saveTransacaoAgrupado(ordem, pagador);
       itemAg = await this.saveItemTransacaoAgrupado(
-        ordem,
-        favorecido,
+        ordem,   
         transacaoAg,
       );
     }
     const transacao = await this.saveTransacao(ordem, pagador, transacaoAg.id);
-    await this.saveItemTransacaoPublicacao(
-      ordem,
-      favorecido,
-      transacao,
-      itemAg,
-    );
+    
+    for(const transacaoView of transacoesView){
+        transacaoView.itemTransacaoAgrupadoId = itemAg.id
+        this.transacaoViewService.save(transacaoView);     
+    }
+    await this.saveItemTransacaoPublicacao(ordem,favorecido,transacao,itemAg);
+    
   }
 
   private async saveTransacaoAgrupado(
@@ -378,12 +310,10 @@ export class CnabService {
 
   private async saveItemTransacaoAgrupado(
     ordem: BigqueryOrdemPagamentoDTO,
-    favorecido: ClienteFavorecido,
-    transacaoAg: TransacaoAgrupado,
+    transacaoAg: TransacaoAgrupado
   ) {
     const itemAg = this.convertItemTransacaoAgrupadoDTO(
-      ordem,
-      favorecido,
+      ordem,     
       transacaoAg,
     );
     return await this.itemTransacaoAgService.save(itemAg);
@@ -436,7 +366,6 @@ export class CnabService {
 
   convertItemTransacaoAgrupadoDTO(
     ordem: BigqueryOrdemPagamentoDTO,
-    favorecido: ClienteFavorecido,
     transacaoAg: TransacaoAgrupado,
   ) {
     const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
@@ -456,19 +385,13 @@ export class CnabService {
   }
 
   async saveItemTransacaoPublicacao(
-    ordem: BigqueryOrdemPagamentoDTO,
-    favorecido: ClienteFavorecido,
-    transacao: Transacao,
-    itemTransacaoAg: ItemTransacaoAgrupado,
-  ) {
-    const item = this.convertItemTransacao(
-      ordem,
-      favorecido,
-      transacao,
-      itemTransacaoAg,
-    );
+    ordem: BigqueryOrdemPagamentoDTO, favorecido: ClienteFavorecido,
+     transacao: Transacao, itemTransacaoAg: ItemTransacaoAgrupado) {
+    const item = this.convertItemTransacao(ordem,favorecido,transacao,itemTransacaoAg);    
     await this.itemTransacaoService.save(item);
-    await this.arquivoPublicacaoService.save(item);
+    const publicacao = 
+      await this.arquivoPublicacaoService.convertPublicacaoDTO(item);
+    await this.arquivoPublicacaoService.save(publicacao);
   }
 
   private convertItemTransacao(
@@ -492,17 +415,26 @@ export class CnabService {
     });
   }
 
-  async getTransacoesViewWeek(daysBefore = 0) {
+  async getTransacoesViewWeek(dataInicio: Date, dataFim: Date) {
     let friday = new Date();
+    let startDate;
+    let endDate;
+
     if (!isFriday(friday)) {
       friday = nextFriday(friday);
     }
-    const startDate = startOfDay(subDays(friday, 8 + daysBefore));
-    const endDate = endOfDay(subDays(friday, 2));
+
+    if (dataInicio != undefined && dataFim != undefined) {
+      startDate = dataInicio;
+      endDate = dataFim;
+    } else {
+      startDate = startOfDay(subDays(friday, 8));
+      endDate = endOfDay(subDays(friday, 2));
+    }
     return await this.transacaoViewService.find(
       { datetimeProcessamento: Between(startDate, endDate) },
       false,
-    );
+    );   
   }
 
   // #endregion
@@ -743,7 +675,6 @@ export class CnabService {
   public async updateRetorno() {
     const METHOD = this.updateRetorno.name;
     //Atualiza transacaoView com dados da publicacao
-    await this.compareTransacaoViewPublicacao();
 
     const { cnabString, cnabName } =
       await this.sftpService.getFirstCnabRetorno();
@@ -751,7 +682,6 @@ export class CnabService {
       this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
       return;
     }
-
     // Save Retorno, ArquivoPublicacao, move SFTP to backup
     try {
       const retorno104 = parseCnab240Pagamento(cnabString);

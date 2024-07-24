@@ -90,7 +90,7 @@ export class CnabController {
   async generateRemessa(
     @Query('dataOrdemInicial') dataOrdemInicial: string | undefined,
     @Query('dataOrdemFinal') dataOrdemFinal: string | undefined,
-    @Query('diasAnterioresSexta') diasAnteriores:number | 0,
+    @Query('diasAnterioresSexta') diasAnteriores = 0,
     @Query('consorcio') consorcio='Todos',
     @Query('dt_pagamento', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/)) dt_pagamento: string | undefined,
     @Query('isConference') isConference: boolean,

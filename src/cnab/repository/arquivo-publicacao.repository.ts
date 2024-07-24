@@ -25,8 +25,6 @@ export class ArquivoPublicacaoRepository {
     @InjectRepository(ArquivoPublicacao)
     private arquivoPublicacaoRepository: Repository<ArquivoPublicacao>,
     private detalheAService: DetalheAService,
-    private ocorrenciaService: OcorrenciaService,
-    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
   ) {}
 
   /**
