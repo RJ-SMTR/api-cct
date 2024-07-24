@@ -95,7 +95,7 @@ export class BigqueryTransacaoRepository {
       qArgs.joinIntegracao +
       '\n' +
       (qArgs.qWhere.length
-        ? `WHERE (${qArgs.qWhere} AND o.documento = '59675748753')\n`
+        ? `WHERE ${qArgs.qWhere}\n`
         : '') +
       `\nORDER BY datetime_processamento DESC` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
