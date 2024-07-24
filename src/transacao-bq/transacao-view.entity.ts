@@ -89,6 +89,10 @@ export class TransacaoView {
   })
   arquivoPublicacao: ArquivoPublicacao | null;
 
+
+  @Column({ type: 'numeric' , nullable: true})
+  itemTransacaoAgrupadoId: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -718,7 +718,7 @@ export class RemessaRetornoService {
     for (const publicacao of publicacoes) {
       const transacoes = transacoesView.filter(
         (transacaoView) =>
-          transacaoView.idTransacao === publicacao.itemTransacao.idTransacaoView         
+          transacaoView.itemTransacaoAgrupadoId === publicacao.itemTransacao.itemTransacaoAgrupado.id       
       );
       const updateTransacoes = transacoes.map((i) => ({
         ...i,
@@ -745,7 +745,7 @@ export class RemessaRetornoService {
     }
     return await this.transacaoViewService.find(
       { datetimeProcessamento: Between(startDate, endDate) },
-      false,
+      false
     );
   }
 

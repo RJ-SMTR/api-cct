@@ -96,7 +96,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   }
 
   async onModuleLoad() {
-    await this.updateTransacaoView();
+   // await this.updateTransacaoView();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     // await this.saveTransacoesJae1(0, 'Todos', new Date());
     // await this.saveAndSendRemessa(
@@ -242,8 +242,8 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
    */
   async updateTransacaoView() {
     const METHOD = this.updateTransacaoView.name;
-    const startDate = subDays(startOfDay(new Date()), 30);
-    const endDate = subDays(endOfDay(new Date()), 0);
+    const startDate = subDays(startOfDay(new Date()), 3);
+    const endDate = subDays(endOfDay(new Date()), 1);
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);

@@ -82,10 +82,7 @@ export class ItemTransacao extends EntityHelper {
   })
   clienteFavorecido: ClienteFavorecido;
 
-  @Column({ type: String })
-  idTransacaoView: String;
-
-  /**
+   /**
    * Valor do lançamento.
    */
   @Column({

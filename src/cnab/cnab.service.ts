@@ -185,7 +185,7 @@ export class CnabService {
 
   public async getTransacoesViewOrdem(ordem: BigqueryOrdemPagamentoDTO,clienteFavorecido: ClienteFavorecido){
       const trsDia = await this.getTransacoesViewWeek(
-        subDays(new Date(ordem.dataOrdem), 1),subDays(new Date(ordem.dataOrdem), 1));
+        subDays(new Date(ordem.dataOrdem), 1),new Date(ordem.dataOrdem));
       
       const trsOrdem = trsDia.filter(
         (transacaoView) =>
@@ -212,20 +212,20 @@ export class CnabService {
       if (!favorecido) {
         continue;
       }
-      const transacoesView = await this.getTransacoesViewOrdem(ordem,favorecido)
+           
 
       if (consorcio == 'Todos' || consorcio == ordem.consorcio) {
-        await this.saveAgrupamentos(ordem, pagador, favorecido,transacoesView);
+        await this.saveAgrupamentos(ordem, pagador, favorecido);
       } else if (consorcio == 'Van') {
         if (ordem.consorcio == 'STPC' || ordem.consorcio == 'STPL') {
-          await this.saveAgrupamentos(ordem, pagador, favorecido,transacoesView);
+          await this.saveAgrupamentos(ordem, pagador, favorecido);
         }
       } else if (consorcio == 'Empresa') {
         if (
           ordem.consorcio != 'STPC' &&
           ordem.consorcio != 'STPL' &&
           ordem.consorcio != 'VLT' ) {
-          await this.saveAgrupamentos(ordem, pagador, favorecido,transacoesView);
+          await this.saveAgrupamentos(ordem, pagador, favorecido);
         }
       }
     }
@@ -240,9 +240,10 @@ export class CnabService {
   async saveAgrupamentos(
     ordem: BigqueryOrdemPagamentoDTO,
     pagador: Pagador,
-    favorecido: ClienteFavorecido,
-    transacoesView: TransacaoView[]
+    favorecido: ClienteFavorecido   
   ) {
+
+    const transacoesView = await this.getTransacoesViewOrdem(ordem,favorecido); 
     /** TransaçãoAg por pagador(cpfCnpj), dataOrdem (sexta) e status = criado
      * Status criado
      */
@@ -290,13 +291,12 @@ export class CnabService {
       );
     }
     const transacao = await this.saveTransacao(ordem, pagador, transacaoAg.id);
-    let idTransacaoView ='';
+    
     for(const transacaoView of transacoesView){
-       if(transacaoView.valorTransacao === ordem.valorTotalTransacaoLiquido){
-         idTransacaoView = transacaoView.idTransacao;
-       } 
+        transacaoView.itemTransacaoAgrupadoId = itemAg.id
+        this.transacaoViewService.save(transacaoView);     
     }
-    await this.saveItemTransacaoPublicacao(ordem,favorecido,transacao,itemAg,idTransacaoView);
+    await this.saveItemTransacaoPublicacao(ordem,favorecido,transacao,itemAg);
     
   }
 
@@ -386,9 +386,8 @@ export class CnabService {
 
   async saveItemTransacaoPublicacao(
     ordem: BigqueryOrdemPagamentoDTO, favorecido: ClienteFavorecido,
-     transacao: Transacao, itemTransacaoAg: ItemTransacaoAgrupado,idTransacaoView:string) {
-    const item = this.convertItemTransacao(ordem,favorecido,transacao,itemTransacaoAg);
-    item.idTransacaoView = idTransacaoView;   
+     transacao: Transacao, itemTransacaoAg: ItemTransacaoAgrupado) {
+    const item = this.convertItemTransacao(ordem,favorecido,transacao,itemTransacaoAg);    
     await this.itemTransacaoService.save(item);
     const publicacao = 
       await this.arquivoPublicacaoService.convertPublicacaoDTO(item);
