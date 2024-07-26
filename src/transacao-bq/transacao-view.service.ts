@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { DataSource, DeepPartial, FindManyOptions } from 'typeorm';
+import { DataSource, DeepPartial, FindManyOptions, QueryRunner } from 'typeorm';
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { TransacaoView } from './transacao-view.entity';
 import { TransacaoViewRepository } from './transacao-view.repository';
@@ -13,8 +13,7 @@ export class TransacaoViewService {
   });
 
   constructor(
-    private transacaoViewRepository: TransacaoViewRepository,
-    private dataSource: DataSource,
+    private transacaoViewRepository: TransacaoViewRepository    
   ) {}
 
   async count(fields?: EntityCondition<TransacaoView>) {
@@ -61,8 +60,8 @@ export class TransacaoViewService {
     callback(existing, newItems);
   }
 
-  public async save(transacao: TransacaoView) {  
-    await this.transacaoViewRepository.save(transacao);
+  public async save(transacao: TransacaoView,queryRunner:QueryRunner) {  
+      await queryRunner.manager.getRepository(TransacaoView).save(transacao);          
   }
 
   /**
@@ -79,17 +78,14 @@ export class TransacaoViewService {
    * Se a lsita for vazia, verifica se `transacoes` possui id
    */
   async saveMany(
-    transacoes: DeepPartial<TransacaoView>[],
-    existings: TransacaoView[] = [],
-  ) {
+    transacoes: DeepPartial<TransacaoView>[], 
+    queryRunner:QueryRunner,   
+    existings: TransacaoView[] = []
+    ) {
     this.logger.log(
-      `Há Atualizando ou inserindo ${transacoes.length} ` +
+      `Inserindo ${transacoes.length} ` +
         `TransacaoVies, há ${existings.length} existentes...`,
-    );
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try {
-      await queryRunner.startTransaction();
+    );  
       let transacoesIndex = 1;
       let maxId = await this.transacaoViewRepository.getMaxId();
       for (const transacao of transacoes) {
@@ -105,15 +101,6 @@ export class TransacaoViewService {
         }
         transacoesIndex++;
       }
-      await queryRunner.commitTransaction();
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `Falha ao salvar ${transacoes.length} TransacaoViews - ${error?.message}`,
-        error?.stack,
-      );
-    } finally {
-      await queryRunner.release();
-    }
+       
   }
 }

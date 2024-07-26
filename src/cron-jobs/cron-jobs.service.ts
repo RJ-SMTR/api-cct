@@ -137,19 +137,19 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
           onTick: () => this.sendStatusReport(),
         },
       },
-      {
-        name: CrobJobsEnum.pollDb,
-        cronJobParameters: {
-          cronTime: (
-            await this.settingsService.getOneBySettingData(
-              appSettings.any__poll_db_cronjob,
-              true,
-              THIS_CLASS_WITH_METHOD,
-            )
-          ).getValueAsString(),
-          onTick: () => this.pollDb(),
-        },
-      },
+      // {
+      //   name: CrobJobsEnum.pollDb,
+      //   cronJobParameters: {
+      //     cronTime: (
+      //       await this.settingsService.getOneBySettingData(
+      //         appSettings.any__poll_db_cronjob,
+      //         true,
+      //         THIS_CLASS_WITH_METHOD,
+      //       )
+      //     ).getValueAsString(),
+      //     onTick: () => this.pollDb(),
+      //   },
+      // },
       {
         name: CrobJobsEnum.bulkResendInvites,
         cronJobParameters: {

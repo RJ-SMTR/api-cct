@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { addDays, isDate, isThursday, nextFriday, startOfDay } from 'date-fns';
 import { asNumber } from 'src/utils/pipe-utils';
-import { DeepPartial, FindManyOptions } from 'typeorm';
+import { DeepPartial, FindManyOptions, QueryRunner } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
@@ -68,9 +68,9 @@ export class ArquivoPublicacaoService {
   }
 
   public async save(
-    dto: DeepPartial<ArquivoPublicacao>,
+    dto: DeepPartial<ArquivoPublicacao>,queryRunner:QueryRunner
   ): Promise<ArquivoPublicacao> {
-    return await this.arquivoPublicacaoRepository.save(dto);
+    return await queryRunner.manager.getRepository(ArquivoPublicacao).save(dto);
   }
 
   /**

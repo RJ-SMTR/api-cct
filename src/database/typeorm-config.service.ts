@@ -50,7 +50,7 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
                 this.configService.get('database.cert', { infer: true }) ??
                 undefined,
             }
-          : undefined,
+          : undefined       
       },
     } as TypeOrmModuleOptions;
   }

@@ -27,7 +27,7 @@ import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asNumber, asString } from 'src/utils/pipe-utils';
-import { Between, DeepPartial } from 'typeorm';
+import { Between, DataSource, DeepPartial, QueryRunner } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { CnabHeaderArquivo104 } from '../../interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
@@ -72,6 +72,7 @@ export class RemessaRetornoService {
     private itemTransacaoService: ItemTransacaoService,
     private ocorrenciaService: OcorrenciaService,
     private transacaoViewService: TransacaoViewService,
+    private dataSource:DataSource
   ) {}
 
   public async saveHeaderArquivoDTO(
@@ -168,7 +169,6 @@ export class RemessaRetornoService {
           nsrTed++;
           loteTed.registros104.push(...detalhes104);
         }
-
         //Credito em Conta
         else {
           nsrCC++;
@@ -201,14 +201,13 @@ export class RemessaRetornoService {
           loteCC.registros104.push(...detalhes104);
         }
       }
-
-      // Adicionar lote
-      if (loteTed != undefined) {
-        lotes.push(loteTed);
-      }
-      if (loteCC != undefined) {
-        lotes.push(loteCC);
-      }
+    }
+    // Adicionar lote
+    if (loteTed != undefined) {
+      lotes.push(loteTed);
+    }
+    if (loteCC != undefined) {
+      lotes.push(loteCC);
     }
     return lotes;
   }
@@ -467,7 +466,7 @@ export class RemessaRetornoService {
     dataPgto: Date | undefined,
     isConference: boolean,
     isCancelamento = false,
-    detalheAC = new DetalheA(),
+    detalheAC = new DetalheA()    
   ): Promise<CnabRegistros104Pgto | null> {
     const METHOD = 'getDetalhes104()';
     let favorecido;
@@ -491,11 +490,21 @@ export class RemessaRetornoService {
 
     // Failure if no favorecido
     if (!favorecido && !isCancelamento) {
-      await this.itemTransacaoService.save({ id: itemTransacaoAg.id });
-      this.logger.debug(
-        `Falha ao usar ItemTransacao: favorecido ausente.`,
-        METHOD,
-      );
+      const queryRunner = this.dataSource.createQueryRunner();   
+      await queryRunner.connect();   
+      try{
+        await queryRunner.startTransaction();
+        await this.itemTransacaoService.save({ id: itemTransacaoAg.id },queryRunner);
+        await queryRunner.commitTransaction();  
+        }catch (error) {
+          await queryRunner.rollbackTransaction();
+          this.logger.error(
+            `Falha ao salvar Informções agrupadas`,
+            error?.stack,
+          );
+        }finally{
+          await queryRunner.release();
+        }
       return null;
     }
 
@@ -629,7 +638,20 @@ export class RemessaRetornoService {
         }
         this.logger.debug(`Detalhe A : ` + detalheAUpdated.id);
         await this.detalheBService.saveFrom104(registro, detalheAUpdated);
-        await this.compareRemessaToRetorno(detalheAUpdated);
+        const queryRunner = this.dataSource.createQueryRunner();   
+        await queryRunner.connect();   
+        try{
+           await queryRunner.startTransaction();
+           await this.compareRemessaToRetorno(detalheAUpdated,queryRunner);
+        }catch (error) {
+            await queryRunner.rollbackTransaction();
+            this.logger.error(
+              `Falha ao salvar Informções retorno`,
+              error?.stack,
+            );
+          }finally{
+            await queryRunner.release();
+          }           
         await this.detalheAService.updateDetalheAStatus(detalheAUpdated);
       }
     }
@@ -647,16 +669,16 @@ export class RemessaRetornoService {
    * 2. For each remessa get corresponding Retorno, HeaderLote and Detalhes
    * 3. For each DetalheA, save new ArquivoPublicacao if not exists
    */
-  public async compareRemessaToRetorno(detalheA: DetalheA): Promise<void> {
+  public async compareRemessaToRetorno(detalheA: DetalheA,queryRunner:QueryRunner): Promise<void> {
     //Inclui ocorrencias
-    await this.salvaOcorrenciasDetalheA(detalheA);
+    await this.salvaOcorrenciasDetalheA(detalheA,queryRunner);
     //Atualiza publicação
-    await this.savePublicacaoRetorno(detalheA);
+    await this.savePublicacaoRetorno(detalheA,queryRunner);
     //Compara com a Transacao
-    await this.compareTransacaoViewPublicacao(detalheA);
+    await this.compareTransacaoViewPublicacao(detalheA,queryRunner);
   }
 
-  async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA) {
+  async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA,queryRunner:QueryRunner) {
     if (!detalheARetorno.ocorrenciasCnab) {
       return;
     }
@@ -670,13 +692,13 @@ export class RemessaRetornoService {
     if (ocorrencias.length === 0) {
       return;
     }
-    await this.ocorrenciaService.saveMany(ocorrencias);
+    await this.ocorrenciaService.saveMany(ocorrencias,queryRunner);
   }
 
   /**
    * Atualizar publicacoes de retorno
    */
-  async savePublicacaoRetorno(detalheARetorno: DetalheA) {
+  async savePublicacaoRetorno(detalheARetorno: DetalheA,queryRunner:QueryRunner) {
     const itens = await this.itemTransacaoService.findMany({
       where: {
         itemTransacaoAgrupado: {
@@ -702,15 +724,13 @@ export class RemessaRetornoService {
       publicacao.horaGeracaoRetorno =
         detalheARetorno.headerLote.headerArquivo.horaGeracao;
 
-      return await this.arquivoPublicacaoService.save(publicacao);
+      return await this.arquivoPublicacaoService.save(publicacao,queryRunner);
     }
   }
 
-  async compareTransacaoViewPublicacao(detalheA: DetalheA) {
+  async compareTransacaoViewPublicacao(detalheA: DetalheA,queryRunner:QueryRunner) {
     const transacoesView = await this.getTransacoesViewWeek(
-      subDays(detalheA.dataVencimento, 8),
-      detalheA.dataVencimento,
-    );
+      subDays(detalheA.dataVencimento, 8), detalheA.dataVencimento);
     const publicacoesDetalhe =
       await this.arquivoPublicacaoService.getPublicacoesWeek(detalheA);
     const publicacoes =
@@ -724,7 +744,7 @@ export class RemessaRetornoService {
         ...i,
         arquivoPublicacao: { id: publicacao.id },
       }));
-      await this.transacaoViewService.saveMany(updateTransacoes);
+      await this.transacaoViewService.saveMany(updateTransacoes,queryRunner);
     }
   }
 
