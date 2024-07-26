@@ -46,6 +46,7 @@ import { UsersModule } from './users/users.module';
 import { TransacaoViewService } from './transacao-bq/transacao-view.service';
 import { TransacaoViewModule } from './transacao-bq/transacao-view.module';
 import { AppLoggerMiddleware } from './utils/logger-middleware';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -122,7 +123,7 @@ import { AppLoggerMiddleware } from './utils/logger-middleware';
     SftpModule,
     TransacaoViewModule,
   ],
-  providers: [TransacaoViewService],
+  providers: [TransacaoViewService, AppService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
