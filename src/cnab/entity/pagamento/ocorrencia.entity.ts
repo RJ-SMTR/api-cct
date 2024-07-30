@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { DetalheA } from './detalhe-a.entity';
 import { Exclude } from 'class-transformer';
+import { SetValue } from 'src/utils/decorators/set-value.decorator';
 
 const userErrors = [
   'AG',
@@ -54,9 +55,11 @@ export class Ocorrencia extends EntityHelper {
   })
   detalheA: DetalheA | null;
 
+  @SetValue((v,o) => Ocorrencia.toUserValues(o).code)
   @Column({ type: String, unique: false, nullable: false, length: 2 })
   code: string;
-
+  
+  @SetValue((v,o) => Ocorrencia.toUserValues(o).message)
   @Column({ type: String, unique: false, nullable: false, length: 100 })
   message: string;
 
@@ -92,7 +95,13 @@ export class Ocorrencia extends EntityHelper {
     return ocorrencias;
   }
 
-  public static getErrorCodes(ocorrenciaCodes: string) {
+  public static getErrorCodes(ocorrencias: Ocorrencia[]) {
+    const codesList = ocorrencias.map(o => o.code);
+    const errors = codesList.filter((c) => !['00', 'BD'].includes(c));
+    return errors;
+  }
+
+  public static getErrorCodesFromString(ocorrenciaCodes: string) {
     const codesList = Ocorrencia.getCodesList(ocorrenciaCodes);
     const errors = codesList.filter((c) => !['00', 'BD'].includes(c));
     return errors;
@@ -106,6 +115,10 @@ export class Ocorrencia extends EntityHelper {
       }
     }
     return joined;
+  }
+
+  public static toUserValues(o: Ocorrencia) {
+    return userErrors.includes(o.code) ? o : new Ocorrencia({ ...o, code: '  ', message: OcorrenciaEnum['  '] });
   }
 
   /**

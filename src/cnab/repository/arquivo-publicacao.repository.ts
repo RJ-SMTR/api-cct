@@ -14,6 +14,7 @@ import { DetalheAService } from '../service/pagamento/detalhe-a.service';
 import { OcorrenciaService } from '../service/ocorrencia.service';
 import { ItemTransacaoAgrupadoService } from '../service/pagamento/item-transacao-agrupado.service';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
+import { IFindPublicacaoRelatorio } from 'src/relatorio/interfaces/find-publicacao-relatorio.interface';
 
 @Injectable()
 export class ArquivoPublicacaoRepository {

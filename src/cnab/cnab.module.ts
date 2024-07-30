@@ -188,6 +188,7 @@ import { PagamentosPendentesService } from './service/pagamento/pagamentos-pende
     ExtratoDetalheERepository,
     ExtratoDetalheEService,
     RemessaRetornoService,
+    OcorrenciaService,
   ],
   controllers: [CnabController],
 })

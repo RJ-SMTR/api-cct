@@ -1,9 +1,19 @@
 import { Transform } from 'class-transformer';
 
-export function SetValueIf(predicate: (object: any) => boolean, newValue: any) {
+export function SetValueIf(
+  setIf: (val: any, obj: any) => boolean,
+  setNewValue: (val: any, obj: any) => any,
+) {
   return function (target: any, propertyKey: string) {
-    Transform(({ obj }) => (predicate(obj) ? newValue : obj[propertyKey]), {
-      toPlainOnly: true,
-    })(target, propertyKey);
+    Transform(
+      ({ obj }) => {
+        const value = obj[propertyKey];
+        const isTrue = setIf(value, obj);
+        return isTrue ? setNewValue(value, obj) : value;
+      },
+      {
+        toPlainOnly: true,
+      },
+    )(target, propertyKey);
   };
 }

@@ -7,12 +7,17 @@ import {
   DeepPartial,
   FindManyOptions,
   FindOneOptions,
+  FindOptionsWhere,
   InsertResult,
   Repository,
+  SelectQueryBuilder,
   UpdateResult,
 } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
+import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
+import { Pagination } from 'src/utils/types/pagination.type';
+import { getPagination } from 'src/utils/get-pagination';
 
 @Injectable()
 export class ClienteFavorecidoRepository {
@@ -106,11 +111,41 @@ export class ClienteFavorecidoRepository {
   public async findAll(): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.find();
   }
-
   public async findMany(
     options: FindManyOptions<ClienteFavorecido>,
   ): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.find(options);
+  }
+
+  public async findManyBy(
+    where?: IClienteFavorecidoFindBy,
+  ): Promise<ClienteFavorecido[]> {
+    let isFirstWhere = false;
+    let qb = this.clienteFavorecidoRepository.createQueryBuilder('favorecido');
+    function cmd() {
+      if (isFirstWhere) {
+        isFirstWhere = false;
+        return 'where';
+      } else {
+        return 'andWhere';
+      }
+    }
+    if (where?.nome?.length) {
+      for (const nome of where.nome) {
+        qb = qb[cmd()]('favorecido."nome" ILIKE UNACCENT(UPPER(:nome))', {
+          nome: `%${nome}%`,
+        });
+      }
+    }
+
+    if (where?.limit && where?.page) {
+      const skip = where?.limit * (where?.page - 1);
+      qb = qb.take(where?.limit).skip(skip);
+    }
+    qb = qb.orderBy('"id"', 'ASC');
+
+    const result = await qb.getMany();
+    return result;
   }
 
   public async findOne(

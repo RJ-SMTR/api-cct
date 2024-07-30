@@ -11,18 +11,30 @@ import {
 @Injectable()
 export class ParseNumberPipe implements PipeTransform {
   constructor(
-    private readonly args: { min?: number; max?: number; required?: boolean },
+    private readonly args?: {
+      min?: number;
+      max?: number;
+      optional?: boolean;
+      defaultValue?: number;
+    },
   ) {}
 
   transform(value: any | undefined, metadata: ArgumentMetadata): number {
+    const min = this?.args?.min;
+    const max = this?.args?.max;
+    const defaultValue = this?.args?.defaultValue;
     const isMin = this.args?.min !== undefined;
     const isMax = this.args?.max !== undefined;
     const field = metadata.data;
 
     const numberValue = Number(value);
 
-    if (!this.args.required && (value === undefined || field === undefined)) {
-      return numberValue;
+    if (value === undefined || field === undefined) {
+      if (this.args?.optional) {
+        return numberValue;
+      } else if (defaultValue !== undefined) {
+        return defaultValue;
+      }
     }
 
     if (value !== undefined && isNaN(numberValue)) {
@@ -32,20 +44,18 @@ export class ParseNumberPipe implements PipeTransform {
     }
 
     if (
-      (isMin && numberValue < (this.args?.min as number)) ||
-      (isMax && numberValue > (this.args?.max as number))
+      (min !== undefined && numberValue < min) ||
+      (max !== undefined && numberValue > max)
     ) {
       let returnSubstring = '';
       if (isMin && !isMax) {
-        returnSubstring = `greater or equal than ${this.args.min as number}`;
+        returnSubstring = `greater or equal than ${min}`;
       }
       if (!isMin && isMax) {
-        returnSubstring = `lower or equal than ${this.args.max as number}`;
+        returnSubstring = `lower or equal than ${max}`;
       }
       if (isMin && isMax) {
-        returnSubstring = `between ${this.args.min as number} and  ${
-          this.args.max as number
-        }`;
+        returnSubstring = `between ${min} and  ${max}`;
       }
       throw new BadRequestException(
         `${metadata.data} should be an integer ${returnSubstring}`,

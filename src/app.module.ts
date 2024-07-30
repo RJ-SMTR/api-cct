@@ -46,6 +46,7 @@ import { UsersModule } from './users/users.module';
 import { TransacaoViewService } from './transacao-bq/transacao-view.service';
 import { TransacaoViewModule } from './transacao-bq/transacao-view.module';
 import { AppLoggerMiddleware } from './utils/logger-middleware';
+import { RelatorioModule } from './relatorio/relatorio.module';
 
 @Module({
   imports: [
@@ -121,6 +122,7 @@ import { AppLoggerMiddleware } from './utils/logger-middleware';
     CnabModule,
     SftpModule,
     TransacaoViewModule,
+    RelatorioModule,
   ],
   providers: [TransacaoViewService],
 })

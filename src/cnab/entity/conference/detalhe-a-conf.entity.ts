@@ -6,7 +6,7 @@ import {
 import {
   AfterLoad,
   Column,
-  CreateDateColumn,  
+  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
@@ -29,7 +29,9 @@ export class DetalheAConf extends EntityHelper {
   id: number;
 
   @ManyToOne(() => HeaderLoteConf, { eager: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_DetalheAConf_headerLote_ManyToOne' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheAConf_headerLote_ManyToOne',
+  })
   headerLote: HeaderLoteConf;
 
   @ManyToOne(() => ClienteFavorecido, { eager: true })
@@ -144,9 +146,11 @@ export class DetalheAConf extends EntityHelper {
     this.valorLancamento = asStringOrNumber(this.valorLancamento);
     this.valorRealEfetivado = asStringOrNumber(this.valorRealEfetivado);
   }
- 
+
   public isPago() {
-    const errors = Ocorrencia.getErrorCodes(this.ocorrenciasCnab || '');
+    const errors = Ocorrencia.getErrorCodesFromString(
+      this.ocorrenciasCnab || '',
+    );
     return errors.length === 0;
   }
 

@@ -1,11 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  addDays,
-  isDate,  
-  isThursday,
-  nextFriday,
-  startOfDay,
-} from 'date-fns';
+import { addDays, isDate, isThursday, nextFriday, startOfDay } from 'date-fns';
 import { asNumber } from 'src/utils/pipe-utils';
 import { FindManyOptions } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
@@ -15,6 +9,7 @@ import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
 import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.repository';
 import { OcorrenciaService } from './ocorrencia.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
+import { IFindPublicacaoRelatorio } from 'src/relatorio/interfaces/find-publicacao-relatorio.interface';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -22,12 +17,12 @@ export class ArquivoPublicacaoService {
     timestamp: true,
   });
 
-  constructor(    
-    private arquivoPublicacaoRepository: ArquivoPublicacaoRepository,    
+  constructor(
+    private arquivoPublicacaoRepository: ArquivoPublicacaoRepository,
     private transacaoOcorrenciaService: OcorrenciaService,
     private itemTransacaoService: ItemTransacaoService,
-  ) { }
-  
+  ) {}
+
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
     return this.arquivoPublicacaoRepository.findMany(options);
   }
@@ -78,7 +73,9 @@ export class ArquivoPublicacaoService {
     return arquivo;
   }
 
-  public async save(itemTransacaoAg: ItemTransacao): Promise<ArquivoPublicacao> {
+  public async save(
+    itemTransacaoAg: ItemTransacao,
+  ): Promise<ArquivoPublicacao> {
     const publicacao = await this.convertPublicacaoDTO(itemTransacaoAg);
     return await this.arquivoPublicacaoRepository.save(publicacao);
   }
@@ -97,7 +94,7 @@ export class ArquivoPublicacaoService {
     //Inclui ocorrencias
     await this.salvaOcorrenciasDetalheA(detalheA);
     //Atualiza publicação
-    await this.savePublicacaoRetorno(detalheA);   
+    await this.savePublicacaoRetorno(detalheA);
   }
 
   async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA) {
