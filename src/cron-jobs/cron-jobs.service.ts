@@ -201,15 +201,15 @@ export class CronJobsService  {
       //     },
       //   },
       // }
-    //);
+    );
 
-  //   for (const jobConfig of this.jobsConfig) {
-  //     this.startCron(jobConfig);
-  //     this.logger.log(
-  //       `Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`,
-  //     );
-  //   }
-  // }
+    // for (const jobConfig of this.jobsConfig) {
+    //   this.startCron(jobConfig);
+    //   this.logger.log(
+    //     `Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`,
+    //   );
+    // }
+  }
 
   startCron(jobConfig: ICronJob) {
     const job = new CronJob(jobConfig.cronJobParameters);

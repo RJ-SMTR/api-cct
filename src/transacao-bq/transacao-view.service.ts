@@ -66,10 +66,6 @@ export class TransacaoViewService {
     await this.transacaoViewRepository.save(transacao);
   }
 
-  public async save(transacao: TransacaoView){
-    await this.transacaoViewRepository.save(transacao);
-  }
-
   /**
    * Cria ou atualiza TransacaoViews
    * Tarefas:

@@ -714,18 +714,6 @@ export class CnabService {
     return await this.headerArquivoService.getHeaderArquivoNsa(nsa);
   }
 
-  private validateCancel(nsaInicial:number,nsaFinal:number){
-    return (nsaInicial == undefined && nsaFinal ==undefined || (nsaFinal!=0 && nsaFinal < nsaInicial));      
-  }  
-  
-  private async getLotesCancelar(nsa: number) {
-     return (await (this.headerLoteService.findMany({ headerArquivo:{ nsa: nsa }}))).sort((a,b) => a.loteServico - b.loteServico);
-  }
- 
-  private async getHeaderArquivoCancelar(nsa: number) {
-    return await this.headerArquivoService.getHeaderArquivoNsa(nsa); 
-  }
-
   public async sendRemessa(listCnab: string[]) {
     for (const cnabStr of listCnab) {
       await this.sftpService.submitCnabRemessa(cnabStr);
