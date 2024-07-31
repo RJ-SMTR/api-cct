@@ -29,6 +29,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'ocorrenciaCodigo', description: 'Código de ocorrência.', required: false, type: String, example: Enum.getKeys(OcorrenciaUserEnum) })
   @ApiQuery({ name: 'erro', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento apresentou erro.', default: false }) })
   @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
+  @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se ainda não foi feita a tentativa de pagamento.', default: false }) })
   @ApiQuery({ name: 'decimais', required: false, type: Number, description: ApiDescription({ _: 'Número de casas decimais exibidos e a serem pesquisados.', default: 2, min: 0, max: 4 }) })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
@@ -59,6 +60,8 @@ export class RelatorioController {
     erro: boolean | undefined,
     @Query('pago', new ParseBooleanPipe({ optional: true }))
     pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true }))
+    aPagar: boolean | undefined,
     @Query('decimais', new ParseNumberPipe({ defaultValue: 2, min: 0, max: 4 }))
     decimais: number | undefined,
   ) {
@@ -76,6 +79,7 @@ export class RelatorioController {
       decimais,
       erro,
       pago,
+      aPagar
     });
   }
 }

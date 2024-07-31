@@ -68,9 +68,9 @@ export class RelatorioRepository {
           INNER JOIN cliente_favorecido f ON f.id = i."clienteFavorecidoId"
           INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
           LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
-      ${where.length ? `WHERE ${where.join(' AND ')}` : ``}
+      ${where.length ? `WHERE (${where.join(') AND (')})` : ``}
       GROUP BY ${groupCol}
-      ${having.length ? `HAVING ${having.join(' AND ')}` : ``}
+      ${having.length ? `HAVING (${having.join(') AND (')})` : ``}
       ORDER BY ${groupCol}
     `;
     // .replace(/\n\s+/g, ' ')
@@ -125,7 +125,7 @@ export class RelatorioRepository {
           INNER JOIN cliente_favorecido f ON f.id = i."clienteFavorecidoId"
           INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
           LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
-      ${where.length ? `WHERE ${where.join(' AND ')}` : ``}
+      ${where.length ? `WHERE (${where.join(') AND (')})` : ``}
       GROUP BY p.id, f.id, a.id, i.valor, i."dataOrdem", i."createdAt", i.id
       ${having.length ? `WHERE ${having.join(' AND ')}` : ``}
     `,
@@ -186,15 +186,32 @@ export class RelatorioRepository {
       where.push(`(${nomesOr})`);
     }
 
-    if (args?.pago !== undefined) {
-      where.push(`p."isPago" =  ${args.pago}`);
-    }
+    if (args?.pago !== undefined || args?.erro !== undefined || args?.aPagar !== undefined) {
+      const qIsErro = `(o.code IS NOT NULL AND o.code NOT IN ('BD','00'))`;
+      const qNotErro = `(o.code IS NULL OR o.code IN ('BD','00'))`;
+      const qIsPago = `p."isPago" = TRUE`;
+      const qNotPago = `p."isPago" = FALSE`;
+      const orWhere: string[] = [];
 
-    if (args?.erro !== undefined) {
-      if (args.erro) {
-        where.push(`(o.code IS NOT NULL AND o.code NOT IN ('BD','00'))`);
-      } else {
-        where.push(`(o.code IS NULL OR o.code IN ('BD','00'))`);
+      if (args?.pago !== undefined) {
+        orWhere.push(args.pago ? qIsPago : qNotPago);
+      }
+      if (args?.erro !== undefined) {
+        if (args.erro) {
+          orWhere.push(qIsErro);
+        } else {
+          orWhere.push(qNotErro);
+        }
+      }
+      if (args?.aPagar !== undefined) {
+        if (args.aPagar) {
+          orWhere.push(`${qNotPago} AND ${qNotErro}`);
+        } else {
+          orWhere.push(`${qIsPago} OR ${qIsErro}`);
+        }
+      }
+      if (orWhere.length) {
+        where.push(`(${orWhere.join(') OR (')})`)
       }
     }
 

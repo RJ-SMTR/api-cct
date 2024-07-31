@@ -13,5 +13,6 @@ export interface IFindPublicacaoRelatorio {
   ocorrenciaCodigo?: string[];
   erro?: boolean;
   pago?: boolean;
+  aPagar?: boolean;
   decimais?: number;
 }
