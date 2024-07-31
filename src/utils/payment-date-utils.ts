@@ -271,9 +271,7 @@ export function validateDate(
     startDateStr === undefined &&
     endDateStr === undefined &&
     timeInterval === undefined;
-  const invalidDate =
-    startDateStr && startOfDay(new Date(startDateStr)) > startOfDay(new Date());
-  if (invalidCombination || invalidDate) {
+  if (invalidCombination) {
     return false;
   } else {
     return true;
