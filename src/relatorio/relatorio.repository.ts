@@ -54,7 +54,8 @@ export class RelatorioRepository {
           ,round(sum(i.valor), ${d})::float AS valor
           ,round(sum(p."valorRealEfetivado"), ${d})::float AS "valorRealEfetivado"
           ,sum(CASE WHEN p."isPago" THEN 1 ELSE 0 END)::int AS "pagoCount"
-          ,sum(CASE WHEN (o."code" NOT IN ('00', 'BD')) THEN 1 ELSE 0 END)::int AS "erroCount"
+          ,sum(CASE WHEN (o."code" IS NOT NULL AND o."code" NOT IN ('00', 'BD')) THEN 1 ELSE 0 END)::int AS "erroCount"
+          ,sum(CASE WHEN (p."isPago" = FALSE AND o."code" IS NULL) THEN 1 ELSE 0 END)::int AS "aPagarCount"
           ,json_agg(json_build_object(
               'ocorrencia', CASE WHEN o.id IS NOT NULL THEN json_build_object(
                   'id', o.id,

@@ -18,12 +18,12 @@ export class RelatorioConsolidadoDto {
   valorRealEfetivado: number | null;
   pagoCount: number = 0;
   erroCount: number = 0;
+  aPagarCount: number = 0;
 
   @SetValue((v: OcorrenciaRelatorio[]) => v.filter(o => Ocorrencia.isError(o.ocorrencia)))
   ocorrencias: OcorrenciaRelatorio[];
   
   nome: String;
-  // cpfCnpj: string;
 
   @Exclude()
   clienteFavorecidoId: number;
