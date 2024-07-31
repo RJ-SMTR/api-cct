@@ -31,15 +31,15 @@ export class ParseNumberPipe implements PipeTransform {
 
     if (value === undefined || field === undefined) {
       if (this.args?.optional) {
-        return numberValue;
+        return value;
       } else if (defaultValue !== undefined) {
         return defaultValue;
       }
     }
 
-    if (value !== undefined && isNaN(numberValue)) {
+    if (value !== undefined && isNaN(numberValue) || value === '') {
       throw new BadRequestException(
-        `${field} should be a valid number: ${value}`,
+        `${field} should be a valid number: got '${value}'`,
       );
     }
 
@@ -55,7 +55,7 @@ export class ParseNumberPipe implements PipeTransform {
         returnSubstring = `lower or equal than ${max}`;
       }
       if (isMin && isMax) {
-        returnSubstring = `between ${min} and  ${max}`;
+        returnSubstring = `between ${min} and ${max}`;
       }
       throw new BadRequestException(
         `${metadata.data} should be an integer ${returnSubstring}`,

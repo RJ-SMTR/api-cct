@@ -13,12 +13,7 @@ export class RelatorioDto {
       if (relatorio?.ocorrencias) {
         this.ocorrencias = OcorrenciaRelatorio.joinUniqueCode(relatorio.ocorrencias.map((o) => new OcorrenciaRelatorio({ ...o })));
         this.isErro = this.getIsErro();
-        this.ocorrencias = this.ocorrencias.map((o) => ({
-          ...o,
-          _pagoCount: this.isPago ? 1 : 0,
-          _erroCount: this.isErro ? 1 : 0,
-          _pendenteCount: this.isPendente ? 1 : 0,
-        }));
+        this.ocorrencias = this.ocorrencias.map((o) => (o));
       }
       if (relatorio?.valor) {
         this.valor = +relatorio.valor;
@@ -58,7 +53,7 @@ export class RelatorioDto {
 
   private getIsErro() {
     const ocorrenciasUnique = this.ocorrencias.reduce((l, o) => OcorrenciaRelatorio.joinUniqueCode(l, [o]), []);
-    const errors = Ocorrencia.getErrorCodes(ocorrenciasUnique.map((o) => o.ocorrencia));
+    const errors = Ocorrencia.getErrorCodes(ocorrenciasUnique.filter(o => o.ocorrencia).map((o) => o.ocorrencia as Ocorrencia));
     const isErro = errors.length > 0;
     return isErro;
   }

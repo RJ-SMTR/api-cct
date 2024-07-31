@@ -1,25 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { RelatorioConsolidadoDto } from './dtos/relatorio-consolidado.dto';
 import { RelatorioDto } from './dtos/relatorio.dto';
 import { IFilterRelatorio } from './interfaces/filter-relatorio.interface';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
 import { RelatorioRepository } from './relatorio.repository';
+import { RelatorioConsolidadoDto } from './dtos/relatorio-consolidado.dto';
 
 @Injectable()
 export class RelatorioService {
-  constructor(
-    private relatorioRepository: RelatorioRepository,
-  ) {}
+  constructor(private relatorioRepository: RelatorioRepository) {}
 
   /**
    * Gerar relatórios consolidados - agrupados por Favorecido.
    */
   async findConsolidado(args: IFindPublicacaoRelatorio) {
-    let relatorios = await this.relatorioRepository.find(args);
-    relatorios = this.filterRelatorios(relatorios, args);
-    const consolidados = RelatorioConsolidadoDto.fromRelatorios(relatorios);
+    const consolidados = await this.relatorioRepository.findConsolidado(args);
+    const d = args.decimais || 2;
     return {
       count: consolidados.length,
+      valorPago: +consolidados.reduce((s, i) => s + i.valorPago, 0).toFixed(d),
+      valor: +consolidados.reduce((s, i) => s + i.valor, 0).toFixed(d),
+      valorErro: +consolidados.reduce((s, i) => s + i.valorErro, 0).toFixed(d),
+      valorRealEfetivado: +consolidados.reduce((s, i) => s + (i.valorRealEfetivado || 0), 0).toFixed(d),
       data: consolidados,
     };
   }
@@ -27,10 +28,7 @@ export class RelatorioService {
   /**
    * Após montar o relatório, executar filtros znão feitos no SQL
    */
-  private filterRelatorios(
-    relatorios: RelatorioDto[],
-    filter: IFilterRelatorio,
-  ) {
+  private filterRelatorios(relatorios: RelatorioDto[], filter: IFilterRelatorio) {
     return relatorios.filter((r) => {
       const filterErro = filter?.erro === undefined || filter.erro == r.isErro;
       // const filterPago = filter?.pago === undefined || filter.pago == r.isPago;

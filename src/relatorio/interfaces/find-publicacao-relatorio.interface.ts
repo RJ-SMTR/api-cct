@@ -5,9 +5,13 @@ export interface IFindPublicacaoRelatorio {
   dataFim?: Date | undefined;
   favorecidoNome?: string[];
   favorecidoCpfCnpj?: string[];
-  valorRealEfetivadoInicio?: number | undefined;
-  valorRealEfetivadoFim?: number | undefined;
+  consorcioNome?: string[];
+  valorRealEfetivadoMin?: number | undefined;
+  valorRealEfetivadoMax?: number | undefined;
+  valorMin?: number | undefined;
+  valorMax?: number | undefined;
   ocorrenciaCodigo?: string[];
   erro?: boolean;
   pago?: boolean;
+  decimais?: number;
 }

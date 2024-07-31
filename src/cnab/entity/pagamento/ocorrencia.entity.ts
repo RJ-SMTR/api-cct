@@ -1,32 +1,14 @@
 import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { Enum } from 'src/utils/enum';
-import {
-  Column,
-  DeepPartial,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { DetalheA } from './detalhe-a.entity';
 import { Exclude } from 'class-transformer';
 import { SetValue } from 'src/utils/decorators/set-value.decorator';
 
-const userErrors = [
-  'AG',
-  'AL',
-  'AM',
-  'AN',
-  'AO',
-  'AS',
-  'BG',
-  'DA',
-  'DB',
-  'ZA',
-  'ZY',
-  '02',
-];
+const userErrors = ['AG', 'AL', 'AM', 'AN', 'AO', 'AS', 'BG', 'DA', 'DB', 'ZA', 'ZY', '02'];
+
+const successOcorrencias = ['BD', '00'];
 
 @Entity()
 export class Ocorrencia extends EntityHelper {
@@ -55,11 +37,11 @@ export class Ocorrencia extends EntityHelper {
   })
   detalheA: DetalheA | null;
 
-  @SetValue((v,o) => Ocorrencia.toUserValues(o).code)
+  @SetValue((v, o) => Ocorrencia.toUserValues(o).code)
   @Column({ type: String, unique: false, nullable: false, length: 2 })
   code: string;
-  
-  @SetValue((v,o) => Ocorrencia.toUserValues(o).message)
+
+  @SetValue((v, o) => Ocorrencia.toUserValues(o).message)
   @Column({ type: String, unique: false, nullable: false, length: 100 })
   message: string;
 
@@ -96,7 +78,7 @@ export class Ocorrencia extends EntityHelper {
   }
 
   public static getErrorCodes(ocorrencias: Ocorrencia[]) {
-    const codesList = ocorrencias.map(o => o.code);
+    const codesList = ocorrencias.map((o) => o.code);
     const errors = codesList.filter((c) => !['00', 'BD'].includes(c));
     return errors;
   }
@@ -118,23 +100,19 @@ export class Ocorrencia extends EntityHelper {
   }
 
   public static toUserValues(o: Ocorrencia) {
-    return userErrors.includes(o.code) ? o : new Ocorrencia({ ...o, code: '  ', message: OcorrenciaEnum['  '] });
+    return Ocorrencia.isUserError(o) ? new Ocorrencia({ ...o, code: '  ', message: OcorrenciaEnum['  '] }) : o;
+  }
+
+  public static isUserError(o: Ocorrencia) {
+    return userErrors.includes(o.code);
   }
 
   /**
    * Oculta erros técnicos do usuário, exibindo uma mensagem genérica no lugar
    */
   public static toUserErrors(ocorrencias: Ocorrencia[]) {
-    let newOcorrencias = ocorrencias.map((j) =>
-      !userErrors.includes(j.code)
-        ? new Ocorrencia({ ...j, code: '  ', message: OcorrenciaEnum['  '] })
-        : j,
-    );
-    newOcorrencias = newOcorrencias.reduce(
-      (l: Ocorrencia[], j) =>
-        l.map((k) => k.code).includes(j.code) ? l : [...l, j],
-      [],
-    );
+    let newOcorrencias = ocorrencias.map((j) => (!userErrors.includes(j.code) ? new Ocorrencia({ ...j, code: '  ', message: OcorrenciaEnum['  '] }) : j));
+    newOcorrencias = newOcorrencias.reduce((l: Ocorrencia[], j) => (l.map((k) => k.code).includes(j.code) ? l : [...l, j]), []);
     return newOcorrencias;
   }
 }
