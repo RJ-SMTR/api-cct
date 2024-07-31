@@ -3,6 +3,7 @@ import { SetValue } from 'src/utils/decorators/set-value.decorator';
 import { DeepPartial } from 'typeorm';
 import { OcorrenciaRelatorio } from './ocorrencia-relatorio.dto';
 import { RelatorioDto } from './relatorio.dto';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 
 export class RelatorioConsolidadoDto {
   constructor(consolidado?: DeepPartial<RelatorioConsolidadoDto>) {
@@ -17,7 +18,10 @@ export class RelatorioConsolidadoDto {
   valorRealEfetivado: number | null;
   pagoCount: number = 0;
   erroCount: number = 0;
+
+  @SetValue((v: OcorrenciaRelatorio[]) => v.filter(o => Ocorrencia.isError(o.ocorrencia)))
   ocorrencias: OcorrenciaRelatorio[];
+  
   nome: String;
   // cpfCnpj: string;
 

@@ -115,4 +115,9 @@ export class Ocorrencia extends EntityHelper {
     newOcorrencias = newOcorrencias.reduce((l: Ocorrencia[], j) => (l.map((k) => k.code).includes(j.code) ? l : [...l, j]), []);
     return newOcorrencias;
   }
+
+  public static isError(ocorrencia?: Partial<Ocorrencia> | null) {
+    const code = ocorrencia?.code;
+    return code && !['BD', '00'].includes(code);
+  }
 }
