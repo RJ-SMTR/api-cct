@@ -89,8 +89,7 @@ export class TransacaoView {
   })
   arquivoPublicacao: ArquivoPublicacao | null;
 
-
-  @Column({ type: 'numeric' , nullable: true})
+  @Column({ type: 'numeric', nullable: true })
   itemTransacaoAgrupadoId: number;
 
   @CreateDateColumn()
@@ -103,6 +102,9 @@ export class TransacaoView {
   setReadValues() {
     this.valorTransacao = Number(this.valorTransacao);
     this.valorPago = Number(this.valorPago);
+    if (this.itemTransacaoAgrupadoId !== undefined) {
+      this.itemTransacaoAgrupadoId = +this.itemTransacaoAgrupadoId;
+    }
   }
 
   public static fromBigqueryTransacao(bq: BigqueryTransacao) {
@@ -126,8 +128,11 @@ export class TransacaoView {
     });
   }
 
-  toTicketRevenue() {
-    return new TicketRevenueDTO({
+  toTicketRevenue(publicacoes: ArquivoPublicacao[]) {
+    const publicacoesTv = publicacoes.filter((p) =>p.itemTransacao.itemTransacaoAgrupado.id ==this.itemTransacaoAgrupadoId);
+    const publicacao: ArquivoPublicacao | undefined = publicacoesTv.filter((p) => p.isPago)[0] || publicacoesTv[0];
+    const isPago = publicacao?.isPago == true;
+    const revenue = new TicketRevenueDTO({
       bqDataVersion: '',
       captureDateTime: this.datetimeCaptura.toISOString(),
       clientId: null,
@@ -152,9 +157,10 @@ export class TransacaoView {
       vehicleId: null,
       vehicleService: null,
       arquivoPublicacao: this.arquivoPublicacao || undefined,
-      isPago: Boolean(this.arquivoPublicacao?.isPago),
+      isPago,
       count: 1,
     });
+    return revenue;
   }
 
   getProperties() {
