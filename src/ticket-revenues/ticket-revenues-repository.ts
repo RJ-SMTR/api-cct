@@ -6,21 +6,24 @@ import { getPagination } from 'src/utils/get-pagination';
 import { getPaymentDates } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
-import { Between, FindOptionsWhere } from 'typeorm';
+import { Between, FindOptionsWhere, In } from 'typeorm';
 import { TicketRevenueDTO } from './dtos/ticket-revenue.dto';
 import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
 import { ITRGetMeIndividualValidArgs } from './interfaces/tr-get-me-individual-args.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
+import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.service';
 
 @Injectable()
 export class TicketRevenuesRepositoryService {
   private logger: Logger = new Logger('TicketRevenuesRepository', {
     timestamp: true,
-  });
-
+  })
+  ;
+  
   constructor(
     private readonly transacaoViewService: TransacaoViewService,
+    private arquivoPublicacaoService: ArquivoPublicacaoService,
   ) {}
 
   /**
@@ -142,7 +145,9 @@ export class TicketRevenuesRepositoryService {
     }
 
     const transacaoViews = await this.transacaoViewService.find(where);
-    return transacaoViews.map((i) => i.toTicketRevenue());
+    const publicacoes = await this.arquivoPublicacaoService.findMany({ where: { itemTransacao: { itemTransacaoAgrupado: { id: In(transacaoViews.map(t => t.itemTransacaoAgrupadoId)) } } } });
+    const revenues = transacaoViews.map((i) => i.toTicketRevenue(publicacoes));
+    return revenues;
   }
 
   /**
