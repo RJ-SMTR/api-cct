@@ -51,8 +51,8 @@ export class RelatorioRepository {
       SELECT
           ${groupCol} AS nome
           ,count(p.id)::int AS "count"
-          ,round(sum(i.valor), ${d})::float AS valor
-          ,round(sum(p."valorRealEfetivado"), ${d})::float AS "valorRealEfetivado"
+          ,sum(round(i.valor, ${d}))::float AS valor
+          ,sum(round(p."valorRealEfetivado", ${d}))::float AS "valorRealEfetivado"
           ,sum(CASE WHEN p."isPago" THEN 1 ELSE 0 END)::int AS "pagoCount"
           ,sum(CASE WHEN (o."code" IS NOT NULL AND o."code" NOT IN ('00', 'BD')) THEN 1 ELSE 0 END)::int AS "erroCount"
           ,sum(CASE WHEN (p."isPago" = FALSE AND o."code" IS NULL) THEN 1 ELSE 0 END)::int AS "aPagarCount"
@@ -150,20 +150,20 @@ export class RelatorioRepository {
 
     const valorReal = { min: args?.valorRealEfetivadoMin, max: args?.valorRealEfetivadoMax };
     if (valorReal?.min !== undefined && valorReal.max === undefined) {
-      having.push(`round(sum(p."valorRealEfetivado"), ${d}) >= ${valorReal.min}`);
+      having.push(`sum(round(p."valorRealEfetivado", ${d})) >= ${valorReal.min}`);
     } else if (valorReal?.min === undefined && valorReal.max !== undefined) {
-      having.push(`round(sum(p."valorRealEfetivado"), ${d}) <= ${valorReal.max}`);
+      having.push(`sum(round(p."valorRealEfetivado", ${d})) <= ${valorReal.max}`);
     } else if (valorReal?.min !== undefined && valorReal.max !== undefined) {
-      having.push(`round(sum(p."valorRealEfetivado"), ${d}) BETWEEN ${valorReal.min} AND ${valorReal.max}`);
+      having.push(`sum(round(p."valorRealEfetivado", ${d})) BETWEEN ${valorReal.min} AND ${valorReal.max}`);
     }
 
     const valor = { min: args?.valorMin, max: args?.valorMax };
     if (valor?.min !== undefined && valor.max === undefined) {
-      having.push(`round(sum(i."valor"), ${d}) >= ${valor.min}`);
+      having.push(`sum(round(i."valor", ${d})) >= ${valor.min}`);
     } else if (valor?.min === undefined && valor.max !== undefined) {
-      having.push(`round(sum(i."valor"), ${d}) <= ${valor.max}`);
+      having.push(`sum(round(i."valor", ${d})) <= ${valor.max}`);
     } else if (valor?.min !== undefined && valor.max !== undefined) {
-      having.push(`round(sum(i."valor"), ${d}) BETWEEN ${valor.min} AND ${valor.max}`);
+      having.push(`sum(round(i."valor", ${d})) BETWEEN ${valor.min} AND ${valor.max}`);
     }
 
     if (args?.ocorrenciaCodigo) {
