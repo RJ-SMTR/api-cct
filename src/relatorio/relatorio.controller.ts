@@ -48,9 +48,9 @@ export class RelatorioController {
     favorecidoCpfCnpj: string[],
     @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
     consorcioNome: string[],
-    @Query('exibirConsorcios', new ParseBooleanPipe({ defaultValue: true }))
+    @Query('exibirConsorcios', new ParseBooleanPipe({ defaultValue: false }))
     exibirConsorcios: boolean | undefined,
-    @Query('exibirFavorecidos', new ParseBooleanPipe({ defaultValue: true }))
+    @Query('exibirFavorecidos', new ParseBooleanPipe({ defaultValue: false }))
     exibirFavorecidos: boolean | undefined,
     @Query('valorRealEfetivadoMin', new ParseNumberPipe({ optional: true }))
     valorRealEfetivadoMin: number | undefined,
@@ -68,8 +68,6 @@ export class RelatorioController {
     pago: boolean | undefined,
     @Query('aPagar', new ParseBooleanPipe({ optional: true }))
     aPagar: boolean | undefined,
-    @Query('decimais', new ParseNumberPipe({ defaultValue: 2, min: 0, max: 4 }))
-    decimais: number | undefined,
   ) {
     return await this.relatorioService.findConsolidado({
       dataInicio,
@@ -82,7 +80,6 @@ export class RelatorioController {
       valorMin,
       valorMax,
       ocorrenciaCodigo,
-      decimais,
       erro,
       pago,
       aPagar,

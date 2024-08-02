@@ -45,8 +45,9 @@ export class RelatorioRepository {
       _args.consorcioNome = undefined;
     }
     const { where, having } = this.getWhere(_args);
-    const d = args.decimais || 2;
+    const d = 2;
     const groupCol = groupBy == 'consorcio' ? 'i."nomeConsorcio"' : 'f.nome';
+    // const valorCol = groupBy == 'consorcio' ? 'i.valor' : ""
     const query = `
       SELECT
           ${groupCol} AS nome
@@ -140,7 +141,7 @@ export class RelatorioRepository {
   private getWhere(args: IFindPublicacaoRelatorio) {
     const where: string[] = [];
     const having: string[] = [];
-    const d = args.decimais || 2;
+    const d = 2;
 
     const dataOrdem = {
       inicio: toDateString(args?.dataInicio || startOfDay(new Date(0))),

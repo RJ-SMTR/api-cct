@@ -14,7 +14,7 @@ export class RelatorioService {
    */
   async findConsolidado(args: IFindPublicacaoRelatorio) {
     const consolidados = await this.relatorioRepository.findConsolidado(args);
-    const d = args.decimais || 2;
+    const d = 2;
     return {
       count: consolidados.length,
       valorPago: +consolidados.reduce((s, i) => s + i.valorPago, 0).toFixed(d),
