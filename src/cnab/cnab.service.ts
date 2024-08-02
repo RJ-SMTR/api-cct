@@ -499,7 +499,7 @@ export class CnabService {
     await this.itemTransacaoService.saveMany(itemTransacaoDTOs);
   }
 
-  private async updateAllFavorecidosFromUsers() {
+  public async updateAllFavorecidosFromUsers() {
     const allUsers = await this.usersService.findManyRegisteredUsers();
     await this.clienteFavorecidoService.updateAllFromUsers(allUsers);
   }
