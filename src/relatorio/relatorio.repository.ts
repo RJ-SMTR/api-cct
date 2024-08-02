@@ -47,13 +47,14 @@ export class RelatorioRepository {
     const { where, having } = this.getWhere(_args);
     const d = 2;
     const groupCol = groupBy == 'consorcio' ? 'i."nomeConsorcio"' : 'f.nome';
-    // const valorCol = groupBy == 'consorcio' ? 'i.valor' : ""
+    const valorCol = groupBy == 'consorcio' ? 'i.valor' : 'round(i.valor, 2)';
+    const valorPgtoCol = groupBy == 'consorcio' ? 'p."valorRealEfetivado"' : 'round(p."valorRealEfetivado", 2)';
     const query = `
       SELECT
           ${groupCol} AS nome
           ,count(p.id)::int AS "count"
-          ,sum(round(i.valor, ${d}))::float AS valor
-          ,sum(round(p."valorRealEfetivado", ${d}))::float AS "valorRealEfetivado"
+          ,round(sum(${valorCol}), 2)::float AS valor
+          ,round(sum(${valorPgtoCol}), 2)::float AS "valorRealEfetivado"
           ,sum(CASE WHEN p."isPago" THEN 1 ELSE 0 END)::int AS "pagoCount"
           ,sum(CASE WHEN (o."code" IS NOT NULL AND o."code" NOT IN ('00', 'BD')) THEN 1 ELSE 0 END)::int AS "erroCount"
           ,sum(CASE WHEN (p."isPago" = FALSE AND o."code" IS NULL) THEN 1 ELSE 0 END)::int AS "aPagarCount"
@@ -62,7 +63,7 @@ export class RelatorioRepository {
                   'id', o.id,
                   'code', o.code
               ) ELSE NULL END,
-              'valor', round(i.valor, ${d})::float
+              'valor', ${valorCol}::float
           )) AS ocorrencias
       FROM
           arquivo_publicacao p
