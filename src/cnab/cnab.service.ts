@@ -119,9 +119,8 @@ export class CnabService {
     // 2. Update TransacaoView
     // await this.updateTransacaoViewBigquery( dataOrdemInicialDate,dataOrdemFinalDate, daysBefore, consorcioType);
     // 3. Update ordens
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(
-      dataOrdemInicialDate,dataOrdemFinalDate,daysBefore);
-    await this.saveOrdens(ordens, consorcio);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemIncial,dataOrdemFinal,daysBefore);
+    await this.saveOrdens(ordens,consorcio);  
   }
 
   /**
@@ -205,6 +204,7 @@ export class CnabService {
    */
   async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[], consorcio = 'Todos') {
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
+
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
       if (!cpfCnpj) {
@@ -317,28 +317,7 @@ export class CnabService {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Falha ao salvar Informções agrupadas`,error?.stack);
     }finally{
-      await queryRunner.release();
-      // const queryRunner2 = this.dataSource.createQueryRunner();   
-      // await queryRunner2.connect(); 
-      // try{ 
-      //   if(itemAg){
-      //     await queryRunner2.startTransaction();  
-      //     this.logger.debug('Inicia Consulta TransacaoView');
-      //     const transacoesView = await this.getTransacoesViewOrdem(ordem,favorecido); 
-      //     this.logger.debug('Fim Consulta TransacaoView')
-      //     this.logger.debug('Atualiza Transacao View');          
-      //     for(const transacaoView of transacoesView){
-      //       transacaoView.itemTransacaoAgrupadoId = itemAg.id
-      //       this.transacaoViewService.save(transacaoView,queryRunner2);     
-      //     }          
-      //     await queryRunner2.commitTransaction();  
-      //     this.logger.debug('Fim Atualiza Transacao View');
-      //   }
-      // }catch(error){
-      //   await queryRunner2.rollbackTransaction();
-      // }finally{
-      //   await queryRunner2.release();
-      // }
+      await queryRunner.release();     
     }
   }
 
@@ -349,6 +328,7 @@ export class CnabService {
     const transacaoAg = this.convertTransacaoAgrupadoDTO(ordem, pagador);
     return await this.transacaoAgService.save(transacaoAg);
   }
+
 
   private async saveItemTransacaoAgrupado(
     ordem: BigqueryOrdemPagamentoDTO,
