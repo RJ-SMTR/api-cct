@@ -109,10 +109,10 @@ export class User extends EntityHelper {
   @Column({ type: String, nullable: true })
   fullName?: string | null;
 
-  @ManyToOne(() => FileEntity, {
-    eager: true,
-  })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_User_photo_ManyToOne' })
+  // @ManyToOne(() => FileEntity, {
+  //   eager: true,
+  // })
+  // @JoinColumn({ foreignKeyConstraintName: 'FK_User_photo_ManyToOne' })
   photo?: FileEntity | null;
 
   @ManyToOne(() => Role, {
