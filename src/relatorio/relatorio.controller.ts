@@ -22,6 +22,8 @@ export class RelatorioController {
   @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome parcial dos favorecidos, sem distinção de acento ou maiúsculas.', required: false, type: String, example: 'internorte,intersul,jose carlos' })
   @ApiQuery({ name: 'favorecidoCpfCnpj', description: 'Pesquisa o cpf/cnpj dos favorecidos', required: false, type: String, example: '11111,22222,33333' })
   @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String, example: 'Santa Cruz,STPL,Internorte,STPC,MobiRio,Transcarioca,Intersul,VLT' })
+  @ApiQuery({ name: 'exibirConsorcios', required: false, type: Boolean, example: true })
+  @ApiQuery({ name: 'exibirFavorecidos', required: false, type: Boolean, example: true })
   @ApiQuery({ name: 'valorRealEfetivadoMin', description: 'Somatório do valor real pago ao favorecido.', required: false, type: Number, example: 12.0 })
   @ApiQuery({ name: 'valorRealEfetivadoMax', description: 'Somatório do valor real pago ao favorecido.', required: false, type: Number, example: 12.99 })
   @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto.', required: false, type: Number, example: 12.0 })
@@ -46,6 +48,10 @@ export class RelatorioController {
     favorecidoCpfCnpj: string[],
     @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
     consorcioNome: string[],
+    @Query('exibirConsorcios', new ParseBooleanPipe({ defaultValue: true }))
+    exibirConsorcios: boolean | undefined,
+    @Query('exibirFavorecidos', new ParseBooleanPipe({ defaultValue: true }))
+    exibirFavorecidos: boolean | undefined,
     @Query('valorRealEfetivadoMin', new ParseNumberPipe({ optional: true }))
     valorRealEfetivadoMin: number | undefined,
     @Query('valorRealEfetivadoMax', new ParseNumberPipe({ optional: true }))
@@ -79,7 +85,9 @@ export class RelatorioController {
       decimais,
       erro,
       pago,
-      aPagar
+      aPagar,
+      exibirConsorcios,
+      exibirFavorecidos,
     });
   }
 }

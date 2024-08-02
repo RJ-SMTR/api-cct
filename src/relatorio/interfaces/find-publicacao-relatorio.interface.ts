@@ -15,4 +15,6 @@ export interface IFindPublicacaoRelatorio {
   pago?: boolean;
   aPagar?: boolean;
   decimais?: number;
+  exibirConsorcios?: boolean;
+  exibirFavorecidos?: boolean;
 }

@@ -17,10 +17,10 @@ export class RelatorioRepository {
 
   public async findConsolidado(args: IFindPublicacaoRelatorio) {
     let union: string[] = [];
-    if (args?.consorcioNome?.length) {
+    if (args?.exibirConsorcios || args?.consorcioNome?.length) {
       union.push(this.getConsolidadoQuery(args, 'consorcio'));
     }
-    if (!args?.consorcioNome?.length || args?.favorecidoNome?.length || args?.favorecidoCpfCnpj?.length) {
+    if (args?.exibirFavorecidos || args?.favorecidoNome?.length || args?.favorecidoCpfCnpj?.length) {
       union.push(this.getConsolidadoQuery(args, 'favorecido'));
     }
     if (union.length > 1) {
