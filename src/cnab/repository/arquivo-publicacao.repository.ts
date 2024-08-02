@@ -6,6 +6,7 @@ import {
   FindManyOptions,
   In,
   InsertResult,
+  QueryRunner,
   Repository,
 } from 'typeorm';
 import { ArquivoPublicacaoResultDTO } from '../dto/arquivo-publicacao-result.dto';
@@ -25,8 +26,6 @@ export class ArquivoPublicacaoRepository {
     @InjectRepository(ArquivoPublicacao)
     private arquivoPublicacaoRepository: Repository<ArquivoPublicacao>,
     private detalheAService: DetalheAService,
-    private ocorrenciaService: OcorrenciaService,
-    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
   ) {}
 
   /**
@@ -44,10 +43,6 @@ export class ArquivoPublicacaoRepository {
     return await this.arquivoPublicacaoRepository.upsert(items, {
       conflictPaths: { id: true },
     });
-  }
-
-  public save(dto: DeepPartial<ArquivoPublicacao>): Promise<ArquivoPublicacao> {
-    return this.arquivoPublicacaoRepository.save(dto);
   }
 
   public async update(

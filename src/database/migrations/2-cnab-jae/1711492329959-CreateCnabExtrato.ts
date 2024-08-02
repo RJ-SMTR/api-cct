@@ -138,7 +138,7 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "detalhe_a" ADD "quantidadeMoeda" numeric(5,10)`);
         await queryRunner.query(`ALTER TABLE "item_transacao" ADD CONSTRAINT "PK_ItemTransacao_id" PRIMARY KEY ("id")`); // custom
         await queryRunner.query(`ALTER TABLE "header_lote" ADD CONSTRAINT "PK_HeaderLote_id" PRIMARY KEY ("id")`); // custom
-        await queryRunner.query(`ALTER TABLE "user" ADD CONSTRAINT "FK_User_photo_ManyToOne" FOREIGN KEY ("photoId") REFERENCES "file"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        // await queryRunner.query(`ALTER TABLE "user" ADD CONSTRAINT "FK_User_photo_ManyToOne" FOREIGN KEY ("photoId") REFERENCES "file"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user" ADD CONSTRAINT "FK_User_role_ManyToOne" FOREIGN KEY ("roleId") REFERENCES "role"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user" ADD CONSTRAINT "FK_User_status_ManyToOne" FOREIGN KEY ("statusId") REFERENCES "status"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user" ADD CONSTRAINT "FK_User_permissionarioRole_ManyToOne" FOREIGN KEY ("permissionarioRoleId") REFERENCES "permissionario_role"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);

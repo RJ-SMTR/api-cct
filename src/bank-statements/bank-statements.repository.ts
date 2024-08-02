@@ -22,6 +22,7 @@ import { IBSCounts } from './interfaces/bs-counts.interface';
 import { IBSGetMePreviousDaysValidArgs } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
+import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.service';
 
 /**
  * Get weekly statements
@@ -31,6 +32,7 @@ export class BankStatementsRepositoryService {
   constructor(
     private readonly transacaoViewService: TransacaoViewService,
     private readonly detalheAService: DetalheAService,
+    private arquivoPublicacaoService: ArquivoPublicacaoService,
   ) {}
 
   /**
@@ -126,7 +128,8 @@ export class BankStatementsRepositoryService {
       endDate: endDate,
       cpfCnpjs: [validArgs.user.getCpfCnpj()],
     });
-    const revenues = transacoes.map((i) => i.toTicketRevenue());
+    const publicacoes = await this.arquivoPublicacaoService.findMany({ where: { itemTransacao: { itemTransacaoAgrupado: { id: In(transacoes.map(t => t.itemTransacaoAgrupadoId)) } } } });
+    const revenues = transacoes.map((i) => i.toTicketRevenue(publicacoes));
     const detalhesA = await this.detalheAService.findMany({
       itemTransacaoAgrupado: {
         id: In(
