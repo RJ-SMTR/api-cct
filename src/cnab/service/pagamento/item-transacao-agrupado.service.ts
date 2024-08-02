@@ -8,6 +8,7 @@ import {
   FindOneOptions,
   FindOptionsWhere,
   In,
+  QueryRunner,
   UpdateResult,
 } from 'typeorm';
 
@@ -86,9 +87,9 @@ export class ItemTransacaoAgrupadoService {
   }
 
   public async save(
-    dto: DeepPartial<ItemTransacaoAgrupado>,
+    dto: DeepPartial<ItemTransacaoAgrupado>,queryRunner:QueryRunner
   ): Promise<ItemTransacaoAgrupado> {
-    return await this.itemTransacaoAgRepository.save(dto);
+    return await queryRunner.manager.getRepository(ItemTransacaoAgrupado).save(dto);
   }
 
   /**

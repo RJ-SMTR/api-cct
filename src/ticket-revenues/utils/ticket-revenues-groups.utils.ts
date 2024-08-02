@@ -85,11 +85,11 @@ export function appendItem(
 
   for (const [groupKey, groupValue] of Object.entries(group)) {
     if (groupKey === 'isPago') {
-      if (!newItem?.arquivoPublicacao?.isPago) {
+      if (!newItem?.arquivoPublicacao?.isPago && !newItem?.isPago) {
         group[groupKey] = false;
       }
     } else if (groupKey === 'errors') {
-      if (!newItem.arquivoPublicacao?.isPago) {
+      if (!newItem.arquivoPublicacao?.isPago && !newItem?.isPago) {
         group[groupKey] = Ocorrencia.joinUniqueCode(group[groupKey], errors);
       }
     } else if (COUNTS_KEYS.includes(groupKey)) {

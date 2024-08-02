@@ -15,6 +15,7 @@ import {
   FindOptionsWhere,
   In,
   Not,
+  QueryRunner,
 } from 'typeorm';
 
 @Injectable()
@@ -110,8 +111,8 @@ export class ItemTransacaoService {
     return many.pop() || null;
   }
 
-  public async save(dto: DeepPartial<ItemTransacao>): Promise<ItemTransacao> {
-    return await this.itemTransacaoRepository.save(dto);
+  public async save(dto: DeepPartial<ItemTransacao>,queryRunner:QueryRunner): Promise<ItemTransacao> {
+    return await queryRunner.manager.getRepository(ItemTransacao).save(dto);
   }
 
   /**

@@ -47,6 +47,7 @@ import { TransacaoViewService } from './transacao-bq/transacao-view.service';
 import { TransacaoViewModule } from './transacao-bq/transacao-view.module';
 import { AppLoggerMiddleware } from './utils/logger-middleware';
 import { RelatorioModule } from './relatorio/relatorio.module';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -124,7 +125,7 @@ import { RelatorioModule } from './relatorio/relatorio.module';
     TransacaoViewModule,
     RelatorioModule,
   ],
-  providers: [TransacaoViewService],
+  providers: [TransacaoViewService, AppService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

@@ -29,7 +29,7 @@ export class Conference1719949229037 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "header_lote_conf" DROP CONSTRAINT "FK_HeaderLoteConf_headerArquivo_ManyToOne"`);
         await queryRunner.query(`ALTER TABLE "header_arquivo_conf" DROP CONSTRAINT "FK_HeaderArquivoConf_transacaoAgrupado_ManyToOne"`);
         await queryRunner.query(`ALTER TABLE "header_arquivo_conf" DROP CONSTRAINT "FK_HeaderArquivoConf_transacao_ManyToOne"`);
-        // await queryRunner.query(`ALTER TABLE "user" DROP CONSTRAINT "FK_User_photo_ManyToOne"`);
+        await queryRunner.query(`ALTER TABLE "user" DROP CONSTRAINT "FK_User_photo_ManyToOne"`);
         // await queryRunner.query(`ALTER TABLE "file" ALTER COLUMN "id" DROP DEFAULT`);
         await queryRunner.query(`DROP TABLE "detalhe_b_conf"`);
         await queryRunner.query(`DROP TABLE "detalhe_a_conf"`);

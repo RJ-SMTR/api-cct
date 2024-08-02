@@ -146,13 +146,13 @@ export class BigqueryTransacaoRepository {
     if (args?.startDate) {
       const startDate = args.startDate.toISOString().slice(0, 10);
       queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) >= DATE('${startDate}')`,
+        `DATE(t.datetime_processamento) >= DATE('${startDate} 00:00:00')`,
       );
     }
     if (args?.endDate) {
       const endDate = args.endDate.toISOString().slice(0, 10);
       queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) <= DATE('${endDate}')`,
+        `DATE(t.datetime_processamento) <= DATE('${endDate} 23:59:59')`,
       );
     }
     if (args?.previousDaysOnly === true) {
