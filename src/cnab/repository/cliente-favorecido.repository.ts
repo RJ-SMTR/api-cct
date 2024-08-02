@@ -27,6 +27,10 @@ export class ClienteFavorecidoRepository {
 
   createQueryBuilder = this.clienteFavorecidoRepository.createQueryBuilder;
 
+  async remove(favorecidos: ClienteFavorecido[]) {
+    return await this.clienteFavorecidoRepository.remove(favorecidos);
+  }
+  
   async save(dto: SaveClienteFavorecidoDTO): Promise<void> {
     if (dto.id === undefined) {
       await this.create(dto);
