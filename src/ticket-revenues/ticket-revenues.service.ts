@@ -26,7 +26,7 @@ import {
 } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
-import { Between, FindOptionsWhere, In } from 'typeorm';
+import { Between, FindOptionsWhere, In, MoreThan } from 'typeorm';
 import { TicketRevenueDTO } from './dtos/ticket-revenue.dto';
 import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { IFetchTicketRevenues } from './interfaces/fetch-ticket-revenues.interface';
@@ -48,7 +48,7 @@ export class TicketRevenuesService {
     private readonly usersService: UsersService,
     private readonly ticketRevenuesRepository: TicketRevenuesRepository,
     private readonly transacaoViewService: TransacaoViewService,
-    private readonly arrquivoPublicacaoService: ArquivoPublicacaoService,
+    private readonly arquivoPublicacaoService: ArquivoPublicacaoService,
     private readonly detalheAService: DetalheAService,
   ) {}
 
@@ -247,13 +247,11 @@ export class TicketRevenuesService {
   }
 
   public async findTransacaoView(args: IFetchTicketRevenues) {
-    const datetimeField: keyof TransacaoView = args.previousDays
-      ? 'datetimeTransacao'
-      : 'datetimeProcessamento';
+    const datetimeField: keyof TransacaoView = 'datetimeTransacao';
     const betweenDate: FindOptionsWhere<TransacaoView> = {
       [datetimeField]: Between(
-        args?.startDate || new Date(0),
-        args?.endDate || new Date(),
+        startOfDay(args?.startDate || new Date(0)),
+        endOfDay(args?.endDate || new Date()),
       ),
     };
     const findOperadora: FindOptionsWhere<TransacaoView> = args?.cpfCnpj
@@ -264,10 +262,12 @@ export class TicketRevenuesService {
       : {};
     const where: FindOptionsWhere<TransacaoView>[] = [
       {
+        valorPago: MoreThan(0),
         ...betweenDate,
         ...findOperadora,
       },
       {
+        valorPago: MoreThan(0),
         ...betweenDate,
         ...findConsorcio,
       },
@@ -278,10 +278,12 @@ export class TicketRevenuesService {
         [datetimeField]: Between(startOfDay(today), endOfDay(today)),
       };
       where.push({
+        valorPago: MoreThan(0),
         ...isTodayDate,
         ...findOperadora,
       });
       where.push({
+        valorPago: MoreThan(0),
         ...isTodayDate,
         ...findConsorcio,
       });
@@ -308,7 +310,10 @@ export class TicketRevenuesService {
         return notSameDay && processamentoGTtransacao;
       });
     }
-    return transacoes.map((i) => i.toTicketRevenue());
+    const publicacoes = await this.arquivoPublicacaoService.findMany({ where: { itemTransacao: { itemTransacaoAgrupado: { id: In(transacoes.map(t => t.itemTransacaoAgrupadoId)) } } } });
+
+    const revenues = transacoes.map((i) => i.toTicketRevenue(publicacoes));
+    return revenues;
   }
 
   private async validateGetMe(args: ITRGetMeGroupedArgs): Promise<User> {

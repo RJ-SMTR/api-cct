@@ -11,7 +11,7 @@ import { asNumber, asString } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, FindManyOptions, UpdateResult } from 'typeorm';
+import { DeepPartial, FindManyOptions, QueryRunner, UpdateResult } from 'typeorm';
 
 @Injectable()
 export class TransacaoService {
@@ -173,9 +173,9 @@ export class TransacaoService {
   /**
    * Save Transacao if NSA not exists
    */
-  public async save(dto: TransacaoDTO): Promise<Transacao> {
+  public async save(dto: TransacaoDTO,queryRunner: QueryRunner): Promise<Transacao> {
     await validateDTO(TransacaoDTO, dto);
-    return await this.transacaoRepository.save(dto);
+    return await queryRunner.manager.getRepository(Transacao).save(dto);
   }
 
   public async getAll(): Promise<Transacao[]> {

@@ -12,7 +12,7 @@ import {
   CnabField,
   CnabFieldFormat,
 } from '../../interfaces/cnab-all/cnab-field.interface';
-import { CnabFieldType } from '../../types/cnab-field-type.type';
+import { CnabFieldType } from '../../types/cnab/cnab-field-type.type';
 import { getCnabFieldNameLog } from './cnab-metadata-utils';
 
 type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';

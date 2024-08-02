@@ -18,21 +18,25 @@ export class BigqueryTransacaoService {
    *
    * @param [daysBack=0] Pega a semana atual ou N dias atrás.
    */
-  public async getFromWeek(dataOrdemInicial,dataOrdemFinal,daysBack = 0): Promise<BigqueryTransacao[]> {
-    let startDate;
-    let endDate;
+  public async getFromWeek(
+    dataOrdemInicial: Date,
+    dataOrdemFinal: Date,
+    daysBack = 0,
+  ): Promise<BigqueryTransacao[]> {
+    let startDate: Date;
+    let endDate: Date;
     const today = new Date();
-    if(dataOrdemInicial != undefined && dataOrdemFinal !=undefined){
-      startDate = subDays(new Date(dataOrdemInicial),1);
-      endDate = subDays(new Date(dataOrdemFinal),1);
-    }else if((dataOrdemInicial != undefined) && dataOrdemFinal == undefined){
-      startDate = subDays(new Date(dataOrdemInicial),1);
-      endDate = subDays(new Date(dataOrdemInicial),1);
-    }else{
+    if (dataOrdemInicial != undefined && dataOrdemFinal != undefined) {
+      startDate = subDays(new Date(dataOrdemInicial), 1);
+      endDate = subDays(new Date(dataOrdemFinal), 1);
+    } else if (dataOrdemInicial != undefined && dataOrdemFinal == undefined) {
+      startDate = subDays(new Date(dataOrdemInicial), 1);
+      endDate = subDays(new Date(dataOrdemInicial), 1);
+    } else {
       const friday = isFriday(today) ? today : nextFriday(today);
-      startDate = subDays(friday,8 + daysBack);
-      endDate = subDays(friday,2);
-   }
+      startDate = subDays(friday, 8 + daysBack);
+      endDate = subDays(friday, 2);
+    }
     const transacao = (
       await this.bigqueryTransacaoRepository.findMany({
         startDate: startDate,
