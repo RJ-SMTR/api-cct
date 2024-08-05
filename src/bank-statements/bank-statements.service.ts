@@ -214,7 +214,7 @@ export class BankStatementsService {
       const paidAmount = Number(weekToPayAmount.toFixed(2));
       const ticketCount = revenuesWeek.reduce((s, i) => s + i.count, 0);
       const status = !errors.length
-        ? amount
+        ? (amount || paidAmount)
           ? isPago
             ? 'Pago'
             : 'A pagar'
