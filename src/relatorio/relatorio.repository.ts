@@ -15,6 +15,22 @@ export class RelatorioRepository {
     private readonly dataSource: DataSource,
   ) {}
 
+  private CONSOLIDADO_WITH = `
+  WITH cte_detalhe_a_ocorrencia AS (
+      SELECT
+          a.id,
+          a."valorRealEfetivado",
+          a."valorLancamento",
+          a."itemTransacaoAgrupadoId",
+          o.id AS ocorrencia_id,
+          o.code,
+          o.message,
+          ROW_NUMBER() OVER (PARTITION BY a.id ORDER BY o.id) AS distinct_detalhe_a
+      FROM detalhe_a a
+      LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+  )
+  `;
+
   public async findConsolidado(args: IFindPublicacaoRelatorio) {
     let union: string[] = [];
     if (args?.exibirConsorcios || args?.consorcioNome?.length) {
@@ -26,7 +42,8 @@ export class RelatorioRepository {
     if (union.length > 1) {
       union = union.map((select) => `(${select})`);
     }
-    const query = union.join(`\n    UNION ALL\n    `);
+    const qWith = union.length ? this.CONSOLIDADO_WITH : '';
+    const query = qWith + union.join(`\n    UNION ALL\n    `);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -53,15 +70,15 @@ export class RelatorioRepository {
       SELECT
           ${groupCol} AS nome
           ,count(p.id)::int AS "count"
-          ,round(sum(${valorCol}), 2)::float AS valor
-          ,round(sum(${valorPgtoCol}), 2)::float AS "valorRealEfetivado"
+          ,round(sum(CASE WHEN a.distinct_detalhe_a = 1 THEN ${valorCol} ELSE 0 END), 2)::float AS valor
+          ,round(sum(CASE WHEN a.distinct_detalhe_a = 1 THEN ${valorPgtoCol} ELSE 0 END), 2)::float AS "valorRealEfetivado"
           ,sum(CASE WHEN p."isPago" THEN 1 ELSE 0 END)::int AS "pagoCount"
-          ,sum(CASE WHEN (o."code" IS NOT NULL AND o."code" NOT IN ('00', 'BD')) THEN 1 ELSE 0 END)::int AS "erroCount"
-          ,sum(CASE WHEN (p."isPago" = FALSE AND o."code" IS NULL) THEN 1 ELSE 0 END)::int AS "aPagarCount"
+          ,sum(CASE WHEN (a."code" IS NOT NULL AND a."code" NOT IN ('00', 'BD')) THEN 1 ELSE 0 END)::int AS "erroCount"
+          ,sum(CASE WHEN (p."isPago" = FALSE AND a."code" IS NULL) THEN 1 ELSE 0 END)::int AS "aPagarCount"
           ,json_agg(json_build_object(
-              'ocorrencia', CASE WHEN o.id IS NOT NULL THEN json_build_object(
-                  'id', o.id,
-                  'code', o.code
+              'ocorrencia', CASE WHEN a.ocorrencia_id IS NOT NULL THEN json_build_object(
+                  'id', a.ocorrencia_id,
+                  'code', a.code
               ) ELSE NULL END,
               'valor', ${valorCol}::float
           )) AS ocorrencias
@@ -69,8 +86,7 @@ export class RelatorioRepository {
           arquivo_publicacao p
           INNER JOIN item_transacao i ON i.id = p."itemTransacaoId"
           INNER JOIN cliente_favorecido f ON f.id = i."clienteFavorecidoId"
-          INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
-          LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
+          INNER JOIN cte_detalhe_a_ocorrencia a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
       ${where.length ? `WHERE (${where.join(') AND (')})` : ``}
       GROUP BY ${groupCol}
       ${having.length ? `HAVING (${having.join(') AND (')})` : ``}
@@ -214,7 +230,7 @@ export class RelatorioRepository {
         }
       }
       if (orWhere.length) {
-        where.push(`(${orWhere.join(') OR (')})`)
+        where.push(`(${orWhere.join(') OR (')})`);
       }
     }
 
