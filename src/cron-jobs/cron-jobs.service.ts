@@ -96,7 +96,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   }
 
   async onModuleLoad() {
-   // await this.updateTransacaoView();
+    // await this.updateTransacaoView();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     // await this.saveTransacoesJae1(0, 'Todos', new Date());
     // await this.saveAndSendRemessa(
@@ -241,14 +241,14 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
    * Atualiza todos os itens do dia de ontem.
    */
   async updateTransacaoView() {
-    const METHOD = this.updateTransacaoView.name;
+    const METHOD = this.updateTransacaoView.name;    
     const startDate = subDays(startOfDay(new Date()), 3);
     const endDate = subDays(endOfDay(new Date()), 1);
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.updateTransacaoViewBigquery(startDate, endDate);
-      this.logger.log('TramsacaoViews atualizados com sucesso.', METHOD);
+      await this.cnabService.updateTransacaoViewBigquery(startDate,endDate,0,'STPL');
+      this.logger.log('TransacaoViews atualizados com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(
         `ERRO CRÍTICO - ${JSON.stringify(error)}`,

@@ -27,7 +27,7 @@ import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asNumber, asString } from 'src/utils/pipe-utils';
-import { Between, DataSource, DeepPartial, QueryRunner } from 'typeorm';
+import { Between, DataSource, DeepPartial, IsNull, Not, QueryRunner } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { CnabHeaderArquivo104 } from '../../interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
@@ -623,20 +623,19 @@ export class RemessaRetornoService {
         this.logger.debug(
           `Header Arquivo NSA: ` + cnab.headerArquivo.nsa.value,
         );
-        this.logger.debug(
-          `Header lote : ` + cnabLote.headerLote.codigoRegistro.value,
-        );
+       
+          this.logger.debug(`Header lote : ` + cnabLote.headerLote.codigoRegistro.value);
+       
+        
         // Save Detalhes
         detalheAUpdated = await this.detalheAService.saveRetornoFrom104(
-          cnab.headerArquivo,
-          cnabLote.headerLote,
-          registro,
-          dataEfetivacao,
-        );
+          cnab.headerArquivo, cnabLote.headerLote, registro, dataEfetivacao);
         if (!detalheAUpdated) {
           continue;
         }
-        this.logger.debug(`Detalhe A : ` + detalheAUpdated.id);
+        if(detalheAUpdated.numeroDocumentoEmpresa ==1341){
+          this.logger.debug(`Detalhe A Documento: ` + detalheAUpdated.numeroDocumentoEmpresa);        
+        }
         await this.detalheBService.saveFrom104(registro, detalheAUpdated);
         const queryRunner = this.dataSource.createQueryRunner();   
         await queryRunner.connect();   
@@ -675,7 +674,7 @@ export class RemessaRetornoService {
     //Atualiza publicação
     await this.savePublicacaoRetorno(detalheA,queryRunner);
     //Compara com a Transacao
-    await this.compareTransacaoViewPublicacao(detalheA,queryRunner);
+    // await this.compareTransacaoViewPublicacao(detalheA,queryRunner);
   }
 
   async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA,queryRunner:QueryRunner) {
@@ -723,9 +722,9 @@ export class RemessaRetornoService {
         detalheARetorno.headerLote.headerArquivo.dataGeracao;
       publicacao.horaGeracaoRetorno =
         detalheARetorno.headerLote.headerArquivo.horaGeracao;
-
-      return await this.arquivoPublicacaoService.save(publicacao,queryRunner);
+      await this.arquivoPublicacaoService.save(publicacao,queryRunner);
     }
+
   }
 
   async compareTransacaoViewPublicacao(detalheA: DetalheA,queryRunner:QueryRunner) {
@@ -738,13 +737,15 @@ export class RemessaRetornoService {
     for (const publicacao of publicacoes) {
       const transacoes = transacoesView.filter(
         (transacaoView) =>
-          transacaoView.itemTransacaoAgrupadoId === publicacao.itemTransacao.itemTransacaoAgrupado.id       
+          transacaoView.itemTransacaoAgrupadoId  === publicacao.itemTransacao.itemTransacaoAgrupado.id  
       );
-      const updateTransacoes = transacoes.map((i) => ({
-        ...i,
-        arquivoPublicacao: { id: publicacao.id },
-      }));
-      await this.transacaoViewService.saveMany(updateTransacoes,queryRunner);
+      if(transacoes.length>0){
+        const updateTransacoes = transacoes.map((i) => ({
+          ...i,
+          arquivoPublicacao: { id: publicacao.id },
+        }));
+        await this.transacaoViewService.saveMany(updateTransacoes,queryRunner);
+      }
     }
   }
 
@@ -764,7 +765,9 @@ export class RemessaRetornoService {
       endDate = endOfDay(subDays(friday, 2));
     }
     return await this.transacaoViewService.find(
-      { datetimeProcessamento: Between(startDate, endDate) },
+      { datetimeTransacao: Between(startDate, endDate),
+        itemTransacaoAgrupadoId: Not(IsNull())
+       },
       false
     );
   }

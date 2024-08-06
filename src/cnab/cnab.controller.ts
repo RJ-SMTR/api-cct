@@ -98,19 +98,13 @@ export class CnabController {
     @Query('nsaInicial') nsaInicial: number,
     @Query('nsaFinal') nsaFinal: number,
     @Query('dataCancelamento', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/)) dataCancelamento: string) {
-    let listCnab;
-    if(dt_pagamento !==null && dt_pagamento !==undefined){
       await this.cnabService.saveTransacoesJae(dataOrdemInicial,dataOrdemFinal,diasAnteriores,consorcio);
-      listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem,
-        new Date(dt_pagamento),isConference,isCancelamento,nsaInicial,nsaFinal,new Date(dataCancelamento)); 
-    }else{
-      await this.cnabService.saveTransacoesJae(dataOrdemInicial,dataOrdemFinal,diasAnteriores,consorcio);
-      listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem,
-        undefined,isConference,isCancelamento,nsaInicial,nsaFinal,new Date(dataCancelamento)); 
-    }      
-    await this.cnabService.sendRemessa(listCnab); 
-    return listCnab; 
-  }
+      const listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem,
+       (dt_pagamento !==null && dt_pagamento !==undefined)?new Date(dt_pagamento):
+       dt_pagamento,isConference,isCancelamento,nsaInicial,nsaFinal,new Date(dataCancelamento)); 
+      await this.cnabService.sendRemessa(listCnab); 
+      return listCnab; 
+    }
  
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
@@ -118,5 +112,19 @@ export class CnabController {
   @Get('updateRetorno')
   async updateRetorno(){
     return await this.cnabService.updateRetorno();   
+  }
+
+
+  @ApiQuery({name: 'dataOrdemInicial',description: 'Data da Ordem de Pagamento Inicial',
+    required: true, type: String })     
+  @ApiQuery({name: 'dataOrdemFinal',description: 'Data da Ordem de Pagamento Final',required: true, type: String})
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('sincronizeTransacaoViewOrdemPgto')
+  async sincronizeTransacaoViewOrdemPgto(
+    @Query('dataOrdemInicial') dataOrdemInicial: string,
+    @Query('dataOrdemFinal') dataOrdemFinal: string ){
+    return await this.cnabService.sincronizeTransacaoViewOrdemPgto(dataOrdemInicial,dataOrdemFinal);   
   }
 }

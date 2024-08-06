@@ -25,7 +25,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   };
   private RECURSIVE_MKDIR: string[] = [
     '/remessa',
-    '/retorno',
+    '/retorno',    
     '/backup/remessa',
     '/backup/retorno/failure',
     '/backup/retorno/success',
