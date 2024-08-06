@@ -37,6 +37,7 @@ import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-re
 import { TicketRevenuesRepositoryService as TicketRevenuesRepository } from './ticket-revenues-repository';
 import { TicketRevenuesGroups } from './types/ticket-revenues-groups.type';
 import * as TicketRevenuesGroupList from './utils/ticket-revenues-groups.utils';
+import { ItemTransacaoAgrupadoService } from 'src/cnab/service/pagamento/item-transacao-agrupado.service';
 
 @Injectable()
 export class TicketRevenuesService {
@@ -49,6 +50,7 @@ export class TicketRevenuesService {
     private readonly ticketRevenuesRepository: TicketRevenuesRepository,
     private readonly transacaoViewService: TransacaoViewService,
     private readonly arquivoPublicacaoService: ArquivoPublicacaoService,
+    // private readonly itemTransacaoAgrupadoService: ItemTransacaoAgrupadoService,
     private readonly detalheAService: DetalheAService,
   ) {}
 
@@ -146,13 +148,12 @@ export class TicketRevenuesService {
       });
     }
 
+    const itemAgrupadoIds = ticketRevenuesResponse.map(
+      (i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id || i.itemTransacaoAgrupadoId,
+    );
     const detalhesA = await this.detalheAService.findMany({
       itemTransacaoAgrupado: {
-        id: In(
-          ticketRevenuesResponse.map(
-            (i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
-          ),
-        ),
+        id: In(itemAgrupadoIds),
       },
     });
     let ticketRevenuesGroups = this.getTicketRevenuesGroups(
@@ -183,7 +184,6 @@ export class TicketRevenuesService {
         .toFixed(2),
     );
 
-    this.logger.debug('Remove today', METHOD);
     ticketRevenuesResponse = this.ticketRevenuesRepository.removeTodayData(
       ticketRevenuesResponse,
       endDate,
@@ -193,7 +193,6 @@ export class TicketRevenuesService {
       endDate,
     );
 
-    this.logger.debug('Sum', METHOD);
     const amountSum =
       this.ticketRevenuesRepository.getAmountSum(ticketRevenuesGroups);
 
@@ -310,7 +309,24 @@ export class TicketRevenuesService {
         return notSameDay && processamentoGTtransacao;
       });
     }
-    const publicacoes = await this.arquivoPublicacaoService.findMany({ where: { itemTransacao: { itemTransacaoAgrupado: { id: In(transacoes.map(t => t.itemTransacaoAgrupadoId)) } } } });
+    // const itemAgrupados = await this.itemTransacaoAgrupadoService.findMany({
+    //   where: {
+    //     itemTransacao: {
+    //       itemTransacaoAgrupado: {
+    //         id: In(transacoes.map((t) => t.itemTransacaoAgrupadoId)),
+    //       },
+    //     },
+    //   },
+    // });
+    const publicacoes = await this.arquivoPublicacaoService.findMany({
+      where: {
+        itemTransacao: {
+          itemTransacaoAgrupado: {
+            id: In(transacoes.map((t) => t.itemTransacaoAgrupadoId)),
+          },
+        },
+      },
+    });
 
     const revenues = transacoes.map((i) => i.toTicketRevenue(publicacoes));
     return revenues;
@@ -363,11 +379,7 @@ export class TicketRevenuesService {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
         const itemDate = new Date(item.processingDateTime);
         const nthWeek = getNthWeek(itemDate, startWeekday);
-        const foundDetalhesA = detalhesA.filter(
-          (i) =>
-            i.itemTransacaoAgrupado.id ===
-            item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
-        );
+        const foundDetalhesA = detalhesA.filter((i) => i.itemTransacaoAgrupado.id === (item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id || item.itemTransacaoAgrupadoId));
         const errors = DetalheA.getOcorrenciaErrors(foundDetalhesA);
 
         // 'day', default,
