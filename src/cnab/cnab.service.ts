@@ -466,13 +466,8 @@ export class CnabService {
     await this.itemTransacaoService.saveMany(itemTransacaoDTOs);
   }
 
-<<<<<<< HEAD
   private async updateAllFavorecidosFromUsers() {
     const allUsers = await this.usersService.findManyRegisteredUsers();  
-=======
-  public async updateAllFavorecidosFromUsers() {
-    const allUsers = await this.usersService.findManyRegisteredUsers();
->>>>>>> e04a71f2c0321960ec3f8c55b7145f8f48b9dd11
     await this.clienteFavorecidoService.updateAllFromUsers(allUsers);
   }
 
