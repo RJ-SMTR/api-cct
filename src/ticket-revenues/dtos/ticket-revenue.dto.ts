@@ -14,7 +14,7 @@ export class TicketRevenueDTO {
   constructor(dto?: TicketRevenueDTO) {
     if (dto) {
       Object.assign(this, dto);
-      this.isPago = Boolean(this.arquivoPublicacao?.isPago);
+      this.isPago = Boolean(this.arquivoPublicacao?.isPago || this.isPago);
     }
   }
 
