@@ -159,7 +159,11 @@ export class CnabService {
     } else if (consorcio == 'Empresa') {
       trs = transacoesBq.filter((tr) => tr.consorcio !== 'STPC' && tr.consorcio !== 'STPL');
     } else if (consorcio != 'Todos' && consorcio != 'Empresa') {
-      trs = transacoesBq.filter((tr) => tr.consorcio == consorcio);
+      if(consorcio === 'Van'){
+        trs = transacoesBq.filter((tr) => tr.modo == consorcio);
+      }else{
+        trs = transacoesBq.filter((tr) => tr.consorcio == consorcio);
+      }
     }
     return trs;
   }

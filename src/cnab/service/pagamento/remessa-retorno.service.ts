@@ -624,24 +624,23 @@ export class RemessaRetornoService {
           `Header Arquivo NSA: ` + cnab.headerArquivo.nsa.value,
         );
        
-          this.logger.debug(`Header lote : ` + cnabLote.headerLote.codigoRegistro.value);
-       
+        this.logger.debug(`Header lote : ` + cnabLote.headerLote.codigoRegistro.value);       
         
         // Save Detalhes
         detalheAUpdated = await this.detalheAService.saveRetornoFrom104(
           cnab.headerArquivo, cnabLote.headerLote, registro, dataEfetivacao);
         if (!detalheAUpdated) {
           continue;
-        }
-        if(detalheAUpdated.numeroDocumentoEmpresa ==1341){
-          this.logger.debug(`Detalhe A Documento: ` + detalheAUpdated.numeroDocumentoEmpresa);        
-        }
+        }       
+        this.logger.debug(`Detalhe A Documento: ` + detalheAUpdated.numeroDocumentoEmpresa);        
+        
         await this.detalheBService.saveFrom104(registro, detalheAUpdated);
         const queryRunner = this.dataSource.createQueryRunner();   
         await queryRunner.connect();   
         try{
            await queryRunner.startTransaction();
            await this.compareRemessaToRetorno(detalheAUpdated,queryRunner);
+           await queryRunner.commitTransaction();
         }catch (error) {
             await queryRunner.rollbackTransaction();
             this.logger.error(
