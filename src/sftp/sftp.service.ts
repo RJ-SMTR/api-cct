@@ -17,7 +17,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   private rootFolder = '';
   private readonly FOLDERS = {
     REMESSA: '/remessa',
-    RETORNO: '/retorno',
+    RETORNO: '/backup/retorno/pendente',
     BACKUP: '/backup',
     BACKUP_REMESSA: '/backup/remessa',
     BACKUP_RETORNO_FAILURE: '/backup/retorno/failure',
@@ -25,7 +25,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   };
   private RECURSIVE_MKDIR: string[] = [
     '/remessa',
-    '/retorno',
+    '/retorno',    
     '/backup/remessa',
     '/backup/retorno/failure',
     '/backup/retorno/success',

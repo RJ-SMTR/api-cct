@@ -84,7 +84,7 @@ export class TransacaoViewService {
     ) {
     this.logger.log(
       `Inserindo ${transacoes.length} ` +
-        `TransacaoVies, há ${existings.length} existentes...`,
+        `TransacaoViews, há ${existings.length} existentes...`,
     );  
       let transacoesIndex = 1;
       let maxId = await this.transacaoViewRepository.getMaxId();
@@ -97,7 +97,7 @@ export class TransacaoViewService {
             `Inserindo novo item - ${transacoesIndex}/${transacoes.length}`,
           );
           transacao.id = ++maxId;
-          await queryRunner.manager.save(TransacaoView, transacao);
+          await queryRunner.manager.getRepository(TransacaoView).save(transacao);
         }
         transacoesIndex++;
       }
