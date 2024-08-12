@@ -4,7 +4,7 @@ import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, FindOneOptions, ILike } from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOneOptions, ILike } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
@@ -170,6 +170,12 @@ export class DetalheAService {
     fields: EntityCondition<DetalheA>,
   ): Promise<DetalheA[]> {
     return await this.detalheARepository.findMany({ where: fields });
+  }
+
+  public async findManyRaw(
+    options: FindManyOptions<DetalheA>,
+  ): Promise<DetalheA[]> {
+    return await this.detalheARepository.findMany(options);
   }
 
   /**

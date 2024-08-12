@@ -1,4 +1,4 @@
-export function getStringUpperUnaccent(str: string): string {
+export function parseStringUpperUnaccent(str: string): string {
   return str
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -6,9 +6,7 @@ export function getStringUpperUnaccent(str: string): string {
 }
 
 export function getStringReplaceAccent(str: string) {
-  return str
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 export function getStringNoSpecials(str: string) {
@@ -22,6 +20,6 @@ export function getStringNoSpecials(str: string) {
  * - Has no specials (e.g "?", "!" etc).
  */
 export function isStringBasicAlnumUpper(original: string) {
-  const expected = getStringUpperUnaccent(getStringNoSpecials(original));
+  const expected = parseStringUpperUnaccent(getStringNoSpecials(original));
   return original === expected;
 }

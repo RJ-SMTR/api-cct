@@ -190,6 +190,7 @@ export class CnabService {
    */
   async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[], consorcio = 'Todos') {
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
+
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
       if (!cpfCnpj) {
@@ -267,7 +268,7 @@ export class CnabService {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Falha ao salvar Informções agrupadas`,error?.stack);
     }finally{
-      await queryRunner.release();      
+      await queryRunner.release();     
     }
   }
 
@@ -334,6 +335,7 @@ export class CnabService {
     const transacaoAg = this.convertTransacaoAgrupadoDTO(ordem, pagador);
     return await this.transacaoAgService.save(transacaoAg);
   }
+
 
   private async saveItemTransacaoAgrupado(
     ordem: BigqueryOrdemPagamentoDTO,
