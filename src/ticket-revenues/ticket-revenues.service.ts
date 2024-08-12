@@ -148,9 +148,7 @@ export class TicketRevenuesService {
       });
     }
 
-    const itemAgrupadoIds = ticketRevenuesResponse.map(
-      (i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id || i.itemTransacaoAgrupadoId,
-    );
+    const itemAgrupadoIds = ticketRevenuesResponse.map((i) => i.itemTransacaoAgrupadoId);
     const detalhesA = await this.detalheAService.findMany({
       itemTransacaoAgrupado: {
         id: In(itemAgrupadoIds),
@@ -379,7 +377,7 @@ export class TicketRevenuesService {
         const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
         const itemDate = new Date(item.processingDateTime);
         const nthWeek = getNthWeek(itemDate, startWeekday);
-        const foundDetalhesA = detalhesA.filter((i) => i.itemTransacaoAgrupado.id === (item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id || item.itemTransacaoAgrupadoId));
+        const foundDetalhesA = detalhesA.filter((i) => i.itemTransacaoAgrupado.id == item.itemTransacaoAgrupadoId);
         const errors = DetalheA.getOcorrenciaErrors(foundDetalhesA);
 
         // 'day', default,
