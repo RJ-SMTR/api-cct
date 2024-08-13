@@ -20,7 +20,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: false, type: String, example: '2024-07-15' })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: false, type: String, example: '2024-07-16' })
   @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome parcial dos favorecidos, sem distinção de acento ou maiúsculas.', required: false, type: String, example: 'internorte,intersul,jose carlos' })
-  @ApiQuery({ name: 'favorecidoCpfCnpj', description: 'Pesquisa o cpf/cnpj dos favorecidos', required: false, type: String, example: '11111,22222,33333' })
+  @ApiQuery({ name: 'favorecidoCpfCnpj', description: 'Pesquisa o cpf/cnpj dos favorecidos.', required: false, type: String, example: '11111,22222,33333' })
   @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String, example: 'Santa Cruz,STPL,Internorte,STPC,MobiRio,Transcarioca,Intersul,VLT' })
   @ApiQuery({ name: 'exibirConsorcios', required: false, type: Boolean, example: true })
   @ApiQuery({ name: 'exibirFavorecidos', required: false, type: Boolean, example: true })
