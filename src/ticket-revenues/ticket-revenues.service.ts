@@ -259,12 +259,10 @@ export class TicketRevenuesService {
       : {};
     const where: FindOptionsWhere<TransacaoView>[] = [
       {
-        valorPago: MoreThan(0),
         ...betweenDate,
         ...findOperadora,
       },
       {
-        valorPago: MoreThan(0),
         ...betweenDate,
         ...findConsorcio,
       },
@@ -275,12 +273,10 @@ export class TicketRevenuesService {
         [datetimeField]: Between(startOfDay(today), endOfDay(today)),
       };
       where.push({
-        valorPago: MoreThan(0),
         ...isTodayDate,
         ...findOperadora,
       });
       where.push({
-        valorPago: MoreThan(0),
         ...isTodayDate,
         ...findConsorcio,
       });
