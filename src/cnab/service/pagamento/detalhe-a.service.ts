@@ -74,36 +74,25 @@ export class DetalheAService {
           r.detalheA.numeroDocumentoEmpresa.convertedValue,
         valorLancamento: r.detalheA.valorLancamento.convertedValue,
       });
-      if (
-        detalheARem.ocorrenciasCnab === undefined ||
-        detalheARem.ocorrenciasCnab === '' ||
-        (detalheARem.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim() &&
-          detalheARem.ocorrenciasCnab !== '00' &&
-          detalheARem.ocorrenciasCnab !== 'BD')
-      ) {
+      if (detalheARem.ocorrenciasCnab === undefined ||
+          detalheARem.ocorrenciasCnab === '' ||        
+          detalheARem.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim()){
         const detalheA = new DetalheADTO({
-          id: detalheARem.id,
-          // headerLote: { id: detalheARem.headerLote.id },
+          id: detalheARem.id,        
           loteServico: Number(r.detalheA.loteServico.value),
           finalidadeDOC: r.detalheA.finalidadeDOC.value,
-          numeroDocumentoEmpresa: Number(
-            r.detalheA.numeroDocumentoEmpresa.value,
-          ),
+          numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
           dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
           dataEfetivacao: dataEfetivacao,
           tipoMoeda: r.detalheA.tipoMoeda.value,
           quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
           valorLancamento: r.detalheA.valorLancamento.convertedValue,
-          numeroDocumentoBanco: String(
-            r.detalheA.numeroDocumentoBanco.convertedValue,
-          ),
+          numeroDocumentoBanco: String(r.detalheA.numeroDocumentoBanco.convertedValue),
           quantidadeParcelas: Number(r.detalheA.quantidadeParcelas.value),
           indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
           indicadorFormaParcelamento:
             r.detalheA.indicadorFormaParcelamento.stringValue,
-          periodoVencimento: startOfDay(
-            r.detalheA.dataVencimento.convertedValue,
-          ),
+          periodoVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
           numeroParcela: r.detalheA.numeroParcela.convertedValue,
           valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
           nsr: Number(r.detalheA.nsr.value),
