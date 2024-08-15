@@ -326,8 +326,6 @@ export class CnabService {
     }   
   } 
 
-
-
   private async saveTransacaoAgrupado(
     ordem: BigqueryOrdemPagamentoDTO,
     pagador: Pagador,

@@ -105,7 +105,7 @@ export class CnabController {
       await this.cnabService.sendRemessa(listCnab); 
       return listCnab; 
     } 
-  
+ 
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))

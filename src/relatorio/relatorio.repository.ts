@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
-import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
-import { endOfDay, startOfDay } from 'date-fns';
-import { getDateYMDString as toDateString } from 'src/utils/date-utils';
+import { addDays, eachDayOfInterval, endOfDay, isFriday, isThursday, isWednesday, nextFriday, startOfDay } from 'date-fns';
+import { getDateYMDString, getDateYMDString as toDateString } from 'src/utils/date-utils';
 import { parseStringUpperUnaccent } from 'src/utils/string-utils';
-import { RelatorioDto } from './dtos/relatorio.dto';
+import { DataSource } from 'typeorm';
 import { RelatorioConsolidadoDto } from './dtos/relatorio-consolidado.dto';
+import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
 
 @Injectable()
 export class RelatorioRepository {
@@ -15,7 +14,52 @@ export class RelatorioRepository {
     private readonly dataSource: DataSource,
   ) {}
 
-  public async findConsolidado(args: IFindPublicacaoRelatorio) {
+  private CONSOLIDADO_WITH = `
+    WITH
+    cte_detalhe_a AS (
+        SELECT 
+            da.*,
+            CASE
+                WHEN da."ocorrenciasCnab" IS NULL OR da."ocorrenciasCnab" = '' THEN ARRAY[]::TEXT[]
+                ELSE array_agg(SUBSTRING(da."ocorrenciasCnab" FROM i FOR 2))
+            END AS ocorrencias_cnab_list
+        FROM detalhe_a da
+        LEFT JOIN generate_series(1, length(COALESCE(da."ocorrenciasCnab", '')), 2) AS s(i) ON (da."ocorrenciasCnab" IS NOT NULL AND da."ocorrenciasCnab" <> '')
+        GROUP BY da.id
+    ),
+    cte_desagrupado AS (
+        SELECT
+            ita.id AS id,
+            ROW_NUMBER() OVER (PARTITION BY ita.id ORDER BY it.id) AS row_num,
+            ita."nomeConsorcio" AS consorcio,
+            ita."idOperadora" AS id_operadora,
+            ita."idConsorcio" AS id_consorcio,
+            cf.nome AS favorecido,
+            cf."cpfCnpj" AS favorecido_cpfcnpj,
+            DATE(ita."dataCaptura") AS data_agrupado,
+            it."dataCaptura" AS data_item,
+            DATE(da."dataVencimento") AS data_vencimento,
+            it.valor AS valor_item,
+            it.valor AS valor_efetivado_item,
+            da."valorLancamento" AS valor_agrupado,
+            da."valorRealEfetivado" AS valor_efetivado_agrupado,
+            ('00' = ANY(da.ocorrencias_cnab_list) OR 'BD' = ANY(da.ocorrencias_cnab_list)) AS is_pago,
+            da."dataEfetivacao" IS NOT NULL AND '00' != ANY(da.ocorrencias_cnab_list) AND 'BD' != ANY(da.ocorrencias_cnab_list) AS is_erro,
+            da."dataEfetivacao" IS NULL AS is_a_pagar,
+            da.ocorrencias_cnab_list AS ocorrencias_cnab_list,
+            da."ocorrenciasCnab" AS ocorrencias_cnab
+        FROM
+            cte_detalhe_a da
+            INNER JOIN item_transacao_agrupado ita ON ita.id = da."itemTransacaoAgrupadoId"
+            INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
+            INNER JOIN cliente_favorecido cf ON cf.id = it."clienteFavorecidoId"
+        -- GROUP BY ita.id
+        ORDER BY
+            ita.id desc, cf.nome, ita."nomeConsorcio"
+    )
+  `;
+
+  public async findConsolidado(args: IFindPublicacaoRelatorio): Promise<RelatorioConsolidadoDto[]> {
     let union: string[] = [];
     if (args?.exibirConsorcios || args?.consorcioNome?.length) {
       union.push(this.getConsolidadoQuery(args, 'consorcio'));
@@ -26,7 +70,8 @@ export class RelatorioRepository {
     if (union.length > 1) {
       union = union.map((select) => `(${select})`);
     }
-    const query = union.join(`\n    UNION ALL\n    `);
+    const qWith = union.length ? this.CONSOLIDADO_WITH : '';
+    const query = qWith + union.join(`\n    UNION ALL\n    `);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -37,163 +82,115 @@ export class RelatorioRepository {
   }
 
   getConsolidadoQuery(args: IFindPublicacaoRelatorio, groupBy: 'consorcio' | 'favorecido') {
-    const _args = structuredClone(args);
-    if (groupBy === 'consorcio') {
-      _args.favorecidoCpfCnpj = undefined;
-      _args.favorecidoNome = undefined;
-    } else {
-      _args.consorcioNome = undefined;
-    }
-    const { where, having } = this.getWhere(_args);
-    const d = 2;
-    const groupCol = groupBy == 'consorcio' ? 'i."nomeConsorcio"' : 'f.nome';
-    const valorCol = groupBy == 'consorcio' ? 'i.valor' : 'round(i.valor, 2)';
-    const valorPgtoCol = groupBy == 'consorcio' ? 'p."valorRealEfetivado"' : 'round(p."valorRealEfetivado", 2)';
+    const { where, having, whereArgs } = this.getConsolidadoWhere(args, groupBy);
+    const groupCol = `d.${groupBy}`;
     const query = `
-      SELECT
-          ${groupCol} AS nome
-          ,count(p.id)::int AS "count"
-          ,round(sum(${valorCol}), 2)::float AS valor
-          ,round(sum(${valorPgtoCol}), 2)::float AS "valorRealEfetivado"
-          ,sum(CASE WHEN p."isPago" THEN 1 ELSE 0 END)::int AS "pagoCount"
-          ,sum(CASE WHEN (o."code" IS NOT NULL AND o."code" NOT IN ('00', 'BD')) THEN 1 ELSE 0 END)::int AS "erroCount"
-          ,sum(CASE WHEN (p."isPago" = FALSE AND o."code" IS NULL) THEN 1 ELSE 0 END)::int AS "aPagarCount"
-          ,json_agg(json_build_object(
-              'ocorrencia', CASE WHEN o.id IS NOT NULL THEN json_build_object(
-                  'id', o.id,
-                  'code', o.code
-              ) ELSE NULL END,
-              'valor', ${valorCol}::float
-          )) AS ocorrencias
-      FROM
-          arquivo_publicacao p
-          INNER JOIN item_transacao i ON i.id = p."itemTransacaoId"
-          INNER JOIN cliente_favorecido f ON f.id = i."clienteFavorecidoId"
-          INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
-          LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
-      ${where.length ? `WHERE (${where.join(') AND (')})` : ``}
-      GROUP BY ${groupCol}
-      ${having.length ? `HAVING (${having.join(') AND (')})` : ``}
-      ORDER BY ${groupCol}
+    SELECT
+        ${groupCol} AS nome,
+        SUM(CASE WHEN d.row_num = 1 THEN ${whereArgs.valorCol} ELSE 0 END)::FLOAT AS valor,
+        SUM(CASE WHEN d.row_num = 1 THEN 1 ELSE 0 END) AS "agrupadoCount",
+        COUNT(d.id) AS "itemCount"
+    FROM cte_desagrupado d
+    ${where.length ? `WHERE (${where.join(') AND (')})` : ``}
+    GROUP BY ${groupCol}
+    ${having.length ? `HAVING (${having.join(') AND (')})` : ``}
+    ORDER BY UPPER(${groupCol})
     `;
     // .replace(/\n\s+/g, ' ')
     return query;
   }
 
   /**
-   * A partir dos dados primordiais (Publicacao e outros), transforma em Relatorios
+   * Regras de negócio:
    *
-   * @param publicacoes ArquivoPublicacoes encontrados
-   * @param detalhesA Todos os DetalhesA associados aos ArquivoPublicacoes
-   * @param ocorrencias Todas as Ocorrencias associadas aos DetalhesA
+   * - Ao selecionar uma semana completa, incluir os itens de pagamentos pendentes; e o VLT deve ser de seg-sex.
+   * - Ao selecionar um intervalo irregular, selecionar apenas os itens daquele intervalo; e o VLT seleciona o intervalo selecionado.
+   * - O VLT busca pela data_vencimento
+   * - Os demais, ao buscar por intervalo irregular, filtrar pela data_item; caso contrário, data_agrupado
    */
-  public async findDetalhado(args: IFindPublicacaoRelatorio) {
-    const { where, having } = this.getWhere(args);
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    let result = await queryRunner.query(
-      `
-      SELECT
-          p.id
-          ,p."valorRealEfetivado"
-          ,sum(CASE WHEN p."isPago" THEN 1 ELSE 0 END) AS "pagoCount"
-          ,sum(CASE WHEN (o."code" NOT IN ('00', 'BD')) THEN 1 ELSE 0 END) AS "erroCount"
-          ,p."dataGeracaoRetorno"
-          ,i.id AS "itemTransacaoId"
-          ,i.valor
-          ,i."dataOrdem"
-          ,i."createdAt" AS "dataCriacaoOrdem"
-          ,CASE WHEN COUNT(o.id) > 0 THEN json_agg(json_build_object(
-              'ocorrencia', json_build_object(
-                  'id', o.id,
-                  'code', o.code,
-                  'message', o.message,
-                  'detalheA', json_build_object(
-                      'id', o."detalheAId",
-                      'itemTransacaoAgrupado', i."itemTransacaoAgrupadoId"
-                  )
-              ),
-              'valor', i.valor,
-              'count', 1,
-              '_arquivoPublicacaoId', p.id 
-          )) ELSE '[]' END AS ocorrencias
-          ,i."itemTransacaoAgrupadoId"
-          ,i."nomeConsorcio"
-          ,f.id AS "clienteFavorecidoId"
-          ,f.nome AS "nomeFavorecido"
-          ,f."cpfCnpj"
-      FROM
-          arquivo_publicacao p
-          INNER JOIN item_transacao i ON i.id = p."itemTransacaoId"
-          INNER JOIN cliente_favorecido f ON f.id = i."clienteFavorecidoId"
-          INNER JOIN detalhe_a a ON a."itemTransacaoAgrupadoId" = i."itemTransacaoAgrupadoId"
-          LEFT JOIN ocorrencia o ON o."detalheAId" = a.id
-      ${where.length ? `WHERE (${where.join(') AND (')})` : ``}
-      GROUP BY p.id, f.id, a.id, i.valor, i."dataOrdem", i."createdAt", i.id
-      ${having.length ? `WHERE ${having.join(' AND ')}` : ``}
-    `,
-      // .replace(/\n\s+/g, ' ')
-    );
-    queryRunner.release();
-    result = result.map((r) => new RelatorioDto(r));
-    return result;
-  }
-
-  private getWhere(args: IFindPublicacaoRelatorio) {
+  private getConsolidadoWhere(args: IFindPublicacaoRelatorio, groupBy: 'consorcio' | 'favorecido') {
     const where: string[] = [];
     const having: string[] = [];
-    const d = 2;
+    const caseVlt = (_then: any, _else: any) => `(CASE WHEN d.consorcio = 'VLT' THEN ${_then} ELSE ${_else} END)`;
 
-    const dataOrdem = {
-      inicio: toDateString(args?.dataInicio || startOfDay(new Date(0))),
-      fim: toDateString(args?.dataFim || endOfDay(new Date())),
+    const dataCaptura = {
+      inicio: toDateString(args?.dataInicio || new Date(0)),
+      fim: toDateString(args?.dataFim || new Date()),
     };
-    where.push(`i."dataOrdem" BETWEEN '${dataOrdem.inicio}' AND '${dataOrdem.fim}'`);
+    const dataOrdem = {
+      inicio: toDateString(nextFriday(new Date(dataCaptura.inicio))),
+      fim: toDateString(nextFriday(new Date(dataCaptura.fim))),
+    };
 
-    const valorReal = { min: args?.valorRealEfetivadoMin, max: args?.valorRealEfetivadoMax };
-    if (valorReal?.min !== undefined && valorReal.max === undefined) {
-      having.push(`sum(round(p."valorRealEfetivado", ${d})) >= ${valorReal.min}`);
-    } else if (valorReal?.min === undefined && valorReal.max !== undefined) {
-      having.push(`sum(round(p."valorRealEfetivado", ${d})) <= ${valorReal.max}`);
-    } else if (valorReal?.min !== undefined && valorReal.max !== undefined) {
-      having.push(`sum(round(p."valorRealEfetivado", ${d})) BETWEEN ${valorReal.min} AND ${valorReal.max}`);
+    const isSexQui = isFriday(new Date(dataCaptura.inicio)) && isThursday(new Date(dataCaptura.fim));
+    const dayDateCol = isSexQui ? 'd.data_agrupado' : 'd.data_item';
+    const valorCol = isSexQui ? 'd.valor_agrupado' : caseVlt('d.valor_agrupado', 'd.valor_item');
+    const valorPgtoCol = isSexQui ? 'd.valor_efetivado_agrupado' : 'd.valor_efetivado_item';
+    const filtrarPendentes = args.filtrarPendentes;
+
+    const dataVLT = isSexQui
+      ? {
+          inicio: toDateString(addDays(new Date(dataCaptura.inicio), 3)),
+          fim: toDateString(addDays(new Date(dataCaptura.fim), 1)),
+        }
+      : dataCaptura;
+
+    where.push(
+      caseVlt(
+        `d.data_vencimento BETWEEN '${dataVLT.inicio}' AND '${dataVLT.fim}'`, // VLT
+        `d.data_vencimento BETWEEN '${dataOrdem.inicio}' AND '${dataOrdem.fim}'${filtrarPendentes ? ` AND ${dayDateCol} BETWEEN '${dataCaptura.inicio}' AND '${dataCaptura.fim}'` : ''}`, // Outros
+      ),
+    );
+
+    const valorEfetivado = { min: args?.valorRealEfetivadoMin, max: args?.valorRealEfetivadoMax };
+    if (valorEfetivado?.min !== undefined && valorEfetivado.max === undefined) {
+      having.push(`SUM(${valorPgtoCol}) >= ${valorEfetivado.min}`);
+    } else if (valorEfetivado?.min === undefined && valorEfetivado.max !== undefined) {
+      having.push(`SUM(${valorPgtoCol}) <= ${valorEfetivado.max}`);
+    } else if (valorEfetivado?.min !== undefined && valorEfetivado.max !== undefined) {
+      having.push(`SUM(${valorPgtoCol}) BETWEEN ${valorEfetivado.min} AND ${valorEfetivado.max}`);
     }
 
     const valor = { min: args?.valorMin, max: args?.valorMax };
     if (valor?.min !== undefined && valor.max === undefined) {
-      having.push(`sum(round(i."valor", ${d})) >= ${valor.min}`);
+      having.push(`SUM(${valorCol}) >= ${valor.min}`);
     } else if (valor?.min === undefined && valor.max !== undefined) {
-      having.push(`sum(round(i."valor", ${d})) <= ${valor.max}`);
+      having.push(`SUM(${valorCol}) <= ${valor.max}`);
     } else if (valor?.min !== undefined && valor.max !== undefined) {
-      having.push(`sum(round(i."valor", ${d})) BETWEEN ${valor.min} AND ${valor.max}`);
+      having.push(`SUM(${valorCol}) BETWEEN ${valor.min} AND ${valor.max}`);
     }
 
     if (args?.ocorrenciaCodigo) {
-      where.push(`o.code IN ('${args?.ocorrenciaCodigo.join("','")}')`);
+      where.push(`d.ocorrencias_cnab && ARRAY['${args?.ocorrenciaCodigo.join("','")}']`);
     }
 
     const favorecidoNomes = (args?.favorecidoNome || []).map((n) => parseStringUpperUnaccent(n));
     if (favorecidoNomes.length) {
-      const nomesOr = favorecidoNomes.map((n) => `UNACCENT(UPPER(f.nome)) ILIKE'%${n}%'`).join(' OR ');
-      where.push(`(${nomesOr})`);
+      const includeOrNot = groupBy == 'consorcio' ? 'NOT ILIKE' : 'ILIKE';
+      where.push(`UNACCENT(UPPER(d.favorecido)) ${includeOrNot} ANY(ARRAY['%${favorecidoNomes.join("%','%")}%'])`);
     }
 
     const cpfCnpjs = args?.favorecidoCpfCnpj || [];
     if (cpfCnpjs.length) {
-      where.push(`f."cpfCnpj" IN ('${cpfCnpjs.join("','")}')`);
+      const includeOrNot = groupBy == 'consorcio' ? 'NOT IN' : 'IN';
+      where.push(`d.favorecido_cpfcnpj ${includeOrNot} ('${cpfCnpjs.join("','")}')`);
     }
 
     const consorcioNomes = (args?.consorcioNome || []).map((n) => parseStringUpperUnaccent(n));
-    if (consorcioNomes.length) {
-      const nomesOr = consorcioNomes.map((n) => `UNACCENT(UPPER(i."nomeConsorcio")) ILIKE'%${n}%'`).join(' OR ');
-      where.push(`(${nomesOr})`);
+    if (consorcioNomes.length && groupBy == 'consorcio') {
+      let nomes = [...consorcioNomes];
+      if (favorecidoNomes.length || cpfCnpjs.length) {
+        nomes.push('STPC', 'STPL');
+      }
+      nomes = [...new Set(nomes)];
+      where.push(`UNACCENT(UPPER(d.consorcio)) ILIKE ANY(ARRAY['%${nomes.join("%','%")}%'])`);
     }
 
     if (args?.pago !== undefined || args?.erro !== undefined || args?.aPagar !== undefined) {
-      const qIsErro = `(o.code IS NOT NULL AND o.code NOT IN ('BD','00'))`;
-      const qNotErro = `(o.code IS NULL OR o.code IN ('BD','00'))`;
-      const qIsPago = `p."isPago" = TRUE`;
-      const qNotPago = `p."isPago" = FALSE`;
+      const qIsErro = `d.is_erro`;
+      const qNotErro = `NOT d.is_erro`;
+      const qIsPago = `d.is_pago`;
+      const qNotPago = `NOT d.is_pago`;
       const orWhere: string[] = [];
 
       if (args?.pago !== undefined) {
@@ -214,10 +211,14 @@ export class RelatorioRepository {
         }
       }
       if (orWhere.length) {
-        where.push(`(${orWhere.join(') OR (')})`)
+        where.push(`(${orWhere.join(') OR (')})`);
       }
     }
 
-    return { where, having };
+    if (groupBy == 'favorecido') {
+      where.push(`d.consorcio IN ('STPC','STPL')`);
+    }
+
+    return { where, having, whereArgs: { valorCol } };
   }
 }

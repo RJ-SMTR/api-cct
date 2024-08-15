@@ -20,7 +20,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: false, type: String, example: '2024-07-15' })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: false, type: String, example: '2024-07-16' })
   @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome parcial dos favorecidos, sem distinção de acento ou maiúsculas.', required: false, type: String, example: 'internorte,intersul,jose carlos' })
-  @ApiQuery({ name: 'favorecidoCpfCnpj', description: 'Pesquisa o cpf/cnpj dos favorecidos', required: false, type: String, example: '11111,22222,33333' })
+  @ApiQuery({ name: 'favorecidoCpfCnpj', description: 'Pesquisa o cpf/cnpj dos favorecidos.', required: false, type: String, example: '11111,22222,33333' })
   @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String, example: 'Santa Cruz,STPL,Internorte,STPC,MobiRio,Transcarioca,Intersul,VLT' })
   @ApiQuery({ name: 'exibirConsorcios', required: false, type: Boolean, example: true })
   @ApiQuery({ name: 'exibirFavorecidos', required: false, type: Boolean, example: true })
@@ -33,6 +33,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
   @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se ainda não foi feita a tentativa de pagamento.', default: false }) })
   @ApiQuery({ name: 'decimais', required: false, type: Number, description: ApiDescription({ _: 'Número de casas decimais exibidos e a serem pesquisados.', default: 2, min: 0, max: 4 }) })
+  @ApiQuery({ name: 'filtrarPendentes', required: false, type: Boolean, description: ApiDescription({ _: '(debug) Se pagamentos fora da semana de pagamento devem ser filtrados pela data início/fim.', default: false }) })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -68,6 +69,8 @@ export class RelatorioController {
     pago: boolean | undefined,
     @Query('aPagar', new ParseBooleanPipe({ optional: true }))
     aPagar: boolean | undefined,
+    @Query('filtrarPendentes', new ParseBooleanPipe({ defaultValue: false }))
+    filtrarPendentes: boolean,
   ) {
     return await this.relatorioService.findConsolidado({
       dataInicio,
@@ -85,6 +88,7 @@ export class RelatorioController {
       aPagar,
       exibirConsorcios,
       exibirFavorecidos,
+      filtrarPendentes,
     });
   }
 }

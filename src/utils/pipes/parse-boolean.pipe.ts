@@ -21,7 +21,7 @@ export class ParseBooleanPipe implements PipeTransform {
     const defaultValue = this?.args?.defaultValue;
     const field = metadata.data;
 
-    const booleanValue = value == 'true';
+    const booleanValue = value == 'true' || value == true;
 
     if (value === undefined || field === undefined) {
       if (this.args?.optional) {

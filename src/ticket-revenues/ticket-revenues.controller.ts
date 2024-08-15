@@ -1,23 +1,7 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Query,
-  Request,
-  SerializeOptions,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Query, Request, SerializeOptions, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import {
-  endOfMonth,
-  isFriday,
-  nextFriday,
-  previousFriday,
-  startOfMonth,
-  subDays,
-} from 'date-fns';
+import { endOfMonth, isFriday, nextFriday, previousFriday, startOfMonth, subDays } from 'date-fns';
 import { DateApiParams } from 'src/utils/api-param/date-api-param';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
@@ -91,8 +75,8 @@ export class TicketRevenuesController {
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
     @Query('timeInterval') timeInterval: TimeIntervalEnum,
-    @Query(...DateQueryParams.endDate) endDate?: string,
-    @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query('endDate', new ParseDatePipe()) endDate?: string,
+    @Query('startDate', new ParseDatePipe({ optional: true })) startDate?: string,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
     userId?: number | null,
   ): Promise<TRGetMeGroupedResponseDto> {
@@ -177,12 +161,7 @@ export class TicketRevenuesController {
   @ApiQuery(PaginationApiParams.limit)
   @ApiQuery(DateApiParams.startDate)
   @ApiQuery(DateApiParams.endDate)
-  @ApiQuery(
-    DateApiParams.getTimeInterval(
-      TRTimeIntervalEnum,
-      TRTimeIntervalEnum.LAST_WEEK,
-    ),
-  )
+  @ApiQuery(DateApiParams.getTimeInterval(TRTimeIntervalEnum, TRTimeIntervalEnum.LAST_WEEK))
   @ApiQuery({
     name: 'userId',
     type: Number,

@@ -31,8 +31,16 @@ export class OcorrenciaRelatorio {
   /** Valor total da ocorrencia */
   @SetValue((v: number) => (v == null ? null : +v.toFixed(2)))
   valor: number;
+  valorRealEfetivado: number;
 
   count: number = 1;
+
+  @Exclude()
+  detalheAId: number;
+  // arquivoPublicacaoId: number;
+
+  @Exclude()
+  clienteFavorecido: { id: number; nome: string };
 
   /**
    * De duas OcorrenciaRelatorios, agrupa por codigoOcorrencia
@@ -49,5 +57,38 @@ export class OcorrenciaRelatorio {
       }
     }
     return joined;
+  }
+
+  public static getErrors(ocorrencias: OcorrenciaRelatorio[]) {
+    return ocorrencias.filter((o) => o.ocorrencia?.code && !['00', 'BD'].includes(o.ocorrencia.code));
+  }
+
+  public static getToPay(ocorrencias: OcorrenciaRelatorio[]) {
+    return ocorrencias.filter((o) => o.ocorrencia?.code && !['00', 'BD'].includes(o.ocorrencia.code));
+  }
+
+  public static getUniqueDetalheA(ocorrencias: OcorrenciaRelatorio[]) {
+    const uniques: OcorrenciaRelatorio[] = [];
+    for (const ocorrencia of ocorrencias) {
+      const existing = uniques.find((o) => o.detalheAId == ocorrencia.detalheAId);
+      if (!existing) {
+        uniques.push(ocorrencia);
+      }
+    }
+    return uniques;
+  }
+
+  public static groupByFavorecidos(ocorrencias: OcorrenciaRelatorio[]) {
+    const uniques: Record<string, OcorrenciaRelatorio[]> = {};
+    for (const ocorrencia of ocorrencias) {
+      const uniqueId = ocorrencia?.clienteFavorecido?.nome || 'null';
+      const existing: OcorrenciaRelatorio[] | null = uniques[uniqueId];
+      if (!existing) {
+        uniques[uniqueId] = [ocorrencia];
+      } else {
+        uniques[uniqueId].push(ocorrencia);
+      }
+    }
+    return uniques;
   }
 }
