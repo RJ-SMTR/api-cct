@@ -158,4 +158,11 @@ export class TicketRevenuesGroupDto {
   getIsEmpty() {
     return !this.count;
   }
+
+  /**
+   * Apenas soma se status = pago
+   */
+  public static getAmountSum<T extends TicketRevenuesGroupDto>(data: T[]): number {
+    return +data.reduce((sum, i) => sum + (i.transactionValueSum || 0), 0).toFixed(2);
+  }
 }

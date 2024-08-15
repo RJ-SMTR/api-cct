@@ -16,13 +16,16 @@ export class TicketRevenueDTO {
     if (dto) {
       Object.assign(this, dto);
       this.isPago = Boolean(this.arquivoPublicacao?.isPago || this.isPago);
+      if (this.arquivoPublicacao) {
+        this.arquivoPublicacao = new ArquivoPublicacao(this.arquivoPublicacao);
+      }
     }
   }
 
   /**
    * Para o frontend exibir o número de passagens arrecadadas - individual é sempre 1
    */
-  count: number;
+  count: number = 1;
 
   /**
    * Represents `data`
@@ -73,7 +76,7 @@ export class TicketRevenueDTO {
    * @description Timestamp de captura em GMT-3 (formato YYYY-MM-dd HH:mm:ssTZD)
    * @example '2023-09-12 14:49:00-03:00'
    */
-  captureDateTime: string | null;
+  captureDateTime: string | null = null;
 
   /**
    * Represents `modo`
@@ -81,43 +84,7 @@ export class TicketRevenueDTO {
    * @description Tipo de transporte
    * @options 'BRT', 'Ônibus', 'Van', 'VLT'
    */
-  transportType: string | null;
-
-  /**
-   * Represents `servico`
-   *
-   * @description Nome curto da linha operada pelo veículo com variação de serviço (ex: 010, 011SN, ...)
-   * @example '010', '011SN'
-   */
-  vehicleService: string | null;
-
-  /**
-   * Represents `sentido`
-   *
-   * GTFS `direction_id`
-   *
-   * @description Sentido de operação do serviço (0 = ida, 1 = volta)
-   * @example '0', '1'
-   */
-  directionId: number | null;
-
-  /**
-   * **Important field**
-   *
-   * Represents `id_veiculo`
-   *
-   * @description Identificador único do veículo
-   */
-  vehicleId: string | null;
-
-  /**
-   * Represents `id_cliente`
-   *
-   * @description Identificador único do cliente
-   * @example '3'
-   */
-  clientId: string | null;
-
+  transportType: string | null = null;
   /**
    * **Important field**
    *
@@ -161,66 +128,6 @@ export class TicketRevenueDTO {
   transportIntegrationType: string | null;
 
   /**
-   * [WIP] **Dont use it!** Currently in progress by bigquery team
-   *
-   * Represents `id_integracao`
-   *
-   * @description Tipo da integração realizada (identificador relacionado à matriz de integração)
-   * @type `string | null`
-   */
-  integrationId: string | null;
-
-  /**
-   * **Important field**
-   *
-   * Represents `latitude`
-   *
-   * @description Latitude da transação (WGS84)
-   * @type `float | null`
-   */
-  transactionLat: number | null;
-
-  /**
-   * **Important field**
-   *
-   * Represents `longitude`
-   *
-   * @description Longitude da transação (WGS84)
-   * @type `float | null`
-   */
-  transactionLon: number | null;
-
-  /**
-   * **Important field**
-   *
-   * Represents `stop_id`
-   *
-   * @description Código identificador do ponto de embarque (GTFS)
-   * @type `float | null`
-   */
-  stopId: number | null;
-
-  /**
-   * **Important field**
-   *
-   * Represents `stop_lat`
-   *
-   * @description Latitude do ponto de embarque (GTFS)
-   * @type `float | null`
-   */
-  stopLat: number | null;
-
-  /**
-   * **Important field**
-   *
-   * Represents `stop_lon`
-   *
-   * @description Longitude do ponto de embarque (GTFS)
-   * @type `float | null`
-   */
-  stopLon: number | null;
-
-  /**
    * Valor bruto.
    *
    * Represents `valor_transacao`
@@ -235,15 +142,6 @@ export class TicketRevenueDTO {
    */
   paidValue: number;
 
-  /**
-   * Represents `versao`
-   *
-   * @description Código de controle de versão do dado (SHA Github)
-   * @example
-   */
-  @Exclude()
-  bqDataVersion: string | null;
-
   isPago = false;
 
   @Exclude()
@@ -251,4 +149,14 @@ export class TicketRevenueDTO {
 
   @Exclude()
   itemTransacaoAgrupadoId?: number;
+
+  @Exclude()
+  ocorrenciasCnab?: string;
+
+  /**
+   * Apenas soma se status = pago
+   */
+  public static getAmountSum<T extends TicketRevenueDTO>(data: T[]): number {
+    return +data.reduce((sum, i) => sum + (i.transactionValue || 0), 0).toFixed(2);
+  }
 }

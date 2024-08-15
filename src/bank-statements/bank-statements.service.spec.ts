@@ -2,7 +2,7 @@ import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { TicketRevenuesGroupDto } from 'src/ticket-revenues/dtos/ticket-revenues-group.dto';
-import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository';
+import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues.repository';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
@@ -70,24 +70,12 @@ xdescribe('BankStatementsService', () => {
     } as Provider;
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        BankStatementsService,
-        BankStatementsRepositoryService,
-        TicketRevenuesRepositoryService,
-        bigqueryServiceMock,
-        usersServiceMock,
-        ticketRevenuesServiceMock,
-        settingsServiceMock,
-      ],
+      providers: [BankStatementsService, BankStatementsRepositoryService, TicketRevenuesRepositoryService, bigqueryServiceMock, usersServiceMock, ticketRevenuesServiceMock, settingsServiceMock],
     }).compile();
 
-    bankStatementsService = module.get<BankStatementsService>(
-      BankStatementsService,
-    );
+    bankStatementsService = module.get<BankStatementsService>(BankStatementsService);
     usersService = module.get<UsersService>(UsersService);
-    ticketRevenuesService = module.get<TicketRevenuesService>(
-      TicketRevenuesService,
-    );
+    ticketRevenuesService = module.get<TicketRevenuesService>(TicketRevenuesService);
   });
 
   it('should be defined', () => {
@@ -141,9 +129,7 @@ xdescribe('BankStatementsService', () => {
      * ```
      */ async () => {
       // Arrange
-      const bankStatements = allBankStatements.filter(
-        (i) => i.permitCode === 'pc_1',
-      );
+      const bankStatements = allBankStatements.filter((i) => i.permitCode === 'pc_1');
 
       const revenuesGroup: TicketRevenuesGroupDto[] = [];
       // from 2023-01-22 to 2023-01-12 (calendar d.)
@@ -190,9 +176,7 @@ xdescribe('BankStatementsService', () => {
           hash: 'hash_1',
         }),
       );
-      jest
-        .spyOn(global.Date, 'now')
-        .mockImplementation(() => new Date('2023-01-22').valueOf());
+      jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2023-01-22').valueOf());
       jest.spyOn(ticketRevenuesService, 'getMe').mockResolvedValue({
         startDate: '2023-01-12',
         endDate: '2023-01-22',
@@ -295,9 +279,7 @@ xdescribe('BankStatementsService', () => {
      * ```
      */ async () => {
       // Arrange
-      const bankStatements = allBankStatements.filter(
-        (i) => i.cpfCnpj === 'cc_1',
-      );
+      const bankStatements = allBankStatements.filter((i) => i.cpfCnpj === 'cc_1');
 
       const revenuesGroup: TicketRevenuesGroupDto[] = [];
       // from 2023-01-22 to 2023-01-12 (calendar d.)
@@ -344,9 +326,7 @@ xdescribe('BankStatementsService', () => {
           hash: 'hash_1',
         }),
       );
-      jest
-        .spyOn(global.Date, 'now')
-        .mockImplementation(() => new Date('2023-01-25').valueOf());
+      jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2023-01-25').valueOf());
       jest.spyOn(ticketRevenuesService, 'getMe').mockResolvedValue({
         startDate: null,
         endDate: '2023-01-25',
@@ -443,9 +423,7 @@ xdescribe('BankStatementsService', () => {
      * ```
      */ async () => {
       // Arrange
-      const bankStatements = allBankStatements.filter(
-        (i) => i.cpfCnpj === 'cc_1',
-      );
+      const bankStatements = allBankStatements.filter((i) => i.cpfCnpj === 'cc_1');
 
       const revenuesGroup: TicketRevenuesGroupDto[] = [];
       // from 2023-01-17 to 2022-12-29 (28 days)
@@ -492,9 +470,7 @@ xdescribe('BankStatementsService', () => {
           hash: 'hash_1',
         }),
       );
-      jest
-        .spyOn(global.Date, 'now')
-        .mockImplementation(() => new Date('2023-01-17').valueOf());
+      jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2023-01-17').valueOf());
       jest.spyOn(ticketRevenuesService, 'getMe').mockResolvedValue({
         startDate: null,
         endDate: '2023-01-25',

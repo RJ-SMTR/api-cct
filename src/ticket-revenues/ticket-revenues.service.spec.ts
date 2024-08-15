@@ -4,7 +4,7 @@ import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { ITicketRevenue } from './interfaces/ticket-revenue.interface';
-import { TicketRevenuesRepositoryService } from './ticket-revenues-repository';
+import { TicketRevenuesRepositoryService } from './ticket-revenues.repository';
 import { TicketRevenuesService } from './ticket-revenues.service';
 import { SettingsService } from 'src/settings/settings.service';
 
@@ -34,24 +34,12 @@ describe('TicketRevenuesService', () => {
       },
     } as Provider;
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TicketRevenuesService,
-        TicketRevenuesRepositoryService,
-        usersServiceMock,
-        bigqueryServiceMock,
-        settingsServiceMock,
-      ],
+      providers: [TicketRevenuesService, TicketRevenuesRepositoryService, usersServiceMock, bigqueryServiceMock, settingsServiceMock],
     }).compile();
-    jest
-      .spyOn(global.Date, 'now')
-      .mockImplementation(() => new Date('2023-06-01T06:00:00.000Z').valueOf());
+    jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2023-06-01T06:00:00.000Z').valueOf());
 
-    ticketRevenuesService = module.get<TicketRevenuesService>(
-      TicketRevenuesService,
-    );
-    ticketRevenuesRepository = module.get<TicketRevenuesRepositoryService>(
-      TicketRevenuesRepositoryService,
-    );
+    ticketRevenuesService = module.get<TicketRevenuesService>(TicketRevenuesService);
+    ticketRevenuesRepository = module.get<TicketRevenuesRepositoryService>(TicketRevenuesRepositoryService);
     usersService = module.get<UsersService>(UsersService);
   });
 
@@ -133,21 +121,15 @@ describe('TicketRevenuesService', () => {
           bqDataVersion: i.toString(),
         });
       }
-      jest
-        .spyOn(global.Date, 'now')
-        .mockImplementation(() =>
-          new Date('2023-06-03T03:30:00.000Z').valueOf(),
-        );
+      jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2023-06-03T03:30:00.000Z').valueOf());
       const user = new User();
       user.id = 1;
       user.cpfCnpj = 'cpfCnpj_1';
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
-      jest
-        .spyOn(ticketRevenuesRepository as any, 'fetchTicketRevenues')
-        .mockResolvedValue({
-          data: revenues,
-          countAll: revenues.length,
-        });
+      jest.spyOn(ticketRevenuesRepository as any, 'fetchTicketRevenues').mockResolvedValue({
+        data: revenues,
+        countAll: revenues.length,
+      });
 
       // Act
       const result = await ticketRevenuesService.getMeGrouped({
@@ -157,9 +139,7 @@ describe('TicketRevenuesService', () => {
       });
 
       // Assert
-      expect(
-        result.transactionTypeCounts?.['Gratuidade']['transactionValue'],
-      ).toEqual(0);
+      expect(result.transactionTypeCounts?.['Gratuidade']['transactionValue']).toEqual(0);
     });
 
     it('should count and match transactionValueSum with sum of transactionType properties', /**
@@ -225,21 +205,15 @@ describe('TicketRevenuesService', () => {
           bqDataVersion: i.toString(),
         });
       }
-      jest
-        .spyOn(global.Date, 'now')
-        .mockImplementation(() =>
-          new Date('2023-06-03T03:30:00.000Z').valueOf(),
-        );
+      jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2023-06-03T03:30:00.000Z').valueOf());
       const user = new User();
       user.id = 1;
       user.cpfCnpj = 'cpfCnpj_1';
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
-      jest
-        .spyOn(ticketRevenuesRepository as any, 'fetchTicketRevenues')
-        .mockResolvedValue({
-          data: revenues,
-          countAll: revenues.length,
-        });
+      jest.spyOn(ticketRevenuesRepository as any, 'fetchTicketRevenues').mockResolvedValue({
+        data: revenues,
+        countAll: revenues.length,
+      });
 
       // Act
       const result = await ticketRevenuesService.getMeGrouped({
@@ -249,12 +223,8 @@ describe('TicketRevenuesService', () => {
       });
 
       // Assert
-      const transactionTypeCountsSum = Object.values(
-        result.transportTypeCounts,
-      ).reduce((sum, i) => sum + i.count, 0);
-      const expectedTransactionValueSum = Object.values(
-        result.transportTypeCounts,
-      ).reduce((sum, i) => sum + i.transactionValue, 0);
+      const transactionTypeCountsSum = Object.values(result.transportTypeCounts).reduce((sum, i) => sum + i.count, 0);
+      const expectedTransactionValueSum = Object.values(result.transportTypeCounts).reduce((sum, i) => sum + i.transactionValue, 0);
       expect(result.count).toEqual(transactionTypeCountsSum);
       expect(result.transactionValueSum).toEqual(expectedTransactionValueSum);
     });

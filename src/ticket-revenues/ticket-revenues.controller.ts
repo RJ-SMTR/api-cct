@@ -115,7 +115,7 @@ export class TicketRevenuesController {
     @Request() request,
     @Query('endDate', new ParseDatePipe())
     endDate?: string,
-    @Query('startDate', new ParseDatePipe())
+    @Query('startDate', new ParseDatePipe({ optional: true }))
     startDate?: string,
     @Query(...DateQueryParams.yearMonth) yearMonth?: string,
     @Query('timeInterval') timeInterval?: TimeIntervalEnum,

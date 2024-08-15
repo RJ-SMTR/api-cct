@@ -97,7 +97,7 @@ export class CnabController {
     @Query('isCancelamento') isCancelamento: boolean,
     @Query('nsaInicial') nsaInicial: number,
     @Query('nsaFinal') nsaFinal: number,
-    @Query('dataCancelamento', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/)) dataCancelamento: string) {
+    @Query('dataCancelamento', new ParseDatePipe()) dataCancelamento: string) {
       await this.cnabService.saveTransacoesJae(dataOrdemInicial,dataOrdemFinal,diasAnteriores,consorcio);
       const listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem,
        (dt_pagamento !==null && dt_pagamento !==undefined)?new Date(dt_pagamento):
