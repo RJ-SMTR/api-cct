@@ -33,6 +33,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
   @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se ainda não foi feita a tentativa de pagamento.', default: false }) })
   @ApiQuery({ name: 'decimais', required: false, type: Number, description: ApiDescription({ _: 'Número de casas decimais exibidos e a serem pesquisados.', default: 2, min: 0, max: 4 }) })
+  @ApiQuery({ name: 'filtrarPendentes', required: false, type: Boolean, description: ApiDescription({ _: '(debug) Se pagamentos fora da semana de pagamento devem ser filtrados pela data início/fim.', default: false }) })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -68,6 +69,8 @@ export class RelatorioController {
     pago: boolean | undefined,
     @Query('aPagar', new ParseBooleanPipe({ optional: true }))
     aPagar: boolean | undefined,
+    @Query('filtrarPendentes', new ParseBooleanPipe({ defaultValue: false }))
+    filtrarPendentes: boolean,
   ) {
     return await this.relatorioService.findConsolidado({
       dataInicio,
@@ -85,6 +88,7 @@ export class RelatorioController {
       aPagar,
       exibirConsorcios,
       exibirFavorecidos,
+      filtrarPendentes,
     });
   }
 }

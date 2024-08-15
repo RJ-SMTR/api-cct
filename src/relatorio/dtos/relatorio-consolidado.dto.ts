@@ -1,3 +1,4 @@
+import { Exclude } from 'class-transformer';
 import { DeepPartial } from 'typeorm';
 
 export class RelatorioConsolidadoDto {
@@ -9,5 +10,8 @@ export class RelatorioConsolidadoDto {
 
   valor: number = 0;
   nome: String;
-  count: number = 1;
+  @Exclude()
+  agrupadoCount: number = 1;
+  @Exclude()
+  itemCount: number = 1;
 }

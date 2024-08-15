@@ -88,7 +88,8 @@ export class RelatorioRepository {
     SELECT
         ${groupCol} AS nome,
         SUM(CASE WHEN d.row_num = 1 THEN ${whereArgs.valorCol} ELSE 0 END)::FLOAT AS valor,
-        SUM(CASE WHEN d.row_num = 1 THEN 1 ELSE 0 END) AS "agrupadoCount"
+        SUM(CASE WHEN d.row_num = 1 THEN 1 ELSE 0 END) AS "agrupadoCount",
+        COUNT(d.id) AS "itemCount"
     FROM cte_desagrupado d
     ${where.length ? `WHERE (${where.join(') AND (')})` : ``}
     GROUP BY ${groupCol}
@@ -102,8 +103,10 @@ export class RelatorioRepository {
   /**
    * Regras de negócio:
    *
-   * - O VLT busca pela data ordem via data início/fim
-   * - Os demais buscam pelo intervalo de data selecionado, e também filtra pelas sextas de pagamento para esses dias
+   * - Ao selecionar uma semana completa, incluir os itens de pagamentos pendentes; e o VLT deve ser de seg-sex.
+   * - Ao selecionar um intervalo irregular, selecionar apenas os itens daquele intervalo; e o VLT seleciona o intervalo selecionado.
+   * - O VLT busca pela data_vencimento
+   * - Os demais, ao buscar por intervalo irregular, filtrar pela data_item; caso contrário, data_agrupado
    */
   private getConsolidadoWhere(args: IFindPublicacaoRelatorio, groupBy: 'consorcio' | 'favorecido') {
     const where: string[] = [];
@@ -114,7 +117,7 @@ export class RelatorioRepository {
       inicio: toDateString(args?.dataInicio || new Date(0)),
       fim: toDateString(args?.dataFim || new Date()),
     };
-    let dataOrdem = {
+    const dataOrdem = {
       inicio: toDateString(nextFriday(new Date(dataCaptura.inicio))),
       fim: toDateString(nextFriday(new Date(dataCaptura.fim))),
     };
@@ -123,8 +126,21 @@ export class RelatorioRepository {
     const dayDateCol = isSexQui ? 'd.data_agrupado' : 'd.data_item';
     const valorCol = isSexQui ? 'd.valor_agrupado' : caseVlt('d.valor_agrupado', 'd.valor_item');
     const valorPgtoCol = isSexQui ? 'd.valor_efetivado_agrupado' : 'd.valor_efetivado_item';
+    const filtrarPendentes = args.filtrarPendentes;
 
-    where.push(caseVlt(`d.data_vencimento BETWEEN '${dataCaptura.inicio}' AND '${dataCaptura.fim}'`, `d.data_vencimento BETWEEN '${dataOrdem.inicio}' AND '${dataOrdem.fim}' AND ${dayDateCol} BETWEEN '${dataCaptura.inicio}' AND '${dataCaptura.fim}'`));
+    const dataVLT = isSexQui
+      ? {
+          inicio: toDateString(addDays(new Date(dataCaptura.inicio), 3)),
+          fim: toDateString(addDays(new Date(dataCaptura.fim), 1)),
+        }
+      : dataCaptura;
+
+    where.push(
+      caseVlt(
+        `d.data_vencimento BETWEEN '${dataVLT.inicio}' AND '${dataVLT.fim}'`, // VLT
+        `d.data_vencimento BETWEEN '${dataOrdem.inicio}' AND '${dataOrdem.fim}'${filtrarPendentes ? ` AND ${dayDateCol} BETWEEN '${dataCaptura.inicio}' AND '${dataCaptura.fim}'` : ''}`, // Outros
+      ),
+    );
 
     const valorEfetivado = { min: args?.valorRealEfetivadoMin, max: args?.valorRealEfetivadoMax };
     if (valorEfetivado?.min !== undefined && valorEfetivado.max === undefined) {

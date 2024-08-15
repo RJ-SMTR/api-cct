@@ -17,7 +17,7 @@ export class RelatorioService {
     return {
       count: consolidados.length,
       valor: +consolidados.reduce((s, i) => s + i.valor, 0).toFixed(d),
-      valorRealEfetivado: +consolidados.reduce((s, i) => s + (i.valorRealEfetivado || 0), 0).toFixed(d),
+      valorRealEfetivado: +consolidados.reduce((s, i) => s + i.valor, 0).toFixed(d),
       data: consolidados,
     };
   }
