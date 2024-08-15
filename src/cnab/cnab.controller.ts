@@ -97,14 +97,14 @@ export class CnabController {
     @Query('isCancelamento') isCancelamento: boolean,
     @Query('nsaInicial') nsaInicial: number,
     @Query('nsaFinal') nsaFinal: number,
-    @Query('dataCancelamento', new ParseDatePipe()) dataCancelamento: string) {
+    @Query('dataCancelamento', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/)) dataCancelamento: string) {
       await this.cnabService.saveTransacoesJae(dataOrdemInicial,dataOrdemFinal,diasAnteriores,consorcio);
       const listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem,
        (dt_pagamento !==null && dt_pagamento !==undefined)?new Date(dt_pagamento):
        dt_pagamento,isConference,isCancelamento,nsaInicial,nsaFinal,new Date(dataCancelamento)); 
       await this.cnabService.sendRemessa(listCnab); 
       return listCnab; 
-    }
+    } 
  
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
@@ -113,7 +113,6 @@ export class CnabController {
   async updateRetorno() {
     return await this.cnabService.updateRetorno();
   }
-
 
   @ApiQuery({name: 'dataOrdemInicial',description: 'Data da Ordem de Pagamento Inicial',
     required: true, type: String })     
@@ -128,3 +127,4 @@ export class CnabController {
     return await this.cnabService.sincronizeTransacaoViewOrdemPgto(dataOrdemInicial,dataOrdemFinal);   
   }
 }
+
