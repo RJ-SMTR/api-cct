@@ -2,6 +2,7 @@
 
 import { Exclude } from 'class-transformer';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
+import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 
 /**
  * Internal representation of `IBqApiTicketRevenues`
@@ -247,4 +248,7 @@ export class TicketRevenueDTO {
 
   @Exclude()
   arquivoPublicacao?: ArquivoPublicacao;
+
+  @Exclude()
+  itemTransacaoAgrupadoId?: number;
 }

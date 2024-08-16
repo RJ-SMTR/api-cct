@@ -1,6 +1,6 @@
 import { ApiParamOptions } from '@nestjs/swagger';
 import { WeekdayEnum } from '../enums/weekday.enum';
-import { DescriptionApiParam } from './description-api-param';
+import { ApiDescription } from './description-api-param';
 import { TimeIntervalEnum } from '../enums/time-interval.enum';
 
 /**
@@ -16,7 +16,7 @@ export const DateApiParams = {
   startDate: {
     name: 'startDate',
     required: false,
-    description: DescriptionApiParam({
+    description: ApiDescription({
       hours: '00:00',
     }),
   } as ApiParamOptions,
@@ -24,20 +24,20 @@ export const DateApiParams = {
   endDate: {
     name: 'endDate',
     required: false,
-    description: DescriptionApiParam({ hours: '23:59:59.999' }),
+    description: ApiDescription({ hours: '23:59:59.999' }),
   } as ApiParamOptions,
 
   getEndDate: (required = false) =>
     ({
       name: 'endDate',
       required: required,
-      description: DescriptionApiParam({ hours: '23:59:59.999' }),
+      description: ApiDescription({ hours: '23:59:59.999' }),
     } as ApiParamOptions),
 
   timeInterval: {
     name: 'timeInterval',
     required: false,
-    description: DescriptionApiParam({
+    description: ApiDescription({
       default: TimeIntervalEnum.LAST_MONTH,
     }),
     example: TimeIntervalEnum.LAST_MONTH,
@@ -48,7 +48,7 @@ export const DateApiParams = {
     ({
       name: 'timeInterval',
       required: required,
-      description: DescriptionApiParam({
+      description: ApiDescription({
         default: defaultEnumValue,
         about:
           '`lastDay`: recebe o dia e retorna os dias anteriores desse dia. <br>' +
@@ -62,14 +62,14 @@ export const DateApiParams = {
     name: 'ignorePreviousWeek',
     type: Boolean,
     required: false,
-    description: DescriptionApiParam({ default: true }),
+    description: ApiDescription({ default: true }),
   } as ApiParamOptions,
 
   startWeekday: (defaultValue: WeekdayEnum) =>
     ({
       name: 'startWeekday',
       required: false,
-      description: DescriptionApiParam({
+      description: ApiDescription({
         default: defaultValue,
         min: 0,
         max: 6,

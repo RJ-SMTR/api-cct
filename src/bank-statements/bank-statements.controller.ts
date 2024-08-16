@@ -80,7 +80,7 @@ export class BankStatementsController {
       ),
     )
     timeInterval?: BSMeTimeIntervalEnum | undefined,
-    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: true }))
     userId?: number | null,
   ): Promise<IBSGetMeResponse> {
     this.logger.log(getRequestLog(request));
@@ -149,7 +149,7 @@ export class BankStatementsController {
       new ValidateEnumPipe(BSMePrevDaysTimeIntervalEnum, true),
     )
     timeInterval: BSMePrevDaysTimeIntervalEnum,
-    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: true }))
     userId?: number | null,
   ): Promise<Pagination<IBSGetMePreviousDaysResponse>> {
     const isUserIdParam = userId !== null && !isNaN(Number(userId));

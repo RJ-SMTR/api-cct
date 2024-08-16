@@ -15,9 +15,9 @@ export class TRGetMeGroupedResponseDto {
   amountSum: number;
   /** Card - Valor Transacao: acumulado semanal */
   @SetValueIf(
-    (o: TRGetMeGroupedResponseDto) =>
+    (v, o: TRGetMeGroupedResponseDto) =>
       !o.data.every((i) => i.isPago || i.getIsEmpty()),
-    0,
+    () => 0,
   )
   paidSum: number;
   todaySum: number;

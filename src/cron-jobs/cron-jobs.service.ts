@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, OnModuleInit } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
@@ -19,7 +19,6 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { OnModuleLoad } from 'src/utils/interfaces/on-load.interface';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -58,7 +57,7 @@ interface ICronJobSetting {
  * CronJob tasks and management
  */
 @Injectable()
-export class CronJobsService implements OnModuleInit, OnModuleLoad {
+export class CronJobsService  {
   private logger = new CustomLogger(CronJobsService.name, { timestamp: true });
 
   public jobsConfig: ICronJob[] = [];
@@ -72,6 +71,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     private usersService: UsersService,
     private cnabService: CnabService,
   ) {}
+
 
   onModuleInit() {
     this.onModuleLoad().catch((error: Error) => {
@@ -163,16 +163,15 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       //       if(!isSaturday(today) && !isSunday(today))
       //         await this.generateRemessaVLT();
       //     },
-      //   },
-      // }     
+      //   }
     );
 
-    for (const jobConfig of this.jobsConfig) {
-      this.startCron(jobConfig);
-      this.logger.log(
-        `Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`,
-      );
-    }
+    // for (const jobConfig of this.jobsConfig) {
+    //   this.startCron(jobConfig);
+    //   this.logger.log(
+    //     `Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`,
+    //   );
+    // }
   }
 
   startCron(jobConfig: ICronJob) {
@@ -205,7 +204,6 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       PagadorContaEnum.ContaBilhetagem,dataPgto, isConference, isCancelamento,
       nsaInicial, nsaFinal, dataCancelamento,
     );
-
     if (listCnabStr) await this.sendRemessa(listCnabStr);
   }
 
@@ -256,9 +254,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     } else if (activateAutoSendInvite.getValueAsBoolean() === false) {
       this.logger.log(
         `Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` +
-          ` Para ativar, altere na tabela 'setting'`,
-        METHOD,
-      );
+          ` Para ativar, altere na tabela 'setting'`,METHOD);
       return;
     }
 
@@ -274,7 +270,6 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       }/${dailyQuota()},falta enviar: ${remainingQuota}`,
       METHOD,
     );
-
     for (let i = 0; i < remainingQuota && i < unsent.length; i++) {
       const invite = new MailHistory(unsent[i]);
 
@@ -284,8 +279,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
       if (!user?.email) {
         this.logger.error(
           `Usuário não tem email válido (${user?.email}), este email não será enviado.`,
-          METHOD,
-        );
+          METHOD);
         invite.setInviteError({
           httpErrorCode: HttpStatus.UNPROCESSABLE_ENTITY,
           smtpErrorCode: null,
@@ -326,16 +320,14 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
           invite.sentAt = new Date(Date.now());
           invite.failedAt = null;
           await this.mailHistoryService.update(
-            invite.id,
-            {
+            invite.id,{
               inviteStatus: invite.inviteStatus,
               httpErrorCode: invite.httpErrorCode,
               smtpErrorCode: invite.smtpErrorCode,
               sentAt: invite.sentAt,
               failedAt: invite.failedAt,
             },
-            METHOD,
-          );
+            METHOD);
           this.logger.log('Email enviado com sucesso.', METHOD);
         }
 
@@ -828,7 +820,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     }
   }
 
-  async saveExtrato() {
+  async saveExtrato(){
     const METHOD = this.saveExtrato.name;
     try {
       await this.cnabService.saveExtrato();

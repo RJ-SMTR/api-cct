@@ -90,7 +90,7 @@ export class TransacaoView {
   arquivoPublicacao: ArquivoPublicacao | null;
 
   @Column({ type: 'numeric', nullable: true })
-  itemTransacaoAgrupadoId: number;
+  itemTransacaoAgrupadoId: number | null;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -102,7 +102,10 @@ export class TransacaoView {
   setReadValues() {
     this.valorTransacao = Number(this.valorTransacao);
     this.valorPago = Number(this.valorPago);
-    if (this.itemTransacaoAgrupadoId !== undefined) {
+    if (
+      this.itemTransacaoAgrupadoId !== undefined &&
+      this.itemTransacaoAgrupadoId !== null
+    ) {
       this.itemTransacaoAgrupadoId = +this.itemTransacaoAgrupadoId;
     }
   }
@@ -157,6 +160,7 @@ export class TransacaoView {
       vehicleId: null,
       vehicleService: null,
       arquivoPublicacao: this.arquivoPublicacao || undefined,
+      itemTransacaoAgrupadoId: this.itemTransacaoAgrupadoId || undefined,
       isPago,
       count: 1,
     });

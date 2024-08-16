@@ -73,3 +73,7 @@ export function forChunk<T>(
     callback(chunk);
   }
 }
+
+export function isArrayUnique(list: any[]) {
+  return new Set(list).size != list.length;
+}

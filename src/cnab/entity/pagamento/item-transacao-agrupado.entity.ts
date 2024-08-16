@@ -55,6 +55,7 @@ export class ItemTransacaoAgrupado extends EntityHelper {
   @CreateDateColumn()
   dataProcessamento: Date;
 
+  /** Ao gravar pegamos dataOrdem */
   @CreateDateColumn()
   dataCaptura: Date;
 
