@@ -14,6 +14,7 @@ import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ExtratoDto } from './service/dto/extrato.dto';
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
+import { ParseListPipe } from 'src/utils/pipes/parse-list.pipe';
 
 @ApiTags('Cnab')
 @Controller({
@@ -97,15 +98,22 @@ export class CnabController {
     @Query('isCancelamento') isCancelamento: boolean,
     @Query('nsaInicial') nsaInicial: number,
     @Query('nsaFinal') nsaFinal: number,
-    @Query('dataCancelamento', new ParseDatePipe()) dataCancelamento: string) {
-      await this.cnabService.saveTransacoesJae(dataOrdemInicial,dataOrdemFinal,diasAnteriores,consorcio);
-      const listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem,
-       (dt_pagamento !==null && dt_pagamento !==undefined)?new Date(dt_pagamento):
-       dt_pagamento,isConference,isCancelamento,nsaInicial,nsaFinal,new Date(dataCancelamento)); 
-      await this.cnabService.sendRemessa(listCnab); 
-      return listCnab; 
-    } 
- 
+    @Query('dataCancelamento', new ParseDatePipe()) dataCancelamento: string,
+  ) {
+    await this.cnabService.saveTransacoesJae(dataOrdemInicial, dataOrdemFinal, diasAnteriores, consorcio);
+    const listCnab = await this.cnabService.generateRemessa(
+      PagadorContaEnum.ContaBilhetagem, //
+      dt_pagamento !== null && dt_pagamento !== undefined ? new Date(dt_pagamento) : dt_pagamento,
+      isConference,
+      isCancelamento,
+      nsaInicial,
+      nsaFinal,
+      new Date(dataCancelamento),
+    );
+    await this.cnabService.sendRemessa(listCnab);
+    return listCnab;
+  }
+
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -114,17 +122,18 @@ export class CnabController {
     return await this.cnabService.updateRetorno();
   }
 
-  @ApiQuery({name: 'dataOrdemInicial',description: 'Data da Ordem de Pagamento Inicial',
-    required: true, type: String })     
-  @ApiQuery({name: 'dataOrdemFinal',description: 'Data da Ordem de Pagamento Final',required: true, type: String})
+  @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
+  @ApiQuery({ name: 'dataOrdemFinal', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
+  @ApiQuery({ name: 'nomeFavorecido', description: 'Lista de nomes dos favorecidos', required: false, type: String })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('sincronizeTransacaoViewOrdemPgto')
-  async sincronizeTransacaoViewOrdemPgto(
-    @Query('dataOrdemInicial') dataOrdemInicial: string,
-    @Query('dataOrdemFinal') dataOrdemFinal: string ){
-    return await this.cnabService.sincronizeTransacaoViewOrdemPgto(dataOrdemInicial,dataOrdemFinal);   
+  @Get('syncTransacaoViewOrdemPgto')
+  async getSyncTransacaoViewOrdemPgto(
+    @Query('dataOrdemInicial') dataOrdemInicial: string, //
+    @Query('dataOrdemFinal') dataOrdemFinal: string,
+    @Query('nomeFavorecido', new ParseListPipe({ transform: true, optional: true })) nomeFavorecido: string[],
+  ) {
+    return await this.cnabService.sincronizeTransacaoViewOrdemPgto(dataOrdemInicial, dataOrdemFinal, nomeFavorecido);
   }
 }
-
