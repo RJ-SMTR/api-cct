@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import {
   addDays,
+  differenceInMinutes,
+  differenceInSeconds,
   endOfDay,
   isFriday,
   nextFriday,
@@ -110,21 +112,21 @@ export class CnabService {
     dataOrdemIncial,dataOrdemFinal,daysBefore = 0,consorcio: string) {
     const dataOrdemInicialDate = startOfDay(new Date(dataOrdemIncial));
     const dataOrdemFinalDate = endOfDay(new Date(dataOrdemFinal));
-    await this.updateAllFavorecidosFromUsers();    
+    await this.updateAllFavorecidosFromUsers();
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(
       dataOrdemInicialDate,dataOrdemFinalDate,daysBefore);
     await this.saveOrdens(ordens, consorcio);
   }
 
   async updateTransacaoViewBigqueryLimit(trsBq: BigqueryTransacao[],queryRunner:QueryRunner) {
-    for(const trBq of trsBq){   
-      const tr = TransacaoView.fromBigqueryTransacao(trBq);       
-      if (tr.modo && tr.nomeOperadora) {        
+    for(const trBq of trsBq){
+      const tr = TransacaoView.fromBigqueryTransacao(trBq);
+      if (tr.modo && tr.nomeOperadora) {
         const existing = await this.transacaoViewService.find({ idTransacao: tr.idTransacao });
         if(existing.length === 0){
           this.logger.debug(tr.idTransacao);
           await queryRunner.manager.getRepository(TransacaoView).save(tr);
-        }          
+        }
       }
     }               
   }
@@ -133,14 +135,14 @@ export class CnabService {
    * Atualiza a tabela TransacaoView
    */
   async updateTransacaoViewBigquery(dataOrdemIncial: Date,
-    dataOrdemFinal: Date,daysBack = 0,consorcio:string= 'Todos') {   
+    dataOrdemFinal: Date,daysBack = 0,consorcio:string= 'Todos') {
     const trs = await this.getTransacoesBQ(dataOrdemIncial,dataOrdemFinal,daysBack,consorcio);
-    const queryRunner = this.dataSource.createQueryRunner();   
-    await queryRunner.connect();   
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
     try{
       await queryRunner.startTransaction();
       await this.updateTransacaoViewBigqueryLimit(trs,queryRunner);
-      await queryRunner.commitTransaction();  
+      await queryRunner.commitTransaction();
     }catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Falha ao salvar Informções agrupadas`, error?.stack);
@@ -154,7 +156,7 @@ export class CnabService {
     const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(
      dataOrdemIncial,dataOrdemFinal, daysBack);
     let trs = transacoesBq;    
-    if (consorcio === 'STPC' || consorcio === 'STPL'){      
+    if (consorcio === 'STPC' || consorcio === 'STPL'){
       trs = transacoesBq.filter((tr) => tr.consorcio === consorcio);
     } else if (consorcio == 'Empresa') {
       trs = transacoesBq.filter((tr) => tr.consorcio !== 'STPC' && tr.consorcio !== 'STPL');
@@ -175,12 +177,12 @@ export class CnabService {
         daysbefore = 1
       }
       const trsDia = await this.getTransacoesViewWeek(
-        subDays(startOfDay(dataVencimento),daysbefore),subDays(endOfDay(dataVencimento),1));      
+        subDays(startOfDay(dataVencimento),daysbefore),subDays(endOfDay(dataVencimento),1));
         const trsOrdem = trsDia.filter(
         (transacaoView) =>
           transacaoView.idOperadora === itemAg.idOperadora &&
-          transacaoView.idConsorcio === itemAg.idConsorcio &&  
-          transacaoView.operadoraCpfCnpj === clienteFavorecido.cpfCnpj          
+          transacaoView.idConsorcio === itemAg.idConsorcio &&
+          transacaoView.operadoraCpfCnpj === clienteFavorecido.cpfCnpj
       );    
       return trsOrdem;     
   }
@@ -205,11 +207,11 @@ export class CnabService {
       if (consorcio == 'Todos' || consorcio == ordem.consorcio) {
         await this.saveAgrupamentos(ordem, pagador, favorecido);
       } else if (consorcio == 'Van') {
-        if (ordem.consorcio == 'STPC' || ordem.consorcio == 'STPL'){          
-            await this.saveAgrupamentos(ordem, pagador, favorecido);          
+        if (ordem.consorcio == 'STPC' || ordem.consorcio == 'STPL'){
+            await this.saveAgrupamentos(ordem, pagador, favorecido);
         }
       } else if (consorcio == 'Empresa') {
-        if (ordem.consorcio != 'STPC' && ordem.consorcio != 'STPL' && ordem.consorcio != 'VLT' ){          
+        if (ordem.consorcio != 'STPC' && ordem.consorcio != 'STPL' && ordem.consorcio != 'VLT' ){
           await this.saveAgrupamentos(ordem, pagador, favorecido);
         }
       }
@@ -241,11 +243,11 @@ export class CnabService {
     pagador: Pagador,
     favorecido: ClienteFavorecido   
   ) {
-    const queryRunner = this.dataSource.createQueryRunner();   
+    const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();   
     let itemAg: ItemTransacaoAgrupado | null = null;
     try{
-      await queryRunner.startTransaction();      
+      await queryRunner.startTransaction();
       this.logger.debug('Salva Agrupamento Consorcio: '+ ordem.consorcio);
       const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
       const fridayOrdem = nextFriday(startOfDay(dataOrdem));
@@ -257,11 +259,11 @@ export class CnabService {
         itemAg = await this.saveUpdateItemTransacaoAg(transacaoAg,ordem,queryRunner);
       } else {               
         transacaoAg = await this.saveTransacaoAgrupado(ordem, pagador);
-        itemAg = await this.saveItemTransacaoAgrupado(ordem,transacaoAg,queryRunner);        
+        itemAg = await this.saveItemTransacaoAgrupado(ordem,transacaoAg,queryRunner);
       }      
-      const transacao = await this.saveTransacao(ordem, pagador, transacaoAg.id,queryRunner);      
-      await this.saveItemTransacaoPublicacao(ordem,favorecido,transacao,itemAg,queryRunner);      
-      await queryRunner.commitTransaction();     
+      const transacao = await this.saveTransacao(ordem, pagador, transacaoAg.id,queryRunner);
+      await this.saveItemTransacaoPublicacao(ordem,favorecido,transacao,itemAg,queryRunner);
+      await queryRunner.commitTransaction();
       this.logger.debug('Fim Agrupamento Consorcio: '+ ordem.consorcio); 
     }catch (error) {
       await queryRunner.rollbackTransaction();
@@ -271,15 +273,16 @@ export class CnabService {
     }
   }
 
-  async sincronizeTransacaoViewOrdemPgto(dataOrdemInicial:string, dataOrdemFinal:string){    
+  async sincronizeTransacaoViewOrdemPgto(dataOrdemInicial: string, dataOrdemFinal: string) {
+    const startDate = new Date();
     const itens = await this.itemTransacaoAgService.findMany({
       where:{ dataCaptura: Between(startOfDay(new Date(dataOrdemInicial)),endOfDay(new Date(dataOrdemFinal))),
-        nomeConsorcio: In(['STPC','STPL'])          
+        nomeConsorcio: In(['STPC','STPL'])
       }
-    })   
+    })
 
-    for(const itemAg of itens.filter(item=>item.dataOrdem !==new Date('2024-07-05'))){      
-      const queryRunner = this.dataSource.createQueryRunner();   
+    for(const itemAg of itens.filter(item=>item.dataOrdem !==new Date('2024-07-05'))){
+      const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect(); 
       try{ 
         const itensTransacao = await this.itemTransacaoService.findMany({
@@ -307,13 +310,12 @@ export class CnabService {
               }
               
               this.logger.debug('Fim Consulta TransacaoView')
-              this.logger.debug('Atualiza Transacao View');          
+              this.logger.debug('Atualiza Transacao View');
               for(const transacaoView of transacoesView){
                 transacaoView.itemTransacaoAgrupadoId = itemAg.id
-                this.transacaoViewService.save(transacaoView,queryRunner);     
+                this.transacaoViewService.save(transacaoView,queryRunner);
               }          
               await queryRunner.commitTransaction();  
-              this.logger.debug('Fim Atualiza Transacao View');
             } 
           }
         }
@@ -322,8 +324,11 @@ export class CnabService {
       }finally{
         await queryRunner.release();
       }
-    }   
-  } 
+    }
+    const endDate = new Date()
+    const diff = `${differenceInMinutes(endDate, startDate)}:${differenceInSeconds(endDate,startDate)}`
+    this.logger.debug(`Fim Atualiza Transacao View - duração: ${diff} min`);
+  }
 
 
 
