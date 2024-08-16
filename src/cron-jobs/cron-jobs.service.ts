@@ -2,7 +2,8 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { endOfDay, startOfDay, subDays } from 'date-fns';
+import { endOfDay, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
+import { start } from 'repl';
 import { CnabService } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
@@ -35,7 +36,10 @@ export enum CrobJobsEnum {
   sendRemessa = 'sendRemessa',
   updateRetorno = 'updateRetorno',
   saveExtrato = 'saveExtrato',
-  updateTransacaoView = 'updateTransacaoView',
+  updateTransacaoViewEmpresa = 'updateTransacaoViewEmpresa',
+  updateTransacaoViewVan = 'updateTransacaoViewVan',
+  sincronizeTransacaoViewOrdemPgto = 'sincronizeTransacaoViewOrdemPgto',
+  generateRemessaVLT = 'generateRemessaVLT'
 }
 
 interface ICronJob {
@@ -57,26 +61,6 @@ export class CronJobsService  {
   private logger = new CustomLogger(CronJobsService.name, { timestamp: true });
 
   public jobsConfig: ICronJob[] = [];
-  // public staticJobs = {
-  //   saveTransacoesJae2: {
-  //     name: CrobJobsEnum.saveTransacoesJae2,
-  //     cronJobParameters: {
-  //       cronTime: '30 6 * * *', // 03:30 BRT = 06:30 UTC
-  //       onTick: async () => {
-  //         await this.saveTransacoesJae2();
-  //       },
-  //     },
-  //   } as ICronJob,
-  //   saveTransacoesLancamento2: {
-  //     name: CrobJobsEnum.saveTransacoesLancamento2,
-  //     cronJobParameters: {
-  //       cronTime: '30 6 * * *', // 03:30 BRT = 06:30 UTC
-  //       onTick: async () => {
-  //         await this.saveTransacoesLancamento2();
-  //       },
-  //     },
-  //   } as ICronJob,
-  // };
 
   constructor(
     private configService: ConfigService,
@@ -95,21 +79,9 @@ export class CronJobsService  {
     });
   }
 
-  async onModuleLoad() {
-    // await this.updateTransacaoView();
+  async onModuleLoad() { 
+    // await this.generateRemessaVLT();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    // await this.saveTransacoesJae1(0, 'Todos', new Date());
-    // await this.saveAndSendRemessa(
-    //   new Date(),
-    //   false,
-    //   true,
-    //   101,
-    //   0,
-    //   new Date('2024-07-05'),
-    // );
-    // await this.cnabService.updateTransacaoViewBigquery();
-    // await this.cnabService.compareTransacaoViewPublicacao(14);
-
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -136,20 +108,7 @@ export class CronJobsService  {
           ).getValueAsString(),
           onTick: () => this.sendStatusReport(),
         },
-      },
-      // {
-      //   name: CrobJobsEnum.pollDb,
-      //   cronJobParameters: {
-      //     cronTime: (
-      //       await this.settingsService.getOneBySettingData(
-      //         appSettings.any__poll_db_cronjob,
-      //         true,
-      //         THIS_CLASS_WITH_METHOD,
-      //       )
-      //     ).getValueAsString(),
-      //     onTick: () => this.pollDb(),
-      //   },
-      // },
+      },     
       {
         name: CrobJobsEnum.bulkResendInvites,
         cronJobParameters: {
@@ -160,60 +119,51 @@ export class CronJobsService  {
         },
       },
       {
-        name: CrobJobsEnum.updateTransacaoView,
+        name: CrobJobsEnum.updateTransacaoViewVan,
         cronJobParameters: {
-          cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
+          cronTime: '*/30 * * * *', //  Every 30 min       
           onTick: async () => {
-            await this.updateTransacaoView();
+            await this.updateTransacaoView("Van");
           },
         },
       },
-
+      {
+        name: CrobJobsEnum.updateTransacaoViewEmpresa,
+        cronJobParameters: {
+          cronTime: '0 9 * * *',// Every day, 06:00 GMT = 09:00 BRT (GMT-3) 
+          onTick: async () => {
+            await this.updateTransacaoView("Empresa");
+          },
+        },
+      },
+      {
+        name: CrobJobsEnum.sincronizeTransacaoViewOrdemPgto,
+        cronJobParameters: {
+          cronTime: '0 9 * * *',// Every day, 06:00 GMT = 09:00 BRT (GMT-3)
+          onTick: async () => {
+            this.synchronize();
+          }
+        }
+      },
+      {
+        name: CrobJobsEnum.updateRetorno,
+        cronJobParameters: {
+          cronTime: '*/30 * * * *', // Every 30 min
+          onTick: async () => {          
+            await this.updateRetorno();
+          },
+        },
+      },
       // {
-      //   name: CrobJobsEnum.saveTransacoesJae,
+      //   name: CrobJobsEnum.generateRemessaVLT,
       //   cronJobParameters: {
-      //     cronTime: '0 3 * * 5', // Every friday, 00:00 BRT = 03:00 GMT
+      //     cronTime: '0 10 * * *',// Every day, 07:00 GMT = 10:00 BRT (GMT-3)
       //     onTick: async () => {
-      //       await this.saveTransacoesJae1(0, 'Todos', undefined);
+      //       const today = new Date();
+      //       if(!isSaturday(today) && !isSunday(today))
+      //         await this.generateRemessaVLT();
       //     },
-      //   },
-      // },
-      // {
-      //   name: CrobJobsEnum.sendRemessa,
-      //   cronJobParameters: {
-      //     cronTime: '0 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
-      //     onTick: async () => {
-      //       await this.saveAndSendRemessa(undefined);
-      //     },
-      //   },
-      // },
-      // {
-      //   name: CrobJobsEnum.updateRetorno,
-      //   cronJobParameters: {
-      //     cronTime: '*/30 * * * *', // Every 30 min
-      //     onTick: async () => {
-      //       await this.updateRetorno();
-      //     },
-      //   },
-      // },
-      // {
-      //   name: CrobJobsEnum.sendRemessa,
-      //   cronJobParameters: {
-      //     cronTime: '0 4 * * 5', // Every friday, 01:00 BRT = 04:00 GMT
-      //     onTick: async () => {
-      //       await this.saveAndSendRemessa(undefined);
-      //     },
-      //   },
-      // },
-      // {
-      //   name: CrobJobsEnum.updateRetorno,
-      //   cronJobParameters: {
-      //     cronTime: '*/30 * * * *', // Every 30 min
-      //     onTick: async () => {
-      //       await this.updateRetorno();
-      //     },
-      //   },
-      // }
+      //   }
     );
 
     // for (const jobConfig of this.jobsConfig) {
@@ -230,22 +180,29 @@ export class CronJobsService  {
     job.start();
   }
 
+  public async synchronize(){
+    await this.cnabService.sincronizeTransacaoViewOrdemPgto((subDays(new Date(),1)).toString(),(new Date()).toString());            
+  }
+
+  public async generateRemessaVLT(){
+    let daysBeforeBegin = 1; 
+    const daysBeforeEnd = 1; 
+    if(isTuesday(new Date())){
+      daysBeforeBegin = 3;
+    }
+    await this.cnabService.saveTransacoesJae(subDays(new Date(),daysBeforeBegin),
+    subDays(new Date(),daysBeforeEnd), undefined,"VLT");
+    const listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem,new Date(),
+    false,false,0,0,undefined); 
+    await this.cnabService.sendRemessa(listCnab);     
+  }
+
   public async saveAndSendRemessa(
-    dataPgto: Date,
-    isConference = false,
-    isCancelamento = false,
-    nsaInicial = 0,
-    nsaFinal = 0,
-    dataCancelamento = new Date(),
-  ) {
+    dataPgto: Date, isConference = false, isCancelamento = false, nsaInicial = 0, 
+    nsaFinal = 0,dataCancelamento = new Date()){
     const listCnabStr = await this.cnabService.generateRemessa(
-      PagadorContaEnum.ContaBilhetagem,
-      dataPgto,
-      isConference,
-      isCancelamento,
-      nsaInicial,
-      nsaFinal,
-      dataCancelamento,
+      PagadorContaEnum.ContaBilhetagem,dataPgto, isConference, isCancelamento,
+      nsaInicial, nsaFinal, dataCancelamento,
     );
     if (listCnabStr) await this.sendRemessa(listCnabStr);
   }
@@ -257,14 +214,20 @@ export class CronJobsService  {
   /**
    * Atualiza todos os itens do dia de ontem.
    */
-  async updateTransacaoView() {
+  async updateTransacaoView(consorcio:string) {
     const METHOD = this.updateTransacaoView.name;    
-    const startDate = subDays(startOfDay(new Date()),2);
-    const endDate = endOfDay(new Date());
+    let startDate = new Date();
+    let endDate = new Date();
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.updateTransacaoViewBigquery(startDate,endDate,0,'Van');
+      if(consorcio == 'Van'){
+         startDate = subHours(startDate,2);
+      }else{
+        startDate = startOfDay(startDate);
+        endDate = endOfDay(endDate);
+      }
+      await this.cnabService.updateTransacaoViewBigquery(startDate,endDate,0,consorcio);
       this.logger.log('TransacaoViews atualizados com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(
@@ -848,10 +811,6 @@ export class CronJobsService  {
 
   async updateRetorno() {
     const METHOD = this.updateRetorno.name;
-
-    if (!(await this.getIsCnabJobEnabled(METHOD))) {
-      return;
-    }
 
     try {
       await this.cnabService.updateRetorno();
