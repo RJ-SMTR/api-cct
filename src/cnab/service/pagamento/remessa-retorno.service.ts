@@ -671,19 +671,17 @@ export class RemessaRetornoService {
     //Inclui ocorrencias
     await this.salvaOcorrenciasDetalheA(detalheA,queryRunner);
     //Atualiza publicação
-    await this.savePublicacaoRetorno(detalheA,queryRunner);
-    //Compara com a Transacao
-    // await this.compareTransacaoViewPublicacao(detalheA,queryRunner);
+    await this.savePublicacaoRetorno(detalheA,queryRunner);    
   }
 
   async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA,queryRunner:QueryRunner) {
     if (!detalheARetorno.ocorrenciasCnab) {
       return;
     }
-    const ocorrencias = Ocorrencia.fromCodesString(
-      detalheARetorno.ocorrenciasCnab,
-    );
+    const ocorrencias = Ocorrencia.fromCodesString(detalheARetorno.ocorrenciasCnab);
     // Update
+    await this.ocorrenciaService.delete(detalheARetorno, queryRunner);
+
     for (const ocorrencia of ocorrencias) {
       ocorrencia.detalheA = detalheARetorno;
     }
@@ -716,6 +714,9 @@ export class RemessaRetornoService {
       if (publicacao.isPago) {
         publicacao.valorRealEfetivado = publicacao.itemTransacao.valor;
         publicacao.dataEfetivacao = detalheARetorno.dataEfetivacao;
+      }else{
+        publicacao.valorRealEfetivado = null;
+        publicacao.dataEfetivacao = null;
       }
       publicacao.dataGeracaoRetorno =
         detalheARetorno.headerLote.headerArquivo.dataGeracao;
@@ -723,7 +724,6 @@ export class RemessaRetornoService {
         detalheARetorno.headerLote.headerArquivo.horaGeracao;
       await this.arquivoPublicacaoService.save(publicacao,queryRunner);
     }
-
   }
 
   async compareTransacaoViewPublicacao(detalheA: DetalheA,queryRunner:QueryRunner) {

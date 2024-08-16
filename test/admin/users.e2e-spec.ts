@@ -14,7 +14,7 @@ import {
   MAILDEV_URL,
   TO_UPDATE_PERMIT_CODE,
 } from '../utils/constants';
-import { getStringUpperUnaccent } from 'src/utils/string-utils';
+import { parseStringUpperUnaccent } from 'src/utils/string-utils';
 
 describe('Admin managing users (e2e)', () => {
   const app = APP_URL;
@@ -67,7 +67,7 @@ describe('Admin managing users (e2e)', () => {
       const licenseePartOfName = 'user';
       const args = [
         {
-          filter: { name: getStringUpperUnaccent(LICENSEE_CASE_ACCENT) },
+          filter: { name: parseStringUpperUnaccent(LICENSEE_CASE_ACCENT) },
           expect: (body: any) =>
             expect(
               body.data.some((i: any) => i.fullName === LICENSEE_CASE_ACCENT),
@@ -147,16 +147,16 @@ describe('Admin managing users (e2e)', () => {
      * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 3 - GitHub}
      */ async () => {
       // Arrange
-       const randomCode = Math.random().toString(36).slice(-8);
-       const uploadUsers = [
-         {
-           codigo_permissionario: `permitCode_${randomCode}`,
-           nome: `Café_${randomCode}`,
-           email: `user.${randomCode}@test.com`,
-           telefone: `219${Math.random().toString().slice(2, 10)}`,
-           cpf: generate(),
-         },
-       ];
+      const randomCode = Math.random().toString(36).slice(-8);
+      const uploadUsers = [
+        {
+          codigo_permissionario: `permitCode_${randomCode}`,
+          nome: `Café_${randomCode}`,
+          email: `user.${randomCode}@test.com`,
+          telefone: `219${Math.random().toString().slice(2, 10)}`,
+          cpf: generate(),
+        },
+      ];
       const excelFilePath = path.join(tempFolder, 'newUsers.xlsx');
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(uploadUsers);
@@ -184,7 +184,7 @@ describe('Admin managing users (e2e)', () => {
         .expect(({ body }) => {
           expect(body.data?.length).toBe(1);
           expect(body.data[0]?.fullName).toEqual(
-            getStringUpperUnaccent(uploadUsers[0].nome),
+            parseStringUpperUnaccent(uploadUsers[0].nome),
           );
           expect(body.data[0]?.aux_inviteStatus?.name).toEqual('queued');
         })
@@ -269,7 +269,7 @@ describe('Admin managing users (e2e)', () => {
         .expect(({ body }) => {
           expect(body.token).toBeDefined();
         });
-      });
+    });
 
     test('Upload invalid cpf, block upload', /**
      * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 3 - GitHub}
