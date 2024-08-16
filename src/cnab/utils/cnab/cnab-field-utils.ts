@@ -5,7 +5,7 @@ import { cropDecimals } from 'src/utils/number-utils';
 import { asNumberStringDate, asStringOrDateDate } from 'src/utils/pipe-utils';
 import {
   getStringNoSpecials,
-  getStringUpperUnaccent,
+  parseStringUpperUnaccent,
   isStringBasicAlnumUpper,
 } from 'src/utils/string-utils';
 import {
@@ -168,7 +168,7 @@ export function formatText(
   validateCnabText(field, throwIfInvalid);
   const size = getPictureTextSize(field.picture);
   const result = cropFillCnabField(
-    getStringNoSpecials(getStringUpperUnaccent(field.value || '')),
+    getStringNoSpecials(parseStringUpperUnaccent(field.value || '')),
     size,
     'text',
     onCrop,

@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { OcorrenciaRepository } from 'src/cnab/repository/ocorrencia.repository';
 import { DeepPartial, FindManyOptions, QueryRunner } from 'typeorm';
+import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 
 @Injectable()
 export class OcorrenciaService {
@@ -28,5 +29,9 @@ export class OcorrenciaService {
       return await queryRunner.manager.getRepository(Ocorrencia).save(ocorrencia);
       
     }
+  }
+
+  public async delete(detalheA:DetalheA,queryRunner:QueryRunner){
+    await queryRunner.manager.getRepository(Ocorrencia).delete({detalheA:{ id: detalheA.id }});
   }
 }

@@ -154,7 +154,9 @@ export class DetalheA extends EntityHelper {
   }
 
   public isPago() {
-    const errors = Ocorrencia.getErrorCodes(this.ocorrenciasCnab || '');
+    const errors = Ocorrencia.getErrorCodesFromString(
+      this.ocorrenciasCnab || '',
+    );
     return errors.length === 0;
   }
 
@@ -171,5 +173,4 @@ export class DetalheA extends EntityHelper {
   public static getItemTransacaoAgIds(detalhesA: DetalheA[]) {
     return [...new Set(detalhesA.map((i) => i.itemTransacaoAgrupado.id))];
   }
-
 }

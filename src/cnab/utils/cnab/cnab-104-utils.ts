@@ -217,7 +217,7 @@ function isCnabRegistroNewLote(registro: CnabRegistro): boolean {
 
 export function getCnab104Errors(cnab: CnabFile104Pgto) {
   const cnabErrors = [
-    ...Ocorrencia.getErrorCodes(
+    ...Ocorrencia.getErrorCodesFromString(
       cnab.headerArquivo.ocorrenciaCobrancaSemPapel.value,
     ),
     ...cnab.lotes.reduce(
@@ -226,7 +226,9 @@ export function getCnab104Errors(cnab: CnabFile104Pgto) {
         ...i.registros.reduce(
           (l1, i1) => [
             ...l1,
-            ...Ocorrencia.getErrorCodes(i1.detalheA.ocorrencias.value),
+            ...Ocorrencia.getErrorCodesFromString(
+              i1.detalheA.ocorrencias.value,
+            ),
           ],
           [],
         ),

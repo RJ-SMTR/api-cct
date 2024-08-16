@@ -5,13 +5,14 @@ import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 import { User } from 'src/users/entities/user.entity';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { asString } from 'src/utils/pipe-utils';
-import { getStringUpperUnaccent } from 'src/utils/string-utils';
+import { parseStringUpperUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { FindOneOptions, In } from 'typeorm';
+import { FindManyOptions, FindOneOptions, In } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
+import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -35,11 +36,17 @@ export class ClienteFavorecidoService {
     const saveFavorecidos = await this.getManyFavorecidoDTOsFromUsers(allUsers);
     const newFavorecidos = saveFavorecidos.map((i) => {
       if (i.nome) {
-        i.nome = getStringUpperUnaccent(i.nome).trim();
+        i.nome = parseStringUpperUnaccent(i.nome).trim();
       }
       return i;
     });
     await this.clienteFavorecidoRepository.upsert(newFavorecidos);
+  }
+
+  public async findBy(
+    where?: IClienteFavorecidoFindBy,
+  ): Promise<ClienteFavorecido[]> {
+    return await this.clienteFavorecidoRepository.findManyBy(where);
   }
 
   public async findCpfCnpj(cpfCnpj: string): Promise<ClienteFavorecido | null> {
