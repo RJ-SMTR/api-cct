@@ -79,8 +79,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
     });
   }
 
-  async onModuleLoad() { 
-    // await this.generateRemessaVLT();
+  async onModuleLoad() {     
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
