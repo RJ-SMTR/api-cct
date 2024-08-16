@@ -110,9 +110,19 @@ export class CnabService {
     const dataOrdemInicialDate = startOfDay(new Date(dataOrdemIncial));
     const dataOrdemFinalDate = endOfDay(new Date(dataOrdemFinal));
     await this.updateAllFavorecidosFromUsers();    
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(
+    let ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(
       dataOrdemInicialDate,dataOrdemFinalDate,daysBefore);
-    await this.saveOrdens(ordens, consorcio);
+    let ordensFilter;
+    if(consorcio.trim() === 'Empresa'){
+      ordensFilter =  ordens.filter(ordem =>ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' 
+      && ordem.consorcio.trim() !== 'STPL');
+    }else if(consorcio.trim() === 'Van'){
+      ordensFilter = 
+          ordens.filter(ordem =>ordem.consorcio.trim() === 'STPC' || ordem.consorcio.trim() === 'STPL');                       
+    }else{
+      ordensFilter = ordens.filter(ordem =>ordem.consorcio === consorcio.trim());
+    }    
+    await this.saveOrdens(ordensFilter);
   }
 
   async updateTransacaoViewBigqueryLimit(trsBq: BigqueryTransacao[],queryRunner:QueryRunner) {
@@ -164,12 +174,12 @@ export class CnabService {
     itemAg:ItemTransacaoAgrupado,clienteFavorecido: ClienteFavorecido){
       const dataVencimento = nextFriday(dataCaptura);
 
-      let daysbefore = 8
+      let daysbefore = 9
       if(itemAg.nomeConsorcio ==='VLT'){
-        daysbefore = 1
+        daysbefore = 2
       }
       const trsDia = await this.getTransacoesViewWeek(
-        subDays(startOfDay(dataVencimento),daysbefore),endOfDay(dataVencimento));      
+        subDays(startOfDay(dataVencimento),daysbefore),subDays(endOfDay(dataVencimento),1));      
         const trsOrdem = trsDia.filter(
         (transacaoView) =>
            transacaoView.idOperadora === itemAg.idOperadora &&
@@ -182,7 +192,7 @@ export class CnabService {
   /**
    * Salvar Transacao / ItemTransacao e agrupados
    */
-  async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[], consorcio = 'Todos') {
+  async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[]) {
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
     for (const ordem of ordens) {
       const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
@@ -194,19 +204,8 @@ export class CnabService {
       });
       if (!favorecido) {
         continue;
-      }           
-
-      if (consorcio == 'Todos' || consorcio == ordem.consorcio) {
-        await this.saveAgrupamentos(ordem, pagador, favorecido);
-      } else if (consorcio == 'Van') {
-        if (ordem.consorcio == 'STPC' || ordem.consorcio == 'STPL'){   
-          await this.saveAgrupamentos(ordem, pagador, favorecido);                    
-        }
-      } else if (consorcio == 'Empresa') {
-        if (ordem.consorcio != 'STPC' && ordem.consorcio != 'STPL' && ordem.consorcio != 'VLT' ){          
-          await this.saveAgrupamentos(ordem, pagador, favorecido);
-        }
-      }
+      }               
+      await this.saveAgrupamentos(ordem, pagador, favorecido);      
     }
   }
 
@@ -247,12 +246,13 @@ export class CnabService {
       let transacaoAg = await this.transacaoAgService.findOne({
         dataOrdem: fridayOrdem, pagador: { id: pagador.id }, status: { id: TransacaoStatusEnum.created }}); 
 
-      if (transacaoAg) {
+      this.logger.debug(ordem.consorcio);
+      if (transacaoAg) {       
         itemAg = await this.saveUpdateItemTransacaoAg(transacaoAg,ordem,queryRunner);
       } else {               
         transacaoAg = await this.saveTransacaoAgrupado(ordem, pagador);
         itemAg = await this.saveItemTransacaoAgrupado(ordem,transacaoAg,queryRunner);        
-      }      
+      }            
       const transacao = await this.saveTransacao(ordem, pagador, transacaoAg.id,queryRunner);      
       await this.saveItemTransacaoPublicacao(ordem,favorecido,transacao,itemAg,queryRunner);      
       await queryRunner.commitTransaction();     
@@ -268,8 +268,7 @@ export class CnabService {
   async sincronizeTransacaoViewOrdemPgto(dataOrdemInicial:string, dataOrdemFinal:string){
     this.logger.debug("Start Sincronizing");
     const itens = await this.itemTransacaoAgService.findMany({
-      // where:{ dataCaptura: Between(startOfDay(subDays(new Date(dataOrdemInicial),1)),endOfDay(new Date(dataOrdemFinal)))         
-        where:{ dataCaptura: Between(startOfDay(subDays(new Date(dataOrdemInicial),10)),endOfDay(new Date(dataOrdemFinal)))         
+       where:{ dataCaptura: Between(startOfDay(subDays(new Date(dataOrdemInicial),1)),endOfDay(new Date(dataOrdemFinal)))                
       }
     })   
 
@@ -495,15 +494,12 @@ export class CnabService {
           this.logger.log(`Não há transações novas para gerar remessa, nada a fazer...`, METHOD);
           return [];
         }
-        for (const transacaoAg of transacoesAg) {
+        for (const transacaoAg of transacoesAg){
           const headerArquivoDTO =
             await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg,isConference);
           const lotes = await this.remessaRetornoService.getLotes(
             transacaoAg.pagador,headerArquivoDTO,dataPgto,isConference);
-          const cnab104 = this.remessaRetornoService.generateFile(
-            headerArquivoDTO,
-            lotes,
-          );
+          const cnab104 = this.remessaRetornoService.generateFile(headerArquivoDTO, lotes);
           if (headerArquivoDTO && cnab104) {
             const [cnabStr, processedCnab104] = stringifyCnab104File(
               cnab104,true,'CnabPgtoRem');

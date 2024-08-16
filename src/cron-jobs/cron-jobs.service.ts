@@ -80,8 +80,7 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
   }
 
   async onModuleLoad() { 
-    // await this.updateRetorno();
-    await this.generateRemessaVLT();
+    // await this.generateRemessaVLT();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -155,17 +154,17 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
           },
         },
       },
-      {
-        name: CrobJobsEnum.generateRemessaVLT,
-        cronJobParameters: {
-          cronTime: '0 10 * * *',// Every day, 07:00 GMT = 10:00 BRT (GMT-3)
-          onTick: async () => {
-            const today = new Date();
-            if(!isSaturday(today) && !isSunday(today))
-              await this.generateRemessaVLT();
-          },
-        },
-      }     
+      // {
+      //   name: CrobJobsEnum.generateRemessaVLT,
+      //   cronJobParameters: {
+      //     cronTime: '0 10 * * *',// Every day, 07:00 GMT = 10:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       const today = new Date();
+      //       if(!isSaturday(today) && !isSunday(today))
+      //         await this.generateRemessaVLT();
+      //     },
+      //   },
+      // }     
     );
 
     for (const jobConfig of this.jobsConfig) {
@@ -820,10 +819,6 @@ export class CronJobsService implements OnModuleInit, OnModuleLoad {
 
   async updateRetorno() {
     const METHOD = this.updateRetorno.name;
-
-    // if (!(await this.getIsCnabJobEnabled(METHOD))) {
-    //   return;
-    // }
 
     try {
       await this.cnabService.updateRetorno();
