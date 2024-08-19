@@ -7,6 +7,7 @@ import { cnabTrailerLote104Template } from "../cnab-trailer-lote-104-template.co
 import { cnabDetalheA104Template } from "./cnab-detalhe-a-104-template.const";
 import { cnabDetalheB104Template } from "./cnab-detalhe-b-104-template.const";
 import { cnabHeaderLote104PgtoTemplate } from "./cnab-header-lote-104-pgto-template.const";
+import { cnabDetalheZ104Template } from "./cnab-detalhe-z-104-template.const";
 
 const sc = structuredClone;
 
@@ -15,6 +16,7 @@ const registros = {
   headerLote: sc(cnabHeaderLote104PgtoTemplate),
   detalheA: sc(cnabDetalheA104Template),
   detalheB: sc(cnabDetalheB104Template),
+  detalheZ: sc(cnabDetalheZ104Template),
   trailerLote: sc(cnabTrailerLote104Template),
   trailerArquivo: sc(cnabTrailerArquivo104Template),
 };
@@ -26,6 +28,7 @@ const pgtoFile104: CnabFile104 = {
     registros: [{
       detalheA: sc(registros.detalheA),
       detalheB: sc(registros.detalheB),
+      detalheZ: sc(registros.detalheZ),
     }],
     trailerLote: sc(registros.trailerLote),
   }],

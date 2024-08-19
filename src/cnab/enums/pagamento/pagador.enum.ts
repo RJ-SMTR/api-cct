@@ -1,5 +1,5 @@
 export enum PagadorContaEnum {
-  /** 
+  /**
    * Only for items from Lancamento
    * .006........ = CNPJ
    */
@@ -9,4 +9,9 @@ export enum PagadorContaEnum {
    * .006........ = CNPJ
    */
   ContaBilhetagem = '000600071084',
+}
+
+export enum PgadorContaEnumKeys {
+  cett = 'CETT',
+  contaBilhetagem = 'ContaBilhetagem',
 }
