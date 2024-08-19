@@ -170,12 +170,28 @@ export class CronJobsService {
       daysBeforeBegin = 3;
     }
     await this.cnabService.saveTransacoesJae(subDays(new Date(), daysBeforeBegin), subDays(new Date(), daysBeforeEnd), undefined, 'VLT');
-    const listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem, new Date(), false, false, 0, 0, undefined);
+    const listCnab = await this.cnabService.generateRemessa({
+      tipo: PagadorContaEnum.ContaBilhetagem,
+      dataPgto: new Date(),
+      isConference: false,
+      isCancelamento: false,
+      nsaInicial: 0,
+      nsaFinal: 0,
+      dataCancelamento: undefined,
+    });
     await this.cnabService.sendRemessa(listCnab);
   }
 
   public async saveAndSendRemessa(dataPgto: Date, isConference = false, isCancelamento = false, nsaInicial = 0, nsaFinal = 0, dataCancelamento = new Date()) {
-    const listCnabStr = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem, dataPgto, isConference, isCancelamento, nsaInicial, nsaFinal, dataCancelamento);
+    const listCnabStr = await this.cnabService.generateRemessa({
+      tipo: PagadorContaEnum.ContaBilhetagem,
+      dataPgto,
+      isConference,
+      isCancelamento,
+      nsaInicial,
+      nsaFinal,
+      dataCancelamento,
+    });
     if (listCnabStr) await this.sendRemessa(listCnabStr);
   }
 

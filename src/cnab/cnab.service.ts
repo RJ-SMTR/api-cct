@@ -400,7 +400,19 @@ export class CnabService {
     await this.clienteFavorecidoService.updateAllFromUsers(allUsers);
   }
 
-  public async generateRemessa(tipo: PagadorContaEnum, dataPgto: Date | undefined, isConference: boolean, isCancelamento: boolean, nsaInicial: number, nsaFinal: number, dataCancelamento = new Date()): Promise<string[]> {
+  public async generateRemessa(args: {
+    tipo: PagadorContaEnum; //
+    dataPgto?: Date;
+    isConference: boolean;
+    isCancelamento: boolean;
+    nsaInicial: number;
+    nsaFinal: number;
+    dataCancelamento?: Date;
+  }): Promise<string[]> {
+    const { tipo, dataPgto, isConference, isCancelamento } = args;
+    let { nsaInicial, nsaFinal } = args;
+    const dataCancelamento = args?.dataCancelamento || new Date()
+
     const METHOD = this.sendRemessa.name;
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -506,9 +518,14 @@ export class CnabService {
     }
   }
 
-  public async updateRetorno() {
+  /**
+   * 
+   * @param folder Example: `/retorno`
+   * @returns 
+   */
+  public async updateRetorno(folder?: string) {
     const METHOD = this.updateRetorno.name;
-    let { cnabString, cnabName } = await this.sftpService.getFirstCnabRetorno();
+    let { cnabString, cnabName } = await this.sftpService.getFirstCnabRetorno(folder);
     while (cnabString) {
       if (!cnabName || !cnabString) {
         this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
@@ -519,7 +536,7 @@ export class CnabService {
         const retorno104 = parseCnab240Pagamento(cnabString);
         await this.remessaRetornoService.saveRetorno(retorno104);
         await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess);
-        const cnab = await this.sftpService.getFirstCnabRetorno();
+        const cnab = await this.sftpService.getFirstCnabRetorno(folder);
         cnabString = cnab.cnabString;
         cnabName = cnab.cnabName;
       } catch (error) {
