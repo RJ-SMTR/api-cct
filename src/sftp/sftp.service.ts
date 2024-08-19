@@ -203,7 +203,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     const originPath = this.dir(`${this.FOLDERS.RETORNO}/${cnabName}`);
     const destPath = this.dir(`${folder}/${cnabName}`);
     await this.connectClient();
-    await this.sftpClient.rename(originPath, destPath);
+    await this.sftpClient.rename(originPath, destPath, true);
     this.logger.debug(`Arquivo CNAB movido de '${originPath}' para ${destPath}`, METHOD);
   }
 }
