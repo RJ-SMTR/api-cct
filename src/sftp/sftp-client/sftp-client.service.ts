@@ -2,13 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as SftpClient from 'ssh2-sftp-client';
 import { ConnectConfig } from '../interfaces/connect-config.interface';
 import { FileInfo } from '../interfaces/file-info.interface';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class SftpClientService {
-  private readonly logger: Logger;
+  private readonly logger: CustomLogger;
   private sftpClient: SftpClient;
   constructor() {
-    this.logger = new Logger('SftpClientService');
+    this.logger = new CustomLogger('SftpClientService');
     this.sftpClient = new SftpClient();
   }
 
@@ -163,7 +164,14 @@ export class SftpClientService {
   async rename(
     remoteSourcePath: string,
     remoteDestinationPath: string,
+    overwrite?: boolean,
   ): Promise<void> {
+    if (overwrite) {
+      if (await this.exists(remoteDestinationPath)) {
+        this.logger.debug(`Overwriting existing path before rename: ${remoteDestinationPath}`);
+        await this.delete(remoteDestinationPath);
+      }
+    }
     await this.sftpClient.rename(remoteSourcePath, remoteDestinationPath);
   }
 

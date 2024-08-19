@@ -5,6 +5,7 @@ import { AllConfigType } from 'src/config/config.type';
 import { CronJobsService } from 'src/cron-jobs/cron-jobs.service';
 import { TestEnvironmentsGuard } from 'src/test/test-environments.guard';
 import { TestService } from './test.service';
+import { MailHistoryService } from 'src/mail-history/mail-history.service';
 
 @Controller({
   path: 'test',
@@ -17,6 +18,7 @@ export class TestController {
     private readonly configService: ConfigService<AllConfigType>,
     private readonly cronjobsService: CronJobsService,
     private readonly testService: TestService,
+    private readonly mailHistoryService: MailHistoryService,
   ) { }
 
   @Get('test-environments-guard')
@@ -75,5 +77,16 @@ export class TestController {
     @Query('cpfCnpj') cpfCnpj?: string,
   ) {
     return await this.testService.getInvaidCPFs({ email, cpfCnpj });
+  }
+
+  @Get('mail-history/generate-hash')
+  @ApiOperation({
+    description:
+      'Only available in test environments.' +
+      "\n\nUsed by e2e tests to reset example users' state before testing.",
+  })
+  async getMailHistoryGenerateHash(
+  ) {
+    return await this.mailHistoryService.generateHash();
   }
 }

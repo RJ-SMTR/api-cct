@@ -34,9 +34,8 @@ export function parseCnab240Extrato(cnabString: string): CnabFile104Extrato {
 }
 
 export function parseCnab240Pagamento(cnabString: string): CnabFile104Pgto {
-  const processedCnabString = removeCnabDetalheZ(cnabString);
   const fileDTO = sc(PgtoTemplates.file.dto.retorno);
-  const file = parseCnabFile(processedCnabString, fileDTO);
+  const file = parseCnabFile(cnabString, fileDTO);
   const file104 = getCnab104FromFile(file);
   return file104 as CnabFile104Pgto;
 }
