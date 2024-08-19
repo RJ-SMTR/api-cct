@@ -95,21 +95,9 @@ export class CronJobsService  {
     });
   }
 
-  async onModuleLoad() {
-    // await this.updateTransacaoView();
+  async onModuleLoad() {    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    // await this.saveTransacoesJae1(0, 'Todos', new Date());
-    // await this.saveAndSendRemessa(
-    //   new Date(),
-    //   false,
-    //   true,
-    //   101,
-    //   0,
-    //   new Date('2024-07-05'),
-    // );
-    // await this.cnabService.updateTransacaoViewBigquery();
-    // await this.cnabService.compareTransacaoViewPublicacao(14);
-
+ 
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,

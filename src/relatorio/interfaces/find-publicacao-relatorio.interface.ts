@@ -1,22 +1,9 @@
 export interface IFindPublicacaoRelatorio {
-  /** dataOrdemInicio */
   dataInicio?: Date | undefined;
-  /** dataOrdemFim */
   dataFim?: Date | undefined;
-  favorecidoNome?: string[];
-  favorecidoCpfCnpj?: string[];
-  consorcioNome?: string[];
-  valorRealEfetivadoMin?: number | undefined;
-  valorRealEfetivadoMax?: number | undefined;
+  favorecidoNome?: string[] | undefined ;  
+  consorcioNome?: string[] | undefined;
   valorMin?: number | undefined;
   valorMax?: number | undefined;
-  ocorrenciaCodigo?: string[];
-  erro?: boolean;
-  pago?: boolean;
-  aPagar?: boolean;
-  exibirConsorcios?: boolean;
-  exibirFavorecidos?: boolean;
-
-  // Extra
-  filtrarPendentes?: boolean;
+  pago?: boolean | undefined;
 }
