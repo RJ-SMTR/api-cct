@@ -70,8 +70,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {
-    // await this.generateRemessaVLT();
+  async onModuleLoad() {    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -145,12 +144,12 @@ export class CronJobsService {
       //   }
     );
 
-    // for (const jobConfig of this.jobsConfig) {
-    //   this.startCron(jobConfig);
-    //   this.logger.log(
-    //     `Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`,
-    //   );
-    // }
+    for (const jobConfig of this.jobsConfig) {
+      this.startCron(jobConfig);
+      this.logger.log(
+        `Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`,
+      );
+    }
   }
 
   startCron(jobConfig: ICronJob) {
