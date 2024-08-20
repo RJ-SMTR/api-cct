@@ -181,6 +181,11 @@ export class CronJobsService {
     }
   }
 
+  /**
+   * Verifica se o ambiente é realmente produção, pois:
+   * - É produção se .env -> nodeEnv = production, Banco -> settings.api_env = production
+   * - É staging se .env -> nodeEnv = production, Banco -> settings.api_env = staging
+   */
   public async getIsProd(method?: string) {
     const apiEnv = await this.settingsService.getOneBySettingData(appSettings.any__api_env);
     const nodeEnv = this.configService.getOrThrow('app.nodeEnv', { infer: true });
@@ -191,6 +196,9 @@ export class CronJobsService {
     return isProd;
   }
 
+  /**
+   * Verifica se os cornjobs de envio de CNAB estão ativos no banco de dados.
+   */
   async getIsCnabJobEnabled(method?: string) {
     const cnabJobEnabled = await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_jobs_enabled);
     if (method !== undefined && !cnabJobEnabled.getValueAsBoolean()) {
