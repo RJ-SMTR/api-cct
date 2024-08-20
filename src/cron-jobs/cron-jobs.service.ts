@@ -93,7 +93,7 @@ export class CronJobsService {
       {
         name: CrobJobsEnum.sendStatusReportTemp,
         cronJobParameters: {
-          cronTime: '40 13 20 8 *', // At 13:40 UTC (10:40 BRT, GMT-3) on day-of-month 20 in August.
+          cronTime: '50 13 20 8 *', // At 13:50 UTC (10:50 BRT, GMT-3) on day-of-month 20 in August.
           onTick: () => this.sendStatusReport(),
         },
       },
