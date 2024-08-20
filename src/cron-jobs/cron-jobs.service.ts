@@ -2,8 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { endOfDay, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
-import { start } from 'repl';
+import { endOfDay, isFriday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
@@ -19,6 +18,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { formatDateInterval } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -40,6 +40,7 @@ export enum CrobJobsEnum {
   updateTransacaoViewVan = 'updateTransacaoViewVan',
   syncTransacaoViewOrdemPgto = 'sincronizeTransacaoViewOrdemPgto',
   generateRemessaVLT = 'generateRemessaVLT',
+  generateRemessaEmpresa = 'generateRemessaEmpresa',
 }
 
 interface ICronJob {
@@ -71,7 +72,6 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    // await this.generateRemessaVLT();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -133,6 +133,15 @@ export class CronJobsService {
           },
         },
       },
+      {
+        name: CrobJobsEnum.generateRemessaEmpresa,
+        cronJobParameters: {
+          cronTime: '0 14 * * 5', // Every Friday, 14:00 GMT = 17:00 BRT (GMT-3)
+          onTick: async () => {
+            await this.generateRemessaEmpresa();
+          },
+        },
+      },
       // {
       //   name: CrobJobsEnum.generateRemessaVLT,
       //   cronJobParameters: {
@@ -153,6 +162,32 @@ export class CronJobsService {
     // }
   }
 
+  /**
+   * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
+   */
+  async generateRemessaEmpresa() {
+    const METHOD = 'generateRemessaEmpresa';
+    const today = new Date();
+    if (!isFriday(today)) {
+      this.logger.error('Não implementado - Hoje não é sexta-feira. Abortando...', undefined, METHOD);
+      return;
+    }
+
+    this.logger.log('Tarefa iniciada', METHOD);
+    const startDate = new Date();
+    const sex = subDays(today, 7);
+    const qui = subDays(today, 1);
+    await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Empresa');
+    const listCnab = await this.cnabService.generateRemessa({
+      tipo: PagadorContaEnum.ContaBilhetagem,
+      dataPgto: today,
+      isConference: false,
+      isCancelamento: false,
+    });
+    await this.cnabService.sendRemessa(listCnab);
+    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
+  }
+
   startCron(jobConfig: ICronJob) {
     const job = new CronJob(jobConfig.cronJobParameters);
     this.schedulerRegistry.addCronJob(jobConfig.name, job);
@@ -164,6 +199,9 @@ export class CronJobsService {
   }
 
   public async generateRemessaVLT() {
+    const METHOD = 'generateRemessaVLT';
+    this.logger.log('Tarefa iniciada', METHOD);
+    const startDate = new Date();
     let daysBeforeBegin = 1;
     const daysBeforeEnd = 1;
     if (isTuesday(new Date())) {
@@ -180,6 +218,7 @@ export class CronJobsService {
       dataCancelamento: undefined,
     });
     await this.cnabService.sendRemessa(listCnab);
+    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
   }
 
   public async saveAndSendRemessa(dataPgto: Date, isConference = false, isCancelamento = false, nsaInicial = 0, nsaFinal = 0, dataCancelamento = new Date()) {
@@ -202,7 +241,7 @@ export class CronJobsService {
   /**
    * Atualiza todos os itens do dia de ontem.
    */
-  async updateTransacaoView(consorcio: string) {
+  async updateTransacaoView(consorcio: 'Van' | 'Empresa') {
     const METHOD = this.updateTransacaoView.name;
     let startDate = new Date();
     let endDate = new Date();

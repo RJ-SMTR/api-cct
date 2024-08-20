@@ -13,7 +13,7 @@ import { UsersService } from 'src/users/users.service';
 
 import { getChunks } from 'src/utils/array-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { yearMonthDayToDate } from 'src/utils/date-utils';
+import { formatDateInterval, yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
 import { Between, DataSource, In, QueryRunner } from 'typeorm';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
@@ -49,6 +49,8 @@ import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
 import { completeCPFCharacter } from 'src/utils/cpf-cnpj';
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { InjectDataSource } from '@nestjs/typeorm';
+import { SettingsService } from 'src/settings/settings.service';
+import { cnabSettings } from 'src/settings/cnab.settings';
 
 /**
  * User cases for CNAB and Payments
@@ -80,25 +82,24 @@ export class CnabService {
     private usersService: UsersService,
     @InjectDataSource()
     private dataSource: DataSource,
+    private settingsService: SettingsService,
   ) {}
 
   // #region saveTransacoesJae
 
   /**
-   * Gera status = 1 (criado)
-   *
-   * Cria ArquivoPublicacao
-   *
-   * Update Transacoes tables from Jaé (bigquery)
+   * Obtém dados de OrdemPagamento e salva em ItemTransacao e afins, para gerar remessa.
+   * 
+   * As datas de uma semana de pagamento são de sex-qui (D+1)
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
-  public async saveTransacoesJae(dataOrdemIncial, dataOrdemFinal, daysBefore = 0, consorcio: string) {
+  public async saveTransacoesJae(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBefore = 0, consorcio: 'VLT' | 'Empresa' | 'Todos' | string) {
     const dataOrdemInicialDate = startOfDay(new Date(dataOrdemIncial));
     const dataOrdemFinalDate = endOfDay(new Date(dataOrdemFinal));
     await this.updateAllFavorecidosFromUsers();
     let ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, daysBefore);
-    let ordensFilter;
+    let ordensFilter: BigqueryOrdemPagamentoDTO[];
     if (consorcio.trim() === 'Empresa') {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL');
     } else if (consorcio.trim() === 'Van') {
@@ -281,7 +282,7 @@ export class CnabService {
       await queryRunner.release();
     }
     const endDate = new Date();
-    const duration = `${String(differenceInHours(endDate, startDate)).padEnd(2, '0')}:${String(differenceInMinutes(endDate, startDate)).padEnd(2, '0')}:${String(differenceInSeconds(endDate, startDate)).padStart(2, '0')}`;
+    const duration = formatDateInterval(endDate, startDate);
     this.logger.debug(`Fim Sync TransacaoView - duração: ${duration}`);
     return { duration, count };
   }
@@ -405,13 +406,18 @@ export class CnabService {
     dataPgto?: Date;
     isConference: boolean;
     isCancelamento: boolean;
-    nsaInicial: number;
-    nsaFinal: number;
+    /** Default: current NSA */
+    nsaInicial?: number;
+    /** Default: nsaInicial */
+    nsaFinal?: number;
     dataCancelamento?: Date;
   }): Promise<string[]> {
+    const currentNSA = parseInt((await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_current_nsa)).value);
+
     const { tipo, dataPgto, isConference, isCancelamento } = args;
-    let { nsaInicial, nsaFinal } = args;
-    const dataCancelamento = args?.dataCancelamento || new Date()
+    let nsaInicial = args.nsaInicial || currentNSA;
+    let nsaFinal = args.nsaFinal || nsaInicial;
+    const dataCancelamento = args?.dataCancelamento || new Date();
 
     const METHOD = this.sendRemessa.name;
     const queryRunner = this.dataSource.createQueryRunner();
@@ -427,7 +433,7 @@ export class CnabService {
         }
         for (const transacaoAg of transacoesAg) {
           const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg, isConference);
-          const lotes = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, dataPgto, isConference);
+          const lotes = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, isConference, dataPgto);
           const cnab104 = this.remessaRetornoService.generateFile(headerArquivoDTO, lotes);
           if (headerArquivoDTO && cnab104) {
             const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
@@ -448,10 +454,6 @@ export class CnabService {
           return [];
         }
 
-        if (nsaFinal == undefined || nsaFinal == 0) {
-          nsaFinal = nsaInicial;
-        }
-
         for (let index = nsaInicial; nsaInicial < nsaFinal + 1; nsaInicial++) {
           const headerArquivoDTO = await this.getHeaderArquivoCancelar(index);
           headerArquivoDTO.nsa = await this.headerArquivoService.getNextNSA();
@@ -462,7 +464,7 @@ export class CnabService {
             const headerLoteDTO = this.headerLoteService.convertHeaderLoteDTO(headerArquivoDTO, lote.pagador, lote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente);
             const detalhesA = (await this.detalheAService.findMany({ headerLote: { id: lote.id } })).sort((a, b) => a.nsr - b.nsr);
             for (const detalheA of detalhesA) {
-              const detalhe = await this.remessaRetornoService.saveDetalhes104(detalheA.numeroDocumentoEmpresa, headerLoteDTO, detalheA.itemTransacaoAgrupado, detalheA.nsr, detalheA.dataVencimento, false, true, detalheA);
+              const detalhe = await this.remessaRetornoService.saveDetalhes104(detalheA.numeroDocumentoEmpresa, headerLoteDTO, detalheA.itemTransacaoAgrupado, detalheA.nsr, false, detalheA.dataVencimento, true, detalheA);
               if (detalhe) {
                 detalhes.push(detalhe);
               }
@@ -519,9 +521,9 @@ export class CnabService {
   }
 
   /**
-   * 
+   *
    * @param folder Example: `/retorno`
-   * @returns 
+   * @returns
    */
   public async updateRetorno(folder?: string) {
     const METHOD = this.updateRetorno.name;
@@ -535,7 +537,7 @@ export class CnabService {
       try {
         const retorno104 = parseCnab240Pagamento(cnabString);
         await this.remessaRetornoService.saveRetorno(retorno104);
-        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess);
+        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess, cnabString);
         const cnab = await this.sftpService.getFirstCnabRetorno(folder);
         cnabString = cnab.cnabString;
         cnabName = cnab.cnabName;
@@ -545,7 +547,7 @@ export class CnabService {
           this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
           return;
         }
-        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoFailure);
+        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoFailure, cnabString);
       }
     }
     return;
@@ -571,10 +573,10 @@ export class CnabService {
     try {
       const retorno104 = parseCnab240Extrato(cnab.content);
       await this.saveExtratoFromCnab(retorno104);
-      await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess);
+      await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess, cnab.content);
     } catch (error) {
       this.logger.error('Erro ao processar CNAB extrato, movendo para backup de erros e finalizando...', error, METHOD);
-      await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure);
+      await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure, cnab.content);
     }
     return;
   }
