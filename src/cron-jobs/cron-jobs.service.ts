@@ -89,14 +89,6 @@ export class CronJobsService {
           onTick: () => this.sendStatusReport(),
         },
       },
-      /** TODO: Temporário, remover em seguida */
-      {
-        name: CrobJobsEnum.sendStatusReportTemp,
-        cronJobParameters: {
-          cronTime: '50 13 20 8 *', // At 13:50 UTC (10:50 BRT, GMT-3) on day-of-month 20 in August.
-          onTick: () => this.sendStatusReport(),
-        },
-      },
       {
         name: CrobJobsEnum.bulkResendInvites,
         cronJobParameters: {
