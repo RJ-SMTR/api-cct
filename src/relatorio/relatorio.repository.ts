@@ -44,7 +44,7 @@ export class RelatorioRepository {
               if(valorMin!==undefined)
                 query = query +` and da."valorLancamento">=${valorMin}`;
 
-              if(valorMin!==undefined)
+              if(valorMax!==undefined)
                  query = query + ` and da."valorLancamento"<=${valorMax}`;              
             
             query = query +  `) as cs
@@ -87,7 +87,7 @@ export class RelatorioRepository {
                   if(valorMin!==undefined)
                     query = query +` and da."valorLancamento">=${valorMin}`;
 
-                  if(valorMin!==undefined)
+                  if(valorMax!==undefined)
                     query = query +` and da."valorLancamento"<=${valorMax}`;                    
 
                  query = query +`) as cs 
@@ -124,7 +124,7 @@ export class RelatorioRepository {
                   if(valorMin!==undefined)
                     query = query +` and da."valorLancamento">=${valorMin}`;
 
-                  if(valorMin!==undefined)
+                  if(valorMax!==undefined)
                    query = query + ` and da."valorLancamento"<=${valorMax}`;
                   
                   if(favorecidoNome!==undefined)
