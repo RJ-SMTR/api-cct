@@ -9,7 +9,7 @@ export class RelatorioRepository {
   constructor(@InjectDataSource()
               private readonly dataSource: DataSource) {}
 
-  private getQueryConsorcio(dataInicio?:string,dataFim?:string,pago?:boolean,
+  private getQueryConsorcio(dataInicio:string,dataFim:string,pago?:boolean,
     valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){ 
     let query =
      ` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor
@@ -52,7 +52,7 @@ export class RelatorioRepository {
     return query;             
   }
 
-  private getQueryStpcStpl(dataInicio?:string,dataFim?:string,pago?:boolean,
+  private getQueryStpcStpl(dataInicio:string,dataFim:string,pago?:boolean,
     valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){
      let query = ` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor
               from (
@@ -95,7 +95,7 @@ export class RelatorioRepository {
             return query;
   }
 
-  private getOperadores(dataInicio?:string,dataFim?:string,pago?:boolean,valorMin?:number,
+  private getOperadores(dataInicio:string,dataFim:string,pago?:boolean,valorMin?:number,
     valorMax?:number,favorecidoNome?:string[],aPagar?:boolean){
     let query = `select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor
                  from (
@@ -138,26 +138,26 @@ export class RelatorioRepository {
   public async findConsolidado(args: IFindPublicacaoRelatorio): Promise<RelatorioConsolidadoDto[]> {   
     let queryConsorcio = ''
     if(args.consorcioNome!==undefined && !(['STPC','STPL'].some(i=>args.consorcioNome?.includes(i)))){
-      queryConsorcio = this.getQueryConsorcio(args.dataInicio?.toISOString().slice(0,10),
-      args.dataFim?.toISOString().slice(0,10),args.pago,args.valorMin,
+      queryConsorcio = this.getQueryConsorcio(args.dataInicio.toISOString().slice(0,10),
+      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
         args.valorMax,args.consorcioNome,args.aPagar);
     }else if(args.consorcioNome!==undefined && (['STPC','STPL'].some(i=>args.consorcioNome?.includes(i)))){
-      queryConsorcio = this.getQueryStpcStpl(args.dataInicio?.toISOString().slice(0,10),
-      args.dataFim?.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.consorcioNome,args.aPagar);    
+      queryConsorcio = this.getQueryStpcStpl(args.dataInicio.toISOString().slice(0,10),
+      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.consorcioNome,args.aPagar);    
     }else if(args.favorecidoNome===undefined && args.consorcioNome === undefined) {
-      queryConsorcio =  this.getQueryConsorcio(args.dataInicio?.toISOString().slice(0,10),
-      args.dataFim?.toISOString().slice(0,10),args.pago,args.valorMin,
+      queryConsorcio =  this.getQueryConsorcio(args.dataInicio.toISOString().slice(0,10),
+      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
         args.valorMax,args.consorcioNome,args.aPagar) +
         ' union all '+
       this.getQueryStpcStpl(args.dataInicio?.toISOString().slice(0,10),
-      args.dataFim?.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.consorcioNome,args.aPagar);
+      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.consorcioNome,args.aPagar);
     }
 
     let queryOperadores ='';
 
     if(args.consorcioNome==undefined){
-      queryOperadores = this.getOperadores(args.dataInicio?.toISOString().slice(0,10),
-      args.dataFim?.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.favorecidoNome,args.aPagar); 
+      queryOperadores = this.getOperadores(args.dataInicio.toISOString().slice(0,10),
+      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.favorecidoNome,args.aPagar); 
     }
         
     if(queryConsorcio !=='' && queryOperadores!==''){   
