@@ -92,21 +92,14 @@ export class CnabController {
     @Query('isCancelamento') isCancelamento: boolean,
     @Query('nsaInicial') nsaInicial: number,
     @Query('nsaFinal') nsaFinal: number,
-    @Query('dataCancelamento', new ParseDatePipe({ transform: true })) dataCancelamento: Date,
-  ) {
-    await this.cnabService.saveTransacoesJae(dataOrdemInicial, dataOrdemFinal, diasAnteriores, consorcio);
-    const listCnab = await this.cnabService.generateRemessa({
-      tipo: PagadorContaEnum.ContaBilhetagem, //
-      dataPgto,
-      isConference,
-      isCancelamento,
-      nsaInicial,
-      nsaFinal,
-      dataCancelamento,
-    });
-    await this.cnabService.sendRemessa(listCnab);
-    return listCnab;
-  }
+    @Query('dataCancelamento', new ParseDatePipe()) dataCancelamento: string) {
+      await this.cnabService.saveTransacoesJae(dataOrdemInicial,dataOrdemFinal,diasAnteriores,consorcio);
+      const listCnab = await this.cnabService.generateRemessa(PagadorContaEnum.ContaBilhetagem,
+       (dt_pagamento !==null && dt_pagamento !==undefined)?new Date(dt_pagamento):
+       dt_pagamento,isConference,isCancelamento,nsaInicial,nsaFinal,new Date(dataCancelamento)); 
+      await this.cnabService.sendRemessa(listCnab); 
+      return listCnab; 
+    }  
 
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
