@@ -153,20 +153,10 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     cnabString: string | null;
   }> {
     await this.connectClient();
-
-    // const listFiles =  await this.sftpClient.list(
-    //   this.dir(this.FOLDERS.RETORNO));
-
-    // for(const file of listFiles) {
-    //   await this.moveToBackup(file.name,SftpBackupFolder.Ajuste);
-    // }
-
     const firstFile = (await this.sftpClient.list(this.dir(folder), this.REGEX.RETORNO)).pop();
-
     if (!firstFile) {
       return { cnabName: null, cnabString: null };
     }
-
     const cnabPath = this.dir(`${folder}/${firstFile.name}`);
     const cnabString = await this.downloadToString(cnabPath);
     return { cnabName: firstFile.name, cnabString };
