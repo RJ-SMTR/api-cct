@@ -7,7 +7,6 @@ export class RelatorioConsolidadoDto {
       Object.assign(this, consolidado);
     }
   }
-
   valor: number = 0;
   nome: String;
   @Exclude()

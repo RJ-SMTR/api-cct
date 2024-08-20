@@ -6,4 +6,5 @@ export interface IFindPublicacaoRelatorio {
   valorMin?: number | undefined;
   valorMax?: number | undefined;
   pago?: boolean | undefined;
+  aPagar: boolean | undefined;
 }
