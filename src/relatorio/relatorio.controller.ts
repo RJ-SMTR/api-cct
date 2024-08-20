@@ -1,9 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { OcorrenciaUserEnum } from 'src/cnab/enums/ocorrencia-user.enum';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
-import { Enum } from 'src/utils/enum';
 import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
@@ -20,20 +18,11 @@ export class RelatorioController {
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: false, type: String, example: '2024-07-15' })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: false, type: String, example: '2024-07-16' })
   @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome parcial dos favorecidos, sem distinção de acento ou maiúsculas.', required: false, type: String, example: 'internorte,intersul,jose carlos' })
-  @ApiQuery({ name: 'favorecidoCpfCnpj', description: 'Pesquisa o cpf/cnpj dos favorecidos.', required: false, type: String, example: '11111,22222,33333' })
   @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String, example: 'Santa Cruz,STPL,Internorte,STPC,MobiRio,Transcarioca,Intersul,VLT' })
-  @ApiQuery({ name: 'exibirConsorcios', required: false, type: Boolean, example: true })
-  @ApiQuery({ name: 'exibirFavorecidos', required: false, type: Boolean, example: true })
-  @ApiQuery({ name: 'valorRealEfetivadoMin', description: 'Somatório do valor real pago ao favorecido.', required: false, type: Number, example: 12.0 })
-  @ApiQuery({ name: 'valorRealEfetivadoMax', description: 'Somatório do valor real pago ao favorecido.', required: false, type: Number, example: 12.99 })
   @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto.', required: false, type: Number, example: 12.0 })
   @ApiQuery({ name: 'valorMax', description: 'Somatório do valor bruto.', required: false, type: Number, example: 12.99 })
-  @ApiQuery({ name: 'ocorrenciaCodigo', description: 'Código de ocorrência.', required: false, type: String, example: Enum.getKeys(OcorrenciaUserEnum) })
-  @ApiQuery({ name: 'erro', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento apresentou erro.', default: false }) })
   @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
-  @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se ainda não foi feita a tentativa de pagamento.', default: false }) })
-  @ApiQuery({ name: 'decimais', required: false, type: Number, description: ApiDescription({ _: 'Número de casas decimais exibidos e a serem pesquisados.', default: 2, min: 0, max: 4 }) })
-  @ApiQuery({ name: 'filtrarPendentes', required: false, type: Boolean, description: ApiDescription({ _: '(debug) Se pagamentos fora da semana de pagamento devem ser filtrados pela data início/fim.', default: false }) })
+  @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -44,51 +33,18 @@ export class RelatorioController {
     @Query('dataFim', new ParseDatePipe({ dateOnly: true, optional: true }))
     dataFim: Date | undefined,
     @Query('favorecidoNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    favorecidoNome: string[],
-    @Query('favorecidoCpfCnpj', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    favorecidoCpfCnpj: string[],
+    favorecidoNome: string[],    
     @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    consorcioNome: string[],
-    @Query('exibirConsorcios', new ParseBooleanPipe({ defaultValue: false }))
-    exibirConsorcios: boolean | undefined,
-    @Query('exibirFavorecidos', new ParseBooleanPipe({ defaultValue: false }))
-    exibirFavorecidos: boolean | undefined,
-    @Query('valorRealEfetivadoMin', new ParseNumberPipe({ optional: true }))
-    valorRealEfetivadoMin: number | undefined,
-    @Query('valorRealEfetivadoMax', new ParseNumberPipe({ optional: true }))
-    valorRealEfetivadoMax: number | undefined,
+    consorcioNome: string[],    
     @Query('valorMin', new ParseNumberPipe({ optional: true }))
     valorMin: number | undefined,
     @Query('valorMax', new ParseNumberPipe({ optional: true }))
     valorMax: number | undefined,
-    @Query('ocorrenciaCodigo', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    ocorrenciaCodigo: string[],
-    @Query('erro', new ParseBooleanPipe({ optional: true }))
-    erro: boolean | undefined,
-    @Query('pago', new ParseBooleanPipe({ optional: true }))
-    pago: boolean | undefined,
-    @Query('aPagar', new ParseBooleanPipe({ optional: true }))
-    aPagar: boolean | undefined,
-    @Query('filtrarPendentes', new ParseBooleanPipe({ defaultValue: false }))
-    filtrarPendentes: boolean,
+    @Query('pago',new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,     
+    @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined   
   ) {
     return await this.relatorioService.findConsolidado({
-      dataInicio,
-      dataFim,
-      favorecidoNome,
-      favorecidoCpfCnpj,
-      consorcioNome,
-      valorRealEfetivadoMin,
-      valorRealEfetivadoMax,
-      valorMin,
-      valorMax,
-      ocorrenciaCodigo,
-      erro,
-      pago,
-      aPagar,
-      exibirConsorcios,
-      exibirFavorecidos,
-      filtrarPendentes,
+      dataInicio,dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar
     });
   }
 }

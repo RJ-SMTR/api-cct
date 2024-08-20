@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SchedulerRegistry } from '@nestjs/schedule';
+import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
@@ -27,6 +27,7 @@ import { validateEmail } from 'validations-br';
 export enum CrobJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
   sendStatusReport = 'sendStatusReport',
+  sendStatusReportTemp = 'sendStatusReportTemp',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
   updateRetorno = 'updateRetorno',
@@ -81,6 +82,7 @@ export class CronJobsService {
           onTick: async () => this.bulkSendInvites(),
         },
       },
+      /** NÃO DESABILITAR ENVIO DE REPORT */
       {
         name: CrobJobsEnum.sendStatusReport,
         cronJobParameters: {
@@ -172,10 +174,29 @@ export class CronJobsService {
       // },
     );
 
+    /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
     for (const jobConfig of this.jobsConfig) {
       this.startCron(jobConfig);
       this.logger.log(`Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`);
     }
+  }
+
+  public async getIsProd(method?: string) {
+    const apiEnv = await this.settingsService.getOneBySettingData(appSettings.any__api_env);
+    const nodeEnv = this.configService.getOrThrow('app.nodeEnv', { infer: true });
+    const isProd = nodeEnv === 'production' && apiEnv.getValueAsString() === 'production';
+    if (method !== undefined && !isProd) {
+      this.logger.log(`Tarefa ignorada pois a variável 'nodeEnv' e no banco o 'production' não estão definidos para 'production' (nodeEnv: ${nodeEnv}, settings.api_env: ${apiEnv.getValueAsString()})`, method);
+    }
+    return isProd;
+  }
+
+  async getIsCnabJobEnabled(method?: string) {
+    const cnabJobEnabled = await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_jobs_enabled);
+    if (method !== undefined && !cnabJobEnabled.getValueAsBoolean()) {
+      this.logger.log(`Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`, method);
+    }
+    return cnabJobEnabled.getValueAsBoolean();
   }
 
   startCron(jobConfig: ICronJob) {
@@ -463,6 +484,9 @@ export class CronJobsService {
 
   async sendStatusReport() {
     const METHOD = this.sendStatusReport.name;
+    if (!(await this.getIsProd(METHOD))) {
+      return;
+    }
     this.logger.log('Iniciando tarefa.', METHOD);
 
     const isEnabledFlag = await this.settingsService.findOneBySettingData(appSettings.any__mail_report_enabled);
@@ -662,14 +686,6 @@ export class CronJobsService {
     } catch (httpException) {
       this.logger.error('Email falhou ao enviar.', httpException.stack, THIS_METHOD);
     }
-  }
-
-  async getIsCnabJobEnabled(method?: string) {
-    const cnabJobEnabled = await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_jobs_enabled);
-    if (method !== undefined && !cnabJobEnabled.getValueAsBoolean()) {
-      this.logger.log(`Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`, method);
-    }
-    return cnabJobEnabled.getValueAsBoolean();
   }
 
   async sendRemessa(listCnab: string[]) {
