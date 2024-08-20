@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { endOfDay, isFriday, isSaturday, isSunday, isTuesday, nextFriday, startOfDay, subDays, subHours } from 'date-fns';
+import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
@@ -132,7 +132,7 @@ export class CronJobsService {
       {
         name: CrobJobsEnum.generateRemessaEmpresa,
         cronJobParameters: {
-          cronTime: '0 14 * * 5', // Every Friday, 14:00 GMT = 17:00 BRT (GMT-3)
+          cronTime: '0 14 * * 4', // Every Thursday, 14:00 GMT = 17:00 BRT (GMT-3)
           onTick: async () => {
             await this.generateRemessaEmpresa();
           },
@@ -172,27 +172,26 @@ export class CronJobsService {
   }
 
   /**
-   * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
+   * Gera na quinta, paga na sexta.
    */
   async generateRemessaEmpresa() {
     const METHOD = 'generateRemessaEmpresa';
     if (!(await this.getIsCnabJobEnabled(METHOD))) {
       return;
     }
-    let today = new Date();
-    if (!isFriday(today)) {
-      today = nextFriday(today);
-      // this.logger.error('Não implementado - Hoje não é sexta-feira. Abortando...', undefined, METHOD);
-      // return;
+    const today = new Date();
+    if (!isThursday(today)) {
+      this.logger.error('Não implementado - Hoje não é quinta-feira. Abortando...', undefined, METHOD);
+      return;
     }
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
-    const sex = subDays(today, 7);
-    const qui = subDays(today, 1);
+    const sex = subDays(today, 6);
+    const qui = today;
     await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Empresa');
     const listCnab = await this.cnabService.generateRemessa({
       tipo: PagadorContaEnum.ContaBilhetagem,
-      dataPgto: today,
+      dataPgto: addDays(today, 1),
       isConference: false,
       isCancelamento: false,
     });
@@ -229,19 +228,30 @@ export class CronJobsService {
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
   }
 
+  /**
+   * Regras de negócio:
+   * - Se hoje for terça, obter de sáb, dom, seg
+   * - Se hoje for segunda, obter de sexta
+   */
   public async generateRemessaVLT() {
     const METHOD = 'generateRemessaVLT';
     if (!(await this.getIsCnabJobEnabled(METHOD))) {
       return;
     }
     this.logger.log('Tarefa iniciada', METHOD);
-    const startDate = new Date();
+    const today = new Date();
+    const startDateLog = new Date();
     let daysBeforeBegin = 1;
-    const daysBeforeEnd = 1;
-    if (isTuesday(new Date())) {
+    let daysBeforeEnd = 1;
+    if (isTuesday(today)) {
       daysBeforeBegin = 3;
+    } else if (isMonday(today)) {
+      daysBeforeBegin = 3;
+      daysBeforeEnd = 3;
     }
-    await this.cnabService.saveTransacoesJae(subDays(new Date(), daysBeforeBegin), subDays(new Date(), daysBeforeEnd), undefined, 'VLT');
+    const startDate = subDays(new Date(), daysBeforeBegin);
+    const endDate = subDays(new Date(), daysBeforeEnd);
+    await this.cnabService.saveTransacoesJae(startDate, endDate, undefined, 'VLT');
     const listCnab = await this.cnabService.generateRemessa({
       tipo: PagadorContaEnum.ContaBilhetagem,
       dataPgto: new Date(),
@@ -249,7 +259,7 @@ export class CronJobsService {
       isCancelamento: false,
     });
     await this.cnabService.sendRemessa(listCnab);
-    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
+    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDateLog)}`, METHOD);
   }
 
   public async syncTransacaoViewOrdemPgto() {
