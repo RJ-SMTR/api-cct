@@ -198,12 +198,21 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
    *
    * @param cnabName Name with extension. No folder path.
    */
-  public async moveToBackup(cnabName: string, folder: SftpBackupFolder) {
+  public async moveToBackup(
+    cnabName: string,
+    folder: SftpBackupFolder,
+    cnabContentIfNoOrigin?: string,
+  ) {
     const METHOD = 'moveToBackup()';
     const originPath = this.dir(`${this.FOLDERS.RETORNO}/${cnabName}`);
     const destPath = this.dir(`${folder}/${cnabName}`);
     await this.connectClient();
-    await this.sftpClient.rename(originPath, destPath, true);
+    if (cnabContentIfNoOrigin && !(await this.sftpClient.exists(originPath))) {
+      this.logger.log(`Origem não existe: '${originPath}'. Salvando cnab no backup.`)
+      await this.sftpClient.upload(Buffer.from(cnabContentIfNoOrigin, 'utf-8'), destPath);
+    } else {
+      await this.sftpClient.rename(originPath, destPath, true);
+    }
     this.logger.debug(`Arquivo CNAB movido de '${originPath}' para ${destPath}`, METHOD);
   }
 }

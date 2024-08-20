@@ -15,6 +15,9 @@ import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ExtratoDto } from './service/dto/extrato.dto';
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
 import { ParseListPipe } from 'src/utils/pipes/parse-list.pipe';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { formatDateInterval } from 'src/utils/date-utils';
 
 @ApiTags('Cnab')
 @Controller({
@@ -22,6 +25,8 @@ import { ParseListPipe } from 'src/utils/pipes/parse-list.pipe';
   version: '1',
 })
 export class CnabController {
+  private logger = new CustomLogger(CnabController.name, { timestamp: true });
+
   constructor(private readonly clienteFavorecidoService: ClienteFavorecidoService, private readonly extratoHeaderArquivoService: ExtratoHeaderArquivoService, private readonly arquivoPublicacaoService: ArquivoPublicacaoService, private readonly cnabService: CnabService) {}
 
   @Get('clientes-favorecidos')
@@ -68,33 +73,48 @@ export class CnabController {
     return await this.arquivoPublicacaoService.findManyByDate(new Date(dt_inicio + ' '), new Date(dt_fim + ' '));
   }
 
-  @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial', required: false, type: String, example: '2024-07-15' })
-  @ApiQuery({ name: 'dataOrdemFinal', description: 'Data da Ordem de Pagamento Final', required: false, type: String, example: '2024-07-16' })
-  @ApiQuery({ name: 'diasAnterioresSexta', description: 'Qtde dias Anteriores a sexta', required: false, type: Number, example: 7 })
-  @ApiQuery({ name: 'consorcio', description: 'Nome Consorcio', required: false, type: String, example: 'Todos / Van / Empresa /Nome Consorcio' })
-  @ApiQuery({ name: 'dt_pagamento', description: 'Data Pagamento', required: false, type: String })
-  @ApiQuery({ name: 'isConference', description: 'Conferencia', required: false, type: Boolean, example: 'true or false' })
-  @ApiQuery({ name: 'isCancelamento', description: 'Cancelamento', required: false, type: Boolean, example: 'true or false' })
-  @ApiQuery({ name: 'nsaInicial', required: false, type: Number })
-  @ApiQuery({ name: 'nsaFinal', required: false, type: Number })
-  @ApiQuery({ name: 'dataCancelamento', required: false, type: String })
+  @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial - salvar transações', required: true, type: String, example: '2024-07-15' })
+  @ApiQuery({ name: 'dataOrdemFinal', description: 'Data da Ordem de Pagamento Final - salvar transações', required: true, type: String, example: '2024-07-16' })
+  @ApiQuery({ name: 'diasAnterioresOrdem', description: ApiDescription({ _: 'Procurar também por dias Anteriores a dataOrdemInicial - salvar transações', default: 0 }), required: false, type: Number, example: 7 })
+  @ApiQuery({ name: 'consorcio', description: 'Nome do consorcio - salvar transações', required: true, type: String, example: 'Todos / Van / Empresa /Nome Consorcio' })
+  @ApiQuery({ name: 'dt_pagamento', description: ApiDescription({ _: 'Data Pagamento', default: 'O dia de hoje' }), required: false, type: String })
+  @ApiQuery({ name: 'isConference', description: 'Conferencia - Se o remessa será gerado numa tabela de teste.', required: true, type: Boolean, example: true })
+  @ApiQuery({ name: 'isCancelamento', description: 'Cancelamento', required: true, type: Boolean, example: false })
+  @ApiQuery({ name: 'nsaInicial', description: ApiDescription({ default: 'O NSA atual' }), required: false, type: Number })
+  @ApiQuery({ name: 'nsaFinal', description: ApiDescription({ default: 'nsaInicial' }), required: false, type: Number })
+  @ApiQuery({ name: 'dataCancelamento', description: ApiDescription({ _: 'Data de vencimento da transação a ser cancelada (DetalheA).', 'Required if': 'isCancelamento = true' }), required: false, type: String, example: '2024-07-16' })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('generateRemessa')
-  async generateRemessa(
-    @Query('dataOrdemInicial') dataOrdemInicial: string | undefined, //
-    @Query('dataOrdemFinal') dataOrdemFinal: string | undefined,
-    @Query('diasAnterioresSexta') diasAnteriores: number | 0,
-    @Query('consorcio') consorcio = 'Todos',
+  async getGenerateRemessa(
+    @Query('dataOrdemInicial', new ParseDatePipe({ transform: true })) dataOrdemInicial: Date, //
+    @Query('dataOrdemFinal', new ParseDatePipe({ transform: true })) dataOrdemFinal: Date,
+    @Query('diasAnterioresOrdem', new ParseNumberPipe({ min: 0, defaultValue: 0 })) diasAnteriores: number,
+    @Query('consorcio') consorcio: string,
     @Query('dt_pagamento', new ParseDatePipe({ transform: true, optional: true })) dataPgto: Date | undefined,
     @Query('isConference') isConference: boolean,
     @Query('isCancelamento') isCancelamento: boolean,
-    @Query('nsaInicial') nsaInicial: number,
-    @Query('nsaFinal') nsaFinal: number,
-    @Query('dataCancelamento', new ParseDatePipe()) dataCancelamento: string,
+    @Query('nsaInicial', new ParseNumberPipe({ min: 1, optional: true })) nsaInicial: number | undefined,
+    @Query('nsaFinal', new ParseNumberPipe({ min: 1, optional: true })) nsaFinal: number | undefined,
+    @Query('dataCancelamento', new ParseDatePipe({ transform: true, optional: true })) dataCancelamento: Date | undefined,
   ) {
+    const METHOD = 'getGenerateRemessa';
+    if (isCancelamento && !dataCancelamento) {
+      throw CommonHttpException.message('dataCancelamento é obrigatório se isCancelamento = true');
+    }
+    const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
+    const startDate = new Date();
+    let now = new Date();
+    this.logger.log('Tarefa iniciada', METHOD);
+
+    this.logger.log('saveTransacoesJae iniciado');
     await this.cnabService.saveTransacoesJae(dataOrdemInicial, dataOrdemFinal, diasAnteriores, consorcio);
+    duration.saveTransacoesJae = formatDateInterval(new Date(), now);
+    now = new Date();
+    this.logger.log(`saveTransacoesJae finalizado - ${duration.saveTransacoesJae}`);
+
+    this.logger.log('generateRemessa started');
     const listCnab = await this.cnabService.generateRemessa({
       tipo: PagadorContaEnum.ContaBilhetagem, //
       dataPgto,
@@ -102,19 +122,35 @@ export class CnabController {
       isCancelamento,
       nsaInicial,
       nsaFinal,
-      dataCancelamento: new Date(dataCancelamento),
+      dataCancelamento,
     });
+    duration.generateRemessa = formatDateInterval(new Date(), now);
+    now = new Date();
+    this.logger.log(`generateRemessa finalizado - ${duration.generateRemessa}`);
+
+    this.logger.log('sendRemessa started');
     await this.cnabService.sendRemessa(listCnab);
-    return listCnab;
+    duration.sendRemessa = formatDateInterval(new Date(), now);
+    this.logger.log(`sendRemessa finalizado - ${duration.sendRemessa}`);
+
+    duration.total = formatDateInterval(new Date(), startDate);
+    this.logger.log(`Tarefa finalizada - ${duration.total}`);
+    return {
+      duration,
+      cnabs: listCnab,
+    };
   }
 
+  @ApiQuery({ name: 'folder', description: ApiDescription({  _: 'Pasta para ler os retornos', default: '/retorno' }), required: false, type: String })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.admin)
   @Get('updateRetorno')
-  async getUpdateRetorno() {
-    return await this.cnabService.updateRetorno();
+  async getUpdateRetorno(
+    @Query('folder', new ParseDatePipe()) folder: string | undefined, //
+  ) {
+    return await this.cnabService.updateRetorno(folder);
   }
 
   @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial', required: true, type: Date })

@@ -145,7 +145,7 @@ export class DetalheAConfRepository {
    */
   private async forceManyEager(detalhesA: DetalheAConf[]) {
     const favorecidoIds = detalhesA.reduce(
-      (l, i) => [...l, i.clienteFavorecido.id],
+      (l, i) => [...l, ...i.clienteFavorecido ? [i.clienteFavorecido.id] : []],
       [],
     );
     if (favorecidoIds.length === 0) {

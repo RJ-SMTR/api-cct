@@ -42,6 +42,7 @@ import { HeaderLoteConfService } from './header-lote-conf.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
+import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -81,7 +82,7 @@ export class RemessaRetornoService {
    *    (se banco do favorecido = banco do pagador - pagador é sempre Caixa)
    *  - senão, TED (41)
    */
-  public async getLotes(pagador: Pagador, headerArquivoDTO: HeaderArquivoDTO, dataPgto: Date | undefined, isConference: boolean) {
+  public async getLotes(pagador: Pagador, headerArquivoDTO: HeaderArquivoDTO, isConference: boolean, dataPgto?: Date) {
     const transacaoAg = headerArquivoDTO.transacaoAgrupado as TransacaoAgrupado;
     const itemTransacaoAgs = await this.itemTransacaoAgService.findManyByIdTransacaoAg(transacaoAg.id);
 
@@ -111,7 +112,7 @@ export class RemessaRetornoService {
               loteTed = await this.headerLoteConfService.saveDto(loteTed);
             }
           }
-          const detalhes104 = await this.saveListDetalhes(loteTed, [itemTransacaoAgrupado], nsrTed, dataPgto, isConference);
+          const detalhes104 = await this.saveListDetalhes(loteTed, [itemTransacaoAgrupado], nsrTed, isConference, dataPgto);
           nsrTed++;
           loteTed.registros104.push(...detalhes104);
         }
@@ -128,7 +129,7 @@ export class RemessaRetornoService {
               loteCC = await this.headerLoteConfService.saveDto(loteCC);
             }
           }
-          const detalhes104 = await this.saveListDetalhes(loteCC, [itemTransacaoAgrupado], nsrCC, dataPgto, isConference);
+          const detalhes104 = await this.saveListDetalhes(loteCC, [itemTransacaoAgrupado], nsrCC, isConference, dataPgto);
           nsrCC++;
           loteCC.registros104.push(...detalhes104);
         }
@@ -216,14 +217,14 @@ export class RemessaRetornoService {
    *
    * @returns Detalhes104 gerados a partir dos ItemTransacaoAg
    */
-  async saveListDetalhes(headerLoteDto: HeaderLoteDTO, itemTransacoes: ItemTransacaoAgrupado[], nsr: number, dataPgto: Date | undefined, isConference: boolean): Promise<CnabRegistros104Pgto[]> {
+  async saveListDetalhes(headerLoteDto: HeaderLoteDTO, itemTransacoes: ItemTransacaoAgrupado[], nsr: number, isConference: boolean, dataPgto?: Date): Promise<CnabRegistros104Pgto[]> {
     let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());
     // Para cada itemTransacao, cria detalhe
     const detalhes: CnabRegistros104Pgto[] = [];
     let itemTransacaoAgAux: ItemTransacaoAgrupado | undefined;
     for (const itemTransacao of itemTransacoes) {
       itemTransacaoAgAux = itemTransacao as ItemTransacaoAgrupado;
-      const detalhe = await this.saveDetalhes104(numeroDocumento, headerLoteDto, itemTransacaoAgAux, nsr, dataPgto, isConference);
+      const detalhe = await this.saveDetalhes104(numeroDocumento, headerLoteDto, itemTransacaoAgAux, nsr, isConference, dataPgto);
       if (detalhe) {
         detalhes.push(detalhe);
       }
@@ -326,10 +327,10 @@ export class RemessaRetornoService {
    *
    * indicadorBloqueio = DataFixa (see `detalheATemplate`)
    *
-   * @param numeroDocumento Managed by company. It must be a new number.
+   * @param numeroDocumento Gerenciado pela empresa. Deve ser um número único.
+   * @param dataPgto O padrão é o dia de hoje. O valor será sempre >= hoje.
    * @returns null if failed ItemTransacao to CNAB */
-  public async saveDetalhes104(numeroDocumento: number, headerLote: HeaderLoteDTO, itemTransacaoAg: ItemTransacaoAgrupado, nsr: number, dataPgto: Date | undefined, isConference: boolean, isCancelamento = false, detalheAC = new DetalheA()): Promise<CnabRegistros104Pgto | null> {
-    const METHOD = 'getDetalhes104()';
+  public async saveDetalhes104(numeroDocumento: number, headerLote: HeaderLoteDTO, itemTransacaoAg: ItemTransacaoAgrupado, nsr: number, isConference: boolean, dataPgto?: Date, isCancelamento = false, detalheAC = new DetalheA()): Promise<CnabRegistros104Pgto | null> {
     let favorecido;
     if (itemTransacaoAg != undefined) {
       const itemTransacao = await this.itemTransacaoService.findOne({
@@ -364,10 +365,8 @@ export class RemessaRetornoService {
       return null;
     }
 
-    if (dataPgto) {
-      if (dataPgto < new Date()) {
-        dataPgto = new Date();
-      }
+    if (dataPgto && dataPgto < new Date()) {
+      dataPgto = new Date();
     }
 
     // Save detalheA
