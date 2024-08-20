@@ -11,7 +11,7 @@ export class RelatorioService {
    * Gerar relatórios consolidados - agrupados por Favorecido.
    */
   async findConsolidado(args: IFindPublicacaoRelatorio) {
-    const d = 3;
+    const d = 2;
     let result: RelatorioConsolidadoResultDto[]=[];
     let consolidadosPagos;
     if(args.pago === true && args.aPagar === false){    

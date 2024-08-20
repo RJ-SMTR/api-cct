@@ -12,7 +12,7 @@ export class RelatorioRepository {
   private getQueryConsorcio(dataInicio?:string,dataFim?:string,pago?:boolean,
     valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){ 
     let query =
-     ` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado") valor
+     ` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor
              from (
               select distinct ita.id AS id,
                 ita."nomeConsorcio" AS consorcio,	
@@ -54,7 +54,7 @@ export class RelatorioRepository {
 
   private getQueryStpcStpl(dataInicio?:string,dataFim?:string,pago?:boolean,
     valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){
-     let query = ` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado") valor
+     let query = ` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor
               from (
                   select distinct ita.id AS id,
                     ita."nomeConsorcio" AS consorcio,	
@@ -97,7 +97,7 @@ export class RelatorioRepository {
 
   private getOperadores(dataInicio?:string,dataFim?:string,pago?:boolean,valorMin?:number,
     valorMax?:number,favorecidoNome?:string[],aPagar?:boolean){
-    let query = `select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado") valor
+    let query = `select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor
                  from (
                   select distinct ita.id AS id,
                   ita."nomeConsorcio" AS consorcio,	
