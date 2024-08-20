@@ -15,21 +15,15 @@ import { appSettings } from 'src/settings/app.settings';
 export class SftpService implements OnModuleInit, OnModuleLoad {
   private readonly logger: Logger;
   private rootFolder = '';
-  private readonly FOLDERS = {
+  public readonly FOLDERS = {
     REMESSA: '/remessa',
-    RETORNO: '/backup/retorno/pendente',
+    RETORNO: '/retorno',
     BACKUP: '/backup',
     BACKUP_REMESSA: '/backup/remessa',
     BACKUP_RETORNO_FAILURE: '/backup/retorno/failure',
     BACKUP_RETORNO_SUCCESS: '/backup/retorno/success',
   };
-  private RECURSIVE_MKDIR: string[] = [
-    '/remessa',
-    '/retorno',    
-    '/backup/remessa',
-    '/backup/retorno/failure',
-    '/backup/retorno/success',
-  ];
+  private RECURSIVE_MKDIR: string[] = ['/remessa', '/retorno', '/backup/remessa', '/backup/retorno/failure', '/backup/retorno/success'];
   private readonly REGEX = {
     /** smtr_prefeiturarj_ddMMyy_hhmmss.rem */
     REMESSA: new RegExp(`smtr_prefeiturarj_\\d{6}_\\d{6}\\.rem`),
@@ -39,11 +33,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     EXTRATO: new RegExp(`smtr_prefeiturarj_eediario_\\d{8}_\\d{6}\\.ext`),
   };
 
-  constructor(
-    private readonly configService: ConfigService<AllConfigType>,
-    private readonly sftpClient: SftpClientService,
-    private readonly settingsService: SettingsService,
-  ) {
+  constructor(private readonly configService: ConfigService<AllConfigType>, private readonly sftpClient: SftpClientService, private readonly settingsService: SettingsService) {
     this.logger = new CustomLogger(SftpService.name, { timestamp: true });
   }
 
@@ -54,15 +44,11 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   }
 
   async onModuleLoad() {
-    const apiEnv = await this.settingsService.getOneBySettingData(
-      appSettings.any__api_env,
-    );
+    const apiEnv = await this.settingsService.getOneBySettingData(appSettings.any__api_env);
     if (apiEnv.getValueAsString() === 'stag') {
       this.rootFolder = '/backup/stag';
     } else if (apiEnv.getValueAsString() === 'local') {
-      this.rootFolder = await this.configService.getOrThrow('sftp.rootFolder', {
-        infer: true,
-      });
+      this.rootFolder = await this.configService.getOrThrow('sftp.rootFolder', { infer: true });
     }
     await this.createMainFolders();
   }
@@ -86,11 +72,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       }
       this.logger.log('As pastas SFTP estão preparadas.', METHOD);
     } catch (error) {
-      this.logger.warn(
-        `Falha ao preparar pastas SFTP. - ${error}`,
-        error.stack,
-        METHOD,
-      );
+      this.logger.warn(`Falha ao preparar pastas SFTP. - ${error}`, error.stack, METHOD);
     }
   }
 
@@ -110,14 +92,8 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     await this.sftpClient.resetConnection(this.getClientCredentials());
   }
 
-  public async download(
-    remotePath: string,
-    localPath: string,
-  ): Promise<string | NodeJS.ReadableStream | Buffer> {
-    return (await this.sftpClient.download(
-      remotePath,
-      localPath,
-    )) as unknown as Promise<string | NodeJS.ReadableStream | Buffer>;
+  public async download(remotePath: string, localPath: string): Promise<string | NodeJS.ReadableStream | Buffer> {
+    return (await this.sftpClient.download(remotePath, localPath)) as unknown as Promise<string | NodeJS.ReadableStream | Buffer>;
   }
 
   public async downloadToString(remotePath: string): Promise<string> {
@@ -134,14 +110,8 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   /**
    * Change connection to a different user/password prior to upload
    */
-  public async submit(
-    remotePath: string,
-    localPath: string,
-  ): Promise<string | NodeJS.ReadableStream | Buffer> {
-    return await this.sftpClient.upload(
-      this.dir(remotePath),
-      this.dir(localPath),
-    );
+  public async submit(remotePath: string, localPath: string): Promise<string | NodeJS.ReadableStream | Buffer> {
+    return await this.sftpClient.upload(this.dir(remotePath), this.dir(localPath));
   }
 
   async submitFromString(content: string, remotePath: string) {
@@ -155,12 +125,8 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   public async submitCnabRemessa(content: string) {
     const METHOD = this.submitCnabRemessa.name;
     await this.connectClient();
-    const remotePath = this.dir(
-      `${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`,
-    );
-    const bkpPath = this.dir(
-      `${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`,
-    );
+    const remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
+    const bkpPath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`);
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), bkpPath);
     this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
@@ -178,33 +144,30 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   /**
    * Get first Cnab in Retorno and read it
    *
+   * @param folder For testing you can set custom folder
+   *
    * @returns CnabName: file name with extension (no folder)
    */
-  public async getFirstCnabRetorno(): Promise<{
+  public async getFirstCnabRetorno(folder = this.FOLDERS.RETORNO): Promise<{
     cnabName: string | null;
     cnabString: string | null;
   }> {
-    await this.connectClient(); 
-     
+    await this.connectClient();
+
     // const listFiles =  await this.sftpClient.list(
     //   this.dir(this.FOLDERS.RETORNO));
 
-    // for(const file of listFiles) {  
+    // for(const file of listFiles) {
     //   await this.moveToBackup(file.name,SftpBackupFolder.Ajuste);
     // }
 
-    const firstFile = (
-      await this.sftpClient.list(
-        this.dir(this.FOLDERS.RETORNO),
-        this.REGEX.RETORNO,
-      )
-    ).pop();
+    const firstFile = (await this.sftpClient.list(this.dir(folder), this.REGEX.RETORNO)).pop();
 
     if (!firstFile) {
       return { cnabName: null, cnabString: null };
     }
 
-    const cnabPath = this.dir(`${this.FOLDERS.RETORNO}/${firstFile.name}`);
+    const cnabPath = this.dir(`${folder}/${firstFile.name}`);
     const cnabString = await this.downloadToString(cnabPath);
     return { cnabName: firstFile.name, cnabString };
   }
@@ -219,12 +182,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     content: string;
   } | null> {
     await this.connectClient();
-    const firstFile = (
-      await this.sftpClient.list(
-        this.dir(this.FOLDERS.RETORNO),
-        this.REGEX.EXTRATO,
-      )
-    ).pop();
+    const firstFile = (await this.sftpClient.list(this.dir(this.FOLDERS.RETORNO), this.REGEX.EXTRATO)).pop();
 
     if (!firstFile) {
       return null;
@@ -245,10 +203,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     const originPath = this.dir(`${this.FOLDERS.RETORNO}/${cnabName}`);
     const destPath = this.dir(`${folder}/${cnabName}`);
     await this.connectClient();
-    await this.sftpClient.rename(originPath, destPath);
-    this.logger.debug(
-      `Arquivo CNAB movido de '${originPath}' para ${destPath}`,
-      METHOD,
-    );
+    await this.sftpClient.rename(originPath, destPath, true);
+    this.logger.debug(`Arquivo CNAB movido de '${originPath}' para ${destPath}`, METHOD);
   }
 }

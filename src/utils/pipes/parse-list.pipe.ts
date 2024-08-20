@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  PipeTransform,
-  ArgumentMetadata,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, PipeTransform, ArgumentMetadata } from '@nestjs/common';
 import { isString } from 'class-validator';
 import { isArrayUnique } from '../array-utils';
 
@@ -14,15 +9,16 @@ import { isArrayUnique } from '../array-utils';
 @Injectable()
 export class ParseListPipe implements PipeTransform {
   /**
-   * 
+   *
    * @param args.transform default: true
    */
   constructor(
     private readonly args?: {
       /** If must have unique values */
-      compareList: any[];
+      compareList?: any[];
       unique?: boolean;
       transform?: boolean;
+      optional?: boolean;
     },
   ) {}
 
@@ -35,24 +31,22 @@ export class ParseListPipe implements PipeTransform {
       transform = true;
     }
 
+    if (this.args?.optional && value === undefined) {
+      return transform ? [] : value;
+    }
+
     if (!isString(value)) {
-      throw new BadRequestException(
-        `${field}: ${value} is not a valid list separated by comma.`,
-      );
+      throw new BadRequestException(`${field}: ${value} is not a valid list separated by comma.`);
     }
 
     const valueList = value.split(',');
 
     if (list && !valueList.every((i) => list.includes(i))) {
-      throw new BadRequestException(
-        `${field}: ${value} must have valid items.`,
-      );
+      throw new BadRequestException(`${field}: ${value} must have valid items.`);
     }
 
     if (unique && !isArrayUnique(valueList)) {
-      throw new BadRequestException(
-        `${field}: ${value} can only have unique values.`,
-      );
+      throw new BadRequestException(`${field}: ${value} can only have unique values.`);
     }
     const transformed = transform ? valueList : value;
 
