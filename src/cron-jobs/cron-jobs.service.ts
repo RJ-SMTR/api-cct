@@ -2,8 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { endOfDay, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
-import { start } from 'repl';
+import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
@@ -19,6 +18,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { formatDateInterval } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -30,19 +30,19 @@ export enum CrobJobsEnum {
   sendStatusReportTemp = 'sendStatusReportTemp',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
-  saveTransacoesJae = 'saveTransacoesJae',
-  saveTransacoesJae2 = 'saveTransacoesJae2',
-  saveTransacoesLancamento = 'saveTransacoesLancamento',
-  saveTransacoesLancamento2 = 'saveTransacoesLancamento2',
-  sendRemessa = 'sendRemessa',
   updateRetorno = 'updateRetorno',
-  saveExtrato = 'saveExtrato',
   updateTransacaoViewEmpresa = 'updateTransacaoViewEmpresa',
   updateTransacaoViewVan = 'updateTransacaoViewVan',
+  updateTransacaoViewVLT = 'updateTransacaoViewVLT',
   syncTransacaoViewOrdemPgto = 'sincronizeTransacaoViewOrdemPgto',
   generateRemessaVLT = 'generateRemessaVLT',
+  generateRemessaEmpresa = 'generateRemessaEmpresa',
+  generateRemessaVan = 'generateRemessaVan',
 }
-
+interface ICronjobDebug {
+  today?: Date;
+  force?: boolean;
+}
 interface ICronJob {
   name: string;
   cronJobParameters: CronJobParameters;
@@ -73,6 +73,7 @@ export class CronJobsService {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
+
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -117,6 +118,15 @@ export class CronJobsService {
         },
       },
       {
+        name: CrobJobsEnum.updateTransacaoViewVLT,
+        cronJobParameters: {
+          cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
+          onTick: async () => {
+            await this.updateTransacaoView('VLT');
+          },
+        },
+      },
+      {
         name: CrobJobsEnum.syncTransacaoViewOrdemPgto,
         cronJobParameters: {
           cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
@@ -135,15 +145,33 @@ export class CronJobsService {
         },
       },
       // {
+      //   name: CrobJobsEnum.generateRemessaEmpresa,
+      //   cronJobParameters: {
+      //     cronTime: '0 14 * * 4', // Every Thursday, 14:00 GMT = 17:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       await this.generateRemessaEmpresa();
+      //     },
+      //   },
+      // },
+      // {
+      //   name: CrobJobsEnum.generateRemessaVan,
+      //   cronJobParameters: {
+      //     cronTime: '0 10 * * 5', // Every Friday, 10:00 GMT = 07:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       await this.generateRemessaVan();
+      //     },
+      //   },
+      // },
+      // {
       //   name: CrobJobsEnum.generateRemessaVLT,
       //   cronJobParameters: {
-      //     cronTime: '0 10 * * *',// Every day, 07:00 GMT = 10:00 BRT (GMT-3)
+      //     cronTime: '0 10 * * *', // Every day, 07:00 GMT = 10:00 BRT (GMT-3)
       //     onTick: async () => {
       //       const today = new Date();
-      //       if(!isSaturday(today) && !isSunday(today))
-      //         await this.generateRemessaVLT();
+      //       if (!isSaturday(today) && !isSunday(today)) await this.generateRemessaVLT();
       //     },
-      //   }
+      //   },
+      // },
     );
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
@@ -153,6 +181,11 @@ export class CronJobsService {
     }
   }
 
+  /**
+   * Verifica se o ambiente é realmente produção, pois:
+   * - É produção se .env -> nodeEnv = production, Banco -> settings.api_env = production
+   * - É staging se .env -> nodeEnv = production, Banco -> settings.api_env = staging
+   */
   public async getIsProd(method?: string) {
     const apiEnv = await this.settingsService.getOneBySettingData(appSettings.any__api_env);
     const nodeEnv = this.configService.getOrThrow('app.nodeEnv', { infer: true });
@@ -163,6 +196,9 @@ export class CronJobsService {
     return isProd;
   }
 
+  /**
+   * Verifica se os cornjobs de envio de CNAB estão ativos no banco de dados.
+   */
   async getIsCnabJobEnabled(method?: string) {
     const cnabJobEnabled = await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_jobs_enabled);
     if (method !== undefined && !cnabJobEnabled.getValueAsBoolean()) {
@@ -177,27 +213,100 @@ export class CronJobsService {
     job.start();
   }
 
-  public async syncTransacaoViewOrdemPgto() {
-    await this.cnabService.sincronizeTransacaoViewOrdemPgto(subDays(new Date(), 1).toString(), new Date().toString());
+  /**
+   * Gera na quinta, paga na sexta.
+   */
+  async generateRemessaEmpresa(debug?: ICronjobDebug) {
+    const METHOD = 'generateRemessaEmpresa';
+    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
+      return;
+    }
+    const today = debug?.today || new Date();
+    if (!isThursday(today)) {
+      this.logger.error('Não implementado - Hoje não é quinta-feira. Abortando...', undefined, METHOD);
+      return;
+    }
+    this.logger.log('Tarefa iniciada', METHOD);
+    const startDate = new Date();
+    const sex = subDays(today, 6);
+    const qui = today;
+    await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Empresa');
+    const listCnab = await this.cnabService.generateRemessa({
+      tipo: PagadorContaEnum.ContaBilhetagem,
+      dataPgto: addDays(today, 1),
+      isConference: false,
+      isCancelamento: false,
+    });
+    await this.cnabService.sendRemessa(listCnab);
+    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
   }
 
-  public async generateRemessaVLT() {
+  /**
+   * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
+   */
+  async generateRemessaVan(debug?: ICronjobDebug) {
+    const METHOD = 'generateRemessaVan';
+    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
+      return;
+    }
+    const today = debug?.today || new Date();
+    if (!isFriday(today)) {
+      this.logger.error('Não implementado - Hoje não é sexta-feira. Abortando...', undefined, METHOD);
+      return;
+    }
+    this.logger.log('Tarefa iniciada', METHOD);
+    const startDate = new Date();
+    const sex = subDays(today, 7);
+    const qui = subDays(today, 1);
+    await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Van');
+    const listCnab = await this.cnabService.generateRemessa({
+      tipo: PagadorContaEnum.ContaBilhetagem,
+      dataPgto: today,
+      isConference: false,
+      isCancelamento: false,
+    });
+    await this.cnabService.sendRemessa(listCnab);
+    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
+  }
+
+  /**
+   * Regras de negócio:
+   * - Se hoje for terça, obter de sáb, dom, seg
+   * - Se hoje for segunda, obter de sexta apenas
+   * - Se hoje for demais dias, obter 1 dia anterior
+   */
+  public async generateRemessaVLT(debug?: ICronjobDebug) {
+    const METHOD = 'generateRemessaVLT';
+    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
+      return;
+    }
+    this.logger.log('Tarefa iniciada', METHOD);
+    const today = debug?.today || new Date();
+    const startDateLog = new Date();
+    /** defaut: qua,qui,sex,sáb,dom */
     let daysBeforeBegin = 1;
-    const daysBeforeEnd = 1;
-    if (isTuesday(new Date())) {
+    let daysBeforeEnd = 1;
+    if (isMonday(today)) {
+      daysBeforeBegin = 3;
+      daysBeforeEnd = 3;
+    } else if (isTuesday(today)) {
       daysBeforeBegin = 3;
     }
-    await this.cnabService.saveTransacoesJae(subDays(new Date(), daysBeforeBegin), subDays(new Date(), daysBeforeEnd), undefined, 'VLT');
+    const startDate = subDays(today, daysBeforeBegin);
+    const endDate = subDays(today, daysBeforeEnd);
+    await this.cnabService.saveTransacoesJae(startDate, endDate, undefined, 'VLT');
     const listCnab = await this.cnabService.generateRemessa({
       tipo: PagadorContaEnum.ContaBilhetagem,
       dataPgto: new Date(),
       isConference: false,
       isCancelamento: false,
-      nsaInicial: 0,
-      nsaFinal: 0,
-      dataCancelamento: undefined,
     });
     await this.cnabService.sendRemessa(listCnab);
+    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDateLog)}`, METHOD);
+  }
+
+  public async syncTransacaoViewOrdemPgto() {
+    await this.cnabService.sincronizeTransacaoViewOrdemPgto(subDays(new Date(), 1).toString(), new Date().toString());
   }
 
   public async saveAndSendRemessa(dataPgto: Date, isConference = false, isCancelamento = false, nsaInicial = 0, nsaFinal = 0, dataCancelamento = new Date()) {
@@ -219,17 +328,29 @@ export class CronJobsService {
 
   /**
    * Atualiza todos os itens do dia de ontem.
+   *
+   * @param consorcio
+   * `Van`: De 30 em 30 minutos, 2h atrás.
+   *
+   * `VLT`: Todo dia pega 1 dia antes.
    */
-  async updateTransacaoView(consorcio: string) {
+  async updateTransacaoView(consorcio: 'Van' | 'Empresa' | 'VLT', debug?: ICronjobDebug) {
     const METHOD = this.updateTransacaoView.name;
-    let startDate = new Date();
-    let endDate = new Date();
+    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
+      return;
+    }
+    const today = debug?.today || new Date();
+    let startDate = today;
+    let endDate = today;
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
       if (consorcio == 'Van') {
         startDate = subHours(startDate, 2);
+      } else if (consorcio == 'VLT') {
+        startDate = subDays(startDate, 1);
       } else {
+        /** Empresa */
         startDate = startOfDay(startDate);
         endDate = endOfDay(endDate);
       }
@@ -575,59 +696,6 @@ export class CronJobsService {
     }
   }
 
-  async saveTransacoesLancamento1() {
-    const METHOD = this.saveTransacoesLancamento1.name;
-
-    if (!(await this.getIsCnabJobEnabled(METHOD))) {
-      return;
-    }
-
-    try {
-      this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesLancamento();
-      this.logger.log('Tabelas para o Lancamento atualizados com sucesso.', METHOD);
-    } catch (error) {
-      this.logger.error(`ERRO CRÍTICO - ${JSON.stringify(error)}`, error?.stack, METHOD);
-      // this.startCron(this.staticJobs.saveTransacoesLancamento2);
-    }
-  }
-
-  async saveTransacoesLancamento2() {
-    const METHOD = this.saveTransacoesLancamento2.name;
-    try {
-      this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesLancamento();
-      this.logger.log('Tabelas para o Lancamento atualizados com sucesso.', METHOD);
-    } catch (error) {
-      this.logger.error(`ERRO CRÍTICO (TENTATIVA 2) = ${error}`, error.stack, METHOD);
-      this.deleteCron(CrobJobsEnum.saveTransacoesLancamento2);
-    }
-  }
-
-  async saveTransacoesJae1(dataOrdemIncial, dataOrdemFinal, daysBefore = 0, consorcio = 'Todos') {
-    const METHOD = this.saveTransacoesJae1.name;
-    try {
-      this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesJae(dataOrdemIncial, dataOrdemFinal, daysBefore, consorcio);
-      this.logger.log('Tabelas para o Jaé atualizados com sucesso.', METHOD);
-    } catch (error) {
-      this.logger.error(`ERRO CRÍTICO - ${error}`, error?.stack, METHOD);
-      // this.startCron(this.staticJobs.saveTransacoesJae2);
-    }
-  }
-
-  async saveTransacoesJae2(dataOrdemIncial, dataOrdemFinal, daysBefore = 0, consorcio = 'Todos') {
-    const METHOD = this.saveTransacoesJae2.name;
-    try {
-      this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.saveTransacoesJae(dataOrdemIncial, dataOrdemFinal, daysBefore, consorcio);
-      this.logger.log('Tabelas para o Jaé atualizados com sucesso.', METHOD);
-    } catch (error) {
-      this.logger.error(`ERRO CRÍTICO (TENTATIVA 2) = ${error}`, error.stack, METHOD);
-      this.deleteCron(CrobJobsEnum.saveTransacoesJae2);
-    }
-  }
-
   async sendRemessa(listCnab: string[]) {
     const METHOD = this.sendRemessa.name;
     try {
@@ -641,7 +709,6 @@ export class CronJobsService {
 
   async updateRetorno() {
     const METHOD = this.updateRetorno.name;
-
     try {
       await this.cnabService.updateRetorno();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);

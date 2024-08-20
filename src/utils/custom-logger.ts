@@ -69,6 +69,9 @@ export class CustomLogger extends Logger {
   }
 
   private getContext(isLocal: boolean, context?: string) {
+    if (!context) {
+      return '';
+    }
     const contextStr = this.color('warn', `[${context}]`);
     if (isLocal) {
       const thisContext = this.color('warn', `[${this.context}]`);

@@ -164,11 +164,11 @@ export class SftpClientService {
   async rename(
     remoteSourcePath: string,
     remoteDestinationPath: string,
-    overwrite?: boolean,
+    overwriteDestination?: boolean,
   ): Promise<void> {
-    if (overwrite) {
+    if (overwriteDestination) {
       if (await this.exists(remoteDestinationPath)) {
-        this.logger.debug(`Overwriting existing path before rename: ${remoteDestinationPath}`);
+        this.logger.debug(`Overwriting rename destination: ${remoteDestinationPath}`);
         await this.delete(remoteDestinationPath);
       }
     }
