@@ -1,10 +1,10 @@
 export interface IFindPublicacaoRelatorio {
-  dataInicio?: Date | undefined;
-  dataFim?: Date | undefined;
-  favorecidoNome?: string[] | undefined ;  
-  consorcioNome?: string[] | undefined;
-  valorMin?: number | undefined;
-  valorMax?: number | undefined;
-  pago?: boolean | undefined;
-  aPagar: boolean | undefined;
+  dataInicio?: Date;
+  dataFim?: Date;
+  favorecidoNome?: string[];  
+  consorcioNome?: string[];
+  valorMin?: number;
+  valorMax?: number;
+  pago?: boolean;
+  aPagar?: boolean;
 }
