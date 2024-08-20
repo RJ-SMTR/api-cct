@@ -73,6 +73,7 @@ export class CronJobsService {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
+    await this.sendStatusReport();
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -86,14 +87,6 @@ export class CronJobsService {
         name: CrobJobsEnum.sendStatusReport,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
-          onTick: () => this.sendStatusReport(),
-        },
-      },
-      /** TODO: Temporário, remover em seguida */
-      {
-        name: CrobJobsEnum.sendStatusReportTemp,
-        cronJobParameters: {
-          cronTime: '10 14 20 8 *', // At 14:10 UTC (11:10 BRT, GMT-3) on day-of-month 20 in August.
           onTick: () => this.sendStatusReport(),
         },
       },
