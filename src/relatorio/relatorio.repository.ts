@@ -35,7 +35,7 @@ export class RelatorioRepository {
                 (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
                 query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
               
-              if(pago!==undefined && aPagar === false)
+              if(pago!==undefined)
                 query = query + ` and	ap."isPago"=${pago}`;
               
               if(aPagar === true)
@@ -78,7 +78,7 @@ export class RelatorioRepository {
                     (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
                     query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;                    
                    
-                  if(pago!==undefined && aPagar === false)
+                  if(pago!==undefined)
                     query = query + ` and	ap."isPago"=${pago}`;
                   
                   if(aPagar === true)
@@ -115,7 +115,7 @@ export class RelatorioRepository {
                     (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
                     query = query +` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
 
-                  if(pago!==undefined && aPagar === false)
+                  if(pago!==undefined)
                     query = query + ` and	ap."isPago"=${pago}`;
                   
                   if(aPagar === true)
@@ -150,14 +150,14 @@ export class RelatorioRepository {
         args.valorMax,args.consorcioNome,args.aPagar) +
         ' union all '+
       this.getQueryStpcStpl(args.dataInicio?.toISOString().slice(0,10),
-      args.dataFim?.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax);
+      args.dataFim?.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.consorcioNome,args.aPagar);
     }
 
     let queryOperadores ='';
 
     if(args.consorcioNome==undefined){
       queryOperadores = this.getOperadores(args.dataInicio?.toISOString().slice(0,10),
-      args.dataFim?.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.favorecidoNome); 
+      args.dataFim?.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.favorecidoNome,args.aPagar); 
     }
         
     if(queryConsorcio !=='' && queryOperadores!==''){   

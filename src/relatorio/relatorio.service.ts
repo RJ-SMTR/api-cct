@@ -14,18 +14,18 @@ export class RelatorioService {
     const d = 2;
     let result: RelatorioConsolidadoResultDto[]=[];
     let consolidadosPagos;
-    if(args.pago === true && args.aPagar === false){    
+    if(args.pago === true && (args.aPagar === false || args.aPagar === undefined)){    
        consolidadosPagos  = await this.relatorioRepository.findConsolidado(args);
        const consolidadoPagoData = new RelatorioConsolidadoResultDto();
        consolidadoPagoData.count = consolidadosPagos.length;
        consolidadoPagoData.data = consolidadosPagos;
-       consolidadoPagoData.valor = +consolidadoPagoData.reduce((s, i) => s + i.valor, 0).toFixed(d); 
+       consolidadoPagoData.valor = +consolidadosPagos.reduce((s, i) => s + i.valor, 0).toFixed(d); 
        consolidadoPagoData.status = 'pago';
        result.push(consolidadoPagoData);
     }
 
     let consolidadosNaoPagos;
-    if(args.pago === false && args.aPagar === false){        
+    if(args.pago === false && (args.aPagar === false || args.aPagar === undefined)){        
       consolidadosNaoPagos  = await this.relatorioRepository.findConsolidado(args);
       const consolidadosNaoPagosData = new RelatorioConsolidadoResultDto();
       consolidadosNaoPagosData.count = consolidadosNaoPagos.length;
@@ -36,13 +36,13 @@ export class RelatorioService {
     }
 
     let consolidadosApagar;
-    if(args.aPagar === true && args.pago === false){
+    if(args.aPagar === true && (args.pago === false || args.pago === undefined)){
       consolidadosApagar  = await this.relatorioRepository.findConsolidado(args);
       const consolidadosaPagarData = new RelatorioConsolidadoResultDto();
       consolidadosaPagarData.count = consolidadosApagar.length;
       consolidadosaPagarData.data = consolidadosApagar;
       consolidadosaPagarData.valor = +consolidadosApagar.reduce((s, i) => s + i.valor, 0).toFixed(d); 
-      consolidadosaPagarData.status = 'naoPago';
+      consolidadosaPagarData.status = 'aPagar';
       result.push(consolidadosaPagarData);
     }
     
