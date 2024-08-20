@@ -142,7 +142,7 @@ export class CnabService {
   }
 
   async getTransacoesBQ(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string) {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(dataOrdemIncial, dataOrdemFinal, daysBack);
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(startOfDay(dataOrdemIncial), endOfDay(dataOrdemFinal), daysBack);
     let trs = transacoesBq;
     if (consorcio === 'Van') {
       trs = transacoesBq.filter((tr) => tr.consorcio === 'STPC' || tr.consorcio === 'STPL');

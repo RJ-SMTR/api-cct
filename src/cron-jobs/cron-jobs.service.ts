@@ -32,12 +32,16 @@ export enum CrobJobsEnum {
   updateRetorno = 'updateRetorno',
   updateTransacaoViewEmpresa = 'updateTransacaoViewEmpresa',
   updateTransacaoViewVan = 'updateTransacaoViewVan',
+  updateTransacaoViewVLT = 'updateTransacaoViewVLT',
   syncTransacaoViewOrdemPgto = 'sincronizeTransacaoViewOrdemPgto',
   generateRemessaVLT = 'generateRemessaVLT',
   generateRemessaEmpresa = 'generateRemessaEmpresa',
   generateRemessaVan = 'generateRemessaVan',
 }
-
+interface ICronjobDebug {
+  today?: Date;
+  force?: boolean;
+}
 interface ICronJob {
   name: string;
   cronJobParameters: CronJobParameters;
@@ -68,7 +72,7 @@ export class CronJobsService {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    await this.generateRemessaEmpresa();
+
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
@@ -112,6 +116,15 @@ export class CronJobsService {
         },
       },
       {
+        name: CrobJobsEnum.updateTransacaoViewVLT,
+        cronJobParameters: {
+          cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
+          onTick: async () => {
+            await this.updateTransacaoView('VLT');
+          },
+        },
+      },
+      {
         name: CrobJobsEnum.syncTransacaoViewOrdemPgto,
         cronJobParameters: {
           cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
@@ -129,34 +142,34 @@ export class CronJobsService {
           },
         },
       },
-      {
-        name: CrobJobsEnum.generateRemessaEmpresa,
-        cronJobParameters: {
-          cronTime: '0 14 * * 4', // Every Thursday, 14:00 GMT = 17:00 BRT (GMT-3)
-          onTick: async () => {
-            await this.generateRemessaEmpresa();
-          },
-        },
-      },
-      {
-        name: CrobJobsEnum.generateRemessaVan,
-        cronJobParameters: {
-          cronTime: '0 15 * * 5', // Every Friday, 15:00 GMT = 18:00 BRT (GMT-3)
-          onTick: async () => {
-            await this.generateRemessaVan();
-          },
-        },
-      },
-      {
-        name: CrobJobsEnum.generateRemessaVLT,
-        cronJobParameters: {
-          cronTime: '0 10 * * *', // Every day, 07:00 GMT = 10:00 BRT (GMT-3)
-          onTick: async () => {
-            const today = new Date();
-            if (!isSaturday(today) && !isSunday(today)) await this.generateRemessaVLT();
-          },
-        },
-      },
+      // {
+      //   name: CrobJobsEnum.generateRemessaEmpresa,
+      //   cronJobParameters: {
+      //     cronTime: '0 14 * * 4', // Every Thursday, 14:00 GMT = 17:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       await this.generateRemessaEmpresa();
+      //     },
+      //   },
+      // },
+      // {
+      //   name: CrobJobsEnum.generateRemessaVan,
+      //   cronJobParameters: {
+      //     cronTime: '0 10 * * 5', // Every Friday, 10:00 GMT = 07:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       await this.generateRemessaVan();
+      //     },
+      //   },
+      // },
+      // {
+      //   name: CrobJobsEnum.generateRemessaVLT,
+      //   cronJobParameters: {
+      //     cronTime: '0 10 * * *', // Every day, 07:00 GMT = 10:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       const today = new Date();
+      //       if (!isSaturday(today) && !isSunday(today)) await this.generateRemessaVLT();
+      //     },
+      //   },
+      // },
     );
 
     for (const jobConfig of this.jobsConfig) {
@@ -174,12 +187,12 @@ export class CronJobsService {
   /**
    * Gera na quinta, paga na sexta.
    */
-  async generateRemessaEmpresa() {
+  async generateRemessaEmpresa(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaEmpresa';
-    if (!(await this.getIsCnabJobEnabled(METHOD))) {
+    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
       return;
     }
-    const today = new Date();
+    const today = debug?.today || new Date();
     if (!isThursday(today)) {
       this.logger.error('Não implementado - Hoje não é quinta-feira. Abortando...', undefined, METHOD);
       return;
@@ -202,17 +215,16 @@ export class CronJobsService {
   /**
    * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
    */
-  async generateRemessaVan() {
+  async generateRemessaVan(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaVan';
-    if (!(await this.getIsCnabJobEnabled(METHOD))) {
+    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
       return;
     }
-    const today = new Date();
+    const today = debug?.today || new Date();
     if (!isFriday(today)) {
       this.logger.error('Não implementado - Hoje não é sexta-feira. Abortando...', undefined, METHOD);
       return;
     }
-
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
     const sex = subDays(today, 7);
@@ -231,26 +243,28 @@ export class CronJobsService {
   /**
    * Regras de negócio:
    * - Se hoje for terça, obter de sáb, dom, seg
-   * - Se hoje for segunda, obter de sexta
+   * - Se hoje for segunda, obter de sexta apenas
+   * - Se hoje for demais dias, obter 1 dia anterior
    */
-  public async generateRemessaVLT() {
+  public async generateRemessaVLT(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaVLT';
-    if (!(await this.getIsCnabJobEnabled(METHOD))) {
+    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
       return;
     }
     this.logger.log('Tarefa iniciada', METHOD);
-    const today = new Date();
+    const today = debug?.today || new Date();
     const startDateLog = new Date();
+    /** defaut: qua,qui,sex,sáb,dom */
     let daysBeforeBegin = 1;
     let daysBeforeEnd = 1;
-    if (isTuesday(today)) {
-      daysBeforeBegin = 3;
-    } else if (isMonday(today)) {
+    if (isMonday(today)) {
       daysBeforeBegin = 3;
       daysBeforeEnd = 3;
+    } else if (isTuesday(today)) {
+      daysBeforeBegin = 3;
     }
-    const startDate = subDays(new Date(), daysBeforeBegin);
-    const endDate = subDays(new Date(), daysBeforeEnd);
+    const startDate = subDays(today, daysBeforeBegin);
+    const endDate = subDays(today, daysBeforeEnd);
     await this.cnabService.saveTransacoesJae(startDate, endDate, undefined, 'VLT');
     const listCnab = await this.cnabService.generateRemessa({
       tipo: PagadorContaEnum.ContaBilhetagem,
@@ -285,17 +299,29 @@ export class CronJobsService {
 
   /**
    * Atualiza todos os itens do dia de ontem.
+   *
+   * @param consorcio
+   * `Van`: De 30 em 30 minutos, 2h atrás.
+   *
+   * `VLT`: Todo dia pega 1 dia antes.
    */
-  async updateTransacaoView(consorcio: 'Van' | 'Empresa') {
+  async updateTransacaoView(consorcio: 'Van' | 'Empresa' | 'VLT', debug?: ICronjobDebug) {
     const METHOD = this.updateTransacaoView.name;
-    let startDate = new Date();
-    let endDate = new Date();
+    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
+      return;
+    }
+    const today = debug?.today || new Date();
+    let startDate = today;
+    let endDate = today;
 
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
       if (consorcio == 'Van') {
         startDate = subHours(startDate, 2);
+      } else if (consorcio == 'VLT') {
+        startDate = subDays(startDate, 1);
       } else {
+        /** Empresa */
         startDate = startOfDay(startDate);
         endDate = endOfDay(endDate);
       }
