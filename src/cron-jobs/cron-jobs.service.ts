@@ -72,7 +72,6 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    // await this.generateRemessaVLT();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -94,7 +93,7 @@ export class CronJobsService {
       {
         name: CrobJobsEnum.sendStatusReportTemp,
         cronJobParameters: {
-          cronTime: '20 13 22 8 *', // At 13:22 UTC (10:22 BRT, GMT-3) on day-of-month 20 in August.
+          cronTime: '40 13 20 8 *', // At 13:40 UTC (10:40 BRT, GMT-3) on day-of-month 20 in August.
           onTick: () => this.sendStatusReport(),
         },
       },
@@ -160,6 +159,24 @@ export class CronJobsService {
       this.startCron(jobConfig);
       this.logger.log(`Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`);
     }
+  }
+
+  public async getIsProd(method?: string) {
+    const apiEnv = await this.settingsService.getOneBySettingData(appSettings.any__api_env);
+    const nodeEnv = this.configService.getOrThrow('app.nodeEnv', { infer: true });
+    const isProd = nodeEnv === 'production' && apiEnv.getValueAsString() === 'production';
+    if (method !== undefined && !isProd) {
+      this.logger.log(`Tarefa ignorada pois a variável 'nodeEnv' e no banco o 'production' não estão definidos para 'production' (nodeEnv: ${nodeEnv}, settings.api_env: ${apiEnv.getValueAsString()})`, method);
+    }
+    return isProd;
+  }
+
+  async getIsCnabJobEnabled(method?: string) {
+    const cnabJobEnabled = await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_jobs_enabled);
+    if (method !== undefined && !cnabJobEnabled.getValueAsBoolean()) {
+      this.logger.log(`Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`, method);
+    }
+    return cnabJobEnabled.getValueAsBoolean();
   }
 
   startCron(jobConfig: ICronJob) {
@@ -362,6 +379,9 @@ export class CronJobsService {
 
   async sendStatusReport() {
     const METHOD = this.sendStatusReport.name;
+    if (!(await this.getIsProd(METHOD))) {
+      return;
+    }
     this.logger.log('Iniciando tarefa.', METHOD);
 
     const isEnabledFlag = await this.settingsService.findOneBySettingData(appSettings.any__mail_report_enabled);
@@ -590,14 +610,6 @@ export class CronJobsService {
       this.logger.error(`ERRO CRÍTICO (TENTATIVA 2) = ${error}`, error.stack, METHOD);
       this.deleteCron(CrobJobsEnum.saveTransacoesLancamento2);
     }
-  }
-
-  async getIsCnabJobEnabled(method?: string) {
-    const cnabJobEnabled = await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_jobs_enabled);
-    if (method !== undefined && !cnabJobEnabled.getValueAsBoolean()) {
-      this.logger.log(`Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`, method);
-    }
-    return cnabJobEnabled.getValueAsBoolean();
   }
 
   async saveTransacoesJae1(dataOrdemIncial, dataOrdemFinal, daysBefore = 0, consorcio = 'Todos') {

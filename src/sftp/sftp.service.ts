@@ -45,7 +45,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
 
   async onModuleLoad() {
     const apiEnv = await this.settingsService.getOneBySettingData(appSettings.any__api_env);
-    if (apiEnv.getValueAsString() === 'stag') {
+    if (apiEnv.getValueAsString() === 'staging') {
       this.rootFolder = '/backup/stag';
     } else if (apiEnv.getValueAsString() === 'local') {
       this.rootFolder = await this.configService.getOrThrow('sftp.rootFolder', { infer: true });
