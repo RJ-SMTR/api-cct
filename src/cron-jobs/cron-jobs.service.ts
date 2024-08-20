@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SchedulerRegistry } from '@nestjs/schedule';
+import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { endOfDay, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
 import { start } from 'repl';
@@ -27,6 +27,7 @@ import { validateEmail } from 'validations-br';
 export enum CrobJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
   sendStatusReport = 'sendStatusReport',
+  sendStatusReportTemp = 'sendStatusReportTemp',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
   saveTransacoesJae = 'saveTransacoesJae',
@@ -81,10 +82,19 @@ export class CronJobsService {
           onTick: async () => this.bulkSendInvites(),
         },
       },
+      /** NÃO DESABILITAR ENVIO DE REPORT */
       {
         name: CrobJobsEnum.sendStatusReport,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+          onTick: () => this.sendStatusReport(),
+        },
+      },
+      /** TODO: Temporário, remover em seguida */
+      {
+        name: CrobJobsEnum.sendStatusReportTemp,
+        cronJobParameters: {
+          cronTime: '20 13 22 8 *', // At 13:22 UTC (10:22 BRT, GMT-3) on day-of-month 20 in August.
           onTick: () => this.sendStatusReport(),
         },
       },
@@ -145,12 +155,11 @@ export class CronJobsService {
       //   }
     );
 
-    // for (const jobConfig of this.jobsConfig) {
-    //   this.startCron(jobConfig);
-    //   this.logger.log(
-    //     `Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`,
-    //   );
-    // }
+    /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
+    for (const jobConfig of this.jobsConfig) {
+      this.startCron(jobConfig);
+      this.logger.log(`Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`);
+    }
   }
 
   startCron(jobConfig: ICronJob) {
