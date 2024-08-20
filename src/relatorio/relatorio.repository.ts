@@ -8,7 +8,7 @@ import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio
 export class RelatorioRepository {
   constructor(@InjectDataSource()
               private readonly dataSource: DataSource) {}
-
+  
   private getQueryConsorcio(dataInicio:string,dataFim:string,pago?:boolean,
     valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){ 
     let query =
@@ -24,16 +24,14 @@ export class RelatorioRepository {
                 inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                 inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                 inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-              WHERE `;
-
-              if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
-                query = query +` ita."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;
-              else
-                query = query +` ita."nomeConsorcio" not in('STPC','STPL') `;
+              WHERE (1=1) `;
 
               if(dataInicio!==undefined && dataFim!==undefined && 
                 (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
                 query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+
+              if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
+                query = query +` and ita."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;              
               
               if(pago!==undefined)
                 query = query + ` and	ap."isPago"=${pago}`;
@@ -48,7 +46,7 @@ export class RelatorioRepository {
                  query = query + ` and da."valorLancamento"<=${valorMax}`;              
             
             query = query +  `) as cs
-            group by cs."consorcio"`
+            group by cs."consorcio"`            
     return query;             
   }
 
@@ -144,13 +142,13 @@ export class RelatorioRepository {
     }else if(args.consorcioNome!==undefined && (['STPC','STPL'].some(i=>args.consorcioNome?.includes(i)))){
       queryConsorcio = this.getQueryStpcStpl(args.dataInicio.toISOString().slice(0,10),
       args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.consorcioNome,args.aPagar);    
-    }else if(args.favorecidoNome===undefined && args.consorcioNome === undefined) {
+    }else if((args.favorecidoNome===undefined && args.consorcioNome === undefined)){
       queryConsorcio =  this.getQueryConsorcio(args.dataInicio.toISOString().slice(0,10),
       args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
         args.valorMax,args.consorcioNome,args.aPagar) +
         ' union all '+
       this.getQueryStpcStpl(args.dataInicio?.toISOString().slice(0,10),
-      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.consorcioNome,args.aPagar);
+      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.consorcioNome,args.aPagar);      
     }
 
     let queryOperadores ='';

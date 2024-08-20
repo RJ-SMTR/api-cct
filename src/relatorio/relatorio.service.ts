@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
 import { RelatorioRepository } from './relatorio.repository';
 import { RelatorioConsolidadoResultDto } from './dtos/relatorio-consolidado-result.dto';
+import { RelatorioAnaliticoResultDto } from './dtos/relatorio-analitico-result.dto';
 
 @Injectable()
 export class RelatorioService {
@@ -55,6 +56,30 @@ export class RelatorioService {
       consolidadosData.valor = +consolidado.reduce((s, i) => s + i.valor, 0).toFixed(d); 
       consolidadosData.status = 'todos';
       result.push(consolidadosData);
+    }
+    return result;
+  }
+
+  async findAnalitico(args: IFindPublicacaoRelatorio){
+    const d = 2;
+    let result: RelatorioAnaliticoResultDto[]=[];
+    
+    let analitcoPagos; 
+    if(args.pago === true && (args.aPagar === false || args.aPagar === undefined)){  
+      
+    }
+
+    let analitcoNaoPagos;   
+    if(args.pago === false && (args.aPagar === false || args.aPagar === undefined)){  
+    }
+
+    let analitcoAPagar;
+    if(args.aPagar === true && (args.pago === false || args.pago === undefined)){
+
+    }
+    let analitico;
+    if(args.aPagar === undefined && args.pago === undefined){
+    
     }
     return result;
   }
