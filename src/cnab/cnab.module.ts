@@ -184,6 +184,7 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     ExtratoDetalheERepository,
     ExtratoDetalheEService,
     RemessaRetornoService,
+    OcorrenciaService,
   ],
   controllers: [CnabController],
 })

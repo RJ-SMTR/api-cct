@@ -1,25 +1,9 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Query,
-  Request,
-  SerializeOptions,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Query, Request, SerializeOptions, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import {
-  endOfMonth,
-  isFriday,
-  nextFriday,
-  previousFriday,
-  startOfMonth,
-  subDays,
-} from 'date-fns';
+import { endOfMonth, isFriday, nextFriday, previousFriday, startOfMonth, subDays } from 'date-fns';
 import { DateApiParams } from 'src/utils/api-param/date-api-param';
-import { DescriptionApiParam } from 'src/utils/api-param/description-api-param';
+import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
@@ -84,16 +68,16 @@ export class TicketRevenuesController {
     name: 'userId',
     type: Number,
     required: false,
-    description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
+    description: ApiDescription({ default: 'Your logged user id (me)' }),
   })
   async getMe(
     @Request() request,
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
     @Query('timeInterval') timeInterval: TimeIntervalEnum,
-    @Query(...DateQueryParams.endDate) endDate?: string,
-    @Query(...DateQueryParams.startDate) startDate?: string,
-    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
+    @Query('endDate', new ParseDatePipe()) endDate?: string,
+    @Query('startDate', new ParseDatePipe({ optional: true })) startDate?: string,
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
     userId?: number | null,
   ): Promise<TRGetMeGroupedResponseDto> {
     this.logger.log(getRequestLog(request));
@@ -125,17 +109,17 @@ export class TicketRevenuesController {
     name: 'userId',
     type: Number,
     required: false,
-    description: DescriptionApiParam({ default: 'Your logged user id (me)' }),
+    description: ApiDescription({ default: 'Your logged user id (me)' }),
   })
   async getMeGrouped(
     @Request() request,
-    @Query('endDate', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/, true))
+    @Query('endDate', new ParseDatePipe())
     endDate?: string,
-    @Query('startDate', new ParseDatePipe(/^\d{4}-\d{2}-\d{2}$/, true))
+    @Query('startDate', new ParseDatePipe())
     startDate?: string,
     @Query(...DateQueryParams.yearMonth) yearMonth?: string,
     @Query('timeInterval') timeInterval?: TimeIntervalEnum,
-    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
     userId?: number | null,
   ): Promise<TicketRevenuesGroupDto> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
@@ -177,17 +161,12 @@ export class TicketRevenuesController {
   @ApiQuery(PaginationApiParams.limit)
   @ApiQuery(DateApiParams.startDate)
   @ApiQuery(DateApiParams.endDate)
-  @ApiQuery(
-    DateApiParams.getTimeInterval(
-      TRTimeIntervalEnum,
-      TRTimeIntervalEnum.LAST_WEEK,
-    ),
-  )
+  @ApiQuery(DateApiParams.getTimeInterval(TRTimeIntervalEnum, TRTimeIntervalEnum.LAST_WEEK))
   @ApiQuery({
     name: 'userId',
     type: Number,
     required: false,
-    description: DescriptionApiParam({ default: 'Your logged userId (me)' }),
+    description: ApiDescription({ default: 'Your logged userId (me)' }),
   })
   async getMeIndividual(
     @Request() request,
@@ -196,7 +175,7 @@ export class TicketRevenuesController {
     @Query(...DateQueryParams.endDate) endDate: string,
     @Query(...DateQueryParams.startDate) startDate?: string,
     @Query('timeInterval') timeInterval?: TRTimeIntervalEnum,
-    @Query('userId', new ParseNumberPipe({ min: 1, required: false }))
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
     userId?: number | null,
   ): Promise<Pagination<ITRGetMeIndividualResponse>> {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
