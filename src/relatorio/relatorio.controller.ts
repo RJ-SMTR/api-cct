@@ -15,8 +15,8 @@ import { RelatorioService } from './relatorio.service';
 export class RelatorioController {
   constructor(private relatorioService: RelatorioService) {}
 
-  @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: false, type: String, example: '2024-07-15' })
-  @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: false, type: String, example: '2024-07-16' })
+  @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String, example: '2024-07-15' })
+  @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String, example: '2024-07-16' })
   @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome parcial dos favorecidos, sem distinção de acento ou maiúsculas.', required: false, type: String, example: 'internorte,intersul,jose carlos' })
   @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String, example: 'Santa Cruz,STPL,Internorte,STPC,MobiRio,Transcarioca,Intersul,VLT' })
   @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto.', required: false, type: Number, example: 12.0 })
@@ -28,10 +28,10 @@ export class RelatorioController {
   @UseGuards(AuthGuard('jwt'))
   @Get('consolidado')
   async getConsolidado(
-    @Query('dataInicio', new ParseDatePipe({ dateOnly: true, optional: true }))
-    dataInicio: Date | undefined,
-    @Query('dataFim', new ParseDatePipe({ dateOnly: true, optional: true }))
-    dataFim: Date | undefined,
+    @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
+    dataInicio: Date,
+    @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
+    dataFim: Date,
     @Query('favorecidoNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
     favorecidoNome: string[],    
     @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
