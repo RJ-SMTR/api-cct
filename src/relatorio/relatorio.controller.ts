@@ -22,7 +22,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto.', required: false, type: Number, example: 12.0 })
   @ApiQuery({ name: 'valorMax', description: 'Somatório do valor bruto.', required: false, type: Number, example: 12.99 })
   @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
-  @ApiQuery({ name: 'a pagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
+  @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -40,10 +40,8 @@ export class RelatorioController {
     valorMin: number | undefined,
     @Query('valorMax', new ParseNumberPipe({ optional: true }))
     valorMax: number | undefined,
-    @Query('pago', new ParseBooleanPipe({ optional: true }))
-    pago: boolean | undefined,     
-    @Query('pago', new ParseBooleanPipe({ optional: true }))
-    aPagar: boolean | undefined   
+    @Query('pago',new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,     
+    @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined   
   ) {
     return await this.relatorioService.findConsolidado({
       dataInicio,dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar
