@@ -7,11 +7,11 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(
             `CREATE TABLE IF NOT EXISTS "file" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "path" character varying NOT NULL, CONSTRAINT "PK_36b46d232307066b3a2c9ea3a1d" PRIMARY KEY ("id"))`,
         ); // custom
-        if (!(await queryRunner.query(`SELECT 1 FROM information_schema.constraint_column_usage WHERE constraint_name = 'FK_75e2be4ce11d447ef43be0e374f'`) as any[]).pop()) {
-            await queryRunner.query(
-                `ALTER TABLE "user" ADD CONSTRAINT "FK_75e2be4ce11d447ef43be0e374f" FOREIGN KEY ("photoId") REFERENCES "file"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
-            );
-        } // custom
+        // if (!(await queryRunner.query(`SELECT 1 FROM information_schema.constraint_column_usage WHERE constraint_name = 'FK_75e2be4ce11d447ef43be0e374f'`) as any[]).pop()) {
+        //     await queryRunner.query(
+        //         `ALTER TABLE "user" ADD CONSTRAINT "FK_75e2be4ce11d447ef43be0e374f" FOREIGN KEY ("photoId") REFERENCES "file"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+        //     );
+        // } // custom
         await queryRunner.query(`ALTER TABLE "invite_status" DROP CONSTRAINT "UQ_bfcd7854096256be37cd3b47b16"`); // custom
         await queryRunner.query(`ALTER TABLE "invite_status" ADD CONSTRAINT "UQ_InviteStatus_id" UNIQUE ("id")`); // custom
         await queryRunner.query(`ALTER INDEX "IDX_9bd2fe7a8e694dedc4ec2f666f" RENAME TO "IDX_User_socialId"`); // custom
@@ -292,7 +292,7 @@ export class CreateCnabExtrato1711492329959 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "lancamento" ADD CONSTRAINT "FK_ea066846cf244204c813b72ff50" FOREIGN KEY ("id_cliente_favorecido") REFERENCES "cliente_favorecido"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "file" DROP CONSTRAINT "PK_File_id"`); // custom
         await queryRunner.query(`ALTER TABLE "file" ADD CONSTRAINT "PK_36b46d232307066b3a2c9ea3a1d" PRIMARY KEY ("id")`); // custom
-        await queryRunner.query(`ALTER TABLE "user" ADD CONSTRAINT "FK_75e2be4ce11d447ef43be0e374f" FOREIGN KEY ("photoId") REFERENCES "file"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        // await queryRunner.query(`ALTER TABLE "user" ADD CONSTRAINT "FK_75e2be4ce11d447ef43be0e374f" FOREIGN KEY ("photoId") REFERENCES "file"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user" ADD CONSTRAINT "FK_c28e52f758e7bbc53828db92194" FOREIGN KEY ("roleId") REFERENCES "role"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user" ADD CONSTRAINT "FK_dc18daa696860586ba4667a9d31" FOREIGN KEY ("statusId") REFERENCES "status"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "invite" DROP CONSTRAINT "UQ_Invite_hash"`); // custom
