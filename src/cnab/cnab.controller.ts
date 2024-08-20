@@ -141,13 +141,16 @@ export class CnabController {
     };
   }
 
+  @ApiQuery({ name: 'folder', description: ApiDescription({  _: 'Pasta para ler os retornos', default: '/retorno' }), required: false, type: String })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.admin)
   @Get('updateRetorno')
-  async getUpdateRetorno() {
-    return await this.cnabService.updateRetorno();
+  async getUpdateRetorno(
+    @Query('folder', new ParseDatePipe()) folder: string | undefined, //
+  ) {
+    return await this.cnabService.updateRetorno(folder);
   }
 
   @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial', required: true, type: Date })

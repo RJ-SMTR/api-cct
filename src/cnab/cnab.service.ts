@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { addDays, differenceInHours, differenceInMilliseconds, differenceInMinutes, differenceInSeconds, endOfDay, isFriday, nextFriday, nextThursday, startOfDay, subDays } from 'date-fns';
+import { endOfDay, isFriday, nextFriday, nextThursday, startOfDay, subDays } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
@@ -11,11 +11,17 @@ import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { UsersService } from 'src/users/users.service';
 
-import { getChunks } from 'src/utils/array-utils';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
+import { cnabSettings } from 'src/settings/cnab.settings';
+import { SettingsService } from 'src/settings/settings.service';
+import { completeCPFCharacter } from 'src/utils/cpf-cnpj';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { formatDateInterval, yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { Between, DataSource, In, QueryRunner } from 'typeorm';
+import { Between, DataSource, QueryRunner } from 'typeorm';
+import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
+import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacao } from './entity/pagamento/item-transacao.entity';
@@ -44,13 +50,6 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
-import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
-import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
-import { completeCPFCharacter } from 'src/utils/cpf-cnpj';
-import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { SettingsService } from 'src/settings/settings.service';
-import { cnabSettings } from 'src/settings/cnab.settings';
 
 /**
  * User cases for CNAB and Payments
@@ -94,7 +93,7 @@ export class CnabService {
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
-  public async saveTransacoesJae(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBefore = 0, consorcio: 'VLT' | 'Empresa' | 'Todos' | string) {
+  public async saveTransacoesJae(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBefore = 0, consorcio: 'VLT' | 'Van' | 'Empresa' | 'Todos' | string) {
     const dataOrdemInicialDate = startOfDay(new Date(dataOrdemIncial));
     const dataOrdemFinalDate = endOfDay(new Date(dataOrdemFinal));
     await this.updateAllFavorecidosFromUsers();
