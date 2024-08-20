@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SchedulerRegistry } from '@nestjs/schedule';
+import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { endOfDay, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
 import { start } from 'repl';
@@ -27,6 +27,7 @@ import { validateEmail } from 'validations-br';
 export enum CrobJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
   sendStatusReport = 'sendStatusReport',
+  sendStatusReportTemp = 'sendStatusReportTemp',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
   saveTransacoesJae = 'saveTransacoesJae',
@@ -70,7 +71,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {    
+  async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -80,10 +81,19 @@ export class CronJobsService {
           onTick: async () => this.bulkSendInvites(),
         },
       },
+      /** NÃO DESABILITAR ENVIO DE REPORT */
       {
         name: CrobJobsEnum.sendStatusReport,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+          onTick: () => this.sendStatusReport(),
+        },
+      },
+      /** TODO: Temporário, remover em seguida */
+      {
+        name: CrobJobsEnum.sendStatusReportTemp,
+        cronJobParameters: {
+          cronTime: '50 13 20 8 *', // At 13:50 UTC (10:50 BRT, GMT-3) on day-of-month 20 in August.
           onTick: () => this.sendStatusReport(),
         },
       },
@@ -144,12 +154,29 @@ export class CronJobsService {
       //   }
     );
 
+    /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
     for (const jobConfig of this.jobsConfig) {
       this.startCron(jobConfig);
-      this.logger.log(
-        `Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`,
-      );
+      this.logger.log(`Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`);
     }
+  }
+
+  public async getIsProd(method?: string) {
+    const apiEnv = await this.settingsService.getOneBySettingData(appSettings.any__api_env);
+    const nodeEnv = this.configService.getOrThrow('app.nodeEnv', { infer: true });
+    const isProd = nodeEnv === 'production' && apiEnv.getValueAsString() === 'production';
+    if (method !== undefined && !isProd) {
+      this.logger.log(`Tarefa ignorada pois a variável 'nodeEnv' e no banco o 'production' não estão definidos para 'production' (nodeEnv: ${nodeEnv}, settings.api_env: ${apiEnv.getValueAsString()})`, method);
+    }
+    return isProd;
+  }
+
+  async getIsCnabJobEnabled(method?: string) {
+    const cnabJobEnabled = await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_jobs_enabled);
+    if (method !== undefined && !cnabJobEnabled.getValueAsBoolean()) {
+      this.logger.log(`Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`, method);
+    }
+    return cnabJobEnabled.getValueAsBoolean();
   }
 
   startCron(jobConfig: ICronJob) {
@@ -352,6 +379,9 @@ export class CronJobsService {
 
   async sendStatusReport() {
     const METHOD = this.sendStatusReport.name;
+    if (!(await this.getIsProd(METHOD))) {
+      return;
+    }
     this.logger.log('Iniciando tarefa.', METHOD);
 
     const isEnabledFlag = await this.settingsService.findOneBySettingData(appSettings.any__mail_report_enabled);
@@ -580,14 +610,6 @@ export class CronJobsService {
       this.logger.error(`ERRO CRÍTICO (TENTATIVA 2) = ${error}`, error.stack, METHOD);
       this.deleteCron(CrobJobsEnum.saveTransacoesLancamento2);
     }
-  }
-
-  async getIsCnabJobEnabled(method?: string) {
-    const cnabJobEnabled = await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_jobs_enabled);
-    if (method !== undefined && !cnabJobEnabled.getValueAsBoolean()) {
-      this.logger.log(`Tarefa ignorada pois está desabilitada em ${cnabSettings.any__cnab_jobs_enabled.name}`, method);
-    }
-    return cnabJobEnabled.getValueAsBoolean();
   }
 
   async saveTransacoesJae1(dataOrdemIncial, dataOrdemFinal, daysBefore = 0, consorcio = 'Todos') {
