@@ -144,15 +144,15 @@ export class BigqueryTransacaoRepository {
     }
 
     if (args?.startDate) {
-      const startDate = args.startDate.toISOString().slice(0, 10);
+      const startDate = args.startDate.toISOString();
       queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) >= DATE('${startDate} 00:00:00')`,
+        `DATE(t.datetime_processamento) >= DATE('${startDate}')`,
       );
     }
     if (args?.endDate) {
-      const endDate = args.endDate.toISOString().slice(0, 10);
+      const endDate = args.endDate.toISOString();
       queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) <= DATE('${endDate} 23:59:59')`,
+        `DATE(t.datetime_processamento) <= DATE('${endDate}')`,
       );
     }
     if (args?.previousDaysOnly === true) {

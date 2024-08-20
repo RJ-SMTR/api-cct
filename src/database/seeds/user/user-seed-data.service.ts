@@ -94,6 +94,21 @@ LIMIT 5
         role: new Role(RoleEnum.admin),
         status: new Status(StatusEnum.active),
       },
+      // Admin CCT
+      {
+        fullName: 'Felipe Ribeiro',
+        email: 'felipe.ribeiro@prefeitura.rio',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.admin),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Monique Lopes',
+        email: 'monique.lopes@prefeitura.rio',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.admin),
+        status: new Status(StatusEnum.active),
+      },
 
       // Admins
       {
