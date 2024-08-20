@@ -73,7 +73,6 @@ export class CronJobsService {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    await this.sendStatusReport();
     this.jobsConfig.push(
       {
         name: CrobJobsEnum.bulkSendInvites,
