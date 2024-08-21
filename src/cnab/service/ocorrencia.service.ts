@@ -25,9 +25,11 @@ export class OcorrenciaService {
   }
 
   public async saveMany(ocorrencias: DeepPartial<Ocorrencia>[], queryRunner: QueryRunner) {
+    const saved: Ocorrencia[] = [];
     for (const ocorrencia of ocorrencias) {
-      return await queryRunner.manager.getRepository(Ocorrencia).save(ocorrencia);
+      saved.push(await queryRunner.manager.getRepository(Ocorrencia).save(ocorrencia));
     }
+    return saved;
   }
 
   public async delete(detalheA: DeepPartial<DetalheA>, queryRunner: QueryRunner) {

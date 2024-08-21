@@ -5,24 +5,24 @@ import { logWarn } from 'src/utils/log-utils';
 import { asNumber } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import {
-  DeepPartial,
-  FindManyOptions,
-  FindOneOptions,
-  In,
-  InsertResult,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  Repository,
-} from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOneOptions, In, InsertResult, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
+import { getDateYMDString } from 'src/utils/date-utils';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+
+export interface IDetalheARawWhere {
+  id?: number[];
+  detalheARem?: {
+    dataVencimento: Date;
+    numeroDocumentoEmpresa: number;
+    valorLancamento: number;
+  };
+}
 
 @Injectable()
 export class DetalheARepository {
-  private logger: Logger = new Logger('DetalheARepository', {
-    timestamp: true,
-  });
+  private logger: Logger = new Logger('DetalheARepository', { timestamp: true });
 
   constructor(
     @InjectRepository(DetalheA)
@@ -35,9 +35,7 @@ export class DetalheARepository {
    * @param dtos DTOs that can exist or not in database
    * @returns Saved objects not in database.
    */
-  public async saveManyIfNotExists(
-    dtos: DeepPartial<DetalheA>[],
-  ): Promise<DetalheA[]> {
+  public async saveManyIfNotExists(dtos: DeepPartial<DetalheA>[]): Promise<DetalheA[]> {
     // Existing
     const existing = await this.findMany({
       where: dtos.reduce(
@@ -51,34 +49,19 @@ export class DetalheARepository {
         [],
       ),
     });
-    const existingMap: Record<string, DeepPartial<DetalheA>> = existing.reduce(
-      (m, i) => ({ ...m, [DetalheA.getUniqueId(i)]: i }),
-      {},
-    );
+    const existingMap: Record<string, DeepPartial<DetalheA>> = existing.reduce((m, i) => ({ ...m, [DetalheA.getUniqueId(i)]: i }), {});
     // Check
     if (existing.length === dtos.length) {
-      logWarn(
-        this.logger,
-        `${existing.length}/${dtos.length} DetalhesA já existem, nada a fazer...`,
-      );
+      logWarn(this.logger, `${existing.length}/${dtos.length} DetalhesA já existem, nada a fazer...`);
     } else if (existing.length) {
-      logWarn(
-        this.logger,
-        `${existing.length}/${dtos.length} DetalhesA já existem, ignorando...`,
-      );
+      logWarn(this.logger, `${existing.length}/${dtos.length} DetalhesA já existem, ignorando...`);
       return [];
     }
     // Save new
-    const newDTOs = dtos.reduce(
-      (l, i) => [...l, ...(!existingMap[DetalheA.getUniqueId(i)] ? [i] : [])],
-      [],
-    );
+    const newDTOs = dtos.reduce((l, i) => [...l, ...(!existingMap[DetalheA.getUniqueId(i)] ? [i] : [])], []);
     const insert = await this.insert(newDTOs);
     // Return saved
-    const insertIds = (insert.identifiers as { id: number }[]).reduce(
-      (l, i) => [...l, i.id],
-      [],
-    );
+    const insertIds = (insert.identifiers as { id: number }[]).reduce((l, i) => [...l, i.id], []);
     const saved = await this.findMany({ where: { id: In(insertIds) } });
     return saved;
   }
@@ -89,9 +72,10 @@ export class DetalheARepository {
 
   public async save(dto: DeepPartial<DetalheA>): Promise<DetalheA> {
     const saved = await this.detalheARepository.save(dto);
-    return await this.detalheARepository.findOneOrFail({
-      where: { id: saved.id },
-    });
+    // return await this.detalheARepository.findOneOrFail({
+    //   where: { id: saved.id },
+    // });
+    return await this.getOneRaw({ id: [saved.id] });
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
@@ -100,17 +84,60 @@ export class DetalheARepository {
     });
   }
 
-  public async findOne(
-    options: FindOneOptions<DetalheA>,
-  ): Promise<Nullable<DetalheA>> {
+  public async getOneRaw(where: IDetalheARawWhere): Promise<DetalheA> {
+    const qWhere: { query: string; params?: any[] } = { query: '' };
+    if (where.id) {
+      qWhere.query = `WHERE da.id IN (${where.id.join(',')})`;
+      qWhere.params = [];
+    } else if (where.detalheARem) {
+      const { dataVencimento, numeroDocumentoEmpresa, valorLancamento } = where.detalheARem;
+      qWhere.query = `WHERE da."dataVencimento"::DATE = $1 AND da."numeroDocumentoEmpresa" = $2 AND da."valorLancamento" = $3`;
+      qWhere.params = [getDateYMDString(dataVencimento), numeroDocumentoEmpresa, valorLancamento];
+    }
+    const result: any[] = await this.detalheARepository.query(
+      `
+      SELECT
+          da.id, da."createdAt", da."dataEfetivacao", da."dataVencimento", da."finalidadeDOC",
+          da."indicadorBloqueio", da."indicadorFormaParcelamento", da."loteServico", da.nsr,
+          da."numeroDocumentoBanco", da."numeroDocumentoEmpresa", da."numeroParcela",
+          da."ocorrenciasCnab", da."periodoVencimento", da."quantidadeMoeda",
+          da."quantidadeParcelas", da."tipoMoeda", da."updatedAt", da."valorLancamento",
+          da."valorRealEfetivado",
+          json_build_object(
+              'id', da."itemTransacaoAgrupadoId",
+              'transacaoAgrupado', json_build_object(
+                  'id', ta.id,
+                  'status', json_build_object('id', ts.id, 'name', ts.name)
+              )
+          ) AS "itemTransacaoAgrupado",
+          json_build_object(
+              'id', hl.id,
+              'headerArquivo', json_build_object('id', ha.id, 'dataGeracao', ha."dataGeracao")
+          ) AS "headerLote"
+      FROM detalhe_a da
+      INNER JOIN header_lote hl ON da."headerLoteId" = hl.id
+      INNER JOIN header_arquivo ha ON hl."headerArquivoId" = ha.id
+      INNER JOIN item_transacao_agrupado ita ON da."itemTransacaoAgrupadoId" = ita.id
+      INNER JOIN transacao_agrupado ta ON ta.id = ita."transacaoAgrupadoId"
+      INNER JOIN transacao_status ts ON ts.id = ta."statusId"
+      ${qWhere.query}
+    `,
+      qWhere.params,
+    );
+    if (result.length == 0) {
+      throw CommonHttpException.details('It should return at least one DetalheA');
+    }
+    const detalhes = result.map((i) => new DetalheA(i));
+    return detalhes[0];
+  }
+
+  public async findOne(options: FindOneOptions<DetalheA>): Promise<Nullable<DetalheA>> {
     return await this.detalheARepository.findOne(options);
   }
 
-  public async findMany(
-    options?: FindManyOptions<DetalheA>,
-  ): Promise<DetalheA[]> {
+  public async findMany(options?: FindManyOptions<DetalheA>): Promise<DetalheA[]> {
     const detalheA = await this.detalheARepository.find(options);
-   // await this.forceManyEager(detalheA);
+    // await this.forceManyEager(detalheA);
     return detalheA;
   }
 
@@ -122,10 +149,7 @@ export class DetalheARepository {
   public async getNextNumeroDocumento(date: Date): Promise<number> {
     return (
       (await this.detalheARepository.count({
-        where: [
-          { createdAt: MoreThanOrEqual(startOfDay(date)) },
-          { createdAt: LessThanOrEqual(endOfDay(date)) },
-        ],
+        where: [{ createdAt: MoreThanOrEqual(startOfDay(date)) }, { createdAt: LessThanOrEqual(endOfDay(date)) }],
       })) + 1
     );
   }

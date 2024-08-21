@@ -3,21 +3,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import {
-  DeepPartial,
-  FindManyOptions,
-  FindOneOptions,
-  FindOptionsWhere,
-  InsertResult,
-  Repository,
-  SelectQueryBuilder,
-  UpdateResult,
-} from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository, UpdateResult } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
-import { Pagination } from 'src/utils/types/pagination.type';
-import { getPagination } from 'src/utils/get-pagination';
+
+export interface IClienteFavorecidoRawWhere {
+  id?: number[];
+  nome?: string[];
+  cpfCnpj?: string;
+}
 
 @Injectable()
 export class ClienteFavorecidoRepository {
@@ -35,7 +30,7 @@ export class ClienteFavorecidoRepository {
   async remove(favorecidos: ClienteFavorecido[]) {
     return await this.clienteFavorecidoRepository.remove(favorecidos);
   }
-  
+
   async save(dto: SaveClienteFavorecidoDTO): Promise<void> {
     if (dto.id === undefined) {
       await this.create(dto);
@@ -47,10 +42,7 @@ export class ClienteFavorecidoRepository {
   public async findOneByNome(nome: string): Promise<ClienteFavorecido | null> {
     const cliente = await this.clienteFavorecidoRepository
       .createQueryBuilder('favorecido')
-      .where(
-        'unaccent(UPPER("favorecido"."nome")) ILIKE unaccent(UPPER(:nome))',
-        { nome: `%${nome}%` },
-      )
+      .where('unaccent(UPPER("favorecido"."nome")) ILIKE unaccent(UPPER(:nome))', { nome: `%${nome}%` })
       .getOne();
 
     return cliente;
@@ -60,50 +52,32 @@ export class ClienteFavorecidoRepository {
     return this.clienteFavorecidoRepository.clear();
   }
 
-  async create(
-    createProfileDto: SaveClienteFavorecidoDTO,
-  ): Promise<ClienteFavorecido> {
-    const createdUser = await this.clienteFavorecidoRepository.save(
-      this.clienteFavorecidoRepository.create(createProfileDto),
-    );
+  async create(createProfileDto: SaveClienteFavorecidoDTO): Promise<ClienteFavorecido> {
+    const createdUser = await this.clienteFavorecidoRepository.save(this.clienteFavorecidoRepository.create(createProfileDto));
     this.logger.log(`ClienteFavorecido criado: ${createdUser.getLogInfo()}`);
     return createdUser;
   }
 
-  async upsert(
-    favorecidos: DeepPartial<ClienteFavorecido>[],
-  ): Promise<InsertResult> {
+  async upsert(favorecidos: DeepPartial<ClienteFavorecido>[]): Promise<InsertResult> {
     const payload = await this.clienteFavorecidoRepository.upsert(favorecidos, {
       conflictPaths: { cpfCnpj: true },
       skipUpdateIfNoValuesChanged: true,
     });
-    this.logger.log(
-      `${payload.identifiers.length} ClienteFavorecidos atualizados.`,
-    );
+    this.logger.log(`${payload.identifiers.length} ClienteFavorecidos atualizados.`);
     return payload;
   }
 
-  async update(
-    id: number,
-    updateDto: SaveClienteFavorecidoDTO,
-  ): Promise<UpdateResult> {
-    const updatePayload = await this.clienteFavorecidoRepository.update(
-      { id: id },
-      updateDto,
-    );
+  async update(id: number, updateDto: SaveClienteFavorecidoDTO): Promise<UpdateResult> {
+    const updatePayload = await this.clienteFavorecidoRepository.update({ id: id }, updateDto);
     const updatedItem = new ClienteFavorecido({
       id: id,
       ...updateDto,
     });
-    this.logger.log(
-      `ClienteFavorecido atualizado: ${updatedItem.getLogInfo()}`,
-    );
+    this.logger.log(`ClienteFavorecido atualizado: ${updatedItem.getLogInfo()}`);
     return updatePayload;
   }
 
-  public async getOne(
-    fields: EntityCondition<ClienteFavorecido>,
-  ): Promise<ClienteFavorecido> {
+  public async getOne(fields: EntityCondition<ClienteFavorecido>): Promise<ClienteFavorecido> {
     const result = await this.clienteFavorecidoRepository.findOne({
       where: fields,
     });
@@ -115,15 +89,11 @@ export class ClienteFavorecidoRepository {
   public async findAll(): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.find();
   }
-  public async findMany(
-    options: FindManyOptions<ClienteFavorecido>,
-  ): Promise<ClienteFavorecido[]> {
+  public async findMany(options: FindManyOptions<ClienteFavorecido>): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.find(options);
   }
 
-  public async findManyBy(
-    where?: IClienteFavorecidoFindBy,
-  ): Promise<ClienteFavorecido[]> {
+  public async findManyBy(where?: IClienteFavorecidoFindBy): Promise<ClienteFavorecido[]> {
     let isFirstWhere = false;
     let qb = this.clienteFavorecidoRepository.createQueryBuilder('favorecido');
     function cmd() {
@@ -152,12 +122,33 @@ export class ClienteFavorecidoRepository {
     return result;
   }
 
-  public async findOne(
-    options: FindOneOptions<ClienteFavorecido>,
-  ): Promise<ClienteFavorecido | null> {
-    const first = (
-      await this.clienteFavorecidoRepository.find(options)
-    ).shift();
+  public async findOne(options: FindOneOptions<ClienteFavorecido>): Promise<ClienteFavorecido | null> {
+    const first = (await this.clienteFavorecidoRepository.find(options)).shift();
     return first || null;
+  }
+
+  public async findOneRaw(where: IClienteFavorecidoRawWhere): Promise<ClienteFavorecido> {
+    const qWhere: { query: string; params?: any[] } = { query: '' };
+    if (where.id) {
+      qWhere.query = 'WHERE cf.id IN ($1)';
+      qWhere.params = [where.id];
+    } else if (where.cpfCnpj) {
+      qWhere.query = `WHERE cf."cpfCnpj" = $1`;
+      qWhere.params = [where.cpfCnpj];
+    } else if (where.nome) {
+      const nomes = where.nome.map(n => `'%${n}%'`)
+      qWhere.query = `WHERE cf.nome ILIKE ANY(ARRAY[${nomes.join(',')}])`;
+      qWhere.params = [];
+    }
+    const result: any[] = await this.clienteFavorecidoRepository.query(
+      `
+      SELECT cf.*
+      FROM cliente_favorecido cf
+      ${qWhere.query}
+    `,
+      qWhere.params,
+    );
+    const itens = result.map((i) => new ClienteFavorecido(i));
+    return itens[0];
   }
 }

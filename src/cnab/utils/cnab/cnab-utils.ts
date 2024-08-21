@@ -199,7 +199,7 @@ export function parseCnabFile(cnabString: string, fileDTO: CnabFile): CnabFile {
   // get valid data
   const file = sc(fileDTO);
   const registrosDTO = getCnabRegistrosFromCnabFile(file);
-  const lines = cnabString.trim().replace(/\r\n/g, '\n').split('\n');
+  const lines = cnabString.replace(/\r\n/g, '\n').replace(/\n$/g, '').split('\n');
 
   // parse
   setParseCnabHeaderTrailerArquivo(lines, registrosDTO, file);
@@ -211,9 +211,8 @@ export function parseCnabFile(cnabString: string, fileDTO: CnabFile): CnabFile {
  * Parse HeaderArquivo, TrailerArquivo directly to CnabRegistro
  */
 function setParseCnabHeaderTrailerArquivo(lines: string[], registrosDTO: CnabRegistro[], file: CnabFile) {
-  const lastIndex = registrosDTO.length - 1;
   file.headerArquivo = parseCnabRegistro(lines[0], registrosDTO[0]);
-  file.trailerArquivo = parseCnabRegistro(lines[lastIndex], registrosDTO[lastIndex]);
+  file.trailerArquivo = parseCnabRegistro(lines.slice(-1)[0], registrosDTO.slice(-1)[0]);
 }
 
 function parseCnabLotes(cnabAllLines: string[], registrosDTO: CnabRegistro[]): CnabLote[] {

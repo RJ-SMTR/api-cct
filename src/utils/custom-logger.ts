@@ -19,12 +19,7 @@ enum colors {
 @Injectable()
 export class CustomLogger extends Logger {
   private IS_LOCAL = undefined;
-  private color(
-    type: 'error' | 'warn' | 'debug' | 'level',
-    message: string,
-    level?: 'VERBOSE' | 'DEBUG' | 'LOG' | 'WARN' | 'ERROR',
-    reset = true,
-  ): string {
+  private color(type: 'error' | 'warn' | 'debug' | 'level', message: string, level?: 'VERBOSE' | 'DEBUG' | 'LOG' | 'WARN' | 'ERROR', reset = true): string {
     let _default = 'log';
     if (level === 'WARN') {
       _default = 'warn';
@@ -62,10 +57,7 @@ export class CustomLogger extends Logger {
   }
 
   private isLocal() {
-    return (
-      ['local', 'development'].includes(process.env.NODE_ENV || '') &&
-      this.IS_LOCAL !== false
-    );
+    return (['local', 'development'].includes(process.env.NODE_ENV || '') || process.env.CUSTOM_LOGGER_DEBUG === 'true') && this.IS_LOCAL !== false;
   }
 
   private getContext(isLocal: boolean, context?: string) {
@@ -132,38 +124,24 @@ export class CustomLogger extends Logger {
     }
   }
 
-  private formatMessage(
-    message: string,
-    level: 'VERBOSE' | 'DEBUG' | 'LOG' | 'WARN' | 'ERROR',
-    context?: string,
-    stack?: string,
-  ): string {
+  private formatMessage(message: string, level: 'VERBOSE' | 'DEBUG' | 'LOG' | 'WARN' | 'ERROR', context?: string, stack?: string): string {
     const IS_LOCAL = this.isLocal();
     const nest = this.color('level', `[Nest] ${this.getProcessId()}`, level);
     const levelStr = this.color('level', level.padStart(7, ' '), level);
     const contextStr = this.getContext(IS_LOCAL, context);
-    const timestampStr = this.options.timestamp
-      ? this.color('level', ' - ', level) + this.getTimestamp() + ' '
-      : '';
+    const timestampStr = this.options.timestamp ? this.color('level', ' - ', level) + this.getTimestamp() + ' ' : '';
     // const details = (trace as any)?.response;
     // const stack = (trace as any)?.stack;
-    let messageStr =
-      level === 'ERROR' ? this.formatError(message, undefined, stack) : message;
+    let messageStr = level === 'ERROR' ? this.formatError(message, undefined, stack) : message;
     messageStr = this.color('level', messageStr, level, !(level === 'ERROR'));
-    const formattedMessage = IS_LOCAL
-      ? `${nest} ${timestampStr}${levelStr} ${contextStr} ${messageStr}`
-      : `${contextStr} ${messageStr}`;
+    const formattedMessage = IS_LOCAL ? `${nest} ${timestampStr}${levelStr} ${contextStr} ${messageStr}` : `${contextStr} ${messageStr}`;
     return formattedMessage;
   }
 
   /**
    * Format log for error content.
    */
-  private formatError(
-    firstLine: string,
-    message?: object | string,
-    traceback?: string,
-  ): string {
+  private formatError(firstLine: string, message?: object | string, traceback?: string): string {
     let formattedString = firstLine;
     if (message) {
       formattedString += `\n${asJSONStrOrObj(message)}`;

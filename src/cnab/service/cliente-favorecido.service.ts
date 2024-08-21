@@ -11,7 +11,7 @@ import { validateDTO } from 'src/utils/validation-utils';
 import { FindManyOptions, FindOneOptions, In } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { ClienteFavorecidoRepository } from '../repository/cliente-favorecido.repository';
+import { ClienteFavorecidoRepository, IClienteFavorecidoRawWhere } from '../repository/cliente-favorecido.repository';
 import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
 
 @Injectable()
@@ -204,5 +204,9 @@ export class ClienteFavorecidoService {
     options: FindOneOptions<ClienteFavorecido>,
   ): Promise<ClienteFavorecido | null> {
     return await this.clienteFavorecidoRepository.findOne(options);
+  }
+  
+  public async findOneRaw(where: IClienteFavorecidoRawWhere): Promise<ClienteFavorecido> {
+    return await this.clienteFavorecidoRepository.findOneRaw(where);
   }
 }
