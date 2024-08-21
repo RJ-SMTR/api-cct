@@ -70,13 +70,9 @@ export class DetalheARepository {
     return this.detalheARepository.insert(dtos);
   }
 
-  public async save(dto: DeepPartial<DetalheA>, findSaved?: boolean): Promise<DetalheA> {
+  public async save(dto: DeepPartial<DetalheA>): Promise<DetalheA> {
     const saved = await this.detalheARepository.save(dto);
-    if (findSaved) {
-      return await this.getOneRaw({ id: [saved.id] });
-    } else {
-      return new DetalheA({...dto, id: saved.id});
-    }
+    return await this.getOneRaw({ id: [saved.id] });
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
