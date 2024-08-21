@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
@@ -16,9 +16,7 @@ export interface IClienteFavorecidoRawWhere {
 
 @Injectable()
 export class ClienteFavorecidoRepository {
-  private logger: Logger = new CustomLogger(ClienteFavorecidoRepository.name, {
-    timestamp: true,
-  });
+  private logger = new CustomLogger(ClienteFavorecidoRepository.name, { timestamp: true });
 
   constructor(
     @InjectRepository(ClienteFavorecido)
@@ -136,7 +134,7 @@ export class ClienteFavorecidoRepository {
       qWhere.query = `WHERE cf."cpfCnpj" = $1`;
       qWhere.params = [where.cpfCnpj];
     } else if (where.nome) {
-      const nomes = where.nome.map(n => `'%${n}%'`)
+      const nomes = where.nome.map((n) => `'%${n}%'`);
       qWhere.query = `WHERE cf.nome ILIKE ANY(ARRAY[${nomes.join(',')}])`;
       qWhere.params = [];
     }
@@ -145,6 +143,7 @@ export class ClienteFavorecidoRepository {
       SELECT cf.*
       FROM cliente_favorecido cf
       ${qWhere.query}
+      ORDER BY cf.id
     `,
       qWhere.params,
     );

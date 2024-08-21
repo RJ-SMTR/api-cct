@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { Between, DeepPartial, FindManyOptions, In, InsertResult, Repository } from 'typeorm';
 import { ArquivoPublicacaoResultDTO } from '../dto/arquivo-publicacao-result.dto';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { DetalheAService } from '../service/pagamento/detalhe-a.service';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 
 export interface IArquivoPublicacaoRawWhere {
   id?: number[];
@@ -14,7 +14,7 @@ export interface IArquivoPublicacaoRawWhere {
 
 @Injectable()
 export class ArquivoPublicacaoRepository {
-  private logger: Logger = new Logger('ArquivoPublicacaoRepository', { timestamp: true });
+  private logger = new CustomLogger('ArquivoPublicacaoRepository', { timestamp: true });
 
   constructor(
     @InjectRepository(ArquivoPublicacao)
@@ -92,6 +92,7 @@ export class ArquivoPublicacaoRepository {
       INNER JOIN item_transacao it ON it.id = ap."itemTransacaoId"
       INNER JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
       ${qWhere.query}
+      ORDER BY ap.id
     `,
       qWhere.params,
     );

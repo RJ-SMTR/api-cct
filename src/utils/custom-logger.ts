@@ -61,9 +61,7 @@ export class CustomLogger extends Logger {
   }
 
   private getContext(isLocal: boolean, context?: string) {
-    if (!context) {
-      return '';
-    }
+
     const contextStr = this.color('warn', `[${context}]`);
     if (isLocal) {
       const thisContext = this.color('warn', `[${this.context}]`);
@@ -93,10 +91,11 @@ export class CustomLogger extends Logger {
   }
 
   error(message: string, stack?: string, context?: string): void {
+    const _message = (message as any)?.response?.details?.message || message;
     if (this.isLocal()) {
-      console.log(this.formatMessage(message, 'ERROR', context, stack));
+      console.log(this.formatMessage(_message, 'ERROR', context, stack));
     } else {
-      super.error(this.formatMessage(message, 'ERROR', context, stack));
+      super.error(this.formatMessage(_message, 'ERROR', context, stack));
     }
   }
 

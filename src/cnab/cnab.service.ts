@@ -56,7 +56,7 @@ import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from
  */
 @Injectable()
 export class CnabService {
-  private logger: CustomLogger = new CustomLogger(CnabService.name, { timestamp: true });
+  private logger = new CustomLogger(CnabService.name, { timestamp: true });
 
   constructor(
     private arquivoPublicacaoService: ArquivoPublicacaoService, //
@@ -546,9 +546,6 @@ export class CnabService {
         const durationItem = formatDateInterval(new Date(), startDateItem);
         this.logger.log(`CNAB '${cnabName}' lido com sucesso - ${durationItem}`);
         success.push(cnabName);
-        const cnab = await this.sftpService.getFirstCnabRetorno(folder);
-        cnabString = cnab.cnabString;
-        cnabName = cnab.cnabName;
       } catch (error) {
         const durationItem = formatDateInterval(new Date(), startDateItem);
         this.logger.error(`Erro ao processar CNAB retorno (${durationItem}), movendo para backup de erros e finalizando... - ${error}`, error.stack, METHOD);
@@ -559,9 +556,12 @@ export class CnabService {
         await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoFailure, cnabString, folder);
         failed.push(cnabName);
       }
+      const cnab = await this.sftpService.getFirstCnabRetorno(folder);
+      cnabString = cnab.cnabString;
+      cnabName = cnab.cnabName;
     }
     const duration = formatDateInterval(new Date(), startDate);
-    this.logger.log('Leitura de retornos finalizada com sucesso.', METHOD);
+    this.logger.log(`Leitura de retornos finalizada com sucesso - ${duration}`, METHOD);
     return { duration, cnabs: cnabs.length, success, failed };
   }
 

@@ -15,10 +15,11 @@ import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integrac
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
 import { BqTransacaoTipoTransacaoMap } from '../maps/bq-transacao-tipo-transacao.map';
 import { logWarn } from 'src/utils/log-utils';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class BigqueryTransacaoRepository {
-  private logger: Logger = new Logger('BigqueryTransacaoRepository', {
+  private logger = new CustomLogger('BigqueryTransacaoRepository', {
     timestamp: true,
   });
 

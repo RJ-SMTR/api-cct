@@ -26,10 +26,11 @@ import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class AuthService {
-  private logger: Logger = new Logger('AuthService', { timestamp: true });
+  private logger = new CustomLogger('AuthService', { timestamp: true });
 
   constructor(
     private jwtService: JwtService,
