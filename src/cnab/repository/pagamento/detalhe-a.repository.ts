@@ -70,12 +70,13 @@ export class DetalheARepository {
     return this.detalheARepository.insert(dtos);
   }
 
-  public async save(dto: DeepPartial<DetalheA>): Promise<DetalheA> {
+  public async save(dto: DeepPartial<DetalheA>, findSaved?: boolean): Promise<DetalheA> {
     const saved = await this.detalheARepository.save(dto);
-    // return await this.detalheARepository.findOneOrFail({
-    //   where: { id: saved.id },
-    // });
-    return await this.getOneRaw({ id: [saved.id] });
+    if (findSaved) {
+      return await this.getOneRaw({ id: [saved.id] });
+    } else {
+      return new DetalheA({...dto, id: saved.id});
+    }
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
@@ -84,7 +85,7 @@ export class DetalheARepository {
     });
   }
 
-  public async getOneRaw(where: IDetalheARawWhere): Promise<DetalheA> {
+  public async findRaw(where: IDetalheARawWhere): Promise<DetalheA[]> {
     const qWhere: { query: string; params?: any[] } = { query: '' };
     if (where.id) {
       qWhere.query = `WHERE da.id IN (${where.id.join(',')})`;
@@ -121,14 +122,30 @@ export class DetalheARepository {
       INNER JOIN transacao_agrupado ta ON ta.id = ita."transacaoAgrupadoId"
       INNER JOIN transacao_status ts ON ts.id = ta."statusId"
       ${qWhere.query}
+      ORDER BY da.id
     `,
       qWhere.params,
     );
-    if (result.length == 0) {
-      throw CommonHttpException.details('It should return at least one DetalheA');
-    }
     const detalhes = result.map((i) => new DetalheA(i));
-    return detalhes[0];
+    return detalhes;
+  }
+
+  public async findOneRaw(where: IDetalheARawWhere): Promise<DetalheA | null> {
+    const result = await this.findRaw(where);
+    if (result.length == 0) {
+      return null;
+    } else {
+      return result[0];
+    }
+  }
+
+  public async getOneRaw(where: IDetalheARawWhere): Promise<DetalheA> {
+    const result = await this.findRaw(where);
+    if (result.length == 0) {
+        throw CommonHttpException.details('It should return at least one DetalheA');
+    } else {
+      return result[0];
+    }
   }
 
   public async findOne(options: FindOneOptions<DetalheA>): Promise<Nullable<DetalheA>> {

@@ -28,6 +28,7 @@ import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @ApiTags('Auth')
 @Controller({
@@ -35,7 +36,7 @@ import { AuthUpdateDto } from './dto/auth-update.dto';
   version: '1',
 })
 export class AuthController {
-  private logger: Logger = new Logger('AuthController', { timestamp: true });
+  private logger = new CustomLogger('AuthController', { timestamp: true });
 
   constructor(
     private readonly authService: AuthService,

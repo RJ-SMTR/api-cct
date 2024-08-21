@@ -1,5 +1,5 @@
 import { PagamentosPendentes } from './../../entity/pagamento/pagamentos-pendentes.entity';
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
@@ -16,10 +16,11 @@ import { TransacaoAgrupadoService } from './transacao-agrupado.service';
 import { PagamentosPendentesService } from './pagamentos-pendentes.service';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class DetalheAService {
-  private logger: Logger = new Logger('DetalheAService', { timestamp: true });
+  private logger = new CustomLogger('DetalheAService', { timestamp: true });
 
   constructor(private detalheARepository: DetalheARepository, private clienteFavorecidoService: ClienteFavorecidoService, private transacaoAgrupadoService: TransacaoAgrupadoService, private pagamentosPendentesService: PagamentosPendentesService) {}
 
@@ -45,26 +46,28 @@ export class DetalheAService {
   }
 
   public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto, r: CnabRegistros104Pgto, dataEfetivacao: Date): Promise<DetalheA | null> {
+    const METHOD = 'saveRetornoFrom104';
+    const logRegistro = `HeaderArquivo: ${headerArq.nsa.convertedValue}, lote: ${headerLotePgto.codigoRegistro.value}`; 
     const favorecido = await this.clienteFavorecidoService.findOneRaw({
       nome: [r.detalheA.nomeTerceiro.stringValue.trim()],
     });
 
     if (!favorecido) {
+      this.logger.warn(logRegistro + `- Favorecido não encontrado para o nome: '${r.detalheA.nomeTerceiro.stringValue.trim()}'`);
       return null;
     }
     const dataVencimento = startOfDay(r.detalheA.dataVencimento.convertedValue);
-    let detalheARem;
-    try {
-      detalheARem = await this.detalheARepository.getOneRaw({
-        detalheARem: {
-          dataVencimento: dataVencimento,
-          numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
-          valorLancamento: r.detalheA.valorLancamento.convertedValue,
-        },
-      });
-      if (detalheARem.ocorrenciasCnab === undefined || detalheARem.ocorrenciasCnab === '' || detalheARem.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim()) {
-        const detalheA = new DetalheADTO({
-          id: detalheARem.id,
+    const detalheA = await this.detalheARepository.findOneRaw({
+      detalheARem: {
+        dataVencimento: dataVencimento,
+        numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
+        valorLancamento: r.detalheA.valorLancamento.convertedValue,
+      },
+    });
+    if (detalheA) {
+      if (detalheA.ocorrenciasCnab === undefined || detalheA.ocorrenciasCnab === '' || detalheA.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim()) {
+        const saveDetalheA = new DetalheADTO({
+          id: detalheA.id,
           loteServico: Number(r.detalheA.loteServico.value),
           finalidadeDOC: r.detalheA.finalidadeDOC.value,
           numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
@@ -83,11 +86,10 @@ export class DetalheAService {
           nsr: Number(r.detalheA.nsr.value),
           ocorrenciasCnab: r.detalheA.ocorrencias.value.trim() || headerLotePgto.ocorrencias.value.trim() || headerArq.ocorrenciaCobrancaSemPapel.value.trim(),
         });
-        return await this.detalheARepository.save(detalheA);
+        return await this.detalheARepository.save(saveDetalheA);
       }
-    } catch (err) {
-      this.logger.error(err);
-      this.logger.debug(`Detalhe não encontrado para o favorecido: `, favorecido?.nome);
+    } else {
+      this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue}, favorecido: '${favorecido.nome}' - NÃO ENCONTRADO!`);
     }
     if (r.detalheA.ocorrencias !== undefined && r.detalheA.ocorrencias.value.trim() !== '' && r.detalheA.ocorrencias.value.trim() !== 'BD' && r.detalheA.ocorrencias.value.trim() !== '00') {
       const pg = await this.pagamentosPendentesService.findOne({
@@ -106,7 +108,7 @@ export class DetalheAService {
         await this.pagamentosPendentesService.save(pagamentosPendentes);
       }
     }
-    return detalheARem;
+    return detalheA;
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {

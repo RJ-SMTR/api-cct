@@ -1,6 +1,6 @@
 import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
 
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { endOfDay, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
 import { DetalheADTO } from 'src/cnab/dto/pagamento/detalhe-a.dto';
 import { HeaderLoteDTO } from 'src/cnab/dto/pagamento/header-lote.dto';
@@ -49,7 +49,7 @@ const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
 @Injectable()
 export class RemessaRetornoService {
-  private logger: Logger = new CustomLogger('CnabPagamentoService', {
+  private logger = new CustomLogger('CnabPagamentoService', {
     timestamp: true,
   });
 
@@ -447,20 +447,21 @@ export class RemessaRetornoService {
   }
 
   public async saveRetorno(cnab: CnabFile104Pgto) {
+    const detalhesANaoEncontrados: any[] = [];
     const dataEfetivacao = new Date();
     let detalheAUpdated: DetalheA | null = null;
     for (const cnabLote of cnab.lotes) {
       for (const registro of cnabLote.registros) {
-        this.logger.debug(`Header Arquivo NSA: ` + cnab.headerArquivo.nsa.value);
-
-        this.logger.debug(`Header lote : ` + cnabLote.headerLote.codigoRegistro.value);
-
+        const logRegistro = `HeaderArquivo: ${cnab.headerArquivo.nsa.convertedValue}, lote: ${cnabLote.headerLote.codigoRegistro.value}`; 
+        
         // Save Detalhes
         detalheAUpdated = await this.detalheAService.saveRetornoFrom104(cnab.headerArquivo, cnabLote.headerLote, registro, dataEfetivacao);
         if (!detalheAUpdated) {
+          const numeroDocumento = registro.detalheA.numeroDocumentoEmpresa.convertedValue;
+          detalhesANaoEncontrados.push(numeroDocumento)
           continue;
         }
-        this.logger.debug(`Detalhe A Documento: ` + detalheAUpdated.numeroDocumentoEmpresa);
+        this.logger.debug(logRegistro + ` Detalhe A Documento: ${detalheAUpdated.numeroDocumentoEmpresa}, favorecido: '${registro.detalheA.nomeTerceiro.value}' - OK`);
 
         await this.detalheBService.saveFrom104(registro, detalheAUpdated);
         const queryRunner = this.dataSource.createQueryRunner();
@@ -477,6 +478,9 @@ export class RemessaRetornoService {
         }
         await this.detalheAService.updateDetalheAStatus(detalheAUpdated);
       }
+    }
+    if (detalhesANaoEncontrados) {
+      throw new NotFoundException(`Os seguintes DetalhesA do Retorno não foram encontrados no Banco (campo: no. documento) - ${detalhesANaoEncontrados.join(',')}`)
     }
   }
 

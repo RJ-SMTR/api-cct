@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { endOfDay, startOfDay } from 'date-fns';
 import { ExtratoDetalheE } from 'src/cnab/entity/extrato/extrato-detalhe-e.entity';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { asNumber } from 'src/utils/pipe-utils';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
@@ -9,32 +10,27 @@ import { DeepPartial, FindManyOptions, FindOneOptions, LessThanOrEqual, MoreThan
 
 @Injectable()
 export class ExtratoDetalheERepository {
-  private logger: Logger = new Logger('ExtratoDetalheERepository', {
-    timestamp: true,
-  });
+  private logger = new CustomLogger('ExtratoDetalheERepository', { timestamp: true });
 
   constructor(
     @InjectRepository(ExtratoDetalheE)
     private extDetalheERepository: Repository<ExtratoDetalheE>,
-  ) { }
+  ) {}
 
-  public async saveIfNotExists(obj: DeepPartial<ExtratoDetalheE>, updateIfExists?: boolean
-  ): Promise<SaveIfNotExists<ExtratoDetalheE>> {
+  public async saveIfNotExists(obj: DeepPartial<ExtratoDetalheE>, updateIfExists?: boolean): Promise<SaveIfNotExists<ExtratoDetalheE>> {
     const existing = obj?.id
       ? await this.extDetalheERepository.findOne({ where: { id: obj.id } })
       : await this.extDetalheERepository.findOne({
-        where: {
-          extratoHeaderLote: { id: asNumber(obj.extratoHeaderLote?.id) },
-          nsr: asNumber(obj.nsr),
-        }
-      });
-    const item = !existing || (existing && updateIfExists)
-      ? await this.extDetalheERepository.save(obj)
-      : existing;
+          where: {
+            extratoHeaderLote: { id: asNumber(obj.extratoHeaderLote?.id) },
+            nsr: asNumber(obj.nsr),
+          },
+        });
+    const item = !existing || (existing && updateIfExists) ? await this.extDetalheERepository.save(obj) : existing;
     return {
       isNewItem: !Boolean(existing),
       item: item,
-    }
+    };
   }
 
   public async save(obj: DeepPartial<ExtratoDetalheE>): Promise<ExtratoDetalheE> {
@@ -53,15 +49,14 @@ export class ExtratoDetalheERepository {
 
   /**
    * Obtém o próximo'Número Documento Atribuído pela Empresa' para o ExtratoDetalheE.
-   * 
+   *
    * Baseado no mesmo dia.
    */
   public async getNextNumeroDocumento(date: Date): Promise<number> {
-    return await this.extDetalheERepository.count({
-      where: [
-        { createdAt: MoreThanOrEqual(startOfDay(date)) },
-        { createdAt: LessThanOrEqual(endOfDay(date)) },
-      ]
-    }) + 1;
+    return (
+      (await this.extDetalheERepository.count({
+        where: [{ createdAt: MoreThanOrEqual(startOfDay(date)) }, { createdAt: LessThanOrEqual(endOfDay(date)) }],
+      })) + 1
+    );
   }
 }

@@ -17,10 +17,11 @@ import { AuthLicenseeLoginDto } from './dto/auth-licensee-login.dto';
 import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
 import { IALConcludeRegistration } from './interfaces/al-conclude-registration.interface';
 import { IALInviteProfile } from './interfaces/al-invite-profile.interface';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class AuthLicenseeService {
-  private logger: Logger = new Logger('AuthLicenseeService', {
+  private logger = new CustomLogger('AuthLicenseeService', {
     timestamp: true,
   });
 
