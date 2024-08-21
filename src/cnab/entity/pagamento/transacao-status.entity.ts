@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, DeepPartial, Entity, PrimaryColumn } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Allow } from 'class-validator';
 import { EntityHelper } from 'src/utils/entity-helper';
@@ -7,14 +7,22 @@ import { TransacaoStatusEnum } from '../../enums/pagamento/transacao-status.enum
 
 @Entity()
 export class TransacaoStatus extends EntityHelper {
-  constructor(role?: TransacaoStatusEnum, onlyId = true) {
+  constructor(dto?: DeepPartial<TransacaoStatus>) {
     super();
+    if (dto !== undefined) {
+      Object.assign(this, dto);
+    }
+  }
+
+  public static fromEnum(role?: TransacaoStatusEnum, onlyId = true) {
+    const status = new TransacaoStatus();
     if (role !== undefined) {
-      this.id = role;
+      status.id = role;
       if (!onlyId) {
-        this.name = Enum.getKey(TransacaoStatusEnum, role);
+        status.name = Enum.getKey(TransacaoStatusEnum, role);
       }
     }
+    return status;
   }
 
   @ApiProperty({ example: 1 })

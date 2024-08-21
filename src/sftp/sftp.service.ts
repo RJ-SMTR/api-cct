@@ -192,9 +192,10 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     cnabName: string,
     folder: SftpBackupFolder,
     cnabContentIfNoOrigin?: string,
+    originFolder = this.FOLDERS.RETORNO,
   ) {
-    const METHOD = 'moveToBackup()';
-    const originPath = this.dir(`${this.FOLDERS.RETORNO}/${cnabName}`);
+    const METHOD = 'moveToBackup';
+    const originPath = this.dir(`${originFolder}/${cnabName}`);
     const destPath = this.dir(`${folder}/${cnabName}`);
     await this.connectClient();
     if (cnabContentIfNoOrigin && !(await this.sftpClient.exists(originPath))) {

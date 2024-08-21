@@ -520,21 +520,15 @@ export class RemessaRetornoService {
    * Atualizar publicacoes de retorno
    */
   async savePublicacaoRetorno(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
-    const itens = await this.itemTransacaoService.findMany({
-      where: {
-        itemTransacaoAgrupado: {
-          id: detalheARetorno.itemTransacaoAgrupado.id,
-        },
-      },
+    const publicacoes = await this.arquivoPublicacaoService.findManyRaw({
+      itemTransacaoAgrupadoId: [detalheARetorno.itemTransacaoAgrupado.id],
     });
-    for (const item of itens) {
-      const publicacao = await this.arquivoPublicacaoService.getOne({
-        where: {
-          itemTransacao: {
-            id: item.id,
-          },
-        },
-      });
+    // const publicacoes = await this.arquivoPublicacaoService.findMany({
+    //   where: {
+    //     itemTransacao: { itemTransacaoAgrupado: { id: detalheARetorno.itemTransacaoAgrupado.id } },
+    //   },
+    // });
+    for (const publicacao of publicacoes) {
       publicacao.isPago = detalheARetorno.isPago();
       if (publicacao.isPago) {
         publicacao.valorRealEfetivado = publicacao.itemTransacao.valor;

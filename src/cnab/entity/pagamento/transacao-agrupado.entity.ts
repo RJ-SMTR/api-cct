@@ -21,10 +21,13 @@ import { Transacao } from './transacao.entity';
  */
 @Entity()
 export class TransacaoAgrupado extends EntityHelper {
-  constructor(transacao?: DeepPartial<TransacaoAgrupado>) {
+  constructor(dto?: DeepPartial<TransacaoAgrupado>) {
     super();
-    if (transacao !== undefined) {
-      Object.assign(this, transacao);
+    if (dto !== undefined) {
+      Object.assign(this, dto);
+      if (dto?.status) {
+        this.status = new TransacaoStatus(dto.status);
+      }
     }
   }
 

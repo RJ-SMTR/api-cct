@@ -33,6 +33,9 @@ export class ItemTransacao extends EntityHelper {
     super();
     if (dto) {
       Object.assign(this, dto);
+      if (dto.itemTransacaoAgrupado) {
+        this.itemTransacaoAgrupado = new ItemTransacaoAgrupado(dto.itemTransacaoAgrupado)
+      }
     }
   }
 

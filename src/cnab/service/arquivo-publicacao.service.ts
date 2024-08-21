@@ -5,7 +5,7 @@ import { DeepPartial, FindManyOptions, QueryRunner } from 'typeorm';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
-import { ArquivoPublicacaoRepository } from '../repository/arquivo-publicacao.repository';
+import { ArquivoPublicacaoRepository, IArquivoPublicacaoRawWhere } from '../repository/arquivo-publicacao.repository';
 import { OcorrenciaService } from './ocorrencia.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { IFindPublicacaoRelatorio } from 'src/relatorio/interfaces/find-publicacao-relatorio.interface';
@@ -24,6 +24,10 @@ export class ArquivoPublicacaoService {
 
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
     return this.arquivoPublicacaoRepository.findMany(options);
+  }
+
+  public findManyRaw(where: IArquivoPublicacaoRawWhere) {
+    return this.arquivoPublicacaoRepository.findManyRaw(where);
   }
 
   public async findManyByDate(startDate: Date, endDate: Date) {

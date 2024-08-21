@@ -1,18 +1,6 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import {
-  asNullableStringOrNumber
-} from 'src/utils/pipe-utils';
-import {
-  AfterLoad,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  Entity,
-  JoinColumn,
-  OneToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { asNullableStringOrNumber } from 'src/utils/pipe-utils';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { ItemTransacao } from './pagamento/item-transacao.entity';
 import { isSameDay } from 'date-fns';
 
@@ -25,6 +13,9 @@ export class ArquivoPublicacao extends EntityHelper {
     super();
     if (arquivoPublicacao !== undefined) {
       Object.assign(this, arquivoPublicacao);
+      if (arquivoPublicacao.itemTransacao) {
+        arquivoPublicacao.itemTransacao = new ItemTransacao(arquivoPublicacao.itemTransacao);
+      }
     }
   }
   @PrimaryGeneratedColumn({
@@ -83,38 +74,17 @@ export class ArquivoPublicacao extends EntityHelper {
     return !this.isPago && this.dataEfetivacao;
   }
 
-  public static filterUnique(
-    publicacoes: ArquivoPublicacao[],
-    compare: ArquivoPublicacao,
-  ) {
-    return publicacoes.filter(
-      (p) =>
-        p.itemTransacao.idConsorcio === compare.itemTransacao.idConsorcio &&
-        p.itemTransacao.idOperadora === compare.itemTransacao.idOperadora &&
-        isSameDay(p.itemTransacao.dataOrdem, compare.itemTransacao.dataOrdem),
-    );
+  public static filterUnique(publicacoes: ArquivoPublicacao[], compare: ArquivoPublicacao) {
+    return publicacoes.filter((p) => p.itemTransacao.idConsorcio === compare.itemTransacao.idConsorcio && p.itemTransacao.idOperadora === compare.itemTransacao.idOperadora && isSameDay(p.itemTransacao.dataOrdem, compare.itemTransacao.dataOrdem));
   }
 
   public static getUniqueUpdatePublicacoes(publicacoes: ArquivoPublicacao[]) {
     const unique: ArquivoPublicacao[] = [];
     publicacoes.forEach((publicacao) => {
-      const existing = ArquivoPublicacao.filterUnique(unique, publicacao)[0] as
-        | ArquivoPublicacao
-        | undefined;
-      const ocourences = ArquivoPublicacao.filterUnique(
-        publicacoes,
-        publicacao,
-      ).sort(
-        (a, b) =>
-          b.itemTransacao.dataOrdem.getTime() -
-          a.itemTransacao.dataOrdem.getTime(),
-      );
-      const paid = ocourences.filter((i) => i.isPago)[0] as
-        | ArquivoPublicacao
-        | undefined;
-      const noErrors = ocourences.filter((i) => !i.getIsError())[0] as
-        | ArquivoPublicacao
-        | undefined;
+      const existing = ArquivoPublicacao.filterUnique(unique, publicacao)[0] as ArquivoPublicacao | undefined;
+      const ocourences = ArquivoPublicacao.filterUnique(publicacoes, publicacao).sort((a, b) => b.itemTransacao.dataOrdem.getTime() - a.itemTransacao.dataOrdem.getTime());
+      const paid = ocourences.filter((i) => i.isPago)[0] as ArquivoPublicacao | undefined;
+      const noErrors = ocourences.filter((i) => !i.getIsError())[0] as ArquivoPublicacao | undefined;
       const recent = ocourences[0] as ArquivoPublicacao;
       if (!existing) {
         const newPublicacao = paid || noErrors || recent;
