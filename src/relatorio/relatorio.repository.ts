@@ -8,7 +8,7 @@ import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio
 export class RelatorioRepository {
   constructor(@InjectDataSource()
               private readonly dataSource: DataSource) {}
-
+  
   private getQueryConsorcio(dataInicio:string,dataFim:string,pago?:boolean,
     valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){ 
     let query =
@@ -24,16 +24,14 @@ export class RelatorioRepository {
                 inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                 inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                 inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-              WHERE `;
-
-              if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
-                query = query +` ita."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;
-              else
-                query = query +` ita."nomeConsorcio" not in('STPC','STPL') `;
+              WHERE (1=1) `;
 
               if(dataInicio!==undefined && dataFim!==undefined && 
                 (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
                 query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+
+              if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
+                query = query +` and ita."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;              
               
               if(pago!==undefined)
                 query = query + ` and	ap."isPago"=${pago}`;
@@ -44,57 +42,14 @@ export class RelatorioRepository {
               if(valorMin!==undefined)
                 query = query +` and da."valorLancamento">=${valorMin}`;
 
-              if(valorMin!==undefined)
+              if(valorMax!==undefined)
                  query = query + ` and da."valorLancamento"<=${valorMax}`;              
             
             query = query +  `) as cs
-            group by cs."consorcio"`
+            group by cs."consorcio"`            
     return query;             
   }
-
-  private getQueryStpcStpl(dataInicio:string,dataFim:string,pago?:boolean,
-    valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){
-     let query = ` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor
-              from (
-                  select distinct ita.id AS id,
-                    ita."nomeConsorcio" AS consorcio,	
-                    cf.nome AS favorecido,
-                    cf."cpfCnpj" AS favorecido_cpfcnpj,
-                      da."valorLancamento" AS valor_agrupado
-                          from transacao_view tv   
-                          inner join item_transacao_agrupado ita on tv."itemTransacaoAgrupadoId"=ita.id
-                          inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
-                    inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
-                    inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
-                    inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-                  WHERE `;	
-                  
-                  if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
-                    query = query +` ita."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;
-                  else
-                    query = query +` ita."nomeConsorcio" in('STPC','STPL')`;                  
-
-                  if(dataInicio!==undefined && dataFim!==undefined &&
-                    (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
-                    query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;                    
-                   
-                  if(pago!==undefined)
-                    query = query + ` and	ap."isPago"=${pago}`;
-                  
-                  if(aPagar === true)
-                    query = query + ` and	ap."isPago" is null `;   
-                   
-                  if(valorMin!==undefined)
-                    query = query +` and da."valorLancamento">=${valorMin}`;
-
-                  if(valorMin!==undefined)
-                    query = query +` and da."valorLancamento"<=${valorMax}`;                    
-
-                 query = query +`) as cs 
-            group by cs."consorcio"`;
-            return query;
-  }
-
+ 
   private getOperadores(dataInicio:string,dataFim:string,pago?:boolean,valorMin?:number,
     valorMax?:number,favorecidoNome?:string[],aPagar?:boolean){
     let query = `select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor
@@ -124,7 +79,7 @@ export class RelatorioRepository {
                   if(valorMin!==undefined)
                     query = query +` and da."valorLancamento">=${valorMin}`;
 
-                  if(valorMin!==undefined)
+                  if(valorMax!==undefined)
                    query = query + ` and da."valorLancamento"<=${valorMax}`;
                   
                   if(favorecidoNome!==undefined)
@@ -137,22 +92,12 @@ export class RelatorioRepository {
 
   public async findConsolidado(args: IFindPublicacaoRelatorio): Promise<RelatorioConsolidadoDto[]> {   
     let queryConsorcio = ''
-    if(args.consorcioNome!==undefined && !(['STPC','STPL'].some(i=>args.consorcioNome?.includes(i)))){
+    if(args.consorcioNome!==undefined){
       queryConsorcio = this.getQueryConsorcio(args.dataInicio.toISOString().slice(0,10),
       args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
         args.valorMax,args.consorcioNome,args.aPagar);
-    }else if(args.consorcioNome!==undefined && (['STPC','STPL'].some(i=>args.consorcioNome?.includes(i)))){
-      queryConsorcio = this.getQueryStpcStpl(args.dataInicio.toISOString().slice(0,10),
-      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.consorcioNome,args.aPagar);    
-    }else if(args.favorecidoNome===undefined && args.consorcioNome === undefined) {
-      queryConsorcio =  this.getQueryConsorcio(args.dataInicio.toISOString().slice(0,10),
-      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
-        args.valorMax,args.consorcioNome,args.aPagar) +
-        ' union all '+
-      this.getQueryStpcStpl(args.dataInicio?.toISOString().slice(0,10),
-      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.consorcioNome,args.aPagar);
-    }
-
+    }    
+   
     let queryOperadores ='';
 
     if(args.consorcioNome==undefined){
