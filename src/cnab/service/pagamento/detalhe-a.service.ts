@@ -46,22 +46,17 @@ export class DetalheAService {
   }
 
   public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto, r: CnabRegistros104Pgto, dataEfetivacao: Date): Promise<DetalheA | null> {
-    const logRegistro = `HeaderArquivo: ${headerArq.nsa.convertedValue}, lote: ${headerLotePgto.codigoRegistro.value}`; 
+    const logRegistro = `HeaderArquivo: ${headerArq.nsa.convertedValue}, lote: ${headerLotePgto.codigoRegistro.value}`;
     const favorecido = await this.clienteFavorecidoService.findOneRaw({
-      nome: [r.detalheA.nomeTerceiro.stringValue.trim()],
+      detalheANumeroDocumento: [r.detalheA.numeroDocumentoEmpresa.convertedValue],
     });
 
     if (!favorecido) {
       this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue} - Favorecido não encontrado para o nome: '${r.detalheA.nomeTerceiro.stringValue.trim()}'`);
       return null;
     }
-    const dataVencimento = startOfDay(r.detalheA.dataVencimento.convertedValue);
     const detalheA = await this.detalheARepository.findOneRaw({
-      detalheARem: {
-        dataVencimento: dataVencimento,
-        numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
-        valorLancamento: r.detalheA.valorLancamento.convertedValue,
-      },
+      numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
     });
     if (detalheA) {
       if (detalheA.ocorrenciasCnab === undefined || detalheA.ocorrenciasCnab === '' || detalheA.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim()) {

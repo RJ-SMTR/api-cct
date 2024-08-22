@@ -452,13 +452,13 @@ export class RemessaRetornoService {
     let detalheAUpdated: DetalheA | null = null;
     for (const cnabLote of cnab.lotes) {
       for (const registro of cnabLote.registros) {
-        const logRegistro = `HeaderArquivo: ${cnab.headerArquivo.nsa.convertedValue}, lote: ${cnabLote.headerLote.codigoRegistro.value}`; 
-        
+        const logRegistro = `HeaderArquivo: ${cnab.headerArquivo.nsa.convertedValue}, lote: ${cnabLote.headerLote.codigoRegistro.value}`;
+
         // Save Detalhes
         detalheAUpdated = await this.detalheAService.saveRetornoFrom104(cnab.headerArquivo, cnabLote.headerLote, registro, dataEfetivacao);
         if (!detalheAUpdated) {
           const numeroDocumento = registro.detalheA.numeroDocumentoEmpresa.convertedValue;
-          detalhesANaoEncontrados.push(numeroDocumento)
+          detalhesANaoEncontrados.push(numeroDocumento);
           continue;
         }
         this.logger.debug(logRegistro + ` Detalhe A Documento: ${detalheAUpdated.numeroDocumentoEmpresa}, favorecido: '${registro.detalheA.nomeTerceiro.value.trim()}' - OK`);
@@ -480,7 +480,7 @@ export class RemessaRetornoService {
       }
     }
     if (detalhesANaoEncontrados.length > 0) {
-      throw new NotFoundException(`Os seguintes DetalhesA do Retorno não foram encontrados no Banco (campo: no. documento) - ${detalhesANaoEncontrados.join(',')}`)
+      throw new NotFoundException(`Os seguintes DetalhesA do Retorno não foram encontrados no Banco (campo: no. documento) - ${detalhesANaoEncontrados.join(',')}`);
     }
   }
 
@@ -543,8 +543,8 @@ export class RemessaRetornoService {
       }
       publicacao.dataGeracaoRetorno = detalheARetorno.headerLote.headerArquivo.dataGeracao;
       publicacao.horaGeracaoRetorno = detalheARetorno.headerLote.headerArquivo.horaGeracao;
-      await this.arquivoPublicacaoService.save(publicacao, queryRunner);
     }
+    await this.arquivoPublicacaoService.updateManyRaw(publicacoes, 'savePublicacaoRetorno', queryRunner);
   }
 
   async compareTransacaoViewPublicacao(detalheA: DetalheA, queryRunner: QueryRunner) {

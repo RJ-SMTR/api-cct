@@ -86,6 +86,7 @@ export class ArquivoPublicacaoRepository {
           ap."horaGeracaoRetorno", ap."idTransacao", ap."isPago", ap."updatedAt", ap."valorRealEfetivado",
           json_build_object(
               'id', it.id,
+              'valor', it.valor,
               'itemTransacaoAgrupado', json_build_object('id', ita.id)
           ) AS "itemTransacao"
       FROM arquivo_publicacao ap

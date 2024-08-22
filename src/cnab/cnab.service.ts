@@ -50,6 +50,8 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { formatErrMsg } from 'src/utils/log-utils';
 
 /**
  * User cases for CNAB and Payments
@@ -526,8 +528,12 @@ export class CnabService {
    * @param folder Example: `/retorno`
    * @returns
    */
-  public async updateRetorno(folder?: string) {
+  public async updateRetorno(folder?: string, maxItems?: number) {
     const METHOD = this.updateRetorno.name;
+    const INVALID_FOLDERS = ['/backup/retorno/success', '/backup/retorno/failed'];
+    if (folder && INVALID_FOLDERS.includes(folder)) {
+      throw CommonHttpException.message(`Não é possível ler retornos das pastas ${INVALID_FOLDERS}`);
+    }
     let { cnabName, cnabString } = await this.sftpService.getFirstCnabRetorno(folder);
     const cnabs: string[] = [];
     const success: any[] = [];
@@ -550,7 +556,7 @@ export class CnabService {
         success.push(cnabName);
       } catch (error) {
         const durationItem = formatDateInterval(new Date(), startDateItem);
-        this.logger.error(`Erro ao processar CNAB retorno (${durationItem}), movendo para backup de erros e finalizando... - ${error}`, error.stack, METHOD);
+        this.logger.error(`Erro ao processar CNAB ${cnabName}. Movendo para backup de erros e finalizando - ${durationItem} - ${formatErrMsg(error)}`, error.stack, METHOD);
         if (!cnabName || !cnabString) {
           this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
           return;
@@ -563,6 +569,9 @@ export class CnabService {
       cnabName = cnab.cnabName;
     }
     const duration = formatDateInterval(new Date(), startDate);
+    if (maxItems && cnabs.length >= maxItems) {
+      this.logger.log(`Leitura de retornos finalizou a leitura de ${cnabs.length}/${maxItems} CNABs - ${duration}`, METHOD);
+    }
     this.logger.log(`Leitura de retornos finalizada com sucesso - ${duration}`, METHOD);
     return { duration, cnabs: cnabs.length, success, failed };
   }
