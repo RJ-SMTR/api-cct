@@ -24,7 +24,7 @@ import { validateEmail } from 'validations-br';
 /**
  * Enum CronJobServicesJobs
  */
-export enum CrobJobsEnum {
+export enum CronJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
   sendStatusReport = 'sendStatusReport',
   sendStatusReportTemp = 'sendStatusReportTemp',
@@ -50,7 +50,7 @@ interface ICronJob {
 
 interface ICronJobSetting {
   setting: ISettingData;
-  cronJob: CrobJobsEnum;
+  cronJob: CronJobsEnum;
   isEnabledFlag?: ISettingData;
 }
 
@@ -76,22 +76,31 @@ export class CronJobsService {
 
     this.jobsConfig.push(
       {
-        name: CrobJobsEnum.bulkSendInvites,
+        /** NÃO REMOVER ESTE JOB, É ÚTIL PARA ALTERAR OS CRONJOBS EM CASO DE URGÊNCIA */
+        name: CronJobsEnum.pollDb,
+        cronJobParameters: {
+          // cronjob: * * * * - A cada minuto
+          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__poll_db_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+          onTick: async () => this.pollDb(),
+        },
+      },
+      {
+        name: CronJobsEnum.bulkSendInvites,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: async () => this.bulkSendInvites(),
         },
       },
-      /** NÃO DESABILITAR ENVIO DE REPORT */
       {
-        name: CrobJobsEnum.sendStatusReport,
+        /** NÃO DESABILITAR ENVIO DE REPORT */
+        name: CronJobsEnum.sendStatusReport,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: () => this.sendStatusReport(),
         },
       },
       {
-        name: CrobJobsEnum.bulkResendInvites,
+        name: CronJobsEnum.bulkResendInvites,
         cronJobParameters: {
           cronTime: '45 14 15 * *', // Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
           onTick: async () => {
@@ -100,7 +109,7 @@ export class CronJobsService {
         },
       },
       {
-        name: CrobJobsEnum.updateTransacaoViewVan,
+        name: CronJobsEnum.updateTransacaoViewVan,
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
           onTick: async () => {
@@ -109,7 +118,7 @@ export class CronJobsService {
         },
       },
       {
-        name: CrobJobsEnum.updateTransacaoViewEmpresa,
+        name: CronJobsEnum.updateTransacaoViewEmpresa,
         cronJobParameters: {
           cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
           onTick: async () => {
@@ -118,7 +127,7 @@ export class CronJobsService {
         },
       },
       {
-        name: CrobJobsEnum.updateTransacaoViewVLT,
+        name: CronJobsEnum.updateTransacaoViewVLT,
         cronJobParameters: {
           cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
           onTick: async () => {
@@ -127,7 +136,7 @@ export class CronJobsService {
         },
       },
       {
-        name: CrobJobsEnum.syncTransacaoViewOrdemPgto,
+        name: CronJobsEnum.syncTransacaoViewOrdemPgto,
         cronJobParameters: {
           cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
           onTick: async () => {
@@ -136,7 +145,7 @@ export class CronJobsService {
         },
       },
       {
-        name: CrobJobsEnum.updateRetorno,
+        name: CronJobsEnum.updateRetorno,
         cronJobParameters: {
           cronTime: '*/30 * * * *', // Every 30 min
           onTick: async () => {
@@ -559,7 +568,6 @@ export class CronJobsService {
       return;
     }
     if (!settingPollDbActive.getValueAsBoolean()) {
-      this.logger.log(`Tarefa cancelada pois setting.${appSettings.any__poll_db_enabled.name}' = 'false'` + ` Para ativar, altere na tabela 'setting'`, METHOD);
       return;
     }
 
@@ -568,15 +576,15 @@ export class CronJobsService {
     const cronjobSettings: ICronJobSetting[] = [
       {
         setting: appSettings.any__poll_db_cronjob,
-        cronJob: CrobJobsEnum.pollDb,
+        cronJob: CronJobsEnum.pollDb,
       },
       {
         setting: appSettings.any__mail_invite_cronjob,
-        cronJob: CrobJobsEnum.bulkSendInvites,
+        cronJob: CronJobsEnum.bulkSendInvites,
       },
       {
         setting: appSettings.any__mail_report_cronjob,
-        cronJob: CrobJobsEnum.sendStatusReport,
+        cronJob: CronJobsEnum.sendStatusReport,
       },
     ];
     for (const setting of cronjobSettings) {
@@ -584,12 +592,6 @@ export class CronJobsService {
       if (dbChanged) {
         hasDbChanges = true;
       }
-    }
-
-    if (hasDbChanges) {
-      this.logger.log('Tarefa finalizada.', METHOD);
-    } else {
-      this.logger.log('Tarefa finalizada, sem alterações no banco.', METHOD);
     }
   }
 
