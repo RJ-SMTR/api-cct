@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { addDays, endOfDay, isFriday, isMonday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
+import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
@@ -160,7 +160,7 @@ export class CronJobsService {
       //   },
       // },
       {
-        name: CrobJobsEnum.generateRemessaVLT,
+        name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
           cronTime: '0 10 * * *', // Every day, 07:00 GMT = 10:00 BRT (GMT-3)
           onTick: async () => {
