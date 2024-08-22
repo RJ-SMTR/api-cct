@@ -63,9 +63,7 @@ export class SettingsService {
     defaultValueIfNotFound?: boolean,
     logContext?: string,
   ): Promise<SettingEntity> {
-    const METHOD = logContext
-      ? `${logContext}>${this.getOneBySettingData.name}`
-      : this.getOneBySettingData.name;
+    const METHOD = logContext ? `${logContext}>${this.getOneBySettingData.name}` : this.getOneBySettingData.name;
     const dbSetting = await this.findOneBySettingData(setting);
     if (defaultValueIfNotFound && !dbSetting) {
       this.logger.warn(

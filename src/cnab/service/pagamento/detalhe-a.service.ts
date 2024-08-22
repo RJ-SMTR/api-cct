@@ -46,14 +46,13 @@ export class DetalheAService {
   }
 
   public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto, r: CnabRegistros104Pgto, dataEfetivacao: Date): Promise<DetalheA | null> {
-    const METHOD = 'saveRetornoFrom104';
     const logRegistro = `HeaderArquivo: ${headerArq.nsa.convertedValue}, lote: ${headerLotePgto.codigoRegistro.value}`; 
     const favorecido = await this.clienteFavorecidoService.findOneRaw({
       nome: [r.detalheA.nomeTerceiro.stringValue.trim()],
     });
 
     if (!favorecido) {
-      this.logger.warn(logRegistro + `- Favorecido não encontrado para o nome: '${r.detalheA.nomeTerceiro.stringValue.trim()}'`);
+      this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue} - Favorecido não encontrado para o nome: '${r.detalheA.nomeTerceiro.stringValue.trim()}'`);
       return null;
     }
     const dataVencimento = startOfDay(r.detalheA.dataVencimento.convertedValue);

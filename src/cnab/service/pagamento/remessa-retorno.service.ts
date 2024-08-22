@@ -461,7 +461,7 @@ export class RemessaRetornoService {
           detalhesANaoEncontrados.push(numeroDocumento)
           continue;
         }
-        this.logger.debug(logRegistro + ` Detalhe A Documento: ${detalheAUpdated.numeroDocumentoEmpresa}, favorecido: '${registro.detalheA.nomeTerceiro.value}' - OK`);
+        this.logger.debug(logRegistro + ` Detalhe A Documento: ${detalheAUpdated.numeroDocumentoEmpresa}, favorecido: '${registro.detalheA.nomeTerceiro.value.trim()}' - OK`);
 
         await this.detalheBService.saveFrom104(registro, detalheAUpdated);
         const queryRunner = this.dataSource.createQueryRunner();
@@ -479,7 +479,7 @@ export class RemessaRetornoService {
         await this.detalheAService.updateDetalheAStatus(detalheAUpdated);
       }
     }
-    if (detalhesANaoEncontrados) {
+    if (detalhesANaoEncontrados.length > 0) {
       throw new NotFoundException(`Os seguintes DetalhesA do Retorno não foram encontrados no Banco (campo: no. documento) - ${detalhesANaoEncontrados.join(',')}`)
     }
   }

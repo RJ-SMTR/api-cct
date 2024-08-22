@@ -202,7 +202,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       this.logger.log(`Origem não existe: '${originPath}'. Salvando cnab no backup.`)
       await this.sftpClient.upload(Buffer.from(cnabContentIfNoOrigin, 'utf-8'), destPath);
     } else {
-      await this.sftpClient.rename(originPath, destPath, true);
+      await this.sftpClient.rename(originPath, destPath);
     }
     this.logger.debug(`Arquivo CNAB movido de '${originPath}' para ${destPath}`, METHOD);
   }
