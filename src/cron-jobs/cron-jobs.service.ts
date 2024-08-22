@@ -1,8 +1,8 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
+import { addDays, endOfDay, isFriday, isMonday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
@@ -81,14 +81,14 @@ export class CronJobsService {
         cronJobParameters: {
           // cronjob: * * * * - A cada minuto
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__poll_db_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
-          onTick: async () => this.pollDb(),
+          onTick: async () => await this.pollDb(),
         },
       },
       {
         name: CronJobsEnum.bulkSendInvites,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
-          onTick: async () => this.bulkSendInvites(),
+          onTick: async () => await this.bulkSendInvites(),
         },
       },
       {
@@ -96,61 +96,49 @@ export class CronJobsService {
         name: CronJobsEnum.sendStatusReport,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
-          onTick: () => this.sendStatusReport(),
+          onTick: async () => await this.sendStatusReport(),
         },
       },
       {
         name: CronJobsEnum.bulkResendInvites,
         cronJobParameters: {
           cronTime: '45 14 15 * *', // Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
-          onTick: async () => {
-            await this.bulkResendInvites();
-          },
+          onTick: async () => await this.bulkResendInvites(),
         },
       },
       {
         name: CronJobsEnum.updateTransacaoViewVan,
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
-          onTick: async () => {
-            await this.updateTransacaoView('Van');
-          },
+          onTick: async () => await this.updateTransacaoView('Van'),
         },
       },
       {
         name: CronJobsEnum.updateTransacaoViewEmpresa,
         cronJobParameters: {
           cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => {
-            await this.updateTransacaoView('Empresa');
-          },
+          onTick: async () => await this.updateTransacaoView('Empresa'),
         },
       },
       {
         name: CronJobsEnum.updateTransacaoViewVLT,
         cronJobParameters: {
           cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => {
-            await this.updateTransacaoView('VLT');
-          },
+          onTick: async () => await this.updateTransacaoView('VLT'),
         },
       },
       {
         name: CronJobsEnum.syncTransacaoViewOrdemPgto,
         cronJobParameters: {
           cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => {
-            this.syncTransacaoViewOrdemPgto();
-          },
+          onTick: async () => await this.syncTransacaoViewOrdemPgto(),
         },
       },
       {
         name: CronJobsEnum.updateRetorno,
         cronJobParameters: {
           cronTime: '*/30 * * * *', // Every 30 min
-          onTick: async () => {
-            await this.updateRetorno();
-          },
+          onTick: async () => await this.updateRetorno(),
         },
       },
       // {
@@ -184,9 +172,13 @@ export class CronJobsService {
     );
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
-    for (const jobConfig of this.jobsConfig) {
-      this.startCron(jobConfig);
-      this.logger.log(`Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`);
+    if (process.env.CRONJOBS != 'false') {
+      for (const jobConfig of this.jobsConfig) {
+        this.startCron(jobConfig);
+        this.logger.log(`Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`);
+      }
+    } else {
+      this.logger.warn(`env->CRONJOBS = false. Cronjobs inativos.`);
     }
   }
 
@@ -315,7 +307,12 @@ export class CronJobsService {
   }
 
   public async syncTransacaoViewOrdemPgto() {
-    await this.cnabService.sincronizeTransacaoViewOrdemPgto(subDays(new Date(), 1).toString(), new Date().toString());
+    const METHOD = 'syncTransacaoViewOrdemPgto';
+    try {
+      await this.cnabService.sincronizeTransacaoViewOrdemPgto(subDays(new Date(), 1).toString(), new Date().toString());
+    } catch (error) {
+      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
+    }
   }
 
   public async saveAndSendRemessa(dataPgto: Date, isConference = false, isCancelamento = false, nsaInicial = 0, nsaFinal = 0, dataCancelamento = new Date()) {
@@ -345,99 +342,71 @@ export class CronJobsService {
    */
   async updateTransacaoView(consorcio: 'Van' | 'Empresa' | 'VLT', debug?: ICronjobDebug) {
     const METHOD = this.updateTransacaoView.name;
-    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
-      return;
-    }
-    const today = debug?.today || new Date();
-    let startDate = today;
-    let endDate = today;
-
     try {
-      this.logger.log('Iniciando tarefa.', METHOD);
-      if (consorcio == 'Van') {
-        startDate = subHours(startDate, 2);
-      } else if (consorcio == 'VLT') {
-        startDate = subDays(startDate, 1);
-      } else {
-        /** Empresa */
-        startDate = startOfDay(startDate);
-        endDate = endOfDay(endDate);
+      if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
+        return;
       }
-      await this.cnabService.updateTransacaoViewBigquery(startDate, endDate, 0, consorcio);
-      this.logger.log('TransacaoViews atualizados com sucesso.', METHOD);
+      const today = debug?.today || new Date();
+      let startDate = today;
+      let endDate = today;
+
+      try {
+        this.logger.log('Iniciando tarefa.', METHOD);
+        if (consorcio == 'Van') {
+          startDate = subHours(startDate, 2);
+        } else if (consorcio == 'VLT') {
+          startDate = subDays(startDate, 1);
+        } else {
+          /** Empresa */
+          startDate = startOfDay(startDate);
+          endDate = endOfDay(endDate);
+        }
+        await this.cnabService.updateTransacaoViewBigquery(startDate, endDate, 0, consorcio);
+        this.logger.log('TransacaoViews atualizados com sucesso.', METHOD);
+      } catch (error) {
+        this.logger.error(`ERRO CRÍTICO - ${JSON.stringify(error)}`, error?.stack, METHOD);
+      }
     } catch (error) {
-      this.logger.error(`ERRO CRÍTICO - ${JSON.stringify(error)}`, error?.stack, METHOD);
+      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
   }
 
   async bulkSendInvites() {
     const METHOD = this.bulkSendInvites.name;
-    const activateAutoSendInvite = await this.settingsService.findOneBySettingData(appSettings.any__activate_auto_send_invite);
-    if (!activateAutoSendInvite) {
-      this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' ` + ' não foi encontrado no banco.', METHOD);
-      return;
-    } else if (activateAutoSendInvite.getValueAsBoolean() === false) {
-      this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
-      return;
-    }
-
-    // get data
-    const sentToday = (await this.mailHistoryService.findSentToday()) || [];
-    const unsent = (await this.mailHistoryService.findUnsent()) || [];
-    const remainingQuota = await this.mailHistoryService.getRemainingQuota();
-    const dailyQuota = () => this.configService.getOrThrow('mail.dailyQuota');
-
-    this.logger.log(`Iniciando tarefa - a enviar: ${unsent.length},enviado: ${sentToday.length}/${dailyQuota()},falta enviar: ${remainingQuota}`, METHOD);
-    for (let i = 0; i < remainingQuota && i < unsent.length; i++) {
-      const invite = new MailHistory(unsent[i]);
-
-      const user = await this.usersService.findOne({ id: invite.user.id });
-
-      // User mail error
-      if (!user?.email) {
-        this.logger.error(`Usuário não tem email válido (${user?.email}), este email não será enviado.`, METHOD);
-        invite.setInviteError({
-          httpErrorCode: HttpStatus.UNPROCESSABLE_ENTITY,
-          smtpErrorCode: null,
-        });
-        invite.sentAt = null;
-        invite.failedAt = new Date(Date.now());
-        await this.mailHistoryService.update(
-          invite.id,
-          {
-            httpErrorCode: invite.httpErrorCode,
-            smtpErrorCode: invite.smtpErrorCode,
-            sentAt: invite.sentAt,
-            failedAt: invite.failedAt,
-          },
-          METHOD,
-        );
-        continue;
+    try {
+      const activateAutoSendInvite = await this.settingsService.findOneBySettingData(appSettings.any__activate_auto_send_invite);
+      if (!activateAutoSendInvite) {
+        this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' ` + ' não foi encontrado no banco.', METHOD);
+        return;
+      } else if (activateAutoSendInvite.getValueAsBoolean() === false) {
+        this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__activate_auto_send_invite.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
+        return;
       }
 
-      // Send mail
-      try {
-        const { mailSentInfo } = await this.mailService.sendConcludeRegistration({
-          to: user.email,
-          data: {
-            hash: invite.hash,
-            userName: user?.fullName as string,
-          },
-        });
+      // get data
+      const sentToday = (await this.mailHistoryService.findSentToday()) || [];
+      const unsent = (await this.mailHistoryService.findUnsent()) || [];
+      const remainingQuota = await this.mailHistoryService.getRemainingQuota();
+      const dailyQuota = () => this.configService.getOrThrow('mail.dailyQuota');
 
-        // Success
-        if (mailSentInfo.success === true) {
+      this.logger.log(`Iniciando tarefa - a enviar: ${unsent.length},enviado: ${sentToday.length}/${dailyQuota()},falta enviar: ${remainingQuota}`, METHOD);
+      for (let i = 0; i < remainingQuota && i < unsent.length; i++) {
+        const invite = new MailHistory(unsent[i]);
+
+        const user = await this.usersService.findOne({ id: invite.user.id });
+
+        // User mail error
+        if (!user?.email) {
+          this.logger.error(`Usuário não tem email válido (${user?.email}), este email não será enviado.`, METHOD);
           invite.setInviteError({
-            httpErrorCode: null,
+            httpErrorCode: HttpStatus.UNPROCESSABLE_ENTITY,
             smtpErrorCode: null,
           });
-          invite.setInviteStatus(InviteStatusEnum.sent);
-          invite.sentAt = new Date(Date.now());
-          invite.failedAt = null;
+          invite.sentAt = null;
+          invite.failedAt = new Date(Date.now());
           await this.mailHistoryService.update(
             invite.id,
             {
-              inviteStatus: invite.inviteStatus,
               httpErrorCode: invite.httpErrorCode,
               smtpErrorCode: invite.smtpErrorCode,
               sentAt: invite.sentAt,
@@ -445,15 +414,70 @@ export class CronJobsService {
             },
             METHOD,
           );
-          this.logger.log('Email enviado com sucesso.', METHOD);
+          continue;
         }
 
-        // SMTP error
-        else {
-          this.logger.error(`Email enviado retornou erro. - mailSentInfo: ${mailSentInfo}`, new Error().stack, METHOD);
+        // Send mail
+        try {
+          const { mailSentInfo } = await this.mailService.sendConcludeRegistration({
+            to: user.email,
+            data: {
+              hash: invite.hash,
+              userName: user?.fullName as string,
+            },
+          });
+
+          // Success
+          if (mailSentInfo.success === true) {
+            invite.setInviteError({
+              httpErrorCode: null,
+              smtpErrorCode: null,
+            });
+            invite.setInviteStatus(InviteStatusEnum.sent);
+            invite.sentAt = new Date(Date.now());
+            invite.failedAt = null;
+            await this.mailHistoryService.update(
+              invite.id,
+              {
+                inviteStatus: invite.inviteStatus,
+                httpErrorCode: invite.httpErrorCode,
+                smtpErrorCode: invite.smtpErrorCode,
+                sentAt: invite.sentAt,
+                failedAt: invite.failedAt,
+              },
+              METHOD,
+            );
+            this.logger.log('Email enviado com sucesso.', METHOD);
+          }
+
+          // SMTP error
+          else {
+            this.logger.error(`Email enviado retornou erro. - mailSentInfo: ${mailSentInfo}`, new Error().stack, METHOD);
+            invite.setInviteError({
+              httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
+              smtpErrorCode: mailSentInfo.response.code,
+            });
+            invite.sentAt = null;
+            invite.failedAt = new Date(Date.now());
+            await this.mailHistoryService.update(
+              invite.id,
+              {
+                httpErrorCode: invite.httpErrorCode,
+                smtpErrorCode: invite.smtpErrorCode,
+                sentAt: invite.sentAt,
+                failedAt: invite.failedAt,
+              },
+              METHOD,
+            );
+          }
+
+          // API error
+        } catch (httpException) {
+          this.logger.error('Email falhou ao enviar.', httpException.stack, METHOD);
+          invite.httpErrorCode = httpException.statusCode;
           invite.setInviteError({
             httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            smtpErrorCode: mailSentInfo.response.code,
+            smtpErrorCode: null,
           });
           invite.sentAt = null;
           invite.failedAt = new Date(Date.now());
@@ -468,130 +492,114 @@ export class CronJobsService {
             METHOD,
           );
         }
-
-        // API error
-      } catch (httpException) {
-        this.logger.error('Email falhou ao enviar.', httpException.stack, METHOD);
-        invite.httpErrorCode = httpException.statusCode;
-        invite.setInviteError({
-          httpErrorCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          smtpErrorCode: null,
-        });
-        invite.sentAt = null;
-        invite.failedAt = new Date(Date.now());
-        await this.mailHistoryService.update(
-          invite.id,
-          {
-            httpErrorCode: invite.httpErrorCode,
-            smtpErrorCode: invite.smtpErrorCode,
-            sentAt: invite.sentAt,
-            failedAt: invite.failedAt,
-          },
-          METHOD,
-        );
       }
-    }
-    if (unsent.length == 0 || remainingQuota == 0) {
-      const reasons: string[] = [...(unsent.length == 0 ? ['no mails to sent'] : []), ...(remainingQuota == 0 ? ['no remaining quota'] : [])];
-      this.logger.log(`Tarefa cancelada pois ${reasons.join(' e ')}`, METHOD);
-    } else {
-      this.logger.log('Tarefa finalizada com sucesso.', METHOD);
+      if (unsent.length == 0 || remainingQuota == 0) {
+        const reasons: string[] = [...(unsent.length == 0 ? ['no mails to sent'] : []), ...(remainingQuota == 0 ? ['no remaining quota'] : [])];
+        this.logger.log(`Tarefa cancelada pois ${reasons.join(' e ')}`, METHOD);
+      } else {
+        this.logger.log('Tarefa finalizada com sucesso.', METHOD);
+      }
+    } catch (error) {
+      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
   }
 
   async sendStatusReport() {
     const METHOD = this.sendStatusReport.name;
-    if (!(await this.getIsProd(METHOD))) {
-      return;
-    }
-    this.logger.log('Iniciando tarefa.', METHOD);
-
-    const isEnabledFlag = await this.settingsService.findOneBySettingData(appSettings.any__mail_report_enabled);
-    if (!isEnabledFlag) {
-      this.logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' ` + 'não foi encontrado no banco.', undefined, METHOD);
-      return;
-    } else if (isEnabledFlag.getValueAsBoolean() === false) {
-      this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
-      return;
-    }
-
-    if (!isEnabledFlag) {
-      this.logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' ` + 'não foi encontrado no banco.', undefined, METHOD);
-      return;
-    } else if (isEnabledFlag.getValueAsBoolean() === false) {
-      this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
-      return;
-    }
-
-    const mailRecipients = await this.settingsService.findManyBySettingDataGroup(appSettings.any__mail_report_recipient);
-
-    if (!mailRecipients) {
-      this.logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não foi encontrada (retornou: ${mailRecipients}).`, undefined, METHOD);
-      return;
-    } else if (mailRecipients.some((i) => !validateEmail(i.getValueAsString()))) {
-      this.logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`, undefined, METHOD);
-      return;
-    }
-
-    // Send mail
-    const emails = mailRecipients.reduce((l: string[], i) => [...l, i.getValueAsString()], []);
     try {
-      const mailSentInfo = await this.mailService.sendStatusReport({
-        to: emails,
-        data: {
-          statusCount: await this.mailHistoryService.getStatusCount(),
-        },
-      } as any);
+      if (!(await this.getIsProd(METHOD))) {
+        return;
+      }
+      this.logger.log('Iniciando tarefa.', METHOD);
 
-      // Success
-      if (mailSentInfo.success === true) {
-        this.logger.log(`Relatório enviado com sucesso para os emails ${emails}`, METHOD);
+      const isEnabledFlag = await this.settingsService.findOneBySettingData(appSettings.any__mail_report_enabled);
+      if (!isEnabledFlag) {
+        this.logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' ` + 'não foi encontrado no banco.', undefined, METHOD);
+        return;
+      } else if (isEnabledFlag.getValueAsBoolean() === false) {
+        this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
+        return;
       }
 
-      // SMTP error
-      else {
-        this.logger.error(`Relatório enviado para os emails ${emails} retornou erro. - ` + `mailSentInfo: ${JSON.stringify(mailSentInfo)}`, new Error().stack, METHOD);
+      if (!isEnabledFlag) {
+        this.logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' ` + 'não foi encontrado no banco.', undefined, METHOD);
+        return;
+      } else if (isEnabledFlag.getValueAsBoolean() === false) {
+        this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
+        return;
       }
 
-      // API error
-    } catch (httpException) {
-      this.logger.error(`Email falhou ao enviar para ${emails}`, httpException?.stack, METHOD);
+      const mailRecipients = await this.settingsService.findManyBySettingDataGroup(appSettings.any__mail_report_recipient);
+
+      if (!mailRecipients) {
+        this.logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não foi encontrada (retornou: ${mailRecipients}).`, undefined, METHOD);
+        return;
+      } else if (mailRecipients.some((i) => !validateEmail(i.getValueAsString()))) {
+        this.logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`, undefined, METHOD);
+        return;
+      }
+
+      // Send mail
+      const emails = mailRecipients.reduce((l: string[], i) => [...l, i.getValueAsString()], []);
+      try {
+        const mailSentInfo = await this.mailService.sendStatusReport({
+          to: emails,
+          data: {
+            statusCount: await this.mailHistoryService.getStatusCount(),
+          },
+        } as any);
+
+        // Success
+        if (mailSentInfo.success === true) {
+          this.logger.log(`Relatório enviado com sucesso para os emails ${emails}`, METHOD);
+        }
+
+        // SMTP error
+        else {
+          this.logger.error(`Relatório enviado para os emails ${emails} retornou erro. - ` + `mailSentInfo: ${JSON.stringify(mailSentInfo)}`, new Error().stack, METHOD);
+        }
+
+        // API error
+      } catch (httpException) {
+        this.logger.error(`Email falhou ao enviar para ${emails}`, httpException?.stack, METHOD);
+      }
+      this.logger.log('Tarefa finalizada.', METHOD);
+    } catch (error) {
+      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
-    this.logger.log('Tarefa finalizada.', METHOD);
   }
 
   async pollDb() {
     const METHOD = this.pollDb.name;
-    const settingPollDbActive = await this.settingsService.findOneBySettingData(appSettings.any__poll_db_enabled);
-    if (!settingPollDbActive) {
-      this.logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__poll_db_enabled.name}' não foi encontrado no banco.`, new Error().stack, METHOD);
-      return;
-    }
-    if (!settingPollDbActive.getValueAsBoolean()) {
-      return;
-    }
-
-    let hasDbChanges = false;
-
-    const cronjobSettings: ICronJobSetting[] = [
-      {
-        setting: appSettings.any__poll_db_cronjob,
-        cronJob: CronJobsEnum.pollDb,
-      },
-      {
-        setting: appSettings.any__mail_invite_cronjob,
-        cronJob: CronJobsEnum.bulkSendInvites,
-      },
-      {
-        setting: appSettings.any__mail_report_cronjob,
-        cronJob: CronJobsEnum.sendStatusReport,
-      },
-    ];
-    for (const setting of cronjobSettings) {
-      const dbChanged = await this.handleCronjobSettings(setting, METHOD);
-      if (dbChanged) {
-        hasDbChanges = true;
+    try {
+      const settingPollDbActive = await this.settingsService.findOneBySettingData(appSettings.any__poll_db_enabled);
+      if (!settingPollDbActive) {
+        this.logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__poll_db_enabled.name}' não foi encontrado no banco.`, new Error().stack, METHOD);
+        return;
       }
+      if (!settingPollDbActive.getValueAsBoolean()) {
+        return;
+      }
+
+      const cronjobSettings: ICronJobSetting[] = [
+        {
+          setting: appSettings.any__poll_db_cronjob,
+          cronJob: CronJobsEnum.pollDb,
+        },
+        {
+          setting: appSettings.any__mail_invite_cronjob,
+          cronJob: CronJobsEnum.bulkSendInvites,
+        },
+        {
+          setting: appSettings.any__mail_report_cronjob,
+          cronJob: CronJobsEnum.sendStatusReport,
+        },
+      ];
+      for (const setting of cronjobSettings) {
+        await this.handleCronjobSettings(setting, METHOD);
+      }
+    } catch (error) {
+      this.logger.error(`Erro ao executar tarefa.`, error?.stack, METHOD);
     }
   }
 
@@ -657,21 +665,26 @@ export class CronJobsService {
 
   async bulkResendInvites(): Promise<HttpStatus> {
     const METHOD = this.bulkResendInvites.name;
-    const notRegisteredUsers = await this.usersService.getNotRegisteredUsers();
+    try {
+      const notRegisteredUsers = await this.usersService.getNotRegisteredUsers();
 
-    if (notRegisteredUsers.length === 0) {
-      this.logger.log('Não há usuários para enviar, abortando...', METHOD);
-      return HttpStatus.NOT_FOUND;
+      if (notRegisteredUsers.length === 0) {
+        this.logger.log('Não há usuários para enviar, abortando...', METHOD);
+        return HttpStatus.NOT_FOUND;
+      }
+      this.logger.log('Enviando emails específicos para ' + `${notRegisteredUsers.length} usuários não totalmente registrados`, METHOD);
+      for (const user of notRegisteredUsers) {
+        await this.resendInvite(user, METHOD);
+      }
+      return HttpStatus.OK;
+    } catch (error) {
+      this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
+      return HttpStatus.INTERNAL_SERVER_ERROR;
     }
-    this.logger.log('Enviando emails específicos para ' + `${notRegisteredUsers.length} usuários não totalmente registrados`, METHOD);
-    for (const user of notRegisteredUsers) {
-      await this.resendInvite(user, METHOD);
-    }
-    return HttpStatus.OK;
   }
 
   async resendInvite(user: User, outerMethod: string) {
-    const THIS_METHOD = `${outerMethod} > ${this.resendInvite.name}`;
+    const METHOD = `${outerMethod} > ${this.resendInvite.name}`;
     try {
       const mailSentInfo = await this.mailService.reSendEmailBank({
         to: user.email as string,
@@ -686,15 +699,15 @@ export class CronJobsService {
         const mailHistory = await this.mailHistoryService.getOne({
           user: { email: user.email as string },
         });
-        this.logger.log(`Email enviado com sucesso para ${mailSentInfo.envelope.to}. (último envio: ${mailHistory.sentAt?.toISOString()})`, THIS_METHOD);
+        this.logger.log(`Email enviado com sucesso para ${mailSentInfo.envelope.to}. (último envio: ${mailHistory.sentAt?.toISOString()})`, METHOD);
         await this.mailHistoryService.update(mailHistory.id, {
           sentAt: new Date(Date.now()),
         });
       } else {
-        this.logger.error('Email enviado retornou erro.' + ` - mailSentInfo: ${JSON.stringify(mailSentInfo)}`, new Error().stack, THIS_METHOD);
+        this.logger.error('Email enviado retornou erro.' + ` - mailSentInfo: ${JSON.stringify(mailSentInfo)}`, new Error().stack, METHOD);
       }
     } catch (httpException) {
-      this.logger.error('Email falhou ao enviar.', httpException.stack, THIS_METHOD);
+      this.logger.error(`Erro ao executar tarefa, abortando. - ${httpException}`, httpException?.stack, METHOD);
     }
   }
 
@@ -705,7 +718,7 @@ export class CronJobsService {
       await this.cnabService.sendRemessa(listCnab);
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
-      this.logger.error('Erro, abortando.', error.stack, METHOD);
+      this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
     }
   }
 
@@ -715,7 +728,7 @@ export class CronJobsService {
       await this.cnabService.updateRetorno();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
-      this.logger.error(`Erro, abortando. - ${error}`, error.stack, METHOD);
+      this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
     }
   }
 
@@ -725,7 +738,7 @@ export class CronJobsService {
       await this.cnabService.saveExtrato();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
-      this.logger.error(`Erro, abortando. - ${error}`, error.stack, METHOD);
+      this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
     }
   }
 }
