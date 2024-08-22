@@ -274,7 +274,9 @@ export class CnabService {
     const startDate = new Date();
     let count = 0;
     try {
+      await queryRunner.startTransaction();
       [, count] = await queryRunner.query(query);
+      await queryRunner.commitTransaction();
     } catch (error) {
       await queryRunner.rollbackTransaction();
     } finally {
