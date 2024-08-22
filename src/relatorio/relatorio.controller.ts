@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
@@ -6,6 +6,8 @@ import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { RelatorioService } from './relatorio.service';
+import { HttpStatusCode } from 'axios';
+import { HttpResponse } from 'aws-sdk';
 
 @ApiTags('Cnab')
 @Controller({
@@ -23,7 +25,6 @@ export class RelatorioController {
   @ApiQuery({ name: 'valorMax', description: 'Somatório do valor bruto.', required: false, type: Number, example: 12.99 })
   @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
   @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
-  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('consolidado')
@@ -41,13 +42,16 @@ export class RelatorioController {
     @Query('valorMax', new ParseNumberPipe({ optional: true }))
     valorMax: number | undefined,
     @Query('pago',new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,     
-    @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined   
-  ) {
-    return await this.relatorioService.findConsolidado({
-      dataInicio,dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar
-    });
+    @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined){
+      try{
+        const result = await this.relatorioService.findConsolidado({      
+          dataInicio,dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar
+        });
+        return result;
+      }catch(e){
+        return new HttpException({ error: e.message}, HttpStatus.BAD_REQUEST);
+      }     
   }
-
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String, example: '2024-07-15' })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String, example: '2024-07-16' })

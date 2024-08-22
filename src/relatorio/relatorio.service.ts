@@ -11,54 +11,78 @@ export class RelatorioService {
   /**
    * Gerar relatórios consolidados - agrupados por Favorecido.
    */
-  async findConsolidado(args: IFindPublicacaoRelatorio) {
-    const d = 2;
+  async findConsolidado(args: IFindPublicacaoRelatorio) {    
     let result: RelatorioConsolidadoResultDto[]=[];
-    let consolidadosPagos;
-    if(args.pago === true && (args.aPagar === false || args.aPagar === undefined)){    
-       consolidadosPagos  = await this.relatorioRepository.findConsolidado(args);
-       const consolidadoPagoData = new RelatorioConsolidadoResultDto();
-       consolidadoPagoData.count = consolidadosPagos.length;
-       consolidadoPagoData.data = consolidadosPagos;
-       consolidadoPagoData.valor = +consolidadosPagos.reduce((s, i) => s + i.valor, 0).toFixed(d); 
-       consolidadoPagoData.status = 'pago';
-       result.push(consolidadoPagoData);
+   
+    if(args.dataInicio ===undefined || args.dataFim === undefined || 
+      new Date(args.dataFim) < new Date(args.dataInicio)){
+      throw new Error('Parametro de data inválido');
     }
 
-    let consolidadosNaoPagos;
-    if(args.pago === false && (args.aPagar === false || args.aPagar === undefined)){        
-      consolidadosNaoPagos  = await this.relatorioRepository.findConsolidado(args);
-      const consolidadosNaoPagosData = new RelatorioConsolidadoResultDto();
-      consolidadosNaoPagosData.count = consolidadosNaoPagos.length;
-      consolidadosNaoPagosData.data = consolidadosNaoPagos;
-      consolidadosNaoPagosData.valor = +consolidadosNaoPagos.reduce((s, i) => s + i.valor, 0).toFixed(d); 
-      consolidadosNaoPagosData.status = 'naoPago';
-      result.push(consolidadosNaoPagosData);
-    }
-
-    let consolidadosApagar;
-    if(args.aPagar === true && (args.pago === false || args.pago === undefined)){
-      consolidadosApagar  = await this.relatorioRepository.findConsolidado(args);
-      const consolidadosaPagarData = new RelatorioConsolidadoResultDto();
-      consolidadosaPagarData.count = consolidadosApagar.length;
-      consolidadosaPagarData.data = consolidadosApagar;
-      consolidadosaPagarData.valor = +consolidadosApagar.reduce((s, i) => s + i.valor, 0).toFixed(d); 
-      consolidadosaPagarData.status = 'aPagar';
-      result.push(consolidadosaPagarData);
-    }
-    
-    let consolidado;
-    if(args.aPagar === undefined && args.pago === undefined){
-      consolidado  = await this.relatorioRepository.findConsolidado(args);
-      const consolidadosData = new RelatorioConsolidadoResultDto();
-      consolidadosData.count = consolidado.length;
-      consolidadosData.data = consolidado;
-      consolidadosData.valor = +consolidado.reduce((s, i) => s + i.valor, 0).toFixed(d); 
-      consolidadosData.status = 'todos';
-      result.push(consolidadosData);
-    }
+    if(args.pago === undefined && args.aPagar === undefined && (args.favorecidoNome ===undefined) 
+      && (args.consorcioNome === undefined)){
+      result.push(await this.resultConsolidado(args));
+      result.push(await this.resultPago(args));
+      result.push(await this.resultErros(args));
+      result.push(await this.resultApagar(args));
+    }else if(args.pago === true && args.aPagar === true){
+      result.push(await this.resultPago(args));
+      result.push(await this.resultApagar(args));
+    }else if(args.pago ===true) {
+      result.push(await this.resultPago(args));
+    }else if(args.pago ===false) {
+      result.push(await this.resultErros(args));
+    }else if(args.aPagar === true){
+      result.push(await this.resultApagar(args));
+    }else{
+      result.push(await this.resultConsolidado(args));
+    }    
     return result;
   }
+
+  private async resultConsolidado(args: IFindPublicacaoRelatorio){
+    let consolidado  = await this.relatorioRepository.findConsolidado(args);
+    const consolidadosData = new RelatorioConsolidadoResultDto();
+    consolidadosData.count = consolidado.length;
+    consolidadosData.data = consolidado;
+    consolidadosData.valor = +consolidado.reduce((s, i) => s + i.valor, 0).toFixed(2); 
+    consolidadosData.status = 'todos';
+    return consolidadosData;
+  }
+
+  private async resultPago(args: IFindPublicacaoRelatorio){
+      args.pago = true;
+      let consolidadosPagos  = await this.relatorioRepository.findConsolidado(args);
+      const consolidadoPagoData = new RelatorioConsolidadoResultDto();
+      consolidadoPagoData.count = consolidadosPagos.length;
+      consolidadoPagoData.data = consolidadosPagos;
+      consolidadoPagoData.valor = +consolidadosPagos.reduce((s, i) => s + i.valor, 0).toFixed(2); 
+      consolidadoPagoData.status = 'pago';
+      return consolidadoPagoData;
+  }
+
+  private async resultErros(args: IFindPublicacaoRelatorio){
+    args.pago = false;
+    let consolidadosErros  = await this.relatorioRepository.findConsolidado(args);
+    const consolidadosErrosData = new RelatorioConsolidadoResultDto();
+    consolidadosErrosData.count = consolidadosErros.length;
+    consolidadosErrosData.data = consolidadosErros;
+    consolidadosErrosData.valor = +consolidadosErros.reduce((s, i) => s + i.valor, 0).toFixed(2); 
+    consolidadosErrosData.status = 'Erros';
+    return consolidadosErrosData;
+  }
+
+  private async resultApagar(args: IFindPublicacaoRelatorio){
+    args.aPagar = true;      
+    let consolidadosAPagar  = await this.relatorioRepository.findConsolidado(args);
+    const consolidadosaPagarData = new RelatorioConsolidadoResultDto();
+    consolidadosaPagarData.count = consolidadosAPagar.length;
+    consolidadosaPagarData.data = consolidadosAPagar;
+    consolidadosaPagarData.valor = +consolidadosAPagar.reduce((s, i) => s + i.valor, 0).toFixed(2); 
+    consolidadosaPagarData.status = 'aPagar';
+    return consolidadosaPagarData;
+  }
+    
 
   async findAnalitico(args: IFindPublicacaoRelatorio){
     const d = 2;
