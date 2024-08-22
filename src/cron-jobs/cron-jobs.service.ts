@@ -71,7 +71,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {
+  async onModuleLoad() {        
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
@@ -159,16 +159,16 @@ export class CronJobsService {
       //     },
       //   },
       // },
-      // {
-      //   name: CrobJobsEnum.generateRemessaVLT,
-      //   cronJobParameters: {
-      //     cronTime: '0 10 * * *', // Every day, 07:00 GMT = 10:00 BRT (GMT-3)
-      //     onTick: async () => {
-      //       const today = new Date();
-      //       if (!isSaturday(today) && !isSunday(today)) await this.generateRemessaVLT();
-      //     },
-      //   },
-      // },
+      {
+        name: CrobJobsEnum.generateRemessaVLT,
+        cronJobParameters: {
+          cronTime: '0 10 * * *', // Every day, 07:00 GMT = 10:00 BRT (GMT-3)
+          onTick: async () => {
+            const today = new Date();
+            if (!isSaturday(today) && !isSunday(today)) await this.generateRemessaVLT();
+          },
+        },
+      },
     );
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
@@ -277,10 +277,7 @@ export class CronJobsService {
    * - Se hoje for demais dias, obter 1 dia anterior
    */
   public async generateRemessaVLT(debug?: ICronjobDebug) {
-    const METHOD = 'generateRemessaVLT';
-    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
-      return;
-    }
+    const METHOD = 'generateRemessaVLT';   
     this.logger.log('Tarefa iniciada', METHOD);
     const today = debug?.today || new Date();
     const startDateLog = new Date();
