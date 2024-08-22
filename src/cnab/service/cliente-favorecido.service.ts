@@ -206,7 +206,8 @@ export class ClienteFavorecidoService {
     return await this.clienteFavorecidoRepository.findOne(options);
   }
   
-  public async findOneRaw(where: IClienteFavorecidoRawWhere): Promise<ClienteFavorecido> {
-    return await this.clienteFavorecidoRepository.findOneRaw(where);
+  public async findOneRaw(where: IClienteFavorecidoRawWhere): Promise<ClienteFavorecido | null> {
+    const result = await this.clienteFavorecidoRepository.findManyRaw(where);
+    return result?.[0] || null;
   }
 }

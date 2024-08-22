@@ -142,6 +142,7 @@ export class CnabController {
   }
 
   @ApiQuery({ name: 'folder', description: ApiDescription({  _: 'Pasta para ler os retornos', default: '`/retorno`' }), required: false, type: String })
+  @ApiQuery({ name: 'maxItems', description: ApiDescription({  _: 'Número máximo de itens para ler', min: 1 }), required: false, type: Number })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -149,8 +150,9 @@ export class CnabController {
   @Get('updateRetorno')
   async getUpdateRetorno(
     @Query('folder') folder: string | undefined, //
+    @Query('maxItems', new ParseNumberPipe({ min: 1, optional: true})) maxItems: number | undefined,
   ) {
-    return await this.cnabService.updateRetorno(folder);
+    return await this.cnabService.updateRetorno(folder, maxItems);
   }
 
   @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial', required: true, type: Date })

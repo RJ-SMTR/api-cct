@@ -13,11 +13,7 @@ import { CommonHttpException } from 'src/utils/http-exception/common-http-except
 
 export interface IDetalheARawWhere {
   id?: number[];
-  detalheARem?: {
-    dataVencimento: Date;
-    numeroDocumentoEmpresa: number;
-    valorLancamento: number;
-  };
+  numeroDocumentoEmpresa?: number;
 }
 
 @Injectable()
@@ -86,10 +82,9 @@ export class DetalheARepository {
     if (where.id) {
       qWhere.query = `WHERE da.id IN (${where.id.join(',')})`;
       qWhere.params = [];
-    } else if (where.detalheARem) {
-      const { dataVencimento, numeroDocumentoEmpresa, valorLancamento } = where.detalheARem;
-      qWhere.query = `WHERE da."dataVencimento"::DATE = $1 AND da."numeroDocumentoEmpresa" = $2 AND da."valorLancamento" = $3`;
-      qWhere.params = [getDateYMDString(dataVencimento), numeroDocumentoEmpresa, valorLancamento];
+    } else if (where.numeroDocumentoEmpresa) {
+      qWhere.query = `WHERE da."numeroDocumentoEmpresa" = $1`;
+      qWhere.params = [where.numeroDocumentoEmpresa];
     }
     const result: any[] = await this.detalheARepository.query(
       `
@@ -138,7 +133,7 @@ export class DetalheARepository {
   public async getOneRaw(where: IDetalheARawWhere): Promise<DetalheA> {
     const result = await this.findRaw(where);
     if (result.length == 0) {
-        throw CommonHttpException.details('It should return at least one DetalheA');
+      throw CommonHttpException.details('It should return at least one DetalheA');
     } else {
       return result[0];
     }
