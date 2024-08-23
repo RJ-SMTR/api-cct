@@ -79,11 +79,7 @@ export class SftpClientService {
     return await this.sftpClient.realPath(remotePath);
   }
 
-  async upload(
-    contents: string | Buffer | NodeJS.ReadableStream,
-    remoteFilePath: string,
-    transferOptions?: SftpClient.TransferOptions,
-  ): Promise<string> {
+  async upload(contents: string | Buffer | NodeJS.ReadableStream, remoteFilePath: string, transferOptions?: SftpClient.TransferOptions): Promise<string> {
     return await this.sftpClient.put(contents, remoteFilePath, transferOptions);
   }
 
@@ -97,21 +93,15 @@ export class SftpClientService {
    * If function, it will add if return is `true`.
    * If no filter, all items wil be returned.
    */
-  async list(
-    remoteDirectory: string,
-    filter?: string | RegExp | ((item: FileInfo) => boolean),
-  ): Promise<FileInfo[]> {
+  async list(remoteDirectory: string, filter?: string | RegExp | ((item: FileInfo) => boolean)): Promise<FileInfo[]> {
     return await this.sftpClient.list(remoteDirectory, (item: FileInfo) => {
       if (typeof filter === 'function') {
         return filter(item);
-      }
-      else if (typeof filter === 'string') {
+      } else if (typeof filter === 'string') {
         return item.name.includes(filter);
-      }
-      else if (filter) {
+      } else if (filter) {
         return item.name.match(filter);
-      }
-      else {
+      } else {
         return true;
       }
     });
@@ -138,11 +128,7 @@ export class SftpClientService {
    * }
    * ```
    */
-  async download(
-    path: string,
-    dst?: string | NodeJS.WritableStream,
-    options?: SftpClient.TransferOptions,
-  ): Promise<string | NodeJS.WritableStream | Buffer> {
+  async download(path: string, dst?: string | NodeJS.WritableStream, options?: SftpClient.TransferOptions): Promise<string | NodeJS.WritableStream | Buffer> {
     return await this.sftpClient.get(path, dst, options);
   }
 
@@ -154,23 +140,18 @@ export class SftpClientService {
     await this.sftpClient.mkdir(remoteFilePath, recursive);
   }
 
-  async removeDirectory(
-    remoteFilePath: string,
-    recursive = true,
-  ): Promise<void> {
+  async removeDirectory(remoteFilePath: string, recursive = true): Promise<void> {
     await this.sftpClient.rmdir(remoteFilePath, recursive);
   }
 
-  async rename(
-    remoteSourcePath: string,
-    remoteDestinationPath: string,
-    overwriteDestination?: boolean,
-  ): Promise<void> {
-    if (overwriteDestination) {
-      if (await this.exists(remoteDestinationPath)) {
-        this.logger.debug(`Overwriting rename destination: ${remoteDestinationPath}`);
-        await this.delete(remoteDestinationPath);
-      }
+  async rename(remoteSourcePath: string, remoteDestinationPath: string): Promise<void> {
+    if (remoteSourcePath == remoteDestinationPath) {
+      this.logger.debug(`Origin and destination paths are the same. Nothing to do.`);
+      return;
+    }
+    if (await this.exists(remoteDestinationPath)) {
+      this.logger.debug(`Overwriting rename destination: ${remoteDestinationPath}`);
+      await this.delete(remoteDestinationPath);
     }
     await this.sftpClient.rename(remoteSourcePath, remoteDestinationPath);
   }
@@ -189,5 +170,4 @@ export class SftpClientService {
   async connect(config: ConnectConfig) {
     await this.sftpClient.connect(config);
   }
-
 }

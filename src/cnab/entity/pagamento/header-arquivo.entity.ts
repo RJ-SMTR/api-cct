@@ -23,6 +23,9 @@ export class HeaderArquivo extends EntityHelper {
     super();
     if (dto) {
       Object.assign(this, dto);
+      if (dto.dataGeracao) {
+        this.dataGeracao = new Date(this.dataGeracao);
+      }
     }
   }
 

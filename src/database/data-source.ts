@@ -18,7 +18,7 @@ export const AppDataSource = new DataSource({
   resourceArn: process.env.DATABASE_RESOURCE_ARN,
   dropSchema: false,
   keepConnectionAlive: true,
-  logging: process.env.NODE_ENV !== 'production',
+  logging: process.env.NODE_ENV !== 'production' || process.env.TYPEORM_LOGGING === 'true',
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
   cli: {

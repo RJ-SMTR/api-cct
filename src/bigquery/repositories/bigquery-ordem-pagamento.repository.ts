@@ -4,12 +4,11 @@ import { bigToNumber } from 'src/utils/pipe-utils';
 import { BigquerySource, BigqueryService } from '../bigquery.service';
 import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
 import { IBigqueryFindOrdemPagamento } from '../interfaces/bigquery-find-ordem-pagamento.interface';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class BigqueryOrdemPagamentoRepository {
-  private logger: Logger = new Logger('BigqueryOrdemPagamentoRepository', {
-    timestamp: true,
-  });
+  private logger = new CustomLogger('BigqueryOrdemPagamentoRepository', { timestamp: true });
 
   constructor(
     private readonly bigqueryService: BigqueryService,

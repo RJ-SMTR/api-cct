@@ -50,13 +50,15 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { formatErrMsg } from 'src/utils/log-utils';
 
 /**
  * User cases for CNAB and Payments
  */
 @Injectable()
 export class CnabService {
-  private logger: CustomLogger = new CustomLogger(CnabService.name, { timestamp: true });
+  private logger = new CustomLogger(CnabService.name, { timestamp: true });
 
   constructor(
     private arquivoPublicacaoService: ArquivoPublicacaoService, //
@@ -88,7 +90,7 @@ export class CnabService {
 
   /**
    * Obtém dados de OrdemPagamento e salva em ItemTransacao e afins, para gerar remessa.
-   * 
+   *
    * As datas de uma semana de pagamento são de sex-qui (D+1)
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
@@ -274,7 +276,9 @@ export class CnabService {
     const startDate = new Date();
     let count = 0;
     try {
+      await queryRunner.startTransaction();
       [, count] = await queryRunner.query(query);
+      await queryRunner.commitTransaction();
     } catch (error) {
       await queryRunner.rollbackTransaction();
     } finally {
@@ -319,7 +323,7 @@ export class CnabService {
       dataPagamento: ordem.dataPagamento,
       pagador: pagador,
       idOrdemPagamento: ordem.idOrdemPagamento,
-      status: new TransacaoStatus(TransacaoStatusEnum.created),
+      status: TransacaoStatus.fromEnum(TransacaoStatusEnum.created),
     });
     return transacao;
   }
@@ -497,7 +501,7 @@ export class CnabService {
     await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO, cnabHeaderArquivo);
     await this.transacaoAgService.save({
       id: transacaoAgId,
-      status: new TransacaoStatus(TransacaoStatusEnum.remessa),
+      status: TransacaoStatus.fromEnum(TransacaoStatusEnum.remessa),
     });
   }
 
@@ -524,32 +528,52 @@ export class CnabService {
    * @param folder Example: `/retorno`
    * @returns
    */
-  public async updateRetorno(folder?: string) {
+  public async updateRetorno(folder?: string, maxItems?: number) {
     const METHOD = this.updateRetorno.name;
-    let { cnabString, cnabName } = await this.sftpService.getFirstCnabRetorno(folder);
+    const INVALID_FOLDERS = ['/backup/retorno/success', '/backup/retorno/failed'];
+    if (folder && INVALID_FOLDERS.includes(folder)) {
+      throw CommonHttpException.message(`Não é possível ler retornos das pastas ${INVALID_FOLDERS}`);
+    }
+    let { cnabName, cnabString } = await this.sftpService.getFirstCnabRetorno(folder);
+    const cnabs: string[] = [];
+    const success: any[] = [];
+    const failed: any[] = [];
+    const startDate = new Date();
     while (cnabString) {
       if (!cnabName || !cnabString) {
         this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
         return;
       }
-
+      this.logger.log('Leitura de retornos iniciada...', METHOD);
+      const startDateItem = new Date();
       try {
         const retorno104 = parseCnab240Pagamento(cnabString);
+        cnabs.push(cnabName);
         await this.remessaRetornoService.saveRetorno(retorno104);
-        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess, cnabString);
-        const cnab = await this.sftpService.getFirstCnabRetorno(folder);
-        cnabString = cnab.cnabString;
-        cnabName = cnab.cnabName;
+        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess, cnabString, folder);
+        const durationItem = formatDateInterval(new Date(), startDateItem);
+        this.logger.log(`CNAB '${cnabName}' lido com sucesso - ${durationItem}`);
+        success.push(cnabName);
       } catch (error) {
-        this.logger.error(`Erro ao processar CNAB retorno, movendo para backup de erros e finalizando... - ${error}`, error.stack, METHOD);
+        const durationItem = formatDateInterval(new Date(), startDateItem);
+        this.logger.error(`Erro ao processar CNAB ${cnabName}. Movendo para backup de erros e finalizando - ${durationItem} - ${formatErrMsg(error)}`, error.stack, METHOD);
         if (!cnabName || !cnabString) {
           this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
           return;
         }
-        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoFailure, cnabString);
+        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoFailure, cnabString, folder);
+        failed.push(cnabName);
       }
+      const cnab = await this.sftpService.getFirstCnabRetorno(folder);
+      cnabString = cnab.cnabString;
+      cnabName = cnab.cnabName;
     }
-    return;
+    const duration = formatDateInterval(new Date(), startDate);
+    if (maxItems && cnabs.length >= maxItems) {
+      this.logger.log(`Leitura de retornos finalizou a leitura de ${cnabs.length}/${maxItems} CNABs - ${duration}`, METHOD);
+    }
+    this.logger.log(`Leitura de retornos finalizada com sucesso - ${duration}`, METHOD);
+    return { duration, cnabs: cnabs.length, success, failed };
   }
 
   /**

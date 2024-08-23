@@ -16,9 +16,7 @@ export enum BigquerySource {
 @Injectable()
 export class BigqueryService {
   private bigQueryInstances: Record<string, BigQuery> = {};
-  private logger: Logger = new CustomLogger(BigqueryService.name, {
-    timestamp: true,
-  });
+  private logger = new CustomLogger(BigqueryService.name, { timestamp: true });
 
   constructor(private configService: ConfigService<AllConfigType>) {
     const jsonCredentials = () => {
