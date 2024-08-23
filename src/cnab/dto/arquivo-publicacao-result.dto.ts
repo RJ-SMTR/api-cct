@@ -1,35 +1,34 @@
-import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
-import { Ocorrencia } from '../entity/pagamento/ocorrencia.entity';
 
-export class ArquivoPublicacaoResultDTO {
-  constructor(
-    dto: ArquivoPublicacao,
-    ocorrencias?: Ocorrencia[],
-  ) {
+/**
+ * DTO para enviar para a equipe de dados (Bigquery)
+ */
+export class ArquivoPublicacaoBigqueryDTO {
+  constructor(dto: any) {
     this.id = dto.id;
-    this.dataHoraGeracaoRetorno = (dto as any).dataGeracaoRetorno;
-    this.dataEfetivacao = dto.dataEfetivacao as Date;
-    this.dataVencimento = dto.dataVencimento as Date;
+    this.dataHoraGeracaoRetorno = dto.dataGeracaoRetorno;
+    this.dataEfetivacao = dto.dataEfetivacao;
+    this.dataVencimento = dto.dataVencimento;
     this.isPago = dto.isPago;
     this.valorRealEfetivado = dto.valorRealEfetivado || 0;
-    this.dataProcessamento = dto.itemTransacao.dataProcessamento;
-    this.dataCaptura = dto.itemTransacao.dataCaptura;
-    this.nomeConsorcio = dto.itemTransacao.nomeConsorcio as string;
-    this.valor = dto.itemTransacao.valor;
-    this.favorecido = dto.itemTransacao.clienteFavorecido.nome;
-    this.idOrdemPagamento = dto.itemTransacao.idOrdemPagamento as string;
-    this.idOperadora = dto.itemTransacao.idOperadora as string;
-    this.idConsorcio = dto.itemTransacao.idConsorcio as string;
-    this.nomeOperadora = dto.itemTransacao.nomeOperadora as string;
-    this.dataOrdem = dto.itemTransacao.dataOrdem;
-    this.ocorrencias = ocorrencias ? ocorrencias.map((i) => i.message) : [];
+    this.dataProcessamento = dto.dataProcessamento;
+    this.dataCaptura = dto.dataCaptura;
+    this.nomeConsorcio = dto.nomeConsorcio;
+    this.valor = dto.valor;
+    this.favorecido = dto.nome;
+    this.idOrdemPagamento = dto.idOrdemPagamento;
+    this.idOperadora = dto.idOperadora;
+    this.idConsorcio = dto.idConsorcio;
+    this.nomeOperadora = dto.nomeOperadora;
+    this.dataOrdem = dto.dataOrdem;
+    this.ocorrencias = dto.ocorrencias || [];
   }
 
   id?: number;
   dataHoraGeracaoRetorno: Date;
-  dataEfetivacao: Date;
+  dataEfetivacao: Date | null;
   dataVencimento: Date;
   isPago: boolean;
+  /** Se vier nulo no SQL o DTO retorna zero */
   valorRealEfetivado: number;
   dataProcessamento: Date;
   dataCaptura: Date;
@@ -40,7 +39,6 @@ export class ArquivoPublicacaoResultDTO {
   idOperadora: string;
   idConsorcio: string;
   nomeOperadora: string;
-  /** Filtros: dt_inicio, dt_fim */
   dataOrdem: Date;
   ocorrencias: string[];
 }

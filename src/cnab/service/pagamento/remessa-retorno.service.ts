@@ -487,23 +487,14 @@ export class RemessaRetornoService {
   // region compareRemessaToRetorno
 
   /**
-   * updateFromRemessaRetorno()
-   *
-   * From Remessa and Retorno, save new ArquivoPublicacao
-   *
-   * This task will:
-   * 1. Find all new Remessa
-   * 2. For each remessa get corresponding Retorno, HeaderLote and Detalhes
-   * 3. For each DetalheA, save new ArquivoPublicacao if not exists
+   * Após salvar retorno, atualiza ocorrências e publicacoes
    */
   public async compareRemessaToRetorno(detalheA: DetalheA, queryRunner: QueryRunner): Promise<void> {
-    //Inclui ocorrencias
-    await this.salvaOcorrenciasDetalheA(detalheA, queryRunner);
-    //Atualiza publicação
+    await this.saveOcorrenciasDetalheA(detalheA, queryRunner);
     await this.savePublicacaoRetorno(detalheA, queryRunner);
   }
 
-  async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
+  async saveOcorrenciasDetalheA(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
     if (!detalheARetorno.ocorrenciasCnab) {
       return;
     }
@@ -520,18 +511,10 @@ export class RemessaRetornoService {
     await this.ocorrenciaService.saveMany(ocorrencias, queryRunner);
   }
 
-  /**
-   * Atualizar publicacoes de retorno
-   */
   async savePublicacaoRetorno(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
     const publicacoes = await this.arquivoPublicacaoService.findManyRaw({
       itemTransacaoAgrupadoId: [detalheARetorno.itemTransacaoAgrupado.id],
     });
-    // const publicacoes = await this.arquivoPublicacaoService.findMany({
-    //   where: {
-    //     itemTransacao: { itemTransacaoAgrupado: { id: detalheARetorno.itemTransacaoAgrupado.id } },
-    //   },
-    // });
     for (const publicacao of publicacoes) {
       publicacao.isPago = detalheARetorno.isPago();
       if (publicacao.isPago) {

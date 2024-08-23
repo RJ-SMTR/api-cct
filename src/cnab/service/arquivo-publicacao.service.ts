@@ -10,6 +10,7 @@ import { OcorrenciaService } from './ocorrencia.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { IFindPublicacaoRelatorio } from 'src/relatorio/interfaces/find-publicacao-relatorio.interface';
 import { EntityHelper } from 'src/utils/entity-helper';
+import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-result.dto';
 
 export type ArquivoPublicacaoFields = 'savePublicacaoRetorno';
 
@@ -29,8 +30,12 @@ export class ArquivoPublicacaoService {
     return this.arquivoPublicacaoRepository.findManyRaw(where);
   }
 
-  public async findManyByDate(startDate: Date, endDate: Date) {
-    return await this.arquivoPublicacaoRepository.findManyByDate(startDate, endDate);
+  /**
+   * @param startDate dataVencimento
+   * @param endDate dataVencimento
+   */
+  public async findManyByDate(startDate: Date, endDate: Date, limit?: number, page?: number): Promise<ArquivoPublicacaoBigqueryDTO[]> {
+    return await this.arquivoPublicacaoRepository.findManyByDate(startDate, endDate, limit, page);
   }
 
   /**
