@@ -155,7 +155,7 @@ export class CnabService {
     let ordensFilter: BigqueryOrdemPagamentoDTO[];
     if (consorcio.trim() === 'Empresa') {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL');
-    } else if (consorcio.trim() === 'Van') {
+    } else if (consorcio.trim() === 'Van') {      
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() === 'STPC' || ordem.consorcio.trim() === 'STPL');
     } else {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio === consorcio.trim());
@@ -235,7 +235,9 @@ export class CnabService {
       if (!favorecido) {
         continue;
       }
-      await this.saveAgrupamentos(ordem, pagador, favorecido);
+      if(favorecido.cpfCnpj ==='38226936772'){
+        await this.saveAgrupamentos(ordem, pagador, favorecido);
+      }
     }
   }
 
