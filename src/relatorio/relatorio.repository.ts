@@ -241,7 +241,10 @@ export class RelatorioRepository {
                   WHERE tv."nomeConsorcio" in('STPC','STPL')  `;
                   
                   query = query +`  and tv."datetimeTransacao" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;
-                      
+                  
+                  if(favorecidoNome!==undefined && !(['Todos'].some(i=>favorecidoNome?.includes(i))))
+                    query = query +` and cf.nome in('${favorecidoNome?.join("','")}')`;
+
                   query = query + ` ) as cs `;   
 
                   query = query + ` group by cs."consorcio", cs."favorecido" `;
