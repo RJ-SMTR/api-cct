@@ -71,7 +71,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {        
+  async onModuleLoad() {          
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
@@ -141,24 +141,24 @@ export class CronJobsService {
           onTick: async () => await this.updateRetorno(),
         },
       },
-      // {
-      //   name: CrobJobsEnum.generateRemessaEmpresa,
-      //   cronJobParameters: {
-      //     cronTime: '0 14 * * 4', // Every Thursday, 14:00 GMT = 17:00 BRT (GMT-3)
-      //     onTick: async () => {
-      //       await this.generateRemessaEmpresa();
-      //     },
-      //   },
-      // },
-      // {
-      //   name: CrobJobsEnum.generateRemessaVan,
-      //   cronJobParameters: {
-      //     cronTime: '0 10 * * 5', // Every Friday, 10:00 GMT = 07:00 BRT (GMT-3)
-      //     onTick: async () => {
-      //       await this.generateRemessaVan();
-      //     },
-      //   },
-      // },
+      {
+        name: CronJobsEnum.generateRemessaEmpresa,
+        cronJobParameters: {
+          cronTime: '0 14 * * 4', // Every Thursday, 14:00 GMT = 17:00 BRT (GMT-3)
+          onTick: async () => {
+            await this.generateRemessaEmpresa();
+          },
+        },
+      },
+      {
+        name: CronJobsEnum.generateRemessaVan,
+        cronJobParameters: {
+          cronTime: '0 10 * * 5', // Every Friday, 10:00 GMT = 07:00 BRT (GMT-3)
+          onTick: async () => {
+            await this.generateRemessaVan();
+          },
+        },
+      },
       {
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
@@ -247,9 +247,7 @@ export class CronJobsService {
    */
   async generateRemessaVan(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaVan';
-    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
-      return;
-    }
+   
     const today = debug?.today || new Date();
     if (!isFriday(today)) {
       this.logger.error('Não implementado - Hoje não é sexta-feira. Abortando...', undefined, METHOD);
