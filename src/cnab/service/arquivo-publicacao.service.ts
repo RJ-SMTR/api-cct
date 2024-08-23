@@ -10,7 +10,7 @@ import { OcorrenciaService } from './ocorrencia.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { IFindPublicacaoRelatorio } from 'src/relatorio/interfaces/find-publicacao-relatorio.interface';
 import { EntityHelper } from 'src/utils/entity-helper';
-import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-result.dto';
+import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-bigquery.dto';
 
 export type ArquivoPublicacaoFields = 'savePublicacaoRetorno';
 
@@ -62,12 +62,10 @@ export class ArquivoPublicacaoService {
     const arquivo = new ArquivoPublicacao({
       ...(existing ? { id: existing.id } : {}),
       // Remessa
-      idTransacao: asNumber(itemTransacao.transacao?.id),
       itemTransacao: { id: itemTransacao.id },
       // Retorno
       isPago: false,
       dataGeracaoRetorno: null,
-      horaGeracaoRetorno: null,
       dataVencimento: startOfDay(friday),
       dataEfetivacao: null,
       valorRealEfetivado: null,

@@ -2,7 +2,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { Between, DataSource, DeepPartial, FindManyOptions, In, InsertResult, Repository } from 'typeorm';
-import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-result.dto';
+import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-bigquery.dto';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { DetalheAService } from '../service/pagamento/detalhe-a.service';
@@ -54,7 +54,7 @@ export class ArquivoPublicacaoRepository {
     const rawResult: any[] = await this.dataSource.query(
       `
     SELECT
-        ap.id, ap."dataGeracaoRetorno" AS "dataHoraGeracaoRetorno", ap."dataEfetivacao"::DATE, ap."dataVencimento"::DATE,
+        ap.id, ap."dataGeracaoRetorno", ap."dataEfetivacao"::DATE, ap."dataVencimento"::DATE,
         ap."isPago", ap."valorRealEfetivado"::FLOAT, it."dataProcessamento", it."dataCaptura", it."nomeConsorcio", it.valor::FLOAT,
         cf.nome AS favorecido, it."idOrdemPagamento", it."idOperadora", it."idConsorcio", it."nomeOperadora", 
         it."dataOrdem"::DATE, json_agg(DISTINCT oc.message) AS ocorrencias

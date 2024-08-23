@@ -525,7 +525,6 @@ export class RemessaRetornoService {
         publicacao.dataEfetivacao = null;
       }
       publicacao.dataGeracaoRetorno = detalheARetorno.headerLote.headerArquivo.dataGeracao;
-      publicacao.horaGeracaoRetorno = detalheARetorno.headerLote.headerArquivo.horaGeracao;
     }
     await this.arquivoPublicacaoService.updateManyRaw(publicacoes, 'savePublicacaoRetorno', queryRunner);
   }
