@@ -7,6 +7,7 @@ import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository,
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
+import { compactQuery } from 'src/utils/console-utils';
 
 export interface IClienteFavorecidoRawWhere {
   id?: number[];
@@ -144,7 +145,7 @@ export class ClienteFavorecidoRepository {
       qWhere.params = [];
     }
     const result: any[] = await this.clienteFavorecidoRepository.query(
-      `
+      compactQuery(`
       SELECT cf.*
       FROM cliente_favorecido cf
       ${where?.detalheANumeroDocumento ? `INNER JOIN item_transacao it ON it."clienteFavorecidoId" = cf.id
@@ -152,7 +153,7 @@ export class ClienteFavorecidoRepository {
       INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id` : ''}
       ${qWhere.query}
       ORDER BY cf.id
-    `,
+    `),
       qWhere.params,
     );
     const itens = result.map((i) => new ClienteFavorecido(i));

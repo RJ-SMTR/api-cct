@@ -34,7 +34,7 @@ export enum CronJobsEnum {
   updateTransacaoViewEmpresa = 'updateTransacaoViewEmpresa',
   updateTransacaoViewVan = 'updateTransacaoViewVan',
   updateTransacaoViewVLT = 'updateTransacaoViewVLT',
-  syncTransacaoViewOrdemPgto = 'sincronizeTransacaoViewOrdemPgto',
+  syncTransacaoViewOrdemPgto = 'syncTransacaoViewOrdemPgto',
   generateRemessaVLT = 'generateRemessaVLT',
   generateRemessaEmpresa = 'generateRemessaEmpresa',
   generateRemessaVan = 'generateRemessaVan',

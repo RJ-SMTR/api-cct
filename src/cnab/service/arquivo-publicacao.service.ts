@@ -11,6 +11,7 @@ import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { IFindPublicacaoRelatorio } from 'src/relatorio/interfaces/find-publicacao-relatorio.interface';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-bigquery.dto';
+import { compactQuery } from 'src/utils/console-utils';
 
 export type ArquivoPublicacaoFields = 'savePublicacaoRetorno';
 
@@ -93,7 +94,7 @@ export class ArquivoPublicacaoService {
     ) AS sub(${fieldNames.map((i) => (i == 'id' ? '_id' : `"${i}"`)).join(', ')})
     WHERE id = sub._id;
     `;
-    await queryRunner.manager.query(query);
+    await queryRunner.manager.query(compactQuery(query));
     return dtos.map((dto) => new ArquivoPublicacao(dto));
   }
 
