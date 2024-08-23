@@ -86,6 +86,58 @@ export class CnabService {
     private settingsService: SettingsService,
   ) {}
 
+  async getGenerateRemessa(args: {
+    dataOrdemInicial: Date; //
+    dataOrdemFinal: Date;
+    diasAnteriores: number;
+    consorcio: string;
+    dataPgto: Date | undefined;
+    isConference: boolean;
+    isCancelamento: boolean;
+    nsaInicial: number | undefined;
+    nsaFinal: number | undefined;
+    dataCancelamento: Date | undefined;
+  }) {
+    const METHOD = 'getGenerateRemessa';
+    const { consorcio, dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, diasAnteriores, isCancelamento, isConference, nsaFinal, nsaInicial } = args;
+    const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
+    const startDate = new Date();
+    let now = new Date();
+    this.logger.log('Tarefa iniciada', METHOD);
+
+    this.logger.log('saveTransacoesJae iniciado');
+    await this.saveTransacoesJae(dataOrdemInicial, dataOrdemFinal, diasAnteriores, consorcio);
+    duration.saveTransacoesJae = formatDateInterval(new Date(), now);
+    now = new Date();
+    this.logger.log(`saveTransacoesJae finalizado - ${duration.saveTransacoesJae}`);
+
+    this.logger.log('generateRemessa started');
+    const listCnab = await this.generateRemessa({
+      tipo: PagadorContaEnum.ContaBilhetagem, //
+      dataPgto,
+      isConference,
+      isCancelamento,
+      nsaInicial,
+      nsaFinal,
+      dataCancelamento,
+    });
+    duration.generateRemessa = formatDateInterval(new Date(), now);
+    now = new Date();
+    this.logger.log(`generateRemessa finalizado - ${duration.generateRemessa}`);
+
+    this.logger.log('sendRemessa started');
+    await this.sendRemessa(listCnab);
+    duration.sendRemessa = formatDateInterval(new Date(), now);
+    this.logger.log(`sendRemessa finalizado - ${duration.sendRemessa}`);
+
+    duration.total = formatDateInterval(new Date(), startDate);
+    this.logger.log(`Tarefa finalizada - ${duration.total}`);
+    return {
+      duration,
+      cnabs: listCnab,
+    };
+  }
+
   // #region saveTransacoesJae
 
   /**

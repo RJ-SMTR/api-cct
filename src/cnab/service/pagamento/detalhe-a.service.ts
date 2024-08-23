@@ -45,6 +45,9 @@ export class DetalheAService {
     return this.detalheARepository.saveManyIfNotExists(dtos);
   }
 
+  /**
+   * Salva DetalheA, PagamentosPendentes
+   */
   public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto, r: CnabRegistros104Pgto, dataEfetivacao: Date): Promise<DetalheA | null> {
     const logRegistro = `HeaderArquivo: ${headerArq.nsa.convertedValue}, lote: ${headerLotePgto.codigoRegistro.value}`;
     const favorecido = await this.clienteFavorecidoService.findOneRaw({
