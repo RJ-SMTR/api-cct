@@ -71,7 +71,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {        
+  async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
@@ -277,7 +277,7 @@ export class CronJobsService {
    * - Se hoje for demais dias, obter 1 dia anterior
    */
   public async generateRemessaVLT(debug?: ICronjobDebug) {
-    const METHOD = 'generateRemessaVLT';   
+    const METHOD = 'generateRemessaVLT';
     this.logger.log('Tarefa iniciada', METHOD);
     const today = debug?.today || new Date();
     const startDateLog = new Date();
@@ -306,7 +306,11 @@ export class CronJobsService {
   public async syncTransacaoViewOrdemPgto() {
     const METHOD = 'syncTransacaoViewOrdemPgto';
     try {
-      await this.cnabService.sincronizeTransacaoViewOrdemPgto(subDays(new Date(), 1).toString(), new Date().toString());
+      const yesterday = subDays(new Date(), 1).toISOString();
+      const today = new Date().toISOString();
+      this.logger.log(`Sincronizando TransacaoViews entre ${yesterday} e ${today}`, METHOD);
+      await this.cnabService.sincronizeTransacaoViewOrdemPgto(yesterday, today);
+      this.logger.log(`Trefa finalizada com sucesso.`, METHOD);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
