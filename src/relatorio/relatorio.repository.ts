@@ -44,6 +44,8 @@ export class RelatorioRepository {
 
               query = query + ` group by cs."consorcio"`
 
+              query = query + ` order by  cs."consorcio" `;
+
               query = query +  `) as resul where (1=1) `; 
                   
               if(valorMin!==undefined)
@@ -83,6 +85,8 @@ export class RelatorioRepository {
                 query = query +  `) as cs `;  
 
                 query = query + ` group by cs."consorcio"`
+
+                query = query + ` order by  cs."consorcio" `;
 
                 query = query +  `) as resul where (1=1) `; 
                   
@@ -131,6 +135,8 @@ export class RelatorioRepository {
 
             query = query + ` group by cs."consorcio"`
 
+            query = query + ` order by  cs."consorcio" `;
+
             query = query +  `) as resul where (1=1) `; 
                   
             if(valorMin!==undefined)
@@ -170,6 +176,8 @@ export class RelatorioRepository {
                  
                   query = query + ` group by cs."consorcio", cs."favorecido" `
 
+                  query = query + ` order by  cs."favorecido" `;
+
                   query = query +  `) as resul where (1=1) `; 
                   
                   if(valorMin!==undefined)
@@ -208,6 +216,8 @@ export class RelatorioRepository {
                   query = query +`) as cs `;   
 
                   query = query + ` group by cs."consorcio", cs."favorecido" `; 
+
+                  query = query + ` order by cs."favorecido" `;
                   
                   query = query +  `) as resul where (1=1) `; 
                   
@@ -236,6 +246,8 @@ export class RelatorioRepository {
 
                   query = query + ` group by cs."consorcio", cs."favorecido" `;
 
+                  query = query + ` order by  cs."favorecido" `;
+
                   query = query +  `) as resul where (1=1) `; 
                   
                   if(valorMin!==undefined)
@@ -250,44 +262,8 @@ export class RelatorioRepository {
   
   private getQueryOperadores(dataInicio:string,dataFim:string,pago?:boolean,valorMin?:number,
     valorMax?:number,favorecidoNome?:string[]){
-      let query = `
-      select * from (select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor
-               from (
-                select distinct ita.id AS id,
-                ita."nomeConsorcio" AS consorcio,	
-                cf.nome AS favorecido,
-                cf."cpfCnpj" AS favorecido_cpfcnpj,
-                ita."valor" AS valor_agrupado
-                from item_transacao_agrupado ita 	
-                inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
-                inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
-                inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-                WHERE ita."nomeConsorcio" in('STPC','STPL') `;
-                if(dataInicio!==undefined && dataFim!==undefined &&
-                  (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
-                  query = query + ` and ita."dataOrdem" between '${dataInicio}' and '${dataFim}'`;
-
-                if(pago!==undefined)
-                  query = query + ` and	ap."isPago"=${pago}`;                             
-              
-                if(favorecidoNome!==undefined && !(['Todos'].some(i=>favorecidoNome?.includes(i))))
-                  query = query +` and cf.nome in('${favorecidoNome?.join("','")}')`;
-         
-                query = query +`) as cs `;             
-               
-                query = query + ` group by cs."consorcio", cs."favorecido" `
-
-                query = query +  `) as resul where (1=1) `; 
-                
-                if(valorMin!==undefined)
-                  query = query +`  and resul."valor">=${valorMin}`;
-
-                if(valorMax!==undefined)
-                    query = query + ` and resul."valor"<=${valorMax}`;  
-
-           query = query + ` union all `;
-
-           query = query + ` select * from (
+      let query = 
+            ` select * from (
               select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor
                  from (
                   select distinct ita.id AS id,
@@ -316,9 +292,11 @@ export class RelatorioRepository {
                   if(favorecidoNome!==undefined && !(['Todos'].some(i=>favorecidoNome?.includes(i))))
                     query = query +` and cf.nome in('${favorecidoNome?.join("','")}')`;
 
-                    query = query +`) as cs `;
+                  query = query +  `) as cs `;                                   
 
                   query = query + ` group by cs."consorcio", cs."favorecido" `;
+
+                  query = query + ` order by  cs."favorecido" `;
 
                   query = query +  `) as resul where (1=1) `; 
                   
