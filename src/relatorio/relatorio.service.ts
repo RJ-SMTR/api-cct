@@ -3,7 +3,6 @@ import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio
 import { RelatorioRepository } from './relatorio.repository';
 import { RelatorioConsolidadoResultDto } from './dtos/relatorio-consolidado-result.dto';
 import { RelatorioAnaliticoResultDto } from './dtos/relatorio-analitico-result.dto';
-import { RelatorioConsolidadoDto } from './dtos/relatorio-consolidado.dto';
 import { RelatorioSinteticoResultDto } from './dtos/relatorio-sintetico-result.dto';
 
 @Injectable()
