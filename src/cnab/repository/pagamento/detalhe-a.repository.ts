@@ -10,6 +10,7 @@ import { DeepPartial, FindManyOptions, FindOneOptions, In, InsertResult, LessTha
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { getDateYMDString } from 'src/utils/date-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { compactQuery } from 'src/utils/console-utils';
 
 export interface IDetalheARawWhere {
   id?: number[];
@@ -87,7 +88,7 @@ export class DetalheARepository {
       qWhere.params = [where.numeroDocumentoEmpresa];
     }
     const result: any[] = await this.detalheARepository.query(
-      `
+      compactQuery(`
       SELECT
           da.id, da."createdAt", da."dataEfetivacao", da."dataVencimento", da."finalidadeDOC",
           da."indicadorBloqueio", da."indicadorFormaParcelamento", da."loteServico", da.nsr,
@@ -114,7 +115,7 @@ export class DetalheARepository {
       INNER JOIN transacao_status ts ON ts.id = ta."statusId"
       ${qWhere.query}
       ORDER BY da.id
-    `,
+    `),
       qWhere.params,
     );
     const detalhes = result.map((i) => new DetalheA(i));
@@ -161,30 +162,4 @@ export class DetalheARepository {
       })) + 1
     );
   }
-
-  /**
-   * For some reason the default eager of ClienteFavorecido doesnt get columns like cpfCnpj.
-   *
-   * So we query separately the Entity and use it.
-   */
-  // private async forceManyEager(detalhesA: DetalheA[]) {
-  //   const favorecidoIds = detalhesA.reduce(
-  //     (l, i) => [...l, i.clienteFavorecido.id],
-  //     [],
-  //   );
-  //   if (favorecidoIds.length === 0) {
-  //     return;
-  //   }
-  //   const favorecidos: ClienteFavorecido[] =
-  //     await this.detalheARepository.query(
-  //       `SELECT * from cliente_favorecido c WHERE c.id IN (${favorecidoIds.join(
-  //         ',',
-  //       )})`,
-  //     );
-  //   const favorecidosMap: Record<number, ClienteFavorecido> =
-  //     favorecidos.reduce((m, i) => ({ ...m, [i.id]: i }), {});
-  //   for (const one of detalhesA) {
-  //     one.clienteFavorecido = favorecidosMap[one.clienteFavorecido.id];
-  //   }
-  // }
 }

@@ -1,4 +1,5 @@
 import { Exclude } from 'class-transformer';
+import { SetValue } from 'src/utils/decorators/set-value.decorator';
 import { DeepPartial } from 'typeorm';
 
 export class RelatorioConsolidadoDto {
@@ -7,6 +8,7 @@ export class RelatorioConsolidadoDto {
       Object.assign(this, consolidado);
     }
   }
+  @SetValue(val=>+val.toFixed(2))
   valor: number = 0;
   nome: String;
   @Exclude()

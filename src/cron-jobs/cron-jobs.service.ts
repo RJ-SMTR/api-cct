@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { addDays, endOfDay, isFriday, isMonday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
+import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
@@ -34,7 +34,7 @@ export enum CronJobsEnum {
   updateTransacaoViewEmpresa = 'updateTransacaoViewEmpresa',
   updateTransacaoViewVan = 'updateTransacaoViewVan',
   updateTransacaoViewVLT = 'updateTransacaoViewVLT',
-  syncTransacaoViewOrdemPgto = 'sincronizeTransacaoViewOrdemPgto',
+  syncTransacaoViewOrdemPgto = 'syncTransacaoViewOrdemPgto',
   generateRemessaVLT = 'generateRemessaVLT',
   generateRemessaEmpresa = 'generateRemessaEmpresa',
   generateRemessaVan = 'generateRemessaVan',
@@ -159,16 +159,16 @@ export class CronJobsService {
       //     },
       //   },
       // },
-      // {
-      //   name: CrobJobsEnum.generateRemessaVLT,
-      //   cronJobParameters: {
-      //     cronTime: '0 10 * * *', // Every day, 07:00 GMT = 10:00 BRT (GMT-3)
-      //     onTick: async () => {
-      //       const today = new Date();
-      //       if (!isSaturday(today) && !isSunday(today)) await this.generateRemessaVLT();
-      //     },
-      //   },
-      // },
+      {
+        name: CronJobsEnum.generateRemessaVLT,
+        cronJobParameters: {
+          cronTime: '0 10 * * *', // Every day, 07:00 GMT = 10:00 BRT (GMT-3)
+          onTick: async () => {
+            const today = new Date();
+            if (!isSaturday(today) && !isSunday(today)) await this.generateRemessaVLT();
+          },
+        },
+      },
     );
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
@@ -278,9 +278,6 @@ export class CronJobsService {
    */
   public async generateRemessaVLT(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaVLT';
-    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
-      return;
-    }
     this.logger.log('Tarefa iniciada', METHOD);
     const today = debug?.today || new Date();
     const startDateLog = new Date();
@@ -309,7 +306,11 @@ export class CronJobsService {
   public async syncTransacaoViewOrdemPgto() {
     const METHOD = 'syncTransacaoViewOrdemPgto';
     try {
-      await this.cnabService.sincronizeTransacaoViewOrdemPgto(subDays(new Date(), 1).toString(), new Date().toString());
+      const yesterday = subDays(new Date(), 1).toISOString();
+      const today = new Date().toISOString();
+      this.logger.log(`Sincronizando TransacaoViews entre ${yesterday} e ${today}`, METHOD);
+      await this.cnabService.sincronizeTransacaoViewOrdemPgto(yesterday, today);
+      this.logger.log(`Trefa finalizada com sucesso.`, METHOD);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }

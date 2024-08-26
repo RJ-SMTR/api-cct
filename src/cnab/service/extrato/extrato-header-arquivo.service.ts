@@ -9,6 +9,7 @@ import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { DeepPartial, EntityManager } from 'typeorm';
 import { ExtratoDto } from '../dto/extrato.dto';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
+import { compactQuery } from 'src/utils/console-utils';
 
 @Injectable()
 export class ExtratoHeaderArquivoService {
@@ -87,7 +88,7 @@ export class ExtratoHeaderArquivoService {
         ? PagadorContaEnum.CETT
         : PagadorContaEnum.ContaBilhetagem;
 
-    const query = `
+    const query =  `
     SELECT dthe."dataLancamento",
       dthe.nsr AS processo,
       'Doc:'|| dthe."numeroInscricao"||'Ag.: '|| dthe.agencia || '-' || dthe."dvAgencia"||
@@ -105,6 +106,6 @@ export class ExtratoHeaderArquivoService {
         : ''
     }
     AND dthe."dataLancamento" between '${_dt_inicio}' AND '${_dt_fim}'`;
-    return await this.entityManager.query(query);
+    return await this.entityManager.query(compactQuery(query));
   }
 }

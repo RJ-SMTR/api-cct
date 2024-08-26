@@ -10,6 +10,8 @@ import { OcorrenciaService } from './ocorrencia.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { IFindPublicacaoRelatorio } from 'src/relatorio/interfaces/find-publicacao-relatorio.interface';
 import { EntityHelper } from 'src/utils/entity-helper';
+import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-bigquery.dto';
+import { compactQuery } from 'src/utils/console-utils';
 
 export type ArquivoPublicacaoFields = 'savePublicacaoRetorno';
 
@@ -29,8 +31,12 @@ export class ArquivoPublicacaoService {
     return this.arquivoPublicacaoRepository.findManyRaw(where);
   }
 
-  public async findManyByDate(startDate: Date, endDate: Date) {
-    return await this.arquivoPublicacaoRepository.findManyByDate(startDate, endDate);
+  /**
+   * @param startDate dataVencimento
+   * @param endDate dataVencimento
+   */
+  public async findManyByDate(startDate: Date, endDate: Date, limit?: number, page?: number): Promise<ArquivoPublicacaoBigqueryDTO[]> {
+    return await this.arquivoPublicacaoRepository.findManyByDate(startDate, endDate, limit, page);
   }
 
   /**
@@ -57,12 +63,10 @@ export class ArquivoPublicacaoService {
     const arquivo = new ArquivoPublicacao({
       ...(existing ? { id: existing.id } : {}),
       // Remessa
-      idTransacao: asNumber(itemTransacao.transacao?.id),
       itemTransacao: { id: itemTransacao.id },
       // Retorno
       isPago: false,
       dataGeracaoRetorno: null,
-      horaGeracaoRetorno: null,
       dataVencimento: startOfDay(friday),
       dataEfetivacao: null,
       valorRealEfetivado: null,
@@ -90,7 +94,7 @@ export class ArquivoPublicacaoService {
     ) AS sub(${fieldNames.map((i) => (i == 'id' ? '_id' : `"${i}"`)).join(', ')})
     WHERE id = sub._id;
     `;
-    await queryRunner.manager.query(query);
+    await queryRunner.manager.query(compactQuery(query));
     return dtos.map((dto) => new ArquivoPublicacao(dto));
   }
 

@@ -3,11 +3,87 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { RelatorioConsolidadoDto } from './dtos/relatorio-consolidado.dto';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class RelatorioRepository {
   constructor(@InjectDataSource()
               private readonly dataSource: DataSource) {}
+
+              private logger = new CustomLogger(RelatorioRepository.name, { timestamp: true });
+  
+  private getQueryAPagarConsorcio(dataInicio:string,dataFim:string,pago?:boolean,
+    valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){ 
+    let query =
+      `select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor
+             from ( select distinct ita.id AS id,
+              ita."nomeConsorcio" AS consorcio,	
+              cf.nome AS favorecido,
+              cf."cpfCnpj" AS favorecido_cpfcnpj,
+              ita."valor" AS valor_agrupado
+              from item_transacao_agrupado ita 	
+              inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
+              inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
+              inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
+              WHERE (1=1)  `;
+
+              if(dataInicio!==undefined && dataFim!==undefined && 
+                (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
+                query = query + ` and ita."dataOrdem" between '${dataInicio}' and '${dataFim}'`;
+
+              if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
+                query = query +` and ita."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;   
+              
+              query = query +`  and (ap."isPago"=false  or  ap."isPago" is null) `;
+                           
+              if(valorMin!==undefined)
+                query = query +` and ita."valor">=${valorMin}`;
+
+              if(valorMax!==undefined)
+                  query = query + ` and  ita."valor"<=${valorMax}`;              
+            
+            query = query +  `) as cs
+            group by cs."consorcio"` 
+
+            query = query + " union All ";
+
+            query = query + ` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor
+             from (
+              select distinct ita.id AS id,
+                ita."nomeConsorcio" AS consorcio,	
+                cf.nome AS favorecido,
+                cf."cpfCnpj" AS favorecido_cpfcnpj,
+                da."valorLancamento" AS valor_agrupado
+                from item_transacao_agrupado ita 
+                inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
+                inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
+                inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
+                inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
+              WHERE (1=1) `;
+
+              if(dataInicio!==undefined && dataFim!==undefined && 
+                (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
+                query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+
+              if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
+                query = query +` and ita."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;              
+              
+                query = query + ` and	ap."isPago"=false `;
+
+                query = query + ` and da."ocorrenciasCnab" is null `;
+              
+              if(valorMin!==undefined)
+                query = query +` and da."valorLancamento">=${valorMin}`;
+
+              if(valorMax!==undefined)
+                 query = query + ` and da."valorLancamento"<=${valorMax}`;              
+            
+            query = query +  `) as cs
+            group by cs."consorcio"`
+
+            this.logger.debug(query);           
+    return query;             
+  }  
   
   private getQueryConsorcio(dataInicio:string,dataFim:string,pago?:boolean,
     valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){ 
@@ -35,9 +111,10 @@ export class RelatorioRepository {
               
               if(pago!==undefined)
                 query = query + ` and	ap."isPago"=${pago}`;
-              
-              if(aPagar === true)
-                query = query + ` and	ap."isPago" is null `;              
+
+              if(pago ===false)
+                query = query + ` and da."ocorrenciasCnab" is not null
+                and  da."ocorrenciasCnab" not in('00','BD') `;
               
               if(valorMin!==undefined)
                 query = query +` and da."valorLancamento">=${valorMin}`;
@@ -50,8 +127,97 @@ export class RelatorioRepository {
     return query;             
   }
  
-  private getOperadores(dataInicio:string,dataFim:string,pago?:boolean,valorMin?:number,
-    valorMax?:number,favorecidoNome?:string[],aPagar?:boolean){
+  private getQueryAPagarOperadores(dataInicio:string,dataFim:string,pago?:boolean,valorMin?:number,
+    valorMax?:number,favorecidoNome?:string[]){
+    let query = `select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor
+                 from (
+                  select distinct ita.id AS id,
+                  ita."nomeConsorcio" AS consorcio,	
+                  cf.nome AS favorecido,
+                  cf."cpfCnpj" AS favorecido_cpfcnpj,
+                  ita."valor" AS valor_agrupado
+                  from item_transacao_agrupado ita 	
+                  inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
+                  inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
+                  inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
+                  WHERE ita."nomeConsorcio" in('STPC','STPL') `;
+                  if(dataInicio!==undefined && dataFim!==undefined &&
+                    (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
+                    query = query + ` and ita."dataOrdem" between '${dataInicio}' and '${dataFim}'`;
+
+                  query = query +` and	(ap."isPago"=false  or ap."isPago" is null)  `;
+
+                  if(valorMin!==undefined)
+                    query = query +` and ita."valor">=${valorMin}`;
+
+                  if(valorMax!==undefined)
+                   query = query + ` and ita."valor"<=${valorMax}`;
+                  
+                  if(favorecidoNome!==undefined && !(['Todos'].some(i=>favorecidoNome?.includes(i))))
+                    query = query +` and cf.nome in('${favorecidoNome?.join("','")}')`;
+            query = query +`) as cs
+            group by cs."consorcio", cs."favorecido"`;
+
+            query = query + ` union all `;
+
+            query = query + `select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor
+                 from (
+                  select distinct ita.id AS id,
+                  ita."nomeConsorcio" AS consorcio,	
+                  cf.nome AS favorecido,
+                  cf."cpfCnpj" AS favorecido_cpfcnpj,
+                  da."valorLancamento" AS valor_agrupado
+                  from transacao_view tv   
+                  inner join item_transacao_agrupado ita on tv."itemTransacaoAgrupadoId"=ita.id
+                  inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
+                  inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
+                  inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
+                  inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"	  			
+                  WHERE ita."nomeConsorcio" in('STPC','STPL') `;
+                  if(dataInicio!==undefined && dataFim!==undefined &&
+                    (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
+                    query = query +` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+
+                  query = query + ` and	ap."isPago"=false `;
+                
+                  query = query + ` and da."ocorrenciasCnab" is null `;
+                  
+                  if(valorMin!==undefined)
+                    query = query +` and da."valorLancamento">=${valorMin}`;
+
+                  if(valorMax!==undefined)
+                   query = query + ` and da."valorLancamento"<=${valorMax}`;
+                  
+                  if(favorecidoNome!==undefined && !(['Todos'].some(i=>favorecidoNome?.includes(i))))
+                    query = query +` and cf.nome in('${favorecidoNome?.join("','")}')`;
+
+            query = query +`) as cs
+            group by cs."consorcio", cs."favorecido" `;
+
+            query = query + ` union all `;
+
+            query = query + ` select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor
+                 from (
+                  select distinct tv.id AS id,
+                  tv."nomeConsorcio" AS consorcio,
+                  cf.nome AS favorecido,
+                  cf."cpfCnpj" AS favorecido_cpfcnpj,
+                  tv."valorTransacao" AS valor_agrupado
+                  from transacao_view tv                 
+                  inner join cliente_favorecido cf on cf."cpfCnpj" =tv."operadoraCpfCnpj"
+                  WHERE tv."nomeConsorcio" in('STPC','STPL')  `;
+                  
+            query = query +`  and tv."datetimeTransacao" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;
+                
+					  query = query + ` ) as cs 
+            group by cs."consorcio", cs."favorecido" `;
+
+            this.logger.debug(query);
+    return query;
+  }
+  
+  private getQueryOperadores(dataInicio:string,dataFim:string,pago?:boolean,valorMin?:number,
+    valorMax?:number,favorecidoNome?:string[]){
     let query = `select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor
                  from (
                   select distinct ita.id AS id,
@@ -72,37 +238,51 @@ export class RelatorioRepository {
 
                   if(pago!==undefined)
                     query = query + ` and	ap."isPago"=${pago}`;
-                  
-                  if(aPagar === true)
-                    query = query + ` and	ap."isPago" is null `;   
 
+                  if(pago ===false)
+                    query = query + ` and da."ocorrenciasCnab" is not null
+                    and  da."ocorrenciasCnab" not in('00','BD') `;
+                  
                   if(valorMin!==undefined)
                     query = query +` and da."valorLancamento">=${valorMin}`;
 
                   if(valorMax!==undefined)
                    query = query + ` and da."valorLancamento"<=${valorMax}`;
                   
-                  if(favorecidoNome!==undefined)
+                  if(favorecidoNome!==undefined && !(['Todos'].some(i=>favorecidoNome?.includes(i))))
                     query = query +` and cf.nome in('${favorecidoNome?.join("','")}')`;
+
             query = query +`) as cs
             group by cs."consorcio", cs."favorecido"`;
 
     return query;
-  }  
+  }
 
   public async findConsolidado(args: IFindPublicacaoRelatorio): Promise<RelatorioConsolidadoDto[]> {   
-    let queryConsorcio = ''
-    if(args.consorcioNome!==undefined){
+    let queryConsorcio = '';
+    if(args.aPagar === true && args.favorecidoNome ===undefined){
+      queryConsorcio = this.getQueryAPagarConsorcio(args.dataInicio.toISOString().slice(0,10),
+      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
+        args.valorMax,args.consorcioNome,args.aPagar);
+    }  
+
+    if((args.aPagar === undefined || args.aPagar === false) && 
+    (args.consorcioNome!==undefined || args.favorecidoNome === undefined)){
       queryConsorcio = this.getQueryConsorcio(args.dataInicio.toISOString().slice(0,10),
       args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
         args.valorMax,args.consorcioNome,args.aPagar);
-    }    
+    }   
    
     let queryOperadores ='';
+    if(args.aPagar === true){
+      queryOperadores = this.getQueryAPagarOperadores(args.dataInicio.toISOString().slice(0,10),
+      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
+        args.valorMax,args.favorecidoNome);
+    }  
 
-    if(args.consorcioNome==undefined){
-      queryOperadores = this.getOperadores(args.dataInicio.toISOString().slice(0,10),
-      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.favorecidoNome,args.aPagar); 
+    if((args.aPagar === undefined || args.aPagar === false) && (args.consorcioNome===undefined || args.favorecidoNome !==undefined)) {
+      queryOperadores = this.getQueryOperadores(args.dataInicio.toISOString().slice(0,10),
+      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,args.valorMax,args.favorecidoNome); 
     }
         
     if(queryConsorcio !=='' && queryOperadores!==''){   
@@ -110,6 +290,7 @@ export class RelatorioRepository {
     }   
     
     const query = queryConsorcio + queryOperadores;
+    this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     let result: any[] = await queryRunner.query(query);

@@ -1,6 +1,6 @@
-import { Controller, Get, HttpCode, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpCode, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
@@ -27,7 +27,12 @@ import { formatDateInterval } from 'src/utils/date-utils';
 export class CnabController {
   private logger = new CustomLogger(CnabController.name, { timestamp: true });
 
-  constructor(private readonly clienteFavorecidoService: ClienteFavorecidoService, private readonly extratoHeaderArquivoService: ExtratoHeaderArquivoService, private readonly arquivoPublicacaoService: ArquivoPublicacaoService, private readonly cnabService: CnabService) {}
+  constructor(
+    private readonly clienteFavorecidoService: ClienteFavorecidoService, //
+    private readonly extratoHeaderArquivoService: ExtratoHeaderArquivoService,
+    private readonly arquivoPublicacaoService: ArquivoPublicacaoService,
+    private readonly cnabService: CnabService,
+  ) {}
 
   @Get('clientes-favorecidos')
   @ApiQuery({ name: 'nome', description: 'Pesquisa por parte do nome, sem distinção de acento ou maiúsculas.', required: false, type: String, example: 'joao' })
@@ -38,7 +43,6 @@ export class CnabController {
     @Query('limit', new ParseNumberPipe({ min: 0, optional: true })) limit: number,
     @Query('page', new ParseNumberPipe({ min: 1, optional: true })) page: number,
   ): Promise<ClienteFavorecido[]> {
-    // const treatedNome = nome.map((n) => getStringUpperUnaccent(n));
     return this.clienteFavorecidoService.findBy({ nome, limit, page });
   }
 
@@ -60,19 +64,28 @@ export class CnabController {
     return await this.extratoHeaderArquivoService.getExtrato(conta, dt_inicio, dt_fim, tipoLancamento);
   }
 
+  @ApiOperation({ description: `Endpoint para a equipe de dados (Bigquery) realizar a leitura das publicacoes de pagamentos realizados.` })
   @ApiQuery({ name: 'dt_inicio', description: 'dataOrdem', required: true, type: String, example: '2024-01-01' })
   @ApiQuery({ name: 'dt_fim', description: 'dataOrdem', required: true, type: String, example: '2024-12-25' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('arquivoPublicacao')
   async getArquivoPublicacao(
-    @Query('dt_inicio', new ParseDatePipe()) dt_inicio: string, //
-    @Query('dt_fim', new ParseDatePipe()) dt_fim: string,
+    @Query('dt_inicio', new ParseDatePipe({ dateOnly: true, transform: true })) _dt_inicio: any, // Date
+    @Query('dt_fim', new ParseDatePipe({ dateOnly: true, transform: true })) _dt_fim: any, // Date
+    @Query('limit', new ParseNumberPipe({ min: 1, optional: true })) limit: number | undefined,
+    @Query('page', new ParseNumberPipe({ min: 1, optional: true })) page: number | undefined,
   ) {
-    return await this.arquivoPublicacaoService.findManyByDate(new Date(dt_inicio + ' '), new Date(dt_fim + ' '));
+    const dataInicio = _dt_inicio as Date;
+    const dataFim = _dt_fim as Date;
+    const result = await this.arquivoPublicacaoService.findManyByDate(dataInicio, dataFim, limit, page);
+    return result;
   }
 
+  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a geração e envio de remessa - que normalmente é feita via cronjob' })
   @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial - salvar transações', required: true, type: String, example: '2024-07-15' })
   @ApiQuery({ name: 'dataOrdemFinal', description: 'Data da Ordem de Pagamento Final - salvar transações', required: true, type: String, example: '2024-07-16' })
   @ApiQuery({ name: 'diasAnterioresOrdem', description: ApiDescription({ _: 'Procurar também por dias Anteriores a dataOrdemInicial - salvar transações', default: 0 }), required: false, type: Number, example: 7 })
@@ -85,38 +98,35 @@ export class CnabController {
   @ApiQuery({ name: 'dataCancelamento', description: ApiDescription({ _: 'Data de vencimento da transação a ser cancelada (DetalheA).', 'Required if': 'isCancelamento = true' }), required: false, type: String, example: '2024-07-16' })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.admin)
   @Get('generateRemessa')
   async getGenerateRemessa(
-    @Query('dataOrdemInicial', new ParseDatePipe({ transform: true })) dataOrdemInicial: Date, //
-    @Query('dataOrdemFinal', new ParseDatePipe({ transform: true })) dataOrdemFinal: Date,
+    @Query('dataOrdemInicial', new ParseDatePipe({ transform: true })) _dataOrdemInicial: any, // Date
+    @Query('dataOrdemFinal', new ParseDatePipe({ transform: true })) _dataOrdemFinal: any, // Date
     @Query('diasAnterioresOrdem', new ParseNumberPipe({ min: 0, defaultValue: 0 })) diasAnteriores: number,
     @Query('consorcio') consorcio: string,
-    @Query('dt_pagamento', new ParseDatePipe({ transform: true, optional: true })) dataPgto: Date | undefined,
+    @Query('dt_pagamento', new ParseDatePipe({ transform: true, optional: true })) _dataPgto: any, // Date | undefined
     @Query('isConference') isConference: boolean,
     @Query('isCancelamento') isCancelamento: boolean,
     @Query('nsaInicial', new ParseNumberPipe({ min: 1, optional: true })) nsaInicial: number | undefined,
     @Query('nsaFinal', new ParseNumberPipe({ min: 1, optional: true })) nsaFinal: number | undefined,
-    @Query('dataCancelamento', new ParseDatePipe({ transform: true, optional: true })) dataCancelamento: Date | undefined,
+    @Query('dataCancelamento', new ParseDatePipe({ transform: true, optional: true })) _dataCancelamento: any, // Date | undefined
   ) {
-    const METHOD = 'getGenerateRemessa';
+    const dataOrdemInicial = _dataOrdemInicial as Date;
+    const dataOrdemFinal = _dataOrdemFinal as Date;
+    const dataPgto = _dataOrdemFinal as Date | undefined;
+    const dataCancelamento = _dataCancelamento as Date | undefined;
+
     if (isCancelamento && !dataCancelamento) {
-      throw CommonHttpException.message('dataCancelamento é obrigatório se isCancelamento = true');
+      throw new BadRequestException('dataCancelamento é obrigatório se isCancelamento = true');
     }
-    const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
-    const startDate = new Date();
-    let now = new Date();
-    this.logger.log('Tarefa iniciada', METHOD);
 
-    this.logger.log('saveTransacoesJae iniciado');
-    await this.cnabService.saveTransacoesJae(dataOrdemInicial, dataOrdemFinal, diasAnteriores, consorcio);
-    duration.saveTransacoesJae = formatDateInterval(new Date(), now);
-    now = new Date();
-    this.logger.log(`saveTransacoesJae finalizado - ${duration.saveTransacoesJae}`);
-
-    this.logger.log('generateRemessa started');
-    const listCnab = await this.cnabService.generateRemessa({
-      tipo: PagadorContaEnum.ContaBilhetagem, //
+    return await this.cnabService.getGenerateRemessa({
+      dataOrdemInicial,
+      dataOrdemFinal,
+      diasAnteriores,
+      consorcio,
       dataPgto,
       isConference,
       isCancelamento,
@@ -124,25 +134,11 @@ export class CnabController {
       nsaFinal,
       dataCancelamento,
     });
-    duration.generateRemessa = formatDateInterval(new Date(), now);
-    now = new Date();
-    this.logger.log(`generateRemessa finalizado - ${duration.generateRemessa}`);
-
-    this.logger.log('sendRemessa started');
-    await this.cnabService.sendRemessa(listCnab);
-    duration.sendRemessa = formatDateInterval(new Date(), now);
-    this.logger.log(`sendRemessa finalizado - ${duration.sendRemessa}`);
-
-    duration.total = formatDateInterval(new Date(), startDate);
-    this.logger.log(`Tarefa finalizada - ${duration.total}`);
-    return {
-      duration,
-      cnabs: listCnab,
-    };
   }
 
-  @ApiQuery({ name: 'folder', description: ApiDescription({  _: 'Pasta para ler os retornos', default: '`/retorno`' }), required: false, type: String })
-  @ApiQuery({ name: 'maxItems', description: ApiDescription({  _: 'Número máximo de itens para ler', min: 1 }), required: false, type: Number })
+  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a leitura do retorno - que normalmente é feita via cronjob' })
+  @ApiQuery({ name: 'folder', description: ApiDescription({ _: 'Pasta para ler os retornos', default: '`/retorno`' }), required: false, type: String })
+  @ApiQuery({ name: 'maxItems', description: ApiDescription({ _: 'Número máximo de itens para ler', min: 1 }), required: false, type: Number })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -150,17 +146,19 @@ export class CnabController {
   @Get('updateRetorno')
   async getUpdateRetorno(
     @Query('folder') folder: string | undefined, //
-    @Query('maxItems', new ParseNumberPipe({ min: 1, optional: true})) maxItems: number | undefined,
+    @Query('maxItems', new ParseNumberPipe({ min: 1, optional: true })) maxItems: number | undefined,
   ) {
     return await this.cnabService.updateRetorno(folder, maxItems);
   }
 
+  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta o sincronismo de TransacaoView com as OrdensPagamento (ItemTransacaoAgrupado) - que normalmente é feia via cronjob' })
   @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial', required: true, type: Date })
   @ApiQuery({ name: 'dataOrdemFinal', description: 'Data da Ordem de Pagamento Final', required: true, type: Date })
   @ApiQuery({ name: 'nomeFavorecido', description: 'Lista de nomes dos favorecidos', required: false, type: String })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.admin)
   @Get('syncTransacaoViewOrdemPgto')
   async getSyncTransacaoViewOrdemPgto(
     @Query('dataOrdemInicial', new ParseDatePipe()) dataOrdemInicial: string, //
