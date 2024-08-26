@@ -7,11 +7,14 @@ import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository,
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
 import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
+import { compactQuery } from 'src/utils/console-utils';
 
 export interface IClienteFavorecidoRawWhere {
   id?: number[];
   nome?: string[];
   cpfCnpj?: string;
+  /** numeroDocumentoEmpresa */
+  detalheANumeroDocumento?: number[];
 }
 
 @Injectable()
@@ -125,7 +128,7 @@ export class ClienteFavorecidoRepository {
     return first || null;
   }
 
-  public async findOneRaw(where: IClienteFavorecidoRawWhere): Promise<ClienteFavorecido> {
+  public async findManyRaw(where: IClienteFavorecidoRawWhere): Promise<ClienteFavorecido[]> {
     const qWhere: { query: string; params?: any[] } = { query: '' };
     if (where.id) {
       qWhere.query = 'WHERE cf.id IN ($1)';
@@ -137,17 +140,23 @@ export class ClienteFavorecidoRepository {
       const nomes = where.nome.map((n) => `'%${n}%'`);
       qWhere.query = `WHERE cf.nome ILIKE ANY(ARRAY[${nomes.join(',')}])`;
       qWhere.params = [];
+    } else if (where.detalheANumeroDocumento) {
+      qWhere.query = `WHERE da."numeroDocumentoEmpresa" IN (${where.detalheANumeroDocumento.join(',')})`;
+      qWhere.params = [];
     }
     const result: any[] = await this.clienteFavorecidoRepository.query(
-      `
+      compactQuery(`
       SELECT cf.*
       FROM cliente_favorecido cf
+      ${where?.detalheANumeroDocumento ? `INNER JOIN item_transacao it ON it."clienteFavorecidoId" = cf.id
+      INNER JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
+      INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id` : ''}
       ${qWhere.query}
       ORDER BY cf.id
-    `,
+    `),
       qWhere.params,
     );
     const itens = result.map((i) => new ClienteFavorecido(i));
-    return itens[0];
+    return itens;
   }
 }

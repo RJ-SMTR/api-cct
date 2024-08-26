@@ -452,13 +452,13 @@ export class RemessaRetornoService {
     let detalheAUpdated: DetalheA | null = null;
     for (const cnabLote of cnab.lotes) {
       for (const registro of cnabLote.registros) {
-        const logRegistro = `HeaderArquivo: ${cnab.headerArquivo.nsa.convertedValue}, lote: ${cnabLote.headerLote.codigoRegistro.value}`; 
-        
+        const logRegistro = `HeaderArquivo: ${cnab.headerArquivo.nsa.convertedValue}, lote: ${cnabLote.headerLote.codigoRegistro.value}`;
+
         // Save Detalhes
         detalheAUpdated = await this.detalheAService.saveRetornoFrom104(cnab.headerArquivo, cnabLote.headerLote, registro, dataEfetivacao);
         if (!detalheAUpdated) {
           const numeroDocumento = registro.detalheA.numeroDocumentoEmpresa.convertedValue;
-          detalhesANaoEncontrados.push(numeroDocumento)
+          detalhesANaoEncontrados.push(numeroDocumento);
           continue;
         }
         this.logger.debug(logRegistro + ` Detalhe A Documento: ${detalheAUpdated.numeroDocumentoEmpresa}, favorecido: '${registro.detalheA.nomeTerceiro.value.trim()}' - OK`);
@@ -480,30 +480,21 @@ export class RemessaRetornoService {
       }
     }
     if (detalhesANaoEncontrados.length > 0) {
-      throw new NotFoundException(`Os seguintes DetalhesA do Retorno não foram encontrados no Banco (campo: no. documento) - ${detalhesANaoEncontrados.join(',')}`)
+      throw new NotFoundException(`Os seguintes DetalhesA do Retorno não foram encontrados no Banco (campo: no. documento) - ${detalhesANaoEncontrados.join(',')}`);
     }
   }
 
   // region compareRemessaToRetorno
 
   /**
-   * updateFromRemessaRetorno()
-   *
-   * From Remessa and Retorno, save new ArquivoPublicacao
-   *
-   * This task will:
-   * 1. Find all new Remessa
-   * 2. For each remessa get corresponding Retorno, HeaderLote and Detalhes
-   * 3. For each DetalheA, save new ArquivoPublicacao if not exists
+   * Após salvar retorno, atualiza ocorrências e publicacoes
    */
   public async compareRemessaToRetorno(detalheA: DetalheA, queryRunner: QueryRunner): Promise<void> {
-    //Inclui ocorrencias
-    await this.salvaOcorrenciasDetalheA(detalheA, queryRunner);
-    //Atualiza publicação
+    await this.saveOcorrenciasDetalheA(detalheA, queryRunner);
     await this.savePublicacaoRetorno(detalheA, queryRunner);
   }
 
-  async salvaOcorrenciasDetalheA(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
+  async saveOcorrenciasDetalheA(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
     if (!detalheARetorno.ocorrenciasCnab) {
       return;
     }
@@ -520,18 +511,10 @@ export class RemessaRetornoService {
     await this.ocorrenciaService.saveMany(ocorrencias, queryRunner);
   }
 
-  /**
-   * Atualizar publicacoes de retorno
-   */
   async savePublicacaoRetorno(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
     const publicacoes = await this.arquivoPublicacaoService.findManyRaw({
       itemTransacaoAgrupadoId: [detalheARetorno.itemTransacaoAgrupado.id],
     });
-    // const publicacoes = await this.arquivoPublicacaoService.findMany({
-    //   where: {
-    //     itemTransacao: { itemTransacaoAgrupado: { id: detalheARetorno.itemTransacaoAgrupado.id } },
-    //   },
-    // });
     for (const publicacao of publicacoes) {
       publicacao.isPago = detalheARetorno.isPago();
       if (publicacao.isPago) {
@@ -542,9 +525,8 @@ export class RemessaRetornoService {
         publicacao.dataEfetivacao = null;
       }
       publicacao.dataGeracaoRetorno = detalheARetorno.headerLote.headerArquivo.dataGeracao;
-      publicacao.horaGeracaoRetorno = detalheARetorno.headerLote.headerArquivo.horaGeracao;
-      await this.arquivoPublicacaoService.save(publicacao, queryRunner);
     }
+    await this.arquivoPublicacaoService.updateManyRaw(publicacoes, 'savePublicacaoRetorno', queryRunner);
   }
 
   async compareTransacaoViewPublicacao(detalheA: DetalheA, queryRunner: QueryRunner) {

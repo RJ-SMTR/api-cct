@@ -153,9 +153,7 @@ export class DetalheAConfRepository {
     }
     const favorecidos: ClienteFavorecido[] =
       await this.DetalheAConfRepository.query(
-        `SELECT * from cliente_favorecido c WHERE c.id IN (${favorecidoIds.join(
-          ',',
-        )})`,
+        `SELECT * from cliente_favorecido c WHERE c.id IN (${ favorecidoIds.join(',') })`, //
       );
     const favorecidosMap: Record<number, ClienteFavorecido> =
       favorecidos.reduce((m, i) => ({ ...m, [i.id]: i }), {});

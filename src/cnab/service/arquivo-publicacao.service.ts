@@ -9,6 +9,11 @@ import { ArquivoPublicacaoRepository, IArquivoPublicacaoRawWhere } from '../repo
 import { OcorrenciaService } from './ocorrencia.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
 import { IFindPublicacaoRelatorio } from 'src/relatorio/interfaces/find-publicacao-relatorio.interface';
+import { EntityHelper } from 'src/utils/entity-helper';
+import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-bigquery.dto';
+import { compactQuery } from 'src/utils/console-utils';
+
+export type ArquivoPublicacaoFields = 'savePublicacaoRetorno';
 
 @Injectable()
 export class ArquivoPublicacaoService {
@@ -16,11 +21,7 @@ export class ArquivoPublicacaoService {
     timestamp: true,
   });
 
-  constructor(
-    private arquivoPublicacaoRepository: ArquivoPublicacaoRepository,
-    private transacaoOcorrenciaService: OcorrenciaService,
-    private itemTransacaoService: ItemTransacaoService,
-  ) {}
+  constructor(private arquivoPublicacaoRepository: ArquivoPublicacaoRepository, private transacaoOcorrenciaService: OcorrenciaService, private itemTransacaoService: ItemTransacaoService) {}
 
   public findMany(options: FindManyOptions<ArquivoPublicacao>) {
     return this.arquivoPublicacaoRepository.findMany(options);
@@ -30,11 +31,12 @@ export class ArquivoPublicacaoService {
     return this.arquivoPublicacaoRepository.findManyRaw(where);
   }
 
-  public async findManyByDate(startDate: Date, endDate: Date) {
-    return await this.arquivoPublicacaoRepository.findManyByDate(
-      startDate,
-      endDate,
-    );
+  /**
+   * @param startDate dataVencimento
+   * @param endDate dataVencimento
+   */
+  public async findManyByDate(startDate: Date, endDate: Date, limit?: number, page?: number): Promise<ArquivoPublicacaoBigqueryDTO[]> {
+    return await this.arquivoPublicacaoRepository.findManyByDate(startDate, endDate, limit, page);
   }
 
   /**
@@ -42,9 +44,7 @@ export class ArquivoPublicacaoService {
    *
    * **status** is Created.
    */
-  async convertPublicacaoDTO(
-    itemTransacao: ItemTransacao,
-  ): Promise<ArquivoPublicacao> {
+  async convertPublicacaoDTO(itemTransacao: ItemTransacao): Promise<ArquivoPublicacao> {
     const existing = await this.arquivoPublicacaoRepository.findOne({
       where: {
         itemTransacao: {
@@ -63,12 +63,10 @@ export class ArquivoPublicacaoService {
     const arquivo = new ArquivoPublicacao({
       ...(existing ? { id: existing.id } : {}),
       // Remessa
-      idTransacao: asNumber(itemTransacao.transacao?.id),
       itemTransacao: { id: itemTransacao.id },
       // Retorno
       isPago: false,
       dataGeracaoRetorno: null,
-      horaGeracaoRetorno: null,
       dataVencimento: startOfDay(friday),
       dataEfetivacao: null,
       valorRealEfetivado: null,
@@ -76,10 +74,28 @@ export class ArquivoPublicacaoService {
     return arquivo;
   }
 
-  public async save(
-    dto: DeepPartial<ArquivoPublicacao>,queryRunner:QueryRunner
-  ): Promise<ArquivoPublicacao> {
+  public async save(dto: DeepPartial<ArquivoPublicacao>, queryRunner: QueryRunner): Promise<ArquivoPublicacao> {
     return await queryRunner.manager.getRepository(ArquivoPublicacao).save(dto);
+  }
+
+  public async updateManyRaw(dtos: DeepPartial<ArquivoPublicacao>[], fields: ArquivoPublicacaoFields, queryRunner: QueryRunner): Promise<ArquivoPublicacao[]> {
+    let fieldNames: string[] = [];
+    let fieldTypes: string[] = [];
+    if (fields == 'savePublicacaoRetorno') {
+      fieldNames = ['id', 'isPago', 'valorRealEfetivado', 'dataEfetivacao', 'dataGeracaoRetorno'];
+      fieldTypes = ['INT', 'BOOLEAN', 'NUMERIC', 'VARCHAR', 'TIMESTAMP'];
+    }
+    const fieldValues = dtos.map((dto) => `(${EntityHelper.getQueryFieldValues(dto, fieldNames, fieldTypes)})`).join(', ');
+    const query = `
+    UPDATE arquivo_publicacao
+    SET ${fieldNames.map((f) => `"${f}" = sub.${f == 'id' ? '_id' : `"${f}"`}`).join(', ')}, "updatedAt" = NOW()
+    FROM (
+        VALUES ${fieldValues}
+    ) AS sub(${fieldNames.map((i) => (i == 'id' ? '_id' : `"${i}"`)).join(', ')})
+    WHERE id = sub._id;
+    `;
+    await queryRunner.manager.query(compactQuery(query));
+    return dtos.map((dto) => new ArquivoPublicacao(dto));
   }
 
   /**
