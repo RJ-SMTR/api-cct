@@ -17,12 +17,12 @@ import { HttpResponse } from 'aws-sdk';
 export class RelatorioController {
   constructor(private relatorioService: RelatorioService) {}
 
-  @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String, example: '2024-07-15' })
-  @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String, example: '2024-07-16' })
-  @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome parcial dos favorecidos, sem distinção de acento ou maiúsculas.', required: false, type: String, example: 'internorte,intersul,jose carlos' })
-  @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String, example: 'Santa Cruz,STPL,Internorte,STPC,MobiRio,Transcarioca,Intersul,VLT' })
-  @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto.', required: false, type: Number, example: 12.0 })
-  @ApiQuery({ name: 'valorMax', description: 'Somatório do valor bruto.', required: false, type: Number, example: 12.99 })
+  @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
+  @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
+  @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome parcial dos favorecidos, sem distinção de acento ou maiúsculas.', required: false, type: String })
+  @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String })
+  @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto.', required: false, type: Number })
+  @ApiQuery({ name: 'valorMax', description: 'Somatório do valor bruto.', required: false, type: Number })
   @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
   @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
   @ApiBearerAuth()
@@ -81,9 +81,14 @@ export class RelatorioController {
     @Query('pago',new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,     
     @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined   
   ) {
-    return await this.relatorioService.findAnalitico({
-      dataInicio,dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar
-    });
+    try{
+      const result = await this.relatorioService.findAnalitico({
+        dataInicio,dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar
+      });
+      return result;
+    }catch(e){
+      return new HttpException({ error: e.message}, HttpStatus.BAD_REQUEST);
+    }     
   }
 
 }
