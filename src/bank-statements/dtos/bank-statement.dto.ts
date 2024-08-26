@@ -34,7 +34,7 @@ export class BankStatementDTO {
   status: string | null;
 
   /** Bank error message */
-  @SetValue((v) => Ocorrencia.toUserErrors(v))
+  @SetValue((v) => Ocorrencia.toUserValues(v))
   errors: Ocorrencia[];
 
   // Debug

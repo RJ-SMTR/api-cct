@@ -71,13 +71,7 @@ export class CronJobsService {
     });
   }
 
-<<<<<<< HEAD
-  async onModuleLoad() {     
-    await this.updateTransacaoView('VLT');
-    await this.generateRemessaVLT();     
-=======
   async onModuleLoad() {
->>>>>>> 68b477af2b80ce0fc5e32b2fb3703a4c182ed56c
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
