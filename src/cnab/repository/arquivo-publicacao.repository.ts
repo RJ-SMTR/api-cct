@@ -2,11 +2,12 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { Between, DataSource, DeepPartial, FindManyOptions, In, InsertResult, Repository } from 'typeorm';
-import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-result.dto';
+import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-bigquery.dto';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { DetalheAService } from '../service/pagamento/detalhe-a.service';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { compactQuery } from 'src/utils/console-utils';
 
 export interface IArquivoPublicacaoRawWhere {
   id?: number[];
@@ -52,21 +53,21 @@ export class ArquivoPublicacaoRepository {
   async findManyByDate(startDate: Date, endDate: Date, limit?: number, page?: number): Promise<ArquivoPublicacaoBigqueryDTO[]> {
     const offset = limit && page ? (page - 1) * limit : 0;
     const rawResult: any[] = await this.dataSource.query(
-      `
-    SELECT
-        ap.id, ap."dataGeracaoRetorno" AS "dataHoraGeracaoRetorno", ap."dataEfetivacao"::DATE, ap."dataVencimento"::DATE,
-        ap."isPago", ap."valorRealEfetivado"::FLOAT, it."dataProcessamento", it."dataCaptura", it."nomeConsorcio", it.valor::FLOAT,
-        cf.nome AS favorecido, it."idOrdemPagamento", it."idOperadora", it."idConsorcio", it."nomeOperadora", 
-        it."dataOrdem"::DATE, json_agg(DISTINCT oc.message) AS ocorrencias
-    FROM arquivo_publicacao ap
-    INNER JOIN item_transacao it ON it.id = ap."itemTransacaoId"
-    INNER JOIN cliente_favorecido cf ON cf.id = it."clienteFavorecidoId"
-    INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
-    INNER JOIN ocorrencia oc ON oc."detalheAId" = da.id
-    WHERE ap."dataVencimento"::DATE BETWEEN $1 AND $2
-    GROUP BY ap.id, it.id, cf.id
-    ${limit && page ? 'LIMIT $3 OFFSET $4' : ''}
-    `,
+      compactQuery(`
+        SELECT
+            ap.id, ap."dataGeracaoRetorno", ap."dataEfetivacao"::DATE, ap."dataVencimento"::DATE,
+            ap."isPago", ap."valorRealEfetivado"::FLOAT, it."dataProcessamento", it."dataCaptura", it."nomeConsorcio", it.valor::FLOAT,
+            cf.nome AS favorecido, it."idOrdemPagamento", it."idOperadora", it."idConsorcio", it."nomeOperadora", 
+            it."dataOrdem"::DATE, json_agg(DISTINCT oc.message) AS ocorrencias
+        FROM arquivo_publicacao ap
+        INNER JOIN item_transacao it ON it.id = ap."itemTransacaoId"
+        INNER JOIN cliente_favorecido cf ON cf.id = it."clienteFavorecidoId"
+        INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
+        INNER JOIN ocorrencia oc ON oc."detalheAId" = da.id
+        WHERE ap."dataVencimento"::DATE BETWEEN $1 AND $2
+        GROUP BY ap.id, it.id, cf.id
+        ${limit && page ? 'LIMIT $3 OFFSET $4' : ''}
+    `),
       [startDate, endDate, ...(limit && page ? [limit, offset] : [])],
     );
     const publicacoes = rawResult.map((i) => new ArquivoPublicacaoBigqueryDTO(i));
@@ -91,7 +92,7 @@ export class ArquivoPublicacaoRepository {
       qWhere.params = [];
     }
     const result: any[] = await this.arquivoPublicacaoRepository.query(
-      `
+      compactQuery(`
       SELECT
           ap.id, ap."createdAt", ap."dataEfetivacao", ap."dataGeracaoRetorno", ap."dataVencimento", ap."dataVencimento",
           ap."horaGeracaoRetorno", ap."idTransacao", ap."isPago", ap."updatedAt", ap."valorRealEfetivado",
@@ -105,7 +106,7 @@ export class ArquivoPublicacaoRepository {
       INNER JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
       ${qWhere.query}
       ORDER BY ap.id
-    `,
+    `),
       qWhere.params,
     );
     const itens = result.map((i) => new ArquivoPublicacao(i));

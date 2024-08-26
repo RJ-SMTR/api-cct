@@ -24,10 +24,6 @@ export class ArquivoPublicacao extends EntityHelper {
   id: number;
 
   /** Remessa */
-  @Column({ type: Number, unique: false, nullable: false })
-  idTransacao: number;
-
-  /** Remessa */
   @OneToOne(() => ItemTransacao, { nullable: true, eager: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_ArquivoPublicacao_itemTransacao_OneToOne',
@@ -38,13 +34,9 @@ export class ArquivoPublicacao extends EntityHelper {
   @Column({ type: Boolean, unique: false, nullable: false })
   isPago: boolean;
 
-  /** Retorno */
+  /** Retorno - dataHora geração retorno */
   @Column({ type: Date, unique: false, nullable: true })
   dataGeracaoRetorno: Date | null;
-
-  /** Retorno */
-  @Column({ type: Date, unique: false, nullable: true })
-  horaGeracaoRetorno: Date | null;
 
   /** Remessa CNAB. Sexta-feira de pagamento. */
   @Column({ type: String, unique: false, nullable: true })
