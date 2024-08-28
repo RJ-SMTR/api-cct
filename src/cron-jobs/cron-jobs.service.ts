@@ -313,10 +313,10 @@ export class CronJobsService {
   public async syncTransacaoViewOrdemPgto() {
     const METHOD = 'syncTransacaoViewOrdemPgto';
     try {
-      const yesterday = subDays(new Date(), 30);
+      const startDate = subDays(new Date(), 30);
       const today = new Date();
-      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(yesterday)} e ${formatDateYMD(today)}`, METHOD);
-      await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [yesterday, today] });
+      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, METHOD);
+      await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [startDate, today] });
       this.logger.log(`Trefa finalizada com sucesso.`, METHOD);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
