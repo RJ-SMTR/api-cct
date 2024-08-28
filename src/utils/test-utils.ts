@@ -39,10 +39,7 @@ export class TestUtils {
 
   static getTestModule() {
     return Test.createTestingModule({
-      imports: [
-        TypeOrmModule.forRoot(TestUtils.getTypeOrmModuleOptions()),
-        TypeOrmModule.forFeature([TransacaoView]),
-      ],
+      imports: [TypeOrmModule.forRoot(TestUtils.getTypeOrmModuleOptions()), TypeOrmModule.forFeature([TransacaoView])],
       // services here...
     });
   }
@@ -52,9 +49,7 @@ export class TestUtils {
 
     for (const entity of entities) {
       const repository = this.dataSource.getRepository(entity.name);
-      await repository.query(
-        `TRUNCATE TABLE ${entity.tableName} RESTART IDENTITY CASCADE;`,
-      );
+      await repository.query(`TRUNCATE TABLE ${entity.tableName} RESTART IDENTITY CASCADE;`);
     }
   }
 }
