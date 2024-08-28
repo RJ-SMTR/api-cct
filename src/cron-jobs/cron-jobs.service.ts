@@ -71,13 +71,7 @@ export class CronJobsService {
     });
   }
 
-<<<<<<< HEAD
-  async onModuleLoad() {     
-    await this.updateTransacaoView('VLT');
-    await this.generateRemessaVLT();     
-=======
-  async onModuleLoad() {
->>>>>>> 68b477af2b80ce0fc5e32b2fb3703a4c182ed56c
+  async onModuleLoad() {         
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
@@ -168,7 +162,7 @@ export class CronJobsService {
       {
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
-          cronTime: '0 10 * * *', // Every day, 07:00 GMT = 10:00 BRT (GMT-3)
+          cronTime: '0 8 * * *', // Every day, 05:00 GMT = 8:00 BRT (GMT-3)
           onTick: async () => {
             const today = new Date();
             if (!isSaturday(today) && !isSunday(today)) await this.generateRemessaVLT();
@@ -310,7 +304,7 @@ export class CronJobsService {
   public async syncTransacaoViewOrdemPgto() {
     const METHOD = 'syncTransacaoViewOrdemPgto';
     try {
-      const yesterday = subDays(new Date(), 1).toISOString();
+      const yesterday = subDays(new Date(), 30).toISOString();
       const today = new Date().toISOString();
       this.logger.log(`Sincronizando TransacaoViews entre ${yesterday} e ${today}`, METHOD);
       await this.cnabService.sincronizeTransacaoViewOrdemPgto(yesterday, today);
@@ -358,7 +352,7 @@ export class CronJobsService {
       try {
         this.logger.log('Iniciando tarefa.', METHOD);
         if (consorcio == 'Van') {
-          startDate = subHours(startDate, 2);
+          startDate = subDays(startDate, 2);
         } else if (consorcio == 'VLT') {
           startDate = subDays(startDate, 1);
         } else {
