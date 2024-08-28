@@ -152,7 +152,7 @@ export class TicketRevenuesGroupDto {
   /**
    * CNAB retorno error message list.
    */
-  @SetValue((v) => Ocorrencia.toUserErrors(v))
+  @SetValue((v) => Ocorrencia.toUserValues(v))
   errors: Ocorrencia[] = [];
 
   getIsEmpty() {

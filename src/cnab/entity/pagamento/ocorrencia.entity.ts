@@ -6,9 +6,9 @@ import { DetalheA } from './detalhe-a.entity';
 import { Exclude } from 'class-transformer';
 import { SetValue } from 'src/utils/decorators/set-value.decorator';
 
-const userErrors = ['AG', 'AL', 'AM', 'AN', 'AO', 'AS', 'BG', 'DA', 'DB', 'ZA', 'ZY', '02'];
+const USER_ERRORS = ['AG', 'AL', 'AM', 'AN', 'AO', 'AS', 'BG', 'DA', 'DB', 'ZA', 'ZY', '02'];
 
-const successOcorrencias = ['BD', '00'];
+const SUCCSESS_OCORRENCIAS = ['BD', '00'];
 
 @Entity()
 export class Ocorrencia extends EntityHelper {
@@ -37,11 +37,11 @@ export class Ocorrencia extends EntityHelper {
   })
   detalheA: DetalheA | null;
 
-  @SetValue((v, o) => Ocorrencia.toUserValues(o).code)
+  @SetValue((v, o) => Ocorrencia.toUserValue(o).code)
   @Column({ type: String, unique: false, nullable: false, length: 2 })
   code: string;
 
-  @SetValue((v, o) => Ocorrencia.toUserValues(o).message)
+  @SetValue((v, o) => Ocorrencia.toUserValue(o).message)
   @Column({ type: String, unique: false, nullable: false, length: 100 })
   message: string;
 
@@ -99,21 +99,22 @@ export class Ocorrencia extends EntityHelper {
     return joined;
   }
 
-  public static toUserValues(o: Ocorrencia) {
-    return Ocorrencia.isUserError(o) ? new Ocorrencia({ ...o, code: '  ', message: OcorrenciaEnum['  '] }) : o;
-  }
-
-  public static isUserError(o: Ocorrencia) {
-    return userErrors.includes(o.code);
-  }
-
   /**
    * Oculta erros técnicos do usuário, exibindo uma mensagem genérica no lugar
    */
-  public static toUserErrors(ocorrencias: Ocorrencia[]) {
-    let newOcorrencias = ocorrencias.map((j) => (!userErrors.includes(j.code) ? new Ocorrencia({ ...j, code: '  ', message: OcorrenciaEnum['  '] }) : j));
+  public static toUserValues(ocorrencias: Ocorrencia[]) {
+    let newOcorrencias = ocorrencias.map((j) => Ocorrencia.toUserValue(j));
     newOcorrencias = newOcorrencias.reduce((l: Ocorrencia[], j) => (l.map((k) => k.code).includes(j.code) ? l : [...l, j]), []);
     return newOcorrencias;
+  }
+
+  public static toUserValue(o: Ocorrencia) {
+    const result = Ocorrencia.isUserError(o) ? o : new Ocorrencia({ ...o, code: '  ', message: OcorrenciaEnum['  '] });
+    return result;
+  }
+
+  public static isUserError(o: Ocorrencia) {
+    return USER_ERRORS.includes(o.code);
   }
 
   public static isError(ocorrencia?: Partial<Ocorrencia> | null) {
