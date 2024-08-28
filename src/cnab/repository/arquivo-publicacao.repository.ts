@@ -95,7 +95,7 @@ export class ArquivoPublicacaoRepository {
       compactQuery(`
       SELECT
           ap.id, ap."createdAt", ap."dataEfetivacao", ap."dataGeracaoRetorno", ap."dataVencimento", ap."dataVencimento",
-          ap."horaGeracaoRetorno", ap."idTransacao", ap."isPago", ap."updatedAt", ap."valorRealEfetivado",
+          ap."isPago", ap."updatedAt", ap."valorRealEfetivado",
           json_build_object(
               'id', it.id,
               'valor', it.valor,
