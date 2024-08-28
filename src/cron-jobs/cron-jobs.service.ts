@@ -72,6 +72,7 @@ export class CronJobsService {
     });
   }
 
+
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
@@ -170,7 +171,7 @@ export class CronJobsService {
       {
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
-          cronTime: '0 10 * * *', // Every day, 07:00 GMT = 10:00 BRT (GMT-3)
+          cronTime: '0 8 * * *', // Every day, 05:00 GMT = 8:00 BRT (GMT-3)
           onTick: async () => {
             const today = new Date();
             if (!isSaturday(today) && !isSunday(today)) await this.generateRemessaVLT();
@@ -312,7 +313,7 @@ export class CronJobsService {
   public async syncTransacaoViewOrdemPgto() {
     const METHOD = 'syncTransacaoViewOrdemPgto';
     try {
-      const yesterday = subDays(new Date(), 1);
+      const yesterday = subDays(new Date(), 30);
       const today = new Date();
       this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(yesterday)} e ${formatDateYMD(today)}`, METHOD);
       await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [yesterday, today] });
@@ -360,7 +361,7 @@ export class CronJobsService {
       try {
         this.logger.log('Iniciando tarefa.', METHOD);
         if (consorcio == 'Van') {
-          startDate = subHours(startDate, 2);
+          startDate = subDays(startDate, 2);
         } else if (consorcio == 'VLT') {
           startDate = subDays(startDate, 1);
         } else {

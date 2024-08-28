@@ -310,9 +310,7 @@ export class CnabService {
       if (!favorecido) {
         continue;
       }
-      if (favorecido.cpfCnpj === '38226936772') {
-        await this.saveAgrupamentos(ordem, pagador, favorecido);
-      }
+      await this.saveAgrupamentos(ordem, pagador, favorecido);
     }
   }
 
