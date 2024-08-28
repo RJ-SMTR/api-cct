@@ -18,6 +18,7 @@ import { TRTimeIntervalEnum } from './enums/tr-time-interval.enum';
 import { TRGetMeGroupedResponseDto } from './interfaces/tr-get-me-grouped-response.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
 import { TicketRevenuesService } from './ticket-revenues.service';
+import { ParseYearMonthPipe } from 'src/utils/pipes/parse-year-month.pipe';
 
 @ApiTags('TicketRevenues')
 @Controller({
@@ -61,22 +62,17 @@ export class TicketRevenuesController {
   @HttpCode(HttpStatus.OK)
   @ApiQuery(PaginationApiParams.page)
   @ApiQuery(PaginationApiParams.limit)
-  @ApiQuery(DateApiParams.startDate)
-  @ApiQuery(DateApiParams.endDate)
-  @ApiQuery(DateApiParams.timeInterval)
-  @ApiQuery({
-    name: 'userId',
-    type: Number,
-    required: false,
-    description: ApiDescription({ default: 'Your logged user id (me)' }),
-  })
+  @ApiQuery({ name: 'startDate', required: false, description: ApiDescription({ hours: '00:00' }) })
+  @ApiQuery({ name: 'endDate', required: false, description: ApiDescription({ hours: '23:59:59.999' }) })
+  @ApiQuery({ name: 'timeInterval', required: false, description: ApiDescription({ default: TimeIntervalEnum.LAST_MONTH }), example: TimeIntervalEnum.LAST_MONTH, enum: TimeIntervalEnum })
+  @ApiQuery({ name: 'userId', type: Number, required: false, description: ApiDescription({ default: 'Your logged user id (me)' }) })
   async getMe(
     @Request() request,
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
     @Query('timeInterval') timeInterval: TimeIntervalEnum,
-    @Query('endDate', new ParseDatePipe()) endDate?: string,
-    @Query('startDate', new ParseDatePipe({ optional: true })) startDate?: string,
+    @Query('endDate', new ParseDatePipe({ optional: true })) endDate: string | undefined,
+    @Query('startDate', new ParseDatePipe({ optional: true })) startDate: string | undefined,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
     userId?: number | null,
   ): Promise<TRGetMeGroupedResponseDto> {
@@ -101,23 +97,16 @@ export class TicketRevenuesController {
   @UseGuards(AuthGuard('jwt'))
   @Get('/me/grouped')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery(DateApiParams.startDate)
-  @ApiQuery(DateApiParams.endDate)
-  @ApiQuery(DateApiParams.yearMonth)
-  @ApiQuery(DateApiParams.timeInterval)
-  @ApiQuery({
-    name: 'userId',
-    type: Number,
-    required: false,
-    description: ApiDescription({ default: 'Your logged user id (me)' }),
-  })
+  @ApiQuery({ name: 'startDate', required: false, description: ApiDescription({ hours: '00:00' }) })
+  @ApiQuery({ name: 'endDate', required: false, description: ApiDescription({ hours: '23:59:59.999' }) })
+  @ApiQuery({ name: 'yearMonth', required: false, example: '2024-01' })
+  @ApiQuery({ name: 'timeInterval', required: false, description: ApiDescription({ default: TimeIntervalEnum.LAST_MONTH }) })
+  @ApiQuery({ name: 'userId', type: Number, required: false, description: ApiDescription({ default: 'Your logged user id (me)' }) })
   async getMeGrouped(
     @Request() request,
-    @Query('endDate', new ParseDatePipe())
-    endDate?: string,
-    @Query('startDate', new ParseDatePipe())
-    startDate?: string,
-    @Query(...DateQueryParams.yearMonth) yearMonth?: string,
+    @Query('startDate', new ParseDatePipe({ optional: true })) startDate: string | undefined,
+    @Query('endDate', new ParseDatePipe({ optional: true })) endDate: string | undefined,
+    @Query('yearMonth', new ParseYearMonthPipe(true)) yearMonth?: string | undefined,
     @Query('timeInterval') timeInterval?: TimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
     userId?: number | null,
@@ -150,17 +139,15 @@ export class TicketRevenuesController {
     });
   }
 
-  @SerializeOptions({
-    groups: ['me'],
-  })
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
   @Get('/me/individual')
   @HttpCode(HttpStatus.OK)
+  @SerializeOptions({ groups: ['me'] })
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
   @ApiQuery(PaginationApiParams.page)
   @ApiQuery(PaginationApiParams.limit)
-  @ApiQuery(DateApiParams.startDate)
-  @ApiQuery(DateApiParams.endDate)
+  @ApiQuery({ name: 'startDate', required: false, description: ApiDescription({ hours: '00:00' }) })
+  @ApiQuery({ name: 'endDate', required: false, description: ApiDescription({ hours: '23:59:59.999' }) })
   @ApiQuery(DateApiParams.getTimeInterval(TRTimeIntervalEnum, TRTimeIntervalEnum.LAST_WEEK))
   @ApiQuery({
     name: 'userId',
@@ -172,8 +159,8 @@ export class TicketRevenuesController {
     @Request() request,
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
-    @Query(...DateQueryParams.endDate) endDate: string,
-    @Query(...DateQueryParams.startDate) startDate?: string,
+    @Query('startDate', new ParseDatePipe({ optional: true })) startDate: string | undefined,
+    @Query('endDate', new ParseDatePipe({ optional: true })) endDate: string | undefined,
     @Query('timeInterval') timeInterval?: TRTimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
     userId?: number | null,
