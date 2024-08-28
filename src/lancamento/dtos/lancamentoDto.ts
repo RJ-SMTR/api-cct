@@ -41,11 +41,11 @@ export class LancamentoDto {
   @IsNumberString()
   algoritmo: string;
 
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ type: Number, description: 'Valor de pagamento bloqueado.', example: 1 })
   @IsNumber()
   glosa: number;
 
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ type: Number, example: 1 })
   @IsNumber()
   recurso: number;
 
@@ -64,12 +64,8 @@ export class LancamentoDto {
   numero_processo: string;
 
   @ApiProperty({ type: Number, example: 2 })
-  @Transform((params) => ({
-    id: params.value,
-  }))
-  @ValidateValue((v) => isNumber(v.id) && v.id > 0, {
-    message: (v) =>
-      `Is not a number > 0 but ${v.value?.id} (type ${typeof v.value?.id})`,
-  })
-  id_cliente_favorecido: DeepPartial<ClienteFavorecido>;
+  @Transform((params) => ({ id: params.value }))
+  @ValidateValue((v) => {
+    return isNumber(v.id) && v.id > 0
+  }, { message: (v) => `Is not a number > 0 but ${v.value?.id} (type ${typeof v.value?.id})` })id_cliente_favorecido: DeepPartial<ClienteFavorecido>;
 }

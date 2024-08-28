@@ -57,19 +57,17 @@ export class LancamentoService {
   }
 
   async findByPeriod(
-    month: number | null = null,
-    period: number | null = null,
-    year: number | null = null,
-    authorized: number | null = null,
+    month?: number,
+    period?: number,
+    year?: number,
+    authorized?: number,
   ): Promise<ItfLancamento[]> {
     let startDate: Date | undefined;
     let endDate: Date | undefined;
 
     this.logger.debug(String(`Find Lancamento by period: ${period}`));
     if (
-      month !== null &&
-      period !== null &&
-      year !== null &&
+      month && period && year &&
       !isNaN(month) &&
       !isNaN(period) &&
       !isNaN(year) &&

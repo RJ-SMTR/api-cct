@@ -5,19 +5,16 @@ import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
+import { ParseListPipe } from 'src/utils/pipes/parse-list.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { CnabService } from './cnab.service';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
-import { PagadorContaEnum } from './enums/pagamento/pagador.enum';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ExtratoDto } from './service/dto/extrato.dto';
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
-import { ParseListPipe } from 'src/utils/pipes/parse-list.pipe';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { CustomLogger } from 'src/utils/custom-logger';
-import { formatDateInterval } from 'src/utils/date-utils';
 
 @ApiTags('Cnab')
 @Controller({
@@ -35,26 +32,31 @@ export class CnabController {
   ) {}
 
   @Get('clientes-favorecidos')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.master, RoleEnum.admin, RoleEnum.admin_finan, RoleEnum.lancador_financeiro, RoleEnum.aprovador_financeiro)
+  @ApiBearerAuth()
   @ApiQuery({ name: 'nome', description: 'Pesquisa por parte do nome, sem distinção de acento ou maiúsculas.', required: false, type: String, example: 'joao' })
+  @ApiQuery({ name: 'consorcio', description: 'Nome do consorcio - salvar transações', required: true, type: String, example: 'Todos / Van / Empresa /Nome Consorcio' })
   @ApiQuery({ name: 'limit', description: 'Itens exibidos por página', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'page', description: ApiDescription({ description: 'Itens exibidos por página', min: 1 }), required: false, type: Number, example: 1 })
   getClienteFavorecido(
     @Query('nome', new ParseArrayPipe({ items: String, separator: ',', optional: true })) nome: string[], //
-    @Query('limit', new ParseNumberPipe({ min: 0, optional: true })) limit: number,
-    @Query('page', new ParseNumberPipe({ min: 1, optional: true })) page: number,
+    @Query('consorcio') consorcio: string,
+    @Query('limit', new ParseNumberPipe({ min: 0, optional: true })) limit: number | undefined,
+    @Query('page', new ParseNumberPipe({ min: 1, optional: true })) page: number | undefined,
   ): Promise<ClienteFavorecido[]> {
     return this.clienteFavorecidoService.findBy({ nome, limit, page });
   }
 
+  @Get('extratoLancamento')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.master, RoleEnum.admin_finan, RoleEnum.lancador_financeiro, RoleEnum.aprovador_financeiro)
+  @ApiBearerAuth()
   @ApiQuery({ name: 'conta', required: true, type: String })
   @ApiQuery({ name: 'dt_inicio', required: true, type: String, example: '2024-01-01' })
   @ApiQuery({ name: 'dt_fim', required: true, type: String, example: '2024-12-25' })
   @ApiQuery({ name: 'tipo', required: false, type: String, example: 'cett' })
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(RoleEnum.master, RoleEnum.admin_finan, RoleEnum.lancador_financeiro, RoleEnum.aprovador_financeiro)
-  @Get('extratoLancamento')
   async getLancamentoExtrato(
     @Query('conta') conta: string, //
     @Query('dt_inicio', new ParseDatePipe()) dt_inicio: string,
@@ -64,15 +66,15 @@ export class CnabController {
     return await this.extratoHeaderArquivoService.getExtrato(conta, dt_inicio, dt_fim, tipoLancamento);
   }
 
+  @Get('arquivoPublicacao')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ description: `Endpoint para a equipe de dados (Bigquery) realizar a leitura das publicacoes de pagamentos realizados.` })
+  @ApiBearerAuth()
   @ApiQuery({ name: 'dt_inicio', description: 'dataOrdem', required: true, type: String, example: '2024-01-01' })
   @ApiQuery({ name: 'dt_fim', description: 'dataOrdem', required: true, type: String, example: '2024-12-25' })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
-  @Get('arquivoPublicacao')
   async getArquivoPublicacao(
     @Query('dt_inicio', new ParseDatePipe({ dateOnly: true, transform: true })) _dt_inicio: any, // Date
     @Query('dt_fim', new ParseDatePipe({ dateOnly: true, transform: true })) _dt_fim: any, // Date
@@ -85,7 +87,12 @@ export class CnabController {
     return result;
   }
 
+  @Get('generateRemessa')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.admin)
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a geração e envio de remessa - que normalmente é feita via cronjob' })
+  @ApiBearerAuth()
   @ApiQuery({ name: 'dataOrdemInicial', description: ApiDescription({ _: 'Data da Ordem de Pagamento Inicial - salvar transações', example: '2024-07-15' }), required: true, type: String })
   @ApiQuery({ name: 'dataOrdemFinal', description: ApiDescription({ _: 'Data da Ordem de Pagamento Final - salvar transações', example: '2024-07-16' }), required: true, type: String })
   @ApiQuery({ name: 'diasAnterioresOrdem', description: ApiDescription({ _: 'Procurar também por dias Anteriores a dataOrdemInicial - salvar transações', default: 0 }), required: false, type: Number, example: 7 })
@@ -96,11 +103,6 @@ export class CnabController {
   @ApiQuery({ name: 'nsaInicial', description: ApiDescription({ default: 'O NSA atual' }), required: false, type: Number })
   @ApiQuery({ name: 'nsaFinal', description: ApiDescription({ default: 'nsaInicial' }), required: false, type: Number })
   @ApiQuery({ name: 'dataCancelamento', description: ApiDescription({ _: 'Data de vencimento da transação a ser cancelada (DetalheA).', 'Required if': 'isCancelamento = true' }), required: false, type: String, example: '2024-07-16' })
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(RoleEnum.admin)
-  @Get('generateRemessa')
   async getGenerateRemessa(
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true })) _dataOrdemInicial: any, // Date
     @Query('dataOrdemFinal', new ParseDatePipe({ transform: true })) _dataOrdemFinal: any, // Date
@@ -136,14 +138,14 @@ export class CnabController {
     });
   }
 
-  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a leitura do retorno - que normalmente é feita via cronjob' })
-  @ApiQuery({ name: 'folder', description: ApiDescription({ _: 'Pasta para ler os retornos', default: '`/retorno`' }), required: false, type: String })
-  @ApiQuery({ name: 'maxItems', description: ApiDescription({ _: 'Número máximo de itens para ler', min: 1 }), required: false, type: Number })
+  @Get('updateRetorno')
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.admin)
-  @Get('updateRetorno')
+  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a leitura do retorno - que normalmente é feita via cronjob' })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'folder', description: ApiDescription({ _: 'Pasta para ler os retornos', default: '`/retorno`' }), required: false, type: String })
+  @ApiQuery({ name: 'maxItems', description: ApiDescription({ _: 'Número máximo de itens para ler', min: 1 }), required: false, type: Number })
   async getUpdateRetorno(
     @Query('folder') folder: string | undefined, //
     @Query('maxItems', new ParseNumberPipe({ min: 1, optional: true })) maxItems: number | undefined,
@@ -151,15 +153,14 @@ export class CnabController {
     return await this.cnabService.updateRetorno(folder, maxItems);
   }
 
+  @Get('syncTransacaoViewOrdemPgto')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.admin)
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta o sincronismo de TransacaoView com as OrdensPagamento (ItemTransacaoAgrupado) - que normalmente é feia via cronjob' })
   @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial', required: false, type: Date })
   @ApiQuery({ name: 'dataOrdemFinal', description: 'Data da Ordem de Pagamento Final', required: false, type: Date })
   @ApiQuery({ name: 'nomeFavorecido', description: 'Lista de nomes dos favorecidos', required: false, type: String })
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(RoleEnum.admin)
-  @Get('syncTransacaoViewOrdemPgto')
   async getSyncTransacaoViewOrdemPgto(
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true, optional: true })) dataOrdemInicial: Date | undefined, //
     @Query('dataOrdemFinal', new ParseDatePipe({ transform: true, optional: true })) dataOrdemFinal: Date | undefined,
