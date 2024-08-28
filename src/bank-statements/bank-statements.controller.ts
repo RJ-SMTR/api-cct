@@ -10,7 +10,7 @@ import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPagination } from 'src/utils/get-pagination';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { ValidateEnumPipe } from 'src/utils/pipes/validate-enum.pipe';
+import { ParseEnumPipe } from 'src/utils/pipes/validate-enum.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
 import { getRequestLog } from 'src/utils/request-utils';
@@ -60,12 +60,10 @@ export class BankStatementsController {
   @ApiQuery(CommonApiParams.userId)
   @HttpCode(HttpStatus.OK)
   async getMe(
-    @Request() request: IRequest,
+    @Request() request: IRequest, //
     @Query(...DateQueryParams.yearMonth) yearMonth: string,
-    @Query('timeInterval', new ValidateEnumPipe(BSMeTimeIntervalEnum, false, BSMeTimeIntervalEnum.LAST_MONTH))
-    timeInterval?: BSMeTimeIntervalEnum | undefined,
-    @Query('userId', new ParseNumberPipe({ min: 1, optional: true }))
-    userId?: number | null,
+    @Query('timeInterval', new ParseEnumPipe(BSMeTimeIntervalEnum, { optional: true, defaultValue: BSMeTimeIntervalEnum.LAST_MONTH })) timeInterval: BSMeTimeIntervalEnum | undefined,
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: true })) userId?: number | null,
   ): Promise<IBSGetMeResponse> {
     this.logger.log(getRequestLog(request));
 
@@ -118,7 +116,7 @@ export class BankStatementsController {
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
     @Query('endDate', new ParseDatePipe()) endDate: string,
-    @Query('timeInterval', new ValidateEnumPipe(BSMePrevDaysTimeIntervalEnum, true)) timeInterval: BSMePrevDaysTimeIntervalEnum,
+    @Query('timeInterval', new ParseEnumPipe(BSMePrevDaysTimeIntervalEnum)) timeInterval: BSMePrevDaysTimeIntervalEnum,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: true })) userId?: number | null,
   ): Promise<Pagination<IBSGetMePreviousDaysResponse>> {
     const isUserIdParam = userId !== null && !isNaN(Number(userId));

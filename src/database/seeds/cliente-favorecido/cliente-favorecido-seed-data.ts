@@ -1,8 +1,8 @@
-import { ClienteFavorecido } from "src/cnab/entity/cliente-favorecido.entity";
-import { TipoFavorecidoEnum } from "src/tipo-favorecido/tipo-favorecido.enum";
+import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 
 /**
- * Favorecidos from 
+ * Favorecidos from
  */
 export enum FavorecidoCpfCnpjEnum {
   /** Pagador is CB */
@@ -23,7 +23,7 @@ export const ClienteFavorecidoSeedData: ClienteFavorecido[] = [
     dvAgencia: '',
     contaCorrente: '13098785',
     dvContaCorrente: '7',
-    tipo: TipoFavorecidoEnum.consorcio,
+    tipo: TipoFavorecidoEnum.empresa,
   }),
   new ClienteFavorecido({
     nome: 'Consórcio Intersul Transportes',
@@ -33,7 +33,7 @@ export const ClienteFavorecidoSeedData: ClienteFavorecido[] = [
     dvAgencia: '',
     contaCorrente: '13080446',
     dvContaCorrente: '4',
-    tipo: TipoFavorecidoEnum.consorcio,
+    tipo: TipoFavorecidoEnum.empresa,
   }),
   new ClienteFavorecido({
     nome: 'Consórcio Internorte de Transportes',
@@ -43,7 +43,7 @@ export const ClienteFavorecidoSeedData: ClienteFavorecido[] = [
     dvAgencia: '',
     contaCorrente: '13004445',
     dvContaCorrente: '9',
-    tipo: TipoFavorecidoEnum.consorcio,
+    tipo: TipoFavorecidoEnum.empresa,
   }),
 
   new ClienteFavorecido({
@@ -54,7 +54,7 @@ export const ClienteFavorecidoSeedData: ClienteFavorecido[] = [
     dvAgencia: '',
     contaCorrente: '13010758',
     dvContaCorrente: '7',
-    tipo: TipoFavorecidoEnum.consorcio,
+    tipo: TipoFavorecidoEnum.empresa,
   }),
   new ClienteFavorecido({
     nome: 'Consórcio Santa Cruz Transportes',
@@ -64,7 +64,7 @@ export const ClienteFavorecidoSeedData: ClienteFavorecido[] = [
     dvAgencia: '',
     contaCorrente: '13004442',
     dvContaCorrente: '8',
-    tipo: TipoFavorecidoEnum.consorcio,
+    tipo: TipoFavorecidoEnum.empresa,
   }),
   new ClienteFavorecido({
     nome: 'Companhia Municipal de Transportes Coletivos CMTC Rio',
@@ -74,6 +74,6 @@ export const ClienteFavorecidoSeedData: ClienteFavorecido[] = [
     dvAgencia: '9',
     contaCorrente: '296001',
     dvContaCorrente: 'X',
-    tipo: TipoFavorecidoEnum.consorcio,
+    tipo: TipoFavorecidoEnum.empresa,
   }),
 ];

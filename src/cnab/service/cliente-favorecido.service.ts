@@ -20,9 +20,7 @@ export class ClienteFavorecidoService {
     timestamp: true,
   });
 
-  constructor(
-    private clienteFavorecidoRepository: ClienteFavorecidoRepository,
-  ) {}
+  constructor(private clienteFavorecidoRepository: ClienteFavorecidoRepository) {}
 
   /**
    * All ClienteFavoecidos will be created or updated from users based of cpfCnpj.
@@ -43,9 +41,7 @@ export class ClienteFavorecidoService {
     await this.clienteFavorecidoRepository.upsert(newFavorecidos);
   }
 
-  public async findBy(
-    where?: IClienteFavorecidoFindBy,
-  ): Promise<ClienteFavorecido[]> {
+  public async findBy(where?: IClienteFavorecidoFindBy): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.findManyBy(where);
   }
 
@@ -55,9 +51,7 @@ export class ClienteFavorecidoService {
     });
   }
 
-  public async findManyFromLancamentos(
-    lancamentos: LancamentoEntity[],
-  ): Promise<ClienteFavorecido[]> {
+  public async findManyFromLancamentos(lancamentos: LancamentoEntity[]): Promise<ClienteFavorecido[]> {
     const ids = [...new Set(lancamentos.map((i) => i.id_cliente_favorecido))];
     return await this.clienteFavorecidoRepository.findMany({
       where: {
@@ -66,17 +60,8 @@ export class ClienteFavorecidoService {
     });
   }
 
-  public async findManyFromOrdens(
-    ordens: BigqueryOrdemPagamentoDTO[],
-  ): Promise<ClienteFavorecido[]> {
-    const documentos = ordens.reduce(
-      (l, i) => [
-        ...l,
-        ...(i.consorcioCnpj ? [i.consorcioCnpj] : []),
-        ...(i.operadoraCpfCnpj ? [i.operadoraCpfCnpj] : []),
-      ],
-      [],
-    );
+  public async findManyFromOrdens(ordens: BigqueryOrdemPagamentoDTO[]): Promise<ClienteFavorecido[]> {
+    const documentos = ordens.reduce((l, i) => [...l, ...(i.consorcioCnpj ? [i.consorcioCnpj] : []), ...(i.operadoraCpfCnpj ? [i.operadoraCpfCnpj] : [])], []);
     const uniqueDocumentos = [...new Set(documentos)];
     return await this.clienteFavorecidoRepository.findMany({
       where: {
@@ -93,18 +78,12 @@ export class ClienteFavorecidoService {
     return await this.clienteFavorecidoRepository.findAll();
   }
 
-  public async getOneByIdClienteFavorecido(
-    idClienteFavorecido: number,
-  ): Promise<ClienteFavorecido> {
+  public async getOneByIdClienteFavorecido(idClienteFavorecido: number): Promise<ClienteFavorecido> {
     const cliente_favorecido = await this.clienteFavorecidoRepository.getOne({
       id: idClienteFavorecido,
     });
     if (!cliente_favorecido) {
-      throw CommonHttpException.errorDetails(
-        'cliente_favorecido.conta not found',
-        { pagadorConta: idClienteFavorecido },
-        HttpStatus.NOT_FOUND,
-      );
+      throw CommonHttpException.errorDetails('cliente_favorecido.conta not found', { pagadorConta: idClienteFavorecido }, HttpStatus.NOT_FOUND);
     } else {
       return cliente_favorecido;
     }
@@ -113,20 +92,13 @@ export class ClienteFavorecidoService {
   public async getClienteFavorecido(): Promise<ClienteFavorecido[]> {
     const cliente_favorecido = await this.clienteFavorecidoRepository.findAll();
     if (!cliente_favorecido) {
-      throw CommonHttpException.errorDetails(
-        'cliente_favorecido.conta not found',
-        {},
-        HttpStatus.NOT_FOUND,
-      );
+      throw CommonHttpException.errorDetails('cliente_favorecido.conta not found', {}, HttpStatus.NOT_FOUND);
     } else {
       return cliente_favorecido;
     }
   }
 
-  private async getManyFavorecidoDTOsFromUsers(
-    users: User[],
-    existingId_facorecido?: number,
-  ): Promise<SaveClienteFavorecidoDTO[]> {
+  private async getManyFavorecidoDTOsFromUsers(users: User[], existingId_facorecido?: number): Promise<SaveClienteFavorecidoDTO[]> {
     const newItems: SaveClienteFavorecidoDTO[] = [];
     for (const user of users) {
       const newItem: SaveClienteFavorecidoDTO = {
@@ -146,7 +118,7 @@ export class ClienteFavorecidoService {
         cep: null,
         complementoCep: null,
         uf: null,
-        tipo: TipoFavorecidoEnum.operadora,
+        tipo: TipoFavorecidoEnum.van,
       };
       await validateDTO(SaveClienteFavorecidoDTO, newItem);
       newItems.push(newItem);
@@ -154,10 +126,7 @@ export class ClienteFavorecidoService {
     return newItems;
   }
 
-  private async saveFavorecidoFromUser(
-    user: User,
-    existingId_facorecido?: number,
-  ): Promise<void> {
+  private async saveFavorecidoFromUser(user: User, existingId_facorecido?: number): Promise<void> {
     const saveObject: SaveClienteFavorecidoDTO = {
       id: existingId_facorecido,
       nome: asString(user.fullName),
@@ -175,22 +144,16 @@ export class ClienteFavorecidoService {
       cep: null,
       complementoCep: null,
       uf: null,
-      tipo: TipoFavorecidoEnum.operadora,
+      tipo: TipoFavorecidoEnum.van,
     };
     await validateDTO(SaveClienteFavorecidoDTO, saveObject);
     await this.clienteFavorecidoRepository.save(saveObject);
   }
 
-  public async getOne(
-    fields: EntityCondition<ClienteFavorecido>,
-  ): Promise<ClienteFavorecido> {
+  public async getOne(fields: EntityCondition<ClienteFavorecido>): Promise<ClienteFavorecido> {
     const cliente = await this.clienteFavorecidoRepository.getOne(fields);
     if (!cliente) {
-      throw CommonHttpException.errorDetails(
-        'cliente_favorecido.conta not found',
-        { pagadorConta: cliente },
-        HttpStatus.NOT_FOUND,
-      );
+      throw CommonHttpException.errorDetails('cliente_favorecido.conta not found', { pagadorConta: cliente }, HttpStatus.NOT_FOUND);
     } else {
       return cliente;
     }
@@ -200,12 +163,10 @@ export class ClienteFavorecidoService {
     return await this.clienteFavorecidoRepository.findOneByNome(nome);
   }
 
-  public async findOne(
-    options: FindOneOptions<ClienteFavorecido>,
-  ): Promise<ClienteFavorecido | null> {
+  public async findOne(options: FindOneOptions<ClienteFavorecido>): Promise<ClienteFavorecido | null> {
     return await this.clienteFavorecidoRepository.findOne(options);
   }
-  
+
   public async findOneRaw(where: IClienteFavorecidoRawWhere): Promise<ClienteFavorecido | null> {
     const result = await this.clienteFavorecidoRepository.findManyRaw(where);
     return result?.[0] || null;

@@ -97,6 +97,7 @@ export class ClienteFavorecidoRepository {
   public async findManyBy(where?: IClienteFavorecidoFindBy): Promise<ClienteFavorecido[]> {
     let isFirstWhere = false;
     let qb = this.clienteFavorecidoRepository.createQueryBuilder('favorecido');
+
     function cmd() {
       if (isFirstWhere) {
         isFirstWhere = false;
@@ -105,11 +106,21 @@ export class ClienteFavorecidoRepository {
         return 'andWhere';
       }
     }
+
     if (where?.nome?.length) {
       for (const nome of where.nome) {
         qb = qb[cmd()]('favorecido."nome" ILIKE UNACCENT(UPPER(:nome))', {
           nome: `%${nome}%`,
         });
+      }
+    }
+
+    if (where?.consorcio) {
+      const consorcio = where.consorcio;
+      if (consorcio === 'Van') {
+        qb = qb[cmd()](' favorecido.tipo = :tipo', { tipo: 'vanzeiro' });
+      } else if (consorcio === 'Empresa') {
+        qb = qb[cmd()](' favorecido.tipo = :tipo', { tipo: 'consorcio'});
       }
     }
 
@@ -148,9 +159,13 @@ export class ClienteFavorecidoRepository {
       compactQuery(`
       SELECT cf.*
       FROM cliente_favorecido cf
-      ${where?.detalheANumeroDocumento ? `INNER JOIN item_transacao it ON it."clienteFavorecidoId" = cf.id
+      ${
+        where?.detalheANumeroDocumento
+          ? `INNER JOIN item_transacao it ON it."clienteFavorecidoId" = cf.id
       INNER JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
-      INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id` : ''}
+      INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id`
+          : ''
+      }
       ${qWhere.query}
       ORDER BY cf.id
     `),
