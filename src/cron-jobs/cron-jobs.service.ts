@@ -85,7 +85,7 @@ export class CronJobsService {
           onTick: async () => await this.pollDb(),
         },
       },
-      {
+      { 
         name: CronJobsEnum.bulkSendInvites,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),

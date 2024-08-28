@@ -328,7 +328,7 @@ export class RelatorioRepository {
     }   
    
     let queryOperadores ='';
-    if(args.aPagar === true){
+    if(args.aPagar === true && args.consorcioNome===undefined){
       queryOperadores = this.getQueryAPagarOperadores(args.dataInicio.toISOString().slice(0,10),
       args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
         args.valorMax,args.favorecidoNome);
