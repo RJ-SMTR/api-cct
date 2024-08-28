@@ -4,11 +4,23 @@ import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, O
 import { ItemTransacao } from './pagamento/item-transacao.entity';
 import { isSameDay } from 'date-fns';
 
+
+export interface IArquivoPublicacao {
+  id: number;
+  itemTransacao: ItemTransacao;
+  isPago: boolean;
+  dataGeracaoRetorno: Date | null;
+  dataVencimento: Date | null;
+  dataEfetivacao: Date | null;
+  valorRealEfetivado: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 /**
  * Unique Jaé FK: idOrdemPagamento, idConsorcio, idOperadora
  */
 @Entity()
-export class ArquivoPublicacao extends EntityHelper {
+export class ArquivoPublicacao extends EntityHelper implements IArquivoPublicacao {
   constructor(arquivoPublicacao: DeepPartial<ArquivoPublicacao>) {
     super();
     if (arquivoPublicacao !== undefined) {

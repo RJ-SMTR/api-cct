@@ -19,7 +19,7 @@ import { completeCPFCharacter } from 'src/utils/cpf-cnpj';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { formatDateInterval, yearMonthDayToDate } from 'src/utils/date-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { Between, DataSource, QueryRunner } from 'typeorm';
+import { Between, DataSource, DeepPartial, In, IsNull, Not, QueryRunner } from 'typeorm';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
 import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
@@ -52,6 +52,10 @@ import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { formatErrMsg } from 'src/utils/log-utils';
+import e from 'express';
+import { getChunks } from 'src/utils/array-utils';
+import { isContent, isNotContent } from 'src/utils/type-utils';
+import { ISyncOrdemPgto } from 'src/transacao-bq/interfaces/sync-form-ordem.interface';
 
 /**
  * User cases for CNAB and Payments
@@ -138,6 +142,69 @@ export class CnabService {
     };
   }
 
+  /**
+   * Atualiza valores nulos com o Bigquery
+   */
+  async updateTransacaoViewBigqueryValues() {
+    const METHOD = 'updateTransacaoViewBigqueryValues';
+    const startDate = new Date();
+    const result = { updated: 0, duration: '00:00:00' };
+    this.logger.log(`Tarefa iniciada`, METHOD);
+    const chunk = 2000;
+
+    let allTransacoesView: any[] = await this.transacaoViewService.findUpdateValues();
+    const max = allTransacoesView.length;
+    allTransacoesView = getChunks(allTransacoesView, chunk);
+    for (const transacoesView of allTransacoesView as TransacaoView[][]) {
+      const tvIds = transacoesView.map((i) => i.idTransacao);
+      const transacaoBq = await this.bigqueryTransacaoService.findMany({ id_transacao: tvIds, valor_pagamento: 'NOT NULL' });
+      const bqIds = transacaoBq.map((i) => i.id_transacao);
+      const updateDtos = transacoesView
+        .filter((tv) => bqIds.includes(tv.idTransacao))
+        .map(
+          (tv) =>
+            ({
+              id: tv.id,
+              idTransacao: tv.idTransacao,
+              valorPago: transacaoBq.find((bq) => bq.id_transacao == tv.idTransacao)?.valor_pagamento,
+            } as DeepPartial<TransacaoView>),
+        );
+      const updated = await this.transacaoViewService.updateManyRaw(updateDtos, ['valorPago'], 'id');
+      result.updated += updated;
+      result.duration = formatDateInterval(new Date(), startDate);
+      const percent = ((result.updated / max) * 100).toFixed(2).padStart(5, '0');
+      const index = (result.updated / 1000).toFixed(2);
+      const maxIndex = (max / 1000).toFixed(2);
+      this.logger.log(`Atualizado ${percent}%, ${index}/${maxIndex}K itens - ${result.duration}`, METHOD);
+    }
+    // await this.transacaoViewService.findPaginated(
+    //   { valorPago: IsNull() },
+    //   chunk,
+    //   async (transacoesView, count) => {
+
+    //   },
+    //   false,
+    // );
+
+    //   await queryRunner.commitTransaction();
+    // } catch (error) {
+    //   await queryRunner.rollbackTransaction();
+    //   this.logger.error(`Falha ao salvar Informções agrupadas`, error?.stack);
+    // } finally {
+    //   await queryRunner.release();
+    // }
+
+    this.logger.log(`Tarefa finalizada - ${result.duration}`, METHOD);
+    return result;
+  }
+
+  async deduplicateTransacaoView() {
+    const startDate = new Date();
+    const removed = await this.transacaoViewService.removeDuplicates();
+    const duration = formatDateInterval(new Date(), startDate);
+    return { removed, duration };
+  }
+
   // #region saveTransacoesJae
 
   /**
@@ -155,7 +222,7 @@ export class CnabService {
     let ordensFilter: BigqueryOrdemPagamentoDTO[];
     if (consorcio.trim() === 'Empresa') {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL');
-    } else if (consorcio.trim() === 'Van') {      
+    } else if (consorcio.trim() === 'Van') {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() === 'STPC' || ordem.consorcio.trim() === 'STPL');
     } else {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio === consorcio.trim());
@@ -163,35 +230,43 @@ export class CnabService {
     await this.saveOrdens(ordensFilter);
   }
 
-  async updateTransacaoViewBigqueryLimit(trsBq: BigqueryTransacao[], queryRunner: QueryRunner) {
-    for (const trBq of trsBq) {
-      const tr = TransacaoView.fromBigqueryTransacao(trBq);
-      if (tr.modo && tr.nomeOperadora) {
-        const existing = await this.transacaoViewService.find({ idTransacao: tr.idTransacao });
-        if (existing.length === 0) {
-          this.logger.debug(tr.idTransacao);
-          await queryRunner.manager.getRepository(TransacaoView).save(tr);
-        }
-      }
-    }
-  }
-
   /**
    * Atualiza a tabela TransacaoView
    */
-  async updateTransacaoViewBigquery(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string = 'Todos') {
+  async updateTransacaoViewBigquery(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string = 'Todos', idTransacao: string[] = []) {
     const trs = await this.getTransacoesBQ(dataOrdemIncial, dataOrdemFinal, daysBack, consorcio);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       await queryRunner.startTransaction();
-      await this.updateTransacaoViewBigqueryLimit(trs, queryRunner);
+      await this.updateTransacaoViewBigqueryLimit(trs, queryRunner, idTransacao);
       await queryRunner.commitTransaction();
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Falha ao salvar Informções agrupadas`, error?.stack);
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  async updateTransacaoViewBigqueryLimit(trsBq: BigqueryTransacao[], queryRunner: QueryRunner, idTransacao: string[] = []) {
+    const trsFilter = idTransacao.length ? trsBq.filter((i) => idTransacao.includes(i.id_transacao)) : trsBq;
+    for (const trBq of trsFilter) {
+      const tr = TransacaoView.fromBigqueryTransacao(trBq);
+      if (tr.modo && tr.nomeOperadora) {
+        const existing = await this.transacaoViewService.find({ idTransacao: In(idTransacao) });
+        if (existing.length === 0) {
+          this.logger.debug(tr.idTransacao);
+          await queryRunner.manager.getRepository(TransacaoView).save(tr);
+        } else {
+          if (existing.length > 1) {
+            await queryRunner.manager.getRepository(TransacaoView).remove(existing.slice(1));
+          }
+          if (existing[0].valorPago == 0 && tr.valorPago != existing[0].valorPago) {
+            await queryRunner.manager.getRepository(TransacaoView).update({ idTransacao: tr.idTransacao }, { valorPago: tr.valorPago });
+          }
+        }
+      }
     }
   }
 
@@ -235,7 +310,7 @@ export class CnabService {
       if (!favorecido) {
         continue;
       }
-      if(favorecido.cpfCnpj ==='38226936772'){
+      if (favorecido.cpfCnpj === '38226936772') {
         await this.saveAgrupamentos(ordem, pagador, favorecido);
       }
     }
@@ -294,50 +369,12 @@ export class CnabService {
     }
   }
 
-  async sincronizeTransacaoViewOrdemPgto(dataOrdemInicial: string, dataOrdemFinal: string, nomeFavorecido: string[] = []) {
+  async syncTransacaoViewOrdemPgto(args?: ISyncOrdemPgto) {
     this.logger.debug('Inicio Sync TransacaoView');
-    const where: string[] = [`DATE(tv."datetimeProcessamento") BETWEEN (DATE('${dataOrdemInicial}') - INTERVAL '1 DAY') AND '${dataOrdemFinal}'`];
-    if (nomeFavorecido.length) {
-      where.push(`cf.nome ILIKE ANY(ARRAY['%${nomeFavorecido.join("%', '%")}%'])`);
-    }
-    const query = `
-    UPDATE transacao_view
-    SET "itemTransacaoAgrupadoId" = associados.ita_id,
-        "updatedAt" = NOW()
-    FROM (
-        SELECT
-            DISTINCT ON (tv.id)
-            tv.id AS tv_id,
-            ita.id AS ita_id
-        FROM item_transacao_agrupado ita
-        INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
-        INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
-        INNER JOIN cliente_favorecido cf ON cf.id = it."clienteFavorecidoId"
-        INNER JOIN transacao_view tv
-            ON tv."idConsorcio" = ita."idConsorcio"
-            AND tv."idOperadora" = ita."idOperadora"
-            AND tv."operadoraCpfCnpj" = cf."cpfCnpj"
-            AND tv."datetimeProcessamento"::DATE BETWEEN
-                (ita."dataCaptura"::DATE + (12 - EXTRACT(DOW FROM ita."dataCaptura"::DATE)::integer + 7) % 7 + (CASE WHEN EXTRACT(DOW FROM ita."dataCaptura"::DATE) = 5 THEN 7 ELSE 0 END)) - (CASE WHEN ita."nomeConsorcio" = 'VLT' THEN (INTERVAL '2 days') ELSE (INTERVAL '9 days') END)${'' /** start_date: proxima_sexta - 2/9 dias (VLT/outros) (qua/qua x2) */}
-                AND (ita."dataCaptura"::DATE + (12 - EXTRACT(DOW FROM ita."dataCaptura"::DATE)::integer + 7) % 7 + (CASE WHEN EXTRACT(DOW FROM ita."dataCaptura"::DATE) = 5 THEN 7 ELSE 0 END)) - INTERVAL '1 day'${'' /** end_date: prox_sexta - 1 dia (qua) */}${where.length ? `\n        WHERE (${where.join(') AND (')})` : ''}
-        ORDER BY tv.id ASC, ita.id DESC
-    ) associados
-    WHERE id = associados.tv_id
-    RETURNING id, "itemTransacaoAgrupadoId", "updatedAt"
-    `;
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     const startDate = new Date();
-    let count = 0;
-    try {
-      await queryRunner.startTransaction();
-      [, count] = await queryRunner.query(query);
-      await queryRunner.commitTransaction();
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-    } finally {
-      await queryRunner.release();
-    }
+    let count = await this.transacaoViewService.syncOrdemPgto(args);
     const endDate = new Date();
     const duration = formatDateInterval(endDate, startDate);
     this.logger.debug(`Fim Sync TransacaoView - duração: ${duration}`);

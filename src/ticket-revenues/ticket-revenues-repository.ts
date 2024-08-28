@@ -18,13 +18,9 @@ import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.se
 export class TicketRevenuesRepositoryService {
   private logger: Logger = new Logger('TicketRevenuesRepository', {
     timestamp: true,
-  })
-  ;
-  
-  constructor(
-    private readonly transacaoViewService: TransacaoViewService,
-    private arquivoPublicacaoService: ArquivoPublicacaoService,
-  ) {}
+  });
+
+  constructor(private readonly transacaoViewService: TransacaoViewService, private arquivoPublicacaoService: ArquivoPublicacaoService) {}
 
   /**
    * TODO: use it only for repository services
@@ -32,10 +28,7 @@ export class TicketRevenuesRepositoryService {
    * Filter: used by:
    * - ticket-revenues/get/me
    */
-  removeTodayData<T extends TicketRevenueDTO | TicketRevenuesGroupDto>(
-    data: T[],
-    endDate: Date,
-  ): T[] {
+  removeTodayData<T extends TicketRevenueDTO | TicketRevenuesGroupDto>(data: T[], endDate: Date): T[] {
     const mostRecentDate = startOfDay(new Date(data[0].date));
     if (mostRecentDate > endOfDay(endDate)) {
       return data.filter((i) => !isToday(new Date(i.date)));
@@ -44,10 +37,7 @@ export class TicketRevenuesRepositoryService {
     }
   }
 
-  public async getMeIndividual(
-    validArgs: ITRGetMeIndividualValidArgs,
-    paginationArgs: PaginationOptions,
-  ): Promise<Pagination<ITRGetMeIndividualResponse>> {
+  public async getMeIndividual(validArgs: ITRGetMeIndividualValidArgs, paginationArgs: PaginationOptions): Promise<Pagination<ITRGetMeIndividualResponse>> {
     const { startDate, endDate } = getPaymentDates({
       endpoint: 'ticket-revenues',
       startDateStr: validArgs.startDate,
@@ -55,11 +45,7 @@ export class TicketRevenuesRepositoryService {
       timeInterval: validArgs.timeInterval,
     });
 
-    const revenues = await this.findTransacaoView(
-      startDate,
-      endDate,
-      validArgs,
-    );
+    const revenues = await this.findTransacaoView(startDate, endDate, validArgs);
     const paidSum = +revenues
       .filter((i) => i.isPago)
       .reduce((s, i) => s + i.paidValue, 0)
@@ -82,10 +68,7 @@ export class TicketRevenuesRepositoryService {
       );
     }
 
-    ticketRevenuesResponse = this.removeTodayData(
-      ticketRevenuesResponse,
-      endDate,
-    );
+    ticketRevenuesResponse = this.removeTodayData(ticketRevenuesResponse, endDate);
 
     return getPagination<ITRGetMeIndividualResponse>(
       {
@@ -101,11 +84,7 @@ export class TicketRevenuesRepositoryService {
     );
   }
 
-  private async findTransacaoView(
-    startDate: Date,
-    endDate: Date,
-    validArgs: ITRGetMeIndividualValidArgs,
-  ) {
+  private async findTransacaoView(startDate: Date, endDate: Date, validArgs: ITRGetMeIndividualValidArgs) {
     const fetchArgs: IFetchTicketRevenues = {
       cpfCnpj: validArgs.user.getCpfCnpj(),
       startDate,
@@ -114,10 +93,7 @@ export class TicketRevenuesRepositoryService {
     };
 
     const betweenDate: FindOptionsWhere<TransacaoView> = {
-      datetimeProcessamento: Between(
-        fetchArgs.startDate as Date,
-        fetchArgs.endDate as Date,
-      ),
+      datetimeProcessamento: Between(fetchArgs.startDate as Date, fetchArgs.endDate as Date),
     };
     const where: FindOptionsWhere<TransacaoView>[] = [
       {
@@ -145,7 +121,7 @@ export class TicketRevenuesRepositoryService {
     }
 
     const transacaoViews = await this.transacaoViewService.find(where);
-    const publicacoes = await this.arquivoPublicacaoService.findMany({ where: { itemTransacao: { itemTransacaoAgrupado: { id: In(transacaoViews.map(t => t.itemTransacaoAgrupadoId)) } } } });
+    const publicacoes = await this.arquivoPublicacaoService.findMany({ where: { itemTransacao: { itemTransacaoAgrupado: { id: In(transacaoViews.map((t) => t.itemTransacaoAgrupadoId)) } } } });
     const revenues = transacaoViews.map((i) => i.toTicketRevenue(publicacoes));
     return revenues;
   }
@@ -153,17 +129,11 @@ export class TicketRevenuesRepositoryService {
   /**
    * Apenas soma se status = pago
    */
-  getAmountSum<T extends TicketRevenueDTO | TicketRevenuesGroupDto>(
-    data: T[],
-  ): number {
-    return +data
-      .reduce((sum, i) => sum + this.getTransactionValue(i), 0)
-      .toFixed(2);
+  getAmountSum<T extends TicketRevenueDTO | TicketRevenuesGroupDto>(data: T[]): number {
+    return +data.reduce((sum, i) => sum + this.getTransactionValue(i), 0).toFixed(2);
   }
 
-  private getTransactionValue(
-    item: TicketRevenueDTO | TicketRevenuesGroupDto,
-  ): number {
+  private getTransactionValue(item: TicketRevenueDTO | TicketRevenuesGroupDto): number {
     if ('transactionValue' in item) {
       return item.transactionValue || 0;
     } else if ('transactionValueSum' in item) {

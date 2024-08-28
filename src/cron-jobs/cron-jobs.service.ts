@@ -18,7 +18,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { formatDateInterval } from 'src/utils/date-utils';
+import { formatDateInterval, formatDateYMD } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -34,6 +34,7 @@ export enum CronJobsEnum {
   updateTransacaoViewEmpresa = 'updateTransacaoViewEmpresa',
   updateTransacaoViewVan = 'updateTransacaoViewVan',
   updateTransacaoViewVLT = 'updateTransacaoViewVLT',
+  updateTransacaoViewValues = 'updateTransacaoViewValues',
   syncTransacaoViewOrdemPgto = 'syncTransacaoViewOrdemPgto',
   generateRemessaVLT = 'generateRemessaVLT',
   generateRemessaEmpresa = 'generateRemessaEmpresa',
@@ -120,6 +121,13 @@ export class CronJobsService {
           onTick: async () => await this.updateTransacaoView('Empresa'),
         },
       },
+      // {
+      //   name: CronJobsEnum.updateTransacaoViewValues,
+      //   cronJobParameters: {
+      //     cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
+      //     onTick: async () => await this.updateTransacaoViewValues(),
+      //   },
+      // },
       {
         name: CronJobsEnum.updateTransacaoViewVLT,
         cronJobParameters: {
@@ -247,7 +255,7 @@ export class CronJobsService {
    */
   async generateRemessaVan(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaVan';
-   
+
     const today = debug?.today || new Date();
     if (!isFriday(today)) {
       this.logger.error('Não implementado - Hoje não é sexta-feira. Abortando...', undefined, METHOD);
@@ -304,10 +312,10 @@ export class CronJobsService {
   public async syncTransacaoViewOrdemPgto() {
     const METHOD = 'syncTransacaoViewOrdemPgto';
     try {
-      const yesterday = subDays(new Date(), 1).toISOString();
-      const today = new Date().toISOString();
-      this.logger.log(`Sincronizando TransacaoViews entre ${yesterday} e ${today}`, METHOD);
-      await this.cnabService.sincronizeTransacaoViewOrdemPgto(yesterday, today);
+      const yesterday = subDays(new Date(), 1);
+      const today = new Date();
+      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(yesterday)} e ${formatDateYMD(today)}`, METHOD);
+      await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [yesterday, today] });
       this.logger.log(`Trefa finalizada com sucesso.`, METHOD);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
@@ -368,6 +376,11 @@ export class CronJobsService {
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
+  }
+
+  async updateTransacaoViewValues() {
+    await this.cnabService.updateTransacaoViewBigqueryValues();
+    await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [subDays(new Date(), 7), new Date()] });
   }
 
   async bulkSendInvites() {

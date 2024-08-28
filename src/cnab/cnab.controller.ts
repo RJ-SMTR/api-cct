@@ -86,8 +86,8 @@ export class CnabController {
   }
 
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a geração e envio de remessa - que normalmente é feita via cronjob' })
-  @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial - salvar transações', required: true, type: String, example: '2024-07-15' })
-  @ApiQuery({ name: 'dataOrdemFinal', description: 'Data da Ordem de Pagamento Final - salvar transações', required: true, type: String, example: '2024-07-16' })
+  @ApiQuery({ name: 'dataOrdemInicial', description: ApiDescription({ _: 'Data da Ordem de Pagamento Inicial - salvar transações', example: '2024-07-15' }), required: true, type: String })
+  @ApiQuery({ name: 'dataOrdemFinal', description: ApiDescription({ _: 'Data da Ordem de Pagamento Final - salvar transações', example: '2024-07-16' }), required: true, type: String })
   @ApiQuery({ name: 'diasAnterioresOrdem', description: ApiDescription({ _: 'Procurar também por dias Anteriores a dataOrdemInicial - salvar transações', default: 0 }), required: false, type: Number, example: 7 })
   @ApiQuery({ name: 'consorcio', description: 'Nome do consorcio - salvar transações', required: true, type: String, example: 'Todos / Van / Empresa /Nome Consorcio' })
   @ApiQuery({ name: 'dt_pagamento', description: ApiDescription({ _: 'Data Pagamento', default: 'O dia de hoje' }), required: false, type: String })
@@ -152,8 +152,8 @@ export class CnabController {
   }
 
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta o sincronismo de TransacaoView com as OrdensPagamento (ItemTransacaoAgrupado) - que normalmente é feia via cronjob' })
-  @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial', required: true, type: Date })
-  @ApiQuery({ name: 'dataOrdemFinal', description: 'Data da Ordem de Pagamento Final', required: true, type: Date })
+  @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial', required: false, type: Date })
+  @ApiQuery({ name: 'dataOrdemFinal', description: 'Data da Ordem de Pagamento Final', required: false, type: Date })
   @ApiQuery({ name: 'nomeFavorecido', description: 'Lista de nomes dos favorecidos', required: false, type: String })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
@@ -161,10 +161,53 @@ export class CnabController {
   @Roles(RoleEnum.admin)
   @Get('syncTransacaoViewOrdemPgto')
   async getSyncTransacaoViewOrdemPgto(
-    @Query('dataOrdemInicial', new ParseDatePipe()) dataOrdemInicial: string, //
-    @Query('dataOrdemFinal', new ParseDatePipe()) dataOrdemFinal: string,
-    @Query('nomeFavorecido', new ParseListPipe({ transform: true, optional: true })) nomeFavorecido: string[],
+    @Query('dataOrdemInicial', new ParseDatePipe({ transform: true, optional: true })) dataOrdemInicial: Date | undefined, //
+    @Query('dataOrdemFinal', new ParseDatePipe({ transform: true, optional: true })) dataOrdemFinal: Date | undefined,
+    @Query('nomeFavorecido', new ParseListPipe({ transform: true, optional: true })) nomeFavorecido: string[] | undefined,
   ) {
-    return await this.cnabService.sincronizeTransacaoViewOrdemPgto(dataOrdemInicial, dataOrdemFinal, nomeFavorecido);
+    const dataOrdem_between = dataOrdemInicial && dataOrdemFinal && ([dataOrdemInicial, dataOrdemFinal] as [Date, Date]);
+    return await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between, nomeFavorecido });
+  }
+
+  @Get('updateTransacaoViewBigquery')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.admin)
+  @ApiOperation({ description: 'Atualiza TransacaoView do Bigquery' })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'dataOrdemInicial', description: 'Data da Ordem de Pagamento Inicial', required: true, type: Date })
+  @ApiQuery({ name: 'dataOrdemFinal', description: 'Data da Ordem de Pagamento Final', required: true, type: Date })
+  @ApiQuery({ name: 'consorcio', description: ApiDescription({ _: 'Nome do consorcio - salvar transações', default: 'Todos' }), required: false, type: String, example: 'Todos / Van / Empresa /Nome Consorcio' })
+  @ApiQuery({ name: 'idTransacao', description: 'Lista de idTransacao para atualizar', required: false, type: String })
+  async getUpdateTransacaoViewBigquery(
+    @Query('dataOrdemInicial', new ParseDatePipe({ transform: true })) dataOrdemInicial: any, //
+    @Query('dataOrdemFinal', new ParseDatePipe({ transform: true })) dataOrdemFinal: any,
+    @Query('consorcio') consorcio: string | undefined,
+    @Query('idTransacao', new ParseArrayPipe({ items: String, separator: ',', optional: true })) idTransacao: string[], //
+  ) {
+    const _dataOrdemInicial: Date = dataOrdemInicial;
+    const _dataOrdemFinal: Date = dataOrdemFinal;
+    const _consorcio = consorcio || 'Todos';
+    return await this.cnabService.updateTransacaoViewBigquery(_dataOrdemInicial, _dataOrdemFinal, 0, _consorcio, idTransacao);
+  }
+
+  @Get('deduplicateTransacaoView')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.admin)
+  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nRemove duplicatas de TransacaoView' })
+  @ApiBearerAuth()
+  async getDeduplicateTransacaoView() {
+    return await this.cnabService.deduplicateTransacaoView();
+  }
+
+  @Get('updateTransacaoViewBigqueryValues')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.admin)
+  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nAtualiza os valores de TransacaoView existentes a a partir do Bigquery.' })
+  @ApiBearerAuth()
+  async getUpdateTransacaoViewBigqueryValues() {
+    return await this.cnabService.updateTransacaoViewBigqueryValues();
   }
 }

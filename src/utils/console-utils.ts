@@ -28,10 +28,16 @@ export function formatSqlQuery(query: string): string {
 }
 
 export function compactQuery(str: string): string {
-  return process.env.NODE_ENV != 'local' || process.env.COMPACT_QUERY == 'true'
-    ? str
-        .replace(/\n(\s +)(?=\S)/g, ' ')
-        .replace(/\n+/gm, ' ')
-        .trim()
-    : str;
+  if (process.env.NODE_ENV != 'local' || process.env.COMPACT_QUERY == 'true') {
+    let result = str
+      .split('\n')
+      .map((l) => l.split('--')[0].trim())
+      .join('\n')
+      .replace(/\n(\s +)(?=\S)/g, ' ')
+      .replace(/\n+/gm, ' ')
+      .trim();
+    return result;
+  } else {
+    return str;
+  }
 }

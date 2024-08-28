@@ -79,7 +79,7 @@ export class ArquivoPublicacaoService {
   }
 
   public async updateManyRaw(dtos: DeepPartial<ArquivoPublicacao>[], fields: ArquivoPublicacaoFields, queryRunner: QueryRunner): Promise<ArquivoPublicacao[]> {
-    let fieldNames: string[] = [];
+    let fieldNames: (keyof ArquivoPublicacao)[] = [];
     let fieldTypes: string[] = [];
     if (fields == 'savePublicacaoRetorno') {
       fieldNames = ['id', 'isPago', 'valorRealEfetivado', 'dataEfetivacao', 'dataGeracaoRetorno'];

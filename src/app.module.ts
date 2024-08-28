@@ -54,7 +54,7 @@ import { AppService } from './app.service';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [
-        databaseConfig,
+        databaseConfig, //
         authConfig,
         appConfig,
         mailConfig,
