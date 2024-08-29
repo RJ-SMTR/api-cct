@@ -1,13 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
-import { RelatorioRepository } from './relatorio.repository';
+import { RelatorioConsolidadoRepository } from './relatorio-consolidado.repository';
 import { RelatorioConsolidadoResultDto } from './dtos/relatorio-consolidado-result.dto';
 import { RelatorioAnaliticoResultDto } from './dtos/relatorio-analitico-result.dto';
 import { RelatorioSinteticoResultDto } from './dtos/relatorio-sintetico-result.dto';
+import { RelatorioAnaliticoRepository } from './relatorio-analitico.repository';
+import { RelatorioSinteticoRepository } from './relatorio-sintetico.repository';
 
 @Injectable()
 export class RelatorioService {
-  constructor(private relatorioRepository: RelatorioRepository) {}
+  constructor(private relatorioConsolidadoRepository: RelatorioConsolidadoRepository,
+    private relatorioSinteticoRepository: RelatorioSinteticoRepository,
+    private relatorioAnaliticoRepository: RelatorioAnaliticoRepository
+  ) {}
 
   /**
    * Gerar relatórios consolidados - agrupados por Favorecido.
@@ -61,7 +66,7 @@ export class RelatorioService {
   }    
 
   private async instanceDataConsolidado(args: IFindPublicacaoRelatorio,status:string){
-    const consolidado  = await this.relatorioRepository.findConsolidado(args);
+    const consolidado  = await this.relatorioConsolidadoRepository.findConsolidado(args);
     const consolidadosData = new RelatorioConsolidadoResultDto();
     consolidadosData.count = consolidado.length;
     consolidadosData.data = consolidado;
@@ -79,54 +84,21 @@ export class RelatorioService {
     }
 
     let result: RelatorioSinteticoResultDto[]=[];
-    
-    if(args.pago === undefined && args.aPagar === undefined && (args.favorecidoNome ===undefined) 
-      && (args.consorcioNome === undefined)){
-      result.push(await this.resultSintetico(args));
-      result.push(await this.resultPagoSintetico(args));
-      result.push(await this.resultErrosSintetico(args));
-      result.push(await this.resultApagarSintetico(args));
-    }else if(args.pago === true && args.aPagar === true){
-      result.push(await this.resultPagoSintetico(args));
-      result.push(await this.resultApagarSintetico(args));
-    }else if(args.pago ===true) {
-      result.push(await this.resultPagoSintetico(args));
-    }else if(args.pago ===false) {
-      result.push(await this.resultErrosSintetico(args));
-    }else if(args.aPagar === true){
-      result.push(await this.resultApagarSintetico(args));
-    }else{
-      result.push(await this.resultSintetico(args));
-    }
+    result.push(await this.resultSintetico(args));   
     return result;
   }
 
   private async resultSintetico(args: IFindPublicacaoRelatorio){    
     return this.instanceDataSintetico(args,'todos');
-  }
-
-  private async resultPagoSintetico(args: IFindPublicacaoRelatorio){
-      args.pago = true;    
-      return this.instanceDataSintetico(args,'pago');
-  }
-
-  private async resultErrosSintetico(args: IFindPublicacaoRelatorio){
-    args.pago = false;
-    return this.instanceDataSintetico(args,'erros');
-  }
-
-  private async resultApagarSintetico(args: IFindPublicacaoRelatorio){
-    args.aPagar = true;      
-    return this.instanceDataSintetico(args,'aPagar');
-  } 
+  }  
 
   private async instanceDataSintetico(args: IFindPublicacaoRelatorio,status:string){
-    const sintetico  = await this.relatorioRepository.findSintetico(args);
+    const sintetico  = await this.relatorioSinteticoRepository.findSintetico(args);
     const sintenticosData = new RelatorioSinteticoResultDto();
     sintenticosData.count = sintetico.length;
     sintenticosData.data = sintetico;
     sintenticosData.valor = +sintetico.reduce((s, i) => s + i.valor, 0).toFixed(2); 
-    sintenticosData.status = status
+    sintenticosData.status = status;
     return sintenticosData;
   }
 
@@ -183,7 +155,7 @@ export class RelatorioService {
   } 
 
   private async instanceDataAnalitico(args: IFindPublicacaoRelatorio,status:string){
-    const analitico  = await this.relatorioRepository.findAnalitico(args);
+    const analitico  = await this.relatorioAnaliticoRepository.findAnalitico(args);
     const analiticosData = new RelatorioAnaliticoResultDto();
     analiticosData.count = analitico.length;
     analiticosData.data = analitico;
