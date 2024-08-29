@@ -229,7 +229,7 @@ export class CronJobsService {
     const METHOD = 'generateRemessaEmpresa';
     const today = debug?.today || new Date();
     if (!isThursday(today)) {
-      this.logger.log('Não implementado - Hoje não é quinta-feira. Abortando...', undefined, METHOD);
+      this.logger.log('Não implementado - Hoje não é quinta-feira. Abortando...', METHOD);
       return;
     }
     if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
