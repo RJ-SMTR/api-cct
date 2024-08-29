@@ -75,6 +75,9 @@ export class CronJobsService {
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
+    // TODO: delete
+    await this.generateRemessaEmpresa();
+
     this.jobsConfig.push(
       {
         /** NÃO REMOVER ESTE JOB, É ÚTIL PARA ALTERAR OS CRONJOBS EM CASO DE URGÊNCIA */
@@ -152,7 +155,7 @@ export class CronJobsService {
       {
         name: CronJobsEnum.generateRemessaEmpresa,
         cronJobParameters: {
-          cronTime: '0 14 * * 4', // Every Thursday, 14:00 GMT = 17:00 BRT (GMT-3)
+          cronTime: '0 14 * * *', // Every Thursday (see method), 14:00 GMT = 17:00 BRT (GMT-3)
           onTick: async () => {
             await this.generateRemessaEmpresa();
           },
@@ -161,7 +164,7 @@ export class CronJobsService {
       {
         name: CronJobsEnum.generateRemessaVan,
         cronJobParameters: {
-          cronTime: '0 10 * * 5', // Every Friday, 10:00 GMT = 07:00 BRT (GMT-3)
+          cronTime: '0 10 * * *', // Every Friday (see method), 10:00 GMT = 07:00 BRT (GMT-3)
           onTick: async () => {
             await this.generateRemessaVan();
           },
@@ -227,10 +230,14 @@ export class CronJobsService {
    */
   async generateRemessaEmpresa(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaEmpresa';
+    const today = debug?.today || new Date();
+    if (!isThursday(today)) {
+      this.logger.log('Não implementado - Hoje não é quinta-feira. Abortando...', undefined, METHOD);
+      return;
+    }
     if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
       return;
     }
-    const today = debug?.today || new Date();
     if (!isThursday(today)) {
       this.logger.error('Não implementado - Hoje não é quinta-feira. Abortando...', undefined, METHOD);
       return;
