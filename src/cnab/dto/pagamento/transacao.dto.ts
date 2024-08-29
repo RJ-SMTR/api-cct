@@ -1,6 +1,6 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
-import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
+import { Lancamento } from 'src/lancamento/lancamento.entity';
 import { DeepPartial } from 'typeorm';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
 
@@ -31,5 +31,5 @@ export class TransacaoDTO {
 
   @ValidateIf((obj) => isCreate(obj) && obj.idOrdemPagamento === undefined)
   @IsNotEmpty()
-  lancamentos?: LancamentoEntity[] | null;
+  lancamentos?: Lancamento[] | null;
 }

@@ -6,7 +6,7 @@ import { TransacaoRepository } from '../../repository/pagamento/transacao.reposi
 import { isFriday, nextFriday } from 'date-fns';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
-import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
+import { Lancamento } from 'src/lancamento/lancamento.entity';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
@@ -36,10 +36,7 @@ export class TransacaoService {
    *
    * @param newLancamentos It must have at least 1 unused Lancamento
    */
-  public generateDTOForLancamento(
-    pagador: Pagador,
-    newLancamentos: LancamentoEntity[],
-  ): Transacao {
+  public generateDTOForLancamento(pagador: Pagador, newLancamentos: Lancamento[]): Transacao {
     const today = new Date();
     const friday = isFriday(today) ? today : nextFriday(today);
     const transacao = new Transacao({
@@ -100,9 +97,7 @@ export class TransacaoService {
   /**
    * Use first Transacao as set to update and all Transacoes to get ids.
    */
-  public updateMany(
-    transacoes: DeepPartial<Transacao>[],
-  ): Promise<UpdateResult> {
+  public updateMany(transacoes: DeepPartial<Transacao>[]): Promise<UpdateResult> {
     const ids = transacoes.reduce((l, i) => [...l, asNumber(i.id)], []);
     const set = transacoes[0];
     if ('id' in set) {
@@ -111,15 +106,11 @@ export class TransacaoService {
     return this.transacaoRepository.updateMany(ids, set);
   }
 
-  public saveManyIfNotExists(
-    transacoes: DeepPartial<Transacao>[],
-  ): Promise<Transacao[]> {
+  public saveManyIfNotExists(transacoes: DeepPartial<Transacao>[]): Promise<Transacao[]> {
     return this.transacaoRepository.saveManyIfNotExists(transacoes);
   }
 
-  public async saveMany(
-    transacoes: DeepPartial<Transacao>[],
-  ): Promise<Transacao[]> {
+  public async saveMany(transacoes: DeepPartial<Transacao>[]): Promise<Transacao[]> {
     const insertResult = await this.transacaoRepository.insert(transacoes);
     return await this.transacaoRepository.findMany({
       where: insertResult.identifiers,
@@ -150,9 +141,7 @@ export class TransacaoService {
   /**
    * Save Transacao if Jae unique column not exists
    */
-  public async saveForJaeIfNotExists(
-    dto: TransacaoDTO,
-  ): Promise<SaveIfNotExists<Transacao>> {
+  public async saveForJaeIfNotExists(dto: TransacaoDTO): Promise<SaveIfNotExists<Transacao>> {
     await validateDTO(TransacaoDTO, dto);
     const transacao = await this.transacaoRepository.findOne({
       idOrdemPagamento: asString(dto.idOrdemPagamento),
@@ -173,7 +162,7 @@ export class TransacaoService {
   /**
    * Save Transacao if NSA not exists
    */
-  public async save(dto: TransacaoDTO,queryRunner: QueryRunner): Promise<Transacao> {
+  public async save(dto: TransacaoDTO, queryRunner: QueryRunner): Promise<Transacao> {
     await validateDTO(TransacaoDTO, dto);
     return await queryRunner.manager.getRepository(Transacao).save(dto);
   }
@@ -185,9 +174,7 @@ export class TransacaoService {
   /**
    * Get all transacao where id not exists in headerArquivo yet (new CNABS)
    */
-  public async findAllNewTransacao(
-    tipo: PagadorContaEnum,
-  ): Promise<Transacao[]> {
+  public async findAllNewTransacao(tipo: PagadorContaEnum): Promise<Transacao[]> {
     return await this.transacaoRepository.findAllNewTransacao(tipo);
   }
 }

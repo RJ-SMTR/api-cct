@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
-import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
+import { Lancamento } from 'src/lancamento/lancamento.entity';
 import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
 import { User } from 'src/users/entities/user.entity';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
@@ -16,9 +16,7 @@ import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-
 
 @Injectable()
 export class ClienteFavorecidoService {
-  private logger: Logger = new Logger('ClienteFavorecidoService', {
-    timestamp: true,
-  });
+  private logger: Logger = new Logger('ClienteFavorecidoService', { timestamp: true });
 
   constructor(private clienteFavorecidoRepository: ClienteFavorecidoRepository) {}
 
@@ -51,8 +49,8 @@ export class ClienteFavorecidoService {
     });
   }
 
-  public async findManyFromLancamentos(lancamentos: LancamentoEntity[]): Promise<ClienteFavorecido[]> {
-    const ids = [...new Set(lancamentos.map((i) => i.id_cliente_favorecido))];
+  public async findManyFromLancamentos(lancamentos: Lancamento[]): Promise<ClienteFavorecido[]> {
+    const ids = [...new Set(lancamentos.map((i) => i.clienteFavorecido))];
     return await this.clienteFavorecidoRepository.findMany({
       where: {
         id: In(ids),

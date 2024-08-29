@@ -1,6 +1,7 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import {
   BeforeInsert,
+  BeforeUpdate,
   Column,
   DeepPartial,
   Entity,
@@ -71,6 +72,7 @@ export class ClienteFavorecido extends EntityHelper {
   tipo: string | null;
 
   @BeforeInsert()
+  @BeforeUpdate()
   setWriteValues() {
     if (typeof this.codigoBanco === 'string') {
       this.codigoBanco = this.codigoBanco.trim().padStart(3, '0');

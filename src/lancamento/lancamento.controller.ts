@@ -1,15 +1,16 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
-import { LancamentoDto } from './dtos/lancamentoDto';
-import { ItfLancamento } from './interfaces/lancamento.interface';
-import { LancamentoService } from './lancamento.service';
-import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
+import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
+import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
+import { LancamentoInputDto } from './dtos/lancamento-input.dto';
+import { Lancamento } from './lancamento.entity';
+import { LancamentoService } from './lancamento.service';
 
 @ApiTags('Lancamento')
 @Controller({
@@ -31,16 +32,16 @@ export class LancamentoController {
   @ApiQuery({ name: 'mes', type: Number, required: false, description: 'Mês do lançamento' })
   @ApiQuery({ name: 'periodo', type: Number, required: false, description: ApiDescription({ _: 'Período do lançamento. Primeira quinzena ou segunda quinzena.', min: 1, max: 2 }) })
   @ApiQuery({ name: 'ano', type: Number, required: false, description: 'Ano do lançamento.' })
-  @ApiQuery({ name: 'autorizado', type: Number, required: false, description: 'use 1 ou 0 (ou deixe vazio) para filtrar por autorizado ou não autorizado.' })
+  @ApiQuery({ name: 'autorizado', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
   @HttpCode(HttpStatus.OK)
   async getLancamento(
     @Request() request, //
     @Query('mes') mes: number,
     @Query('periodo', new ParseNumberPipe({ min: 1, max: 2, optional: true })) periodo: number | undefined,
     @Query('ano') ano: number,
-    @Query('autorizado') authorized: number,
-  ): Promise<ItfLancamento[]> {
-    return await this.lancamentoService.findByPeriod(mes, periodo, ano, authorized);
+    @Query('autorizado') autorizado: boolean | undefined,
+  ): Promise<Lancamento[]> {
+    return await this.lancamentoService.findByPeriod({ mes, periodo, ano, autorizado });
   }
 
   @ApiBearerAuth()
@@ -52,13 +53,14 @@ export class LancamentoController {
     RoleEnum.aprovador_financeiro,
   )
   @Get('/getbystatus')
-  @ApiQuery({ name: 'status', required: false, description: 'use 1 ou 0 para autorizado ou não autorizado.' })
+  @ApiQuery({ name: 'autorizado', type: Boolean, required: true, description: 'Fitra se foi autorizado ou não.' })
   @HttpCode(HttpStatus.OK)
   async getByStatus(
     @Request() request, //
-    @Query('status') status: number,
-  ): Promise<ItfLancamento[]> {
-    return await this.lancamentoService.findByStatus(status);
+    @Query('autorizado', new ParseBooleanPipe()) autorizado: boolean | undefined,
+  ): Promise<Lancamento[]> {
+    const _autorizado = autorizado as boolean;
+    return await this.lancamentoService.findByStatus(_autorizado);
   }
 
   @ApiBearerAuth()
@@ -91,29 +93,30 @@ export class LancamentoController {
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
-  @ApiBody({ type: LancamentoDto })
+  @ApiBody({ type: LancamentoInputDto })
   @HttpCode(HttpStatus.CREATED)
   @Post('/create')
   async postCreateLancamento(
     @Request() req: any, //
-    @Body() lancamentoData: LancamentoDto,
-  ): Promise<ItfLancamento> {
-    const userId = req.user.id;
-    const createdLancamento = await this.lancamentoService.create(lancamentoData, userId);
-    return createdLancamento.toItfLancamento();
+    @Body() lancamentoDto: LancamentoInputDto,
+  ): Promise<Lancamento> {
+    lancamentoDto.author = { id: req.user.id };
+    const createdLancamento = await this.lancamentoService.create(lancamentoDto);
+    return createdLancamento;
   }
 
-  @ApiBearerAuth()
+  @Put('/authorize')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
     RoleEnum.admin_finan,
     RoleEnum.aprovador_financeiro,
   )
-  @Put('/authorize')
+  @ApiOperation({ description: `Inclui uma autorização do usuário autenticado para o Lançamento.` })
+  @ApiBearerAuth()
   @ApiQuery({ name: 'lancamentoId', required: true, description: 'Id do lançamento' })
   @ApiBody({ type: AutorizaLancamentoDto })
-  @HttpCode(HttpStatus.OK)
   async putAutorizarPagamento(
     @Request() req, //
     @Body() autorizaLancamentoDto: AutorizaLancamentoDto,
@@ -123,7 +126,8 @@ export class LancamentoController {
     return await this.lancamentoService.autorizarPagamento(userId, lancamentoId, autorizaLancamentoDto);
   }
 
-  @ApiBearerAuth()
+  @Put('/')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
@@ -131,17 +135,16 @@ export class LancamentoController {
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
-  @Put('/')
-  @ApiBody({ type: LancamentoDto })
-  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiBody({ type: LancamentoInputDto })
   @ApiQuery({ name: 'lancamentoId', required: true, description: 'Id do lançamento' })
   async atualizaLancamento(
     @Request() req,
-    @Body() lancamentoData: LancamentoDto, // It was ItfLancamento
+    @Query('lancamentoId', new ParseNumberPipe({ min: 1 })) lancamentoId: number,
+    @Body() lancamentoDto: LancamentoInputDto, // It was ItfLancamento
   ) {
-    const id = req.query.lancamentoId;
-    const userId = req.user.id;
-    return await this.lancamentoService.update(id, lancamentoData, userId);
+    lancamentoDto.author = { id: req.user.id };
+    return await this.lancamentoService.update(lancamentoId, lancamentoDto);
   }
 
   @ApiBearerAuth()

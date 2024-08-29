@@ -31,13 +31,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const error = exception instanceof Error ? (exception as Error) : undefined;
     this.logger.error(this.getErrorLogSummary(responseData), error?.stack);
 
-    response.status(responseData.statusCode).json(
-      responseData?.response || {
-        status: responseData.statusCode,
-        ...responseData.clientMessage,
-        timestamp: responseData.timestamp,
-      },
-    );
+    const responseJson = responseData?.response || {
+      status: responseData.statusCode,
+      ...responseData.clientMessage,
+      timestamp: responseData.timestamp,
+    };
+    response.status(responseData.statusCode).json(responseJson);
   }
 
   private getResponseData(kwargs: {

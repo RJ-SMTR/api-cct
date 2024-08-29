@@ -1,46 +1,32 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  DeepPartial,
-  DeleteResult,
-  FindManyOptions,
-  FindOneOptions,
-  Repository,
-  SaveOptions,
-} from 'typeorm';
-import { LancamentoEntity } from './lancamento.entity';
+import { DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, Repository, SaveOptions } from 'typeorm';
+import { Lancamento } from './lancamento.entity';
 
 @Injectable()
 export class LancamentoRepository {
   constructor(
-    @InjectRepository(LancamentoEntity)
-    private readonly lancamentoRepository: Repository<LancamentoEntity>,
+    @InjectRepository(Lancamento)
+    private readonly lancamentoRepository: Repository<Lancamento>,
   ) {}
 
-  create(entityLike: DeepPartial<LancamentoEntity>): LancamentoEntity {
+  create(entityLike: DeepPartial<Lancamento>): Lancamento {
     return this.lancamentoRepository.create(entityLike);
   }
 
-  save(
-    entity: DeepPartial<LancamentoEntity>,
-    options?: SaveOptions,
-  ): Promise<LancamentoEntity> {
+  save(entity: DeepPartial<Lancamento>, options?: SaveOptions): Promise<Lancamento> {
     return this.lancamentoRepository.save(entity, options);
   }
 
-  findOne(
-    options: FindOneOptions<LancamentoEntity>,
-  ): Promise<LancamentoEntity | null> {
+  findOne(options: FindOneOptions<Lancamento>): Promise<Lancamento | null> {
     return this.findOne(options);
   }
 
-  findMany(
-    options?: FindManyOptions<LancamentoEntity> | undefined,
-  ): Promise<LancamentoEntity[]> {
+  findMany(options?: FindManyOptions<Lancamento> | undefined): Promise<Lancamento[]> {
     return this.lancamentoRepository.find(options);
   }
 
-  getAll(): Promise<LancamentoEntity[]> {
+  getAll(): Promise<Lancamento[]> {
     return this.lancamentoRepository.find();
   }
 

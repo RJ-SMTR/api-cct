@@ -3,7 +3,7 @@ import { endOfDay, isFriday, nextFriday, nextThursday, startOfDay, subDays } fro
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
-import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
+import { Lancamento } from 'src/lancamento/lancamento.entity';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
@@ -262,7 +262,7 @@ export class CnabService {
           if (existing.length > 1) {
             await queryRunner.manager.getRepository(TransacaoView).remove(existing.slice(1));
           }
-          if (existing[0].valorPago == 0 && tr.valorPago != existing[0].valorPago) {
+          if (!existing[0].valorPago && tr.valorPago != existing[0].valorPago) {
             await queryRunner.manager.getRepository(TransacaoView).update({ idTransacao: tr.idTransacao }, { valorPago: tr.valorPago });
           }
         }
@@ -479,11 +479,11 @@ export class CnabService {
   public async saveTransacoesLancamento() {
     await this.updateAllFavorecidosFromUsers();
     const newLancamentos = await this.lancamentoService.findToPayWeek();
-    const favorecidos = newLancamentos.map((i) => i.id_cliente_favorecido);
+    const favorecidos = newLancamentos.map((i) => i.clienteFavorecido);
     const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
     const transacaoDTO = this.transacaoService.generateDTOForLancamento(pagador, newLancamentos);
     const savedTransacao = await this.transacaoService.saveForLancamento(transacaoDTO);
-    const updatedLancamentos = savedTransacao.lancamentos as LancamentoEntity[];
+    const updatedLancamentos = savedTransacao.lancamentos as Lancamento[];
     const itemTransacaoDTOs = this.itemTransacaoService.generateDTOsFromLancamentos(updatedLancamentos, favorecidos);
     await this.itemTransacaoService.saveMany(itemTransacaoDTOs);
   }

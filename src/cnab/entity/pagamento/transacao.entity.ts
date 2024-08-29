@@ -1,16 +1,6 @@
-import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
+import { Lancamento } from 'src/lancamento/lancamento.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import {
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { ItemTransacao } from './item-transacao.entity';
 import { Pagador } from './pagador.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
@@ -68,13 +58,13 @@ export class Transacao extends EntityHelper {
   transacaoAgrupado: TransacaoAgrupado;
 
   /** Not a physical column */
-  @OneToMany(() => LancamentoEntity, (lancamento) => lancamento.transacao, {
+  @OneToMany(() => Lancamento, (lancamento) => lancamento.transacao, {
     nullable: true,
   })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_Transacao_lancamentos_OneToMany',
   })
-  lancamentos: LancamentoEntity[] | null;
+  lancamentos: Lancamento[] | null;
 
   /** Not a physical column */
   @OneToMany(() => ItemTransacao, (item) => item.transacao, { eager: false })
