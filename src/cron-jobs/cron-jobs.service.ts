@@ -381,7 +381,7 @@ export class CronJobsService {
   async updateTransacaoViewValues() {
     const METHOD = this.updateTransacaoViewValues.name;
     try {
-      await this.cnabService.updateTransacaoViewBigqueryValues();
+      await this.cnabService.updateTransacaoViewBigqueryValues(7);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }

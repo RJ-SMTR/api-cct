@@ -145,22 +145,22 @@ export class CnabService {
   /**
    * Atualiza valores nulos com o Bigquery
    */
-  async updateTransacaoViewBigqueryValues() {
+  async updateTransacaoViewBigqueryValues(diasAnteriores?: number) {
     const METHOD = 'updateTransacaoViewBigqueryValues';
     const startDate = new Date();
     const result = { updated: 0, duration: '00:00:00' };
     this.logger.log(`Tarefa iniciada`, METHOD);
-    const chunk = 2000;
+    const chunkSize = 2000;
 
-    let allTransacoesView: any[] = await this.transacaoViewService.findUpdateValues();
+    let allTransacoesView: any[] = await this.transacaoViewService.findUpdateValues(diasAnteriores);
     const max = allTransacoesView.length;
-    allTransacoesView = getChunks(allTransacoesView, chunk);
+    allTransacoesView = getChunks(allTransacoesView, chunkSize);
     for (const transacoesView of allTransacoesView as TransacaoView[][]) {
       const tvIds = transacoesView.map((i) => i.idTransacao);
       const transacaoBq = await this.bigqueryTransacaoService.findMany({ id_transacao: tvIds, valor_pagamento: 'NOT NULL' });
       const bqIds = transacaoBq.map((i) => i.id_transacao);
       const updateDtos = transacoesView
-        .filter((tv) => bqIds.includes(tv.idTransacao))
+        .filter((tv) => bqIds.includes(tv.idTransacao) && tv.valorPago != transacaoBq.find((bq) => bq.id_transacao == tv.idTransacao)?.valor_pagamento)
         .map(
           (tv) =>
             ({
@@ -169,30 +169,14 @@ export class CnabService {
               valorPago: transacaoBq.find((bq) => bq.id_transacao == tv.idTransacao)?.valor_pagamento,
             } as DeepPartial<TransacaoView>),
         );
-      const updated = await this.transacaoViewService.updateManyRaw(updateDtos, ['valorPago'], 'id');
-      result.updated += updated;
+      await this.transacaoViewService.updateManyRaw(updateDtos, ['valorPago'], 'id');
+      result.updated += transacoesView.length;
       result.duration = formatDateInterval(new Date(), startDate);
       const percent = ((result.updated / max) * 100).toFixed(2).padStart(5, '0');
       const index = (result.updated / 1000).toFixed(2);
       const maxIndex = (max / 1000).toFixed(2);
       this.logger.log(`Atualizado ${percent}%, ${index}/${maxIndex}K itens - ${result.duration}`, METHOD);
     }
-    // await this.transacaoViewService.findPaginated(
-    //   { valorPago: IsNull() },
-    //   chunk,
-    //   async (transacoesView, count) => {
-
-    //   },
-    //   false,
-    // );
-
-    //   await queryRunner.commitTransaction();
-    // } catch (error) {
-    //   await queryRunner.rollbackTransaction();
-    //   this.logger.error(`Falha ao salvar Informções agrupadas`, error?.stack);
-    // } finally {
-    //   await queryRunner.release();
-    // }
 
     this.logger.log(`Tarefa finalizada - ${result.duration}`, METHOD);
     return result;
@@ -262,7 +246,7 @@ export class CnabService {
           if (existing.length > 1) {
             await queryRunner.manager.getRepository(TransacaoView).remove(existing.slice(1));
           }
-          if (existing[0].valorPago == 0 && tr.valorPago != existing[0].valorPago) {
+          if (!existing[0].valorPago && tr.valorPago != existing[0].valorPago) {
             await queryRunner.manager.getRepository(TransacaoView).update({ idTransacao: tr.idTransacao }, { valorPago: tr.valorPago });
           }
         }
