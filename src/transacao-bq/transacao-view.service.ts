@@ -63,8 +63,8 @@ export class TransacaoViewService {
   async findRaw(options: FindManyOptions<TransacaoView>) {
     return await this.transacaoViewRepository.find(options);
   }
-  async findUpdateValues() {
-    return await this.transacaoViewRepository.findUpdateValues();
+  async findUpdateValues(diasAnteriores?: number) {
+    return await this.transacaoViewRepository.findUpdateValues(diasAnteriores);
   }
 
   /**

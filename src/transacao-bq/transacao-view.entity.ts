@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
 import { TicketRevenueDTO } from 'src/ticket-revenues/dtos/ticket-revenue.dto';
@@ -103,6 +104,7 @@ export class TransacaoView {
   @Column({ type: String })
   tipoPagamento: string;
 
+  @ApiProperty({ examples: ['Gratuidade', 'Débito', 'Débito EMV', 'Gratuidade', 'Integração', 'Integral', 'Transferência'] })
   @Column({ type: String, nullable: true })
   tipoTransacao: string | null;
 

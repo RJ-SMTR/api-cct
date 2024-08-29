@@ -94,6 +94,11 @@ export class TransacaoViewRepository {
   }
 
   public async updateManyRaw(dtos: DeepPartial<TransacaoView>[], fields: (keyof ITransacaoView)[], reference: keyof ITransacaoView, queryRunner?: QueryRunner): Promise<number> {
+    const METHOD = 'updateManyRaw';
+    if (dtos.length == 0) {
+      this.logger.debug('Não há TransacaoView para atualizar', METHOD);
+      return 0;
+    }
     const fieldTypes = fields.map((f) => TransacaoView.sqlFieldTypes[f]);
     const updatedAt: keyof ITransacaoView = 'updatedAt';
     const query = EntityHelper.getQueryUpdate(dtos, fields, fieldTypes, reference, updatedAt);
@@ -174,12 +179,12 @@ export class TransacaoViewRepository {
   public async find(options: FindManyOptions<TransacaoView>): Promise<TransacaoView[]> {
     return await this.transacaoViewRepository.find(options);
   }
-  public async findUpdateValues(): Promise<TransacaoView[]> {
+  public async findUpdateValues(diasAnteriores?: number): Promise<TransacaoView[]> {
     const raw: any[] = await this.transacaoViewRepository.query(
       compactQuery(`
       SELECT tv.id, tv."idTransacao", tv."valorPago"
       FROM transacao_view tv
-      WHERE tv."valorPago" IS NULL
+      WHERE NOT tv."valorPago" > 0 ${diasAnteriores ? `AND tv."datetimeProcessamento"::DATE >= NOW() - INTERVAL '${diasAnteriores} DAYS'` : ''}
       ORDER BY tv.id DESC
     `),
     );
