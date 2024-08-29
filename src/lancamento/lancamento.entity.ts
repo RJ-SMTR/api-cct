@@ -52,6 +52,7 @@ export class Lancamento extends EntityHelper {
     this.autor = new User(dto.author);
   }
 
+  @Expose()
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Lancamento_id' })
   id: number;
 
@@ -83,7 +84,7 @@ export class Lancamento extends EntityHelper {
   @Column({ name: 'autorizado_por', type: 'varchar', nullable: true })
   autorizado_por: string | null;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_autor_ManyToOne' })
   @Expose({ name: 'userId' })
   @Transform(({ value }) => (value as User).id)
@@ -92,12 +93,15 @@ export class Lancamento extends EntityHelper {
   @ManyToOne(() => ClienteFavorecido, { eager: true })
   @JoinColumn({ name: 'id_cliente_favorecido', foreignKeyConstraintName: 'FK_Lancamento_idClienteFavorecido_ManyToOne' })
   @Expose({ name: 'id_cliente_favorecido' })
-  @Transform(({ value }) => (value as ClienteFavorecido).id)
+  @Transform(({ value }) => ({
+    id: (value as ClienteFavorecido).id,
+    nome: (value as ClienteFavorecido).nome,
+  }))
   clienteFavorecido: ClienteFavorecido;
-  
+
   @Column({ type: 'numeric', nullable: false })
   algoritmo: number;
-  
+
   @Column({ type: 'numeric', nullable: false, default: 0 })
   glosa: number;
 

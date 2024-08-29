@@ -100,8 +100,8 @@ export class LancamentoService {
   async create(dto: LancamentoInputDto): Promise<Lancamento> {
     const lancamento = await this.validateLancamentoDto(dto);
     const created = await this.lancamentoRepository.save(this.lancamentoRepository.create(lancamento));
-    created.setReadValues();
-    return created;
+    const getCreated = await this.lancamentoRepository.getOne({ clienteFavorecido: { id: created.clienteFavorecido.id } });
+    return getCreated;
   }
 
   async validateLancamentoDto(dto: LancamentoInputDto): Promise<Lancamento> {
@@ -140,13 +140,9 @@ export class LancamentoService {
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
-
-    const update = Lancamento.fromInputDto(updateDto);
-    update.updateFromInputDto(updateDto);
-
+    lancamento.updateFromInputDto(updateDto);
     const updated = await this.lancamentoRepository.save(lancamento);
     this.logger.log(`Lancamento #${updated.id} atualizado por ${updated.clienteFavorecido.nome}.`);
-
     return lancamento;
   }
 
