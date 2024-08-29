@@ -10,6 +10,7 @@ import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoInputDto } from './dtos/lancamento-input.dto';
 import { Lancamento } from './lancamento.entity';
 import { LancamentoRepository } from './lancamento.repository';
+import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 
 @Injectable()
 export class LancamentoService {
@@ -98,8 +99,9 @@ export class LancamentoService {
 
   async create(dto: LancamentoInputDto): Promise<Lancamento> {
     const lancamento = await this.validateLancamentoDto(dto);
-    const created = this.lancamentoRepository.create(lancamento);
-    return await this.lancamentoRepository.save(created);
+    const created = await this.lancamentoRepository.save(this.lancamentoRepository.create(lancamento));
+    created.setReadValues();
+    return created;
   }
 
   async validateLancamentoDto(dto: LancamentoInputDto): Promise<Lancamento> {
@@ -108,7 +110,7 @@ export class LancamentoService {
       throw CommonHttpException.message(`id_cliente_favorecido: Favorecido não encontrado no sistema`);
     }
     const lancamento = Lancamento.fromInputDto(dto);
-    lancamento.clienteFavorecido = favorecido;
+    lancamento.clienteFavorecido = new ClienteFavorecido({ id: favorecido.id });
     return lancamento;
   }
 

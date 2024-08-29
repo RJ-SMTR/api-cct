@@ -53,7 +53,7 @@ export class ItemTransacaoService {
     const itemTransacao = new ItemTransacao({
       clienteFavorecido: { id: favorecido.id },
       transacao: { id: transacao.id },
-      valor: lancamento.valor_a_pagar,
+      valor: lancamento.valor,
       dataOrdem: lancamento.data_ordem,
     });
     return itemTransacao;

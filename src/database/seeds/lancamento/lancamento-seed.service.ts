@@ -18,9 +18,9 @@ export class LancamentoSeedService {
 
   async run() {
     const { fixtures } = await this.lancamentoSeedDataService.getData();
-    const descricoes = fixtures.map((i) => i.descricao);
+    const descricoes = fixtures.map((i) => i.numero_processo);
     // Remove existing seeds
-    await this.lancamentoRepository.delete({ descricao: In(descricoes) });
+    await this.lancamentoRepository.delete({ numero_processo: In(descricoes) });
     const newItems: Lancamento[] = [];
     for (const fixture of fixtures) {
       newItems.push(new Lancamento(fixture));

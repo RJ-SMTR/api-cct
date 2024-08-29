@@ -4,7 +4,6 @@ import { DeepPartial } from 'typeorm';
 
 export interface LancamentoSeedData {
   id?: number;
-  descricao: string;
   valor: number;
   data_lancamento: Date;
   data_ordem: Date;
