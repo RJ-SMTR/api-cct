@@ -75,9 +75,6 @@ export class CronJobsService {
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
-    // TODO: delete
-    await this.generateRemessaEmpresa();
-
     this.jobsConfig.push(
       {
         /** NÃO REMOVER ESTE JOB, É ÚTIL PARA ALTERAR OS CRONJOBS EM CASO DE URGÊNCIA */
