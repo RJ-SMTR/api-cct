@@ -107,13 +107,13 @@ export class CronJobsService {
           onTick: async () => await this.bulkResendInvites(),
         },
       },
-      {
-        name: CronJobsEnum.updateTransacaoViewVan,
-        cronJobParameters: {
-          cronTime: '*/30 * * * *', //  Every 30 min
-          onTick: async () => await this.updateTransacaoView('Van'),
-        },
-      },
+      // {
+      //   name: CronJobsEnum.updateTransacaoViewVan,
+      //   cronJobParameters: {
+      //     cronTime: '*/30 * * * *', //  Every 30 min
+      //     onTick: async () => await this.updateTransacaoView('Van'),
+      //   },
+      // },
       {
         name: CronJobsEnum.updateTransacaoViewEmpresa,
         cronJobParameters: {
