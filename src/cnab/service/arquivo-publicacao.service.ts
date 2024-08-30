@@ -80,12 +80,10 @@ export class ArquivoPublicacaoService {
 
   public async updateManyRaw(dtos: DeepPartial<ArquivoPublicacao>[], fields: ArquivoPublicacaoFields, queryRunner: QueryRunner): Promise<ArquivoPublicacao[]> {
     let fieldNames: (keyof ArquivoPublicacao)[] = [];
-    let fieldTypes: string[] = [];
     if (fields == 'savePublicacaoRetorno') {
       fieldNames = ['id', 'isPago', 'valorRealEfetivado', 'dataEfetivacao', 'dataGeracaoRetorno'];
-      fieldTypes = ['INT', 'BOOLEAN', 'NUMERIC', 'VARCHAR', 'TIMESTAMP'];
     }
-    const fieldValues = dtos.map((dto) => `(${EntityHelper.getQueryFieldValues(dto, fieldNames, fieldTypes)})`).join(', ');
+    const fieldValues = dtos.map((dto) => `(${EntityHelper.getQueryFieldValues(dto, fieldNames, ArquivoPublicacao.sqlFieldTypes)})`).join(', ');
     const query = `
     UPDATE arquivo_publicacao
     SET ${fieldNames.map((f) => `"${f}" = sub.${f == 'id' ? '_id' : `"${f}"`}`).join(', ')}, "updatedAt" = NOW()

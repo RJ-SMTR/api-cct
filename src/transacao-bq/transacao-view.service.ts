@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { DataSource, DeepPartial, FindManyOptions, QueryRunner } from 'typeorm';
+import { DataSource, DeepPartial, EntityManager, FindManyOptions, QueryRunner } from 'typeorm';
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
-import { TransacaoViewRepository } from './transacao-view.repository';
+import { IFindRawWhere, TransacaoViewRepository } from './transacao-view.repository';
 import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
 
 @Injectable()
@@ -19,8 +19,13 @@ export class TransacaoViewService {
     return await this.transacaoViewRepository.syncOrdemPgto(args);
   }
 
-  async updateManyRaw(dtos: DeepPartial<TransacaoView>[], fields: (keyof ITransacaoView)[], reference: keyof ITransacaoView, queryRunner?: QueryRunner) {
-    return await this.transacaoViewRepository.updateManyRaw(dtos, fields, reference, queryRunner);
+  async updateManyRaw(
+    dtos: DeepPartial<TransacaoView>[], //
+    fields: (keyof ITransacaoView)[],
+    reference: keyof ITransacaoView,
+    manager?: EntityManager,
+  ) {
+    return await this.transacaoViewRepository.updateManyRaw(dtos, fields, reference, manager);
   }
 
   async removeDuplicates() {
@@ -60,8 +65,11 @@ export class TransacaoViewService {
     }
   }
 
-  async findRaw(options: FindManyOptions<TransacaoView>) {
+  async findCustom(options: FindManyOptions<TransacaoView>) {
     return await this.transacaoViewRepository.find(options);
+  }
+  async findRaw(where?: IFindRawWhere) {
+    return await this.transacaoViewRepository.findRaw(where);
   }
   async findUpdateValues(diasAnteriores?: number) {
     return await this.transacaoViewRepository.findUpdateValues(diasAnteriores);
