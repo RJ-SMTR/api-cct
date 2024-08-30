@@ -70,7 +70,7 @@ import { PagamentosPendentesService } from './service/pagamento/pagamentos-pende
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
-import { ClienteFavorecidoModule } from './cliente-favorecido.module';
+import { CnabManutencaoController } from './cnab-manutencao.controller';
 
 @Module({
   imports: [
@@ -81,7 +81,6 @@ import { ClienteFavorecidoModule } from './cliente-favorecido.module';
     SftpModule,
     TransacaoViewModule,
     UsersModule,
-    ClienteFavorecidoModule,
     TypeOrmModule.forFeature([
       HeaderArquivoConf, //
       HeaderLoteConf,
@@ -92,6 +91,7 @@ import { ClienteFavorecidoModule } from './cliente-favorecido.module';
       DetalheA,
       DetalheB,
       PagamentosPendentes,
+      ClienteFavorecido,
       ArquivoPublicacao,
       Transacao,
       TransacaoAgrupado,
@@ -107,6 +107,8 @@ import { ClienteFavorecidoModule } from './cliente-favorecido.module';
   providers: [
     ArquivoPublicacaoRepository, //
     ArquivoPublicacaoService,
+    ClienteFavorecidoRepository,
+    ClienteFavorecidoService,
     CnabService,
     DetalheAConfRepository,
     DetalheAConfService,
@@ -166,6 +168,8 @@ import { ClienteFavorecidoModule } from './cliente-favorecido.module';
     DetalheBConfService,
     PagamentosPendentesRepository,
     PagamentosPendentesService,
+    ClienteFavorecidoRepository,
+    ClienteFavorecidoService,
     PagadorRepository,
     PagadorService,
     ArquivoPublicacaoRepository,
@@ -183,6 +187,6 @@ import { ClienteFavorecidoModule } from './cliente-favorecido.module';
     RemessaRetornoService,
     OcorrenciaService,
   ],
-  controllers: [CnabController],
+  controllers: [CnabController, CnabManutencaoController],
 })
 export class CnabModule {}

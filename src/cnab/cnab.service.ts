@@ -145,22 +145,22 @@ export class CnabService {
   /**
    * Atualiza valores nulos com o Bigquery
    */
-  async updateTransacaoViewBigqueryValues() {
+  async updateTransacaoViewBigqueryValues(diasAnteriores?: number) {
     const METHOD = 'updateTransacaoViewBigqueryValues';
     const startDate = new Date();
     const result = { updated: 0, duration: '00:00:00' };
     this.logger.log(`Tarefa iniciada`, METHOD);
-    const chunk = 2000;
+    const chunkSize = 2000;
 
-    let allTransacoesView: any[] = await this.transacaoViewService.findUpdateValues();
+    let allTransacoesView: any[] = await this.transacaoViewService.findUpdateValues(diasAnteriores);
     const max = allTransacoesView.length;
-    allTransacoesView = getChunks(allTransacoesView, chunk);
+    allTransacoesView = getChunks(allTransacoesView, chunkSize);
     for (const transacoesView of allTransacoesView as TransacaoView[][]) {
       const tvIds = transacoesView.map((i) => i.idTransacao);
       const transacaoBq = await this.bigqueryTransacaoService.findMany({ id_transacao: tvIds, valor_pagamento: 'NOT NULL' });
       const bqIds = transacaoBq.map((i) => i.id_transacao);
       const updateDtos = transacoesView
-        .filter((tv) => bqIds.includes(tv.idTransacao))
+        .filter((tv) => bqIds.includes(tv.idTransacao) && tv.valorPago != transacaoBq.find((bq) => bq.id_transacao == tv.idTransacao)?.valor_pagamento)
         .map(
           (tv) =>
             ({
@@ -169,30 +169,14 @@ export class CnabService {
               valorPago: transacaoBq.find((bq) => bq.id_transacao == tv.idTransacao)?.valor_pagamento,
             } as DeepPartial<TransacaoView>),
         );
-      const updated = await this.transacaoViewService.updateManyRaw(updateDtos, ['valorPago'], 'id');
-      result.updated += updated;
+      await this.transacaoViewService.updateManyRaw(updateDtos, ['valorPago'], 'idTransacao');
+      result.updated += transacoesView.length;
       result.duration = formatDateInterval(new Date(), startDate);
       const percent = ((result.updated / max) * 100).toFixed(2).padStart(5, '0');
       const index = (result.updated / 1000).toFixed(2);
       const maxIndex = (max / 1000).toFixed(2);
       this.logger.log(`Atualizado ${percent}%, ${index}/${maxIndex}K itens - ${result.duration}`, METHOD);
     }
-    // await this.transacaoViewService.findPaginated(
-    //   { valorPago: IsNull() },
-    //   chunk,
-    //   async (transacoesView, count) => {
-
-    //   },
-    //   false,
-    // );
-
-    //   await queryRunner.commitTransaction();
-    // } catch (error) {
-    //   await queryRunner.rollbackTransaction();
-    //   this.logger.error(`Falha ao salvar Informções agrupadas`, error?.stack);
-    // } finally {
-    //   await queryRunner.release();
-    // }
 
     this.logger.log(`Tarefa finalizada - ${result.duration}`, METHOD);
     return result;
@@ -234,16 +218,18 @@ export class CnabService {
    * Atualiza a tabela TransacaoView
    */
   async updateTransacaoViewBigquery(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string = 'Todos', idTransacao: string[] = []) {
+    const METHOD = 'updateTransacaoViewBigquery';
     const trs = await this.getTransacoesBQ(dataOrdemIncial, dataOrdemFinal, daysBack, consorcio);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       await queryRunner.startTransaction();
-      await this.updateTransacaoViewBigqueryLimit(trs, queryRunner, idTransacao);
+      const response = await this.updateTransacaoViewBigqueryLimit(trs, queryRunner, idTransacao);
+      this.logger.log(`TransacaoView atualizado: ${JSON.stringify(response)}`, METHOD);
       await queryRunner.commitTransaction();
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`Falha ao salvar Informções agrupadas`, error?.stack);
+      this.logger.error(`Falha ao salvar TransacaoView`, error?.stack, METHOD);
     } finally {
       await queryRunner.release();
     }
@@ -251,23 +237,33 @@ export class CnabService {
 
   async updateTransacaoViewBigqueryLimit(trsBq: BigqueryTransacao[], queryRunner: QueryRunner, idTransacao: string[] = []) {
     const trsFilter = idTransacao.length ? trsBq.filter((i) => idTransacao.includes(i.id_transacao)) : trsBq;
+    const existings = await this.transacaoViewService.findRaw({ idTransacao: trsFilter.map((tv) => tv.id_transacao) });
+    const response = { updated: 0, created: 0, deduplicated: 0 };
     for (const trBq of trsFilter) {
-      const tr = TransacaoView.fromBigqueryTransacao(trBq);
-      if (tr.modo && tr.nomeOperadora) {
-        const existing = await this.transacaoViewService.find({ idTransacao: In(idTransacao) });
+      const transacaoViewBq = TransacaoView.fromBigqueryTransacao(trBq);
+      if (transacaoViewBq.modo && transacaoViewBq.nomeOperadora) {
+        const existing = existings.filter((ex) => ex.idTransacao == transacaoViewBq.idTransacao);
         if (existing.length === 0) {
-          this.logger.debug(tr.idTransacao);
-          await queryRunner.manager.getRepository(TransacaoView).save(tr);
+          await queryRunner.manager.getRepository(TransacaoView).save(transacaoViewBq);
+          response.created += 1;
         } else {
           if (existing.length > 1) {
             await queryRunner.manager.getRepository(TransacaoView).remove(existing.slice(1));
+            response.deduplicated += 1;
           }
-          if (!existing[0].valorPago && tr.valorPago != existing[0].valorPago) {
-            await queryRunner.manager.getRepository(TransacaoView).update({ idTransacao: tr.idTransacao }, { valorPago: tr.valorPago });
+          if (!existing[0].valorPago && transacaoViewBq.valorPago != existing[0].valorPago) {
+            response.updated += 1;
+            await this.transacaoViewService.updateManyRaw(
+              [{ id: existing[0].id, idTransacao: existing[0].idTransacao, valorPago: transacaoViewBq.valorPago }], //
+              ['idTransacao', 'valorPago'],
+              'idTransacao',
+              queryRunner.manager,
+            );
           }
         }
       }
     }
+    return response;
   }
 
   async getTransacoesBQ(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string) {

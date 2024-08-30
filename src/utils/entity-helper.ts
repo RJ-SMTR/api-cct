@@ -32,13 +32,13 @@ export class EntityHelper extends BaseEntity {
     return `${entity}`;
   }
 
-  public static getQueryFieldValues(dto: DeepPartial<EntityHelper>, fields: string[], types: string[]): string {
+  public static getQueryFieldValues(dto: DeepPartial<EntityHelper>, fields: string[], fieldTypeMap: Record<string, string>): string {
     const query = fields
-      .map((f, i) => {
+      .map((f) => {
         const value = dto[f];
-        const _type = types[i];
+        const _type = fieldTypeMap[f];
         if (value === undefined) {
-          throw new Exception(`Value should be defined (field: ${f}, value: ${value}, type: ${_type})`)
+          throw new Exception(`Value should be defined (field: ${f}, value: ${value}, type: ${_type})`);
         }
         if (typeof value === 'string') {
           return `'${value}'`;
@@ -56,19 +56,20 @@ export class EntityHelper extends BaseEntity {
     return query;
   }
 
-  public static getQueryUpdate(dtos: DeepPartial<EntityHelper>[], fields: string[], fieldTypes: string[], referenceField: string, updatedAtField?: string) {
-    const _fields = structuredClone(fields).filter((i) => i != referenceField);
+  public static getQueryUpdate(table: string, dtos: DeepPartial<EntityHelper>[], fields: string[], fieldTypeMap: Record<string, string>, referenceField: string, updatedAtField?: string) {
+    const fieldsNoRef = structuredClone(fields).filter((i) => i != referenceField);
+    const fieldsWithRef = [referenceField, ...fieldsNoRef];
     const subReferenceField = '_' + referenceField;
-    const subFields = [subReferenceField, ..._fields].map(i => `"${i}"`);
-    const fieldValues = dtos.map((dto) => `(${EntityHelper.getQueryFieldValues(dto, [referenceField, ...fields], fieldTypes)})`).join(', ');
+    const subFields = [subReferenceField, ...fieldsNoRef].map((i) => `"${i}"`);
+    const fieldValues = dtos.map((dto) => `(${EntityHelper.getQueryFieldValues(dto, fieldsWithRef, fieldTypeMap)})`).join(', ');
     const updatedAt = updatedAtField ? `, "${updatedAtField}" = NOW()` : '';
     const query = `
-    UPDATE transacao_view
-    SET ${_fields.map((f) => `"${f}" = sub.${f == referenceField ? subReferenceField : `"${f}"`}`).join(', ')}${updatedAt}
+    UPDATE ${table}
+    SET ${fieldsNoRef.map((f) => `"${f}" = sub.${f == referenceField ? subReferenceField : `"${f}"`}`).join(', ')}${updatedAt}
     FROM (
         VALUES ${fieldValues}
     ) AS sub(${subFields.join(', ')})
-    WHERE id = sub.${subReferenceField};
+    WHERE "${referenceField}" = sub."${subReferenceField}";
     `;
     return query;
   }

@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
 import { TicketRevenueDTO } from 'src/ticket-revenues/dtos/ticket-revenue.dto';
@@ -36,7 +37,36 @@ export class TransacaoView {
   constructor(transacao?: DeepPartial<TransacaoView>) {
     if (transacao) {
       Object.assign(this, transacao);
+      if (transacao.arquivoPublicacao) {
+        this.arquivoPublicacao = new ArquivoPublicacao(transacao.arquivoPublicacao)
+      }
     }
+  }
+
+  public static getSqlFields(table?: string): Record<keyof ITransacaoView, string> {
+    return {
+      id: `${table ? `${table}.` : ''}"id"`,
+      datetimeTransacao: `${table ? `${table}.` : ''}"datetimeTransacao"`,
+      datetimeProcessamento: `${table ? `${table}.` : ''}"datetimeProcessamento"`,
+      datetimeCaptura: `${table ? `${table}.` : ''}"datetimeCaptura"`,
+      modo: `${table ? `${table}.` : ''}"modo"`,
+      idConsorcio: `${table ? `${table}.` : ''}"idConsorcio"`,
+      nomeConsorcio: `${table ? `${table}.` : ''}"nomeConsorcio"`,
+      idOperadora: `${table ? `${table}.` : ''}"idOperadora"`,
+      nomeOperadora: `${table ? `${table}.` : ''}"nomeOperadora"`,
+      idTransacao: `${table ? `${table}.` : ''}"idTransacao"`,
+      tipoPagamento: `${table ? `${table}.` : ''}"tipoPagamento"`,
+      tipoTransacao: `${table ? `${table}.` : ''}"tipoTransacao"`,
+      tipoGratuidade: `${table ? `${table}.` : ''}"tipoGratuidade"`,
+      valorTransacao: `${table ? `${table}.` : ''}"valorTransacao"`,
+      valorPago: `${table ? `${table}.` : ''}"valorPago"`,
+      operadoraCpfCnpj: `${table ? `${table}.` : ''}"operadoraCpfCnpj"`,
+      consorcioCnpj: `${table ? `${table}.` : ''}"consorcioCnpj"`,
+      arquivoPublicacao: `${table ? `${table}.` : ''}"arquivoPublicacaoId"`,
+      itemTransacaoAgrupadoId: `${table ? `${table}.` : ''}"itemTransacaoAgrupadoId"`,
+      createdAt: `${table ? `${table}.` : ''}"createdAt"`,
+      updatedAt: `${table ? `${table}.` : ''}"updatedAt"`,
+    };
   }
 
   public static sqlFieldTypes: Record<keyof ITransacaoView, string> = {
@@ -103,6 +133,7 @@ export class TransacaoView {
   @Column({ type: String })
   tipoPagamento: string;
 
+  @ApiProperty({ examples: ['Gratuidade', 'Débito', 'Débito EMV', 'Gratuidade', 'Integração', 'Integral', 'Transferência'] })
   @Column({ type: String, nullable: true })
   tipoTransacao: string | null;
 
