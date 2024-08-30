@@ -20,7 +20,8 @@ import { LancamentoService } from './lancamento.service';
 export class LancamentoController {
   constructor(private readonly lancamentoService: LancamentoService) {}
 
-  @ApiBearerAuth()
+  @Get('/')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
@@ -28,12 +29,11 @@ export class LancamentoController {
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
-  @Get('/')
+  @ApiBearerAuth()
   @ApiQuery({ name: 'periodo', type: Number, required: false, description: ApiDescription({ _: 'Período do lançamento. Primeira quinzena (dias 1-15) ou segunda quinzena (dias 16 até o fim do mês).', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date", min: 1, max: 2 }) })
   @ApiQuery({ name: 'mes', type: Number, required: false, description: ApiDescription({ _: 'Mês do lançamento', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
   @ApiQuery({ name: 'ano', type: Number, required: false, description: ApiDescription({ _: 'Ano do lançamento.', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
   @ApiQuery({ name: 'autorizado', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
-  @HttpCode(HttpStatus.OK)
   async get(
     @Request() request, //
     @Query('periodo', new ParseNumberPipe({ min: 1, max: 2, optional: true })) periodo: number | undefined,
@@ -44,7 +44,8 @@ export class LancamentoController {
     return await this.lancamentoService.find({ mes, periodo, ano, autorizado });
   }
 
-  @ApiBearerAuth()
+  @Get('/getbystatus')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
@@ -52,9 +53,9 @@ export class LancamentoController {
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
-  @Get('/getbystatus')
+  @ApiOperation({ description: 'Pesquisar Lançamentos pelo status' })
+  @ApiBearerAuth()
   @ApiQuery({ name: 'autorizado', type: Boolean, required: true, description: 'Fitra se foi autorizado ou não.' })
-  @HttpCode(HttpStatus.OK)
   async getByStatus(
     @Request() request, //
     @Query('autorizado', new ParseBooleanPipe()) autorizado: boolean | undefined,
@@ -63,7 +64,8 @@ export class LancamentoController {
     return await this.lancamentoService.findByStatus(_autorizado);
   }
 
-  @ApiBearerAuth()
+  @Get('/getValorAutorizado')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
@@ -71,11 +73,12 @@ export class LancamentoController {
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
-  @Get('/getValorAutorizado')
+  @ApiOperation({ description: 'Obter a soma dos valores dos Lançamentos.' })
+  @ApiBearerAuth()
   @ApiQuery({ name: 'mes', required: true, description: 'Mês do lançamento' })
   @ApiQuery({ name: 'periodo', required: true, description: 'Período do lançamento. Primeira quinzena (dias 1-15) ou segunda quinzena (dias 16 até o fim do mês).' })
   @ApiQuery({ name: 'ano', required: true, description: 'Ano do lançamento.' })
-  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ description: `Inclui uma autorização do usuário autenticado para o Lançamento.` })
   async getValorAutorizado(
     @Request() request, //
     @Query('mes') mes: number,
@@ -85,7 +88,8 @@ export class LancamentoController {
     return await this.lancamentoService.getValorAutorizado(mes, periodo, ano);
   }
 
-  @ApiBearerAuth()
+  @Post('/create')
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
@@ -93,9 +97,8 @@ export class LancamentoController {
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
+  @ApiBearerAuth()
   @ApiBody({ type: LancamentoInputDto })
-  @HttpCode(HttpStatus.CREATED)
-  @Post('/create')
   async postCreateLancamento(
     @Request() req: any, //
     @Body() lancamentoDto: LancamentoInputDto,
@@ -147,7 +150,8 @@ export class LancamentoController {
     return await this.lancamentoService.update(lancamentoId, lancamentoDto);
   }
 
-  @ApiBearerAuth()
+  @Get('/:id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
@@ -155,8 +159,7 @@ export class LancamentoController {
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
-  @Get('/:id')
-  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
   async getId(@Param('id') id: number) {
     return await this.lancamentoService.getById(id);
   }
