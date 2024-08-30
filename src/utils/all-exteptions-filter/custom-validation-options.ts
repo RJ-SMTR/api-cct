@@ -28,9 +28,7 @@ interface DecodedList {
  * A helper to pass extra error parameters from class-validator to a global errorFilter or similar.
  * @returns ValidationOptions with JSON encoding `message` and extra fields in `message` field.
  */
-export function customValidationOptions(
-  validationOptions: CustomValidationOptions,
-): ValidationOptions {
+export function customValidationOptions(validationOptions: CustomValidationOptions): ValidationOptions {
   const extraFields: CustomValidationOptions = {
     ...(validationOptions?.statusCode && {
       statusCode: validationOptions.statusCode,
@@ -58,15 +56,15 @@ interface BehaviorOptions {
  * @returns The same HttpException but with decoded data for customValidation
  */
 export function getCustomValidationOptions(
-  errorResponse: HttpExceptionResponse,
+  errorResponse: HttpExceptionResponse | string,
   behavior: BehaviorOptions = {
     setLowestStatus: true,
   },
 ): Partial<HttpExceptionResponse> | null {
-  if (!errorResponse?.errors) {
+  if (typeof errorResponse !== 'string' && !errorResponse?.errors) {
     return null;
   }
-  const newResponse: Partial<HttpExceptionResponse> = { ...errorResponse };
+  const newResponse: Partial<HttpExceptionResponse> = { ...(typeof errorResponse === 'string' ? { message: errorResponse } : errorResponse) };
   newResponse.errors = {};
   newResponse.details = {};
   newResponse.statusCodes = {};
@@ -76,35 +74,34 @@ export function getCustomValidationOptions(
     statusCodes: [],
   };
   let decodedLowestStatus: SerializedValidationOptions | undefined;
-  for (const [errorKey, errorValue] of Object.entries(errorResponse.errors)) {
-    const substrings = asJSONStrOrObj(errorValue)
-      .split(/,(?![^{}]*})/)
-      .map((substring) => substring.trim());
-    const list: DecodedList = {
-      details: [],
-      errors: [],
-      statusCodes: [],
-    };
-    for (const substring of substrings) {
-      try {
-        const decodedJson: SerializedValidationOptions = JSON.parse(substring);
-        const { statusCode, error, details } = decodedJson;
-        error && list.errors.push(error);
-        details && list.details.push(details);
-        statusCode && list.statusCodes.push(statusCode);
-        if (
-          statusCode &&
-          (!decodedLowestStatus || decodedLowestStatus.statusCode > statusCode)
-        ) {
-          decodedLowestStatus = decodedJson;
+  if (typeof errorResponse !== 'string' && errorResponse?.errors) {
+    for (const [errorKey, errorValue] of Object.entries(errorResponse.errors)) {
+      const substrings = asJSONStrOrObj(errorValue)
+        .split(/,(?![^{}]*})/)
+        .map((substring) => substring.trim());
+      const list: DecodedList = {
+        details: [],
+        errors: [],
+        statusCodes: [],
+      };
+      for (const substring of substrings) {
+        try {
+          const decodedJson: SerializedValidationOptions = JSON.parse(substring);
+          const { statusCode, error, details } = decodedJson;
+          error && list.errors.push(error);
+          details && list.details.push(details);
+          statusCode && list.statusCodes.push(statusCode);
+          if (statusCode && (!decodedLowestStatus || decodedLowestStatus.statusCode > statusCode)) {
+            decodedLowestStatus = decodedJson;
+          }
+        } catch (error) {
+          list.errors.push(substring);
         }
-      } catch (error) {
-        list.errors.push(substring);
       }
-    }
-    for (const listKey in list) {
-      if (list[listKey].length) {
-        newResponse[listKey][errorKey] = list[listKey].join(', ');
+      for (const listKey in list) {
+        if (list[listKey].length) {
+          newResponse[listKey][errorKey] = list[listKey].join(', ');
+        }
       }
     }
   }

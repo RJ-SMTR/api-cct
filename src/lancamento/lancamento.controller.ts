@@ -9,7 +9,7 @@ import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoInputDto } from './dtos/lancamento-input.dto';
-import { Lancamento } from './lancamento.entity';
+import { Lancamento } from './entities/lancamento.entity';
 import { LancamentoService } from './lancamento.service';
 
 @ApiTags('Lancamento')
@@ -34,14 +34,14 @@ export class LancamentoController {
   @ApiQuery({ name: 'ano', type: Number, required: false, description: 'Ano do lançamento.' })
   @ApiQuery({ name: 'autorizado', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
   @HttpCode(HttpStatus.OK)
-  async getLancamento(
+  async get(
     @Request() request, //
     @Query('mes') mes: number,
     @Query('periodo', new ParseNumberPipe({ min: 1, max: 2, optional: true })) periodo: number | undefined,
     @Query('ano') ano: number,
     @Query('autorizado') autorizado: boolean | undefined,
   ): Promise<Lancamento[]> {
-    return await this.lancamentoService.findByPeriod({ mes, periodo, ano, autorizado });
+    return await this.lancamentoService.find({ mes, periodo, ano, autorizado });
   }
 
   @ApiBearerAuth()
@@ -138,7 +138,7 @@ export class LancamentoController {
   @ApiBearerAuth()
   @ApiBody({ type: LancamentoInputDto })
   @ApiQuery({ name: 'lancamentoId', required: true, description: 'Id do lançamento' })
-  async atualizaLancamento(
+  async putLancamento(
     @Request() req,
     @Query('lancamentoId', new ParseNumberPipe({ min: 1 })) lancamentoId: number,
     @Body() lancamentoDto: LancamentoInputDto, // It was ItfLancamento
@@ -157,13 +157,13 @@ export class LancamentoController {
   )
   @Get('/:id')
   @HttpCode(HttpStatus.OK)
-  async getById(@Param('id') id: number) {
+  async getId(@Param('id') id: number) {
     return await this.lancamentoService.getById(id);
   }
 
   @Delete('/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteById(@Param('id') id: number) {
+  async deleteId(@Param('id') id: number) {
     return await this.lancamentoService.delete(id);
   }
 }

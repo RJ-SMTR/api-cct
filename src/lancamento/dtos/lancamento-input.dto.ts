@@ -38,7 +38,7 @@ export class LancamentoInputDto {
   @IsNumber()
   recurso?: number;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   anexo?: number;

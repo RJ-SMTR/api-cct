@@ -6,28 +6,12 @@ import { Bank } from 'src/banks/entities/bank.entity';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import {
-  AfterLoad,
-  BeforeInsert,
-  BeforeUpdate,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  DeleteDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToMany,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { AfterLoad, BeforeInsert, BeforeUpdate, Column, CreateDateColumn, DeepPartial, DeleteDateColumn, Entity, Index, JoinColumn, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { FileEntity } from '../../files/entities/file.entity';
 import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
 import { UserHttpException } from 'src/utils/http-exception/user-http-exception';
-import { Lancamento } from 'src/lancamento/lancamento.entity';
+import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 
 /** uniqueConstraintName: `UQ_User_email` */
 @Entity()
@@ -169,6 +153,9 @@ export class User extends EntityHelper {
 
   @Column({ type: String, nullable: true })
   passValidatorId?: string;
+
+  @ManyToMany(() => Lancamento, (lancamento) => lancamento)
+  lancamentos: Lancamento[];
 
   @Expose({ name: 'aux_isRegistrationComplete' })
   aux_isRegistrationComplete(): boolean {

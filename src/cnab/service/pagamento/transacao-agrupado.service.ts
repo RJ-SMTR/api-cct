@@ -6,7 +6,7 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { TransacaoAgrupadoRepository } from 'src/cnab/repository/pagamento/transacao-agrupado.repository';
-import { Lancamento } from 'src/lancamento/lancamento.entity';
+import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { asNumber } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DeepPartial, UpdateResult } from 'typeorm';

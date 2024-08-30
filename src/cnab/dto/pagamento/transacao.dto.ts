@@ -1,6 +1,6 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
-import { Lancamento } from 'src/lancamento/lancamento.entity';
+import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { DeepPartial } from 'typeorm';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
 

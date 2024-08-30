@@ -4,7 +4,7 @@ import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
 import { ItemTransacaoRepository } from 'src/cnab/repository/pagamento/item-transacao.repository';
-import { Lancamento } from 'src/lancamento/lancamento.entity';
+import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { logDebug } from 'src/utils/log-utils';
 import { asObject } from 'src/utils/pipe-utils';

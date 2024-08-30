@@ -6,7 +6,7 @@ import { TransacaoRepository } from '../../repository/pagamento/transacao.reposi
 import { isFriday, nextFriday } from 'date-fns';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
-import { Lancamento } from 'src/lancamento/lancamento.entity';
+import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';

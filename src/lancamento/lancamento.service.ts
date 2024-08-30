@@ -8,9 +8,10 @@ import { CommonHttpException } from 'src/utils/http-exception/common-http-except
 import { Between, IsNull, Like, Not } from 'typeorm';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoInputDto } from './dtos/lancamento-input.dto';
-import { Lancamento } from './lancamento.entity';
+import { ILancamento, Lancamento } from './entities/lancamento.entity';
 import { LancamentoRepository } from './lancamento.repository';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { LancamentoAutorizacao } from './entities/lancamento-autorizacao.entity';
 
 @Injectable()
 export class LancamentoService {
@@ -47,12 +48,12 @@ export class LancamentoService {
       where: {
         data_lancamento: Between(sex, qui),
         transacao: IsNull(),
-        autorizado_por: Like('%,%'), // Ao menos 2 aprovados (1 vírgula)
+        is_autorizado: true,
       },
     });
   }
 
-  async findByPeriod(args?: { mes?: number; periodo?: number; ano?: number; autorizado?: boolean }): Promise<Lancamento[]> {
+  async find(args?: { mes?: number; periodo?: number; ano?: number; autorizado?: boolean }): Promise<Lancamento[]> {
     /** [startDate, endDate] */
     let dateRange: [Date, Date] | null = null;
     if (args?.mes && args?.periodo && args?.ano) {
@@ -62,7 +63,7 @@ export class LancamentoService {
     const lancamentos = await this.lancamentoRepository.findMany({
       where: {
         ...(dateRange ? { data_lancamento: Between(...dateRange) } : {}),
-        ...(args?.autorizado !== undefined ? (args.autorizado === true ? { autorizado_por: Like('%,%') } : { autorizado_por: Not(Like('%,%')) }) : {}),
+        ...(args?.autorizado !== undefined ? { is_autorizado: args.autorizado } : {}),
       },
       relations: ['user'],
     });
@@ -70,37 +71,23 @@ export class LancamentoService {
     return lancamentos;
   }
 
-  async findByStatus(status: boolean): Promise<Lancamento[]> {
-    let lancamentos = await this.lancamentoRepository.findMany({
-      where: {
-        ...(status === true ? { autorizado_por: Like('%,%') } : { autorizado_por: Not(Like('%,%')) }),
-      },
-      relations: ['user'],
-    });
-
+  async findByStatus(isAutorizado: boolean): Promise<Lancamento[]> {
+    const lancamentos = await this.lancamentoRepository.findMany({ where: { is_autorizado: isAutorizado }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
     return lancamentos;
   }
 
   async getValorAutorizado(month: number, period: number, year: number) {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
-
-    const autorizados = await this.lancamentoRepository.findMany({
-      where: {
-        data_lancamento: Between(startDate, endDate),
-        autorizado_por: Like('%,%'), // Ao menos 2 aprovados (1 vírgula)
-      },
-    });
+    const autorizados = await this.lancamentoRepository.findMany({ where: { data_lancamento: Between(startDate, endDate) }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
     const autorizadoSum = autorizados.reduce((sum, lancamento) => sum + lancamento.valor, 0);
-    const resp = {
-      valor_autorizado: autorizadoSum,
-    };
+    const resp = { valor_autorizado: autorizadoSum };
     return resp;
   }
 
   async create(dto: LancamentoInputDto): Promise<Lancamento> {
     const lancamento = await this.validateLancamentoDto(dto);
     const created = await this.lancamentoRepository.save(this.lancamentoRepository.create(lancamento));
-    const getCreated = await this.lancamentoRepository.getOne({ clienteFavorecido: { id: created.clienteFavorecido.id } });
+    const getCreated = await this.lancamentoRepository.getOne({ where: { clienteFavorecido: { id: created.clienteFavorecido.id } }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
     return getCreated;
   }
 
@@ -115,9 +102,18 @@ export class LancamentoService {
   }
 
   async autorizarPagamento(userId: number, lancamentoId: string, AutorizaLancamentoDto: AutorizaLancamentoDto): Promise<Lancamento> {
+    const lancamento = await this.lancamentoRepository.findOne({ where: { id: parseInt(lancamentoId) }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
+    if (!lancamento) {
+      throw new HttpException('Lançamento não encontrado.', HttpStatus.NOT_FOUND);
+    }
+
     const user = await this.usersService.findOne({ id: userId });
     if (!user) {
       throw new HttpException('Usuário não encontrado', HttpStatus.UNAUTHORIZED);
+    }
+
+    if (lancamento.hasAutorizadoPor(user.id)) {
+      throw new HttpException('Usuário já autorizou este Lançamento', HttpStatus.PRECONDITION_FAILED);
     }
 
     const isValidPassword = await bcrypt.compare(AutorizaLancamentoDto.password, user.password);
@@ -125,31 +121,25 @@ export class LancamentoService {
       throw new HttpException('Senha inválida', HttpStatus.UNAUTHORIZED);
     }
 
-    const lancamento = await this.lancamentoRepository.findOne({ where: { id: parseInt(lancamentoId) } });
-    if (!lancamento) {
-      throw new Error('Lançamento não encontrado.');
-    }
-
-    lancamento.pushAutorizado(userId);
+    lancamento.addAutorizado(userId);
 
     return await this.lancamentoRepository.save(lancamento);
   }
 
   async update(id: number, updateDto: LancamentoInputDto): Promise<Lancamento> {
-    const lancamento = await this.lancamentoRepository.findOne({ where: { id } });
+    const lancamento = await this.lancamentoRepository.findOne({ where: { id }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
     lancamento.updateFromInputDto(updateDto);
-    const updated = await this.lancamentoRepository.save(lancamento);
+    await this.lancamentoRepository.save(lancamento);
+    const updated = await this.lancamentoRepository.getOne({ where: { id: lancamento.id }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
     this.logger.log(`Lancamento #${updated.id} atualizado por ${updated.clienteFavorecido.nome}.`);
-    return lancamento;
+    return updated;
   }
 
   async getById(id: number): Promise<Lancamento> {
-    const lancamento = await this.lancamentoRepository.findOne({
-      where: { id },
-    });
+    const lancamento = await this.lancamentoRepository.findOne({ where: { id }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }

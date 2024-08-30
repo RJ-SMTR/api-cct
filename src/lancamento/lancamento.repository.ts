@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, Repository, SaveOptions } from 'typeorm';
-import { Lancamento } from './lancamento.entity';
+import { DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, Repository, SaveOptions } from 'typeorm';
+import { Lancamento } from './entities/lancamento.entity';
 
 @Injectable()
 export class LancamentoRepository {
@@ -19,11 +19,15 @@ export class LancamentoRepository {
   }
 
   findOne(options: FindOneOptions<Lancamento>): Promise<Lancamento | null> {
-    return this.findOne(options);
+    return this.lancamentoRepository.findOne(options);
   }
 
-  async getOne(where: FindOptionsWhere<Lancamento>): Promise<Lancamento> {
-    return await this.lancamentoRepository.findOneByOrFail(where);
+  async getOne(where: FindOneOptions<Lancamento>): Promise<Lancamento> {
+    const found = await this.lancamentoRepository.findOne(where);
+    if (!found) {
+      throw new HttpException('Lancamento não encontrado', HttpStatus.NOT_FOUND);
+    }
+    return found;
   }
 
   findMany(options?: FindManyOptions<Lancamento> | undefined): Promise<Lancamento[]> {

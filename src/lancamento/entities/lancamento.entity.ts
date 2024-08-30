@@ -5,11 +5,31 @@ import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { LancamentoInputDto } from './dtos/lancamento-input.dto';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { LancamentoInputDto } from '../dtos/lancamento-input.dto';
+import { LancamentoAutorizacao } from './lancamento-autorizacao.entity';
+
+export interface ILancamento {
+  id: number;
+  valor: number;
+  data_ordem: Date;
+  data_pgto: Date | null;
+  data_lancamento: Date;
+  transacao: Transacao;
+  autorizacoes: User[];
+  autor: User;
+  clienteFavorecido: ClienteFavorecido;
+  algoritmo: number;
+  glosa: number;
+  recurso: number;
+  anexo: number;
+  numero_processo: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 @Entity('lancamento')
-export class Lancamento extends EntityHelper {
+export class Lancamento extends EntityHelper implements ILancamento {
   constructor(lancamento?: DeepPartial<Lancamento>) {
     super();
     if (lancamento !== undefined) {
@@ -76,14 +96,23 @@ export class Lancamento extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_transacao_ManyToOne' })
   transacao: Transacao;
 
-  /**
-   * Coluna - lista de User.id
-   * @example `1,2,3`
-   */
-  @Exclude()
-  @Column({ name: 'autorizado_por', type: 'varchar', nullable: true })
-  autorizado_por: string | null;
+  @ManyToMany(() => User, (user) => user)
+  @JoinTable({
+    name: LancamentoAutorizacao.tableName,
+    joinColumn: { name: 'lancamentoId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'userId', referencedColumnName: 'id' },
+    synchronize: false, // We use LancamentoAutorizacao to generate migration
+  })
+  @Expose({ name: 'autorizado_por' })
+  @Transform(({ value }) =>
+    (value as User[]).map((u) => ({
+      id: u.id,
+      nome: u.fullName,
+    })),
+  )
+  autorizacoes: User[];
 
+  /** O autor mais recente da criação/modificação/autorização do Lançamento */
   @ManyToOne(() => User, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_autor_ManyToOne' })
   @Expose({ name: 'userId' })
@@ -92,7 +121,7 @@ export class Lancamento extends EntityHelper {
 
   @ManyToOne(() => ClienteFavorecido, { eager: true })
   @JoinColumn({ name: 'id_cliente_favorecido', foreignKeyConstraintName: 'FK_Lancamento_idClienteFavorecido_ManyToOne' })
-  @Expose({ name: 'id_cliente_favorecido' })
+  // @Expose({ name: 'id_cliente_favorecido' })
   @Transform(({ value }) => ({
     id: (value as ClienteFavorecido).id,
     nome: (value as ClienteFavorecido).nome,
@@ -117,6 +146,9 @@ export class Lancamento extends EntityHelper {
   @Column({ type: 'varchar', nullable: false })
   numero_processo: string;
 
+  @Column({ type: Boolean, nullable: false, default: false })
+  is_autorizado: boolean;
+
   @Exclude()
   @CreateDateColumn()
   createdAt: Date;
@@ -132,16 +164,24 @@ export class Lancamento extends EntityHelper {
     this.recurso = asStringOrNumber(this.recurso);
     this.anexo = asStringOrNumber(this.anexo);
     this.valor = asStringOrNumber(this.valor);
+    this.autorizacoes = this.autorizacoes || [];
   }
 
-  getIsAutorizado() {
-    const list = (this.autorizado_por || '').split(',');
-    return list.length >= 2;
+  getIsAutorizado(): boolean {
+    return this.is_autorizado;
   }
 
-  pushAutorizado(userId: number) {
-    const list = (this.autorizado_por || '').split(',');
-    list.push('' + userId);
-    this.autorizado_por = list.join(',');
+  addAutorizado(userId: number) {
+    this.autorizacoes.push({ id: userId } as User);
+    this.is_autorizado = this.autorizacoes.length >= 2;
+  }
+
+  removeAutorizado(userId: number) {
+    this.autorizacoes = this.autorizacoes.filter((u) => u.id != userId);
+    this.is_autorizado = this.autorizacoes.length >= 2;
+  }
+
+  hasAutorizadoPor(userId: number): boolean {
+    return Boolean(this.autorizacoes.find((u) => u.id == userId));
   }
 }
