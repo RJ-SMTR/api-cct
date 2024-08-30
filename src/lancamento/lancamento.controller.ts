@@ -29,7 +29,7 @@ export class LancamentoController {
     RoleEnum.aprovador_financeiro,
   )
   @Get('/')
-  @ApiQuery({ name: 'periodo', type: Number, required: false, description: ApiDescription({ _: 'Período do lançamento. Primeira quinzena (dia 5) ou segunda quinzena (dia 20).', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date", min: 1, max: 2 }) })
+  @ApiQuery({ name: 'periodo', type: Number, required: false, description: ApiDescription({ _: 'Período do lançamento. Primeira quinzena (dias 1-15) ou segunda quinzena (dias 16 até o fim do mês).', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date", min: 1, max: 2 }) })
   @ApiQuery({ name: 'mes', type: Number, required: false, description: ApiDescription({ _: 'Mês do lançamento', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
   @ApiQuery({ name: 'ano', type: Number, required: false, description: ApiDescription({ _: 'Ano do lançamento.', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
   @ApiQuery({ name: 'autorizado', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
@@ -73,7 +73,7 @@ export class LancamentoController {
   )
   @Get('/getValorAutorizado')
   @ApiQuery({ name: 'mes', required: true, description: 'Mês do lançamento' })
-  @ApiQuery({ name: 'periodo', required: true, description: 'Período do lançamento. primeira quinzena ou segunda quinzena.' })
+  @ApiQuery({ name: 'periodo', required: true, description: 'Período do lançamento. Primeira quinzena (dias 1-15) ou segunda quinzena (dias 16 até o fim do mês).' })
   @ApiQuery({ name: 'ano', required: true, description: 'Ano do lançamento.' })
   @HttpCode(HttpStatus.OK)
   async getValorAutorizado(
@@ -163,6 +163,14 @@ export class LancamentoController {
 
   @Delete('/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.master, //
+    RoleEnum.admin_finan,
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro,
+  )
+  @ApiBearerAuth()
   async deleteId(@Param('id') id: number) {
     return await this.lancamentoService.delete(id);
   }

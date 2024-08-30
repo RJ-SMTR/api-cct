@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { endOfDay, isFriday, lastDayOfMonth, nextFriday, startOfDay, subDays } from 'date-fns';
+import { endOfDay, endOfMonth, isFriday, lastDayOfMonth, nextFriday, startOfDay, subDays } from 'date-fns';
 import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.service';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
@@ -159,7 +159,7 @@ export class LancamentoService {
       endDate = endOfDay(new Date(year, month - 1, 15));
     } else if (period === 2) {
       startDate = new Date(year, month - 1, 16);
-      endDate = endOfDay(new Date(year, month, 0));
+      endDate = endOfMonth(new Date(year, month, 0));
     } else {
       throw new Error('Invalid period. Period should be 1 or 2.');
     }
