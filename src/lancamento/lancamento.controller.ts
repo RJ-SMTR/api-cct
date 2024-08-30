@@ -29,17 +29,17 @@ export class LancamentoController {
     RoleEnum.aprovador_financeiro,
   )
   @Get('/')
-  @ApiQuery({ name: 'mes', type: Number, required: false, description: 'Mês do lançamento' })
-  @ApiQuery({ name: 'periodo', type: Number, required: false, description: ApiDescription({ _: 'Período do lançamento. Primeira quinzena ou segunda quinzena.', min: 1, max: 2 }) })
-  @ApiQuery({ name: 'ano', type: Number, required: false, description: 'Ano do lançamento.' })
+  @ApiQuery({ name: 'periodo', type: Number, required: false, description: ApiDescription({ _: 'Período do lançamento. Primeira quinzena (dia 5) ou segunda quinzena (dia 20).', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date", min: 1, max: 2 }) })
+  @ApiQuery({ name: 'mes', type: Number, required: false, description: ApiDescription({ _: 'Mês do lançamento', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
+  @ApiQuery({ name: 'ano', type: Number, required: false, description: ApiDescription({ _: 'Ano do lançamento.', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
   @ApiQuery({ name: 'autorizado', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
   @HttpCode(HttpStatus.OK)
   async get(
     @Request() request, //
-    @Query('mes') mes: number,
     @Query('periodo', new ParseNumberPipe({ min: 1, max: 2, optional: true })) periodo: number | undefined,
-    @Query('ano') ano: number,
-    @Query('autorizado') autorizado: boolean | undefined,
+    @Query('mes', new ParseNumberPipe({ min: 1, max: 12, optional: true })) mes: number | undefined,
+    @Query('ano') ano: number | undefined,
+    @Query('autorizado', new ParseBooleanPipe({ optional: true })) autorizado: boolean | undefined,
   ): Promise<Lancamento[]> {
     return await this.lancamentoService.find({ mes, periodo, ano, autorizado });
   }

@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { endOfDay, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
+import { endOfDay, isFriday, lastDayOfMonth, nextFriday, startOfDay, subDays } from 'date-fns';
 import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.service';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
@@ -57,7 +57,7 @@ export class LancamentoService {
     /** [startDate, endDate] */
     let dateRange: [Date, Date] | null = null;
     if (args?.mes && args?.periodo && args?.ano) {
-      dateRange = this.getMonthDateRange(args.ano, args.mes, args.periodo);
+      dateRange = this.getMonthDateRange(args.ano, args.mes, args?.periodo);
     }
 
     const lancamentos = await this.lancamentoRepository.findMany({
@@ -65,7 +65,7 @@ export class LancamentoService {
         ...(dateRange ? { data_lancamento: Between(...dateRange) } : {}),
         ...(args?.autorizado !== undefined ? { is_autorizado: args.autorizado } : {}),
       },
-      relations: ['user'],
+      relations: ['autorizacoes'] as (keyof ILancamento)[],
     });
 
     return lancamentos;
@@ -156,12 +156,10 @@ export class LancamentoService {
 
     if (period === 1) {
       startDate = new Date(year, month - 1, 1);
-      endDate = new Date(year, month - 1, 15);
-      endDate.setHours(23, 59, 59);
+      endDate = endOfDay(new Date(year, month - 1, 15));
     } else if (period === 2) {
       startDate = new Date(year, month - 1, 16);
-      endDate = new Date(year, month, 0);
-      endDate.setHours(23, 59, 59);
+      endDate = endOfDay(new Date(year, month, 0));
     } else {
       throw new Error('Invalid period. Period should be 1 or 2.');
     }
