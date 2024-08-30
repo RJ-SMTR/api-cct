@@ -7,16 +7,14 @@ import { RolesGuard } from 'src/roles/roles.guard';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
-import { ParseListPipe } from 'src/utils/pipes/parse-list.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { CnabService } from './cnab.service';
+import { ParseEnumPipe } from 'src/utils/pipes/validate-enum.pipe';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
+import { GetClienteFavorecidoConsorcioEnum } from './enums/get-cliente-favorecido-consorcio.enum';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ExtratoDto } from './service/dto/extrato.dto';
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
-import { GetClienteFavorecidoConsorcioEnum } from './enums/get-cliente-favorecido-consorcio.enum';
-import { ParseEnumPipe } from 'src/utils/pipes/validate-enum.pipe';
 
 @ApiTags('Cnab')
 @Controller({
