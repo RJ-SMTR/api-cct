@@ -1,22 +1,23 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
-import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
+import { TipoFavorecidoEnum } from 'src/cnab/enums/tipo-favorecido.enum';
 import { User } from 'src/users/entities/user.entity';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { asString } from 'src/utils/pipe-utils';
 import { parseStringUpperUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { FindManyOptions, FindOneOptions, In } from 'typeorm';
+import { FindOneOptions, In } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { ClienteFavorecidoRepository, IClienteFavorecidoRawWhere } from '../repository/cliente-favorecido.repository';
 import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
+import { ClienteFavorecidoRepository, IClienteFavorecidoRawWhere } from '../repository/cliente-favorecido.repository';
 
 @Injectable()
 export class ClienteFavorecidoService {
-  private logger: Logger = new Logger('ClienteFavorecidoService', { timestamp: true });
+  private logger: Logger = new CustomLogger('ClienteFavorecidoService', { timestamp: true });
 
   constructor(private clienteFavorecidoRepository: ClienteFavorecidoRepository) {}
 

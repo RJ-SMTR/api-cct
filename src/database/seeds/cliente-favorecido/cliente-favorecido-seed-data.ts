@@ -1,5 +1,5 @@
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
+import { TipoFavorecidoEnum } from 'src/cnab/enums/tipo-favorecido.enum';
 
 /**
  * Favorecidos from
