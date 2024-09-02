@@ -4,10 +4,14 @@ import { compactQuery } from 'src/utils/console-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { DataSource, DeepPartial, FindManyOptions, In, LessThanOrEqual, QueryRunner, Repository } from 'typeorm';
+import { DataSource, DeepPartial, EntityManager, FindManyOptions, In, LessThanOrEqual, QueryRunner, Repository } from 'typeorm';
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
+
+export interface IFindRawWhere {
+  idTransacao?: string[];
+}
 
 @Injectable()
 export class TransacaoViewRepository {
@@ -93,22 +97,21 @@ export class TransacaoViewRepository {
     return count;
   }
 
-  public async updateManyRaw(dtos: DeepPartial<TransacaoView>[], fields: (keyof ITransacaoView)[], reference: keyof ITransacaoView, queryRunner?: QueryRunner): Promise<number> {
+  public async updateManyRaw(
+    dtos: DeepPartial<TransacaoView>[], //
+    fields: (keyof ITransacaoView)[],
+    reference: keyof ITransacaoView,
+    manager?: EntityManager,
+  ): Promise<number> {
     const METHOD = 'updateManyRaw';
     if (dtos.length == 0) {
       this.logger.debug('Não há TransacaoView para atualizar', METHOD);
       return 0;
     }
-    const fieldTypes = fields.map((f) => TransacaoView.sqlFieldTypes[f]);
     const updatedAt: keyof ITransacaoView = 'updatedAt';
-    const query = EntityHelper.getQueryUpdate(dtos, fields, fieldTypes, reference, updatedAt);
-    if (queryRunner) {
-      const [, count] = await queryRunner.manager.query(compactQuery(query));
-      return count;
-    } else {
-      const [, count] = await this.transacaoViewRepository.query(compactQuery(query));
-      return count;
-    }
+    const query = EntityHelper.getQueryUpdate('transacao_view', dtos, fields, TransacaoView.sqlFieldTypes, reference, updatedAt);
+    const [, count] = await (manager || this.transacaoViewRepository).query(compactQuery(query));
+    return count;
   }
 
   async getMaxId(): Promise<number> {
@@ -179,6 +182,29 @@ export class TransacaoViewRepository {
   public async find(options: FindManyOptions<TransacaoView>): Promise<TransacaoView[]> {
     return await this.transacaoViewRepository.find(options);
   }
+
+  public async findRaw(where?: IFindRawWhere): Promise<TransacaoView[]> {
+    const tv = TransacaoView.getSqlFields('tv');
+    const qWhere: string[] = [];
+    if (where?.idTransacao?.length) {
+      qWhere.push(`${tv.idTransacao} IN ('${where.idTransacao.join("','")}')`);
+    }
+    const selectTv =
+      Object.values(tv)
+        .filter((i) => i != `tv.${tv.arquivoPublicacao}`)
+        .join(',') + `, json_build_object('id', ${tv.arquivoPublicacao}) AS "arquivoPublicacao"`;
+    const raw: any[] = await this.transacaoViewRepository.query(
+      compactQuery(`
+      SELECT ${selectTv}
+      FROM transacao_view tv
+      ${where ? 'WHERE ' + qWhere.join(' AND ') : ''}
+      ORDER BY tv.id DESC
+    `),
+    );
+    const result = raw.map((i) => new TransacaoView(i));
+    return result;
+  }
+
   public async findUpdateValues(diasAnteriores?: number): Promise<TransacaoView[]> {
     const raw: any[] = await this.transacaoViewRepository.query(
       compactQuery(`

@@ -218,7 +218,7 @@ export class TicketRevenuesService {
       });
     }
 
-    let transacoes = await this.transacaoViewService.findRaw({
+    let transacoes = await this.transacaoViewService.findCustom({
       where,
       order: {
         datetimeProcessamento: 'DESC',
