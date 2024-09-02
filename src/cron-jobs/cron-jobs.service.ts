@@ -77,7 +77,10 @@ export class CronJobsService {
 
     this.jobsConfig.push(
       {
-        /** NÃO REMOVER ESTE JOB, É ÚTIL PARA ALTERAR OS CRONJOBS EM CASO DE URGÊNCIA */
+        /**
+         * Job interno.
+         * NÃO REMOVER ESTE JOB, É ÚTIL PARA ALTERAR OS CRONJOBS EM CASO DE URGÊNCIA
+         */
         name: CronJobsEnum.pollDb,
         cronJobParameters: {
           // cronjob: * * * * - A cada minuto
@@ -86,15 +89,26 @@ export class CronJobsService {
         },
       },
       {
-        name: CronJobsEnum.bulkSendInvites,
+        /** Atualizar Retorno - Leitura dos Arquivos Retorno do Banco CEF para CCT - todo dia, a cada 30m */
+        name: CronJobsEnum.updateRetorno,
         cronJobParameters: {
-          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
-          onTick: async () => await this.bulkSendInvites(),
+          cronTime: '*/30 * * * *', //  Every 30 min
+          onTick: async () => {
+            await this.updateRetorno();
+          },
+        },
+      },
+      {
+        /** Atualizar Transações Van - DLake para CCT - todo dia, a cada 30m */
+        name: CronJobsEnum.updateTransacaoViewVan,
+        cronJobParameters: {
+          cronTime: '*/30 * * * *', //  Every 30 min
+          onTick: async () => await this.updateTransacaoViewBigquery('Van'),
         },
       },
       {
         /**
-         * Reenvio de Email para Vanzeiros - 1o acesso ou Cadastro de Contas
+         * Envio de Relatório Estatística Dados - todo dia, 08:00-08:01
          * NÃO DESABILITAR ENVIO DE REPORT - Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
          */
         name: CronJobsEnum.sendStatusReport,
@@ -104,75 +118,13 @@ export class CronJobsService {
         },
       },
       {
-        name: CronJobsEnum.bulkResendInvites,
-        cronJobParameters: {
-          cronTime: '45 14 15 * *', // Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
-          onTick: async () => await this.bulkResendInvites(),
-        },
-      },
-      {
-        /** Atualizar Transações Van - DLake para CCT */
-        name: CronJobsEnum.updateTransacaoViewVan,
-        cronJobParameters: {
-          cronTime: '*/30 * * * *', //  Every 30 min
-          onTick: async () => await this.updateTransacaoViewBigquery('Van'),
-        },
-      },
-      {
-        /** Atualizar Transações Empresa - DLake para CCT */
-        name: CronJobsEnum.updateTransacaoViewEmpresa,
-        cronJobParameters: {
-          cronTime: '0 9 * * *', // Every day, 12:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => await this.updateTransacaoViewBigquery('Empresa'),
-        },
-      },
-      {
-        name: CronJobsEnum.updateTransacaoViewVLT,
-        cronJobParameters: {
-          cronTime: '0 9 * * *', // Every day, 12:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => await this.updateTransacaoViewBigquery('VLT'),
-        },
-      },
-      {
-        name: CronJobsEnum.updateTransacaoViewValues,
-        cronJobParameters: {
-          cronTime: '0 15 * * *', // Every day, 15:00 GMT = 12:00 BRT (GMT-3)
-          onTick: async () => await this.updateTransacaoViewValues(),
-        },
-      },
-      // {
-      //   name: CronJobsEnum.syncTransacaoViewBigquery,
-      //   cronJobParameters: {
-      //     cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
-      //     onTick: async () => await this.syncTransacaoViewOrdem(),
-      //   },
-      // },
-      {
-        /** Atualizar Transações Van - DLake para CCT */
-        name: CronJobsEnum.updateRetorno,
-        cronJobParameters: {
-          cronTime: '*/30 * * * *', // Every 30 min
-          onTick: async () => {
-            await this.updateRetorno();
-          },
-        },
-      },
-      {
-        /** Gerar arquivo remessa dos consórcios (+ sincronismo) */
-        name: CronJobsEnum.generateRemessaEmpresa,
-        cronJobParameters: {
-          cronTime: '0 14 * * *', // Every Thursday (see method), 14:00 GMT = 17:00 BRT (GMT-3)
-          onTick: async () => {
-            await this.generateRemessaEmpresa();
-            await this.syncTransacaoViewOrdem('generateRemessaEmpresa');
-          },
-        },
-      },
-      {
-        /** Gerar arquivo remessa dos vanzeiros (+ sincronismo) - 10:00-10:30 */
+        /**
+         * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min
+         * + BD do CCT - Sincronizar Transações da Ordem Pagto com Trnas. VIEW
+         */
         name: CronJobsEnum.generateRemessaVan,
         cronJobParameters: {
-          cronTime: '0 10 * * *', // Every Friday (see method), 10:00 GMT = 07:00 BRT (GMT-3)
+          cronTime: '0 13 * * *', // Every Friday (see method), 13:00 GMT = 10:00 BRT (GMT-3)
           onTick: async () => {
             await this.generateRemessaVan();
             await this.syncTransacaoViewOrdem('generateRemessaVan');
@@ -180,7 +132,10 @@ export class CronJobsService {
         },
       },
       {
-        /** Gerar arquivo remessa dos VLT (+ sincronismo) - 10:00-10:30 */
+        /**
+         * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min
+         * + BD do CCT - Sincronizar Transações da Ordem Pagto com Trnas. VIEW
+         */
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
           cronTime: '0 8 * * *', // Every day, 05:00 GMT = 8:00 BRT (GMT-3)
@@ -191,6 +146,60 @@ export class CronJobsService {
               await this.syncTransacaoViewOrdem('generateRemessaVLT');
             }
           },
+        },
+      },
+      {
+        /**
+         * Gerar arquivo Remessa dos Consórcios - toda 5a, 17:00, duração: 15 min
+         * + BD do CCT - Sincronizar Transações da Ordem Pagto com Trnas. VIEW
+         */
+        name: CronJobsEnum.generateRemessaEmpresa,
+        cronJobParameters: {
+          cronTime: '0 14 * * *', // Every Thursday (see method), 14:00 GMT = 17:00 BRT (GMT-3)
+          onTick: async () => {
+            await this.generateRemessaEmpresa();
+            await this.syncTransacaoViewOrdem('generateRemessaEmpresa');
+          },
+        },
+      },
+      {
+        /** Atualizar Transações Empresa - DLake para CCT - todo dia, 09:00, duração: 20 min */
+        name: CronJobsEnum.updateTransacaoViewEmpresa,
+        cronJobParameters: {
+          cronTime: '0 9 * * *', // Every day, 12:00 GMT = 09:00 BRT (GMT-3)
+          onTick: async () => await this.updateTransacaoViewBigquery('Empresa'),
+        },
+      },
+      {
+        /** Atualizar Transações VLT - DLake para CCT - todo dia, 09:00, duração: 20 min */
+        name: CronJobsEnum.updateTransacaoViewVLT,
+        cronJobParameters: {
+          cronTime: '0 9 * * *', // Every day, 12:00 GMT = 09:00 BRT (GMT-3)
+          onTick: async () => await this.updateTransacaoViewBigquery('VLT'),
+        },
+      },
+      {
+        /** Reenvio de E-mail para Vanzeiros - 1 aceso ou Cadastro de Contas Bancárias - dia 15 de cada mês, 11:45, duração: 5 min */
+        name: CronJobsEnum.bulkResendInvites,
+        cronJobParameters: {
+          cronTime: '45 14 15 * *', // Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
+          onTick: async () => await this.bulkResendInvites(),
+        },
+      },
+      {
+        /** Atualizar Transações Campos Nulos CCT - DLake para CCT - todo dia, 12:00, duração: 10 min */
+        name: CronJobsEnum.updateTransacaoViewValues,
+        cronJobParameters: {
+          cronTime: '0 15 * * *', // Every day, 15:00 GMT = 12:00 BRT (GMT-3)
+          onTick: async () => await this.updateTransacaoViewValues(),
+        },
+      },
+      {
+        /** Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min */
+        name: CronJobsEnum.bulkSendInvites,
+        cronJobParameters: {
+          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+          onTick: async () => await this.bulkSendInvites(),
         },
       },
     );

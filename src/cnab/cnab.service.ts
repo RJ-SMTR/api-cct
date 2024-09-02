@@ -215,7 +215,7 @@ export class CnabService {
   }
 
   /**
-   * Atualiza a tabela TransacaoView
+   * Atualiza a tabela TransacaoView com dados novos ou atualizados do bigquery
    */
   async updateTransacaoViewBigquery(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string = 'Todos', idTransacao: string[] = []) {
     const METHOD = 'updateTransacaoViewBigquery';
