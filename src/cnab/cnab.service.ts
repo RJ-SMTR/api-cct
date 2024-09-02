@@ -7,8 +7,8 @@ import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
-import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
-import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
+import { TransacaoView } from 'src/transacao-view/transacao-view.entity';
+import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 import { UsersService } from 'src/users/users.service';
 
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -55,7 +55,7 @@ import { formatErrMsg } from 'src/utils/log-utils';
 import e from 'express';
 import { getChunks } from 'src/utils/array-utils';
 import { isContent, isNotContent } from 'src/utils/type-utils';
-import { ISyncOrdemPgto } from 'src/transacao-bq/interfaces/sync-form-ordem.interface';
+import { ISyncOrdemPgto } from 'src/transacao-view/interfaces/sync-form-ordem.interface';
 
 /**
  * User cases for CNAB and Payments

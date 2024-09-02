@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { endOfDay, isToday, startOfDay } from 'date-fns';
-import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
-import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
+import { TransacaoView } from 'src/transacao-view/transacao-view.entity';
+import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 import { getPagination } from 'src/utils/get-pagination';
 import { getPaymentDates } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';

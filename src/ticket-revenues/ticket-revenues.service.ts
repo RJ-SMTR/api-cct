@@ -3,8 +3,8 @@ import { endOfDay, isSameDay, isToday, nextFriday, startOfDay, subDays } from 'd
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.service';
 import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
-import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
-import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
+import { TransacaoView } from 'src/transacao-view/transacao-view.entity';
+import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';

@@ -18,7 +18,7 @@ import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-tra
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
-import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
+import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { Between, DataSource, DeepPartial, IsNull, Not, QueryRunner } from 'typeorm';
