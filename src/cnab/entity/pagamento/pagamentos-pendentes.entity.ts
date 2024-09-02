@@ -27,6 +27,9 @@ export class PagamentosPendentes extends EntityHelper {
   valorLancamento: number;
   
   @Column({ type: Date, unique: false, nullable: true })
+  dataReferencia: Date;
+
+  @Column({ type: Date, unique: false, nullable: true })
   dataVencimento: Date;
 
   @Column({ type: String, unique: false, nullable: true })

@@ -247,7 +247,8 @@ export class CnabService {
             await queryRunner.manager.getRepository(TransacaoView).remove(existing.slice(1));
           }
           if (!existing[0].valorPago && tr.valorPago != existing[0].valorPago) {
-            await queryRunner.manager.getRepository(TransacaoView).update({ idTransacao: tr.idTransacao }, { valorPago: tr.valorPago });
+            await queryRunner.manager.getRepository(TransacaoView).update({ idTransacao: tr.idTransacao }, 
+              { valorPago: tr.valorPago });
           }
         }
       }

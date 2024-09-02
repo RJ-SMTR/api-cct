@@ -22,9 +22,9 @@ export class RelatorioSinteticoRepository {
           select distinct 
 	          '' as datatransacao,
 	          da."dataVencimento"::date::Varchar As datapagamento,
-            ita."nomeConsorcio" AS consorcio,	
+            it."nomeConsorcio" AS consorcio,	
             cf.nome AS favorecido,
-            da."valorLancamento"::float as valor,			      
+            it."valor"::float as valor,			      
           case when (ap."isPago") then 'pago' 
               when (not (ap."isPago")) then 'naopago'
             else 'apagar' end AS status,
@@ -42,7 +42,7 @@ export class RelatorioSinteticoRepository {
             query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
 
           if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i))))
-            query = query +` and ita."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;   
+            query = query +` and it."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;   
               
           if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i))))
             query = query +` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;   
@@ -51,10 +51,10 @@ export class RelatorioSinteticoRepository {
             query = query +`  and ap."isPago"=${args.pago} `;
                   
           if(args.valorMin!==undefined)
-            query = query +`  and da."valorLancamento">=${args.valorMin}`;
+            query = query +`  and it."valor">=${args.valorMin}`;
 
           if(args.valorMax!==undefined)
-              query = query + ` and da."valorLancamento"<=${args.valorMax}`;   
+              query = query + ` and it."valor"<=${args.valorMax}`;   
 
           this.logger.debug(query);
           query = query +   ` union All `;
@@ -63,9 +63,9 @@ export class RelatorioSinteticoRepository {
               select distinct 
               '' as datatransacao,
               da."dataVencimento"::date::Varchar As datapagamento,
-                ita."nomeConsorcio" AS consorcio,	
+                it."nomeConsorcio" AS consorcio,	
                 cf.nome AS favorecido,
-                da."valorLancamento"::float  as valor,			      
+                it."valor"::float  as valor,			      
               case when (ap."isPago") then 'pago' 
                   when (not (ap."isPago")) then 'naopago'
                 else 'apagar' end AS status,
@@ -83,7 +83,7 @@ export class RelatorioSinteticoRepository {
                 query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
     
               if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i))))
-                query = query +` and ita."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;   
+                query = query +` and it."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;   
                   
               if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i))))
                 query = query +` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;   
@@ -92,10 +92,10 @@ export class RelatorioSinteticoRepository {
                 query = query +`  and ap."isPago"=${args.pago} `;
                       
               if(args.valorMin!==undefined)
-                query = query +`  and da."valorLancamento">=${args.valorMin}`;
+                query = query +`  and it."valor">=${args.valorMin}`;
     
               if(args.valorMax!==undefined)
-                  query = query + ` and da."valorLancamento"<=${args.valorMax}`;   
+                  query = query + ` and it."valor"<=${args.valorMax}`;   
         
            this.logger.debug(query);
 
