@@ -1,17 +1,16 @@
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { endOfDay, endOfMonth, isFriday, lastDayOfMonth, nextFriday, startOfDay, subDays } from 'date-fns';
+import { endOfDay, endOfMonth, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
+import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.service';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { Between, IsNull, Like, Not } from 'typeorm';
+import { Between, IsNull } from 'typeorm';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoInputDto } from './dtos/lancamento-input.dto';
 import { ILancamento, Lancamento } from './entities/lancamento.entity';
 import { LancamentoRepository } from './lancamento.repository';
-import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { LancamentoAutorizacao } from './entities/lancamento-autorizacao.entity';
 
 @Injectable()
 export class LancamentoService {
@@ -23,21 +22,8 @@ export class LancamentoService {
     private readonly clienteFavorecidoService: ClienteFavorecidoService,
   ) {}
 
-  // /**
-  //  * Get unused data (no Transacao Id) from current payment week (thu-wed / qui-qua).
-  //  */
-  // async findByLancamentos(lancamentos: LancamentoEntity[]): Promise<LancamentoEntity[]> {
-  //   const ids = lancamentos.map(i => i.id);
-  //   const found = await this.lancamentoRepository.findMany({
-  //     where: {
-  //       id: In(ids)
-  //     }
-  //   });
-  //   return found;
-  // }
-
   /**
-   * Get unused data (no Transacao Id) from current payment week (sex-qui).
+   * Procura itens não usados ainda (sem Transacao Id) from current payment week (sex-qui).
    */
   async findToPayWeek(): Promise<Lancamento[]> {
     const today = new Date();
