@@ -35,7 +35,7 @@ export enum CronJobsEnum {
   updateTransacaoViewVan = 'updateTransacaoViewVan',
   updateTransacaoViewVLT = 'updateTransacaoViewVLT',
   updateTransacaoViewValues = 'updateTransacaoViewValues',
-  syncTransacaoViewOrdemPgto = 'syncTransacaoViewOrdemPgto',
+  syncTransacaoViewOrdem = 'syncTransacaoViewOrdem',
   generateRemessaVLT = 'generateRemessaVLT',
   generateRemessaEmpresa = 'generateRemessaEmpresa',
   generateRemessaVan = 'generateRemessaVan',
@@ -85,7 +85,7 @@ export class CronJobsService {
           onTick: async () => await this.pollDb(),
         },
       },
-      { 
+      {
         name: CronJobsEnum.bulkSendInvites,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
@@ -93,7 +93,10 @@ export class CronJobsService {
         },
       },
       {
-        /** NÃO DESABILITAR ENVIO DE REPORT - Day 15, 14:45 GMT = 11:45 BRT (GMT-3) */
+        /**
+         * Reenvio de Email para Vanzeiros - 1o acesso ou Cadastro de Contas
+         * NÃO DESABILITAR ENVIO DE REPORT - Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
+         */
         name: CronJobsEnum.sendStatusReport,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
@@ -108,24 +111,26 @@ export class CronJobsService {
         },
       },
       {
+        /** Atualizar Transações Van - DLake para CCT */
         name: CronJobsEnum.updateTransacaoViewVan,
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
-          onTick: async () => await this.updateTransacaoView('Van'),
+          onTick: async () => await this.updateTransacaoViewBigquery('Van'),
         },
       },
       {
+        /** Atualizar Transações Empresa - DLake para CCT */
         name: CronJobsEnum.updateTransacaoViewEmpresa,
         cronJobParameters: {
           cronTime: '0 9 * * *', // Every day, 12:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => await this.updateTransacaoView('Empresa'),
+          onTick: async () => await this.updateTransacaoViewBigquery('Empresa'),
         },
       },
       {
         name: CronJobsEnum.updateTransacaoViewVLT,
         cronJobParameters: {
           cronTime: '0 9 * * *', // Every day, 12:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => await this.updateTransacaoView('VLT'),
+          onTick: async () => await this.updateTransacaoViewBigquery('VLT'),
         },
       },
       {
@@ -135,45 +140,56 @@ export class CronJobsService {
           onTick: async () => await this.updateTransacaoViewValues(),
         },
       },
+      // {
+      //   name: CronJobsEnum.syncTransacaoViewBigquery,
+      //   cronJobParameters: {
+      //     cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
+      //     onTick: async () => await this.syncTransacaoViewOrdem(),
+      //   },
+      // },
       {
-        name: CronJobsEnum.syncTransacaoViewOrdemPgto,
-        cronJobParameters: {
-          cronTime: '0 9 * * *', // Every day, 06:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => await this.syncTransacaoViewOrdemPgto(),
-        },
-      },
-      {
+        /** Atualizar Transações Van - DLake para CCT */
         name: CronJobsEnum.updateRetorno,
         cronJobParameters: {
           cronTime: '*/30 * * * *', // Every 30 min
-          onTick: async () => await this.updateRetorno(),
+          onTick: async () => {
+            await this.updateRetorno();
+          },
         },
       },
       {
+        /** Gerar arquivo remessa dos consórcios (+ sincronismo) */
         name: CronJobsEnum.generateRemessaEmpresa,
         cronJobParameters: {
           cronTime: '0 14 * * *', // Every Thursday (see method), 14:00 GMT = 17:00 BRT (GMT-3)
           onTick: async () => {
             await this.generateRemessaEmpresa();
+            await this.syncTransacaoViewOrdem('generateRemessaEmpresa');
           },
         },
       },
       {
+        /** Gerar arquivo remessa dos vanzeiros (+ sincronismo) - 10:00-10:30 */
         name: CronJobsEnum.generateRemessaVan,
         cronJobParameters: {
           cronTime: '0 10 * * *', // Every Friday (see method), 10:00 GMT = 07:00 BRT (GMT-3)
           onTick: async () => {
             await this.generateRemessaVan();
+            await this.syncTransacaoViewOrdem('generateRemessaVan');
           },
         },
       },
       {
+        /** Gerar arquivo remessa dos VLT (+ sincronismo) - 10:00-10:30 */
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
           cronTime: '0 8 * * *', // Every day, 05:00 GMT = 8:00 BRT (GMT-3)
           onTick: async () => {
             const today = new Date();
-            if (!isSaturday(today) && !isSunday(today)) await this.generateRemessaVLT();
+            if (!isSaturday(today) && !isSunday(today)) {
+              await this.generateRemessaVLT();
+              await this.syncTransacaoViewOrdem('generateRemessaVLT');
+            }
           },
         },
       },
@@ -227,37 +243,41 @@ export class CronJobsService {
    */
   async generateRemessaEmpresa(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaEmpresa';
-    const today = debug?.today || new Date();
-    if (!isThursday(today)) {
-      this.logger.log('Não implementado - Hoje não é quinta-feira. Abortando...', METHOD);
-      return;
+    try {
+      const today = debug?.today || new Date();
+      if (!isThursday(today)) {
+        this.logger.log('Não implementado - Hoje não é quinta-feira. Abortando...', METHOD);
+        return;
+      }
+      if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
+        return;
+      }
+      if (!isThursday(today)) {
+        this.logger.error('Não implementado - Hoje não é quinta-feira. Abortando...', undefined, METHOD);
+        return;
+      }
+      this.logger.log('Tarefa iniciada', METHOD);
+      const startDate = new Date();
+      const sex = subDays(today, 6);
+      const qui = today;
+      await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Empresa');
+      const listCnab = await this.cnabService.generateRemessa({
+        tipo: PagadorContaEnum.ContaBilhetagem,
+        dataPgto: addDays(today, 1),
+        isConference: false,
+        isCancelamento: false,
+      });
+      await this.cnabService.sendRemessa(listCnab);
+      this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
+    } catch (error) {
+      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
-    if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
-      return;
-    }
-    if (!isThursday(today)) {
-      this.logger.error('Não implementado - Hoje não é quinta-feira. Abortando...', undefined, METHOD);
-      return;
-    }
-    this.logger.log('Tarefa iniciada', METHOD);
-    const startDate = new Date();
-    const sex = subDays(today, 6);
-    const qui = today;
-    await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Empresa');
-    const listCnab = await this.cnabService.generateRemessa({
-      tipo: PagadorContaEnum.ContaBilhetagem,
-      dataPgto: addDays(today, 1),
-      isConference: false,
-      isCancelamento: false,
-    });
-    await this.cnabService.sendRemessa(listCnab);
-    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
   }
 
   /**
    * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
    */
-  async generateRemessaVan(debug?: ICronjobDebug) {    
+  async generateRemessaVan(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaVan';
     const today = debug?.today || new Date();
     if (!isFriday(today)) {
@@ -312,16 +332,15 @@ export class CronJobsService {
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDateLog)}`, METHOD);
   }
 
-  public async syncTransacaoViewOrdemPgto() {
-    const METHOD = 'syncTransacaoViewOrdemPgto';
+  private async syncTransacaoViewOrdem(method = 'syncTransacaoViewOrdem') {
     try {
       const startDate = subDays(new Date(), 15);
       const today = new Date();
-      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, METHOD);
+      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, method);
       await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [startDate, today] });
-      this.logger.log(`Trefa finalizada com sucesso.`, METHOD);
+      this.logger.log(`Trefa finalizada com sucesso.`, method);
     } catch (error) {
-      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
+      this.logger.error('Erro ao executar tarefa.', error?.stack, method);
     }
   }
 
@@ -350,8 +369,8 @@ export class CronJobsService {
    *
    * `VLT`: Todo dia pega 1 dia antes.
    */
-  async updateTransacaoView(consorcio: 'Van' | 'Empresa' | 'VLT', debug?: ICronjobDebug) {
-    const METHOD = this.updateTransacaoView.name;
+  async updateTransacaoViewBigquery(consorcio: 'Van' | 'Empresa' | 'VLT', debug?: ICronjobDebug) {
+    const METHOD = this.updateTransacaoViewBigquery.name;
     try {
       if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
         return;
