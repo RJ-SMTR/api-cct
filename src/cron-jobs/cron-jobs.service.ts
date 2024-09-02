@@ -257,9 +257,8 @@ export class CronJobsService {
   /**
    * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
    */
-  async generateRemessaVan(debug?: ICronjobDebug) {
+  async generateRemessaVan(debug?: ICronjobDebug) {    
     const METHOD = 'generateRemessaVan';
-
     const today = debug?.today || new Date();
     if (!isFriday(today)) {
       this.logger.error('Não implementado - Hoje não é sexta-feira. Abortando...', undefined, METHOD);
@@ -316,7 +315,7 @@ export class CronJobsService {
   public async syncTransacaoViewOrdemPgto() {
     const METHOD = 'syncTransacaoViewOrdemPgto';
     try {
-      const startDate = subDays(new Date(), 30);
+      const startDate = subDays(new Date(), 15);
       const today = new Date();
       this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, METHOD);
       await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [startDate, today] });
