@@ -23,3 +23,10 @@ export function isStringBasicAlnumUpper(original: string) {
   const expected = parseStringUpperUnaccent(getStringNoSpecials(original));
   return original === expected;
 }
+
+function formatValues(template: string, values: any[]): string {
+  return template.replace(/\$(\d+)/g, (_, index) => {
+    const value = values[parseInt(index) - 1];
+    return value !== undefined ? value : `$${index}`;
+  });
+}
