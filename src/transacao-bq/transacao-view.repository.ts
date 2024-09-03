@@ -46,8 +46,8 @@ export class TransacaoViewRepository {
 
   public async syncOrdemPgto(args?: ISyncOrdemPgto) {
     const where: string[] = [];
-    if (args?.dataOrdem_between) {
-      const [start, end] = args.dataOrdem_between.map((d) => d.toISOString());
+    if (args?.datetimeProcessamento_between) {
+      const [start, end] = args.datetimeProcessamento_between.map((d) => d.toISOString());
       where.push(`DATE(tv."datetimeProcessamento") BETWEEN (DATE('${start}') - INTERVAL '1 DAY') AND '${end}'`);
     }
     if (args?.nomeFavorecido?.length) {

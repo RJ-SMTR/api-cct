@@ -346,7 +346,7 @@ export class CronJobsService {
       const startDate = subDays(new Date(), 15);
       const today = new Date();
       this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, method);
-      await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [startDate, today] });
+      await this.cnabService.syncTransacaoViewOrdemPgto({ datetimeProcessamento_between: [startDate, today] });
       this.logger.log(`Trefa finalizada com sucesso.`, method);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, method);

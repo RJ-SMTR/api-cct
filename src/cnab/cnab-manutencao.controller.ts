@@ -102,7 +102,7 @@ export class CnabManutencaoController {
     @Query('nomeFavorecido', new ParseListPipe({ transform: true, optional: true })) nomeFavorecido: string[] | undefined,
   ) {
     const dataOrdem_between = dataOrdemInicial && dataOrdemFinal && ([dataOrdemInicial, dataOrdemFinal] as [Date, Date]);
-    return await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between, nomeFavorecido });
+    return await this.cnabService.syncTransacaoViewOrdemPgto({ datetimeProcessamento_between: dataOrdem_between, nomeFavorecido });
   }
 
   @Get('updateTransacaoViewBigquery')
