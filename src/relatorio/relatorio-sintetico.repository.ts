@@ -16,18 +16,20 @@ export class RelatorioSinteticoRepository {
   private getQuery(args:IFindPublicacaoRelatorio){ 
      const dataInicio = args.dataInicio.toISOString().slice(0,10)
      const dataFim = args.dataFim.toISOString().slice(0,10)
-     let query = `
-        select distinct res.*
-        from (
+     let query = ` select distinct res.* from ( `;
+     if(args.aPagar === undefined || args.aPagar === false){
+      query = query + `               
           select distinct 
-	          '' as datatransacao,
+	          case 			 
+            when (it."nomeConsorcio" = 'VLT') THEN (da."dataVencimento" - INTERVAL '2 day')::varchar 
+            else '' end as datatransacao,
 	          da."dataVencimento"::date::Varchar As datapagamento,
             it."nomeConsorcio" AS consorcio,	
             cf.nome AS favorecido,
             it."valor"::float as valor,			      
           case when (ap."isPago") then 'pago' 
-              when (not (ap."isPago")) then 'naopago'
-            else 'apagar' end AS status,
+               when (not (ap."isPago")) then 'naopago'
+               else 'apagar' end AS status,
           case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status 			  
           from transacao_view tv   
           inner join item_transacao_agrupado ita on tv."itemTransacaoAgrupadoId"=ita.id
@@ -54,18 +56,20 @@ export class RelatorioSinteticoRepository {
             query = query +`  and it."valor">=${args.valorMin}`;
 
           if(args.valorMax!==undefined)
-              query = query + ` and it."valor"<=${args.valorMax}`;   
-
+              query = query + ` and it."valor"<=${args.valorMax}`;           
+         
           this.logger.debug(query);
           query = query +   ` union All `;
         
           query = query +`
-              select distinct 
-              '' as datatransacao,
+            select distinct 
+              case 			 
+              when (it."nomeConsorcio" = 'VLT') THEN (da."dataVencimento" - INTERVAL '2 day')::varchar 
+              else '' end as datatransacao,
               da."dataVencimento"::date::Varchar As datapagamento,
-                it."nomeConsorcio" AS consorcio,	
-                cf.nome AS favorecido,
-                it."valor"::float  as valor,			      
+              it."nomeConsorcio" AS consorcio,	
+              cf.nome AS favorecido,
+              it."valor"::float  as valor,			      
               case when (ap."isPago") then 'pago' 
                   when (not (ap."isPago")) then 'naopago'
                 else 'apagar' end AS status,
@@ -89,22 +93,32 @@ export class RelatorioSinteticoRepository {
                 query = query +` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;   
     
               if(args.pago !==undefined)          
-                query = query +`  and ap."isPago"=${args.pago} `;
+                query = query +`  and ap."isPago"=${args.pago}`;
                       
               if(args.valorMin!==undefined)
                 query = query +`  and it."valor">=${args.valorMin}`;
     
               if(args.valorMax!==undefined)
-                  query = query + ` and it."valor"<=${args.valorMax}`;   
-        
-           this.logger.debug(query);
-
-           if(args.aPagar==true || (args.aPagar === undefined && args.pago === undefined)){
+                  query = query + ` and it."valor"<=${args.valorMax}`; 
+          }
+          
+          if((query !==` select distinct res.* from ( `) &&(args.aPagar==true || (args.aPagar === undefined && args.pago === undefined)))
             query = query + ` union All `;
 
-            query = query +` select distinct 
+          if(args.aPagar==true || (args.aPagar === undefined && args.pago === undefined)){
+            query = query +` 
+            select distinct 
                 (tv."datetimeTransacao":: Date)::Varchar As datatransacao,
-                '' AS datapagamento, 
+                case 			 
+                when (tv."nomeConsorcio" = 'VLT') THEN (tv."datetimeTransacao":: Date + INTERVAL '2 day')::varchar 				 
+                when (tv."nomeConsorcio" <> 'VLT') and EXTRACT( DOW FROM tv."datetimeTransacao") =0 THEN (tv."datetimeTransacao":: Date + INTERVAL '3 day')::varchar 
+                when (tv."nomeConsorcio" <> 'VLT') and EXTRACT( DOW FROM tv."datetimeTransacao")=1 THEN (tv."datetimeTransacao":: Date + INTERVAL '2 day')::varchar 
+                when (tv."nomeConsorcio" <> 'VLT') and EXTRACT( DOW FROM tv."datetimeTransacao")=2 THEN (tv."datetimeTransacao":: Date + INTERVAL '8 day')::varchar 
+                when (tv."nomeConsorcio" <> 'VLT') and EXTRACT( DOW FROM tv."datetimeTransacao")=3 THEN (tv."datetimeTransacao":: Date + INTERVAL '7 day')::varchar 
+                when (tv."nomeConsorcio" <> 'VLT') and EXTRACT( DOW FROM tv."datetimeTransacao")=4 THEN (tv."datetimeTransacao":: Date + INTERVAL '6 day')::varchar 
+                when (tv."nomeConsorcio" <> 'VLT') and EXTRACT( DOW FROM tv."datetimeTransacao")=5 THEN (tv."datetimeTransacao":: Date + INTERVAL '5 day')::varchar 
+                when (tv."nomeConsorcio" <> 'VLT') and EXTRACT( DOW FROM tv."datetimeTransacao")=6 THEN (tv."datetimeTransacao":: Date + INTERVAL '4 day')::varchar 
+                end as datapagamento,	
                 tv."nomeConsorcio" AS consorcio,	
                 cf.nome AS favorecido,
                 round(tv."valorPago",2)::float  as valor,			      
@@ -130,7 +144,7 @@ export class RelatorioSinteticoRepository {
                   query = query + ` and tv."valorPago"<=${args.valorMax}`;   
             }
 
-            query = query + `) as res
+            query = query + ` ) as res
             order by  res."datapagamento", res."consorcio", res."favorecido"`;
 
             this.logger.debug(query);           
