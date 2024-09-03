@@ -115,8 +115,7 @@ export class Lancamento extends EntityHelper implements ILancamento {
   /** O autor mais recente da criação/modificação/autorização do Lançamento */
   @ManyToOne(() => User, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_autor_ManyToOne' })
-  @Expose({ name: 'userId' })
-  @Transform(({ value }) => (value as User).id)
+  @Transform(({ value }) => ({ id: (value as User).id, fullName: (value as User).fullName } as DeepPartial<User>))
   autor: User;
 
   @ManyToOne(() => ClienteFavorecido, { eager: true })
