@@ -1,13 +1,8 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { isFriday, nextFriday, previousFriday } from 'date-fns';
 import * as request from 'supertest';
-import { getDateYMDString } from '../../src/utils/date-utils';
-import {
-  APP_URL,
-  BQ_JSON_CREDENTIALS,
-  LICENSEE_CPF_PASSWORD,
-  LICENSEE_CPF_PERMIT_CODE,
-} from '../utils/constants';
+import { formatDateYMD } from '../../src/utils/date-utils';
+import { APP_URL, BQ_JSON_CREDENTIALS, LICENSEE_CPF_PASSWORD, LICENSEE_CPF_PERMIT_CODE } from '../utils/constants';
 
 describe('Bank statements (e2e)', () => {
   const app = APP_URL;
@@ -57,7 +52,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
     if (!isFriday(friday)) {
       friday = nextFriday(friday);
     }
-    const fridayStr = getDateYMDString(friday);
+    const fridayStr = formatDateYMD(friday);
 
     // Act
     let bankStatements: any;
@@ -67,7 +62,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: getDateYMDString(friday),
+        endDate: formatDateYMD(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)
@@ -112,7 +107,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: getDateYMDString(friday),
+        endDate: formatDateYMD(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)
@@ -120,8 +115,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         bankStatements = body;
       });
 
-    const bsStartFriday =
-      bankStatements.data[bankStatements.data.length - 1].date;
+    const bsStartFriday = bankStatements.data[bankStatements.data.length - 1].date;
     const bsStartDate = new Date(bsStartFriday);
     bsStartDate.setDate(bsStartDate.getDate() - 8);
     const bsEndDate = new Date(bankStatements.data[0].date);
@@ -134,8 +128,8 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        startDate: getDateYMDString(bsStartDate),
-        endDate: getDateYMDString(bsEndDate),
+        startDate: formatDateYMD(bsStartDate),
+        endDate: formatDateYMD(bsEndDate),
       })
       .expect(200)
       .then(({ body }) => {
@@ -158,7 +152,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
     if (!isFriday(friday)) {
       friday = nextFriday(friday);
     }
-    const fridayStr = getDateYMDString(friday);
+    const fridayStr = formatDateYMD(friday);
 
     // Act
     let bankStatements;
@@ -191,9 +185,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
       });
 
     // Assert
-    const bankStatementsFriday = bankStatements.data.filter(
-      (i: any) => i.date === fridayStr,
-    )?.[0];
+    const bankStatementsFriday = bankStatements.data.filter((i: any) => i.date === fridayStr)?.[0];
     expect(bankStatementsFriday).toBeDefined();
     expect(ticketRevenuesMe.data.length).toBeGreaterThan(0);
     // expect(bankStatementsFriday.amount).toBeGreaterThan(0);
@@ -218,7 +210,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: getDateYMDString(friday),
+        endDate: formatDateYMD(friday),
         timeInterval: 'lastWeek',
       })
       .expect(200)
@@ -233,7 +225,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: getDateYMDString(friday),
+        endDate: formatDateYMD(friday),
         timeInterval: 'lastWeek',
       })
       .expect(200)
@@ -242,48 +234,15 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
       });
 
     // Assert
-    const transactionTypeSum = Number(
-      (revenuesMe.data as [])
-        .reduce(
-          (sum, i: any) =>
-            sum + i?.transactionTypeCounts?.['Débito']?.transactionValue || 0,
-          0,
-        )
-        .toFixed(2),
-    );
-    const transportTypeSum = Number(
-      (revenuesMe.data as [])
-        .reduce(
-          (sum, i: any) =>
-            sum + i?.transportTypeCounts?.['Van']?.transactionValue || 0,
-          0,
-        )
-        .toFixed(2),
-    );
-    const transportIntegrationSum = Number(
-      (revenuesMe.data as [])
-        .reduce(
-          (sum, i: any) =>
-            sum +
-              i?.transportIntegrationTypeCounts?.['BRT']?.transactionValue || 0,
-          0,
-        )
-        .toFixed(2),
-    );
+    const transactionTypeSum = Number((revenuesMe.data as []).reduce((sum, i: any) => sum + i?.transactionTypeCounts?.['Débito']?.transactionValue || 0, 0).toFixed(2));
+    const transportTypeSum = Number((revenuesMe.data as []).reduce((sum, i: any) => sum + i?.transportTypeCounts?.['Van']?.transactionValue || 0, 0).toFixed(2));
+    const transportIntegrationSum = Number((revenuesMe.data as []).reduce((sum, i: any) => sum + i?.transportIntegrationTypeCounts?.['BRT']?.transactionValue || 0, 0).toFixed(2));
     // expect(
     //   transactionTypeSum || transportTypeSum || transportIntegrationSum,
     // ).toBeGreaterThan(0);
-    expect(
-      revenuesMeGrouped.transactionTypeCounts?.['Débito']?.transactionValue ||
-        0,
-    ).toEqual(transactionTypeSum);
-    expect(
-      revenuesMeGrouped.transportTypeCounts?.['Van']?.transactionValue || 0,
-    ).toEqual(transportTypeSum);
-    expect(
-      revenuesMeGrouped.transportIntegrationTypeCounts?.['BRT']
-        ?.transactionValue || 0,
-    ).toEqual(transportIntegrationSum);
+    expect(revenuesMeGrouped.transactionTypeCounts?.['Débito']?.transactionValue || 0).toEqual(transactionTypeSum);
+    expect(revenuesMeGrouped.transportTypeCounts?.['Van']?.transactionValue || 0).toEqual(transportTypeSum);
+    expect(revenuesMeGrouped.transportIntegrationTypeCounts?.['BRT']?.transactionValue || 0).toEqual(transportIntegrationSum);
   }, 60000);
 
   it('should match amountSum in /bank-statements/me with transactionValueSum in ticket-revenues/grouped/me', /**
@@ -303,7 +262,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: getDateYMDString(friday),
+        endDate: formatDateYMD(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)
@@ -318,7 +277,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: getDateYMDString(friday),
+        endDate: formatDateYMD(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)
@@ -329,9 +288,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
     // Assert
     expect(bankStatements.amountSum).toBeGreaterThan(0);
     expect(revenuesMeGrouped.transactionValueSum).toBeGreaterThan(0);
-    expect(bankStatements.amountSum).toEqual(
-      revenuesMeGrouped.transactionValueSum,
-    );
+    expect(bankStatements.amountSum).toEqual(revenuesMeGrouped.transactionValueSum);
   }, 60000);
 
   it('should match ticketCounts in /bank-statements with counts in ticket-revenues/grouped/me', /**
@@ -351,7 +308,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: getDateYMDString(friday),
+        endDate: formatDateYMD(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)
@@ -366,7 +323,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: getDateYMDString(friday),
+        endDate: formatDateYMD(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)

@@ -1,12 +1,5 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import {
-  endOfDay,
-  isSameDay,
-  isToday,
-  nextFriday,
-  startOfDay,
-  subDays,
-} from 'date-fns';
+import { endOfDay, isSameDay, isToday, nextFriday, startOfDay, subDays } from 'date-fns';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.service';
 import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
@@ -19,11 +12,7 @@ import { getNthWeek } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
 import { logError } from 'src/utils/log-utils';
-import {
-  PAYMENT_START_WEEKDAY,
-  PaymentEndpointType,
-  getPaymentDates,
-} from 'src/utils/payment-date-utils';
+import { PAYMENT_START_WEEKDAY, PaymentEndpointType, getPaymentDates } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { Between, FindOptionsWhere, In, MoreThan } from 'typeorm';
@@ -59,9 +48,7 @@ export class TicketRevenuesService {
    *
    * Service method
    */
-  public async getMeGrouped(
-    args: ITRGetMeGroupedArgs,
-  ): Promise<TicketRevenuesGroupDto> {
+  public async getMeGrouped(args: ITRGetMeGroupedArgs): Promise<TicketRevenuesGroupDto> {
     // Args
     const user = await this.validateGetMeGrouped(args);
 
@@ -74,29 +61,21 @@ export class TicketRevenuesService {
     });
 
     // Get data
-    const ticketRevenuesResponse: TicketRevenueDTO[] =
-      await this.findTransacaoView({
-        cpfCnpj: user.getCpfCnpj(),
-        startDate,
-        endDate,
-      });
+    const ticketRevenuesResponse: TicketRevenueDTO[] = await this.findTransacaoView({
+      cpfCnpj: user.getCpfCnpj(),
+      startDate,
+      endDate,
+    });
 
     if (ticketRevenuesResponse.length === 0) {
       return new TicketRevenuesGroupDto();
     }
     const detalhesA = await this.detalheAService.findMany({
       itemTransacaoAgrupado: {
-        id: In(
-          ticketRevenuesResponse.map(
-            (i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id,
-          ),
-        ),
+        id: In(ticketRevenuesResponse.map((i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id)),
       },
     });
-    const ticketRevenuesGroupSum = this.getGroupSum(
-      ticketRevenuesResponse,
-      detalhesA,
-    );
+    const ticketRevenuesGroupSum = this.getGroupSum(ticketRevenuesResponse, detalhesA);
 
     return ticketRevenuesGroupSum;
   }
@@ -109,11 +88,7 @@ export class TicketRevenuesService {
   /**
    *
    */
-  public async getMe(
-    args: ITRGetMeGroupedArgs,
-    pagination: PaginationOptions,
-    endpoint: PaymentEndpointType,
-  ): Promise<TRGetMeGroupedResponseDto> {
+  public async getMe(args: ITRGetMeGroupedArgs, pagination: PaginationOptions, endpoint: PaymentEndpointType): Promise<TRGetMeGroupedResponseDto> {
     const METHOD = 'getMe';
     // TODO: set groupBy as validation response
     const user = await this.validateGetMe(args);
@@ -126,12 +101,11 @@ export class TicketRevenuesService {
     const groupBy = args?.groupBy || 'day';
 
     // Repository tasks
-    let ticketRevenuesResponse: TicketRevenueDTO[] =
-      await this.findTransacaoView({
-        cpfCnpj: user.getCpfCnpj(),
-        startDate,
-        endDate,
-      });
+    let ticketRevenuesResponse: TicketRevenueDTO[] = await this.findTransacaoView({
+      cpfCnpj: user.getCpfCnpj(),
+      startDate,
+      endDate,
+    });
 
     const paidSum = ticketRevenuesResponse.reduce((s, i) => s + i.paidValue, 0);
 
@@ -154,25 +128,13 @@ export class TicketRevenuesService {
         id: In(itemAgrupadoIds),
       },
     });
-    let ticketRevenuesGroups = this.getTicketRevenuesGroups(
-      ticketRevenuesResponse,
-      groupBy,
-      detalhesA,
-    );
+    let ticketRevenuesGroups = this.getTicketRevenuesGroups(ticketRevenuesResponse, groupBy, detalhesA);
 
-    ticketRevenuesGroups = this.fillDatesInGroups(
-      ticketRevenuesGroups,
-      groupBy,
-      startDate,
-      endDate,
-    );
+    ticketRevenuesGroups = this.fillDatesInGroups(ticketRevenuesGroups, groupBy, startDate, endDate);
 
     if (pagination) {
       const offset = pagination?.limit * (pagination?.page - 1);
-      ticketRevenuesGroups = ticketRevenuesGroups.slice(
-        offset,
-        offset + pagination.limit,
-      );
+      ticketRevenuesGroups = ticketRevenuesGroups.slice(offset, offset + pagination.limit);
     }
 
     const transactionValueLastDay = Number(
@@ -182,27 +144,15 @@ export class TicketRevenuesService {
         .toFixed(2),
     );
 
-    ticketRevenuesResponse = this.ticketRevenuesRepository.removeTodayData(
-      ticketRevenuesResponse,
-      endDate,
-    );
-    ticketRevenuesGroups = this.ticketRevenuesRepository.removeTodayData(
-      ticketRevenuesGroups,
-      endDate,
-    );
+    ticketRevenuesResponse = this.ticketRevenuesRepository.removeTodayData(ticketRevenuesResponse, endDate);
+    ticketRevenuesGroups = this.ticketRevenuesRepository.removeTodayData(ticketRevenuesGroups, endDate);
 
-    const amountSum =
-      this.ticketRevenuesRepository.getAmountSum(ticketRevenuesGroups);
+    const amountSum = this.ticketRevenuesRepository.getAmountSum(ticketRevenuesGroups);
 
-    const ticketCount = ticketRevenuesGroups.reduce(
-      (sum, i) => sum + i.count,
-      0,
-    );
+    const ticketCount = ticketRevenuesGroups.reduce((sum, i) => sum + i.count, 0);
 
     return new TRGetMeGroupedResponseDto({
-      startDate:
-        ticketRevenuesResponse[ticketRevenuesResponse.length - 1]
-          ?.processingDateTime || null,
+      startDate: ticketRevenuesResponse[ticketRevenuesResponse.length - 1]?.processingDateTime || null,
       endDate: ticketRevenuesResponse[0]?.processingDateTime || null,
       amountSum,
       paidSum,
@@ -213,12 +163,7 @@ export class TicketRevenuesService {
     });
   }
 
-  fillDatesInGroups(
-    groups: TicketRevenuesGroupDto[],
-    groupBy: 'day' | 'week' | 'month' | 'all' | string,
-    startDate: Date,
-    endDate: Date,
-  ) {
+  fillDatesInGroups(groups: TicketRevenuesGroupDto[], groupBy: 'day' | 'week' | 'month' | 'all' | string, startDate: Date, endDate: Date) {
     const newGroups: TicketRevenuesGroupDto[] = [];
     if (groupBy === 'day') {
       /**
@@ -226,9 +171,7 @@ export class TicketRevenuesService {
        * adiciona item existente ou adiciona vazio
        */
       for (let day = endDate; day >= startDate; day = subDays(day, 1)) {
-        const existing = groups.filter((i) =>
-          isSameDay(new Date(i.date), day),
-        )[0] as TicketRevenuesGroupDto | undefined;
+        const existing = groups.filter((i) => isSameDay(new Date(i.date), day))[0] as TicketRevenuesGroupDto | undefined;
         if (existing) {
           newGroups.push(existing);
         } else {
@@ -246,17 +189,10 @@ export class TicketRevenuesService {
   public async findTransacaoView(args: IFetchTicketRevenues) {
     const datetimeField: keyof TransacaoView = 'datetimeTransacao';
     const betweenDate: FindOptionsWhere<TransacaoView> = {
-      [datetimeField]: Between(
-        startOfDay(args?.startDate || new Date(0)),
-        endOfDay(args?.endDate || new Date()),
-      ),
+      [datetimeField]: Between(startOfDay(args?.startDate || new Date(0)), endOfDay(args?.endDate || new Date())),
     };
-    const findOperadora: FindOptionsWhere<TransacaoView> = args?.cpfCnpj
-      ? { operadoraCpfCnpj: args.cpfCnpj }
-      : {};
-    const findConsorcio: FindOptionsWhere<TransacaoView> = args?.cpfCnpj
-      ? { consorcioCnpj: args.cpfCnpj }
-      : {};
+    const findOperadora: FindOptionsWhere<TransacaoView> = args?.cpfCnpj ? { operadoraCpfCnpj: args.cpfCnpj } : {};
+    const findConsorcio: FindOptionsWhere<TransacaoView> = args?.cpfCnpj ? { consorcioCnpj: args.cpfCnpj } : {};
     const where: FindOptionsWhere<TransacaoView>[] = [
       {
         ...betweenDate,
@@ -282,7 +218,7 @@ export class TicketRevenuesService {
       });
     }
 
-    let transacoes = await this.transacaoViewService.findRaw({
+    let transacoes = await this.transacaoViewService.findCustom({
       where,
       order: {
         datetimeProcessamento: 'DESC',
@@ -294,12 +230,8 @@ export class TicketRevenuesService {
     // Filtrar apenas dias anteriores (dataProcessamento > dataTransacao - dia)
     if (args.previousDays) {
       transacoes = transacoes.filter((i) => {
-        const notSameDay = !isSameDay(
-          i.datetimeProcessamento,
-          i.datetimeTransacao,
-        );
-        const processamentoGTtransacao =
-          i.datetimeProcessamento > i.datetimeTransacao;
+        const notSameDay = !isSameDay(i.datetimeProcessamento, i.datetimeTransacao);
+        const processamentoGTtransacao = i.datetimeProcessamento > i.datetimeTransacao;
         return notSameDay && processamentoGTtransacao;
       });
     }
@@ -331,19 +263,12 @@ export class TicketRevenuesService {
     return user;
   }
 
-  private getGroupSum(
-    data: TicketRevenueDTO[],
-    detalhesA: DetalheA[],
-  ): TicketRevenuesGroupDto {
+  private getGroupSum(data: TicketRevenueDTO[], detalhesA: DetalheA[]): TicketRevenuesGroupDto {
     const METHOD = this.getGroupSum.name;
     const groupSums = this.getTicketRevenuesGroups(data, 'all', detalhesA);
     if (groupSums.length >= 1) {
       if (groupSums.length > 1) {
-        logError(
-          this.logger,
-          'ticketRevenuesGroupSum should have 0-1 items, getting first one.',
-          METHOD,
-        );
+        logError(this.logger, 'ticketRevenuesGroupSum should have 0-1 items, getting first one.', METHOD);
       }
       return groupSums[0];
     } else {
@@ -363,84 +288,65 @@ export class TicketRevenuesService {
    *
    * Filter method: ticket-revenues/me
    */
-  private getTicketRevenuesGroups(
-    ticketRevenues: TicketRevenueDTO[],
-    groupBy: 'day' | 'week' | 'month' | 'all' | string,
-    detalhesA: DetalheA[],
-  ): TicketRevenuesGroupDto[] {
-    const result = ticketRevenues.reduce(
-      (group: TicketRevenuesGroups, item: TicketRevenueDTO) => {
-        const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
-        const itemDate = new Date(item.processingDateTime);
-        const nthWeek = getNthWeek(itemDate, startWeekday);
-        const foundDetalhesA = detalhesA.filter((i) => i.itemTransacaoAgrupado.id == item.itemTransacaoAgrupadoId);
-        const errors = DetalheA.getOcorrenciaErrors(foundDetalhesA);
+  private getTicketRevenuesGroups(ticketRevenues: TicketRevenueDTO[], groupBy: 'day' | 'week' | 'month' | 'all' | string, detalhesA: DetalheA[]): TicketRevenuesGroupDto[] {
+    const result = ticketRevenues.reduce((group: TicketRevenuesGroups, item: TicketRevenueDTO) => {
+      const startWeekday: WeekdayEnum = PAYMENT_START_WEEKDAY;
+      const itemDate = new Date(item.processingDateTime);
+      const nthWeek = getNthWeek(itemDate, startWeekday);
+      const foundDetalhesA = detalhesA.filter((i) => i.itemTransacaoAgrupado.id == item.itemTransacaoAgrupadoId);
+      const errors = DetalheA.getOcorrenciaErrors(foundDetalhesA);
 
-        // 'day', default,
-        let dateGroup = item.processingDateTime.slice(0, 10);
-        if (groupBy === 'week') {
-          dateGroup = String(nthWeek);
-        }
-        if (groupBy === 'month') {
-          dateGroup = itemDate.toISOString().slice(0, 7);
-        }
-        if (groupBy === 'all') {
-          dateGroup = 'all';
-        }
+      // 'day', default,
+      let dateGroup = item.processingDateTime.slice(0, 10);
+      if (groupBy === 'week') {
+        dateGroup = String(nthWeek);
+      }
+      if (groupBy === 'month') {
+        dateGroup = itemDate.toISOString().slice(0, 7);
+      }
+      if (groupBy === 'all') {
+        dateGroup = 'all';
+      }
 
-        if (!group[dateGroup]) {
-          const friday = nextFriday(
-            new Date(item.processingDateTime),
-          ).toISOString();
-          const day = item.processingDateTime;
-          const procsesingDate = groupBy === 'week' ? friday : day;
-          const newGroup = new TicketRevenuesGroupDto({
-            count: 0,
-            date: procsesingDate,
-            transportTypeCounts: {},
-            directionIdCounts: {},
-            paymentMediaTypeCounts: {},
-            transactionTypeCounts: {},
-            transportIntegrationTypeCounts: {},
-            stopIdCounts: {},
-            stopLatCounts: {},
-            stopLonCounts: {},
-            transactionValueSum: 0,
-            paidValueSum: 0,
-            aux_epochWeek: nthWeek,
-            aux_nthWeeks: [],
-            aux_groupDateTime: itemDate.toISOString(),
-            /** Se encontrar 1 item não pago, muda para falso */
-            isPago: true,
-            errors: errors,
-          });
-          group[dateGroup] = newGroup;
-        } else {
-          group[dateGroup].errors = [
-            ...new Set([...group[dateGroup].errors, ...errors]),
-          ];
-        }
+      if (!group[dateGroup]) {
+        const friday = nextFriday(new Date(item.processingDateTime)).toISOString();
+        const day = item.processingDateTime;
+        const procsesingDate = groupBy === 'week' ? friday : day;
+        const newGroup = new TicketRevenuesGroupDto({
+          count: 0,
+          date: procsesingDate,
+          transportTypeCounts: {},
+          directionIdCounts: {},
+          paymentMediaTypeCounts: {},
+          transactionTypeCounts: {},
+          transportIntegrationTypeCounts: {},
+          stopIdCounts: {},
+          stopLatCounts: {},
+          stopLonCounts: {},
+          transactionValueSum: 0,
+          paidValueSum: 0,
+          aux_epochWeek: nthWeek,
+          aux_nthWeeks: [],
+          aux_groupDateTime: itemDate.toISOString(),
+          /** Se encontrar 1 item não pago, muda para falso */
+          isPago: true,
+          errors: errors,
+        });
+        group[dateGroup] = newGroup;
+      } else {
+        group[dateGroup].errors = [...new Set([...group[dateGroup].errors, ...errors])];
+      }
 
-        TicketRevenuesGroupList.appendItem(group[dateGroup], item, detalhesA);
-        return group;
-      },
-      {},
-    );
-    const resultList = Object.keys(result).map(
-      (dateGroup) => result[dateGroup],
-    );
+      TicketRevenuesGroupList.appendItem(group[dateGroup], item, detalhesA);
+      return group;
+    }, {});
+    const resultList = Object.keys(result).map((dateGroup) => result[dateGroup]);
     return resultList;
   }
 
-  public async getMeIndividual(
-    args: ITRGetMeIndividualArgs,
-    paginationOptions: PaginationOptions,
-  ): Promise<Pagination<ITRGetMeIndividualResponse>> {
+  public async getMeIndividual(args: ITRGetMeIndividualArgs, paginationOptions: PaginationOptions): Promise<Pagination<ITRGetMeIndividualResponse>> {
     const validArgs = await this.validateGetMeIndividual(args);
-    return await this.ticketRevenuesRepository.getMeIndividual(
-      validArgs,
-      paginationOptions,
-    );
+    return await this.ticketRevenuesRepository.getMeIndividual(validArgs, paginationOptions);
   }
 
   private async validateGetMeIndividual(args: ITRGetMeIndividualArgs): Promise<{

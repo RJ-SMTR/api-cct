@@ -1,14 +1,25 @@
+import { isSameDay } from 'date-fns';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asNullableStringOrNumber } from 'src/utils/pipe-utils';
 import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { ItemTransacao } from './pagamento/item-transacao.entity';
-import { isSameDay } from 'date-fns';
 
+export interface IArquivoPublicacao {
+  id: number;
+  itemTransacao: ItemTransacao;
+  isPago: boolean;
+  dataGeracaoRetorno: Date | null;
+  dataVencimento: Date | null;
+  dataEfetivacao: Date | null;
+  valorRealEfetivado: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 /**
  * Unique Jaé FK: idOrdemPagamento, idConsorcio, idOperadora
  */
 @Entity()
-export class ArquivoPublicacao extends EntityHelper {
+export class ArquivoPublicacao extends EntityHelper implements IArquivoPublicacao {
   constructor(arquivoPublicacao: DeepPartial<ArquivoPublicacao>) {
     super();
     if (arquivoPublicacao !== undefined) {
@@ -18,6 +29,19 @@ export class ArquivoPublicacao extends EntityHelper {
       }
     }
   }
+
+  public static sqlFieldTypes: Record<keyof IArquivoPublicacao, string> = {
+    id: 'INT',
+    itemTransacao: 'INT',
+    isPago: 'BOOLEAN',
+    dataGeracaoRetorno: 'TIMESTAMP',
+    dataVencimento: 'TIMESTAMP',
+    dataEfetivacao: 'TIMESTAMP',
+    valorRealEfetivado: 'NUMERIC',
+    createdAt: 'TIMESTAMP',
+    updatedAt: 'TIMESTAMP',
+  };
+
   @PrimaryGeneratedColumn({
     primaryKeyConstraintName: 'PK_ArquivoPublicacao_id',
   })

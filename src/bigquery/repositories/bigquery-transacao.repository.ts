@@ -5,10 +5,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { TRIntegrationTypeMap } from 'src/ticket-revenues/maps/ticket-revenues.map';
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import {
-  BigquerySource,
-  BigqueryService,
-} from '../bigquery.service';
+import { BigquerySource, BigqueryService } from '../bigquery.service';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { IBqFindTransacao } from '../interfaces/bq-find-transacao-by.interface';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
@@ -16,6 +13,7 @@ import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento
 import { BqTransacaoTipoTransacaoMap } from '../maps/bq-transacao-tipo-transacao.map';
 import { logWarn } from 'src/utils/log-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { isArray } from 'class-validator';
 
 @Injectable()
 export class BigqueryTransacaoRepository {
@@ -23,38 +21,25 @@ export class BigqueryTransacaoRepository {
     timestamp: true,
   });
 
-  constructor(
-    private readonly bigqueryService: BigqueryService,
-    private readonly settingsService: SettingsService,
-  ) {}
+  constructor(private readonly bigqueryService: BigqueryService, private readonly settingsService: SettingsService) {}
 
   public async countAll() {
-    const result = await this.bigqueryService.query(
-      BigquerySource.smtr,
-      'SELECT COUNT(*) as length FROM `rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao`',
-    );
+    const result = await this.bigqueryService.query(BigquerySource.smtr, 'SELECT COUNT(*) as length FROM `rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao`');
     const len = result[0].length;
     return len;
   }
 
-  public async findMany(
-    filter?: IBqFindTransacao,
-  ): Promise<BigqueryTransacao[]> {
+  public async findMany(filter?: IBqFindTransacao): Promise<BigqueryTransacao[]> {
     const transacoes: BigqueryTransacao[] = (await this.queryData(filter)).data;
     return transacoes;
   }
 
-  private async queryData(
-    args?: IBqFindTransacao,
-  ): Promise<{ data: BigqueryTransacao[]; countAll: number }> {
-    const isBqProd =
-      (
-        await this.settingsService.getOneBySettingData(
-          appSettings.any__bigquery_env,
-          true,
-        )
-      ).getValueAsString() === BigqueryEnvironment.Production;
-    const qArgs = await this.getQueryArgs(isBqProd, args);
+  private async queryData(args?: IBqFindTransacao): Promise<{
+    data: BigqueryTransacao[]; //
+    countAll: number;
+  }> {
+    const isBqProd = (await this.settingsService.getOneBySettingData(appSettings.any__bigquery_env, true)).getValueAsString() === BigqueryEnvironment.Production;
+    const qArgs = this.getQueryArgs(isBqProd, args);
     const query =
       `
         SELECT
@@ -95,16 +80,11 @@ export class BigqueryTransacaoRepository {
       '\n' +
       qArgs.joinIntegracao +
       '\n' +
-      (qArgs.qWhere.length
-        ? `WHERE ${qArgs.qWhere}\n`
-        : '') +
+      (qArgs.qWhere.length ? `WHERE ${qArgs.qWhere}\n` : '') +
       `\nORDER BY datetime_processamento DESC` +
       (qArgs?.limit !== undefined ? `\nLIMIT ${qArgs.limit + 1}` : '') +
       (qArgs?.offset !== undefined ? `\nOFFSET ${qArgs.offset}` : '');
-    const queryResult = await this.bigqueryService.query(
-      BigquerySource.smtr,
-      query,
-    );
+    const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query);
 
     const count = 0;
     // Remove unwanted keys and remove last item (all null if empty)
@@ -123,12 +103,8 @@ export class BigqueryTransacaoRepository {
   private getQueryArgs(isBqProd: boolean, args?: IBqFindTransacao) {
     const Q_CONSTS = {
       bucket: isBqProd ? 'rj-smtr' : 'rj-smtr-dev',
-      transacao: isBqProd
-        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao'
-        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao',
-      integracao: isBqProd
-        ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.integracao'
-        : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.integracao',
+      transacao: isBqProd ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao' : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.transacao',
+      integracao: isBqProd ? 'rj-smtr.br_rj_riodejaneiro_bilhetagem.integracao' : 'rj-smtr-dev.br_rj_riodejaneiro_bilhetagem_cct.integracao',
       tTipoPgto: isBqProd ? 'tipo_pagamento' : 'id_tipo_pagamento',
     };
     // Args
@@ -136,47 +112,54 @@ export class BigqueryTransacaoRepository {
     const queryBuilder = new QueryBuilder();
     queryBuilder.pushOR([]);
     if (args?.offset !== undefined && args.limit === undefined) {
-      logWarn(
-        this.logger,
-        "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." +
-          " 'offset' will be ignored to prevent query fail",
-      );
+      logWarn(this.logger, "fetchTicketRevenues(): 'offset' is defined but 'limit' is not." + " 'offset' will be ignored to prevent query fail");
       offset = undefined;
     }
 
     if (args?.startDate) {
       const startDate = args.startDate.toISOString();
-      queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) >= DATE('${startDate}')`,
-      );
+      queryBuilder.pushAND(`DATE(t.datetime_processamento) >= DATE('${startDate}')`);
     }
     if (args?.endDate) {
       const endDate = args.endDate.toISOString();
-      queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) <= DATE('${endDate}')`,
-      );
+      queryBuilder.pushAND(`DATE(t.datetime_processamento) <= DATE('${endDate}')`);
     }
     if (args?.previousDaysOnly === true) {
-      queryBuilder.pushAND(
-        'DATE(t.datetime_processamento) > DATE(t.datetime_transacao)',
-      );
+      queryBuilder.pushAND('DATE(t.datetime_processamento) > DATE(t.datetime_transacao)');
+    }
+    if (args?.valor_pagamento !== undefined) {
+      const _value = args.valor_pagamento;
+      let value = '';
+      if (Array.isArray(_value) && typeof _value[0] === 'number') {
+        value = `${_value[0]} ${_value[1]}`;
+      } else if (_value === null) {
+        value = 'IS NULL';
+      } else if (_value == 'NOT NULL') {
+        value = 'IS NOT NULL';
+      } else {
+        value = `IN(${(_value as number[]).join(',')})`;
+      }
+      queryBuilder.pushAND(`t.valor_pagamento ${value}`);
+    }
+    if (args?.id_transacao !== undefined && args?.id_transacao?.length) {
+      const _value = args.id_transacao;
+      let value = `IN('${(_value as string[]).join("','")}')`;
+      if (_value === null) {
+        value = 'IS NULL';
+      }
+      queryBuilder.pushAND(`t.id_transacao ${value}`);
     }
 
     queryBuilder.pushOR([]);
     if (args?.getToday) {
       const nowStr = new Date(Date.now()).toISOString().slice(0, 10);
-      queryBuilder.pushAND(
-        `DATE(t.datetime_processamento) = DATE('${nowStr}')`,
-      );
+      queryBuilder.pushAND(`DATE(t.datetime_processamento) = DATE('${nowStr}')`);
     }
 
     let qWhere = queryBuilder.toSQL();
     if (args?.cpfCnpj !== undefined) {
       const cpfCnpj = args.cpfCnpj;
-      qWhere =
-        isCpfOrCnpj(args?.cpfCnpj) === 'cpf'
-          ? `o.documento = '${cpfCnpj}' AND (${qWhere})`
-          : `c.cnpj = '${cpfCnpj}' AND (${qWhere})`;
+      qWhere = isCpfOrCnpj(args?.cpfCnpj) === 'cpf' ? `o.documento = '${cpfCnpj}' AND (${qWhere})` : `c.cnpj = '${cpfCnpj}' AND (${qWhere})`;
     }
     if (args?.manyCpfCnpj && args.manyCpfCnpj.length > 0) {
       const cpfs = args.manyCpfCnpj.filter((i) => isCpfOrCnpj(i) === 'cpf');
@@ -234,18 +217,9 @@ export class BigqueryTransacaoRepository {
       return {
         ...item,
         valor_transacao: item.valor_transacao || 0,
-        paymentMediaType:
-          tipo_pagamento !== null
-            ? BqTransacaoTipoPagamentoMap?.[tipo_pagamento] || tipo_pagamento
-            : tipo_pagamento,
-        transportIntegrationType:
-          tipo_integracao !== null
-            ? BqTsansacaoTipoIntegracaoMap?.[tipo_integracao] || tipo_integracao
-            : tipo_integracao,
-        transactionType:
-          tipo_transacao !== null
-            ? BqTransacaoTipoTransacaoMap?.[tipo_transacao] || tipo_transacao
-            : tipo_transacao,
+        paymentMediaType: tipo_pagamento !== null ? BqTransacaoTipoPagamentoMap?.[tipo_pagamento] || tipo_pagamento : tipo_pagamento,
+        transportIntegrationType: tipo_integracao !== null ? BqTsansacaoTipoIntegracaoMap?.[tipo_integracao] || tipo_integracao : tipo_integracao,
+        transactionType: tipo_transacao !== null ? BqTransacaoTipoTransacaoMap?.[tipo_transacao] || tipo_transacao : tipo_transacao,
       };
     });
   }

@@ -8,15 +8,15 @@ import { RelatorioAnaliticoDto } from './dtos/relatorio-analitico.dto';
 import { RelatorioSinteticoDto } from './dtos/relatorio-sintetico.dto';
 
 @Injectable()
-export class RelatorioRepository { 
+export class RelatorioConsolidadoRepository { 
   
   constructor(@InjectDataSource()
               private readonly dataSource: DataSource) {}
 
-              private logger = new CustomLogger(RelatorioRepository.name, { timestamp: true });
+              private logger = new CustomLogger(RelatorioConsolidadoRepository.name, { timestamp: true });
   
-  private getQueryAPagarConsorcio(dataInicio:string,dataFim:string,pago?:boolean,
-    valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){ 
+  private getQueryAPagarConsorcio(dataInicio:string,dataFim:string,
+    valorMin?:number,valorMax?:number,nomeConsorcio?:string[]){ 
      let query = `
         select * from (
           select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor
@@ -101,7 +101,7 @@ export class RelatorioRepository {
   }  
   
   private getQueryConsorcio(dataInicio:string,dataFim:string,pago?:boolean,
-    valorMin?:number,valorMax?:number,nomeConsorcio?:string[],aPagar?:boolean){ 
+    valorMin?:number,valorMax?:number,nomeConsorcio?:string[]){ 
     let query = `
         select * from ( select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor
              from (
@@ -148,7 +148,7 @@ export class RelatorioRepository {
     return query;             
   }
  
-  private getQueryAPagarOperadores(dataInicio:string,dataFim:string,pago?:boolean,valorMin?:number,
+  private getQueryAPagarOperadores(dataInicio:string,dataFim:string,valorMin?:number,
     valorMax?:number,favorecidoNome?:string[]){
     let query = `
         select * from (select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor
@@ -316,21 +316,21 @@ export class RelatorioRepository {
     let queryConsorcio = '';
     if(args.aPagar === true && args.favorecidoNome ===undefined){
       queryConsorcio = this.getQueryAPagarConsorcio(args.dataInicio.toISOString().slice(0,10),
-      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
-        args.valorMax,args.consorcioNome,args.aPagar);
+      args.dataFim.toISOString().slice(0,10),args.valorMin,
+        args.valorMax,args.consorcioNome);
     }  
 
     if((args.aPagar === undefined || args.aPagar === false) && 
     (args.consorcioNome!==undefined || args.favorecidoNome === undefined)){
       queryConsorcio = this.getQueryConsorcio(args.dataInicio.toISOString().slice(0,10),
       args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
-        args.valorMax,args.consorcioNome,args.aPagar);
+        args.valorMax,args.consorcioNome);
     }   
    
     let queryOperadores ='';
-    if(args.aPagar === true){
+    if(args.aPagar === true && args.consorcioNome===undefined){
       queryOperadores = this.getQueryAPagarOperadores(args.dataInicio.toISOString().slice(0,10),
-      args.dataFim.toISOString().slice(0,10),args.pago,args.valorMin,
+      args.dataFim.toISOString().slice(0,10),args.valorMin,
         args.valorMax,args.favorecidoNome);
     }  
 
@@ -351,13 +351,5 @@ export class RelatorioRepository {
     queryRunner.release();
     const consolidados = result.map((r) => new RelatorioConsolidadoDto(r));
     return consolidados;
-  }  
-
-  public async findSintetico(args: IFindPublicacaoRelatorio): Promise<RelatorioSinteticoDto[]> {
-    return [];
-  }
-
-  public async findAnalitico(args: IFindPublicacaoRelatorio): Promise<RelatorioAnaliticoDto[]> {
-    return [];
-  }
+  }   
 } 

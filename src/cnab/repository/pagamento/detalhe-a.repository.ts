@@ -8,7 +8,7 @@ import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial, FindManyOptions, FindOneOptions, In, InsertResult, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
-import { getDateYMDString } from 'src/utils/date-utils';
+import { formatDateYMD } from 'src/utils/date-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { compactQuery } from 'src/utils/console-utils';
 

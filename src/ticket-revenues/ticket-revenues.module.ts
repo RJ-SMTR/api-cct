@@ -9,18 +9,8 @@ import { TicketRevenuesController } from './ticket-revenues.controller';
 import { TicketRevenuesService } from './ticket-revenues.service';
 
 @Module({
-  imports: [
-    UsersModule,
-    BigqueryModule,
-    UsersModule,
-    SettingsModule,
-    TransacaoViewModule,
-    CnabModule,
-  ],
-  providers: [
-    TicketRevenuesService,
-    TicketRevenuesRepositoryService,
-  ],
+  imports: [UsersModule, BigqueryModule, UsersModule, SettingsModule, TransacaoViewModule, CnabModule],
+  providers: [TicketRevenuesService, TicketRevenuesRepositoryService],
   controllers: [TicketRevenuesController],
   exports: [TicketRevenuesService, TicketRevenuesRepositoryService],
 })

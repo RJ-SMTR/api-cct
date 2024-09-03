@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { BigqueryTransacaoRepository } from '../repositories/bigquery-transacao.repository';
+import { IBqFindTransacao } from '../interfaces/bq-find-transacao-by.interface';
 
 @Injectable()
 export class BigqueryTransacaoService {
@@ -22,6 +23,24 @@ export class BigqueryTransacaoService {
       })
     ).map((i) => ({ ...i } as BigqueryTransacao));
     return transacao;
+  }
+
+  public async findMany(filter?: IBqFindTransacao) {
+    const transacaoBq = await this.bigqueryTransacaoRepository.findMany(filter);
+    const transacaoView = transacaoBq.map((i) => i as BigqueryTransacao);
+    return transacaoView;
+  }
+
+  public async findManyPaginated(filter: IBqFindTransacao, limit: number, callback: (items: BigqueryTransacao[]) => void) {
+    let page = 1;
+    let offset = limit * page;
+    let transacoesBq = await this.bigqueryTransacaoRepository.findMany({ ...filter, limit, offset });
+    while (transacoesBq.length) {
+      callback(transacoesBq);
+      page += 1;
+      offset = limit * page;
+      transacoesBq = await this.bigqueryTransacaoRepository.findMany({ ...filter, limit, offset });
+    }
   }
 
   /**

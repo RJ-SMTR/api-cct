@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Query,
-  Request,
-  SerializeOptions,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Query, Request, SerializeOptions, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { User } from 'src/users/entities/user.entity';
@@ -29,6 +20,8 @@ import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-inter
 import { BSMeTimeIntervalEnum } from './enums/bs-me-time-interval.enum';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
 import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
+import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
+import { ApiDescription } from 'src/utils/api-param/description-api-param';
 
 @ApiTags('BankStatements')
 @Controller({
@@ -58,12 +51,10 @@ export class BankStatementsController {
    *
    * @param timeInterval Apenas mensal
    */
-  @SerializeOptions({
-    groups: ['me'],
-  })
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
   @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  @SerializeOptions({ groups: ['me'] })
+  @ApiBearerAuth()
   @ApiQuery(DateApiParams.yearMonth)
   @ApiQuery(DateApiParams.timeInterval)
   @ApiQuery(CommonApiParams.userId)
@@ -71,14 +62,7 @@ export class BankStatementsController {
   async getMe(
     @Request() request: IRequest,
     @Query(...DateQueryParams.yearMonth) yearMonth: string,
-    @Query(
-      'timeInterval',
-      new ValidateEnumPipe(
-        BSMeTimeIntervalEnum,
-        false,
-        BSMeTimeIntervalEnum.LAST_MONTH,
-      ),
-    )
+    @Query('timeInterval', new ValidateEnumPipe(BSMeTimeIntervalEnum, false, BSMeTimeIntervalEnum.LAST_MONTH))
     timeInterval?: BSMeTimeIntervalEnum | undefined,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: true }))
     userId?: number | null,
@@ -87,9 +71,7 @@ export class BankStatementsController {
 
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     const yearMonthDate = yearMonth ? new Date(yearMonth) : new Date();
-    const _timeInterval = timeInterval
-      ? (timeInterval as unknown as TimeIntervalEnum)
-      : undefined;
+    const _timeInterval = timeInterval ? (timeInterval as unknown as TimeIntervalEnum) : undefined;
 
     return this.bankStatementsService.getMe({
       yearMonth: yearMonthDate,
@@ -121,36 +103,23 @@ export class BankStatementsController {
    * Não é usado:
    * - startDate
    */
-  @SerializeOptions({
-    groups: ['me'],
-  })
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
   @Get('me/previous-days')
+  @UseGuards(AuthGuard('jwt'))
+  @SerializeOptions({ groups: ['me'] })
+  @ApiBearerAuth()
   @ApiQuery(PaginationApiParams.page)
   @ApiQuery(PaginationApiParams.limit)
-  @ApiQuery(DateApiParams.startDate)
-  @ApiQuery(DateApiParams.getEndDate(true))
-  @ApiQuery({
-    name: 'timeInterval',
-    required: true,
-    example: BSMePrevDaysTimeIntervalEnum.LAST_WEEK,
-    enum: BSMePrevDaysTimeIntervalEnum,
-  })
+  @ApiQuery({ name: 'endDate', required: true, description: ApiDescription({ hours: '23:59:59.999' }) })
+  @ApiQuery({ name: 'timeInterval', required: true, example: BSMePrevDaysTimeIntervalEnum.LAST_WEEK, enum: BSMePrevDaysTimeIntervalEnum })
   @ApiQuery(CommonApiParams.userId)
   @HttpCode(HttpStatus.OK)
   async getMePreviousDays(
-    @Request() request: IRequest,
+    @Request() request: IRequest, //
     @Query(...PaginationQueryParams.page) page: number,
     @Query(...PaginationQueryParams.limit) limit: number,
-    @Query(...DateQueryParams.getDate('endDate', true)) endDate: string,
-    @Query(
-      'timeInterval',
-      new ValidateEnumPipe(BSMePrevDaysTimeIntervalEnum, true),
-    )
-    timeInterval: BSMePrevDaysTimeIntervalEnum,
-    @Query('userId', new ParseNumberPipe({ min: 1, optional: true }))
-    userId?: number | null,
+    @Query('endDate', new ParseDatePipe()) endDate: string,
+    @Query('timeInterval', new ValidateEnumPipe(BSMePrevDaysTimeIntervalEnum, true)) timeInterval: BSMePrevDaysTimeIntervalEnum,
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: true })) userId?: number | null,
   ): Promise<Pagination<IBSGetMePreviousDaysResponse>> {
     const isUserIdParam = userId !== null && !isNaN(Number(userId));
     const result = await this.bankStatementsService.getMePreviousDays(

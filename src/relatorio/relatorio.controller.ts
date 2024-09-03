@@ -62,7 +62,7 @@ export class RelatorioController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('sintentico')
+  @Get('sintetico')
   async getSintetico(
     @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
     dataInicio: Date,

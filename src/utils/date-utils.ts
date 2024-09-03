@@ -84,7 +84,7 @@ export function safeCastDates(args: Partial<DateIntervalStrType>) {
 /**
  * Get date in format `YYYY-MM-DD`
  */
-export function getDateYMDString(date: Date): string {
+export function formatDateYMD(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
