@@ -215,7 +215,7 @@ export class CnabService {
   }
 
   /**
-   * Atualiza a tabela TransacaoView
+   * Atualiza a tabela TransacaoView com dados novos ou atualizados do bigquery
    */
   async updateTransacaoViewBigquery(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string = 'Todos', idTransacao: string[] = []) {
     const METHOD = 'updateTransacaoViewBigquery';
@@ -251,6 +251,7 @@ export class CnabService {
             await queryRunner.manager.getRepository(TransacaoView).remove(existing.slice(1));
             response.deduplicated += 1;
           }
+
           if (!existing[0].valorPago && transacaoViewBq.valorPago != existing[0].valorPago) {
             response.updated += 1;
             await this.transacaoViewService.updateManyRaw(
