@@ -19,7 +19,8 @@ export class RelatorioSinteticoRepository {
      let query = ` select distinct res.* from ( `;
      if(args.aPagar === undefined || args.aPagar === false){
       query = query + `               
-            select distinct 
+            select distinct
+              it.id, 
               case 			 
               when (it."nomeConsorcio" = 'VLT') THEN (da."dataVencimento" - INTERVAL '2 day')::varchar 
               else '' end as datatransacao,
@@ -63,6 +64,7 @@ export class RelatorioSinteticoRepository {
         
           query = query +`
             select distinct 
+              it.id, 
               case 			 
               when (it."nomeConsorcio" = 'VLT') THEN (da."dataVencimento" - INTERVAL '2 day')::varchar 
               else '' end as datatransacao,
@@ -108,6 +110,7 @@ export class RelatorioSinteticoRepository {
           if(args.aPagar==true || (args.aPagar === undefined && args.pago === undefined)){
             query = query +` 
             select distinct 
+                tv.id, 
                 (tv."datetimeTransacao":: Date)::Varchar As datatransacao,
                 case 			 
                 when (tv."nomeConsorcio" = 'VLT') THEN (tv."datetimeTransacao":: Date + INTERVAL '2 day')::varchar 				 
