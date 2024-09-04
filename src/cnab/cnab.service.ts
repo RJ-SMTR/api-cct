@@ -251,6 +251,7 @@ export class CnabService {
             await queryRunner.manager.getRepository(TransacaoView).remove(existing.slice(1));
             response.deduplicated += 1;
           }
+
           if (!existing[0].valorPago && transacaoViewBq.valorPago != existing[0].valorPago) {
             response.updated += 1;
             await this.transacaoViewService.updateManyRaw(
