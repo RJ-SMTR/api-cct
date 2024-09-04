@@ -19,26 +19,26 @@ export class RelatorioSinteticoRepository {
      let query = ` select distinct res.* from ( `;
      if(args.aPagar === undefined || args.aPagar === false){
       query = query + `               
-          select distinct 
-	          case 			 
-            when (it."nomeConsorcio" = 'VLT') THEN (da."dataVencimento" - INTERVAL '2 day')::varchar 
-            else '' end as datatransacao,
-	          da."dataVencimento"::date::Varchar As datapagamento,
-            it."nomeConsorcio" AS consorcio,	
-            cf.nome AS favorecido,
-            it."valor"::float as valor,			      
-          case when (ap."isPago") then 'pago' 
-               when (not (ap."isPago")) then 'naopago'
-               else 'apagar' end AS status,
-          case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status 			  
-          from transacao_view tv   
-          inner join item_transacao_agrupado ita on tv."itemTransacaoAgrupadoId"=ita.id
-          inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
-          inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
-          inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
-          inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-          inner join ocorrencia oc on oc."detalheAId"=da.id              
-          where (1=1)   `;
+            select distinct 
+              case 			 
+              when (it."nomeConsorcio" = 'VLT') THEN (da."dataVencimento" - INTERVAL '2 day')::varchar 
+              else '' end as datatransacao,
+              da."dataVencimento"::date::Varchar As datapagamento,
+              it."nomeConsorcio" AS consorcio,	
+              cf.nome AS favorecido,
+              it."valor"::float as valor,			      
+            case when (ap."isPago") then 'pago' 
+                when (not (ap."isPago")) then 'naopago'
+                else 'apagar' end AS status,
+            case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status 			  
+            from transacao_view tv   
+            inner join item_transacao_agrupado ita on tv."itemTransacaoAgrupadoId"=ita.id
+            inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
+            inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
+            inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
+            inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
+            inner join ocorrencia oc on oc."detalheAId"=da.id              
+            where (1=1)   `;
           if(dataInicio!==undefined && dataFim!==undefined && 
             (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
             query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
