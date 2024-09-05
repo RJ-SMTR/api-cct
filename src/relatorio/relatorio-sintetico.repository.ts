@@ -55,7 +55,7 @@ export class RelatorioSinteticoRepository {
                       if(args.pago !==undefined)          
                         query = query +`  and atp."isPago"=${args.pago}`;                    
               
-                    query = query + ` ) as subTotal) as subTotal `;
+                    query = query + ` ) as subTotal)::Varchar as subTotal `;
             
             query = query + ` from transacao_view tv   
             inner join item_transacao_agrupado ita on tv."itemTransacaoAgrupadoId"=ita.id
@@ -125,7 +125,7 @@ export class RelatorioSinteticoRepository {
                       if(args.pago !==undefined)          
                         query = query +`  and atp."isPago"=${args.pago}`;                    
               
-                    query = query + ` ) as subTotal) as subTotal `;	
+                    query = query + ` ) as subTotal)::Varchar as subTotal `;	
 
               query = query + ` from item_transacao_agrupado ita 
               inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
