@@ -82,6 +82,7 @@ export class TransacaoViewRepository {
     ) associados
     WHERE id = associados.tv_id
     `;
+    this.logger.debug(compactQuery(query));
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     let count = 0;
@@ -110,6 +111,7 @@ export class TransacaoViewRepository {
     }
     const updatedAt: keyof ITransacaoView = 'updatedAt';
     const query = EntityHelper.getQueryUpdate('transacao_view', dtos, fields, TransacaoView.sqlFieldTypes, reference, updatedAt);
+    this.logger.debug(query);
     const [, count] = await (manager || this.transacaoViewRepository).query(compactQuery(query));
     return count;
   }

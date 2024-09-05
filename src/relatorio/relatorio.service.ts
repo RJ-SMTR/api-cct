@@ -102,7 +102,6 @@ export class RelatorioService {
     return sintenticosData;
   }
 
-
   ///////////////////////
   ///////ANALITICO //////
 
