@@ -1,49 +1,46 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { isFriday, nextFriday, subDays } from 'date-fns';
+import { Injectable } from '@nestjs/common';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { BigqueryTransacaoRepository } from '../repositories/bigquery-transacao.repository';
+import { IBqFindTransacao } from '../interfaces/bq-find-transacao-by.interface';
 
 @Injectable()
 export class BigqueryTransacaoService {
-  private logger: Logger = new Logger('BigqueryOrdemPagamentoService', {
-    timestamp: true,
-  });
+  private logger = new CustomLogger('BigqueryOrdemPagamentoService', { timestamp: true });
 
-  constructor(
-    private readonly bigqueryTransacaoRepository: BigqueryTransacaoRepository,
-  ) {}
+  constructor(private readonly bigqueryTransacaoRepository: BigqueryTransacaoRepository) {}
 
   /**
    * Obter dados da semana de pagamento (qui-qua).
    *
    * @param [daysBack=0] Pega a semana atual ou N dias atrás.
    */
-  public async getFromWeek(
-    dataOrdemInicial: Date,
-    dataOrdemFinal: Date,
-    daysBack = 0,
-  ): Promise<BigqueryTransacao[]> {
-    let startDate: Date;
-    let endDate: Date;
-    const today = new Date();
-    if (dataOrdemInicial != undefined && dataOrdemFinal != undefined) {
-      startDate = subDays(new Date(dataOrdemInicial), 1);
-      endDate = subDays(new Date(dataOrdemFinal), 1);
-    } else if (dataOrdemInicial != undefined && dataOrdemFinal == undefined) {
-      startDate = subDays(new Date(dataOrdemInicial), 1);
-      endDate = subDays(new Date(dataOrdemInicial), 1);
-    } else {
-      const friday = isFriday(today) ? today : nextFriday(today);
-      startDate = subDays(friday, 8 + daysBack);
-      endDate = subDays(friday, 2);
-    }
+  public async getFromWeek(dataOrdemInicial: Date, dataOrdemFinal: Date, daysBack = 0): Promise<BigqueryTransacao[]> {
     const transacao = (
       await this.bigqueryTransacaoRepository.findMany({
-        startDate: startDate,
-        endDate: endDate,
+        startDate: dataOrdemInicial,
+        endDate: dataOrdemFinal,
       })
     ).map((i) => ({ ...i } as BigqueryTransacao));
     return transacao;
+  }
+
+  public async findMany(filter?: IBqFindTransacao) {
+    const transacaoBq = await this.bigqueryTransacaoRepository.findMany(filter);
+    const transacaoView = transacaoBq.map((i) => i as BigqueryTransacao);
+    return transacaoView;
+  }
+
+  public async findManyPaginated(filter: IBqFindTransacao, limit: number, callback: (items: BigqueryTransacao[]) => void) {
+    let page = 1;
+    let offset = limit * page;
+    let transacoesBq = await this.bigqueryTransacaoRepository.findMany({ ...filter, limit, offset });
+    while (transacoesBq.length) {
+      callback(transacoesBq);
+      page += 1;
+      offset = limit * page;
+      transacoesBq = await this.bigqueryTransacaoRepository.findMany({ ...filter, limit, offset });
+    }
   }
 
   /**
@@ -51,23 +48,17 @@ export class BigqueryTransacaoService {
    */
   public async getAll(): Promise<BigqueryTransacao[]> {
     // Read
-    const ordemPgto = (await this.bigqueryTransacaoRepository.findMany()).map(
-      (i) => ({ ...i } as BigqueryTransacao),
-    );
+    const ordemPgto = (await this.bigqueryTransacaoRepository.findMany()).map((i) => ({ ...i } as BigqueryTransacao));
     return ordemPgto;
   }
 
   /**
    * A cada 10 dias, de hoje até a dataInicio, pesquisa e chama o callback
    */
-  public async getAllPaginated(
-    callback: (transacoes: BigqueryTransacao[]) => void,
-    cpfCnpjs: string[] = [],
-  ) {
-    const transacoes: BigqueryTransacao[] =
-      await this.bigqueryTransacaoRepository.findMany({
-        manyCpfCnpj: cpfCnpjs,
-      });
+  public async getAllPaginated(callback: (transacoes: BigqueryTransacao[]) => void, cpfCnpjs: string[] = []) {
+    const transacoes: BigqueryTransacao[] = await this.bigqueryTransacaoRepository.findMany({
+      manyCpfCnpj: cpfCnpjs,
+    });
     callback(transacoes);
   }
 }

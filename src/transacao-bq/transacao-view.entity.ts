@@ -1,18 +1,33 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
 import { TicketRevenueDTO } from 'src/ticket-revenues/dtos/ticket-revenue.dto';
 import { asStringDate } from 'src/utils/pipe-utils';
-import {
-  AfterLoad,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+
+export interface ITransacaoView {
+  id: number;
+  datetimeTransacao: Date;
+  datetimeProcessamento: Date;
+  datetimeCaptura: Date;
+  modo: string;
+  idConsorcio: string | null;
+  nomeConsorcio: string;
+  idOperadora: string | null;
+  nomeOperadora: string;
+  idTransacao: string;
+  tipoPagamento: string;
+  tipoTransacao: string | null;
+  tipoGratuidade: string | null;
+  valorTransacao: number;
+  valorPago: number | null;
+  operadoraCpfCnpj: string | null;
+  consorcioCnpj: string | null;
+  arquivoPublicacao: ArquivoPublicacao | null;
+  itemTransacaoAgrupadoId: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /**
  * Unique: [datetimeTransacao, datetimeProcessamento]
@@ -22,8 +37,61 @@ export class TransacaoView {
   constructor(transacao?: DeepPartial<TransacaoView>) {
     if (transacao) {
       Object.assign(this, transacao);
+      if (transacao.arquivoPublicacao) {
+        this.arquivoPublicacao = new ArquivoPublicacao(transacao.arquivoPublicacao)
+      }
     }
   }
+
+  public static getSqlFields(table?: string): Record<keyof ITransacaoView, string> {
+    return {
+      id: `${table ? `${table}.` : ''}"id"`,
+      datetimeTransacao: `${table ? `${table}.` : ''}"datetimeTransacao"`,
+      datetimeProcessamento: `${table ? `${table}.` : ''}"datetimeProcessamento"`,
+      datetimeCaptura: `${table ? `${table}.` : ''}"datetimeCaptura"`,
+      modo: `${table ? `${table}.` : ''}"modo"`,
+      idConsorcio: `${table ? `${table}.` : ''}"idConsorcio"`,
+      nomeConsorcio: `${table ? `${table}.` : ''}"nomeConsorcio"`,
+      idOperadora: `${table ? `${table}.` : ''}"idOperadora"`,
+      nomeOperadora: `${table ? `${table}.` : ''}"nomeOperadora"`,
+      idTransacao: `${table ? `${table}.` : ''}"idTransacao"`,
+      tipoPagamento: `${table ? `${table}.` : ''}"tipoPagamento"`,
+      tipoTransacao: `${table ? `${table}.` : ''}"tipoTransacao"`,
+      tipoGratuidade: `${table ? `${table}.` : ''}"tipoGratuidade"`,
+      valorTransacao: `${table ? `${table}.` : ''}"valorTransacao"`,
+      valorPago: `${table ? `${table}.` : ''}"valorPago"`,
+      operadoraCpfCnpj: `${table ? `${table}.` : ''}"operadoraCpfCnpj"`,
+      consorcioCnpj: `${table ? `${table}.` : ''}"consorcioCnpj"`,
+      arquivoPublicacao: `${table ? `${table}.` : ''}"arquivoPublicacaoId"`,
+      itemTransacaoAgrupadoId: `${table ? `${table}.` : ''}"itemTransacaoAgrupadoId"`,
+      createdAt: `${table ? `${table}.` : ''}"createdAt"`,
+      updatedAt: `${table ? `${table}.` : ''}"updatedAt"`,
+    };
+  }
+
+  public static sqlFieldTypes: Record<keyof ITransacaoView, string> = {
+    id: 'INT',
+    datetimeTransacao: 'TIMESTAMP',
+    datetimeProcessamento: 'TIMESTAMP',
+    datetimeCaptura: 'TIMESTAMP',
+    modo: 'VARCHAR',
+    idConsorcio: 'VARCHAR',
+    nomeConsorcio: 'VARCHAR',
+    idOperadora: 'VARCHAR',
+    nomeOperadora: 'VARCHAR',
+    idTransacao: 'VARCHAR',
+    tipoPagamento: 'VARCHAR',
+    tipoTransacao: 'VARCHAR',
+    tipoGratuidade: 'VARCHAR',
+    valorTransacao: 'NUMERIC',
+    valorPago: 'NUMERIC',
+    operadoraCpfCnpj: 'VARCHAR',
+    consorcioCnpj: 'VARCHAR',
+    arquivoPublicacao: 'INT',
+    itemTransacaoAgrupadoId: 'INT',
+    createdAt: 'TIMESTAMP',
+    updatedAt: 'TIMESTAMP',
+  };
 
   @PrimaryGeneratedColumn({
     primaryKeyConstraintName: 'PK_TransacaoView_id',
@@ -65,6 +133,7 @@ export class TransacaoView {
   @Column({ type: String })
   tipoPagamento: string;
 
+  @ApiProperty({ examples: ['Gratuidade', 'Débito', 'Débito EMV', 'Gratuidade', 'Integração', 'Integral', 'Transferência'] })
   @Column({ type: String, nullable: true })
   tipoTransacao: string | null;
 
@@ -101,11 +170,8 @@ export class TransacaoView {
   @AfterLoad()
   setReadValues() {
     this.valorTransacao = Number(this.valorTransacao);
-    this.valorPago = Number(this.valorPago);
-    if (
-      this.itemTransacaoAgrupadoId !== undefined &&
-      this.itemTransacaoAgrupadoId !== null
-    ) {
+    this.valorPago = this.valorPago === null ? null : Number(this.valorPago);
+    if (this.itemTransacaoAgrupadoId !== undefined && this.itemTransacaoAgrupadoId !== null) {
       this.itemTransacaoAgrupadoId = +this.itemTransacaoAgrupadoId;
     }
   }
@@ -132,7 +198,7 @@ export class TransacaoView {
   }
 
   toTicketRevenue(publicacoes: ArquivoPublicacao[]) {
-    const publicacoesTv = publicacoes.filter((p) =>p.itemTransacao.itemTransacaoAgrupado.id ==this.itemTransacaoAgrupadoId);
+    const publicacoesTv = publicacoes.filter((p) => p.itemTransacao.itemTransacaoAgrupado.id == this.itemTransacaoAgrupadoId);
     const publicacao: ArquivoPublicacao | undefined = publicacoesTv.filter((p) => p.isPago)[0] || publicacoesTv[0];
     const isPago = publicacao?.isPago == true;
     const revenue = new TicketRevenueDTO({

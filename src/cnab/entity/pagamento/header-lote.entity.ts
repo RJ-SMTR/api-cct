@@ -10,8 +10,11 @@ import { Pagador } from './pagador.entity';
 export class HeaderLote extends EntityHelper {
   constructor(dto?: DeepPartial<HeaderLote>) {
     super();
-  if (dto) {
+    if (dto) {
       Object.assign(this, dto);
+      if (dto.headerArquivo) {
+        dto.headerArquivo = new HeaderArquivo(dto.headerArquivo);
+      }
     }
   }
 
@@ -60,13 +63,8 @@ export class HeaderLote extends EntityHelper {
   /**
    * ID: headerArquivo UniqueId + headerLote columns
    */
-  public static getUniqueId(
-    item?: DeepPartial<HeaderLote>,
-    headerArqUniqueId?: string,
-  ): string {
-    const _headerArqUniqueId = headerArqUniqueId
-      ? `(${headerArqUniqueId})`
-      : `(${HeaderArquivo.getUniqueId(item?.headerArquivo)})`;
+  public static getUniqueId(item?: DeepPartial<HeaderLote>, headerArqUniqueId?: string): string {
+    const _headerArqUniqueId = headerArqUniqueId ? `(${headerArqUniqueId})` : `(${HeaderArquivo.getUniqueId(item?.headerArquivo)})`;
     return `${_headerArqUniqueId}|${item?.loteServico}`;
   }
 }

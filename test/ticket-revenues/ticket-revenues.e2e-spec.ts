@@ -1,14 +1,7 @@
 import { subDays } from 'date-fns';
 import * as request from 'supertest';
-import { getDateYMDString } from '../../src/utils/date-utils';
-import {
-  APP_URL,
-  BQ_JSON_CREDENTIALS,
-  LICENSEE_CNPJ_PASSWORD,
-  LICENSEE_CNPJ_PERMIT_CODE,
-  LICENSEE_CPF_PASSWORD,
-  LICENSEE_CPF_PERMIT_CODE,
-} from '../utils/constants';
+import { formatDateYMD } from '../../src/utils/date-utils';
+import { APP_URL, BQ_JSON_CREDENTIALS, LICENSEE_CNPJ_PASSWORD, LICENSEE_CNPJ_PERMIT_CODE, LICENSEE_CPF_PASSWORD, LICENSEE_CPF_PERMIT_CODE } from '../utils/constants';
 import { BigQuery } from '@google-cloud/bigquery';
 
 describe('Ticket revenues (e2e)', () => {
@@ -73,8 +66,8 @@ WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        startDate: getDateYMDString(startDate),
-        endDate: getDateYMDString(new Date()),
+        startDate: formatDateYMD(startDate),
+        endDate: formatDateYMD(new Date()),
       })
       .expect(200)
       .then(({ body }) => {
@@ -88,8 +81,8 @@ WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        startDate: getDateYMDString(startDate),
-        endDate: getDateYMDString(new Date()),
+        startDate: formatDateYMD(startDate),
+        endDate: formatDateYMD(new Date()),
       })
       .expect(200)
       .then(({ body }) => {
@@ -99,9 +92,7 @@ WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
     // Assert
     expect(ticketRevenuesMe.data.length).toBeGreaterThan(0);
     expect(ticketRevenuesMeIndividual.data.length).toBeGreaterThan(0);
-    expect(ticketRevenuesMeIndividual.amountSum).toEqual(
-      ticketRevenuesMe.amountSum,
-    );
+    expect(ticketRevenuesMeIndividual.amountSum).toEqual(ticketRevenuesMe.amountSum);
   }, 60000);
 
   it('should fetch successfully CNPJ user at /ticket-revenues/me', /**
@@ -118,8 +109,8 @@ WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        startDate: getDateYMDString(startDate),
-        endDate: getDateYMDString(licenseeCnpjMaxDate),
+        startDate: formatDateYMD(startDate),
+        endDate: formatDateYMD(licenseeCnpjMaxDate),
       })
       .expect(200)
       .then(({ body }) => {

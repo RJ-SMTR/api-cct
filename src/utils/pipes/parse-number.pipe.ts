@@ -39,7 +39,7 @@ export class ParseNumberPipe implements PipeTransform {
 
     if (value !== undefined && isNaN(numberValue) || value === '') {
       throw new BadRequestException(
-        `${field} should be a valid number: got '${value}'`,
+        `'${field}' should be a valid number: got '${value}'`,
       );
     }
 
@@ -58,7 +58,7 @@ export class ParseNumberPipe implements PipeTransform {
         returnSubstring = `between ${min} and ${max}`;
       }
       throw new BadRequestException(
-        `${metadata.data} should be an integer ${returnSubstring}`,
+        `'${field}' should be an integer ${returnSubstring}`,
       );
     }
     return numberValue;

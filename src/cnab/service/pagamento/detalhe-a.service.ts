@@ -1,5 +1,5 @@
 import { PagamentosPendentes } from './../../entity/pagamento/pagamentos-pendentes.entity';
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
@@ -16,17 +16,13 @@ import { TransacaoAgrupadoService } from './transacao-agrupado.service';
 import { PagamentosPendentesService } from './pagamentos-pendentes.service';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class DetalheAService {
-  private logger: Logger = new Logger('DetalheAService', { timestamp: true });
+  private logger = new CustomLogger('DetalheAService', { timestamp: true });
 
-  constructor(
-    private detalheARepository: DetalheARepository,
-    private clienteFavorecidoService: ClienteFavorecidoService,
-    private transacaoAgrupadoService: TransacaoAgrupadoService,
-    private pagamentosPendentesService: PagamentosPendentesService,
-  ) {}
+  constructor(private detalheARepository: DetalheARepository, private clienteFavorecidoService: ClienteFavorecidoService, private transacaoAgrupadoService: TransacaoAgrupadoService, private pagamentosPendentesService: PagamentosPendentesService) {}
 
   /**
    * Assumimos que todos os detalheA do retorno têm dataVencimento na mesma semana.
@@ -34,8 +30,7 @@ export class DetalheAService {
   async updateDetalheAStatus(detalheA: DetalheA) {
     // Update Transacao status
     const transacaoAgrupada = detalheA.itemTransacaoAgrupado.transacaoAgrupado;
-    const status = new TransacaoStatus();
-    status.id = TransacaoStatusEnum.publicado;
+    const status = TransacaoStatus.fromEnum(TransacaoStatusEnum.publicado);
     transacaoAgrupada.status = status;
     await this.transacaoAgrupadoService.save(transacaoAgrupada);
   }
@@ -46,87 +41,54 @@ export class DetalheAService {
    * @param dtos DTOs that can exist or not in database
    * @returns Saved objects not in database.
    */
-  public saveManyIfNotExists(
-    dtos: DeepPartial<DetalheA>[],
-  ): Promise<DetalheA[]> {
+  public saveManyIfNotExists(dtos: DeepPartial<DetalheA>[]): Promise<DetalheA[]> {
     return this.detalheARepository.saveManyIfNotExists(dtos);
   }
 
-  public async saveRetornoFrom104(
-    headerArq: CnabHeaderArquivo104,
-    headerLotePgto: CnabHeaderLote104Pgto,
-    r: CnabRegistros104Pgto,
-    dataEfetivacao: Date,
-  ): Promise<DetalheA | null> {
-    const favorecido = await this.clienteFavorecidoService.findOne({
-      where: { nome: ILike(`%${r.detalheA.nomeTerceiro.stringValue.trim()}%`) },
+  /**
+   * Salva DetalheA, PagamentosPendentes
+   */
+  public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto, r: CnabRegistros104Pgto, dataEfetivacao: Date): Promise<DetalheA | null> {
+    const logRegistro = `HeaderArquivo: ${headerArq.nsa.convertedValue}, lote: ${headerLotePgto.codigoRegistro.value}`;
+    const favorecido = await this.clienteFavorecidoService.findOneRaw({
+      detalheANumeroDocumento: [r.detalheA.numeroDocumentoEmpresa.convertedValue],
     });
 
     if (!favorecido) {
+      this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue} - Favorecido não encontrado para o nome: '${r.detalheA.nomeTerceiro.stringValue.trim()}'`);
       return null;
     }
-    const dataVencimento = startOfDay(r.detalheA.dataVencimento.convertedValue);
-    let detalheARem;
-    try {
-      detalheARem = await this.detalheARepository.getOne({
-        dataVencimento: dataVencimento,
-        numeroDocumentoEmpresa:
-          r.detalheA.numeroDocumentoEmpresa.convertedValue,
-        valorLancamento: r.detalheA.valorLancamento.convertedValue,
-      });
-      if (
-        detalheARem.ocorrenciasCnab === undefined ||
-        detalheARem.ocorrenciasCnab === '' ||
-        (detalheARem.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim() &&
-          detalheARem.ocorrenciasCnab !== '00' &&
-          detalheARem.ocorrenciasCnab !== 'BD')
-      ) {
-        const detalheA = new DetalheADTO({
-          id: detalheARem.id,
-          // headerLote: { id: detalheARem.headerLote.id },
+    const detalheA = await this.detalheARepository.findOneRaw({
+      numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
+    });
+    if (detalheA) {
+      if (detalheA.ocorrenciasCnab === undefined || detalheA.ocorrenciasCnab === '' || detalheA.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim()) {
+        const saveDetalheA = new DetalheADTO({
+          id: detalheA.id,
           loteServico: Number(r.detalheA.loteServico.value),
           finalidadeDOC: r.detalheA.finalidadeDOC.value,
-          numeroDocumentoEmpresa: Number(
-            r.detalheA.numeroDocumentoEmpresa.value,
-          ),
+          numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
           dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
           dataEfetivacao: dataEfetivacao,
           tipoMoeda: r.detalheA.tipoMoeda.value,
           quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
           valorLancamento: r.detalheA.valorLancamento.convertedValue,
-          numeroDocumentoBanco: String(
-            r.detalheA.numeroDocumentoBanco.convertedValue,
-          ),
+          numeroDocumentoBanco: String(r.detalheA.numeroDocumentoBanco.convertedValue),
           quantidadeParcelas: Number(r.detalheA.quantidadeParcelas.value),
           indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
-          indicadorFormaParcelamento:
-            r.detalheA.indicadorFormaParcelamento.stringValue,
-          periodoVencimento: startOfDay(
-            r.detalheA.dataVencimento.convertedValue,
-          ),
+          indicadorFormaParcelamento: r.detalheA.indicadorFormaParcelamento.stringValue,
+          periodoVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
           numeroParcela: r.detalheA.numeroParcela.convertedValue,
           valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
           nsr: Number(r.detalheA.nsr.value),
-          ocorrenciasCnab:
-            r.detalheA.ocorrencias.value.trim() ||
-            headerLotePgto.ocorrencias.value.trim() ||
-            headerArq.ocorrenciaCobrancaSemPapel.value.trim(),
+          ocorrenciasCnab: r.detalheA.ocorrencias.value.trim() || headerLotePgto.ocorrencias.value.trim() || headerArq.ocorrenciaCobrancaSemPapel.value.trim(),
         });
-        return await this.detalheARepository.save(detalheA);
+        return await this.detalheARepository.save(saveDetalheA);
       }
-    } catch (err) {
-      this.logger.error(err);
-      this.logger.debug(
-        `Detalhe não encontrado para o favorecido: `,
-        favorecido?.nome,
-      );
+    } else {
+      this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue}, favorecido: '${favorecido.nome}' - NÃO ENCONTRADO!`);
     }
-    if (
-      r.detalheA.ocorrencias !== undefined &&
-      r.detalheA.ocorrencias.value.trim() !== '' &&
-      r.detalheA.ocorrencias.value.trim() !== 'BD' &&
-      r.detalheA.ocorrencias.value.trim() !== '00'
-    ) {
+    if (r.detalheA.ocorrencias !== undefined && r.detalheA.ocorrencias.value.trim() !== '' && r.detalheA.ocorrencias.value.trim() !== 'BD' && r.detalheA.ocorrencias.value.trim() !== '00') {
       const pg = await this.pagamentosPendentesService.findOne({
         numeroDocumento: r.detalheA.numeroDocumentoEmpresa.value.trim(),
         valorLancamento: r.detalheA.valorLancamento.convertedValue,
@@ -135,20 +97,15 @@ export class DetalheAService {
 
       if (!pg) {
         const pagamentosPendentes = new PagamentosPendentes();
-        pagamentosPendentes.nomeFavorecido =
-          r.detalheA.nomeTerceiro.stringValue.trim();
-        pagamentosPendentes.dataVencimento =
-          r.detalheA.dataVencimento.convertedValue;
-        pagamentosPendentes.valorLancamento =
-          r.detalheA.valorLancamento.convertedValue;
-        pagamentosPendentes.numeroDocumento =
-          r.detalheA.numeroDocumentoEmpresa.value.trim();
-        pagamentosPendentes.ocorrenciaErro =
-          r.detalheA.ocorrencias.value.trim();
+        pagamentosPendentes.nomeFavorecido = r.detalheA.nomeTerceiro.stringValue.trim();
+        pagamentosPendentes.dataVencimento = r.detalheA.dataVencimento.convertedValue;
+        pagamentosPendentes.valorLancamento = r.detalheA.valorLancamento.convertedValue;
+        pagamentosPendentes.numeroDocumento = r.detalheA.numeroDocumentoEmpresa.value.trim();
+        pagamentosPendentes.ocorrenciaErro = r.detalheA.ocorrencias.value.trim();
         await this.pagamentosPendentesService.save(pagamentosPendentes);
       }
     }
-    return detalheARem;
+    return detalheA;
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
@@ -160,21 +117,15 @@ export class DetalheAService {
     return await this.detalheARepository.getOne(fields);
   }
 
-  public async findOne(
-    options: FindOneOptions<DetalheA>,
-  ): Promise<Nullable<DetalheA>> {
+  public async findOne(options: FindOneOptions<DetalheA>): Promise<Nullable<DetalheA>> {
     return await this.detalheARepository.findOne(options);
   }
 
-  public async findMany(
-    fields: EntityCondition<DetalheA>,
-  ): Promise<DetalheA[]> {
+  public async findMany(fields: EntityCondition<DetalheA>): Promise<DetalheA[]> {
     return await this.detalheARepository.findMany({ where: fields });
   }
 
-  public async findManyRaw(
-    options: FindManyOptions<DetalheA>,
-  ): Promise<DetalheA[]> {
+  public async findManyRaw(options: FindManyOptions<DetalheA>): Promise<DetalheA[]> {
     return await this.detalheARepository.findMany(options);
   }
 

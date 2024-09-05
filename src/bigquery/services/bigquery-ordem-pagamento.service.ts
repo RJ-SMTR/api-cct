@@ -2,25 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { isFriday, nextFriday, subDays } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from '../dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoRepository } from '../repositories/bigquery-ordem-pagamento.repository';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class BigqueryOrdemPagamentoService {
-  private logger: Logger = new Logger('BigqueryOrdemPagamentoService', {
-    timestamp: true,
-  });
+  private logger = new CustomLogger('BigqueryOrdemPagamentoService', { timestamp: true });
 
-  constructor(
-    private readonly bigqueryOrdemPagamentoRepository: BigqueryOrdemPagamentoRepository,
-  ) {}
+  constructor(private readonly bigqueryOrdemPagamentoRepository: BigqueryOrdemPagamentoRepository) {}
 
   /**
    * Get data from current payment week (qui-qua). Also with older days.
    */
-  public async getFromWeek(
-    dataOrdemInicial: Date,
-    dataOrdemFinal: Date,
-    daysBefore = 0,
-  ): Promise<BigqueryOrdemPagamentoDTO[]> {
+  public async getFromWeek(dataOrdemInicial: Date, dataOrdemFinal: Date, daysBefore = 0): Promise<BigqueryOrdemPagamentoDTO[]> {
     const today = new Date();
     let startDate: Date;
     let endDate: Date;

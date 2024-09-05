@@ -35,14 +35,9 @@ export enum userUploadEnum {
 
 @Injectable()
 export class UsersService {
-  private logger: CustomLogger = new CustomLogger(UsersService.name, {
-    timestamp: true,
-  });
+  private logger = new CustomLogger(UsersService.name, { timestamp: true });
 
-  constructor(
-    private usersRepository: UsersRepository,
-    private mailHistoryService: MailHistoryService,
-  ) {}
+  constructor(private usersRepository: UsersRepository, private mailHistoryService: MailHistoryService) {}
 
   async create(createProfileDto: CreateUserDto): Promise<User> {
     const createdUser = await this.usersRepository.create(createProfileDto);
@@ -58,14 +53,8 @@ export class UsersService {
     return await this.usersRepository.findManyRegisteredUsers();
   }
 
-  async findManyWithPagination(
-    paginationOptions: PaginationOptions,
-    fields?: IFindUserPaginated,
-  ): Promise<User[]> {
-    return await this.usersRepository.findManyWithPagination(
-      paginationOptions,
-      fields,
-    );
+  async findManyWithPagination(paginationOptions: PaginationOptions, fields?: IFindUserPaginated): Promise<User[]> {
+    return await this.usersRepository.findManyWithPagination(paginationOptions, fields);
   }
 
   async findOne(fields: EntityCondition<User>): Promise<Nullable<User>> {
@@ -78,18 +67,8 @@ export class UsersService {
    * @param requestUser Who is updating this data. Used to log properly.
    * @returns Updated user
    */
-  async update(
-    id: number,
-    dataToUpdate: DeepPartial<User>,
-    logContext?: string,
-    requestUser?: DeepPartial<User>,
-  ): Promise<User> {
-    return this.usersRepository.update(
-      id,
-      dataToUpdate,
-      logContext,
-      requestUser,
-    );
+  async update(id: number, dataToUpdate: DeepPartial<User>, logContext?: string, requestUser?: DeepPartial<User>): Promise<User> {
+    return this.usersRepository.update(id, dataToUpdate, logContext, requestUser);
   }
 
   /**
@@ -121,19 +100,12 @@ export class UsersService {
 
   // #region createFromFile
 
-  async createFromFile(
-    file: Express.Multer.File,
-    requestUser?: DeepPartial<User>,
-  ): Promise<IUserUploadResponse> {
+  async createFromFile(file: Express.Multer.File, requestUser?: DeepPartial<User>): Promise<IUserUploadResponse> {
     const reqUser = new User(requestUser);
     const worksheet = this.getWorksheetFromFile(file);
     const fileUsers = await this.getUserFilesFromWorksheet(worksheet);
-    const invalidUsers = fileUsers.filter(
-      (i) => Object.keys(i.errors).length > 0,
-    );
-    const validUsers = fileUsers.filter(
-      (i) => Object.keys(i.errors).length === 0,
-    );
+    const invalidUsers = fileUsers.filter((i) => Object.keys(i.errors).length > 0);
+    const validUsers = fileUsers.filter((i) => Object.keys(i.errors).length === 0);
 
     if (invalidUsers.length > 0) {
       throw new HttpException(
@@ -156,10 +128,7 @@ export class UsersService {
     for (const fileUser of validUsers) {
       const hash = await this.mailHistoryService.generateHash();
       const createdUser = await this.usersRepository.create({
-        permitCode: String(fileUser.user.codigo_permissionario).replace(
-          "'",
-          '',
-        ),
+        permitCode: String(fileUser.user.codigo_permissionario).replace("'", ''),
         email: fileUser.user.email,
         phone: fileUser.user.telefone,
         fullName: parseStringUpperUnaccent(fileUser.user.nome as string),
@@ -168,10 +137,7 @@ export class UsersService {
         status: new Status(StatusEnum.register),
         role: new Role(RoleEnum.user),
       } as DeepPartial<User>);
-      this.logger.log(
-        `Usuario: ${createdUser.getLogInfo()} criado.`,
-        'createFromFile()',
-      );
+      this.logger.log(`Usuario: ${createdUser.getLogInfo()} criado.`, 'createFromFile()');
 
       await this.mailHistoryService.create(
         {
@@ -237,33 +203,23 @@ export class UsersService {
       const sheetName = workbook.SheetNames[0];
       worksheet = workbook.Sheets[sheetName];
     } catch (error) {
-      throw new HttpException(
-        `Error parsing file`,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(`Error parsing file`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
     return worksheet;
   }
 
-  async getUserFilesFromWorksheet(
-    worksheet: xlsx.WorkSheet,
-  ): Promise<IFileUser[]> {
+  async getUserFilesFromWorksheet(worksheet: xlsx.WorkSheet): Promise<IFileUser[]> {
     this.validateFileHeaders(worksheet);
 
     const fileData = xlsx.utils.sheet_to_json(worksheet);
-    const fileUsers: IFileUser[] = fileData.map(
-      (item: Partial<ICreateUserFile>) => ({
-        user: item,
-        errors: {},
-      }),
-    );
+    const fileUsers: IFileUser[] = fileData.map((item: Partial<ICreateUserFile>) => ({
+      user: item,
+      errors: {},
+    }));
     let row = 2;
     for (let i = 0; i < fileUsers.length; i++) {
       const fileUser = fileUsers[i];
-      const errorDictionary = await this.validateFileValues(
-        fileUser,
-        fileUsers,
-      );
+      const errorDictionary = await this.validateFileValues(fileUser, fileUsers);
       fileUsers[i] = {
         row: row,
         ...fileUser,
@@ -300,10 +256,7 @@ export class UsersService {
     }
   }
 
-  async validateFileValues(
-    userFile: IFileUser,
-    fileUsers: IFileUser[],
-  ): Promise<InvalidRows> {
+  async validateFileValues(userFile: IFileUser, fileUsers: IFileUser[]): Promise<InvalidRows> {
     const schema = plainToClass(CreateUserFileDto, userFile.user);
     const errors = await validate(schema as Record<string, any>, {
       stopAtFirstError: false,
@@ -319,26 +272,14 @@ export class UsersService {
     const fields = ['email', 'permitCode', 'cpfCnpj'];
 
     // If has another user in DB with same email OR permitCode OR cpfCnpj
-    if (
-      userFile.user.email ||
-      userFile.user.codigo_permissionario ||
-      userFile.user.cpf
-    ) {
+    if (userFile.user.email || userFile.user.codigo_permissionario || userFile.user.cpf) {
       const dbFoundUsers = await this.findMany({
-        where: [
-          ...(userFile.user.email ? [{ email: userFile.user.email }] : []),
-          ...(userFile.user.codigo_permissionario
-            ? [{ permitCode: userFile.user.codigo_permissionario }]
-            : []),
-          ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : []),
-        ],
+        where: [...(userFile.user.email ? [{ email: userFile.user.email }] : []), ...(userFile.user.codigo_permissionario ? [{ permitCode: userFile.user.codigo_permissionario }] : []), ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : [])],
       });
       if (dbFoundUsers.length > 0) {
         for (const dbField of fields) {
           const dtoField = FileUserMap[dbField];
-          if (
-            dbFoundUsers.find((i) => i[dbField] === userFile.user[dtoField])
-          ) {
+          if (dbFoundUsers.find((i) => i[dbField] === userFile.user[dtoField])) {
             if (!errorDictionary.hasOwnProperty(dtoField)) {
               errorDictionary[dtoField] = '';
             }
@@ -352,18 +293,11 @@ export class UsersService {
     }
 
     // If has another user in upload with same email OR permitCode OR cpfCnpj
-    const existingFileUser = fileUsers.filter(
-      (i) =>
-        i.user.email === userFile.user.email ||
-        i.user.codigo_permissionario === userFile.user.codigo_permissionario ||
-        i.user.cpf === userFile.user.cpf,
-    );
+    const existingFileUser = fileUsers.filter((i) => i.user.email === userFile.user.email || i.user.codigo_permissionario === userFile.user.codigo_permissionario || i.user.cpf === userFile.user.cpf);
     if (existingFileUser.length > 1) {
       for (const dbField of fields) {
         const dtoField = FileUserMap[dbField];
-        const existingFUserByField = existingFileUser.filter(
-          (i) => i.user[dbField] === userFile.user[dbField],
-        );
+        const existingFUserByField = existingFileUser.filter((i) => i.user[dbField] === userFile.user[dbField]);
         if (existingFUserByField.length > 1) {
           if (!errorDictionary.hasOwnProperty(dtoField)) {
             errorDictionary[dtoField] = '';

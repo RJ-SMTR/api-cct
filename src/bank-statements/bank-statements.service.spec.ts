@@ -6,7 +6,7 @@ import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-reve
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import { getDateYMDString } from 'src/utils/date-utils';
+import { formatDateYMD } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { BankStatementsRepositoryService } from './bank-statements.repository';
 import { BankStatementsService } from './bank-statements.service';
@@ -138,7 +138,7 @@ xdescribe('BankStatementsService', () => {
         date.setDate(date.getDate() - day);
         revenuesGroup.push({
           count: 1,
-          date: getDateYMDString(date),
+          date: formatDateYMD(date),
           transportTypeCounts: {
             [`tt_${day.toString()}`]: { count: 1, transactionValue: 10 },
           },
@@ -288,7 +288,7 @@ xdescribe('BankStatementsService', () => {
         date.setDate(date.getDate() - day);
         revenuesGroup.push({
           count: 1,
-          date: getDateYMDString(date),
+          date: formatDateYMD(date),
           transportTypeCounts: {
             [`tt_${day.toString()}`]: { count: 1, transactionValue: 10 },
           },
@@ -432,7 +432,7 @@ xdescribe('BankStatementsService', () => {
         date.setDate(date.getDate() - day);
         revenuesGroup.push({
           count: 1,
-          date: getDateYMDString(date),
+          date: formatDateYMD(date),
           transportTypeCounts: {
             [`tt_${day.toString()}`]: { count: 1, transactionValue: 10 },
           },

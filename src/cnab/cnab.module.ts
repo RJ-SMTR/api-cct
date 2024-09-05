@@ -70,10 +70,11 @@ import { PagamentosPendentesService } from './service/pagamento/pagamentos-pende
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
+import { CnabManutencaoController } from './cnab-manutencao.controller';
 
 @Module({
   imports: [
-    BanksModule,
+    BanksModule, //
     BigqueryModule,
     LancamentoModule,
     SettingsModule,
@@ -81,7 +82,7 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     TransacaoViewModule,
     UsersModule,
     TypeOrmModule.forFeature([
-      HeaderArquivoConf,
+      HeaderArquivoConf, //
       HeaderLoteConf,
       DetalheAConf,
       DetalheBConf,
@@ -104,7 +105,7 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     ]),
   ],
   providers: [
-    ArquivoPublicacaoRepository,
+    ArquivoPublicacaoRepository, //
     ArquivoPublicacaoService,
     ClienteFavorecidoRepository,
     ClienteFavorecidoService,
@@ -148,7 +149,7 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     TransacaoService,
   ],
   exports: [
-    CnabService,
+    CnabService, //
     HeaderArquivoRepository,
     HeaderArquivoService,
     HeaderLoteRepository,
@@ -186,6 +187,6 @@ import { TransacaoService } from './service/pagamento/transacao.service';
     RemessaRetornoService,
     OcorrenciaService,
   ],
-  controllers: [CnabController],
+  controllers: [CnabController, CnabManutencaoController],
 })
 export class CnabModule {}

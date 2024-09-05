@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { DataSource, DeepPartial, FindManyOptions, QueryRunner } from 'typeorm';
+import { DataSource, DeepPartial, EntityManager, FindManyOptions, QueryRunner } from 'typeorm';
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
-import { TransacaoView } from './transacao-view.entity';
-import { TransacaoViewRepository } from './transacao-view.repository';
+import { ITransacaoView, TransacaoView } from './transacao-view.entity';
+import { IFindRawWhere, TransacaoViewRepository } from './transacao-view.repository';
+import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
 
 @Injectable()
 export class TransacaoViewService {
@@ -12,9 +13,24 @@ export class TransacaoViewService {
     timestamp: true,
   });
 
-  constructor(
-    private transacaoViewRepository: TransacaoViewRepository    
-  ) {}
+  constructor(private transacaoViewRepository: TransacaoViewRepository) {}
+
+  async syncOrdemPgto(args?: ISyncOrdemPgto) {
+    return await this.transacaoViewRepository.syncOrdemPgto(args);
+  }
+
+  async updateManyRaw(
+    dtos: DeepPartial<TransacaoView>[], //
+    fields: (keyof ITransacaoView)[],
+    reference: keyof ITransacaoView,
+    manager?: EntityManager,
+  ) {
+    return await this.transacaoViewRepository.updateManyRaw(dtos, fields, reference, manager);
+  }
+
+  async removeDuplicates() {
+    return await this.transacaoViewRepository.removeDuplicates();
+  }
 
   async count(fields?: EntityCondition<TransacaoView>) {
     return await this.transacaoViewRepository.count(fields);
@@ -24,44 +40,54 @@ export class TransacaoViewService {
     return await this.transacaoViewRepository.findPreviousDays(args);
   }
 
-  async find(fields: EntityCondition<TransacaoView>, eager = true) {
+  async find(fields: EntityCondition<TransacaoView>, eager = true, options?: FindManyOptions<TransacaoView>) {
     return await this.transacaoViewRepository.find({
       where: fields,
       order: {
         datetimeProcessamento: 'DESC',
         datetimeTransacao: 'DESC',
+        id: 'ASC',
       },
       loadEagerRelations: eager,
+      ...(options ? options : {}),
     });
   }
 
-  async findRaw(options: FindManyOptions<TransacaoView>) {
+  async findPaginated(fields: EntityCondition<TransacaoView>, limit: number, callback: (items: TransacaoView[], count: number) => void, eager = true) {
+    let page = 1;
+    let offset = limit * page;
+    let [transacoes, count] = await this.transacaoViewRepository.findAndCount({ where: fields, loadEagerRelations: eager, take: limit, skip: offset, order: { datetimeProcessamento: 'DESC', datetimeTransacao: 'DESC', id: 'ASC' } });
+    while (transacoes.length) {
+      callback(transacoes, count);
+      page += 1;
+      offset = limit * page;
+      [transacoes, count] = await this.transacaoViewRepository.findAndCount({ where: fields, loadEagerRelations: eager, take: limit, skip: offset, order: { datetimeProcessamento: 'DESC', datetimeTransacao: 'DESC', id: 'ASC' } });
+    }
+  }
+
+  async findCustom(options: FindManyOptions<TransacaoView>) {
     return await this.transacaoViewRepository.find(options);
+  }
+  async findRaw(where?: IFindRawWhere) {
+    return await this.transacaoViewRepository.findRaw(where);
+  }
+  async findUpdateValues(diasAnteriores?: number) {
+    return await this.transacaoViewRepository.findUpdateValues(diasAnteriores);
   }
 
   /**
    * Tarefas:
    * 1. Faz paginação de cada i
    */
-  async findExisting(
-    transacoes: DeepPartial<TransacaoView>[],
-    callback: (
-      existing: TransacaoView[],
-      newItems: DeepPartial<TransacaoView>[],
-    ) => void,
-  ) {
-    const existing = await this.transacaoViewRepository.findExisting(
-      transacoes,
-    );
+  async findExisting(transacoes: DeepPartial<TransacaoView>[], callback: (existing: TransacaoView[], newItems: DeepPartial<TransacaoView>[]) => void) {
+    const existing = await this.transacaoViewRepository.findExisting(transacoes);
     const existingIds = existing.map((i) => i.idTransacao);
-    const newItems = transacoes.filter(
-      (i) => i?.idTransacao && existingIds.includes(i.idTransacao),
-    );
+    const newItems = transacoes.filter((i) => i?.idTransacao && existingIds.includes(i.idTransacao));
     callback(existing, newItems);
   }
 
-  public async save(transacao: TransacaoView,queryRunner:QueryRunner) {  
-      await queryRunner.manager.getRepository(TransacaoView).save(transacao);          
+  public async save(transacao: TransacaoView, queryRunner: QueryRunner) {
+    await queryRunner.manager.getRepository(TransacaoView).save(transacao);
   }
 
   /**
@@ -77,30 +103,18 @@ export class TransacaoViewService {
    * @param [existings=[]] verifica se item existe baseado no idTransacao.
    * Se a lsita for vazia, verifica se `transacoes` possui id
    */
-  async saveMany(
-    transacoes: DeepPartial<TransacaoView>[], 
-    queryRunner:QueryRunner,   
-    existings: TransacaoView[] = []
-    ) {
-    this.logger.log(
-      `Inserindo ${transacoes.length} ` +
-        `TransacaoViews, há ${existings.length} existentes...`,
-    );  
-      let transacoesIndex = 1;
-      let maxId = await this.transacaoViewRepository.getMaxId();
-      for (const transacao of transacoes) {
-        const existing = existings.filter(
-          (i) => i.idTransacao === transacao.idTransacao,
-        )[0] as TransacaoView | undefined;
-        if (!existing){
-          this.logger.debug(
-            `Inserindo novo item - ${transacoesIndex}/${transacoes.length}`,
-          );
-          transacao.id = ++maxId;
-          await queryRunner.manager.getRepository(TransacaoView).save(transacao);
-        }
-        transacoesIndex++;
+  async saveMany(transacoes: DeepPartial<TransacaoView>[], queryRunner: QueryRunner, existings: TransacaoView[] = []) {
+    this.logger.log(`Inserindo ${transacoes.length} ` + `TransacaoViews, há ${existings.length} existentes...`);
+    let transacoesIndex = 1;
+    let maxId = await this.transacaoViewRepository.getMaxId();
+    for (const transacao of transacoes) {
+      const existing = existings.filter((i) => i.idTransacao === transacao.idTransacao)[0] as TransacaoView | undefined;
+      if (!existing) {
+        this.logger.debug(`Inserindo novo item - ${transacoesIndex}/${transacoes.length}`);
+        transacao.id = ++maxId;
+        await queryRunner.manager.getRepository(TransacaoView).save(transacao);
       }
-       
+      transacoesIndex++;
+    }
   }
 }

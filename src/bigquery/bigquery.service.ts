@@ -3,6 +3,7 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AllConfigType } from 'src/config/config.type';
 import {
+  compactQuery,
   formatSqlQuery,
   formatSqlTitle,
   formatSqlTitleFailed,
@@ -16,9 +17,7 @@ export enum BigquerySource {
 @Injectable()
 export class BigqueryService {
   private bigQueryInstances: Record<string, BigQuery> = {};
-  private logger: Logger = new CustomLogger(BigqueryService.name, {
-    timestamp: true,
-  });
+  private logger = new CustomLogger(BigqueryService.name, { timestamp: true });
 
   constructor(private configService: ConfigService<AllConfigType>) {
     const jsonCredentials = () => {
@@ -100,8 +99,8 @@ export class BigqueryService {
    */
   public async query(source: BigquerySource, query: string) {
     this.logger.debug('Query fetch started');
-    const _query = query.replace(/\n(\s +)(?=\S)/g, ' ').replace(/\n+/gm, ' ');
-    console.log(`${formatSqlTitle('bigquery:')} ${formatSqlQuery(_query)}`);
+    const _query = compactQuery(query);
+    console.log(`${formatSqlTitle('bigquery:')} ${formatSqlQuery(query)}`);
     try {
       const [rows] = await this.getBqInstance(source).query({
         query: _query,

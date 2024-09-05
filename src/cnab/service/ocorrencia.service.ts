@@ -2,7 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { OcorrenciaRepository } from 'src/cnab/repository/ocorrencia.repository';
-import { DeepPartial, FindManyOptions, QueryRunner } from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOptionsWhere, QueryRunner } from 'typeorm';
+import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 
 @Injectable()
 export class OcorrenciaService {
@@ -23,10 +24,19 @@ export class OcorrenciaService {
     return await this.ocorrenciaRepository.save(dto);
   }
 
-  public async saveMany(ocorrencias: DeepPartial<Ocorrencia>[],queryRunner:QueryRunner){
+  public async saveMany(ocorrencias: DeepPartial<Ocorrencia>[], queryRunner: QueryRunner) {
+    const saved: Ocorrencia[] = [];
     for (const ocorrencia of ocorrencias) {
-      return await queryRunner.manager.getRepository(Ocorrencia).save(ocorrencia);
-      
+      saved.push(await queryRunner.manager.getRepository(Ocorrencia).save(ocorrencia));
     }
+    return saved;
+  }
+
+  public async delete(detalheA: DeepPartial<DetalheA>, queryRunner: QueryRunner) {
+    await queryRunner.manager.getRepository(Ocorrencia).delete({ detalheA: { id: detalheA.id } });
+  }
+
+  public async deleteBy(where: FindOptionsWhere<Ocorrencia>, queryRunner: QueryRunner) {
+    await queryRunner.manager.getRepository(Ocorrencia).delete(where);
   }
 }

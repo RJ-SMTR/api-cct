@@ -2,29 +2,25 @@
  * Simple pipe helpers
  */
 
-import { isDate } from "date-fns";
-import { getDateFromString } from "./date-utils";
-import { CommonHttpException } from "./http-exception/common-http-exception";
-import { isNumberString } from "class-validator";
-import { isDefined, isContent } from "./type-utils";
+import { isDate } from 'date-fns';
+import { getDateFromString } from './date-utils';
+import { CommonHttpException } from './http-exception/common-http-exception';
+import { isNumberString } from 'class-validator';
+import { isDefined, isNotNull } from './type-utils';
 
 export function asStringOrEmpty(str: string | null | undefined, message?: string): string {
   if (str === null || str === undefined) {
     return '';
   }
   if (typeof str !== 'string') {
-    throw CommonHttpException.details(
-      message || `value is not string, but ${typeof str}, value: ${str}`,
-    );
+    throw CommonHttpException.details(message || `value is not string, but ${typeof str}, value: ${str}`);
   }
   return str;
 }
 
 export function asString(str: string | null | undefined, errMsg?: string): string {
   if (typeof str !== 'string') {
-    throw CommonHttpException.details(
-      `${errMsg || 'String'} is not string, but ${typeof str}, value: ${str}`,
-    );
+    throw CommonHttpException.details(`${errMsg || 'String'} is not string, but ${typeof str}, value: ${str}`);
   }
   return str;
 }
@@ -32,9 +28,7 @@ export function asString(str: string | null | undefined, errMsg?: string): strin
 export function asFilledString(str: string | null | undefined, errMsg?: string): string {
   const validStr = asString(str, errMsg);
   if (validStr?.length === 0) {
-    throw CommonHttpException.details(
-      errMsg || `String should not be empty`,
-    );
+    throw CommonHttpException.details(errMsg || `String should not be empty`);
   }
   return validStr;
 }
@@ -42,14 +36,9 @@ export function asFilledString(str: string | null | undefined, errMsg?: string):
 export function asDate(date: Date | null | undefined, fieldName?: string): Date {
   const field = fieldName || 'Date';
   if (date === null || date === undefined || !isDate(date)) {
-    throw CommonHttpException.details(
-      `${field} is not Date, but ${typeof date}, value: ${date}`,
-    );
-  }
-  else if (isNaN(date.getDate())) {
-    throw CommonHttpException.details(
-      `${field} is invalid date, but ${typeof date}, value: ${date}`,
-    );
+    throw CommonHttpException.details(`${field} is not Date, but ${typeof date}, value: ${date}`);
+  } else if (isNaN(date.getDate())) {
+    throw CommonHttpException.details(`${field} is invalid date, but ${typeof date}, value: ${date}`);
   }
   return date;
 }
@@ -58,13 +47,10 @@ export function asStringOrDateDate(str: string | Date, inputFormat?: string, fie
   const field = fieldName ? fieldName : 'StringDate';
   if (typeof str === 'string') {
     return getDateFromString(str, inputFormat);
-  }
-  else if (isDate(str)) {
+  } else if (isDate(str)) {
     return str;
   } else {
-    throw CommonHttpException.details(
-      `${field} should be nullable string | date , but got ${typeof str}, value: ${str}`,
-    );
+    throw CommonHttpException.details(`${field} should be nullable string | date , but got ${typeof str}, value: ${str}`);
   }
 }
 
@@ -76,16 +62,12 @@ export function asNullableStringOrDateTime(str: string | Date | null | undefined
     const time = date ? new Date(date) : new Date();
     time.setHours(baseTime.getHours(), baseTime.getMinutes(), baseTime.getSeconds());
     return time;
-  }
-  else if (!str) {
+  } else if (!str) {
     return null;
-  }
-  else if (isDate(str)) {
+  } else if (isDate(str)) {
     return str;
   } else {
-    throw CommonHttpException.details(
-      `${field} should be nullable string | date , but got ${typeof str}, value: ${str}`,
-    );
+    throw CommonHttpException.details(`${field} should be nullable string | date , but got ${typeof str}, value: ${str}`);
   }
 }
 
@@ -97,13 +79,10 @@ export function asStringOrDateTime(str: string | Date, date?: Date | null | unde
     const time = date ? new Date(date) : new Date();
     time.setHours(baseTime.getHours(), baseTime.getMinutes(), baseTime.getSeconds());
     return time;
-  }
-  else if (isDate(str)) {
+  } else if (isDate(str)) {
     return str;
   } else {
-    throw CommonHttpException.details(
-      `${field} should be nullable string | date , but got ${typeof str}, value: ${str}`,
-    );
+    throw CommonHttpException.details(`${field} should be nullable string | date , but got ${typeof str}, value: ${str}`);
   }
 }
 
@@ -122,7 +101,7 @@ export function asStringDate(str: string | null | undefined, inputFormat?: strin
 }
 
 export function asNullableStringDate(str: string | null | undefined, inputFormat?: string): Date | null {
-  return str ? asStringDate(str, inputFormat) : null
+  return str ? asStringDate(str, inputFormat) : null;
 }
 
 /**
@@ -165,14 +144,10 @@ export function asStringNumber(str: string | null | undefined, fieldName?: strin
 export function asNumber(num: number | bigint | null | undefined, fieldName?: string, allowNaN = false): number {
   const field = fieldName || 'Number';
   if (typeof num !== 'number') {
-    throw CommonHttpException.details(
-      `${field} is not number, but ${num}`,
-    );
+    throw CommonHttpException.details(`${field} is not number, but ${num}`);
   }
   if (isNaN(num) && !allowNaN) {
-    throw CommonHttpException.details(
-      `${field} should not be NaN , but got ${num}`,
-    );
+    throw CommonHttpException.details(`${field} should not be NaN , but got ${num}`);
   }
   return num;
 }
@@ -181,9 +156,7 @@ export function asInteger(num: number | null | undefined, fieldName?: string): n
   const field = fieldName || 'Number';
   const validNum = asNumber(num);
   if (!Number.isInteger(validNum)) {
-    throw CommonHttpException.details(
-      `${field} should be integer, but got ${validNum}`,
-    );
+    throw CommonHttpException.details(`${field} should be integer, but got ${validNum}`);
   }
   return validNum;
 }
@@ -201,9 +174,7 @@ export function asDecimal(num: number | null | undefined, fieldName?: string): n
 export function asStringBoolean(str: string | null | undefined, fieldName?: string): boolean {
   const field = fieldName || 'StringBoolean';
   if (typeof str !== 'string' && str !== undefined && str !== null) {
-    throw CommonHttpException.details(
-      `${field} is not boolean, but ${typeof str}, value: ${str}`,
-    );
+    throw CommonHttpException.details(`${field} is not boolean, but ${typeof str}, value: ${str}`);
   }
   return str?.toLowerCase() === 'true';
 }
@@ -211,16 +182,14 @@ export function asStringBoolean(str: string | null | undefined, fieldName?: stri
 export function asBoolean(bool: boolean | null | undefined, fieldName?: string): boolean {
   const field = fieldName || 'Boolean';
   if (typeof bool !== 'boolean') {
-    throw CommonHttpException.details(
-      `${field} is not boolean, but ${bool}`,
-    );
+    throw CommonHttpException.details(`${field} is not boolean, but ${bool}`);
   }
   return bool;
 }
 
 export function asJSONStrOrObj(str: string | object): string {
   if (typeof str === 'string') {
-    return str
+    return str;
   } else {
     try {
       return JSON.stringify(str);
@@ -233,9 +202,7 @@ export function asJSONStrOrObj(str: string | object): string {
 export function asObject<T>(obj: T | null | undefined, fieldName?: string): T {
   const field = fieldName || 'NullableObject';
   if (obj === null || obj === undefined) {
-    throw CommonHttpException.details(
-      `${field} is nullable: ${typeof obj}`,
-    );
+    throw CommonHttpException.details(`${field} is nullable: ${typeof obj}`);
   }
   return obj;
 }
@@ -244,7 +211,7 @@ export function asDefinedContent<T>(val: T | undefined | null, field = 'Value'):
   if (!isDefined(val)) {
     throw CommonHttpException.details(`${field} should not be undefined.`);
   }
-  if (!isContent(val)) {
+  if (!isNotNull(val)) {
     throw CommonHttpException.details(`${field} should not be null.`);
   }
   return val;
@@ -258,7 +225,7 @@ export function asDefined<T>(val: T | undefined, field = 'Value'): T {
 }
 
 export function asContent<T>(val: T | null, field = 'Value'): T {
-  if (!isContent(val)) {
+  if (!isNotNull(val)) {
     throw CommonHttpException.details(`${field} should not be undefined.`);
   }
   return val;

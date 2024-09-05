@@ -1,28 +1,12 @@
 import { HttpStatus } from '@nestjs/common';
-import {
-  endOfDay,
-  format,
-  isDate,
-  nextFriday,
-  parse,
-  startOfDay,
-  startOfMonth,
-  subHours,
-} from 'date-fns';
+import { differenceInSeconds, endOfDay, format, isDate, nextFriday, parse, startOfDay, startOfMonth, subHours } from 'date-fns';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
 import { CommonHttpException } from './http-exception/common-http-exception';
 import { DateIntervalStrType } from './types/date-interval.type';
 
-export function getDateWithTimezone(
-  date: Date,
-  offsetHours: number,
-  offsetMinutes = 0,
-): Date {
+export function getDateWithTimezone(date: Date, offsetHours: number, offsetMinutes = 0): Date {
   const _date = new Date(date);
-  _date.setUTCHours(
-    _date.getUTCHours() + offsetHours,
-    _date.getUTCMinutes() + offsetMinutes,
-  );
+  _date.setUTCHours(_date.getUTCHours() + offsetHours, _date.getUTCMinutes() + offsetMinutes);
   return _date;
 }
 
@@ -36,13 +20,10 @@ function getDaysToAdd(currentWeekday: number, desiredWeekday: number) {
 export function getNthWeek(dateInput: Date, startDay: number): number {
   const epochDate = new Date(1970, 0, 4);
   const epochStartDay = epochDate.getDay();
-  epochDate.setDate(
-    epochDate.getDate() + getDaysToAdd(epochStartDay, startDay),
-  );
+  epochDate.setDate(epochDate.getDate() + getDaysToAdd(epochStartDay, startDay));
   const millisecondsDifference = dateInput.getTime() - epochDate.getTime();
   const millisecondsInAWeek = 7 * 24 * 60 * 60 * 1000;
-  const nthWeekNumber =
-    Math.floor(millisecondsDifference / millisecondsInAWeek) + 1;
+  const nthWeekNumber = Math.floor(millisecondsDifference / millisecondsInAWeek) + 1;
   return nthWeekNumber;
 }
 
@@ -52,18 +33,10 @@ export function isSameNthWeek(date1: Date, date2: Date, startDay: number) {
   return nthWeek1 === nthWeek2;
 }
 
-export function getStartEndDates(args: {
-  startDateStr?: string;
-  endDateStr?: string;
-  timeInterval?: TimeIntervalEnum;
-}): { startDate: Date; endDate: Date } {
+export function getStartEndDates(args: { startDateStr?: string; endDateStr?: string; timeInterval?: TimeIntervalEnum }): { startDate: Date; endDate: Date } {
   const now = new Date(Date.now());
-  let startDate: Date =
-    args?.startDateStr !== undefined
-      ? new Date(args.startDateStr)
-      : new Date(now);
-  let endDate: Date =
-    args?.endDateStr !== undefined ? new Date(args.endDateStr) : new Date(now);
+  let startDate: Date = args?.startDateStr !== undefined ? new Date(args.startDateStr) : new Date(now);
+  let endDate: Date = args?.endDateStr !== undefined ? new Date(args.endDateStr) : new Date(now);
 
   if (args.timeInterval && !args?.startDateStr) {
     if (args.timeInterval === TimeIntervalEnum.LAST_WEEK) {
@@ -111,7 +84,7 @@ export function safeCastDates(args: Partial<DateIntervalStrType>) {
 /**
  * Get date in format `YYYY-MM-DD`
  */
-export function getDateYMDString(date: Date): string {
+export function formatDateYMD(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
@@ -122,22 +95,13 @@ export function getDateYMDString(date: Date): string {
  *
  * @param inputFormat date-fns date format. (see {@link https://date-fns.org/v3.3.1/docs/format})
  */
-export function getDateFromString(
-  value: string,
-  inputFormat?: string,
-  throwIfInvalid = true,
-): Date {
-  let date = inputFormat
-    ? parse(value, inputFormat, new Date())
-    : new Date(value);
+export function getDateFromString(value: string, inputFormat?: string, throwIfInvalid = true): Date {
+  let date = inputFormat ? parse(value, inputFormat, new Date()) : new Date(value);
   if (isNaN(date.getDate())) {
     date = new Date(`${format(new Date(), 'yyyy-MM-dd')} ${value}`);
   }
   if (throwIfInvalid && isNaN(date.getDate())) {
-    throw CommonHttpException.details(
-      `Invalid date format (value: ${value}, inputFormat: ${inputFormat})`,
-      HttpStatus.INTERNAL_SERVER_ERROR,
-    );
+    throw CommonHttpException.details(`Invalid date format (value: ${value}, inputFormat: ${inputFormat})`, HttpStatus.INTERNAL_SERVER_ERROR);
   }
   return date;
 }
@@ -157,4 +121,20 @@ export function isValidDate(value: any): boolean {
  */
 export function yearMonthDayToDate(ymd: string) {
   return new Date(ymd + ' ');
+}
+
+/**
+ * @returns `hh:mm:ss`
+ */
+export function formatDateInterval(endDate: Date, startDate: Date): string {
+  const totalSeconds = differenceInSeconds(endDate, startDate);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const formattedTime = [
+    String(hours).padStart(2, '0'), //
+    String(minutes).padStart(2, '0'),
+    String(seconds).padStart(2, '0'),
+  ].join(':');
+  return formattedTime;
 }

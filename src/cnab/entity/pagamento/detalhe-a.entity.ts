@@ -1,21 +1,6 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import {
-  asNullableStringOrNumber,
-  asStringOrNumber,
-} from 'src/utils/pipe-utils';
-import {
-  AfterLoad,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  OneToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { asNullableStringOrNumber, asStringOrNumber } from 'src/utils/pipe-utils';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 import { HeaderLote } from './header-lote.entity';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
@@ -26,6 +11,19 @@ import { Ocorrencia } from './ocorrencia.entity';
  */
 @Entity()
 export class DetalheA extends EntityHelper {
+  constructor(detalheA?: DeepPartial<DetalheA>) {
+    super();
+    if (detalheA) {
+      Object.assign(this, detalheA);
+      if (detalheA.itemTransacaoAgrupado) {
+        detalheA.itemTransacaoAgrupado = new ItemTransacaoAgrupado(detalheA.itemTransacaoAgrupado);
+      }
+      if (detalheA.headerLote) {
+        detalheA.headerLote = new HeaderLote(detalheA.headerLote);
+      }
+    }
+  }
+
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_DetalheA_id' })
   id: number;
 
@@ -143,31 +141,18 @@ export class DetalheA extends EntityHelper {
   /**
    * ID: headerLoteUniqueId + detalheA columns
    */
-  public static getUniqueId(
-    detalheA: DeepPartial<DetalheA>,
-    headerLoteUniqueId?: string,
-  ): string {
-    const _headerLoteUniqueId = headerLoteUniqueId
-      ? `(${headerLoteUniqueId})`
-      : `(${HeaderLote.getUniqueId(detalheA?.headerLote)})`;
+  public static getUniqueId(detalheA: DeepPartial<DetalheA>, headerLoteUniqueId?: string): string {
+    const _headerLoteUniqueId = headerLoteUniqueId ? `(${headerLoteUniqueId})` : `(${HeaderLote.getUniqueId(detalheA?.headerLote)})`;
     return `${_headerLoteUniqueId}|${detalheA.nsr}`;
   }
 
   public isPago() {
-    const errors = Ocorrencia.getErrorCodesFromString(
-      this.ocorrenciasCnab || '',
-    );
+    const errors = Ocorrencia.getErrorCodesFromString(this.ocorrenciasCnab || '');
     return errors.length === 0;
   }
 
   public static getOcorrenciaErrors(detalhes: DetalheA[]) {
-    return detalhes.reduce(
-      (l, i) => [
-        ...l,
-        ...i.ocorrencias.filter((j) => !['00', 'BD'].includes(j.code)),
-      ],
-      [],
-    );
+    return detalhes.reduce((l, i) => [...l, ...i.ocorrencias.filter((j) => !['00', 'BD'].includes(j.code))], []);
   }
 
   public static getItemTransacaoAgIds(detalhesA: DetalheA[]) {
