@@ -16,14 +16,35 @@ export class RelatorioSinteticoRepository {
   private getQuery(args:IFindPublicacaoRelatorio){ 
      const dataInicio = args.dataInicio.toISOString().slice(0,10)
      const dataFim = args.dataFim.toISOString().slice(0,10)
-     let query = ` select distinct res.* from ( `;
+     let query = ` select distinct res.*,     
+                     (select sum(dta."valorLancamento")::float valor                    
+                      from detalhe_a dta 
+                      inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
+                      WHERE (1=1) `;
+                      if(dataInicio!==undefined && dataFim!==undefined && 
+                        (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
+                        query = query + ` and dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+
+                  query = query + ` and tt."nomeConsorcio"=res.consorcio `;
+                  query = query + ` ) as subTotal `;
+     
+     query = query + ` from ( `;
      if(args.aPagar === undefined || args.aPagar === false){
       query = query + `               
             select distinct
               it.id, 
-              case 			 
-              when (it."nomeConsorcio" = 'VLT') THEN (da."dataVencimento" - INTERVAL '2 day')::varchar 
-              else '' end as datatransacao,
+              case
+              when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=1 THEN --segunda
+              (da."dataVencimento":: Date - INTERVAL '4 day')::varchar 
+              when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=2 THEN --terça
+              (da."dataVencimento":: Date -  INTERVAL '4 day')::varchar 
+              when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=3 THEN --quarta
+              (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 
+              when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=4 THEN --quinta
+              (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 
+              when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=5 THEN --Sexta
+              (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 		
+              end as datatransacao, 	
               da."dataVencimento"::date::Varchar As datapagamento,
               it."nomeConsorcio" AS consorcio,	
               cf.nome AS favorecido,
@@ -31,33 +52,9 @@ export class RelatorioSinteticoRepository {
             case when (ap."isPago") then 'pago' 
                 when (not (ap."isPago")) then 'naopago'
                 else 'apagar' end AS status,
-            case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status,
-            (select sum(subTotal."valor_agrupado")::float valor
-                    from (
-                      select distinct itta.id AS id,
-                      itta."nomeConsorcio" AS consorcio,	
-                      ctf.nome AS favorecido,
-                      ctf."cpfCnpj" AS favorecido_cpfcnpj,
-                      dta."valorLancamento" AS valor_agrupado
-                      from item_transacao_agrupado itta 
-                      inner join detalhe_a dta on dta."itemTransacaoAgrupadoId"= itta.id
-                      inner join item_transacao itt on itta.id = itt."itemTransacaoAgrupadoId"
-                      inner join arquivo_publicacao atp on atp."itemTransacaoId"=itt.id
-                      inner join cliente_favorecido ctf on ctf.id=itt."clienteFavorecidoId"
-                      WHERE (1=1) `;
-                      
-                      if(dataInicio!==undefined && dataFim!==undefined && 
-                        (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
-                        query = query + ` and dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
-                                            
-                      query = query + ` and itta."nomeConsorcio"= ita."nomeConsorcio" `;
-
-                      if(args.pago !==undefined)          
-                        query = query +`  and atp."isPago"=${args.pago}`;                    
-              
-                    query = query + ` ) as subTotal)::Varchar as subTotal `;
+            case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status 
             
-            query = query + ` from transacao_view tv   
+            from transacao_view tv   
             inner join item_transacao_agrupado ita on tv."itemTransacaoAgrupadoId"=ita.id
             inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
             inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
@@ -90,9 +87,18 @@ export class RelatorioSinteticoRepository {
           query = query +`
             select distinct 
               it.id, 
-              case 			 
-              when (it."nomeConsorcio" = 'VLT') THEN (da."dataVencimento" - INTERVAL '2 day')::varchar 
-              else '' end as datatransacao,
+             case
+              when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=1 THEN --segunda
+              (da."dataVencimento":: Date - INTERVAL '4 day')::varchar 
+              when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=2 THEN --terça
+              (da."dataVencimento":: Date -  INTERVAL '4 day')::varchar 
+              when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=3 THEN --quarta
+              (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 
+              when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=4 THEN --quinta
+              (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 
+              when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=5 THEN --Sexta
+              (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 		
+              end as datatransacao, 	
               da."dataVencimento"::date::Varchar As datapagamento,
               it."nomeConsorcio" AS consorcio,	
               cf.nome AS favorecido,
@@ -100,34 +106,8 @@ export class RelatorioSinteticoRepository {
               case when (ap."isPago") then 'pago' 
                   when (not (ap."isPago")) then 'naopago'
                 else 'apagar' end AS status,
-              case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status,
-
-              (select sum(subTotal."valor_agrupado")::float valor
-                    from (
-                      select distinct itta.id AS id,
-                      itta."nomeConsorcio" AS consorcio,	
-                      ctf.nome AS favorecido,
-                      ctf."cpfCnpj" AS favorecido_cpfcnpj,
-                      dta."valorLancamento" AS valor_agrupado
-                      from item_transacao_agrupado itta 
-                      inner join detalhe_a dta on dta."itemTransacaoAgrupadoId"= itta.id
-                      inner join item_transacao itt on itta.id = itt."itemTransacaoAgrupadoId"
-                      inner join arquivo_publicacao atp on atp."itemTransacaoId"=itt.id
-                      inner join cliente_favorecido ctf on ctf.id=itt."clienteFavorecidoId"
-                      WHERE (1=1) `;
-                      
-                      if(dataInicio!==undefined && dataFim!==undefined && 
-                        (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
-                        query = query + ` and dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
-                                            
-                      query = query + ` and itta."nomeConsorcio"= ita."nomeConsorcio" `;
-
-                      if(args.pago !==undefined)          
-                        query = query +`  and atp."isPago"=${args.pago}`;                    
-              
-                    query = query + ` ) as subTotal)::Varchar as subTotal `;	
-
-              query = query + ` from item_transacao_agrupado ita 
+              case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status
+              from item_transacao_agrupado ita 
               inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
               inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
               inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
@@ -177,10 +157,9 @@ export class RelatorioSinteticoRepository {
                 cf.nome AS favorecido,
                 round(tv."valorPago",2)::float  as valor,			      
                 'a pagar' AS status,
-                '' As mensagem_status,
-                '' as subTotal `;	 			  
+                '' As mensagem_status		  
              
-                query = query + ` from transacao_view tv			  
+                from transacao_view tv			  
                 inner join cliente_favorecido cf on tv."operadoraCpfCnpj"=cf."cpfCnpj"
                 where tv."valorPago" > 0	`; 	
               if(dataInicio!==undefined && dataFim!==undefined && 
