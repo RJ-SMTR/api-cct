@@ -133,7 +133,7 @@ export class TransacaoService {
   private setLazyLancamentos(transacoes: Transacao[]) {
     for (const transacao of transacoes) {
       for (const lancamento of transacao.lancamentos || []) {
-        lancamento.transacao = { id: transacao.id } as Transacao;
+        lancamento.itemTransacao = { id: transacao.id } as Transacao;
       }
     }
   }

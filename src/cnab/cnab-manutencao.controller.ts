@@ -21,7 +21,52 @@ export class CnabManutencaoController {
 
   constructor(private readonly cnabService: CnabService) {}
 
-  @Get('generateRemessa')
+  @Get('generateRemessaLancamento')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.master)
+  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a geração e envio de remessa - que normalmente é feita via cronjob.' })
+  @ApiQuery({ name: 'dataOrdemInicial', type: String, required: false, description: ApiDescription({ _: 'Data da Ordem de Pagamento Inicial - salvar transações', example: '2024-07-15' }) })
+  @ApiQuery({ name: 'dataOrdemFinal', type: String, required: false, description: ApiDescription({ _: 'Data da Ordem de Pagamento Final - salvar transações', example: '2024-07-16' }) })
+  @ApiQuery({ name: 'dataPagamento', type: String, required: false, description: ApiDescription({ _: 'Data de pagamento', default: 'O dia de hoje' }) })
+  @ApiQuery({ name: 'isConference', type: Boolean, required: true, description: 'Conferencia - Se o remessa será gerado numa tabela de teste.', example: true })
+  @ApiQuery({ name: 'isCancelamento', type: Boolean, required: true, description: 'Cancelamento', example: false })
+  @ApiQuery({ name: 'nsaInicial', type: Number, required: false, description: ApiDescription({ default: 'O NSA atual' }) })
+  @ApiQuery({ name: 'nsaFinal', type: Number, required: false, description: ApiDescription({ default: 'nsaInicial' }) })
+  @ApiQuery({ name: 'dataCancelamento', type: String, required: false, description: ApiDescription({ _: 'Data de vencimento da transação a ser cancelada (DetalheA).', 'Required if': 'isCancelamento = true' }), example: '2024-07-16' })
+  @ApiBearerAuth()
+  async getGenerateRemessaLancamento(
+    @Query('dataOrdemInicial', new ParseDatePipe({ transform: true, optional: true })) _dataOrdemInicial: any, // Date
+    @Query('dataOrdemFinal', new ParseDatePipe({ transform: true, optional: true })) _dataOrdemFinal: any, // Date
+    @Query('dataPagamento', new ParseDatePipe({ transform: true, optional: true })) _dataPagamento: any, // Date | undefined
+    @Query('isConference') isConference: boolean,
+    @Query('isCancelamento') isCancelamento: boolean,
+    @Query('nsaInicial', new ParseNumberPipe({ min: 1, optional: true })) nsaInicial: number | undefined,
+    @Query('nsaFinal', new ParseNumberPipe({ min: 1, optional: true })) nsaFinal: number | undefined,
+    @Query('dataCancelamento', new ParseDatePipe({ transform: true, optional: true })) _dataCancelamento: any, // Date | undefined
+  ) {
+    const dataOrdemInicial = _dataOrdemInicial as Date | undefined;
+    const dataOrdemFinal = _dataOrdemFinal as Date | undefined;
+    const dataPgto = _dataPagamento || new Date() as Date;
+    const dataCancelamento = _dataCancelamento as Date | undefined;
+
+    if (isCancelamento && !dataCancelamento) {
+      throw new BadRequestException('dataCancelamento é obrigatório se isCancelamento = true');
+    }
+
+    return await this.cnabService.getGenerateRemessaLancamento({
+      dataOrdemInicial,
+      dataOrdemFinal,
+      dataPgto,
+      isConference,
+      isCancelamento,
+      nsaInicial,
+      nsaFinal,
+      dataCancelamento,
+    });
+  }
+
+  @Get('generateRemessaJae')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.master)
@@ -37,7 +82,7 @@ export class CnabManutencaoController {
   @ApiQuery({ name: 'nsaFinal', description: ApiDescription({ default: 'nsaInicial' }), required: false, type: Number })
   @ApiQuery({ name: 'dataCancelamento', description: ApiDescription({ _: 'Data de vencimento da transação a ser cancelada (DetalheA).', 'Required if': 'isCancelamento = true' }), required: false, type: String, example: '2024-07-16' })
   @ApiBearerAuth()
-  async getGenerateRemessa(
+  async getGenerateRemessaJae(
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true })) _dataOrdemInicial: any, // Date
     @Query('dataOrdemFinal', new ParseDatePipe({ transform: true })) _dataOrdemFinal: any, // Date
     @Query('diasAnterioresOrdem', new ParseNumberPipe({ min: 0, defaultValue: 0 })) diasAnteriores: number,
@@ -58,7 +103,7 @@ export class CnabManutencaoController {
       throw new BadRequestException('dataCancelamento é obrigatório se isCancelamento = true');
     }
 
-    return await this.cnabService.getGenerateRemessa({
+    return await this.cnabService.getGenerateRemessaJae({
       dataOrdemInicial,
       dataOrdemFinal,
       diasAnteriores,

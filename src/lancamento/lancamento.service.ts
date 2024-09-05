@@ -25,15 +25,11 @@ export class LancamentoService {
   /**
    * Procura itens não usados ainda (sem Transacao Id) from current payment week (sex-qui).
    */
-  async findToPayWeek(): Promise<Lancamento[]> {
-    const today = new Date();
-    const friday = isFriday(today) ? today : nextFriday(today);
-    const sex = startOfDay(subDays(friday, 7));
-    const qui = endOfDay(subDays(friday, 1));
+  async findToPay(dataOrdemBetween?: [Date, Date]): Promise<Lancamento[]> {
     return await this.lancamentoRepository.findMany({
       where: {
-        data_lancamento: Between(sex, qui),
-        transacao: IsNull(),
+        ...(dataOrdemBetween ? { data_lancamento: Between(...dataOrdemBetween) } : {}),
+        itemTransacao: IsNull(),
         is_autorizado: true,
       },
     });

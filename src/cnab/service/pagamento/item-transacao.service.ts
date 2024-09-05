@@ -1,13 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ItemTransacaoDTO } from 'src/cnab/dto/pagamento/item-transacao.dto';
-import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
 import { ItemTransacaoRepository } from 'src/cnab/repository/pagamento/item-transacao.repository';
-import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { logDebug } from 'src/utils/log-utils';
-import { asObject } from 'src/utils/pipe-utils';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { DeepPartial, FindManyOptions, FindOptionsWhere, In, Not, QueryRunner } from 'typeorm';
 
@@ -22,44 +19,6 @@ export class ItemTransacaoService {
   async update(id: number, dto: DeepPartial<ItemTransacao>) {
     return await this.itemTransacaoRepository.update(id, dto);
   }
-
-  // #region generateDTOsFromLancamentos
-
-  /**
-   * @param publicacoes Ready to save or saved Entity. Must contain valid Transacao
-   */
-  public generateDTOsFromLancamentos(lancamentos: Lancamento[], favorecidos: ClienteFavorecido[]): ItemTransacao[] {
-    /** Key: id ClienteFavorecido. Eficient way to find favorecido. */
-    const favorecidosMap: Record<string, ClienteFavorecido> = favorecidos.reduce((map, i) => ({ ...map, [i.id]: i }), {});
-
-    const itens: ItemTransacao[] = [];
-
-    // Mount DTOs
-    for (const lancamento of lancamentos) {
-      const favorecido = favorecidosMap[lancamento.clienteFavorecido.id];
-      itens.push(this.generateDTOFromLancamento(lancamento, favorecido));
-    }
-    return itens;
-  }
-
-  /**
-   * A simple pipe thar converts BigqueryOrdemPagamento into ItemTransacaoDTO.
-   *
-   * **status** is Created.
-   */
-  public generateDTOFromLancamento(lancamento: Lancamento, favorecido: ClienteFavorecido): ItemTransacao {
-    const transacao = asObject<Transacao>(lancamento.transacao);
-    /** detalheA = null, isRegistered = false */
-    const itemTransacao = new ItemTransacao({
-      clienteFavorecido: { id: favorecido.id },
-      transacao: { id: transacao.id },
-      valor: lancamento.valor,
-      dataOrdem: lancamento.data_ordem,
-    });
-    return itemTransacao;
-  }
-
-  // #endregion
 
   /**
    * Bulk save Transacao.

@@ -32,7 +32,7 @@ export class BigqueryOrdemPagamentoDTO {
    */
   @ValidateIf((o, v) => v !== null)
   @IsDateString()
-  dataPagamento: string | null;
+  // dataPagamento: string | null;
 
   /**
    * Id de cadastro.consorcios

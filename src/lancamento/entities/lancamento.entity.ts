@@ -5,9 +5,10 @@ import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { LancamentoInputDto } from '../dtos/lancamento-input.dto';
 import { LancamentoAutorizacao } from './lancamento-autorizacao.entity';
+import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 
 export interface ILancamento {
   id: number;
@@ -15,7 +16,7 @@ export interface ILancamento {
   data_ordem: Date;
   data_pgto: Date | null;
   data_lancamento: Date;
-  transacao: Transacao;
+  itemTransacao: ItemTransacao;
   autorizacoes: User[];
   autor: User;
   clienteFavorecido: ClienteFavorecido;
@@ -45,7 +46,7 @@ export class Lancamento extends EntityHelper implements ILancamento {
       algoritmo: dto.algoritmo,
       glosa: dto.glosa,
       recurso: dto.recurso,
-      anexo: dto.anexo,
+      anexo: dto.anexo || 0,
       numero_processo: dto.numero_processo,
       clienteFavorecido: { id: dto.id_cliente_favorecido },
       autor: dto.author,
@@ -86,15 +87,15 @@ export class Lancamento extends EntityHelper implements ILancamento {
   @Column({ type: 'timestamp', nullable: true })
   data_pgto: Date | null;
 
-  /** createdAt */
+  /** Data da criação do Lançamento */
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   data_lancamento: Date;
 
-  /** Remessa */
-  @ApiProperty({ description: 'Transação do CNAB remessa associado a este Lançamento' })
-  @ManyToOne(() => Transacao, { nullable: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_transacao_ManyToOne' })
-  transacao: Transacao;
+  /** Geração de Remessa */
+  @ApiProperty({ description: 'ItemTransação do CNAB remessa associado a este Lançamento' })
+  @OneToOne(() => ItemTransacao, { nullable: true })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_itemTransacao_OneToOne' })
+  itemTransacao: ItemTransacao;
 
   @ManyToMany(() => User, (user) => user)
   @JoinTable({

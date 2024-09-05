@@ -1,3 +1,4 @@
+import { OrdemPagamentoDto } from 'src/cnab/dto/pagamento/ordem-pagamento.dto';
 import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
@@ -30,6 +31,16 @@ export class Transacao extends EntityHelper {
     }
   }
 
+  public static fromOrdem(ordem: OrdemPagamentoDto, pagador: Pagador, transacaoAgrupadoId: number) {
+    return new Transacao({
+      dataOrdem: ordem.dataOrdem, //
+      dataPagamento: null,
+      pagador: pagador,
+      idOrdemPagamento: ordem.idOrdemPagamento,
+      transacaoAgrupado: { id: transacaoAgrupadoId },
+    });
+  }
+
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Transacao_id' })
   id: number;
 
@@ -58,7 +69,7 @@ export class Transacao extends EntityHelper {
   transacaoAgrupado: TransacaoAgrupado;
 
   /** Not a physical column */
-  @OneToMany(() => Lancamento, (lancamento) => lancamento.transacao, {
+  @OneToMany(() => Lancamento, (lancamento) => lancamento.itemTransacao, {
     nullable: true,
   })
   @JoinColumn({

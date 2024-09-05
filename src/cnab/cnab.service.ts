@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { endOfDay, isFriday, nextFriday, nextThursday, startOfDay, subDays } from 'date-fns';
+import { Injectable, NotImplementedException } from '@nestjs/common';
+import { endOfDay, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
@@ -15,11 +15,15 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
+import { ISyncOrdemPgto } from 'src/transacao-view/interfaces/sync-form-ordem.interface';
+import { getChunks } from 'src/utils/array-utils';
 import { completeCPFCharacter } from 'src/utils/cpf-cnpj';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { formatDateInterval, yearMonthDayToDate } from 'src/utils/date-utils';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { formatErrMsg } from 'src/utils/log-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { Between, DataSource, DeepPartial, In, IsNull, Not, QueryRunner } from 'typeorm';
+import { Between, DataSource, DeepPartial, QueryRunner } from 'typeorm';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
 import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
@@ -50,12 +54,8 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { formatErrMsg } from 'src/utils/log-utils';
-import e from 'express';
-import { getChunks } from 'src/utils/array-utils';
-import { isContent, isNotContent } from 'src/utils/type-utils';
-import { ISyncOrdemPgto } from 'src/transacao-view/interfaces/sync-form-ordem.interface';
+import { OrdemPagamentoDto } from './dto/pagamento/ordem-pagamento.dto';
+import { AllPagadorDict } from './interfaces/pagamento/all-pagador-dict.interface';
 
 /**
  * User cases for CNAB and Payments
@@ -90,7 +90,7 @@ export class CnabService {
     private settingsService: SettingsService,
   ) {}
 
-  async getGenerateRemessa(args: {
+  async getGenerateRemessaJae(args: {
     dataOrdemInicial: Date; //
     dataOrdemFinal: Date;
     diasAnteriores: number;
@@ -102,7 +102,7 @@ export class CnabService {
     nsaFinal: number | undefined;
     dataCancelamento: Date | undefined;
   }) {
-    const METHOD = 'getGenerateRemessa';
+    const METHOD = 'getGenerateRemessaJae';
     const { consorcio, dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, diasAnteriores, isCancelamento, isConference, nsaFinal, nsaInicial } = args;
     const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
     const startDate = new Date();
@@ -118,6 +118,56 @@ export class CnabService {
     this.logger.log('generateRemessa started');
     const listCnab = await this.generateRemessa({
       tipo: PagadorContaEnum.ContaBilhetagem, //
+      dataPgto,
+      isConference,
+      isCancelamento,
+      nsaInicial,
+      nsaFinal,
+      dataCancelamento,
+    });
+    duration.generateRemessa = formatDateInterval(new Date(), now);
+    now = new Date();
+    this.logger.log(`generateRemessa finalizado - ${duration.generateRemessa}`);
+
+    this.logger.log('sendRemessa started');
+    await this.sendRemessa(listCnab);
+    duration.sendRemessa = formatDateInterval(new Date(), now);
+    this.logger.log(`sendRemessa finalizado - ${duration.sendRemessa}`);
+
+    duration.total = formatDateInterval(new Date(), startDate);
+    this.logger.log(`Tarefa finalizada - ${duration.total}`);
+    return {
+      duration,
+      cnabs: listCnab,
+    };
+  }
+
+  async getGenerateRemessaLancamento(args: {
+    dataOrdemInicial?: Date; //
+    dataOrdemFinal?: Date;
+    dataPgto: Date | undefined;
+    isConference: boolean;
+    isCancelamento: boolean;
+    nsaInicial: number | undefined;
+    nsaFinal: number | undefined;
+    dataCancelamento: Date | undefined;
+  }) {
+    const METHOD = 'getGenerateRemessaLancamento';
+    const { dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, isCancelamento, isConference, nsaFinal, nsaInicial } = args;
+    const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
+    const startDate = new Date();
+    let now = new Date();
+    this.logger.log('Tarefa iniciada', METHOD);
+
+    this.logger.log('saveTransacoesJae iniciado');
+    await this.saveTransacoesLancamento(dataOrdemInicial, dataOrdemFinal);
+    duration.saveTransacoesJae = formatDateInterval(new Date(), now);
+    now = new Date();
+    this.logger.log(`saveTransacoesJae finalizado - ${duration.saveTransacoesJae}`);
+
+    this.logger.log('generateRemessa started');
+    const listCnab = await this.generateRemessa({
+      tipo: PagadorContaEnum.CETT, //
       dataPgto,
       isConference,
       isCancelamento,
@@ -189,8 +239,6 @@ export class CnabService {
     return { removed, duration };
   }
 
-  // #region saveTransacoesJae
-
   /**
    * Obtém dados de OrdemPagamento e salva em ItemTransacao e afins, para gerar remessa.
    *
@@ -202,7 +250,7 @@ export class CnabService {
     const dataOrdemInicialDate = startOfDay(new Date(dataOrdemIncial));
     const dataOrdemFinalDate = endOfDay(new Date(dataOrdemFinal));
     await this.updateAllFavorecidosFromUsers();
-    let ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, daysBefore);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, daysBefore);
     let ordensFilter: BigqueryOrdemPagamentoDTO[];
     if (consorcio.trim() === 'Empresa') {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL');
@@ -211,7 +259,13 @@ export class CnabService {
     } else {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio === consorcio.trim());
     }
-    await this.saveOrdens(ordensFilter);
+    const ordemDtos = ordensFilter.map((o) => OrdemPagamentoDto.fromBigqueryOrdem(o));
+    await this.saveOrdens(ordemDtos, 'contaBilhetagem');
+  }
+
+  private async updateAllFavorecidosFromUsers() {
+    const allUsers = await this.usersService.findManyRegisteredUsers();
+    await this.clienteFavorecidoService.updateAllFromUsers(allUsers);
   }
 
   /**
@@ -219,7 +273,7 @@ export class CnabService {
    */
   async updateTransacaoViewBigquery(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string = 'Todos', idTransacao: string[] = []) {
     const METHOD = 'updateTransacaoViewBigquery';
-    const trs = await this.getTransacoesBQ(dataOrdemIncial, dataOrdemFinal, daysBack, consorcio);
+    const trs = await this.findBigqueryTransacao(dataOrdemIncial, dataOrdemFinal, daysBack, consorcio);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
@@ -267,7 +321,7 @@ export class CnabService {
     return response;
   }
 
-  async getTransacoesBQ(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string) {
+  async findBigqueryTransacao(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string): Promise<BigqueryTransacao[]> {
     const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(startOfDay(dataOrdemIncial), endOfDay(dataOrdemFinal), daysBack);
     let trs = transacoesBq;
     if (consorcio === 'Van') {
@@ -278,26 +332,13 @@ export class CnabService {
     return trs;
   }
 
-  public async getTransacoesViewOrdem(dataCaptura: Date, itemAg: ItemTransacaoAgrupado, clienteFavorecido: ClienteFavorecido) {
-    const dataVencimento = nextFriday(dataCaptura);
+  // #region saveOrdens
 
-    let daysbefore = 9;
-    if (itemAg.nomeConsorcio === 'VLT') {
-      daysbefore = 2;
-    }
-    const trsDia = await this.getTransacoesViewWeek(subDays(startOfDay(dataVencimento), daysbefore), subDays(endOfDay(dataVencimento), 1));
-    const trsOrdem = trsDia.filter((transacaoView) => transacaoView.idOperadora === itemAg.idOperadora && transacaoView.idConsorcio === itemAg.idConsorcio && transacaoView.operadoraCpfCnpj === clienteFavorecido.cpfCnpj);
-    return trsOrdem;
-  }
-
-  /**
-   * Salvar Transacao / ItemTransacao e agrupados
-   */
-  async saveOrdens(ordens: BigqueryOrdemPagamentoDTO[]) {
-    const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
+  async saveOrdens(ordens: OrdemPagamentoDto[], pagadorKey: keyof AllPagadorDict) {
+    const pagador = (await this.pagadorService.getAllPagador())[pagadorKey];
 
     for (const ordem of ordens) {
-      const cpfCnpj = ordem.consorcioCnpj || ordem.operadoraCpfCnpj;
+      const cpfCnpj = ordem.favorecidoCpfCnpj;
       if (!cpfCnpj) {
         continue;
       }
@@ -311,41 +352,25 @@ export class CnabService {
     }
   }
 
-  private async saveUpdateItemTransacaoAg(transacaoAg: TransacaoAgrupado, ordem: BigqueryOrdemPagamentoDTO, queryRunner: QueryRunner) {
-    let itemAg = await this.itemTransacaoAgService.findOne({
-      where: {
-        transacaoAgrupado: {
-          id: transacaoAg.id,
-          status: { id: TransacaoStatusEnum.created },
-        },
-        ...(ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' ? { idOperadora: ordem.idOperadora } : { idConsorcio: ordem.idConsorcio }),
-      },
-    });
-    if (itemAg) {
-      itemAg.valor += asNumber(ordem.valorTotalTransacaoLiquido);
-    } else {
-      itemAg = this.convertItemTransacaoAgrupadoDTO(ordem, transacaoAg);
-    }
-    return await this.itemTransacaoAgService.save(itemAg, queryRunner);
-  }
-
-  async saveAgrupamentos(ordem: BigqueryOrdemPagamentoDTO, pagador: Pagador, favorecido: ClienteFavorecido) {
+  /**
+   * A partir da Ordem, salva nas tabelas Transacao, ItemTransacao etc
+   */
+  async saveAgrupamentos(ordem: OrdemPagamentoDto, pagador: Pagador, favorecido: ClienteFavorecido) {
+    const METHOD = 'saveAgrupamentos';
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     let itemAg: ItemTransacaoAgrupado | null = null;
     try {
       await queryRunner.startTransaction();
-      this.logger.debug('Salva Agrupamento Consorcio: ' + ordem.consorcio);
+      this.logger.debug(`Salvando Agrupamento - ${JSON.stringify({ consorcio: ordem.consorcio, operadora: ordem.operadora, favorecidoCpfCnpj: ordem.favorecidoCpfCnpj })}`, METHOD);
       const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
       const fridayOrdem = nextFriday(startOfDay(dataOrdem));
-      this.logger.debug('Inicia Consulta TransacaoAgrupado');
       let transacaoAg = await this.transacaoAgService.findOne({
         dataOrdem: fridayOrdem,
         pagador: { id: pagador.id },
         status: { id: TransacaoStatusEnum.created },
       });
 
-      this.logger.debug(ordem.consorcio);
       if (transacaoAg) {
         itemAg = await this.saveUpdateItemTransacaoAg(transacaoAg, ordem, queryRunner);
       } else {
@@ -364,6 +389,36 @@ export class CnabService {
     }
   }
 
+  /**
+   * Rergra de negócio:
+   * - Usa idConsorcio, idOperadora, consorcio para agrupar um itemAgrupado
+   */
+  private async saveUpdateItemTransacaoAg(transacaoAg: TransacaoAgrupado, ordem: OrdemPagamentoDto, queryRunner: QueryRunner): Promise<ItemTransacaoAgrupado> {
+    if (!ordem.consorcio.length && !ordem.operadora.length && !ordem.favorecidoCpfCnpj) {
+      throw new NotImplementedException(`Criar/atualizar ItemAgrupado necessita de consorcio/operadora ou favorecidoCpfCnpj`);
+    }
+
+    let itemAg = await this.itemTransacaoAgService.findOne({
+      where: {
+        transacaoAgrupado: {
+          id: transacaoAg.id,
+          status: { id: TransacaoStatusEnum.created },
+        },
+        ...(ordem.consorcio.length || ordem.operadora.length // Se for Jaé
+          ? ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL'
+            ? { idOperadora: ordem.idOperadora } // agrupa por vanzeiro
+            : { idConsorcio: ordem.idConsorcio } // ou por empresa
+          : { itemTransacoes: { clienteFavorecido: { cpfCnpj: ordem.favorecidoCpfCnpj as string } } }), // Se for Lançamento, agrupa por favorecido
+      },
+    });
+    if (itemAg) {
+      itemAg.valor += asNumber(ordem.valorTotalTransacaoLiquido);
+    } else {
+      itemAg = ItemTransacaoAgrupado.fromOrdem(ordem, transacaoAg);
+    }
+    return await this.itemTransacaoAgService.save(itemAg, queryRunner);
+  }
+
   async syncTransacaoViewOrdemPgto(args?: ISyncOrdemPgto) {
     this.logger.debug('Inicio Sync TransacaoView');
     const queryRunner = this.dataSource.createQueryRunner();
@@ -376,118 +431,41 @@ export class CnabService {
     return { duration, count };
   }
 
-  private async saveTransacaoAgrupado(ordem: BigqueryOrdemPagamentoDTO, pagador: Pagador) {
-    const transacaoAg = this.convertTransacaoAgrupadoDTO(ordem, pagador);
+  private async saveTransacaoAgrupado(ordem: OrdemPagamentoDto, pagador: Pagador) {
+    const transacaoAg = TransacaoAgrupado.fromOrdem(ordem, pagador);
     return await this.transacaoAgService.save(transacaoAg);
   }
 
-  private async saveItemTransacaoAgrupado(ordem: BigqueryOrdemPagamentoDTO, transacaoAg: TransacaoAgrupado, queryRunner: QueryRunner) {
-    const itemAg = this.convertItemTransacaoAgrupadoDTO(ordem, transacaoAg);
+  private async saveItemTransacaoAgrupado(ordem: OrdemPagamentoDto, transacaoAg: TransacaoAgrupado, queryRunner: QueryRunner) {
+    const itemAg = ItemTransacaoAgrupado.fromOrdem(ordem, transacaoAg);
     return await this.itemTransacaoAgService.save(itemAg, queryRunner);
   }
 
   /**
-   * Save or update Transacao.
+   * A partir do OrdemBigquery salva Transacao
    *
-   * Unique id: `idOrdemPagamento`
+   * Chave primária: TransacaoAgrupado, idOrdemBq, pagador
    */
-  async saveTransacao(ordem: BigqueryOrdemPagamentoDTO, pagador: Pagador, transacaoAgId: number, queryRunner: QueryRunner): Promise<Transacao> {
-    const transacao = this.convertTransacao(ordem, pagador, transacaoAgId);
+  async saveTransacao(ordem: OrdemPagamentoDto, pagador: Pagador, transacaoAgId: number, queryRunner: QueryRunner): Promise<Transacao> {
+    const transacao = Transacao.fromOrdem(ordem, pagador, transacaoAgId);
     return await this.transacaoService.save(transacao, queryRunner);
   }
 
-  private convertTransacao(ordem: BigqueryOrdemPagamentoDTO, pagador: Pagador, transacaoAgId: number) {
-    return new Transacao({ dataOrdem: ordem.dataOrdem, dataPagamento: ordem.dataPagamento, pagador: pagador, idOrdemPagamento: ordem.idOrdemPagamento, transacaoAgrupado: { id: transacaoAgId } });
-  }
-
-  convertTransacaoAgrupadoDTO(ordem: BigqueryOrdemPagamentoDTO, pagador: Pagador) {
-    const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
-    /** semana de pagamento: sex-qui */
-    const fridayOrdem = nextFriday(startOfDay(dataOrdem));
-    const transacao = new TransacaoAgrupado({
-      dataOrdem: fridayOrdem,
-      dataPagamento: ordem.dataPagamento,
-      pagador: pagador,
-      idOrdemPagamento: ordem.idOrdemPagamento,
-      status: TransacaoStatus.fromEnum(TransacaoStatusEnum.created),
-    });
-    return transacao;
-  }
-
-  convertItemTransacaoAgrupadoDTO(ordem: BigqueryOrdemPagamentoDTO, transacaoAg: TransacaoAgrupado) {
-    const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
-    const fridayOrdem = nextFriday(nextThursday(startOfDay(dataOrdem)));
-    const item = new ItemTransacaoAgrupado({
-      dataCaptura: ordem.dataOrdem,
-      dataOrdem: fridayOrdem,
-      idConsorcio: ordem.idConsorcio,
-      idOperadora: ordem.idOperadora,
-      idOrdemPagamento: ordem.idOrdemPagamento,
-      nomeConsorcio: ordem.consorcio,
-      nomeOperadora: ordem.operadora,
-      valor: ordem.valorTotalTransacaoLiquido,
-      transacaoAgrupado: transacaoAg,
-    });
-    return item;
-  }
-
-  async saveItemTransacaoPublicacao(ordem: BigqueryOrdemPagamentoDTO, favorecido: ClienteFavorecido, transacao: Transacao, itemTransacaoAg: ItemTransacaoAgrupado, queryRunner: QueryRunner) {
-    const item = this.convertItemTransacao(ordem, favorecido, transacao, itemTransacaoAg);
+  async saveItemTransacaoPublicacao(ordem: OrdemPagamentoDto, favorecido: ClienteFavorecido, transacao: Transacao, itemTransacaoAg: ItemTransacaoAgrupado, queryRunner: QueryRunner) {
+    const item = ItemTransacao.fromOrdem(ordem, favorecido, transacao, itemTransacaoAg);
     await this.itemTransacaoService.save(item, queryRunner);
     const publicacao = await this.arquivoPublicacaoService.convertPublicacaoDTO(item);
     await this.arquivoPublicacaoService.save(publicacao, queryRunner);
   }
 
-  private convertItemTransacao(ordem: BigqueryOrdemPagamentoDTO, favorecido: ClienteFavorecido, transacao: Transacao, itemTransacaoAg: ItemTransacaoAgrupado) {
-    return new ItemTransacao({
-      clienteFavorecido: favorecido,
-      dataCaptura: ordem.dataOrdem,
-      dataOrdem: startOfDay(new Date(ordem.dataOrdem)),
-      idConsorcio: ordem.idConsorcio,
-      idOperadora: ordem.idOperadora,
-      idOrdemPagamento: ordem.idOrdemPagamento,
-      nomeConsorcio: ordem.consorcio,
-      nomeOperadora: ordem.operadora,
-      valor: ordem.valorTotalTransacaoLiquido,
-      transacao: transacao,
-      itemTransacaoAgrupado: { id: itemTransacaoAg.id },
-    });
-  }
+  // #endregion
 
-  async getTransacoesViewWeek(dataInicio: Date, dataFim: Date) {
-    let friday = new Date();
-    let startDate;
-    let endDate;
-
-    if (!isFriday(friday)) {
-      friday = nextFriday(friday);
-    }
-
-    if (dataInicio != undefined && dataFim != undefined) {
-      startDate = dataInicio;
-      endDate = dataFim;
-    } else {
-      startDate = startOfDay(subDays(friday, 8));
-      endDate = endOfDay(subDays(friday, 2));
-    }
-    return await this.transacaoViewService.find({ datetimeProcessamento: Between(startDate, endDate) }, false);
-  }
-
-  public async saveTransacoesLancamento() {
+  public async saveTransacoesLancamento(dataOrdemInicial?: Date, dataOrdemFinal?: Date) {
+    const dataOrdem: [Date, Date] | undefined = dataOrdemInicial && dataOrdemFinal ? [dataOrdemInicial, dataOrdemFinal] : undefined;
     await this.updateAllFavorecidosFromUsers();
-    const newLancamentos = await this.lancamentoService.findToPayWeek();
-    const favorecidos = newLancamentos.map((i) => i.clienteFavorecido);
-    const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
-    const transacaoDTO = this.transacaoService.generateDTOForLancamento(pagador, newLancamentos);
-    const savedTransacao = await this.transacaoService.saveForLancamento(transacaoDTO);
-    const updatedLancamentos = savedTransacao.lancamentos as Lancamento[];
-    const itemTransacaoDTOs = this.itemTransacaoService.generateDTOsFromLancamentos(updatedLancamentos, favorecidos);
-    await this.itemTransacaoService.saveMany(itemTransacaoDTOs);
-  }
-
-  private async updateAllFavorecidosFromUsers() {
-    const allUsers = await this.usersService.findManyRegisteredUsers();
-    await this.clienteFavorecidoService.updateAllFromUsers(allUsers);
+    const newLancamentos = await this.lancamentoService.findToPay(dataOrdem);
+    const ordens = newLancamentos.map((l) => OrdemPagamentoDto.fromLancamento(l));
+    await this.saveOrdens(ordens, 'cett');
   }
 
   public async generateRemessa(args: {
