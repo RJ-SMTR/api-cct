@@ -31,8 +31,33 @@ export class RelatorioSinteticoRepository {
             case when (ap."isPago") then 'pago' 
                 when (not (ap."isPago")) then 'naopago'
                 else 'apagar' end AS status,
-            case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status 			  
-            from transacao_view tv   
+            case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status,
+            (select sum(subTotal."valor_agrupado")::float valor
+                    from (
+                      select distinct itta.id AS id,
+                      itta."nomeConsorcio" AS consorcio,	
+                      ctf.nome AS favorecido,
+                      ctf."cpfCnpj" AS favorecido_cpfcnpj,
+                      dta."valorLancamento" AS valor_agrupado
+                      from item_transacao_agrupado itta 
+                      inner join detalhe_a dta on dta."itemTransacaoAgrupadoId"= itta.id
+                      inner join item_transacao itt on itta.id = itt."itemTransacaoAgrupadoId"
+                      inner join arquivo_publicacao atp on atp."itemTransacaoId"=itt.id
+                      inner join cliente_favorecido ctf on ctf.id=itt."clienteFavorecidoId"
+                      WHERE (1=1) `;
+                      
+                      if(dataInicio!==undefined && dataFim!==undefined && 
+                        (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
+                        query = query + ` and dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+                                            
+                      query = query + ` and itta."nomeConsorcio"= ita."nomeConsorcio" `;
+
+                      if(args.pago !==undefined)          
+                        query = query +`  and atp."isPago"=${args.pago}`;                    
+              
+                    query = query + ` ) as subTotal) as subTotal `;
+            
+            query = query + ` from transacao_view tv   
             inner join item_transacao_agrupado ita on tv."itemTransacaoAgrupadoId"=ita.id
             inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
             inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
@@ -75,8 +100,34 @@ export class RelatorioSinteticoRepository {
               case when (ap."isPago") then 'pago' 
                   when (not (ap."isPago")) then 'naopago'
                 else 'apagar' end AS status,
-              case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status 			  
-              from item_transacao_agrupado ita 
+              case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status,
+
+              (select sum(subTotal."valor_agrupado")::float valor
+                    from (
+                      select distinct itta.id AS id,
+                      itta."nomeConsorcio" AS consorcio,	
+                      ctf.nome AS favorecido,
+                      ctf."cpfCnpj" AS favorecido_cpfcnpj,
+                      dta."valorLancamento" AS valor_agrupado
+                      from item_transacao_agrupado itta 
+                      inner join detalhe_a dta on dta."itemTransacaoAgrupadoId"= itta.id
+                      inner join item_transacao itt on itta.id = itt."itemTransacaoAgrupadoId"
+                      inner join arquivo_publicacao atp on atp."itemTransacaoId"=itt.id
+                      inner join cliente_favorecido ctf on ctf.id=itt."clienteFavorecidoId"
+                      WHERE (1=1) `;
+                      
+                      if(dataInicio!==undefined && dataFim!==undefined && 
+                        (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
+                        query = query + ` and dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+                                            
+                      query = query + ` and itta."nomeConsorcio"= ita."nomeConsorcio" `;
+
+                      if(args.pago !==undefined)          
+                        query = query +`  and atp."isPago"=${args.pago}`;                    
+              
+                    query = query + ` ) as subTotal) as subTotal `;	
+
+              query = query + ` from item_transacao_agrupado ita 
               inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
               inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
               inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
@@ -126,8 +177,10 @@ export class RelatorioSinteticoRepository {
                 cf.nome AS favorecido,
                 round(tv."valorPago",2)::float  as valor,			      
                 'a pagar' AS status,
-                '' As mensagem_status 			  
-                from transacao_view tv			  
+                '' As mensagem_status,
+                '' as subTotal `;	 			  
+             
+                query = query + ` from transacao_view tv			  
                 inner join cliente_favorecido cf on tv."operadoraCpfCnpj"=cf."cpfCnpj"
                 where tv."valorPago" > 0	`; 	
               if(dataInicio!==undefined && dataFim!==undefined && 
@@ -148,14 +201,13 @@ export class RelatorioSinteticoRepository {
             }
 
             query = query + ` ) as res
-            order by  res."datapagamento", res."consorcio", res."favorecido"`;
+            order by  res."consorcio", res."favorecido",res."datapagamento" `;
 
             this.logger.debug(query);           
     return query;             
   } 
   
-  public async findSintetico(args: IFindPublicacaoRelatorio): Promise<RelatorioSinteticoDto[]> {   
-        
+  public async findSintetico(args: IFindPublicacaoRelatorio): Promise<RelatorioSinteticoDto[]> {
     const query = this.getQuery(args);
     this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();
