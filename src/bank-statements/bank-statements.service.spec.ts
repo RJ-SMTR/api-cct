@@ -2,7 +2,7 @@ import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BigqueryService } from 'src/bigquery/bigquery.service';
 import { TicketRevenuesGroupDto } from 'src/ticket-revenues/dtos/ticket-revenues-group.dto';
-import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues-repository';
+import { TicketRevenuesRepositoryService } from 'src/ticket-revenues/ticket-revenues.repository';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';

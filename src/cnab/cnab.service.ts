@@ -237,7 +237,7 @@ export class CnabService {
 
   async updateTransacaoViewBigqueryLimit(trsBq: BigqueryTransacao[], queryRunner: QueryRunner, idTransacao: string[] = []) {
     const trsFilter = idTransacao.length ? trsBq.filter((i) => idTransacao.includes(i.id_transacao)) : trsBq;
-    const existings = await this.transacaoViewService.findRaw({ idTransacao: trsFilter.map((tv) => tv.id_transacao) });
+    const existings = await this.transacaoViewService.findRaw({ where: {idTransacao: trsFilter.map((tv) => tv.id_transacao)} });
     const response = { updated: 0, created: 0, deduplicated: 0 };
     for (const trBq of trsFilter) {
       const transacaoViewBq = TransacaoView.fromBigqueryTransacao(trBq);

@@ -8,9 +8,22 @@ import { DataSource, DeepPartial, EntityManager, FindManyOptions, In, LessThanOr
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
+import { formatDateYMD } from 'src/utils/date-utils';
 
-export interface IFindRawWhere {
-  idTransacao?: string[];
+export interface TransacaoViewFindRawOptions {
+  where: {
+    idTransacao?: string[];
+    operadoraCpfCnpj?: string[];
+    datetimeTransacao?: { between: [Date, Date][] };
+    datetimeProcessamento?: { between: [Date, Date][] };
+  };
+  order?: {
+    datetimeProcessamento?: 'ASC' | 'DESC';
+    id?: 'ASC' | 'DESC';
+  };
+  eager?: boolean;
+  limit?: number;
+  offset?: number;
 }
 
 @Injectable()
@@ -185,24 +198,57 @@ export class TransacaoViewRepository {
     return await this.transacaoViewRepository.find(options);
   }
 
-  public async findRaw(where?: IFindRawWhere): Promise<TransacaoView[]> {
+  public async findRaw(options?: TransacaoViewFindRawOptions): Promise<TransacaoView[]> {
     const tv = TransacaoView.getSqlFields('tv');
     const qWhere: string[] = [];
-    if (where?.idTransacao?.length) {
-      qWhere.push(`${tv.idTransacao} IN ('${where.idTransacao.join("','")}')`);
+    const eager = options?.eager !== undefined ? options.eager : true;
+
+    if (options?.where?.idTransacao?.length) {
+      qWhere.push(`${tv.idTransacao} IN ('${options.where?.idTransacao.join("','")}')`);
     }
+    if (options?.where?.operadoraCpfCnpj?.length) {
+      qWhere.push(`${tv.operadoraCpfCnpj} IN ('${options.where?.operadoraCpfCnpj.join("','")}')`);
+    }
+    if (options?.where?.datetimeTransacao) {
+      const betweenStr = options.where.datetimeTransacao.between.map(([start, end]) => `${tv.datetimeTransacao}::DATE BETWEEN '${formatDateYMD(start)}' AND '${formatDateYMD(end)}'`).join(' OR ');
+      qWhere.push(`(${betweenStr})`);
+    }
+    if (options?.where?.datetimeProcessamento) {
+      const betweenStr = options.where.datetimeProcessamento.between.map(([start, end]) => `${tv.datetimeProcessamento}::DATE BETWEEN '${formatDateYMD(start)}' AND '${formatDateYMD(end)}'`).join(' OR ');
+      qWhere.push(`(${betweenStr})`);
+    }
+
+    const order: string[] = [];
+    if (options?.order?.datetimeProcessamento) {
+      order.push(`${tv.datetimeProcessamento} ${options.order.datetimeProcessamento}`);
+    }
+    if (options?.order?.id) {
+      order.push(`tv.id ${options.order.id}`);
+    }
+
     const selectTv =
-      Object.values(tv)
-        .filter((i) => i != `tv.${tv.arquivoPublicacao}`)
-        .join(',') + `, json_build_object('id', ${tv.arquivoPublicacao}) AS "arquivoPublicacao"`;
-    const raw: any[] = await this.transacaoViewRepository.query(
-      compactQuery(`
+      Object.values(TransacaoView.getSqlFields('tv', true))
+        .filter((i) => !i.startsWith(`tv.${tv.arquivoPublicacao}`))
+        .join(',') +
+      `, json_build_object(
+            'id', ${tv.arquivoPublicacao},
+            'isPago', ap."isPago",
+            ${eager ? `'itemTransacao', json_build_object('id', it.id, 'itemTransacaoAgrupado', json_build_object('id', ita.id))` : ''}
+        ) AS "arquivoPublicacao"`;
+    const query = `
       SELECT ${selectTv}
       FROM transacao_view tv
-      ${where ? 'WHERE ' + qWhere.join(' AND ') : ''}
-      ORDER BY tv.id DESC
-    `),
-    );
+      ${
+        eager
+          ? `LEFT JOIN item_transacao_agrupado ita ON ita.id = tv."itemTransacaoAgrupadoId"
+      LEFT JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
+      LEFT JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id`
+          : ''
+      }
+      ${options ? 'WHERE ' + qWhere.join(' AND ') : ''}
+      ORDER BY ${order.length ? order.join(', ') : 'tv.id DESC'}
+    `;
+    const raw: any[] = await this.transacaoViewRepository.query(compactQuery(query));
     const result = raw.map((i) => new TransacaoView(i));
     return result;
   }
