@@ -20,10 +20,14 @@ export class RelatorioSinteticoRepository {
                      (select sum(dta."valorLancamento")::float valor                    
                       from detalhe_a dta 
                       inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
+                      left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
+					            left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
                       WHERE (1=1) `;
                       if(dataInicio!==undefined && dataFim!==undefined && 
                         (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
                         query = query + ` and dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+                      if(args.pago !==undefined)          
+                        query = query +`  and app."isPago"=${args.pago} `;
 
                   query = query + ` and tt."nomeConsorcio"=res.consorcio `;
                   query = query + ` ) as subTotal `;
