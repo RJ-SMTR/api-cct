@@ -18,6 +18,7 @@ export class ParseListPipe implements PipeTransform {
       compareList?: any[];
       unique?: boolean;
       transform?: boolean;
+      transformOptional?: boolean;
       optional?: boolean;
     },
   ) {}
@@ -32,7 +33,7 @@ export class ParseListPipe implements PipeTransform {
     }
 
     if (this.args?.optional && value === undefined) {
-      return transform ? [] : value;
+      return this.args?.transformOptional ? [] : value;
     }
 
     if (!isString(value)) {
