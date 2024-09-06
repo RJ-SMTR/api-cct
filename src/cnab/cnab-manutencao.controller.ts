@@ -144,9 +144,11 @@ export class CnabManutencaoController {
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nAtualiza os valores de TransacaoView existentes a a partir do Bigquery.' })
   @ApiBearerAuth()
   @ApiQuery({ name: 'diasAnteriores', type: Number, required: false, description: 'Atualizar apenas os itens até N dias atrás' })
+  @ApiQuery({ name: 'idOperadora', type: String, required: false, description: ApiDescription({ _: 'Pesquisar pelo idConsorcio para atualizar', example: '8000123,8000456' }) })
   async getUpdateTransacaoViewBigqueryValues(
     @Query('diasAnteriores', new ParseNumberPipe({ optional: true })) diasAnteriores: number | undefined, //
+    @Query('idOperadora', new ParseArrayPipe({ optional: true })) idOperadora: string[] | undefined, //
   ) {
-    return await this.cnabService.updateTransacaoViewBigqueryValues(diasAnteriores);
+    return await this.cnabService.updateTransacaoViewBigqueryValues(diasAnteriores, idOperadora);
   }
 }

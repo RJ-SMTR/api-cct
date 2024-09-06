@@ -4,7 +4,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DataSource, DeepPartial, EntityManager, FindManyOptions, QueryRunner } from 'typeorm';
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
-import { TransacaoViewFindRawOptions, TransacaoViewRepository } from './transacao-view.repository';
+import { TVFindUpdateValuesWhere, TransacaoViewFindRawOptions, TransacaoViewRepository } from './transacao-view.repository';
 import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
 
 @Injectable()
@@ -69,8 +69,8 @@ export class TransacaoViewService {
   async findRaw(where?: TransacaoViewFindRawOptions): Promise<TransacaoView[]> {
     return await this.transacaoViewRepository.findRaw(where);
   }
-  async findUpdateValues(diasAnteriores?: number) {
-    return await this.transacaoViewRepository.findUpdateValues(diasAnteriores);
+  async findUpdateValues(where?: TVFindUpdateValuesWhere) {
+    return await this.transacaoViewRepository.findUpdateValues(where);
   }
 
   /**
