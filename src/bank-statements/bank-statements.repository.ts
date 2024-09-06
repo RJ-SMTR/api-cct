@@ -3,6 +3,7 @@ import { endOfDay, isFriday, nextFriday, nextThursday, startOfDay, subDays } fro
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.service';
 import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
+import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
 import { formatDateYMD } from 'src/utils/date-utils';
@@ -10,23 +11,20 @@ import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPagination } from 'src/utils/get-pagination';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
-import { In } from 'typeorm';
 import { BankStatementPreviousDaysDTO } from './dtos/bank-statement-previous-days.dto';
 import { BankStatementDTO } from './dtos/bank-statement.dto';
 import { IBSCounts } from './interfaces/bs-counts.interface';
 import { IBSGetMePreviousDaysValidArgs } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
+import { isNotContent } from 'src/utils/type-utils';
 
 /**
  * Get weekly statements
  */
 @Injectable()
 export class BankStatementsRepositoryService {
-  constructor(
-    private readonly transacaoViewService: TransacaoViewService, //
-    private readonly detalheAService: DetalheAService,
-    private arquivoPublicacaoService: ArquivoPublicacaoService,
-  ) {}
+  constructor(private readonly ticketRevenuesService: TicketRevenuesService) {}
 
   /**
    * Parâmetros validados:
@@ -78,7 +76,6 @@ export class BankStatementsRepositoryService {
    *
    * Requisitos:
    * - Mostra sempre as transações individuais
-   * -
    */
   private async buildPreviousDays(validArgs: {
     user: User; //
@@ -105,37 +102,26 @@ export class BankStatementsRepositoryService {
       endDate = qua;
     }
 
-    const transacoes = await this.transacaoViewService.findPreviousDays({
-      startDate: startDate,
-      endDate: endDate,
-      cpfCnpjs: [validArgs.user.getCpfCnpj()],
-    });
-    const publicacoes = await this.arquivoPublicacaoService.findMany({ where: { itemTransacao: { itemTransacaoAgrupado: { id: In(transacoes.map((t) => t.itemTransacaoAgrupadoId)) } } } });
-    const revenues = transacoes.map((i) => i.toTicketRevenue(publicacoes));
-    const detalhesA = await this.detalheAService.findMany({
-      itemTransacaoAgrupado: {
-        id: In(revenues.map((i) => i.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id)),
-      },
-    });
+    const revenues = await this.ticketRevenuesService.findManyIndividual({ startDate, endDate, cpfCnpj: [validArgs.user.getCpfCnpj()], previousDays: true });
 
     // Gerar BankStatements
-    const statements = revenues.map((item, index) => {
-      const isPago = item.arquivoPublicacao?.isPago;
-      const amount = Number((item.transactionValue || 0).toFixed(2));
-      const paidAmount = Number(item.paidValue.toFixed(2));
+    const statements = revenues.map((revenue, index) => {
+      const isPago = revenue.isPago;
+      const amount = Number((revenue.transactionValue || 0).toFixed(2));
+      const paidAmount = Number(revenue.paidValue.toFixed(2));
       const ticketCount = 1;
-      const foundDetalhesA = detalhesA.filter((i) => i.itemTransacaoAgrupado.id === item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id);
-      const errors = DetalheA.getOcorrenciaErrors(foundDetalhesA);
-      const orderDate = nextThursday(startOfDay(new Date(item.processingDateTime)));
+      // const foundDetalhesA = detalhesA.filter((i) => i.itemTransacaoAgrupado.id === item.arquivoPublicacao?.itemTransacao.itemTransacaoAgrupado.id);
+      const errors = Ocorrencia.getErrors(revenue.ocorrencias);
+      const orderDate = nextThursday(startOfDay(new Date(revenue.processingDateTime)));
       const status = !errors.length ? (amount ? (isPago ? 'Pago' : 'A pagar') : null) : 'Pendente';
-      const dataEfetivacao = item.arquivoPublicacao?.dataEfetivacao;
+      const dataEfetivacao = revenue.dataEfetivacao;
       return new BankStatementPreviousDaysDTO({
         id: index + 1,
-        date: formatDateYMD(new Date(String(item.processingDateTime))),
+        date: formatDateYMD(new Date(String(revenue.processingDateTime))),
         effectivePaymentDate: isPago && dataEfetivacao ? formatDateYMD(new Date(dataEfetivacao)) : null,
         paymentOrderDate: formatDateYMD(orderDate),
-        transactionDate: formatDateYMD(new Date(item.transactionDateTime)),
-        processingDate: formatDateYMD(new Date(item.processingDateTime)),
+        transactionDate: formatDateYMD(new Date(revenue.transactionDateTime)),
+        processingDate: formatDateYMD(new Date(revenue.processingDateTime)),
         cpfCnpj: validArgs.user.getCpfCnpj(),
         permitCode: validArgs.user.getPermitCode(),
         amount: amount,

@@ -3,6 +3,8 @@
 import { Exclude } from 'class-transformer';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
+import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
 
 /**
  * Internal representation of `IBqApiTicketRevenues`
@@ -15,12 +17,40 @@ export class TicketRevenueDTO {
   constructor(dto?: TicketRevenueDTO) {
     if (dto) {
       Object.assign(this, dto);
-      this.isPago = Boolean(this.arquivoPublicacao?.isPago || this.isPago);
-      if (this.arquivoPublicacao) {
-        this.arquivoPublicacao = new ArquivoPublicacao(this.arquivoPublicacao);
+      this.isPago = Boolean(this.isPago);
+      // if (this.arquivoPublicacao) {
+      //   this.arquivoPublicacao = new ArquivoPublicacao(this.arquivoPublicacao);
+      // }
+      if (this.ocorrencias.length) {
+        this.ocorrencias = this.ocorrencias.map((o) => new Ocorrencia(o));
       }
     }
   }
+
+  // public static fromTransacaoView(tv: TransacaoView) {
+  //   const publicacao = tv.arquivoPublicacao;
+  //   const isPago = publicacao?.isPago == true;
+  //   const revenue = new TicketRevenueDTO({
+  //     captureDateTime: tv.datetimeCaptura.toISOString(),
+  //     date: tv.datetimeProcessamento.toISOString(),
+  //     paymentMediaType: tv.tipoPagamento,
+  //     processingDateTime: tv.datetimeProcessamento.toISOString(),
+  //     processingHour: tv.datetimeProcessamento.getHours(),
+  //     transactionDateTime: tv.datetimeTransacao.toISOString(),
+  //     transactionId: tv.idTransacao,
+  //     transactionType: tv.tipoTransacao,
+  //     paidValue: tv.valorPago || 0,
+  //     transactionValue: tv.valorTransacao,
+  //     transportIntegrationType: null,
+  //     transportType: null,
+  //     // arquivoPublicacao: tv.arquivoPublicacao || undefined,
+  //     // itemTransacaoAgrupadoId: tv.itemTransacaoAgrupadoId || undefined,
+  //     isPago,
+  //     count: 1,
+  //     ocorrencias: [],
+  //   });
+  //   return revenue;
+  // }
 
   /**
    * Para o frontend exibir o número de passagens arrecadadas - individual é sempre 1
@@ -142,16 +172,25 @@ export class TicketRevenueDTO {
    */
   paidValue: number;
 
+  /** arquivoPublicacao.isPago */
   isPago = false;
 
-  @Exclude()
-  arquivoPublicacao?: ArquivoPublicacao;
+  /** arquivoPublicacao.dataEfetivacao */
+  dataEfetivacao: Date;
 
-  @Exclude()
-  itemTransacaoAgrupadoId?: number;
+  // @Exclude()
+  // arquivoPublicacao?: ArquivoPublicacao;
 
+  // @Exclude()
+  // itemTransacaoAgrupadoId?: number;
+
+  /** DetalheA.ocorrenciasCnab */
   @Exclude()
   ocorrenciasCnab?: string;
+
+  /** DetalheA->Ocorrencias */
+  @Exclude()
+  ocorrencias: Ocorrencia[] = [];
 
   /**
    * Apenas soma se status = pago
