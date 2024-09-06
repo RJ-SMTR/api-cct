@@ -1,9 +1,6 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { isSameDay, isToday, nextFriday, startOfDay, subDays } from 'date-fns';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
-import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.service';
-import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
-import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
@@ -35,13 +32,12 @@ export interface IFetchTicketRevenues {
 
 @Injectable()
 export class TicketRevenuesService {
-  private logger: Logger = new CustomLogger(TicketRevenuesService.name, { timestamp: true });
+  private logger = new CustomLogger(TicketRevenuesService.name, { timestamp: true });
 
-  constructor(private readonly usersService: UsersService, private readonly ticketRevenuesRepository: TicketRevenuesRepository) // private readonly transacaoViewService: TransacaoViewService,
-  // private readonly arquivoPublicacaoService: ArquivoPublicacaoService,
-  // private readonly itemTransacaoAgrupadoService: ItemTransacaoAgrupadoService,
-  // private readonly detalheAService: DetalheAService,
-  {}
+  constructor(
+    private readonly usersService: UsersService, //
+    private readonly ticketRevenuesRepository: TicketRevenuesRepository,
+  ) {}
 
   /**
    * TODO: refactor - use repository method
@@ -80,9 +76,6 @@ export class TicketRevenuesService {
     return user;
   }
 
-  /**
-   *
-   */
   public async getMe(args: ITRGetMeGroupedArgs, pagination: PaginationOptions, endpoint: PaymentEndpointType): Promise<TRGetMeGroupedResponseDto> {
     const METHOD = 'getMe';
     // TODO: set groupBy as validation response
@@ -196,32 +189,6 @@ export class TicketRevenuesService {
       ...(args?.offset ? { skip: args.offset } : {}),
       ...(args?.limit ? { take: args.limit } : {}),
     });
-    // let transacoes = await this.transacaoViewService.findRaw({
-    //   where: {
-    //     datetimeTransacao: {
-    //       between: [
-    //         [args?.startDate || new Date(0), args?.endDate || new Date()], //
-    //         ...(args.getToday ? [[today, today] as [Date, Date]] : []),
-    //       ],
-    //     },
-    //     ...(args?.cpfCnpj ? { operadoraCpfCnpj: [args.cpfCnpj] } : {}),
-    //   },
-    //   order: {
-    //     datetimeProcessamento: 'DESC',
-    //   },
-    //   ...(args?.offset ? { skip: args.offset } : {}),
-    //   ...(args?.limit ? { take: args.limit } : {}),
-    // });
-
-    // Filtrar apenas dias anteriores (dataProcessamento > dataTransacao - dia)
-    // if (args.previousDays) {
-    //   transacoes = transacoes.filter((i) => {
-    //     const notSameDay = !isSameDay(i.datetimeProcessamento, i.datetimeTransacao);
-    //     const processamentoGTtransacao = i.datetimeProcessamento > i.datetimeTransacao;
-    //     return notSameDay && processamentoGTtransacao;
-    //   });
-    // }
-    // const revenues = transacoes.map((tv) => TicketRevenueDTO.fromTransacaoView(tv));
     return revenues;
   }
 

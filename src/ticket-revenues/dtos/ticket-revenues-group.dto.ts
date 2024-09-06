@@ -2,7 +2,6 @@ import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { SetValue } from 'src/utils/decorators/set-value.decorator';
 import { DeepPartial } from 'typeorm';
 import { ITRCounts } from '../interfaces/tr-counts.interface';
-import { SetValueIf } from 'src/utils/decorators/set-value-if.decorator';
 import { TicketRevenueDTO } from './ticket-revenue.dto';
 
 /**
@@ -150,9 +149,7 @@ export class TicketRevenuesGroupDto {
 
   isPago = false;
 
-  /**
-   * CNAB retorno error message list.
-   */
+  /** CNAB retorno error message list. */
   @SetValue((v) => Ocorrencia.toUserValues(v))
   errors: Ocorrencia[] = [];
 
@@ -207,17 +204,6 @@ export class TicketRevenuesGroupDto {
     }
   }
 
-  // appendCountValue(prop: keyof TicketRevenuesGroupDto, newItemKey: string | number, ignoreNullUndefinedValue = true) {
-  //   if ((newItemKey !== null && newItemKey !== undefined) || !ignoreNullUndefinedValue) {
-  //     const oldValue = this[prop][newItemKey as any];
-  //     if (oldValue === undefined) {
-  //       this[prop][newItemKey as any] = 1;
-  //     } else {
-  //       this[prop][newItemKey as any] += 1;
-  //     }
-  //   }
-  // }
-
   public static COUNT_PROPS: (keyof TicketRevenuesGroupDto)[] = [
     'transportTypeCounts', //
     'directionIdCounts',
@@ -229,9 +215,7 @@ export class TicketRevenuesGroupDto {
     'stopLonCounts',
   ];
 
-  /**
-   * Apenas soma se status = pago
-   */
+  /** Apenas soma se status = pago */
   public static getAmountSum<T extends TicketRevenuesGroupDto>(data: T[]): number {
     return +data.reduce((sum, i) => sum + (i.transactionValueSum || 0), 0).toFixed(2);
   }

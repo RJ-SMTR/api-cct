@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { endOfDay, isFriday, nextFriday, nextThursday, startOfDay, subDays } from 'date-fns';
-import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
-import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.service';
-import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
-import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
 import { User } from 'src/users/entities/user.entity';
 import { formatDateYMD } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
@@ -16,8 +13,6 @@ import { BankStatementDTO } from './dtos/bank-statement.dto';
 import { IBSCounts } from './interfaces/bs-counts.interface';
 import { IBSGetMePreviousDaysValidArgs } from './interfaces/bs-get-me-previous-days-args.interface';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
-import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
-import { isNotContent } from 'src/utils/type-utils';
 
 /**
  * Get weekly statements
