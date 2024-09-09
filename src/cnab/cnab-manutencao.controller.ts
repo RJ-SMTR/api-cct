@@ -38,7 +38,7 @@ export class CnabManutencaoController {
   async getGenerateRemessaLancamento(
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true, optional: true })) _dataOrdemInicial: any, // Date
     @Query('dataOrdemFinal', new ParseDatePipe({ transform: true, optional: true })) _dataOrdemFinal: any, // Date
-    @Query('dataPagamento', new ParseDatePipe({ transform: true, optional: true })) _dataPagamento: any, // Date | undefined
+    @Query('dataPagamento', new ParseDatePipe({ transform: true, optional: true })) dataPagamento: Date | undefined, // Date | undefined
     @Query('isConference') isConference: boolean,
     @Query('isCancelamento') isCancelamento: boolean,
     @Query('nsaInicial', new ParseNumberPipe({ min: 1, optional: true })) nsaInicial: number | undefined,
@@ -47,7 +47,6 @@ export class CnabManutencaoController {
   ) {
     const dataOrdemInicial = _dataOrdemInicial as Date | undefined;
     const dataOrdemFinal = _dataOrdemFinal as Date | undefined;
-    const dataPgto = _dataPagamento || new Date() as Date;
     const dataCancelamento = _dataCancelamento as Date | undefined;
 
     if (isCancelamento && !dataCancelamento) {
@@ -57,7 +56,7 @@ export class CnabManutencaoController {
     return await this.cnabService.getGenerateRemessaLancamento({
       dataOrdemInicial,
       dataOrdemFinal,
-      dataPgto,
+      dataPgto: dataPagamento,
       isConference,
       isCancelamento,
       nsaInicial,

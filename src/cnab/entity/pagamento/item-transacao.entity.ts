@@ -45,6 +45,7 @@ export class ItemTransacao extends EntityHelper {
       valor: ordem.valorTotalTransacaoLiquido,
       transacao: transacao,
       itemTransacaoAgrupado: { id: itemTransacaoAg.id },
+      ...(ordem?.lancamento ? { lancamento: { id: ordem.lancamento.id } } : {}),
     });
   }
 

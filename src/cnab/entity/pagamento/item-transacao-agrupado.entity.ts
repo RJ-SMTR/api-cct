@@ -2,12 +2,11 @@ import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
 import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-import { TransacaoAgrupado } from './transacao-agrupado.entity';
-import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
-import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { nextFriday, nextThursday, startOfDay } from 'date-fns';
 import { OrdemPagamentoDto } from 'src/cnab/dto/pagamento/ordem-pagamento.dto';
+import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { ItemTransacao } from './item-transacao.entity';
+import { TransacaoAgrupado } from './transacao-agrupado.entity';
 
 /**
  * Representa um destinatário, a ser pago pelo remetente (TransacaoAgrupado).
@@ -36,11 +35,10 @@ export class ItemTransacaoAgrupado extends EntityHelper {
     }
   }
 
-  public static fromOrdem(ordem: OrdemPagamentoDto, transacaoAg: TransacaoAgrupado, dataOrdem?: Date) {
+  public static fromOrdem(ordem: OrdemPagamentoDto, transacaoAg: TransacaoAgrupado) {
     const fridayOrdem = nextFriday(nextThursday(startOfDay(yearMonthDayToDate(ordem.dataOrdem))));
     const item = new ItemTransacaoAgrupado({
-      dataCaptura: ordem.dataOrdem,
-      dataOrdem: dataOrdem || fridayOrdem,
+      dataOrdem: ordem.lancamento ? ordem.dataOrdem : fridayOrdem,
       idConsorcio: ordem.idConsorcio,
       idOperadora: ordem.idOperadora,
       idOrdemPagamento: ordem.idOrdemPagamento,
@@ -68,7 +66,7 @@ export class ItemTransacaoAgrupado extends EntityHelper {
   @CreateDateColumn()
   dataProcessamento: Date;
 
-  /** Ao gravar pegamos dataOrdem */
+  /** TODO: remover, não usaremos mais pois já tem o createdAt - Ao gravar pegamos dataOrdem */
   @CreateDateColumn()
   dataCaptura: Date;
 

@@ -1,12 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { TransacaoDTO } from '../../dto/pagamento/transacao.dto';
 import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { TransacaoRepository } from '../../repository/pagamento/transacao.repository';
 
-import { isFriday, nextFriday } from 'date-fns';
-import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
-import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
@@ -15,9 +13,7 @@ import { DeepPartial, FindManyOptions, QueryRunner, UpdateResult } from 'typeorm
 
 @Injectable()
 export class TransacaoService {
-  private logger: Logger = new Logger(TransacaoService.name, {
-    timestamp: true,
-  });
+  private logger = new CustomLogger(TransacaoService.name, { timestamp: true });
 
   constructor(private transacaoRepository: TransacaoRepository) {}
 
@@ -29,70 +25,9 @@ export class TransacaoService {
     return await this.transacaoRepository.findOne(fields);
   }
 
-  /**
-   * **status** is Created.
-   *
-   * It will automatically update Lancamentos via OneToMany
-   *
-   * @param newLancamentos It must have at least 1 unused Lancamento
-   */
-  public generateDTOForLancamento(pagador: Pagador, newLancamentos: Lancamento[]): Transacao {
-    const today = new Date();
-    const friday = isFriday(today) ? today : nextFriday(today);
-    const transacao = new Transacao({
-      dataOrdem: friday,
-      dataPagamento: null,
-      lancamentos: newLancamentos, // unique id for Lancamentos
-      pagador: { id: pagador.id } as Pagador,
-    });
-    return transacao;
-  }
-
   public update(dto: DeepPartial<Transacao>) {
     return this.transacaoRepository.update(asNumber(dto.id), dto);
   }
-
-  // #region generateDTOsFromPublicacoes
-
-  // public generateDTOsFromPublicacoes(
-  //   publicacoes: ArquivoPublicacao[],
-  //   pagador: Pagador,
-  // ) {
-  //   const transacoes: Transacao[] = [];
-  //   /** key: idOrdemPagamento */
-  //   const transacaoMap: Record<string, Transacao> = {};
-  //   for (const publicacao of publicacoes) {
-  //     const transacaoPK = publicacao.idOrdemPagamento;
-  //     const newTransacao = this.generateDTOFromPublicacao(publicacao, pagador);
-  //     if (!transacaoMap[transacaoPK]) {
-  //       transacoes.push(newTransacao);
-  //       transacaoMap[transacaoPK] = newTransacao;
-  //     }
-  //   }
-  //   return transacoes;
-  // }
-
-  /**
-   * getTransacaoFromOrdem()
-   *
-   * **status** is Created.
-   */
-  // public generateDTOFromPublicacao(
-  //   publicacao: ArquivoPublicacao,
-  //   pagador: Pagador,
-  // ): Transacao {
-  //   const transacao = new Transacao({
-  //     dataOrdem: publicacao.dataOrdem,
-  //     dataPagamento: null,
-  //     idOrdemPagamento: publicacao.idOrdemPagamento, // unique id for Ordem
-  //     pagador: { id: pagador.id } as Pagador,
-  //     status: new TransacaoStatus(TransacaoStatusEnum.created),
-  //     ocorrencias: [],
-  //   });
-  //   return transacao;
-  // }
-
-  // #endregion
 
   /**
    * Use first Transacao as set to update and all Transacoes to get ids.
@@ -115,27 +50,6 @@ export class TransacaoService {
     return await this.transacaoRepository.findMany({
       where: insertResult.identifiers,
     });
-  }
-
-  /**
-   * Save Transacao for Lancamento
-   */
-  public async saveForLancamento(dto: TransacaoDTO): Promise<Transacao> {
-    await validateDTO(TransacaoDTO, dto);
-    const saved = await this.transacaoRepository.save(dto);
-    this.setLazyLancamentos([saved]);
-    return saved;
-  }
-
-  /**
-   * Set lazy value (only id) to transacao.lancamentos
-   */
-  private setLazyLancamentos(transacoes: Transacao[]) {
-    for (const transacao of transacoes) {
-      for (const lancamento of transacao.lancamentos || []) {
-        lancamento.itemTransacao = { id: transacao.id } as Transacao;
-      }
-    }
   }
 
   /**

@@ -54,13 +54,13 @@ export class LancamentoService {
   }
 
   async findByStatus(isAutorizado: boolean): Promise<Lancamento[]> {
-    const lancamentos = await this.lancamentoRepository.findMany({ where: { is_autorizado: isAutorizado }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
+    const lancamentos = await this.lancamentoRepository.findMany({ where: { is_autorizado: isAutorizado } });
     return lancamentos;
   }
 
   async getValorAutorizado(month: number, period: number, year: number) {
     const [startDate, endDate] = this.getMonthDateRange(year, month, period);
-    const autorizados = await this.lancamentoRepository.findMany({ where: { data_lancamento: Between(startDate, endDate) }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
+    const autorizados = await this.lancamentoRepository.findMany({ where: { data_lancamento: Between(startDate, endDate) } });
     const autorizadoSum = autorizados.reduce((sum, lancamento) => sum + lancamento.valor, 0);
     const resp = { valor_autorizado: autorizadoSum };
     return resp;
@@ -69,7 +69,7 @@ export class LancamentoService {
   async create(dto: LancamentoInputDto): Promise<Lancamento> {
     const lancamento = await this.validateLancamentoDto(dto);
     const created = await this.lancamentoRepository.save(this.lancamentoRepository.create(lancamento));
-    const getCreated = await this.lancamentoRepository.getOne({ where: { clienteFavorecido: { id: created.clienteFavorecido.id } }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
+    const getCreated = await this.lancamentoRepository.getOne({ where: { id: created.id } });
     return getCreated;
   }
 
@@ -84,7 +84,7 @@ export class LancamentoService {
   }
 
   async autorizarPagamento(userId: number, lancamentoId: string, AutorizaLancamentoDto: AutorizaLancamentoDto): Promise<Lancamento> {
-    const lancamento = await this.lancamentoRepository.findOne({ where: { id: parseInt(lancamentoId) }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
+    const lancamento = await this.lancamentoRepository.findOne({ where: { id: parseInt(lancamentoId) } });
     if (!lancamento) {
       throw new HttpException('Lançamento não encontrado.', HttpStatus.NOT_FOUND);
     }
@@ -109,19 +109,19 @@ export class LancamentoService {
   }
 
   async update(id: number, updateDto: LancamentoInputDto): Promise<Lancamento> {
-    const lancamento = await this.lancamentoRepository.findOne({ where: { id }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
+    const lancamento = await this.lancamentoRepository.findOne({ where: { id } });
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
     lancamento.updateFromInputDto(updateDto);
     await this.lancamentoRepository.save(lancamento);
-    const updated = await this.lancamentoRepository.getOne({ where: { id: lancamento.id }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
+    const updated = await this.lancamentoRepository.getOne({ where: { id: lancamento.id } });
     this.logger.log(`Lancamento #${updated.id} atualizado por ${updated.clienteFavorecido.nome}.`);
     return updated;
   }
 
   async getById(id: number): Promise<Lancamento> {
-    const lancamento = await this.lancamentoRepository.findOne({ where: { id }, relations: ['autorizacoes'] as (keyof ILancamento)[] });
+    const lancamento = await this.lancamentoRepository.findOne({ where: { id } });
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }

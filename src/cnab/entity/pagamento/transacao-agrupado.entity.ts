@@ -25,11 +25,10 @@ export class TransacaoAgrupado extends EntityHelper {
     }
   }
 
-  public static fromOrdem(ordem: OrdemPagamentoDto, pagador: Pagador, dataOrdem?: Date) {
-    /** semana de pagamento: sex-qui */
-    const fridayOrdem = nextFriday(startOfDay(yearMonthDayToDate(ordem.dataOrdem)));
+
+  public static fromOrdem(ordem: OrdemPagamentoDto, pagador: Pagador) {
     const transacao = new TransacaoAgrupado({
-      dataOrdem: dataOrdem || fridayOrdem,
+      dataOrdem: ordem.getTransacaoAgrupadoDataOrdem(),
       dataPagamento: null,
       pagador: pagador,
       idOrdemPagamento: ordem.idOrdemPagamento,

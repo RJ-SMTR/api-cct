@@ -1,6 +1,7 @@
+import { nextFriday, startOfDay } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
-import { formatDateYMD } from 'src/utils/date-utils';
+import { formatDateYMD, yearMonthDayToDate } from 'src/utils/date-utils';
 
 export interface IOrdemPagamento {
   dataOrdem: string;
@@ -11,6 +12,7 @@ export interface IOrdemPagamento {
   operadora: string;
   valorTotalTransacaoLiquido: number;
   favorecidoCpfCnpj: string | null;
+  lancamento?: Lancamento;
 }
 
 /**
@@ -36,19 +38,35 @@ export class OrdemPagamentoDto implements IOrdemPagamento {
     });
   }
 
-  public static fromLancamento(lancamento: Lancamento) {
+  public static fromLancamento(lancamento: Lancamento, idOrdemPagamento?: string) {
     return new OrdemPagamentoDto({
       dataOrdem: formatDateYMD(lancamento.data_ordem),
-      idOrdemPagamento: `L${new Date().getTime()}`,
+      idOrdemPagamento: idOrdemPagamento || OrdemPagamentoDto.getIdOrdemPagamentoLancamento(),
       idConsorcio: '',
       consorcio: '',
       idOperadora: '',
       operadora: '',
       valorTotalTransacaoLiquido: lancamento.valor,
-      favorecidoCpfCnpj: lancamento.clienteFavorecido.cpfCnpj
+      favorecidoCpfCnpj: lancamento.clienteFavorecido.cpfCnpj,
+      lancamento,
     });
   }
 
+  /**
+   * Bigquery
+   * - dataOrdem: sexta de pagamento
+   *
+   * Lançamento
+   * - dataOrdem: dia de hoje
+   */
+  getTransacaoAgrupadoDataOrdem() {
+    return this.lancamento ? startOfDay(new Date()) : nextFriday(startOfDay(yearMonthDayToDate(this.dataOrdem)));
+  }
+
+  /** Regra de negócio: O formato do id se refere ao dia, assim como ocorre no Jaé */
+  public static getIdOrdemPagamentoLancamento() {
+    return `L${startOfDay(new Date()).getTime()}`;
+  }
   /** BigqueryOrdem - Dia único, que representa uma ordem de pagamento */
   dataOrdem: string;
 
@@ -63,16 +81,16 @@ export class OrdemPagamentoDto implements IOrdemPagamento {
    */
   idOrdemPagamento: string;
 
-  /** 
+  /**
    * BigqueryOrdem.idConsorcio
-   * 
+   *
    * Lançando: não utiliza
    */
   idConsorcio: string;
 
-  /** 
+  /**
    * BigqueryOrdem: Nome do consórcio, para referência
-   * 
+   *
    * Lançamento: não utiliza
    */
   consorcio: string;
@@ -90,17 +108,19 @@ export class OrdemPagamentoDto implements IOrdemPagamento {
   /** Valor total das transações menos o valor_desconto_taxa (R$) */
   valorTotalTransacaoLiquido: number;
 
-  /** 
+  /**
    * BigqueryOrdem: consorcioCnpj ou operadoraCpfCnpj, respectivamente
-   * 
+   *
    * Lançamento: clienteFavorecido.cpfCnpj
    */
   favorecidoCpfCnpj: string | null;
 
-  /** 
+  /**
    * BigqueryOrdem: não utiliza
-   * 
-   * Lançamento: associa com ItemTransacao
+   *
+   * Lançamento:
+   * - Associa com ItemTransacao.
+   * - Usado para verificar se esta Ordem é do Lançamento.
    */
   lancamento?: Lancamento;
 }

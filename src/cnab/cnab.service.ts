@@ -1,31 +1,30 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
-import { endOfDay, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
+import { Injectable } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { endOfDay, startOfDay } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
+import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
-import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
+import { cnabSettings } from 'src/settings/cnab.settings';
+import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
+import { ISyncOrdemPgto } from 'src/transacao-view/interfaces/sync-form-ordem.interface';
 import { TransacaoView } from 'src/transacao-view/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 import { UsersService } from 'src/users/users.service';
-
-import { InjectDataSource } from '@nestjs/typeorm';
-import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
-import { cnabSettings } from 'src/settings/cnab.settings';
-import { SettingsService } from 'src/settings/settings.service';
-import { ISyncOrdemPgto } from 'src/transacao-view/interfaces/sync-form-ordem.interface';
 import { getChunks } from 'src/utils/array-utils';
 import { completeCPFCharacter } from 'src/utils/cpf-cnpj';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { formatDateInterval, yearMonthDayToDate } from 'src/utils/date-utils';
+import { formatDateInterval } from 'src/utils/date-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { formatErrMsg } from 'src/utils/log-utils';
 import { asNumber } from 'src/utils/pipe-utils';
-import { Between, DataSource, DeepPartial, QueryRunner } from 'typeorm';
+import { DataSource, DeepPartial, QueryRunner } from 'typeorm';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
 import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
+import { OrdemPagamentoDto } from './dto/pagamento/ordem-pagamento.dto';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacao } from './entity/pagamento/item-transacao.entity';
@@ -39,6 +38,7 @@ import { TransacaoStatusEnum } from './enums/pagamento/transacao-status.enum';
 import { CnabHeaderArquivo104 } from './interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { CnabFile104Extrato } from './interfaces/cnab-240/104/extrato/cnab-file-104-extrato.interface';
 import { CnabRegistros104Pgto } from './interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
+import { AllPagadorDict } from './interfaces/pagamento/all-pagador-dict.interface';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ExtratoDetalheEService } from './service/extrato/extrato-detalhe-e.service';
@@ -54,8 +54,6 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
-import { OrdemPagamentoDto } from './dto/pagamento/ordem-pagamento.dto';
-import { AllPagadorDict } from './interfaces/pagamento/all-pagador-dict.interface';
 
 /**
  * User cases for CNAB and Payments
@@ -359,20 +357,18 @@ export class CnabService {
     const METHOD = 'saveAgrupamentos';
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let itemAg: ItemTransacaoAgrupado | null = null;
     try {
       await queryRunner.startTransaction();
       this.logger.debug(`Salvando Agrupamento - ${JSON.stringify({ consorcio: ordem.consorcio, operadora: ordem.operadora, favorecidoCpfCnpj: ordem.favorecidoCpfCnpj })}`, METHOD);
-      const dataOrdem = yearMonthDayToDate(ordem.dataOrdem);
-      const fridayOrdem = nextFriday(startOfDay(dataOrdem));
       let transacaoAg = await this.transacaoAgService.findOne({
-        dataOrdem: fridayOrdem,
+        dataOrdem: ordem.getTransacaoAgrupadoDataOrdem(),
         pagador: { id: pagador.id },
         status: { id: TransacaoStatusEnum.created },
       });
 
+      let itemAg: ItemTransacaoAgrupado | null = null;
       if (transacaoAg) {
-        itemAg = await this.saveUpdateItemTransacaoAg(transacaoAg, ordem, queryRunner);
+        itemAg = await this.saveUpdateItemTransacaoAgrupado(transacaoAg, ordem, queryRunner);
       } else {
         transacaoAg = await this.saveTransacaoAgrupado(ordem, pagador);
         itemAg = await this.saveItemTransacaoAgrupado(ordem, transacaoAg, queryRunner);
@@ -393,9 +389,9 @@ export class CnabService {
    * Rergra de negócio:
    * - Usa idConsorcio, idOperadora, consorcio para agrupar um itemAgrupado
    */
-  private async saveUpdateItemTransacaoAg(transacaoAg: TransacaoAgrupado, ordem: OrdemPagamentoDto, queryRunner: QueryRunner): Promise<ItemTransacaoAgrupado> {
+  private async saveUpdateItemTransacaoAgrupado(transacaoAg: TransacaoAgrupado, ordem: OrdemPagamentoDto, queryRunner: QueryRunner): Promise<ItemTransacaoAgrupado> {
     if (!ordem.consorcio.length && !ordem.operadora.length && !ordem.favorecidoCpfCnpj) {
-      throw new NotImplementedException(`Criar/atualizar ItemAgrupado necessita de consorcio/operadora ou favorecidoCpfCnpj`);
+      throw new Error(`Não implementado - Criar/atualizar ItemAgrupado necessita de consorcio/operadora ou favorecidoCpfCnpj`);
     }
 
     let itemAg = await this.itemTransacaoAgService.findOne({
@@ -404,11 +400,13 @@ export class CnabService {
           id: transacaoAg.id,
           status: { id: TransacaoStatusEnum.created },
         },
-        ...(ordem.consorcio.length || ordem.operadora.length // Se for Jaé
-          ? ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL'
-            ? { idOperadora: ordem.idOperadora } // agrupa por vanzeiro
-            : { idConsorcio: ordem.idConsorcio } // ou por empresa
-          : { itemTransacoes: { clienteFavorecido: { cpfCnpj: ordem.favorecidoCpfCnpj as string } } }), // Se for Lançamento, agrupa por favorecido
+        ...(ordem.consorcio.length || ordem.operadora.length
+          ? /** Se for Jaé, agrupa por vanzeiro ou empresa */
+            ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL'
+            ? { idOperadora: ordem.idOperadora }
+            : { idConsorcio: ordem.idConsorcio }
+          : /** Se for Lançamento, agrupa por favorecido e dataOrdem */
+            { itemTransacoes: { clienteFavorecido: { cpfCnpj: ordem.favorecidoCpfCnpj as string } }, dataOrdem: startOfDay(new Date((ordem.dataOrdem))) }),
       },
     });
     if (itemAg) {
@@ -454,8 +452,10 @@ export class CnabService {
   async saveItemTransacaoPublicacao(ordem: OrdemPagamentoDto, favorecido: ClienteFavorecido, transacao: Transacao, itemTransacaoAg: ItemTransacaoAgrupado, queryRunner: QueryRunner) {
     const item = ItemTransacao.fromOrdem(ordem, favorecido, transacao, itemTransacaoAg);
     await this.itemTransacaoService.save(item, queryRunner);
-    const publicacao = await this.arquivoPublicacaoService.convertPublicacaoDTO(item);
-    await this.arquivoPublicacaoService.save(publicacao, queryRunner);
+    if (!ordem.lancamento) {
+      const publicacao = await this.arquivoPublicacaoService.convertPublicacaoDTO(item);
+      await this.arquivoPublicacaoService.save(publicacao, queryRunner);
+    }
   }
 
   // #endregion
@@ -479,6 +479,7 @@ export class CnabService {
     nsaFinal?: number;
     dataCancelamento?: Date;
   }): Promise<string[]> {
+    const METHOD = this.sendRemessa.name;
     const currentNSA = parseInt((await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_current_nsa)).value);
 
     const { tipo, dataPgto, isConference, isCancelamento } = args;
@@ -486,7 +487,6 @@ export class CnabService {
     let nsaFinal = args.nsaFinal || nsaInicial;
     const dataCancelamento = args?.dataCancelamento || new Date();
 
-    const METHOD = this.sendRemessa.name;
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {

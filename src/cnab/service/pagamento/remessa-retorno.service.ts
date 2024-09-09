@@ -91,8 +91,10 @@ export class RemessaRetornoService {
     const lotes: HeaderLoteDTO[] = [];
     let nsrTed = 0;
     let nsrCC = 0;
-    let loteTed;
-    let loteCC;
+    /** @type HeaderLoteDTO */
+    let loteTed: any;
+    /** @type HeaderLoteDTO */
+    let loteCC: any;
     for (const itemTransacaoAgrupado of itemTransacaoAgs) {
       const itemTransacao = await this.itemTransacaoService.findOne({
         where: {
@@ -331,20 +333,14 @@ export class RemessaRetornoService {
    * @param dataPgto O padrão é o dia de hoje. O valor será sempre >= hoje.
    * @returns null if failed ItemTransacao to CNAB */
   public async saveDetalhes104(numeroDocumento: number, headerLote: HeaderLoteDTO, itemTransacaoAg: ItemTransacaoAgrupado, nsr: number, isConference: boolean, dataPgto?: Date, isCancelamento = false, detalheAC = new DetalheA()): Promise<CnabRegistros104Pgto | null> {
-    let favorecido;
+    /** @type ClienteFavorecido */
+    let favorecido: any;
     if (itemTransacaoAg != undefined) {
-      const itemTransacao = await this.itemTransacaoService.findOne({
-        where: { itemTransacaoAgrupado: { id: itemTransacaoAg.id } },
-      });
+      const itemTransacao = await this.itemTransacaoService.findOne({ where: { itemTransacaoAgrupado: { id: itemTransacaoAg.id } } });
       favorecido = itemTransacao?.clienteFavorecido;
     } else {
       const itemTransacaoAg = detalheAC.headerLote.headerArquivo.transacaoAgrupado?.itemTransacoesAgrupado[0];
-      const itemTransacao = await this.itemTransacaoService.findOne({
-        where: {
-          itemTransacaoAgrupado: { id: itemTransacaoAg?.id },
-        },
-      });
-
+      const itemTransacao = await this.itemTransacaoService.findOne({ where: { itemTransacaoAgrupado: { id: itemTransacaoAg?.id } } });
       favorecido = itemTransacao?.clienteFavorecido;
     }
 
@@ -365,8 +361,9 @@ export class RemessaRetornoService {
       return null;
     }
 
-    if (dataPgto && dataPgto < new Date()) {
-      dataPgto = new Date();
+    let _dataPgto = dataPgto || itemTransacaoAg.dataOrdem;
+    if (_dataPgto < new Date()) {
+      _dataPgto = new Date();
     }
 
     // Save detalheA
@@ -378,14 +375,7 @@ export class RemessaRetornoService {
     detalheA.dvContaDestino.value = favorecido.dvContaCorrente;
     detalheA.nomeTerceiro.value = favorecido.nome;
     detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
-
-    const fridayOrdem = itemTransacaoAg.dataOrdem;
-    detalheA.dataVencimento.value = fridayOrdem;
-    if (dataPgto === undefined) {
-      detalheA.dataVencimento.value = detalheA.dataVencimento.value;
-    } else {
-      detalheA.dataVencimento.value = dataPgto;
-    }
+    detalheA.dataVencimento.value = _dataPgto;
 
     if (!isCancelamento) {
       detalheA.valorLancamento.value = itemTransacaoAg.valor;

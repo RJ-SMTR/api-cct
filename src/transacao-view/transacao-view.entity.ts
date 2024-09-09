@@ -38,60 +38,10 @@ export class TransacaoView {
     if (transacao) {
       Object.assign(this, transacao);
       if (transacao.arquivoPublicacao) {
-        this.arquivoPublicacao = new ArquivoPublicacao(transacao.arquivoPublicacao)
+        this.arquivoPublicacao = new ArquivoPublicacao(transacao.arquivoPublicacao);
       }
     }
   }
-
-  public static getSqlFields(table?: string): Record<keyof ITransacaoView, string> {
-    return {
-      id: `${table ? `${table}.` : ''}"id"`,
-      datetimeTransacao: `${table ? `${table}.` : ''}"datetimeTransacao"`,
-      datetimeProcessamento: `${table ? `${table}.` : ''}"datetimeProcessamento"`,
-      datetimeCaptura: `${table ? `${table}.` : ''}"datetimeCaptura"`,
-      modo: `${table ? `${table}.` : ''}"modo"`,
-      idConsorcio: `${table ? `${table}.` : ''}"idConsorcio"`,
-      nomeConsorcio: `${table ? `${table}.` : ''}"nomeConsorcio"`,
-      idOperadora: `${table ? `${table}.` : ''}"idOperadora"`,
-      nomeOperadora: `${table ? `${table}.` : ''}"nomeOperadora"`,
-      idTransacao: `${table ? `${table}.` : ''}"idTransacao"`,
-      tipoPagamento: `${table ? `${table}.` : ''}"tipoPagamento"`,
-      tipoTransacao: `${table ? `${table}.` : ''}"tipoTransacao"`,
-      tipoGratuidade: `${table ? `${table}.` : ''}"tipoGratuidade"`,
-      valorTransacao: `${table ? `${table}.` : ''}"valorTransacao"`,
-      valorPago: `${table ? `${table}.` : ''}"valorPago"`,
-      operadoraCpfCnpj: `${table ? `${table}.` : ''}"operadoraCpfCnpj"`,
-      consorcioCnpj: `${table ? `${table}.` : ''}"consorcioCnpj"`,
-      arquivoPublicacao: `${table ? `${table}.` : ''}"arquivoPublicacaoId"`,
-      itemTransacaoAgrupadoId: `${table ? `${table}.` : ''}"itemTransacaoAgrupadoId"`,
-      createdAt: `${table ? `${table}.` : ''}"createdAt"`,
-      updatedAt: `${table ? `${table}.` : ''}"updatedAt"`,
-    };
-  }
-
-  public static sqlFieldTypes: Record<keyof ITransacaoView, string> = {
-    id: 'INT',
-    datetimeTransacao: 'TIMESTAMP',
-    datetimeProcessamento: 'TIMESTAMP',
-    datetimeCaptura: 'TIMESTAMP',
-    modo: 'VARCHAR',
-    idConsorcio: 'VARCHAR',
-    nomeConsorcio: 'VARCHAR',
-    idOperadora: 'VARCHAR',
-    nomeOperadora: 'VARCHAR',
-    idTransacao: 'VARCHAR',
-    tipoPagamento: 'VARCHAR',
-    tipoTransacao: 'VARCHAR',
-    tipoGratuidade: 'VARCHAR',
-    valorTransacao: 'NUMERIC',
-    valorPago: 'NUMERIC',
-    operadoraCpfCnpj: 'VARCHAR',
-    consorcioCnpj: 'VARCHAR',
-    arquivoPublicacao: 'INT',
-    itemTransacaoAgrupadoId: 'INT',
-    createdAt: 'TIMESTAMP',
-    updatedAt: 'TIMESTAMP',
-  };
 
   @PrimaryGeneratedColumn({
     primaryKeyConstraintName: 'PK_TransacaoView_id',
@@ -176,6 +126,56 @@ export class TransacaoView {
     }
   }
 
+  public static getSqlFields(table?: string): Record<keyof ITransacaoView, string> {
+    return {
+      id: `${table ? `${table}.` : ''}"id"`,
+      datetimeTransacao: `${table ? `${table}.` : ''}"datetimeTransacao"`,
+      datetimeProcessamento: `${table ? `${table}.` : ''}"datetimeProcessamento"`,
+      datetimeCaptura: `${table ? `${table}.` : ''}"datetimeCaptura"`,
+      modo: `${table ? `${table}.` : ''}"modo"`,
+      idConsorcio: `${table ? `${table}.` : ''}"idConsorcio"`,
+      nomeConsorcio: `${table ? `${table}.` : ''}"nomeConsorcio"`,
+      idOperadora: `${table ? `${table}.` : ''}"idOperadora"`,
+      nomeOperadora: `${table ? `${table}.` : ''}"nomeOperadora"`,
+      idTransacao: `${table ? `${table}.` : ''}"idTransacao"`,
+      tipoPagamento: `${table ? `${table}.` : ''}"tipoPagamento"`,
+      tipoTransacao: `${table ? `${table}.` : ''}"tipoTransacao"`,
+      tipoGratuidade: `${table ? `${table}.` : ''}"tipoGratuidade"`,
+      valorTransacao: `${table ? `${table}.` : ''}"valorTransacao"`,
+      valorPago: `${table ? `${table}.` : ''}"valorPago"`,
+      operadoraCpfCnpj: `${table ? `${table}.` : ''}"operadoraCpfCnpj"`,
+      consorcioCnpj: `${table ? `${table}.` : ''}"consorcioCnpj"`,
+      arquivoPublicacao: `${table ? `${table}.` : ''}"arquivoPublicacaoId"`,
+      itemTransacaoAgrupadoId: `${table ? `${table}.` : ''}"itemTransacaoAgrupadoId"`,
+      createdAt: `${table ? `${table}.` : ''}"createdAt"`,
+      updatedAt: `${table ? `${table}.` : ''}"updatedAt"`,
+    };
+  }
+
+  public static sqlFieldTypes: Record<keyof ITransacaoView, string> = {
+    id: 'INT',
+    datetimeTransacao: 'TIMESTAMP',
+    datetimeProcessamento: 'TIMESTAMP',
+    datetimeCaptura: 'TIMESTAMP',
+    modo: 'VARCHAR',
+    idConsorcio: 'VARCHAR',
+    nomeConsorcio: 'VARCHAR',
+    idOperadora: 'VARCHAR',
+    nomeOperadora: 'VARCHAR',
+    idTransacao: 'VARCHAR',
+    tipoPagamento: 'VARCHAR',
+    tipoTransacao: 'VARCHAR',
+    tipoGratuidade: 'VARCHAR',
+    valorTransacao: 'NUMERIC',
+    valorPago: 'NUMERIC',
+    operadoraCpfCnpj: 'VARCHAR',
+    consorcioCnpj: 'VARCHAR',
+    arquivoPublicacao: 'INT',
+    itemTransacaoAgrupadoId: 'INT',
+    createdAt: 'TIMESTAMP',
+    updatedAt: 'TIMESTAMP',
+  };
+  
   public static fromBigqueryTransacao(bq: BigqueryTransacao) {
     return new TransacaoView({
       datetimeCaptura: asStringDate(bq.datetime_captura),
@@ -231,30 +231,5 @@ export class TransacaoView {
       count: 1,
     });
     return revenue;
-  }
-
-  getProperties() {
-    return {
-      id: this.id,
-      datetimeTransacao: this.datetimeTransacao,
-      datetimeProcessamento: this.datetimeProcessamento,
-      datetimeCaptura: this.datetimeCaptura,
-      modo: this.modo,
-      idConsorcio: this.idConsorcio,
-      nomeConsorcio: this.nomeConsorcio,
-      idOperadora: this.idOperadora,
-      nomeOperadora: this.nomeOperadora,
-      idTransacao: this.idTransacao,
-      tipoPagamento: this.tipoPagamento,
-      tipoTransacao: this.tipoTransacao,
-      tipoGratuidade: this.tipoGratuidade,
-      valorTransacao: this.valorTransacao,
-      valorPago: this.valorPago,
-      operadoraCpfCnpj: this.operadoraCpfCnpj,
-      consorcioCnpj: this.consorcioCnpj,
-      arquivoPublicacao: this.arquivoPublicacao,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-    };
   }
 }

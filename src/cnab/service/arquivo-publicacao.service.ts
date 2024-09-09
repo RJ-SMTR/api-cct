@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { addDays, isDate, isThursday, nextFriday, startOfDay } from 'date-fns';
 import { asNumber } from 'src/utils/pipe-utils';
 import { DeepPartial, FindManyOptions, QueryRunner } from 'typeorm';
-import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
+import { ArquivoPublicacao, IArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { ArquivoPublicacaoRepository, IArquivoPublicacaoRawWhere } from '../repository/arquivo-publicacao.repository';
@@ -84,6 +84,9 @@ export class ArquivoPublicacaoService {
       fieldNames = ['id', 'isPago', 'valorRealEfetivado', 'dataEfetivacao', 'dataGeracaoRetorno'];
     }
     const fieldValues = dtos.map((dto) => `(${EntityHelper.getQueryFieldValues(dto, fieldNames, ArquivoPublicacao.sqlFieldTypes)})`).join(', ');
+    // const reference: keyof IArquivoPublicacao = 'id';
+    // const updatedAt: keyof IArquivoPublicacao = 'updatedAt';
+    // const query = EntityHelper.getQueryUpdate('arquivo_publicacao', dtos, fieldNames, ArquivoPublicacao.sqlFieldTypes, reference, updatedAt);
     const query = `
     UPDATE arquivo_publicacao
     SET ${fieldNames.map((f) => `"${f}" = sub.${f == 'id' ? '_id' : `"${f}"`}`).join(', ')}, "updatedAt" = NOW()

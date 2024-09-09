@@ -18,24 +18,51 @@ export class LancamentoRepository {
     return this.lancamentoRepository.save(entity, options);
   }
 
-  findOne(options: FindOneOptions<Lancamento>): Promise<Lancamento | null> {
-    return this.lancamentoRepository.findOne(options);
+  async findOne(options: FindOneOptions<Lancamento>): Promise<Lancamento | null> {
+    let qb = this.lancamentoRepository
+      .createQueryBuilder('lancamento') //
+      .leftJoinAndSelect('lancamento.autorizacoes', 'autorizacoes')
+      .leftJoinAndSelect('lancamento.autor', 'autor')
+      .leftJoinAndSelect('lancamento.itemTransacao', 'itemTransacao')
+      .leftJoinAndSelect('itemTransacao.itemTransacaoAgrupado', 'itemTransacaoAgrupado')
+      .leftJoin('detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
+      .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id');
+
+    if (options?.where) {
+      qb = qb.where(options.where);
+    }
+
+    return await qb.getOne();
   }
 
-  async getOne(where: FindOneOptions<Lancamento>): Promise<Lancamento> {
-    const found = await this.lancamentoRepository.findOne(where);
+  async getOne(options: FindOneOptions<Lancamento>): Promise<Lancamento> {
+    const found = await this.findOne(options);
     if (!found) {
       throw new HttpException('Lancamento não encontrado', HttpStatus.NOT_FOUND);
     }
     return found;
   }
 
-  findMany(options?: FindManyOptions<Lancamento> | undefined): Promise<Lancamento[]> {
-    return this.lancamentoRepository.find(options);
+  async findMany(options?: FindManyOptions<Lancamento> | undefined): Promise<Lancamento[]> {
+    let qb = this.lancamentoRepository
+      .createQueryBuilder('lancamento') //
+      .leftJoinAndSelect('lancamento.autorizacoes', 'autorizacoes')
+      .leftJoinAndSelect('lancamento.autor', 'autor')
+      .leftJoinAndSelect('lancamento.itemTransacao', 'itemTransacao')
+      .leftJoinAndSelect('itemTransacao.itemTransacaoAgrupado', 'itemTransacaoAgrupado')
+      .leftJoin('detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
+      .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id');
+
+    if (options?.where) {
+      qb = qb.where(options?.where);
+    }
+    qb = qb.orderBy('lancamento.id', 'DESC');
+    const ret = await qb.getMany();
+    return ret;
   }
 
   getAll(): Promise<Lancamento[]> {
-    return this.lancamentoRepository.find();
+    return this.findMany();
   }
 
   delete(id: number): Promise<DeleteResult> {

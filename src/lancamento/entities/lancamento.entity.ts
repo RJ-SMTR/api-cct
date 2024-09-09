@@ -1,14 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Transform } from 'class-transformer';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
+import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
 import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { LancamentoInputDto } from '../dtos/lancamento-input.dto';
 import { LancamentoAutorizacao } from './lancamento-autorizacao.entity';
-import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 
 export interface ILancamento {
   id: number;
@@ -53,26 +54,6 @@ export class Lancamento extends EntityHelper implements ILancamento {
     });
   }
 
-  updateFromInputDto(dto: LancamentoInputDto) {
-    this.valor = dto.valor;
-    this.data_ordem = dto.data_ordem;
-    this.data_lancamento = dto.data_lancamento;
-    this.algoritmo = dto.algoritmo;
-    if (dto.glosa !== undefined) {
-      this.glosa = dto.glosa;
-    }
-    if (dto.recurso !== undefined) {
-      this.recurso = dto.recurso;
-    }
-    if (dto.anexo !== undefined) {
-      this.anexo = dto.anexo;
-    }
-    this.valor = dto.valor;
-    this.numero_processo = dto.numero_processo;
-    this.clienteFavorecido = new ClienteFavorecido({ id: dto.id_cliente_favorecido });
-    this.autor = new User(dto.author);
-  }
-
   @Expose()
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Lancamento_id' })
   id: number;
@@ -91,7 +72,11 @@ export class Lancamento extends EntityHelper implements ILancamento {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   data_lancamento: Date;
 
-  /** Geração de Remessa */
+  /**
+   * Geração de Remessa
+   *
+   * uniqueConstraintName: `UQ_Lancamento_itemTransacao`
+   */
   @ApiProperty({ description: 'ItemTransação do CNAB remessa associado a este Lançamento' })
   @OneToOne(() => ItemTransacao, { nullable: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_itemTransacao_OneToOne' })
@@ -140,14 +125,14 @@ export class Lancamento extends EntityHelper implements ILancamento {
   @Column({ type: 'numeric', nullable: false, default: 0 })
   anexo: number;
 
-  // @Column({ type: 'numeric', nullable: false })
-  // valor_a_pagar: number;
-
   @Column({ type: 'varchar', nullable: false })
   numero_processo: string;
 
   @Column({ type: Boolean, nullable: false, default: false })
   is_autorizado: boolean;
+
+  @Column({ type: Boolean, nullable: false, default: false })
+  is_pago: boolean;
 
   @Exclude()
   @CreateDateColumn()
@@ -157,6 +142,9 @@ export class Lancamento extends EntityHelper implements ILancamento {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  /** Coluna virtual para consultar as ocorrências */
+  ocorrencias: Ocorrencia[] = [];
+
   @AfterLoad()
   setReadValues() {
     this.glosa = asStringOrNumber(this.glosa);
@@ -165,6 +153,7 @@ export class Lancamento extends EntityHelper implements ILancamento {
     this.anexo = asStringOrNumber(this.anexo);
     this.valor = asStringOrNumber(this.valor);
     this.autorizacoes = this.autorizacoes || [];
+    // if (this.itemTransacao?.itemTransacaoAgrupado.de)
   }
 
   getIsAutorizado(): boolean {
@@ -183,5 +172,85 @@ export class Lancamento extends EntityHelper implements ILancamento {
 
   hasAutorizadoPor(userId: number): boolean {
     return Boolean(this.autorizacoes.find((u) => u.id == userId));
+  }
+
+  updateFromInputDto(dto: LancamentoInputDto) {
+    this.valor = dto.valor;
+    this.data_ordem = dto.data_ordem;
+    this.data_lancamento = dto.data_lancamento;
+    this.algoritmo = dto.algoritmo;
+    if (dto.glosa !== undefined) {
+      this.glosa = dto.glosa;
+    }
+    if (dto.recurso !== undefined) {
+      this.recurso = dto.recurso;
+    }
+    if (dto.anexo !== undefined) {
+      this.anexo = dto.anexo;
+    }
+    this.valor = dto.valor;
+    this.numero_processo = dto.numero_processo;
+    this.clienteFavorecido = new ClienteFavorecido({ id: dto.id_cliente_favorecido });
+    this.autor = new User(dto.author);
+  }
+
+  public static getSqlFields(table?: string, castType?: 'sql' | 'entity'): Record<keyof ILancamento, string> {
+    return {
+      id: `${table ? `${table}.` : ''}"id"`,
+      valor: `${table ? `${table}.` : ''}"valor"`, // number,
+      data_ordem: `${table ? `${table}.` : ''}"data_ordem"`, // Date,
+      data_pgto: `${table ? `${table}.` : ''}"data_pgto"`, // Date | null,
+      data_lancamento: `${table ? `${table}.` : ''}"data_lancamento"`, // Date,
+      itemTransacao: `${table ? `${table}.` : ''}"itemTransacao"`, // ItemTransacao,
+      autorizacoes: `${table ? `${table}.` : ''}"autorizacoes"`, //User [],
+      autor: `${table ? `${table}.` : ''}"autor"`, // User,
+      clienteFavorecido: `${table ? `${table}.` : ''}"clienteFavorecido"`, // ClienteFavorecido,
+      algoritmo: `${table ? `${table}.` : ''}"algoritmo"`, // number,
+      glosa: `${table ? `${table}.` : ''}"glosa"`, // number,
+      recurso: `${table ? `${table}.` : ''}"recurso"`, // number,
+      anexo: `${table ? `${table}.` : ''}"anexo"`, // number,
+      numero_processo: `${table ? `${table}.` : ''}"numero_processo"`, // string,
+      createdAt: `${table ? `${table}.` : ''}"createdAt"`, // Date,
+      updatedAt: `${table ? `${table}.` : ''}"updatedAt"`, // Date,
+    };
+  }
+
+  public static sqlFieldType: Record<keyof ILancamento, string> = {
+    id: 'INT',
+    valor: 'NUMERIC',
+    data_ordem: 'TIMSTAMP',
+    data_pgto: 'TIMSTAMP',
+    data_lancamento: 'TIMSTAMP',
+    itemTransacao: 'INT',
+    autorizacoes: '',
+    autor: '',
+    clienteFavorecido: '',
+    algoritmo: 'NUMERIC',
+    glosa: 'NUMERIC',
+    recurso: 'NUMERIC',
+    anexo: 'NUMERIC',
+    numero_processo: 'VARCHAR',
+    createdAt: 'TIMSTAMP',
+    updatedAt: 'TIMSTAMP',
+  };
+  public static getSqlFieldEntityType(userAlias = 'u', itemTransacaoAlias = 'it'): Record<keyof ILancamento, string> {
+    return {
+      id: 'INT',
+      valor: 'NUMERIC',
+      data_ordem: 'TIMSTAMP',
+      data_pgto: 'TIMSTAMP',
+      data_lancamento: 'TIMSTAMP',
+      itemTransacao: 'INT',
+      autorizacoes: '',
+      autor: '',
+      clienteFavorecido: '',
+      algoritmo: 'FLOAT',
+      glosa: 'FLOAT',
+      recurso: 'FLOAT',
+      anexo: 'FLOAT',
+      numero_processo: 'VARCHAR',
+      createdAt: 'TIMSTAMP',
+      updatedAt: 'TIMSTAMP',
+    };
   }
 }
