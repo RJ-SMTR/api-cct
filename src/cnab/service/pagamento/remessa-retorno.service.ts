@@ -462,9 +462,6 @@ export class RemessaRetornoService {
         const logRegistro = `HeaderArquivo: ${cnab.headerArquivo.nsa.convertedValue}, lote: ${cnabLote.headerLote.codigoRegistro.value}`;
 
         // Save Detalhes
-        if (registro.detalheA.numeroDocumentoEmpresa.convertedValue == 1766) {
-          let a = 1;
-        }
         detalheAUpdated = await this.detalheAService.saveRetornoFrom104(cnab.headerArquivo, cnabLote.headerLote, registro, dataEfetivacao);
         if (!detalheAUpdated) {
           const numeroDocumento = registro.detalheA.numeroDocumentoEmpresa.convertedValue;
@@ -545,9 +542,6 @@ export class RemessaRetornoService {
   async saveRetornoLancamento(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
     const lancamentos = await this.lancamentoService.find({ detalheA: { id: [detalheARetorno.id] } });
     for (const lancamento of lancamentos) {
-      if (lancamento.id == 2) {
-        let a = 1;
-      }
       lancamento.is_pago = detalheARetorno.isPago();
       if (lancamento.is_pago) {
         lancamento.data_pgto = detalheARetorno.dataEfetivacao;

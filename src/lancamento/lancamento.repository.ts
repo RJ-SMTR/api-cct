@@ -2,7 +2,6 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, Repository, SaveOptions } from 'typeorm';
 import { Lancamento } from './entities/lancamento.entity';
-import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 
 @Injectable()
 export class LancamentoRepository {

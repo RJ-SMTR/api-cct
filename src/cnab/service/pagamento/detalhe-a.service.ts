@@ -62,7 +62,7 @@ export class DetalheAService {
       numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
     });
     if (detalheA) {
-      if (detalheA.ocorrenciasCnab === undefined || detalheA.ocorrenciasCnab === '' || detalheA.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim()) {
+      if (detalheA.ocorrenciasCnab === undefined || detalheA.ocorrenciasCnab === '' || detalheA.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim() || !detalheA.dataEfetivacao) {
         const saveDetalheA = new DetalheADTO({
           id: detalheA.id,
           loteServico: Number(r.detalheA.loteServico.value),
@@ -83,9 +83,6 @@ export class DetalheAService {
           nsr: Number(r.detalheA.nsr.value),
           ocorrenciasCnab: r.detalheA.ocorrencias.value.trim() || headerLotePgto.ocorrencias.value.trim() || headerArq.ocorrenciaCobrancaSemPapel.value.trim(),
         });
-        if (r.detalheA.numeroDocumentoEmpresa.convertedValue == 1766) {
-          let a = 1;
-        }
         return await this.detalheARepository.save(saveDetalheA);
       }
     } else {
