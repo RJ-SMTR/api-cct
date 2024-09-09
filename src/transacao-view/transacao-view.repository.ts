@@ -8,9 +8,28 @@ import { DataSource, DeepPartial, EntityManager, FindManyOptions, In, LessThanOr
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
+import { formatDateYMD } from 'src/utils/date-utils';
 
-export interface IFindRawWhere {
-  idTransacao?: string[];
+export interface TransacaoViewFindRawOptions {
+  where: {
+    idTransacao?: string[];
+    operadoraCpfCnpj?: string[];
+    datetimeTransacao?: { between: [Date, Date][] };
+    datetimeProcessamento?: { between: [Date, Date][] };
+  };
+  order?: {
+    datetimeProcessamento?: 'ASC' | 'DESC';
+    id?: 'ASC' | 'DESC';
+  };
+  eager?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface TVFindUpdateValuesWhere {
+  diasAnteriores?: number;
+  idOperadora?: string[];
+  valorPago_gt_zero?: boolean;
 }
 
 @Injectable()
@@ -45,6 +64,7 @@ export class TransacaoViewRepository {
   }
 
   public async syncOrdemPgto(args?: ISyncOrdemPgto) {
+    const METHOD = 'syncOrdemPgto';
     const where: string[] = [];
     if (args?.dataOrdem_between) {
       const [start, end] = args.dataOrdem_between.map((d) => d.toISOString());
@@ -81,7 +101,7 @@ export class TransacaoViewRepository {
     ) associados
     WHERE id = associados.tv_id
     `;
-    this.logger.debug(compactQuery(query));
+    this.logger.debug('query: ' + compactQuery(query), METHOD);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     let count = 0;
@@ -110,7 +130,7 @@ export class TransacaoViewRepository {
     }
     const updatedAt: keyof ITransacaoView = 'updatedAt';
     const query = EntityHelper.getQueryUpdate('transacao_view', dtos, fields, TransacaoView.sqlFieldTypes, reference, updatedAt);
-    this.logger.debug(query);
+    this.logger.debug('query: ' + compactQuery(query), METHOD);
     const [, count] = await (manager || this.transacaoViewRepository).query(compactQuery(query));
     return count;
   }
@@ -184,35 +204,79 @@ export class TransacaoViewRepository {
     return await this.transacaoViewRepository.find(options);
   }
 
-  public async findRaw(where?: IFindRawWhere): Promise<TransacaoView[]> {
+  public async findRaw(options?: TransacaoViewFindRawOptions): Promise<TransacaoView[]> {
     const tv = TransacaoView.getSqlFields('tv');
     const qWhere: string[] = [];
-    if (where?.idTransacao?.length) {
-      qWhere.push(`${tv.idTransacao} IN ('${where.idTransacao.join("','")}')`);
+    const eager = options?.eager !== undefined ? options.eager : true;
+
+    if (options?.where?.idTransacao?.length) {
+      qWhere.push(`${tv.idTransacao} IN ('${options.where?.idTransacao.join("','")}')`);
     }
+    if (options?.where?.operadoraCpfCnpj?.length) {
+      qWhere.push(`${tv.operadoraCpfCnpj} IN ('${options.where?.operadoraCpfCnpj.join("','")}')`);
+    }
+    if (options?.where?.datetimeTransacao) {
+      const betweenStr = options.where.datetimeTransacao.between.map(([start, end]) => `${tv.datetimeTransacao}::DATE BETWEEN '${formatDateYMD(start)}' AND '${formatDateYMD(end)}'`).join(' OR ');
+      qWhere.push(`(${betweenStr})`);
+    }
+    if (options?.where?.datetimeProcessamento) {
+      const betweenStr = options.where.datetimeProcessamento.between.map(([start, end]) => `${tv.datetimeProcessamento}::DATE BETWEEN '${formatDateYMD(start)}' AND '${formatDateYMD(end)}'`).join(' OR ');
+      qWhere.push(`(${betweenStr})`);
+    }
+
+    const order: string[] = [];
+    if (options?.order?.datetimeProcessamento) {
+      order.push(`${tv.datetimeProcessamento} ${options.order.datetimeProcessamento}`);
+    }
+    if (options?.order?.id) {
+      order.push(`tv.id ${options.order.id}`);
+    }
+
     const selectTv =
-      Object.values(tv)
-        .filter((i) => i != `tv.${tv.arquivoPublicacao}`)
-        .join(',') + `, json_build_object('id', ${tv.arquivoPublicacao}) AS "arquivoPublicacao"`;
-    const raw: any[] = await this.transacaoViewRepository.query(
-      compactQuery(`
+      Object.values(TransacaoView.getSqlFields('tv', true))
+        .filter((i) => !i.startsWith(`tv.${tv.arquivoPublicacao}`))
+        .join(',') +
+      `, json_build_object(
+            'id', ${tv.arquivoPublicacao},
+            'isPago', ap."isPago",
+            ${eager ? `'itemTransacao', json_build_object('id', it.id, 'itemTransacaoAgrupado', json_build_object('id', ita.id))` : ''}
+        ) AS "arquivoPublicacao"`;
+    const query = `
       SELECT ${selectTv}
       FROM transacao_view tv
-      ${where ? 'WHERE ' + qWhere.join(' AND ') : ''}
-      ORDER BY tv.id DESC
-    `),
-    );
+      ${
+        eager
+          ? `LEFT JOIN item_transacao_agrupado ita ON ita.id = tv."itemTransacaoAgrupadoId"
+      LEFT JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
+      LEFT JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id`
+          : ''
+      }
+      ${options ? 'WHERE ' + qWhere.join(' AND ') : ''}
+      ORDER BY ${order.length ? order.join(', ') : 'tv.id DESC'}
+    `;
+    const raw: any[] = await this.transacaoViewRepository.query(compactQuery(query));
     const result = raw.map((i) => new TransacaoView(i));
     return result;
   }
 
-  public async findUpdateValues(diasAnteriores?: number): Promise<TransacaoView[]> {
+  public async findUpdateValues(where?: TVFindUpdateValuesWhere): Promise<TransacaoView[]> {
+    const tv = TransacaoView.getSqlFields('tv');
+    const qWhere: string[] = [];
+    if (where?.valorPago_gt_zero) {
+      qWhere.push(`NOT ${tv.valorPago} > 0`);
+    }
+    if (where?.diasAnteriores) {
+      qWhere.push(`${tv.datetimeProcessamento}::DATE >= NOW() - INTERVAL '${where?.diasAnteriores} DAYS'`);
+    }
+    if (where?.idOperadora?.length) {
+      qWhere.push(`${tv.idOperadora} IN('${where?.idOperadora.join("','")}')`);
+    }
     const raw: any[] = await this.transacaoViewRepository.query(
       compactQuery(`
-      SELECT tv.id, tv."idTransacao", tv."valorPago"
+      SELECT ${tv.id}, ${tv.idTransacao}, ${tv.valorPago}::FLOAT, ${tv.tipoTransacao}, ${tv.idOperadora}
       FROM transacao_view tv
-      WHERE NOT tv."valorPago" > 0 ${diasAnteriores ? `AND tv."datetimeProcessamento"::DATE >= NOW() - INTERVAL '${diasAnteriores} DAYS'` : ''}
-      ORDER BY tv.id DESC
+      ${qWhere.length ? `WHERE ${qWhere.join(' AND ')}` : ''}
+      ORDER BY ${tv.id} DESC
     `),
     );
     const result = raw.map((i) => new TransacaoView(i));

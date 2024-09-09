@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
-import { BigqueryTransacaoRepository } from '../repositories/bigquery-transacao.repository';
-import { IBqFindTransacao } from '../interfaces/bq-find-transacao-by.interface';
+import { BigqueryTransacaoRepository, IBqFindTransacao } from '../repositories/bigquery-transacao.repository';
 
 @Injectable()
 export class BigqueryTransacaoService {

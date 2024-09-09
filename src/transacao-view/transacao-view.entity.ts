@@ -102,6 +102,7 @@ export class TransacaoView {
   @Column({ type: String, nullable: true })
   consorcioCnpj: string | null;
 
+  /** @deprecated Replaced by `itemTransacaoAgrupadoId` */
   @ManyToOne(() => ArquivoPublicacao, { eager: true, nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoView_arquivoPublicacao_ManyToOne',
@@ -126,7 +127,7 @@ export class TransacaoView {
     }
   }
 
-  public static getSqlFields(table?: string): Record<keyof ITransacaoView, string> {
+  public static getSqlFields(table?: string, castValues?: boolean): Record<keyof ITransacaoView, string> {
     return {
       id: `${table ? `${table}.` : ''}"id"`,
       datetimeTransacao: `${table ? `${table}.` : ''}"datetimeTransacao"`,
@@ -141,8 +142,8 @@ export class TransacaoView {
       tipoPagamento: `${table ? `${table}.` : ''}"tipoPagamento"`,
       tipoTransacao: `${table ? `${table}.` : ''}"tipoTransacao"`,
       tipoGratuidade: `${table ? `${table}.` : ''}"tipoGratuidade"`,
-      valorTransacao: `${table ? `${table}.` : ''}"valorTransacao"`,
-      valorPago: `${table ? `${table}.` : ''}"valorPago"`,
+      valorTransacao: `${table ? `${table}.` : ''}"valorTransacao"${castValues ? '::FLOAT' : ''}`,
+      valorPago: `${table ? `${table}.` : ''}"valorPago"${castValues ? '::FLOAT' : ''}`,
       operadoraCpfCnpj: `${table ? `${table}.` : ''}"operadoraCpfCnpj"`,
       consorcioCnpj: `${table ? `${table}.` : ''}"consorcioCnpj"`,
       arquivoPublicacao: `${table ? `${table}.` : ''}"arquivoPublicacaoId"`,
@@ -175,7 +176,7 @@ export class TransacaoView {
     createdAt: 'TIMESTAMP',
     updatedAt: 'TIMESTAMP',
   };
-  
+
   public static fromBigqueryTransacao(bq: BigqueryTransacao) {
     return new TransacaoView({
       datetimeCaptura: asStringDate(bq.datetime_captura),
@@ -197,39 +198,54 @@ export class TransacaoView {
     });
   }
 
-  toTicketRevenue(publicacoes: ArquivoPublicacao[]) {
-    const publicacoesTv = publicacoes.filter((p) => p.itemTransacao.itemTransacaoAgrupado.id == this.itemTransacaoAgrupadoId);
-    const publicacao: ArquivoPublicacao | undefined = publicacoesTv.filter((p) => p.isPago)[0] || publicacoesTv[0];
-    const isPago = publicacao?.isPago == true;
-    const revenue = new TicketRevenueDTO({
-      bqDataVersion: '',
-      captureDateTime: this.datetimeCaptura.toISOString(),
-      clientId: null,
-      directionId: null,
-      integrationId: null,
-      date: this.datetimeProcessamento.toISOString(),
-      paymentMediaType: this.tipoPagamento,
-      processingDateTime: this.datetimeProcessamento.toISOString(),
-      processingHour: this.datetimeProcessamento.getHours(),
-      stopId: null,
-      stopLat: null,
-      stopLon: null,
-      transactionDateTime: this.datetimeTransacao.toISOString(),
-      transactionId: this.idTransacao,
-      transactionLat: null,
-      transactionLon: null,
-      transactionType: this.tipoTransacao,
-      paidValue: this.valorPago || 0,
-      transactionValue: this.valorTransacao,
-      transportIntegrationType: null,
-      transportType: null,
-      vehicleId: null,
-      vehicleService: null,
-      arquivoPublicacao: this.arquivoPublicacao || undefined,
-      itemTransacaoAgrupadoId: this.itemTransacaoAgrupadoId || undefined,
-      isPago,
-      count: 1,
-    });
-    return revenue;
+  // toTicketRevenue(publicacoes: ArquivoPublicacao[]) {
+  //   const publicacoesTv = publicacoes.filter((p) => p.itemTransacao.itemTransacaoAgrupado.id == this.itemTransacaoAgrupadoId);
+  //   const publicacao: ArquivoPublicacao | undefined = publicacoesTv.filter((p) => p.isPago)[0] || publicacoesTv[0];
+  //   const isPago = publicacao?.isPago == true;
+  //   const revenue = new TicketRevenueDTO({
+  //     captureDateTime: this.datetimeCaptura.toISOString(),
+  //     date: this.datetimeProcessamento.toISOString(),
+  //     paymentMediaType: this.tipoPagamento,
+  //     processingDateTime: this.datetimeProcessamento.toISOString(),
+  //     processingHour: this.datetimeProcessamento.getHours(),
+  //     transactionDateTime: this.datetimeTransacao.toISOString(),
+  //     transactionId: this.idTransacao,
+  //     transactionType: this.tipoTransacao,
+  //     paidValue: this.valorPago || 0,
+  //     transactionValue: this.valorTransacao,
+  //     transportIntegrationType: null,
+  //     transportType: null,
+  //     arquivoPublicacao: this.arquivoPublicacao || undefined,
+  //     itemTransacaoAgrupadoId: this.itemTransacaoAgrupadoId || undefined,
+  //     isPago,
+  //     count: 1,
+  //     ocorrencias: [],
+  //   });
+  //   return revenue;
+  // }
+
+  getProperties() {
+    return {
+      id: this.id,
+      datetimeTransacao: this.datetimeTransacao,
+      datetimeProcessamento: this.datetimeProcessamento,
+      datetimeCaptura: this.datetimeCaptura,
+      modo: this.modo,
+      idConsorcio: this.idConsorcio,
+      nomeConsorcio: this.nomeConsorcio,
+      idOperadora: this.idOperadora,
+      nomeOperadora: this.nomeOperadora,
+      idTransacao: this.idTransacao,
+      tipoPagamento: this.tipoPagamento,
+      tipoTransacao: this.tipoTransacao,
+      tipoGratuidade: this.tipoGratuidade,
+      valorTransacao: this.valorTransacao,
+      valorPago: this.valorPago,
+      operadoraCpfCnpj: this.operadoraCpfCnpj,
+      consorcioCnpj: this.consorcioCnpj,
+      arquivoPublicacao: this.arquivoPublicacao,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 }
