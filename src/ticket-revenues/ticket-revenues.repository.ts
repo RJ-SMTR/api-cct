@@ -1,8 +1,10 @@
-import { Injectable, Logger, NotImplementedException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { endOfDay, isToday, startOfDay } from 'date-fns';
 import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.service';
-import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
+import { TransacaoView } from 'src/transacao-view/transacao-view.entity';
+import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
+import { compactQuery } from 'src/utils/console-utils';
 import { formatDateYMD } from 'src/utils/date-utils';
 import { getPagination } from 'src/utils/get-pagination';
 import { getPaymentDates } from 'src/utils/payment-date-utils';
@@ -13,8 +15,6 @@ import { TicketRevenueDTO } from './dtos/ticket-revenue.dto';
 import { TicketRevenuesGroupDto } from './dtos/ticket-revenues-group.dto';
 import { ITRGetMeIndividualValidArgs } from './interfaces/tr-get-me-individual-args.interface';
 import { ITRGetMeIndividualResponse } from './interfaces/tr-get-me-individual-response.interface';
-import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
-import { compactQuery } from 'src/utils/console-utils';
 
 export interface TicketRevenuesIndividualOptions {
   where: {

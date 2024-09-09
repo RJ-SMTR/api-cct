@@ -21,6 +21,7 @@ import { formatDateInterval } from 'src/utils/date-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { formatErrMsg } from 'src/utils/log-utils';
 import { asNumber } from 'src/utils/pipe-utils';
+import { isContent } from 'src/utils/type-utils';
 import { DataSource, DeepPartial, QueryRunner } from 'typeorm';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
 import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
