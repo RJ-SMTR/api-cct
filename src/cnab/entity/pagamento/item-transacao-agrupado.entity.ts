@@ -7,6 +7,7 @@ import { OrdemPagamentoDto } from 'src/cnab/dto/pagamento/ordem-pagamento.dto';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { ItemTransacao } from './item-transacao.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
+import { Exclude } from 'class-transformer';
 
 /**
  * Representa um destinatário, a ser pago pelo remetente (TransacaoAgrupado).
@@ -23,6 +24,7 @@ import { TransacaoAgrupado } from './transacao-agrupado.entity';
  */
 @Entity()
 export class ItemTransacaoAgrupado extends EntityHelper {
+  @Exclude()
   private readonly FKs = ['transacaoAgrupado', 'clienteFavorecido'];
 
   constructor(dto?: DeepPartial<ItemTransacaoAgrupado>) {

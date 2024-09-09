@@ -26,6 +26,8 @@ export interface ILancamento {
   recurso: number;
   anexo: number;
   numero_processo: string;
+  is_autorizado: boolean;
+  is_pago: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -77,9 +79,11 @@ export class Lancamento extends EntityHelper implements ILancamento {
    *
    * uniqueConstraintName: `UQ_Lancamento_itemTransacao`
    */
+  // @Exclude()
   @ApiProperty({ description: 'ItemTransação do CNAB remessa associado a este Lançamento' })
   @OneToOne(() => ItemTransacao, { nullable: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_itemTransacao_OneToOne' })
+  // @Transform(({ value }) => (!value ? null : (it = value as ItemTransacao) => ({ id: it.id, itemTransacaoAgrupado: { id: it.itemTransacaoAgrupado.id } })))
   itemTransacao: ItemTransacao;
 
   @ManyToMany(() => User, (user) => user)
@@ -90,12 +94,7 @@ export class Lancamento extends EntityHelper implements ILancamento {
     synchronize: false, // We use LancamentoAutorizacao to generate migration
   })
   @Expose({ name: 'autorizado_por' })
-  @Transform(({ value }) =>
-    (value as User[]).map((u) => ({
-      id: u.id,
-      nome: u.fullName,
-    })),
-  )
+  @Transform(({ value }) => (value as User[]).map((u) => ({ id: u.id, nome: u.fullName })))
   autorizacoes: User[];
 
   /** O autor mais recente da criação/modificação/autorização do Lançamento */
@@ -141,6 +140,18 @@ export class Lancamento extends EntityHelper implements ILancamento {
   @Exclude()
   @UpdateDateColumn()
   updatedAt: Date;
+
+  /** Coluna virtual */
+  @Transform(({ value }) =>
+    value === null
+      ? null
+      : ((da = value as DetalheA) => ({
+          id: da.id,
+          ocorrenciasCnab: da.ocorrenciasCnab,
+          numeroDocumentoEmpresa: da.numeroDocumentoEmpresa,
+        }))(),
+  )
+  detalheA: DetalheA | null = null;
 
   /** Coluna virtual para consultar as ocorrências */
   ocorrencias: Ocorrencia[] = [];
@@ -194,7 +205,7 @@ export class Lancamento extends EntityHelper implements ILancamento {
     this.autor = new User(dto.author);
   }
 
-  public static getSqlFields(table?: string, castType?: 'sql' | 'entity'): Record<keyof ILancamento, string> {
+  public static getSqlFields(table?: string, castType?: boolean): Record<keyof ILancamento, string> {
     return {
       id: `${table ? `${table}.` : ''}"id"`,
       valor: `${table ? `${table}.` : ''}"valor"`, // number,
@@ -210,17 +221,19 @@ export class Lancamento extends EntityHelper implements ILancamento {
       recurso: `${table ? `${table}.` : ''}"recurso"`, // number,
       anexo: `${table ? `${table}.` : ''}"anexo"`, // number,
       numero_processo: `${table ? `${table}.` : ''}"numero_processo"`, // string,
+      is_autorizado: `${table ? `${table}.` : ''}"is_autorizado"`, // boolean,
+      is_pago: `${table ? `${table}.` : ''}"is_pago"`, // boolean,
       createdAt: `${table ? `${table}.` : ''}"createdAt"`, // Date,
       updatedAt: `${table ? `${table}.` : ''}"updatedAt"`, // Date,
     };
   }
 
-  public static sqlFieldType: Record<keyof ILancamento, string> = {
+  public static sqlFieldTypes: Record<keyof ILancamento, string> = {
     id: 'INT',
     valor: 'NUMERIC',
-    data_ordem: 'TIMSTAMP',
-    data_pgto: 'TIMSTAMP',
-    data_lancamento: 'TIMSTAMP',
+    data_ordem: 'TIMESTAMP',
+    data_pgto: 'TIMESTAMP',
+    data_lancamento: 'TIMESTAMP',
     itemTransacao: 'INT',
     autorizacoes: '',
     autor: '',
@@ -230,27 +243,9 @@ export class Lancamento extends EntityHelper implements ILancamento {
     recurso: 'NUMERIC',
     anexo: 'NUMERIC',
     numero_processo: 'VARCHAR',
-    createdAt: 'TIMSTAMP',
-    updatedAt: 'TIMSTAMP',
+    is_pago: 'BOOLEAN',
+    is_autorizado: 'BOOLEAN',
+    createdAt: 'TIMESTAMP',
+    updatedAt: 'TIMESTAMP',
   };
-  public static getSqlFieldEntityType(userAlias = 'u', itemTransacaoAlias = 'it'): Record<keyof ILancamento, string> {
-    return {
-      id: 'INT',
-      valor: 'NUMERIC',
-      data_ordem: 'TIMSTAMP',
-      data_pgto: 'TIMSTAMP',
-      data_lancamento: 'TIMSTAMP',
-      itemTransacao: 'INT',
-      autorizacoes: '',
-      autor: '',
-      clienteFavorecido: '',
-      algoritmo: 'FLOAT',
-      glosa: 'FLOAT',
-      recurso: 'FLOAT',
-      anexo: 'FLOAT',
-      numero_processo: 'VARCHAR',
-      createdAt: 'TIMSTAMP',
-      updatedAt: 'TIMSTAMP',
-    };
-  }
 }

@@ -614,10 +614,11 @@ export class CnabService {
         const retorno104 = parseCnab240Pagamento(cnabString);
         cnabs.push(cnabName);
         await this.remessaRetornoService.saveRetorno(retorno104);
-        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess, cnabString, folder);
+        // await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess, cnabString, folder);
         const durationItem = formatDateInterval(new Date(), startDateItem);
         this.logger.log(`CNAB '${cnabName}' lido com sucesso - ${durationItem}`);
         success.push(cnabName);
+        break;
       } catch (error) {
         const durationItem = formatDateInterval(new Date(), startDateItem);
         this.logger.error(`Erro ao processar CNAB ${cnabName}. Movendo para backup de erros e finalizando - ${durationItem} - ${formatErrMsg(error)}`, error.stack, METHOD);
@@ -625,7 +626,7 @@ export class CnabService {
           this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
           return;
         }
-        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoFailure, cnabString, folder);
+        // await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoFailure, cnabString, folder);
         failed.push(cnabName);
       }
       const cnab = await this.sftpService.getFirstCnabRetorno(folder);

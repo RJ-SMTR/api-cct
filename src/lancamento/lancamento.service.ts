@@ -6,11 +6,13 @@ import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.se
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { Between, IsNull } from 'typeorm';
+import { Between, DeepPartial, IsNull, QueryRunner } from 'typeorm';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoInputDto } from './dtos/lancamento-input.dto';
 import { ILancamento, Lancamento } from './entities/lancamento.entity';
 import { LancamentoRepository } from './lancamento.repository';
+import { EntityHelper } from 'src/utils/entity-helper';
+import { compactQuery } from 'src/utils/console-utils';
 
 @Injectable()
 export class LancamentoService {
@@ -35,20 +37,23 @@ export class LancamentoService {
     });
   }
 
-  async find(args?: { mes?: number; periodo?: number; ano?: number; autorizado?: boolean }): Promise<Lancamento[]> {
+  async find(args?: { mes?: number; periodo?: number; ano?: number; autorizado?: boolean; detalheA?: { id: number[] } }): Promise<Lancamento[]> {
     /** [startDate, endDate] */
     let dateRange: [Date, Date] | null = null;
     if (args?.mes && args?.periodo && args?.ano) {
       dateRange = this.getMonthDateRange(args.ano, args.mes, args?.periodo);
     }
 
-    const lancamentos = await this.lancamentoRepository.findMany({
-      where: {
-        ...(dateRange ? { data_lancamento: Between(...dateRange) } : {}),
-        ...(args?.autorizado !== undefined ? { is_autorizado: args.autorizado } : {}),
+    const lancamentos = await this.lancamentoRepository.findMany(
+      {
+        where: {
+          ...(dateRange ? { data_lancamento: Between(...dateRange) } : {}),
+          ...(args?.autorizado !== undefined ? { is_autorizado: args.autorizado } : {}),
+        },
+        relations: ['autorizacoes'] as (keyof ILancamento)[],
       },
-      relations: ['autorizacoes'] as (keyof ILancamento)[],
-    });
+      args?.detalheA && { detalheA: args.detalheA },
+    );
 
     return lancamentos;
   }
@@ -118,6 +123,17 @@ export class LancamentoService {
     const updated = await this.lancamentoRepository.getOne({ where: { id: lancamento.id } });
     this.logger.log(`Lancamento #${updated.id} atualizado por ${updated.clienteFavorecido.nome}.`);
     return updated;
+  }
+
+  public async updateManyRaw(dtos: DeepPartial<Lancamento>[], fields: (keyof ILancamento)[], queryRunner: QueryRunner): Promise<Lancamento[]> {
+    if (!dtos.length) {
+      return [];
+    }
+    const id: keyof ILancamento = 'id';
+    const updatedAt: keyof ILancamento = 'updatedAt';
+    const query = EntityHelper.getQueryUpdate('lancamento', dtos, fields, Lancamento.sqlFieldTypes, id, updatedAt);
+    await queryRunner.manager.query(compactQuery(query));
+    return dtos.map((dto) => new Lancamento(dto));
   }
 
   async getById(id: number): Promise<Lancamento> {

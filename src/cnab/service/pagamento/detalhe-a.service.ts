@@ -83,6 +83,9 @@ export class DetalheAService {
           nsr: Number(r.detalheA.nsr.value),
           ocorrenciasCnab: r.detalheA.ocorrencias.value.trim() || headerLotePgto.ocorrencias.value.trim() || headerArq.ocorrenciaCobrancaSemPapel.value.trim(),
         });
+        if (r.detalheA.numeroDocumentoEmpresa.convertedValue == 1766) {
+          let a = 1;
+        }
         return await this.detalheARepository.save(saveDetalheA);
       }
     } else {

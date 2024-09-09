@@ -43,6 +43,7 @@ import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { LancamentoService } from 'src/lancamento/lancamento.service';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -53,7 +54,23 @@ export class RemessaRetornoService {
     timestamp: true,
   });
 
-  constructor(private arquivoPublicacaoService: ArquivoPublicacaoService, private detalheAConfService: DetalheAConfService, private detalheAService: DetalheAService, private detalheBConfService: DetalheBConfService, private detalheBService: DetalheBService, private headerArquivoConfService: HeaderArquivoConfService, private headerArquivoService: HeaderArquivoService, private headerLoteConfService: HeaderLoteConfService, private headerLoteService: HeaderLoteService, private itemTransacaoAgService: ItemTransacaoAgrupadoService, private itemTransacaoService: ItemTransacaoService, private ocorrenciaService: OcorrenciaService, private transacaoViewService: TransacaoViewService, private dataSource: DataSource) {}
+  constructor(
+    private arquivoPublicacaoService: ArquivoPublicacaoService, //
+    private lancamentoService: LancamentoService,
+    private detalheAConfService: DetalheAConfService,
+    private detalheAService: DetalheAService,
+    private detalheBConfService: DetalheBConfService,
+    private detalheBService: DetalheBService,
+    private headerArquivoConfService: HeaderArquivoConfService,
+    private headerArquivoService: HeaderArquivoService,
+    private headerLoteConfService: HeaderLoteConfService,
+    private headerLoteService: HeaderLoteService,
+    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
+    private itemTransacaoService: ItemTransacaoService,
+    private ocorrenciaService: OcorrenciaService,
+    private transacaoViewService: TransacaoViewService,
+    private dataSource: DataSource,
+  ) {}
 
   public async saveHeaderArquivoDTO(transacaoAg: TransacaoAgrupado, isConference: boolean): Promise<HeaderArquivoDTO> {
     let headerArquivoDTO;
@@ -445,6 +462,9 @@ export class RemessaRetornoService {
         const logRegistro = `HeaderArquivo: ${cnab.headerArquivo.nsa.convertedValue}, lote: ${cnabLote.headerLote.codigoRegistro.value}`;
 
         // Save Detalhes
+        if (registro.detalheA.numeroDocumentoEmpresa.convertedValue == 1766) {
+          let a = 1;
+        }
         detalheAUpdated = await this.detalheAService.saveRetornoFrom104(cnab.headerArquivo, cnabLote.headerLote, registro, dataEfetivacao);
         if (!detalheAUpdated) {
           const numeroDocumento = registro.detalheA.numeroDocumentoEmpresa.convertedValue;
@@ -481,7 +501,8 @@ export class RemessaRetornoService {
    */
   public async compareRemessaToRetorno(detalheA: DetalheA, queryRunner: QueryRunner): Promise<void> {
     await this.saveOcorrenciasDetalheA(detalheA, queryRunner);
-    await this.savePublicacaoRetorno(detalheA, queryRunner);
+    await this.saveRetornoPublicacao(detalheA, queryRunner);
+    await this.saveRetornoLancamento(detalheA, queryRunner);
   }
 
   async saveOcorrenciasDetalheA(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
@@ -501,7 +522,8 @@ export class RemessaRetornoService {
     await this.ocorrenciaService.saveMany(ocorrencias, queryRunner);
   }
 
-  async savePublicacaoRetorno(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
+  /** Se o retorno for de Publicacao, atualiza */
+  async saveRetornoPublicacao(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
     const publicacoes = await this.arquivoPublicacaoService.findManyRaw({
       itemTransacaoAgrupadoId: [detalheARetorno.itemTransacaoAgrupado.id],
     });
@@ -517,6 +539,23 @@ export class RemessaRetornoService {
       publicacao.dataGeracaoRetorno = detalheARetorno.headerLote.headerArquivo.dataGeracao;
     }
     await this.arquivoPublicacaoService.updateManyRaw(publicacoes, 'savePublicacaoRetorno', queryRunner);
+  }
+
+  /** Se o retorno for de Lancamento, atualiza */
+  async saveRetornoLancamento(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
+    const lancamentos = await this.lancamentoService.find({ detalheA: { id: [detalheARetorno.id] } });
+    for (const lancamento of lancamentos) {
+      if (lancamento.id == 2) {
+        let a = 1;
+      }
+      lancamento.is_pago = detalheARetorno.isPago();
+      if (lancamento.is_pago) {
+        lancamento.data_pgto = detalheARetorno.dataEfetivacao;
+      } else {
+        lancamento.data_pgto = null;
+      }
+    }
+    await this.lancamentoService.updateManyRaw(lancamentos, ['is_pago', 'data_pgto'], queryRunner);
   }
 
   async compareTransacaoViewPublicacao(detalheA: DetalheA, queryRunner: QueryRunner) {
