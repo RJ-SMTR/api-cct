@@ -4,8 +4,7 @@ import { DataSource } from 'typeorm';
 import { RelatorioConsolidadoDto } from './dtos/relatorio-consolidado.dto';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { RelatorioAnaliticoDto } from './dtos/relatorio-analitico.dto';
-import { RelatorioSinteticoDto } from './dtos/relatorio-sintetico.dto';
+
 
 @Injectable()
 export class RelatorioConsolidadoRepository { 
@@ -29,7 +28,7 @@ export class RelatorioConsolidadoRepository {
               inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
               inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
               inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-              WHERE (1=1)  `;
+              WHERE ita."id" not in(select tv."itemTransacaoAgrupadoId" from transacao_view tv)  `;
 
               if(dataInicio!==undefined && dataFim!==undefined && 
                 (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
@@ -69,7 +68,7 @@ export class RelatorioConsolidadoRepository {
                 inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                 inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                 inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-              WHERE (1=1) `;
+              WHERE ita."id" not in(select tv."itemTransacaoAgrupadoId" from transacao_view tv) `;
 
               if(dataInicio!==undefined && dataFim!==undefined && 
                 (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
