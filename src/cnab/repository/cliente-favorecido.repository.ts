@@ -6,7 +6,6 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository, UpdateResult } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
 import { compactQuery } from 'src/utils/console-utils';
 
 export interface IClienteFavorecidoRawWhere {
@@ -15,6 +14,15 @@ export interface IClienteFavorecidoRawWhere {
   cpfCnpj?: string;
   /** numeroDocumentoEmpresa */
   detalheANumeroDocumento?: number[];
+}
+
+export interface IClienteFavorecidoFindBy {
+  /** ILIKE unaccent */
+  nome?: { in?: string[]; not?: string[] };
+  consorcio?: string;
+  cpfCnpj?: { not: string[] };
+  limit?: number;
+  page?: number;
 }
 
 @Injectable()
@@ -107,9 +115,16 @@ export class ClienteFavorecidoRepository {
       }
     }
 
-    if (where?.nome?.length) {
-      for (const nome of where.nome) {
+    if (where?.nome?.in?.length) {
+      for (const nome of where.nome?.in) {
         qb = qb[cmd()]('favorecido."nome" ILIKE UNACCENT(UPPER(:nome))', {
+          nome: `%${nome}%`,
+        });
+      }
+    }
+    if (where?.nome?.not?.length) {
+      for (const nome of where.nome.not as string[]) {
+        qb = qb[cmd()]('favorecido."nome" NOT ILIKE UNACCENT(UPPER(:nome))', {
           nome: `%${nome}%`,
         });
       }
@@ -118,10 +133,13 @@ export class ClienteFavorecidoRepository {
     if (where?.consorcio) {
       const consorcio = where.consorcio;
       if (consorcio === 'Van') {
-        qb = qb[cmd()](' favorecido.tipo = :tipo', { tipo: 'vanzeiro' });
+        qb = qb[cmd()]('favorecido.tipo = :tipo', { tipo: 'vanzeiro' });
       } else if (consorcio === 'Empresa') {
-        qb = qb[cmd()](' favorecido.tipo = :tipo', { tipo: 'consorcio'});
+        qb = qb[cmd()]('favorecido.tipo = :tipo', { tipo: 'consorcio' });
       }
+    }
+    if (where?.cpfCnpj) {
+      qb = qb[cmd()](`favorecido.nome NOT IN (${where.cpfCnpj.not.map((i) => `'${i}'`).join(',')})`);
     }
 
     if (where?.limit && where?.page) {

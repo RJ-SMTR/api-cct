@@ -21,6 +21,7 @@ export class ParseArrayPipe implements PipeTransform {
       compareList?: any[];
       unique?: boolean;
       transform?: boolean;
+      /** Return empty list if not value given */
       transformOptional?: boolean;
       optional?: boolean;
     },

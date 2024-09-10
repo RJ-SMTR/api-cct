@@ -14,6 +14,7 @@ import { LancamentoService } from './lancamento.service';
 import { LancamentoStatus } from './enums/lancamento-status.enum';
 import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
 import { ParseArrayPipe } from 'src/utils/pipes/parse-array.pipe';
+import { IRequest } from 'src/utils/interfaces/request.interface';
 
 @ApiTags('Lancamento')
 @Controller({
@@ -149,7 +150,7 @@ export class LancamentoController {
   @ApiBody({ type: LancamentoInputDto })
   @ApiQuery({ name: 'lancamentoId', required: true, description: 'Id do lançamento' })
   async putLancamento(
-    @Request() req,
+    @Request() req: IRequest,
     @Query('lancamentoId', new ParseNumberPipe({ min: 1 })) lancamentoId: number,
     @Body() lancamentoDto: LancamentoInputDto, // It was ItfLancamento
   ) {

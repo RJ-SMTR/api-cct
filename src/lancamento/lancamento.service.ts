@@ -1,20 +1,29 @@
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { endOfDay, endOfMonth, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
+import { endOfDay, endOfMonth } from 'date-fns';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.service';
 import { UsersService } from 'src/users/users.service';
+import { compactQuery } from 'src/utils/console-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { EntityHelper } from 'src/utils/entity-helper';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { Between, DeepPartial, FindOptionsWhere, IsNull, ObjectLiteral, QueryRunner, UpdateResult } from 'typeorm';
+import { Between, DeepPartial, IsNull, QueryRunner, UpdateResult } from 'typeorm';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoInputDto } from './dtos/lancamento-input.dto';
 import { ILancamento, Lancamento } from './entities/lancamento.entity';
-import { LancamentoRepository, UpdateLancamentoWhere } from './lancamento.repository';
-import { EntityHelper } from 'src/utils/entity-helper';
-import { compactQuery } from 'src/utils/console-utils';
-import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { LancamentoStatus } from './enums/lancamento-status.enum';
+import { LancamentoRepository, UpdateLancamentoWhere } from './lancamento.repository';
+import { ConcessionariaNomeEnum } from 'src/cnab/enums/concessionaria-nome.enum';
+
+const validFavorecidos = [
+  String(ConcessionariaNomeEnum.CMTC), //
+  String(ConcessionariaNomeEnum.Internorte),
+  String(ConcessionariaNomeEnum.Intersul),
+  String(ConcessionariaNomeEnum.SantaCruz),
+  String(ConcessionariaNomeEnum.Transcarioca),
+  // ConcessionariaNomeEnum.VLT, // DESABILITADO ATÉ O MOMENTO
+];
 
 @Injectable()
 export class LancamentoService {
@@ -84,16 +93,19 @@ export class LancamentoService {
   }
 
   async create(dto: LancamentoInputDto): Promise<Lancamento> {
-    const lancamento = await this.validateLancamentoDto(dto);
+    const lancamento = await this.validateCreate(dto);
     const created = await this.lancamentoRepository.save(this.lancamentoRepository.create(lancamento));
     const getCreated = await this.lancamentoRepository.getOne({ where: { id: created.id } });
     return getCreated;
   }
 
-  async validateLancamentoDto(dto: LancamentoInputDto): Promise<Lancamento> {
+  async validateCreate(dto: LancamentoInputDto): Promise<Lancamento> {
     const favorecido = await this.clienteFavorecidoService.findOne({ where: { id: dto.id_cliente_favorecido } });
     if (!favorecido) {
       throw CommonHttpException.message(`id_cliente_favorecido: Favorecido não encontrado no sistema`);
+    }
+    if (!validFavorecidos.includes(favorecido.nome)) {
+      throw CommonHttpException.messageArgs(`id_cliente_favorecido: Favorecido não permitido para Lançamento.`, { validFavorecidos });
     }
     const lancamento = Lancamento.fromInputDto(dto);
     lancamento.clienteFavorecido = new ClienteFavorecido({ id: favorecido.id });
@@ -134,10 +146,7 @@ export class LancamentoService {
   }
 
   async updateDto(id: number, updateDto: LancamentoInputDto): Promise<Lancamento> {
-    const lancamento = await this.lancamentoRepository.findOne({ where: { id } });
-    if (!lancamento) {
-      throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
-    }
+    const lancamento = await this.validateUpdateDto(id, updateDto);
     lancamento.updateFromInputDto(updateDto);
     await this.lancamentoRepository.save(lancamento);
     const updated = await this.lancamentoRepository.getOne({ where: { id: lancamento.id } });
@@ -145,7 +154,25 @@ export class LancamentoService {
     return updated;
   }
 
-  public async updateManyRaw(dtos: DeepPartial<Lancamento>[], fields: (keyof ILancamento)[], queryRunner: QueryRunner): Promise<Lancamento[]> {
+  async validateUpdateDto(id: number, updateDto: LancamentoInputDto): Promise<Lancamento> {
+    const lancamento = await this.lancamentoRepository.findOne({ where: { id } });
+    if (!lancamento) {
+      throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
+    }
+    if (lancamento.status !== LancamentoStatus._1_criado) {
+      throw new HttpException('Apenas é permitido alterar Lançamentos com status criado.', HttpStatus.NOT_ACCEPTABLE);
+    }
+    const favorecido = await this.clienteFavorecidoService.findOne({ where: { id: updateDto.id_cliente_favorecido } });
+    if (!favorecido) {
+      throw CommonHttpException.message('id_cliente_favorecido: Favorecido não encontrado no sistema');
+    }
+    if (!validFavorecidos.includes(favorecido.nome)) {
+      throw CommonHttpException.messageArgs('id_cliente_favorecido: Favorecido não permitido para Lançamento.', { validFavorecidos });
+    }
+    return lancamento;
+  }
+
+  async updateManyRaw(dtos: DeepPartial<Lancamento>[], fields: (keyof ILancamento)[], queryRunner: QueryRunner): Promise<Lancamento[]> {
     if (!dtos.length) {
       return [];
     }

@@ -12,8 +12,7 @@ import { validateDTO } from 'src/utils/validation-utils';
 import { FindOneOptions, In } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
-import { ClienteFavorecidoRepository, IClienteFavorecidoRawWhere } from '../repository/cliente-favorecido.repository';
+import { ClienteFavorecidoRepository, IClienteFavorecidoFindBy, IClienteFavorecidoRawWhere } from '../repository/cliente-favorecido.repository';
 
 @Injectable()
 export class ClienteFavorecidoService {
@@ -40,7 +39,7 @@ export class ClienteFavorecidoService {
     await this.clienteFavorecidoRepository.upsert(newFavorecidos);
   }
 
-  public async findBy(where?: IClienteFavorecidoFindBy): Promise<ClienteFavorecido[]> {
+  public async getFindBy(where?: IClienteFavorecidoFindBy): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.findManyBy(where);
   }
 

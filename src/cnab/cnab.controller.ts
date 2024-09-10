@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
@@ -15,6 +15,8 @@ import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ExtratoDto } from './service/dto/extrato.dto';
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
+import { ParseArrayPipe } from 'src/utils/pipes/parse-array.pipe';
+import { ConcessionariaNomeEnum } from './enums/concessionaria-nome.enum';
 
 @ApiTags('Cnab')
 @Controller({
@@ -35,16 +37,21 @@ export class CnabController {
   @Roles(RoleEnum.master, RoleEnum.admin, RoleEnum.admin_finan, RoleEnum.lancador_financeiro, RoleEnum.aprovador_financeiro)
   @ApiBearerAuth()
   @ApiQuery({ name: 'nome', description: 'Pesquisa por parte do nome, sem distinção de acento ou maiúsculas.', required: false, type: String })
+  @ApiQuery({ name: 'nomeNot', description: 'Ignora nomes com parte do nome, sem distinção de acento ou maiúsculas.', required: false, type: String })
   @ApiQuery({ name: 'consorcio', description: 'Nome do consorcio', required: false, enum: GetClienteFavorecidoConsorcioEnum })
   @ApiQuery({ name: 'limit', description: ApiDescription({ _: 'Itens exibidos por página', min: 1 }), required: false, type: Number })
   @ApiQuery({ name: 'page', description: ApiDescription({ _: 'Itens exibidos por página', min: 1 }), required: false, type: Number })
   getClienteFavorecido(
-    @Query('nome', new ParseArrayPipe({ items: String, separator: ',', optional: true })) nome: string[], //
+    @Query('nome', new ParseArrayPipe({ optional: true })) nome: string[], //
+    @Query('nomeNot', new ParseArrayPipe({ optional: true, transformOptional: true })) nomeNot: string[], //
     @Query('consorcio', new ParseEnumPipe(GetClienteFavorecidoConsorcioEnum, { optional: true })) consorcio: GetClienteFavorecidoConsorcioEnum | undefined,
     @Query('limit', new ParseNumberPipe({ min: 0, optional: true })) limit: number | undefined,
     @Query('page', new ParseNumberPipe({ min: 1, optional: true })) page: number | undefined,
   ): Promise<ClienteFavorecido[]> {
-    return this.clienteFavorecidoService.findBy({ nome, limit, page, consorcio });
+    if (consorcio === GetClienteFavorecidoConsorcioEnum.Empresa) {
+      nomeNot.push(ConcessionariaNomeEnum.VLT);
+    }
+    return this.clienteFavorecidoService.getFindBy({ nome: { in: nome, not: nomeNot }, limit, page, consorcio });
   }
 
   @Get('extratoLancamento')
