@@ -1,10 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { SettingsService } from 'src/settings/settings.service';
+import { Injectable } from '@nestjs/common';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { bigToNumber } from 'src/utils/pipe-utils';
-import { BigquerySource, BigqueryService } from '../bigquery.service';
+import { BigqueryService, BigquerySource } from '../bigquery.service';
 import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
 import { IBigqueryFindOrdemPagamento } from '../interfaces/bigquery-find-ordem-pagamento.interface';
-import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class BigqueryOrdemPagamentoRepository {
@@ -12,7 +11,6 @@ export class BigqueryOrdemPagamentoRepository {
 
   constructor(
     private readonly bigqueryService: BigqueryService,
-    private readonly settingsService: SettingsService,
   ) {}
 
   public async findMany(
