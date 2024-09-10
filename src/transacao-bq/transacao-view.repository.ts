@@ -48,7 +48,7 @@ export class TransacaoViewRepository {
     const where: string[] = [];
     if (args?.dataOrdem_between) {
       const [start, end] = args.dataOrdem_between.map((d) => d.toISOString());
-      where.push(`DATE(tv."datetimeProcessamento") BETWEEN (DATE('${start}') - INTERVAL '1 DAY') AND '${end}'`);
+      where.push(`DATE(tv."datetimeTransacao") BETWEEN (DATE('${start}') - INTERVAL '1 DAY') AND '${end}'`);
     }
     if (args?.nomeFavorecido?.length) {
       where.push(`cf.nome ILIKE ANY(ARRAY['%${args.nomeFavorecido.join("%', '%")}%'])`);
@@ -75,9 +75,9 @@ export class TransacaoViewRepository {
             AND tv."idOperadora" = ita."idOperadora"
             AND tv."operadoraCpfCnpj" = cf."cpfCnpj"
         AND tv."datetimeTransacao"::DATE BETWEEN
-            (da."dataVencimento"::DATE - (CASE WHEN ita."nomeConsorcio" = 'VLT' THEN INTERVAL '2 DAYS' ELSE INTERVAL '8 DAYS' END))  -- VENCIMENTO - 2 SE VLT; SENÃO QUINTA PGTO
-            AND (DATE(da."dataVencimento") - INTERVAL '2 DAYS')  -- VENCIMENTO - 2 (OU QUARTA PGTO SE NÃO for VLT)
-        WHERE tv."valorPago" > 0 ${where.length ? `AND ${where.join(' AND ')}` : ''}
+            (ita."dataOrdem"::DATE - (CASE WHEN ita."nomeConsorcio" = 'VLT' THEN INTERVAL '2 DAYS' ELSE INTERVAL '8 DAYS' END))  -- VENCIMENTO - 2 SE VLT; SENÃO QUINTA PGTO
+            AND (DATE(ita."dataOrdem") - INTERVAL '2 DAYS')  -- VENCIMENTO - 2 (OU QUARTA PGTO SE NÃO for VLT)
+        WHERE ${where.length ? `AND ${where.join(' AND ')}` : ''}
         ORDER BY tv.id ASC, ita.id DESC
     ) associados
     WHERE id = associados.tv_id
