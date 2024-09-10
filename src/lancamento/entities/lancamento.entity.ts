@@ -7,7 +7,7 @@ import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, DeleteDateColumn, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { LancamentoStatus } from '../enums/lancamento-status.enum';
 import { LancamentoInputDto } from '../dtos/lancamento-input.dto';
 import { LancamentoAutorizacao } from './lancamento-autorizacao.entity';
@@ -32,6 +32,7 @@ export interface ILancamento {
   status: LancamentoStatus;
   createdAt: Date;
   updatedAt: Date;
+  deletedAt: Date;
 }
 
 @Entity('lancamento')
@@ -146,6 +147,11 @@ export class Lancamento extends EntityHelper implements ILancamento {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  /** Como são dados de pagamento, caso se delete um Lançamento o dado permanece no banco para auditoria */
+  @DeleteDateColumn()
+  @Exclude()
+  deletedAt: Date;
+
   /** Coluna virtual */
   @Exclude()
   @Transform(({ value }) => (value === null ? null : ((da = value as DetalheA) => ({ id: da.id, ocorrenciasCnab: da.ocorrenciasCnab, numeroDocumentoEmpresa: da.numeroDocumentoEmpresa }))()))
@@ -227,6 +233,7 @@ export class Lancamento extends EntityHelper implements ILancamento {
       status: `${table ? `${table}.` : ''}"status"`, // string,
       createdAt: `${table ? `${table}.` : ''}"createdAt"`, // Date,
       updatedAt: `${table ? `${table}.` : ''}"updatedAt"`, // Date,
+      deletedAt: `${table ? `${table}.` : ''}"deletedAt"`, // Date,
     };
   }
 
@@ -250,5 +257,6 @@ export class Lancamento extends EntityHelper implements ILancamento {
     status: 'VARCHAR',
     createdAt: 'TIMESTAMP',
     updatedAt: 'TIMESTAMP',
+    deletedAt: 'TIMESTAMP',
   };
 }

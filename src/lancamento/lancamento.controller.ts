@@ -172,7 +172,7 @@ export class LancamentoController {
   }
 
   @Delete('/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
@@ -182,6 +182,6 @@ export class LancamentoController {
   )
   @ApiBearerAuth()
   async deleteId(@Param('id') id: number) {
-    return await this.lancamentoService.delete(id);
+    return await this.lancamentoService.deleteId(id);
   }
 }

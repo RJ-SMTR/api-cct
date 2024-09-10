@@ -104,7 +104,7 @@ export class LancamentoRepository {
     return this.findMany();
   }
 
-  delete(id: number): Promise<DeleteResult> {
-    return this.lancamentoRepository.delete(id);
+  softDelete(id: number): Promise<DeleteResult> {
+    return this.lancamentoRepository.softDelete(id);
   }
 }

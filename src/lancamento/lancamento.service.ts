@@ -164,8 +164,15 @@ export class LancamentoService {
     return lancamento;
   }
 
-  async delete(id: number): Promise<void> {
-    await this.lancamentoRepository.delete(id);
+  async deleteId(id: number): Promise<void> {
+    const toDelete = await this.lancamentoRepository.findOne({ where: { id } });
+    if (!toDelete) {
+      throw new HttpException('Lançamento a ser deletado não existe.', HttpStatus.NOT_FOUND);
+    }
+    if (toDelete.status !== LancamentoStatus._1_criado) {
+      throw new HttpException('Apenas é permitido deletar Lançamentos com status criado.', HttpStatus.NOT_ACCEPTABLE);
+    }
+    await this.lancamentoRepository.softDelete(id);
   }
 
   getMonthDateRange(year: number, month: number, period: number): [Date, Date] {
