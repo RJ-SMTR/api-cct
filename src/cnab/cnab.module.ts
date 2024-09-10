@@ -6,7 +6,7 @@ import { PagamentosPendentesRepository } from 'src/cnab/repository/pagamento/pag
 import { LancamentoModule } from 'src/lancamento/lancamento.module';
 import { SettingsModule } from 'src/settings/settings.module';
 import { SftpModule } from 'src/sftp/sftp.module';
-import { TransacaoViewModule } from 'src/transacao-bq/transacao-view.module';
+import { TransacaoViewModule } from 'src/transacao-view/transacao-view.module';
 import { UsersModule } from 'src/users/users.module';
 import { CnabController } from './cnab.controller';
 import { CnabService } from './cnab.service';

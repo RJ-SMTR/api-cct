@@ -1,18 +1,9 @@
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpException,
-  HttpStatus
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { formatError } from 'src/utils/log-utils';
 import { getCustomValidationOptions } from '../custom-validation-options';
-import {
-  CustomHttpExceptionResponse,
-  HttpExceptionResponse,
-} from '../interfaces/http-exception-response.interface';
+import { CustomHttpExceptionResponse, HttpExceptionResponse } from '../interfaces/http-exception-response.interface';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -31,29 +22,25 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const error = exception instanceof Error ? (exception as Error) : undefined;
     this.logger.error(this.getErrorLogSummary(responseData), error?.stack);
 
-    response.status(responseData.statusCode).json(
-      responseData?.response || {
-        status: responseData.statusCode,
-        ...responseData.clientMessage,
-        timestamp: responseData.timestamp,
-      },
-    );
+    const responseJson = responseData?.response || {
+      status: responseData.statusCode,
+      ...responseData.clientMessage,
+      timestamp: responseData.timestamp,
+    };
+    response.status(responseData.statusCode).json(responseJson);
   }
 
-  private getResponseData(kwargs: {
-    exception: unknown;
-    request: Request;
-  }): CustomHttpExceptionResponse {
+  private getResponseData(kwargs: { exception: unknown; request: Request }): CustomHttpExceptionResponse {
     const { exception, request } = kwargs;
     let responseData: CustomHttpExceptionResponse = {
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      statusCode: (exception as any)?.status || HttpStatus.INTERNAL_SERVER_ERROR,
       uri: request.url,
       method: request.method,
       timestamp: new Date(),
     };
 
     if (exception instanceof HttpException) {
-      const httpResponse = exception.getResponse() as HttpExceptionResponse;
+      const httpResponse = exception.getResponse() as HttpExceptionResponse | string;
       const customResponse = getCustomValidationOptions(httpResponse, {
         setLowestStatus: true,
         setMainMessage: true,
@@ -62,7 +49,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       responseData = {
         ...responseData,
         statusCode: exception.getStatus(),
-        ...(customResponse || httpResponse),
+        ...(customResponse || (typeof httpResponse === 'string' ? { message: httpResponse } : httpResponse)),
       };
     }
     if (responseData?.message) {
@@ -83,18 +70,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     return responseData;
   }
 
-  private getErrorLogSummary = (
-    errorResponse: CustomHttpExceptionResponse,
-    exception?: unknown,
-  ): string => {
-    const { statusCode, clientMessage, method, uri, internalMessage } =
-      errorResponse;
+  private getErrorLogSummary = (errorResponse: CustomHttpExceptionResponse, exception?: unknown): string => {
+    const { statusCode, clientMessage, method, uri, internalMessage } = errorResponse;
 
-    const errorLog = formatError(
-      `Code: ${statusCode} - ${method}: ${uri}`,
-      { ...clientMessage, ...internalMessage },
-      exception instanceof Error ? (exception as Error) : undefined,
-    );
+    const errorLog = formatError(`Code: ${statusCode} - ${method}: ${uri}`, { ...clientMessage, ...internalMessage }, exception instanceof Error ? (exception as Error) : undefined);
 
     return errorLog;
   };

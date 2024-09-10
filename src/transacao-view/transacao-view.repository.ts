@@ -84,8 +84,7 @@ export class TransacaoViewRepository {
             ita.id AS ita_id,
             tv."datetimeTransacao",
             tv."datetimeProcessamento",
-            ita."dataOrdem",
-            ita."dataCaptura"
+            ita."dataOrdem"
         FROM item_transacao_agrupado ita
         INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
         INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id

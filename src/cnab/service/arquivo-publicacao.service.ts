@@ -1,17 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { addDays, isDate, isThursday, nextFriday, startOfDay } from 'date-fns';
-import { asNumber } from 'src/utils/pipe-utils';
+import { compactQuery } from 'src/utils/console-utils';
+import { EntityHelper } from 'src/utils/entity-helper';
 import { DeepPartial, FindManyOptions, QueryRunner } from 'typeorm';
+import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-bigquery.dto';
 import { ArquivoPublicacao } from '../entity/arquivo-publicacao.entity';
 import { DetalheA } from '../entity/pagamento/detalhe-a.entity';
 import { ItemTransacao } from '../entity/pagamento/item-transacao.entity';
 import { ArquivoPublicacaoRepository, IArquivoPublicacaoRawWhere } from '../repository/arquivo-publicacao.repository';
 import { OcorrenciaService } from './ocorrencia.service';
 import { ItemTransacaoService } from './pagamento/item-transacao.service';
-import { IFindPublicacaoRelatorio } from 'src/relatorio/interfaces/find-publicacao-relatorio.interface';
-import { EntityHelper } from 'src/utils/entity-helper';
-import { ArquivoPublicacaoBigqueryDTO } from '../dto/arquivo-publicacao-bigquery.dto';
-import { compactQuery } from 'src/utils/console-utils';
 
 export type ArquivoPublicacaoFields = 'savePublicacaoRetorno';
 
@@ -79,11 +77,17 @@ export class ArquivoPublicacaoService {
   }
 
   public async updateManyRaw(dtos: DeepPartial<ArquivoPublicacao>[], fields: ArquivoPublicacaoFields, queryRunner: QueryRunner): Promise<ArquivoPublicacao[]> {
+    if (!dtos.length) {
+      return [];
+    }
     let fieldNames: (keyof ArquivoPublicacao)[] = [];
     if (fields == 'savePublicacaoRetorno') {
       fieldNames = ['id', 'isPago', 'valorRealEfetivado', 'dataEfetivacao', 'dataGeracaoRetorno'];
     }
     const fieldValues = dtos.map((dto) => `(${EntityHelper.getQueryFieldValues(dto, fieldNames, ArquivoPublicacao.sqlFieldTypes)})`).join(', ');
+    // const reference: keyof IArquivoPublicacao = 'id';
+    // const updatedAt: keyof IArquivoPublicacao = 'updatedAt';
+    // const query = EntityHelper.getQueryUpdate('arquivo_publicacao', dtos, fieldNames, ArquivoPublicacao.sqlFieldTypes, reference, updatedAt);
     const query = `
     UPDATE arquivo_publicacao
     SET ${fieldNames.map((f) => `"${f}" = sub.${f == 'id' ? '_id' : `"${f}"`}`).join(', ')}, "updatedAt" = NOW()

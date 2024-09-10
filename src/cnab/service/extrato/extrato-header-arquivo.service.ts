@@ -89,23 +89,23 @@ export class ExtratoHeaderArquivoService {
         : PagadorContaEnum.ContaBilhetagem;
 
     const query =  `
-    SELECT dthe."dataLancamento",
-      dthe.nsr AS processo,
-      'Doc:'|| dthe."numeroInscricao"||'Ag.: '|| dthe.agencia || '-' || dthe."dvAgencia"||
-      'Conta: '|| dthe.conta ||'-'|| dthe."dvConta" AS lancamento, 
-      'Doc: '||dthe."numeroInscricao"||'Ag.: '||dthe.agencia||'-'||dthe."dvAgencia"||
-      'Conta: '||dthe.conta||'-'||dthe."dvConta" AS operacao,
-      dthe."tipoLancamento" AS tipo,
-      dthe."valorLancamento" AS valor
+    SELECT ede."dataLancamento",
+      ede.nsr AS processo,
+      'Doc:'|| ede."numeroInscricao"||'Ag.: '|| ede.agencia || '-' || ede."dvAgencia"||
+      'Conta: '|| ede.conta ||'-'|| ede."dvConta" AS lancamento, 
+      'Doc: '||ede."numeroInscricao"||'Ag.: '||ede.agencia||'-'||ede."dvAgencia"||
+      'Conta: '||ede.conta||'-'||ede."dvConta" AS operacao,
+      ede."tipoLancamento" AS tipo,
+      ede."valorLancamento" AS valor
     FROM public.extrato_header_arquivo ha
     INNER JOIN public.extrato_header_lote ehl on ha.id = ehl."extratoHeaderArquivoId" 
-    INNER JOIN public.extrato_detalhe_e dthe on ehl.id = dthe."extratoHeaderLoteId" 
+    INNER JOIN public.extrato_detalhe_e ede on ehl.id = ede."extratoHeaderLoteId" 
     WHERE ha."numeroConta" = '${_conta}' ${
       _tipoLancamento
-        ? `\nAND dthe."tipoLancamento" = '${_tipoLancamento}'`
+        ? `\nAND ede."tipoLancamento" = '${_tipoLancamento}'`
         : ''
     }
-    AND dthe."dataLancamento" between '${_dt_inicio}' AND '${_dt_fim}'`;
+    AND ede."dataLancamento" between '${_dt_inicio}' AND '${_dt_fim}'`;
     return await this.entityManager.query(compactQuery(query));
   }
 }

@@ -18,7 +18,7 @@ import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-tra
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
-import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
+import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asNumber, asString } from 'src/utils/pipe-utils';
 import { Between, DataSource, DeepPartial, IsNull, Not, QueryRunner } from 'typeorm';
@@ -43,6 +43,8 @@ import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { LancamentoService } from 'src/lancamento/lancamento.service';
+import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -53,7 +55,23 @@ export class RemessaRetornoService {
     timestamp: true,
   });
 
-  constructor(private arquivoPublicacaoService: ArquivoPublicacaoService, private detalheAConfService: DetalheAConfService, private detalheAService: DetalheAService, private detalheBConfService: DetalheBConfService, private detalheBService: DetalheBService, private headerArquivoConfService: HeaderArquivoConfService, private headerArquivoService: HeaderArquivoService, private headerLoteConfService: HeaderLoteConfService, private headerLoteService: HeaderLoteService, private itemTransacaoAgService: ItemTransacaoAgrupadoService, private itemTransacaoService: ItemTransacaoService, private ocorrenciaService: OcorrenciaService, private transacaoViewService: TransacaoViewService, private dataSource: DataSource) {}
+  constructor(
+    private arquivoPublicacaoService: ArquivoPublicacaoService, //
+    private lancamentoService: LancamentoService,
+    private detalheAConfService: DetalheAConfService,
+    private detalheAService: DetalheAService,
+    private detalheBConfService: DetalheBConfService,
+    private detalheBService: DetalheBService,
+    private headerArquivoConfService: HeaderArquivoConfService,
+    private headerArquivoService: HeaderArquivoService,
+    private headerLoteConfService: HeaderLoteConfService,
+    private headerLoteService: HeaderLoteService,
+    private itemTransacaoAgService: ItemTransacaoAgrupadoService,
+    private itemTransacaoService: ItemTransacaoService,
+    private ocorrenciaService: OcorrenciaService,
+    private transacaoViewService: TransacaoViewService,
+    private dataSource: DataSource,
+  ) {}
 
   public async saveHeaderArquivoDTO(transacaoAg: TransacaoAgrupado, isConference: boolean): Promise<HeaderArquivoDTO> {
     let headerArquivoDTO;
@@ -91,8 +109,10 @@ export class RemessaRetornoService {
     const lotes: HeaderLoteDTO[] = [];
     let nsrTed = 0;
     let nsrCC = 0;
-    let loteTed;
-    let loteCC;
+    /** @type HeaderLoteDTO */
+    let loteTed: any;
+    /** @type HeaderLoteDTO */
+    let loteCC: any;
     for (const itemTransacaoAgrupado of itemTransacaoAgs) {
       const itemTransacao = await this.itemTransacaoService.findOne({
         where: {
@@ -331,20 +351,14 @@ export class RemessaRetornoService {
    * @param dataPgto O padrão é o dia de hoje. O valor será sempre >= hoje.
    * @returns null if failed ItemTransacao to CNAB */
   public async saveDetalhes104(numeroDocumento: number, headerLote: HeaderLoteDTO, itemTransacaoAg: ItemTransacaoAgrupado, nsr: number, isConference: boolean, dataPgto?: Date, isCancelamento = false, detalheAC = new DetalheA()): Promise<CnabRegistros104Pgto | null> {
-    let favorecido;
+    /** @type ClienteFavorecido */
+    let favorecido: any;
     if (itemTransacaoAg != undefined) {
-      const itemTransacao = await this.itemTransacaoService.findOne({
-        where: { itemTransacaoAgrupado: { id: itemTransacaoAg.id } },
-      });
+      const itemTransacao = await this.itemTransacaoService.findOne({ where: { itemTransacaoAgrupado: { id: itemTransacaoAg.id } } });
       favorecido = itemTransacao?.clienteFavorecido;
     } else {
       const itemTransacaoAg = detalheAC.headerLote.headerArquivo.transacaoAgrupado?.itemTransacoesAgrupado[0];
-      const itemTransacao = await this.itemTransacaoService.findOne({
-        where: {
-          itemTransacaoAgrupado: { id: itemTransacaoAg?.id },
-        },
-      });
-
+      const itemTransacao = await this.itemTransacaoService.findOne({ where: { itemTransacaoAgrupado: { id: itemTransacaoAg?.id } } });
       favorecido = itemTransacao?.clienteFavorecido;
     }
 
@@ -365,8 +379,9 @@ export class RemessaRetornoService {
       return null;
     }
 
-    if (dataPgto && dataPgto < new Date()) {
-      dataPgto = new Date();
+    let _dataPgto = dataPgto || itemTransacaoAg.dataOrdem;
+    if (_dataPgto < new Date()) {
+      _dataPgto = new Date();
     }
 
     // Save detalheA
@@ -378,14 +393,7 @@ export class RemessaRetornoService {
     detalheA.dvContaDestino.value = favorecido.dvContaCorrente;
     detalheA.nomeTerceiro.value = favorecido.nome;
     detalheA.numeroDocumentoEmpresa.value = numeroDocumento;
-
-    const fridayOrdem = itemTransacaoAg.dataOrdem;
-    detalheA.dataVencimento.value = fridayOrdem;
-    if (dataPgto === undefined) {
-      detalheA.dataVencimento.value = detalheA.dataVencimento.value;
-    } else {
-      detalheA.dataVencimento.value = dataPgto;
-    }
+    detalheA.dataVencimento.value = _dataPgto;
 
     if (!isCancelamento) {
       detalheA.valorLancamento.value = itemTransacaoAg.valor;
@@ -491,7 +499,8 @@ export class RemessaRetornoService {
    */
   public async compareRemessaToRetorno(detalheA: DetalheA, queryRunner: QueryRunner): Promise<void> {
     await this.saveOcorrenciasDetalheA(detalheA, queryRunner);
-    await this.savePublicacaoRetorno(detalheA, queryRunner);
+    await this.saveRetornoPublicacao(detalheA, queryRunner);
+    await this.saveRetornoLancamento(detalheA, queryRunner);
   }
 
   async saveOcorrenciasDetalheA(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
@@ -511,7 +520,8 @@ export class RemessaRetornoService {
     await this.ocorrenciaService.saveMany(ocorrencias, queryRunner);
   }
 
-  async savePublicacaoRetorno(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
+  /** Se o retorno for de Publicacao, atualiza */
+  async saveRetornoPublicacao(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
     const publicacoes = await this.arquivoPublicacaoService.findManyRaw({
       itemTransacaoAgrupadoId: [detalheARetorno.itemTransacaoAgrupado.id],
     });
@@ -527,6 +537,22 @@ export class RemessaRetornoService {
       publicacao.dataGeracaoRetorno = detalheARetorno.headerLote.headerArquivo.dataGeracao;
     }
     await this.arquivoPublicacaoService.updateManyRaw(publicacoes, 'savePublicacaoRetorno', queryRunner);
+  }
+
+  /** Se o retorno for de Lancamento, atualiza */
+  async saveRetornoLancamento(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
+    const lancamentos = await this.lancamentoService.find({ detalheA: { id: [detalheARetorno.id] } });
+    for (const lancamento of lancamentos) {
+      lancamento.is_pago = detalheARetorno.isPago();
+      if (lancamento.is_pago) {
+        lancamento.data_pgto = detalheARetorno.dataEfetivacao;
+        lancamento.status = LancamentoStatus._4_pago;
+      } else {
+        lancamento.data_pgto = null;
+        lancamento.status = LancamentoStatus._5_erro;
+      }
+    }
+    await this.lancamentoService.updateManyRaw(lancamentos, ['is_pago', 'data_pgto', 'status'], queryRunner);
   }
 
   async compareTransacaoViewPublicacao(detalheA: DetalheA, queryRunner: QueryRunner) {

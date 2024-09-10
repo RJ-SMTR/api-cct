@@ -6,6 +6,9 @@ on:
       - "release/*"
       - "devops"
       - "develop"
+    paths-ignore:
+      - 'README.md'
+      - 'docs'
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}

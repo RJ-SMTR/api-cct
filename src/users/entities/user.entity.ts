@@ -6,26 +6,12 @@ import { Bank } from 'src/banks/entities/bank.entity';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import {
-  AfterLoad,
-  BeforeInsert,
-  BeforeUpdate,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  DeleteDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { AfterLoad, BeforeInsert, BeforeUpdate, Column, CreateDateColumn, DeepPartial, DeleteDateColumn, Entity, Index, JoinColumn, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { FileEntity } from '../../files/entities/file.entity';
 import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
 import { UserHttpException } from 'src/utils/http-exception/user-http-exception';
+import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 
 /** uniqueConstraintName: `UQ_User_email` */
 @Entity()
@@ -168,6 +154,9 @@ export class User extends EntityHelper {
   @Column({ type: String, nullable: true })
   passValidatorId?: string;
 
+  @ManyToMany(() => Lancamento, (lancamento) => lancamento)
+  lancamentos: Lancamento[];
+
   @Expose({ name: 'aux_isRegistrationComplete' })
   aux_isRegistrationComplete(): boolean {
     return (
@@ -200,10 +189,7 @@ export class User extends EntityHelper {
       'bankAccountDigit',
     ];
 
-    return requiredFields.filter(
-      (field) =>
-        !(typeof this[field] === 'boolean' || Boolean(this[field]) === true),
-    );
+    return requiredFields.filter((field) => !(typeof this[field] === 'boolean' || Boolean(this[field]) === true));
   }
 
   @OneToMany(() => MailHistory, (mailHistory) => mailHistory.user.id, {
@@ -269,10 +255,7 @@ export class User extends EntityHelper {
    * Get field validated
    * @throws `HttpException`
    */
-  getBankAgency(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
+  getBankAgency(args?: { errorMessage?: string; httpStatusCode?: HttpStatus }): string {
     if (!this.bankAgency) {
       throw UserHttpException.invalidField('bankAgency', {
         errorMessage: args?.errorMessage,
@@ -286,10 +269,7 @@ export class User extends EntityHelper {
    * Get field validated
    * @throws `HttpException`
    */
-  getBankAgencyWithoutDigit(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
+  getBankAgencyWithoutDigit(args?: { errorMessage?: string; httpStatusCode?: HttpStatus }): string {
     const agency = this.getBankAgency(args);
     return agency.substring(0, agency.length - 1);
   }
@@ -298,10 +278,7 @@ export class User extends EntityHelper {
    * Get field validated
    * @throws `HttpException`
    */
-  getBankAgencyDigit(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
+  getBankAgencyDigit(args?: { errorMessage?: string; httpStatusCode?: HttpStatus }): string {
     const agency = this.getBankAgency(args);
     return agency.substring(agency.length - 1);
   }
@@ -310,10 +287,7 @@ export class User extends EntityHelper {
    * Get field validated
    * @throws `HttpException`
    */
-  getBankAccount(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
+  getBankAccount(args?: { errorMessage?: string; httpStatusCode?: HttpStatus }): string {
     if (!this.bankAccount) {
       throw UserHttpException.invalidField('bankAgency', {
         errorMessage: args?.errorMessage,
@@ -327,10 +301,7 @@ export class User extends EntityHelper {
    * Get field validated
    * @throws `HttpException`
    */
-  getBankAccountDigit(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
+  getBankAccountDigit(args?: { errorMessage?: string; httpStatusCode?: HttpStatus }): string {
     if (!this.bankAccountDigit) {
       throw UserHttpException.invalidField('bankAgency', {
         errorMessage: args?.errorMessage,
@@ -344,10 +315,7 @@ export class User extends EntityHelper {
    * Get field validated
    * @throws `HttpException`
    */
-  getBankCode(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): number {
+  getBankCode(args?: { errorMessage?: string; httpStatusCode?: HttpStatus }): number {
     if (!this.bankCode) {
       throw UserHttpException.invalidField('bankAgency', {
         errorMessage: args?.errorMessage,
@@ -361,10 +329,7 @@ export class User extends EntityHelper {
    * Get field validated
    * @throws `HttpException`
    */
-  getFullName(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
+  getFullName(args?: { errorMessage?: string; httpStatusCode?: HttpStatus }): string {
     if (!this.fullName) {
       throw UserHttpException.invalidField('bankAgency', {
         errorMessage: args?.errorMessage,
@@ -378,10 +343,7 @@ export class User extends EntityHelper {
    * Get field validated
    * @throws `HttpException`
    */
-  getCpfCnpj(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
+  getCpfCnpj(args?: { errorMessage?: string; httpStatusCode?: HttpStatus }): string {
     if (!this.cpfCnpj) {
       throw UserHttpException.invalidField('cpfCnpj', {
         errorMessage: args?.errorMessage,
@@ -395,10 +357,7 @@ export class User extends EntityHelper {
    * Get field validated
    * @throws `HttpException`
    */
-  getPermitCode(args?: {
-    errorMessage?: string;
-    httpStatusCode?: HttpStatus;
-  }): string {
+  getPermitCode(args?: { errorMessage?: string; httpStatusCode?: HttpStatus }): string {
     if (!this.permitCode) {
       throw UserHttpException.invalidField('permitCode', {
         errorMessage: args?.errorMessage,

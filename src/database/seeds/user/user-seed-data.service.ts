@@ -15,12 +15,8 @@ export class UserSeedDataService {
   cpfSamples: string[] = [];
   cnpjSamples: string[] = [];
 
-  constructor(
-    private configService: ConfigService,
-    private bigqueryService: BigqueryService,
-  ) {
-    this.nodeEnv = () =>
-      this.configService.getOrThrow('app.nodeEnv', { infer: true });
+  constructor(private configService: ConfigService, private bigqueryService: BigqueryService) {
+    this.nodeEnv = () => this.configService.getOrThrow('app.nodeEnv', { infer: true });
   }
 
   async getData(): Promise<UserSeedDataInterface[]> {
@@ -63,38 +59,48 @@ LIMIT 5
         fullName: 'Alexander Rivail Ruiz',
         email: 'ruiz.smtr@gmail.com',
         password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.admin),
+        role: new Role(RoleEnum.master),
         status: new Status(StatusEnum.active),
       },
       {
         fullName: 'Bernardo Marcos',
         email: 'bernardo.marcos64@gmail.com',
         password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.admin),
+        role: new Role(RoleEnum.master),
         status: new Status(StatusEnum.active),
       },
       {
         fullName: 'Gabriel Fortes',
         email: 'glfg01092001@gmail.com',
         password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.admin),
+        role: new Role(RoleEnum.master),
         status: new Status(StatusEnum.active),
       },
       {
         fullName: 'Raphael Baptista Rivas de Araújo',
         email: 'raphaelrivasbra@gmail.com',
         password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.admin),
+        role: new Role(RoleEnum.master),
         status: new Status(StatusEnum.active),
       },
       {
         fullName: 'William FL 2007',
         email: 'williamfl2007@gmail.com',
         password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.admin),
+        role: new Role(RoleEnum.master),
         status: new Status(StatusEnum.active),
       },
-      // Admin CCT
+
+      // Admin Master
+      {
+        fullName: 'Lauro Costa Silvestre',
+        email: 'laurosilvestre.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.master),
+        status: new Status(StatusEnum.active),
+      },
+
+      // Admin Vanzeiro
       {
         fullName: 'Felipe Ribeiro',
         email: 'felipe.ribeiro@prefeitura.rio',
@@ -109,8 +115,6 @@ LIMIT 5
         role: new Role(RoleEnum.admin),
         status: new Status(StatusEnum.active),
       },
-
-      // Admins
       {
         fullName: 'Jéssica Venancio Teixeira Cardoso Simas',
         email: 'jessicasimas.smtr@gmail.com',
@@ -140,13 +144,6 @@ LIMIT 5
         status: new Status(StatusEnum.active),
       },
       {
-        fullName: 'Lauro Costa Silvestre',
-        email: 'laurosilvestre.smtr@gmail.com',
-        password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.admin),
-        status: new Status(StatusEnum.active),
-      },
-      {
         fullName: 'Admin bigquery',
         email: 'admin_bigquery@example.com',
         password: 'secret',
@@ -154,7 +151,23 @@ LIMIT 5
         status: { id: StatusEnum.active } as Status,
       },
 
-      // Usuários lançamento financeiro
+      // Admin lançamento
+      {
+        fullName: 'Simone Costa',
+        email: 'simonecosta.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.admin_finan),
+        status: new Status(StatusEnum.active),
+      },
+      {
+        fullName: 'Luciana Fernandes',
+        email: 'lucianafernandes.smtr@gmail.com',
+        password: this.generateRandomPassword(),
+        role: new Role(RoleEnum.admin_finan),
+        status: new Status(StatusEnum.active),
+      },
+
+      // Usuário lançamento
       {
         fullName: 'Usuário lançamento',
         email: 'ruizalexander@id.uff.br',
@@ -190,20 +203,6 @@ LIMIT 5
         role: new Role(RoleEnum.lancador_financeiro),
         status: new Status(StatusEnum.active),
       },
-      {
-        fullName: 'Simone Costa',
-        email: 'simonecosta.smtr@gmail.com',
-        password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.admin_finan),
-        status: new Status(StatusEnum.active),
-      },
-      {
-        fullName: 'Luciana Fernandes',
-        email: 'lucianafernandes.smtr@gmail.com',
-        password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.admin_finan),
-        status: new Status(StatusEnum.active),
-      },
 
       //apagar após teste
       {
@@ -237,6 +236,7 @@ LIMIT 5
       // Development only
       ...(this.nodeEnv() === 'local' || this.nodeEnv() === 'test'
         ? ([
+            // Vanzeiros
             {
               fullName: 'Henrique Santos Template Cpf Van',
               email: 'henrique@example.com',
@@ -257,6 +257,7 @@ LIMIT 5
               role: { id: RoleEnum.user } as Role,
               status: { id: StatusEnum.active } as Status,
             },
+            // Roles
             {
               fullName: 'Usuário Teste dos Santos Oliveira',
               email: 'user@example.com',
@@ -267,79 +268,113 @@ LIMIT 5
               status: { id: StatusEnum.active } as Status,
             },
             {
-              fullName: 'Administrador Teste',
-              email: 'admin@example.com',
-              password: 'secret',
+              fullName: 'Administrador Financeiro Teste',
+              email: 'finan.admin@example.com',
+              password: 'ob>&+H%=<!?J',
               permitCode: 'permitCode_admin',
-              role: { id: RoleEnum.admin } as Role,
+              role: { id: RoleEnum.admin_finan } as Role,
               status: { id: StatusEnum.active } as Status,
             },
             {
-              fullName: 'Administrador Teste 2',
-              email: 'admin2@example.com',
-              password: 'secret',
-              permitCode: 'permitCode_admin2',
-              role: { id: RoleEnum.admin } as Role,
+              fullName: 'Lançador Financeiro Teste',
+              email: 'finan.lancador@example.com',
+              password: 'ob>&+H%=<!?J',
+              permitCode: 'permitCode_admin',
+              role: { id: RoleEnum.lancador_financeiro } as Role,
               status: { id: StatusEnum.active } as Status,
             },
             {
-              fullName: 'Queued user',
-              email: 'queued.user@example.com',
-              password: 'secret',
-              permitCode: '319274392832024',
-              role: { id: RoleEnum.user } as Role,
+              fullName: 'Aprovador Financeiro Teste',
+              email: 'finan.aprovador@example.com',
+              password: 'ob>&+H%=<!?J',
+              permitCode: 'permitCode_admin',
+              role: { id: RoleEnum.aprovador_financeiro } as Role,
               status: { id: StatusEnum.active } as Status,
-              inviteStatus: new InviteStatus(InviteStatusEnum.queued),
             },
             {
-              fullName: 'Sent user',
-              email: 'sent.user@example.com',
-              password: 'secret',
-              permitCode: '319274392832024',
-              role: { id: RoleEnum.user } as Role,
+              fullName: 'Admin Master Teste',
+              email: 'master.admin@example.com',
+              password: 'ob>&+H%=<!?J',
+              permitCode: 'permitCode_admin',
+              role: { id: RoleEnum.master } as Role,
               status: { id: StatusEnum.active } as Status,
-              inviteStatus: new InviteStatus(InviteStatusEnum.sent),
             },
-            {
-              fullName: 'Sent user with fifteen days',
-              email: 'sent15.user@example.com',
-              password: 'secret',
-              permitCode: '319274392832025',
-              role: { id: RoleEnum.user } as Role,
-              status: { id: StatusEnum.active } as Status,
-              inviteStatus: new InviteStatus(InviteStatusEnum.sent),
-            },
-            {
-              fullName: 'Used user',
-              email: 'used.user@example.com',
-              password: 'secret',
-              permitCode: '319274392832026',
-              role: { id: RoleEnum.user } as Role,
-              status: { id: StatusEnum.active } as Status,
-              inviteStatus: new InviteStatus(InviteStatusEnum.used),
-            },
-            {
-              fullName: 'Used registered user',
-              email: 'registered.user@example.com',
-              password: 'secret',
-              permitCode: '319274392832027',
-              role: { id: RoleEnum.user } as Role,
-              status: { id: StatusEnum.active } as Status,
-              inviteStatus: new InviteStatus(InviteStatusEnum.used),
-              bankCode: 104,
-              bankAgency: '1234',
-              bankAccount: '000000012345',
-              bankAccountDigit: '1',
-            },
-            {
-              fullName: 'User to update',
-              email: 'to_update.user@example.com',
-              password: 'secret',
-              permitCode: '319274392832025',
-              role: { id: RoleEnum.user } as Role,
-              status: { id: StatusEnum.active } as Status,
-              inviteStatus: new InviteStatus(InviteStatusEnum.used),
-            },
+            // {
+            //   fullName: 'Administrador Teste',
+            //   email: 'admin@example.com',
+            //   password: 'secret',
+            //   permitCode: 'permitCode_admin',
+            //   role: { id: RoleEnum.admin } as Role,
+            //   status: { id: StatusEnum.active } as Status,
+            // },
+            // {
+            //   fullName: 'Administrador Teste 2',
+            //   email: 'admin2@example.com',
+            //   password: 'secret',
+            //   permitCode: 'permitCode_admin2',
+            //   role: { id: RoleEnum.admin } as Role,
+            //   status: { id: StatusEnum.active } as Status,
+            // },
+            // // User mail status
+            // {
+            //   fullName: 'Queued user',
+            //   email: 'queued.user@example.com',
+            //   password: 'secret',
+            //   permitCode: '319274392832024',
+            //   role: { id: RoleEnum.user } as Role,
+            //   status: { id: StatusEnum.active } as Status,
+            //   inviteStatus: new InviteStatus(InviteStatusEnum.queued),
+            // },
+            // {
+            //   fullName: 'Sent user',
+            //   email: 'sent.user@example.com',
+            //   password: 'secret',
+            //   permitCode: '319274392832024',
+            //   role: { id: RoleEnum.user } as Role,
+            //   status: { id: StatusEnum.active } as Status,
+            //   inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+            // },
+            // {
+            //   fullName: 'Sent user with fifteen days',
+            //   email: 'sent15.user@example.com',
+            //   password: 'secret',
+            //   permitCode: '319274392832025',
+            //   role: { id: RoleEnum.user } as Role,
+            //   status: { id: StatusEnum.active } as Status,
+            //   inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+            // },
+            // {
+            //   fullName: 'Used user',
+            //   email: 'used.user@example.com',
+            //   password: 'secret',
+            //   permitCode: '319274392832026',
+            //   role: { id: RoleEnum.user } as Role,
+            //   status: { id: StatusEnum.active } as Status,
+            //   inviteStatus: new InviteStatus(InviteStatusEnum.used),
+            // },
+            // {
+            //   fullName: 'Used registered user',
+            //   email: 'registered.user@example.com',
+            //   password: 'secret',
+            //   permitCode: '319274392832027',
+            //   role: { id: RoleEnum.user } as Role,
+            //   status: { id: StatusEnum.active } as Status,
+            //   inviteStatus: new InviteStatus(InviteStatusEnum.used),
+            //   bankCode: 104,
+            //   bankAgency: '1234',
+            //   bankAccount: '000000012345',
+            //   bankAccountDigit: '1',
+            // },
+            // // CRUD
+            // {
+            //   fullName: 'User to update',
+            //   email: 'to_update.user@example.com',
+            //   password: 'secret',
+            //   permitCode: '319274392832025',
+            //   role: { id: RoleEnum.user } as Role,
+            //   status: { id: StatusEnum.active } as Status,
+            //   inviteStatus: new InviteStatus(InviteStatusEnum.used),
+            // },
           ] as UserSeedDataInterface[])
         : []),
     ];
@@ -347,8 +382,7 @@ LIMIT 5
 
   private generateRandomPassword(): string {
     const length = 10;
-    const charset =
-      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let password = '';
 
     for (let i = 0; i < length; i++) {

@@ -62,7 +62,7 @@ export class DetalheAService {
       numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
     });
     if (detalheA) {
-      if (detalheA.ocorrenciasCnab === undefined || detalheA.ocorrenciasCnab === '' || detalheA.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim()) {
+      if (detalheA.ocorrenciasCnab === undefined || detalheA.ocorrenciasCnab === '' || detalheA.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim() || !detalheA.dataEfetivacao) {
         const saveDetalheA = new DetalheADTO({
           id: detalheA.id,
           loteServico: Number(r.detalheA.loteServico.value),

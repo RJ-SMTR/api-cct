@@ -1,4 +1,4 @@
-import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
+import { TipoFavorecidoEnum } from 'src/cnab/enums/tipo-favorecido.enum';
 
 export interface IBigqueryFindOrdemPagamento {
   operadorCpfs?: string[];
