@@ -462,7 +462,7 @@ export class CnabService {
     const dataOrdem: [Date, Date] | undefined = dataOrdemInicial && dataOrdemFinal ? [startOfDay(dataOrdemInicial), endOfDay(dataOrdemFinal)] : undefined;
     await this.updateAllFavorecidosFromUsers();
     const newLancamentos = await this.lancamentoService.findToPay(dataOrdem);
-    const ordens = newLancamentos.map((l) => OrdemPagamentoDto.fromLancamento(l));
+    const ordens = newLancamentos.cett.map((l) => OrdemPagamentoDto.fromLancamento(l));
     await this.saveOrdens(ordens, 'cett');
   }
 

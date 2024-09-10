@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { compactQuery } from 'src/utils/console-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository, UpdateResult } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { compactQuery } from 'src/utils/console-utils';
 
 export interface IClienteFavorecidoRawWhere {
   id?: number[];
@@ -138,8 +138,8 @@ export class ClienteFavorecidoRepository {
         qb = qb[cmd()]('favorecido.tipo = :tipo', { tipo: 'consorcio' });
       }
     }
-    if (where?.cpfCnpj) {
-      qb = qb[cmd()](`favorecido.nome NOT IN (${where.cpfCnpj.not.map((i) => `'${i}'`).join(',')})`);
+    if (where?.cpfCnpj?.not?.length) {
+      qb = qb[cmd()](`favorecido."cpfCnpj" NOT IN (${where.cpfCnpj.not.map((i) => `'${i}'`).join(',')})`);
     }
 
     if (where?.limit && where?.page) {

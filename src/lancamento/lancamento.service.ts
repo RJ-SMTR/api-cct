@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestj
 import * as bcrypt from 'bcryptjs';
 import { endOfDay, endOfMonth } from 'date-fns';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { FavorecidoEmpresaCpfCnpjEnum, FavorecidoEmpresaNomeEnum } from 'src/cnab/enums/favorecido-empresa.enum';
 import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.service';
 import { UsersService } from 'src/users/users.service';
 import { compactQuery } from 'src/utils/console-utils';
@@ -14,14 +15,22 @@ import { LancamentoInputDto } from './dtos/lancamento-input.dto';
 import { ILancamento, Lancamento } from './entities/lancamento.entity';
 import { LancamentoStatus } from './enums/lancamento-status.enum';
 import { LancamentoRepository, UpdateLancamentoWhere } from './lancamento.repository';
-import { ConcessionariaNomeEnum } from 'src/cnab/enums/concessionaria-nome.enum';
 
-const validFavorecidos = [
-  String(ConcessionariaNomeEnum.CMTC), //
-  String(ConcessionariaNomeEnum.Internorte),
-  String(ConcessionariaNomeEnum.Intersul),
-  String(ConcessionariaNomeEnum.SantaCruz),
-  String(ConcessionariaNomeEnum.Transcarioca),
+/** Usado para exibição no erro */
+const validFavorecidoNames = [
+  String(FavorecidoEmpresaNomeEnum.CMTC), //
+  String(FavorecidoEmpresaNomeEnum.Internorte),
+  String(FavorecidoEmpresaNomeEnum.Intersul),
+  String(FavorecidoEmpresaNomeEnum.SantaCruz),
+  String(FavorecidoEmpresaNomeEnum.Transcarioca),
+  // ConcessionariaNomeEnum.VLT, // DESABILITADO ATÉ O MOMENTO
+];
+const validFavorecidoCpfCnpjs = [
+  String(FavorecidoEmpresaCpfCnpjEnum.CMTC), //
+  String(FavorecidoEmpresaCpfCnpjEnum.Internorte),
+  String(FavorecidoEmpresaCpfCnpjEnum.Intersul),
+  String(FavorecidoEmpresaCpfCnpjEnum.SantaCruz),
+  String(FavorecidoEmpresaCpfCnpjEnum.Transcarioca),
   // ConcessionariaNomeEnum.VLT, // DESABILITADO ATÉ O MOMENTO
 ];
 
@@ -38,14 +47,20 @@ export class LancamentoService {
   /**
    * Procura itens não usados ainda (sem Transacao Id) from current payment week (sex-qui).
    */
-  async findToPay(dataOrdemBetween?: [Date, Date]): Promise<Lancamento[]> {
-    return await this.lancamentoRepository.findMany({
+  async findToPay(dataOrdemBetween?: [Date, Date]) {
+    const found = await this.lancamentoRepository.findMany({
       where: {
         ...(dataOrdemBetween ? { data_lancamento: Between(...dataOrdemBetween) } : {}),
         itemTransacao: IsNull(),
         is_autorizado: true,
       },
     });
+    return {
+      /** Usado para Lançamento Financeiro */
+      cett: found.filter((l) => l.clienteFavorecido.cpfCnpj == String(FavorecidoEmpresaCpfCnpjEnum.VLT)),
+      /** Usado majoritariamente para Jaé */
+      contaBilhetagem: found.filter((l) => l.clienteFavorecido.cpfCnpj != String(FavorecidoEmpresaCpfCnpjEnum.VLT)),
+    };
   }
 
   async find(args?: {
@@ -104,8 +119,8 @@ export class LancamentoService {
     if (!favorecido) {
       throw CommonHttpException.message(`id_cliente_favorecido: Favorecido não encontrado no sistema`);
     }
-    if (!validFavorecidos.includes(favorecido.nome)) {
-      throw CommonHttpException.messageArgs(`id_cliente_favorecido: Favorecido não permitido para Lançamento.`, { validFavorecidos });
+    if (!validFavorecidoCpfCnpjs.includes(favorecido.cpfCnpj)) {
+      throw CommonHttpException.messageArgs(`id_cliente_favorecido: Favorecido não permitido para Lançamento.`, { validFavorecidos: validFavorecidoNames });
     }
     const lancamento = Lancamento.fromInputDto(dto);
     lancamento.clienteFavorecido = new ClienteFavorecido({ id: favorecido.id });
@@ -166,8 +181,8 @@ export class LancamentoService {
     if (!favorecido) {
       throw CommonHttpException.message('id_cliente_favorecido: Favorecido não encontrado no sistema');
     }
-    if (!validFavorecidos.includes(favorecido.nome)) {
-      throw CommonHttpException.messageArgs('id_cliente_favorecido: Favorecido não permitido para Lançamento.', { validFavorecidos });
+    if (!validFavorecidoNames.includes(favorecido.nome)) {
+      throw CommonHttpException.messageArgs('id_cliente_favorecido: Favorecido não permitido para Lançamento.', { validFavorecidos: validFavorecidoNames });
     }
     return lancamento;
   }

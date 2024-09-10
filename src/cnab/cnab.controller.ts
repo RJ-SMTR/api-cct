@@ -6,17 +6,17 @@ import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { ParseArrayPipe } from 'src/utils/pipes/parse-array.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
-import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
+import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
+import { FavorecidoEmpresaCpfCnpjEnum } from './enums/favorecido-empresa.enum';
 import { GetClienteFavorecidoConsorcioEnum } from './enums/get-cliente-favorecido-consorcio.enum';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
 import { ClienteFavorecidoService } from './service/cliente-favorecido.service';
 import { ExtratoDto } from './service/dto/extrato.dto';
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
-import { ParseArrayPipe } from 'src/utils/pipes/parse-array.pipe';
-import { ConcessionariaNomeEnum } from './enums/concessionaria-nome.enum';
 
 @ApiTags('Cnab')
 @Controller({
@@ -48,10 +48,11 @@ export class CnabController {
     @Query('limit', new ParseNumberPipe({ min: 0, optional: true })) limit: number | undefined,
     @Query('page', new ParseNumberPipe({ min: 1, optional: true })) page: number | undefined,
   ): Promise<ClienteFavorecido[]> {
+    const cpfCnpjNot: string[] = [];
     if (consorcio === GetClienteFavorecidoConsorcioEnum.Empresa) {
-      nomeNot.push(ConcessionariaNomeEnum.VLT);
+      cpfCnpjNot.push(FavorecidoEmpresaCpfCnpjEnum.VLT);
     }
-    return this.clienteFavorecidoService.getFindBy({ nome: { in: nome, not: nomeNot }, limit, page, consorcio });
+    return this.clienteFavorecidoService.getFindBy({ consorcio, cpfCnpj: { not: cpfCnpjNot }, nome: { in: nome, not: nomeNot }, limit, page });
   }
 
   @Get('extratoLancamento')

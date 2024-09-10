@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
-import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { TipoFavorecidoEnum } from 'src/cnab/enums/tipo-favorecido.enum';
+import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { User } from 'src/users/entities/user.entity';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
