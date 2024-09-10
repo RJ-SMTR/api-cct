@@ -166,7 +166,7 @@ export class RelatorioConsolidadoRepository {
                     (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
                     query = query + ` and ita."dataOrdem" between '${dataInicio}' and '${dataFim}'`;
 
-                    query = query +` and	(ap."isPago"=false  or ap."isPago" is null)  `;                 
+                    query = query +` and ap."isPago" is null `;                 
                   
                   if(favorecidoNome!==undefined && !(['Todos'].some(i=>favorecidoNome?.includes(i))))
                     query = query +` and cf.nome in('${favorecidoNome?.join("','")}')`;
@@ -200,12 +200,13 @@ export class RelatorioConsolidadoRepository {
                   inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                   inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                   inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"	  			
-                  WHERE ita."nomeConsorcio" in('STPC','STPL') `;
+                  WHERE ita."id" not in(select tv."itemTransacaoAgrupadoId" from transacao_view tv) and 
+                  ita."nomeConsorcio" in('STPC','STPL') `;
                   if(dataInicio!==undefined && dataFim!==undefined &&
                     (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
                     query = query +` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
 
-                  query = query + ` and	ap."isPago"=false `;
+                  query = query + ` and	ap."isPago" is null `;
                 
                   query = query + ` and da."ocorrenciasCnab" is null `;
                   
@@ -237,7 +238,9 @@ export class RelatorioConsolidadoRepository {
                   tv."valorTransacao" AS valor_agrupado
                   from transacao_view tv                 
                   inner join cliente_favorecido cf on cf."cpfCnpj" =tv."operadoraCpfCnpj"
-                  WHERE tv."nomeConsorcio" in('STPC','STPL')  `;
+                  WHERE tv."nomeConsorcio" in('STPC','STPL') 
+                  and tv."valorTransacao" >0 and 
+                  tv."itemTransacaoAgrupadoId" is null  `;
                   
                   query = query +`  and tv."datetimeTransacao" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;
                   
