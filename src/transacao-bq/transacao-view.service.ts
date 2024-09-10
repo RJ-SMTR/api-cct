@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { DataSource, DeepPartial, EntityManager, FindManyOptions, QueryRunner } from 'typeorm';
+import { DeepPartial, EntityManager, FindManyOptions, QueryRunner } from 'typeorm';
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
 import { IFindRawWhere, TransacaoViewRepository } from './transacao-view.repository';
