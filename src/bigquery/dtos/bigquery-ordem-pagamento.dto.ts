@@ -25,6 +25,16 @@ export class BigqueryOrdemPagamentoDTO {
   dataOrdem: string;
 
   /**
+   * Data de pagamento da ordem
+   *
+   * Se a dataPagamento for nula, iremos efetuar o pagamento.
+   * Senão, ignoramos o item.
+   */
+  @ValidateIf((o, v) => v !== null)
+  @IsDateString()
+  dataPagamento: string | null;
+
+  /**
    * Id de cadastro.consorcios
    *
    * id_consorcio.cnpj = CNPJ

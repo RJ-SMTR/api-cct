@@ -85,6 +85,7 @@ export class BigqueryOrdemPagamentoRepository {
     const select = `
       SELECT
         CAST(t.data_ordem AS STRING) AS dataOrdem,
+        CAST(t.data_pagamento AS STRING) AS dataPagamento,
         t.id_consorcio AS idConsorcio,
         t.consorcio,
         t.id_operadora AS idOperadora,
