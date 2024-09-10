@@ -1,13 +1,6 @@
-import {
-  IsDateString,
-  IsNotEmpty,
-  IsNumber,
-  IsNumberString,
-  IsString,
-  ValidateIf,
-} from 'class-validator';
+import { IsDateString, IsNotEmpty, IsNumber, IsNumberString, IsString, ValidateIf } from 'class-validator';
 import { isSameDay, nextFriday } from 'date-fns';
-import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
+import { TipoFavorecidoEnum } from 'src/cnab/enums/tipo-favorecido.enum';
 import { DeepPartial } from 'typeorm';
 
 /**
@@ -158,16 +151,8 @@ export class BigqueryOrdemPagamentoDTO {
 
   tipoFavorecido: TipoFavorecidoEnum | null;
 
-  public static findAgrupado(
-    ordemAgs: BigqueryOrdemPagamentoDTO[],
-    ordem: BigqueryOrdemPagamentoDTO,
-    newDataOrdem = nextFriday(new Date()),
-  ) {
-    const filtered = ordemAgs.filter(
-      (i) =>
-        isSameDay(new Date(i.dataOrdem), newDataOrdem) &&
-        i.idConsorcio === ordem.idConsorcio,
-    )[0];
+  public static findAgrupado(ordemAgs: BigqueryOrdemPagamentoDTO[], ordem: BigqueryOrdemPagamentoDTO, newDataOrdem = nextFriday(new Date())) {
+    const filtered = ordemAgs.filter((i) => isSameDay(new Date(i.dataOrdem), newDataOrdem) && i.idConsorcio === ordem.idConsorcio)[0];
     return filtered ? filtered : null;
   }
 }

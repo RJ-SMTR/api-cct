@@ -1,5 +1,4 @@
 import { Exclude } from 'class-transformer';
-import { SetValue } from 'src/utils/decorators/set-value.decorator';
 import { DeepPartial } from 'typeorm';
 
 export class RelatorioSinteticoDto {

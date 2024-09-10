@@ -1,34 +1,32 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
-import {
-  AfterLoad,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
+import { nextFriday, nextThursday, startOfDay } from 'date-fns';
+import { OrdemPagamentoDto } from 'src/cnab/dto/pagamento/ordem-pagamento.dto';
+import { yearMonthDayToDate } from 'src/utils/date-utils';
+import { ItemTransacao } from './item-transacao.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
+import { Exclude } from 'class-transformer';
 
 /**
  * Representa um destinatário, a ser pago pelo remetente (TransacaoAgrupado).
- * 
+ *
  * Esta tabela contém a soma de todas as transações (ItemTransacao)
  * a serem feitas neste CNAB (TransacaoAgrupado).
- * 
+ *
  * Colunas:
  * - dataOrdem: sexta de pagamento (baseado no BigqueryOrdemPgto.dataOrdem (dia da ordem D+1))
- * 
+ *
  * Identificador:
  *   - TransacaoAgrupado (CNAB / remetente)
  *   - ClienteFavorecido (destinatário)
  */
 @Entity()
 export class ItemTransacaoAgrupado extends EntityHelper {
+  @Exclude()
+  private readonly FKs = ['transacaoAgrupado', 'clienteFavorecido'];
+
   constructor(dto?: DeepPartial<ItemTransacaoAgrupado>) {
     super();
     if (dto) {
@@ -39,7 +37,20 @@ export class ItemTransacaoAgrupado extends EntityHelper {
     }
   }
 
-  private readonly FKs = ['transacaoAgrupado', 'clienteFavorecido'];
+  public static fromOrdem(ordem: OrdemPagamentoDto, transacaoAg: TransacaoAgrupado) {
+    const fridayOrdem = nextFriday(nextThursday(startOfDay(yearMonthDayToDate(ordem.dataOrdem))));
+    const item = new ItemTransacaoAgrupado({
+      dataOrdem: ordem.lancamento ? ordem.dataOrdem : fridayOrdem,
+      idConsorcio: ordem.idConsorcio,
+      idOperadora: ordem.idOperadora,
+      idOrdemPagamento: ordem.idOrdemPagamento,
+      nomeConsorcio: ordem.consorcio,
+      nomeOperadora: ordem.operadora,
+      valor: ordem.valorTotalTransacaoLiquido,
+      transacaoAgrupado: transacaoAg,
+    });
+    return item;
+  }
 
   @PrimaryGeneratedColumn({
     primaryKeyConstraintName: 'PK_ItemTransacaoAgrupado_id',
@@ -50,15 +61,14 @@ export class ItemTransacaoAgrupado extends EntityHelper {
     eager: true,
   })
   @JoinColumn({
-    foreignKeyConstraintName:
-      'FK_ItemTransacaoAgrupado_transacaoAgrupado_ManyToOne',
+    foreignKeyConstraintName: 'FK_ItemTransacaoAgrupado_transacaoAgrupado_ManyToOne',
   })
   transacaoAgrupado: TransacaoAgrupado;
 
   @CreateDateColumn()
   dataProcessamento: Date;
 
-  /** Ao gravar pegamos dataOrdem */
+  /** TODO: remover, não usaremos mais pois já tem o createdAt - Ao gravar pegamos dataOrdem */
   @CreateDateColumn()
   dataCaptura: Date;
 
@@ -105,13 +115,15 @@ export class ItemTransacaoAgrupado extends EntityHelper {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  /** Não é uma coluna, usado apenas para consulta no ORM. */
+  @OneToMany(() => ItemTransacao, (it) => it.itemTransacaoAgrupado)
+  itemTransacoes: ItemTransacao[];
+
   public getLogInfo(): string {
     return `#{ idOP: ${this.idOrdemPagamento}, op: ${this.idOperadora}, co: ${this.idConsorcio} }`;
   }
 
-  public static getUniqueIdJae(
-    entity: DeepPartial<ItemTransacaoAgrupado>,
-  ): string {
+  public static getUniqueIdJae(entity: DeepPartial<ItemTransacaoAgrupado>): string {
     return `${entity.idOrdemPagamento}|${entity.idConsorcio}|${entity.idOperadora}`;
   }
 

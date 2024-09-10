@@ -17,9 +17,9 @@
 // import { UsersService } from 'src/users/users.service';
 // import { DeepPartial } from 'typeorm';
 // import { CnabService } from '../../cnab.service';
-// import { TransacaoViewService } from 'src/transacao-bq/transacao-view.service';
+// import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 // import { TestUtils } from '../../../utils/test-utils';
-// import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
+// import { TransacaoView } from 'src/transacao-view/transacao-view.entity';
 // import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 // import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 

@@ -93,9 +93,9 @@ export class DetalheARepository {
           da.id, da."createdAt", da."dataEfetivacao", da."dataVencimento", da."finalidadeDOC",
           da."indicadorBloqueio", da."indicadorFormaParcelamento", da."loteServico", da.nsr,
           da."numeroDocumentoBanco", da."numeroDocumentoEmpresa", da."numeroParcela",
-          da."ocorrenciasCnab", da."periodoVencimento", da."quantidadeMoeda",
-          da."quantidadeParcelas", da."tipoMoeda", da."updatedAt", da."valorLancamento",
-          da."valorRealEfetivado",
+          da."ocorrenciasCnab", da."periodoVencimento", da."quantidadeMoeda"::FLOAT,
+          da."quantidadeParcelas", da."tipoMoeda", da."updatedAt", da."valorLancamento"::FLOAT,
+          da."valorRealEfetivado"::FLOAT,
           json_build_object(
               'id', da."itemTransacaoAgrupadoId",
               'transacaoAgrupado', json_build_object(

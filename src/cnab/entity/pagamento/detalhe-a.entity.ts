@@ -148,7 +148,7 @@ export class DetalheA extends EntityHelper {
 
   public isPago() {
     const errors = Ocorrencia.getErrorCodesFromString(this.ocorrenciasCnab || '');
-    return errors.length === 0;
+    return errors.length === 0 && Boolean(this.ocorrenciasCnab?.length);
   }
 
   public static getOcorrenciaErrors(detalhes: DetalheA[]) {

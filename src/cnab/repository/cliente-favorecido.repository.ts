@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { compactQuery } from 'src/utils/console-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, Repository, UpdateResult } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
-import { compactQuery } from 'src/utils/console-utils';
 
 export interface IClienteFavorecidoRawWhere {
   id?: number[];
@@ -15,6 +14,15 @@ export interface IClienteFavorecidoRawWhere {
   cpfCnpj?: string;
   /** numeroDocumentoEmpresa */
   detalheANumeroDocumento?: number[];
+}
+
+export interface IClienteFavorecidoFindBy {
+  /** ILIKE unaccent */
+  nome?: { in?: string[]; not?: string[] };
+  consorcio?: string;
+  cpfCnpj?: { not: string[] };
+  limit?: number;
+  page?: number;
 }
 
 @Injectable()
@@ -97,6 +105,7 @@ export class ClienteFavorecidoRepository {
   public async findManyBy(where?: IClienteFavorecidoFindBy): Promise<ClienteFavorecido[]> {
     let isFirstWhere = false;
     let qb = this.clienteFavorecidoRepository.createQueryBuilder('favorecido');
+
     function cmd() {
       if (isFirstWhere) {
         isFirstWhere = false;
@@ -105,19 +114,39 @@ export class ClienteFavorecidoRepository {
         return 'andWhere';
       }
     }
-    if (where?.nome?.length) {
-      for (const nome of where.nome) {
+
+    if (where?.nome?.in?.length) {
+      for (const nome of where.nome?.in) {
         qb = qb[cmd()]('favorecido."nome" ILIKE UNACCENT(UPPER(:nome))', {
           nome: `%${nome}%`,
         });
       }
+    }
+    if (where?.nome?.not?.length) {
+      for (const nome of where.nome.not as string[]) {
+        qb = qb[cmd()]('favorecido."nome" NOT ILIKE UNACCENT(UPPER(:nome))', {
+          nome: `%${nome}%`,
+        });
+      }
+    }
+
+    if (where?.consorcio) {
+      const consorcio = where.consorcio;
+      if (consorcio === 'Van') {
+        qb = qb[cmd()]('favorecido.tipo = :tipo', { tipo: 'vanzeiro' });
+      } else if (consorcio === 'Empresa') {
+        qb = qb[cmd()]('favorecido.tipo = :tipo', { tipo: 'consorcio' });
+      }
+    }
+    if (where?.cpfCnpj?.not?.length) {
+      qb = qb[cmd()](`favorecido."cpfCnpj" NOT IN (${where.cpfCnpj.not.map((i) => `'${i}'`).join(',')})`);
     }
 
     if (where?.limit && where?.page) {
       const skip = where?.limit * (where?.page - 1);
       qb = qb.take(where?.limit).skip(skip);
     }
-    qb = qb.orderBy('"id"', 'ASC');
+    qb = qb.orderBy('"nome"', 'ASC');
 
     const result = await qb.getMany();
     return result;
@@ -148,9 +177,13 @@ export class ClienteFavorecidoRepository {
       compactQuery(`
       SELECT cf.*
       FROM cliente_favorecido cf
-      ${where?.detalheANumeroDocumento ? `INNER JOIN item_transacao it ON it."clienteFavorecidoId" = cf.id
+      ${
+        where?.detalheANumeroDocumento
+          ? `INNER JOIN item_transacao it ON it."clienteFavorecidoId" = cf.id
       INNER JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
-      INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id` : ''}
+      INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id`
+          : ''
+      }
       ${qWhere.query}
       ORDER BY cf.id
     `),

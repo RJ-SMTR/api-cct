@@ -1,28 +1,24 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
-import { LancamentoEntity } from 'src/lancamento/lancamento.entity';
-import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
+import { TipoFavorecidoEnum } from 'src/cnab/enums/tipo-favorecido.enum';
+import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { User } from 'src/users/entities/user.entity';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { asString } from 'src/utils/pipe-utils';
 import { parseStringUpperUnaccent } from 'src/utils/string-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { FindManyOptions, FindOneOptions, In } from 'typeorm';
+import { FindOneOptions, In } from 'typeorm';
 import { SaveClienteFavorecidoDTO } from '../dto/cliente-favorecido.dto';
 import { ClienteFavorecido } from '../entity/cliente-favorecido.entity';
-import { ClienteFavorecidoRepository, IClienteFavorecidoRawWhere } from '../repository/cliente-favorecido.repository';
-import { IClienteFavorecidoFindBy } from '../interfaces/cliente-favorecido-find-by.interface';
+import { ClienteFavorecidoRepository, IClienteFavorecidoFindBy, IClienteFavorecidoRawWhere } from '../repository/cliente-favorecido.repository';
 
 @Injectable()
 export class ClienteFavorecidoService {
-  private logger: Logger = new Logger('ClienteFavorecidoService', {
-    timestamp: true,
-  });
+  private logger: Logger = new CustomLogger('ClienteFavorecidoService', { timestamp: true });
 
-  constructor(
-    private clienteFavorecidoRepository: ClienteFavorecidoRepository,
-  ) {}
+  constructor(private clienteFavorecidoRepository: ClienteFavorecidoRepository) {}
 
   /**
    * All ClienteFavoecidos will be created or updated from users based of cpfCnpj.
@@ -43,9 +39,7 @@ export class ClienteFavorecidoService {
     await this.clienteFavorecidoRepository.upsert(newFavorecidos);
   }
 
-  public async findBy(
-    where?: IClienteFavorecidoFindBy,
-  ): Promise<ClienteFavorecido[]> {
+  public async getFindBy(where?: IClienteFavorecidoFindBy): Promise<ClienteFavorecido[]> {
     return await this.clienteFavorecidoRepository.findManyBy(where);
   }
 
@@ -55,10 +49,8 @@ export class ClienteFavorecidoService {
     });
   }
 
-  public async findManyFromLancamentos(
-    lancamentos: LancamentoEntity[],
-  ): Promise<ClienteFavorecido[]> {
-    const ids = [...new Set(lancamentos.map((i) => i.id_cliente_favorecido))];
+  public async findManyFromLancamentos(lancamentos: Lancamento[]): Promise<ClienteFavorecido[]> {
+    const ids = [...new Set(lancamentos.map((i) => i.clienteFavorecido))];
     return await this.clienteFavorecidoRepository.findMany({
       where: {
         id: In(ids),
@@ -66,17 +58,8 @@ export class ClienteFavorecidoService {
     });
   }
 
-  public async findManyFromOrdens(
-    ordens: BigqueryOrdemPagamentoDTO[],
-  ): Promise<ClienteFavorecido[]> {
-    const documentos = ordens.reduce(
-      (l, i) => [
-        ...l,
-        ...(i.consorcioCnpj ? [i.consorcioCnpj] : []),
-        ...(i.operadoraCpfCnpj ? [i.operadoraCpfCnpj] : []),
-      ],
-      [],
-    );
+  public async findManyFromOrdens(ordens: BigqueryOrdemPagamentoDTO[]): Promise<ClienteFavorecido[]> {
+    const documentos = ordens.reduce((l, i) => [...l, ...(i.consorcioCnpj ? [i.consorcioCnpj] : []), ...(i.operadoraCpfCnpj ? [i.operadoraCpfCnpj] : [])], []);
     const uniqueDocumentos = [...new Set(documentos)];
     return await this.clienteFavorecidoRepository.findMany({
       where: {
@@ -93,18 +76,12 @@ export class ClienteFavorecidoService {
     return await this.clienteFavorecidoRepository.findAll();
   }
 
-  public async getOneByIdClienteFavorecido(
-    idClienteFavorecido: number,
-  ): Promise<ClienteFavorecido> {
+  public async getOneByIdClienteFavorecido(idClienteFavorecido: number): Promise<ClienteFavorecido> {
     const cliente_favorecido = await this.clienteFavorecidoRepository.getOne({
       id: idClienteFavorecido,
     });
     if (!cliente_favorecido) {
-      throw CommonHttpException.errorDetails(
-        'cliente_favorecido.conta not found',
-        { pagadorConta: idClienteFavorecido },
-        HttpStatus.NOT_FOUND,
-      );
+      throw CommonHttpException.errorDetails('cliente_favorecido.conta not found', { pagadorConta: idClienteFavorecido }, HttpStatus.NOT_FOUND);
     } else {
       return cliente_favorecido;
     }
@@ -113,20 +90,13 @@ export class ClienteFavorecidoService {
   public async getClienteFavorecido(): Promise<ClienteFavorecido[]> {
     const cliente_favorecido = await this.clienteFavorecidoRepository.findAll();
     if (!cliente_favorecido) {
-      throw CommonHttpException.errorDetails(
-        'cliente_favorecido.conta not found',
-        {},
-        HttpStatus.NOT_FOUND,
-      );
+      throw CommonHttpException.errorDetails('cliente_favorecido.conta not found', {}, HttpStatus.NOT_FOUND);
     } else {
       return cliente_favorecido;
     }
   }
 
-  private async getManyFavorecidoDTOsFromUsers(
-    users: User[],
-    existingId_facorecido?: number,
-  ): Promise<SaveClienteFavorecidoDTO[]> {
+  private async getManyFavorecidoDTOsFromUsers(users: User[], existingId_facorecido?: number): Promise<SaveClienteFavorecidoDTO[]> {
     const newItems: SaveClienteFavorecidoDTO[] = [];
     for (const user of users) {
       const newItem: SaveClienteFavorecidoDTO = {
@@ -146,7 +116,7 @@ export class ClienteFavorecidoService {
         cep: null,
         complementoCep: null,
         uf: null,
-        tipo: TipoFavorecidoEnum.operadora,
+        tipo: TipoFavorecidoEnum.van,
       };
       await validateDTO(SaveClienteFavorecidoDTO, newItem);
       newItems.push(newItem);
@@ -154,10 +124,7 @@ export class ClienteFavorecidoService {
     return newItems;
   }
 
-  private async saveFavorecidoFromUser(
-    user: User,
-    existingId_facorecido?: number,
-  ): Promise<void> {
+  private async saveFavorecidoFromUser(user: User, existingId_facorecido?: number): Promise<void> {
     const saveObject: SaveClienteFavorecidoDTO = {
       id: existingId_facorecido,
       nome: asString(user.fullName),
@@ -175,22 +142,16 @@ export class ClienteFavorecidoService {
       cep: null,
       complementoCep: null,
       uf: null,
-      tipo: TipoFavorecidoEnum.operadora,
+      tipo: TipoFavorecidoEnum.van,
     };
     await validateDTO(SaveClienteFavorecidoDTO, saveObject);
     await this.clienteFavorecidoRepository.save(saveObject);
   }
 
-  public async getOne(
-    fields: EntityCondition<ClienteFavorecido>,
-  ): Promise<ClienteFavorecido> {
+  public async getOne(fields: EntityCondition<ClienteFavorecido>): Promise<ClienteFavorecido> {
     const cliente = await this.clienteFavorecidoRepository.getOne(fields);
     if (!cliente) {
-      throw CommonHttpException.errorDetails(
-        'cliente_favorecido.conta not found',
-        { pagadorConta: cliente },
-        HttpStatus.NOT_FOUND,
-      );
+      throw CommonHttpException.errorDetails('cliente_favorecido.conta not found', { pagadorConta: cliente }, HttpStatus.NOT_FOUND);
     } else {
       return cliente;
     }
@@ -200,12 +161,10 @@ export class ClienteFavorecidoService {
     return await this.clienteFavorecidoRepository.findOneByNome(nome);
   }
 
-  public async findOne(
-    options: FindOneOptions<ClienteFavorecido>,
-  ): Promise<ClienteFavorecido | null> {
+  public async findOne(options: FindOneOptions<ClienteFavorecido>): Promise<ClienteFavorecido | null> {
     return await this.clienteFavorecidoRepository.findOne(options);
   }
-  
+
   public async findOneRaw(where: IClienteFavorecidoRawWhere): Promise<ClienteFavorecido | null> {
     const result = await this.clienteFavorecidoRepository.findManyRaw(where);
     return result?.[0] || null;

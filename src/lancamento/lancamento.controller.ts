@@ -1,26 +1,20 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Post,
-  Put,
-  Query,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
-import { LancamentoDto } from './dtos/lancamentoDto';
-import { ItfLancamento } from './interfaces/lancamento.interface';
-import { LancamentoService } from './lancamento.service';
+import { ApiDescription } from 'src/utils/api-param/description-api-param';
+import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
+import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
+import { LancamentoInputDto } from './dtos/lancamento-input.dto';
+import { Lancamento } from './entities/lancamento.entity';
+import { LancamentoService } from './lancamento.service';
+import { LancamentoStatus } from './enums/lancamento-status.enum';
+import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
+import { ParseArrayPipe } from 'src/utils/pipes/parse-array.pipe';
+import { IRequest } from 'src/utils/interfaces/request.interface';
 
 @ApiTags('Lancamento')
 @Controller({
@@ -30,108 +24,71 @@ import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 export class LancamentoController {
   constructor(private readonly lancamentoService: LancamentoService) {}
 
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(
-    RoleEnum.master,
-    RoleEnum.admin_finan,
-    RoleEnum.lancador_financeiro,
-    RoleEnum.aprovador_financeiro,
-  )
   @Get('/')
-  @ApiQuery({
-    name: 'mes',
-    type: Number,
-    required: false,
-    description: 'Mês do lançamento',
-  })
-  @ApiQuery({
-    name: 'periodo',
-    type: Number,
-    required: false,
-    description:
-      'Período do lançamento. primeira quinzena ou segunda quinzena.',
-  })
-  @ApiQuery({
-    name: 'ano',
-    type: Number,
-    required: false,
-    description: 'Ano do lançamento.',
-  })
-  @ApiQuery({
-    name: 'autorizado',
-    type: Number,
-    required: false,
-    description:
-      'use 1 ou 0 (ou deixe vazio) para filtrar por autorizado ou não autorizado.',
-  })
   @HttpCode(HttpStatus.OK)
-  async getLancamento(
-    @Request() request,
-    @Query('mes') mes: number,
-    @Query('periodo') periodo: number,
-    @Query('ano') ano: number,
-    @Query('autorizado') authorized: number,
-  ): Promise<ItfLancamento[]> {
-    return await this.lancamentoService.findByPeriod(
-      mes,
-      periodo,
-      ano,
-      authorized,
-    );
-  }
-  
-
-  @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
-    RoleEnum.master,
+    RoleEnum.master, //
     RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'periodo', type: Number, required: false, description: ApiDescription({ _: 'Período do lançamento. Primeira quinzena (dias 1-15) ou segunda quinzena (dias 16 até o fim do mês).', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date", min: 1, max: 2 }) })
+  @ApiQuery({ name: 'mes', type: Number, required: false, description: ApiDescription({ _: 'Mês do lançamento', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
+  @ApiQuery({ name: 'ano', type: Number, required: false, description: ApiDescription({ _: 'Ano do lançamento.', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
+  @ApiQuery({ name: 'autorizado', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
+  @ApiQuery({ name: 'pago', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
+  @ApiQuery({ name: 'status', enum: LancamentoStatus, required: false, description: 'Fitra por status.' })
+  async get(
+    @Request() request, //
+    @Query('periodo', new ParseNumberPipe({ min: 1, max: 2, optional: true })) periodo: number | undefined,
+    @Query('mes', new ParseNumberPipe({ min: 1, max: 12, optional: true })) mes: number | undefined,
+    @Query('ano') ano: number | undefined,
+    @Query('autorizado', new ParseBooleanPipe({ optional: true })) autorizado: boolean | undefined,
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('status', new ParseEnumPipe(LancamentoStatus, { optional: true })) status: LancamentoStatus | undefined,
+  ): Promise<Lancamento[]> {
+    return await this.lancamentoService.find({ mes, periodo, ano, autorizado, pago, status });
+  }
+
   @Get('/getbystatus')
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    description: 'use 1 ou 0 para autorizado ou não autorizado.',
-  })
   @HttpCode(HttpStatus.OK)
-  async getByStatus(
-    @Request() request,
-    @Query('status') status: number,
-  ): Promise<ItfLancamento[]> {
-    return await this.lancamentoService.findByStatus(status);
-  }
-
-  @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
-    RoleEnum.master,
+    RoleEnum.master, //
     RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
+  @ApiOperation({ description: 'Pesquisar Lançamentos pelo status' })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'autorizado', type: Boolean, required: true, description: 'Fitra se foi autorizado ou não.' })
+  async getByStatus(
+    @Request() request, //
+    @Query('autorizado', new ParseBooleanPipe()) autorizado: boolean | undefined,
+  ): Promise<Lancamento[]> {
+    const _autorizado = autorizado as boolean;
+    return await this.lancamentoService.findByStatus(_autorizado);
+  }
+
   @Get('/getValorAutorizado')
-  @ApiQuery({
-    name: 'mes',
-    required: true,
-    description: 'Mês do lançamento',
-  })
-  @ApiQuery({
-    name: 'periodo',
-    required: true,
-    description:
-      'Período do lançamento. primeira quinzena ou segunda quinzena.',
-  })
-  @ApiQuery({
-    name: 'ano',
-    required: true,
-    description: 'Ano do lançamento.',
-  })
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.master, //
+    RoleEnum.admin_finan,
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro,
+  )
+  @ApiOperation({ description: 'Obter a soma dos valores dos Lançamentos.' })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'mes', required: true, description: 'Mês do lançamento' })
+  @ApiQuery({ name: 'periodo', required: true, description: 'Período do lançamento. Primeira quinzena (dias 1-15) ou segunda quinzena (dias 16 até o fim do mês).' })
+  @ApiQuery({ name: 'ano', required: true, description: 'Ano do lançamento.' })
+  @ApiOperation({ description: `Inclui uma autorização do usuário autenticado para o Lançamento.` })
   async getValorAutorizado(
-    @Request() request,
+    @Request() request, //
     @Query('mes') mes: number,
     @Query('periodo') periodo: number,
     @Query('ano') ano: number,
@@ -139,95 +96,93 @@ export class LancamentoController {
     return await this.lancamentoService.getValorAutorizado(mes, periodo, ano);
   }
 
-  @ApiBearerAuth()
+  @Post('/create')
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
-    RoleEnum.master,
+    RoleEnum.master, //
     RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
-  @ApiBody({ type: LancamentoDto })
-  @HttpCode(HttpStatus.CREATED)
-  @Post('/create')
+  @ApiBearerAuth()
+  @ApiBody({ type: LancamentoInputDto })
   async postCreateLancamento(
-    @Request() req: any,
-    @Body() lancamentoData: LancamentoDto, // It was ItfLancamento
-  ): Promise<ItfLancamento> {
-    const userId = req.user.id;
-    const createdLancamento = await this.lancamentoService.create(
-      lancamentoData,
-      userId,
-    );
-    return createdLancamento.toItfLancamento();
+    @Request() req: any, //
+    @Body() lancamentoDto: LancamentoInputDto,
+  ): Promise<Lancamento> {
+    lancamentoDto.author = { id: req.user.id };
+    const createdLancamento = await this.lancamentoService.create(lancamentoDto);
+    return createdLancamento;
   }
 
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(RoleEnum.master, RoleEnum.admin_finan, RoleEnum.aprovador_financeiro)
   @Put('/authorize')
-  @ApiQuery({
-    name: 'lancamentoId',
-    required: true,
-    description: 'Id do lançamento',
-  })
-  @ApiBody({ type: AutorizaLancamentoDto })
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.master, //
+    RoleEnum.admin_finan,
+    RoleEnum.aprovador_financeiro,
+  )
+  @ApiOperation({ description: `Inclui uma autorização do usuário autenticado para o Lançamento.` })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'lancamentoId', required: true, description: 'Id do lançamento' })
+  @ApiBody({ type: AutorizaLancamentoDto })
   async putAutorizarPagamento(
-    @Request() req,
+    @Request() req, //
     @Body() autorizaLancamentoDto: AutorizaLancamentoDto,
   ) {
     const userId = req.user.id;
     const lancamentoId = req.query.lancamentoId;
-    return await this.lancamentoService.autorizarPagamento(
-      userId,
-      lancamentoId,
-      autorizaLancamentoDto,
-    );
+    return await this.lancamentoService.autorizarPagamento(userId, lancamentoId, autorizaLancamentoDto);
   }
 
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(
-    RoleEnum.master,
-    RoleEnum.admin_finan,
-    RoleEnum.lancador_financeiro,
-    RoleEnum.aprovador_financeiro,
-  )
   @Put('/')
-  @ApiBody({ type: LancamentoDto })
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({
-    name: 'lancamentoId',
-    required: true,
-    description: 'Id do lançamento',
-  })
-  async atualizaLancamento(
-    @Request() req,
-    @Body() lancamentoData: LancamentoDto, // It was ItfLancamento
-  ) {
-    const id = req.query.lancamentoId;
-    const userId = req.user.id;
-    return await this.lancamentoService.update(id, lancamentoData, userId);
-  }
-
-  @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
-    RoleEnum.master,
+    RoleEnum.master, //
     RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
+  @ApiBearerAuth()
+  @ApiBody({ type: LancamentoInputDto })
+  @ApiQuery({ name: 'lancamentoId', required: true, description: 'Id do lançamento' })
+  async putLancamento(
+    @Request() req: IRequest,
+    @Query('lancamentoId', new ParseNumberPipe({ min: 1 })) lancamentoId: number,
+    @Body() lancamentoDto: LancamentoInputDto, // It was ItfLancamento
+  ) {
+    lancamentoDto.author = { id: req.user.id };
+    return await this.lancamentoService.updateDto(lancamentoId, lancamentoDto);
+  }
+
   @Get('/:id')
   @HttpCode(HttpStatus.OK)
-  async getById(@Param('id') id: number) {
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.master, //
+    RoleEnum.admin_finan,
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro,
+  )
+  @ApiBearerAuth()
+  async getId(@Param('id') id: number) {
     return await this.lancamentoService.getById(id);
   }
 
   @Delete('/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteById(@Param('id') id: number) {
-    return await this.lancamentoService.delete(id);
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleEnum.master, //
+    RoleEnum.admin_finan,
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro,
+  )
+  @ApiBearerAuth()
+  async deleteId(@Param('id') id: number) {
+    return await this.lancamentoService.deleteId(id);
   }
 }
