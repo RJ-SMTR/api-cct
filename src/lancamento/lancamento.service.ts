@@ -106,6 +106,10 @@ export class LancamentoService {
       throw new HttpException('Lançamento não encontrado.', HttpStatus.NOT_FOUND);
     }
 
+    if (lancamento.status !== LancamentoStatus._1_criado) {
+      throw new HttpException(`Apenas lançamentos com status '${LancamentoStatus._1_criado}' podem ser aprovados. Status encontrado: '${lancamento.status}'.)`, HttpStatus.PRECONDITION_FAILED);
+    }
+
     const user = await this.usersService.findOne({ id: userId });
     if (!user) {
       throw new HttpException('Usuário não encontrado', HttpStatus.UNAUTHORIZED);
