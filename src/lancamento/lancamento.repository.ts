@@ -1,7 +1,14 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, Repository, SaveOptions } from 'typeorm';
+import { Brackets, DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, ObjectLiteral, QueryRunner, Repository, SaveOptions, UpdateResult } from 'typeorm';
 import { Lancamento } from './entities/lancamento.entity';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { LancamentoStatus } from './enums/lancamento-status.enum';
+import { compactQuery } from 'src/utils/console-utils';
+
+export interface UpdateLancamentoWhere {
+  transacaoAgrupadoId: number;
+}
 
 @Injectable()
 export class LancamentoRepository {
@@ -18,21 +25,45 @@ export class LancamentoRepository {
     return this.lancamentoRepository.save(entity, options);
   }
 
+  async updateRaw(set: DeepPartial<Lancamento>, where: UpdateLancamentoWhere): Promise<UpdateResult> {
+    return await this.lancamentoRepository
+      .createQueryBuilder('lancamento')
+      .update()
+      .set(set)
+      .where(
+        compactQuery(`
+      id IN (
+          SELECT l1.id FROM lancamento l1
+          LEFT JOIN item_transacao it ON it.id = l1."itemTransacaoId"
+          LEFT JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
+          LEFT JOIN transacao_agrupado ta ON ta.id = ita."transacaoAgrupadoId"
+          WHERE ta.id = :transacaoAgrupadoId
+      )
+    `),
+        where,
+      )
+      .execute();
+  }
+
+  update(criteria: FindOptionsWhere<Lancamento>, partialEntity: QueryDeepPartialEntity<Lancamento>, queryRunner?: QueryRunner): Promise<UpdateResult> {
+    return (queryRunner?.manager?.getRepository(Lancamento) || this.lancamentoRepository).update(criteria, partialEntity);
+  }
+
   async findOne(options: FindOneOptions<Lancamento>): Promise<Lancamento | null> {
     let qb = this.lancamentoRepository
       .createQueryBuilder('lancamento') //
       .leftJoinAndSelect('lancamento.autorizacoes', 'autorizacoes')
       .leftJoinAndSelect('lancamento.autor', 'autor')
+      .leftJoinAndSelect('lancamento.clienteFavorecido', 'clienteFavorecido')
       .leftJoinAndSelect('lancamento.itemTransacao', 'itemTransacao')
       .leftJoinAndSelect('itemTransacao.itemTransacaoAgrupado', 'itemTransacaoAgrupado')
-      // .leftJoin('detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
       .leftJoinAndMapOne('lancamento.detalheA', 'detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
       .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id');
-      
-      if (options?.where) {
-        qb = qb.where(options.where);
+
+    if (options?.where) {
+      qb = qb.where(options.where);
     }
-    
+
     return await qb.getOne();
   }
 
@@ -50,13 +81,13 @@ export class LancamentoRepository {
       .createQueryBuilder('lancamento') //
       .leftJoinAndSelect('lancamento.autorizacoes', 'autorizacoes')
       .leftJoinAndSelect('lancamento.autor', 'autor')
+      .leftJoinAndSelect('lancamento.clienteFavorecido', 'clienteFavorecido')
       .leftJoinAndSelect('lancamento.itemTransacao', 'itemTransacao')
       .leftJoinAndSelect('itemTransacao.itemTransacaoAgrupado', 'itemTransacaoAgrupado')
-      // .leftJoin('detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
       .leftJoinAndMapOne('lancamento.detalheA', 'detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
       .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id');
-      
-      if (options?.where) {
+
+    if (options?.where) {
       qb = qb[!whereCount ? 'where' : 'andWhere'](options?.where);
       whereCount += 1;
     }

@@ -10,7 +10,7 @@ import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPagination } from 'src/utils/get-pagination';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { ParseEnumPipe } from 'src/utils/pipes/validate-enum.pipe';
+import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
 import { getRequestLog } from 'src/utils/request-utils';

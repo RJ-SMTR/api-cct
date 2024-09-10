@@ -6,13 +6,15 @@ import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.se
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { Between, DeepPartial, IsNull, QueryRunner } from 'typeorm';
+import { Between, DeepPartial, FindOptionsWhere, IsNull, ObjectLiteral, QueryRunner, UpdateResult } from 'typeorm';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoInputDto } from './dtos/lancamento-input.dto';
 import { ILancamento, Lancamento } from './entities/lancamento.entity';
-import { LancamentoRepository } from './lancamento.repository';
+import { LancamentoRepository, UpdateLancamentoWhere } from './lancamento.repository';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { compactQuery } from 'src/utils/console-utils';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { LancamentoStatus } from './enums/lancamento-status.enum';
 
 @Injectable()
 export class LancamentoService {
@@ -37,7 +39,15 @@ export class LancamentoService {
     });
   }
 
-  async find(args?: { mes?: number; periodo?: number; ano?: number; autorizado?: boolean; detalheA?: { id: number[] } }): Promise<Lancamento[]> {
+  async find(args?: {
+    mes?: number; //
+    periodo?: number;
+    ano?: number;
+    autorizado?: boolean;
+    pago?: boolean;
+    detalheA?: { id: number[] };
+    status?: LancamentoStatus;
+  }): Promise<Lancamento[]> {
     /** [startDate, endDate] */
     let dateRange: [Date, Date] | null = null;
     if (args?.mes && args?.periodo && args?.ano) {
@@ -49,6 +59,8 @@ export class LancamentoService {
         where: {
           ...(dateRange ? { data_lancamento: Between(...dateRange) } : {}),
           ...(args?.autorizado !== undefined ? { is_autorizado: args.autorizado } : {}),
+          ...(args?.pago !== undefined ? { is_pago: args.pago } : {}),
+          ...(args?.status ? { status: args.status } : {}),
         },
         relations: ['autorizacoes'] as (keyof ILancamento)[],
       },
@@ -113,7 +125,11 @@ export class LancamentoService {
     return await this.lancamentoRepository.save(lancamento);
   }
 
-  async update(id: number, updateDto: LancamentoInputDto): Promise<Lancamento> {
+  updateRaw(set: DeepPartial<Lancamento>, where: UpdateLancamentoWhere): Promise<UpdateResult> {
+    return this.lancamentoRepository.updateRaw(set, where);
+  }
+
+  async updateDto(id: number, updateDto: LancamentoInputDto): Promise<Lancamento> {
     const lancamento = await this.lancamentoRepository.findOne({ where: { id } });
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);

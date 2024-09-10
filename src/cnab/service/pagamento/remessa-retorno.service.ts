@@ -44,6 +44,7 @@ import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service'
 import { ItemTransacaoService } from './item-transacao.service';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
+import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -545,11 +546,13 @@ export class RemessaRetornoService {
       lancamento.is_pago = detalheARetorno.isPago();
       if (lancamento.is_pago) {
         lancamento.data_pgto = detalheARetorno.dataEfetivacao;
+        lancamento.status = LancamentoStatus._4_pago;
       } else {
         lancamento.data_pgto = null;
+        lancamento.status = LancamentoStatus._5_erro;
       }
     }
-    await this.lancamentoService.updateManyRaw(lancamentos, ['is_pago', 'data_pgto'], queryRunner);
+    await this.lancamentoService.updateManyRaw(lancamentos, ['is_pago', 'data_pgto', 'status'], queryRunner);
   }
 
   async compareTransacaoViewPublicacao(detalheA: DetalheA, queryRunner: QueryRunner) {

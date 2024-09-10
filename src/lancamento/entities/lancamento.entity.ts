@@ -1,15 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Transform } from 'class-transformer';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
+import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
 import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { LancamentoStatus } from '../enums/lancamento-status.enum';
 import { LancamentoInputDto } from '../dtos/lancamento-input.dto';
 import { LancamentoAutorizacao } from './lancamento-autorizacao.entity';
-import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
-import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 
 export interface ILancamento {
   id: number;
@@ -17,7 +18,7 @@ export interface ILancamento {
   data_ordem: Date;
   data_pgto: Date | null;
   data_lancamento: Date;
-  itemTransacao: ItemTransacao;
+  itemTransacao: ItemTransacao | null;
   autorizacoes: User[];
   autor: User;
   clienteFavorecido: ClienteFavorecido;
@@ -28,6 +29,7 @@ export interface ILancamento {
   numero_processo: string;
   is_autorizado: boolean;
   is_pago: boolean;
+  status: LancamentoStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -79,12 +81,12 @@ export class Lancamento extends EntityHelper implements ILancamento {
    *
    * uniqueConstraintName: `UQ_Lancamento_itemTransacao`
    */
-  // @Exclude()
+  @Exclude()
   @ApiProperty({ description: 'ItemTransação do CNAB remessa associado a este Lançamento' })
   @OneToOne(() => ItemTransacao, { nullable: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_itemTransacao_OneToOne' })
-  // @Transform(({ value }) => (!value ? null : (it = value as ItemTransacao) => ({ id: it.id, itemTransacaoAgrupado: { id: it.itemTransacaoAgrupado.id } })))
-  itemTransacao: ItemTransacao;
+  @Transform(({ value }) => (!value ? null : ((it = value as ItemTransacao) => ({ id: it.id, itemTransacaoAgrupado: { id: it.itemTransacaoAgrupado.id } }))()))
+  itemTransacao: ItemTransacao | null;
 
   @ManyToMany(() => User, (user) => user)
   @JoinTable({
@@ -105,7 +107,6 @@ export class Lancamento extends EntityHelper implements ILancamento {
 
   @ManyToOne(() => ClienteFavorecido, { eager: true })
   @JoinColumn({ name: 'id_cliente_favorecido', foreignKeyConstraintName: 'FK_Lancamento_idClienteFavorecido_ManyToOne' })
-  // @Expose({ name: 'id_cliente_favorecido' })
   @Transform(({ value }) => ({
     id: (value as ClienteFavorecido).id,
     nome: (value as ClienteFavorecido).nome,
@@ -133,6 +134,10 @@ export class Lancamento extends EntityHelper implements ILancamento {
   @Column({ type: Boolean, nullable: false, default: false })
   is_pago: boolean;
 
+  /** Uma forma de rastrear o estado atual do Lancamento */
+  @Column({ enum: LancamentoStatus, nullable: false, default: LancamentoStatus._1_criado })
+  status: LancamentoStatus;
+
   @Exclude()
   @CreateDateColumn()
   createdAt: Date;
@@ -142,18 +147,11 @@ export class Lancamento extends EntityHelper implements ILancamento {
   updatedAt: Date;
 
   /** Coluna virtual */
-  @Transform(({ value }) =>
-    value === null
-      ? null
-      : ((da = value as DetalheA) => ({
-          id: da.id,
-          ocorrenciasCnab: da.ocorrenciasCnab,
-          numeroDocumentoEmpresa: da.numeroDocumentoEmpresa,
-        }))(),
-  )
+  @Exclude()
+  @Transform(({ value }) => (value === null ? null : ((da = value as DetalheA) => ({ id: da.id, ocorrenciasCnab: da.ocorrenciasCnab, numeroDocumentoEmpresa: da.numeroDocumentoEmpresa }))()))
   detalheA: DetalheA | null = null;
 
-  /** Coluna virtual para consultar as ocorrências */
+  /** Coluna virtual - para consultar as ocorrências */
   ocorrencias: Ocorrencia[] = [];
 
   @AfterLoad()
@@ -174,6 +172,9 @@ export class Lancamento extends EntityHelper implements ILancamento {
   addAutorizado(userId: number) {
     this.autorizacoes.push({ id: userId } as User);
     this.is_autorizado = this.autorizacoes.length >= 2;
+    if (this.status === LancamentoStatus._1_criado && this.is_autorizado) {
+      this.status = LancamentoStatus._2_aprovado;
+    }
   }
 
   removeAutorizado(userId: number) {
@@ -213,7 +214,7 @@ export class Lancamento extends EntityHelper implements ILancamento {
       data_pgto: `${table ? `${table}.` : ''}"data_pgto"`, // Date | null,
       data_lancamento: `${table ? `${table}.` : ''}"data_lancamento"`, // Date,
       itemTransacao: `${table ? `${table}.` : ''}"itemTransacao"`, // ItemTransacao,
-      autorizacoes: `${table ? `${table}.` : ''}"autorizacoes"`, //User [],
+      autorizacoes: `${table ? `${table}.` : ''}"autorizacoes"`, // User[],
       autor: `${table ? `${table}.` : ''}"autor"`, // User,
       clienteFavorecido: `${table ? `${table}.` : ''}"clienteFavorecido"`, // ClienteFavorecido,
       algoritmo: `${table ? `${table}.` : ''}"algoritmo"`, // number,
@@ -223,6 +224,7 @@ export class Lancamento extends EntityHelper implements ILancamento {
       numero_processo: `${table ? `${table}.` : ''}"numero_processo"`, // string,
       is_autorizado: `${table ? `${table}.` : ''}"is_autorizado"`, // boolean,
       is_pago: `${table ? `${table}.` : ''}"is_pago"`, // boolean,
+      status: `${table ? `${table}.` : ''}"status"`, // string,
       createdAt: `${table ? `${table}.` : ''}"createdAt"`, // Date,
       updatedAt: `${table ? `${table}.` : ''}"updatedAt"`, // Date,
     };
@@ -245,6 +247,7 @@ export class Lancamento extends EntityHelper implements ILancamento {
     numero_processo: 'VARCHAR',
     is_pago: 'BOOLEAN',
     is_autorizado: 'BOOLEAN',
+    status: 'VARCHAR',
     createdAt: 'TIMESTAMP',
     updatedAt: 'TIMESTAMP',
   };

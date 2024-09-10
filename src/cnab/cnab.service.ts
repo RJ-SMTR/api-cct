@@ -55,6 +55,7 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
+import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
 
 /**
  * User cases for CNAB and Payments
@@ -403,13 +404,7 @@ export class CnabService {
           id: transacaoAg.id,
           status: { id: TransacaoStatusEnum.created },
         },
-        ...(ordem.consorcio.length || ordem.operadora.length
-          ? /** Se for Jaé, agrupa por vanzeiro ou empresa */
-            ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL'
-            ? { idOperadora: ordem.idOperadora }
-            : { idConsorcio: ordem.idConsorcio }
-          : /** Se for Lançamento, agrupa por favorecido e dataOrdem */
-            { itemTransacoes: { clienteFavorecido: { cpfCnpj: ordem.favorecidoCpfCnpj as string } }, dataOrdem: startOfDay(new Date((ordem.dataOrdem))) }),
+        ...(ordem.consorcio.length || ordem.operadora.length ? (/** Se for Jaé, agrupa por vanzeiro ou empresa */ ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' ? { idOperadora: ordem.idOperadora } : { idConsorcio: ordem.idConsorcio }) : /** Se for Lançamento, agrupa por favorecido e dataOrdem */ { itemTransacoes: { clienteFavorecido: { cpfCnpj: ordem.favorecidoCpfCnpj as string } }, dataOrdem: startOfDay(new Date(ordem.dataOrdem)) }),
       },
     });
     if (itemAg) {
@@ -566,10 +561,8 @@ export class CnabService {
 
   private async updateStatusRemessa(headerArquivoDTO: HeaderArquivoDTO, cnabHeaderArquivo: CnabHeaderArquivo104, transacaoAgId: number) {
     await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO, cnabHeaderArquivo);
-    await this.transacaoAgService.save({
-      id: transacaoAgId,
-      status: TransacaoStatus.fromEnum(TransacaoStatusEnum.remessa),
-    });
+    await this.transacaoAgService.save({ id: transacaoAgId, status: TransacaoStatus.fromEnum(TransacaoStatusEnum.remessa) });
+    await this.lancamentoService.updateRaw({ status: LancamentoStatus._3_remessa }, { transacaoAgrupadoId: transacaoAgId });
   }
 
   private validateCancel(nsaInicial: number, nsaFinal: number) {

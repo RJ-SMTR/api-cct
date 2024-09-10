@@ -11,6 +11,9 @@ import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoInputDto } from './dtos/lancamento-input.dto';
 import { Lancamento } from './entities/lancamento.entity';
 import { LancamentoService } from './lancamento.service';
+import { LancamentoStatus } from './enums/lancamento-status.enum';
+import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
+import { ParseArrayPipe } from 'src/utils/pipes/parse-array.pipe';
 
 @ApiTags('Lancamento')
 @Controller({
@@ -34,14 +37,18 @@ export class LancamentoController {
   @ApiQuery({ name: 'mes', type: Number, required: false, description: ApiDescription({ _: 'Mês do lançamento', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
   @ApiQuery({ name: 'ano', type: Number, required: false, description: ApiDescription({ _: 'Ano do lançamento.', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
   @ApiQuery({ name: 'autorizado', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
+  @ApiQuery({ name: 'pago', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
+  @ApiQuery({ name: 'status', enum: LancamentoStatus, required: false, description: 'Fitra por status.' })
   async get(
     @Request() request, //
     @Query('periodo', new ParseNumberPipe({ min: 1, max: 2, optional: true })) periodo: number | undefined,
     @Query('mes', new ParseNumberPipe({ min: 1, max: 12, optional: true })) mes: number | undefined,
     @Query('ano') ano: number | undefined,
     @Query('autorizado', new ParseBooleanPipe({ optional: true })) autorizado: boolean | undefined,
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('status', new ParseEnumPipe(LancamentoStatus, { optional: true })) status: LancamentoStatus | undefined,
   ): Promise<Lancamento[]> {
-    return await this.lancamentoService.find({ mes, periodo, ano, autorizado });
+    return await this.lancamentoService.find({ mes, periodo, ano, autorizado, pago, status });
   }
 
   @Get('/getbystatus')
@@ -147,7 +154,7 @@ export class LancamentoController {
     @Body() lancamentoDto: LancamentoInputDto, // It was ItfLancamento
   ) {
     lancamentoDto.author = { id: req.user.id };
-    return await this.lancamentoService.update(lancamentoId, lancamentoDto);
+    return await this.lancamentoService.updateDto(lancamentoId, lancamentoDto);
   }
 
   @Get('/:id')

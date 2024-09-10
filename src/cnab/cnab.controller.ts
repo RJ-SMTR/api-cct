@@ -8,7 +8,7 @@ import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { ParseEnumPipe } from 'src/utils/pipes/validate-enum.pipe';
+import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { GetClienteFavorecidoConsorcioEnum } from './enums/get-cliente-favorecido-consorcio.enum';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
