@@ -459,7 +459,7 @@ export class CnabService {
   // #endregion
 
   public async saveTransacoesLancamento(dataOrdemInicial?: Date, dataOrdemFinal?: Date) {
-    const dataOrdem: [Date, Date] | undefined = dataOrdemInicial && dataOrdemFinal ? [dataOrdemInicial, dataOrdemFinal] : undefined;
+    const dataOrdem: [Date, Date] | undefined = dataOrdemInicial && dataOrdemFinal ? [startOfDay(dataOrdemInicial), endOfDay(dataOrdemFinal)] : undefined;
     await this.updateAllFavorecidosFromUsers();
     const newLancamentos = await this.lancamentoService.findToPay(dataOrdem);
     const ordens = newLancamentos.map((l) => OrdemPagamentoDto.fromLancamento(l));
