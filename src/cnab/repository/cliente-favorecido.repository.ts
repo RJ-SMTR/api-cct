@@ -146,7 +146,7 @@ export class ClienteFavorecidoRepository {
       const skip = where?.limit * (where?.page - 1);
       qb = qb.take(where?.limit).skip(skip);
     }
-    qb = qb.orderBy('"id"', 'ASC');
+    qb = qb.orderBy('"nome"', 'ASC');
 
     const result = await qb.getMany();
     return result;
