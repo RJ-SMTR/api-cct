@@ -184,6 +184,9 @@ export class LancamentoService {
     if (!validFavorecidoNames.includes(favorecido.nome)) {
       throw CommonHttpException.messageArgs('id_cliente_favorecido: Favorecido não permitido para Lançamento.', { validFavorecidos: validFavorecidoNames });
     }
+    if (lancamento.clienteFavorecido.id !== updateDto.id_cliente_favorecido) {
+      throw CommonHttpException.messageArgs('id_cliente_favorecido: Não é permitido alterar o cliente favorecido de um Lançamento. ', { old: lancamento.clienteFavorecido.id, new: updateDto.id_cliente_favorecido });
+    }
     return lancamento;
   }
 

@@ -70,10 +70,19 @@ export class Lancamento extends EntityHelper implements ILancamento {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   data_ordem: Date;
 
+  /** Data da ordem baseada no valor da dataOrdem no front */
   @Column({ type: 'timestamp', nullable: true })
   data_pgto: Date | null;
 
-  /** Data da criação do Lançamento */
+  /**
+   * Data usada meramente para registro, baseado na seleção dos parâmetros no front.
+   *
+   * Mesmo se a dataOrdem for alterada a dataLancamento permanece igual.
+   *
+   * @examples
+   * - Mês: agosto, período: 1, ano: 2024 = 2024/08/01
+   * - Mês: agosto, período: 2, ano: 2024 = 2024/08/16
+   */
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   data_lancamento: Date;
 
