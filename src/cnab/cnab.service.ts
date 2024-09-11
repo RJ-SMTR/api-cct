@@ -5,6 +5,7 @@ import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-paga
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
 import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
@@ -55,7 +56,6 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
-import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
 
 /**
  * User cases for CNAB and Payments
@@ -98,12 +98,13 @@ export class CnabService {
     dataPgto: Date | undefined;
     isConference: boolean;
     isCancelamento: boolean;
+    isTeste: boolean;
     nsaInicial: number | undefined;
     nsaFinal: number | undefined;
     dataCancelamento: Date | undefined;
   }) {
     const METHOD = 'getGenerateRemessaJae';
-    const { consorcio, dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, diasAnteriores, isCancelamento, isConference, nsaFinal, nsaInicial } = args;
+    const { consorcio, dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, diasAnteriores, isCancelamento, isConference, nsaFinal, nsaInicial, isTeste } = args;
     const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
     const startDate = new Date();
     let now = new Date();
@@ -121,6 +122,7 @@ export class CnabService {
       dataPgto,
       isConference,
       isCancelamento,
+      isTeste,
       nsaInicial,
       nsaFinal,
       dataCancelamento,
@@ -148,12 +150,13 @@ export class CnabService {
     dataPgto: Date | undefined;
     isConference: boolean;
     isCancelamento: boolean;
+    isTeste: boolean;
     nsaInicial: number | undefined;
     nsaFinal: number | undefined;
     dataCancelamento: Date | undefined;
   }) {
     const METHOD = 'getGenerateRemessaLancamento';
-    const { dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, isCancelamento, isConference, nsaFinal, nsaInicial } = args;
+    const { dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, isCancelamento, isConference, isTeste, nsaFinal, nsaInicial } = args;
     const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
     const startDate = new Date();
     let now = new Date();
@@ -171,6 +174,7 @@ export class CnabService {
       dataPgto,
       isConference,
       isCancelamento,
+      isTeste,
       nsaInicial,
       nsaFinal,
       dataCancelamento,
@@ -471,6 +475,7 @@ export class CnabService {
     dataPgto?: Date;
     isConference: boolean;
     isCancelamento: boolean;
+    isTeste: boolean;
     /** Default: current NSA */
     nsaInicial?: number;
     /** Default: nsaInicial */
@@ -480,7 +485,7 @@ export class CnabService {
     const METHOD = this.sendRemessa.name;
     const currentNSA = parseInt((await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_current_nsa)).value);
 
-    const { tipo, dataPgto, isConference, isCancelamento } = args;
+    const { tipo, dataPgto, isConference, isCancelamento, isTeste } = args;
     let nsaInicial = args.nsaInicial || currentNSA;
     let nsaFinal = args.nsaFinal || nsaInicial;
     const dataCancelamento = args?.dataCancelamento || new Date();
@@ -498,12 +503,12 @@ export class CnabService {
         }
         for (const transacaoAg of transacoesAg) {
           const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg, isConference);
-          const lotes = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, isConference, dataPgto);
-          const cnab104 = this.remessaRetornoService.generateFile(headerArquivoDTO, lotes);
+          const headerLoteDTOs = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, isConference, dataPgto);
+          const cnab104 = this.remessaRetornoService.generateFile({ headerArquivoDTO, headerLoteDTOs, isTeste });
           if (headerArquivoDTO && cnab104) {
             const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
             for (const processedLote of processedCnab104.lotes) {
-              const savedLote = lotes.filter((i) => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
+              const savedLote = headerLoteDTOs.filter((i) => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
               await this.remessaRetornoService.updateHeaderLoteDTOFrom104(savedLote, processedLote.headerLote, isConference);
             }
             if (!isConference) {
@@ -523,7 +528,7 @@ export class CnabService {
           const headerArquivoDTO = await this.getHeaderArquivoCancelar(index);
           headerArquivoDTO.nsa = await this.headerArquivoService.getNextNSA();
           const lotes = await this.getLotesCancelar(index);
-          const lotesDto: HeaderLoteDTO[] = [];
+          const headerLoteDTOs: HeaderLoteDTO[] = [];
           let detalhes: CnabRegistros104Pgto[] = [];
           for (const lote of lotes) {
             const headerLoteDTO = this.headerLoteService.convertHeaderLoteDTO(headerArquivoDTO, lote.pagador, lote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente);
@@ -535,10 +540,10 @@ export class CnabService {
               }
             }
             headerLoteDTO.registros104 = detalhes;
-            lotesDto.push(headerLoteDTO);
+            headerLoteDTOs.push(headerLoteDTO);
             detalhes = [];
           }
-          const cnab104 = this.remessaRetornoService.generateFile(headerArquivoDTO, lotesDto, true, dataCancelamento);
+          const cnab104 = this.remessaRetornoService.generateFile({ headerArquivoDTO, headerLoteDTOs, isCancelamento: true, isTeste });
           if (headerArquivoDTO && cnab104) {
             const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
             if (!cnabStr) {

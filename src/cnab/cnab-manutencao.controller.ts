@@ -31,6 +31,7 @@ export class CnabManutencaoController {
   @ApiQuery({ name: 'dataPagamento', type: String, required: false, description: ApiDescription({ _: 'Data de pagamento', default: 'O dia de hoje' }) })
   @ApiQuery({ name: 'isConference', type: Boolean, required: true, description: 'Conferencia - Se o remessa será gerado numa tabela de teste.', example: true })
   @ApiQuery({ name: 'isCancelamento', type: Boolean, required: true, description: 'Cancelamento', example: false })
+  @ApiQuery({ name: 'isTeste', type: Boolean, required: true, description: 'Define se o CNAB Remessa usará o parâmetro de Teste', example: false })
   @ApiQuery({ name: 'nsaInicial', type: Number, required: false, description: ApiDescription({ default: 'O NSA atual' }) })
   @ApiQuery({ name: 'nsaFinal', type: Number, required: false, description: ApiDescription({ default: 'nsaInicial' }) })
   @ApiQuery({ name: 'dataCancelamento', type: String, required: false, description: ApiDescription({ _: 'Data de vencimento da transação a ser cancelada (DetalheA).', 'Required if': 'isCancelamento = true' }), example: '2024-07-16' })
@@ -41,6 +42,7 @@ export class CnabManutencaoController {
     @Query('dataPagamento', new ParseDatePipe({ transform: true, optional: true })) dataPagamento: Date | undefined, // Date | undefined
     @Query('isConference') isConference: boolean,
     @Query('isCancelamento') isCancelamento: boolean,
+    @Query('isTeste') isTeste: boolean,
     @Query('nsaInicial', new ParseNumberPipe({ min: 1, optional: true })) nsaInicial: number | undefined,
     @Query('nsaFinal', new ParseNumberPipe({ min: 1, optional: true })) nsaFinal: number | undefined,
     @Query('dataCancelamento', new ParseDatePipe({ transform: true, optional: true })) _dataCancelamento: any, // Date | undefined
@@ -59,6 +61,7 @@ export class CnabManutencaoController {
       dataPgto: dataPagamento,
       isConference,
       isCancelamento,
+      isTeste,
       nsaInicial,
       nsaFinal,
       dataCancelamento,
@@ -77,6 +80,7 @@ export class CnabManutencaoController {
   @ApiQuery({ name: 'dt_pagamento', description: ApiDescription({ _: 'Data Pagamento', default: 'O dia de hoje' }), required: false, type: String })
   @ApiQuery({ name: 'isConference', description: 'Conferencia - Se o remessa será gerado numa tabela de teste.', required: true, type: Boolean, example: true })
   @ApiQuery({ name: 'isCancelamento', description: 'Cancelamento', required: true, type: Boolean, example: false })
+  @ApiQuery({ name: 'isTeste', type: Boolean, required: true, description: 'Define se o CNAB Remessa usará o parâmetro de Teste', example: false })
   @ApiQuery({ name: 'nsaInicial', description: ApiDescription({ default: 'O NSA atual' }), required: false, type: Number })
   @ApiQuery({ name: 'nsaFinal', description: ApiDescription({ default: 'nsaInicial' }), required: false, type: Number })
   @ApiQuery({ name: 'dataCancelamento', description: ApiDescription({ _: 'Data de vencimento da transação a ser cancelada (DetalheA).', 'Required if': 'isCancelamento = true' }), required: false, type: String, example: '2024-07-16' })
@@ -89,6 +93,7 @@ export class CnabManutencaoController {
     @Query('dt_pagamento', new ParseDatePipe({ transform: true, optional: true })) _dataPgto: any, // Date | undefined
     @Query('isConference') isConference: boolean,
     @Query('isCancelamento') isCancelamento: boolean,
+    @Query('isTeste') isTeste: boolean,
     @Query('nsaInicial', new ParseNumberPipe({ min: 1, optional: true })) nsaInicial: number | undefined,
     @Query('nsaFinal', new ParseNumberPipe({ min: 1, optional: true })) nsaFinal: number | undefined,
     @Query('dataCancelamento', new ParseDatePipe({ transform: true, optional: true })) _dataCancelamento: any, // Date | undefined
@@ -110,6 +115,7 @@ export class CnabManutencaoController {
       dataPgto,
       isConference,
       isCancelamento,
+      isTeste,
       nsaInicial,
       nsaFinal,
       dataCancelamento,

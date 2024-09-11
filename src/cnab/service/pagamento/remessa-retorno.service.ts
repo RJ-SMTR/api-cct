@@ -45,6 +45,7 @@ import { ItemTransacaoService } from './item-transacao.service';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
 import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -222,8 +223,18 @@ export class RemessaRetornoService {
   /**
    * Montar Cnab104 a partir dos DTOs de tabelas
    */
-  public generateFile(headerArquivo: HeaderArquivoDTO, headerLoteDTOs: HeaderLoteDTO[], isCancelamento = false, dataCancelamento = new Date()) {
-    const headerArquivo104 = this.getHeaderArquivo104FromDTO(headerArquivo);
+  public generateFile(args: {
+    headerArquivoDTO: HeaderArquivoDTO; //
+    headerLoteDTOs: HeaderLoteDTO[];
+    isCancelamento?: boolean;
+    isTeste?: boolean;
+    dataCancelamento?: Date;
+  }) {
+    const { headerArquivoDTO: headerArquivo, headerLoteDTOs, isTeste } = args;
+    const isCancelamento = Boolean(args.isCancelamento);
+    const dataCancelamento = args?.dataCancelamento || new Date();
+
+    const headerArquivo104 = this.getHeaderArquivo104FromDTO(headerArquivo, isTeste);
     const trailerArquivo104 = sc(PgtoRegistros.trailerArquivo);
     return this.getCnabFilePgto(headerArquivo104, headerLoteDTOs, trailerArquivo104, isCancelamento, dataCancelamento);
   }
@@ -279,7 +290,7 @@ export class RemessaRetornoService {
     return cnab104;
   }
 
-  private getHeaderArquivo104FromDTO(headerArquivoDTO: HeaderArquivoDTO): CnabHeaderArquivo104 {
+  private getHeaderArquivo104FromDTO(headerArquivoDTO: HeaderArquivoDTO, isTeste?: boolean): CnabHeaderArquivo104 {
     const headerArquivo104: CnabHeaderArquivo104 = sc(PgtoRegistros.headerArquivo);
     headerArquivo104.codigoBanco.value = headerArquivoDTO.codigoBanco;
     headerArquivo104.numeroInscricao.value = headerArquivoDTO.numeroInscricao;
@@ -294,6 +305,7 @@ export class RemessaRetornoService {
     headerArquivo104.dataGeracaoArquivo.value = headerArquivoDTO.dataGeracao;
     headerArquivo104.horaGeracaoArquivo.value = headerArquivoDTO.horaGeracao;
     headerArquivo104.nsa.value = headerArquivoDTO.nsa;
+    headerArquivo104.ambienteCliente.value = isTeste ? Cnab104AmbienteCliente.Teste : Cnab104AmbienteCliente.Producao;
 
     return headerArquivo104;
   }

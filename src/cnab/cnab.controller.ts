@@ -49,9 +49,6 @@ export class CnabController {
     @Query('page', new ParseNumberPipe({ min: 1, optional: true })) page: number | undefined,
   ): Promise<ClienteFavorecido[]> {
     const cpfCnpjNot: string[] = [];
-    if (consorcio === GetClienteFavorecidoConsorcioEnum.Empresa) {
-      cpfCnpjNot.push(FavorecidoEmpresaCpfCnpjEnum.VLT);
-    }
     return this.clienteFavorecidoService.getFindBy({ consorcio, cpfCnpj: { not: cpfCnpjNot }, nome: { in: nome, not: nomeNot }, limit, page });
   }
 

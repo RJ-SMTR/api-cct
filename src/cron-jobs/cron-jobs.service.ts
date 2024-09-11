@@ -288,6 +288,7 @@ export class CronJobsService {
         dataPgto: addDays(today, 1),
         isConference: false,
         isCancelamento: false,
+        isTeste: false,
       });
       await this.cnabService.sendRemessa(listCnab);
       this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
@@ -316,6 +317,7 @@ export class CronJobsService {
       dataPgto: today,
       isConference: false,
       isCancelamento: false,
+      isTeste: false,
     });
     await this.cnabService.sendRemessa(listCnab);
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
@@ -349,6 +351,7 @@ export class CronJobsService {
       dataPgto: new Date(),
       isConference: false,
       isCancelamento: false,
+      isTeste: false,
     });
     await this.cnabService.sendRemessa(listCnab);
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDateLog)}`, METHOD);
@@ -372,6 +375,7 @@ export class CronJobsService {
         dataPgto: undefined, // data programada no Lançamento
         isConference: false,
         isCancelamento: false,
+        isTeste: false,
       });
       await this.cnabService.sendRemessa(listCnab);
       this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDateLog)}`, METHOD);
@@ -398,6 +402,7 @@ export class CronJobsService {
       dataPgto,
       isConference,
       isCancelamento,
+      isTeste: false,
       nsaInicial,
       nsaFinal,
       dataCancelamento,
