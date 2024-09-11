@@ -214,8 +214,8 @@ export class LancamentoService {
     if (!toDelete) {
       throw new HttpException('Lançamento a ser deletado não existe.', HttpStatus.NOT_FOUND);
     }
-    if (toDelete.status !== LancamentoStatus._1_criado) {
-      throw new HttpException('Apenas é permitido deletar Lançamentos com status criado.', HttpStatus.NOT_ACCEPTABLE);
+    if ([LancamentoStatus._1_criado, LancamentoStatus._2_aprovado].includes(toDelete.status)) {
+      throw new HttpException('Apenas é permitido deletar Lançamentos com status criado ou aprovado.', HttpStatus.NOT_ACCEPTABLE);
     }
     await this.lancamentoRepository.softDelete(id);
   }
