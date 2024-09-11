@@ -1,6 +1,6 @@
 import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
 
-import { HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { endOfDay, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
 import { DetalheADTO } from 'src/cnab/dto/pagamento/detalhe-a.dto';
 import { HeaderLoteDTO } from 'src/cnab/dto/pagamento/header-lote.dto';
@@ -8,16 +8,20 @@ import { HeaderArquivoDTO } from './../../dto/pagamento/header-arquivo.dto';
 import { Cnab104TipoMovimento } from './../../enums/104/cnab-104-tipo-movimento.enum';
 
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
+import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 import { Cnab104FormaLancamento } from 'src/cnab/enums/104/cnab-104-forma-lancamento.enum';
 import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-trailer-arquivo-104.interface';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
+import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
+import { LancamentoService } from 'src/lancamento/lancamento.service';
 import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asNumber, asString } from 'src/utils/pipe-utils';
@@ -42,10 +46,6 @@ import { HeaderLoteConfService } from './header-lote-conf.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
-import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { LancamentoService } from 'src/lancamento/lancamento.service';
-import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
-import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -74,14 +74,14 @@ export class RemessaRetornoService {
     private dataSource: DataSource,
   ) {}
 
-  public async saveHeaderArquivoDTO(transacaoAg: TransacaoAgrupado, isConference: boolean): Promise<HeaderArquivoDTO> {
-    let headerArquivoDTO;
+  public async saveHeaderArquivoDTO(transacaoAg: TransacaoAgrupado, isConference: boolean, isTeste?: boolean): Promise<HeaderArquivoDTO> {
+    let headerArquivoDTO: HeaderArquivoDTO;
     if (!isConference) {
-      headerArquivoDTO = await this.headerArquivoService.getDTO(HeaderArquivoTipoArquivo.Remessa, transacaoAg);
+      headerArquivoDTO = await this.headerArquivoService.getDTO(HeaderArquivoTipoArquivo.Remessa, transacaoAg, isTeste);
       const headerArquivo = await this.headerArquivoService.save(headerArquivoDTO);
       headerArquivoDTO.id = headerArquivo.id;
     } else {
-      headerArquivoDTO = await this.headerArquivoConfService.getDTO(HeaderArquivoTipoArquivo.Remessa, transacaoAg);
+      headerArquivoDTO = await this.headerArquivoConfService.getDTO(HeaderArquivoTipoArquivo.Remessa, transacaoAg, isTeste);
       const headerArquivo = await this.headerArquivoConfService.save(headerArquivoDTO);
       headerArquivoDTO.id = headerArquivo.id;
     }

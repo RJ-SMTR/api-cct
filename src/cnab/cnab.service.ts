@@ -488,7 +488,6 @@ export class CnabService {
     const { tipo, dataPgto, isConference, isCancelamento, isTeste } = args;
     let nsaInicial = args.nsaInicial || currentNSA;
     let nsaFinal = args.nsaFinal || nsaInicial;
-    const dataCancelamento = args?.dataCancelamento || new Date();
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -502,7 +501,7 @@ export class CnabService {
           return [];
         }
         for (const transacaoAg of transacoesAg) {
-          const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg, isConference);
+          const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg, isConference, isTeste);
           const headerLoteDTOs = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, isConference, dataPgto);
           const cnab104 = this.remessaRetornoService.generateFile({ headerArquivoDTO, headerLoteDTOs, isTeste });
           if (headerArquivoDTO && cnab104) {

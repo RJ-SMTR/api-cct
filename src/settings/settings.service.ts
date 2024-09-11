@@ -18,18 +18,13 @@ export class SettingsService {
     private readonly settingsRepository: Repository<SettingEntity>,
   ) {}
 
-  async find(
-    fields?: EntityCondition<SettingEntity>,
-  ): Promise<Nullable<SettingEntity[]>> {
+  async find(fields?: EntityCondition<SettingEntity>): Promise<Nullable<SettingEntity[]>> {
     return this.settingsRepository.find({
       where: fields,
     });
   }
 
-  async getOneByNameVersion(
-    name: string,
-    version: string | null,
-  ): Promise<SettingEntity> {
+  async getOneByNameVersion(name: string, version: string | null): Promise<SettingEntity> {
     const settings = await this.settingsRepository.find({
       where: {
         name: name,
@@ -58,27 +53,18 @@ export class SettingsService {
     return settings[0];
   }
 
-  async getOneBySettingData(
-    setting: ISettingData,
-    defaultValueIfNotFound?: boolean,
-    logContext?: string,
-  ): Promise<SettingEntity> {
+  async getOneBySettingData(setting: ISettingData, defaultValueIfNotFound?: boolean, logContext?: string): Promise<SettingEntity> {
     const METHOD = logContext ? `${logContext}>${this.getOneBySettingData.name}` : this.getOneBySettingData.name;
     const dbSetting = await this.findOneBySettingData(setting);
     if (defaultValueIfNotFound && !dbSetting) {
-      this.logger.warn(
-        `Configuração 'setting.${setting.name}' não encontrada. Usando valor padrão: '${setting.value}'.`,
-        METHOD,
-      );
+      this.logger.warn(`Configuração 'setting.${setting.name}' não encontrada. Usando valor padrão: '${setting.value}'.`, METHOD);
       return new SettingEntity(setting);
     } else {
       return this.getOneByNameVersion(setting.name, setting.version);
     }
   }
 
-  async findOneBySettingData(
-    setting: ISettingData,
-  ): Promise<SettingEntity | null> {
+  async findOneBySettingData(setting: ISettingData): Promise<SettingEntity | null> {
     const settings = await this.settingsRepository.find({
       where: {
         name: setting.name,
@@ -92,9 +78,7 @@ export class SettingsService {
     }
   }
 
-  async findManyBySettingDataGroup(
-    setting: ISettingDataGroup,
-  ): Promise<SettingEntity[]> {
+  async findManyBySettingDataGroup(setting: ISettingDataGroup): Promise<SettingEntity[]> {
     return await this.settingsRepository.find({
       where: {
         name: Like(`%${setting.baseName}%`),
@@ -125,36 +109,20 @@ export class SettingsService {
     return this.settingsRepository.save(setting);
   }
 
-  async updateBySettingData(
-    settingData: ISettingData,
-    value: string,
-  ): Promise<SettingEntity> {
+  async updateBySettingData(settingData: ISettingData, value: string): Promise<SettingEntity> {
     const dbSetting = await this.getOneBySettingData(settingData);
-    await this.settingsRepository.update(
-      { id: dbSetting.id },
-      { value: value },
-    );
+    await this.settingsRepository.update({ id: dbSetting.id }, { value: value });
     const updated = await this.getOneBySettingData(settingData);
     return updated;
   }
 
   async confirmNSR() {
-    const currentNsrSequence = await this.getOneBySettingData(
-      cnabSettings.any__cnab_current_nsr_sequence,
-    );
-    await this.updateBySettingData(
-      cnabSettings.any__cnab_last_nsr_sequence,
-      currentNsrSequence.value,
-    );
+    const currentNsrSequence = await this.getOneBySettingData(cnabSettings.any__cnab_current_nsr_sequence);
+    await this.updateBySettingData(cnabSettings.any__cnab_last_nsr_sequence, currentNsrSequence.value);
   }
 
   async revertNSR() {
-    const lastNsrSequence = await this.getOneBySettingData(
-      cnabSettings.any__cnab_last_nsr_sequence,
-    );
-    await this.updateBySettingData(
-      cnabSettings.any__cnab_current_nsr_sequence,
-      lastNsrSequence.value,
-    );
+    const lastNsrSequence = await this.getOneBySettingData(cnabSettings.any__cnab_last_nsr_sequence);
+    await this.updateBySettingData(cnabSettings.any__cnab_current_nsr_sequence, lastNsrSequence.value);
   }
 }

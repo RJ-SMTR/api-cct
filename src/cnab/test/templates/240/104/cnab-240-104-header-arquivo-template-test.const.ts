@@ -48,7 +48,7 @@ export const cnab240_104HeaderArquivoTemplateTest: CnabHeaderArquivo104 = {
   parametroTransmissao: {
     pos: [39, 40],
     picture: '9(002)',
-    value: '09',
+    value: '01',
     ...Cnab.insert.d(),
   },
   ambienteCliente: {
