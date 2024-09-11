@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
-import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { getBRTFromUTC } from 'src/utils/date-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
@@ -15,6 +15,7 @@ import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { HeaderArquivoRepository } from '../../repository/pagamento/header-arquivo.repository';
 import { PagadorService } from './pagador.service';
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -24,11 +25,13 @@ export class HeaderArquivoService {
     return this.getOne({ nsa: index });
   }
 
-  private logger: Logger = new Logger('HeaderArquivoService', {
-    timestamp: true,
-  });
+  private logger = new CustomLogger('HeaderArquivoService', { timestamp: true });
 
-  constructor(private headerArquivoRepository: HeaderArquivoRepository, private pagadorService: PagadorService, private settingsService: SettingsService) {}
+  constructor(
+    private headerArquivoRepository: HeaderArquivoRepository, //
+    private pagadorService: PagadorService,
+    private settingsService: SettingsService,
+  ) {}
 
   /**
    * Generate new HaderArquivo from Transacao
@@ -51,7 +54,8 @@ export class HeaderArquivoService {
       nomeEmpresa: pagador.nomeEmpresa,
       numeroConta: pagador.conta,
       tipoArquivo: tipo_arquivo,
-      nsa: await this.getNextNSA(isTeste),
+      nsa: await this.settingsService.getNextNSA(isTeste),
+      ambienteCliente: isTeste ? Cnab104AmbienteCliente.Teste : Cnab104AmbienteCliente.Producao,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessa),
     });
     return dto;
@@ -78,6 +82,7 @@ export class HeaderArquivoService {
       horaGeracao: cnab104.headerArquivo.horaGeracaoArquivo.convertedValue,
       transacaoAgrupado: headerArquivoRemessa.transacaoAgrupado,
       nsa: cnab104.headerArquivo.nsa.convertedValue,
+      ambienteCliente: cnab104.headerArquivo.ambienteCliente.value,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
     });
     return await this.headerArquivoRepository.save(headerArquivo);
@@ -104,23 +109,6 @@ export class HeaderArquivoService {
 
   public async save(dto: DeepPartial<HeaderArquivo>): Promise<HeaderArquivo> {
     return await this.headerArquivoRepository.save(dto);
-  }
-
-  public async getNextNSA(isTeste?: boolean): Promise<number> {
-    const nsaSetting = isTeste ? cnabSettings.any__cnab_current_nsa_test : cnabSettings.any__cnab_current_nsa;
-    const maxNsa =
-      (
-        await this.headerArquivoRepository.findMany({
-          order: {
-            nsa: 'DESC',
-          },
-          take: 1,
-        })
-      ).pop()?.nsa || 0;
-    const settingNSA = parseInt((await this.settingsService.getOneBySettingData(nsaSetting)).value);
-    const nextNSA = (maxNsa > settingNSA ? maxNsa : settingNSA) + 1;
-    await this.settingsService.updateBySettingData(nsaSetting, String(nextNSA));
-    return nextNSA;
   }
 
   public async getOne(fields: EntityCondition<HeaderArquivo>): Promise<HeaderArquivo> {

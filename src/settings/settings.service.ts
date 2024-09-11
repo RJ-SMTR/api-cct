@@ -125,4 +125,20 @@ export class SettingsService {
     const lastNsrSequence = await this.getOneBySettingData(cnabSettings.any__cnab_last_nsr_sequence);
     await this.updateBySettingData(cnabSettings.any__cnab_current_nsr_sequence, lastNsrSequence.value);
   }
+
+  /** Obtém o NSA atual, usado no último remessa */
+  public async getCurrentNSA(isTeste?: boolean): Promise<number> {
+    const nsaSetting = isTeste ? cnabSettings.any__cnab_current_nsa_test : cnabSettings.any__cnab_current_nsa;
+    const settingNSA = parseInt((await this.getOneBySettingData(nsaSetting)).value);
+    return settingNSA;
+  }
+
+  /** Obtém o próximo NSA a ser usado e atualiza no settings */
+  public async getNextNSA(isTeste?: boolean): Promise<number> {
+    const nsaSetting = isTeste ? cnabSettings.any__cnab_current_nsa_test : cnabSettings.any__cnab_current_nsa;
+    const settingNSA = parseInt((await this.getOneBySettingData(nsaSetting)).value);
+    const nextNSA = settingNSA < 999999 ? settingNSA + 1 : 1;
+    await this.updateBySettingData(nsaSetting, String(nextNSA));
+    return nextNSA;
+  }
 }

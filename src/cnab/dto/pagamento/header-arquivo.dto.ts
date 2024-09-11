@@ -3,6 +3,7 @@ import { Transacao } from "../../entity/pagamento/transacao.entity";
 import { IsNotEmpty, ValidateIf } from "class-validator";
 import { HeaderArquivoStatus } from "src/cnab/entity/pagamento/header-arquivo-status.entity";
 import { TransacaoAgrupado } from "src/cnab/entity/pagamento/transacao-agrupado.entity";
+import { Cnab104AmbienteCliente } from "src/cnab/enums/104/cnab-104-ambiente-cliente.enum";
 
 function isCreate(object: HeaderArquivoDTO): boolean {
   return object.id === undefined;
@@ -80,4 +81,6 @@ export class HeaderArquivoDTO {
   @ValidateIf(isCreate)
   @IsNotEmpty()
   status?: HeaderArquivoStatus;
+
+  ambienteCliente: Cnab104AmbienteCliente;
 }

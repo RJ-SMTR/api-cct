@@ -50,16 +50,16 @@ export class LancamentoService {
   async findToPay(dataOrdemBetween?: [Date, Date]) {
     const found = await this.lancamentoRepository.findMany({
       where: {
-        ...(dataOrdemBetween ? { data_lancamento: Between(...dataOrdemBetween) } : {}),
+        ...(dataOrdemBetween ? { data_ordem: Between(...dataOrdemBetween) } : {}),
         itemTransacao: IsNull(),
         is_autorizado: true,
       },
     });
     return {
       /** Usado para Lançamento Financeiro */
-      cett: found.filter((l) => l.clienteFavorecido.cpfCnpj == String(FavorecidoEmpresaCpfCnpjEnum.VLT)),
+      cett: found.filter((l) => l.clienteFavorecido.cpfCnpj != String(FavorecidoEmpresaCpfCnpjEnum.VLT)),
       /** Usado majoritariamente para Jaé */
-      contaBilhetagem: found.filter((l) => l.clienteFavorecido.cpfCnpj != String(FavorecidoEmpresaCpfCnpjEnum.VLT)),
+      contaBilhetagem: found.filter((l) => l.clienteFavorecido.cpfCnpj == String(FavorecidoEmpresaCpfCnpjEnum.VLT)),
     };
   }
 

@@ -16,6 +16,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { DeepPartial, FindOptionsWhere } from 'typeorm';
 import { PagadorService } from './pagador.service';
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -34,7 +35,7 @@ export class HeaderArquivoConfService {
   /**
    * Generate new HaderArquivo from Transacao
    */
-  public async getDTO(tipo_arquivo: HeaderArquivoTipoArquivo, transacaoAg: TransacaoAgrupado, isTest?: boolean): Promise<HeaderArquivoDTO> {
+  public async getDTO(tipo_arquivo: HeaderArquivoTipoArquivo, transacaoAg: TransacaoAgrupado, isTeste?: boolean): Promise<HeaderArquivoDTO> {
     const now = getBRTFromUTC(new Date());
     const pagador = await this.pagadorService.getOneByIdPagador(transacaoAg?.pagador.id);
     const dto = new HeaderArquivoDTO({
@@ -52,7 +53,8 @@ export class HeaderArquivoConfService {
       nomeEmpresa: pagador.nomeEmpresa,
       numeroConta: pagador.conta,
       tipoArquivo: tipo_arquivo,
-      nsa: await this.getNextNSA(isTest),
+      nsa: await this.settingsService.getNextNSA(isTeste),
+      ambienteCliente: isTeste ? Cnab104AmbienteCliente.Teste : Cnab104AmbienteCliente.Producao,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessa),
     });
     return dto;
@@ -80,6 +82,7 @@ export class HeaderArquivoConfService {
       transacaoAgrupado: headerArquivoRemessa.transacaoAgrupado,
       transacao: headerArquivoRemessa.transacao,
       nsa: cnab104.headerArquivo.nsa.convertedValue,
+      ambienteCliente: headerArquivoRemessa.ambienteCliente,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
     });
     return await this.headerArquivoRepository.save(headerArquivo);
@@ -119,23 +122,6 @@ export class HeaderArquivoConfService {
 
   public async save(dto: DeepPartial<HeaderArquivoConf>): Promise<HeaderArquivoConf> {
     return await this.headerArquivoRepository.save(dto);
-  }
-
-  public async getNextNSA(isTest?: boolean): Promise<number> {
-    const nsaSetting = isTest ? cnabSettings.any__cnab_current_nsa_test : cnabSettings.any__cnab_current_nsa;
-    const maxNsa =
-      (
-        await this.headerArquivoRepository.findMany({
-          order: {
-            nsa: 'DESC',
-          },
-          take: 1,
-        })
-      ).pop()?.nsa || 0;
-    const settingNSA = parseInt((await this.settingsService.getOneBySettingData(nsaSetting)).value);
-    const nextNSA = (maxNsa > settingNSA ? maxNsa : settingNSA) + 1;
-    await this.settingsService.updateBySettingData(nsaSetting, String(nextNSA));
-    return nextNSA;
   }
 
   public async getOne(fields: EntityCondition<HeaderArquivoConf>): Promise<HeaderArquivoConf> {

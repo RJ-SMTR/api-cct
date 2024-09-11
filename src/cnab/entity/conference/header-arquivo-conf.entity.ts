@@ -1,20 +1,9 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrDateTime } from 'src/utils/pipe-utils';
-import {
-  AfterLoad,
-  BeforeInsert,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { AfterLoad, BeforeInsert, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Transacao } from '../pagamento/transacao.entity';
 import { TransacaoAgrupado } from '../pagamento/transacao-agrupado.entity';
-
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 
 /**
  * Pagamento.HeaderArquivo
@@ -48,6 +37,9 @@ export class HeaderArquivoConf extends EntityHelper {
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   parametroTransmissao: string | null;
+
+  @Column({ enum: Cnab104AmbienteCliente, unique: false, nullable: false, length: 2, default: Cnab104AmbienteCliente.Producao })
+  ambienteCliente: Cnab104AmbienteCliente;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
   agencia: string | null;

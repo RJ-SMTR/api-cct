@@ -7,7 +7,6 @@ import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-or
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
-import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
@@ -132,7 +131,7 @@ export class CnabService {
     this.logger.log(`generateRemessa finalizado - ${duration.generateRemessa}`);
 
     this.logger.log('sendRemessa started');
-    await this.sendRemessa(listCnab);
+    const cnabs = await this.sendRemessa(listCnab);
     duration.sendRemessa = formatDateInterval(new Date(), now);
     this.logger.log(`sendRemessa finalizado - ${duration.sendRemessa}`);
 
@@ -140,7 +139,7 @@ export class CnabService {
     this.logger.log(`Tarefa finalizada - ${duration.total}`);
     return {
       duration,
-      cnabs: listCnab,
+      cnabs,
     };
   }
 
@@ -184,7 +183,7 @@ export class CnabService {
     this.logger.log(`generateRemessa finalizado - ${duration.generateRemessa}`);
 
     this.logger.log('sendRemessa started');
-    await this.sendRemessa(listCnab);
+    const cnabs = await this.sendRemessa(listCnab);
     duration.sendRemessa = formatDateInterval(new Date(), now);
     this.logger.log(`sendRemessa finalizado - ${duration.sendRemessa}`);
 
@@ -192,7 +191,7 @@ export class CnabService {
     this.logger.log(`Tarefa finalizada - ${duration.total}`);
     return {
       duration,
-      cnabs: listCnab,
+      cnabs,
     };
   }
 
@@ -482,10 +481,10 @@ export class CnabService {
     nsaFinal?: number;
     dataCancelamento?: Date;
   }): Promise<string[]> {
-    const METHOD = this.sendRemessa.name;
-    const currentNSA = parseInt((await this.settingsService.getOneBySettingData(cnabSettings.any__cnab_current_nsa)).value);
-
+    const METHOD = 'generateRemessa';
     const { tipo, dataPgto, isConference, isCancelamento, isTeste } = args;
+
+    const currentNSA = await this.settingsService.getCurrentNSA(isTeste);
     let nsaInicial = args.nsaInicial || currentNSA;
     let nsaFinal = args.nsaFinal || nsaInicial;
 
@@ -525,7 +524,7 @@ export class CnabService {
 
         for (let index = nsaInicial; nsaInicial < nsaFinal + 1; nsaInicial++) {
           const headerArquivoDTO = await this.getHeaderArquivoCancelar(index);
-          headerArquivoDTO.nsa = await this.headerArquivoService.getNextNSA();
+          headerArquivoDTO.nsa = await this.settingsService.getNextNSA(isTeste);
           const lotes = await this.getLotesCancelar(index);
           const headerLoteDTOs: HeaderLoteDTO[] = [];
           let detalhes: CnabRegistros104Pgto[] = [];
@@ -582,9 +581,12 @@ export class CnabService {
   }
 
   public async sendRemessa(listCnab: string[]) {
+    const cnabs: { name: string; content: string }[] = [];
     for (const cnabStr of listCnab) {
-      await this.sftpService.submitCnabRemessa(cnabStr);
+      const cnabName = await this.sftpService.submitCnabRemessa(cnabStr);
+      cnabs.push({ name: cnabName, content: cnabStr });
     }
+    return cnabs;
   }
 
   /**

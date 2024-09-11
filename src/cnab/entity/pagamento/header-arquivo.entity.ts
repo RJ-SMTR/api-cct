@@ -13,6 +13,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 
 /**
  * Pagamento.HeaderArquivo
@@ -50,11 +51,14 @@ export class HeaderArquivo extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 2 })
   parametroTransmissao: string;
 
+  @Column({ enum: Cnab104AmbienteCliente, unique: false, nullable: false, length: 2, default: Cnab104AmbienteCliente.Producao })
+  ambienteCliente: Cnab104AmbienteCliente;
+
   @Column({ type: String, unique: false, nullable: true, length: 5 })
   agencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 1 })
-  dvAgencia: string ;
+  dvAgencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 12 })
   numeroConta: string;
@@ -70,7 +74,6 @@ export class HeaderArquivo extends EntityHelper {
 
   @Column({ type: 'time', unique: false, nullable: true })
   horaGeracao: Date;
- 
 
   @ManyToOne(() => TransacaoAgrupado, { eager: true })
   @JoinColumn({
@@ -86,7 +89,6 @@ export class HeaderArquivo extends EntityHelper {
 
   @UpdateDateColumn()
   updatedAt: Date;
-  
 
   @BeforeInsert()
   setLoadValues() {
