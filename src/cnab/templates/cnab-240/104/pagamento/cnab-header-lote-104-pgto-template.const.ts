@@ -1,4 +1,5 @@
 import { Cnab } from 'src/cnab/const/cnab.const';
+import { Cnab104CodigoCompromisso } from 'src/cnab/enums/104/cnab-104-codigo-compromisso.enum';
 import { Cnab104FormaLancamento } from 'src/cnab/enums/104/cnab-104-forma-lancamento.enum';
 import { Cnab104TipoCompromisso } from 'src/cnab/enums/104/cnab-104-tipo-compromisso.enum';
 import { Cnab104TipoOperacao } from 'src/cnab/enums/104/cnab-104-tipo-operacao.enum';
@@ -34,9 +35,9 @@ export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
   tipoOperacao: { pos: [9, 9], picture: 'X(001)', value: Cnab104TipoOperacao.Pagamento, ...Cnab.insert.d() },
   /** 1.05 - 20 pagamento de fornecedor */
   tipoServico: { pos: [10, 11], picture: '9(002)', value: Cnab104TipoServicoExtrato.PagamentoFornecedor, ...Cnab.insert.d() },
-  /** 
+  /**
    * 1.06 - Crédito em conta
-   * 
+   *
    * Regras:
    * - Se o banco do favorecido
    */
@@ -52,7 +53,7 @@ export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
     pos: [19, 32],
     picture: '9(014)',
     value: '00000000000000',
-    ...Cnab.insert.d()
+    ...Cnab.insert.d(),
   },
   /** 1.11 */
   codigoConvenioBanco: { pos: [33, 38], picture: '9(006)', value: '444773', ...Cnab.insert.d() },
@@ -61,10 +62,10 @@ export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
     pos: [39, 40],
     picture: '9(002)',
     value: Cnab104TipoCompromisso.PagamentoFornecedores,
-    ...Cnab.insert.d()
+    ...Cnab.insert.d(),
   },
-  /** 1.13 - Definido pelo banco */
-  codigoCompromisso: { pos: [41, 44], picture: '9(004)', value: '0001', ...Cnab.insert.d() },
+  /** 1.13 - Definido pelo banco. Se é teste ou produção. */
+  codigoCompromisso: { pos: [41, 44], picture: '9(004)', value: Cnab104CodigoCompromisso.Producao, ...Cnab.insert.d() },
   /** 1.14 - Preencher com código informado pelo banco */
   parametroTransmissao: { pos: [45, 46], picture: 'X(002)', value: '01', ...Cnab.insert.d() },
   /** 1.15 */
@@ -84,21 +85,21 @@ export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
     pos: [73, 102],
     picture: 'X(030)',
     value: '                              ',
-    ...Cnab.insert.d()
+    ...Cnab.insert.d(),
   },
   /** 1.22 */
   mensagemAviso: {
     pos: [103, 142],
     picture: 'X(040)',
     value: '                                        ',
-    ...Cnab.insert.d()
+    ...Cnab.insert.d(),
   },
   /** 1.23 - Pagador */
   logradouro: {
     pos: [143, 172],
     picture: 'X(030)',
     value: '                              ',
-    ...Cnab.insert.d()
+    ...Cnab.insert.d(),
   },
   /** 1.24 - Pagador */
   numeroLocal: { pos: [173, 177], picture: '9(005)', value: '00000', ...Cnab.insert.d() },
@@ -117,7 +118,7 @@ export const cnabHeaderLote104PgtoTemplate: CnabHeaderLote104Pgto = {
     pos: [223, 230],
     picture: 'X(008)',
     value: '        ',
-    ...Cnab.insert.d()
+    ...Cnab.insert.d(),
   },
   /** 1.31 */
   ocorrencias: { pos: [231, 240], picture: 'X(010)', value: '          ', ...Cnab.insert.d() },

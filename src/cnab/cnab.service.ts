@@ -407,7 +407,16 @@ export class CnabService {
           id: transacaoAg.id,
           status: { id: TransacaoStatusEnum.created },
         },
-        ...(ordem.consorcio.length || ordem.operadora.length ? (/** Se for Jaé, agrupa por vanzeiro ou empresa */ ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' ? { idOperadora: ordem.idOperadora } : { idConsorcio: ordem.idConsorcio }) : /** Se for Lançamento, agrupa por favorecido e dataOrdem */ { itemTransacoes: { clienteFavorecido: { cpfCnpj: ordem.favorecidoCpfCnpj as string } }, dataOrdem: startOfDay(new Date(ordem.dataOrdem)) }),
+        ...(ordem.consorcio.length || ordem.operadora.length
+          ? // Se for Jaé, agrupa por vanzeiro ou empresa
+            ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL'
+            ? { idOperadora: ordem.idOperadora }
+            : { idConsorcio: ordem.idConsorcio }
+          : // Se for Lançamento, agrupa por favorecido e dataOrdem
+            {
+              itemTransacoes: { clienteFavorecido: { cpfCnpj: ordem.favorecidoCpfCnpj as string } }, //
+              dataOrdem: startOfDay(new Date(ordem.dataOrdem)),
+            }),
       },
     });
     if (itemAg) {
@@ -501,7 +510,7 @@ export class CnabService {
         }
         for (const transacaoAg of transacoesAg) {
           const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg, isConference, isTeste);
-          const headerLoteDTOs = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, isConference, dataPgto);
+          const headerLoteDTOs = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, isConference, isTeste, dataPgto);
           const cnab104 = this.remessaRetornoService.generateFile({ headerArquivoDTO, headerLoteDTOs, isTeste });
           if (headerArquivoDTO && cnab104) {
             const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
@@ -529,7 +538,7 @@ export class CnabService {
           const headerLoteDTOs: HeaderLoteDTO[] = [];
           let detalhes: CnabRegistros104Pgto[] = [];
           for (const lote of lotes) {
-            const headerLoteDTO = this.headerLoteService.convertHeaderLoteDTO(headerArquivoDTO, lote.pagador, lote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente);
+            const headerLoteDTO = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, lote.pagador, lote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente, isTeste);
             const detalhesA = (await this.detalheAService.findMany({ headerLote: { id: lote.id } })).sort((a, b) => a.nsr - b.nsr);
             for (const detalheA of detalhesA) {
               const detalhe = await this.remessaRetornoService.saveDetalhes104(detalheA.numeroDocumentoEmpresa, headerLoteDTO, detalheA.itemTransacaoAgrupado, detalheA.nsr, false, detalheA.dataVencimento, true, detalheA);

@@ -51,7 +51,7 @@ export class LancamentoService {
     const found = await this.lancamentoRepository.findMany({
       where: {
         ...(dataOrdemBetween ? { data_ordem: Between(...dataOrdemBetween) } : {}),
-        itemTransacao: IsNull(),
+        status: LancamentoStatus._2_autorizado,
         is_autorizado: true,
       },
     });
@@ -214,7 +214,7 @@ export class LancamentoService {
     if (!toDelete) {
       throw new HttpException('Lançamento a ser deletado não existe.', HttpStatus.NOT_FOUND);
     }
-    if ([LancamentoStatus._1_criado, LancamentoStatus._2_aprovado].includes(toDelete.status)) {
+    if ([LancamentoStatus._1_criado, LancamentoStatus._2_autorizado].includes(toDelete.status)) {
       throw new HttpException('Apenas é permitido deletar Lançamentos com status criado ou aprovado.', HttpStatus.NOT_ACCEPTABLE);
     }
     await this.lancamentoRepository.softDelete(id);

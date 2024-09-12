@@ -188,7 +188,7 @@ export class Lancamento extends EntityHelper implements ILancamento {
     this.autorizacoes.push({ id: userId } as User);
     this.is_autorizado = this.autorizacoes.length >= 2;
     if (this.status === LancamentoStatus._1_criado && this.is_autorizado) {
-      this.status = LancamentoStatus._2_aprovado;
+      this.status = LancamentoStatus._2_autorizado;
     }
   }
 

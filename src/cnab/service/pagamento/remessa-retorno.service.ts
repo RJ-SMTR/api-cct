@@ -46,6 +46,7 @@ import { HeaderLoteConfService } from './header-lote-conf.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
+import { Cnab104CodigoCompromisso } from 'src/cnab/enums/104/cnab-104-codigo-compromisso.enum';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -101,7 +102,7 @@ export class RemessaRetornoService {
    *    (se banco do favorecido = banco do pagador - pagador é sempre Caixa)
    *  - senão, TED (41)
    */
-  public async getLotes(pagador: Pagador, headerArquivoDTO: HeaderArquivoDTO, isConference: boolean, dataPgto?: Date) {
+  public async getLotes(pagador: Pagador, headerArquivoDTO: HeaderArquivoDTO, isConference: boolean, isTeste?: boolean, dataPgto?: Date) {
     const transacaoAg = headerArquivoDTO.transacaoAgrupado as TransacaoAgrupado;
     const itemTransacaoAgs = await this.itemTransacaoAgService.findManyByIdTransacaoAg(transacaoAg.id);
 
@@ -126,10 +127,10 @@ export class RemessaRetornoService {
           nsrTed++;
           if (loteTed == undefined) {
             if (!isConference) {
-              loteTed = this.headerLoteService.convertHeaderLoteDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.TED);
+              loteTed = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.TED, isTeste);
               loteTed = await this.headerLoteService.saveDto(loteTed);
             } else {
-              loteTed = this.headerLoteConfService.convertHeaderLoteDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.TED);
+              loteTed = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.TED, isTeste);
               loteTed = await this.headerLoteConfService.saveDto(loteTed);
             }
           }
@@ -143,10 +144,10 @@ export class RemessaRetornoService {
           // Atual
           if (loteCC == undefined) {
             if (!isConference) {
-              loteCC = this.headerLoteService.convertHeaderLoteDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.CreditoContaCorrente);
+              loteCC = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.CreditoContaCorrente, isTeste);
               loteCC = await this.headerLoteService.saveDto(loteCC);
             } else {
-              loteCC = this.headerLoteConfService.convertHeaderLoteDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.CreditoContaCorrente);
+              loteCC = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.CreditoContaCorrente, isTeste);
               loteCC = await this.headerLoteConfService.saveDto(loteCC);
             }
           }
@@ -333,6 +334,7 @@ export class RemessaRetornoService {
     headerLote104.parametroTransmissao.value = headerLoteDTO.parametroTransmissao;
     headerLote104.tipoInscricao.value = headerLoteDTO.tipoInscricao;
     headerLote104.formaLancamento.value = headerLoteDTO.formaLancamento;
+    headerLote104.codigoCompromisso.value = headerLoteDTO.codigoCompromisso;
     // Pagador
     headerLote104.agenciaContaCorrente.value = headerArquivo.agencia;
     headerLote104.dvAgencia.value = headerArquivo.dvAgencia;

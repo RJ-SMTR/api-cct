@@ -4,6 +4,9 @@ import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento
 import { DeepPartial } from 'typeorm';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
+import { HeaderArquivoDTO } from './header-arquivo.dto';
+import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
+import { Cnab104CodigoCompromisso } from 'src/cnab/enums/104/cnab-104-codigo-compromisso.enum';
 
 function isCreate(object: HeaderLoteDTO): boolean {
   return object.id === undefined;
@@ -14,6 +17,26 @@ export class HeaderLoteDTO {
     if (dto) {
       Object.assign(this, dto);
     }
+  }
+
+  static fromHeaderArquivoDTO(
+    headerArquivo: HeaderArquivoDTO, //
+    pagador: Pagador,
+    formaLancamento: Cnab104FormaLancamento,
+    isTeste?: boolean,
+  ) {
+    return new HeaderLoteDTO({
+      codigoConvenioBanco: headerArquivo.codigoConvenio,
+      pagador: pagador,
+      numeroInscricao: headerArquivo.numeroInscricao,
+      parametroTransmissao: headerArquivo.parametroTransmissao,
+      tipoCompromisso: String(Cnab104PgtoTemplates.file104.registros.headerLote.tipoCompromisso.value),
+      tipoInscricao: headerArquivo.tipoInscricao,
+      headerArquivo: headerArquivo,
+      loteServico: 1,
+      formaLancamento,
+      codigoCompromisso: isTeste ? Cnab104CodigoCompromisso.Teste : Cnab104CodigoCompromisso.Producao,
+    });
   }
 
   id?: number;
@@ -50,6 +73,11 @@ export class HeaderLoteDTO {
   @IsNotEmpty()
   pagador?: DeepPartial<Pagador>;
 
+  /** Código definido pelo banco, se será teste ou produção */
+  @ValidateIf(isCreate)
+  @IsNotEmpty()
+  codigoCompromisso?: Cnab104CodigoCompromisso;
+
   ocorrenciasCnab?: string;
 
   /** 
@@ -65,9 +93,9 @@ export class HeaderLoteDTO {
   /** Usado apenas para geração do remessa, não é salvo no banco */
   // itemTransacaoAgrupados: ItemTransacaoAgrupado[] = [];
 
-  /** 
+  /**
    * Usado apenas para geração do remessa, não é salvo no banco
-   * 
+   *
    * Após armazenar os itemTransacaoAgrupados, gera os respectivos detalhes
    * e armazena neste DTO para gerar o CNAB.
    */

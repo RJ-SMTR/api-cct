@@ -3,20 +3,19 @@ import { HeaderArquivoDTO } from 'src/cnab/dto/pagamento/header-arquivo.dto';
 import { HeaderArquivoConf } from 'src/cnab/entity/conference/header-arquivo-conf.entity';
 import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { HeaderArquivoTipoArquivo } from 'src/cnab/enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { HeaderArquivoConfRepository } from 'src/cnab/repository/pagamento/header-arquivo-conf.repository';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
-import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { getBRTFromUTC } from 'src/utils/date-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { DeepPartial, FindOptionsWhere } from 'typeorm';
 import { PagadorService } from './pagador.service';
-import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
