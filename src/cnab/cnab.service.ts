@@ -22,11 +22,12 @@ import { CommonHttpException } from 'src/utils/http-exception/common-http-except
 import { formatErrMsg } from 'src/utils/log-utils';
 import { asNumber } from 'src/utils/pipe-utils';
 import { isContent } from 'src/utils/type-utils';
-import { DataSource, DeepPartial, QueryRunner } from 'typeorm';
+import { DataSource, DeepPartial, In, QueryRunner } from 'typeorm';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
 import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
 import { OrdemPagamentoDto } from './dto/pagamento/ordem-pagamento.dto';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
+import { DetalheB } from './entity/pagamento/detalhe-b.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacao } from './entity/pagamento/item-transacao.entity';
 import { Pagador } from './entity/pagamento/pagador.entity';
@@ -46,6 +47,7 @@ import { ExtratoDetalheEService } from './service/extrato/extrato-detalhe-e.serv
 import { ExtratoHeaderArquivoService } from './service/extrato/extrato-header-arquivo.service';
 import { ExtratoHeaderLoteService } from './service/extrato/extrato-header-lote.service';
 import { DetalheAService } from './service/pagamento/detalhe-a.service';
+import { DetalheBService } from './service/pagamento/detalhe-b.service';
 import { HeaderArquivoService } from './service/pagamento/header-arquivo.service';
 import { HeaderLoteService } from './service/pagamento/header-lote.service';
 import { ItemTransacaoAgrupadoService } from './service/pagamento/item-transacao-agrupado.service';
@@ -55,6 +57,7 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
+import { Cnab104AmbienteCliente } from './enums/104/cnab-104-ambiente-cliente.enum';
 
 /**
  * User cases for CNAB and Payments
@@ -69,6 +72,7 @@ export class CnabService {
     private bigqueryTransacaoService: BigqueryTransacaoService,
     private clienteFavorecidoService: ClienteFavorecidoService,
     private detalheAService: DetalheAService,
+    private detalheBService: DetalheBService,
     private extDetalheEService: ExtratoDetalheEService,
     private extHeaderArquivoService: ExtratoHeaderArquivoService,
     private extHeaderLoteService: ExtratoHeaderLoteService,
@@ -88,6 +92,48 @@ export class CnabService {
     private dataSource: DataSource,
     private settingsService: SettingsService,
   ) {}
+
+  async getSendRemessa(headerArquivoIds: number[]) {
+    const METHOD = 'getSendRemessa';
+    const startDate = new Date();
+    this.logger.log('Tarefa iniciada', METHOD);
+    const remessas = await this.findRemessas(headerArquivoIds);
+    if (!remessas.length) {
+      const duration = formatDateInterval(new Date(), startDate);
+      this.logger.log(`Não há remessas para enviar. - ${duration}`);
+      return { duration, cnabs: [] };
+    }
+    const cnabs = await this.sendRemessa(remessas);
+    const duration = formatDateInterval(new Date(), startDate);
+    this.logger.log(`Tarefa finalizada - ${duration}`);
+    return { duration, cnabs };
+  }
+  async findRemessas(headerArquivoIds: number[]) {
+    const listCnab: string[] = [];
+    for (const headerArquivoId of headerArquivoIds) {
+      const headerArquivo = await this.headerArquivoService.findOne({ id: headerArquivoId });
+      if (!headerArquivo) {
+        this.logger.warn(`HeaderArquivo #${headerArquivoId} não encontrado, nada a fazer.`);
+        continue;
+      }
+      const isTeste = headerArquivo.ambienteCliente === Cnab104AmbienteCliente.Teste;
+      const headerArquivoDTO = HeaderArquivoDTO.fromEntity(headerArquivo, false);
+      const headerLotes = await this.headerLoteService.findMany({ headerArquivo: { id: headerArquivo.id } });
+      const detalheAs = await this.detalheAService.findManyRaw({ headerLoteId_in: headerLotes.map((hl) => hl.id) });
+      const detalheBs = await this.detalheBService.findMany({ where: { detalheA: { id: In(detalheAs.map((da) => da.id)) } }, relations: ['detalheA'] as (keyof DetalheB)[] });
+      const itemTransacoes = await this.itemTransacaoService.findMany({ where: { itemTransacaoAgrupado: { id: In(detalheAs.map((da) => da.itemTransacaoAgrupado.id)) } }, order: { id: 'ASC' } });
+      const headerLoteDTOs = HeaderLoteDTO.fromEntities(headerLotes, detalheAs, detalheBs, itemTransacoes);
+      const cnab104 = this.remessaRetornoService.generateFile({ headerArquivoDTO, headerLoteDTOs, isCancelamento: true, isTeste });
+      if (headerArquivo && cnab104) {
+        const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
+        if (!cnabStr) {
+          continue;
+        }
+        listCnab.push(cnabStr);
+      }
+    }
+    return listCnab;
+  }
 
   async getGenerateRemessaJae(args: {
     dataOrdemInicial: Date; //
@@ -193,6 +239,12 @@ export class CnabService {
       duration,
       cnabs,
     };
+  }
+
+  public async sendRemessa(listCnab: string[]) {
+    for (const cnabStr of listCnab) {
+      await this.sftpService.submitCnabRemessa(cnabStr);
+    }
   }
 
   /**
@@ -532,7 +584,8 @@ export class CnabService {
         }
 
         for (let index = nsaInicial; nsaInicial < nsaFinal + 1; nsaInicial++) {
-          const headerArquivoDTO = await this.getHeaderArquivoCancelar(index);
+          const headerArquivo = await this.getHeaderArquivoCancelar(index);
+          const headerArquivoDTO = HeaderArquivoDTO.fromEntity(headerArquivo, false);
           headerArquivoDTO.nsa = await this.settingsService.getNextNSA(isTeste);
           const lotes = await this.getLotesCancelar(index);
           const headerLoteDTOs: HeaderLoteDTO[] = [];
@@ -587,15 +640,6 @@ export class CnabService {
 
   private async getHeaderArquivoCancelar(nsa: number) {
     return await this.headerArquivoService.getHeaderArquivoNsa(nsa);
-  }
-
-  public async sendRemessa(listCnab: string[]) {
-    const cnabs: { name: string; content: string }[] = [];
-    for (const cnabStr of listCnab) {
-      const cnabName = await this.sftpService.submitCnabRemessa(cnabStr);
-      cnabs.push({ name: cnabName, content: cnabStr });
-    }
-    return cnabs;
   }
 
   /**

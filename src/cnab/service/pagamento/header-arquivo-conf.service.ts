@@ -55,6 +55,7 @@ export class HeaderArquivoConfService {
       nsa: await this.settingsService.getNextNSA(isTeste),
       ambienteCliente: isTeste ? Cnab104AmbienteCliente.Teste : Cnab104AmbienteCliente.Producao,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessa),
+      _isConf: true,
     });
     return dto;
   }
@@ -83,6 +84,7 @@ export class HeaderArquivoConfService {
       nsa: cnab104.headerArquivo.nsa.convertedValue,
       ambienteCliente: headerArquivoRemessa.ambienteCliente,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
+      _isConf: true,
     });
     return await this.headerArquivoRepository.save(headerArquivo);
   }

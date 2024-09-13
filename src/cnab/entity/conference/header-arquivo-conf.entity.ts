@@ -24,37 +24,37 @@ export class HeaderArquivoConf extends EntityHelper {
   tipoArquivo: number;
 
   @Column({ type: String, unique: false, nullable: true, length: 3 })
-  codigoBanco: string | null;
+  codigoBanco: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  tipoInscricao: string | null;
+  tipoInscricao: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 14 })
-  numeroInscricao: string | null;
+  numeroInscricao: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 6 })
-  codigoConvenio: string | null;
+  codigoConvenio: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  parametroTransmissao: string | null;
+  parametroTransmissao: string;
 
   @Column({ enum: Cnab104AmbienteCliente, unique: false, nullable: false, length: 2, default: Cnab104AmbienteCliente.Producao })
   ambienteCliente: Cnab104AmbienteCliente;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
-  agencia: string | null;
+  agencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 1 })
-  dvAgencia: string | null;
+  dvAgencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 12 })
-  numeroConta: string | null;
+  numeroConta: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 1 })
-  dvConta: string | null;
+  dvConta: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 100 })
-  nomeEmpresa: string | null;
+  nomeEmpresa: string;
 
   @Column({ type: Date, unique: false, nullable: true })
   dataGeracao: Date;

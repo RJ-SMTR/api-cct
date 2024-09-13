@@ -1,12 +1,26 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
+import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { DetalheAConf } from 'src/cnab/entity/conference/detalhe-a-conf.entity';
+import { DetalheBConf } from 'src/cnab/entity/conference/detalhe-b-conf.entity';
+import { HeaderLoteConf } from 'src/cnab/entity/conference/header-lote-conf.entity';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
+import { DetalheB } from 'src/cnab/entity/pagamento/detalhe-b.entity';
+import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
+import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
+import { Cnab104CodigoCompromisso } from 'src/cnab/enums/104/cnab-104-codigo-compromisso.enum';
 import { Cnab104FormaLancamento } from 'src/cnab/enums/104/cnab-104-forma-lancamento.enum';
-import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
+import { CnabRegistros104Pgto, CnabRegistros104PgtoDTO } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
+import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { DeepPartial } from 'typeorm';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
 import { HeaderArquivoDTO } from './header-arquivo.dto';
-import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
-import { Cnab104CodigoCompromisso } from 'src/cnab/enums/104/cnab-104-codigo-compromisso.enum';
+
+interface IHeaderLoteDetalhes {
+  detalheA: DetalheA | DetalheAConf;
+  detalheB: DetalheB | DetalheBConf;
+  favorecido: ClienteFavorecido;
+}
 
 function isCreate(object: HeaderLoteDTO): boolean {
   return object.id === undefined;
@@ -39,6 +53,39 @@ export class HeaderLoteDTO {
     });
   }
 
+  static fromEntity(headerLote: HeaderLote | HeaderLoteConf, detalhes: IHeaderLoteDetalhes[]): HeaderLoteDTO {
+    return new HeaderLoteDTO({
+      codigoConvenioBanco: headerLote.codigoConvenioBanco,
+      pagador: headerLote.pagador,
+      numeroInscricao: headerLote.numeroInscricao,
+      parametroTransmissao: headerLote.parametroTransmissao,
+      tipoCompromisso: headerLote.tipoCompromisso,
+      tipoInscricao: headerLote.tipoInscricao,
+      headerArquivo: headerLote.headerArquivo,
+      loteServico: headerLote.loteServico,
+      formaLancamento: headerLote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente,
+      registros104: detalhes.map((d) => CnabRegistros104PgtoDTO.fromEntity(d.detalheA, d.detalheB, d.favorecido)),
+    });
+  }
+
+  static fromEntities(headerLotes: (HeaderLote | HeaderLoteConf)[], detalheAs: (DetalheA | DetalheAConf)[], detalheBs: (DetalheB | DetalheBConf)[], itemTransacoes: ItemTransacao[]): HeaderLoteDTO[] {
+    const lotes: HeaderLoteDTO[] = [];
+    for (const headerLote of headerLotes) {
+      const loteDetalheAs = detalheAs.filter((da) => da.headerLote.id == headerLote.id);
+      const entityArgs = loteDetalheAs.reduce((l: IHeaderLoteDetalhes[], detalheA) => {
+        const detalheB = detalheBs.find((db) => db.detalheA.id == detalheA.id);
+        const favorecido = itemTransacoes.find((it) => it.itemTransacaoAgrupado.id == detalheA.itemTransacaoAgrupado.id)?.clienteFavorecido;
+        if (detalheB && favorecido) {
+          return [...l, { detalheA, detalheB, favorecido }];
+        } else {
+          return l;
+        }
+      }, []);
+      lotes.push(HeaderLoteDTO.fromEntity(headerLote, entityArgs));
+    }
+    return lotes;
+  }
+
   id?: number;
 
   @ValidateIf(isCreate)
@@ -55,11 +102,11 @@ export class HeaderLoteDTO {
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  numeroInscricao?: string;
+  numeroInscricao?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()
-  codigoConvenioBanco?: string;
+  codigoConvenioBanco?: string | null;
 
   @ValidateIf(isCreate)
   @IsNotEmpty()

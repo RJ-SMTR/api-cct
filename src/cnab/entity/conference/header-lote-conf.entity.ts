@@ -1,8 +1,9 @@
+import { Cnab104CodigoCompromisso } from 'src/cnab/enums/104/cnab-104-codigo-compromisso.enum';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { HeaderArquivoConf } from './header-arquivo-conf.entity';
 import { Pagador } from '../pagamento/pagador.entity';
-import { Cnab104CodigoCompromisso } from 'src/cnab/enums/104/cnab-104-codigo-compromisso.enum';
+import { HeaderArquivoConf } from './header-arquivo-conf.entity';
+
 
 /**
  * Pagamento.HeaderLote
@@ -31,7 +32,7 @@ export class HeaderLoteConf extends EntityHelper {
    * Each HeaderArquivo will have loteServico 1 for lote 1; loteServico = 2 for lote 2 etc.
    */
   @Column({ type: Number, unique: false, nullable: true })
-  loteServico: number | null;
+  loteServico: number;
 
   @Column({ type: String, unique: false, nullable: true })
   tipoInscricao: string | null;

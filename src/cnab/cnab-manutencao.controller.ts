@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, HttpCode, HttpStatus, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpCode, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
@@ -6,7 +6,7 @@ import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { ParseArrayPipe } from 'src/utils/pipes/parse-array.pipe';
+import { ParseArrayPipe as ParseArrayPipe1 } from 'src/utils/pipes/parse-array.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { CnabService } from './cnab.service';
@@ -122,6 +122,17 @@ export class CnabManutencaoController {
     });
   }
 
+  @Get('sendRemessa')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.master)
+  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta o envio de remessa - que normalmente é feita via cronjob' })
+  @ApiQuery({ name: 'headerArquivoIds', description: ApiDescription({ _: 'Ids do HeaderArquivo para gerar remessa', example: '1,2,3' }), required: true, type: String })
+  @ApiBearerAuth()
+  async getSendRemessa(@Query('headerArquivoIds', new ParseArrayPipe({ items: Number, separator: ',', optional: true })) headerArquivoIds: number[]) {
+    return await this.cnabService.getSendRemessa(headerArquivoIds);
+  }
+
   @Get('updateRetorno')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -149,7 +160,7 @@ export class CnabManutencaoController {
   async getSyncTransacaoViewOrdemPgto(
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true, optional: true })) dataOrdemInicial: Date | undefined, //
     @Query('dataOrdemFinal', new ParseDatePipe({ transform: true, optional: true })) dataOrdemFinal: Date | undefined,
-    @Query('nomeFavorecido', new ParseArrayPipe({ transform: true, optional: true })) nomeFavorecido: string[] | undefined,
+    @Query('nomeFavorecido', new ParseArrayPipe1({ transform: true, optional: true })) nomeFavorecido: string[] | undefined,
   ) {
     const dataOrdem_between = dataOrdemInicial && dataOrdemFinal && ([dataOrdemInicial, dataOrdemFinal] as [Date, Date]);
     return await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between, nomeFavorecido });
@@ -169,7 +180,7 @@ export class CnabManutencaoController {
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true })) dataOrdemInicial: any, //
     @Query('dataOrdemFinal', new ParseDatePipe({ transform: true })) dataOrdemFinal: any,
     @Query('consorcio') consorcio: string | undefined,
-    @Query('idTransacao', new ParseArrayPipe({ optional: true })) idTransacao: string[], //
+    @Query('idTransacao', new ParseArrayPipe1({ optional: true })) idTransacao: string[], //
   ) {
     const _dataOrdemInicial: Date = dataOrdemInicial;
     const _dataOrdemFinal: Date = dataOrdemFinal;
@@ -197,7 +208,7 @@ export class CnabManutencaoController {
   @ApiQuery({ name: 'idOperadora', type: String, required: false, description: ApiDescription({ _: 'Pesquisar pelo idConsorcio para atualizar', example: '8000123,8000456' }) })
   async getUpdateTransacaoViewBigqueryValues(
     @Query('diasAnteriores', new ParseNumberPipe({ optional: true })) diasAnteriores: number | undefined, //
-    @Query('idOperadora', new ParseArrayPipe({ optional: true })) idOperadora: string[] | undefined, //
+    @Query('idOperadora', new ParseArrayPipe1({ optional: true })) idOperadora: string[] | undefined, //
   ) {
     return await this.cnabService.updateTransacaoViewBigqueryValues(diasAnteriores, idOperadora);
   }

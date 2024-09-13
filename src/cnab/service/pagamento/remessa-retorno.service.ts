@@ -9,6 +9,7 @@ import { Cnab104TipoMovimento } from './../../enums/104/cnab-104-tipo-movimento.
 
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { DetalheAConf } from 'src/cnab/entity/conference/detalhe-a-conf.entity';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
@@ -46,7 +47,6 @@ import { HeaderLoteConfService } from './header-lote-conf.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
-import { Cnab104CodigoCompromisso } from 'src/cnab/enums/104/cnab-104-codigo-compromisso.enum';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -168,7 +168,7 @@ export class RemessaRetornoService {
   }
 
   async convertCnabDetalheAToDTO(detalheA: CnabDetalheA_104, headerLoteId: number, itemTransacaoAg: ItemTransacaoAgrupado, isConference: boolean) {
-    let existing;
+    let existing: DetalheA | DetalheAConf | null = null;
     if (!isConference) {
       existing = await this.detalheAService.findOne({
         where: {
@@ -184,29 +184,7 @@ export class RemessaRetornoService {
         },
       });
     }
-
-    return new DetalheADTO({
-      ...(existing ? { id: existing.id } : {}),
-      nsr: Number(detalheA.nsr.value),
-      ocorrenciasCnab: detalheA.ocorrencias.value.trim(),
-      dataVencimento: startOfDay(getCnabFieldConverted(detalheA.dataVencimento)),
-      tipoMoeda: detalheA.tipoMoeda.value,
-      finalidadeDOC: detalheA.finalidadeDOC.value,
-      indicadorBloqueio: detalheA.indicadorBloqueio.value,
-      numeroDocumentoBanco: detalheA.numeroDocumentoBanco.value,
-      quantidadeParcelas: Number(detalheA.quantidadeParcelas.value),
-      numeroDocumentoEmpresa: Number(detalheA.numeroDocumentoEmpresa.value),
-      quantidadeMoeda: Number(detalheA.quantidadeMoeda.value),
-      valorLancamento: getCnabFieldConverted(detalheA.valorLancamento),
-      valorRealEfetivado: getCnabFieldConverted(detalheA.valorRealEfetivado),
-      periodoVencimento: startOfDay(detalheA.dataVencimento.convertedValue),
-      loteServico: getCnabFieldConverted(detalheA.loteServico),
-      indicadorFormaParcelamento: getCnabFieldConverted(detalheA.indicadorFormaParcelamento),
-      numeroParcela: getCnabFieldConverted(detalheA.numeroParcela),
-      dataEfetivacao: getCnabFieldConverted(detalheA.dataEfetivacao),
-      headerLote: { id: headerLoteId },
-      itemTransacaoAgrupado: itemTransacaoAg,
-    });
+    return DetalheADTO.fromRetorno(detalheA, existing, headerLoteId, itemTransacaoAg);
   }
 
   async convertCnabDetalheBToDTO(detalheB: CnabDetalheB_104, detalheAId: number) {
@@ -366,7 +344,7 @@ export class RemessaRetornoService {
    * @returns null if failed ItemTransacao to CNAB */
   public async saveDetalhes104(numeroDocumento: number, headerLote: HeaderLoteDTO, itemTransacaoAg: ItemTransacaoAgrupado, nsr: number, isConference: boolean, dataPgto?: Date, isCancelamento = false, detalheAC = new DetalheA()): Promise<CnabRegistros104Pgto | null> {
     /** @type ClienteFavorecido */
-    let favorecido: any;
+    let favorecido: ClienteFavorecido | undefined;
     if (itemTransacaoAg != undefined) {
       const itemTransacao = await this.itemTransacaoService.findOne({ where: { itemTransacaoAgrupado: { id: itemTransacaoAg.id } } });
       favorecido = itemTransacao?.clienteFavorecido;
@@ -377,7 +355,7 @@ export class RemessaRetornoService {
     }
 
     // Failure if no favorecido
-    if (!favorecido && !isCancelamento) {
+    if (!favorecido) {
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       try {
