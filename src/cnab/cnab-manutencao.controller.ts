@@ -146,7 +146,7 @@ export class CnabManutencaoController {
     @Query('folder') folder: string | undefined, //
     @Query('maxItems', new ParseNumberPipe({ min: 1, optional: true })) maxItems: number | undefined,
   ) {
-    return await this.cnabService.updateRetorno(folder, maxItems);
+    return await this.cnabService.readRetornoPagamento(folder, maxItems);
   }
 
   @Get('syncTransacaoViewOrdemPgto')

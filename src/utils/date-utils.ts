@@ -138,3 +138,18 @@ export function formatDateInterval(endDate: Date, startDate: Date): string {
   ].join(':');
   return formattedTime;
 }
+
+export function getDateFromCnabName(fileName: string, type: 'retornoPagamento' | 'retornoExtrato') {
+  // retornoPagamento (default)
+  let match = fileName.match(/_(\d{2})(\d{2})(\d{4})_(\d{2})(\d{2})(\d{2})\.ret$/);
+  if (type === 'retornoExtrato') {
+    match = fileName.match(/_(\d{2})(\d{2})(\d{4})_(\d{2})(\d{2})(\d{2})\.ext$/);
+  }
+  if (match) {
+    const [_, day, month, year, hour, minute, second] = match;
+    const date = new Date(`${year}-${month}-${day} ${hour}:${minute}:${second}.0`);
+    return date;
+  } else {
+    throw new Error('Formato de data não esperado');
+  }
+}

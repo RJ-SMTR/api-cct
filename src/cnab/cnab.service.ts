@@ -23,22 +23,25 @@ import { formatErrMsg } from 'src/utils/log-utils';
 import { asNumber } from 'src/utils/pipe-utils';
 import { isContent } from 'src/utils/type-utils';
 import { DataSource, DeepPartial, In, QueryRunner } from 'typeorm';
+import { CnabHeaderArquivo104 } from './dto/cnab-240/104/cnab-header-arquivo-104.dto';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
 import { HeaderLoteDTO } from './dto/pagamento/header-lote.dto';
 import { OrdemPagamentoDto } from './dto/pagamento/ordem-pagamento.dto';
 import { ClienteFavorecido } from './entity/cliente-favorecido.entity';
 import { DetalheB } from './entity/pagamento/detalhe-b.entity';
+import { HeaderArquivo } from './entity/pagamento/header-arquivo.entity';
 import { ItemTransacaoAgrupado } from './entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacao } from './entity/pagamento/item-transacao.entity';
 import { Pagador } from './entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from './entity/pagamento/transacao-agrupado.entity';
 import { TransacaoStatus } from './entity/pagamento/transacao-status.entity';
 import { Transacao } from './entity/pagamento/transacao.entity';
+import { Cnab104AmbienteCliente } from './enums/104/cnab-104-ambiente-cliente.enum';
 import { Cnab104FormaLancamento } from './enums/104/cnab-104-forma-lancamento.enum';
 import { PagadorContaEnum } from './enums/pagamento/pagador.enum';
 import { TransacaoStatusEnum } from './enums/pagamento/transacao-status.enum';
-import { CnabHeaderArquivo104 } from './interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { CnabFile104Extrato } from './interfaces/cnab-240/104/extrato/cnab-file-104-extrato.interface';
+import { CnabFile104PgtoDTO } from './interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { CnabRegistros104Pgto } from './interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { AllPagadorDict } from './interfaces/pagamento/all-pagador-dict.interface';
 import { ArquivoPublicacaoService } from './service/arquivo-publicacao.service';
@@ -57,7 +60,12 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
-import { Cnab104AmbienteCliente } from './enums/104/cnab-104-ambiente-cliente.enum';
+
+export interface ICnabInfo {
+  name: string;
+  content: string;
+  headerArquivo: HeaderArquivoDTO;
+}
 
 /**
  * User cases for CNAB and Payments
@@ -77,6 +85,8 @@ export class CnabService {
     private extHeaderArquivoService: ExtratoHeaderArquivoService,
     private extHeaderLoteService: ExtratoHeaderLoteService,
     private headerArquivoService: HeaderArquivoService,
+    private headerArquivoConfService: HeaderArquivoService,
+    private extHeaderArquivoConfService: ExtratoHeaderArquivoService,
     private headerLoteService: HeaderLoteService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private itemTransacaoService: ItemTransacaoService,
@@ -103,13 +113,13 @@ export class CnabService {
       this.logger.log(`Não há remessas para enviar. - ${duration}`);
       return { duration, cnabs: [] };
     }
-    const cnabs = await this.sendRemessa(remessas);
+    await this.sendRemessa(remessas);
     const duration = formatDateInterval(new Date(), startDate);
     this.logger.log(`Tarefa finalizada - ${duration}`);
-    return { duration, cnabs };
+    return { duration, remessas };
   }
-  async findRemessas(headerArquivoIds: number[]) {
-    const listCnab: string[] = [];
+  async findRemessas(headerArquivoIds: number[]): Promise<ICnabInfo[]> {
+    const listCnab: ICnabInfo[] = [];
     for (const headerArquivoId of headerArquivoIds) {
       const headerArquivo = await this.headerArquivoService.findOne({ id: headerArquivoId });
       if (!headerArquivo) {
@@ -123,13 +133,13 @@ export class CnabService {
       const detalheBs = await this.detalheBService.findMany({ where: { detalheA: { id: In(detalheAs.map((da) => da.id)) } }, relations: ['detalheA'] as (keyof DetalheB)[] });
       const itemTransacoes = await this.itemTransacaoService.findMany({ where: { itemTransacaoAgrupado: { id: In(detalheAs.map((da) => da.itemTransacaoAgrupado.id)) } }, order: { id: 'ASC' } });
       const headerLoteDTOs = HeaderLoteDTO.fromEntities(headerLotes, detalheAs, detalheBs, itemTransacoes);
-      const cnab104 = this.remessaRetornoService.generateFile({ headerArquivoDTO, headerLoteDTOs, isCancelamento: true, isTeste });
+      const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO, headerLoteDTOs, isCancelamento: true, isTeste });
       if (headerArquivo && cnab104) {
         const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
         if (!cnabStr) {
           continue;
         }
-        listCnab.push(cnabStr);
+        listCnab.push({ name: '', content: cnabStr, headerArquivo: headerArquivoDTO });
       }
     }
     return listCnab;
@@ -206,6 +216,7 @@ export class CnabService {
     const startDate = new Date();
     let now = new Date();
     this.logger.log('Tarefa iniciada', METHOD);
+    const cnabs: ICnabInfo[] = [];
 
     this.logger.log('saveTransacoesJae iniciado');
     await this.saveTransacoesLancamento(dataOrdemInicial, dataOrdemFinal);
@@ -229,7 +240,7 @@ export class CnabService {
     this.logger.log(`generateRemessa finalizado - ${duration.generateRemessa}`);
 
     this.logger.log('sendRemessa started');
-    const cnabs = await this.sendRemessa(listCnab);
+    await this.sendRemessa(listCnab);
     duration.sendRemessa = formatDateInterval(new Date(), now);
     this.logger.log(`sendRemessa finalizado - ${duration.sendRemessa}`);
 
@@ -241,9 +252,14 @@ export class CnabService {
     };
   }
 
-  public async sendRemessa(listCnab: string[]) {
-    for (const cnabStr of listCnab) {
-      await this.sftpService.submitCnabRemessa(cnabStr);
+  public async sendRemessa(listCnab: ICnabInfo[]) {
+    for (const cnab of listCnab) {
+      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content);
+      if (cnab.headerArquivo._isConf) {
+        await this.headerArquivoConfService.save({ id: cnab.headerArquivo.id, remessaName: cnab.name });
+      } else {
+        await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName: cnab.name });
+      }
     }
   }
 
@@ -541,7 +557,7 @@ export class CnabService {
     /** Default: nsaInicial */
     nsaFinal?: number;
     dataCancelamento?: Date;
-  }): Promise<string[]> {
+  }): Promise<ICnabInfo[]> {
     const METHOD = 'generateRemessa';
     const { tipo, dataPgto, isConference, isCancelamento, isTeste } = args;
 
@@ -553,7 +569,7 @@ export class CnabService {
     await queryRunner.connect();
     try {
       await queryRunner.startTransaction();
-      const listCnab: string[] = [];
+      const listCnab: ICnabInfo[] = [];
       if (!isCancelamento) {
         const transacoesAg = await this.transacaoAgService.findAllNewTransacao(tipo);
         if (!transacoesAg.length) {
@@ -563,7 +579,7 @@ export class CnabService {
         for (const transacaoAg of transacoesAg) {
           const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg, isConference, isTeste);
           const headerLoteDTOs = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, isConference, isTeste, dataPgto);
-          const cnab104 = this.remessaRetornoService.generateFile({ headerArquivoDTO, headerLoteDTOs, isTeste });
+          const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO, headerLoteDTOs, isTeste });
           if (headerArquivoDTO && cnab104) {
             const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
             for (const processedLote of processedCnab104.lotes) {
@@ -574,7 +590,7 @@ export class CnabService {
               await this.updateStatusRemessa(headerArquivoDTO, processedCnab104.headerArquivo, transacaoAg.id);
             }
             if (cnabStr) {
-              listCnab.push(cnabStr);
+              listCnab.push({ name: '', content: cnabStr, headerArquivo: headerArquivoDTO });
             }
           }
         }
@@ -591,7 +607,7 @@ export class CnabService {
           const headerLoteDTOs: HeaderLoteDTO[] = [];
           let detalhes: CnabRegistros104Pgto[] = [];
           for (const lote of lotes) {
-            const headerLoteDTO = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, lote.pagador, lote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente, isTeste);
+            const headerLoteDTO = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivo, lote.pagador, lote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente, isTeste);
             const detalhesA = (await this.detalheAService.findMany({ headerLote: { id: lote.id } })).sort((a, b) => a.nsr - b.nsr);
             for (const detalheA of detalhesA) {
               const detalhe = await this.remessaRetornoService.saveDetalhes104(detalheA.numeroDocumentoEmpresa, headerLoteDTO, detalheA.itemTransacaoAgrupado, detalheA.nsr, false, detalheA.dataVencimento, true, detalheA);
@@ -603,13 +619,13 @@ export class CnabService {
             headerLoteDTOs.push(headerLoteDTO);
             detalhes = [];
           }
-          const cnab104 = this.remessaRetornoService.generateFile({ headerArquivoDTO, headerLoteDTOs, isCancelamento: true, isTeste });
-          if (headerArquivoDTO && cnab104) {
+          const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO: headerArquivo, headerLoteDTOs, isCancelamento: true, isTeste });
+          if (headerArquivo && cnab104) {
             const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
             if (!cnabStr) {
               continue;
             }
-            listCnab.push(cnabStr);
+            listCnab.push({ name: '', content: cnabStr, headerArquivo: HeaderArquivoDTO.fromEntity(headerArquivo, false) });
           }
         }
       }
@@ -638,8 +654,8 @@ export class CnabService {
     return (await this.headerLoteService.findMany({ headerArquivo: { nsa: nsa } })).sort((a, b) => a.loteServico - b.loteServico);
   }
 
-  private async getHeaderArquivoCancelar(nsa: number) {
-    return await this.headerArquivoService.getHeaderArquivoNsa(nsa);
+  private async getHeaderArquivoCancelar(nsa: number): Promise<HeaderArquivo> {
+    return await this.headerArquivoService.getOne({ nsa });
   }
 
   /**
@@ -647,46 +663,41 @@ export class CnabService {
    * @param folder Example: `/retorno`
    * @returns
    */
-  public async updateRetorno(folder?: string, maxItems?: number) {
-    const METHOD = this.updateRetorno.name;
+  public async readRetornoPagamento(folder?: string, maxItems?: number) {
+    const METHOD = 'readRetornoPagamento';
     const INVALID_FOLDERS = ['/backup/retorno/success', '/backup/retorno/failed'];
     if (folder && INVALID_FOLDERS.includes(folder)) {
       throw CommonHttpException.message(`Não é possível ler retornos das pastas ${INVALID_FOLDERS}`);
     }
-    let { cnabName, cnabString } = await this.sftpService.getFirstCnabRetorno(folder);
+
+    let cnab = await this.sftpService.getFirstRetornoPagamento(folder);
     const cnabs: string[] = [];
     const success: any[] = [];
     const failed: any[] = [];
     const startDate = new Date();
-    while (cnabString) {
-      if (!cnabName || !cnabString) {
-        this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
-        return;
-      }
-      this.logger.log('Leitura de retornos iniciada...', METHOD);
+    while (cnab && (!maxItems || cnabs.length < maxItems)) {
+      this.logger.log(`Leitura de retornos iniciada: ${cnab.name}`, METHOD);
       const startDateItem = new Date();
+      cnabs.push(cnab.name);
       try {
-        const retorno104 = parseCnab240Pagamento(cnabString);
-        cnabs.push(cnabName);
-        await this.remessaRetornoService.saveRetorno(retorno104);
-        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoSuccess, cnabString, folder);
+        const retorno104 = parseCnab240Pagamento(cnab.content);
+        await this.remessaRetornoService.saveRetornoPagamento(retorno104, cnab.name);
+        await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess, cnab.content, folder);
         const durationItem = formatDateInterval(new Date(), startDateItem);
-        this.logger.log(`CNAB '${cnabName}' lido com sucesso - ${durationItem}`);
-        success.push(cnabName);
-        break;
+        this.logger.log(`CNAB '${cnab.name}' lido com sucesso - ${durationItem}`);
+        success.push(cnab.name);
       } catch (error) {
         const durationItem = formatDateInterval(new Date(), startDateItem);
-        this.logger.error(`Erro ao processar CNAB ${cnabName}. Movendo para backup de erros e finalizando - ${durationItem} - ${formatErrMsg(error)}`, error.stack, METHOD);
-        if (!cnabName || !cnabString) {
+        this.logger.error(`Erro ao processar CNAB ${cnab.name}. Movendo para backup de erros e finalizando - ${durationItem} - ${formatErrMsg(error)}`, error.stack, METHOD);
+        if (!cnab) {
           this.logger.log('Retorno não encontrado, abortando tarefa.', METHOD);
-          return;
+          const duration = formatDateInterval(new Date(), startDate);
+          return { duration, cnabs: cnabs.length, success, failed };
         }
-        await this.sftpService.moveToBackup(cnabName, SftpBackupFolder.RetornoFailure, cnabString, folder);
-        failed.push(cnabName);
+        await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure, cnab.content, folder);
+        failed.push(cnab.name);
       }
-      const cnab = await this.sftpService.getFirstCnabRetorno(folder);
-      cnabString = cnab.cnabString;
-      cnabName = cnab.cnabName;
+      cnab = await this.sftpService.getFirstRetornoPagamento(folder);
     }
     const duration = formatDateInterval(new Date(), startDate);
     if (maxItems && cnabs.length >= maxItems) {
@@ -697,31 +708,48 @@ export class CnabService {
   }
 
   /**
-   * This task will:
-   * 1. Get extrato from SFTP
-   * 2. Save extrato to CNAB tables
-   * 3.  - If successfull, move retorno to backup folder.
-   *     - If failed, move retorno to backup/failure folder
+   * Regras
    */
-  public async saveExtrato() {
-    const METHOD = 'updateExtrato()';
-    // Get retorno
-    const cnab = await this.sftpService.getFirstCnabExtrato();
-    if (!cnab) {
-      this.logger.log('Extrato não encontrado, abortando tarefa.', METHOD);
-      return;
+  public async readRetornoExtrato(folder?: string, maxItems?: number) {
+    const METHOD = 'readRetornoExtrato';
+    const INVALID_FOLDERS = ['/backup/retorno/success', '/backup/retorno/failed'];
+    if (folder && INVALID_FOLDERS.includes(folder)) {
+      throw CommonHttpException.message(`Não é possível ler retornos das pastas ${INVALID_FOLDERS}`);
     }
 
-    // Save Retorno, ArquivoPublicacao, move SFTP to backup
-    try {
-      const retorno104 = parseCnab240Extrato(cnab.content);
-      await this.saveExtratoFromCnab(retorno104);
-      await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess, cnab.content);
-    } catch (error) {
-      this.logger.error('Erro ao processar CNAB extrato, movendo para backup de erros e finalizando...', error, METHOD);
-      await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure, cnab.content);
+    let cnab = await this.sftpService.getFirstRetornoExtrato();
+    const cnabs: string[] = [];
+    const success: any[] = [];
+    const failed: any[] = [];
+    const startDate = new Date();
+    if (!cnab) {
+      this.logger.log('Extrato não encontrado, finalizando tarefa.', METHOD);
+      return;
     }
-    return;
+    while (cnab && (!maxItems || cnabs.length < maxItems)) {
+      const startDateItem = new Date();
+      cnabs.push(cnab.name);
+      try {
+        const retorno104 = parseCnab240Extrato(cnab.content);
+        await this.saveExtratoFromCnab(retorno104);
+        await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.ExtratoSuccess, cnab.content);
+        const durationItem = formatDateInterval(new Date(), startDateItem);
+        this.logger.log(`CNAB '${cnab.name}' lido com sucesso - ${durationItem}`);
+        success.push(cnab.name);
+      } catch (error) {
+        const durationItem = formatDateInterval(new Date(), startDateItem);
+        this.logger.error(`Erro ao processar CNAB ${cnab.name}. Movendo para backup de erros e finalizando - ${durationItem} - ${formatErrMsg(error)}`, error.stack, METHOD);
+        await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.ExtratoFailure, cnab.content);
+      }
+      cnab = await this.sftpService.getFirstRetornoPagamento(folder);
+    }
+
+    const duration = formatDateInterval(new Date(), startDate);
+    if (maxItems && cnabs.length >= maxItems) {
+      this.logger.log(`Leitura de retornos finalizou a leitura de ${cnabs.length}/${maxItems} CNABs - ${duration}`, METHOD);
+    }
+    this.logger.log(`Leitura de retornos finalizada com sucesso - ${duration}`, METHOD);
+    return { duration, cnabs: cnabs.length, success, failed };
   }
 
   private async saveExtratoFromCnab(cnab: CnabFile104Extrato) {

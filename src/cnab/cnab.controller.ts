@@ -56,6 +56,7 @@ export class CnabController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.master, RoleEnum.admin_finan, RoleEnum.lancador_financeiro, RoleEnum.aprovador_financeiro)
+  @ApiOperation({description: 'Verifica o saldo do '})
   @ApiBearerAuth()
   @ApiQuery({ name: 'conta', required: true, type: String })
   @ApiQuery({ name: 'dt_inicio', required: true, type: String, example: '2024-01-01' })

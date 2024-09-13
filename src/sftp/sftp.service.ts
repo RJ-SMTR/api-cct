@@ -149,18 +149,18 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
    *
    * @returns CnabName: file name with extension (no folder)
    */
-  public async getFirstCnabRetorno(folder = this.FOLDERS.RETORNO): Promise<{
-    cnabName: string | null;
-    cnabString: string | null;
-  }> {
+  public async getFirstRetornoPagamento(folder = this.FOLDERS.RETORNO): Promise<{
+    name: string;
+    content: string;
+  } | null> {
     await this.connectClient();
     const firstFile = (await this.sftpClient.list(this.dir(folder), this.REGEX.RETORNO)).pop();
     if (!firstFile) {
-      return { cnabName: null, cnabString: null };
+      return null;
     }
     const cnabPath = this.dir(`${folder}/${firstFile.name}`);
     const cnabString = await this.downloadToString(cnabPath);
-    return { cnabName: firstFile.name, cnabString };
+    return { name: firstFile.name, content: cnabString };
   }
 
   /**
@@ -168,7 +168,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
    *
    * @returns CnabName: file name with extension (no folder)
    */
-  public async getFirstCnabExtrato(): Promise<{
+  public async getFirstRetornoExtrato(): Promise<{
     name: string;
     content: string;
   } | null> {
@@ -189,18 +189,13 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
    *
    * @param cnabName Name with extension. No folder path.
    */
-  public async moveToBackup(
-    cnabName: string,
-    folder: SftpBackupFolder,
-    cnabContentIfNoOrigin?: string,
-    originFolder = this.FOLDERS.RETORNO,
-  ) {
+  public async moveToBackup(cnabName: string, folder: SftpBackupFolder, cnabContentIfNoOrigin?: string, originFolder = this.FOLDERS.RETORNO) {
     const METHOD = 'moveToBackup';
     const originPath = this.dir(`${originFolder}/${cnabName}`);
     const destPath = this.dir(`${folder}/${cnabName}`);
     await this.connectClient();
     if (cnabContentIfNoOrigin && !(await this.sftpClient.exists(originPath))) {
-      this.logger.log(`Origem não existe: '${originPath}'. Salvando cnab no backup.`)
+      this.logger.log(`Origem não existe: '${originPath}'. Salvando cnab no backup.`);
       await this.sftpClient.upload(Buffer.from(cnabContentIfNoOrigin, 'utf-8'), destPath);
     } else {
       await this.sftpClient.rename(originPath, destPath);

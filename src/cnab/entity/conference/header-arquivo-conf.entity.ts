@@ -1,9 +1,9 @@
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
+import { HeaderArquivoStatus } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrDateTime } from 'src/utils/pipe-utils';
 import { AfterLoad, BeforeInsert, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { Transacao } from '../pagamento/transacao.entity';
 import { TransacaoAgrupado } from '../pagamento/transacao-agrupado.entity';
-import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 
 /**
  * Pagamento.HeaderArquivo
@@ -62,12 +62,6 @@ export class HeaderArquivoConf extends EntityHelper {
   @Column({ type: 'time', unique: false, nullable: true })
   horaGeracao: Date;
 
-  @ManyToOne(() => Transacao, { eager: true })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_HeaderArquivoConf_transacao_ManyToOne',
-  })
-  transacao: Transacao | null;
-
   @ManyToOne(() => TransacaoAgrupado, { eager: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_HeaderArquivoConf_transacaoAgrupado_ManyToOne',
@@ -77,15 +71,18 @@ export class HeaderArquivoConf extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: false })
   nsa: number;
 
+  @Column({ enum: HeaderArquivoStatus, unique: false, nullable: false, default: HeaderArquivoStatus._0_desconhecido })
+  status: HeaderArquivoStatus;
+
+  /** Nome do remessa gerado, para referência. */
+  @Column({ type: String, unique: false, nullable: true })
+  remessaName: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  public getIdString(): string {
-    return `{ transacao: ${this.transacao?.id},  transacaoAg: ${this.transacaoAgrupado?.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;
-  }
 
   @BeforeInsert()
   setLoadValues() {

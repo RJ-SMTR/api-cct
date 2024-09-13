@@ -95,7 +95,7 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
           onTick: async () => {
-            await this.updateRetorno();
+            await this.saveRetornoPagamento();
           },
         },
       },
@@ -802,7 +802,7 @@ export class CronJobsService {
     }
   }
 
-  async sendRemessa(listCnab: string[]) {
+  async sendRemessa(listCnab: ICnab[]) {
     const METHOD = this.sendRemessa.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
@@ -813,20 +813,20 @@ export class CronJobsService {
     }
   }
 
-  async updateRetorno() {
-    const METHOD = this.updateRetorno.name;
+  async saveRetornoPagamento() {
+    const METHOD = this.saveRetornoPagamento.name;
     try {
-      await this.cnabService.updateRetorno();
+      await this.cnabService.readRetornoPagamento();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
     }
   }
 
-  async saveExtrato() {
-    const METHOD = this.saveExtrato.name;
+  async readRetornoExtrato() {
+    const METHOD = 'readRetornoExtrato';
     try {
-      await this.cnabService.saveExtrato();
+      await this.cnabService.readRetornoExtrato();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);

@@ -34,7 +34,7 @@ export class HeaderLoteDTO {
   }
 
   static fromHeaderArquivoDTO(
-    headerArquivo: HeaderArquivoDTO, //
+    headerArquivo: HeaderArquivoDTO | HeaderArquivo, //
     pagador: Pagador,
     formaLancamento: Cnab104FormaLancamento,
     isTeste?: boolean,

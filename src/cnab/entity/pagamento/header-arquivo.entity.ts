@@ -1,19 +1,9 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrDateTime } from 'src/utils/pipe-utils';
-import {
-  AfterLoad,
-  BeforeInsert,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { AfterLoad, BeforeInsert, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
 import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
+import { HeaderArquivoStatus } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 
 /**
  * Pagamento.HeaderArquivo
@@ -83,6 +73,13 @@ export class HeaderArquivo extends EntityHelper {
 
   @Column({ type: Number, unique: false, nullable: false })
   nsa: number;
+
+  @Column({ enum: HeaderArquivoStatus, unique: false, nullable: false, default: HeaderArquivoStatus._0_desconhecido })
+  status: HeaderArquivoStatus;
+
+  /** Nome do remessa gerado, para referência. */
+  @Column({ type: String, unique: false, nullable: true })
+  remessaName: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

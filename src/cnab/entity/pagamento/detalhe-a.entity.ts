@@ -5,6 +5,8 @@ import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, M
 import { HeaderLote } from './header-lote.entity';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { Ocorrencia } from './ocorrencia.entity';
+import { isAfter } from 'date-fns';
+import { getDateFromCnabName } from 'src/utils/date-utils';
 
 /**
  * Pagamento.DetalheA
@@ -121,6 +123,18 @@ export class DetalheA extends EntityHelper {
   })
   itemTransacaoAgrupado: ItemTransacaoAgrupado;
 
+  /** Nome do retorno mais recente lido, para referência. */
+  @Column({ type: String, unique: false, nullable: true })
+  retornoName: string | null;
+
+  /**
+   * Verifica a data-hora do retorno mais recente, para evitar ler um retorno mais antigo que o atual (regra de negócio)
+   *
+   * É a data-hora descrita no retornoName
+   */
+  @Column({ type: Date, unique: false, nullable: true })
+  retornoDatetime: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -138,17 +152,24 @@ export class DetalheA extends EntityHelper {
     this.valorRealEfetivado = asStringOrNumber(this.valorRealEfetivado);
   }
 
+  isPago() {
+    const errors = Ocorrencia.getErrorCodesFromString(this.ocorrenciasCnab || '');
+    return errors.length === 0 && Boolean(this.ocorrenciasCnab?.length);
+  }
+
+  /** Se o retorno atual do DetalheA tiver a data-hora MENOR que o novo retorno */
+  hasOlderRetorno(retornoName: string) {
+    const newRetornoDate = getDateFromCnabName(retornoName, 'retornoPagamento');
+    const currentRetornoDate = this.retornoDatetime || new Date(0);
+    return isAfter(newRetornoDate, currentRetornoDate);
+  }
+
   /**
    * ID: headerLoteUniqueId + detalheA columns
    */
   public static getUniqueId(detalheA: DeepPartial<DetalheA>, headerLoteUniqueId?: string): string {
     const _headerLoteUniqueId = headerLoteUniqueId ? `(${headerLoteUniqueId})` : `(${HeaderLote.getUniqueId(detalheA?.headerLote)})`;
     return `${_headerLoteUniqueId}|${detalheA.nsr}`;
-  }
-
-  public isPago() {
-    const errors = Ocorrencia.getErrorCodesFromString(this.ocorrenciasCnab || '');
-    return errors.length === 0 && Boolean(this.ocorrenciasCnab?.length);
   }
 
   public static getOcorrenciaErrors(detalhes: DetalheA[]) {

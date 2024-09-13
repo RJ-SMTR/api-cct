@@ -5,9 +5,13 @@ import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { CnabDetalheA_104 } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-detalhe-a-104.interface';
+import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
+import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
+import { getDateFromCnabName } from 'src/utils/date-utils';
 import { DeepPartial } from 'typeorm';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
+import { CnabHeaderArquivo104 } from '../cnab-240/104/cnab-header-arquivo-104.dto';
 
 function isCreate(object: DetalheADTO): boolean {
   return object.id === undefined;
@@ -42,6 +46,31 @@ export class DetalheADTO {
       dataEfetivacao: getCnabFieldConverted(detalheA.dataEfetivacao),
       headerLote: { id: headerLoteId },
       itemTransacaoAgrupado: itemTransacaoAg,
+    });
+  }
+
+  static newRetornoPagamento(detalheA: DetalheA | DetalheAConf, headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto, r: CnabRegistros104Pgto, dataEfetivacao: Date, retornoName: string) {
+    return new DetalheADTO({
+      id: detalheA.id,
+      loteServico: Number(r.detalheA.loteServico.value),
+      finalidadeDOC: r.detalheA.finalidadeDOC.value,
+      numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
+      dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
+      dataEfetivacao: dataEfetivacao,
+      tipoMoeda: r.detalheA.tipoMoeda.value,
+      quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
+      valorLancamento: r.detalheA.valorLancamento.convertedValue,
+      numeroDocumentoBanco: String(r.detalheA.numeroDocumentoBanco.convertedValue),
+      quantidadeParcelas: Number(r.detalheA.quantidadeParcelas.value),
+      indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
+      indicadorFormaParcelamento: r.detalheA.indicadorFormaParcelamento.stringValue,
+      periodoVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
+      numeroParcela: r.detalheA.numeroParcela.convertedValue,
+      valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
+      nsr: Number(r.detalheA.nsr.value),
+      ocorrenciasCnab: r.detalheA.ocorrencias.value.trim() || headerLotePgto.ocorrencias.value.trim() || headerArq.ocorrenciaCobrancaSemPapel.value.trim(),
+      retornoName,
+      retornoDatetime: getDateFromCnabName(retornoName, 'retornoPagamento'),
     });
   }
 
@@ -117,4 +146,6 @@ export class DetalheADTO {
   nsr?: number;
 
   itemTransacaoAgrupado?: ItemTransacaoAgrupado;
+  retornoName?: string | null;
+  retornoDatetime?: Date | null;
 }

@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { startOfDay } from 'date-fns';
 import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
-import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { CustomLogger } from 'src/utils/custom-logger';
@@ -17,6 +15,7 @@ import { ClienteFavorecidoService } from '../cliente-favorecido.service';
 import { PagamentosPendentes } from './../../entity/pagamento/pagamentos-pendentes.entity';
 import { PagamentosPendentesService } from './pagamentos-pendentes.service';
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
+import { CnabHeaderArquivo104 } from 'src/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto';
 
 @Injectable()
 export class DetalheAService {
@@ -47,8 +46,10 @@ export class DetalheAService {
 
   /**
    * Salva DetalheA, PagamentosPendentes
+   * 
+   * @returns: DetalheA ou motivoDoErro
    */
-  public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto, r: CnabRegistros104Pgto, dataEfetivacao: Date): Promise<DetalheA | null> {
+  public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto, r: CnabRegistros104Pgto, dataEfetivacao: Date, retornoName: string): Promise<DetalheA | ('favorecidoNotFound' | 'detalheANotFound' | 'hasUpdatedRetorno')> {
     const logRegistro = `HeaderArquivo: ${headerArq.nsa.convertedValue}, lote: ${headerLotePgto.codigoRegistro.value}`;
     const favorecido = await this.clienteFavorecidoService.findOneRaw({
       detalheANumeroDocumento: [r.detalheA.numeroDocumentoEmpresa.convertedValue],
@@ -56,56 +57,39 @@ export class DetalheAService {
 
     if (!favorecido) {
       this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue} - Favorecido não encontrado para o nome: '${r.detalheA.nomeTerceiro.stringValue.trim()}'`);
-      return null;
+      return 'favorecidoNotFound';
     }
-    const detalheA = await this.detalheARepository.findOneRaw({
-      numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
-    });
-    if (detalheA) {
+    const detalheA = await this.detalheARepository.findOneRaw({ numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue });
+    if (!detalheA) {
+      this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue}, favorecido: '${favorecido.nome}' - NÃO ENCONTRADO!`);
+      return 'detalheANotFound';
+    } else if (!detalheA.hasOlderRetorno(retornoName)) {
+      this.logger.log(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue}, favorecido: '${favorecido.nome}' - Já possui o retorno mais recente, nada a fazer. Atual: ${detalheA.retornoName}, novo: ${retornoName}`);
+      return 'hasUpdatedRetorno';
+    } else {
       if (detalheA.ocorrenciasCnab === undefined || detalheA.ocorrenciasCnab === '' || detalheA.ocorrenciasCnab !== r.detalheA.ocorrencias.value.trim() || !detalheA.dataEfetivacao) {
-        const saveDetalheA = new DetalheADTO({
-          id: detalheA.id,
-          loteServico: Number(r.detalheA.loteServico.value),
-          finalidadeDOC: r.detalheA.finalidadeDOC.value,
-          numeroDocumentoEmpresa: Number(r.detalheA.numeroDocumentoEmpresa.value),
-          dataVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
-          dataEfetivacao: dataEfetivacao,
-          tipoMoeda: r.detalheA.tipoMoeda.value,
-          quantidadeMoeda: Number(r.detalheA.quantidadeMoeda.value),
-          valorLancamento: r.detalheA.valorLancamento.convertedValue,
-          numeroDocumentoBanco: String(r.detalheA.numeroDocumentoBanco.convertedValue),
-          quantidadeParcelas: Number(r.detalheA.quantidadeParcelas.value),
-          indicadorBloqueio: r.detalheA.indicadorBloqueio.value,
-          indicadorFormaParcelamento: r.detalheA.indicadorFormaParcelamento.stringValue,
-          periodoVencimento: startOfDay(r.detalheA.dataVencimento.convertedValue),
-          numeroParcela: r.detalheA.numeroParcela.convertedValue,
-          valorRealEfetivado: r.detalheA.valorRealEfetivado.convertedValue,
-          nsr: Number(r.detalheA.nsr.value),
-          ocorrenciasCnab: r.detalheA.ocorrencias.value.trim() || headerLotePgto.ocorrencias.value.trim() || headerArq.ocorrenciaCobrancaSemPapel.value.trim(),
-        });
+        const saveDetalheA = DetalheADTO.newRetornoPagamento(detalheA, headerArq, headerLotePgto, r, dataEfetivacao, retornoName);
         return await this.detalheARepository.save(saveDetalheA);
       }
-    } else {
-      this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue}, favorecido: '${favorecido.nome}' - NÃO ENCONTRADO!`);
-    }
-    if (r.detalheA.ocorrencias !== undefined && r.detalheA.ocorrencias.value.trim() !== '' && r.detalheA.ocorrencias.value.trim() !== 'BD' && r.detalheA.ocorrencias.value.trim() !== '00') {
-      const pg = await this.pagamentosPendentesService.findOne({
-        numeroDocumento: r.detalheA.numeroDocumentoEmpresa.value.trim(),
-        valorLancamento: r.detalheA.valorLancamento.convertedValue,
-        nomeFavorecido: r.detalheA.nomeTerceiro.convertedValue,
-      });
+      if (r.detalheA.ocorrencias !== undefined && r.detalheA.ocorrencias.value.trim() !== '' && r.detalheA.ocorrencias.value.trim() !== 'BD' && r.detalheA.ocorrencias.value.trim() !== '00') {
+        const pg = await this.pagamentosPendentesService.findOne({
+          numeroDocumento: r.detalheA.numeroDocumentoEmpresa.value.trim(),
+          valorLancamento: r.detalheA.valorLancamento.convertedValue,
+          nomeFavorecido: r.detalheA.nomeTerceiro.convertedValue,
+        });
 
-      if (!pg) {
-        const pagamentosPendentes = new PagamentosPendentes();
-        pagamentosPendentes.nomeFavorecido = r.detalheA.nomeTerceiro.stringValue.trim();
-        pagamentosPendentes.dataVencimento = r.detalheA.dataVencimento.convertedValue;
-        pagamentosPendentes.valorLancamento = r.detalheA.valorLancamento.convertedValue;
-        pagamentosPendentes.numeroDocumento = r.detalheA.numeroDocumentoEmpresa.value.trim();
-        pagamentosPendentes.ocorrenciaErro = r.detalheA.ocorrencias.value.trim();
-        await this.pagamentosPendentesService.save(pagamentosPendentes);
+        if (!pg) {
+          const pagamentosPendentes = new PagamentosPendentes();
+          pagamentosPendentes.nomeFavorecido = r.detalheA.nomeTerceiro.stringValue.trim();
+          pagamentosPendentes.dataVencimento = r.detalheA.dataVencimento.convertedValue;
+          pagamentosPendentes.valorLancamento = r.detalheA.valorLancamento.convertedValue;
+          pagamentosPendentes.numeroDocumento = r.detalheA.numeroDocumentoEmpresa.value.trim();
+          pagamentosPendentes.ocorrenciaErro = r.detalheA.ocorrencias.value.trim();
+          await this.pagamentosPendentesService.save(pagamentosPendentes);
+        }
       }
+      return detalheA;
     }
-    return detalheA;
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
