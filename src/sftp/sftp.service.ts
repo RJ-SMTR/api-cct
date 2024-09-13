@@ -123,7 +123,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   }
 
   public async submitCnabRemessa(content: string): Promise<string> {
-    const METHOD = this.submitCnabRemessa.name;
+    const METHOD = 'submitCnabRemessa';
     await this.connectClient();
     const remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
     const bkpPath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`);

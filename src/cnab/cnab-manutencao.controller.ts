@@ -10,6 +10,7 @@ import { ParseArrayPipe as ParseArrayPipe1 } from 'src/utils/pipes/parse-array.p
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { CnabService } from './cnab.service';
+import { HeaderArquivo } from './entity/pagamento/header-arquivo.entity';
 
 @ApiTags('Manutenção')
 @Controller({
@@ -122,14 +123,14 @@ export class CnabManutencaoController {
     });
   }
 
-  @Get('sendRemessa')
+  @Get('sendRemessaJae')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.master)
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta o envio de remessa - que normalmente é feita via cronjob' })
   @ApiQuery({ name: 'headerArquivoIds', description: ApiDescription({ _: 'Ids do HeaderArquivo para gerar remessa', example: '1,2,3' }), required: true, type: String })
   @ApiBearerAuth()
-  async getSendRemessa(@Query('headerArquivoIds', new ParseArrayPipe({ items: Number, separator: ',', optional: true })) headerArquivoIds: number[]) {
+  async getSendRemessaJae(@Query('headerArquivoIds', new ParseArrayPipe({ items: Number, separator: ',', optional: true })) headerArquivoIds: number[]) {
     return await this.cnabService.getSendRemessa(headerArquivoIds);
   }
 
