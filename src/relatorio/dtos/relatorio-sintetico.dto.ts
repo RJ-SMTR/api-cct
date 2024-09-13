@@ -9,6 +9,7 @@ export class RelatorioSinteticoDto {
   }
   
   valor: number = 0;
+  total: number = 0;
   nome: String;
   @Exclude()
   agrupadoCount: number = 1;
