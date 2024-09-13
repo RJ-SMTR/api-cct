@@ -1,6 +1,11 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
+import { startOfDay } from 'date-fns';
+import { DetalheAConf } from 'src/cnab/entity/conference/detalhe-a-conf.entity';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
+import { CnabDetalheA_104 } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-detalhe-a-104.interface';
+import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
 import { DeepPartial } from 'typeorm';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
 
@@ -13,6 +18,31 @@ export class DetalheADTO {
     if (dto) {
       Object.assign(this, dto);
     }
+  }
+
+  static fromRetorno(detalheA: CnabDetalheA_104, existing: DetalheA | DetalheAConf | null, headerLoteId: number, itemTransacaoAg: ItemTransacaoAgrupado) {
+    return new DetalheADTO({
+      ...(existing ? { id: existing.id } : {}),
+      nsr: Number(detalheA.nsr.value),
+      ocorrenciasCnab: detalheA.ocorrencias.value.trim(),
+      dataVencimento: startOfDay(getCnabFieldConverted(detalheA.dataVencimento)),
+      tipoMoeda: detalheA.tipoMoeda.value,
+      finalidadeDOC: detalheA.finalidadeDOC.value,
+      indicadorBloqueio: detalheA.indicadorBloqueio.value,
+      numeroDocumentoBanco: detalheA.numeroDocumentoBanco.value,
+      quantidadeParcelas: Number(detalheA.quantidadeParcelas.value),
+      numeroDocumentoEmpresa: Number(detalheA.numeroDocumentoEmpresa.value),
+      quantidadeMoeda: Number(detalheA.quantidadeMoeda.value),
+      valorLancamento: getCnabFieldConverted(detalheA.valorLancamento),
+      valorRealEfetivado: getCnabFieldConverted(detalheA.valorRealEfetivado),
+      periodoVencimento: startOfDay(detalheA.dataVencimento.convertedValue),
+      loteServico: getCnabFieldConverted(detalheA.loteServico),
+      indicadorFormaParcelamento: getCnabFieldConverted(detalheA.indicadorFormaParcelamento),
+      numeroParcela: getCnabFieldConverted(detalheA.numeroParcela),
+      dataEfetivacao: getCnabFieldConverted(detalheA.dataEfetivacao),
+      headerLote: { id: headerLoteId },
+      itemTransacaoAgrupado: itemTransacaoAg,
+    });
   }
 
   id?: number;

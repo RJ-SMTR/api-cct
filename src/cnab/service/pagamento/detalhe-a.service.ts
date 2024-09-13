@@ -1,22 +1,22 @@
-import { PagamentosPendentes } from './../../entity/pagamento/pagamentos-pendentes.entity';
-import { HttpException, Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { startOfDay } from 'date-fns';
+import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
+import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
+import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
+import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, FindManyOptions, FindOneOptions, ILike } from 'typeorm';
+import { DeepPartial, FindOneOptions } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
-import { DetalheARepository } from '../../repository/pagamento/detalhe-a.repository';
+import { DetalheARepository, IDetalheARawWhere } from '../../repository/pagamento/detalhe-a.repository';
 import { ClienteFavorecidoService } from '../cliente-favorecido.service';
-import { startOfDay } from 'date-fns';
-import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
-import { CnabHeaderLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
-import { TransacaoAgrupadoService } from './transacao-agrupado.service';
+import { PagamentosPendentes } from './../../entity/pagamento/pagamentos-pendentes.entity';
 import { PagamentosPendentesService } from './pagamentos-pendentes.service';
-import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
-import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
-import { CustomLogger } from 'src/utils/custom-logger';
+import { TransacaoAgrupadoService } from './transacao-agrupado.service';
 
 @Injectable()
 export class DetalheAService {
@@ -125,8 +125,8 @@ export class DetalheAService {
     return await this.detalheARepository.findMany({ where: fields });
   }
 
-  public async findManyRaw(options: FindManyOptions<DetalheA>): Promise<DetalheA[]> {
-    return await this.detalheARepository.findMany(options);
+  public async findManyRaw(where: IDetalheARawWhere): Promise<DetalheA[]> {
+    return await this.detalheARepository.findRaw(where);
   }
 
   /**

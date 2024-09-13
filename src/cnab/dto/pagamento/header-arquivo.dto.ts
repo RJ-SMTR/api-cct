@@ -1,8 +1,10 @@
-import { DeepPartial } from "typeorm";
-import { Transacao } from "../../entity/pagamento/transacao.entity";
-import { IsNotEmpty, ValidateIf } from "class-validator";
-import { HeaderArquivoStatus } from "src/cnab/entity/pagamento/header-arquivo-status.entity";
-import { TransacaoAgrupado } from "src/cnab/entity/pagamento/transacao-agrupado.entity";
+import { IsNotEmpty, ValidateIf } from 'class-validator';
+import { HeaderArquivoConf } from 'src/cnab/entity/conference/header-arquivo-conf.entity';
+import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
+import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
+import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
+import { DeepPartial } from 'typeorm';
+import { Transacao } from '../../entity/pagamento/transacao.entity';
 
 function isCreate(object: HeaderArquivoDTO): boolean {
   return object.id === undefined;
@@ -14,6 +16,29 @@ export class HeaderArquivoDTO {
       Object.assign(this, dto);
     }
   }
+  static fromEntity(entity: HeaderArquivo | HeaderArquivoConf, isConf: boolean) {
+    return new HeaderArquivoDTO({
+      id: entity.id,
+      tipoArquivo: entity.tipoArquivo,
+      codigoBanco: entity.codigoBanco,
+      tipoInscricao: entity.tipoInscricao,
+      numeroInscricao: entity.numeroInscricao,
+      codigoConvenio: entity.codigoConvenio,
+      parametroTransmissao: entity.parametroTransmissao,
+      agencia: entity.agencia,
+      dvAgencia: entity.dvAgencia,
+      numeroConta: entity.numeroConta,
+      dvConta: entity.dvConta,
+      nomeEmpresa: entity.nomeEmpresa,
+      dataGeracao: entity.dataGeracao,
+      horaGeracao: entity.horaGeracao,
+      transacaoAgrupado: entity.transacaoAgrupado,
+      nsa: entity.nsa,
+      // ambienteCliente: entity.ambienteCliente,
+      _isConf: isConf,
+    });
+  }
+  _isConf: boolean;
 
   id?: number;
 

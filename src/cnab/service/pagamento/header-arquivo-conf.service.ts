@@ -1,9 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { HeaderArquivoDTO } from 'src/cnab/dto/pagamento/header-arquivo.dto';
+import { HeaderArquivoConf } from 'src/cnab/entity/conference/header-arquivo-conf.entity';
 import { HeaderArquivoStatus } from 'src/cnab/entity/pagamento/header-arquivo-status.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { HeaderArquivoStatusEnum } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
+import { HeaderArquivoTipoArquivo } from 'src/cnab/enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
+import { HeaderArquivoConfRepository } from 'src/cnab/repository/pagamento/header-arquivo-conf.repository';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { cnabSettings } from 'src/settings/cnab.settings';
 import { SettingsService } from 'src/settings/settings.service';
@@ -12,10 +16,6 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { DeepPartial, FindOptionsWhere } from 'typeorm';
 import { PagadorService } from './pagador.service';
-import { HeaderArquivoConfRepository } from 'src/cnab/repository/pagamento/header-arquivo-conf.repository';
-import { HeaderArquivoTipoArquivo } from 'src/cnab/enums/pagamento/header-arquivo-tipo-arquivo.enum';
-import { HeaderArquivoDTO } from 'src/cnab/dto/pagamento/header-arquivo.dto';
-import { HeaderArquivoConf } from 'src/cnab/entity/conference/header-arquivo-conf.entity';
 
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
@@ -60,6 +60,7 @@ export class HeaderArquivoConfService {
       tipoArquivo: tipo_arquivo,
       nsa: await this.getNextNSA(),
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessa),
+      _isConf: true,
     });
     return dto;
   }
@@ -91,6 +92,7 @@ export class HeaderArquivoConfService {
       transacao: headerArquivoRemessa.transacao,
       nsa: cnab104.headerArquivo.nsa.convertedValue,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
+      _isConf: true,
     });
     return await this.headerArquivoRepository.save(headerArquivo);
   }

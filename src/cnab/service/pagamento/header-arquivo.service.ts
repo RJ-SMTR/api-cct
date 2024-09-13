@@ -65,6 +65,7 @@ export class HeaderArquivoService {
       tipoArquivo: tipo_arquivo,
       nsa: await this.getNextNSA(),
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.remessa),
+      _isConf: false,
     });
     return dto;
   }
@@ -95,6 +96,7 @@ export class HeaderArquivoService {
       transacaoAgrupado: headerArquivoRemessa.transacaoAgrupado,      
       nsa: cnab104.headerArquivo.nsa.convertedValue,
       status: new HeaderArquivoStatus(HeaderArquivoStatusEnum.retorno),
+      _isConf: false,
     });
     return await this.headerArquivoRepository.save(headerArquivo);
   }

@@ -1,6 +1,6 @@
 import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
 
-import { HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { endOfDay, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
 import { DetalheADTO } from 'src/cnab/dto/pagamento/detalhe-a.dto';
 import { HeaderLoteDTO } from 'src/cnab/dto/pagamento/header-lote.dto';
@@ -8,16 +8,21 @@ import { HeaderArquivoDTO } from './../../dto/pagamento/header-arquivo.dto';
 import { Cnab104TipoMovimento } from './../../enums/104/cnab-104-tipo-movimento.enum';
 
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
+import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { DetalheAConf } from 'src/cnab/entity/conference/detalhe-a-conf.entity';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 import { Cnab104FormaLancamento } from 'src/cnab/enums/104/cnab-104-forma-lancamento.enum';
 import { CnabTrailerArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-trailer-arquivo-104.interface';
 import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { getCnabFieldConverted } from 'src/cnab/utils/cnab/cnab-field-utils';
+import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
+import { LancamentoService } from 'src/lancamento/lancamento.service';
 import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { asNumber, asString } from 'src/utils/pipe-utils';
@@ -42,10 +47,6 @@ import { HeaderLoteConfService } from './header-lote-conf.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
-import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { LancamentoService } from 'src/lancamento/lancamento.service';
-import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
-import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -167,7 +168,7 @@ export class RemessaRetornoService {
   }
 
   async convertCnabDetalheAToDTO(detalheA: CnabDetalheA_104, headerLoteId: number, itemTransacaoAg: ItemTransacaoAgrupado, isConference: boolean) {
-    let existing;
+    let existing: DetalheA | DetalheAConf | null = null;
     if (!isConference) {
       existing = await this.detalheAService.findOne({
         where: {
@@ -183,29 +184,7 @@ export class RemessaRetornoService {
         },
       });
     }
-
-    return new DetalheADTO({
-      ...(existing ? { id: existing.id } : {}),
-      nsr: Number(detalheA.nsr.value),
-      ocorrenciasCnab: detalheA.ocorrencias.value.trim(),
-      dataVencimento: startOfDay(getCnabFieldConverted(detalheA.dataVencimento)),
-      tipoMoeda: detalheA.tipoMoeda.value,
-      finalidadeDOC: detalheA.finalidadeDOC.value,
-      indicadorBloqueio: detalheA.indicadorBloqueio.value,
-      numeroDocumentoBanco: detalheA.numeroDocumentoBanco.value,
-      quantidadeParcelas: Number(detalheA.quantidadeParcelas.value),
-      numeroDocumentoEmpresa: Number(detalheA.numeroDocumentoEmpresa.value),
-      quantidadeMoeda: Number(detalheA.quantidadeMoeda.value),
-      valorLancamento: getCnabFieldConverted(detalheA.valorLancamento),
-      valorRealEfetivado: getCnabFieldConverted(detalheA.valorRealEfetivado),
-      periodoVencimento: startOfDay(detalheA.dataVencimento.convertedValue),
-      loteServico: getCnabFieldConverted(detalheA.loteServico),
-      indicadorFormaParcelamento: getCnabFieldConverted(detalheA.indicadorFormaParcelamento),
-      numeroParcela: getCnabFieldConverted(detalheA.numeroParcela),
-      dataEfetivacao: getCnabFieldConverted(detalheA.dataEfetivacao),
-      headerLote: { id: headerLoteId },
-      itemTransacaoAgrupado: itemTransacaoAg,
-    });
+    return DetalheADTO.fromRetorno(detalheA, existing, headerLoteId, itemTransacaoAg);
   }
 
   async convertCnabDetalheBToDTO(detalheB: CnabDetalheB_104, detalheAId: number) {
@@ -364,7 +343,7 @@ export class RemessaRetornoService {
    * @returns null if failed ItemTransacao to CNAB */
   public async saveDetalhes104(numeroDocumento: number, headerLote: HeaderLoteDTO, itemTransacaoAg: ItemTransacaoAgrupado, nsr: number, isConference: boolean, dataPgto?: Date, isCancelamento = false, detalheAC = new DetalheA()): Promise<CnabRegistros104Pgto | null> {
     /** @type ClienteFavorecido */
-    let favorecido: any;
+    let favorecido: ClienteFavorecido | undefined;
     if (itemTransacaoAg != undefined) {
       const itemTransacao = await this.itemTransacaoService.findOne({ where: { itemTransacaoAgrupado: { id: itemTransacaoAg.id } } });
       favorecido = itemTransacao?.clienteFavorecido;
@@ -375,7 +354,7 @@ export class RemessaRetornoService {
     }
 
     // Failure if no favorecido
-    if (!favorecido && !isCancelamento) {
+    if (!favorecido) {
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       try {
