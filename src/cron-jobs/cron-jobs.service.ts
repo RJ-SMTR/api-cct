@@ -73,7 +73,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {
+  async onModuleLoad() {    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
@@ -309,11 +309,8 @@ export class CronJobsService {
     }
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
-    // const sex = subDays(today, 7);
-    // const qui = subDays(today, 1);
-
-    const sex = new Date('2024-07-12');
-    const qui = new Date('2024-09-06');
+    const sex = subDays(today, 7);
+    const qui = subDays(today, 1);  
 
     await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Van');
     const listCnab = await this.cnabService.generateRemessa({
@@ -390,7 +387,7 @@ export class CronJobsService {
 
   private async syncTransacaoViewOrdem(method = 'syncTransacaoViewOrdem') {
     try {
-      const startDate = subDays(new Date(), 15);
+      const startDate = subDays(new Date(), 30);
       const today = new Date();
       this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, method);
       await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [startDate, today] });

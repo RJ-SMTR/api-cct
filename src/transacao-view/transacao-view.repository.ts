@@ -81,7 +81,14 @@ export class TransacaoViewRepository {
         SELECT
             DISTINCT ON (tv.id)
             tv.id AS tv_id,
-            ita.id AS ita_id,
+            (select ia.id from item_transacao_agrupado ia
+	                        where ia."idOrdemPagamento" = ita."idOrdemPagamento"
+	                          and ia."idOperadora" = ita."idOperadora" 
+	                          and ia."dataOrdem" = ita."dataOrdem"
+						      and ia."createdAt" =(select max(itt."createdAt") from item_transacao_agrupado itt 
+												     where ia."idOrdemPagamento" = itt."idOrdemPagamento"
+													  and ia."idOperadora" = itt."idOperadora" 
+													  and ia."dataOrdem" = itt."dataOrdem") ) as ita_id,
             tv."datetimeTransacao",
             tv."datetimeProcessamento",
             ita."dataOrdem"
@@ -94,8 +101,8 @@ export class TransacaoViewRepository {
             AND tv."idOperadora" = ita."idOperadora"
             AND tv."operadoraCpfCnpj" = cf."cpfCnpj"
         AND tv."datetimeTransacao"::DATE BETWEEN
-            (ita."dataOrdem"::DATE - (CASE WHEN ita."nomeConsorcio" = 'VLT' THEN INTERVAL '2 DAYS' ELSE INTERVAL '8 DAYS' END))  -- VENCIMENTO - 2 SE VLT; SENÃO QUINTA PGTO
-            AND (DATE(ita."dataOrdem") - INTERVAL '2 DAYS')  -- VENCIMENTO - 2 (OU QUARTA PGTO SE NÃO for VLT)
+            (ita."dataCaptura"::DATE - (CASE WHEN ita."nomeConsorcio" = 'VLT' THEN INTERVAL '2 DAYS' ELSE INTERVAL '8 DAYS' END))  -- VENCIMENTO - 2 SE VLT; SENÃO QUINTA PGTO
+            AND (DATE(ita."dataCaptura") - INTERVAL '2 DAYS')  -- VENCIMENTO - 2 (OU QUARTA PGTO SE NÃO for VLT)
         WHERE (1=1) ${where.length ? `AND ${where.join(' AND ')}` : ''}
         ORDER BY tv.id ASC, ita.id DESC
     ) associados
