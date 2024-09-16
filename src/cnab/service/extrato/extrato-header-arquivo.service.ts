@@ -23,7 +23,7 @@ export class ExtratoHeaderArquivoService {
     return await this.extHeaderArquivoRepository.save(obj);
   }
 
-  public async saveFrom104(arquivo: CnabHeaderArquivo104): Promise<SaveIfNotExists<ExtratoHeaderArquivo>> {
+  public async saveFrom104(arquivo: CnabHeaderArquivo104, cnabName: string): Promise<SaveIfNotExists<ExtratoHeaderArquivo>> {
     // Save Header Arquivo
     const extratoHeaderArquivo = new ExtratoHeaderArquivo({
       tipoArquivo: arquivo.tipoArquivo.convertedValue,
@@ -40,6 +40,7 @@ export class ExtratoHeaderArquivoService {
       dataGeracao: arquivo.dataGeracaoArquivo.convertedValue,
       horaGeracao: arquivo.horaGeracaoArquivo.convertedValue,
       nsa: arquivo.nsa.convertedValue,
+      retornoName: cnabName,
     });
     const saveHA = await this.extHeaderArquivoRepository.saveIfNotExists(extratoHeaderArquivo);
     if (!saveHA.isNewItem) {

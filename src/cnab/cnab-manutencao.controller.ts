@@ -11,6 +11,8 @@ import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { CnabService } from './cnab.service';
 import { HeaderArquivo } from './entity/pagamento/header-arquivo.entity';
+import { HeaderArquivoStatus } from './enums/pagamento/header-arquivo-status.enum';
+import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
 
 @ApiTags('Manutenção')
 @Controller({
@@ -56,7 +58,7 @@ export class CnabManutencaoController {
       throw new BadRequestException('dataCancelamento é obrigatório se isCancelamento = true');
     }
 
-    return await this.cnabService.getGenerateRemessaLancamento({
+    return await this.cnabService.generateRemessaLancamento({
       dataOrdemInicial,
       dataOrdemFinal,
       dataPgto: dataPagamento,
@@ -108,7 +110,7 @@ export class CnabManutencaoController {
       throw new BadRequestException('dataCancelamento é obrigatório se isCancelamento = true');
     }
 
-    return await this.cnabService.getGenerateRemessaJae({
+    return await this.cnabService.generateRemessaJae({
       dataOrdemInicial,
       dataOrdemFinal,
       diasAnteriores,
@@ -123,30 +125,49 @@ export class CnabManutencaoController {
     });
   }
 
-  @Get('sendRemessaJae')
+  @Get('sendRemessa')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.master)
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta o envio de remessa - que normalmente é feita via cronjob' })
-  @ApiQuery({ name: 'headerArquivoIds', description: ApiDescription({ _: 'Ids do HeaderArquivo para gerar remessa', example: '1,2,3' }), required: true, type: String })
+  @ApiQuery({ name: 'headerArquivoIds', type: String, required: false, description: ApiDescription({ _: 'Ids do HeaderArquivo para gerar remessa', example: '1,2,3' }) })
+  @ApiQuery({ name: 'headerArquivoStatus', enum: HeaderArquivoStatus, required: false, description: ApiDescription({ _: 'Buscar pos status do HeaderArquivo para gerar remessa' }) })
   @ApiBearerAuth()
-  async getSendRemessaJae(@Query('headerArquivoIds', new ParseArrayPipe({ items: Number, separator: ',', optional: true })) headerArquivoIds: number[]) {
-    return await this.cnabService.getSendRemessa(headerArquivoIds);
+  async getSendRemessa(
+    @Query('headerArquivoIds', new ParseArrayPipe({ items: Number, separator: ',', optional: true })) headerArquivoIds: number[] | undefined, //
+    @Query('headerArquivoStatus', new ParseEnumPipe(HeaderArquivoStatus, { optional: true })) headerArquivoStatus: HeaderArquivoStatus | undefined, //
+  ) {
+    return await this.cnabService.getSendRemessa({ headerArquivoIds, status: headerArquivoStatus });
   }
 
-  @Get('updateRetorno')
+  @Get('readRetornoPagamento')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.master)
-  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a leitura do retorno - que normalmente é feita via cronjob' })
+  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a leitura do retorno de pagamentos (Lançamento e Jaé) - que normalmente é feita via cronjob' })
   @ApiBearerAuth()
   @ApiQuery({ name: 'folder', description: ApiDescription({ _: 'Pasta para ler os retornos', default: '`/retorno`' }), required: false, type: String })
   @ApiQuery({ name: 'maxItems', description: ApiDescription({ _: 'Número máximo de itens para ler', min: 1 }), required: false, type: Number })
-  async getUpdateRetorno(
+  async getReadRetornoPagamento(
     @Query('folder') folder: string | undefined, //
     @Query('maxItems', new ParseNumberPipe({ min: 1, optional: true })) maxItems: number | undefined,
   ) {
     return await this.cnabService.readRetornoPagamento(folder, maxItems);
+  }
+
+  @Get('readRetornoExtrato')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.master)
+  @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a leitura do retorno de extrato - que normalmente é feita via cronjob' })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'folder', description: ApiDescription({ _: 'Pasta para ler os retornos', default: '`/retorno`' }), required: false, type: String })
+  @ApiQuery({ name: 'maxItems', description: ApiDescription({ _: 'Número máximo de itens para ler', min: 1 }), required: false, type: Number })
+  async getReadRetornoExtrato(
+    @Query('folder') folder: string | undefined, //
+    @Query('maxItems', new ParseNumberPipe({ min: 1, optional: true })) maxItems: number | undefined,
+  ) {
+    return await this.cnabService.readRetornoExtrato(folder, maxItems);
   }
 
   @Get('syncTransacaoViewOrdemPgto')

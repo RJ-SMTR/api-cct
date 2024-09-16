@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
-import { CnabService } from 'src/cnab/cnab.service';
+import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
@@ -802,7 +802,7 @@ export class CronJobsService {
     }
   }
 
-  async sendRemessa(listCnab: ICnab[]) {
+  async sendRemessa(listCnab: ICnabInfo[]) {
     const METHOD = this.sendRemessa.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);

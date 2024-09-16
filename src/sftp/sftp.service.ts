@@ -168,12 +168,12 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
    *
    * @returns CnabName: file name with extension (no folder)
    */
-  public async getFirstRetornoExtrato(): Promise<{
+  public async getFirstRetornoExtrato(folder = this.FOLDERS.RETORNO): Promise<{
     name: string;
     content: string;
   } | null> {
     await this.connectClient();
-    const firstFile = (await this.sftpClient.list(this.dir(this.FOLDERS.RETORNO), this.REGEX.EXTRATO)).pop();
+    const firstFile = (await this.sftpClient.list(this.dir(folder), this.REGEX.EXTRATO)).pop();
 
     if (!firstFile) {
       return null;
