@@ -243,9 +243,12 @@ export class RelatorioSinteticoRepository {
                in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio') `;
               }else
 
-              if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
-                query = query +` and tv."nomeConsorcio" in('STPC','STPL') `;
-              }
+              if((['Todos'].some(i=>args.favorecidoNome?.includes(i))) && (args.consorcioNome!==undefined)){
+                query = query +` and tv."nomeConsorcio" in('STPC','STPL',${args.consorcioNome?.join("','")}) `;
+              }else 
+                if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
+                  query = query +` and tv."nomeConsorcio" in('STPC','STPL') `;
+                }
                       
               if(args.valorMin!==undefined)
                 query = query +`  and tv."valorPago">=${args.valorMin}`;
