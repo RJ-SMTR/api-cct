@@ -309,8 +309,12 @@ export class CronJobsService {
     }
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
-    const sex = subDays(today, 7);
-    const qui = subDays(today, 1);
+    // const sex = subDays(today, 7);
+    // const qui = subDays(today, 1);
+
+    const sex = new Date('2024-07-12');
+    const qui = new Date('2024-09-06');
+
     await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Van');
     const listCnab = await this.cnabService.generateRemessa({
       tipo: PagadorContaEnum.ContaBilhetagem,
