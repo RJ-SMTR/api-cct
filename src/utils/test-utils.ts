@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { DataSource, ObjectLiteral } from 'typeorm';
-import { TransacaoView } from '../../src/transacao-bq/transacao-view.entity';
+import { TransacaoView } from '../../src/transacao-view/transacao-view.entity';
 
 export class TestUtils {
   private app: INestApplication;

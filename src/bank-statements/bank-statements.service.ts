@@ -160,8 +160,8 @@ export class BankStatementsService {
       const revenuesWeek = revenuesResponse.data.filter((i) => new Date(i.date) >= dateInterval.startDate && new Date(i.date) <= dateInterval.endDate);
       const weekAmount = revenuesWeek.reduce((sum, i) => sum + i.transactionValueSum, 0);
       const weekToPayAmount = revenuesWeek.reduce((sum, i) => sum + i.paidValueSum, 0);
-      /** Se todos os itens não vazios foram pagos */
-      const nonEmptyRevenues = revenuesWeek.filter((i) => i.count);
+      /** Se todos os itens não vazios e com valor foram pagos */
+      const nonEmptyRevenues = revenuesWeek.filter((i) => (i.transactionValueSum || i.paidValueSum) && i.count);
       const isPago = nonEmptyRevenues.length > 0 && nonEmptyRevenues.every((i) => i.isPago === true);
       const errors = [...new Set(revenuesWeek.reduce((l, i) => [...l, ...i.errors], []))];
       const amount = Number(weekAmount.toFixed(2));

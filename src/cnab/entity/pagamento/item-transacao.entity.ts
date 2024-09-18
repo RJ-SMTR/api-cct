@@ -1,26 +1,19 @@
+import { startOfDay } from 'date-fns';
+import { OrdemPagamentoDto } from 'src/cnab/dto/pagamento/ordem-pagamento.dto';
+import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
-import {
-  AfterLoad,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { Transacao } from './transacao.entity';
 
 /**
  * Representa uma BqOrdemPgto (ArquivoPublicacao)
- * 
+ *
  * Colunas:
  * - dataOrdem: BqOrdemPgto.dataOrdem
- * 
+ *
  * Identificador:
  * - ItemTransacaoAgrupado
  * - dataTransacao
@@ -34,9 +27,26 @@ export class ItemTransacao extends EntityHelper {
     if (dto) {
       Object.assign(this, dto);
       if (dto.itemTransacaoAgrupado) {
-        this.itemTransacaoAgrupado = new ItemTransacaoAgrupado(dto.itemTransacaoAgrupado)
+        this.itemTransacaoAgrupado = new ItemTransacaoAgrupado(dto.itemTransacaoAgrupado);
       }
     }
+  }
+
+  public static fromOrdem(ordem: OrdemPagamentoDto, favorecido: ClienteFavorecido, transacao: Transacao, itemTransacaoAg: ItemTransacaoAgrupado) {
+    return new ItemTransacao({
+      clienteFavorecido: favorecido,
+      dataCaptura: ordem.dataOrdem,
+      dataOrdem: startOfDay(new Date(ordem.dataOrdem)),
+      idConsorcio: ordem.idConsorcio,
+      idOperadora: ordem.idOperadora,
+      idOrdemPagamento: ordem.idOrdemPagamento,
+      nomeConsorcio: ordem.consorcio,
+      nomeOperadora: ordem.operadora,
+      valor: ordem.valorTotalTransacaoLiquido,
+      transacao: transacao,
+      itemTransacaoAgrupado: { id: itemTransacaoAg.id },
+      ...(ordem?.lancamento ? { lancamento: { id: ordem.lancamento.id } } : {}),
+    });
   }
 
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_ItemTransacao_id' })
@@ -54,8 +64,7 @@ export class ItemTransacao extends EntityHelper {
     eager: true,
   })
   @JoinColumn({
-    foreignKeyConstraintName:
-      'FK_ItemTransacao_itemTransacaoAgrupado_ManyToOne',
+    foreignKeyConstraintName: 'FK_ItemTransacao_itemTransacaoAgrupado_ManyToOne',
   })
   itemTransacaoAgrupado: ItemTransacaoAgrupado;
 
@@ -85,7 +94,7 @@ export class ItemTransacao extends EntityHelper {
   })
   clienteFavorecido: ClienteFavorecido;
 
-   /**
+  /**
    * Valor do lançamento.
    */
   @Column({
@@ -112,9 +121,9 @@ export class ItemTransacao extends EntityHelper {
 
   // Unique columns Lancamento
 
-  /** 
+  /**
    * DataOrdem from bigquery
-   * 
+   *
    * D+1 (sex-qui)
    */
   @Column({ type: Date, unique: false, nullable: false })
@@ -125,6 +134,10 @@ export class ItemTransacao extends EntityHelper {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  /** Não é uma coluna, usado apenas para consulta no ORM. */
+  @OneToOne(() => Lancamento, (l) => l.itemTransacao)
+  lancamento: Lancamento | null;
 
   public getLogInfo(): string {
     return `#{ idOP: ${this.idOrdemPagamento}, op: ${this.idOperadora}, co: ${this.idConsorcio} }`;

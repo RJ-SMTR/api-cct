@@ -1,29 +1,28 @@
-import {
-  PipeTransform,
-  Injectable,
-  ArgumentMetadata,
-  BadRequestException,
-} from '@nestjs/common';
+import { PipeTransform, Injectable, ArgumentMetadata, BadRequestException } from '@nestjs/common';
 
+export interface IValidateEnumPipe {
+  readonly optional: boolean;
+  readonly defaultValue?: any;
+}
 @Injectable()
-export class ValidateEnumPipe implements PipeTransform {
+export class ParseEnumPipe implements PipeTransform {
   constructor(
-    private readonly enumType: Record<string, any>,
-    private readonly required: boolean = false,
-    private readonly defaultValue?: any,
+    private readonly enumType: Record<string, any>, //
+    private readonly options?: IValidateEnumPipe,
   ) {}
 
   transform(value: any, metadata: ArgumentMetadata) {
+    const field = metadata.data;
     if (value === undefined) {
-      return this.defaultValue;
+      if (this.options?.optional) {
+        return value;
+      } else if (this.options?.defaultValue) {
+        return this.options.defaultValue;
+      }
     }
     const enumValue = this.isEnumValue(value, this.enumType);
     if (!enumValue) {
-      throw new BadRequestException(
-        `Invalid ${metadata.type} value. It must be one of [${Object.values(
-          this.enumType,
-        )}].`,
-      );
+      throw new BadRequestException(`${field}: Invalid value '${value}'. It must be one of [${Object.values(this.enumType)}].`);
     }
     return value;
   }

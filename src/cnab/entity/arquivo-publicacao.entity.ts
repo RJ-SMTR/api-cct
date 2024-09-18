@@ -16,6 +16,7 @@ export interface IArquivoPublicacao {
   updatedAt: Date;
 }
 /**
+ * Representa uma transação de uma ordem de pagamento (idOrdem) a um destinatário específico (idOperadora)
  * Unique Jaé FK: idOrdemPagamento, idConsorcio, idOperadora
  */
 @Entity()

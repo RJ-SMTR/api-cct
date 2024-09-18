@@ -10,7 +10,7 @@
 // import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 // import { Transacao } from 'src/cnab/entity/pagamento/transacao.entity';
 // import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
-// import { TransacaoView } from 'src/transacao-bq/transacao-view.entity';
+// import { TransacaoView } from 'src/transacao-view/transacao-view.entity';
 // import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
 // import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 

@@ -15,3 +15,4 @@ export interface ITRGetMeIndividualValidArgs {
   endDate?: string;
   timeInterval?: TimeIntervalEnum;
 }
+

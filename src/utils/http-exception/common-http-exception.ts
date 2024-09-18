@@ -2,11 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { getHttpStatusMessage } from './http-exception-utils';
 
 export const CommonHttpException = {
-  detailField: (
-    field: string,
-    message: string,
-    httpStatusCode: HttpStatus = 500,
-  ) =>
+  detailField: (field: string, message: string, httpStatusCode: HttpStatus = 500) =>
     new HttpException(
       {
         error: getHttpStatusMessage(httpStatusCode),
@@ -21,6 +17,16 @@ export const CommonHttpException = {
       {
         error: {
           message: errorMessage,
+        },
+      },
+      httpStatusCode || HttpStatus.INTERNAL_SERVER_ERROR,
+    ),
+  messageArgs: (errorMessage: string, args: object, httpStatusCode?: HttpStatus) =>
+    new HttpException(
+      {
+        error: {
+          message: errorMessage,
+          ...args,
         },
       },
       httpStatusCode || HttpStatus.INTERNAL_SERVER_ERROR,
@@ -44,11 +50,7 @@ export const CommonHttpException = {
       },
       args?.httpStatusCode || HttpStatus.UNPROCESSABLE_ENTITY,
     ),
-  errorDetails: (
-    error: string,
-    details: object | string,
-    httpStatusCode: HttpStatus = 500,
-  ) =>
+  errorDetails: (error: string, details: object | string, httpStatusCode: HttpStatus = 500) =>
     new HttpException(
       {
         error: error || getHttpStatusMessage(httpStatusCode),
@@ -72,11 +74,7 @@ export const CommonHttpException = {
       },
       HttpStatus.UNPROCESSABLE_ENTITY,
     ),
-  notFound: (
-    notFoundProp: string,
-    httpStatusCode: HttpStatus = HttpStatus.NOT_FOUND,
-    error?: string,
-  ) =>
+  notFound: (notFoundProp: string, httpStatusCode: HttpStatus = HttpStatus.NOT_FOUND, error?: string) =>
     new HttpException(
       {
         error: error || getHttpStatusMessage(httpStatusCode),
@@ -90,13 +88,7 @@ export const CommonHttpException = {
       },
       httpStatusCode,
     ),
-  argNotType: (
-    field: string,
-    expectedType: string,
-    value: any,
-    httpStatusCode: HttpStatus = HttpStatus.UNPROCESSABLE_ENTITY,
-    detailsOnly = true,
-  ) =>
+  argNotType: (field: string, expectedType: string, value: any, httpStatusCode: HttpStatus = HttpStatus.UNPROCESSABLE_ENTITY, detailsOnly = true) =>
     new HttpException(
       {
         code: 'arg-not-type',

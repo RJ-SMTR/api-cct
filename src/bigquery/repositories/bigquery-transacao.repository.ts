@@ -1,19 +1,30 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { appSettings } from 'src/settings/app.settings';
 import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
 import { SettingsService } from 'src/settings/settings.service';
 import { TRIntegrationTypeMap } from 'src/ticket-revenues/maps/ticket-revenues.map';
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { logWarn } from 'src/utils/log-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
-import { BigquerySource, BigqueryService } from '../bigquery.service';
+import { BigqueryService, BigquerySource } from '../bigquery.service';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
-import { IBqFindTransacao } from '../interfaces/bq-find-transacao-by.interface';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
-import { BqTransacaoTipoTransacaoMap } from '../maps/bq-transacao-tipo-transacao.map';
-import { logWarn } from 'src/utils/log-utils';
-import { CustomLogger } from 'src/utils/custom-logger';
-import { isArray } from 'class-validator';
+
+export interface IBqFindTransacao {
+  cpfCnpj?: string;
+  manyCpfCnpj?: string[];
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+  getToday?: boolean;
+  previousDaysOnly?: boolean;
+  valor_pagamento?: number[] | null | ['>=' | '<=' | '>' | '<', number] | 'NOT NULL';
+  id_transacao?: string[] | null;
+  id_operadora?: string[];
+}
 
 @Injectable()
 export class BigqueryTransacaoRepository {
@@ -149,6 +160,9 @@ export class BigqueryTransacaoRepository {
       }
       queryBuilder.pushAND(`t.id_transacao ${value}`);
     }
+    if (args?.id_operadora?.length) {
+      queryBuilder.pushAND(`t.id_operadora IN('${args.id_operadora.join("','")}')`);
+    }
 
     queryBuilder.pushOR([]);
     if (args?.getToday) {
@@ -219,7 +233,6 @@ export class BigqueryTransacaoRepository {
         valor_transacao: item.valor_transacao || 0,
         paymentMediaType: tipo_pagamento !== null ? BqTransacaoTipoPagamentoMap?.[tipo_pagamento] || tipo_pagamento : tipo_pagamento,
         transportIntegrationType: tipo_integracao !== null ? BqTsansacaoTipoIntegracaoMap?.[tipo_integracao] || tipo_integracao : tipo_integracao,
-        transactionType: tipo_transacao !== null ? BqTransacaoTipoTransacaoMap?.[tipo_transacao] || tipo_transacao : tipo_transacao,
       };
     });
   }

@@ -5,7 +5,7 @@ import { BankStatementsRepositoryService } from './bank-statements.repository';
 import { BankStatementsController } from './bank-statements.controller';
 import { BankStatementsService } from './bank-statements.service';
 import { CnabModule } from 'src/cnab/cnab.module';
-import { TransacaoViewModule } from 'src/transacao-bq/transacao-view.module';
+import { TransacaoViewModule } from 'src/transacao-view/transacao-view.module';
 
 @Module({
   providers: [BankStatementsService, BankStatementsRepositoryService],

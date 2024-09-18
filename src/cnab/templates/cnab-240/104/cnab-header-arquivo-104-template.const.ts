@@ -1,4 +1,5 @@
 import { Cnab } from 'src/cnab/const/cnab.const';
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 import { CnabCodigoRegistro } from 'src/cnab/enums/all/cnab-codigo-registro.enum';
 import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
 
@@ -70,7 +71,7 @@ export const CnabHeaderArquivo104Template: CnabHeaderArquivo104 = {
   ambienteCliente: {
     pos: [41, 41],
     picture: 'X(001)',
-    value: 'P',
+    value: Cnab104AmbienteCliente.Producao,
     ...Cnab.insert.d(),
   },
   /** 0.10 */

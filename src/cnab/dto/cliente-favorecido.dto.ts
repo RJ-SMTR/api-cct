@@ -1,5 +1,5 @@
 import { IsNotEmpty, ValidateIf } from 'class-validator';
-import { TipoFavorecidoEnum } from 'src/tipo-favorecido/tipo-favorecido.enum';
+import { TipoFavorecidoEnum } from 'src/cnab/enums/tipo-favorecido.enum';
 
 function isCreate(object: SaveClienteFavorecidoDTO): boolean {
   return object.id === undefined;

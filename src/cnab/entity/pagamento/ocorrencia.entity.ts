@@ -77,7 +77,7 @@ export class Ocorrencia extends EntityHelper {
     return ocorrencias;
   }
 
-  public static getErrorCodes(ocorrencias: Ocorrencia[]) {
+  public static getErrorCodes(ocorrencias: Ocorrencia[]): string[] {
     const codesList = ocorrencias.map((o) => o.code);
     const errors = codesList.filter((c) => !['00', 'BD'].includes(c));
     return errors;
@@ -120,5 +120,9 @@ export class Ocorrencia extends EntityHelper {
   public static isError(ocorrencia?: Partial<Ocorrencia> | null) {
     const code = ocorrencia?.code;
     return code && !['BD', '00'].includes(code);
+  }
+
+  public static getErrors(ocorrencias: Ocorrencia[]) {
+    return ocorrencias.filter(o => Ocorrencia.isError(o));
   }
 }

@@ -39,6 +39,7 @@ export enum CronJobsEnum {
   generateRemessaVLT = 'generateRemessaVLT',
   generateRemessaEmpresa = 'generateRemessaEmpresa',
   generateRemessaVan = 'generateRemessaVan',
+  generateRemessaLancamento = 'generateRemessaLancamento',
 }
 interface ICronjobDebug {
   today?: Date;
@@ -72,7 +73,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {
+  async onModuleLoad() {    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
@@ -162,6 +163,18 @@ export class CronJobsService {
           },
         },
       },
+      // {
+      //   /**
+      //    * Gerar arquivo Remessa do Lançamento - todo dia, duração: 15 min
+      //    */
+      //   name: CronJobsEnum.generateRemessaLancamento,
+      //   cronJobParameters: {
+      //     cronTime: '0 15 * * *', // Every day, 15:00 GMT = 14:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       await this.generateRemessaLancamento();
+      //     },
+      //   },
+      // },
       {
         /** Atualizar Transações Empresa - DLake para CCT - todo dia, 09:00, duração: 20 min */
         name: CronJobsEnum.updateTransacaoViewEmpresa,
@@ -275,6 +288,7 @@ export class CronJobsService {
         dataPgto: addDays(today, 1),
         isConference: false,
         isCancelamento: false,
+        isTeste: false,
       });
       await this.cnabService.sendRemessa(listCnab);
       this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
@@ -296,13 +310,15 @@ export class CronJobsService {
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
     const sex = subDays(today, 7);
-    const qui = subDays(today, 1);
+    const qui = subDays(today, 1);  
+
     await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Van');
     const listCnab = await this.cnabService.generateRemessa({
       tipo: PagadorContaEnum.ContaBilhetagem,
       dataPgto: today,
       isConference: false,
       isCancelamento: false,
+      isTeste: false,
     });
     await this.cnabService.sendRemessa(listCnab);
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
@@ -336,14 +352,42 @@ export class CronJobsService {
       dataPgto: new Date(),
       isConference: false,
       isCancelamento: false,
+      isTeste: false,
     });
     await this.cnabService.sendRemessa(listCnab);
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDateLog)}`, METHOD);
   }
 
+  /**
+   * Regras de negócio:
+   * - Todo dia gera remessa de Lançamentos com dataOrdem = hoje
+   */
+  public async generateRemessaLancamento(debug?: ICronjobDebug) {
+    const METHOD = 'generateRemessaLancamento';
+    try {
+      this.logger.log('Tarefa iniciada', METHOD);
+      const today = debug?.today || new Date();
+      const startDateLog = new Date();
+      const startDate = today;
+      const endDate = today;
+      await this.cnabService.saveTransacoesLancamento(startDate, endDate);
+      const listCnab = await this.cnabService.generateRemessa({
+        tipo: PagadorContaEnum.CETT,
+        dataPgto: undefined, // data programada no Lançamento
+        isConference: false,
+        isCancelamento: false,
+        isTeste: false,
+      });
+      await this.cnabService.sendRemessa(listCnab);
+      this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDateLog)}`, METHOD);
+    } catch (error) {
+      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
+    }
+  }
+
   private async syncTransacaoViewOrdem(method = 'syncTransacaoViewOrdem') {
     try {
-      const startDate = subDays(new Date(), 15);
+      const startDate = subDays(new Date(), 30);
       const today = new Date();
       this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, method);
       await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [startDate, today] });
@@ -359,6 +403,7 @@ export class CronJobsService {
       dataPgto,
       isConference,
       isCancelamento,
+      isTeste: false,
       nsaInicial,
       nsaFinal,
       dataCancelamento,
