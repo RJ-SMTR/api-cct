@@ -4,11 +4,11 @@ import { CnabCodigoSegmento } from 'src/cnab/enums/all/cnab-codigo-segmento.enum
 import { CnabDetalheB_104 } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-detalhe-b-104.interface';
 
 /**
- * PAGAMENTO DE SALÁRIOS, PAGAMENTO/CRÉDITO A FORNECEDOR E AUTOPAGAMENTO E DÉBITO AUTOMÁTICO
+ * Pagamento de títulos da CAIXA, títulos de Outros Bancos e Pix QR Code.
  * 
  * @version v035 micro - 2024/09
  */
-export const cnabDetalheB104Template: CnabDetalheB_104 = {
+export const cnabDetalheJ104Template: CnabDetalheB_104 = {
   /** B.01 */
   codigoBanco: { pos: [1, 3], picture: '9(003)', value: '104', ...Cnab.insert.d() },
   /** B.02 */

@@ -1,13 +1,21 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, ObjectLiteral, QueryRunner, Repository, SaveOptions, UpdateResult } from 'typeorm';
-import { Lancamento } from './entities/lancamento.entity';
-import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import { LancamentoStatus } from './enums/lancamento-status.enum';
 import { compactQuery } from 'src/utils/console-utils';
+import { SqlDateOperator } from 'src/utils/sql/interfaces/sql-date-operator.interface';
+import { Between, DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, QueryRunner, Repository, SaveOptions, UpdateResult } from 'typeorm';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { Lancamento } from './entities/lancamento.entity';
+import { isDate } from 'date-fns';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
+import { dateMonthToHumanMonth } from 'src/utils/types/human-month.type';
 
-export interface UpdateLancamentoWhere {
+export interface LancamentoUpdateWhere {
   transacaoAgrupadoId: number;
+}
+
+export interface LancamentoFindWhere {
+  detalheA?: { id: number[] };
+  data_lancamento?: SqlDateOperator;
 }
 
 @Injectable()
@@ -25,7 +33,7 @@ export class LancamentoRepository {
     return this.lancamentoRepository.save(entity, options);
   }
 
-  async updateRaw(set: DeepPartial<Lancamento>, where: UpdateLancamentoWhere): Promise<UpdateResult> {
+  async updateRaw(set: DeepPartial<Lancamento>, where: LancamentoUpdateWhere): Promise<UpdateResult> {
     return await this.lancamentoRepository
       .createQueryBuilder('lancamento')
       .update()
@@ -75,7 +83,7 @@ export class LancamentoRepository {
     return found;
   }
 
-  async findMany(options?: FindManyOptions<Lancamento> | undefined, andWhere?: { detalheA: { id: number[] } }): Promise<Lancamento[]> {
+  async findMany(options?: FindManyOptions<Lancamento> | undefined, andWhere?: LancamentoFindWhere): Promise<Lancamento[]> {
     let whereCount = 0;
     let qb = this.lancamentoRepository
       .createQueryBuilder('lancamento') //
@@ -92,8 +100,34 @@ export class LancamentoRepository {
       whereCount += 1;
     }
     if (andWhere) {
-      qb = qb[!whereCount ? 'where' : 'andWhere']('detalheA.id IN(:daId)', { daId: andWhere.detalheA.id.join(',') });
-      whereCount += 1;
+      if (andWhere?.detalheA) {
+        qb = qb[!whereCount ? 'where' : 'andWhere']('detalheA.id IN(:daId)', { daId: andWhere.detalheA.id.join(',') });
+        whereCount += 1;
+      }
+      if (andWhere?.data_lancamento) {
+        if (andWhere.data_lancamento.is) {
+          qb = qb[!whereCount ? 'where' : 'andWhere']({ data_lancamento: andWhere.data_lancamento.is } as EntityCondition<Lancamento>);
+          whereCount += 1;
+        }
+        if (andWhere.data_lancamento.between) {
+          qb = qb[!whereCount ? 'where' : 'andWhere']({ data_lancamento: Between(...andWhere.data_lancamento.between) } as EntityCondition<Lancamento>);
+          whereCount += 1;
+        }
+        if (andWhere.data_lancamento.year) {
+          qb = qb[!whereCount ? 'where' : 'andWhere']('EXTRACT(YEAR FROM lancamento.data_lancamento) = :year', { year: andWhere.data_lancamento.year });
+          whereCount += 1;
+        }
+        if (andWhere.data_lancamento.month) {
+          const month = dateMonthToHumanMonth(andWhere.data_lancamento.month);
+          qb = qb[!whereCount ? 'where' : 'andWhere']('EXTRACT(MONTH FROM lancamento.data_lancamento) = :month', { month });
+          whereCount += 1;
+        }
+        if (andWhere.data_lancamento.day) {
+          const [operation, day] = andWhere.data_lancamento.day;
+          qb = qb[!whereCount ? 'where' : 'andWhere'](`EXTRACT(DAY FROM lancamento.data_lancamento) ${operation} :day`, { day });
+          whereCount += 1;
+        }
+      }
     }
     qb = qb.orderBy('lancamento.id', 'DESC');
     const ret = await qb.getMany();

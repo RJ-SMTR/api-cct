@@ -1,6 +1,5 @@
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { endOfDay, endOfMonth } from 'date-fns';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { FavorecidoEmpresaCpfCnpjEnum, FavorecidoEmpresaNomeEnum } from 'src/cnab/enums/favorecido-empresa.enum';
 import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.service';
@@ -9,12 +8,14 @@ import { compactQuery } from 'src/utils/console-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { Between, DeepPartial, IsNull, QueryRunner, UpdateResult } from 'typeorm';
+import { SqlDateOperator } from 'src/utils/sql/interfaces/sql-date-operator.interface';
+import { Between, DeepPartial, QueryRunner, UpdateResult } from 'typeorm';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoInputDto } from './dtos/lancamento-input.dto';
 import { ILancamento, Lancamento } from './entities/lancamento.entity';
 import { LancamentoStatus } from './enums/lancamento-status.enum';
-import { LancamentoRepository, UpdateLancamentoWhere } from './lancamento.repository';
+import { LancamentoRepository, LancamentoUpdateWhere } from './lancamento.repository';
+import { DateMonth } from 'src/utils/types/date-month.type';
 
 /** Usado para exibição no erro */
 const validFavorecidoNames = [
@@ -64,31 +65,29 @@ export class LancamentoService {
   }
 
   async find(args?: {
-    mes?: number; //
-    periodo?: number;
-    ano?: number;
+    data_lancamento?: {
+      mes?: DateMonth; //
+      periodo?: number;
+      ano?: number;
+    };
     autorizado?: boolean;
     pago?: boolean;
     detalheA?: { id: number[] };
     status?: LancamentoStatus;
   }): Promise<Lancamento[]> {
-    /** [startDate, endDate] */
-    let dateRange: [Date, Date] | null = null;
-    if (args?.mes && args?.periodo && args?.ano) {
-      dateRange = this.getMonthDateRange(args.ano, args.mes, args?.periodo);
-    }
-
     const lancamentos = await this.lancamentoRepository.findMany(
       {
         where: {
-          ...(dateRange ? { data_lancamento: Between(...dateRange) } : {}),
           ...(args?.autorizado !== undefined ? { is_autorizado: args.autorizado } : {}),
           ...(args?.pago !== undefined ? { is_pago: args.pago } : {}),
           ...(args?.status ? { status: args.status } : {}),
         },
         relations: ['autorizacoes'] as (keyof ILancamento)[],
       },
-      args?.detalheA && { detalheA: args.detalheA },
+      {
+        ...(args?.detalheA ? { detalheA: args.detalheA } : {}),
+        data_lancamento: this.getMonthDateRange({ year: args?.data_lancamento?.ano, month: args?.data_lancamento?.mes, period: args?.data_lancamento?.periodo }),
+      },
     );
 
     return lancamentos;
@@ -99,9 +98,9 @@ export class LancamentoService {
     return lancamentos;
   }
 
-  async getValorAutorizado(month: number, period: number, year: number) {
-    const [startDate, endDate] = this.getMonthDateRange(year, month, period);
-    const autorizados = await this.lancamentoRepository.findMany({ where: { data_lancamento: Between(startDate, endDate) } });
+  async getValorAutorizado(month: DateMonth, period: number, year: number) {
+    const data_lancamento = this.getMonthDateRange({ year, month, period });
+    const autorizados = await this.lancamentoRepository.findMany(undefined, { data_lancamento });
     const autorizadoSum = autorizados.reduce((sum, lancamento) => sum + lancamento.valor, 0);
     const resp = { valor_autorizado: autorizadoSum };
     return resp;
@@ -156,7 +155,7 @@ export class LancamentoService {
     return await this.lancamentoRepository.save(lancamento);
   }
 
-  updateRaw(set: DeepPartial<Lancamento>, where: UpdateLancamentoWhere): Promise<UpdateResult> {
+  updateRaw(set: DeepPartial<Lancamento>, where: LancamentoUpdateWhere): Promise<UpdateResult> {
     return this.lancamentoRepository.updateRaw(set, where);
   }
 
@@ -220,20 +219,12 @@ export class LancamentoService {
     await this.lancamentoRepository.softDelete(id);
   }
 
-  getMonthDateRange(year: number, month: number, period: number): [Date, Date] {
-    let startDate: Date;
-    let endDate: Date;
-
-    if (period === 1) {
-      startDate = new Date(year, month - 1, 1);
-      endDate = endOfDay(new Date(year, month - 1, 15));
-    } else if (period === 2) {
-      startDate = new Date(year, month - 1, 16);
-      endDate = endOfMonth(new Date(year, month, 0));
-    } else {
-      throw new Error('Invalid period. Period should be 1 or 2.');
-    }
-    return [startDate, endDate];
+  getMonthDateRange(args?: { year?: number; month?: DateMonth; period?: number }): SqlDateOperator {
+    return {
+      ...(args?.year ? { year: args.year } : {}),
+      ...(args?.month ? { month: args.month } : {}),
+      ...(args?.period ? { day: [args.period === 1 ? '<=' : '>', 15] } : {}),
+    };
   }
 
   getDatePeriodInfo(date: Date) {

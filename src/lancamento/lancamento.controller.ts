@@ -5,16 +5,17 @@ import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
+import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
+import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
 import { LancamentoInputDto } from './dtos/lancamento-input.dto';
 import { Lancamento } from './entities/lancamento.entity';
-import { LancamentoService } from './lancamento.service';
 import { LancamentoStatus } from './enums/lancamento-status.enum';
-import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
-import { ParseArrayPipe } from 'src/utils/pipes/parse-array.pipe';
-import { IRequest } from 'src/utils/interfaces/request.interface';
+import { LancamentoService } from './lancamento.service';
+import { DateMonth, humanMonthToDateMonth } from 'src/utils/types/date-month.type';
+import { HumanMonth } from 'src/utils/types/human-month.type';
 
 @ApiTags('Lancamento')
 @Controller({
@@ -34,22 +35,23 @@ export class LancamentoController {
     RoleEnum.aprovador_financeiro,
   )
   @ApiBearerAuth()
-  @ApiQuery({ name: 'periodo', type: Number, required: false, description: ApiDescription({ _: 'Período do lançamento. Primeira quinzena (dias 1-15) ou segunda quinzena (dias 16 até o fim do mês).', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date", min: 1, max: 2 }) })
-  @ApiQuery({ name: 'mes', type: Number, required: false, description: ApiDescription({ _: 'Mês do lançamento', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
-  @ApiQuery({ name: 'ano', type: Number, required: false, description: ApiDescription({ _: 'Ano do lançamento.', conditions: "periodo, mes, ano muest be filled. Otherwise it won't filter by date" }) })
+  @ApiQuery({ name: 'periodo', type: Number, required: false, description: ApiDescription({ _: 'Período do lançamento.', values: '\n\n- `1`: Primeira quinzena (dias 1-15)\n\n- `2`: segunda quinzena (dias 16 até o fim do mês)' }) })
+  @ApiQuery({ name: 'mes', type: Number, required: false, description: ApiDescription({ _: 'Mês do lançamento' }) })
+  @ApiQuery({ name: 'ano', type: Number, required: false, description: ApiDescription({ _: 'Ano do lançamento.' }) })
   @ApiQuery({ name: 'autorizado', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
   @ApiQuery({ name: 'pago', type: Boolean, required: false, description: 'Fitra se foi autorizado ou não.' })
   @ApiQuery({ name: 'status', enum: LancamentoStatus, required: false, description: 'Fitra por status.' })
   async get(
     @Request() request, //
     @Query('periodo', new ParseNumberPipe({ min: 1, max: 2, optional: true })) periodo: number | undefined,
-    @Query('mes', new ParseNumberPipe({ min: 1, max: 12, optional: true })) mes: number | undefined,
+    @Query('mes', new ParseNumberPipe({ min: 1, max: 12, optional: true })) _mes: HumanMonth | undefined,
     @Query('ano') ano: number | undefined,
     @Query('autorizado', new ParseBooleanPipe({ optional: true })) autorizado: boolean | undefined,
     @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
     @Query('status', new ParseEnumPipe(LancamentoStatus, { optional: true })) status: LancamentoStatus | undefined,
   ): Promise<Lancamento[]> {
-    return await this.lancamentoService.find({ mes, periodo, ano, autorizado, pago, status });
+    const mes = _mes && humanMonthToDateMonth(_mes);
+    return await this.lancamentoService.find({ data_lancamento: { mes, periodo, ano }, autorizado, pago, status });
   }
 
   @Get('/getbystatus')
@@ -83,16 +85,17 @@ export class LancamentoController {
   )
   @ApiOperation({ description: 'Obter a soma dos valores dos Lançamentos.' })
   @ApiBearerAuth()
-  @ApiQuery({ name: 'mes', required: true, description: 'Mês do lançamento' })
-  @ApiQuery({ name: 'periodo', required: true, description: 'Período do lançamento. Primeira quinzena (dias 1-15) ou segunda quinzena (dias 16 até o fim do mês).' })
+  @ApiQuery({ name: 'mes', required: true, description: ApiDescription({ _: 'Mês do lançamento', min: 1, max: 12 }) })
+  @ApiQuery({ name: 'periodo', required: true, description: ApiDescription({ _: 'Período do lançamento.', values: '\n\n- `1`: Primeira quinzena (dias 1-15)\n\n- `2`: segunda quinzena (dias 16 até o fim do mês)' }) })
   @ApiQuery({ name: 'ano', required: true, description: 'Ano do lançamento.' })
   @ApiOperation({ description: `Inclui uma autorização do usuário autenticado para o Lançamento.` })
   async getValorAutorizado(
     @Request() request, //
-    @Query('mes') mes: number,
+    @Query('mes', new ParseNumberPipe({ min: 1, max: 12 })) _mes: HumanMonth,
     @Query('periodo') periodo: number,
     @Query('ano') ano: number,
   ): Promise<any> {
+    const mes = humanMonthToDateMonth(_mes);
     return await this.lancamentoService.getValorAutorizado(mes, periodo, ano);
   }
 

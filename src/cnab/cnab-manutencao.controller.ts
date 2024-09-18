@@ -137,7 +137,7 @@ export class CnabManutencaoController {
     @Query('headerArquivoIds', new ParseArrayPipe({ items: Number, separator: ',', optional: true })) headerArquivoIds: number[] | undefined, //
     @Query('headerArquivoStatus', new ParseEnumPipe(HeaderArquivoStatus, { optional: true })) headerArquivoStatus: HeaderArquivoStatus | undefined, //
   ) {
-    return await this.cnabService.getSendRemessa({ headerArquivoIds, status: headerArquivoStatus });
+    return await this.cnabService.findSendRemessas({ headerArquivoIds, status: headerArquivoStatus });
   }
 
   @Get('readRetornoPagamento')

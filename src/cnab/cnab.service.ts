@@ -109,7 +109,7 @@ export class CnabService {
     private settingsService: SettingsService,
   ) {}
 
-  async getSendRemessa(args?: IFindRemessaArgs) {
+  async findSendRemessas(args?: IFindRemessaArgs) {
     const METHOD = 'getSendRemessa';
     const startDate = new Date();
     this.logger.log('Tarefa iniciada', METHOD);
@@ -124,6 +124,7 @@ export class CnabService {
     this.logger.log(`Tarefa finalizada - ${duration}`);
     return { duration, remessas };
   }
+
   async findRemessas(args?: IFindRemessaArgs): Promise<ICnabInfo[]> {
     const listCnab: ICnabInfo[] = [];
     if (!args) {
@@ -218,15 +219,11 @@ export class CnabService {
     const startDate = new Date();
     let now = new Date();
     this.logger.log('Tarefa iniciada', METHOD);
-    const cnabs: ICnabInfo[] = [];
 
-    this.logger.log('saveTransacoesJae iniciado');
     await this.saveTransacoesLancamento(dataOrdemInicial, dataOrdemFinal);
     duration.saveTransacoesJae = formatDateInterval(new Date(), now);
     now = new Date();
-    this.logger.log(`saveTransacoesJae finalizado - ${duration.saveTransacoesJae}`);
 
-    this.logger.log('generateRemessa started');
     const listCnab = await this.generateRemessa({
       tipo: PagadorContaEnum.CETT, //
       dataPgto,
@@ -239,18 +236,15 @@ export class CnabService {
     });
     duration.generateRemessa = formatDateInterval(new Date(), now);
     now = new Date();
-    this.logger.log(`generateRemessa finalizado - ${duration.generateRemessa}`);
 
-    this.logger.log('sendRemessa started');
     await this.sendRemessa(listCnab);
     duration.sendRemessa = formatDateInterval(new Date(), now);
-    this.logger.log(`sendRemessa finalizado - ${duration.sendRemessa}`);
 
     duration.total = formatDateInterval(new Date(), startDate);
     this.logger.log(`Tarefa finalizada - ${duration.total}`);
     return {
       duration,
-      cnabs,
+      cnabs: listCnab,
     };
   }
 
@@ -410,6 +404,9 @@ export class CnabService {
   // #region saveOrdens
 
   async saveOrdens(ordens: OrdemPagamentoDto[], pagadorKey: keyof AllPagadorDict) {
+    if (!ordens.length) {
+      return;
+    }
     const pagador = (await this.pagadorService.getAllPagador())[pagadorKey];
 
     for (const ordem of ordens) {
@@ -544,8 +541,9 @@ export class CnabService {
     const dataOrdem: [Date, Date] | undefined = dataOrdemInicial && dataOrdemFinal ? [startOfDay(dataOrdemInicial), endOfDay(dataOrdemFinal)] : undefined;
     await this.updateAllFavorecidosFromUsers();
     const newLancamentos = await this.lancamentoService.findToPay(dataOrdem);
-    const ordens = newLancamentos.cett.map((l) => OrdemPagamentoDto.fromLancamento(l));
-    await this.saveOrdens(ordens, 'cett');
+    const ordensCett = newLancamentos.cett.map((l) => OrdemPagamentoDto.fromLancamento(l));
+    const ordensCb = newLancamentos.contaBilhetagem.map((l) => OrdemPagamentoDto.fromLancamento(l));
+    await this.saveOrdens(ordensCett, 'cett');
   }
 
   public async generateRemessa(args: {
