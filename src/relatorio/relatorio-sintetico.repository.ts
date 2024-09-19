@@ -27,7 +27,10 @@ export class RelatorioSinteticoRepository {
                       if(dataInicio!==undefined && dataFim!==undefined && 
                         (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
                         query = query + ` and dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
-                      if(args.pago !==undefined)          
+                      if(args.emProcessamento!==undefined && args.emProcessamento===true ){
+                          query = query +`  and app."isPago"=false and dta."ocorrenciasCnab" is  null `
+                      }else 
+                        if(args.pago !==undefined)          
                         query = query +`  and app."isPago"=${args.pago} `;
 
                         query = query + ` and tt."nomeConsorcio"=res.consorcio `;
@@ -122,7 +125,10 @@ export class RelatorioSinteticoRepository {
             query = query +` and it."nomeConsorcio" in('STPC','STPL') `;
           }
 
-          if(args.pago !==undefined)          
+          if(args.emProcessamento!==undefined && args.emProcessamento===true){
+            query = query +`  and ap."isPago"=false and da."ocorrenciasCnab" is  null `
+          }else 
+            if(args.pago !==undefined)          
             query = query +`  and ap."isPago"=${args.pago} `;
                   
           if(args.valorMin!==undefined)
@@ -187,8 +193,11 @@ export class RelatorioSinteticoRepository {
                 query = query +` and it."nomeConsorcio" in('STPC','STPL') `;
               }
     
+              if(args.emProcessamento!==undefined && args.emProcessamento===true ){
+                query = query +`  and ap."isPago"=false and da."ocorrenciasCnab" is  null `
+              }else 
               if(args.pago !==undefined)          
-                query = query +`  and ap."isPago"=${args.pago}`;
+                query = query +`  and ap."isPago"=${args.pago} `;
                       
               if(args.valorMin!==undefined)
                 query = query +`  and it."valor">=${args.valorMin}`;
@@ -197,10 +206,11 @@ export class RelatorioSinteticoRepository {
                   query = query + ` and it."valor"<=${args.valorMax}`; 
           }
           
-          if((query !==` select distinct res.* from ( `) &&(args.aPagar==true || (args.aPagar === undefined && args.pago === undefined)))
+          if((query !==` select distinct res.* from ( `) &&(args.aPagar==true ||
+             (args.aPagar === undefined && args.pago === undefined)) &&(args.emProcessamento === undefined || args.emProcessamento === false ))
             query = query + ` union All `;
 
-          if(args.aPagar==true || (args.aPagar === undefined && args.pago === undefined)){
+          if(args.aPagar==true || (args.aPagar === undefined && args.pago === undefined)&&(args.emProcessamento === undefined || args.emProcessamento === false)){
             query = query +` 
             select distinct 
                 tv.id, 
@@ -258,9 +268,7 @@ export class RelatorioSinteticoRepository {
             }
 
             query = query + ` ) as res
-            order by  res."consorcio", res."favorecido",res."datapagamento" `;
-
-            this.logger.debug(query);           
+            order by  res."consorcio", res."favorecido",res."datapagamento" `;             
     return query;             
   } 
   

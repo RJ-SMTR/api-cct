@@ -81,17 +81,13 @@ export class TransacaoViewRepository {
         SELECT
             DISTINCT ON (tv.id)
             tv.id AS tv_id,
-            (select ia.id from item_transacao_agrupado ia
-	                        where ia."idOrdemPagamento" = ita."idOrdemPagamento"
-	                          and ia."idOperadora" = ita."idOperadora" 
-	                          and ia."dataOrdem" = ita."dataOrdem"
-						      and ia."createdAt" =(select max(itt."createdAt") from item_transacao_agrupado itt 
-												     where ia."idOrdemPagamento" = itt."idOrdemPagamento"
-													  and ia."idOperadora" = itt."idOperadora" 
-													  and ia."dataOrdem" = itt."dataOrdem") ) as ita_id,
+            ita.id ita_id,
+            ita."valor",
+            tv."valorPago",
             tv."datetimeTransacao",
-            tv."datetimeProcessamento",
-            ita."dataOrdem"
+            it."dataOrdem",
+            it."dataCaptura",
+            da."dataVencimento"	 
         FROM item_transacao_agrupado ita
         INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
         INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
@@ -100,9 +96,8 @@ export class TransacaoViewRepository {
             ON tv."idConsorcio" = ita."idConsorcio"
             AND tv."idOperadora" = ita."idOperadora"
             AND tv."operadoraCpfCnpj" = cf."cpfCnpj"
-        AND tv."datetimeTransacao"::DATE BETWEEN
-            (ita."dataCaptura"::DATE - (CASE WHEN ita."nomeConsorcio" = 'VLT' THEN INTERVAL '2 DAYS' ELSE INTERVAL '8 DAYS' END))  -- VENCIMENTO - 2 SE VLT; SENÃO QUINTA PGTO
-            AND (DATE(ita."dataCaptura") - INTERVAL '2 DAYS')  -- VENCIMENTO - 2 (OU QUARTA PGTO SE NÃO for VLT)
+            AND tv."datetimeTransacao"::DATE 
+	          BETWEEN (it."dataOrdem"::DATE) - INTERVAL '1 DAYS' AND (it."dataOrdem"::DATE)
         WHERE (1=1) ${where.length ? `AND ${where.join(' AND ')}` : ''}
         ORDER BY tv.id ASC, ita.id DESC
     ) associados
