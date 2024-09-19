@@ -158,14 +158,6 @@ export class LancamentoHistory extends EntityHelper implements TLancamentoHistor
   @CreateDateColumn()
   backupAt: Date;
 
-  /** Coluna virtual */
-  @Exclude()
-  @Transform(({ value }) => (value === null ? null : ((da = value as DetalheA) => ({ id: da.id, ocorrenciasCnab: da.ocorrenciasCnab, numeroDocumentoEmpresa: da.numeroDocumentoEmpresa }))()))
-  detalheA: DetalheA | null = null;
-
-  /** Coluna virtual - para consultar as ocorrências */
-  ocorrencias: Ocorrencia[] = [];
-
   @BeforeInsert()
   setWriteValues() {
     if (!this.status) {

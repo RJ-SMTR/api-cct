@@ -439,7 +439,7 @@ export class CronJobsService {
       try {
         this.logger.log('Iniciando tarefa.', METHOD);
         if (consorcio == 'Van') {
-          startDate = subDays(startDate, 2);
+          startDate = subDays(startDate, 8);
         } else if (consorcio == 'VLT') {
           startDate = subDays(startDate, 1);
         } else {

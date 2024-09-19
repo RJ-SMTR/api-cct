@@ -139,8 +139,10 @@ export class LancamentoService {
 
   async putAuthorize(userId: number, lancamentoId: number, autorizaLancamentoDto: LancamentoAuthorizeDto): Promise<Lancamento> {
     const lancamento = await this.validatePutAuthorize(userId, lancamentoId, autorizaLancamentoDto);
+    await this.createBackup(lancamento);
     lancamento.addAutorizado(userId);
-    return await this.lancamentoRepository.save(lancamento);
+    await this.lancamentoRepository.save(lancamento);
+    return await this.lancamentoRepository.getOne({ where: { id: lancamentoId } });
   }
 
   /**
@@ -152,8 +154,9 @@ export class LancamentoService {
       throw new HttpException('Lançamento não encontrado.', HttpStatus.NOT_FOUND);
     }
 
-    if (lancamento.status !== LancamentoStatus._1_gerado) {
-      throw new HttpException(`Apenas lançamentos com status '${LancamentoStatus._1_gerado}' podem ser aprovados. Status encontrado: '${lancamento.status}'.)`, HttpStatus.PRECONDITION_FAILED);
+    const lancamentoStatusAuth = [LancamentoStatus._1_gerado, LancamentoStatus._2_autorizado_parcial];
+    if (!lancamentoStatusAuth.includes(lancamento.status)) {
+      throw new HttpException(`Apenas lançamentos com status ${lancamentoStatusAuth.map((i) => `'${i}'`).join(', ')} podem ser aprovados. Status encontrado: '${lancamento.status}'.)`, HttpStatus.PRECONDITION_FAILED);
     }
 
     const user = await this.usersService.findOne({ id: userId });
