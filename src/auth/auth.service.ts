@@ -53,7 +53,6 @@ export class AuthService {
         RoleEnum.admin,
         RoleEnum.aprovador_financeiro,
         RoleEnum.lancador_financeiro,
-        RoleEnum.admin_finan,
       ]
       : [RoleEnum.user];
 

@@ -90,20 +90,5 @@ export class RoleSeedService {
         }),
       );
     }
-
-    const admin_finan = await this.roleRepository.count({
-      where: {
-        id: RoleEnum.admin_finan,
-      },
-    });
-
-    if (!admin_finan) {
-      await this.roleRepository.save(
-        this.roleRepository.create({
-          id: RoleEnum.admin_finan,
-          name: 'Admin Finan',
-        }),
-      );
-    }
   }
 }

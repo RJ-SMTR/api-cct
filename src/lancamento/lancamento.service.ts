@@ -180,7 +180,7 @@ export class LancamentoService {
     if (!favorecido) {
       throw CommonHttpException.message('id_cliente_favorecido: Favorecido não encontrado no sistema');
     }
-    if (!validFavorecidoNames.includes(favorecido.nome)) {
+    if (!validFavorecidoCpfCnpjs.includes(favorecido.cpfCnpj)) {
       throw CommonHttpException.messageArgs('id_cliente_favorecido: Favorecido não permitido para Lançamento.', { validFavorecidos: validFavorecidoNames });
     }
     if (lancamento.clienteFavorecido.id !== updateDto.id_cliente_favorecido) {

@@ -30,7 +30,6 @@ export class LancamentoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
-    RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
@@ -59,7 +58,6 @@ export class LancamentoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
-    RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
@@ -79,7 +77,6 @@ export class LancamentoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
-    RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
@@ -104,7 +101,6 @@ export class LancamentoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
-    RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
@@ -124,7 +120,6 @@ export class LancamentoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
-    RoleEnum.admin_finan,
     RoleEnum.aprovador_financeiro,
   )
   @ApiOperation({ description: `Inclui uma autorização do usuário autenticado para o Lançamento.` })
@@ -145,7 +140,6 @@ export class LancamentoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
-    RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
@@ -166,7 +160,6 @@ export class LancamentoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
-    RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )
@@ -180,7 +173,6 @@ export class LancamentoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(
     RoleEnum.master, //
-    RoleEnum.admin_finan,
     RoleEnum.lancador_financeiro,
     RoleEnum.aprovador_financeiro,
   )

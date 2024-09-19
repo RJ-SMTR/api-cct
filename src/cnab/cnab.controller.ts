@@ -34,7 +34,12 @@ export class CnabController {
 
   @Get('clientes-favorecidos')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(RoleEnum.master, RoleEnum.admin, RoleEnum.admin_finan, RoleEnum.lancador_financeiro, RoleEnum.aprovador_financeiro)
+  @Roles(
+    RoleEnum.master, //
+    RoleEnum.admin,
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro,
+  )
   @ApiBearerAuth()
   @ApiQuery({ name: 'nome', description: 'Pesquisa por parte do nome, sem distinção de acento ou maiúsculas.', required: false, type: String })
   @ApiQuery({ name: 'nomeNot', description: 'Ignora nomes com parte do nome, sem distinção de acento ou maiúsculas.', required: false, type: String })
@@ -55,8 +60,12 @@ export class CnabController {
   @Get('extratoLancamento')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(RoleEnum.master, RoleEnum.admin_finan, RoleEnum.lancador_financeiro, RoleEnum.aprovador_financeiro)
-  @ApiOperation({description: 'Verifica o saldo do '})
+  @Roles(
+    RoleEnum.master, //
+    RoleEnum.lancador_financeiro,
+    RoleEnum.aprovador_financeiro,
+  )
+  @ApiOperation({ description: 'Verifica o saldo do ' })
   @ApiBearerAuth()
   @ApiQuery({ name: 'conta', required: true, type: String })
   @ApiQuery({ name: 'dt_inicio', required: true, type: String, example: '2024-01-01' })
