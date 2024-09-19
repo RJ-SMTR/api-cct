@@ -3,8 +3,8 @@ import { IsDateString, IsEmpty, IsNotEmpty, IsNumber, IsOptional, IsString, Min 
 import { User } from 'src/users/entities/user.entity';
 import { DeepPartial } from 'typeorm';
 
-export class LancamentoInputDto {
-  constructor(dto?: DeepPartial<LancamentoInputDto>) {
+export class LancamentoUpsertDto {
+  constructor(dto?: DeepPartial<LancamentoUpsertDto>) {
     if (dto) {
       Object.assign(this, dto);
     }
@@ -22,9 +22,9 @@ export class LancamentoInputDto {
 
   /**
    * Data usada meramente para registro, baseado na seleção dos parâmetros no front.
-   * 
+   *
    * Mesmo se a dataOrdem for alterada a dataLancamento permanece igual.
-   * 
+   *
    * @examples
    * - Mês: agosto, período: 1, ano: 2024 = 2024/08/01
    * - Mês: agosto, período: 2, ano: 2024 = 2024/08/16

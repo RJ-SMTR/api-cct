@@ -642,7 +642,7 @@ export class CnabService {
   private async updateStatusRemessa(headerArquivoDTO: HeaderArquivoDTO, cnabHeaderArquivo: CnabHeaderArquivo104, transacaoAgId: number) {
     await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO, cnabHeaderArquivo);
     await this.transacaoAgService.save({ id: transacaoAgId, status: TransacaoStatus.fromEnum(TransacaoStatusEnum.remessa) });
-    await this.lancamentoService.updateRaw({ status: LancamentoStatus._3_remessa }, { transacaoAgrupadoId: transacaoAgId });
+    await this.lancamentoService.update({ status: LancamentoStatus._4_remessa_enviado }, { transacaoAgrupado: { id: transacaoAgId } });
   }
 
   private validateCancel(nsaInicial: number, nsaFinal: number) {

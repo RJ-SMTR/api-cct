@@ -450,10 +450,10 @@ export class RemessaRetornoService {
       lancamento.is_pago = detalheARetorno.isPago();
       if (lancamento.is_pago) {
         lancamento.data_pgto = detalheARetorno.dataEfetivacao;
-        lancamento.status = LancamentoStatus._4_pago;
+        lancamento.status = LancamentoStatus._5_pago;
       } else {
         lancamento.data_pgto = null;
-        lancamento.status = LancamentoStatus._5_erro;
+        lancamento.status = LancamentoStatus._6_erro;
       }
     }
     await this.lancamentoService.updateManyRaw(lancamentos, ['is_pago', 'data_pgto', 'status'], queryRunner);

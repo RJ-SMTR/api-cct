@@ -3,19 +3,24 @@ import * as bcrypt from 'bcryptjs';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
 import { FavorecidoEmpresaCpfCnpjEnum, FavorecidoEmpresaNomeEnum } from 'src/cnab/enums/favorecido-empresa.enum';
 import { ClienteFavorecidoService } from 'src/cnab/service/cliente-favorecido.service';
+import { RoleEnum } from 'src/roles/roles.enum';
 import { UsersService } from 'src/users/users.service';
 import { compactQuery } from 'src/utils/console-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { asStringOrNumber } from 'src/utils/pipe-utils';
 import { SqlDateOperator } from 'src/utils/sql/interfaces/sql-date-operator.interface';
-import { Between, DeepPartial, QueryRunner, UpdateResult } from 'typeorm';
-import { AutorizaLancamentoDto } from './dtos/AutorizaLancamentoDto';
-import { LancamentoInputDto } from './dtos/lancamento-input.dto';
-import { ILancamento, Lancamento } from './entities/lancamento.entity';
-import { LancamentoStatus } from './enums/lancamento-status.enum';
-import { LancamentoRepository, LancamentoUpdateWhere } from './lancamento.repository';
 import { DateMonth } from 'src/utils/types/date-month.type';
+import { Between, DeepPartial, In, QueryRunner, UpdateResult } from 'typeorm';
+import { LancamentoAuthorizeDto } from './dtos/lancamento-authorize.dto';
+import { LancamentoDeleteDto } from './dtos/lancamento-delete.dto';
+import { LancamentoUpsertDto } from './dtos/lancamento-upsert.dto';
+import { Lancamento, TLancamento } from './entities/lancamento.entity';
+import { LancamentoStatus } from './enums/lancamento-status.enum';
+import { LancamentoAutorizacaoHistoryRepository } from './lancamento-autorizacao-history.repository';
+import { LancamentoHistoryRepository } from './lancamento-history.repository';
+import { LancamentoFindWhere, LancamentoRepository } from './lancamento.repository';
 
 /** Usado para exibição no erro */
 const validFavorecidoNames = [
@@ -41,6 +46,8 @@ export class LancamentoService {
 
   constructor(
     private readonly lancamentoRepository: LancamentoRepository, //
+    private readonly lancamentoHistoryRepository: LancamentoHistoryRepository,
+    private readonly lancamentoAutorizacaoHistoryRepository: LancamentoAutorizacaoHistoryRepository,
     private readonly usersService: UsersService,
     private readonly clienteFavorecidoService: ClienteFavorecidoService,
   ) {}
@@ -52,7 +59,7 @@ export class LancamentoService {
     const found = await this.lancamentoRepository.findMany({
       where: {
         ...(dataOrdemBetween ? { data_ordem: Between(...dataOrdemBetween) } : {}),
-        status: LancamentoStatus._2_autorizado,
+        status: LancamentoStatus._3_autorizado,
         is_autorizado: true,
       },
     });
@@ -74,6 +81,7 @@ export class LancamentoService {
     pago?: boolean;
     detalheA?: { id: number[] };
     status?: LancamentoStatus;
+    transacaoAgrupado?: { id: number };
   }): Promise<Lancamento[]> {
     const lancamentos = await this.lancamentoRepository.findMany(
       {
@@ -82,10 +90,11 @@ export class LancamentoService {
           ...(args?.pago !== undefined ? { is_pago: args.pago } : {}),
           ...(args?.status ? { status: args.status } : {}),
         },
-        relations: ['autorizacoes'] as (keyof ILancamento)[],
+        relations: ['autorizacoes'] as (keyof TLancamento)[],
       },
       {
         ...(args?.detalheA ? { detalheA: args.detalheA } : {}),
+        ...(args?.transacaoAgrupado ? { transacaoAgrupado: args.transacaoAgrupado } : {}),
         data_lancamento: this.getMonthDateRange({ year: args?.data_lancamento?.ano, month: args?.data_lancamento?.mes, period: args?.data_lancamento?.periodo }),
       },
     );
@@ -106,14 +115,14 @@ export class LancamentoService {
     return resp;
   }
 
-  async create(dto: LancamentoInputDto): Promise<Lancamento> {
+  async create(dto: LancamentoUpsertDto): Promise<Lancamento> {
     const lancamento = await this.validateCreate(dto);
     const created = await this.lancamentoRepository.save(this.lancamentoRepository.create(lancamento));
     const getCreated = await this.lancamentoRepository.getOne({ where: { id: created.id } });
     return getCreated;
   }
 
-  async validateCreate(dto: LancamentoInputDto): Promise<Lancamento> {
+  async validateCreate(dto: LancamentoUpsertDto): Promise<Lancamento> {
     const favorecido = await this.clienteFavorecidoService.findOne({ where: { id: dto.id_cliente_favorecido } });
     if (!favorecido) {
       throw CommonHttpException.message(`id_cliente_favorecido: Favorecido não encontrado no sistema`);
@@ -126,14 +135,23 @@ export class LancamentoService {
     return lancamento;
   }
 
-  async autorizarPagamento(userId: number, lancamentoId: string, AutorizaLancamentoDto: AutorizaLancamentoDto): Promise<Lancamento> {
-    const lancamento = await this.lancamentoRepository.findOne({ where: { id: parseInt(lancamentoId) } });
+  async putAuthorize(userId: number, lancamentoId: number, autorizaLancamentoDto: LancamentoAuthorizeDto): Promise<Lancamento> {
+    const lancamento = await this.validatePutAuthorize(userId, lancamentoId, autorizaLancamentoDto);
+    lancamento.addAutorizado(userId);
+    return await this.lancamentoRepository.save(lancamento);
+  }
+
+  /**
+   * Nota: Aqui não valida a Role do usuário porque isto já é feito no controller.
+   */
+  async validatePutAuthorize(userId: number, lancamentoId: string | number, autorizaLancamentoDto: LancamentoAuthorizeDto) {
+    const lancamento = await this.lancamentoRepository.findOne({ where: { id: asStringOrNumber(lancamentoId) } });
     if (!lancamento) {
       throw new HttpException('Lançamento não encontrado.', HttpStatus.NOT_FOUND);
     }
 
-    if (lancamento.status !== LancamentoStatus._1_criado) {
-      throw new HttpException(`Apenas lançamentos com status '${LancamentoStatus._1_criado}' podem ser aprovados. Status encontrado: '${lancamento.status}'.)`, HttpStatus.PRECONDITION_FAILED);
+    if (lancamento.status !== LancamentoStatus._1_gerado) {
+      throw new HttpException(`Apenas lançamentos com status '${LancamentoStatus._1_gerado}' podem ser aprovados. Status encontrado: '${lancamento.status}'.)`, HttpStatus.PRECONDITION_FAILED);
     }
 
     const user = await this.usersService.findOne({ id: userId });
@@ -145,35 +163,28 @@ export class LancamentoService {
       throw new HttpException('Usuário já autorizou este Lançamento', HttpStatus.PRECONDITION_FAILED);
     }
 
-    const isValidPassword = await bcrypt.compare(AutorizaLancamentoDto.password, user.password);
+    const isValidPassword = await bcrypt.compare(autorizaLancamentoDto.password, user.password);
     if (!isValidPassword) {
       throw new HttpException('Senha inválida', HttpStatus.UNAUTHORIZED);
     }
-
-    lancamento.addAutorizado(userId);
-
-    return await this.lancamentoRepository.save(lancamento);
+    return lancamento;
   }
 
-  updateRaw(set: DeepPartial<Lancamento>, where: LancamentoUpdateWhere): Promise<UpdateResult> {
-    return this.lancamentoRepository.updateRaw(set, where);
-  }
-
-  async updateDto(id: number, updateDto: LancamentoInputDto): Promise<Lancamento> {
+  async updateDto(id: number, updateDto: LancamentoUpsertDto): Promise<Lancamento> {
     const lancamento = await this.validateUpdateDto(id, updateDto);
-    lancamento.updateFromInputDto(updateDto);
+    lancamento.updateFromDto(updateDto);
     await this.lancamentoRepository.save(lancamento);
     const updated = await this.lancamentoRepository.getOne({ where: { id: lancamento.id } });
     this.logger.log(`Lancamento #${updated.id} atualizado por ${updated.clienteFavorecido.nome}.`);
     return updated;
   }
 
-  async validateUpdateDto(id: number, updateDto: LancamentoInputDto): Promise<Lancamento> {
+  async validateUpdateDto(id: number, updateDto: LancamentoUpsertDto): Promise<Lancamento> {
     const lancamento = await this.lancamentoRepository.findOne({ where: { id } });
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
-    if (lancamento.status !== LancamentoStatus._1_criado) {
+    if (lancamento.status !== LancamentoStatus._1_gerado) {
       throw new HttpException('Apenas é permitido alterar Lançamentos com status criado.', HttpStatus.NOT_ACCEPTABLE);
     }
     const favorecido = await this.clienteFavorecidoService.findOne({ where: { id: updateDto.id_cliente_favorecido } });
@@ -189,18 +200,18 @@ export class LancamentoService {
     return lancamento;
   }
 
-  async updateManyRaw(dtos: DeepPartial<Lancamento>[], fields: (keyof ILancamento)[], queryRunner: QueryRunner): Promise<Lancamento[]> {
+  async updateManyRaw(dtos: DeepPartial<Lancamento>[], fields: (keyof TLancamento)[], queryRunner: QueryRunner): Promise<Lancamento[]> {
     if (!dtos.length) {
       return [];
     }
-    const id: keyof ILancamento = 'id';
-    const updatedAt: keyof ILancamento = 'updatedAt';
+    const id: keyof TLancamento = 'id';
+    const updatedAt: keyof TLancamento = 'updatedAt';
     const query = EntityHelper.getQueryUpdate('lancamento', dtos, fields, Lancamento.sqlFieldTypes, id, updatedAt);
     await queryRunner.manager.query(compactQuery(query));
     return dtos.map((dto) => new Lancamento(dto));
   }
 
-  async getById(id: number): Promise<Lancamento> {
+  async getId(id: number): Promise<Lancamento> {
     const lancamento = await this.lancamentoRepository.findOne({ where: { id } });
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
@@ -208,15 +219,37 @@ export class LancamentoService {
     return lancamento;
   }
 
-  async deleteId(id: number): Promise<void> {
-    const toDelete = await this.lancamentoRepository.findOne({ where: { id } });
-    if (!toDelete) {
-      throw new HttpException('Lançamento a ser deletado não existe.', HttpStatus.NOT_FOUND);
+  async deleteId(userId: number, lancamentoId: number, lancamentoDeleteDto: LancamentoDeleteDto) {
+    const lancamento = await this.validateDeleteId(userId, lancamentoId, lancamentoDeleteDto);
+    await this.softDelete(lancamento, lancamentoDeleteDto);
+  }
+
+  async validateDeleteId(userId: number, lancamentoId: number, lancamentoDeleteDto: LancamentoDeleteDto) {
+    const lancamento = await this.lancamentoRepository.findOne({ where: { id: lancamentoId } });
+    if (!lancamento) {
+      throw new HttpException('Lançamento não encontrado.', HttpStatus.NOT_FOUND);
     }
-    if ([LancamentoStatus._1_criado, LancamentoStatus._2_autorizado].includes(toDelete.status)) {
-      throw new HttpException('Apenas é permitido deletar Lançamentos com status criado ou aprovado.', HttpStatus.NOT_ACCEPTABLE);
+
+    const user = await this.usersService.findOne({ id: userId });
+    if (!user) {
+      throw new HttpException('Usuário não encontrado', HttpStatus.UNAUTHORIZED);
     }
-    await this.lancamentoRepository.softDelete(id);
+
+    const lancamentoStatusLancador = [LancamentoStatus._1_gerado];
+    if (user.role?.id === RoleEnum.lancador_financeiro && lancamentoStatusLancador.includes(lancamento.status)) {
+      throw new HttpException(`Lançador financeiro apenas pode deletar Lançamentos com status ${lancamentoStatusLancador.map((i) => `'${i}'`).join(', ')}.`, HttpStatus.NOT_ACCEPTABLE);
+    }
+
+    const lancamentoStatusAprovador = [LancamentoStatus._1_gerado, LancamentoStatus._2_autorizado_parcial, LancamentoStatus._3_autorizado];
+    if (user.role?.id === RoleEnum.aprovador_financeiro && lancamentoStatusAprovador.includes(lancamento.status)) {
+      throw new HttpException(`Aprovador financeiro apenas pode deletar Lançamentos com status ${lancamentoStatusAprovador.map((i) => `'${i}'`).join(', ')}.`, HttpStatus.NOT_ACCEPTABLE);
+    }
+
+    const isValidPassword = await bcrypt.compare(lancamentoDeleteDto.password, user.password);
+    if (!isValidPassword) {
+      throw new HttpException('Senha inválida', HttpStatus.UNAUTHORIZED);
+    }
+    return lancamento;
   }
 
   getMonthDateRange(args?: { year?: number; month?: DateMonth; period?: number }): SqlDateOperator {
@@ -238,5 +271,29 @@ export class LancamentoService {
     } else {
       return { year, month, period: 2 };
     }
+  }
+
+  async update(set: DeepPartial<Lancamento>, where: LancamentoFindWhere): Promise<UpdateResult> {
+    const lancamentoToUpdate = await this.lancamentoRepository.findMany(undefined, where);
+    for (const lancamento of lancamentoToUpdate) {
+      await this.createBackup(lancamento);
+    }
+    return await this.lancamentoRepository.update({ id: In(lancamentoToUpdate.map((l) => l.id)) }, set);
+  }
+
+  async softDelete(lancamento: Lancamento, deleteDto?: LancamentoDeleteDto) {
+    await this.createBackup(lancamento);
+    await this.lancamentoRepository.save({
+      id: lancamento.id,
+      status: LancamentoStatus._7_cancelado,
+      motivo_cancelamento: deleteDto?.motivo_cancelamento || lancamento.motivo_cancelamento,
+      autorizacoes: [],
+    });
+    await this.lancamentoRepository.softDelete(lancamento.id);
+  }
+
+  async createBackup(lancamento: Lancamento) {
+    const history = await this.lancamentoHistoryRepository.createBackup(lancamento);
+    await this.lancamentoAutorizacaoHistoryRepository.createBackup(history, lancamento);
   }
 }

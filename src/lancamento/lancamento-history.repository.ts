@@ -6,62 +6,41 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { dateMonthToHumanMonth } from 'src/utils/types/human-month.type';
 import { Between, DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, QueryRunner, Repository, SaveOptions, UpdateResult } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import { Lancamento } from './entities/lancamento.entity';
 import { LancamentoHistory } from './entities/lancamento-history.entity';
-import { LancamentoAutorizacao } from './entities/lancamento-autorizacao.entity';
-import { LancamentoAutorizacaoHistory } from './entities/lancamento-autorizacao-history.entity';
-
-// export interface LancamentoUpdateWhere {
-//   transacaoAgrupado: { id: number };
-// }
+import { Lancamento } from './entities/lancamento.entity';
 
 export interface LancamentoFindWhere {
   detalheA?: { id: number[] };
-  transacaoAgrupado?: { id: number };
   data_lancamento?: SqlDateOperator;
 }
 
 @Injectable()
-export class LancamentoRepository {
+export class LancamentoHistoryRepository {
   constructor(
-    @InjectRepository(Lancamento)
-    private readonly lancamentoRepository: Repository<Lancamento>,
+    @InjectRepository(LancamentoHistory)
+    private readonly lancamentoHistoryRepository: Repository<LancamentoHistory>,
   ) {}
 
-  create(entityLike: DeepPartial<Lancamento>): Lancamento {
-    return this.lancamentoRepository.create(entityLike);
+  create(entityLike: DeepPartial<LancamentoHistory>): LancamentoHistory {
+    return this.lancamentoHistoryRepository.create(entityLike);
   }
 
-  save(entity: DeepPartial<Lancamento>, options?: SaveOptions): Promise<Lancamento> {
-    return this.lancamentoRepository.save(entity, options);
+  async createBackup(lancamento: Lancamento): Promise<LancamentoHistory> {
+    const lancamentoHistory = LancamentoHistory.fromLancamento(lancamento, false);
+    const saved = await this.lancamentoHistoryRepository.save(lancamentoHistory);
+    return saved;
   }
 
-  // async updateRaw(set: DeepPartial<Lancamento>, where: LancamentoUpdateWhere): Promise<UpdateResult> {
-  //   return await this.lancamentoRepository
-  //     .createQueryBuilder('lancamento')
-  //     .update()
-  //     .set(set)
-  //     .where(
-  //       compactQuery(`
-  //     id IN (
-  //         SELECT l1.id FROM lancamento l1
-  //         LEFT JOIN item_transacao it ON it.id = l1."itemTransacaoId"
-  //         LEFT JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
-  //         LEFT JOIN transacao_agrupado ta ON ta.id = ita."transacaoAgrupadoId"
-  //         WHERE ta.id = :transacaoAgrupadoId
-  //     )
-  //   `),
-  //       where,
-  //     )
-  //     .execute();
-  // }
-
-  update(criteria: FindOptionsWhere<Lancamento>, partialEntity: QueryDeepPartialEntity<Lancamento>, queryRunner?: QueryRunner): Promise<UpdateResult> {
-    return (queryRunner?.manager?.getRepository(Lancamento) || this.lancamentoRepository).update(criteria, partialEntity);
+  save(entity: DeepPartial<LancamentoHistory>, options?: SaveOptions): Promise<LancamentoHistory> {
+    return this.lancamentoHistoryRepository.save(entity, options);
   }
 
-  async findOne(options: FindOneOptions<Lancamento>): Promise<Lancamento | null> {
-    let qb = this.lancamentoRepository
+  update(criteria: FindOptionsWhere<LancamentoHistory>, partialEntity: QueryDeepPartialEntity<LancamentoHistory>, queryRunner?: QueryRunner): Promise<UpdateResult> {
+    return (queryRunner?.manager?.getRepository(Lancamento) || this.lancamentoHistoryRepository).update(criteria, partialEntity);
+  }
+
+  async findOne(options: FindOneOptions<LancamentoHistory>): Promise<LancamentoHistory | null> {
+    let qb = this.lancamentoHistoryRepository
       .createQueryBuilder('lancamento') //
       .leftJoinAndSelect('lancamento.autorizacoes', 'autorizacoes')
       .leftJoinAndSelect('lancamento.autor', 'autor')
@@ -78,7 +57,7 @@ export class LancamentoRepository {
     return await qb.getOne();
   }
 
-  async getOne(options: FindOneOptions<Lancamento>): Promise<Lancamento> {
+  async getOne(options: FindOneOptions<LancamentoHistory>): Promise<LancamentoHistory> {
     const found = await this.findOne(options);
     if (!found) {
       throw new HttpException('Lancamento não encontrado', HttpStatus.NOT_FOUND);
@@ -86,18 +65,17 @@ export class LancamentoRepository {
     return found;
   }
 
-  async findMany(options?: FindManyOptions<Lancamento> | undefined, andWhere?: LancamentoFindWhere): Promise<Lancamento[]> {
+  async findMany(options?: FindManyOptions<LancamentoHistory> | undefined, andWhere?: LancamentoFindWhere): Promise<LancamentoHistory[]> {
     let whereCount = 0;
-    let qb = this.lancamentoRepository
-      .createQueryBuilder('lancamento') //
-      .leftJoinAndSelect('lancamento.autorizacoes', 'autorizacoes')
-      .leftJoinAndSelect('lancamento.autor', 'autor')
-      .leftJoinAndSelect('lancamento.clienteFavorecido', 'clienteFavorecido')
-      .leftJoinAndSelect('lancamento.itemTransacao', 'itemTransacao')
+    let qb = this.lancamentoHistoryRepository
+      .createQueryBuilder('lancamentoHistory') //
+      .leftJoinAndSelect('lancamentoHistory.autorizacoes', 'autorizacoes')
+      .leftJoinAndSelect('lancamentoHistory.autor', 'autor')
+      .leftJoinAndSelect('lancamentoHistory.clienteFavorecido', 'clienteFavorecido')
+      .leftJoinAndSelect('lancamentoHistory.itemTransacao', 'itemTransacao')
       .leftJoinAndSelect('itemTransacao.itemTransacaoAgrupado', 'itemTransacaoAgrupado')
-      .leftJoinAndSelect('itemTransacaoAgrupado.transacaoAgrupado', 'transacaoAgrupado')
-      .leftJoinAndMapOne('lancamento.detalheA', 'detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
-      .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id');
+      .leftJoinAndMapOne('lancamentoHistory.detalheA', 'detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
+      .leftJoinAndMapMany('lancamentoHistory.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id');
 
     if (options?.where) {
       qb = qb[!whereCount ? 'where' : 'andWhere'](options?.where);
@@ -106,10 +84,6 @@ export class LancamentoRepository {
     if (andWhere) {
       if (andWhere?.detalheA) {
         qb = qb[!whereCount ? 'where' : 'andWhere']('detalheA.id IN(:daId)', { daId: andWhere.detalheA.id.join(',') });
-        whereCount += 1;
-      }
-      if (andWhere?.transacaoAgrupado) {
-        qb = qb[!whereCount ? 'where' : 'andWhere']('transacaoAgrupado.id = :taId', { taId: andWhere.transacaoAgrupado.id });
         whereCount += 1;
       }
       if (andWhere?.data_lancamento) {
@@ -142,11 +116,11 @@ export class LancamentoRepository {
     return ret;
   }
 
-  getAll(): Promise<Lancamento[]> {
+  getAll(): Promise<LancamentoHistory[]> {
     return this.findMany();
   }
 
   async softDelete(id: number): Promise<DeleteResult> {
-    return await this.lancamentoRepository.softDelete(id);
+    return await this.lancamentoHistoryRepository.softDelete(id);
   }
 }

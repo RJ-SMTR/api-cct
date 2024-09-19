@@ -6,66 +6,56 @@ import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import { asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, DeleteDateColumn, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { LancamentoStatus } from '../enums/lancamento-status.enum';
-import { LancamentoUpsertDto } from '../dtos/lancamento-upsert.dto';
-import { LancamentoAutorizacao } from './lancamento-autorizacao.entity';
-import { LancamentoHistory } from './lancamento-history.entity';
+import { ILancamentoBase, Lancamento } from './lancamento.entity';
 
-export interface ILancamentoBase {
-  id: number;
-  valor: number;
-  data_ordem: Date;
-  data_pgto: Date | null;
-  data_lancamento: Date;
-  itemTransacao: ItemTransacao | null;
-  autorizacoes: User[];
-  autor: User;
-  clienteFavorecido: ClienteFavorecido;
-  algoritmo: number;
-  glosa: number;
-  recurso: number;
-  anexo: number;
-  numero_processo: string;
-  is_autorizado: boolean;
-  is_pago: boolean;
-  status: LancamentoStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export type TLancamento = {
-  deletedAt: Date;
+export type TLancamentoHistory = {
+  lancamento: Lancamento;
 } & ILancamentoBase;
 
-@Entity('lancamento')
-export class Lancamento extends EntityHelper implements TLancamento {
-  constructor(lancamento?: DeepPartial<Lancamento>) {
+@Entity('lancamento_history')
+export class LancamentoHistory extends EntityHelper implements TLancamentoHistory {
+  constructor(lancamento?: DeepPartial<LancamentoHistory>) {
     super();
     if (lancamento !== undefined) {
       Object.assign(this, lancamento);
     }
   }
 
-  public static fromInputDto(dto: LancamentoUpsertDto) {
-    return new Lancamento({
-      valor: dto.valor,
-      data_ordem: dto.data_ordem,
-      data_lancamento: dto.data_lancamento,
-      algoritmo: dto.algoritmo,
-      glosa: dto.glosa,
-      recurso: dto.recurso,
-      anexo: dto.anexo || 0,
-      numero_processo: dto.numero_processo,
-      clienteFavorecido: { id: dto.id_cliente_favorecido },
-      autor: dto.author,
+  public static fromLancamento(l: Lancamento, setAutorizacoes: boolean) {
+    return new LancamentoHistory({
+      lancamento: { id: l.id },
+      valor: l.valor,
+      data_ordem: l.data_ordem,
+      data_pgto: l.data_pgto,
+      data_lancamento: l.data_lancamento,
+      itemTransacao: l.itemTransacao,
+      ...(setAutorizacoes ? { autorizacoes: l.autorizacoes } : {}),
+      autor: l.autor,
+      clienteFavorecido: { id: l.clienteFavorecido.id },
+      algoritmo: l.algoritmo,
+      glosa: l.glosa,
+      recurso: l.recurso,
+      anexo: l.anexo,
+      numero_processo: l.numero_processo,
+      is_autorizado: l.is_autorizado,
+      is_pago: l.is_pago,
+      status: l.status,
+      motivo_cancelamento: l.motivo_cancelamento,
+      createdAt: l.createdAt,
+      updatedAt: l.updatedAt,
     });
   }
 
   @Expose()
-  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Lancamento_id' })
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_LancamentoHistory_id' })
   id: number;
+
+  @Expose()
+  @ManyToOne(() => Lancamento, { nullable: false, eager: false, onDelete: 'CASCADE', onUpdate: 'CASCADE' })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_LancamentoHistory_lancamento_ManyToOne' })
+  lancamento: Lancamento;
 
   @ApiProperty({ description: 'Valor a pagar' })
   @Column({ type: 'numeric' })
@@ -93,21 +83,21 @@ export class Lancamento extends EntityHelper implements TLancamento {
   /**
    * Geração de Remessa
    *
-   * uniqueConstraintName: `UQ_Lancamento_itemTransacao`
+   * uniqueConstraintName: `UQ_LancamentoHistory_itemTransacao`
    */
   @Exclude()
   @ApiProperty({ description: 'ItemTransação do CNAB remessa associado a este Lançamento' })
   @OneToOne(() => ItemTransacao, { nullable: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_itemTransacao_OneToOne' })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_LancamentoHistory_itemTransacao_OneToOne' })
   @Transform(({ value }) => (!value ? null : ((it = value as ItemTransacao) => ({ id: it.id, itemTransacaoAgrupado: { id: it.itemTransacaoAgrupado.id } }))()))
   itemTransacao: ItemTransacao | null;
 
   @ManyToMany(() => User, (user) => user)
   @JoinTable({
-    name: LancamentoAutorizacao.tableName,
-    joinColumn: { name: 'lancamentoId', referencedColumnName: 'id' },
+    name: 'lancamento_autorizacao_history',
+    joinColumn: { name: 'lancamentoHistoryId', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'userId', referencedColumnName: 'id' },
-    synchronize: false, // We use LancamentoAutorizacao to generate migration
+    synchronize: false, // We use LancamentoAutorizacaoHistory to generate migration
   })
   @Expose({ name: 'autorizado_por' })
   @Transform(({ value }) => (value as User[]).map((u) => ({ id: u.id, nome: u.fullName })))
@@ -115,12 +105,12 @@ export class Lancamento extends EntityHelper implements TLancamento {
 
   /** O autor mais recente da criação/modificação/autorização do Lançamento */
   @ManyToOne(() => User, { eager: true })
-  @JoinColumn({ foreignKeyConstraintName: 'FK_Lancamento_autor_ManyToOne' })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_LancamentoHistory_autor_ManyToOne' })
   @Transform(({ value }) => ({ id: (value as User).id, fullName: (value as User).fullName } as DeepPartial<User>))
   autor: User;
 
   @ManyToOne(() => ClienteFavorecido, { eager: true })
-  @JoinColumn({ name: 'id_cliente_favorecido', foreignKeyConstraintName: 'FK_Lancamento_idClienteFavorecido_ManyToOne' })
+  @JoinColumn({ name: 'id_cliente_favorecido', foreignKeyConstraintName: 'FK_LancamentoHistory_idClienteFavorecido_ManyToOne' })
   @Transform(({ value }) => ({
     id: (value as ClienteFavorecido).id,
     nome: (value as ClienteFavorecido).nome,
@@ -156,94 +146,30 @@ export class Lancamento extends EntityHelper implements TLancamento {
   @Column({ type: String, nullable: true })
   motivo_cancelamento: string | null;
 
-  @CreateDateColumn()
+  /** Lancamento.createdAt */
+  @Column({ type: Date, nullable: false })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  /** Lancamento.updatedAt */
+  @Column({ type: Date, nullable: false })
   updatedAt: Date;
 
-  /** Como são dados de pagamento, caso se delete um Lançamento o dado permanece no banco para auditoria */
-  @DeleteDateColumn()
-  deletedAt: Date;
+  /** Data de criação deste histórico */
+  @CreateDateColumn()
+  backupAt: Date;
 
   /** Coluna virtual */
   @Exclude()
   @Transform(({ value }) => (value === null ? null : ((da = value as DetalheA) => ({ id: da.id, ocorrenciasCnab: da.ocorrenciasCnab, numeroDocumentoEmpresa: da.numeroDocumentoEmpresa }))()))
   detalheA: DetalheA | null = null;
 
-  /** Coluna virtual - para consulta */
+  /** Coluna virtual - para consultar as ocorrências */
   ocorrencias: Ocorrencia[] = [];
 
-  /** Coluna virtual - para consulta */
-  historico: LancamentoHistory[] = [];
-
-  @AfterLoad()
-  setReadValues() {
-    this.glosa = asStringOrNumber(this.glosa);
-    this.algoritmo = asStringOrNumber(this.algoritmo);
-    this.recurso = asStringOrNumber(this.recurso);
-    this.anexo = asStringOrNumber(this.anexo);
-    this.valor = asStringOrNumber(this.valor);
-    this.autorizacoes = this.autorizacoes || [];
-    // if (this.itemTransacao?.itemTransacaoAgrupado.de)
-  }
-
-  getIsAutorizado(): boolean {
-    return this.is_autorizado;
-  }
-
-  updateStatus() {
-    if (this.status === LancamentoStatus._1_gerado && this.autorizacoes.length === 1) {
-      this.status = LancamentoStatus._2_autorizado_parcial;
-    } else if (this.status === LancamentoStatus._2_autorizado_parcial && this.autorizacoes.length >= 2) {
-      this.status = LancamentoStatus._3_autorizado;
-    }
-  }
-
-  updateIsAutorizado() {
-    this.is_autorizado = this.autorizacoes.length >= 2;
-  }
-
-  addAutorizado(userId: number) {
-    this.autorizacoes.push({ id: userId } as User);
-    this.updateIsAutorizado();
-    this.updateStatus();
-  }
-
-  removeAutorizado(userId: number) {
-    this.autorizacoes = this.autorizacoes.filter((u) => u.id != userId);
-    this.updateIsAutorizado();
-    this.updateStatus();
-  }
-
-  hasAutorizadoPor(userId: number): boolean {
-    return Boolean(this.autorizacoes.find((u) => u.id == userId));
-  }
-
-  updateFromDto(dto: LancamentoUpsertDto) {
-    this.valor = dto.valor;
-    this.data_ordem = dto.data_ordem;
-    this.data_lancamento = dto.data_lancamento;
-    this.algoritmo = dto.algoritmo;
-    if (dto.glosa !== undefined) {
-      this.glosa = dto.glosa;
-    }
-    if (dto.recurso !== undefined) {
-      this.recurso = dto.recurso;
-    }
-    if (dto.anexo !== undefined) {
-      this.anexo = dto.anexo;
-    }
-    this.valor = dto.valor;
-    this.numero_processo = dto.numero_processo;
-    this.clienteFavorecido = new ClienteFavorecido({ id: dto.id_cliente_favorecido });
-    this.autor = new User(dto.author);
-    this.autorizacoes = [];
-  }
-
-  public static getSqlFields(table?: string, castType?: boolean): Record<keyof TLancamento, string> {
+  public static getSqlFields(table?: string, castType?: boolean): Record<keyof TLancamentoHistory, string> {
     return {
       id: `${table ? `${table}.` : ''}"id"`,
+      lancamento: `${table ? `${table}.` : ''}"lancamentoId"`,
       valor: `${table ? `${table}.` : ''}"valor"`, // number,
       data_ordem: `${table ? `${table}.` : ''}"data_ordem"`, // Date,
       data_pgto: `${table ? `${table}.` : ''}"data_pgto"`, // Date | null,
@@ -262,12 +188,12 @@ export class Lancamento extends EntityHelper implements TLancamento {
       status: `${table ? `${table}.` : ''}"status"`, // string,
       createdAt: `${table ? `${table}.` : ''}"createdAt"`, // Date,
       updatedAt: `${table ? `${table}.` : ''}"updatedAt"`, // Date,
-      deletedAt: `${table ? `${table}.` : ''}"deletedAt"`, // Date,
     };
   }
 
-  public static sqlFieldTypes: Record<keyof TLancamento, string> = {
+  public static sqlFieldTypes: Record<keyof TLancamentoHistory, string> = {
     id: 'INT',
+    lancamento: 'INT',
     valor: 'NUMERIC',
     data_ordem: 'TIMESTAMP',
     data_pgto: 'TIMESTAMP',
@@ -286,6 +212,5 @@ export class Lancamento extends EntityHelper implements TLancamento {
     status: 'VARCHAR',
     createdAt: 'TIMESTAMP',
     updatedAt: 'TIMESTAMP',
-    deletedAt: 'TIMESTAMP',
   };
 }
