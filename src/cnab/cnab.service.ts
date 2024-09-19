@@ -220,7 +220,7 @@ export class CnabService {
             ({
               id: tv.id,
               idTransacao: tv.idTransacao,
-              valorPago: bq.valor_pagamento || isContent(tv.valorPago) ? tv.valorPago : null,
+              valorPago: bq.valor_pagamento || (isContent(tv.valorPago) ? tv.valorPago : null),
               tipoTransacao: bq.tipo_transacao,
             } as DeepPartial<TransacaoView>))(),
         );

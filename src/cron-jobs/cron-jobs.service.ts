@@ -73,7 +73,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {      
+  async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
@@ -310,7 +310,7 @@ export class CronJobsService {
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
     const sex = subDays(today, 7);
-    const qui = subDays(today, 1);  
+    const qui = subDays(today, 1);
 
     await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Van');
     const listCnab = await this.cnabService.generateRemessa({
@@ -419,9 +419,12 @@ export class CronJobsService {
    * Atualiza todos os itens do dia de ontem.
    *
    * @param consorcio
-   * `Van`: De 30 em 30 minutos, 2h atrás.
+   * `Van`: De 30 em 30 minutos, buscar até 8 dias atrás.
    *
    * `VLT`: Todo dia pega 1 dia antes.
+   * 
+   * `Empresa`: Todo dia pega no dia atual.
+   *
    */
   async updateTransacaoViewBigquery(consorcio: 'Van' | 'Empresa' | 'VLT', debug?: ICronjobDebug) {
     const METHOD = this.updateTransacaoViewBigquery.name;
@@ -436,7 +439,7 @@ export class CronJobsService {
       try {
         this.logger.log('Iniciando tarefa.', METHOD);
         if (consorcio == 'Van') {
-          startDate = subDays(startDate, 2);
+          startDate = subDays(startDate, 8);
         } else if (consorcio == 'VLT') {
           startDate = subDays(startDate, 1);
         } else {
@@ -457,7 +460,7 @@ export class CronJobsService {
   async updateTransacaoViewValues() {
     const METHOD = this.updateTransacaoViewValues.name;
     try {
-      await this.cnabService.updateTransacaoViewBigqueryValues(7);
+      await this.cnabService.updateTransacaoViewBigqueryValues(8);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }

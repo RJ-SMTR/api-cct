@@ -275,7 +275,7 @@ export class TransacaoViewRepository {
     }
     const raw: any[] = await this.transacaoViewRepository.query(
       compactQuery(`
-      SELECT ${tv.id}, ${tv.idTransacao}, ${tv.valorPago}::FLOAT, ${tv.tipoTransacao}, ${tv.idOperadora}
+      SELECT ${tv.id}, ${tv.idTransacao}, ${tv.valorPago}::FLOAT, ${tv.tipoTransacao}, ${tv.idOperadora}, ${tv.operadoraCpfCnpj}
       FROM transacao_view tv
       ${qWhere.length ? `WHERE ${qWhere.join(' AND ')}` : ''}
       ORDER BY ${tv.id} DESC
