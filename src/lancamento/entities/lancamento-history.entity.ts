@@ -6,7 +6,7 @@ import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { BeforeInsert, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { LancamentoStatus } from '../enums/lancamento-status.enum';
 import { ILancamentoBase, Lancamento } from './lancamento.entity';
 
@@ -140,7 +140,7 @@ export class LancamentoHistory extends EntityHelper implements TLancamentoHistor
   is_pago: boolean;
 
   /** Uma forma de rastrear o estado atual do Lancamento */
-  @Column({ enum: LancamentoStatus, nullable: false, default: LancamentoStatus._1_gerado })
+  @Column({ enum: LancamentoStatus, nullable: false })
   status: LancamentoStatus;
 
   @Column({ type: String, nullable: true })
@@ -165,6 +165,13 @@ export class LancamentoHistory extends EntityHelper implements TLancamentoHistor
 
   /** Coluna virtual - para consultar as ocorrências */
   ocorrencias: Ocorrencia[] = [];
+
+  @BeforeInsert()
+  setWriteValues() {
+    if (!this.status) {
+      this.status = LancamentoStatus._1_gerado;
+    }
+  }
 
   public static getSqlFields(table?: string, castType?: boolean): Record<keyof TLancamentoHistory, string> {
     return {

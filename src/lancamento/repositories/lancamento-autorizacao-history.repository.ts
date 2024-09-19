@@ -1,13 +1,14 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { compactQuery } from 'src/utils/console-utils';
 import { SqlDateOperator } from 'src/utils/sql/interfaces/sql-date-operator.interface';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { dateMonthToHumanMonth } from 'src/utils/types/human-month.type';
 import { Between, DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, QueryRunner, Repository, SaveOptions, UpdateResult } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import { LancamentoHistory } from './entities/lancamento-history.entity';
-import { Lancamento } from './entities/lancamento.entity';
+import { LancamentoAutorizacaoHistory } from '../entities/lancamento-autorizacao-history.entity';
+import { LancamentoAutorizacao } from '../entities/lancamento-autorizacao.entity';
+import { LancamentoHistory } from '../entities/lancamento-history.entity';
+import { Lancamento } from '../entities/lancamento.entity';
 
 export interface LancamentoFindWhere {
   detalheA?: { id: number[] };
@@ -15,32 +16,39 @@ export interface LancamentoFindWhere {
 }
 
 @Injectable()
-export class LancamentoHistoryRepository {
+export class LancamentoAutorizacaoHistoryRepository {
   constructor(
-    @InjectRepository(LancamentoHistory)
-    private readonly lancamentoHistoryRepository: Repository<LancamentoHistory>,
+    @InjectRepository(LancamentoAutorizacaoHistory)
+    private readonly lancamentoAutorizacaoHistoryRepository: Repository<LancamentoAutorizacaoHistory>,
+    @InjectRepository(LancamentoAutorizacao)
+    private readonly lancamentoAutorizacaoRepository: Repository<LancamentoAutorizacao>,
   ) {}
 
-  create(entityLike: DeepPartial<LancamentoHistory>): LancamentoHistory {
-    return this.lancamentoHistoryRepository.create(entityLike);
+  create(entityLike: DeepPartial<LancamentoAutorizacaoHistory>): LancamentoAutorizacaoHistory {
+    return this.lancamentoAutorizacaoHistoryRepository.create(entityLike);
   }
 
-  async createBackup(lancamento: Lancamento): Promise<LancamentoHistory> {
-    const lancamentoHistory = LancamentoHistory.fromLancamento(lancamento, false);
-    const saved = await this.lancamentoHistoryRepository.save(lancamentoHistory);
-    return saved;
+  async createBackup(lancamentoHistory: LancamentoHistory, lancamento: Lancamento): Promise<LancamentoAutorizacaoHistory[]> {
+    const autorizacoes = await this.lancamentoAutorizacaoRepository.find({ where: { lancamento: { id: lancamento.id } } });
+    const savedMany: LancamentoAutorizacaoHistory[] = [];
+    for (const autorizacao of autorizacoes) {
+      const autorizacaoHistory = LancamentoAutorizacaoHistory.fromLancamentoAutorizacao(autorizacao, lancamentoHistory);
+      const saved = await this.lancamentoAutorizacaoHistoryRepository.save(autorizacaoHistory);
+      savedMany.push(saved);
+    }
+    return savedMany;
   }
 
-  save(entity: DeepPartial<LancamentoHistory>, options?: SaveOptions): Promise<LancamentoHistory> {
-    return this.lancamentoHistoryRepository.save(entity, options);
+  save(entity: DeepPartial<LancamentoAutorizacaoHistory>, options?: SaveOptions): Promise<LancamentoAutorizacaoHistory> {
+    return this.lancamentoAutorizacaoHistoryRepository.save(entity, options);
   }
 
-  update(criteria: FindOptionsWhere<LancamentoHistory>, partialEntity: QueryDeepPartialEntity<LancamentoHistory>, queryRunner?: QueryRunner): Promise<UpdateResult> {
-    return (queryRunner?.manager?.getRepository(Lancamento) || this.lancamentoHistoryRepository).update(criteria, partialEntity);
+  update(criteria: FindOptionsWhere<LancamentoAutorizacaoHistory>, partialEntity: QueryDeepPartialEntity<LancamentoAutorizacaoHistory>, queryRunner?: QueryRunner): Promise<UpdateResult> {
+    return (queryRunner?.manager?.getRepository(Lancamento) || this.lancamentoAutorizacaoHistoryRepository).update(criteria, partialEntity);
   }
 
-  async findOne(options: FindOneOptions<LancamentoHistory>): Promise<LancamentoHistory | null> {
-    let qb = this.lancamentoHistoryRepository
+  async findOne(options: FindOneOptions<LancamentoAutorizacaoHistory>): Promise<LancamentoAutorizacaoHistory | null> {
+    let qb = this.lancamentoAutorizacaoHistoryRepository
       .createQueryBuilder('lancamento') //
       .leftJoinAndSelect('lancamento.autorizacoes', 'autorizacoes')
       .leftJoinAndSelect('lancamento.autor', 'autor')
@@ -57,7 +65,7 @@ export class LancamentoHistoryRepository {
     return await qb.getOne();
   }
 
-  async getOne(options: FindOneOptions<LancamentoHistory>): Promise<LancamentoHistory> {
+  async getOne(options: FindOneOptions<LancamentoAutorizacaoHistory>): Promise<LancamentoAutorizacaoHistory> {
     const found = await this.findOne(options);
     if (!found) {
       throw new HttpException('Lancamento não encontrado', HttpStatus.NOT_FOUND);
@@ -65,9 +73,9 @@ export class LancamentoHistoryRepository {
     return found;
   }
 
-  async findMany(options?: FindManyOptions<LancamentoHistory> | undefined, andWhere?: LancamentoFindWhere): Promise<LancamentoHistory[]> {
+  async findMany(options?: FindManyOptions<LancamentoAutorizacaoHistory> | undefined, andWhere?: LancamentoFindWhere): Promise<LancamentoAutorizacaoHistory[]> {
     let whereCount = 0;
-    let qb = this.lancamentoHistoryRepository
+    let qb = this.lancamentoAutorizacaoHistoryRepository
       .createQueryBuilder('lancamentoHistory') //
       .leftJoinAndSelect('lancamentoHistory.autorizacoes', 'autorizacoes')
       .leftJoinAndSelect('lancamentoHistory.autor', 'autor')
@@ -116,11 +124,11 @@ export class LancamentoHistoryRepository {
     return ret;
   }
 
-  getAll(): Promise<LancamentoHistory[]> {
+  getAll(): Promise<LancamentoAutorizacaoHistory[]> {
     return this.findMany();
   }
 
   async softDelete(id: number): Promise<DeleteResult> {
-    return await this.lancamentoHistoryRepository.softDelete(id);
+    return await this.lancamentoAutorizacaoHistoryRepository.softDelete(id);
   }
 }

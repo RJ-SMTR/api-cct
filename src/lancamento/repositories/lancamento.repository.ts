@@ -6,10 +6,10 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { dateMonthToHumanMonth } from 'src/utils/types/human-month.type';
 import { Between, DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, QueryRunner, Repository, SaveOptions, UpdateResult } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import { Lancamento } from './entities/lancamento.entity';
-import { LancamentoHistory } from './entities/lancamento-history.entity';
-import { LancamentoAutorizacao } from './entities/lancamento-autorizacao.entity';
-import { LancamentoAutorizacaoHistory } from './entities/lancamento-autorizacao-history.entity';
+import { Lancamento } from '../entities/lancamento.entity';
+import { LancamentoHistory } from '../entities/lancamento-history.entity';
+import { LancamentoAutorizacao } from '../entities/lancamento-autorizacao.entity';
+import { LancamentoAutorizacaoHistory } from '../entities/lancamento-autorizacao-history.entity';
 
 // export interface LancamentoUpdateWhere {
 //   transacaoAgrupado: { id: number };
@@ -69,7 +69,8 @@ export class LancamentoRepository {
       .leftJoinAndSelect('lancamento.itemTransacao', 'itemTransacao')
       .leftJoinAndSelect('itemTransacao.itemTransacaoAgrupado', 'itemTransacaoAgrupado')
       .leftJoinAndMapOne('lancamento.detalheA', 'detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
-      .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id');
+      .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id')
+      .leftJoinAndMapMany('lancamento.historico', 'lancamento_history', 'lancamentoHistory', 'lancamentoHistory.lancamentoId = lancamento.id');
 
     if (options?.where) {
       qb = qb.where(options.where);
@@ -86,7 +87,7 @@ export class LancamentoRepository {
     return found;
   }
 
-  async findMany(options?: FindManyOptions<Lancamento> | undefined, andWhere?: LancamentoFindWhere): Promise<Lancamento[]> {
+  async findMany(options?: FindManyOptions<Lancamento> | undefined, andWhere?: LancamentoFindWhere, eager: (keyof Lancamento)[] = []): Promise<Lancamento[]> {
     let whereCount = 0;
     let qb = this.lancamentoRepository
       .createQueryBuilder('lancamento') //
@@ -97,7 +98,8 @@ export class LancamentoRepository {
       .leftJoinAndSelect('itemTransacao.itemTransacaoAgrupado', 'itemTransacaoAgrupado')
       .leftJoinAndSelect('itemTransacaoAgrupado.transacaoAgrupado', 'transacaoAgrupado')
       .leftJoinAndMapOne('lancamento.detalheA', 'detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
-      .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id');
+      .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id')
+      .leftJoinAndMapMany('lancamento.historico', 'lancamento_history', 'lancamentoHistory', 'lancamentoHistory.lancamentoId = lancamento.id');
 
     if (options?.where) {
       qb = qb[!whereCount ? 'where' : 'andWhere'](options?.where);

@@ -18,9 +18,10 @@ import { LancamentoDeleteDto } from './dtos/lancamento-delete.dto';
 import { LancamentoUpsertDto } from './dtos/lancamento-upsert.dto';
 import { Lancamento, TLancamento } from './entities/lancamento.entity';
 import { LancamentoStatus } from './enums/lancamento-status.enum';
-import { LancamentoAutorizacaoHistoryRepository } from './lancamento-autorizacao-history.repository';
-import { LancamentoHistoryRepository } from './lancamento-history.repository';
-import { LancamentoFindWhere, LancamentoRepository } from './lancamento.repository';
+import { LancamentoAutorizacaoHistoryRepository } from './repositories/lancamento-autorizacao-history.repository';
+import { LancamentoHistoryRepository } from './repositories/lancamento-history.repository';
+import { LancamentoFindWhere, LancamentoRepository } from './repositories/lancamento.repository';
+import { LancamentoAutorizacaoRepository } from './repositories/lancamento-autorizacao.repository';
 
 /** Usado para exibição no erro */
 const validFavorecidoNames = [
@@ -46,6 +47,7 @@ export class LancamentoService {
 
   constructor(
     private readonly lancamentoRepository: LancamentoRepository, //
+    private readonly lancamentoAutorizacaoRepository: LancamentoAutorizacaoRepository, //
     private readonly lancamentoHistoryRepository: LancamentoHistoryRepository,
     private readonly lancamentoAutorizacaoHistoryRepository: LancamentoAutorizacaoHistoryRepository,
     private readonly usersService: UsersService,
@@ -221,7 +223,7 @@ export class LancamentoService {
 
   async deleteId(userId: number, lancamentoId: number, lancamentoDeleteDto: LancamentoDeleteDto) {
     const lancamento = await this.validateDeleteId(userId, lancamentoId, lancamentoDeleteDto);
-    await this.softDelete(lancamento, lancamentoDeleteDto);
+    await this.softDeleteAndBackup(lancamento, lancamentoDeleteDto);
   }
 
   async validateDeleteId(userId: number, lancamentoId: number, lancamentoDeleteDto: LancamentoDeleteDto) {
@@ -275,13 +277,18 @@ export class LancamentoService {
 
   async update(set: DeepPartial<Lancamento>, where: LancamentoFindWhere): Promise<UpdateResult> {
     const lancamentoToUpdate = await this.lancamentoRepository.findMany(undefined, where);
+    return await this.lancamentoRepository.update({ id: In(lancamentoToUpdate.map((l) => l.id)) }, set);
+  }
+
+  async updateAndBackup(set: DeepPartial<Lancamento>, where: LancamentoFindWhere): Promise<UpdateResult> {
+    const lancamentoToUpdate = await this.lancamentoRepository.findMany(undefined, where);
     for (const lancamento of lancamentoToUpdate) {
       await this.createBackup(lancamento);
     }
     return await this.lancamentoRepository.update({ id: In(lancamentoToUpdate.map((l) => l.id)) }, set);
   }
 
-  async softDelete(lancamento: Lancamento, deleteDto?: LancamentoDeleteDto) {
+  async softDeleteAndBackup(lancamento: Lancamento, deleteDto?: LancamentoDeleteDto) {
     await this.createBackup(lancamento);
     await this.lancamentoRepository.save({
       id: lancamento.id,

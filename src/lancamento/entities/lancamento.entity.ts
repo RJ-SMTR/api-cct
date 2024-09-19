@@ -7,7 +7,7 @@ import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, DeleteDateColumn, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { AfterLoad, BeforeInsert, Column, CreateDateColumn, DeepPartial, DeleteDateColumn, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { LancamentoStatus } from '../enums/lancamento-status.enum';
 import { LancamentoUpsertDto } from '../dtos/lancamento-upsert.dto';
 import { LancamentoAutorizacao } from './lancamento-autorizacao.entity';
@@ -150,7 +150,7 @@ export class Lancamento extends EntityHelper implements TLancamento {
   is_pago: boolean;
 
   /** Uma forma de rastrear o estado atual do Lancamento */
-  @Column({ enum: LancamentoStatus, nullable: false, default: LancamentoStatus._1_gerado })
+  @Column({ enum: LancamentoStatus, nullable: false })
   status: LancamentoStatus;
 
   @Column({ type: String, nullable: true })
@@ -176,6 +176,13 @@ export class Lancamento extends EntityHelper implements TLancamento {
 
   /** Coluna virtual - para consulta */
   historico: LancamentoHistory[] = [];
+
+  @BeforeInsert()
+  setWriteValues() {
+    if (!this.status) {
+      this.status = LancamentoStatus._1_gerado;
+    }
+  }
 
   @AfterLoad()
   setReadValues() {
