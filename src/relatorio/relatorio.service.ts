@@ -97,7 +97,7 @@ export class RelatorioService {
     const sintenticosData = new RelatorioSinteticoResultDto();
     sintenticosData.count = sintetico.length;
     sintenticosData.data = sintetico;
-    sintenticosData.valor = sintetico[0].total;
+    sintenticosData.valor = (sintetico!==undefined && sintetico[0]!==undefined)?sintetico[0].total:0;
     sintenticosData.status = status;
     return sintenticosData;
   }
