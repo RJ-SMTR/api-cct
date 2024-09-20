@@ -90,9 +90,9 @@ export class RelatorioSinteticoRepository {
               case when (ap."isPago") then 'pago' 
                 when (not (ap."isPago")) then 'naopago'
                 else 'apagar' end AS status,
-              case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status`; 
+              case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status `; 
             
-      query = query + `from item_transacao_agrupado ita
+      query = query + ` from item_transacao_agrupado ita
               inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
               inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
               inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
