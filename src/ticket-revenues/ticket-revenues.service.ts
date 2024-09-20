@@ -261,8 +261,7 @@ export class TicketRevenuesService {
           aux_epochWeek: nthWeek,
           aux_nthWeeks: [],
           aux_groupDateTime: itemDate.toISOString(),
-          /** Se encontrar 1 item não pago, muda para falso */
-          isPago: true,
+          isPago: revenue.isPago,
           errors: errors,
         });
         group[dateGroup] = newGroup;

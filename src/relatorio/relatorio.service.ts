@@ -93,11 +93,11 @@ export class RelatorioService {
   }  
 
   private async instanceDataSintetico(args: IFindPublicacaoRelatorio,status:string){
-    const sintetico  = await this.relatorioSinteticoRepository.findSintetico(args);
+    const sintetico  = await this.relatorioSinteticoRepository.findSintetico(args); 
     const sintenticosData = new RelatorioSinteticoResultDto();
     sintenticosData.count = sintetico.length;
     sintenticosData.data = sintetico;
-    sintenticosData.valor = +sintetico.reduce((s, i) => s + i.valor, 0).toFixed(2); 
+    sintenticosData.valor = (sintetico!==undefined && sintetico[0]!==undefined)?sintetico[0].total:0;
     sintenticosData.status = status;
     return sintenticosData;
   }

@@ -193,7 +193,7 @@ export class TicketRevenuesRepositoryService {
     `;
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result: any[] = await queryRunner.query(compactQuery(query));
+    const result: any[] = await queryRunner.query(compactQuery(query));
     queryRunner.release();
     const revenueIndividuals = result.map((r) => new TicketRevenueDTO(r));
     return revenueIndividuals;

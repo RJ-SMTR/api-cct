@@ -17,7 +17,8 @@ export class RelatorioSinteticoRepository {
      const dataInicio = args.dataInicio.toISOString().slice(0,10)
      const dataFim = args.dataFim.toISOString().slice(0,10)
      let query = ` select distinct res.*,     
-                     (select sum(dta."valorLancamento")::float valor                    
+                      (select sum(ss."valorLancamento")::float  from
+			                (select distinct dta.id,dta."valorLancamento"                    
                       from detalhe_a dta 
                       inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
                       left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
@@ -26,11 +27,47 @@ export class RelatorioSinteticoRepository {
                       if(dataInicio!==undefined && dataFim!==undefined && 
                         (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
                         query = query + ` and dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+                      if(args.emProcessamento!==undefined && args.emProcessamento===true ){
+                          query = query +`  and app."isPago"=false and dta."ocorrenciasCnab" is  null `
+                      }else 
+                        if(args.pago !==undefined)          
+                        query = query +`  and app."isPago"=${args.pago} `;
+
+                        query = query + ` and tt."nomeConsorcio"=res.consorcio `;
+                        query = query + ` )as ss)  as subTotal, 
+
+                      (select sum(tt."valorLancamento")::float from
+                        (select distinct dta.id,dta."valorLancamento"            
+                        from detalhe_a dta 
+                        inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
+                        left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
+                        left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
+                        WHERE (1=1) `;
+                      if(dataInicio!==undefined && dataFim!==undefined && 
+                        (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
+                        query = query + ` and dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
                       if(args.pago !==undefined)          
                         query = query +`  and app."isPago"=${args.pago} `;
 
-                  query = query + ` and tt."nomeConsorcio"=res.consorcio `;
-                  query = query + ` ) as subTotal `;
+                      if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
+                        query = query +` and tt."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`; 
+                      }else
+                      if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i))))
+                        query = query +` and tt."nomeConsorcio" in(res.consorcio) `;
+                      else
+                        if(
+                           (['Todos'].some(i=>args.consorcioNome?.includes(i))) && (['Todos'].some(i=>args.favorecidoNome?.includes(i)))
+                            || 
+                           ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))
+                          ){
+                          query = query +` and tt."nomeConsorcio" 
+                          in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio') `;
+                        }
+                      else if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
+                        query = query +` and tt."nomeConsorcio" in('STPC','STPL') `;
+                      }
+
+                  query = query + ` )as tt  )as total `;
      
      query = query + ` from ( `;
      if(args.aPagar === undefined || args.aPagar === false){
@@ -70,13 +107,28 @@ export class RelatorioSinteticoRepository {
             (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
             query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
 
-          if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i))))
+          if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
             query = query +` and it."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;   
-              
-          if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i))))
-            query = query +` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;   
+          }else
+          if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
+            query = query +` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;  
+          }else
+          if(
+            (['Todos'].some(i=>args.consorcioNome?.includes(i))) && (['Todos'].some(i=>args.favorecidoNome?.includes(i)))
+             || 
+            ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))
+           ){
+           query = query +` and it."nomeConsorcio" 
+           in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio') `;
+          }else
+          if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
+            query = query +` and it."nomeConsorcio" in('STPC','STPL') `;
+          }
 
-          if(args.pago !==undefined)          
+          if(args.emProcessamento!==undefined && args.emProcessamento===true){
+            query = query +`  and ap."isPago"=false and da."ocorrenciasCnab" is  null `
+          }else 
+            if(args.pago !==undefined)          
             query = query +`  and ap."isPago"=${args.pago} `;
                   
           if(args.valorMin!==undefined)
@@ -123,14 +175,29 @@ export class RelatorioSinteticoRepository {
                 (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
                 query = query + ` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
     
-              if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i))))
+              if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
                 query = query +` and it."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;   
-                  
-              if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i))))
-                query = query +` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;   
+              } else   
+              if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
+                query = query +` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;
+              } else 
+              if(
+                (['Todos'].some(i=>args.consorcioNome?.includes(i))) && (['Todos'].some(i=>args.favorecidoNome?.includes(i)))
+                 || 
+                ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))
+               ){
+               query = query +` and it."nomeConsorcio" 
+               in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio') `;
+             }else               
+              if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
+                query = query +` and it."nomeConsorcio" in('STPC','STPL') `;
+              }
     
+              if(args.emProcessamento!==undefined && args.emProcessamento===true ){
+                query = query +`  and ap."isPago"=false and da."ocorrenciasCnab" is  null `
+              }else 
               if(args.pago !==undefined)          
-                query = query +`  and ap."isPago"=${args.pago}`;
+                query = query +`  and ap."isPago"=${args.pago} `;
                       
               if(args.valorMin!==undefined)
                 query = query +`  and it."valor">=${args.valorMin}`;
@@ -139,10 +206,11 @@ export class RelatorioSinteticoRepository {
                   query = query + ` and it."valor"<=${args.valorMax}`; 
           }
           
-          if((query !==` select distinct res.* from ( `) &&(args.aPagar==true || (args.aPagar === undefined && args.pago === undefined)))
+          if((query !==` select distinct res.* from ( `) &&(args.aPagar==true ||
+             (args.aPagar === undefined && args.pago === undefined)) &&(args.emProcessamento === undefined || args.emProcessamento === false ))
             query = query + ` union All `;
 
-          if(args.aPagar==true || (args.aPagar === undefined && args.pago === undefined)){
+          if(args.aPagar==true || (args.aPagar === undefined && args.pago === undefined)&&(args.emProcessamento === undefined || args.emProcessamento === false)){
             query = query +` 
             select distinct 
                 tv.id, 
@@ -170,11 +238,27 @@ export class RelatorioSinteticoRepository {
                 (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
                 query = query + ` and tv."datetimeTransacao" between '${dataInicio}' and '${dataFim}'`;
     
-              if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i))))
+              if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
                 query = query +` and tv."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;   
-                  
-              if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i))))
+              }else
+              if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
                 query = query +` and cf."nome" in('${args.favorecidoNome?.join("','")}')`; 
+              }else
+              if(
+                (['Todos'].some(i=>args.consorcioNome?.includes(i))) && (['Todos'].some(i=>args.favorecidoNome?.includes(i)))
+                 || 
+                ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))
+               ){
+               query = query +` and tv."nomeConsorcio" 
+               in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio') `;
+              }else
+
+              if((['Todos'].some(i=>args.favorecidoNome?.includes(i))) && (args.consorcioNome!==undefined)){
+                query = query +` and tv."nomeConsorcio" in('STPC','STPL',${args.consorcioNome?.join("','")}) `;
+              }else 
+                if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
+                  query = query +` and tv."nomeConsorcio" in('STPC','STPL') `;
+                }
                       
               if(args.valorMin!==undefined)
                 query = query +`  and tv."valorPago">=${args.valorMin}`;
@@ -184,9 +268,7 @@ export class RelatorioSinteticoRepository {
             }
 
             query = query + ` ) as res
-            order by  res."consorcio", res."favorecido",res."datapagamento" `;
-
-            this.logger.debug(query);           
+            order by  res."consorcio", res."favorecido",res."datapagamento" `;             
     return query;             
   } 
   
