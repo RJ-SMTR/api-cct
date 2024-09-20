@@ -38,6 +38,7 @@ import { TransacaoStatus } from './entity/pagamento/transacao-status.entity';
 import { Transacao } from './entity/pagamento/transacao.entity';
 import { Cnab104AmbienteCliente } from './enums/104/cnab-104-ambiente-cliente.enum';
 import { Cnab104FormaLancamento } from './enums/104/cnab-104-forma-lancamento.enum';
+import { HeaderArquivoStatus } from './enums/pagamento/header-arquivo-status.enum';
 import { PagadorContaEnum } from './enums/pagamento/pagador.enum';
 import { TransacaoStatusEnum } from './enums/pagamento/transacao-status.enum';
 import { CnabFile104Extrato } from './interfaces/cnab-240/104/extrato/cnab-file-104-extrato.interface';
@@ -60,7 +61,6 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
-import { HeaderArquivoStatus } from './enums/pagamento/header-arquivo-status.enum';
 
 export interface ICnabInfo {
   name: string;
@@ -725,14 +725,14 @@ export class CnabService {
       try {
         const retorno104 = parseCnab240Extrato(cnab.content);
         await this.saveExtratoFromCnab(retorno104, cnab.name);
-        // await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.ExtratoSuccess, cnab.content);
+        await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.ExtratoSuccess, cnab.content);
         const durationItem = formatDateInterval(new Date(), startDateItem);
         this.logger.log(`CNAB '${cnab.name}' lido com sucesso - ${durationItem}`);
         success.push(cnab.name);
       } catch (error) {
         const durationItem = formatDateInterval(new Date(), startDateItem);
         this.logger.error(`Erro ao processar CNAB ${cnab.name}. Movendo para backup de erros e finalizando - ${durationItem} - ${formatErrMsg(error)}`, error.stack, METHOD);
-        // await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.ExtratoFailure, cnab.content);
+        await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.ExtratoFailure, cnab.content);
       }
       cnab = await this.sftpService.getFirstRetornoExtrato(folder);
     }

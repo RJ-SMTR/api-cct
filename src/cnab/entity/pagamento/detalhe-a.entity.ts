@@ -159,7 +159,7 @@ export class DetalheA extends EntityHelper {
 
   /** Se o retorno atual do DetalheA tiver a data-hora MENOR que o novo retorno */
   hasOlderRetorno(retornoName: string) {
-    const newRetornoDate = getDateFromCnabName(retornoName, 'retornoPagamento');
+    const newRetornoDate = getDateFromCnabName(retornoName);
     const currentRetornoDate = this.retornoDatetime || new Date(0);
     return isAfter(newRetornoDate, currentRetornoDate);
   }

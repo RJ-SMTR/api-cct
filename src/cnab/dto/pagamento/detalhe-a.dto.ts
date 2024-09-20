@@ -70,7 +70,7 @@ export class DetalheADTO {
       nsr: Number(r.detalheA.nsr.value),
       ocorrenciasCnab: r.detalheA.ocorrencias.value.trim() || headerLotePgto.ocorrencias.value.trim() || headerArq.ocorrenciaCobrancaSemPapel.value.trim(),
       retornoName,
-      retornoDatetime: getDateFromCnabName(retornoName, 'retornoPagamento'),
+      retornoDatetime: getDateFromCnabName(retornoName),
     });
   }
 

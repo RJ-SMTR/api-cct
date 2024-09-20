@@ -18,7 +18,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { formatDateInterval, formatDateYMD } from 'src/utils/date-utils';
+import { formatDateInterval, formatDateISODate } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -392,7 +392,7 @@ export class CronJobsService {
     try {
       const startDate = subDays(new Date(), 15);
       const today = new Date();
-      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, method);
+      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateISODate(startDate)} e ${formatDateISODate(today)}`, method);
       await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [startDate, today] });
       this.logger.log(`Trefa finalizada com sucesso.`, method);
     } catch (error) {
