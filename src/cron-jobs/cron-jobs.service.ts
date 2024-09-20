@@ -121,7 +121,7 @@ export class CronJobsService {
       {
         /**
          * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min
-         * + BD do CCT - Sincronizar Transações da Ordem Pagto com Trnas. VIEW
+         * + BD do CCT - Sincronizar Transações - DLake para CCT
          */
         name: CronJobsEnum.generateRemessaVan,
         cronJobParameters: {
