@@ -263,6 +263,7 @@ export class CronJobsService {
   /**
    * Gera na quinta, paga na sexta.
    */
+  //TODO: GERAR PAGAMENTO SEXTA 
   async generateRemessaEmpresa(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaEmpresa';
     try {
@@ -390,7 +391,13 @@ export class CronJobsService {
       const startDate = subDays(new Date(), 30);
       const today = new Date();
       this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, method);
-      await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [startDate, today] });
+      const consorcios:string[]=[];
+      if(method === 'generateRemessaVan'){
+         consorcios.push('STPC');
+         consorcios.push('STPL');
+      }
+
+      await this.cnabService.syncTransacaoViewOrdemPgto({ consorcio: consorcios , dataOrdem_between: [startOfDay(startDate),endOfDay(today)] });
       this.logger.log(`Trefa finalizada com sucesso.`, method);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, method);

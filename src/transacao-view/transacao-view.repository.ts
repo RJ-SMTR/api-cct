@@ -9,6 +9,7 @@ import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
 import { formatDateYMD } from 'src/utils/date-utils';
+import { endOfDay, startOfDay } from 'date-fns';
 
 export interface TransacaoViewFindRawOptions {
   where: {
@@ -66,10 +67,16 @@ export class TransacaoViewRepository {
   public async syncOrdemPgto(args?: ISyncOrdemPgto) {
     const METHOD = 'syncOrdemPgto';
     const where: string[] = [];
-    if (args?.dataOrdem_between) {
+    if (args?.dataOrdem_between) {      
       const [start, end] = args.dataOrdem_between.map((d) => d.toISOString());
-      where.push(`DATE(tv."datetimeTransacao") BETWEEN (DATE('${start}') - INTERVAL '1 DAY') AND '${end}'`);
+      where.push(`DATE(tv."datetimeTransacao") BETWEEN (DATE('${start}') - INTERVAL '1 DAY') 
+      AND '${end}'`);
+    }    
+
+    if(args?.consorcio){
+      where.push(` it."nomeConsorcio" in('${args.consorcio.join("','")}')`)
     }
+
     if (args?.nomeFavorecido?.length) {
       where.push(`cf.nome ILIKE ANY(ARRAY['%${args.nomeFavorecido.join("%', '%")}%'])`);
     }
@@ -101,8 +108,8 @@ export class TransacaoViewRepository {
         WHERE (1=1) ${where.length ? `AND ${where.join(' AND ')}` : ''}
         ORDER BY tv.id ASC, ita.id DESC
     ) associados
-    WHERE id = associados.tv_id
-    `;
+    WHERE id = associados.tv_id  `;
+
     this.logger.debug('query: ' + compactQuery(query), METHOD);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
