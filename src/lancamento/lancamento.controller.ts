@@ -89,11 +89,11 @@ export class LancamentoController {
   @ApiOperation({ description: `Inclui uma autorização do usuário autenticado para o Lançamento.` })
   async getValorAutorizado(
     @Request() request, //
-    @Query('mes', new ParseNumberPipe({ min: 1, max: 12 })) _mes: HumanMonth,
-    @Query('periodo') periodo: number,
-    @Query('ano') ano: number,
+    @Query('mes', new ParseNumberPipe({ min: 1, max: 12, optional: true })) _mes: HumanMonth | undefined,
+    @Query('periodo', new ParseNumberPipe({ min: 0, max: 1, optional: true })) periodo: number | undefined,
+    @Query('ano', new ParseNumberPipe({ min: 0, optional: true })) ano: number | undefined,
   ): Promise<any> {
-    const mes = humanMonthToDateMonth(_mes);
+    const mes = _mes && humanMonthToDateMonth(_mes);
     return await this.lancamentoService.getValorAutorizado(mes, periodo, ano);
   }
 

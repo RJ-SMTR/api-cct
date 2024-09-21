@@ -4,12 +4,14 @@ import { compactQuery } from 'src/utils/console-utils';
 import { SqlDateOperator } from 'src/utils/sql/interfaces/sql-date-operator.interface';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { dateMonthToHumanMonth } from 'src/utils/types/human-month.type';
-import { Between, DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, QueryRunner, Repository, SaveOptions, UpdateResult } from 'typeorm';
+import { Between, DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, ObjectLiteral, QueryRunner, Repository, SaveOptions, SelectQueryBuilder, UpdateResult } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import { Lancamento } from '../entities/lancamento.entity';
+import { Lancamento, TLancamento } from '../entities/lancamento.entity';
 import { LancamentoHistory } from '../entities/lancamento-history.entity';
 import { LancamentoAutorizacao } from '../entities/lancamento-autorizacao.entity';
 import { LancamentoAutorizacaoHistory } from '../entities/lancamento-autorizacao-history.entity';
+import { LancamentoStatus } from '../enums/lancamento-status.enum';
+import { parseQBDateOperator } from 'src/utils/sql/query-builder.utils';
 
 // export interface LancamentoUpdateWhere {
 //   transacaoAgrupado: { id: number };
@@ -87,6 +89,20 @@ export class LancamentoRepository {
     return found;
   }
 
+  async getValorAutoriado(data_lancamento?: SqlDateOperator): Promise<Record<LancamentoStatus, number>> {
+    const l = Lancamento.getSqlFields('lancamento');
+    let qb = this.lancamentoRepository
+      .createQueryBuilder('lancamento')
+      .select(l.status)
+      .addSelect(`SUM(${l.valor})::FLOAT`, 'valor' as keyof TLancamento);
+    if (data_lancamento) {
+      [qb] = parseQBDateOperator(qb, l.data_lancamento, data_lancamento);
+    }
+    const lancamentos: Lancamento[] = await qb.groupBy(l.status).getRawMany();
+    const result = Object.values(LancamentoStatus).reduce((d, s) => ((l = lancamentos.find((l1) => l1.status === s)) => ({ ...d, [s]: l?.valor || 0 }))(), {} as Record<LancamentoStatus, number>);
+    return result;
+  }
+
   async findMany(options?: FindManyOptions<Lancamento> | undefined, andWhere?: LancamentoFindWhere, eager: (keyof Lancamento)[] = []): Promise<Lancamento[]> {
     let whereCount = 0;
     let qb = this.lancamentoRepository
@@ -106,43 +122,33 @@ export class LancamentoRepository {
       qb = qb[!whereCount ? 'where' : 'andWhere'](options?.where);
       whereCount += 1;
     }
-    if (andWhere) {
-      if (andWhere?.detalheA) {
-        qb = qb[!whereCount ? 'where' : 'andWhere']('detalheA.id IN(:daId)', { daId: andWhere.detalheA.id.join(',') });
-        whereCount += 1;
-      }
-      if (andWhere?.transacaoAgrupado) {
-        qb = qb[!whereCount ? 'where' : 'andWhere']('transacaoAgrupado.id = :taId', { taId: andWhere.transacaoAgrupado.id });
-        whereCount += 1;
-      }
-      if (andWhere?.data_lancamento) {
-        if (andWhere.data_lancamento.is) {
-          qb = qb[!whereCount ? 'where' : 'andWhere']({ data_lancamento: andWhere.data_lancamento.is } as EntityCondition<Lancamento>);
-          whereCount += 1;
-        }
-        if (andWhere.data_lancamento.between) {
-          qb = qb[!whereCount ? 'where' : 'andWhere']({ data_lancamento: Between(...andWhere.data_lancamento.between) } as EntityCondition<Lancamento>);
-          whereCount += 1;
-        }
-        if (andWhere.data_lancamento.year) {
-          qb = qb[!whereCount ? 'where' : 'andWhere']('EXTRACT(YEAR FROM lancamento.data_lancamento) = :year', { year: andWhere.data_lancamento.year });
-          whereCount += 1;
-        }
-        if (andWhere.data_lancamento.month) {
-          const month = dateMonthToHumanMonth(andWhere.data_lancamento.month);
-          qb = qb[!whereCount ? 'where' : 'andWhere']('EXTRACT(MONTH FROM lancamento.data_lancamento) = :month', { month });
-          whereCount += 1;
-        }
-        if (andWhere.data_lancamento.day) {
-          const [operation, day] = andWhere.data_lancamento.day;
-          qb = qb[!whereCount ? 'where' : 'andWhere'](`EXTRACT(DAY FROM lancamento.data_lancamento) ${operation} :day`, { day });
-          whereCount += 1;
-        }
-      }
-    }
+    [qb] = this.parseQueryBuilderFindWhere(qb, andWhere, whereCount);
     qb = qb.orderBy('lancamento.id', 'DESC');
     const ret = await qb.getMany();
     return ret;
+  }
+
+  /**
+   *
+   * @returns [queryBuilder, whereCount]
+   */
+  parseQueryBuilderFindWhere(queryBuilder: SelectQueryBuilder<Lancamento>, where?: LancamentoFindWhere, whereCount = 0): [SelectQueryBuilder<Lancamento>, number] {
+    let qb = queryBuilder;
+    const l = Lancamento.getSqlFields('lancamento');
+    if (where) {
+      if (where?.detalheA) {
+        qb = qb[!whereCount ? 'where' : 'andWhere']('detalheA.id IN(:daId)', { daId: where.detalheA.id.join(',') });
+        whereCount += 1;
+      }
+      if (where?.transacaoAgrupado) {
+        qb = qb[!whereCount ? 'where' : 'andWhere']('transacaoAgrupado.id = :taId', { taId: where.transacaoAgrupado.id });
+        whereCount += 1;
+      }
+      if (where?.data_lancamento) {
+        [qb, whereCount] = parseQBDateOperator(qb, l.data_lancamento, where.data_lancamento, whereCount);
+      }
+    }
+    return [qb, whereCount];
   }
 
   getAll(): Promise<Lancamento[]> {

@@ -109,11 +109,10 @@ export class LancamentoService {
     return lancamentos;
   }
 
-  async getValorAutorizado(month: DateMonth, period: number, year: number) {
+  async getValorAutorizado(month?: DateMonth, period?: number, year?: number) {
     const data_lancamento = this.getMonthDateRange({ year, month, period });
-    const autorizados = await this.lancamentoRepository.findMany(undefined, { data_lancamento });
-    const autorizadoSum = autorizados.reduce((sum, lancamento) => sum + lancamento.valor, 0);
-    const resp = { valor_autorizado: autorizadoSum };
+    const autorizados = await this.lancamentoRepository.getValorAutoriado(data_lancamento);
+    const resp = { valor_autorizado: autorizados };
     return resp;
   }
 
@@ -261,7 +260,7 @@ export class LancamentoService {
     return {
       ...(args?.year ? { year: args.year } : {}),
       ...(args?.month ? { month: args.month } : {}),
-      ...(args?.period ? { day: [args.period === 1 ? '<=' : '>', 15] } : {}),
+      ...(args?.period !== undefined ? { day: [args.period === 0 ? '<=' : '>', 15] } : {}),
     };
   }
 
