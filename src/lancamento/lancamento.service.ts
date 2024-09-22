@@ -30,7 +30,7 @@ const validFavorecidoNames = [
   String(FavorecidoEmpresaNomeEnum.Intersul),
   String(FavorecidoEmpresaNomeEnum.SantaCruz),
   String(FavorecidoEmpresaNomeEnum.Transcarioca),
-  // ConcessionariaNomeEnum.VLT, // DESABILITADO ATÉ O MOMENTO
+  String(FavorecidoEmpresaNomeEnum.VLT),
 ];
 const validFavorecidoCpfCnpjs = [
   String(FavorecidoEmpresaCpfCnpjEnum.CMTC), //
@@ -38,7 +38,7 @@ const validFavorecidoCpfCnpjs = [
   String(FavorecidoEmpresaCpfCnpjEnum.Intersul),
   String(FavorecidoEmpresaCpfCnpjEnum.SantaCruz),
   String(FavorecidoEmpresaCpfCnpjEnum.Transcarioca),
-  // ConcessionariaNomeEnum.VLT, // DESABILITADO ATÉ O MOMENTO
+  String(FavorecidoEmpresaCpfCnpjEnum.VLT),
 ];
 
 @Injectable()
@@ -57,7 +57,7 @@ export class LancamentoService {
   /**
    * Procura itens não usados ainda (sem Transacao Id) from current payment week (sex-qui).
    */
-  async findToPay(dataOrdemBetween?: [Date, Date]) {
+  async findToPay(dataOrdemBetween?: [Date, Date]): Promise<{ cett: Lancamento[]; contaBilhetagem: Lancamento[] }> {
     const found = await this.lancamentoRepository.findMany({
       where: {
         ...(dataOrdemBetween ? { data_ordem: Between(...dataOrdemBetween) } : {}),

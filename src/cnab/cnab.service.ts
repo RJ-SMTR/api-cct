@@ -542,8 +542,9 @@ export class CnabService {
     await this.updateAllFavorecidosFromUsers();
     const newLancamentos = await this.lancamentoService.findToPay(dataOrdem);
     const ordensCett = newLancamentos.cett.map((l) => OrdemPagamentoDto.fromLancamento(l));
-    const ordensCb = newLancamentos.contaBilhetagem.map((l) => OrdemPagamentoDto.fromLancamento(l));
     await this.saveOrdens(ordensCett, 'cett');
+    const ordensCb = newLancamentos.contaBilhetagem.map((l) => OrdemPagamentoDto.fromLancamento(l));
+    await this.saveOrdens(ordensCb, 'contaBilhetagem');
   }
 
   public async generateRemessa(args: {
