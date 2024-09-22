@@ -138,7 +138,7 @@ export class LancamentoService {
 
   async putAuthorize(userId: number, lancamentoId: number, autorizaLancamentoDto: LancamentoAuthorizeDto): Promise<Lancamento> {
     const lancamento = await this.validatePutAuthorize(userId, lancamentoId, autorizaLancamentoDto);
-    await this.createBackup(lancamento);
+    // await this.createBackup(lancamento);
     lancamento.addAutorizacao(userId);
     await this.lancamentoRepository.save(lancamento);
     return await this.lancamentoRepository.getOne({ where: { id: lancamentoId } });

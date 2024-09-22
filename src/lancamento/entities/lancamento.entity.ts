@@ -7,11 +7,11 @@ import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, BeforeInsert, Column, CreateDateColumn, DeepPartial, DeleteDateColumn, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { AfterLoad, BeforeInsert, Column, CreateDateColumn, DeepPartial, DeleteDateColumn, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { LancamentoStatus } from '../enums/lancamento-status.enum';
 import { LancamentoUpsertDto } from '../dtos/lancamento-upsert.dto';
 import { LancamentoAutorizacao } from './lancamento-autorizacao.entity';
-import { LancamentoHistory } from './lancamento-history.entity';
+import { LancamentoHistory, TLancamentoHistoryOutput } from './lancamento-history.entity';
 
 export interface ILancamentoBase {
   id: number;
@@ -31,13 +31,26 @@ export interface ILancamentoBase {
   is_autorizado: boolean;
   is_pago: boolean;
   status: LancamentoStatus;
+  motivo_cancelamento: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export type TLancamento = {
-  deletedAt: Date;
+  deletedAt: Date | null;
 } & ILancamentoBase;
+
+/** Lancamento ao devolver a request */
+export type TLancamentoOutput = {
+  autorizado_por: {
+    /** user.id */
+    id: number;
+    nome: string;
+    data_autorizacao: Date;
+  }[];
+  historico: TLancamentoHistoryOutput[];
+  ocorrencias: Ocorrencia[];
+} & TLancamento;
 
 @Entity('lancamento')
 export class Lancamento extends EntityHelper implements TLancamento {
@@ -102,6 +115,7 @@ export class Lancamento extends EntityHelper implements TLancamento {
   @Transform(({ value }) => (!value ? null : ((it = value as ItemTransacao) => ({ id: it.id, itemTransacaoAgrupado: { id: it.itemTransacaoAgrupado.id } }))()))
   itemTransacao: ItemTransacao | null;
 
+  /** Coluna física interna, para CRUD */
   @ManyToMany(() => User, (user) => user)
   @JoinTable({
     name: LancamentoAutorizacao.tableName,
@@ -109,9 +123,15 @@ export class Lancamento extends EntityHelper implements TLancamento {
     inverseJoinColumn: { name: 'userId', referencedColumnName: 'id' },
     synchronize: false, // We use LancamentoAutorizacao to generate migration
   })
-  @Expose({ name: 'autorizado_por' })
-  @Transform(({ value }) => (value as User[]).map((u) => ({ id: u.id, nome: u.fullName })))
+  @Exclude()
   autorizacoes: User[];
+
+  /** Coluna virtual, para consulta completa */
+  @OneToMany(() => LancamentoAutorizacao, (la) => la.lancamento)
+  @JoinColumn()
+  @Expose({ name: 'autorizado_por' })
+  @Transform(({ value }) => (value as LancamentoAutorizacao[]).map((la) => ({ id: la.user.id, nome: la.user.fullName, data_autorizacao: la.createdAt })))
+  _autorizacoes: LancamentoAutorizacao[];
 
   /** O autor mais recente da criação/modificação/autorização do Lançamento */
   @ManyToOne(() => User, { eager: true })
@@ -164,7 +184,7 @@ export class Lancamento extends EntityHelper implements TLancamento {
 
   /** Como são dados de pagamento, caso se delete um Lançamento o dado permanece no banco para auditoria */
   @DeleteDateColumn()
-  deletedAt: Date;
+  deletedAt: Date | null;
 
   /** Coluna virtual */
   @Exclude()
@@ -191,8 +211,7 @@ export class Lancamento extends EntityHelper implements TLancamento {
     this.recurso = asStringOrNumber(this.recurso);
     this.anexo = asStringOrNumber(this.anexo);
     this.valor = asStringOrNumber(this.valor);
-    this.autorizacoes = this.autorizacoes || [];
-    // if (this.itemTransacao?.itemTransacaoAgrupado.de)
+    this.autorizacoes = this._autorizacoes.map((la) => la.user);
   }
 
   getIsAutorizado(): boolean {
@@ -279,6 +298,7 @@ export class Lancamento extends EntityHelper implements TLancamento {
       is_autorizado: `${table ? `${table}.` : ''}"is_autorizado"`, // boolean,
       is_pago: `${table ? `${table}.` : ''}"is_pago"`, // boolean,
       status: `${table ? `${table}.` : ''}"status"`, // string,
+      motivo_cancelamento: `${table ? `${table}.` : ''}"motivo_cancelamento"`, // string,
       createdAt: `${table ? `${table}.` : ''}"createdAt"`, // Date,
       updatedAt: `${table ? `${table}.` : ''}"updatedAt"`, // Date,
       deletedAt: `${table ? `${table}.` : ''}"deletedAt"`, // Date,
@@ -303,6 +323,7 @@ export class Lancamento extends EntityHelper implements TLancamento {
     is_pago: 'BOOLEAN',
     is_autorizado: 'BOOLEAN',
     status: 'VARCHAR',
+    motivo_cancelamento: 'VARCHAR',
     createdAt: 'TIMESTAMP',
     updatedAt: 'TIMESTAMP',
     deletedAt: 'TIMESTAMP',

@@ -65,7 +65,8 @@ export class LancamentoRepository {
   async findOne(options: FindOneOptions<Lancamento>): Promise<Lancamento | null> {
     let qb = this.lancamentoRepository
       .createQueryBuilder('lancamento') //
-      .leftJoinAndSelect('lancamento.autorizacoes', 'autorizacoes')
+      .leftJoinAndSelect('lancamento._autorizacoes', 'lancamentoAutorizacao')
+      .leftJoinAndSelect('lancamentoAutorizacao.user', 'lancamentoAutorizacao_user')
       .leftJoinAndSelect('lancamento.autor', 'autor')
       .leftJoinAndSelect('lancamento.clienteFavorecido', 'clienteFavorecido')
       .leftJoinAndSelect('lancamento.itemTransacao', 'itemTransacao')
@@ -73,7 +74,8 @@ export class LancamentoRepository {
       .leftJoinAndMapOne('lancamento.detalheA', 'detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
       .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id')
       .leftJoinAndMapMany('lancamento.historico', 'lancamento_history', 'lancamentoHistory', 'lancamentoHistory.lancamentoId = lancamento.id')
-      .leftJoinAndSelect('lancamentoHistory.autorizacoes', 'lancamentoHistory_autorizacoes');
+      .leftJoinAndSelect('lancamentoHistory.autorizacoes', 'lancamentoAutorizacaoHistory')
+      .leftJoinAndSelect('lancamentoAutorizacaoHistory.user', 'lancamentoAutorizacaoHistory_user');
 
     if (options?.where) {
       qb = qb.where(options.where);
@@ -108,16 +110,17 @@ export class LancamentoRepository {
     let whereCount = 0;
     let qb = this.lancamentoRepository
       .createQueryBuilder('lancamento') //
-      .leftJoinAndSelect('lancamento.autorizacoes', 'lancamentoAutorizacao')
+      .leftJoinAndSelect('lancamento._autorizacoes', 'lancamentoAutorizacao')
+      .leftJoinAndSelect('lancamentoAutorizacao.user', 'lancamentoAutorizacao_user')
       .leftJoinAndSelect('lancamento.autor', 'autor')
       .leftJoinAndSelect('lancamento.clienteFavorecido', 'clienteFavorecido')
       .leftJoinAndSelect('lancamento.itemTransacao', 'itemTransacao')
       .leftJoinAndSelect('itemTransacao.itemTransacaoAgrupado', 'itemTransacaoAgrupado')
-      .leftJoinAndSelect('itemTransacaoAgrupado.transacaoAgrupado', 'transacaoAgrupado')
       .leftJoinAndMapOne('lancamento.detalheA', 'detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
       .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id')
       .leftJoinAndMapMany('lancamento.historico', 'lancamento_history', 'lancamentoHistory', 'lancamentoHistory.lancamentoId = lancamento.id')
-      .leftJoinAndSelect('lancamentoHistory.autorizacoes', 'lancamentoAutorizacaoHistory');
+      .leftJoinAndSelect('lancamentoHistory.autorizacoes', 'lancamentoAutorizacaoHistory')
+      .leftJoinAndSelect('lancamentoAutorizacaoHistory.user', 'lancamentoAutorizacaoHistory_user');
 
     if (options?.where) {
       qb = qb[!whereCount ? 'where' : 'andWhere'](options?.where);

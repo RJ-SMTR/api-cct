@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
@@ -17,6 +17,7 @@ import { LancamentoService } from './lancamento.service';
 import { DateMonth, humanMonthToDateMonth } from 'src/utils/types/date-month.type';
 import { HumanMonth } from 'src/utils/types/human-month.type';
 import { LancamentoDeleteDto } from './dtos/lancamento-delete.dto';
+import { LancamaentoOutputExample } from './swagger/lancamento-response.swagger';
 
 @ApiTags('Lancamento')
 @Controller({
@@ -165,6 +166,7 @@ export class LancamentoController {
     RoleEnum.aprovador_financeiro,
   )
   @ApiBearerAuth()
+  @ApiResponse({ schema: { example: LancamaentoOutputExample } })
   async getId(@Param('id') id: number) {
     return await this.lancamentoService.getId(id);
   }

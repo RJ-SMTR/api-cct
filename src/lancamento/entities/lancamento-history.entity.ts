@@ -1,18 +1,30 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Transform } from 'class-transformer';
 import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
-import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import { BeforeInsert, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { AfterLoad, BeforeInsert, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { LancamentoStatus } from '../enums/lancamento-status.enum';
 import { ILancamentoBase, Lancamento } from './lancamento.entity';
+import { LancamentoAutorizacao } from './lancamento-autorizacao.entity';
+import { LancamentoAutorizacaoHistory } from './lancamento-autorizacao-history.entity';
+import { asStringOrNumber } from 'src/utils/pipe-utils';
 
 export type TLancamentoHistory = {
   lancamento: Lancamento;
+  backupAt: Date;
 } & ILancamentoBase;
+
+/** Lancamento ao devolver a request */
+export type TLancamentoHistoryOutput = {
+  autorizado_por: {
+    /** user.id */
+    id: number;
+    nome: string;
+    data_autorizacao: Date;
+  }[];
+} & TLancamentoHistory;
 
 @Entity('lancamento_history')
 export class LancamentoHistory extends EntityHelper implements TLancamentoHistory {
@@ -99,9 +111,15 @@ export class LancamentoHistory extends EntityHelper implements TLancamentoHistor
     inverseJoinColumn: { name: 'userId', referencedColumnName: 'id' },
     synchronize: false, // We use LancamentoAutorizacaoHistory to generate migration
   })
-  @Expose({ name: 'autorizado_por' })
-  @Transform(({ value }) => (value as User[]).map((u) => ({ id: u.id, nome: u.fullName })))
+  @Exclude()
   autorizacoes: User[];
+
+  /** Coluna virtual, para consulta completa */
+  @OneToMany(() => LancamentoAutorizacaoHistory, (lah) => lah.lancamentoHistory)
+  @JoinColumn()
+  @Expose({ name: 'autorizado_por' })
+  @Transform(({ value }) => (value as LancamentoAutorizacaoHistory[]).map((lah) => ({ id: lah.user.id, nome: lah.user.fullName, data_autorizacao: lah.createdAt })))
+  _autorizacoes: LancamentoAutorizacaoHistory[];
 
   /** O autor mais recente da criação/modificação/autorização do Lançamento */
   @ManyToOne(() => User, { eager: true })
@@ -165,6 +183,16 @@ export class LancamentoHistory extends EntityHelper implements TLancamentoHistor
     }
   }
 
+  @AfterLoad()
+  setReadValues() {
+    this.glosa = asStringOrNumber(this.glosa);
+    this.algoritmo = asStringOrNumber(this.algoritmo);
+    this.recurso = asStringOrNumber(this.recurso);
+    this.anexo = asStringOrNumber(this.anexo);
+    this.valor = asStringOrNumber(this.valor);
+    this.autorizacoes = this._autorizacoes.map((lah) => lah.user);
+  }
+
   public static getSqlFields(table?: string, castType?: boolean): Record<keyof TLancamentoHistory, string> {
     return {
       id: `${table ? `${table}.` : ''}"id"`,
@@ -185,8 +213,10 @@ export class LancamentoHistory extends EntityHelper implements TLancamentoHistor
       is_autorizado: `${table ? `${table}.` : ''}"is_autorizado"`, // boolean,
       is_pago: `${table ? `${table}.` : ''}"is_pago"`, // boolean,
       status: `${table ? `${table}.` : ''}"status"`, // string,
+      motivo_cancelamento: `${table ? `${table}.` : ''}"motivo_cancelamento"`, // string,
       createdAt: `${table ? `${table}.` : ''}"createdAt"`, // Date,
       updatedAt: `${table ? `${table}.` : ''}"updatedAt"`, // Date,
+      backupAt: `${table ? `${table}.` : ''}"backupAt"`, // Date,
     };
   }
 
@@ -209,7 +239,9 @@ export class LancamentoHistory extends EntityHelper implements TLancamentoHistor
     is_pago: 'BOOLEAN',
     is_autorizado: 'BOOLEAN',
     status: 'VARCHAR',
+    motivo_cancelamento: 'VARCHAR',
     createdAt: 'TIMESTAMP',
     updatedAt: 'TIMESTAMP',
+    backupAt: 'TIMESTAMP',
   };
 }
