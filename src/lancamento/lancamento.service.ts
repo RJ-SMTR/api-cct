@@ -129,7 +129,7 @@ export class LancamentoService {
       throw CommonHttpException.message(`id_cliente_favorecido: Favorecido não encontrado no sistema`);
     }
     if (!validFavorecidoCpfCnpjs.includes(favorecido.cpfCnpj)) {
-      throw CommonHttpException.messageArgs(`id_cliente_favorecido: Favorecido não permitido para Lançamento.`, { validFavorecidos: validFavorecidoNames });
+      throw CommonHttpException.messageArgs(`id_cliente_favorecido: Favorecido não permitido para Lançamento.`, { validFavorecidos: validFavorecidoNames, found: { id: favorecido.id, name: favorecido.nome } });
     }
     const lancamento = Lancamento.fromInputDto(dto);
     lancamento.clienteFavorecido = new ClienteFavorecido({ id: favorecido.id });
@@ -139,13 +139,13 @@ export class LancamentoService {
   async putAuthorize(userId: number, lancamentoId: number, autorizaLancamentoDto: LancamentoAuthorizeDto): Promise<Lancamento> {
     const lancamento = await this.validatePutAuthorize(userId, lancamentoId, autorizaLancamentoDto);
     await this.createBackup(lancamento);
-    lancamento.addAutorizado(userId);
+    lancamento.addAutorizacao(userId);
     await this.lancamentoRepository.save(lancamento);
     return await this.lancamentoRepository.getOne({ where: { id: lancamentoId } });
   }
 
   /**
-   * Nota: Aqui não valida a Role do usuário porque isto já é feito no controller.
+   * Nota: Aqui não é validada a Role do usuário porque isto já é feito no controller.
    */
   async validatePutAuthorize(userId: number, lancamentoId: string | number, autorizaLancamentoDto: LancamentoAuthorizeDto) {
     const lancamento = await this.lancamentoRepository.findOne({ where: { id: asStringOrNumber(lancamentoId) } });
@@ -153,9 +153,9 @@ export class LancamentoService {
       throw new HttpException('Lançamento não encontrado.', HttpStatus.NOT_FOUND);
     }
 
-    const lancamentoStatusAuth = [LancamentoStatus._1_gerado, LancamentoStatus._2_autorizado_parcial];
-    if (!lancamentoStatusAuth.includes(lancamento.status)) {
-      throw new HttpException(`Apenas lançamentos com status ${lancamentoStatusAuth.map((i) => `'${i}'`).join(', ')} podem ser aprovados. Status encontrado: '${lancamento.status}'.)`, HttpStatus.PRECONDITION_FAILED);
+    const statusAprovador = [LancamentoStatus._1_gerado, LancamentoStatus._2_autorizado_parcial];
+    if (!statusAprovador.includes(lancamento.status)) {
+      throw new HttpException(`Apenas lançamentos com status ${statusAprovador.map((i) => `'${i}'`).join(', ')} podem ser aprovados. Status encontrado: '${lancamento.status}'.)`, HttpStatus.PRECONDITION_FAILED);
     }
 
     const user = await this.usersService.findOne({ id: userId });
@@ -176,30 +176,43 @@ export class LancamentoService {
 
   async updateDto(id: number, updateDto: LancamentoUpsertDto): Promise<Lancamento> {
     const lancamento = await this.validateUpdateDto(id, updateDto);
+    await this.createBackup(lancamento);
     lancamento.updateFromDto(updateDto);
     await this.lancamentoRepository.save(lancamento);
     const updated = await this.lancamentoRepository.getOne({ where: { id: lancamento.id } });
-    this.logger.log(`Lancamento #${updated.id} atualizado por ${updated.clienteFavorecido.nome}.`);
+    this.logger.log(`Lancamento #${updated.id} atualizado por ${updated.autor.getFullName()}.`);
     return updated;
   }
 
+  /**
+   * Nota: request.user.id = dto.author (autor da alteração atual)
+   */
   async validateUpdateDto(id: number, updateDto: LancamentoUpsertDto): Promise<Lancamento> {
+    const user = await this.usersService.getOne({ id: updateDto.author.id });
     const lancamento = await this.lancamentoRepository.findOne({ where: { id } });
     if (!lancamento) {
       throw new NotFoundException(`Lançamento com ID ${id} não encontrado.`);
     }
-    if (lancamento.status !== LancamentoStatus._1_gerado) {
-      throw new HttpException('Apenas é permitido alterar Lançamentos com status criado.', HttpStatus.NOT_ACCEPTABLE);
+
+    const statusLancador = [LancamentoStatus._1_gerado];
+    if (user.role?.id === RoleEnum.lancador_financeiro && !statusLancador.includes(lancamento.status)) {
+      throw new HttpException(`Lançador financeiro apenas pode editar Lançamentos com status ${statusLancador.map((i) => `'${i}'`).join(', ')}.`, HttpStatus.NOT_ACCEPTABLE);
     }
+
+    const statusAprovador = [LancamentoStatus._1_gerado, LancamentoStatus._2_autorizado_parcial, LancamentoStatus._3_autorizado];
+    if ((user.role?.id === RoleEnum.aprovador_financeiro || user.role?.id === RoleEnum.master) && !statusAprovador.includes(lancamento.status)) {
+      throw new HttpException(`Aprovador financeiro apenas pode editar Lançamentos com status ${statusAprovador.map((i) => `'${i}'`).join(', ')}. Status encontrado: '${lancamento.status}'`, HttpStatus.NOT_ACCEPTABLE);
+    }
+
     const favorecido = await this.clienteFavorecidoService.findOne({ where: { id: updateDto.id_cliente_favorecido } });
     if (!favorecido) {
       throw CommonHttpException.message('id_cliente_favorecido: Favorecido não encontrado no sistema');
     }
-    if (!validFavorecidoCpfCnpjs.includes(favorecido.cpfCnpj)) {
-      throw CommonHttpException.messageArgs('id_cliente_favorecido: Favorecido não permitido para Lançamento.', { validFavorecidos: validFavorecidoNames });
-    }
     if (lancamento.clienteFavorecido.id !== updateDto.id_cliente_favorecido) {
       throw CommonHttpException.messageArgs('id_cliente_favorecido: Não é permitido alterar o cliente favorecido de um Lançamento. ', { old: lancamento.clienteFavorecido.id, new: updateDto.id_cliente_favorecido });
+    }
+    if (!validFavorecidoCpfCnpjs.includes(favorecido.cpfCnpj)) {
+      throw CommonHttpException.messageArgs('id_cliente_favorecido: Favorecido não permitido para Lançamento.', { validFavorecidos: validFavorecidoNames, found: { id: favorecido.id, name: favorecido.nome } });
     }
     return lancamento;
   }
@@ -240,12 +253,12 @@ export class LancamentoService {
     }
 
     const lancamentoStatusLancador = [LancamentoStatus._1_gerado];
-    if (user.role?.id === RoleEnum.lancador_financeiro && lancamentoStatusLancador.includes(lancamento.status)) {
+    if (user.role?.id === RoleEnum.lancador_financeiro && !lancamentoStatusLancador.includes(lancamento.status)) {
       throw new HttpException(`Lançador financeiro apenas pode deletar Lançamentos com status ${lancamentoStatusLancador.map((i) => `'${i}'`).join(', ')}.`, HttpStatus.NOT_ACCEPTABLE);
     }
 
     const lancamentoStatusAprovador = [LancamentoStatus._1_gerado, LancamentoStatus._2_autorizado_parcial, LancamentoStatus._3_autorizado];
-    if (user.role?.id === RoleEnum.aprovador_financeiro && lancamentoStatusAprovador.includes(lancamento.status)) {
+    if ((user.role?.id === RoleEnum.aprovador_financeiro || user.role?.id === RoleEnum.master) && !lancamentoStatusAprovador.includes(lancamento.status)) {
       throw new HttpException(`Aprovador financeiro apenas pode deletar Lançamentos com status ${lancamentoStatusAprovador.map((i) => `'${i}'`).join(', ')}.`, HttpStatus.NOT_ACCEPTABLE);
     }
 

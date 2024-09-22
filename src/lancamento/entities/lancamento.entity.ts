@@ -204,6 +204,8 @@ export class Lancamento extends EntityHelper implements TLancamento {
       this.status = LancamentoStatus._2_autorizado_parcial;
     } else if (this.status === LancamentoStatus._2_autorizado_parcial && this.autorizacoes.length >= 2) {
       this.status = LancamentoStatus._3_autorizado;
+    } else if ([LancamentoStatus._2_autorizado_parcial, LancamentoStatus._3_autorizado].includes(this.status) && this.autorizacoes.length == 0) {
+      this.status = LancamentoStatus._1_gerado;
     }
   }
 
@@ -211,14 +213,20 @@ export class Lancamento extends EntityHelper implements TLancamento {
     this.is_autorizado = this.autorizacoes.length >= 2;
   }
 
-  addAutorizado(userId: number) {
+  addAutorizacao(userId: number) {
     this.autorizacoes.push({ id: userId } as User);
     this.updateIsAutorizado();
     this.updateStatus();
   }
 
-  removeAutorizado(userId: number) {
+  removeAutorizacao(userId: number) {
     this.autorizacoes = this.autorizacoes.filter((u) => u.id != userId);
+    this.updateIsAutorizado();
+    this.updateStatus();
+  }
+
+  clearAutorizacoes() {
+    this.autorizacoes = [];
     this.updateIsAutorizado();
     this.updateStatus();
   }
@@ -227,6 +235,10 @@ export class Lancamento extends EntityHelper implements TLancamento {
     return Boolean(this.autorizacoes.find((u) => u.id == userId));
   }
 
+  /**
+   * Regra de negócio:
+   * - autorizacoes é esvaziada toda vez que Lançamento é alterado pelo lançador ou aprovador financeiro.
+   */
   updateFromDto(dto: LancamentoUpsertDto) {
     this.valor = dto.valor;
     this.data_ordem = dto.data_ordem;
@@ -245,7 +257,7 @@ export class Lancamento extends EntityHelper implements TLancamento {
     this.numero_processo = dto.numero_processo;
     this.clienteFavorecido = new ClienteFavorecido({ id: dto.id_cliente_favorecido });
     this.autor = new User(dto.author);
-    this.autorizacoes = [];
+    this.clearAutorizacoes();
   }
 
   public static getSqlFields(table?: string, castType?: boolean): Record<keyof TLancamento, string> {
