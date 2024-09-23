@@ -81,10 +81,13 @@ export class TransacaoViewRepository {
         SELECT
             DISTINCT ON (tv.id)
             tv.id AS tv_id,
-            ita.id AS ita_id,
+            ita.id ita_id,
+            ita."valor",
+            tv."valorPago",
             tv."datetimeTransacao",
-            tv."datetimeProcessamento",
-            ita."dataOrdem"
+            it."dataOrdem",
+            it."dataCaptura",
+            da."dataVencimento"	 
         FROM item_transacao_agrupado ita
         INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
         INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
@@ -93,10 +96,10 @@ export class TransacaoViewRepository {
             ON tv."idConsorcio" = ita."idConsorcio"
             AND tv."idOperadora" = ita."idOperadora"
             AND tv."operadoraCpfCnpj" = cf."cpfCnpj"
-        AND tv."datetimeTransacao"::DATE BETWEEN
-            (ita."dataOrdem"::DATE - (CASE WHEN ita."nomeConsorcio" = 'VLT' THEN INTERVAL '2 DAYS' ELSE INTERVAL '8 DAYS' END))  -- VENCIMENTO - 2 SE VLT; SENÃO QUINTA PGTO
-            AND (DATE(ita."dataOrdem") - INTERVAL '2 DAYS')  -- VENCIMENTO - 2 (OU QUARTA PGTO SE NÃO for VLT)
-        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+            AND tv."datetimeTransacao"::DATE 
+	          BETWEEN (it."dataOrdem"::DATE) - INTERVAL '1 DAYS' AND (it."dataOrdem"::DATE)
+        WHERE (1=1) ${where.length ? `AND ${where.join(' AND ')}` : ''}
+
         ORDER BY tv.id ASC, ita.id DESC
     ) associados
     WHERE id = associados.tv_id
@@ -273,7 +276,7 @@ export class TransacaoViewRepository {
     }
     const raw: any[] = await this.transacaoViewRepository.query(
       compactQuery(`
-      SELECT ${tv.id}, ${tv.idTransacao}, ${tv.valorPago}::FLOAT, ${tv.tipoTransacao}, ${tv.idOperadora}
+      SELECT ${tv.id}, ${tv.idTransacao}, ${tv.valorPago}::FLOAT, ${tv.tipoTransacao}, ${tv.idOperadora}, ${tv.operadoraCpfCnpj}
       FROM transacao_view tv
       ${qWhere.length ? `WHERE ${qWhere.join(' AND ')}` : ''}
       ORDER BY ${tv.id} DESC

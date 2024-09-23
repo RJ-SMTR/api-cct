@@ -7,4 +7,5 @@ export interface IFindPublicacaoRelatorio {
   valorMax?: number;
   pago?: boolean;
   aPagar?: boolean;
+  emProcessamento?:boolean;
 }
