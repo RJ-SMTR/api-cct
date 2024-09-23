@@ -8,8 +8,7 @@ import { DataSource, DeepPartial, EntityManager, FindManyOptions, In, LessThanOr
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
-import { formatDateYMD } from 'src/utils/date-utils';
-import { endOfDay, startOfDay } from 'date-fns';
+import { formatDateISODate } from 'src/utils/date-utils';
 
 export interface TransacaoViewFindRawOptions {
   where: {
