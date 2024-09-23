@@ -496,8 +496,6 @@ export class CnabService {
 
   async syncTransacaoViewOrdemPgto(args?: ISyncOrdemPgto) {
     this.logger.debug('Inicio Sync TransacaoView');
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
     const startDate = new Date();
     let count = await this.transacaoViewService.syncOrdemPgto(args);
     const endDate = new Date();
