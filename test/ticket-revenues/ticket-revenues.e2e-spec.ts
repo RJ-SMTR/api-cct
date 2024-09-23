@@ -1,6 +1,6 @@
 import { subDays } from 'date-fns';
 import * as request from 'supertest';
-import { formatDateYMD } from '../../src/utils/date-utils';
+import { formatDateISODate } from '../../src/utils/date-utils';
 import { APP_URL, BQ_JSON_CREDENTIALS, LICENSEE_CNPJ_PASSWORD, LICENSEE_CNPJ_PERMIT_CODE, LICENSEE_CPF_PASSWORD, LICENSEE_CPF_PERMIT_CODE } from '../utils/constants';
 import { BigQuery } from '@google-cloud/bigquery';
 
@@ -66,8 +66,8 @@ WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        startDate: formatDateYMD(startDate),
-        endDate: formatDateYMD(new Date()),
+        startDate: formatDateISODate(startDate),
+        endDate: formatDateISODate(new Date()),
       })
       .expect(200)
       .then(({ body }) => {
@@ -81,8 +81,8 @@ WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        startDate: formatDateYMD(startDate),
-        endDate: formatDateYMD(new Date()),
+        startDate: formatDateISODate(startDate),
+        endDate: formatDateISODate(new Date()),
       })
       .expect(200)
       .then(({ body }) => {
@@ -109,8 +109,8 @@ WHERE c.cnpj = '${licenseeCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        startDate: formatDateYMD(startDate),
-        endDate: formatDateYMD(licenseeCnpjMaxDate),
+        startDate: formatDateISODate(startDate),
+        endDate: formatDateISODate(licenseeCnpjMaxDate),
       })
       .expect(200)
       .then(({ body }) => {

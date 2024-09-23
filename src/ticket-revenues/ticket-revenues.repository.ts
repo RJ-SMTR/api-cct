@@ -5,7 +5,7 @@ import { ArquivoPublicacaoService } from 'src/cnab/service/arquivo-publicacao.se
 import { TransacaoView } from 'src/transacao-view/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 import { compactQuery } from 'src/utils/console-utils';
-import { formatDateYMD } from 'src/utils/date-utils';
+import { formatDateISODate } from 'src/utils/date-utils';
 import { getPagination } from 'src/utils/get-pagination';
 import { getPaymentDates } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
@@ -131,7 +131,7 @@ export class TicketRevenuesRepositoryService {
     const whereTransacaoView: string[] = [];
     const tv1 = TransacaoView.getSqlFields('tv1');
     if (args) {
-      whereTransacaoView.push(`DATE(${tv1.datetimeProcessamento}) BETWEEN '${formatDateYMD(args.startDate)}' AND '${formatDateYMD(args.endDate)}'`);
+      whereTransacaoView.push(`DATE(${tv1.datetimeProcessamento}) BETWEEN '${formatDateISODate(args.startDate)}' AND '${formatDateISODate(args.endDate)}'`);
       if (args.validArgs.user.cpfCnpj) {
         whereTransacaoView.push(`${tv1.operadoraCpfCnpj} = '${options.where.args?.validArgs.user.cpfCnpj}'`);
       }
@@ -144,11 +144,11 @@ export class TicketRevenuesRepositoryService {
         whereTransacaoView.push(`${tv1.operadoraCpfCnpj} IN ('${transacaoView?.operadoraCpfCnpj.join("','")}')`);
       }
       if (transacaoView?.datetimeTransacao) {
-        const betweenStr = transacaoView.datetimeTransacao.between.map(([start, end]) => `${tv1.datetimeTransacao}::DATE BETWEEN '${formatDateYMD(start)}' AND '${formatDateYMD(end)}'`).join(' OR ');
+        const betweenStr = transacaoView.datetimeTransacao.between.map(([start, end]) => `${tv1.datetimeTransacao}::DATE BETWEEN '${formatDateISODate(start)}' AND '${formatDateISODate(end)}'`).join(' OR ');
         whereTransacaoView.push(`${betweenStr}`);
       }
       if (transacaoView?.datetimeProcessamento) {
-        const betweenStr = transacaoView.datetimeProcessamento.between.map(([start, end]) => `${tv1.datetimeProcessamento}::DATE BETWEEN '${formatDateYMD(start)}' AND '${formatDateYMD(end)}'`).join(' OR ');
+        const betweenStr = transacaoView.datetimeProcessamento.between.map(([start, end]) => `${tv1.datetimeProcessamento}::DATE BETWEEN '${formatDateISODate(start)}' AND '${formatDateISODate(end)}'`).join(' OR ');
         whereTransacaoView.push(`${betweenStr}`);
       }
       if (transacaoView.isPreviousDays) {

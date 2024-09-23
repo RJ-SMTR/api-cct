@@ -156,14 +156,14 @@ LIMIT 5
         fullName: 'Simone Costa',
         email: 'simonecosta.smtr@gmail.com',
         password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.admin_finan),
+        role: new Role(RoleEnum.aprovador_financeiro),
         status: new Status(StatusEnum.active),
       },
       {
         fullName: 'Luciana Fernandes',
         email: 'lucianafernandes.smtr@gmail.com',
         password: this.generateRandomPassword(),
-        role: new Role(RoleEnum.admin_finan),
+        role: new Role(RoleEnum.aprovador_financeiro),
         status: new Status(StatusEnum.active),
       },
 
@@ -265,14 +265,6 @@ LIMIT 5
               permitCode: '213890329890749',
               cpfCnpj: this.cpfSamples?.[0],
               role: { id: RoleEnum.user } as Role,
-              status: { id: StatusEnum.active } as Status,
-            },
-            {
-              fullName: 'Administrador Financeiro Teste',
-              email: 'finan.admin@example.com',
-              password: 'ob>&+H%=<!?J',
-              permitCode: 'permitCode_admin',
-              role: { id: RoleEnum.admin_finan } as Role,
               status: { id: StatusEnum.active } as Status,
             },
             {

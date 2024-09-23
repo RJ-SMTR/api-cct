@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { startOfDay } from 'date-fns';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { asCnabFieldDate } from 'src/cnab/utils/cnab/cnab-field-pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial } from 'typeorm';
+import { DeepPartial, FindManyOptions } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { DetalheB } from '../../entity/pagamento/detalhe-b.entity';
 import { DetalheBRepository } from '../../repository/pagamento/detalhe-b.repository';
-import { startOfDay } from 'date-fns';
 
 @Injectable()
 export class DetalheBService {
@@ -23,16 +23,11 @@ export class DetalheBService {
    * @param dtos DTOs that can exist or not in database
    * @returns Saved objects not in database.
    */
-  public saveManyIfNotExists(
-    dtos: DeepPartial<DetalheB>[],
-  ): Promise<DetalheB[]> {
+  public saveManyIfNotExists(dtos: DeepPartial<DetalheB>[]): Promise<DetalheB[]> {
     return this.detalheBRepository.saveManyIfNotExists(dtos);
   }
 
-  public async saveFrom104(
-    registro: CnabRegistros104Pgto,
-    detalheAUpdated: DetalheA,
-  ): Promise<DetalheB> {
+  public async saveFrom104(registro: CnabRegistros104Pgto, detalheAUpdated: DetalheA): Promise<DetalheB> {
     const detalheBRem = await this.detalheBRepository.getOne({
       detalheA: { id: detalheAUpdated.id },
     });
@@ -50,15 +45,11 @@ export class DetalheBService {
     await this.detalheBRepository.save(dto);
   }
 
-  public async findOne(
-    fields: EntityCondition<DetalheB>,
-  ): Promise<Nullable<DetalheB>> {
+  public async findOne(fields: EntityCondition<DetalheB>): Promise<Nullable<DetalheB>> {
     return await this.detalheBRepository.findOne(fields);
   }
 
-  public async findMany(
-    fields: EntityCondition<DetalheB>,
-  ): Promise<DetalheB[]> {
-    return await this.detalheBRepository.findMany({ where: fields });
+  public async findMany(options?: FindManyOptions<DetalheB>): Promise<DetalheB[]> {
+    return await this.detalheBRepository.findMany(options);
   }
 }

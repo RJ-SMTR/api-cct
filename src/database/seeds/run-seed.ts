@@ -12,10 +12,9 @@ import { SettingSeedService } from './setting/setting-seed.service';
 import { StatusSeedService } from './status/status-seed.service';
 import { UserSeedService } from './user/user-seed.service';
 import { TransacaoStatusSeedService } from './transacao-status/transacao-status-seed.service';
-import { HeaderArquivoStatusSeedService } from './header-arquivo-status/header-arquivo-status-seed.service';
-import { ClienteFavorecidoSeedService } from './cliente-favorecido/cliente-favorecido-seed.service';
 import { LancamentoSeedService } from './lancamento/lancamento-seed.service';
 import { differenceInMinutes } from 'date-fns';
+import { ClienteFavorecidoSeedService } from './cliente-favorecido/cliente-favorecido-seed.service';
 
 // Save BRT time before set UTC
 const localDateStr = new Date().toString();
@@ -31,7 +30,6 @@ const runSeed = async () => {
   let services = [
     RoleSeedService,
     TransacaoStatusSeedService,
-    HeaderArquivoStatusSeedService,
     StatusSeedService,
     InfoSeedService,
     BankSeedService,

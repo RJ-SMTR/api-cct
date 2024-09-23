@@ -3,7 +3,7 @@ import { differenceInDays, endOfDay, endOfMonth, startOfDay, startOfMonth, subDa
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
-import { formatDateYMD } from 'src/utils/date-utils';
+import { formatDateISODate } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { getPaymentDates, getPaymentWeek } from 'src/utils/payment-date-utils';
@@ -131,8 +131,8 @@ export class BankStatementsService {
     });
     const revenuesResponse = await this.ticketRevenuesService.getMe(
       {
-        startDate: formatDateYMD(transacaoViewDaily.startDate),
-        endDate: formatDateYMD(transacaoViewDaily.endDate),
+        startDate: formatDateISODate(transacaoViewDaily.startDate),
+        endDate: formatDateISODate(transacaoViewDaily.endDate),
         userId: args?.user.id,
         groupBy: 'day',
       },
@@ -182,8 +182,8 @@ export class BankStatementsService {
         amount,
         paidAmount,
         cpfCnpj: args.user.getCpfCnpj(),
-        date: formatDateYMD(endDate),
-        effectivePaymentDate: isPago ? formatDateYMD(endDate) : null,
+        date: formatDateISODate(endDate),
+        effectivePaymentDate: isPago ? formatDateISODate(endDate) : null,
         permitCode: args.user.getPermitCode(),
         status,
         errors: errors,
@@ -234,7 +234,7 @@ export class BankStatementsService {
 
     return {
       user: user,
-      endDate: args.endDate || formatDateYMD(new Date(Date.now())),
+      endDate: args.endDate || formatDateISODate(new Date(Date.now())),
       timeInterval: args.timeInterval as unknown as TimeIntervalEnum,
     };
   }

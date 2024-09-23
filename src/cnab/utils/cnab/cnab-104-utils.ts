@@ -1,7 +1,7 @@
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { CnabCodigoSegmento } from 'src/cnab/enums/all/cnab-codigo-segmento.enum';
 import { CnabFile104 } from '../../interfaces/cnab-240/104/cnab-file-104.interface';
-import { CnabHeaderArquivo104 } from '../../interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
+import { CnabHeaderArquivo104 } from '../../dto/cnab-240/104/cnab-header-arquivo-104.dto';
 import { CnabLote104 } from '../../interfaces/cnab-240/104/cnab-lote-104.interface';
 import { CnabRegistros104 } from '../../interfaces/cnab-240/104/cnab-registros-104.interface';
 import { CnabTrailerArquivo104 } from '../../interfaces/cnab-240/104/cnab-trailer-arquivo-104.interface';
@@ -16,13 +16,7 @@ import { cnab104ExtratoTemplates } from '../../templates/cnab-240/104/extrato/cn
 import { Cnab104PgtoTemplates as PgtoTemplates } from '../../templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { getCnabFileFrom104 } from './cnab-104-pipe-utils';
 import { setCnabFileMetadata } from './cnab-metadata-utils';
-import {
-  getCnabMappedValue,
-  parseCnabFile,
-  processCnabFile,
-  removeCnabDetalheZ,
-  stringifyCnabFile,
-} from './cnab-utils';
+import { getCnabMappedValue, parseCnabFile, processCnabFile, removeCnabDetalheZ, stringifyCnabFile } from './cnab-utils';
 
 const sc = structuredClone;
 
@@ -43,11 +37,7 @@ export function parseCnab240Pagamento(cnabString: string): CnabFile104Pgto {
 /**
  * Validate, process and transform raw cnab into string
  */
-export function stringifyCnab104File<T extends CnabFile104>(
-  cnab104: T,
-  process = true,
-  cnabName?: string,
-): [string, T] {
+export function stringifyCnab104File<T extends CnabFile104>(cnab104: T, process = true, cnabName?: string): [string, T] {
   const _cnab104 = process ? getProcessedCnab104(cnab104, cnabName) : cnab104;
   const cnab = getCnabFileFrom104(_cnab104);
   // TODO: não está setando formaLancamento = 01 vs 41 no stringify CONTINUAR AQUI...
@@ -61,10 +51,7 @@ export function stringifyCnab104File<T extends CnabFile104>(
  *
  * @param cnabName CnabName for debugging
  */
-export function getProcessedCnab104<T extends CnabFile104>(
-  cnab104: T,
-  cnabName?: string,
-): T {
+export function getProcessedCnab104<T extends CnabFile104>(cnab104: T, cnabName?: string): T {
   validateCnab104File(cnab104);
   const newCnab104 = structuredClone(cnab104);
   setCnabFileMetadata(newCnab104, cnabName);
@@ -84,9 +71,7 @@ export function validateUniqueCnab104Lotes(lotes: CnabLote104[]) {
       ...l,
       {
         // ICnab240_104HeaderLotePgto
-        ...('tipoCompromisso' in i.headerLote
-          ? { tipoCompromisso: i.headerLote.tipoCompromisso.value }
-          : {}),
+        ...('tipoCompromisso' in i.headerLote ? { tipoCompromisso: i.headerLote.tipoCompromisso.value } : {}),
         formaLancamento: i.headerLote.formaLancamento.value,
       },
     ],
@@ -95,18 +80,13 @@ export function validateUniqueCnab104Lotes(lotes: CnabLote104[]) {
   const loteTypes = lotes.reduce(
     (l, i) => [
       ...l,
-      `${i.headerLote.formaLancamento.value}|` +
-        `${i.headerLote?.['tipoCompromisso']?.value}`, // ICnab240_104HeaderLotePgto only
+      `${i.headerLote.formaLancamento.value}|` + `${i.headerLote?.['tipoCompromisso']?.value}`, // ICnab240_104HeaderLotePgto only
     ],
     [],
   );
   const uniqueLoteTypes = [...new Set(loteTypes)];
   if (loteTypes.length !== uniqueLoteTypes.length) {
-    throw new Error(
-      'Each headerLote must have unique combination of ' +
-        "`tipoCompromisso` and 'formaLancamento' but there are repeated ones " +
-        `(${JSON.stringify(loteTypesDict)})`,
-    );
+    throw new Error('Each headerLote must have unique combination of ' + "`tipoCompromisso` and 'formaLancamento' but there are repeated ones " + `(${JSON.stringify(loteTypesDict)})`);
   }
 }
 
@@ -129,9 +109,7 @@ function processCnab104TrailerLote(lote: CnabLote104) {
 }
 
 function getSomarioValoresCnabLote(lote: CnabLote104): number {
-  const original = lote.registros.map((i) =>
-    Number(i.detalheA?.valorLancamento?.convertedValue || 0),
-  );
+  const original = lote.registros.map((i) => Number(i.detalheA?.valorLancamento?.convertedValue || 0));
   const rounded = original.map((i) => Number(i.toFixed(2)));
   const sum = rounded.reduce((num, sum) => sum + num, 0);
   return sum;
@@ -147,8 +125,7 @@ export function getCnab104FromFile(cnab: CnabFile): CnabFile104 {
     _metadata: { type: 'CnabFile104', extends: cnab._metadata.type },
     headerArquivo: cnab.headerArquivo.fields as unknown as CnabHeaderArquivo104,
     lotes: getCnab104Lotes(cnab.lotes),
-    trailerArquivo: cnab.trailerArquivo
-      .fields as unknown as CnabTrailerArquivo104,
+    trailerArquivo: cnab.trailerArquivo.fields as unknown as CnabTrailerArquivo104,
   };
 }
 
@@ -207,33 +184,12 @@ function getCnab104Registros(lote: CnabLote): CnabRegistros104[] {
  * There are other combinations but for now we just need to deal with these.
  */
 function isCnabRegistroNewLote(registro: CnabRegistro): boolean {
-  return [CnabCodigoSegmento.A, CnabCodigoSegmento.E].includes(
-    getCnabMappedValue(registro, 'detalheSegmentoCodeField'),
-  );
+  return [CnabCodigoSegmento.A, CnabCodigoSegmento.E].includes(getCnabMappedValue(registro, 'detalheSegmentoCodeField'));
 }
 
 // #endregion
 
 export function getCnab104Errors(cnab: CnabFile104Pgto) {
-  const cnabErrors = [
-    ...Ocorrencia.getErrorCodesFromString(
-      cnab.headerArquivo.ocorrenciaCobrancaSemPapel.value,
-    ),
-    ...cnab.lotes.reduce(
-      (l, i) => [
-        ...l,
-        ...i.registros.reduce(
-          (l1, i1) => [
-            ...l1,
-            ...Ocorrencia.getErrorCodesFromString(
-              i1.detalheA.ocorrencias.value,
-            ),
-          ],
-          [],
-        ),
-      ],
-      [],
-    ),
-  ];
+  const cnabErrors = [...Ocorrencia.getErrorCodesFromString(cnab.headerArquivo.ocorrenciaCobrancaSemPapel.value), ...cnab.lotes.reduce((l, i) => [...l, ...i.registros.reduce((l1, i1) => [...l1, ...Ocorrencia.getErrorCodesFromString(i1.detalheA.ocorrencias.value)], [])], [])];
   return cnabErrors;
 }

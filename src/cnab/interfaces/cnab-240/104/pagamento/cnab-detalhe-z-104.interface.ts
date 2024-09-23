@@ -3,7 +3,7 @@ import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-all/cnab-field.
 /**
  * PAGAMENTO DE SALÁRIOS, PAGAMENTO/CRÉDITO A FORNECEDOR E AUTOPAGAMENTO E DÉBITO AUTOMÁTICO
  *
- * @version v032 micro - FEV/2024
+ * @version v035 micro - 2024/09
  *
  * @extends {CnabFields}
  */
