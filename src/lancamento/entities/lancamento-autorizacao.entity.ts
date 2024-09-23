@@ -1,7 +1,7 @@
 import { Expose } from 'class-transformer';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import { CreateDateColumn, DeepPartial, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { CreateDateColumn, DeepPartial, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Lancamento } from './lancamento.entity';
 
 export interface ILancamentoAutorizacao {
@@ -35,7 +35,7 @@ export class LancamentoAutorizacao extends EntityHelper implements ILancamentoAu
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_LancamentoAutorizacao_id' })
   id: number;
 
-  @ManyToOne(() => Lancamento, (lancamento) => lancamento.autorizacoes, { onDelete: 'CASCADE', onUpdate: 'CASCADE' })
+  @ManyToOne(() => Lancamento, (lancamento) => lancamento.autorizacoes, { onDelete: 'CASCADE', onUpdate: 'CASCADE', eager: false })
   @JoinColumn({ foreignKeyConstraintName: 'FK_LancamentoAutorizacao_lancamento' })
   @Index('IDX_LancamentoAutorizacao_lancamento')
   lancamento: Lancamento;

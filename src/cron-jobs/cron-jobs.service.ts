@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, startOfDay, subDays, subHours } from 'date-fns';
-import { CnabService } from 'src/cnab/cnab.service';
+import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
@@ -18,7 +18,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { formatDateInterval, formatDateYMD } from 'src/utils/date-utils';
+import { formatDateInterval, formatDateISODate } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -95,7 +95,7 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
           onTick: async () => {
-            await this.updateRetorno();
+            await this.saveRetornoPagamento();
           },
         },
       },
@@ -389,7 +389,7 @@ export class CronJobsService {
     try {
       const startDate = subDays(new Date(), 30);
       const today = new Date();
-      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, method);
+      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateISODate(startDate)} e ${formatDateISODate(today)}`, method);
       await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [startDate, today] });
       this.logger.log(`Trefa finalizada com sucesso.`, method);
     } catch (error) {
@@ -806,7 +806,7 @@ export class CronJobsService {
     }
   }
 
-  async sendRemessa(listCnab: string[]) {
+  async sendRemessa(listCnab: ICnabInfo[]) {
     const METHOD = this.sendRemessa.name;
     try {
       this.logger.log('Iniciando tarefa.', METHOD);
@@ -817,20 +817,20 @@ export class CronJobsService {
     }
   }
 
-  async updateRetorno() {
-    const METHOD = this.updateRetorno.name;
+  async saveRetornoPagamento() {
+    const METHOD = this.saveRetornoPagamento.name;
     try {
-      await this.cnabService.updateRetorno();
+      await this.cnabService.readRetornoPagamento();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
     }
   }
 
-  async saveExtrato() {
-    const METHOD = this.saveExtrato.name;
+  async readRetornoExtrato() {
+    const METHOD = 'readRetornoExtrato';
     try {
-      await this.cnabService.saveExtrato();
+      await this.cnabService.readRetornoExtrato();
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
       this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);

@@ -2,6 +2,7 @@ import { EntityHelper } from 'src/utils/entity-helper';
 import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { HeaderArquivo } from './header-arquivo.entity';
 import { Pagador } from './pagador.entity';
+import { Cnab104CodigoCompromisso } from 'src/cnab/enums/104/cnab-104-codigo-compromisso.enum';
 
 /**
  * Pagamento.HeaderLote
@@ -47,6 +48,10 @@ export class HeaderLote extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true })
   tipoCompromisso: string;
 
+  /** Definido pelo banco, se é teste ou produção */
+  @Column({ enum: Cnab104CodigoCompromisso, unique: false, nullable: false, default: Cnab104CodigoCompromisso.Producao })
+  codigoCompromisso: Cnab104CodigoCompromisso;
+  
   @Column({ type: String, unique: false, nullable: true })
   parametroTransmissao: string;
 

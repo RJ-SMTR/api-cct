@@ -8,7 +8,7 @@ import { DataSource, DeepPartial, EntityManager, FindManyOptions, In, LessThanOr
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
-import { formatDateYMD } from 'src/utils/date-utils';
+import { formatDateISODate } from 'src/utils/date-utils';
 
 export interface TransacaoViewFindRawOptions {
   where: {
@@ -99,6 +99,7 @@ export class TransacaoViewRepository {
             AND tv."datetimeTransacao"::DATE 
 	          BETWEEN (it."dataOrdem"::DATE) - INTERVAL '1 DAYS' AND (it."dataOrdem"::DATE)
         WHERE (1=1) ${where.length ? `AND ${where.join(' AND ')}` : ''}
+
         ORDER BY tv.id ASC, ita.id DESC
     ) associados
     WHERE id = associados.tv_id
@@ -218,11 +219,11 @@ export class TransacaoViewRepository {
       qWhere.push(`${tv.operadoraCpfCnpj} IN ('${options.where?.operadoraCpfCnpj.join("','")}')`);
     }
     if (options?.where?.datetimeTransacao) {
-      const betweenStr = options.where.datetimeTransacao.between.map(([start, end]) => `${tv.datetimeTransacao}::DATE BETWEEN '${formatDateYMD(start)}' AND '${formatDateYMD(end)}'`).join(' OR ');
+      const betweenStr = options.where.datetimeTransacao.between.map(([start, end]) => `${tv.datetimeTransacao}::DATE BETWEEN '${formatDateISODate(start)}' AND '${formatDateISODate(end)}'`).join(' OR ');
       qWhere.push(`(${betweenStr})`);
     }
     if (options?.where?.datetimeProcessamento) {
-      const betweenStr = options.where.datetimeProcessamento.between.map(([start, end]) => `${tv.datetimeProcessamento}::DATE BETWEEN '${formatDateYMD(start)}' AND '${formatDateYMD(end)}'`).join(' OR ');
+      const betweenStr = options.where.datetimeProcessamento.between.map(([start, end]) => `${tv.datetimeProcessamento}::DATE BETWEEN '${formatDateISODate(start)}' AND '${formatDateISODate(end)}'`).join(' OR ');
       qWhere.push(`(${betweenStr})`);
     }
 
