@@ -129,9 +129,9 @@ export class TicketRevenueDTO {
   /** Valor bruto debitado na transação atual (R$) */
   transactionValue: number | null;
 
-  /** 
+  /**
    * Valor a ser pago - valor líquido calculado.
-   * 
+   *
    * Se não houve pagamento o valor também é zero.
    */
   paidValue: number;
@@ -149,6 +149,16 @@ export class TicketRevenueDTO {
   /** DetalheA->Ocorrencias */
   @Exclude()
   ocorrencias: Ocorrencia[] = [];
+
+  /**
+   * Verifica se foi pago ou se não possui valor a pagar.
+   *
+   * Pois no sincronismo já aconteceu de termos TransacaoView gratuidade sem associação com Ordem, resultando em `isPago = false` no agrupamento e quebrando a lógica ([#475](https://github.com/RJ-SMTR/api-cct/issues/475)).
+   * Por isso usamos essa lógica quando necessário.
+   */
+  getIsPagoOrNoValue() {
+    return this.isPago || (!this.transactionValue && !this.paidValue);
+  }
 
   /**
    * Apenas soma se status = pago

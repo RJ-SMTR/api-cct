@@ -169,11 +169,11 @@ export class TicketRevenuesGroupDto {
     for (const [_groupKey, groupValue] of Object.entries(this)) {
       const groupKey = _groupKey as keyof TicketRevenuesGroupDto;
       if (groupKey === 'isPago') {
-        if (!newItem?.isPago) {
+        if (!newItem.getIsPagoOrNoValue()) {
           this[groupKey] = false;
         }
       } else if (groupKey === 'errors') {
-        if (!newItem?.isPago) {
+        if (!newItem.getIsPagoOrNoValue()) {
           this[groupKey] = Ocorrencia.joinUniqueCode(this[groupKey], errors);
         }
       } else if (TicketRevenuesGroupDto.COUNT_PROPS.includes(groupKey)) {

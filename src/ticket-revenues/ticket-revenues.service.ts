@@ -173,7 +173,7 @@ export class TicketRevenuesService {
     const revenues = await this.ticketRevenuesRepository.findManyIndividual({
       where: {
         transacaoView: {
-          datetimeTransacao: {
+          datetimeProcessamento: {
             between: [
               [args?.startDate || new Date(0), args?.endDate || new Date()], //
               ...(args.getToday ? [[today, today] as [Date, Date]] : []),
@@ -261,14 +261,11 @@ export class TicketRevenuesService {
           aux_epochWeek: nthWeek,
           aux_nthWeeks: [],
           aux_groupDateTime: itemDate.toISOString(),
-          isPago: revenue.isPago,
-          errors: errors,
+          isPago: true,
+          errors: [],
         });
         group[dateGroup] = newGroup;
-      } else {
-        group[dateGroup].errors = [...new Set([...group[dateGroup].errors, ...errors])];
       }
-
       group[dateGroup].appendItem(revenue);
       return group;
     }, {});
