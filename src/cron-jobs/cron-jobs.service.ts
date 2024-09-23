@@ -390,7 +390,7 @@ export class CronJobsService {
     try {
       const startDate = subDays(new Date(), 30);
       const today = new Date();
-      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, method);
+      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateISODate(startDate)} e ${formatDateISODate(today)}`, method);
       const consorcios:string[]=[];
       if(method === 'generateRemessaVan'){
          consorcios.push('STPC');
