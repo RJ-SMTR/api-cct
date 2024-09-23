@@ -121,7 +121,7 @@ export class CronJobsService {
       {
         /**
          * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min
-         * + BD do CCT - Sincronizar Transações da Ordem Pagto com Trnas. VIEW
+         * + BD do CCT - Sincronizar Transações - DLake para CCT
          */
         name: CronJobsEnum.generateRemessaVan,
         cronJobParameters: {
@@ -263,6 +263,7 @@ export class CronJobsService {
   /**
    * Gera na quinta, paga na sexta.
    */
+  //TODO: GERAR PAGAMENTO SEXTA 
   async generateRemessaEmpresa(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaEmpresa';
     try {
@@ -389,8 +390,13 @@ export class CronJobsService {
     try {
       const startDate = subDays(new Date(), 30);
       const today = new Date();
-      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateISODate(startDate)} e ${formatDateISODate(today)}`, method);
-      await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between: [startDate, today] });
+      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateYMD(startDate)} e ${formatDateYMD(today)}`, method);
+      const consorcios:string[]=[];
+      if(method === 'generateRemessaVan'){
+         consorcios.push('STPC');
+         consorcios.push('STPL');
+      }
+      await this.cnabService.syncTransacaoViewOrdemPgto({ consorcio: consorcios , dataOrdem_between: [startOfDay(startDate),endOfDay(today)] });
       this.logger.log(`Trefa finalizada com sucesso.`, method);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, method);
