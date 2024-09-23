@@ -52,4 +52,13 @@ export const cnabSettings = {
     editable: false,
     settingType: SettingTypeEnum.number,
   } as ISettingData,
+
+  any__cnab_current_nsa_test: {
+    name: 'cnab_current_nsa_test',
+    /** Starts with 0, next will be 1 */
+    value: '0',
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.number,
+  } as ISettingData,
 };

@@ -7,14 +7,14 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial, FindManyOptions, FindOneOptions, In, InsertResult, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 
-import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
-import { formatDateYMD } from 'src/utils/date-utils';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { compactQuery } from 'src/utils/console-utils';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 
 export interface IDetalheARawWhere {
   id?: number[];
   numeroDocumentoEmpresa?: number;
+  headerLoteId_in?: number[];
 }
 
 @Injectable()
@@ -86,6 +86,8 @@ export class DetalheARepository {
     } else if (where.numeroDocumentoEmpresa) {
       qWhere.query = `WHERE da."numeroDocumentoEmpresa" = $1`;
       qWhere.params = [where.numeroDocumentoEmpresa];
+    } else if (where.headerLoteId_in) {
+      qWhere.query = `WHERE hl.id IN(${where.headerLoteId_in.join(',')})`;
     }
     const result: any[] = await this.detalheARepository.query(
       compactQuery(`
@@ -96,16 +98,16 @@ export class DetalheARepository {
           da."ocorrenciasCnab", da."periodoVencimento", da."quantidadeMoeda"::FLOAT,
           da."quantidadeParcelas", da."tipoMoeda", da."updatedAt", da."valorLancamento"::FLOAT,
           da."valorRealEfetivado"::FLOAT,
-          json_build_object(
+          JSON_BUILD_OBJECT(
               'id', da."itemTransacaoAgrupadoId",
-              'transacaoAgrupado', json_build_object(
+              'transacaoAgrupado', JSON_BUILD_OBJECT(
                   'id', ta.id,
-                  'status', json_build_object('id', ts.id, 'name', ts.name)
+                  'status', JSON_BUILD_OBJECT('id', ts.id, 'name', ts.name)
               )
           ) AS "itemTransacaoAgrupado",
-          json_build_object(
+          JSON_BUILD_OBJECT(
               'id', hl.id,
-              'headerArquivo', json_build_object('id', ha.id, 'dataGeracao', ha."dataGeracao")
+              'headerArquivo', JSON_BUILD_OBJECT('id', ha.id, 'dataGeracao', ha."dataGeracao")
           ) AS "headerLote"
       FROM detalhe_a da
       INNER JOIN header_lote hl ON da."headerLoteId" = hl.id

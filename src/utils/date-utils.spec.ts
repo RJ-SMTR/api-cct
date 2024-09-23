@@ -1,4 +1,4 @@
-import { getNthWeek, isPaymentWeekComplete, isSameNthWeek } from './date-utils';
+import { formatDateISODate, formatDateISODateSlash, getDateFromCnabName, getNthWeek, isPaymentWeekComplete, isSameNthWeek } from './date-utils';
 import { WeekdayEnum } from './enums/weekday.enum';
 
 process.env.TZ = 'UTC';
@@ -46,9 +46,7 @@ describe('date-utils', () => {
      * ```
      */ () => {
       // Arrange
-      jest
-        .spyOn(global.Date, 'now')
-        .mockImplementation(() => new Date('2024-02-09').valueOf());
+      jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2024-02-09').valueOf());
 
       // Act
       const isComplete = isPaymentWeekComplete(new Date('2024-02-07'));
@@ -98,9 +96,7 @@ describe('date-utils', () => {
      * ```
      */ () => {
       // Arrange
-      jest
-        .spyOn(global.Date, 'now')
-        .mockImplementation(() => new Date('2024-02-12').valueOf());
+      jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2024-02-12').valueOf());
 
       // Act
       const isComplete = isPaymentWeekComplete(new Date('2024-02-07'));
@@ -150,9 +146,7 @@ describe('date-utils', () => {
      * ```
      */ () => {
       // Arrange
-      jest
-        .spyOn(global.Date, 'now')
-        .mockImplementation(() => new Date('2024-02-08').valueOf());
+      jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2024-02-08').valueOf());
 
       // Act
       const isComplete = isPaymentWeekComplete(new Date('2024-02-07'));
@@ -202,9 +196,7 @@ describe('date-utils', () => {
      * ```
      */ () => {
       // Arrange
-      jest
-        .spyOn(global.Date, 'now')
-        .mockImplementation(() => new Date('2024-02-02').valueOf());
+      jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2024-02-02').valueOf());
 
       // Act
       const isComplete = isPaymentWeekComplete(new Date('2024-02-07'));
@@ -237,11 +229,7 @@ describe('date-utils', () => {
      * ```
      */ () => {
       // Act
-      const isTheSame = isSameNthWeek(
-        new Date('2023-02-03'),
-        new Date('2023-02-09'),
-        WeekdayEnum._5_FRIDAY,
-      );
+      const isTheSame = isSameNthWeek(new Date('2023-02-03'), new Date('2023-02-09'), WeekdayEnum._5_FRIDAY);
 
       // Assert
       expect(isTheSame).toBeTruthy();
@@ -280,6 +268,75 @@ describe('date-utils', () => {
       expect(test._11qua).toEqual(2840);
       expect(test._12qui).toEqual(2840);
       expect(test._13sex).toEqual(2841);
+    });
+  });
+
+  describe('formatDateISODate', () => {
+    it('Should return ISO date correctly', () => {
+      // Arrange
+      const date = new Date('2024-09-20T01:02:03');
+      // Act
+      const result = formatDateISODate(date);
+      // Assert
+      expect(result).toEqual('2024-09-20');
+    });
+  });
+
+  describe('formatDateISODateSlash', () => {
+    it('Should return ISO date with slashes', () => {
+      // Arrange
+      const date = new Date('2024-09-20T01:02:03');
+      // Act
+      const result = formatDateISODateSlash(date);
+      // Assert
+      expect(result).toEqual('2024/09/20');
+    });
+  });
+
+  describe('getDateFromCnabName', () => {
+    it('Should throw error when cnab name is invalid', () => {
+      // Arrange
+      const cnabName = 'smtr_prefeiturarj_05042024_114658';
+      // Act
+      const response = () => getDateFromCnabName(cnabName);
+      // Assert
+      expect(response).toThrowError();
+    });
+
+    it('Should throw error when cnab date is invalid', () => {
+      // Arrange
+      const cnabName = 'smtr_prefeiturarj_04-04-24/114658.ret';
+      // Act
+      const response = () => getDateFromCnabName(cnabName);
+      // Assert
+      expect(response).toThrowError();
+    });
+
+    it('Should return Date for retornoPagamento', () => {
+      // Arrange
+      const cnabName = 'smtr_prefeiturarj_05042024_114658.ret';
+      // Act
+      const date = getDateFromCnabName(cnabName);
+      // Assert
+      expect(date).toEqual(new Date('2024-04-05T11:46:58'));
+    });
+
+    it('Should return Date for retornoExtrato', () => {
+      // Arrange
+      const cnabName = 'smtr_prefeiturarj_eediario_05042024_114658.ext';
+      // Act
+      const date = getDateFromCnabName(cnabName);
+      // Assert
+      expect(date).toEqual(new Date('2024-04-05T11:46:58'));
+    });
+
+    it('Should return Date for retornoComprovante', () => {
+      // Arrange
+      const cnabName = 'smtr_prefeiturarj_05042024_114658.cmp';
+      // Act
+      const date = getDateFromCnabName(cnabName);
+      // Assert
+      expect(date).toEqual(new Date('2024-04-05T11:46:58'));
     });
   });
 });

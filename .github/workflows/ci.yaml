@@ -7,7 +7,7 @@ on:
     branches: [develop]
     paths-ignore:
       - 'README.md'
-      - 'docs'
+      - 'docs/**'
 
 jobs:
   lint:

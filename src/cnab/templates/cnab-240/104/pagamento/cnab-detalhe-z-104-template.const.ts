@@ -6,7 +6,7 @@ import { CnabDetalheZ_104 } from 'src/cnab/interfaces/cnab-240/104/pagamento/cna
 /**
  * PAGAMENTO DE SALÁRIOS, PAGAMENTO/CRÉDITO A FORNECEDOR E AUTOPAGAMENTO E DÉBITO AUTOMÁTICO
  *
- * @version v032 micro - FEV/2024 - **Customizado**
+ * @version v035 micro - 2024/09 - **CUSTOMIZADO**
  */
 export const cnabDetalheZ104Template: CnabDetalheZ_104 = {
   /** Z.01 */
@@ -29,16 +29,16 @@ export const cnabDetalheZ104Template: CnabDetalheZ_104 = {
    * Z.07 - Autenticação Bancária / Protocolo
    *
    * Número do Comprovante de Pagamento gerado após a efetivação do Débito em Conta ou Autenticação Bancária / Protocolo.
-   * 
-   * TODO: No PDF o picture é 9(025), mas o retorno mostra letras e números. Foi erro deles ou usamos um DetalheZ diferente aqui?
-  */
- comprovanteAutenticacao: { pos: [79, 103], picture: 'X(025)', value: ' '.repeat(25), ...Cnab.insert.d() },
- /**
-  * Z.08 - Ocorrências
-  *
-  * Uso exclusivo FEBRABAN – enviado com espaços
-  * 
-  * TODO: No PDF o picture é 9(000). Eles esqueceram de botar a numeração ou Picture 0 significa _qualquer comprimento_?
-  */
+   *
+   * CUSTOMIZADO: No PDF o picture é 9(025), mas o retorno mostra letras e números. Foi erro deles ou usamos um DetalheZ diferente aqui?
+   */
+  comprovanteAutenticacao: { pos: [79, 103], picture: 'X(025)', value: ' '.repeat(25), ...Cnab.insert.d() },
+  /**
+   * Z.08 - Ocorrências
+   *
+   * Uso exclusivo FEBRABAN – enviado com espaços
+   *
+   * CUSTOMIZADO: No PDF o picture é 9(000). Eles esqueceram de botar a numeração ou Picture 0 significa _qualquer comprimento_?
+   */
   usoExclusivoFebraban2: { pos: [104, 240], picture: '9(137)', value: '0'.repeat(136), ...Cnab.insert.d() },
 };

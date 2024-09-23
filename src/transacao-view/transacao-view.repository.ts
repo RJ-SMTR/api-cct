@@ -9,6 +9,7 @@ import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
 import { formatDateYMD } from 'src/utils/date-utils';
+import { endOfDay, startOfDay } from 'date-fns';
 
 export interface TransacaoViewFindRawOptions {
   where: {
@@ -66,10 +67,16 @@ export class TransacaoViewRepository {
   public async syncOrdemPgto(args?: ISyncOrdemPgto) {
     const METHOD = 'syncOrdemPgto';
     const where: string[] = [];
-    if (args?.dataOrdem_between) {
+    if (args?.dataOrdem_between) {      
       const [start, end] = args.dataOrdem_between.map((d) => d.toISOString());
-      where.push(`DATE(tv."datetimeTransacao") BETWEEN (DATE('${start}') - INTERVAL '1 DAY') AND '${end}'`);
+      where.push(`DATE(tv."datetimeTransacao") BETWEEN (DATE('${start}') - INTERVAL '1 DAY') 
+      AND '${end}'`);
+    }    
+
+    if(args?.consorcio){
+      where.push(` it."nomeConsorcio" in('${args.consorcio.join("','")}')`)
     }
+
     if (args?.nomeFavorecido?.length) {
       where.push(`cf.nome ILIKE ANY(ARRAY['%${args.nomeFavorecido.join("%', '%")}%'])`);
     }
@@ -81,17 +88,13 @@ export class TransacaoViewRepository {
         SELECT
             DISTINCT ON (tv.id)
             tv.id AS tv_id,
-            (select ia.id from item_transacao_agrupado ia
-	                        where ia."idOrdemPagamento" = ita."idOrdemPagamento"
-	                          and ia."idOperadora" = ita."idOperadora" 
-	                          and ia."dataOrdem" = ita."dataOrdem"
-						      and ia."createdAt" =(select max(itt."createdAt") from item_transacao_agrupado itt 
-												     where ia."idOrdemPagamento" = itt."idOrdemPagamento"
-													  and ia."idOperadora" = itt."idOperadora" 
-													  and ia."dataOrdem" = itt."dataOrdem") ) as ita_id,
+            ita.id ita_id,
+            ita."valor",
+            tv."valorPago",
             tv."datetimeTransacao",
-            tv."datetimeProcessamento",
-            ita."dataOrdem"
+            it."dataOrdem",
+            it."dataCaptura",
+            da."dataVencimento"	 
         FROM item_transacao_agrupado ita
         INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
         INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
@@ -100,14 +103,14 @@ export class TransacaoViewRepository {
             ON tv."idConsorcio" = ita."idConsorcio"
             AND tv."idOperadora" = ita."idOperadora"
             AND tv."operadoraCpfCnpj" = cf."cpfCnpj"
-        AND tv."datetimeTransacao"::DATE BETWEEN
-            (ita."dataCaptura"::DATE - (CASE WHEN ita."nomeConsorcio" = 'VLT' THEN INTERVAL '2 DAYS' ELSE INTERVAL '8 DAYS' END))  -- VENCIMENTO - 2 SE VLT; SENÃO QUINTA PGTO
-            AND (DATE(ita."dataCaptura") - INTERVAL '2 DAYS')  -- VENCIMENTO - 2 (OU QUARTA PGTO SE NÃO for VLT)
+            AND tv."datetimeTransacao"::DATE 
+	          BETWEEN (it."dataOrdem"::DATE) - INTERVAL '1 DAYS' AND (it."dataOrdem"::DATE)
         WHERE (1=1) ${where.length ? `AND ${where.join(' AND ')}` : ''}
+
         ORDER BY tv.id ASC, ita.id DESC
     ) associados
-    WHERE id = associados.tv_id
-    `;
+    WHERE id = associados.tv_id  `;
+
     this.logger.debug('query: ' + compactQuery(query), METHOD);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -223,11 +226,11 @@ export class TransacaoViewRepository {
       qWhere.push(`${tv.operadoraCpfCnpj} IN ('${options.where?.operadoraCpfCnpj.join("','")}')`);
     }
     if (options?.where?.datetimeTransacao) {
-      const betweenStr = options.where.datetimeTransacao.between.map(([start, end]) => `${tv.datetimeTransacao}::DATE BETWEEN '${formatDateYMD(start)}' AND '${formatDateYMD(end)}'`).join(' OR ');
+      const betweenStr = options.where.datetimeTransacao.between.map(([start, end]) => `${tv.datetimeTransacao}::DATE BETWEEN '${formatDateISODate(start)}' AND '${formatDateISODate(end)}'`).join(' OR ');
       qWhere.push(`(${betweenStr})`);
     }
     if (options?.where?.datetimeProcessamento) {
-      const betweenStr = options.where.datetimeProcessamento.between.map(([start, end]) => `${tv.datetimeProcessamento}::DATE BETWEEN '${formatDateYMD(start)}' AND '${formatDateYMD(end)}'`).join(' OR ');
+      const betweenStr = options.where.datetimeProcessamento.between.map(([start, end]) => `${tv.datetimeProcessamento}::DATE BETWEEN '${formatDateISODate(start)}' AND '${formatDateISODate(end)}'`).join(' OR ');
       qWhere.push(`(${betweenStr})`);
     }
 
@@ -280,7 +283,7 @@ export class TransacaoViewRepository {
     }
     const raw: any[] = await this.transacaoViewRepository.query(
       compactQuery(`
-      SELECT ${tv.id}, ${tv.idTransacao}, ${tv.valorPago}::FLOAT, ${tv.tipoTransacao}, ${tv.idOperadora}
+      SELECT ${tv.id}, ${tv.idTransacao}, ${tv.valorPago}::FLOAT, ${tv.tipoTransacao}, ${tv.idOperadora}, ${tv.operadoraCpfCnpj}
       FROM transacao_view tv
       ${qWhere.length ? `WHERE ${qWhere.join(' AND ')}` : ''}
       ORDER BY ${tv.id} DESC
