@@ -565,9 +565,9 @@ export class CnabService {
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+    const listCnab: ICnabInfo[] = [];
     try {
       await queryRunner.startTransaction();
-      const listCnab: ICnabInfo[] = [];
       if (!isCancelamento) {
         const transacoesAg = await this.transacaoAgService.findAllNewTransacao(tipo);
         if (!transacoesAg.length) {
@@ -594,14 +594,18 @@ export class CnabService {
         }
       } else {
         if (this.validateCancel(nsaInicial, nsaFinal)) {
+          this.logger.warn('Cancelamento de validação detectado, não haverá remessas para enviar..');
           return [];
         }
 
-        for (let index = nsaInicial; nsaInicial < nsaFinal + 1; nsaInicial++) {
-          const headerArquivo = await this.getHeaderArquivoCancelar(index);
+        if (!listCnab.length && nsaInicial >= nsaFinal + 1) {
+          this.logger.warn(`nsaInicial não é menor que  nsaFinal + 1, será gerada uma lista vazia (nsaInicial: ${nsaInicial}, nsaFinal: ${nsaFinal})`);
+        }
+        for (let nsa = nsaInicial; nsa < nsaFinal + 1; nsa++) {
+          const headerArquivo = await this.getHeaderArquivoCancelar(nsa);
           const headerArquivoDTO = HeaderArquivoDTO.fromEntity(headerArquivo, false);
           headerArquivoDTO.nsa = await this.settingsService.getNextNSA(isTeste);
-          const lotes = await this.getLotesCancelar(index);
+          const lotes = await this.getLotesCancelar(nsa);
           const headerLoteDTOs: HeaderLoteDTO[] = [];
           let detalhes: CnabRegistros104Pgto[] = [];
           for (const lote of lotes) {
@@ -621,6 +625,7 @@ export class CnabService {
           if (headerArquivo && cnab104) {
             const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
             if (!cnabStr) {
+              this.logger.warn(`Não foi gerado cnabString - (headerArqId: ${headerArquivo.id})`);
               continue;
             }
             listCnab.push({ name: '', content: cnabStr, headerArquivo: HeaderArquivoDTO.fromEntity(headerArquivo, false) });
@@ -628,14 +633,18 @@ export class CnabService {
         }
       }
       await queryRunner.commitTransaction();
-      return listCnab;
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Falha ao salvar Informções agrupadas`, error?.stack);
     } finally {
       await queryRunner.release();
     }
-    return [];
+    if (!listCnab.length) {
+      this.logger.warn('Gerado lista de remessas vazia.');
+    } else {
+      this.logger.warn(`Gerado lista com ${listCnab.length} remessas.`);
+    }
+    return listCnab;
   }
 
   private async updateStatusRemessa(headerArquivoDTO: HeaderArquivoDTO, cnabHeaderArquivo: CnabHeaderArquivo104, transacaoAgId: number) {
