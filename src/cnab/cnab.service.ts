@@ -135,6 +135,10 @@ export class CnabService {
       ...(args?.headerArquivoIds?.length ? { id: In(args.headerArquivoIds) } : {}),
       ...(args?.status ? { status: args.status } : {}),
     });
+
+    if (!headerArquivos.length) {
+      this.logger.log('Não foram encontrados remessas');
+    }
     for (const headerArquivo of headerArquivos) {
       const isTeste = headerArquivo.ambienteCliente === Cnab104AmbienteCliente.Teste;
       const headerArquivoDTO = HeaderArquivoDTO.fromEntity(headerArquivo, false);
@@ -142,15 +146,19 @@ export class CnabService {
       const detalheAs = await this.detalheAService.findManyRaw({ headerLoteId_in: headerLotes.map((hl) => hl.id) });
       const detalheBs = await this.detalheBService.findMany({ where: { detalheA: { id: In(detalheAs.map((da) => da.id)) } }, relations: ['detalheA'] as (keyof DetalheB)[] });
       const itemTransacoes = await this.itemTransacaoService.findMany({ where: { itemTransacaoAgrupado: { id: In(detalheAs.map((da) => da.itemTransacaoAgrupado.id)) } }, order: { id: 'ASC' } });
-      const headerLoteDTOs = HeaderLoteDTO.fromEntities(headerLotes, detalheAs, detalheBs, itemTransacoes);
+      const headerLoteDTOs = HeaderLoteDTO.fromEntities(headerLotes, detalheAs, detalheBs, itemTransacoes, isTeste);
       const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO, headerLoteDTOs, isCancelamento: true, isTeste });
       if (headerArquivo && cnab104) {
         const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
         if (!cnabStr) {
+          this.logger.warn(`Não foi gerado um cnabString - headerArqId: ${headerArquivo.id}`);
           continue;
         }
         listCnab.push({ name: '', content: cnabStr, headerArquivo: headerArquivoDTO });
       }
+    }
+    if (!listCnab.length) {
+      this.logger.log(`Foi gerado uma lista vazia de remessas ao procurar e procecssar`);
     }
     return listCnab;
   }
