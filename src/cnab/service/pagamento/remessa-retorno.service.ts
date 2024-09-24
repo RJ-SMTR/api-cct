@@ -404,7 +404,7 @@ export class RemessaRetornoService {
   public async compareRemessaToRetorno(detalheA: DetalheA, queryRunner: QueryRunner): Promise<void> {
     await this.saveOcorrenciasDetalheA(detalheA, queryRunner);
     await this.saveRetornoPublicacao(detalheA, queryRunner);
-    await this.saveRetornoLancamento(detalheA, queryRunner);
+    // await this.saveRetornoLancamento(detalheA, queryRunner);
   }
 
   async saveOcorrenciasDetalheA(detalheARetorno: DetalheA, queryRunner: QueryRunner) {
