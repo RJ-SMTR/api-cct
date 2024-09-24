@@ -12,6 +12,7 @@ import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
 import { UserHttpException } from 'src/utils/http-exception/user-http-exception';
 import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
+import { LancamentoHistory } from 'src/lancamento/entities/lancamento-history.entity';
 
 /** uniqueConstraintName: `UQ_User_email` */
 @Entity()
@@ -156,6 +157,9 @@ export class User extends EntityHelper {
 
   @ManyToMany(() => Lancamento, (lancamento) => lancamento)
   lancamentos: Lancamento[];
+
+  @ManyToMany(() => Lancamento, (lancamento) => lancamento)
+  lancamentoHistories: LancamentoHistory[];
 
   @Expose({ name: 'aux_isRegistrationComplete' })
   aux_isRegistrationComplete(): boolean {

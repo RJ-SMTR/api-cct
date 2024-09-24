@@ -1,21 +1,11 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { compactQuery } from 'src/utils/console-utils';
 import { SqlDateOperator } from 'src/utils/sql/interfaces/sql-date-operator.interface';
-import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { dateMonthToHumanMonth } from 'src/utils/types/human-month.type';
-import { Between, DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, ObjectLiteral, QueryRunner, Repository, SaveOptions, SelectQueryBuilder, UpdateResult } from 'typeorm';
+import { parseQBDateOperator } from 'src/utils/sql/query-builder.utils';
+import { DeepPartial, DeleteResult, FindManyOptions, FindOneOptions, FindOptionsWhere, QueryRunner, Repository, SaveOptions, SelectQueryBuilder, UpdateResult } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { Lancamento, TLancamento } from '../entities/lancamento.entity';
-import { LancamentoHistory } from '../entities/lancamento-history.entity';
-import { LancamentoAutorizacao } from '../entities/lancamento-autorizacao.entity';
-import { LancamentoAutorizacaoHistory } from '../entities/lancamento-autorizacao-history.entity';
 import { LancamentoStatus } from '../enums/lancamento-status.enum';
-import { parseQBDateOperator } from 'src/utils/sql/query-builder.utils';
-
-// export interface LancamentoUpdateWhere {
-//   transacaoAgrupado: { id: number };
-// }
 
 export interface LancamentoFindWhere {
   detalheA?: { id: number[] };
@@ -38,26 +28,6 @@ export class LancamentoRepository {
     return this.lancamentoRepository.save(entity, options);
   }
 
-  // async updateRaw(set: DeepPartial<Lancamento>, where: LancamentoUpdateWhere): Promise<UpdateResult> {
-  //   return await this.lancamentoRepository
-  //     .createQueryBuilder('lancamento')
-  //     .update()
-  //     .set(set)
-  //     .where(
-  //       compactQuery(`
-  //     id IN (
-  //         SELECT l1.id FROM lancamento l1
-  //         LEFT JOIN item_transacao it ON it.id = l1."itemTransacaoId"
-  //         LEFT JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
-  //         LEFT JOIN transacao_agrupado ta ON ta.id = ita."transacaoAgrupadoId"
-  //         WHERE ta.id = :transacaoAgrupadoId
-  //     )
-  //   `),
-  //       where,
-  //     )
-  //     .execute();
-  // }
-
   update(criteria: FindOptionsWhere<Lancamento>, partialEntity: QueryDeepPartialEntity<Lancamento>, queryRunner?: QueryRunner): Promise<UpdateResult> {
     return (queryRunner?.manager?.getRepository(Lancamento) || this.lancamentoRepository).update(criteria, partialEntity);
   }
@@ -74,7 +44,7 @@ export class LancamentoRepository {
       .leftJoinAndMapOne('lancamento.detalheA', 'detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
       .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id')
       .leftJoinAndMapMany('lancamento.historico', 'lancamento_history', 'lancamentoHistory', 'lancamentoHistory.lancamentoId = lancamento.id')
-      .leftJoinAndSelect('lancamentoHistory.autorizacoes', 'lancamentoAutorizacaoHistory')
+      .leftJoinAndSelect('lancamentoHistory._autorizacoes', 'lancamentoAutorizacaoHistory')
       .leftJoinAndSelect('lancamentoAutorizacaoHistory.user', 'lancamentoAutorizacaoHistory_user');
 
     if (options?.where) {
@@ -119,7 +89,7 @@ export class LancamentoRepository {
       .leftJoinAndMapOne('lancamento.detalheA', 'detalhe_a', 'detalheA', 'detalheA.itemTransacaoAgrupadoId = itemTransacaoAgrupado.id')
       .leftJoinAndMapMany('lancamento.ocorrencias', 'ocorrencia', 'ocorrencia', 'ocorrencia.detalheAId = detalheA.id')
       .leftJoinAndMapMany('lancamento.historico', 'lancamento_history', 'lancamentoHistory', 'lancamentoHistory.lancamentoId = lancamento.id')
-      .leftJoinAndSelect('lancamentoHistory.autorizacoes', 'lancamentoAutorizacaoHistory')
+      .leftJoinAndSelect('lancamentoHistory._autorizacoes', 'lancamentoAutorizacaoHistory')
       .leftJoinAndSelect('lancamentoAutorizacaoHistory.user', 'lancamentoAutorizacaoHistory_user');
 
     if (options?.where) {
