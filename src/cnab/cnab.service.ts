@@ -157,9 +157,6 @@ export class CnabService {
         listCnab.push({ name: '', content: cnabStr, headerArquivo: headerArquivoDTO });
       }
     }
-    if (!listCnab.length) {
-      this.logger.log(`Foi gerado uma lista vazia de remessas ao procurar e procecssar`);
-    }
     return listCnab;
   }
 
@@ -259,10 +256,11 @@ export class CnabService {
   public async sendRemessa(listCnab: ICnabInfo[]) {
     for (const cnab of listCnab) {
       cnab.name = await this.sftpService.submitCnabRemessa(cnab.content);
+      const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
       if (cnab.headerArquivo._isConf) {
-        await this.headerArquivoConfService.save({ id: cnab.headerArquivo.id, remessaName: cnab.name, status: HeaderArquivoStatus._3_remessaEnviado });
+        await this.headerArquivoConfService.save({ id: cnab.headerArquivo.id, remessaName, status: HeaderArquivoStatus._3_remessaEnviado });
       } else {
-        await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName: cnab.name, status: HeaderArquivoStatus._3_remessaEnviado });
+        await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName, status: HeaderArquivoStatus._3_remessaEnviado });
       }
     }
   }
