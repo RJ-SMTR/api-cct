@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="TED20fHFzIkpyyNsSODs" name="Página-1">
-        <mxGraphModel dx="1187" dy="1298" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1169" pageHeight="827" background="none" math="0" shadow="0">
+        <mxGraphModel dx="1597" dy="1298" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1169" pageHeight="827" background="none" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -19,7 +19,7 @@
                 <mxCell id="496" value="" style="rounded=0;whiteSpace=wrap;html=1;labelBackgroundColor=default;fontSize=18;fillColor=#bac8d3;strokeColor=default;glass=0;fillOpacity=20;resizable=1;movable=1;rotatable=1;deletable=1;editable=1;connectable=1;strokeOpacity=20;" parent="1" vertex="1">
                     <mxGeometry x="330" y="510" width="6800" height="70" as="geometry"/>
                 </mxCell>
-                <mxCell id="435" value="seg&lt;br&gt;0h" style="line;strokeWidth=1;direction=south;html=1;verticalAlign=top;spacingTop=-38;spacingBottom=0;fontStyle=1;fillColor=#647687;fontColor=#647687;strokeColor=#3C4F8C;labelBackgroundColor=none;" parent="1" vertex="1">
+                <mxCell id="435" value="seg&lt;br&gt;0h" style="line;strokeWidth=2;direction=south;html=1;verticalAlign=top;spacingTop=-38;spacingBottom=0;fontStyle=1;fillColor=#647687;fontColor=#647687;strokeColor=#3C4F8C;labelBackgroundColor=none;" parent="1" vertex="1">
                     <mxGeometry x="7075" y="160" width="10" height="870" as="geometry"/>
                 </mxCell>
                 <mxCell id="250" value="0h" style="line;strokeWidth=1;direction=south;html=1;verticalAlign=top;spacingTop=-32;spacingBottom=0;fontStyle=1" parent="1" vertex="1">
