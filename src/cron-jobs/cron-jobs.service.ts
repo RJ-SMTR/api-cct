@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, NotImplementedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
@@ -253,7 +253,7 @@ export class CronJobsService {
       {
         /**
          * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
-         * 
+         *
          * 19:00 BRT (GMT-3) = 22:00 GMT (10PM)
          */
         name: CronJobsEnum.bulkSendInvites,
@@ -432,7 +432,8 @@ export class CronJobsService {
       const startDateLog = new Date();
       const startDate = today;
       const endDate = today;
-      await this.cnabService.saveTransacoesLancamento(startDate, endDate);
+      throw new NotImplementedException();
+      // await this.cnabService.saveTransacoesLancamento(startDate, endDate);
       const listCnab = await this.cnabService.generateRemessa({
         tipo: PagadorContaEnum.CETT,
         dataPgto: undefined, // data programada no Lançamento

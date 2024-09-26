@@ -5,7 +5,7 @@ import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-paga
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
-import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
+// import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
 import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
@@ -92,11 +92,10 @@ export class CnabService {
     private extHeaderLoteService: ExtratoHeaderLoteService,
     private headerArquivoService: HeaderArquivoService,
     private headerArquivoConfService: HeaderArquivoService,
-    private extHeaderArquivoConfService: ExtratoHeaderArquivoService,
     private headerLoteService: HeaderLoteService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private itemTransacaoService: ItemTransacaoService,
-    private lancamentoService: LancamentoService,
+    // private lancamentoService: LancamentoService,
     private pagadorService: PagadorService,
     private remessaRetornoService: RemessaRetornoService,
     private sftpService: SftpService,
@@ -207,51 +206,51 @@ export class CnabService {
     };
   }
 
-  async generateRemessaLancamento(args: {
-    dataOrdemInicial?: Date; //
-    dataOrdemFinal?: Date;
-    dataPgto: Date | undefined;
-    isConference: boolean;
-    isCancelamento: boolean;
-    isTeste: boolean;
-    nsaInicial: number | undefined;
-    nsaFinal: number | undefined;
-    dataCancelamento: Date | undefined;
-  }) {
-    const METHOD = 'getGenerateRemessaLancamento';
-    const { dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, isCancelamento, isConference, isTeste, nsaFinal, nsaInicial } = args;
-    const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
-    const startDate = new Date();
-    let now = new Date();
-    this.logger.log('Tarefa iniciada', METHOD);
+  // async generateRemessaLancamento(args: {
+  //   dataOrdemInicial?: Date; //
+  //   dataOrdemFinal?: Date;
+  //   dataPgto: Date | undefined;
+  //   isConference: boolean;
+  //   isCancelamento: boolean;
+  //   isTeste: boolean;
+  //   nsaInicial: number | undefined;
+  //   nsaFinal: number | undefined;
+  //   dataCancelamento: Date | undefined;
+  // }) {
+  //   const METHOD = 'getGenerateRemessaLancamento';
+  //   const { dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, isCancelamento, isConference, isTeste, nsaFinal, nsaInicial } = args;
+  //   const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
+  //   const startDate = new Date();
+  //   let now = new Date();
+  //   this.logger.log('Tarefa iniciada', METHOD);
 
-    await this.saveTransacoesLancamento(dataOrdemInicial, dataOrdemFinal);
-    duration.saveTransacoesJae = formatDateInterval(new Date(), now);
-    now = new Date();
+  //   await this.saveTransacoesLancamento(dataOrdemInicial, dataOrdemFinal);
+  //   duration.saveTransacoesJae = formatDateInterval(new Date(), now);
+  //   now = new Date();
 
-    const listCnab = await this.generateRemessa({
-      tipo: PagadorContaEnum.CETT, //
-      dataPgto,
-      isConference,
-      isCancelamento,
-      isTeste,
-      nsaInicial,
-      nsaFinal,
-      dataCancelamento,
-    });
-    duration.generateRemessa = formatDateInterval(new Date(), now);
-    now = new Date();
+  //   const listCnab = await this.generateRemessa({
+  //     tipo: PagadorContaEnum.CETT, //
+  //     dataPgto,
+  //     isConference,
+  //     isCancelamento,
+  //     isTeste,
+  //     nsaInicial,
+  //     nsaFinal,
+  //     dataCancelamento,
+  //   });
+  //   duration.generateRemessa = formatDateInterval(new Date(), now);
+  //   now = new Date();
 
-    await this.sendRemessa(listCnab);
-    duration.sendRemessa = formatDateInterval(new Date(), now);
+  //   await this.sendRemessa(listCnab);
+  //   duration.sendRemessa = formatDateInterval(new Date(), now);
 
-    duration.total = formatDateInterval(new Date(), startDate);
-    this.logger.log(`Tarefa finalizada - ${duration.total}`);
-    return {
-      duration,
-      cnabs: listCnab,
-    };
-  }
+  //   duration.total = formatDateInterval(new Date(), startDate);
+  //   this.logger.log(`Tarefa finalizada - ${duration.total}`);
+  //   return {
+  //     duration,
+  //     cnabs: listCnab,
+  //   };
+  // }
 
   public async sendRemessa(listCnab: ICnabInfo[]) {
     for (const cnab of listCnab) {
@@ -541,15 +540,15 @@ export class CnabService {
 
   // #endregion
 
-  public async saveTransacoesLancamento(dataOrdemInicial?: Date, dataOrdemFinal?: Date) {
-    const dataOrdem: [Date, Date] | undefined = dataOrdemInicial && dataOrdemFinal ? [startOfDay(dataOrdemInicial), endOfDay(dataOrdemFinal)] : undefined;
-    await this.updateAllFavorecidosFromUsers();
-    const newLancamentos = await this.lancamentoService.findToPay(dataOrdem);
-    const ordensCett = newLancamentos.cett.map((l) => OrdemPagamentoDto.fromLancamento(l));
-    await this.saveOrdens(ordensCett, 'cett');
-    const ordensCb = newLancamentos.contaBilhetagem.map((l) => OrdemPagamentoDto.fromLancamento(l));
-    await this.saveOrdens(ordensCb, 'contaBilhetagem');
-  }
+  // public async saveTransacoesLancamento(dataOrdemInicial?: Date, dataOrdemFinal?: Date) {
+  //   const dataOrdem: [Date, Date] | undefined = dataOrdemInicial && dataOrdemFinal ? [startOfDay(dataOrdemInicial), endOfDay(dataOrdemFinal)] : undefined;
+  //   await this.updateAllFavorecidosFromUsers();
+  //   const newLancamentos = await this.lancamentoService.findToPay(dataOrdem);
+  //   const ordensCett = newLancamentos.cett.map((l) => OrdemPagamentoDto.fromLancamento(l));
+  //   await this.saveOrdens(ordensCett, 'cett');
+  //   const ordensCb = newLancamentos.contaBilhetagem.map((l) => OrdemPagamentoDto.fromLancamento(l));
+  //   await this.saveOrdens(ordensCb, 'contaBilhetagem');
+  // }
 
   public async generateRemessa(args: {
     tipo: PagadorContaEnum; //
@@ -656,7 +655,7 @@ export class CnabService {
   private async updateStatusRemessa(headerArquivoDTO: HeaderArquivoDTO, cnabHeaderArquivo: CnabHeaderArquivo104, transacaoAgId: number) {
     await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO, cnabHeaderArquivo);
     await this.transacaoAgService.save({ id: transacaoAgId, status: TransacaoStatus.fromEnum(TransacaoStatusEnum.remessa) });
-    await this.lancamentoService.update({ status: LancamentoStatus._4_remessa_enviado }, { transacaoAgrupado: { id: transacaoAgId } });
+    // await this.lancamentoService.update({ status: LancamentoStatus._4_remessa_enviado }, { transacaoAgrupado: { id: transacaoAgId } });
   }
 
   private validateCancel(nsaInicial: number, nsaFinal: number) {
