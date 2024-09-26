@@ -1,16 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Logger,
-  Patch,
-  Post,
-  Request,
-  SerializeOptions,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Logger, Patch, Post, Request, SerializeOptions, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
@@ -39,7 +27,7 @@ export class AuthController {
   private logger = new CustomLogger('AuthController', { timestamp: true });
 
   constructor(
-    private readonly authService: AuthService,
+    private readonly authService: AuthService, //
     private readonly mailHistoryService: MailHistoryService,
   ) {}
 
@@ -48,9 +36,7 @@ export class AuthController {
   })
   @Post('email/login')
   @HttpCode(HttpStatus.OK)
-  public login(
-    @Body() loginDto: AuthEmailLoginDto,
-  ): Promise<LoginResponseType> {
+  public login(@Body() loginDto: AuthEmailLoginDto): Promise<LoginResponseType> {
     return this.authService.validateLogin(loginDto, false);
   }
 
@@ -59,9 +45,7 @@ export class AuthController {
   })
   @Post('admin/email/login')
   @HttpCode(HttpStatus.OK)
-  public adminLogin(
-    @Body() loginDTO: AuthEmailLoginDto,
-  ): Promise<LoginResponseType> {
+  public adminLogin(@Body() loginDTO: AuthEmailLoginDto): Promise<LoginResponseType> {
     return this.authService.validateLogin(loginDTO, true);
   }
 
@@ -70,25 +54,19 @@ export class AuthController {
   })
   @Post('finan/email/login')
   @HttpCode(HttpStatus.OK)
-  public finanLogin(
-    @Body() loginDTO: AuthEmailLoginDto,
-  ): Promise<LoginResponseType> {
+  public finanLogin(@Body() loginDTO: AuthEmailLoginDto): Promise<LoginResponseType> {
     return this.authService.validateLogin(loginDTO, true);
   }
 
   @Post('email/register')
   @HttpCode(HttpStatus.OK)
-  async register(
-    @Body() createUserDto: AuthRegisterLoginDto,
-  ): Promise<void | object> {
+  async register(@Body() createUserDto: AuthRegisterLoginDto): Promise<void | object> {
     return await this.authService.register(createUserDto);
   }
 
   @Post('email/confirm')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async confirmEmail(
-    @Body() confirmEmailDto: AuthConfirmEmailDto,
-  ): Promise<void> {
+  async confirmEmail(@Body() confirmEmailDto: AuthConfirmEmailDto): Promise<void> {
     return this.authService.confirmEmail(confirmEmailDto.hash);
   }
 
@@ -96,31 +74,24 @@ export class AuthController {
   @SerializeOptions({
     groups: ['admin'],
   })
-  @Roles(RoleEnum.admin)
+  @Roles(RoleEnum.master, RoleEnum.admin)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Post('email/resend')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async resendRegisterMail(
-    @Body() resendEmailDto: AuthResendEmailDto,
-  ): Promise<void> {
+  async resendRegisterMail(@Body() resendEmailDto: AuthResendEmailDto): Promise<void> {
     return this.authService.resendRegisterMail(resendEmailDto);
   }
 
   @Post('forgot/password')
   @HttpCode(HttpStatus.ACCEPTED)
-  async forgotPassword(
-    @Body() forgotPasswordDto: AuthForgotPasswordDto,
-  ): Promise<void | object> {
+  async forgotPassword(@Body() forgotPasswordDto: AuthForgotPasswordDto): Promise<void | object> {
     return this.authService.forgotPassword(forgotPasswordDto.email);
   }
 
   @Post('reset/password')
   @HttpCode(HttpStatus.NO_CONTENT)
   resetPassword(@Body() resetPasswordDto: AuthResetPasswordDto): Promise<void> {
-    return this.authService.resetPassword(
-      resetPasswordDto.hash,
-      resetPasswordDto.password,
-    );
+    return this.authService.resetPassword(resetPasswordDto.hash, resetPasswordDto.password);
   }
 
   @ApiBearerAuth()
@@ -141,10 +112,7 @@ export class AuthController {
   @Patch('me')
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
-  public update(
-    @Request() request,
-    @Body() userDto: AuthUpdateDto,
-  ): Promise<Nullable<User>> {
+  public update(@Request() request, @Body() userDto: AuthUpdateDto): Promise<Nullable<User>> {
     return this.authService.update(request.user, userDto);
   }
 }
