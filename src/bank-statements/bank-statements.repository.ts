@@ -3,7 +3,7 @@ import { endOfDay, isFriday, nextFriday, nextThursday, startOfDay, subDays } fro
 import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
-import { formatDateYMD } from 'src/utils/date-utils';
+import { formatDateISODate } from 'src/utils/date-utils';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPagination } from 'src/utils/get-pagination';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
@@ -112,11 +112,11 @@ export class BankStatementsRepositoryService {
       const dataEfetivacao = revenue.dataEfetivacao;
       return new BankStatementPreviousDaysDTO({
         id: index + 1,
-        date: formatDateYMD(new Date(String(revenue.processingDateTime))),
-        effectivePaymentDate: isPago && dataEfetivacao ? formatDateYMD(new Date(dataEfetivacao)) : null,
-        paymentOrderDate: formatDateYMD(orderDate),
-        transactionDate: formatDateYMD(new Date(revenue.transactionDateTime)),
-        processingDate: formatDateYMD(new Date(revenue.processingDateTime)),
+        date: formatDateISODate(new Date(String(revenue.processingDateTime))),
+        effectivePaymentDate: isPago && dataEfetivacao ? formatDateISODate(new Date(dataEfetivacao)) : null,
+        paymentOrderDate: formatDateISODate(orderDate),
+        transactionDate: formatDateISODate(new Date(revenue.transactionDateTime)),
+        processingDate: formatDateISODate(new Date(revenue.processingDateTime)),
         cpfCnpj: validArgs.user.getCpfCnpj(),
         permitCode: validArgs.user.getPermitCode(),
         amount: amount,

@@ -1,7 +1,7 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { isFriday, nextFriday, previousFriday } from 'date-fns';
 import * as request from 'supertest';
-import { formatDateYMD } from '../../src/utils/date-utils';
+import { formatDateISODate } from '../../src/utils/date-utils';
 import { APP_URL, BQ_JSON_CREDENTIALS, LICENSEE_CPF_PASSWORD, LICENSEE_CPF_PERMIT_CODE } from '../utils/constants';
 
 describe('Bank statements (e2e)', () => {
@@ -52,7 +52,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
     if (!isFriday(friday)) {
       friday = nextFriday(friday);
     }
-    const fridayStr = formatDateYMD(friday);
+    const fridayStr = formatDateISODate(friday);
 
     // Act
     let bankStatements: any;
@@ -62,7 +62,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: formatDateYMD(friday),
+        endDate: formatDateISODate(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)
@@ -107,7 +107,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: formatDateYMD(friday),
+        endDate: formatDateISODate(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)
@@ -128,8 +128,8 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        startDate: formatDateYMD(bsStartDate),
-        endDate: formatDateYMD(bsEndDate),
+        startDate: formatDateISODate(bsStartDate),
+        endDate: formatDateISODate(bsEndDate),
       })
       .expect(200)
       .then(({ body }) => {
@@ -152,7 +152,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
     if (!isFriday(friday)) {
       friday = nextFriday(friday);
     }
-    const fridayStr = formatDateYMD(friday);
+    const fridayStr = formatDateISODate(friday);
 
     // Act
     let bankStatements;
@@ -210,7 +210,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: formatDateYMD(friday),
+        endDate: formatDateISODate(friday),
         timeInterval: 'lastWeek',
       })
       .expect(200)
@@ -225,7 +225,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: formatDateYMD(friday),
+        endDate: formatDateISODate(friday),
         timeInterval: 'lastWeek',
       })
       .expect(200)
@@ -262,7 +262,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: formatDateYMD(friday),
+        endDate: formatDateISODate(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)
@@ -277,7 +277,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: formatDateYMD(friday),
+        endDate: formatDateISODate(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)
@@ -308,7 +308,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: formatDateYMD(friday),
+        endDate: formatDateISODate(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)
@@ -323,7 +323,7 @@ WHERE o.documento = '${licenseeCpfCnpj}' ORDER BY data DESC, hora DESC LIMIT 1
         type: 'bearer',
       })
       .query({
-        endDate: formatDateYMD(friday),
+        endDate: formatDateISODate(friday),
         timeInterval: 'lastMonth',
       })
       .expect(200)

@@ -1,6 +1,6 @@
 import { Cnab } from 'src/cnab/const/cnab.const';
 import { CnabCodigoRegistro } from 'src/cnab/enums/all/cnab-codigo-registro.enum';
-import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
+import { CnabHeaderArquivo104 } from 'src/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto';
 
 export const cnab240_104HeaderArquivoTemplateTest: CnabHeaderArquivo104 = {
   codigoBanco: {
@@ -48,7 +48,7 @@ export const cnab240_104HeaderArquivoTemplateTest: CnabHeaderArquivo104 = {
   parametroTransmissao: {
     pos: [39, 40],
     picture: '9(002)',
-    value: '09',
+    value: '01',
     ...Cnab.insert.d(),
   },
   ambienteCliente: {

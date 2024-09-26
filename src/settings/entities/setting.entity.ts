@@ -11,6 +11,7 @@ import {
   ManyToOne,
   PrimaryColumn,
   Unique,
+  UpdateDateColumn,
 } from 'typeorm';
 import { ISettingData } from '../interfaces/setting-data.interface';
 import { isNumber } from 'class-validator';
@@ -55,6 +56,9 @@ export class SettingEntity extends BaseEntity {
   })
   @JoinColumn({ foreignKeyConstraintName: 'FK_Setting_settingType_ManyToOne' })
   settingType: SettingType;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   getValueAsNullableJson(): any | null {
     if (!this.value) {

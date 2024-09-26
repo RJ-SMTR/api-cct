@@ -1,7 +1,7 @@
 import { nextFriday, startOfDay } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
-import { formatDateYMD, yearMonthDayToDate } from 'src/utils/date-utils';
+import { formatDateISODate, yearMonthDayToDate } from 'src/utils/date-utils';
 
 export interface IOrdemPagamento {
   dataOrdem: string;
@@ -40,7 +40,7 @@ export class OrdemPagamentoDto implements IOrdemPagamento {
 
   public static fromLancamento(lancamento: Lancamento, idOrdemPagamento?: string) {
     return new OrdemPagamentoDto({
-      dataOrdem: formatDateYMD(lancamento.data_ordem),
+      dataOrdem: formatDateISODate(lancamento.data_ordem),
       idOrdemPagamento: idOrdemPagamento || OrdemPagamentoDto.getIdOrdemPagamentoLancamento(),
       idConsorcio: '',
       consorcio: '',

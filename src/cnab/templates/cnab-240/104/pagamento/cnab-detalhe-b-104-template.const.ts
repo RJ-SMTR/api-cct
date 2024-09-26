@@ -6,7 +6,7 @@ import { CnabDetalheB_104 } from 'src/cnab/interfaces/cnab-240/104/pagamento/cna
 /**
  * PAGAMENTO DE SALÁRIOS, PAGAMENTO/CRÉDITO A FORNECEDOR E AUTOPAGAMENTO E DÉBITO AUTOMÁTICO
  * 
- * @version v032 micro - FEV/2024
+ * @version v035 micro - 2024/09
  */
 export const cnabDetalheB104Template: CnabDetalheB_104 = {
   /** B.01 */

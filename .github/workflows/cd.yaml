@@ -6,7 +6,7 @@ on:
       - "main"
     paths-ignore:
       - 'README.md'
-      - 'docs'
+      - 'docs/**'
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}

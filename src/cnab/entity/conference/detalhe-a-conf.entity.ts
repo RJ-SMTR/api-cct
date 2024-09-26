@@ -1,20 +1,6 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import {
-  asNullableStringOrNumber,
-  asStringOrNumber,
-} from 'src/utils/pipe-utils';
-import {
-  AfterLoad,
-  Column,
-  CreateDateColumn,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  OneToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { asNullableStringOrNumber, asStringOrNumber } from 'src/utils/pipe-utils';
+import { AfterLoad, Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { ClienteFavorecido } from '../cliente-favorecido.entity';
 import { HeaderLoteConf } from './header-lote-conf.entity';
 import { Ocorrencia } from '../pagamento/ocorrencia.entity';
@@ -130,6 +116,18 @@ export class DetalheAConf extends EntityHelper {
   })
   itemTransacaoAgrupado: ItemTransacaoAgrupado;
 
+  /** Nome do retorno mais recente lido, para referência. */
+  @Column({ type: String, unique: false, nullable: true })
+  retornoName: string | null;
+
+  /**
+   * Verifica a data-hora do último retorno, para evitar ler um retorno mais antigo que o atual (regra de negócio)
+   *
+   * É a data-hora descrita no retornoName
+   */
+  @Column({ type: Date, unique: false, nullable: true })
+  retornoDatetime: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -148,20 +146,12 @@ export class DetalheAConf extends EntityHelper {
   }
 
   public isPago() {
-    const errors = Ocorrencia.getErrorCodesFromString(
-      this.ocorrenciasCnab || '',
-    );
+    const errors = Ocorrencia.getErrorCodesFromString(this.ocorrenciasCnab || '');
     return errors.length === 0;
   }
 
   public static getOcorrenciaErrors(detalhes: DetalheAConf[]) {
-    return detalhes.reduce(
-      (l, i) => [
-        ...l,
-        ...i.ocorrencias.filter((j) => !['00', 'BD'].includes(j.code)),
-      ],
-      [],
-    );
+    return detalhes.reduce((l, i) => [...l, ...i.ocorrencias.filter((j) => !['00', 'BD'].includes(j.code))], []);
   }
 
   public static getItemTransacaoAgIds(detalhesA: DetalheAConf[]) {
@@ -169,10 +159,6 @@ export class DetalheAConf extends EntityHelper {
   }
 
   public static getTransacaoAgIds(detalhesA: DetalheAConf[]): number[] {
-    return [
-      ...new Set(
-        detalhesA.map((i) => i.itemTransacaoAgrupado.transacaoAgrupado.id),
-      ),
-    ];
+    return [...new Set(detalhesA.map((i) => i.itemTransacaoAgrupado.transacaoAgrupado.id))];
   }
 }

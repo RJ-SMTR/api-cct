@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { format } from 'date-fns';
 import { AllConfigType } from 'src/config/config.type';
-import { getBRTFromUTC } from 'src/utils/date-utils';
+import { CnabNameType, formatDateISODate, formatDateISODateSlash, getBRTFromUTC, getDateFromCnabName } from 'src/utils/date-utils';
 import { OnModuleLoad } from 'src/utils/interfaces/on-load.interface';
 import { SftpBackupFolder } from './enums/sftp-backup-folder.enum';
 import { ConnectConfig } from './interfaces/connect-config.interface';
@@ -122,14 +122,15 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     this.logger.log(`Arquivo carregado em ${_remotePath}`, METHOD);
   }
 
-  public async submitCnabRemessa(content: string) {
-    const METHOD = this.submitCnabRemessa.name;
+  public async submitCnabRemessa(content: string): Promise<string> {
+    const METHOD = 'submitCnabRemessa';
     await this.connectClient();
     const remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
     const bkpPath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`);
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), bkpPath);
     this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
+    return remotePath;
   }
 
   /**
@@ -148,18 +149,18 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
    *
    * @returns CnabName: file name with extension (no folder)
    */
-  public async getFirstCnabRetorno(folder = this.FOLDERS.RETORNO): Promise<{
-    cnabName: string | null;
-    cnabString: string | null;
-  }> {
+  public async getFirstRetornoPagamento(folder = this.FOLDERS.RETORNO): Promise<{
+    name: string;
+    content: string;
+  } | null> {
     await this.connectClient();
     const firstFile = (await this.sftpClient.list(this.dir(folder), this.REGEX.RETORNO)).pop();
     if (!firstFile) {
-      return { cnabName: null, cnabString: null };
+      return null;
     }
     const cnabPath = this.dir(`${folder}/${firstFile.name}`);
     const cnabString = await this.downloadToString(cnabPath);
-    return { cnabName: firstFile.name, cnabString };
+    return { name: firstFile.name, content: cnabString };
   }
 
   /**
@@ -167,12 +168,12 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
    *
    * @returns CnabName: file name with extension (no folder)
    */
-  public async getFirstCnabExtrato(): Promise<{
+  public async getFirstRetornoExtrato(folder = this.FOLDERS.RETORNO): Promise<{
     name: string;
     content: string;
   } | null> {
     await this.connectClient();
-    const firstFile = (await this.sftpClient.list(this.dir(this.FOLDERS.RETORNO), this.REGEX.EXTRATO)).pop();
+    const firstFile = (await this.sftpClient.list(this.dir(folder), this.REGEX.EXTRATO)).pop();
 
     if (!firstFile) {
       return null;
@@ -188,22 +189,24 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
    *
    * @param cnabName Name with extension. No folder path.
    */
-  public async moveToBackup(
-    cnabName: string,
-    folder: SftpBackupFolder,
-    cnabContentIfNoOrigin?: string,
-    originFolder = this.FOLDERS.RETORNO,
-  ) {
+  public async moveToBackup(cnabName: string, folder: SftpBackupFolder, cnabContentIfNoOrigin?: string, originFolder = this.FOLDERS.RETORNO) {
     const METHOD = 'moveToBackup';
     const originPath = this.dir(`${originFolder}/${cnabName}`);
-    const destPath = this.dir(`${folder}/${cnabName}`);
+    const destPath = this.dir(`${folder}/${this.getCnabDateFolder(cnabName)}`);
     await this.connectClient();
     if (cnabContentIfNoOrigin && !(await this.sftpClient.exists(originPath))) {
-      this.logger.log(`Origem não existe: '${originPath}'. Salvando cnab no backup.`)
+      this.logger.log(`Origem não existe: '${originPath}'. Salvando cnab no backup.`);
       await this.sftpClient.upload(Buffer.from(cnabContentIfNoOrigin, 'utf-8'), destPath);
     } else {
       await this.sftpClient.rename(originPath, destPath);
     }
     this.logger.debug(`Arquivo CNAB movido de '${originPath}' para ${destPath}`, METHOD);
+  }
+
+  /** Return `yyyy/mm/cnabName` */
+  public getCnabDateFolder(cnabName: string) {
+    const date = getDateFromCnabName(cnabName);
+    const dateString = formatDateISODateSlash(date).split('/').slice(0,-1).join('/');
+    return `${dateString}/${cnabName}`;
   }
 }
