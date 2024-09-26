@@ -34,14 +34,12 @@ export class SettingsController {
   @UseGuards(AuthGuard('jwt'))
   @Get('v:version')
   @ApiParam({ name: 'version', example: '1' })
-  getByVersion(
-    @Param('version') version: string,
-  ): Promise<Nullable<SettingEntity[]>> {
+  getByVersion(@Param('version') version: string): Promise<Nullable<SettingEntity[]>> {
     return this.settingsService.findByVersion(version);
   }
 
   @ApiBearerAuth()
-  @Roles(RoleEnum.admin, RoleEnum.master)
+  @Roles(RoleEnum.master, RoleEnum.admin)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @HttpCode(HttpStatus.OK)
   @Patch()
