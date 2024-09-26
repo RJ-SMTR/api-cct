@@ -44,6 +44,7 @@ export const appSettings = {
     settingType: SettingTypeEnum.string,
   } as ISettingData,
 
+  /** EVERY_DAY_AT_10PM */
   any__mail_invite_cronjob: {
     name: 'mail_invite_cronjob',
     value: CronExpression.EVERY_DAY_AT_10PM,
@@ -52,9 +53,10 @@ export const appSettings = {
     settingType: SettingTypeEnum.string,
   } as ISettingData,
 
+  /** EVERY_DAY_AT_9AM */
   any__mail_report_cronjob: {
     name: 'mail_report_cronjob',
-    value: CronExpression.EVERY_DAY_AT_3AM,
+    value: CronExpression.EVERY_DAY_AT_9AM,
     version: null,
     editable: false,
     settingType: SettingTypeEnum.string,

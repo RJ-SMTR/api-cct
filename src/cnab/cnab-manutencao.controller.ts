@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, HttpCode, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpCode, HttpStatus, NotImplementedException, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
@@ -58,17 +58,18 @@ export class CnabManutencaoController {
       throw new BadRequestException('dataCancelamento é obrigatório se isCancelamento = true');
     }
 
-    return await this.cnabService.generateRemessaLancamento({
-      dataOrdemInicial,
-      dataOrdemFinal,
-      dataPgto: dataPagamento,
-      isConference,
-      isCancelamento,
-      isTeste,
-      nsaInicial,
-      nsaFinal,
-      dataCancelamento,
-    });
+    return new NotImplementedException();
+    // return await this.cnabService.generateRemessaLancamento({
+    //   dataOrdemInicial,
+    //   dataOrdemFinal,
+    //   dataPgto: dataPagamento,
+    //   isConference,
+    //   isCancelamento,
+    //   isTeste,
+    //   nsaInicial,
+    //   nsaFinal,
+    //   dataCancelamento,
+    // });
   }
 
   @Get('generateRemessaJae')

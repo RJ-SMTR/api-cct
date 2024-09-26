@@ -37,7 +37,7 @@
                 <mxCell id="9" value="Criar Lançamento" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="560" y="470" width="120" height="70" as="geometry"/>
                 </mxCell>
-                <mxCell id="12" value="Editar/Deletar Lançamento&lt;br&gt;com status = &quot;aprovado parcial&quot; ou &quot;aprovado&quot;" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                <mxCell id="12" value="Editar/Deletar Lançamento&lt;br&gt;&lt;sub&gt;com status = &quot;aprovado parcial&quot; ou &quot;aprovado&quot;&lt;/sub&gt;" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="560" y="195" width="180" height="85" as="geometry"/>
                 </mxCell>
                 <mxCell id="23" style="edgeStyle=none;html=1;endArrow=none;endFill=0;" parent="1" source="2" target="22" edge="1">
@@ -58,8 +58,8 @@
                 <mxCell id="20" value="Bernardo, Raphael,&lt;br&gt;Gabriel, William..." style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" parent="1" vertex="1">
                     <mxGeometry x="250" y="40" width="30" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="22" value="Autorizar lançamento" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="560" y="80" width="120" height="70" as="geometry"/>
+                <mxCell id="22" value="Autorizar lançamento&lt;br&gt;&lt;sub&gt;com status = &quot;gerado&quot; ou &quot;aprovado parcial&quot;&lt;/sub&gt;" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="560" y="80" width="160" height="70" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
