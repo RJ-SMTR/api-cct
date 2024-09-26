@@ -15,10 +15,12 @@ export class RelatorioSinteticoRepository {
               private logger = new CustomLogger(RelatorioSinteticoRepository.name, { timestamp: true });
   
   private getQuery(args:IFindPublicacaoRelatorio){     
-    if(args.aPagar ===true){
+    if(args.aPagar === true){
       return this.getQueryApagar(args);
-    }else{
+    }else if (args.aPagar ===false){
       return this.getQueryNaoApagar(args);
+    }else{
+      return this.getQueryApagar(args) + ` union all ` +this.getQueryNaoApagar(args); 
     }
   } 
   
@@ -134,7 +136,7 @@ export class RelatorioSinteticoRepository {
           ON res."consorcio" = sub."nomeConsorcio" 
           AND res."cpfCnpj" = sub."operadoraCpfCnpj"
         CROSS JOIN total_data
-        ORDER BY res."consorcio", res."favorecido", res."datapagamento";`
+        ORDER BY res."consorcio", res."favorecido", res."datapagamento"`
 
     let result = ` select * from ( `+ query + body + conditions + footer +` ) as tt  where (1=1)`;    
     return result;
@@ -151,10 +153,10 @@ export class RelatorioSinteticoRepository {
                           inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
                           left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                           left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
-                          WHERE itt."clienteFavorecidoId"=res."clientefavorecidoid"   `;
+                          WHERE   `;
                           if(dataInicio!==undefined && dataFim!==undefined && 
                             (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
-                            query = query + ` and dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+                            query = query + ` dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
                           if(args.emProcessamento!==undefined && args.emProcessamento===true ){
                               query = query +`  and app."isPago"=false and dta."ocorrenciasCnab" is  null `
                           }else 
@@ -213,7 +215,7 @@ export class RelatorioSinteticoRepository {
       da."dataVencimento"::date::Varchar As datapagamento,
       it."nomeConsorcio" AS consorcio,	
       cf.nome AS favorecido,
-      cf."id" as clientefavorecidoid,
+      cf."cpfCnpj",	
       it."valor"::float as valor,			      
       case when (ap."isPago") then 'pago' 
         when (not (ap."isPago")) then 'naopago'
