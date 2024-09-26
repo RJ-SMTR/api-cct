@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="kEteO0c03nazbitwM8Ky" name="Lançamento">
-        <mxGraphModel dx="878" dy="916" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="643" dy="489" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -10,7 +10,7 @@
                 <mxCell id="2" value="Início" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=standard;symbol=general;" parent="7" vertex="1">
                     <mxGeometry x="40" y="40" width="50" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="3" value="criado" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="7" vertex="1">
+                <mxCell id="3" value="gerado" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="7" vertex="1">
                     <mxGeometry x="160" y="40" width="120" height="50" as="geometry"/>
                 </mxCell>
                 <mxCell id="4" value="criar" style="edgeStyle=none;html=1;" parent="7" source="2" target="3" edge="1">
@@ -18,6 +18,15 @@
                 </mxCell>
                 <mxCell id="19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="7" source="5" target="18" edge="1">
                     <mxGeometry relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="85" value="editar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="7" source="5" target="3">
+                    <mxGeometry x="-0.3671" relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="110" y="385"/>
+                            <mxPoint x="110" y="80"/>
+                        </Array>
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
@@ -100,21 +109,29 @@
                 <mxCell id="35" value="Fim" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate;spacingBottom=0;spacingTop=0;" parent="7" vertex="1">
                     <mxGeometry x="195" y="880" width="50" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="80" value="autorizado parcial" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" vertex="1" parent="7">
+                <mxCell id="84" value="editar" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="7" source="80" target="3">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="110" y="220"/>
+                            <mxPoint x="110" y="80"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="80" value="autorizado parcial" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="7" vertex="1">
                     <mxGeometry x="160" y="200" width="120" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="82" value="autorizar&lt;br style=&quot;border-color: var(--border-color);&quot;&gt;(2a aprovação)" style="edgeStyle=none;html=1;" edge="1" parent="7" source="81" target="5">
+                <mxCell id="82" value="autorizar&lt;br style=&quot;border-color: var(--border-color);&quot;&gt;(2a aprovação)" style="edgeStyle=none;html=1;" parent="7" source="81" target="5" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="81" value="" style="rounded=0;whiteSpace=wrap;html=1;labelBackgroundColor=none;" vertex="1" parent="7">
+                <mxCell id="81" value="" style="rounded=0;whiteSpace=wrap;html=1;labelBackgroundColor=none;" parent="7" vertex="1">
                     <mxGeometry x="160" y="280" width="120" height="10" as="geometry"/>
                 </mxCell>
-                <mxCell id="79" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="7" source="80" target="81">
+                <mxCell id="79" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="7" source="80" target="81" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="83" value="deletar" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="7" source="5" target="8">
+                <mxCell id="83" value="deletar" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" parent="7" source="5" target="8" edge="1">
                     <mxGeometry x="-0.746" relative="1" as="geometry">
                         <mxPoint x="420.0588235294117" y="250" as="targetPoint"/>
                         <mxPoint as="offset"/>
