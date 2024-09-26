@@ -1,20 +1,9 @@
+import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
+import { HeaderArquivoStatus } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrDateTime } from 'src/utils/pipe-utils';
-import {
-  AfterLoad,
-  BeforeInsert,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
-import { Transacao } from '../pagamento/transacao.entity';
+import { AfterLoad, BeforeInsert, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { TransacaoAgrupado } from '../pagamento/transacao-agrupado.entity';
-
 
 /**
  * Pagamento.HeaderArquivo
@@ -35,46 +24,43 @@ export class HeaderArquivoConf extends EntityHelper {
   tipoArquivo: number;
 
   @Column({ type: String, unique: false, nullable: true, length: 3 })
-  codigoBanco: string | null;
+  codigoBanco: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  tipoInscricao: string | null;
+  tipoInscricao: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 14 })
-  numeroInscricao: string | null;
+  numeroInscricao: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 6 })
-  codigoConvenio: string | null;
+  codigoConvenio: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 2 })
-  parametroTransmissao: string | null;
+  parametroTransmissao: string;
+
+  @Column({ enum: Cnab104AmbienteCliente, unique: false, nullable: false, length: 2, default: Cnab104AmbienteCliente.Producao })
+  ambienteCliente: Cnab104AmbienteCliente;
 
   @Column({ type: String, unique: false, nullable: true, length: 5 })
-  agencia: string | null;
+  agencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 1 })
-  dvAgencia: string | null;
+  dvAgencia: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 12 })
-  numeroConta: string | null;
+  numeroConta: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 1 })
-  dvConta: string | null;
+  dvConta: string;
 
   @Column({ type: String, unique: false, nullable: true, length: 100 })
-  nomeEmpresa: string | null;
+  nomeEmpresa: string;
 
   @Column({ type: Date, unique: false, nullable: true })
   dataGeracao: Date;
 
   @Column({ type: 'time', unique: false, nullable: true })
   horaGeracao: Date;
-
-  @ManyToOne(() => Transacao, { eager: true })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_HeaderArquivoConf_transacao_ManyToOne',
-  })
-  transacao: Transacao | null;
 
   @ManyToOne(() => TransacaoAgrupado, { eager: true })
   @JoinColumn({
@@ -85,15 +71,18 @@ export class HeaderArquivoConf extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: false })
   nsa: number;
 
+  @Column({ enum: HeaderArquivoStatus, unique: false, nullable: false, default: HeaderArquivoStatus._0_desconhecido })
+  status: HeaderArquivoStatus;
+
+  /** Nome do remessa gerado, para referência. */
+  @Column({ type: String, unique: false, nullable: true })
+  remessaName: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  public getIdString(): string {
-    return `{ transacao: ${this.transacao?.id},  transacaoAg: ${this.transacaoAgrupado?.id}, nsa: ${this.nsa}, tipoArquivo: ${this.tipoArquivo}}`;
-  }
 
   @BeforeInsert()
   setLoadValues() {

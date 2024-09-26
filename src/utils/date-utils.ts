@@ -84,8 +84,15 @@ export function safeCastDates(args: Partial<DateIntervalStrType>) {
 /**
  * Get date in format `YYYY-MM-DD`
  */
-export function formatDateYMD(date: Date): string {
+export function formatDateISODate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Get date in format `YYYY/MM/DD`
+ */
+export function formatDateISODateSlash(date: Date): string {
+  return formatDateISODate(date).replace(/-/gm, '/');
 }
 
 /**
@@ -137,4 +144,25 @@ export function formatDateInterval(endDate: Date, startDate: Date): string {
     String(seconds).padStart(2, '0'),
   ].join(':');
   return formattedTime;
+}
+
+export type CnabNameType = 'retornoPagamento' | 'retornoExtrato';
+
+export function getDateFromCnabName(fileName: string) {
+  // retorno pagamento (default)
+  let match = fileName.match(/_(\d{2})(\d{2})(\d{4})_(\d{2})(\d{2})(\d{2})\.ret$/);
+  if (fileName.endsWith('.ext')) {
+    match = fileName.match(/_(\d{2})(\d{2})(\d{4})_(\d{2})(\d{2})(\d{2})\.ext$/);
+  } else if (fileName.endsWith('.cmp')) {
+    match = fileName.match(/_(\d{2})(\d{2})(\d{4})_(\d{2})(\d{2})(\d{2})\.cmp$/);
+  } else if (!fileName.endsWith('.ret')) {
+    throw new Error('Nome de arquivo Cnab não reconhecido (esperava: .ret, .ext, .cmp)');
+  }
+  if (match) {
+    const [_, day, month, year, hour, minute, second] = match;
+    const date = new Date(`${year}-${month}-${day} ${hour}:${minute}:${second}.0`);
+    return date;
+  } else {
+    throw new Error('Formato de data não esperado');
+  }
 }

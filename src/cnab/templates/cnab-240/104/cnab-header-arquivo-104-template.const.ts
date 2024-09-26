@@ -1,13 +1,13 @@
 import { Cnab } from 'src/cnab/const/cnab.const';
 import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 import { CnabCodigoRegistro } from 'src/cnab/enums/all/cnab-codigo-registro.enum';
-import { CnabHeaderArquivo104 } from 'src/cnab/interfaces/cnab-240/104/cnab-header-arquivo-104.interface';
+import { CnabHeaderArquivo104 } from 'src/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto';
 
 /**
  * PAGAMENTO DE SALÁRIOS, PAGAMENTO/CRÉDITO A FORNECEDOR E AUTOPAGAMENTO E DÉBITO AUTOMÁTICO
- * 
+ *
  * @version v032 micro - FEV/2024
- * 
+ *
  * Requirement: {@Link https://github.com/RJ-SMTR/api-cct/issues/233 #233, GitHub, 24/04/2023}
  */
 export const CnabHeaderArquivo104Template: CnabHeaderArquivo104 = {

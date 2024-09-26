@@ -1,13 +1,6 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asNullableStringOrDateTime } from 'src/utils/pipe-utils';
-import {
-  AfterLoad,
-  Column,
-  CreateDateColumn,
-  DeepPartial,
-  Entity,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class ExtratoHeaderArquivo extends EntityHelper {
@@ -65,14 +58,14 @@ export class ExtratoHeaderArquivo extends EntityHelper {
   @Column({ type: Number, unique: false, nullable: false })
   nsa: number;
 
+  @Column({ type: String, unique: false, nullable: false })
+  retornoName: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @AfterLoad()
   setReadValues() {
-    this.horaGeracao = asNullableStringOrDateTime(
-      this.horaGeracao,
-      this.dataGeracao,
-    );
+    this.horaGeracao = asNullableStringOrDateTime(this.horaGeracao, this.dataGeracao);
   }
 }

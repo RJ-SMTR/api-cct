@@ -79,7 +79,11 @@ export class SftpClientService {
     return await this.sftpClient.realPath(remotePath);
   }
 
-  async upload(contents: string | Buffer | NodeJS.ReadableStream, remoteFilePath: string, transferOptions?: SftpClient.TransferOptions): Promise<string> {
+  async upload(contents: string | Buffer | NodeJS.ReadableStream, remoteFilePath: string, mkdir = true, transferOptions?: SftpClient.TransferOptions): Promise<string> {
+    if (mkdir) {
+      const folderPath = this.removeFilename(remoteFilePath);
+      await this.makeDirectory(folderPath, true);
+    }
     return await this.sftpClient.put(contents, remoteFilePath, transferOptions);
   }
 
@@ -144,7 +148,7 @@ export class SftpClientService {
     await this.sftpClient.rmdir(remoteFilePath, recursive);
   }
 
-  async rename(remoteSourcePath: string, remoteDestinationPath: string): Promise<void> {
+  async rename(remoteSourcePath: string, remoteDestinationPath: string, mkdir = true): Promise<void> {
     if (remoteSourcePath == remoteDestinationPath) {
       this.logger.debug(`Origin and destination paths are the same. Nothing to do.`);
       return;
@@ -152,6 +156,10 @@ export class SftpClientService {
     if (await this.exists(remoteDestinationPath)) {
       this.logger.debug(`Overwriting rename destination: ${remoteDestinationPath}`);
       await this.delete(remoteDestinationPath);
+    }
+    if (mkdir) {
+      const folderPath = this.removeFilename(remoteDestinationPath);
+      await this.makeDirectory(folderPath, true);
     }
     await this.sftpClient.rename(remoteSourcePath, remoteDestinationPath);
   }
@@ -169,5 +177,19 @@ export class SftpClientService {
 
   async connect(config: ConnectConfig) {
     await this.sftpClient.connect(config);
+  }
+
+  removeFilename(path: string) {
+    if (!path.length) {
+      throw new Error('Ao remover o nome de arquivo SFTP, o nome do diretório não pode estar vazio');
+    }
+    const pathList = path.split('/');
+
+    // if no file (default)
+    let result = pathList.join('/');
+    if (pathList[pathList.length - 1].includes('.')) {
+      result = pathList.slice(0, -1).join('/');
+    }
+    return result;
   }
 }

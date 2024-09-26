@@ -331,7 +331,7 @@ export class User extends EntityHelper {
    */
   getFullName(args?: { errorMessage?: string; httpStatusCode?: HttpStatus }): string {
     if (!this.fullName) {
-      throw UserHttpException.invalidField('bankAgency', {
+      throw UserHttpException.invalidField('fullName', {
         errorMessage: args?.errorMessage,
         httpStatusCode: args?.httpStatusCode,
       });

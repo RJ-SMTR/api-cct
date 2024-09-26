@@ -1,9 +1,12 @@
 export enum RoleEnum {
+  /** Admin de todas as funcionalidades + manutenção */
   'master' = 0,
-  /** Admin vanzeiros */
+  /** Admin da func. vanzeiros */
   'admin' = 1,
+  /** Usuário da func. vanzeiros */
   'user' = 2,
+  /** Usuário da func. financeiro */
   'lancador_financeiro' = 3,
+  /** Admin da func. financeiro */
   'aprovador_financeiro' = 4,
-  'admin_finan' = 5,
 }

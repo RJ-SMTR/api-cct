@@ -77,7 +77,7 @@ export function getCnabFieldType(field: CnabField): CnabFieldType {
 
 export function validateCnabFieldType(field: CnabField) {
   if (field?.value === undefined) {
-    throw new Error(`No formats allow undefined item value`);
+    throw new Error(`No formats allow undefined item value - ${JSON.stringify(field)}`);
   }
 }
 
