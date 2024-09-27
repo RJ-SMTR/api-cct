@@ -258,7 +258,7 @@ export class RelatorioSinteticoRepository {
         query = query + ` and it."valor"<=${args.valorMax}`;    
       
     query = query + ` ) as res
-            order by  res."consorcio", res."favorecido",res."datapagamento" `;   
+            order by  "consorcio", "favorecido","datapagamento" `;   
   
     this.logger.debug(query);
         
