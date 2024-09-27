@@ -23,11 +23,12 @@ export class RelatorioConsolidadoRepository {
                       cf.nome AS favorecido,
                       cf."cpfCnpj" AS favorecido_cpfcnpj,
                       ita."valor" AS valor_agrupado `;
-    query = query +`  from item_transacao_agrupado ita 	
+    query = query +`  from transacao_agrupado ta 
+                      inner join item_transacao_agrupado ita  on ita."transacaoAgrupadoId"=ta."id"	
                       inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                       inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                       inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-                      where ita."id" not in(select tv."itemTransacaoAgrupadoId" from transacao_view tv)  `;
+                      where ta."statusId"<>5 and ita."id" not in(select tv."itemTransacaoAgrupadoId" from transacao_view tv)  `;
 
                       if(dataInicio!==undefined && dataFim!==undefined && 
                         (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
@@ -61,12 +62,13 @@ export class RelatorioConsolidadoRepository {
                       cf.nome AS favorecido,
                       cf."cpfCnpj" AS favorecido_cpfcnpj,
                       da."valorLancamento" AS valor_agrupado `;
-    query = query +`  from item_transacao_agrupado ita 
+    query = query +`  from transacao_agrupado ta 
+                      inner join item_transacao_agrupado ita  on ita."transacaoAgrupadoId"=ta."id"
                       inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
                       inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                       inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                       inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-                      where ita."id" not in(select tv."itemTransacaoAgrupadoId" from transacao_view tv) `;
+                      where ta."statusId"<>5 and  ita."id" not in(select tv."itemTransacaoAgrupadoId" from transacao_view tv) `;
 
                   if(dataInicio!==undefined && dataFim!==undefined && 
                     (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
@@ -106,12 +108,13 @@ export class RelatorioConsolidadoRepository {
                     cf.nome AS favorecido,
                     cf."cpfCnpj" AS favorecido_cpfcnpj,
                     da."valorLancamento" AS valor_agrupado
-                    from item_transacao_agrupado ita 
+                    from transacao_agrupado ta 
+                    inner join item_transacao_agrupado ita on ita."transacaoAgrupadoId"=ta."id"
                     inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
                     inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                     inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                     inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-                    where (1=1) `;
+                    where ta."statusId"<>5 `;
 
                     if(dataInicio!==undefined && dataFim!==undefined && 
                       (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
@@ -194,12 +197,13 @@ export class RelatorioConsolidadoRepository {
                         cf.nome AS favorecido,
                         cf."cpfCnpj" AS favorecido_cpfcnpj,
                         da."valorLancamento" AS valor_agrupado
-                        from item_transacao_agrupado ita 
+                        from transacao_agrupado ta 
+                        inner join item_transacao_agrupado ita on ita."transacaoAgrupadoId"=ta."id" 
                         inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
                         inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                         inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                         inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"	  			
-                        where ita."nomeConsorcio" in('STPC','STPL') `;
+                        where ita."statusId"<>5 and ita."nomeConsorcio" in('STPC','STPL') `;
                         if(dataInicio!==undefined && dataFim!==undefined &&
                           (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
                           query = query +` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
