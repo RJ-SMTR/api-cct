@@ -41,7 +41,9 @@ export enum CronJobsEnum {
   generateRemessaLancamento = 'generateRemessaLancamento',
 }
 interface ICronjobDebug {
+  /** Define uma data customizada para 'hoje' */
   today?: Date;
+  /** Ignora validação de cronjob*/
   force?: boolean;
 }
 interface ICronJob {
@@ -362,8 +364,8 @@ export class CronJobsService {
    * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
    */
   async generateRemessaVanzeiros(debug?: ICronjobDebug) {
-    const METHOD = 'generateRemessaVan';
-    if (!this.validateGenerateRemessaVan(METHOD, debug)) {
+    const METHOD = 'generateRemessaVanzeiros';
+    if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
       return;
     }
     this.logger.log('Tarefa iniciada', METHOD);
@@ -378,7 +380,7 @@ export class CronJobsService {
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
   }
 
-  private validateGenerateRemessaVan(method: string, debug?: ICronjobDebug): boolean {
+  private validateGenerateRemessaVanzeiros(method: string, debug?: ICronjobDebug): boolean {
     const today = debug?.today || new Date();
     if (!isFriday(today)) {
       this.logger.error('Não implementado - Hoje não é sexta-feira. Abortando...', undefined, method);

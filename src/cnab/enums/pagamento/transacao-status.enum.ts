@@ -6,4 +6,6 @@ export enum TransacaoStatusEnum {
   retorno = 3,
   /** compareRemessaRetorno */
   publicado = 4,
+  /** cancelado */
+  cancelado = 5,
 }

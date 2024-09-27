@@ -11,6 +11,7 @@ export class ParseDatePipe implements PipeTransform<string, string | Date> {
       dateOnly?: boolean;
       /** Transform into Date */
       transform?: boolean;
+      default?: Date;
     },
   ) {}
 
@@ -21,6 +22,9 @@ export class ParseDatePipe implements PipeTransform<string, string | Date> {
     if (!value) {
       if (this.args?.optional) {
         return value;
+      }
+      if (this.args?.default) {
+        return this.args.default;
       }
       throw new BadRequestException(`${field}: Date is required.`);
     }

@@ -170,11 +170,9 @@ export class RemessaRetornoService {
   async convertCnabDetalheAToDTO(detalheA: CnabDetalheA_104, headerLoteId: number, itemTransacaoAg: ItemTransacaoAgrupado, isConference: boolean) {
     let existing: DetalheA | DetalheAConf | null = null;
     if (!isConference) {
-      existing = await this.detalheAService.findOne({
-        where: {
-          nsr: Number(detalheA.nsr.value),
-          itemTransacaoAgrupado: { id: itemTransacaoAg?.id },
-        },
+      existing = await this.detalheAService.findOneRaw({
+        nsr: [Number(detalheA.nsr.value)],
+        itemTransacaoAgrupado: { id: [itemTransacaoAg.id] },
       });
     } else {
       existing = await this.detalheAConfService.findOne({
@@ -184,7 +182,7 @@ export class RemessaRetornoService {
         },
       });
     }
-    return DetalheADTO.fromRetorno(detalheA, existing, headerLoteId, itemTransacaoAg);
+    return DetalheADTO.fromRemessa(detalheA, existing, headerLoteId, itemTransacaoAg);
   }
 
   async convertCnabDetalheBToDTO(detalheB: CnabDetalheB_104, detalheAId: number) {
@@ -338,7 +336,7 @@ export class RemessaRetornoService {
     const detalheADTO = await this.convertCnabDetalheAToDTO(detalheA104, savedHeaderLoteId, itemTransacaoAg, isConference);
     if (!isConference) {
       const saved = await this.detalheAService.save(detalheADTO);
-      return await this.detalheAService.getOne({ id: saved.id });
+      return saved;
     } else {
       const saved = await this.detalheAConfService.save(detalheADTO);
       return await this.detalheAConfService.getOne({ id: saved.id });

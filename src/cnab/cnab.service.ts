@@ -142,7 +142,7 @@ export class CnabService {
       const isTeste = headerArquivo.ambienteCliente === Cnab104AmbienteCliente.Teste;
       const headerArquivoDTO = HeaderArquivoDTO.fromEntity(headerArquivo, false);
       const headerLotes = await this.headerLoteService.findMany({ headerArquivo: { id: headerArquivo.id } });
-      const detalheAs = await this.detalheAService.findManyRaw({ headerLoteId_in: headerLotes.map((hl) => hl.id) });
+      const detalheAs = await this.detalheAService.findManyRaw({ headerLote: { id: headerLotes.map((hl) => hl.id) } });
       const detalheBs = await this.detalheBService.findMany({ where: { detalheA: { id: In(detalheAs.map((da) => da.id)) } }, relations: ['detalheA'] as (keyof DetalheB)[] });
       const itemTransacoes = await this.itemTransacaoService.findMany({ where: { itemTransacaoAgrupado: { id: In(detalheAs.map((da) => da.itemTransacaoAgrupado.id)) } }, order: { id: 'ASC' } });
       const headerLoteDTOs = HeaderLoteDTO.fromEntities(headerLotes, detalheAs, detalheBs, itemTransacoes, isTeste);
@@ -438,7 +438,7 @@ export class CnabService {
     await queryRunner.connect();
     try {
       await queryRunner.startTransaction();
-      this.logger.debug(`Salvando Agrupamento - ${JSON.stringify({ consorcio: ordem.consorcio, operadora: ordem.operadora, favorecidoCpfCnpj: ordem.favorecidoCpfCnpj })}`, METHOD);
+      this.logger.debug(`Salvando Agrupamento - ${JSON.stringify({ consorcio: ordem.consorcio, operadora: favorecido.nome, favorecidoCpfCnpj: ordem.favorecidoCpfCnpj })}`, METHOD);
       let transacaoAg = await this.transacaoAgService.findOne({
         dataOrdem: ordem.getTransacaoAgrupadoDataOrdem(),
         pagador: { id: pagador.id },

@@ -58,7 +58,7 @@ export class CnabHeaderLote104PgtoDTO {
     Object.assign(this, dto);
   }
   static fromDTO(headerLoteDTO: HeaderLoteDTO): CnabHeaderLote104Pgto {
-    const headerLote104 = new CnabHeaderLote104PgtoDTO(Cnab104PgtoTemplates.file104.registros.headerLote);
+    const headerLote104 = new CnabHeaderLote104PgtoDTO(structuredClone(Cnab104PgtoTemplates.file104.registros.headerLote));
     const headerArquivo = headerLoteDTO.headerArquivo as HeaderArquivo;
     const pagador = headerLoteDTO.pagador as DeepPartial<Pagador>;
     headerLote104.codigoConvenioBanco.value = headerLoteDTO.codigoConvenioBanco;
