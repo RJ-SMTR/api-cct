@@ -197,22 +197,22 @@ export class CronJobsService {
       //     },
       //   },
       // },
-      {
-        /**
-         * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min
-         * + BD do CCT - Sincronizar Transações com Ordem Pgto
-         *
-         * Gerar remessa vanzeiros
-         */
-        name: CronJobsEnum.generateRemessaVanzeiros,
-        cronJobParameters: {
-          cronTime: '0 13 * * 5', // Every Friday (see method), 13:00 GMT = 10:00 BRT (GMT-3)
-          onTick: async () => {
-            await this.generateRemessaVanzeiros();
-            await this.syncTransacaoViewOrdem('generateRemessaVanzeiros');
-          },
-        },
-      },
+      // {
+      //   /**
+      //    * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min
+      //    * + BD do CCT - Sincronizar Transações com Ordem Pgto
+      //    *
+      //    * Gerar remessa vanzeiros
+      //    */
+      //   name: CronJobsEnum.generateRemessaVanzeiros,
+      //   cronJobParameters: {
+      //     cronTime: '0 13 * * 5', // Every Friday (see method), 13:00 GMT = 10:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       await this.generateRemessaVanzeiros();
+      //       await this.syncTransacaoViewOrdem('generateRemessaVanzeiros');
+      //     },
+      //   },
+      // },
       {
         /**
          * Reenvio de E-mail para Vanzeiros - 1 aceso ou Cadastro de Contas Bancárias - dia 15 de cada mês, 11:45, duração: 5 min
@@ -237,22 +237,22 @@ export class CronJobsService {
           onTick: async () => await this.updateTransacaoViewValues(),
         },
       },
-      {
-        /**
-         * Gerar arquivo Remessa dos Consórcios - toda 5a, 17:00, duração: 15 min
-         * + BD do CCT - Sincronizar Transações com Ordem Pgto
-         *
-         * Gerar remessa consórcios
-         */
-        name: CronJobsEnum.generateRemessaEmpresa,
-        cronJobParameters: {
-          cronTime: '0 20 * * *', // Every Thursday (see method), 20:00 GMT = 17:00 BRT (GMT-3)
-          onTick: async () => {
-            await this.generateRemessaEmpresa();
-            await this.syncTransacaoViewOrdem('generateRemessaEmpresa');
-          },
-        },
-      },
+      // {
+      //   /**
+      //    * Gerar arquivo Remessa dos Consórcios - toda 5a, 17:00, duração: 15 min
+      //    * + BD do CCT - Sincronizar Transações com Ordem Pgto
+      //    *
+      //    * Gerar remessa consórcios
+      //    */
+      //   name: CronJobsEnum.generateRemessaEmpresa,
+      //   cronJobParameters: {
+      //     cronTime: '0 20 * * *', // Every Thursday (see method), 20:00 GMT = 17:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       await this.generateRemessaEmpresa();
+      //       await this.syncTransacaoViewOrdem('generateRemessaEmpresa');
+      //     },
+      //   },
+      // },
       {
         /**
          * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
