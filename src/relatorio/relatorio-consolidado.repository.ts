@@ -203,7 +203,7 @@ export class RelatorioConsolidadoRepository {
                         inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                         inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                         inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"	  			
-                        where ita."statusId"<>5 and ita."nomeConsorcio" in('STPC','STPL') `;
+                        where ta."statusId"<>5 and ita."nomeConsorcio" in('STPC','STPL') `;
                         if(dataInicio!==undefined && dataFim!==undefined &&
                           (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
                           query = query +` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
