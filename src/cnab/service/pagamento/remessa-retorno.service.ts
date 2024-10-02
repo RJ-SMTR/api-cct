@@ -47,6 +47,8 @@ import { HeaderLoteConfService } from './header-lote-conf.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
+import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pgamento-indevido-service';
+import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -73,6 +75,7 @@ export class RemessaRetornoService {
     private ocorrenciaService: OcorrenciaService,
     private transacaoViewService: TransacaoViewService,
     private dataSource: DataSource,
+    private pagamentoIndevidoService: PagamentoIndevidoService
   ) {}
 
   public async saveHeaderArquivoDTO(transacaoAg: TransacaoAgrupado, isConference: boolean, isTeste?: boolean): Promise<HeaderArquivoDTO> {
@@ -106,14 +109,10 @@ export class RemessaRetornoService {
     const transacaoAg = headerArquivoDTO.transacaoAgrupado as TransacaoAgrupado;
     const itemTransacaoAgs = await this.itemTransacaoAgService.findManyByIdTransacaoAg(transacaoAg.id);
 
-    // Agrupar por Lotes
-    /** Agrupa por: formaLancamento */
     const lotes: HeaderLoteDTO[] = [];
     let nsrTed = 0;
-    let nsrCC = 0;
-    /** @type HeaderLoteDTO */
+    let nsrCC = 0; 
     let loteTed: any;
-    /** @type HeaderLoteDTO */
     let loteCC: any;
     for (const itemTransacaoAgrupado of itemTransacaoAgs) {
       const itemTransacao = await this.itemTransacaoService.findOne({
@@ -122,6 +121,8 @@ export class RemessaRetornoService {
         },
       });
       if (itemTransacao) {
+        //TODO: Continuar 
+        const pagamentoIndevido = await this.verificaPagamentoIndevido(itemTransacao);       
         //TED
         if (itemTransacao.clienteFavorecido.codigoBanco !== '104') {
           nsrTed++;
@@ -165,6 +166,18 @@ export class RemessaRetornoService {
       lotes.push(loteCC);
     }
     return lotes;
+  }
+
+  async verificaPagamentoIndevido(itemTransacao:ItemTransacao){
+    if(itemTransacao.nomeConsorcio ==='STPC' || itemTransacao.nomeConsorcio ==='STPL'){   
+      const pagamentoIndevido = (await this.pagamentoIndevidoService.findAll())
+      .filter(p=>p.nomeFavorecido ===itemTransacao.clienteFavorecido.nome);
+      if(pagamentoIndevido){
+        return pagamentoIndevido;
+      }else{
+        return null;
+      }
+    }  
   }
 
   async convertCnabDetalheAToDTO(detalheA: CnabDetalheA_104, headerLoteId: number, itemTransacaoAg: ItemTransacaoAgrupado, isConference: boolean) {
