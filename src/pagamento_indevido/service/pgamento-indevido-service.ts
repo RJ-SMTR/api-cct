@@ -5,13 +5,17 @@ import { Nullable } from "src/utils/types/nullable.type";
 import { DataSource, Repository } from "typeorm";
 import { PagamentoIndevido } from "../entity/pagamento-indevido.entity";
 import { PagamentoIndevidoDTO } from "../dto/pagamento-indevido.dto";
+import { PagamentoIndevidoRepository } from "../repository/pagamento-indevido.repository";
 
 @Injectable()
 export class PagamentoIndevidoService {
+
+  
   constructor(
     @InjectRepository(PagamentoIndevido)
     private readonly infoRepository: Repository<PagamentoIndevido>,
     private dataSource: DataSource,
+    private pagamentoIndevidoRepository: PagamentoIndevidoRepository
   ) {}
 
   async find(fields?: EntityCondition<PagamentoIndevido>): Promise<Nullable<PagamentoIndevido[]>> {
@@ -25,6 +29,10 @@ export class PagamentoIndevidoService {
     await queryRunner.connect();
     const rawResult: any[] = await this.dataSource.query(`select * from pagamento_indevido`);          
     return rawResult.map((i) => new PagamentoIndevidoDTO(i)); 
+  }
+
+  async save(pagamentoIndevido: PagamentoIndevidoDTO) {     
+    this.pagamentoIndevidoRepository.save(pagamentoIndevido);
   }
 
 }

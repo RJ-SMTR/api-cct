@@ -16,7 +16,7 @@ export class PagamentoIndevidoRepository {
   ) { }
 
 
-  public async create(pagamentoIndevidoDTO: PagamentoIndevidoDTO): Promise<PagamentoIndevido> {
+  public async save(pagamentoIndevidoDTO: PagamentoIndevidoDTO): Promise<PagamentoIndevido> {
     return await this.pagamentoIndevidoRepository.save(pagamentoIndevidoDTO);
   }
 
@@ -32,4 +32,5 @@ export class PagamentoIndevidoRepository {
   public async findAll(): Promise<PagamentoIndevido[]> {
     return await this.pagamentoIndevidoRepository.find();
   }
+
 }

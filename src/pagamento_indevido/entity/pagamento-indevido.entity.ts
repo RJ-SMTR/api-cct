@@ -1,5 +1,3 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Exclude } from "class-transformer/types/decorators/exclude.decorator";
 import { EntityHelper } from "src/utils/entity-helper";
 import { Entity,  PrimaryColumn, DeepPartial, Column } from "typeorm";
 
@@ -10,10 +8,8 @@ export class PagamentoIndevido extends EntityHelper {
     if (pagamentoIndevido !== undefined) {
       Object.assign(this, pagamentoIndevido);
     }
-  }
-  
-  @Exclude()
-  @ApiProperty({ example: 1 })
+  }  
+
   @PrimaryColumn({ primaryKeyConstraintName: 'PK_PagamentoIndevido_id' })
   id: number;
  
@@ -26,9 +22,21 @@ export class PagamentoIndevido extends EntityHelper {
   @Column({ type: String, unique: false, nullable: false, length: 150 })
   nomeFavorecido: string;
 
-  @Column({ type: Number, unique: false, nullable: false })
+  @Column({
+    type: 'decimal',
+    unique: false,
+    nullable: true,
+    precision: 10,
+    scale: 5,
+  })
   valorPago:number;
 
-  @Column({ type: Number, unique: false, nullable: false })
+  @Column({
+    type: 'decimal',
+    unique: false,
+    nullable: true,
+    precision: 10,
+    scale: 5,
+  })
   valorDebitar:number;	
 }

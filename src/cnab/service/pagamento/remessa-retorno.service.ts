@@ -49,6 +49,8 @@ import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service'
 import { ItemTransacaoService } from './item-transacao.service';
 import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pgamento-indevido-service';
 import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
+import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indevido.entity';
+import { PagamentoIndevidoDTO } from 'src/pagamento_indevido/dto/pagamento-indevido.dto';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -114,6 +116,7 @@ export class RemessaRetornoService {
     let nsrCC = 0; 
     let loteTed: any;
     let loteCC: any;
+    let valorAPagar: number| undefined ;
     for (const itemTransacaoAgrupado of itemTransacaoAgs) {
       const itemTransacao = await this.itemTransacaoService.findOne({
         where: {
@@ -121,23 +124,30 @@ export class RemessaRetornoService {
         },
       });
       if (itemTransacao) {
-        //TODO: Continuar 
-        const pagamentoIndevido = await this.verificaPagamentoIndevido(itemTransacao);       
+        const pagamentoIndevido = await this.verificaPagamentoIndevido(itemTransacao);   
+        if(pagamentoIndevido) {
+          valorAPagar =  await this.debitarPagamentoIndevido(pagamentoIndevido,itemTransacao.valor);       
+        }
+
         //TED
         if (itemTransacao.clienteFavorecido.codigoBanco !== '104') {
           nsrTed++;
           if (loteTed == undefined) {
-            if (!isConference) {
+            if(!isConference){
               loteTed = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.TED, isTeste);
               loteTed = await this.headerLoteService.saveDto(loteTed);
             } else {
-              loteTed = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.TED, isTeste);
-              loteTed = await this.headerLoteConfService.saveDto(loteTed);
+              if((valorAPagar!==undefined && valorAPagar > 0) || !pagamentoIndevido){
+                loteTed = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.TED, isTeste);
+                loteTed = await this.headerLoteConfService.saveDto(loteTed);
+              }
             }
           }
-          const detalhes104 = await this.saveListDetalhes(loteTed, [itemTransacaoAgrupado], nsrTed, isConference, dataPgto);
-          nsrTed++;
-          loteTed.registros104.push(...detalhes104);
+          if((valorAPagar!==undefined && valorAPagar > 0) || !pagamentoIndevido){
+            const detalhes104 = await this.saveListDetalhes(valorAPagar, loteTed, itemTransacaoAgrupado, nsrTed, isConference, dataPgto);
+            nsrTed++;
+            loteTed.registros104.push(...detalhes104);
+          }
         }
         //Credito em Conta
         else {
@@ -148,13 +158,17 @@ export class RemessaRetornoService {
               loteCC = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.CreditoContaCorrente, isTeste);
               loteCC = await this.headerLoteService.saveDto(loteCC);
             } else {
-              loteCC = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.CreditoContaCorrente, isTeste);
-              loteCC = await this.headerLoteConfService.saveDto(loteCC);
+              if((valorAPagar!==undefined && valorAPagar > 0) || !pagamentoIndevido){
+                loteCC = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.CreditoContaCorrente, isTeste);
+                loteCC = await this.headerLoteConfService.saveDto(loteCC);
+              }
             }
           }
-          const detalhes104 = await this.saveListDetalhes(loteCC, [itemTransacaoAgrupado], nsrCC, isConference, dataPgto);
-          nsrCC++;
-          loteCC.registros104.push(...detalhes104);
+          if((valorAPagar!==undefined && valorAPagar > 0) || !pagamentoIndevido){
+            const detalhes104 = await this.saveListDetalhes(valorAPagar,loteCC,itemTransacaoAgrupado, nsrCC, isConference, dataPgto);
+            nsrCC++;
+            loteCC.registros104.push(...detalhes104);
+          }
         }
       }
     }
@@ -173,11 +187,36 @@ export class RemessaRetornoService {
       const pagamentoIndevido = (await this.pagamentoIndevidoService.findAll())
       .filter(p=>p.nomeFavorecido ===itemTransacao.clienteFavorecido.nome);
       if(pagamentoIndevido){
-        return pagamentoIndevido;
+        return pagamentoIndevido[0];
       }else{
-        return null;
+        return undefined;
       }
     }  
+  }
+
+  async debitarPagamentoIndevido(pagamentoIndevido:PagamentoIndevidoDTO,valor: number){
+    let aPagar = 0;
+    let result = pagamentoIndevido.valorDebitar - valor; 
+    if(result > 0){
+      //Vanzeiro continua devendo
+      //Atualizar o banco com o debito restante  
+      pagamentoIndevido.valorDebitar = result;
+      pagamentoIndevido.dataReferencia = new Date();      
+      await this.pagamentoIndevidoService.save(pagamentoIndevido);
+
+    }else{      
+      //debito encerrado
+      if(result <= 0){
+        //ex: result = -10          
+        //pagar diferença para o vanzeiro
+        aPagar = result + result; 
+        pagamentoIndevido.valorDebitar = 0;
+        pagamentoIndevido.dataReferencia = new Date(); 
+        //deletar debito do vanzeiro
+        await this.pagamentoIndevidoService.save(pagamentoIndevido);
+      }  
+    }
+    return aPagar;
   }
 
   async convertCnabDetalheAToDTO(detalheA: CnabDetalheA_104, headerLoteId: number, itemTransacaoAg: ItemTransacaoAgrupado, isConference: boolean) {
@@ -219,19 +258,18 @@ export class RemessaRetornoService {
    *
    * @returns Detalhes104 gerados a partir dos ItemTransacaoAg
    */
-  async saveListDetalhes(headerLoteDto: HeaderLoteDTO, itemTransacoes: ItemTransacaoAgrupado[], nsr: number, isConference: boolean, dataPgto?: Date): Promise<CnabRegistros104Pgto[]> {
+  async saveListDetalhes(valorAPagar: number|undefined,headerLoteDto: HeaderLoteDTO, 
+    itemTransacao: ItemTransacaoAgrupado, nsr: number, isConference: boolean, dataPgto?: Date): Promise<CnabRegistros104Pgto[]> {
     let numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());
     // Para cada itemTransacao, cria detalhe
     const detalhes: CnabRegistros104Pgto[] = [];
-    let itemTransacaoAgAux: ItemTransacaoAgrupado | undefined;
-    for (const itemTransacao of itemTransacoes) {
-      itemTransacaoAgAux = itemTransacao as ItemTransacaoAgrupado;
-      const detalhe = await this.saveDetalhes104(numeroDocumento, headerLoteDto, itemTransacaoAgAux, nsr, isConference, dataPgto);
-      if (detalhe) {
-        detalhes.push(detalhe);
-      }
-      numeroDocumento++;
+    const detalhe = await this.saveDetalhes104(valorAPagar,numeroDocumento, headerLoteDto, itemTransacao, nsr, isConference, dataPgto);
+   
+    if (detalhe) {
+      detalhes.push(detalhe);
     }
+    numeroDocumento++;
+    
     return detalhes;
   }
 
@@ -261,11 +299,14 @@ export class RemessaRetornoService {
    * @param numeroDocumento Gerenciado pela empresa. Deve ser um número único.
    * @param dataPgto O padrão é o dia de hoje. O valor será sempre >= hoje.
    * @returns null if failed ItemTransacao to CNAB */
-  public async saveDetalhes104(numeroDocumento: number, headerLote: HeaderLoteDTO, itemTransacaoAg: ItemTransacaoAgrupado, nsr: number, isConference: boolean, dataPgto?: Date, isCancelamento = false, detalheAC = new DetalheA()): Promise<CnabRegistros104Pgto | null> {
+  public async saveDetalhes104(valorAPagar:number|undefined, numeroDocumento: number, headerLote: HeaderLoteDTO, 
+    itemTransacaoAg: ItemTransacaoAgrupado, nsr: number, isConference: boolean, dataPgto?: Date,
+    isCancelamento = false, detalheAC = new DetalheA()): Promise<CnabRegistros104Pgto | null> {
     /** @type ClienteFavorecido */
     let favorecido: ClienteFavorecido | undefined;
-    if (itemTransacaoAg != undefined) {
-      const itemTransacao = await this.itemTransacaoService.findOne({ where: { itemTransacaoAgrupado: { id: itemTransacaoAg.id } } });
+    if (itemTransacaoAg !== undefined) {
+      const itemTransacao =
+       await this.itemTransacaoService.findOne({ where: { itemTransacaoAgrupado: { id: itemTransacaoAg.id } } });
       favorecido = itemTransacao?.clienteFavorecido;
     } else {
       const itemTransacaoAg = detalheAC.headerLote.headerArquivo.transacaoAgrupado?.itemTransacoesAgrupado[0];
@@ -273,7 +314,6 @@ export class RemessaRetornoService {
       favorecido = itemTransacao?.clienteFavorecido;
     }
 
-    // Failure if no favorecido
     if (!favorecido) {
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
@@ -309,7 +349,12 @@ export class RemessaRetornoService {
     if (!isCancelamento) {
       detalheA.valorLancamento.value = itemTransacaoAg.valor;
     } else {
-      detalheA.valorLancamento.value = detalheAC.valorLancamento;
+      if(valorAPagar!== undefined && valorAPagar > 0){
+        detalheA.valorLancamento.value = valorAPagar;
+        detalheA.valorRealEfetivado.value = detalheAC.valorLancamento;
+      }else{
+        detalheA.valorLancamento.value = detalheAC.valorLancamento;
+      }
     }
 
     detalheA.nsr.value = nsr;
@@ -323,7 +368,7 @@ export class RemessaRetornoService {
     } else {
       detalheB.dataVencimento.value = dataPgto;
     }
-    // Favorecido address
+    
     detalheB.logradouro.value = favorecido.logradouro;
     detalheB.numeroLocal.value = favorecido.numero;
     detalheB.complemento.value = favorecido.complemento;
