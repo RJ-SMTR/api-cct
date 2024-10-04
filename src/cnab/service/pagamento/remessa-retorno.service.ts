@@ -117,6 +117,7 @@ export class RemessaRetornoService {
     let loteCC: any;
     let valorAPagar: number| undefined ;
     for (const itemTransacaoAgrupado of itemTransacaoAgs) {
+      valorAPagar = undefined;
       const itemTransacao = await this.itemTransacaoService.findOne({
         where: {
           itemTransacaoAgrupado: { id: itemTransacaoAgrupado.id },
@@ -126,10 +127,10 @@ export class RemessaRetornoService {
         const pagamentoIndevido = await this.verificaPagamentoIndevido(itemTransacao);   
         if(pagamentoIndevido) {
           valorAPagar =  await this.debitarPagamentoIndevido(pagamentoIndevido,itemTransacaoAgrupado.valor);       
-        }
+        }   
 
         //TED
-        if (itemTransacao.clienteFavorecido.codigoBanco !== '104') {
+        if (itemTransacao.clienteFavorecido.codigoBanco !== '104') {          
           if((valorAPagar!==undefined && valorAPagar > 0) || !pagamentoIndevido || isConference){
              nsrTed++;
           }
@@ -162,17 +163,15 @@ export class RemessaRetornoService {
               loteCC = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivoDTO, pagador, Cnab104FormaLancamento.CreditoContaCorrente, isTeste);
               loteCC = await this.headerLoteConfService.saveDto(loteCC);              
             }
-          }
-          if((valorAPagar!==undefined && valorAPagar > 0) || !pagamentoIndevido){
-            const detalhes104 = 
-            await this.saveListDetalhes(valorAPagar,loteCC,itemTransacaoAgrupado, nsrCC, isConference, dataPgto);
-            if(detalhes104[0].detalheA.nsr.value > 0){
-              nsrCC++;
-              loteCC.registros104.push(...detalhes104);
-            }
-          }
+          }         
+          const detalhes104 = 
+          await this.saveListDetalhes(valorAPagar,loteCC,itemTransacaoAgrupado, nsrCC, isConference, dataPgto);
+          if(detalhes104[0].detalheA.nsr.value > 0){
+            nsrCC++;
+            loteCC.registros104.push(...detalhes104);
+          }          
         }
-      }
+      }     
     }
     // Adicionar lote
     if (loteTed != undefined) {
@@ -353,14 +352,14 @@ export class RemessaRetornoService {
     detalheA.dataVencimento.value = _dataPgto;
 
     if (!isCancelamento) {
-      if(valorAPagar!== undefined && valorAPagar >= 0){
-        detalheA.valorLancamento.value = valorAPagar;
-        detalheA.valorRealEfetivado.value = itemTransacaoAg.valor;
-      }else{
+      if(valorAPagar === undefined){
         detalheA.valorLancamento.value = itemTransacaoAg.valor;  
         detalheA.valorRealEfetivado.value = itemTransacaoAg.valor;       
+      }else if(valorAPagar!== undefined && valorAPagar >= 0){
+        detalheA.valorLancamento.value = valorAPagar;
+        detalheA.valorRealEfetivado.value = itemTransacaoAg.valor;
       }
-    } else {      
+     } else {      
       detalheA.valorLancamento.value = detalheAC.valorLancamento;         
     }
     if(valorAPagar == 0){
