@@ -38,5 +38,15 @@ export class PagamentoIndevido extends EntityHelper {
     precision: 10,
     scale: 5,
   })
-  valorDebitar:number;	
+  valorPagar:number;	
+
+  
+  @Column({
+    type: 'decimal',
+    unique: false,
+    nullable: true,
+    precision: 10,
+    scale: 5,
+  })
+  saldoDevedor:number;	
 }

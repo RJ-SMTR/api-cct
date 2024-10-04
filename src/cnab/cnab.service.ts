@@ -61,6 +61,7 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
+import { Nullable } from 'src/utils/types/nullable.type';
 
 export interface ICnabInfo {
   name: string;
@@ -433,11 +434,12 @@ export class CnabService {
     const METHOD = 'saveAgrupamentos';
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+    let transacaoAg: Nullable<TransacaoAgrupado>=null;
     try {
       await queryRunner.startTransaction();
       this.logger.debug(`Salvando Agrupamento - ${JSON.stringify({ consorcio: ordem.consorcio, 
         operadora: favorecido.nome, favorecidoCpfCnpj: ordem.favorecidoCpfCnpj })}`, METHOD);
-      let transacaoAg = await this.transacaoAgService.findOne({
+      transacaoAg = await this.transacaoAgService.findOne({
         dataOrdem: ordem.getTransacaoAgrupadoDataOrdem(),
         pagador: { id: pagador.id },
         status: { id: TransacaoStatusEnum.created },
@@ -456,6 +458,10 @@ export class CnabService {
       this.logger.debug('Fim Agrupamento Consorcio: ' + ordem.consorcio);
     } catch (error) {
       await queryRunner.rollbackTransaction();
+      if(transacaoAg!==null){        
+        transacaoAg.status.id = TransacaoStatusEnum.cancelado;
+        await this.transacaoAgService.save(transacaoAg);
+      }
       this.logger.error(`Falha ao salvar Informações agrupadas`, error?.stack);
     } finally {
       await queryRunner.release();

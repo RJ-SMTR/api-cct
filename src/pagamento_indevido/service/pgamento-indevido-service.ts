@@ -27,12 +27,23 @@ export class PagamentoIndevidoService {
   async findAll(): Promise<PagamentoIndevidoDTO[]>{
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    const rawResult: any[] = await this.dataSource.query(`select * from pagamento_indevido`);          
+    const rawResult: any[] = await this.dataSource.query(`select * from pagamento_indevido`);  
+    await queryRunner.release();        
     return rawResult.map((i) => new PagamentoIndevidoDTO(i)); 
   }
 
-  async save(pagamentoIndevido: PagamentoIndevidoDTO) {     
-    this.pagamentoIndevidoRepository.save(pagamentoIndevido);
+  async save(pagamentoIndevido: PagamentoIndevidoDTO) {    
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try{          
+      await queryRunner.startTransaction();      
+      this.pagamentoIndevidoRepository.save(pagamentoIndevido);
+      await queryRunner.commitTransaction();
+    }catch(e){
+      await queryRunner.rollbackTransaction();
+    }finally{
+      await queryRunner.release();
+    }
   }
 
 }

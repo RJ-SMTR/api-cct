@@ -7,7 +7,8 @@ export class PagamentoIndevidoDTO  {
     this.dataReferencia= (dto as PagamentoIndevidoDTO).dataReferencia;
     this.nomeFavorecido= (dto as PagamentoIndevidoDTO).nomeFavorecido;
     this.valorPago= (dto as PagamentoIndevidoDTO).valorPago;
-    this.valorDebitar= (dto as PagamentoIndevidoDTO).valorDebitar;		   
+    this.valorPagar= (dto as PagamentoIndevidoDTO).valorPagar;
+    this.saldoDevedor= (dto as PagamentoIndevidoDTO).saldoDevedor;		   
   }
 
   id: number;
@@ -15,6 +16,6 @@ export class PagamentoIndevidoDTO  {
   dataReferencia: Date;
   nomeFavorecido: string;
   valorPago:number;
-  valorDebitar:number;		
-
+  valorPagar:number;		
+  saldoDevedor:number;		
 }
