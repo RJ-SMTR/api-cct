@@ -71,6 +71,9 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { CnabManutencaoController } from './cnab-manutencao.controller';
+import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pgamento-indevido-service';
+import { PagamentoIndevidoRepository } from 'src/pagamento_indevido/repository/pagamento-indevido.repository';
+import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indevido.entity';
 
 @Module({
   imports: [
@@ -102,6 +105,7 @@ import { CnabManutencaoController } from './cnab-manutencao.controller';
       ExtratoHeaderArquivo,
       ExtratoHeaderLote,
       ExtratoDetalheE,
+      PagamentoIndevido
     ]),
   ],
   providers: [
@@ -147,6 +151,8 @@ import { CnabManutencaoController } from './cnab-manutencao.controller';
     TransacaoAgrupadoService,
     TransacaoRepository,
     TransacaoService,
+    PagamentoIndevidoRepository,
+    PagamentoIndevidoService
   ],
   exports: [
     CnabService, //
@@ -186,6 +192,8 @@ import { CnabManutencaoController } from './cnab-manutencao.controller';
     ExtratoDetalheEService,
     RemessaRetornoService,
     OcorrenciaService,
+    PagamentoIndevidoRepository,
+    PagamentoIndevidoService
   ],
   controllers: [CnabController, CnabManutencaoController],
 })

@@ -83,6 +83,8 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    // await this.generateRemessaVanzeiros();
+    // await this.syncTransacaoViewOrdem('generateRemessaVanzeiros');
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
@@ -347,11 +349,8 @@ export class CronJobsService {
       const qui = today;
       await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Empresa');
       const listCnab = await this.cnabService.generateRemessa({
-        tipo: PagadorContaEnum.ContaBilhetagem,
-        dataPgto: addDays(today, 1),
-        isConference: false,
-        isCancelamento: false,
-        isTeste: false,
+        tipo: PagadorContaEnum.ContaBilhetagem, dataPgto: addDays(today, 1),
+        isConference: false,isCancelamento: false, isTeste: false
       });
       await this.cnabService.sendRemessa(listCnab);
       this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
@@ -365,9 +364,9 @@ export class CronJobsService {
    */
   async generateRemessaVanzeiros(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaVanzeiros';
-    if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
-      return;
-    }
+    // if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
+    //   return;
+    // }
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
     const today = debug?.today || new Date();
