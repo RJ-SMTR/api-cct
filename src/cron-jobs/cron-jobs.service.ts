@@ -83,6 +83,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    //REMOVER APÓS RODAR
     await this.generateRemessaVanzeiros();
     await this.syncTransacaoViewOrdem('generateRemessaVanzeiros');
 
