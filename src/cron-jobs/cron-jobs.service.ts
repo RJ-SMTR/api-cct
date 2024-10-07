@@ -83,10 +83,6 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    //REMOVER APÓS RODAR
-    await this.generateRemessaVanzeiros();
-    await this.syncTransacaoViewOrdem('generateRemessaVanzeiros');
-
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
@@ -180,26 +176,26 @@ export class CronJobsService {
           onTick: async () => await this.sendStatusReport(),
         },
       },
-      // {
-      //   /**
-      //    * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min
-      //    * + BD do CCT - Sincronizar Transações com Ordem Pgto
-      //    *
-      //    * Gerar remessa VLT
-      //    */
-      //   name: CronJobsEnum.generateRemessaVLT,
-      //   cronJobParameters: {
-      //     cronTime: '0 11 * * *', // Every day, 11:00 GMT = 08:00 BRT (GMT-3)
-      //     onTick: async () => {
-      //       const today = new Date();
-      //       if (isSaturday(today) || isSunday(today)) {
-      //         return;
-      //       }
-      //       await this.generateRemessaVLT();
-      //       await this.syncTransacaoViewOrdem('generateRemessaVLT');
-      //     },
-      //   },
-      // },
+      {
+        /**
+         * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min
+         * + BD do CCT - Sincronizar Transações com Ordem Pgto
+         *
+         * Gerar remessa VLT
+         */
+        name: CronJobsEnum.generateRemessaVLT,
+        cronJobParameters: {
+          cronTime: '0 11 * * *', // Every day, 11:00 GMT = 08:00 BRT (GMT-3)
+          onTick: async () => {
+            const today = new Date();
+            if (isSaturday(today) || isSunday(today)) {
+              return;
+            }
+            await this.generateRemessaVLT();
+            await this.syncTransacaoViewOrdem('generateRemessaVLT');
+          },
+        },
+      },
       // {
       //   /**
       //    * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min
@@ -365,9 +361,9 @@ export class CronJobsService {
    */
   async generateRemessaVanzeiros(debug?: ICronjobDebug) {
     const METHOD = 'generateRemessaVanzeiros';
-    // if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
-    //   return;
-    // }
+    if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
+      return;
+    }
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
     const today = debug?.today || new Date();

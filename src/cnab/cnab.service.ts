@@ -327,7 +327,8 @@ export class CnabService {
     if (consorcio.trim() === 'Empresa') {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL');
     } else if (consorcio.trim() === 'Van') {
-      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() === 'STPC' || ordem.consorcio.trim() === 'STPL');
+      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() === 'STPC' 
+      || ordem.consorcio.trim() === 'STPL' || ordem.consorcio.trim() === 'TEC');
     } else {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio === consorcio.trim());
     }
