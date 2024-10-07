@@ -108,10 +108,10 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
           onTick: async () => {
-            // if (!this.validateJobsRemessa()) {
-            //   this.logger.log(`Ignorando esta tarefa para não impedir tarefas prioritárias..`, 'saveRetornoPagamento');
-            //   return;
-            // }
+            if (!this.validateJobsRemessa()) {
+              this.logger.log(`Ignorando esta tarefa para não impedir tarefas prioritárias..`, 'saveRetornoPagamento');
+              return;
+            }
             await this.saveRetornoPagamento();
           },
         },
