@@ -63,9 +63,8 @@ export class RelatorioConsolidadoRepository {
     query = query +` select distinct ita.id AS id,
                     ita."nomeConsorcio" AS consorcio,	
                     cf.nome AS favorecido,
-                    cf."cpfCnpj" AS favorecido_cpfcnpj,
-                    case when da."valorLancamento"=0 then da."valorRealEfetivado" 
-		                else da."valorLancamento" end AS valor_agrupado
+                    cf."cpfCnpj" AS favorecido_cpfcnpj,                    
+		                da."valorLancamento" AS valor_agrupado
                     from transacao_agrupado ta 
                     inner join item_transacao_agrupado ita on ita."transacaoAgrupadoId"=ta."id"
                     inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
@@ -158,11 +157,10 @@ export class RelatorioConsolidadoRepository {
       let query = ` select * from ( `;
       query  = query + ` select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor from ( `;
       query  = query + ` select distinct ita.id AS id,
-                        ita."nomeConsorcio" AS consorcio,	
-                        cf.nome AS favorecido,
-                        cf."cpfCnpj" AS favorecido_cpfcnpj,
-                        case when da."valorLancamento"=0 then da."valorRealEfetivado" 
-		                    else da."valorLancamento" end AS valor_agrupado
+                         ita."nomeConsorcio" AS consorcio,	
+                         cf.nome AS favorecido,
+                        cf."cpfCnpj" AS favorecido_cpfcnpj,                        
+		                    da."valorLancamento" AS valor_agrupado
                         from transacao_agrupado ta 
                         inner join item_transacao_agrupado ita on ita."transacaoAgrupadoId"=ta."id" 
                         inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id

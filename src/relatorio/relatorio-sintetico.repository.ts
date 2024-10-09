@@ -60,7 +60,7 @@ export class RelatorioSinteticoRepository {
         WHERE tv."valorPago" > 0 `;
         if(dataInicio!==undefined && dataFim!==undefined && 
           (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
-            query = query + ` AND tv."datetimeTransacao" between '${dataInicio}' AND '${dataFim}'`;                  
+            query = query + ` AND tv."datetimeTransacao" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;                 
         } 
        
         if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
@@ -115,7 +115,7 @@ export class RelatorioSinteticoRepository {
         
         if(dataInicio!==undefined && dataFim!==undefined && 
           (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
-          conditions = conditions + ` tv."datetimeTransacao" between '${dataInicio}' and '${dataFim}'`;
+          conditions = conditions + ` tv."datetimeTransacao" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;
 
         if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
           conditions = conditions +` and tv."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;   
