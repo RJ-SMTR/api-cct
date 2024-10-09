@@ -1,0 +1,1 @@
+- EA - Excedeu limite de horário.

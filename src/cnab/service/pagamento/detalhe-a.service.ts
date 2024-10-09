@@ -35,18 +35,8 @@ export class DetalheAService {
   }
 
   /**
-   * Any DTO existing in db will be ignored.
-   *
-   * @param dtos DTOs that can exist or not in database
-   * @returns Saved objects not in database.
-   */
-  public saveManyIfNotExists(dtos: DeepPartial<DetalheA>[]): Promise<DetalheA[]> {
-    return this.detalheARepository.saveManyIfNotExists(dtos);
-  }
-
-  /**
    * Salva DetalheA, PagamentosPendentes
-   * 
+   *
    * @returns: DetalheA ou motivoDoErro
    */
   public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto, r: CnabRegistros104Pgto, dataEfetivacao: Date, retornoName: string): Promise<DetalheA | ('favorecidoNotFound' | 'detalheANotFound' | 'hasUpdatedRetorno')> {
@@ -97,12 +87,20 @@ export class DetalheAService {
     return await this.detalheARepository.save(dto);
   }
 
+  public async getOneRaw(where: IDetalheARawWhere): Promise<DetalheA> {
+    return await this.detalheARepository.getOneRaw(where);
+  }
+
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
     return await this.detalheARepository.getOne(fields);
   }
 
   public async findOne(options: FindOneOptions<DetalheA>): Promise<Nullable<DetalheA>> {
     return await this.detalheARepository.findOne(options);
+  }
+
+  public async findOneRaw(where: IDetalheARawWhere): Promise<Nullable<DetalheA>> {
+    return await this.detalheARepository.findOneRaw(where);
   }
 
   public async findMany(fields: EntityCondition<DetalheA>): Promise<DetalheA[]> {

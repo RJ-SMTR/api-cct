@@ -295,7 +295,7 @@ export class UsersRepository {
       ...dataToUpdate,
     } as UpdateUserRepositoryDto);
 
-    // If email is different, reset inviteStatus
+    // If email is different, update invite email
     if (
       dataToUpdate.email &&
       user.mailHistories.length > 0 &&
@@ -304,9 +304,7 @@ export class UsersRepository {
       await this.mailHistoryService.update(
         user.mailHistories[0].id,
         {
-          inviteStatus: new InviteStatus(InviteStatusEnum.queued),
           email: dataToUpdate.email,
-          hash: await this.mailHistoryService.generateHash(),
         },
         METHOD,
       );

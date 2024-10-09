@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, HttpCode, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpCode, HttpStatus, NotImplementedException, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
@@ -8,11 +8,10 @@ import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { ParseArrayPipe as ParseArrayPipe1 } from 'src/utils/pipes/parse-array.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
+import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { CnabService } from './cnab.service';
-import { HeaderArquivo } from './entity/pagamento/header-arquivo.entity';
 import { HeaderArquivoStatus } from './enums/pagamento/header-arquivo-status.enum';
-import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
 
 @ApiTags('Manutenção')
 @Controller({
@@ -29,6 +28,7 @@ export class CnabManutencaoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.master)
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a geração e envio de remessa - que normalmente é feita via cronjob.' })
+  @ApiBearerAuth()
   @ApiQuery({ name: 'dataOrdemInicial', type: String, required: false, description: ApiDescription({ _: 'Data da Ordem de Pagamento Inicial - salvar transações', example: '2024-07-15' }) })
   @ApiQuery({ name: 'dataOrdemFinal', type: String, required: false, description: ApiDescription({ _: 'Data da Ordem de Pagamento Final - salvar transações', example: '2024-07-16' }) })
   @ApiQuery({ name: 'dataPagamento', type: String, required: false, description: ApiDescription({ _: 'Data de pagamento', default: 'O dia de hoje' }) })
@@ -38,7 +38,6 @@ export class CnabManutencaoController {
   @ApiQuery({ name: 'nsaInicial', type: Number, required: false, description: ApiDescription({ default: 'O NSA atual' }) })
   @ApiQuery({ name: 'nsaFinal', type: Number, required: false, description: ApiDescription({ default: 'nsaInicial' }) })
   @ApiQuery({ name: 'dataCancelamento', type: String, required: false, description: ApiDescription({ _: 'Data de vencimento da transação a ser cancelada (DetalheA).', 'Required if': 'isCancelamento = true' }), example: '2024-07-16' })
-  @ApiBearerAuth()
   async getGenerateRemessaLancamento(
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true, optional: true })) _dataOrdemInicial: any, // Date
     @Query('dataOrdemFinal', new ParseDatePipe({ transform: true, optional: true })) _dataOrdemFinal: any, // Date
@@ -58,17 +57,18 @@ export class CnabManutencaoController {
       throw new BadRequestException('dataCancelamento é obrigatório se isCancelamento = true');
     }
 
-    return await this.cnabService.generateRemessaLancamento({
-      dataOrdemInicial,
-      dataOrdemFinal,
-      dataPgto: dataPagamento,
-      isConference,
-      isCancelamento,
-      isTeste,
-      nsaInicial,
-      nsaFinal,
-      dataCancelamento,
-    });
+    return new NotImplementedException();
+    // return await this.cnabService.generateRemessaLancamento({
+    //   dataOrdemInicial,
+    //   dataOrdemFinal,
+    //   dataPgto: dataPagamento,
+    //   isConference,
+    //   isCancelamento,
+    //   isTeste,
+    //   nsaInicial,
+    //   nsaFinal,
+    //   dataCancelamento,
+    // });
   }
 
   @Get('generateRemessaJae')
@@ -76,6 +76,7 @@ export class CnabManutencaoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.master)
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta a geração e envio de remessa - que normalmente é feita via cronjob' })
+  @ApiBearerAuth()
   @ApiQuery({ name: 'dataOrdemInicial', description: ApiDescription({ _: 'Data da Ordem de Pagamento Inicial - salvar transações', example: '2024-07-15' }), required: true, type: String })
   @ApiQuery({ name: 'dataOrdemFinal', description: ApiDescription({ _: 'Data da Ordem de Pagamento Final - salvar transações', example: '2024-07-16' }), required: true, type: String })
   @ApiQuery({ name: 'diasAnterioresOrdem', description: ApiDescription({ _: 'Procurar também por dias Anteriores a dataOrdemInicial - salvar transações', default: 0 }), required: false, type: Number, example: 7 })
@@ -87,7 +88,6 @@ export class CnabManutencaoController {
   @ApiQuery({ name: 'nsaInicial', description: ApiDescription({ default: 'O NSA atual' }), required: false, type: Number })
   @ApiQuery({ name: 'nsaFinal', description: ApiDescription({ default: 'nsaInicial' }), required: false, type: Number })
   @ApiQuery({ name: 'dataCancelamento', description: ApiDescription({ _: 'Data de vencimento da transação a ser cancelada (DetalheA).', 'Required if': 'isCancelamento = true' }), required: false, type: String, example: '2024-07-16' })
-  @ApiBearerAuth()
   async getGenerateRemessaJae(
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true })) _dataOrdemInicial: any, // Date
     @Query('dataOrdemFinal', new ParseDatePipe({ transform: true })) _dataOrdemFinal: any, // Date
@@ -130,9 +130,9 @@ export class CnabManutencaoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.master)
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta o envio de remessa - que normalmente é feita via cronjob' })
+  @ApiBearerAuth()
   @ApiQuery({ name: 'headerArquivoIds', type: String, required: false, description: ApiDescription({ _: 'Ids do HeaderArquivo para gerar remessa', example: '1,2,3' }) })
   @ApiQuery({ name: 'headerArquivoStatus', enum: HeaderArquivoStatus, required: false, description: ApiDescription({ _: 'Buscar pos status do HeaderArquivo para gerar remessa' }) })
-  @ApiBearerAuth()
   async getSendRemessa(
     @Query('headerArquivoIds', new ParseArrayPipe({ items: Number, separator: ',', optional: true })) headerArquivoIds: number[] | undefined, //
     @Query('headerArquivoStatus', new ParseEnumPipe(HeaderArquivoStatus, { optional: true })) headerArquivoStatus: HeaderArquivoStatus | undefined, //
@@ -175,10 +175,10 @@ export class CnabManutencaoController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(RoleEnum.master)
   @ApiOperation({ description: 'Feito para manutenção pelos admins.\n\nExecuta o sincronismo de TransacaoView com as OrdensPagamento (ItemTransacaoAgrupado) - que normalmente é feia via cronjob' })
+  @ApiBearerAuth()
   @ApiQuery({ name: 'dataOrdemInicial', type: Date, required: false, description: 'Data da Ordem de Pagamento Inicial' })
   @ApiQuery({ name: 'dataOrdemFinal', type: Date, required: false, description: 'Data da Ordem de Pagamento Final' })
   @ApiQuery({ name: 'nomeFavorecido', type: String, required: false, description: 'Lista de nomes dos favorecidos' })
-  @ApiBearerAuth()
   async getSyncTransacaoViewOrdemPgto(
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true, optional: true })) dataOrdemInicial: Date | undefined, //
     @Query('dataOrdemFinal', new ParseDatePipe({ transform: true, optional: true })) dataOrdemFinal: Date | undefined,

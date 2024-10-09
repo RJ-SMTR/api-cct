@@ -1,11 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { endOfDay, startOfDay } from 'date-fns';
-import { logWarn } from 'src/utils/log-utils';
-import { asNumber } from 'src/utils/pipe-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DeepPartial, FindManyOptions, FindOneOptions, In, InsertResult, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 
 import { compactQuery } from 'src/utils/console-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
@@ -13,8 +11,10 @@ import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 
 export interface IDetalheARawWhere {
   id?: number[];
+  nsr?: number[];
+  itemTransacaoAgrupado?: { id: number[] };
   numeroDocumentoEmpresa?: number;
-  headerLoteId_in?: number[];
+  headerLote?: { id: number[] };
 }
 
 @Injectable()
@@ -25,43 +25,6 @@ export class DetalheARepository {
     @InjectRepository(DetalheA)
     private detalheARepository: Repository<DetalheA>,
   ) {}
-
-  /**
-   * Any DTO existing in db will be ignored.
-   *
-   * @param dtos DTOs that can exist or not in database
-   * @returns Saved objects not in database.
-   */
-  public async saveManyIfNotExists(dtos: DeepPartial<DetalheA>[]): Promise<DetalheA[]> {
-    // Existing
-    const existing = await this.findMany({
-      where: dtos.reduce(
-        (l, i) => [
-          ...l,
-          {
-            headerLote: { id: asNumber(i.headerLote?.id) },
-            nsr: asNumber(i.nsr),
-          },
-        ],
-        [],
-      ),
-    });
-    const existingMap: Record<string, DeepPartial<DetalheA>> = existing.reduce((m, i) => ({ ...m, [DetalheA.getUniqueId(i)]: i }), {});
-    // Check
-    if (existing.length === dtos.length) {
-      logWarn(this.logger, `${existing.length}/${dtos.length} DetalhesA já existem, nada a fazer...`);
-    } else if (existing.length) {
-      logWarn(this.logger, `${existing.length}/${dtos.length} DetalhesA já existem, ignorando...`);
-      return [];
-    }
-    // Save new
-    const newDTOs = dtos.reduce((l, i) => [...l, ...(!existingMap[DetalheA.getUniqueId(i)] ? [i] : [])], []);
-    const insert = await this.insert(newDTOs);
-    // Return saved
-    const insertIds = (insert.identifiers as { id: number }[]).reduce((l, i) => [...l, i.id], []);
-    const saved = await this.findMany({ where: { id: In(insertIds) } });
-    return saved;
-  }
 
   public insert(dtos: DeepPartial<DetalheA>[]): Promise<InsertResult> {
     return this.detalheARepository.insert(dtos);
@@ -86,8 +49,10 @@ export class DetalheARepository {
     } else if (where.numeroDocumentoEmpresa) {
       qWhere.query = `WHERE da."numeroDocumentoEmpresa" = $1`;
       qWhere.params = [where.numeroDocumentoEmpresa];
-    } else if (where.headerLoteId_in) {
-      qWhere.query = `WHERE hl.id IN(${where.headerLoteId_in.join(',')})`;
+    } else if (where.headerLote) {
+      qWhere.query = `WHERE hl.id IN(${where.headerLote.id.join(',')})`;
+    } else if (where.nsr && where.itemTransacaoAgrupado) {
+      qWhere.query = `WHERE da.nsr IN(${where.nsr.join(',')}) AND da."itemTransacaoAgrupadoId" IN(${where.itemTransacaoAgrupado.id.join(',')})`;
     }
     const result: any[] = await this.detalheARepository.query(
       compactQuery(`
@@ -100,6 +65,7 @@ export class DetalheARepository {
           da."valorRealEfetivado"::FLOAT,
           JSON_BUILD_OBJECT(
               'id', da."itemTransacaoAgrupadoId",
+              'dataOrdem', ta."dataOrdem",
               'transacaoAgrupado', JSON_BUILD_OBJECT(
                   'id', ta.id,
                   'status', JSON_BUILD_OBJECT('id', ts.id, 'name', ts.name)
@@ -158,10 +124,10 @@ export class DetalheARepository {
    * Baseado no mesmo dia.
    */
   public async getNextNumeroDocumento(date: Date): Promise<number> {
-    return (
-      (await this.detalheARepository.count({
-        where: [{ createdAt: MoreThanOrEqual(startOfDay(date)) }, { createdAt: LessThanOrEqual(endOfDay(date)) }],
-      })) + 1
-    );
+    const count = await this.detalheARepository
+      .createQueryBuilder('detalheA')
+      .where([{ createdAt: MoreThanOrEqual(startOfDay(date)) }, { createdAt: LessThanOrEqual(endOfDay(date)) }])
+      .getCount();
+    return count + 1;
   }
 }

@@ -5,7 +5,7 @@ import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-paga
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
-import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
+// import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
 import { LancamentoService } from 'src/lancamento/lancamento.service';
 import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
@@ -61,6 +61,7 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
+import { Nullable } from 'src/utils/types/nullable.type';
 
 export interface ICnabInfo {
   name: string;
@@ -92,11 +93,10 @@ export class CnabService {
     private extHeaderLoteService: ExtratoHeaderLoteService,
     private headerArquivoService: HeaderArquivoService,
     private headerArquivoConfService: HeaderArquivoService,
-    private extHeaderArquivoConfService: ExtratoHeaderArquivoService,
     private headerLoteService: HeaderLoteService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private itemTransacaoService: ItemTransacaoService,
-    private lancamentoService: LancamentoService,
+    // private lancamentoService: LancamentoService,
     private pagadorService: PagadorService,
     private remessaRetornoService: RemessaRetornoService,
     private sftpService: SftpService,
@@ -135,18 +135,23 @@ export class CnabService {
       ...(args?.headerArquivoIds?.length ? { id: In(args.headerArquivoIds) } : {}),
       ...(args?.status ? { status: args.status } : {}),
     });
+
+    if (!headerArquivos.length) {
+      this.logger.log('Não foram encontrados remessas');
+    }
     for (const headerArquivo of headerArquivos) {
       const isTeste = headerArquivo.ambienteCliente === Cnab104AmbienteCliente.Teste;
       const headerArquivoDTO = HeaderArquivoDTO.fromEntity(headerArquivo, false);
       const headerLotes = await this.headerLoteService.findMany({ headerArquivo: { id: headerArquivo.id } });
-      const detalheAs = await this.detalheAService.findManyRaw({ headerLoteId_in: headerLotes.map((hl) => hl.id) });
+      const detalheAs = await this.detalheAService.findManyRaw({ headerLote: { id: headerLotes.map((hl) => hl.id) } });
       const detalheBs = await this.detalheBService.findMany({ where: { detalheA: { id: In(detalheAs.map((da) => da.id)) } }, relations: ['detalheA'] as (keyof DetalheB)[] });
       const itemTransacoes = await this.itemTransacaoService.findMany({ where: { itemTransacaoAgrupado: { id: In(detalheAs.map((da) => da.itemTransacaoAgrupado.id)) } }, order: { id: 'ASC' } });
-      const headerLoteDTOs = HeaderLoteDTO.fromEntities(headerLotes, detalheAs, detalheBs, itemTransacoes);
+      const headerLoteDTOs = HeaderLoteDTO.fromEntities(headerLotes, detalheAs, detalheBs, itemTransacoes, isTeste);
       const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO, headerLoteDTOs, isCancelamento: true, isTeste });
       if (headerArquivo && cnab104) {
         const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
         if (!cnabStr) {
+          this.logger.warn(`Não foi gerado um cnabString - headerArqId: ${headerArquivo.id}`);
           continue;
         }
         listCnab.push({ name: '', content: cnabStr, headerArquivo: headerArquivoDTO });
@@ -178,16 +183,13 @@ export class CnabService {
     await this.saveTransacoesJae(dataOrdemInicial, dataOrdemFinal, diasAnteriores, consorcio);
     duration.saveTransacoesJae = formatDateInterval(new Date(), now);
     now = new Date();
+
     const listCnab = await this.generateRemessa({
-      tipo: PagadorContaEnum.ContaBilhetagem, //
-      dataPgto,
-      isConference,
-      isCancelamento,
-      isTeste,
-      nsaInicial,
-      nsaFinal,
-      dataCancelamento,
+      tipo: PagadorContaEnum.ContaBilhetagem, 
+      dataPgto, isConference, isCancelamento, isTeste, nsaInicial, nsaFinal,  dataCancelamento
     });
+
+    
     duration.generateRemessa = formatDateInterval(new Date(), now);
     now = new Date();
 
@@ -202,59 +204,60 @@ export class CnabService {
     };
   }
 
-  async generateRemessaLancamento(args: {
-    dataOrdemInicial?: Date; //
-    dataOrdemFinal?: Date;
-    dataPgto: Date | undefined;
-    isConference: boolean;
-    isCancelamento: boolean;
-    isTeste: boolean;
-    nsaInicial: number | undefined;
-    nsaFinal: number | undefined;
-    dataCancelamento: Date | undefined;
-  }) {
-    const METHOD = 'getGenerateRemessaLancamento';
-    const { dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, isCancelamento, isConference, isTeste, nsaFinal, nsaInicial } = args;
-    const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
-    const startDate = new Date();
-    let now = new Date();
-    this.logger.log('Tarefa iniciada', METHOD);
+  // async generateRemessaLancamento(args: {
+  //   dataOrdemInicial?: Date; //
+  //   dataOrdemFinal?: Date;
+  //   dataPgto: Date | undefined;
+  //   isConference: boolean;
+  //   isCancelamento: boolean;
+  //   isTeste: boolean;
+  //   nsaInicial: number | undefined;
+  //   nsaFinal: number | undefined;
+  //   dataCancelamento: Date | undefined;
+  // }) {
+  //   const METHOD = 'getGenerateRemessaLancamento';
+  //   const { dataCancelamento, dataOrdemFinal, dataOrdemInicial, dataPgto, isCancelamento, isConference, isTeste, nsaFinal, nsaInicial } = args;
+  //   const duration = { saveTransacoesJae: '', generateRemessa: '', sendRemessa: '', total: '' };
+  //   const startDate = new Date();
+  //   let now = new Date();
+  //   this.logger.log('Tarefa iniciada', METHOD);
 
-    await this.saveTransacoesLancamento(dataOrdemInicial, dataOrdemFinal);
-    duration.saveTransacoesJae = formatDateInterval(new Date(), now);
-    now = new Date();
+  //   await this.saveTransacoesLancamento(dataOrdemInicial, dataOrdemFinal);
+  //   duration.saveTransacoesJae = formatDateInterval(new Date(), now);
+  //   now = new Date();
 
-    const listCnab = await this.generateRemessa({
-      tipo: PagadorContaEnum.CETT, //
-      dataPgto,
-      isConference,
-      isCancelamento,
-      isTeste,
-      nsaInicial,
-      nsaFinal,
-      dataCancelamento,
-    });
-    duration.generateRemessa = formatDateInterval(new Date(), now);
-    now = new Date();
+  //   const listCnab = await this.generateRemessa({
+  //     tipo: PagadorContaEnum.CETT, //
+  //     dataPgto,
+  //     isConference,
+  //     isCancelamento,
+  //     isTeste,
+  //     nsaInicial,
+  //     nsaFinal,
+  //     dataCancelamento,
+  //   });
+  //   duration.generateRemessa = formatDateInterval(new Date(), now);
+  //   now = new Date();
 
-    await this.sendRemessa(listCnab);
-    duration.sendRemessa = formatDateInterval(new Date(), now);
+  //   await this.sendRemessa(listCnab);
+  //   duration.sendRemessa = formatDateInterval(new Date(), now);
 
-    duration.total = formatDateInterval(new Date(), startDate);
-    this.logger.log(`Tarefa finalizada - ${duration.total}`);
-    return {
-      duration,
-      cnabs: listCnab,
-    };
-  }
+  //   duration.total = formatDateInterval(new Date(), startDate);
+  //   this.logger.log(`Tarefa finalizada - ${duration.total}`);
+  //   return {
+  //     duration,
+  //     cnabs: listCnab,
+  //   };
+  // }
 
   public async sendRemessa(listCnab: ICnabInfo[]) {
     for (const cnab of listCnab) {
       cnab.name = await this.sftpService.submitCnabRemessa(cnab.content);
+      const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
       if (cnab.headerArquivo._isConf) {
-        await this.headerArquivoConfService.save({ id: cnab.headerArquivo.id, remessaName: cnab.name, status: HeaderArquivoStatus._3_remessaEnviado });
+        await this.headerArquivoConfService.save({ id: cnab.headerArquivo.id, remessaName, status: HeaderArquivoStatus._3_remessaEnviado });
       } else {
-        await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName: cnab.name, status: HeaderArquivoStatus._3_remessaEnviado });
+        await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName, status: HeaderArquivoStatus._3_remessaEnviado });
       }
     }
   }
@@ -324,7 +327,8 @@ export class CnabService {
     if (consorcio.trim() === 'Empresa') {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL');
     } else if (consorcio.trim() === 'Van') {
-      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() === 'STPC' || ordem.consorcio.trim() === 'STPL');
+      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() === 'STPC' 
+      || ordem.consorcio.trim() === 'STPL' || ordem.consorcio.trim() === 'TEC');
     } else {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio === consorcio.trim());
     }
@@ -431,10 +435,12 @@ export class CnabService {
     const METHOD = 'saveAgrupamentos';
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+    let transacaoAg: Nullable<TransacaoAgrupado>=null;
     try {
       await queryRunner.startTransaction();
-      this.logger.debug(`Salvando Agrupamento - ${JSON.stringify({ consorcio: ordem.consorcio, operadora: ordem.operadora, favorecidoCpfCnpj: ordem.favorecidoCpfCnpj })}`, METHOD);
-      let transacaoAg = await this.transacaoAgService.findOne({
+      this.logger.debug(`Salvando Agrupamento - ${JSON.stringify({ consorcio: ordem.consorcio, 
+        operadora: favorecido.nome, favorecidoCpfCnpj: ordem.favorecidoCpfCnpj })}`, METHOD);
+      transacaoAg = await this.transacaoAgService.findOne({
         dataOrdem: ordem.getTransacaoAgrupadoDataOrdem(),
         pagador: { id: pagador.id },
         status: { id: TransacaoStatusEnum.created },
@@ -453,7 +459,11 @@ export class CnabService {
       this.logger.debug('Fim Agrupamento Consorcio: ' + ordem.consorcio);
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`Falha ao salvar Informções agrupadas`, error?.stack);
+      if(transacaoAg!==null){        
+        transacaoAg.status.id = TransacaoStatusEnum.cancelado;
+        await this.transacaoAgService.save(transacaoAg);
+      }
+      this.logger.error(`Falha ao salvar Informações agrupadas`, error?.stack);
     } finally {
       await queryRunner.release();
     }
@@ -496,8 +506,6 @@ export class CnabService {
 
   async syncTransacaoViewOrdemPgto(args?: ISyncOrdemPgto) {
     this.logger.debug('Inicio Sync TransacaoView');
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
     const startDate = new Date();
     let count = await this.transacaoViewService.syncOrdemPgto(args);
     const endDate = new Date();
@@ -537,113 +545,124 @@ export class CnabService {
 
   // #endregion
 
-  public async saveTransacoesLancamento(dataOrdemInicial?: Date, dataOrdemFinal?: Date) {
-    const dataOrdem: [Date, Date] | undefined = dataOrdemInicial && dataOrdemFinal ? [startOfDay(dataOrdemInicial), endOfDay(dataOrdemFinal)] : undefined;
-    await this.updateAllFavorecidosFromUsers();
-    const newLancamentos = await this.lancamentoService.findToPay(dataOrdem);
-    const ordensCett = newLancamentos.cett.map((l) => OrdemPagamentoDto.fromLancamento(l));
-    await this.saveOrdens(ordensCett, 'cett');
-    const ordensCb = newLancamentos.contaBilhetagem.map((l) => OrdemPagamentoDto.fromLancamento(l));
-    await this.saveOrdens(ordensCb, 'contaBilhetagem');
-  }
+  // public async saveTransacoesLancamento(dataOrdemInicial?: Date, dataOrdemFinal?: Date) {
+  //   const dataOrdem: [Date, Date] | undefined = dataOrdemInicial && dataOrdemFinal ? [startOfDay(dataOrdemInicial), endOfDay(dataOrdemFinal)] : undefined;
+  //   await this.updateAllFavorecidosFromUsers();
+  //   const newLancamentos = await this.lancamentoService.findToPay(dataOrdem);
+  //   const ordensCett = newLancamentos.cett.map((l) => OrdemPagamentoDto.fromLancamento(l));
+  //   await this.saveOrdens(ordensCett, 'cett');
+  //   const ordensCb = newLancamentos.contaBilhetagem.map((l) => OrdemPagamentoDto.fromLancamento(l));
+  //   await this.saveOrdens(ordensCb, 'contaBilhetagem');
+  // }
 
   public async generateRemessa(args: {
-    tipo: PagadorContaEnum; //
-    dataPgto?: Date;
-    isConference: boolean;
-    isCancelamento: boolean;
-    isTeste: boolean;
-    /** Default: current NSA */
-    nsaInicial?: number;
-    /** Default: nsaInicial */
-    nsaFinal?: number;
-    dataCancelamento?: Date;
-  }): Promise<ICnabInfo[]> {
-    const METHOD = 'generateRemessa';
-    const { tipo, dataPgto, isConference, isCancelamento, isTeste } = args;
-    const currentNSA = await this.settingsService.getCurrentNSA(isTeste);
-    let nsaInicial = args.nsaInicial || currentNSA;
-    let nsaFinal = args.nsaFinal || nsaInicial;
-
+    tipo: PagadorContaEnum;  dataPgto?: Date;
+    isConference: boolean; isCancelamento: boolean;
+    isTeste: boolean;  nsaInicial?: number;
+    nsaFinal?: number;  dataCancelamento?: Date }): Promise<ICnabInfo[]> {    
+    const currentNSA = await this.settingsService.getCurrentNSA(args.isTeste); 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+    const listCnab: ICnabInfo[] = [];
     try {
       await queryRunner.startTransaction();
-      const listCnab: ICnabInfo[] = [];
-      if (!isCancelamento) {
-        const transacoesAg = await this.transacaoAgService.findAllNewTransacao(tipo);
-        if (!transacoesAg.length) {
-          this.logger.log(`Não há transações novas para gerar remessa, nada a fazer...`, METHOD);
-          return [];
-        }
-        for (const transacaoAg of transacoesAg) {
-          const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg, isConference, isTeste);
-          const headerLoteDTOs = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, isConference, isTeste, dataPgto);
-          const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO, headerLoteDTOs, isTeste });
-          if (headerArquivoDTO && cnab104) {
-            const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
-            for (const processedLote of processedCnab104.lotes) {
-              const savedLote = headerLoteDTOs.filter((i) => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
-              await this.remessaRetornoService.updateHeaderLoteDTOFrom104(savedLote, processedLote.headerLote, isConference);
-            }
-            if (!isConference) {
-              await this.updateStatusRemessa(headerArquivoDTO, processedCnab104.headerArquivo, transacaoAg.id);
-            }
-            if (cnabStr) {
-              listCnab.push({ name: '', content: cnabStr, headerArquivo: headerArquivoDTO });
-            }
-          }
-        }
+      if (args.isCancelamento) {
+        await this.geraRemssaCancelamento(args,listCnab,currentNSA);        
       } else {
-        if (this.validateCancel(nsaInicial, nsaFinal)) {
-          return [];
-        }
-
-        for (let index = nsaInicial; nsaInicial < nsaFinal + 1; nsaInicial++) {
-          const headerArquivo = await this.getHeaderArquivoCancelar(index);
-          const headerArquivoDTO = HeaderArquivoDTO.fromEntity(headerArquivo, false);
-          headerArquivoDTO.nsa = await this.settingsService.getNextNSA(isTeste);
-          const lotes = await this.getLotesCancelar(index);
-          const headerLoteDTOs: HeaderLoteDTO[] = [];
-          let detalhes: CnabRegistros104Pgto[] = [];
-          for (const lote of lotes) {
-            const headerLoteDTO = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivo, lote.pagador, lote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente, isTeste);
-            const detalhesA = (await this.detalheAService.findMany({ headerLote: { id: lote.id } })).sort((a, b) => a.nsr - b.nsr);
-            for (const detalheA of detalhesA) {
-              const detalhe = await this.remessaRetornoService.saveDetalhes104(detalheA.numeroDocumentoEmpresa, headerLoteDTO, detalheA.itemTransacaoAgrupado, detalheA.nsr, false, detalheA.dataVencimento, true, detalheA);
-              if (detalhe) {
-                detalhes.push(detalhe);
-              }
-            }
-            headerLoteDTO.registros104 = detalhes;
-            headerLoteDTOs.push(headerLoteDTO);
-            detalhes = [];
-          }
-          const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO: headerArquivo, headerLoteDTOs, isCancelamento: true, isTeste });
-          if (headerArquivo && cnab104) {
-            const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
-            if (!cnabStr) {
-              continue;
-            }
-            listCnab.push({ name: '', content: cnabStr, headerArquivo: HeaderArquivoDTO.fromEntity(headerArquivo, false) });
-          }
-        }
+        await this.gerarRemessaPadrao(args,listCnab);
       }
       await queryRunner.commitTransaction();
-      return listCnab;
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Falha ao salvar Informções agrupadas`, error?.stack);
     } finally {
       await queryRunner.release();
     }
+    if (!listCnab.length) {
+      this.logger.warn('Gerado lista de remessas vazia.');
+    } else {
+      this.logger.warn(`Gerado lista com ${listCnab.length} remessas.`);
+    }
+    return listCnab;
+  }
+
+ private async gerarRemessaPadrao(args:any,listCnab: ICnabInfo[] = []){
+  const transacoesAg = await this.transacaoAgService.findAllNewTransacao(args.tipo);
+  if (!transacoesAg.length) {
+    this.logger.log(`Não há transações novas para gerar remessa, nada a fazer...`);
     return [];
+  }
+  for (const transacaoAg of transacoesAg) {
+    const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg,args.isConference,args.isTeste);
+    const headerLoteDTOs = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, 
+      args.isConference, args.isTeste, args.dataPgto);
+    const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO, headerLoteDTOs, isTeste: args.isTeste });
+    if(headerArquivoDTO && cnab104){
+      const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104, true,'CnabPgtoRem');
+      for (const processedLote of processedCnab104.lotes){
+        const savedLote = headerLoteDTOs.filter((i) => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
+        await this.remessaRetornoService.updateHeaderLoteDTOFrom104(savedLote, processedLote.headerLote, args.isConference);
+      }
+      if (!args.isConference) {
+        await this.updateStatusRemessa(headerArquivoDTO, processedCnab104.headerArquivo, transacaoAg.id);
+      }
+      if (cnabStr) {
+        listCnab.push({ name: '', content: cnabStr, headerArquivo: headerArquivoDTO });
+      }
+    }
+  }
+ }  
+
+
+  private async geraRemssaCancelamento(args: any,listCnab: ICnabInfo[] = [],currentNSA){
+    let nsaInicial = args.nsaInicial || currentNSA;
+    let nsaFinal = args.nsaFinal || nsaInicial;
+    if (this.validateCancel(args.nsaInicial, args.nsaFinal)) {
+      this.logger.warn('Cancelamento de validação detectado, não haverá remessas para enviar..');
+      return [];
+    }
+
+    if (!listCnab.length && args.nsaInicial >= args.nsaFinal + 1) {
+      this.logger.warn(`nsaInicial não é menor que  nsaFinal + 1, será gerada uma lista vazia (nsaInicial: ${args.nsaInicial}
+        , nsaFinal: ${args.nsaFinal})`);
+    }
+    for (let nsa = args.nsaInicial; nsa < args.nsaFinal + 1; nsa++) {
+      const headerArquivo = await this.getHeaderArquivoCancelar(nsa);
+      const headerArquivoDTO = HeaderArquivoDTO.fromEntity(headerArquivo, false);
+      headerArquivoDTO.nsa = await this.settingsService.getNextNSA(args.isTeste);
+      const lotes = await this.getLotesCancelar(nsa);
+      const headerLoteDTOs: HeaderLoteDTO[] = [];
+      let detalhes: CnabRegistros104Pgto[] = [];
+      for (const lote of lotes) {
+        const headerLoteDTO = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivo, 
+          lote.pagador, lote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente, args.isTeste);
+        const detalhesA = (await this.detalheAService.findMany({ headerLote: { id: lote.id } })).sort((a, b) => a.nsr - b.nsr);
+        for (const detalheA of detalhesA) {
+          const detalhe = await this.remessaRetornoService.saveDetalhes104(undefined,detalheA.numeroDocumentoEmpresa, headerLoteDTO, detalheA.itemTransacaoAgrupado, detalheA.nsr, false, detalheA.dataVencimento, true, detalheA);
+          if (detalhe) {
+            detalhes.push(detalhe);
+          }
+        }
+        headerLoteDTO.registros104 = detalhes;
+        headerLoteDTOs.push(headerLoteDTO);
+        detalhes = [];
+      }
+      const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO: headerArquivo, headerLoteDTOs, isCancelamento: true,isTeste: args.isTeste });
+      if (headerArquivo && cnab104) {
+        const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
+        if (!cnabStr) {
+          this.logger.warn(`Não foi gerado cnabString - (headerArqId: ${headerArquivo.id})`);
+          continue;
+        }
+        listCnab.push({ name: '', content: cnabStr, headerArquivo: HeaderArquivoDTO.fromEntity(headerArquivo, false) });
+      }
+    }
   }
 
   private async updateStatusRemessa(headerArquivoDTO: HeaderArquivoDTO, cnabHeaderArquivo: CnabHeaderArquivo104, transacaoAgId: number) {
     await this.remessaRetornoService.updateHeaderArquivoDTOFrom104(headerArquivoDTO, cnabHeaderArquivo);
     await this.transacaoAgService.save({ id: transacaoAgId, status: TransacaoStatus.fromEnum(TransacaoStatusEnum.remessa) });
-    await this.lancamentoService.update({ status: LancamentoStatus._4_remessa_enviado }, { transacaoAgrupado: { id: transacaoAgId } });
+    // await this.lancamentoService.update({ status: LancamentoStatus._4_remessa_enviado }, { transacaoAgrupado: { id: transacaoAgId } });
   }
 
   private validateCancel(nsaInicial: number, nsaFinal: number) {

@@ -53,7 +53,7 @@ export class HeaderLoteDTO {
     });
   }
 
-  static fromEntity(headerLote: HeaderLote | HeaderLoteConf, detalhes: IHeaderLoteDetalhes[]): HeaderLoteDTO {
+  static fromEntity(headerLote: HeaderLote | HeaderLoteConf, detalhes: IHeaderLoteDetalhes[], isTeste?: boolean): HeaderLoteDTO {
     return new HeaderLoteDTO({
       codigoConvenioBanco: headerLote.codigoConvenioBanco,
       pagador: headerLote.pagador,
@@ -65,14 +65,15 @@ export class HeaderLoteDTO {
       loteServico: headerLote.loteServico,
       formaLancamento: headerLote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente,
       registros104: detalhes.map((d) => CnabRegistros104PgtoDTO.fromEntity(d.detalheA, d.detalheB, d.favorecido)),
+      codigoCompromisso: isTeste ? Cnab104CodigoCompromisso.Teste : Cnab104CodigoCompromisso.Producao,
     });
   }
 
-  static fromEntities(headerLotes: (HeaderLote | HeaderLoteConf)[], detalheAs: (DetalheA | DetalheAConf)[], detalheBs: (DetalheB | DetalheBConf)[], itemTransacoes: ItemTransacao[]): HeaderLoteDTO[] {
+  static fromEntities(headerLotes: (HeaderLote | HeaderLoteConf)[], detalheAs: (DetalheA | DetalheAConf)[], detalheBs: (DetalheB | DetalheBConf)[], itemTransacoes: ItemTransacao[], isTeste?: boolean): HeaderLoteDTO[] {
     const lotes: HeaderLoteDTO[] = [];
     for (const headerLote of headerLotes) {
       const loteDetalheAs = detalheAs.filter((da) => da.headerLote.id == headerLote.id);
-      const entityArgs = loteDetalheAs.reduce((l: IHeaderLoteDetalhes[], detalheA) => {
+      const detalhes = loteDetalheAs.reduce((l: IHeaderLoteDetalhes[], detalheA) => {
         const detalheB = detalheBs.find((db) => db.detalheA.id == detalheA.id);
         const favorecido = itemTransacoes.find((it) => it.itemTransacaoAgrupado.id == detalheA.itemTransacaoAgrupado.id)?.clienteFavorecido;
         if (detalheB && favorecido) {
@@ -81,7 +82,7 @@ export class HeaderLoteDTO {
           return l;
         }
       }, []);
-      lotes.push(HeaderLoteDTO.fromEntity(headerLote, entityArgs));
+      lotes.push(HeaderLoteDTO.fromEntity(headerLote, detalhes, isTeste));
     }
     return lotes;
   }

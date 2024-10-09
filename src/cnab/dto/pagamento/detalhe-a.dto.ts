@@ -24,7 +24,7 @@ export class DetalheADTO {
     }
   }
 
-  static fromRetorno(detalheA: CnabDetalheA_104, existing: DetalheA | DetalheAConf | null, headerLoteId: number, itemTransacaoAg: ItemTransacaoAgrupado) {
+  static fromRemessa(detalheA: CnabDetalheA_104, existing: DetalheA | DetalheAConf | null, headerLoteId: number, itemTransacaoAg: ItemTransacaoAgrupado) {
     return new DetalheADTO({
       ...(existing ? { id: existing.id } : {}),
       nsr: Number(detalheA.nsr.value),

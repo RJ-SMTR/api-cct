@@ -17,13 +17,19 @@ import { IBSGetMePreviousDaysArgs, IBSGetMePreviousDaysValidArgs } from './inter
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
 import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
 import { IGetBSResponse } from './interfaces/get-bs-response.interface';
+import { CnabService } from 'src/cnab/cnab.service';
 
 /**
  * Get weekly statements
  */
 @Injectable()
 export class BankStatementsService {
-  constructor(private readonly usersService: UsersService, private readonly bankStatementsRepository: BankStatementsRepositoryService, private readonly ticketRevenuesService: TicketRevenuesService) {}
+  constructor(
+    private readonly usersService: UsersService, //
+    private readonly bankStatementsRepository: BankStatementsRepositoryService,
+    private readonly ticketRevenuesService: TicketRevenuesService,
+    private readonly cnabService: CnabService,
+  ) {}
 
   /**
    * - startDate
@@ -31,7 +37,6 @@ export class BankStatementsService {
    * - timeInterval (lastMonth)
    * - user (mandatory)
    *
-   * Tasks:
    * 1. Validar argumentos
    * 2. Obter transacaoView no intervalo e filtros
    * 3. Agrupar por dia/semana e somar
@@ -39,6 +44,10 @@ export class BankStatementsService {
    */
   public async getMe(args: IBSGetMeArgs): Promise<IBSGetMeResponse> {
     const validArgs = await this.validateGetMe(args);
+    await this.cnabService.syncTransacaoViewOrdemPgto({
+      nomeFavorecido: [validArgs.user.getFullName()],
+      consorcio: ['STPC', 'STPL'],
+    });
     const bsData = await this.generateBankStatements({
       groupBy: 'week',
       startDate: validArgs.startDate,

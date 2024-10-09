@@ -2,20 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { HeaderArquivoDTO } from 'src/cnab/dto/pagamento/header-arquivo.dto';
 import { HeaderArquivoConf } from 'src/cnab/entity/conference/header-arquivo-conf.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
-import { HeaderArquivoStatus } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { HeaderArquivoTipoArquivo } from 'src/cnab/enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
-import { CnabFile104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
 import { HeaderArquivoConfRepository } from 'src/cnab/repository/pagamento/header-arquivo-conf.repository';
-import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { SettingsService } from 'src/settings/settings.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import { DeepPartial, FindOptionsWhere } from 'typeorm';
 import { PagadorService } from './pagador.service';
-
-const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
 
 @Injectable()
 export class HeaderArquivoConfService {

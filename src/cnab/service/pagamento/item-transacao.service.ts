@@ -50,8 +50,7 @@ export class ItemTransacaoService {
   }
 
   public async findOne(options: FindManyOptions<ItemTransacao>) {
-    const many = await this.itemTransacaoRepository.findMany(options);
-    return many.pop() || null;
+    return await this.itemTransacaoRepository.findOne(options);
   }
 
   public async save(dto: DeepPartial<ItemTransacao>, queryRunner: QueryRunner): Promise<ItemTransacao> {

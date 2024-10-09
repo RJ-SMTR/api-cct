@@ -1,0 +1,144 @@
+<mxfile host="65bd71144e">
+    <diagram id="kEteO0c03nazbitwM8Ky" name="Lançamento">
+        <mxGraphModel dx="643" dy="489" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="7" value="Status - fluxo completo" style="swimlane;whiteSpace=wrap;html=1;labelBackgroundColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="40" width="640" height="960" as="geometry"/>
+                </mxCell>
+                <mxCell id="2" value="Início" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=standard;symbol=general;" parent="7" vertex="1">
+                    <mxGeometry x="40" y="40" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="gerado" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="7" vertex="1">
+                    <mxGeometry x="160" y="40" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="criar" style="edgeStyle=none;html=1;" parent="7" source="2" target="3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="7" source="5" target="18" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="85" value="editar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="7" source="5" target="3">
+                    <mxGeometry x="-0.3671" relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="110" y="385"/>
+                            <mxPoint x="110" y="80"/>
+                        </Array>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="5" value="autorizado" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="7" vertex="1">
+                    <mxGeometry x="160" y="360" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="" style="edgeStyle=none;html=1;" parent="7" source="3" target="10" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="220" y="150" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="7" source="8" target="13" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="cancelado" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="7" vertex="1">
+                    <mxGeometry x="360" y="100" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="11" value="deletar" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" parent="7" source="10" target="8" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="12" value="autorizar&lt;br&gt;(1a aprovação)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="7" source="10" target="80" edge="1">
+                    <mxGeometry x="0.0084" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                        <mxPoint x="220" y="190" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="10" value="" style="rounded=0;whiteSpace=wrap;html=1;labelBackgroundColor=none;" parent="7" vertex="1">
+                    <mxGeometry x="160" y="120" width="120" height="10" as="geometry"/>
+                </mxCell>
+                <mxCell id="13" value="Fim" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate;spacingBottom=0;spacingTop=0;" parent="7" vertex="1">
+                    <mxGeometry x="560" y="100" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" value="remessa enviado" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="7" vertex="1">
+                    <mxGeometry x="160" y="520" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="16" value="deletar" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" parent="7" source="81" target="8" edge="1">
+                    <mxGeometry x="-0.746" relative="1" as="geometry">
+                        <mxPoint x="360" y="325" as="targetPoint"/>
+                        <mxPoint as="offset"/>
+                        <mxPoint x="290" y="285" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="17" value="enviar remessa" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="7" source="18" target="15" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="18" value="" style="rounded=0;whiteSpace=wrap;html=1;labelBackgroundColor=none;" parent="7" vertex="1">
+                    <mxGeometry x="160" y="440" width="120" height="10" as="geometry"/>
+                </mxCell>
+                <mxCell id="36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="7" source="25" target="35" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="25" value="pago" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="7" vertex="1">
+                    <mxGeometry x="240" y="760" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="26" value="ler retorno" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="7" source="15" target="31" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                        <mxPoint x="220" y="610" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="32" value="NAO" style="rounded=0;html=1;" parent="7" source="31" target="25" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="34" value="SIM" style="edgeStyle=none;rounded=0;html=1;" parent="7" source="31" target="33" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="31" value="Possui&lt;br&gt;erro?" style="rhombus;whiteSpace=wrap;html=1;labelBackgroundColor=default;" parent="7" vertex="1">
+                    <mxGeometry x="180" y="640" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="37" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="7" source="33" target="35" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="33" value="erro" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="7" vertex="1">
+                    <mxGeometry x="80" y="760" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="35" value="Fim" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate;spacingBottom=0;spacingTop=0;" parent="7" vertex="1">
+                    <mxGeometry x="195" y="880" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="84" value="editar" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="7" source="80" target="3">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="110" y="220"/>
+                            <mxPoint x="110" y="80"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="80" value="autorizado parcial" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="7" vertex="1">
+                    <mxGeometry x="160" y="200" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="82" value="autorizar&lt;br style=&quot;border-color: var(--border-color);&quot;&gt;(2a aprovação)" style="edgeStyle=none;html=1;" parent="7" source="81" target="5" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="81" value="" style="rounded=0;whiteSpace=wrap;html=1;labelBackgroundColor=none;" parent="7" vertex="1">
+                    <mxGeometry x="160" y="280" width="120" height="10" as="geometry"/>
+                </mxCell>
+                <mxCell id="79" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" parent="7" source="80" target="81" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="83" value="deletar" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" parent="7" source="5" target="8" edge="1">
+                    <mxGeometry x="-0.746" relative="1" as="geometry">
+                        <mxPoint x="420.0588235294117" y="250" as="targetPoint"/>
+                        <mxPoint as="offset"/>
+                        <mxPoint x="280" y="385.05882352941194" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

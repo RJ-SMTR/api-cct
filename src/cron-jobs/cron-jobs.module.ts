@@ -8,6 +8,7 @@ import { MailModule } from 'src/mail/mail.module';
 import { SettingsModule } from 'src/settings/settings.module';
 import { UsersModule } from 'src/users/users.module';
 import { CronJobsService } from './cron-jobs.service';
+import { CronJobsManutencaoController } from './cron-jobs-manutencao.controller';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CronJobsService } from './cron-jobs.service';
     MailCountModule,
     CnabModule,
   ],
+  controllers: [CronJobsManutencaoController],
   providers: [CronJobsService],
   exports: [CronJobsService],
 })

@@ -50,18 +50,15 @@ export class RelatorioService {
     return this.instanceDataConsolidado(args,'todos');
   }
 
-  private async resultPago(args: IFindPublicacaoRelatorio){
-      args.pago = true;    
-      return this.instanceDataConsolidado(args,'pago');
+  private async resultPago(args: IFindPublicacaoRelatorio){ 
+    return this.instanceDataConsolidado(args,'pago');
   }
 
   private async resultErros(args: IFindPublicacaoRelatorio){
-    args.pago = false;
     return this.instanceDataConsolidado(args,'erros');
   }
 
-  private async resultApagar(args: IFindPublicacaoRelatorio){
-    args.aPagar = true;      
+  private async resultApagar(args: IFindPublicacaoRelatorio){   
     return this.instanceDataConsolidado(args,'aPagar');
   }    
 
@@ -138,18 +135,15 @@ export class RelatorioService {
     return this.instanceDataAnalitico(args,'todos');
   }
 
-  private async resultPagoAnalitico(args: IFindPublicacaoRelatorio){
-      args.pago = true;    
+  private async resultPagoAnalitico(args: IFindPublicacaoRelatorio){   
       return this.instanceDataAnalitico(args,'pago');
   }
 
   private async resultErrosAnalitico(args: IFindPublicacaoRelatorio){
-    args.pago = false;
     return this.instanceDataAnalitico(args,'erros');
   }
 
-  private async resultApagarAnalitico(args: IFindPublicacaoRelatorio){
-    args.aPagar = true;      
+  private async resultApagarAnalitico(args: IFindPublicacaoRelatorio){    
     return this.instanceDataAnalitico(args,'aPagar');
   } 
 
