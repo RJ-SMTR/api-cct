@@ -4,7 +4,6 @@ import { DataSource } from 'typeorm';
 import { RelatorioConsolidadoDto } from './dtos/relatorio-consolidado.dto';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { QueryResolver } from 'nestjs-i18n';
 
 
 @Injectable()
@@ -20,13 +19,12 @@ export class RelatorioConsolidadoRepository {
     let query = ` select * from ( `;
     query = query + `select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor from ( `;
     query = query + ` select distinct tv.id AS id,                        
-                        tv."nomeConsorcio"  AS consorcio,
-                                cf.nome AS favorecido,
-                                cf."cpfCnpj" AS favorecido_cpfcnpj,
-                                tv."valorPago" AS valor_agrupado
+                        tv."nomeConsorcio" AS consorcio,
+                        cf.nome AS favorecido,
+                        cf."cpfCnpj" AS favorecido_cpfcnpj,
+                        tv."valorPago" AS valor_agrupado
                       from transacao_view tv
-                      inner join cliente_favorecido cf on cf."cpfCnpj"=tv."operadoraCpfCnpj"		                                     
-                      left join public.user u on u."cpfCnpj"=tv."operadoraCpfCnpj"					  
+                      inner join cliente_favorecido cf on cf."cpfCnpj"=tv."operadoraCpfCnpj"
                       where tv."itemTransacaoAgrupadoId" is null
                       and tv."valorPago" is not null 
                       and tv."valorPago" >0  `;
@@ -110,17 +108,12 @@ export class RelatorioConsolidadoRepository {
     query = query + ` select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor  from ( `;
 
     query  = query + ` select distinct tv.id AS id,
-                        case when u."permitCode" ilike '4%' then 'STPC' 
-                          when u."permitCode" ilike '7%' then 'TEC'
-                          when u."permitCode" ilike '8%' then 'STPL' 		           
-                        end 
-                        AS consorcio,
-                          cf.nome AS favorecido,
-                          cf."cpfCnpj" AS favorecido_cpfcnpj,
-                          tv."valorPago" AS valor_agrupado
+                        tv."nomeConsorcio" AS consorcio,
+                        cf.nome AS favorecido,
+                        cf."cpfCnpj" AS favorecido_cpfcnpj,
+                        tv."valorPago" AS valor_agrupado
                         from transacao_view tv
-                        inner join cliente_favorecido cf on cf."cpfCnpj"=tv."operadoraCpfCnpj"		                                     
-					              left join public.user u on u."cpfCnpj"=tv."operadoraCpfCnpj"					  
+                        inner join cliente_favorecido cf on cf."cpfCnpj"=tv."operadoraCpfCnpj"
                         where tv."itemTransacaoAgrupadoId" is null
 					              and tv."valorPago" is not null 
                         and tv."valorPago" >0  `;
@@ -153,8 +146,8 @@ export class RelatorioConsolidadoRepository {
       let query = ` select * from ( `;
       query  = query + ` select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor from ( `;
       query  = query + ` select distinct ita.id AS id,
-                         ita."nomeConsorcio" AS consorcio,	
-                         cf.nome AS favorecido,
+                        ita."nomeConsorcio" AS consorcio,	
+                        cf.nome AS favorecido,
                         cf."cpfCnpj" AS favorecido_cpfcnpj,                        
 		                    da."valorLancamento" AS valor_agrupado
                         from transacao_agrupado ta 
