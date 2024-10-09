@@ -295,6 +295,21 @@ export class UsersRepository {
       ...dataToUpdate,
     } as UpdateUserRepositoryDto);
 
+    // If email is different, update invite email
+    if (
+      dataToUpdate.email &&
+      user.mailHistories.length > 0 &&
+      user.email !== dataToUpdate.email
+    ) {
+      await this.mailHistoryService.update(
+        user.mailHistories[0].id,
+        {
+          email: dataToUpdate.email,
+        },
+        METHOD,
+      );
+    }
+
     // Update user
     dataToUpdate.password = await user.parseNewPassword(dataToUpdate.password);
     await this.usersRepository.update(id, dataToUpdate);

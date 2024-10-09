@@ -171,21 +171,24 @@ export class MailHistoryService {
     logContext?: string,
   ): Promise<MailHistory> {
     const METHOD = MailHistoryService.name;
-    const mailRespose = await this.mailHistoryRepository.save(
+    const updatedMail = await this.mailHistoryRepository.save(
       this.mailHistoryRepository.create({
         id,
         ...payload,
       }),
     );
-    const updatedMail = await this.mailHistoryRepository.findOneByOrFail({
+
+    // log
+    const updatedMailLog = await this.mailHistoryRepository.findOneByOrFail({
       id: id,
     });
     this.logger.log(
-      `Histórico de email ${updatedMail.getLogInfoStr()}` +
+      `Histórico de email ${updatedMailLog.getLogInfoStr()}` +
         ` teve os campos atualizados: [ ${Object.keys(payload)} ]`,
       `${METHOD} from ${logContext}`,
     );
-    return mailRespose;
+
+    return updatedMail;
   }
 
   async softDelete(id: number): Promise<void> {
