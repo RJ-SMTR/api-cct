@@ -38,29 +38,27 @@ export class RelatorioSinteticoRepository {
   public getQueryApagar(args:IFindPublicacaoRelatorio){
     const dataInicio = args.dataInicio.toISOString().slice(0,10)
     const dataFim = args.dataFim.toISOString().slice(0,10)
-    let query = `WITH subtotal_data AS (
-      SELECT 
-          tv."nomeConsorcio", 
-          tv."operadoraCpfCnpj", 
-          SUM(tv."valorPago") AS subTotal
-      FROM transacao_view tv
-      WHERE `;
-      if(dataInicio!==undefined && dataFim!==undefined && 
-        (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
-          query = query + ` tv."datetimeTransacao" between '${dataInicio}' and '${dataFim}'`;                  
-      }  
-      query = query + ` AND tv."itemTransacaoAgrupadoId" IS NULL `
-      query = query + ` GROUP BY tv."nomeConsorcio", tv."operadoraCpfCnpj" ), `;
-
-      query = query + ` total_data AS ( `;
-      query = query + 
-      ` SELECT 
-        SUM(tv."valorPago") AS Total
-        FROM transacao_view tv
-        WHERE tv."valorPago" > 0 `;
+    let query = `WITH subtotal_data AS ( `;
+        query = query + `    SELECT  `;
+        query = query + `    tv."nomeConsorcio", `;
+        query = query + `    tv."operadoraCpfCnpj", `;
+        query = query + `    SUM(tv."valorPago") AS subTotal `;
+        query = query + `    FROM transacao_view tv `;
+        query = query + `    WHERE tv."valorPago" > 0 AND tv."valorPago" is null `;
         if(dataInicio!==undefined && dataFim!==undefined && 
           (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
-            query = query + ` AND tv."datetimeTransacao" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;                 
+          query = query + `   AND tv."datetimeTransacao" BETWEEN '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;                 
+        }  
+        query = query + `     AND tv."itemTransacaoAgrupadoId" IS NULL `
+        query = query + `     GROUP BY tv."nomeConsorcio", tv."operadoraCpfCnpj" ), `;
+        query = query + `total_data AS ( `;
+        query = query + `     SELECT  `;
+        query = query + `     SUM(tv."valorPago") AS Total `;
+        query = query + `     FROM transacao_view tv `;
+        query = query + `     WHERE tv."valorPago" > 0 and tv."valorPago" is null `;
+        if(dataInicio!==undefined && dataFim!==undefined && 
+          (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
+          query = query + ` AND tv."datetimeTransacao" BETWEEN '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;                 
         } 
        
         if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
@@ -69,13 +67,13 @@ export class RelatorioSinteticoRepository {
            && (['Todos'].some(i=>args.favorecidoNome?.includes(i))) || 
            ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))){
             query = query +` AND tv."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
-           'Internorte','Intersul','Transcarioca','MobiRio') `;
+           'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
         }else if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
           query = query +` AND tv."nomeConsorcio" in('STPC','STPL') `;
         }
         query = query + ` AND tv."itemTransacaoAgrupadoId" IS NULL) `;
 
-        query = query +` SELECT DISTINCT `;
+        query = query +`  SELECT DISTINCT `;
         query = query +`  res.*, `;
         query = query +`  COALESCE(sub.subTotal, 0) AS subTotal,`;
         query = query +`  total_data.Total`;
@@ -142,7 +140,6 @@ export class RelatorioSinteticoRepository {
     return result;
   }
 
-
   public getQueryNaoApagar(args:IFindPublicacaoRelatorio){
     const dataInicio = args.dataInicio.toISOString().slice(0,10)
     const dataFim = args.dataFim.toISOString().slice(0,10)
@@ -153,18 +150,17 @@ export class RelatorioSinteticoRepository {
                           inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
                           left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                           left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
-                          WHERE   `;
+                          WHERE `;
                           if(dataInicio!==undefined && dataFim!==undefined && 
                             (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
                             query = query + ` dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
                           if(args.emProcessamento!==undefined && args.emProcessamento===true ){
-                              query = query +`  and app."isPago"=false and dta."ocorrenciasCnab" is  null `
-                          }else 
-                            if(args.pago !==undefined)          
-                            query = query +`  and app."isPago"=${args.pago} `;
-
-                            query = query + ` and tt."nomeConsorcio"=res.consorcio `;
-                            query = query + ` )as ss)  as subTotal, `;
+                            query = query +` and app."isPago"=false and TRIM(dta."ocorrenciasCnab")='' `
+                          }else  if(args.pago !==undefined){          
+                            query = query +` and app."isPago"=${args.pago} and TRIM(dta."ocorrenciasCnab")<>'' `;
+                          }
+                          query = query + ` and tt."nomeConsorcio"=res.consorcio `;
+                          query = query + ` )as ss)  as subTotal, `;
 
     query =  query + `(select sum(tt."valorLancamento")::float from
                       (select distinct dta.id,dta."valorLancamento"            
@@ -246,10 +242,10 @@ export class RelatorioSinteticoRepository {
     }
 
     if(args.emProcessamento!==undefined && args.emProcessamento===true){
-      query = query +`  and ap."isPago"=false and da."ocorrenciasCnab" is  null `
-    }else 
-      if(args.pago !==undefined)          
-      query = query +`  and ap."isPago"=${args.pago} `;
+      query = query +`  and ap."isPago"=false and TRIM(da."ocorrenciasCnab")='' `
+    }else if(args.pago !==undefined){
+      query = query + ` and	ap."isPago"=${args.pago} and TRIM(da."ocorrenciasCnab")<>'' `;
+    } 
             
     if(args.valorMin!==undefined)
       query = query +`  and it."valor">=${args.valorMin}`;
