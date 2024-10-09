@@ -81,14 +81,10 @@ export class RelatorioConsolidadoRepository {
       query = query +` and ita."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;              
     
     if(emProcessamento==true){
-      query = query + ` and ap."isPago"=false and da."ocorrenciasCnab" is null `
-    }else if(pago!==undefined)
-      query = query + ` and	ap."isPago"=${pago}`;
-
-    if(pago ===false){
-      query = query + ` and da."ocorrenciasCnab" is not null `;
-      query = query + ` and  da."ocorrenciasCnab" not in('00','BD') `;              
-    }
+      query = query + ` and ap."isPago"=false and TRIM(da."ocorrenciasCnab")='' `
+    }else if(pago!==undefined){
+      query = query + ` and	ap."isPago"=${pago} and TRIM(da."ocorrenciasCnab")<>'' `;
+    }    
 
     query = query +  `) as cs `;           
 
@@ -171,14 +167,12 @@ export class RelatorioConsolidadoRepository {
                         if(dataInicio!==undefined && dataFim!==undefined &&
                           (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
                           query = query +` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
-                        if(emProcessamento==true){
-                           query = query + ` and ap."isPago"= false and da."ocorrenciasCnab" is null `
-                        }else if(pago!==undefined)
-                          query = query + ` and	ap."isPago"=${pago}`;
-
-                        if(pago ===false)
-                          query = query + ` and da."ocorrenciasCnab" is not null
-                          and  da."ocorrenciasCnab" not in('00','BD') `; 
+                          if(emProcessamento==true){
+                            query = query + ` and ap."isPago"=false and TRIM(da."ocorrenciasCnab")='' `
+                          }else if(pago!==undefined){
+                            query = query + ` and	ap."isPago"=${pago} and TRIM(da."ocorrenciasCnab")<>'' `;
+                          }    
+                       
                         
                         if(favorecidoNome!==undefined && !(['Todos'].some(i=>favorecidoNome?.includes(i))))
                           query = query +` and cf.nome in('${favorecidoNome?.join("','")}')`;
