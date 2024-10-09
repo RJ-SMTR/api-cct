@@ -19,12 +19,9 @@ export class RelatorioConsolidadoRepository {
     let query = ` select * from ( `;
     query = query + `select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor from ( `;
     query = query + ` select distinct tv.id AS id,                        
-                        tv."nomeConsorcio" AS consorcio,
-                        cf.nome AS favorecido,
-                        cf."cpfCnpj" AS favorecido_cpfcnpj,
+                        tv."nomeConsorcio" AS consorcio,                       
                         tv."valorPago" AS valor_agrupado
-                      from transacao_view tv
-                      inner join cliente_favorecido cf on cf."cpfCnpj"=tv."operadoraCpfCnpj"
+                      from transacao_view tv                     
                       where tv."itemTransacaoAgrupadoId" is null
                       and tv."valorPago" is not null 
                       and tv."valorPago" >0  `;
@@ -59,16 +56,13 @@ export class RelatorioConsolidadoRepository {
     let query = ` select * from ( `;
     query = query +` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor from ( `;
     query = query +` select distinct ita.id AS id,
-                    ita."nomeConsorcio" AS consorcio,	
-                    cf.nome AS favorecido,
-                    cf."cpfCnpj" AS favorecido_cpfcnpj,                    
+                    ita."nomeConsorcio" AS consorcio,	                                     
 		                da."valorLancamento" AS valor_agrupado
                     from transacao_agrupado ta 
                     inner join item_transacao_agrupado ita on ita."transacaoAgrupadoId"=ta."id"
                     inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
                     inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
-                    inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
-                    inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
+                    inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id                   
                     where ta."statusId"<>5 `;
 
     if(dataInicio!==undefined && dataFim!==undefined && 

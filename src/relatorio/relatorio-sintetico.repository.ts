@@ -17,7 +17,7 @@ export class RelatorioSinteticoRepository {
   private getQuery(args:IFindPublicacaoRelatorio){     
     if(args.aPagar === true){
       return this.getQueryApagar(args);
-    }else if (args.aPagar ===false){
+    }else if (args.aPagar === false || args.aPagar === undefined){
       return this.getQueryNaoApagar(args);
     }else{
       return this.getQueryApagar(args) + ` union all ` +this.getQueryNaoApagar(args); 
@@ -122,7 +122,7 @@ export class RelatorioSinteticoRepository {
         }else if((['Todos'].some(i=>args.consorcioNome?.includes(i))) && (['Todos'].some(i=>args.favorecidoNome?.includes(i)))
            || ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))){
             conditions = conditions +` and tv."nomeConsorcio" 
-          in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio') `;
+          in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
         }else if((['Todos'].some(i=>args.favorecidoNome?.includes(i))) && (args.consorcioNome!==undefined)){
           conditions = conditions +` and tv."nomeConsorcio" in('STPC','STPL',${args.consorcioNome?.join("','")}) `;
         }else if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
@@ -184,7 +184,7 @@ export class RelatorioSinteticoRepository {
                          && (['Todos'].some(i=>args.favorecidoNome?.includes(i))) || 
                          ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))){
                         query = query +` and tt."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
-                         'Internorte','Intersul','Transcarioca','MobiRio') `;
+                         'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
                       }
                     else if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
                       query = query +` and tt."nomeConsorcio" in('STPC','STPL') `;
@@ -236,7 +236,7 @@ export class RelatorioSinteticoRepository {
     }else if( (['Todos'].some(i=>args.consorcioNome?.includes(i))) && (['Todos'].some(i=>args.favorecidoNome?.includes(i)))
       || ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))){
       query = query +` and it."nomeConsorcio" 
-      in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio') `;
+      in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
     }else if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
       query = query +` and it."nomeConsorcio" in('STPC','STPL') `;
     }
