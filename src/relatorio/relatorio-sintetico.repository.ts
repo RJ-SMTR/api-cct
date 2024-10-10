@@ -172,8 +172,11 @@ export class RelatorioSinteticoRepository {
                       if(dataInicio!==undefined && dataFim!==undefined && 
                         (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
                         query = query + `  dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
-                      if(args.pago !==undefined)          
-                        query = query +`  and app."isPago"=${args.pago} `;
+                        if(args.emProcessamento!==undefined && args.emProcessamento===true ){
+                          query = query +` and app."isPago"=false and TRIM(dta."ocorrenciasCnab")='' `
+                        }else  if(args.pago !==undefined){          
+                          query = query +` and app."isPago"=${args.pago} and TRIM(dta."ocorrenciasCnab")<>'' `;
+                        }
 
                       if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
                         query = query +` and tt."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`; 
@@ -187,7 +190,7 @@ export class RelatorioSinteticoRepository {
                          'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
                       }
                     else if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
-                      query = query +` and tt."nomeConsorcio" in('STPC','STPL') `;
+                      query = query +` and tt."nomeConsorcio" in('STPC','STPL','TEC') `;
                     }
                     query = query + ` )as tt  )as total `;
    
@@ -223,7 +226,7 @@ export class RelatorioSinteticoRepository {
       inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
       inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
       inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-      inner join ocorrencia oc on oc."detalheAId"=da.id              
+      left join ocorrencia oc on oc."detalheAId"=da.id              
       where  `;
     if(dataInicio!==undefined && dataFim!==undefined && 
       (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
@@ -238,7 +241,7 @@ export class RelatorioSinteticoRepository {
       query = query +` and it."nomeConsorcio" 
       in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
     }else if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
-      query = query +` and it."nomeConsorcio" in('STPC','STPL') `;
+      query = query +` and it."nomeConsorcio" in('STPC','STPL','TEC') `;
     }
 
     if(args.emProcessamento!==undefined && args.emProcessamento===true){
