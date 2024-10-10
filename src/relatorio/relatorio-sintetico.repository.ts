@@ -40,8 +40,7 @@ export class RelatorioSinteticoRepository {
     const dataFim = args.dataFim.toISOString().slice(0,10)
     let query = `WITH subtotal_data AS ( `;
         query = query + `    SELECT  `;
-        query = query + `    tv."nomeConsorcio", `;
-        query = query + `    tv."operadoraCpfCnpj", `;
+        query = query + `    tv."nomeConsorcio", `;        
         query = query + `    SUM(tv."valorPago") AS subTotal `;
         query = query + `    FROM transacao_view tv `;
         query = query + `    WHERE tv."valorPago" > 0 `;       
@@ -50,7 +49,7 @@ export class RelatorioSinteticoRepository {
           query = query + `  AND tv."datetimeTransacao" BETWEEN '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;                 
         }  
         query = query + `    AND tv."itemTransacaoAgrupadoId" IS NULL `
-        query = query + `    GROUP BY tv."nomeConsorcio", tv."operadoraCpfCnpj" ), `;
+        query = query + `    GROUP BY tv."nomeConsorcio" ), `;
         query = query + `total_data AS ( `;
         query = query + `     SELECT  `;
         query = query + `     SUM(tv."valorPago") AS Total `;
@@ -100,15 +99,15 @@ export class RelatorioSinteticoRepository {
         (tv."datetimeTransacao":: DATE + INTERVAL '4 day')::VARCHAR
         END AS datapagamento,
         tv."nomeConsorcio" AS consorcio,
-        cf.nome AS favorecido,
-        cf."cpfCnpj",
+        COALESCE(cf.nome,uu."fullName") AS favorecido,
+        tv."operadoraCpfCnpj" cpfCnpj,
         ROUND(tv."valorPago", 2)::FLOAT AS valor,
         'a pagar' AS status,
         '' AS mensagem_status `;
 
-        body = body + `FROM transacao_view tv
-        INNER JOIN cliente_favorecido cf ON tv."operadoraCpfCnpj" = cf."cpfCnpj" `;
-
+        body = body + `FROM transacao_view tv `;
+        body = body + `LEFT JOIN cliente_favorecido cf ON tv."operadoraCpfCnpj" = cf."cpfCnpj" `;
+         body = body +`LEFT JOIN public.user uu on uu."cpfCnpj"=tv."operadoraCpfCnpj" `;
         let conditions = `where tv."valorPago" >0 and`;
         
         if(dataInicio!==undefined && dataFim!==undefined && 
