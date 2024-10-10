@@ -22,7 +22,7 @@ export class RelatorioConsolidadoRepository {
                         tv."nomeConsorcio" AS consorcio,                       
                         tv."valorPago" AS valor_agrupado
                       from transacao_view tv                     
-                      where tv."itemTransacaoAgrupadoId" is null
+                      where tv."itemTransacaoAgrupadoId" is null                      
                       and tv."valorPago" is not null 
                       and tv."valorPago" >0  `;
 
@@ -30,7 +30,10 @@ export class RelatorioConsolidadoRepository {
       (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
       query = query +` and tv."datetimeTransacao" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;
 
-    if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
+   if(['Todos'].some(i=>nomeConsorcio?.includes(i))) {
+      query = query +` AND tv."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
+           'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
+   }else if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
       query = query +` and tv."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;                      
   
     query = query +  `) as cs `; 
