@@ -273,7 +273,7 @@ export class LancamentoService {
     return {
       ...(args?.year ? { year: args.year } : {}),
       ...(args?.month ? { month: args.month } : {}),
-      ...(args?.period !== undefined ? { day: [args.period === 0 ? '<=' : '>', 15] } : {}),
+      ...(args?.period !== undefined ? { day: [args.period === 1 ? '<=' : '>', 15] } : {}),
     };
   }
 
