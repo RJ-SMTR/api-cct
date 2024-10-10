@@ -216,10 +216,13 @@ export class RelatorioSinteticoRepository {
       cf.nome AS favorecido,
       cf."cpfCnpj",	
       it."valor"::float as valor,			      
-      case when (ap."isPago") then 'pago' 
+      case 
+      when(not(ap."isPago") and TRIM(da."ocorrenciasCnab")='')then 'Aguardando Pagamento'	
+      when (ap."isPago") then 'pago' 
         when (not (ap."isPago")) then 'naopago'
         else 'apagar' end AS status,
-      case when (not (ap."isPago")) then oc."message" else '' end As mensagem_status `; 
+      case when (not (ap."isPago")) then oc."message" 
+      else '' end As mensagem_status `; 
     
     query = query + ` from item_transacao_agrupado ita
       inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
