@@ -44,18 +44,18 @@ export class RelatorioSinteticoRepository {
         query = query + `    tv."operadoraCpfCnpj", `;
         query = query + `    SUM(tv."valorPago") AS subTotal `;
         query = query + `    FROM transacao_view tv `;
-        query = query + `    WHERE tv."valorPago" > 0 AND tv."valorPago" is null `;
+        query = query + `    WHERE tv."valorPago" > 0 `;       
         if(dataInicio!==undefined && dataFim!==undefined && 
           (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
-          query = query + `   AND tv."datetimeTransacao" BETWEEN '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;                 
+          query = query + `  AND tv."datetimeTransacao" BETWEEN '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;                 
         }  
-        query = query + `     AND tv."itemTransacaoAgrupadoId" IS NULL `
-        query = query + `     GROUP BY tv."nomeConsorcio", tv."operadoraCpfCnpj" ), `;
+        query = query + `    AND tv."itemTransacaoAgrupadoId" IS NULL `
+        query = query + `    GROUP BY tv."nomeConsorcio", tv."operadoraCpfCnpj" ), `;
         query = query + `total_data AS ( `;
         query = query + `     SELECT  `;
         query = query + `     SUM(tv."valorPago") AS Total `;
         query = query + `     FROM transacao_view tv `;
-        query = query + `     WHERE tv."valorPago" > 0 and tv."valorPago" is null `;
+        query = query + `     WHERE tv."valorPago" > 0 `;
         if(dataInicio!==undefined && dataFim!==undefined && 
           (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
           query = query + ` AND tv."datetimeTransacao" BETWEEN '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;                 
@@ -109,7 +109,7 @@ export class RelatorioSinteticoRepository {
         body = body + `FROM transacao_view tv
         INNER JOIN cliente_favorecido cf ON tv."operadoraCpfCnpj" = cf."cpfCnpj" `;
 
-        let conditions = `where `;
+        let conditions = `where tv."valorPago" >0 and`;
         
         if(dataInicio!==undefined && dataFim!==undefined && 
           (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
