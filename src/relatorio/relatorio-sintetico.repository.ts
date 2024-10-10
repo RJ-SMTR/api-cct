@@ -130,8 +130,7 @@ export class RelatorioSinteticoRepository {
 
         let footer =  `) AS res
         LEFT JOIN subtotal_data sub 
-          ON res."consorcio" = sub."nomeConsorcio" 
-          AND res."cpfCnpj" = sub."operadoraCpfCnpj"
+          ON res."consorcio" = sub."nomeConsorcio"          
         CROSS JOIN total_data
         ORDER BY res."consorcio", res."favorecido", res."datapagamento"`
 

@@ -325,7 +325,8 @@ export class CnabService {
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, daysBefore);
     let ordensFilter: BigqueryOrdemPagamentoDTO[];
     if (consorcio.trim() === 'Empresa') {
-      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL');
+      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT'
+       && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL' && ordem.consorcio.trim() !=='TEC');
     } else if (consorcio.trim() === 'Van') {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() === 'STPC' 
       || ordem.consorcio.trim() === 'STPL' || ordem.consorcio.trim() === 'TEC');
