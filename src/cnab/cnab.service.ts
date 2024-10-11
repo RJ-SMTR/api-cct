@@ -487,7 +487,7 @@ export class CnabService {
         },
         ...(ordem.consorcio.length || ordem.operadora.length
           ? // Se for Jaé, agrupa por vanzeiro ou empresa
-            ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL'
+            ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio ==='TEC'
             ? { idOperadora: ordem.idOperadora }
             : { idConsorcio: ordem.idConsorcio }
           : // Se for Lançamento, agrupa por favorecido e dataOrdem
