@@ -169,6 +169,8 @@ export class RemessaRetornoService {
           if(detalhes104[0].detalheA.nsr.value > 0){
             nsrCC++;
             loteCC.registros104.push(...detalhes104);
+          }else{
+            nsrCC--;
           }          
         }
       }     
