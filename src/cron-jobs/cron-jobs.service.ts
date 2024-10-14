@@ -898,7 +898,8 @@ export class CronJobsService {
 
   validateJobsRemessa() {
     const today = new Date();
-    const isValid = !this.isDateInRemessaVan(today) && !this.isDateInRemessaVLT(today) && !!this.isDateInRemessaConsorcio(today);
+    const isValid = !this.isDateInRemessaVan(today) && !this.isDateInRemessaVLT(today) && 
+    !this.isDateInRemessaConsorcio(today);
     return isValid;
   }
 
