@@ -5,7 +5,7 @@ import { DeepPartial, EntityManager, FindManyOptions, QueryRunner } from 'typeor
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
 import { TVFindUpdateValuesWhere, TransacaoViewFindRawOptions, TransacaoViewRepository } from './transacao-view.repository';
-import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
+import { IClearSyncOrdemPgto, ISyncOrdemPgto } from './interfaces/sync-transacao-ordem.interface';
 
 @Injectable()
 export class TransacaoViewService {
@@ -15,6 +15,10 @@ export class TransacaoViewService {
 
   async syncOrdemPgto(args?: ISyncOrdemPgto) {
     return await this.transacaoViewRepository.syncOrdemPgto(args);
+  }
+
+  async clearSyncOrdemPgto(args?: IClearSyncOrdemPgto) {
+    return await this.transacaoViewRepository.clearSyncOrdemPgto(args);
   }
 
   async updateManyRaw(

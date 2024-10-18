@@ -1,14 +1,13 @@
 import { Controller, Get, HttpCode, HttpStatus, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { CnabService } from 'src/cnab/cnab.service';
-import { CustomLogger } from 'src/utils/custom-logger';
-import { CronJobsService } from './cron-jobs.service';
 import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from 'src/roles/roles.guard';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
+import { CronJobsService } from './cron-jobs.service';
 
 @ApiTags('Manutenção')
 @Controller({
