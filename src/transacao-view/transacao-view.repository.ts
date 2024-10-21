@@ -140,8 +140,11 @@ export class TransacaoViewRepository {
       where.push(`DATE(tv."datetimeProcessamento") + INTERVAL '1 DAY' BETWEEN DATE('${start}') AND DATE('${end}')`);
     }
 
-    if (args?.consorcio) {
-      where.push(`it."nomeConsorcio" IN('${args.consorcio.join("','")}') AND tv."nomeConsorcio" IN('${args.consorcio.join("','")}')`);
+    if (args?.consorcio?.in?.length) {
+      where.push(`it."nomeConsorcio" IN('${args.consorcio.in.join("','")}')`);
+    }
+    if (args?.consorcio?.notIn?.length) {
+      where.push(`it."nomeConsorcio" NOT IN('${args.consorcio.notIn.join("','")}')`);
     }
 
     if (args?.nomeFavorecido?.length) {

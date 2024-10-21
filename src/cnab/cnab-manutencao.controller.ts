@@ -189,7 +189,7 @@ export class CnabManutencaoController {
     @Query('consorcio', new ParseArrayPipe1({ transform: true, optional: true })) consorcio: string[] | undefined,
   ) {
     const dataOrdem_between = dataOrdemInicial && dataOrdemFinal && ([dataOrdemInicial, dataOrdemFinal] as [Date, Date]);
-    return await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between, nomeFavorecido, consorcio });
+    return await this.cnabService.syncTransacaoViewOrdemPgto({ dataOrdem_between, nomeFavorecido, consorcio: { in: consorcio } });
   }
 
   @Get('clearSyncTransacaoView')

@@ -84,7 +84,7 @@ export class CronJobsService {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-
+    this.syncTransacaoViewOrdem('van');
     this.jobsConfig.push(
       {
         /**
@@ -192,7 +192,7 @@ export class CronJobsService {
               return;
             }
             await this.generateRemessaVLT();
-            await this.syncTransacaoViewOrdem('generateRemessaVLT');
+            await this.syncTransacaoViewOrdem('vlt');
           },
         },
       },
@@ -208,7 +208,7 @@ export class CronJobsService {
       //     cronTime: '0 13 * * 5', // Every Friday (see method), 13:00 GMT = 10:00 BRT (GMT-3)
       //     onTick: async () => {
       //       await this.generateRemessaVanzeiros();
-      //       await this.syncTransacaoViewOrdem('generateRemessaVanzeiros');
+      //       await this.syncTransacaoViewOrdem('van');
       //     },
       //   },
       // },
@@ -248,7 +248,7 @@ export class CronJobsService {
       //     cronTime: '0 20 * * *', // Every Thursday (see method), 20:00 GMT = 17:00 BRT (GMT-3)
       //     onTick: async () => {
       //       await this.generateRemessaEmpresa();
-      //       await this.syncTransacaoViewOrdem('generateRemessaEmpresa');
+      //       await this.syncTransacaoViewOrdem('empresa');
       //     },
       //   },
       // },
@@ -346,8 +346,11 @@ export class CronJobsService {
       const qui = today;
       await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Empresa');
       const listCnab = await this.cnabService.generateRemessa({
-        tipo: PagadorContaEnum.ContaBilhetagem, dataPgto: addDays(today, 1),
-        isConference: false,isCancelamento: false, isTeste: false
+        tipo: PagadorContaEnum.ContaBilhetagem,
+        dataPgto: addDays(today, 1),
+        isConference: false,
+        isCancelamento: false,
+        isTeste: false,
       });
       await this.cnabService.sendRemessa(listCnab);
       this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
@@ -447,20 +450,26 @@ export class CronJobsService {
     }
   }
 
-  public async syncTransacaoViewOrdem(method = 'syncTransacaoViewOrdem') {
+  public async syncTransacaoViewOrdem(filterConsorcios?: 'vlt' | 'van' | 'empresa') {
+    const METHOD = `syncTransacaoViewOrdem`;
     try {
       const startDate = subDays(new Date(), 30);
       const today = new Date();
-      this.logger.log(`Sincronizando TransacaoViews entre ${formatDateISODate(startDate)} e ${formatDateISODate(today)}`, method);
-      const consorcios: string[] = [];
-      if (method === 'generateRemessaVan') {
-        consorcios.push('STPC');
-        consorcios.push('STPL');
+      this.logger.log(`Sincronizando TransacaoViews ${filterConsorcios || ''} entre ${formatDateISODate(startDate)} e ${formatDateISODate(today)}`, METHOD);
+      const consorcio: { in: string[]; notIn: string[] } = { in: [], notIn: [] };
+      if (filterConsorcios === 'van') {
+        consorcio.in.push('STPC');
+        consorcio.in.push('STPL');
+        consorcio.in.push('TEC');
+      } else if (filterConsorcios === 'vlt') {
+        consorcio.in.push('VLT');
+      } else if (filterConsorcios === 'empresa') {
+        consorcio.notIn = ['STPC', 'STPL', 'TEC', 'VLT'];
       }
-      await this.cnabService.syncTransacaoViewOrdemPgto({ consorcio: consorcios, dataOrdem_between: [startOfDay(startDate), endOfDay(today)] });
-      this.logger.log(`Trefa finalizada com sucesso.`, method);
+      await this.cnabService.syncTransacaoViewOrdemPgto({ consorcio, dataOrdem_between: [startOfDay(startDate), endOfDay(today)] });
+      this.logger.log(`Trefa finalizada com sucesso.`, METHOD);
     } catch (error) {
-      this.logger.error('Erro ao executar tarefa.', error?.stack, method);
+      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
   }
 
@@ -896,8 +905,7 @@ export class CronJobsService {
 
   validateJobsRemessa() {
     const today = new Date();
-    const isValid = !this.isDateInRemessaVan(today) && !this.isDateInRemessaVLT(today) && 
-    !this.isDateInRemessaConsorcio(today);
+    const isValid = !this.isDateInRemessaVan(today) && !this.isDateInRemessaVLT(today) && !this.isDateInRemessaConsorcio(today);
     return isValid;
   }
 
