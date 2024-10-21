@@ -82,7 +82,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {
+  async onModuleLoad() {  
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.syncTransacaoViewOrdem('van');
     this.jobsConfig.push(
@@ -362,19 +362,20 @@ export class CronJobsService {
   /**
    * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
    */
-  async generateRemessaVanzeiros(debug?: ICronjobDebug) {
+  async generateRemessaVanzeiros(debug?: ICronjobDebug,isUnico?:boolean) {
     const METHOD = 'generateRemessaVanzeiros';
-    if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
-      return;
-    }
+    // if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
+    //   return;
+    // }
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
     const today = debug?.today || new Date();
     const sex = subDays(today, 7);
     const qui = subDays(today, 1);
 
-    await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Van');
-    const listCnab = await this.cnabService.generateRemessa({ tipo: PagadorContaEnum.ContaBilhetagem, dataPgto: today, isConference: false, isCancelamento: false, isTeste: false });
+    await this.cnabService.saveTransacoesJae(sex, qui, 0,'Van');
+    const listCnab = await this.cnabService.generateRemessa({ tipo: PagadorContaEnum.ContaBilhetagem
+      , dataPgto: today, isConference: false, isCancelamento: false, isTeste: false });
     await this.cnabService.sendRemessa(listCnab);
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
   }
