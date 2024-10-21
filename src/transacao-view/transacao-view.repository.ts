@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { compactQuery } from 'src/utils/console-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { formatDateISODate } from 'src/utils/date-utils';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { DataSource, DeepPartial, EntityManager, FindManyOptions, In, LessThanOrEqual, QueryRunner, Repository } from 'typeorm';
+import { DataSource, DeepPartial, EntityManager, FindManyOptions, In, LessThanOrEqual, Repository } from 'typeorm';
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
-import { ISyncOrdemPgto } from './interfaces/sync-form-ordem.interface';
+import { IClearSyncOrdemPgto, ISyncOrdemPgto } from './interfaces/sync-transacao-ordem.interface';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
-import { formatDateISODate } from 'src/utils/date-utils';
 
 export interface TransacaoViewFindRawOptions {
   where: {
@@ -63,52 +63,135 @@ export class TransacaoViewRepository {
     return count;
   }
 
+  /**
+   * Remove associação de todas as transações no intervalo
+   */
+  public async clearSyncOrdemPgto(args?: IClearSyncOrdemPgto) {
+    const METHOD = 'syncOrdemPgto';
+    const where: string[] = [];
+    if (args?.dataOrdem_between) {
+      const [start, end] = args.dataOrdem_between.map((d) => d.toISOString());
+      where.push(`DATE(tv."datetimeProcessamento") + INTERVAL '1 DAY' BETWEEN DATE('${start}') AND DATE('${end}')`);
+    }
+    if (args?.consorcio) {
+      where.push(`tv."nomeConsorcio" IN('${args.consorcio.join("','")}')`);
+    }
+    if (args?.nomeFavorecido?.length) {
+      where.push(`cf.nome ILIKE ANY(ARRAY['%${args.nomeFavorecido.join("%', '%")}%'])`);
+    }
+
+    const query = `
+    UPDATE transacao_view
+    SET "itemTransacaoAgrupadoId" = NULL,
+        "updatedAt" = NOW()
+    FROM (
+        SELECT DISTINCT ON (q.tv_id) * FROM (
+            SELECT
+                cf.nome,
+                tv.id AS tv_id,
+                tv."datetimeTransacao",
+                tv."datetimeProcessamento",
+                tv."valorPago"
+            FROM transacao_view tv
+            LEFT JOIN cliente_favorecido cf ON cf."cpfCnpj" = tv."operadoraCpfCnpj"
+            WHERE (1=1) ${where.length ? `AND ${where.join(' AND ')}` : ''}
+            ORDER BY tv.id ASC
+        ) q
+        ORDER BY q.tv_id
+    ) associados
+    WHERE id = associados.tv_id  `;
+
+    this.logger.debug('query: ' + compactQuery(query), METHOD);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    let count = 0;
+    try {
+      await queryRunner.startTransaction();
+      [, count] = await queryRunner.query(compactQuery(query));
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+    } finally {
+      await queryRunner.release();
+    }
+    return count;
+  }
+
+  /**
+   * ## Sobre
+   *
+   * Para cada transação, obtém uma lista de ordens e associa com a ordme mais apropriada;
+   *
+   * ## Query
+   *
+   * Filtros
+   * - Filtros deste método (e.g. data início/fim)
+   * - Ignora ordens canceladas (com status 5)
+   * - Para cada ordem, verificamos se existe uma transação entre dataOrdem D1-D6.
+   *
+   * Prioridade da ordem por transação após os filtros:
+   * 1. A ordem que tiver a máxima prioridade de data D1, D2, D3, D4, D5, D6 respectivamente
+   */
   public async syncOrdemPgto(args?: ISyncOrdemPgto) {
     const METHOD = 'syncOrdemPgto';
     const where: string[] = [];
-    if (args?.dataOrdem_between) {      
+    if (args?.dataOrdem_between) {
       const [start, end] = args.dataOrdem_between.map((d) => d.toISOString());
-      where.push(`DATE(tv."datetimeTransacao") BETWEEN (DATE('${start}') - INTERVAL '1 DAY') 
-      AND '${end}'`);
-    }    
+      where.push(`DATE(tv."datetimeProcessamento") + INTERVAL '1 DAY' BETWEEN DATE('${start}') AND DATE('${end}')`);
+    }
 
-    if(args?.consorcio){
-      where.push(` it."nomeConsorcio" in('${args.consorcio.join("','")}')`)
+    if (args?.consorcio?.in?.length) {
+      where.push(`it."nomeConsorcio" IN('${args.consorcio.in.join("','")}')`);
+    }
+    if (args?.consorcio?.notIn?.length) {
+      where.push(`it."nomeConsorcio" NOT IN('${args.consorcio.notIn.join("','")}')`);
     }
 
     if (args?.nomeFavorecido?.length) {
       where.push(`cf.nome ILIKE ANY(ARRAY['%${args.nomeFavorecido.join("%', '%")}%'])`);
     }
+
     const query = `
     UPDATE transacao_view
     SET "itemTransacaoAgrupadoId" = associados.ita_id,
         "updatedAt" = NOW()
-    FROM (	
-        SELECT
-            DISTINCT ON (tv.id)
-            tv.id AS tv_id,
-            ita.id ita_id,
-            ita."valor",
-            tv."valorPago",
-            tv."datetimeTransacao",
-            it."dataOrdem",
-            it."dataCaptura",
-            da."dataVencimento"	 
-        FROM item_transacao_agrupado ita
-        INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
-        INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
-        INNER JOIN cliente_favorecido cf ON cf.id = it."clienteFavorecidoId"
-        INNER JOIN transacao_view tv
-            ON tv."idConsorcio" = ita."idConsorcio"
-            AND tv."idOperadora" = ita."idOperadora"
-            AND tv."operadoraCpfCnpj" = cf."cpfCnpj"
-            AND tv."datetimeTransacao"::DATE 
-	          BETWEEN (it."dataOrdem"::DATE) - INTERVAL '1 DAYS' AND (it."dataOrdem"::DATE)
-        WHERE (1=1) ${where.length ? `AND ${where.join(' AND ')}` : ''}
-
-        ORDER BY tv.id ASC, ita.id DESC
+    FROM (
+        SELECT DISTINCT ON (q.tv_id) * FROM (
+            SELECT
+                cf.nome,
+                tv.id AS tv_id,
+                it."dataOrdem",
+                tv."datetimeTransacao",
+                tv."datetimeProcessamento",
+                tv."valorPago",
+                it.valor  AS valor_ordem,
+                (it."dataOrdem"::DATE - tv."datetimeProcessamento"::DATE) AS date_priority,
+                ita."valor",
+                it."dataCaptura",
+                da."dataVencimento",
+                ta."statusId" AS ordem_status_id,
+                ts.name AS ordem_status,
+                ita.id ita_id,
+                it.id AS it_id
+            FROM item_transacao_agrupado ita
+            INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
+            INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
+            INNER JOIN transacao tr ON tr.id = it."transacaoId"
+            INNER JOIN transacao_agrupado ta ON ta.id = tr."transacaoAgrupadoId" AND ta."statusId" != 5
+            INNER JOIN transacao_status ts ON ts.id = ta."statusId"
+            INNER JOIN cliente_favorecido cf ON cf.id = it."clienteFavorecidoId"
+            INNER JOIN transacao_view tv
+                ON tv."idConsorcio" = ita."idConsorcio"
+                AND tv."idOperadora" = ita."idOperadora"
+                AND tv."operadoraCpfCnpj" = cf."cpfCnpj"
+                AND tv."datetimeProcessamento"::DATE BETWEEN (it."dataOrdem"::DATE) - INTERVAL '6 DAYS' AND it."dataOrdem"::DATE - INTERVAL '1 DAY'
+            WHERE (1=1) ${where.length ? `AND ${where.join(' AND ')}` : ''}
+            ORDER BY tv.id ASC, it."dataOrdem"
+        ) q
+        ORDER BY q.tv_id, q.date_priority, q.it_id DESC
     ) associados
-    WHERE id = associados.tv_id  `;
+    WHERE id = associados.tv_id
+    `;
 
     this.logger.debug('query: ' + compactQuery(query), METHOD);
     const queryRunner = this.dataSource.createQueryRunner();

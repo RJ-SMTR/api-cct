@@ -46,7 +46,7 @@ export class BankStatementsService {
     const validArgs = await this.validateGetMe(args);
     await this.cnabService.syncTransacaoViewOrdemPgto({
       nomeFavorecido: [validArgs.user.getFullName()],
-      consorcio: ['STPC', 'STPL'],
+      consorcio: { in: ['STPC', 'STPL'] },
     });
     const bsData = await this.generateBankStatements({
       groupBy: 'week',
