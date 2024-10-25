@@ -146,6 +146,7 @@ export class RelatorioSinteticoRepository {
     query =  query + `  (select distinct dta.id,dta."valorLancamento"                    
                           from detalhe_a dta 
                           inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
+                          inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tt."statusId"<>'5'
                           left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                           left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
                           WHERE `;
@@ -164,6 +165,7 @@ export class RelatorioSinteticoRepository {
                       (select distinct dta.id,dta."valorLancamento"            
                       from detalhe_a dta 
                       inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
+                      inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tt."statusId"<>'5'
                       left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                       left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
                       WHERE `;
@@ -225,6 +227,7 @@ export class RelatorioSinteticoRepository {
     query = query + ` from item_transacao_agrupado ita
       inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
       inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
+      inner join transacao_agrupado ta on ta."id"=ita."transacaoAgrupadoId" and ta."statusId"<>'5'
       inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
       inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
       left join ocorrencia oc on oc."detalheAId"=da.id              
