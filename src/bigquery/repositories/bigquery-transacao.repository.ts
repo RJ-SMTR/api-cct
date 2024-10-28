@@ -24,6 +24,7 @@ export interface IBqFindTransacao {
   valor_pagamento?: number[] | null | ['>=' | '<=' | '>' | '<', number] | 'NOT NULL';
   id_transacao?: string[] | null;
   id_operadora?: string[];
+  nomeConsorcio?: { in?: string[], notIn?: string[]};
 }
 
 @Injectable()
@@ -78,7 +79,7 @@ export class BigqueryTransacaoRepository {
           t.valor_pagamento,
           t.versao AS bqDataVersion,
           t.consorcio,
-          t.operadora,
+          o.operadora_completo AS operadora,
           t.id_consorcio,
           t.id_operadora,
           o.documento AS operadoraCpfCnpj,
@@ -137,6 +138,12 @@ export class BigqueryTransacaoRepository {
     }
     if (args?.previousDaysOnly === true) {
       queryBuilder.pushAND('DATE(t.datetime_processamento) > DATE(t.datetime_transacao)');
+    }
+    if (args?.nomeConsorcio?.in?.length) {
+      queryBuilder.pushAND(`t.consorcio IN ('${args.nomeConsorcio.in.join("','")}')`);
+    }
+    if (args?.nomeConsorcio?.notIn?.length) {
+      queryBuilder.pushAND(`t.consorcio NOT IN ('${args.nomeConsorcio.notIn.join("','")}')`);
     }
     if (args?.valor_pagamento !== undefined) {
       const _value = args.valor_pagamento;

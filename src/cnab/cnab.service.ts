@@ -395,14 +395,16 @@ export class CnabService {
   }
 
   async findBigqueryTransacao(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string): Promise<BigqueryTransacao[]> {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(startOfDay(dataOrdemIncial), endOfDay(dataOrdemFinal), daysBack);
-    let trs = transacoesBq;
+    const nomeConsorcio: { in: string[], notIn: string[] } = {in: [], notIn: [] };
     if (consorcio === 'Van') {
-      trs = transacoesBq.filter((tr) => tr.consorcio === 'STPC' || tr.consorcio === 'STPL');
+      nomeConsorcio.in = ['STPC', 'STPL', 'TEC'];
     } else if (consorcio == 'Empresa') {
-      trs = transacoesBq.filter((tr) => tr.consorcio !== 'STPC' && tr.consorcio !== 'STPL');
+      nomeConsorcio.notIn = ['STPC', 'STPL', 'TEC'];
+    } else if (consorcio != 'Todos') {
+      nomeConsorcio.in = consorcio.split(',');
     }
-    return trs;
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(startOfDay(dataOrdemIncial), endOfDay(dataOrdemFinal), daysBack, { nomeConsorcio });
+    return transacoesBq;
   }
 
   // #region saveOrdens
