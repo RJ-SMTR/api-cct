@@ -398,9 +398,9 @@ export class CnabService {
     const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(startOfDay(dataOrdemIncial), endOfDay(dataOrdemFinal), daysBack);
     let trs = transacoesBq;
     if (consorcio === 'Van') {
-      trs = transacoesBq.filter((tr) => tr.consorcio === 'STPC' || tr.consorcio === 'STPL');
+      trs = transacoesBq.filter((tr) => ['STPC','STPL','TEC'].includes(tr.consorcio));
     } else if (consorcio == 'Empresa') {
-      trs = transacoesBq.filter((tr) => tr.consorcio !== 'STPC' && tr.consorcio !== 'STPL');
+      trs = transacoesBq.filter((tr) => !['STPC','STPL','TEC'].includes(tr.consorcio));
     }
     return trs;
   }
