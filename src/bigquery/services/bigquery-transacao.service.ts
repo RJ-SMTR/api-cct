@@ -14,11 +14,12 @@ export class BigqueryTransacaoService {
    *
    * @param [daysBack=0] Pega a semana atual ou N dias atrás.
    */
-  public async getFromWeek(dataOrdemInicial: Date, dataOrdemFinal: Date, daysBack = 0): Promise<BigqueryTransacao[]> {
+  public async getFromWeek(dataOrdemInicial: Date, dataOrdemFinal: Date, daysBack = 0, filter?: IBqFindTransacao): Promise<BigqueryTransacao[]> {
     const transacao = (
       await this.bigqueryTransacaoRepository.findMany({
         startDate: dataOrdemInicial,
         endDate: dataOrdemFinal,
+        ...(filter ? filter : {}),
       })
     ).map((i) => ({ ...i } as BigqueryTransacao));
     return transacao;
