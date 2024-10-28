@@ -146,7 +146,7 @@ export class RelatorioSinteticoRepository {
     query =  query + `  (select distinct dta.id,dta."valorLancamento"                    
                           from detalhe_a dta 
                           inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
-                          inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tt."statusId"<>'5'
+                          inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tta."statusId"<>'5'
                           left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                           left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
                           WHERE `;
@@ -165,7 +165,7 @@ export class RelatorioSinteticoRepository {
                       (select distinct dta.id,dta."valorLancamento"            
                       from detalhe_a dta 
                       inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
-                      inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tt."statusId"<>'5'
+                      inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tta."statusId"<>'5'
                       left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                       left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
                       WHERE `;
