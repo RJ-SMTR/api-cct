@@ -6,11 +6,10 @@ import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-enti
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 // import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
-import { LancamentoService } from 'src/lancamento/lancamento.service';
 import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';
-import { ISyncOrdemPgto } from 'src/transacao-view/interfaces/sync-form-ordem.interface';
+import { IClearSyncOrdemPgto, ISyncOrdemPgto } from 'src/transacao-view/interfaces/sync-transacao-ordem.interface';
 import { TransacaoView } from 'src/transacao-view/transacao-view.entity';
 import { TransacaoViewService } from 'src/transacao-view/transacao-view.service';
 import { UsersService } from 'src/users/users.service';
@@ -22,6 +21,7 @@ import { CommonHttpException } from 'src/utils/http-exception/common-http-except
 import { formatErrMsg } from 'src/utils/log-utils';
 import { asNumber } from 'src/utils/pipe-utils';
 import { isContent } from 'src/utils/type-utils';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { DataSource, DeepPartial, In, QueryRunner } from 'typeorm';
 import { CnabHeaderArquivo104 } from './dto/cnab-240/104/cnab-header-arquivo-104.dto';
 import { HeaderArquivoDTO } from './dto/pagamento/header-arquivo.dto';
@@ -61,7 +61,6 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
-import { Nullable } from 'src/utils/types/nullable.type';
 
 export interface ICnabInfo {
   name: string;
@@ -325,7 +324,8 @@ export class CnabService {
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, daysBefore);
     let ordensFilter: BigqueryOrdemPagamentoDTO[];
     if (consorcio.trim() === 'Empresa') {
-      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL');
+      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT'
+       && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL' && ordem.consorcio.trim() !=='TEC');
     } else if (consorcio.trim() === 'Van') {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() === 'STPC' 
       || ordem.consorcio.trim() === 'STPL' || ordem.consorcio.trim() === 'TEC');
@@ -395,14 +395,16 @@ export class CnabService {
   }
 
   async findBigqueryTransacao(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string): Promise<BigqueryTransacao[]> {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(startOfDay(dataOrdemIncial), endOfDay(dataOrdemFinal), daysBack);
-    let trs = transacoesBq;
+    const nomeConsorcio: { in: string[], notIn: string[] } = {in: [], notIn: [] };
     if (consorcio === 'Van') {
-      trs = transacoesBq.filter((tr) => tr.consorcio === 'STPC' || tr.consorcio === 'STPL');
+      nomeConsorcio.in = ['STPC', 'STPL', 'TEC'];
     } else if (consorcio == 'Empresa') {
-      trs = transacoesBq.filter((tr) => tr.consorcio !== 'STPC' && tr.consorcio !== 'STPL');
+      nomeConsorcio.notIn = ['STPC', 'STPL', 'TEC'];
+    } else if (consorcio != 'Todos') {
+      nomeConsorcio.in = consorcio.split(',');
     }
-    return trs;
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(startOfDay(dataOrdemIncial), endOfDay(dataOrdemFinal), daysBack, { nomeConsorcio });
+    return transacoesBq;
   }
 
   // #region saveOrdens
@@ -486,7 +488,7 @@ export class CnabService {
         },
         ...(ordem.consorcio.length || ordem.operadora.length
           ? // Se for Jaé, agrupa por vanzeiro ou empresa
-            ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL'
+            ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio ==='TEC'
             ? { idOperadora: ordem.idOperadora }
             : { idConsorcio: ordem.idConsorcio }
           : // Se for Lançamento, agrupa por favorecido e dataOrdem
@@ -775,4 +777,14 @@ export class CnabService {
     }
   }
   // #endregion
+
+  async clearSyncTransacaoView(args?: IClearSyncOrdemPgto) {
+    this.logger.debug('Inicio clear sync TransacaoView');
+    const startDate = new Date();
+    let count = await this.transacaoViewService.clearSyncOrdemPgto(args);
+    const endDate = new Date();
+    const duration = formatDateInterval(endDate, startDate);
+    this.logger.debug(`Fim clear sync TransacaoView - duração: ${duration}`);
+    return { duration, count };
+  }
 }

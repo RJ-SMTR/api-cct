@@ -4,7 +4,6 @@ import { DataSource } from 'typeorm';
 import { RelatorioConsolidadoDto } from './dtos/relatorio-consolidado.dto';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { QueryResolver } from 'nestjs-i18n';
 
 
 @Injectable()
@@ -20,14 +19,10 @@ export class RelatorioConsolidadoRepository {
     let query = ` select * from ( `;
     query = query + `select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor from ( `;
     query = query + ` select distinct tv.id AS id,                        
-                        tv."nomeConsorcio"  AS consorcio,
-                                cf.nome AS favorecido,
-                                cf."cpfCnpj" AS favorecido_cpfcnpj,
-                                tv."valorPago" AS valor_agrupado
-                      from transacao_view tv
-                      inner join cliente_favorecido cf on cf."cpfCnpj"=tv."operadoraCpfCnpj"		                                     
-                      left join public.user u on u."cpfCnpj"=tv."operadoraCpfCnpj"					  
-                      where tv."itemTransacaoAgrupadoId" is null
+                        tv."nomeConsorcio" AS consorcio,                       
+                        tv."valorPago" AS valor_agrupado
+                      from transacao_view tv                     
+                      where tv."itemTransacaoAgrupadoId" is null                      
                       and tv."valorPago" is not null 
                       and tv."valorPago" >0  `;
 
@@ -35,7 +30,10 @@ export class RelatorioConsolidadoRepository {
       (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
       query = query +` and tv."datetimeTransacao" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;
 
-    if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
+   if(['Todos'].some(i=>nomeConsorcio?.includes(i))) {
+      query = query +` AND tv."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
+           'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
+   }else if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
       query = query +` and tv."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;                      
   
     query = query +  `) as cs `; 
@@ -61,16 +59,13 @@ export class RelatorioConsolidadoRepository {
     let query = ` select * from ( `;
     query = query +` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor from ( `;
     query = query +` select distinct ita.id AS id,
-                    ita."nomeConsorcio" AS consorcio,	
-                    cf.nome AS favorecido,
-                    cf."cpfCnpj" AS favorecido_cpfcnpj,                    
+                    ita."nomeConsorcio" AS consorcio,	                                     
 		                da."valorLancamento" AS valor_agrupado
                     from transacao_agrupado ta 
                     inner join item_transacao_agrupado ita on ita."transacaoAgrupadoId"=ta."id"
                     inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
                     inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
-                    inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
-                    inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
+                    inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id                   
                     where ta."statusId"<>5 `;
 
     if(dataInicio!==undefined && dataFim!==undefined && 
@@ -110,17 +105,12 @@ export class RelatorioConsolidadoRepository {
     query = query + ` select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor  from ( `;
 
     query  = query + ` select distinct tv.id AS id,
-                        case when u."permitCode" ilike '4%' then 'STPC' 
-                          when u."permitCode" ilike '7%' then 'TEC'
-                          when u."permitCode" ilike '8%' then 'STPL' 		           
-                        end 
-                        AS consorcio,
-                          cf.nome AS favorecido,
-                          cf."cpfCnpj" AS favorecido_cpfcnpj,
-                          tv."valorPago" AS valor_agrupado
+                        tv."nomeConsorcio" AS consorcio,
+                        cf.nome AS favorecido,
+                        cf."cpfCnpj" AS favorecido_cpfcnpj,
+                        tv."valorPago" AS valor_agrupado
                         from transacao_view tv
-                        inner join cliente_favorecido cf on cf."cpfCnpj"=tv."operadoraCpfCnpj"		                                     
-					              left join public.user u on u."cpfCnpj"=tv."operadoraCpfCnpj"					  
+                        inner join cliente_favorecido cf on cf."cpfCnpj"=tv."operadoraCpfCnpj"
                         where tv."itemTransacaoAgrupadoId" is null
 					              and tv."valorPago" is not null 
                         and tv."valorPago" >0  `;
@@ -153,8 +143,8 @@ export class RelatorioConsolidadoRepository {
       let query = ` select * from ( `;
       query  = query + ` select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor from ( `;
       query  = query + ` select distinct ita.id AS id,
-                         ita."nomeConsorcio" AS consorcio,	
-                         cf.nome AS favorecido,
+                        ita."nomeConsorcio" AS consorcio,	
+                        cf.nome AS favorecido,
                         cf."cpfCnpj" AS favorecido_cpfcnpj,                        
 		                    da."valorLancamento" AS valor_agrupado
                         from transacao_agrupado ta 
@@ -163,7 +153,7 @@ export class RelatorioConsolidadoRepository {
                         inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                         inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                         inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"	  			
-                        where ta."statusId"<>5 and ita."nomeConsorcio" in('STPC','STPL') `;
+                        where ta."statusId"<>5 and ita."nomeConsorcio" in('STPC','STPL','TEC') `;
                         if(dataInicio!==undefined && dataFim!==undefined &&
                           (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
                           query = query +` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;

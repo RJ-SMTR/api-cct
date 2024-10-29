@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="NVig6eVoWgAoBqTtXs_Q" name="Página-1">
-        <mxGraphModel dx="1188" dy="540" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+        <mxGraphModel dx="1087" dy="558" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -47,14 +47,22 @@
                 <mxCell id="40" value="Histórico de email (convite)" style="swimlane;whiteSpace=wrap;html=1;labelBackgroundColor=none;" parent="1" vertex="1">
                     <mxGeometry x="720" y="40" width="400" height="640" as="geometry"/>
                 </mxCell>
-                <mxCell id="52" style="edgeStyle=none;html=1;" edge="1" parent="40" source="50" target="46">
+                <mxCell id="52" style="edgeStyle=none;html=1;" parent="40" source="50" target="46" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="41" value="Início" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=standard;symbol=general;" parent="40" vertex="1">
                     <mxGeometry x="40" y="40" width="50" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="51" value="esperar cronjob&lt;br&gt;de reenvio" style="edgeStyle=none;html=1;" edge="1" parent="40" source="42" target="50">
+                <mxCell id="51" value="esperar cronjob&lt;br&gt;de reenvio" style="edgeStyle=none;html=1;" parent="40" source="42" target="50" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="61" value="reenviar&lt;br&gt;email" style="edgeStyle=orthogonalEdgeStyle;html=1;fontColor=default;rounded=0;" edge="1" parent="40" source="42" target="46">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="350" y="65"/>
+                            <mxPoint x="350" y="290"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="42" value="Na fila&lt;br&gt;&lt;sub&gt;(queued)&lt;/sub&gt;" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="40" vertex="1">
                     <mxGeometry x="160" y="40" width="120" height="50" as="geometry"/>
@@ -62,10 +70,10 @@
                 <mxCell id="43" value="upload&lt;br&gt;planilha" style="edgeStyle=none;html=1;" parent="40" source="41" target="42" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="45" value="Fim" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate;spacingBottom=0;spacingTop=0;" parent="40" vertex="1">
+                <mxCell id="45" value="Fim" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate;spacingBottom=0;spacingTop=0;fontColor=default;" parent="40" vertex="1">
                     <mxGeometry x="195" y="560" width="50" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="58" value="espera usuário ler email" style="edgeStyle=none;html=1;" edge="1" parent="40" source="46" target="57">
+                <mxCell id="58" value="espera usuário ler email" style="edgeStyle=none;html=1;" parent="40" source="46" target="57" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="46" value="Enviado&lt;br&gt;&lt;sub&gt;(sent)&lt;/sub&gt;" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="40" vertex="1">
@@ -77,17 +85,27 @@
                         <mxPoint x="220" y="280" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="50" value="Cronjob&lt;br&gt;envio email" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=eventNonint;symbol=timer;" vertex="1" parent="40">
+                <mxCell id="50" value="Cronjob&lt;br&gt;envio email" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=eventNonint;symbol=timer;fontColor=default;" parent="40" vertex="1">
                     <mxGeometry x="195" y="160" width="50" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="57" value="" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=eventNonint;symbol=message;" vertex="1" parent="40">
+                <mxCell id="57" value="" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=eventNonint;symbol=message;" parent="40" vertex="1">
                     <mxGeometry x="195" y="390" width="50" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="60" style="edgeStyle=none;html=1;" edge="1" parent="40" source="59" target="45">
+                <mxCell id="60" style="edgeStyle=none;html=1;" parent="40" source="59" target="45" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="59" value="Acessado&lt;br&gt;&lt;sub&gt;(used)&lt;/sub&gt;" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" vertex="1" parent="40">
+                <mxCell id="59" value="Acessado&lt;br&gt;&lt;sub&gt;(used)&lt;/sub&gt;" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;absoluteArcSize=1;arcSize=20;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;labelBackgroundColor=none;" parent="40" vertex="1">
                     <mxGeometry x="160" y="480" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="63" value="reenviar&lt;br&gt;email" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontColor=default;" edge="1" parent="40" source="59" target="46">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1000" y="545" as="sourcePoint"/>
+                        <mxPoint x="1000" y="340" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="350" y="505"/>
+                            <mxPoint x="350" y="290"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
             </root>
         </mxGraphModel>
