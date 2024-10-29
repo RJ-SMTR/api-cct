@@ -1,17 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import {
-  addDays,
-  endOfDay,
-  isFriday,
-  isSameMonth,
-  isSameYear,
-  isThursday,
-  nextFriday,
-  previousFriday,
-  startOfDay,
-  startOfMonth,
-  subDays,
-} from 'date-fns';
+import { addDays, endOfDay, isFriday, isSameMonth, isThursday, nextFriday, previousFriday, startOfDay, startOfMonth, subDays } from 'date-fns';
 import { isSameNthWeek } from './date-utils';
 import { TimeIntervalEnum } from './enums/time-interval.enum';
 import { WeekdayEnum } from './enums/weekday.enum';
@@ -20,19 +8,12 @@ import { DateIntervalType } from './types/date-interval.type';
 export const PAYMENT_WEEKDAY = WeekdayEnum._5_FRIDAY;
 export const PAYMENT_START_WEEKDAY = WeekdayEnum._4_THURSDAY;
 export const PAYMENT_END_WEEKDAY = WeekdayEnum._3_WEDNESDAY;
-export type PaymentEndpointType =
-  | 'bank-statements'
-  | 'bank-statements/previous-days'
-  | 'bank-statements>ticket-revenues'
-  | 'ticket-revenues';
+export type PaymentEndpointType = 'bank-statements' | 'bank-statements/previous-days' | 'bank-statements>ticket-revenues' | 'ticket-revenues';
 
 /**
  * From friday get starting thursday and ending wednesday
  */
-export function getPaymentWeek(
-  fridayDate: Date,
-  endpoint: PaymentEndpointType = 'ticket-revenues',
-): { startDate: Date; endDate: Date } {
+export function getPaymentWeek(fridayDate: Date, endpoint: PaymentEndpointType = 'ticket-revenues'): { startDate: Date; endDate: Date } {
   if (endpoint === 'ticket-revenues') {
     return {
       startDate: subDays(startOfDay(new Date(fridayDate)), 8),
@@ -98,7 +79,7 @@ export function getPaymentMonth(
 }
 
 export function getPaymentDates(args: {
-  endpoint: PaymentEndpointType;
+  endpoint: PaymentEndpointType; //
   startDateStr?: string;
   endDateStr?: string;
   timeInterval?: TimeIntervalEnum;
@@ -144,8 +125,7 @@ export function getPaymentDates(args: {
           throw new HttpException(
             {
               errors: {
-                message:
-                  'requisição inválida - bank-statements precisa de timeInterval',
+                message: 'requisição inválida - bank-statements precisa de timeInterval',
                 args: { startDateStr, endDateStr, timeInterval },
               },
             },
@@ -176,8 +156,7 @@ export function getPaymentDates(args: {
             {
               errors: {
                 details: {
-                  message:
-                    'requisição inválida - bank-statements>ticket-revenues precisa de start-date e end-date',
+                  message: 'requisição inválida - bank-statements>ticket-revenues precisa de start-date e end-date',
                   args: { startDateStr, endDateStr, timeInterval },
                 },
               },
@@ -227,7 +206,7 @@ export function getPaymentDates(args: {
 }
 
 function getFirstLastFridays(
-  endpoint: PaymentEndpointType,
+  endpoint: PaymentEndpointType, //
   interval: DateIntervalType,
   timeInterval?: TimeIntervalEnum,
 ) {
@@ -239,10 +218,9 @@ function getFirstLastFridays(
   // endDate: sexta atual ou a próxima sexta se for mesmo mês, senão, sexta anterior
   if (!isFriday(r.endDate)) {
     const isSameInterval =
-      timeInterval === TimeIntervalEnum.LAST_MONTH
+      timeInterval === TimeIntervalEnum.LAST_MONTH //
         ? isSameMonth
-        : (d1: Date, d2: Date) =>
-            isSameNthWeek(d1, d2, WeekdayEnum._4_THURSDAY);
+        : (d1: Date, d2: Date) => isSameNthWeek(d1, d2, WeekdayEnum._4_THURSDAY);
 
     if (isSameInterval(r.endDate, nextFriday(r.endDate))) {
       r.endDate = nextFriday(r.endDate);
@@ -251,7 +229,6 @@ function getFirstLastFridays(
     }
 
     r.endDate = removeFutureWeeks(r.endDate);
-    r.endDate = validateLastMonthWeek(r.endDate, timeInterval);
   }
   return r;
 }
@@ -267,25 +244,27 @@ function removeFutureWeeks(endDate: Date) {
   return newEndDate;
 }
 
-function validateLastMonthWeek(friday: Date, timeInterval?: TimeIntervalEnum) {
-  const isLastMonth = timeInterval === TimeIntervalEnum.LAST_MONTH;
-  const isLastWeek = !isSameMonth(friday, nextFriday(friday));
-  const isCurrentYearMonth = isSameYear(friday, new Date()) && isSameMonth(friday, new Date());
-  return isLastMonth && isLastWeek && isCurrentYearMonth ? nextFriday(friday) : friday;
-}
-
 export function validateDate(
-  startDateStr?: string,
+  startDateStr?: string, //
   endDateStr?: string,
   timeInterval?: TimeIntervalEnum,
 ): boolean {
-  const invalidCombination =
-    startDateStr === undefined &&
-    endDateStr === undefined &&
-    timeInterval === undefined;
+  const invalidCombination = startDateStr === undefined && endDateStr === undefined && timeInterval === undefined;
   if (invalidCombination) {
     return false;
   } else {
     return true;
+  }
+}
+
+/**
+ * @param date dia selecionado
+ * @param type dataOrdem = sex-qui; dataProcTransacao = qui-qua
+ */
+export function nextFridayPay(date: Date, type: 'dataOrdem' | 'dataProcTransacao') {
+  if (type == 'dataOrdem') {
+    return nextFriday(date);
+  } else {
+    return isThursday(date) ? addDays(date, 8) : nextFriday(date);
   }
 }

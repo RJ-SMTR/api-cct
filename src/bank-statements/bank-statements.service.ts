@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { differenceInDays, endOfDay, endOfMonth, startOfDay, startOfMonth, subDays } from 'date-fns';
+import { CnabService } from 'src/cnab/cnab.service';
 import { TicketRevenuesService } from 'src/ticket-revenues/ticket-revenues.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
@@ -17,7 +18,6 @@ import { IBSGetMePreviousDaysArgs, IBSGetMePreviousDaysValidArgs } from './inter
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
 import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
 import { IGetBSResponse } from './interfaces/get-bs-response.interface';
-import { CnabService } from 'src/cnab/cnab.service';
 
 /**
  * Get weekly statements
@@ -80,17 +80,8 @@ export class BankStatementsService {
     user: User;
   }> {
     if (isNaN(args?.userId as number)) {
-      throw new HttpException(
-        {
-          details: {
-            userId: `field is ${args?.userId}`,
-          },
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new HttpException({ details: { userId: `field is ${args?.userId}` } }, HttpStatus.UNPROCESSABLE_ENTITY);
     }
-
-    // For now it validates if user exists
     const user = await this.usersService.getOne({ id: args?.userId });
 
     // convert timeInterval into start/endDates
