@@ -4,6 +4,7 @@ import {
   endOfDay,
   isFriday,
   isSameMonth,
+  isSameYear,
   isThursday,
   nextFriday,
   previousFriday,
@@ -249,17 +250,28 @@ function getFirstLastFridays(
       r.endDate = previousFriday(r.endDate);
     }
 
-    // Remover semanas do futuro
-    const today = new Date();
-    /** Pega de qui-qua */
-    const thisFriday = isThursday(today)
-      ? addDays(today, 8)
-      : nextFriday(today);
-    if (r.endDate > thisFriday) {
-      r.endDate = thisFriday;
-    }
+    r.endDate = removeFutureWeeks(r.endDate);
+    r.endDate = validateLastMonthWeek(r.endDate, timeInterval);
   }
   return r;
+}
+
+function removeFutureWeeks(endDate: Date) {
+  let newEndDate = endDate;
+  const today = new Date();
+  /** Pega de qui-qua */
+  const thisFriday = isThursday(today) ? addDays(today, 8) : nextFriday(today);
+  if (newEndDate > thisFriday) {
+    newEndDate = thisFriday;
+  }
+  return newEndDate;
+}
+
+function validateLastMonthWeek(friday: Date, timeInterval?: TimeIntervalEnum) {
+  const isLastMonth = timeInterval === TimeIntervalEnum.LAST_MONTH;
+  const isLastWeek = !isSameMonth(friday, nextFriday(friday));
+  const isCurrentYearMonth = isSameYear(friday, new Date()) && isSameMonth(friday, new Date());
+  return isLastMonth && isLastWeek && isCurrentYearMonth ? nextFriday(friday) : friday;
 }
 
 export function validateDate(
