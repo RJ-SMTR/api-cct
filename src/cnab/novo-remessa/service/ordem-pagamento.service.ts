@@ -49,7 +49,6 @@ export class OrdemPagamentoService {
         return await this.usersService.findOne({ cpfCnpj: operadoraCpfCnpj })
     }
 
-
     async inserirOrdemPagamento(ordem: BigqueryOrdemPagamentoDTO,contaPagadora,userId:number){
         const ordemPagamento = await this.convertOrdemDto(ordem,contaPagadora,userId);
         await this.ordemPamentoRepository.save(ordemPagamento);        
