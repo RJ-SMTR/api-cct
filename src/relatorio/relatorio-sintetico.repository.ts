@@ -4,6 +4,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { DataSource } from 'typeorm';
 import { RelatorioSinteticoDto } from './dtos/relatorio-sintetico.dto';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
+import { compactQuery } from 'src/utils/console-utils';
 
 @Injectable()
 export class RelatorioSinteticoRepository {
@@ -26,10 +27,10 @@ export class RelatorioSinteticoRepository {
 
   public async findSintetico(args: IFindPublicacaoRelatorio): Promise<RelatorioSinteticoDto[]> {
     const query = this.getQuery(args);
-    this.logger.debug(query);
+    this.logger.debug(compactQuery(query));
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result: any[] = await queryRunner.query(query);
+    let result: any[] = await queryRunner.query(compactQuery(query));
     queryRunner.release();
     const sinteticos = result.map((r) => new RelatorioSinteticoDto(r));
     return sinteticos;
@@ -260,7 +261,7 @@ export class RelatorioSinteticoRepository {
       ` ) as res
             order by  "consorcio", "favorecido","datapagamento" `;
 
-    this.logger.debug(query);
+    this.logger.debug(compactQuery(query));
 
     return query;
   }

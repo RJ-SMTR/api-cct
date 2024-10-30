@@ -6,12 +6,12 @@ export class RelatorioAnaliticoDto {
       Object.assign(this, analitico);
     }
   }
-  
+
   dataEfetivacao: Date;
   dataVencimento: Date;
   favorecido: string;
   consorcio: string;
-  valorTransacao: number = 0;
+  valor: number = 0;
   status: string;
-  ocorrencia: string;  
+  ocorrencia: string;
 }
