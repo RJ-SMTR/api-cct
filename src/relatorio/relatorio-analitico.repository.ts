@@ -283,7 +283,7 @@ export class RelatorioAnaliticoRepository {
 
     query += `
                 ) it
-            LEFT JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
+            LEFT JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId" AND tv."valorPago"::NUMERIC > 0
                 AND tv."datetimeProcessamento"::DATE BETWEEN (it."dataOrdem"::DATE) - INTERVAL '6 DAYS'
                 AND it."dataOrdem"::DATE - INTERVAL '1 DAY'
         ) q
