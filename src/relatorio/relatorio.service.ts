@@ -9,92 +9,86 @@ import { RelatorioSinteticoRepository } from './relatorio-sintetico.repository';
 
 @Injectable()
 export class RelatorioService {
-  constructor(private relatorioConsolidadoRepository: RelatorioConsolidadoRepository,
-    private relatorioSinteticoRepository: RelatorioSinteticoRepository,
-    private relatorioAnaliticoRepository: RelatorioAnaliticoRepository
-  ) {}
+  constructor(private relatorioConsolidadoRepository: RelatorioConsolidadoRepository, private relatorioSinteticoRepository: RelatorioSinteticoRepository, private relatorioAnaliticoRepository: RelatorioAnaliticoRepository) {}
 
   /**
    * Gerar relatórios consolidados - agrupados por Favorecido.
    */
-  async findConsolidado(args: IFindPublicacaoRelatorio) {    
-    let result: RelatorioConsolidadoResultDto[]=[];
-   
-    if(args.dataInicio ===undefined || args.dataFim === undefined || 
-      new Date(args.dataFim) < new Date(args.dataInicio)){
+  async findConsolidado(args: IFindPublicacaoRelatorio) {
+    let result: RelatorioConsolidadoResultDto[] = [];
+
+    if (args.dataInicio === undefined || args.dataFim === undefined || new Date(args.dataFim) < new Date(args.dataInicio)) {
       throw new Error('Parametro de data inválido');
     }
 
-    if(args.pago === undefined && args.aPagar === undefined && (args.favorecidoNome ===undefined) 
-      && (args.consorcioNome === undefined)){
+    if (args.pago === undefined && args.aPagar === undefined && args.favorecidoNome === undefined && args.consorcioNome === undefined) {
       result.push(await this.resultConsolidado(args));
       result.push(await this.resultPago(args));
       result.push(await this.resultErros(args));
       result.push(await this.resultApagar(args));
-    }else if(args.pago === true && args.aPagar === true){
+    } else if (args.pago === true && args.aPagar === true) {
       result.push(await this.resultPago(args));
       result.push(await this.resultApagar(args));
-    }else if(args.pago ===true) {
+    } else if (args.pago === true) {
       result.push(await this.resultPago(args));
-    }else if(args.pago ===false) {
+    } else if (args.pago === false) {
       result.push(await this.resultErros(args));
-    }else if(args.aPagar === true){
+    } else if (args.aPagar === true) {
       result.push(await this.resultApagar(args));
-    }else{
+    } else {
       result.push(await this.resultConsolidado(args));
-    }    
+    }
     return result;
-  } 
-
-  private async resultConsolidado(args: IFindPublicacaoRelatorio){    
-    return this.instanceDataConsolidado(args,'todos');
   }
 
-  private async resultPago(args: IFindPublicacaoRelatorio){ 
-    return this.instanceDataConsolidado(args,'pago');
+  private async resultConsolidado(args: IFindPublicacaoRelatorio) {
+    return this.instanceDataConsolidado(args, 'todos');
   }
 
-  private async resultErros(args: IFindPublicacaoRelatorio){
-    return this.instanceDataConsolidado(args,'erros');
+  private async resultPago(args: IFindPublicacaoRelatorio) {
+    return this.instanceDataConsolidado(args, 'pago');
   }
 
-  private async resultApagar(args: IFindPublicacaoRelatorio){   
-    return this.instanceDataConsolidado(args,'aPagar');
-  }    
+  private async resultErros(args: IFindPublicacaoRelatorio) {
+    return this.instanceDataConsolidado(args, 'erros');
+  }
 
-  private async instanceDataConsolidado(args: IFindPublicacaoRelatorio,status:string){
-    const consolidado  = await this.relatorioConsolidadoRepository.findConsolidado(args);
+  private async resultApagar(args: IFindPublicacaoRelatorio) {
+    return this.instanceDataConsolidado(args, 'aPagar');
+  }
+
+  private async instanceDataConsolidado(args: IFindPublicacaoRelatorio, status: string) {
+    const consolidado = await this.relatorioConsolidadoRepository.findConsolidado(args);
     const consolidadosData = new RelatorioConsolidadoResultDto();
     consolidadosData.count = consolidado.length;
     consolidadosData.data = consolidado;
-    consolidadosData.valor = +consolidado.reduce((s, i) => s + i.valor, 0).toFixed(2); 
-    consolidadosData.status = status
+    consolidadosData.valor = +consolidado.reduce((s, i) => s + i.valor, 0).toFixed(2);
+    consolidadosData.status = status;
     return consolidadosData;
   }
- 
+
   ///////SINTETICO //////
 
-  async findSintetico(args: IFindPublicacaoRelatorio){
-    if(args.dataInicio ===undefined || args.dataFim === undefined || 
-      new Date(args.dataFim) < new Date(args.dataInicio)){
+  async findSintetico(args: IFindPublicacaoRelatorio) {
+    if (args.dataInicio === undefined || args.dataFim === undefined || new Date(args.dataFim) < new Date(args.dataInicio)) {
       throw new Error('Parametro de data inválido');
     }
 
-    let result: RelatorioSinteticoResultDto[]=[];
-    result.push(await this.resultSintetico(args));   
+    let result: RelatorioSinteticoResultDto[] = [];
+    result.push(await this.resultSintetico(args));
     return result;
   }
 
-  private async resultSintetico(args: IFindPublicacaoRelatorio){    
-    return this.instanceDataSintetico(args,'todos');
-  }  
+  private async resultSintetico(args: IFindPublicacaoRelatorio) {
+    return this.instanceDataSintetico(args, 'todos');
+  }
 
-  private async instanceDataSintetico(args: IFindPublicacaoRelatorio,status:string){
-    const sintetico  = await this.relatorioSinteticoRepository.findSintetico(args); 
+  private async instanceDataSintetico(args: IFindPublicacaoRelatorio, status: string) {
+    const sintetico = await this.relatorioSinteticoRepository.findSintetico(args);
     const sintenticosData = new RelatorioSinteticoResultDto();
     sintenticosData.count = sintetico.length;
     sintenticosData.data = sintetico;
-    sintenticosData.valor = (sintetico!==undefined && sintetico[0]!==undefined)?sintetico[0].total:0;
+    sintenticosData.valor = sintetico !== undefined && sintetico[0] !== undefined ? sintetico[0].total : 0;
     sintenticosData.status = status;
     return sintenticosData;
   }
@@ -102,58 +96,56 @@ export class RelatorioService {
   ///////////////////////
   ///////ANALITICO //////
 
-  async findAnalitico(args: IFindPublicacaoRelatorio){
-    if(args.dataInicio ===undefined || args.dataFim === undefined || 
-      new Date(args.dataFim) < new Date(args.dataInicio)){
+  async findAnalitico(args: IFindPublicacaoRelatorio) {
+    if (args.dataInicio === undefined || args.dataFim === undefined || new Date(args.dataFim) < new Date(args.dataInicio)) {
       throw new Error('Parametro de data inválido');
     }
 
-    let result: RelatorioAnaliticoResultDto[]=[];
-    
-    if(args.pago === undefined && args.aPagar === undefined && (args.favorecidoNome ===undefined) 
-      && (args.consorcioNome === undefined)){
+    let result: RelatorioAnaliticoResultDto[] = [];
+
+    if (args.pago === undefined && args.aPagar === undefined && args.favorecidoNome === undefined && args.consorcioNome === undefined) {
       result.push(await this.resultAnalitico(args));
       result.push(await this.resultPagoAnalitico(args));
       result.push(await this.resultErrosAnalitico(args));
       result.push(await this.resultApagarAnalitico(args));
-    }else if(args.pago === true && args.aPagar === true){
+    } else if (args.pago === true && args.aPagar === true) {
       result.push(await this.resultPagoAnalitico(args));
       result.push(await this.resultApagarAnalitico(args));
-    }else if(args.pago ===true) {
+    } else if (args.pago === true) {
       result.push(await this.resultPagoAnalitico(args));
-    }else if(args.pago ===false) {
+    } else if (args.pago === false) {
       result.push(await this.resultErrosAnalitico(args));
-    }else if(args.aPagar === true){
+    } else if (args.aPagar === true) {
       result.push(await this.resultApagarAnalitico(args));
-    }else{
+    } else {
       result.push(await this.resultAnalitico(args));
     }
     return result;
   }
 
-  private async resultAnalitico(args: IFindPublicacaoRelatorio){    
-    return this.instanceDataAnalitico(args,'todos');
+  private async resultAnalitico(args: IFindPublicacaoRelatorio) {
+    return this.instanceDataAnalitico(args, 'todos');
   }
 
-  private async resultPagoAnalitico(args: IFindPublicacaoRelatorio){   
-      return this.instanceDataAnalitico(args,'pago');
+  private async resultPagoAnalitico(args: IFindPublicacaoRelatorio) {
+    return this.instanceDataAnalitico(args, 'pago');
   }
 
-  private async resultErrosAnalitico(args: IFindPublicacaoRelatorio){
-    return this.instanceDataAnalitico(args,'erros');
+  private async resultErrosAnalitico(args: IFindPublicacaoRelatorio) {
+    return this.instanceDataAnalitico(args, 'erros');
   }
 
-  private async resultApagarAnalitico(args: IFindPublicacaoRelatorio){    
-    return this.instanceDataAnalitico(args,'aPagar');
-  } 
+  private async resultApagarAnalitico(args: IFindPublicacaoRelatorio) {
+    return this.instanceDataAnalitico(args, 'aPagar');
+  }
 
-  private async instanceDataAnalitico(args: IFindPublicacaoRelatorio,status:string){
-    const analitico  = await this.relatorioAnaliticoRepository.findAnalitico(args);
+  private async instanceDataAnalitico(args: IFindPublicacaoRelatorio, status: string) {
+    const analitico = await this.relatorioAnaliticoRepository.findAnalitico(args);
     const analiticosData = new RelatorioAnaliticoResultDto();
     analiticosData.count = analitico.length;
     analiticosData.data = analitico;
-    analiticosData.valor = +analitico.reduce((s, i) => s + i.valorTransacao, 0).toFixed(2); 
-    analiticosData.status = status
+    analiticosData.valor = +analitico.reduce((s, i) => s + i.valor, 0).toFixed(2);
+    analiticosData.status = status;
     return analiticosData;
   }
 }
