@@ -149,6 +149,7 @@ export class RelatorioAnaliticoRepository {
                           inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tta."statusId"<>'5'
                           left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                           left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
+                          LEFT JOIN cliente_favorecido cf ON itt."clienteFavorecidoId" = cf.id
                           WHERE `;
     if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) query = query + ` dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
     if (args.emProcessamento !== undefined && args.emProcessamento === true) {
@@ -157,6 +158,9 @@ export class RelatorioAnaliticoRepository {
       query = query + ` and app."isPago"=${args.pago} and TRIM(dta."ocorrenciasCnab")<>'' `;
     }
     query = query + ` and tt."nomeConsorcio"=res.consorcio `;
+    if (args.favorecidoNome !== undefined && !['Todos'].some((i) => args.favorecidoNome?.includes(i))) {
+      query = query + ` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;
+    }
     query = query + ` )as ss)  as subTotal, `;
 
     query =
@@ -168,6 +172,7 @@ export class RelatorioAnaliticoRepository {
                       inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tta."statusId"<>'5'
                       left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                       left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
+                      LEFT JOIN cliente_favorecido cf ON itt."clienteFavorecidoId" = cf.id
                       WHERE `;
     if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) query = query + `  dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
     if (args.emProcessamento !== undefined && args.emProcessamento === true) {
@@ -178,8 +183,9 @@ export class RelatorioAnaliticoRepository {
 
     if (args.consorcioNome !== undefined && !['Todos'].some((i) => args.consorcioNome?.includes(i))) {
       query = query + ` and tt."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;
-    } else if (args.favorecidoNome !== undefined && !['Todos'].some((i) => args.favorecidoNome?.includes(i))) query = query + ` and tt."nomeConsorcio" in(res.consorcio) `;
-    else if ((['Todos'].some((i) => args.consorcioNome?.includes(i)) && ['Todos'].some((i) => args.favorecidoNome?.includes(i))) || (args.consorcioNome !== undefined && args.favorecidoNome !== undefined)) {
+    } else if (args.favorecidoNome !== undefined && !['Todos'].some((i) => args.favorecidoNome?.includes(i))) {
+      query = query + ` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;
+    } else if ((['Todos'].some((i) => args.consorcioNome?.includes(i)) && ['Todos'].some((i) => args.favorecidoNome?.includes(i))) || (args.consorcioNome !== undefined && args.favorecidoNome !== undefined)) {
       query =
         query +
         ` and tt."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
@@ -190,6 +196,21 @@ export class RelatorioAnaliticoRepository {
     query = query + ` )as tt  )as total `;
 
     query = query + `from ( `;
+    query += `
+        SELECT DISTINCT ON (q.tv_id) *
+        FROM 
+        (
+            SELECT
+                it.*,
+                tv.id AS tv_id,
+                (it."dataOrdem"::DATE - tv."datetimeProcessamento"::DATE) AS date_priority,
+                it.id AS it_id,
+                tv."datetimeProcessamento" AS dataprocessamento,
+                tv."valorPago"::FLOAT AS valor,
+                COALESCE(it.datatransacao_vlt, tv."datetimeTransacao"::VARCHAR) AS datatransacao
+            FROM
+                (
+    `;
 
     query =
       query +
@@ -207,12 +228,16 @@ export class RelatorioAnaliticoRepository {
       (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 
       when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=5 THEN --Sexta
       (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 		
-      end as datatransacao, 	
+      end as datatransacao_vlt,
       da."dataVencimento"::date::Varchar As datapagamento,
-      it."nomeConsorcio" AS consorcio,	
-      cf.nome AS favorecido,
-      cf."cpfCnpj",	
-      it."valor"::float as valor,			      
+      cf."cpfCnpj",
+      da."dataEfetivacao",              -- dto
+      da."dataVencimento",              -- dto
+      it."nomeConsorcio" AS consorcio,  -- dto
+      cf.nome AS favorecido,            -- dto
+      it."valor"::float AS valor_ordem,
+      it."itemTransacaoAgrupadoId",
+      it."dataOrdem",
       case 
       when(not(ap."isPago") and TRIM(da."ocorrenciasCnab")='')then 'Aguardando Pagamento'	
       when (ap."isPago") then 'pago' 
@@ -256,10 +281,18 @@ export class RelatorioAnaliticoRepository {
 
     if (args.valorMax !== undefined) query = query + ` and it."valor"<=${args.valorMax}`;
 
+    query += `
+                ) it
+            LEFT JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
+                AND tv."datetimeProcessamento"::DATE BETWEEN (it."dataOrdem"::DATE) - INTERVAL '6 DAYS'
+                AND it."dataOrdem"::DATE - INTERVAL '1 DAY'
+        ) q
+        ORDER BY q.tv_id, q.date_priority, q.it_id DESC
+    `;
     query =
       query +
       ` ) as res
-            order by  "consorcio", "favorecido","datapagamento" `;
+            order by  "consorcio", "favorecido","datapagamento", "dataprocessamento" `;
 
     this.logger.debug(compactQuery(query));
 
