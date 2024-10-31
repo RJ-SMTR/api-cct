@@ -140,18 +140,33 @@ export class RelatorioAnaliticoRepository {
     const dataInicio = args.dataInicio.toISOString().slice(0, 10);
     const dataFim = args.dataFim.toISOString().slice(0, 10);
     let query = ` select distinct res.*, `;
-    query = query + `(select sum(ss."valorLancamento")::float  from `;
+
+    // Subtotal
+    query = query + `(select sum(ss."valorPago")::float  from `;
+    query += `
+            (
+                SELECT DISTINCT ON (q.tv_id) *
+                FROM
+                (
+                    SELECT
+                        it.*,
+                        tv.id AS tv_id,
+                        ( it."dataOrdem"::DATE - tv."datetimeProcessamento"::DATE ) AS date_priority,
+                        it.id AS it_id,
+                        tv."datetimeProcessamento",
+                        tv."valorPago"::FLOAT
+                    FROM
+    `;
     query =
       query +
-      `  (select distinct dta.id,dta."valorLancamento"                    
+      `  (select distinct dta.id,dta."valorLancamento",itt."itemTransacaoAgrupadoId",itt."dataOrdem"
                           from detalhe_a dta 
                           inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
                           inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tta."statusId"<>'5'
                           left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                           left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
                           LEFT JOIN cliente_favorecido cf ON itt."clienteFavorecidoId" = cf.id
-                          WHERE `;
-    if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) query = query + ` dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+                          WHERE (1=1) `;
     if (args.emProcessamento !== undefined && args.emProcessamento === true) {
       query = query + ` and app."isPago"=false and TRIM(dta."ocorrenciasCnab")='' `;
     } else if (args.pago !== undefined) {
@@ -161,20 +176,47 @@ export class RelatorioAnaliticoRepository {
     if (args.favorecidoNome !== undefined && !['Todos'].some((i) => args.favorecidoNome?.includes(i))) {
       query = query + ` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;
     }
+    const subtotalWhere2: string[] = [];
+    if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) {
+      subtotalWhere2.push(`tv."datetimeTransacao"::DATE between '${dataInicio}' and '${dataFim}'`);
+    }
+    query += `
+                    ) it
+                    INNER JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
+                        AND tv."valorPago"::NUMERIC > 0
+                        AND tv."datetimeProcessamento"::DATE BETWEEN (it."dataOrdem"::DATE) - INTERVAL '6 DAYS'
+                        AND it."dataOrdem"::DATE - INTERVAL '1 DAY'
+                    WHERE (1=1) ${subtotalWhere2.length ? 'AND ' + subtotalWhere2.join(' AND ') : ''}
+                ) q
+                ORDER BY q.tv_id, q.date_priority, q.it_id DESC
+    `;
     query = query + ` )as ss)  as subTotal, `;
 
-    query =
-      query +
-      `(select sum(tt."valorLancamento")::float from
-                      (select distinct dta.id,dta."valorLancamento"            
+    // Total
+    query += `(select sum(tt."valorPago")::float from`;
+    query += `
+            (
+                SELECT DISTINCT ON (q.tv_id) *
+                FROM
+                (
+                    SELECT
+                        it.*,
+                        tv.id AS tv_id,
+                        ( it."dataOrdem"::DATE - tv."datetimeProcessamento"::DATE ) AS date_priority,
+                        it.id AS it_id,
+                        tv."datetimeProcessamento",
+                        tv."valorPago"::FLOAT
+                    FROM
+    `;
+    query += `
+                      (select distinct dta.id,dta."valorLancamento",itt."itemTransacaoAgrupadoId", itt."dataOrdem"
                       from detalhe_a dta 
                       inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
                       inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tta."statusId"<>'5'
                       left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                       left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
                       LEFT JOIN cliente_favorecido cf ON itt."clienteFavorecidoId" = cf.id
-                      WHERE `;
-    if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) query = query + `  dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+                      WHERE (1=1) `;
     if (args.emProcessamento !== undefined && args.emProcessamento === true) {
       query = query + ` and app."isPago"=false and TRIM(dta."ocorrenciasCnab")='' `;
     } else if (args.pago !== undefined) {
@@ -193,8 +235,23 @@ export class RelatorioAnaliticoRepository {
     } else if (['Todos'].some((i) => args.favorecidoNome?.includes(i))) {
       query = query + ` and tt."nomeConsorcio" in('STPC','STPL','TEC') `;
     }
+    const totalWhere2: string[] = [];
+    if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) {
+      totalWhere2.push(`tv."datetimeTransacao"::DATE between '${dataInicio}' and '${dataFim}'`);
+    }
+    query += `
+                    ) it
+                    INNER JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
+                        AND tv."valorPago"::NUMERIC > 0
+                        AND tv."datetimeProcessamento"::DATE BETWEEN (it."dataOrdem"::DATE) - INTERVAL '6 DAYS'
+                        AND it."dataOrdem"::DATE - INTERVAL '1 DAY'
+                    WHERE 1=1 ${totalWhere2.length ? 'AND ' + totalWhere2.join(' AND ') : ''}
+                ) q
+                ORDER BY q.tv_id, q.date_priority, q.it_id DESC
+    `;
     query = query + ` )as tt  )as total `;
 
+    // Resultado
     query = query + `from ( `;
     query += `
         SELECT DISTINCT ON (q.tv_id) *
@@ -255,8 +312,7 @@ export class RelatorioAnaliticoRepository {
       inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
       inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
       left join ocorrencia oc on oc."detalheAId"=da.id              
-      where  `;
-    if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) query = query + ` da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+      where (1=1) `;
 
     if (args.consorcioNome !== undefined && !['Todos'].some((i) => args.consorcioNome?.includes(i))) {
       query = query + ` and it."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;
@@ -281,11 +337,16 @@ export class RelatorioAnaliticoRepository {
 
     if (args.valorMax !== undefined) query = query + ` and it."valor"<=${args.valorMax}`;
 
+    const resultadoWhere2: string[] = [];
+    if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) {
+      resultadoWhere2.push(` tv."datetimeTransacao"::DATE between '${dataInicio}' and '${dataFim}'`);
+    }
     query += `
                 ) it
-            LEFT JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId" AND tv."valorPago"::NUMERIC > 0
+            INNER JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId" AND tv."valorPago"::NUMERIC > 0
                 AND tv."datetimeProcessamento"::DATE BETWEEN (it."dataOrdem"::DATE) - INTERVAL '6 DAYS'
                 AND it."dataOrdem"::DATE - INTERVAL '1 DAY'
+            WHERE (1=1) ${resultadoWhere2.length ? 'AND ' + resultadoWhere2.join(' AND ') : ''}
         ) q
         ORDER BY q.tv_id, q.date_priority, q.it_id DESC
     `;
