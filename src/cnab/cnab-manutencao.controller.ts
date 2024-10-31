@@ -252,11 +252,17 @@ export class CnabManutencaoController {
   @ApiBearerAuth()
   @ApiQuery({ name: 'diasAnteriores', type: Number, required: false, description: 'Atualizar apenas os itens até N dias atrás' })
   @ApiQuery({ name: 'idOperadora', type: String, required: false, description: ApiDescription({ _: 'Pesquisar pelo idConsorcio para atualizar', example: '8000123,8000456' }) })
+  @ApiQuery({ name: 'dtProcInicio', type: Date, required: false, description: ApiDescription({ _: 'Pesquisar pelo datetimeProcessamento para atualizar', example: '2024-10-09' }) })
+  @ApiQuery({ name: 'dtProcFim', type: Date, required: false, description: ApiDescription({ _: 'Pesquisar pelo datetimeProcessamento para atualizar', example: '2024-10-10' }) })
+  @ApiQuery({ name: 'nomeConsorcio', type: String, required: false, description: ApiDescription({ _: 'Nome do consorcio - salvar transações', default: 'Todos' }), example: 'Nome Consorcio' })
   async getUpdateTransacaoViewBigqueryValues(
     @Query('diasAnteriores', new ParseNumberPipe({ optional: true })) diasAnteriores: number | undefined, //
-    @Query('idOperadora', new ParseArrayPipe1({ optional: true })) idOperadora: string[] | undefined, //
+    @Query('idOperadora', new ParseArrayPipe1({ optional: true })) idOperadora: string[] | undefined,
+    @Query('dtProcInicio', new ParseDatePipe({ transform: true })) dtProcInicio: any,
+    @Query('dtProcFim', new ParseDatePipe({ transform: true })) dtProcFim: any,
+    @Query('nomeConsorcio') nomeConsorcio: string | undefined,
   ) {
-    return await this.cnabService.updateTransacaoViewBigqueryValues(diasAnteriores, idOperadora);
+    return await this.cnabService.updateTransacaoViewBigqueryValues(diasAnteriores, idOperadora, { datetimeProcessamento: { start: dtProcInicio, end: dtProcFim }, nomeConsorcio: (nomeConsorcio || '').split(',') });
   }
 
   @Get('updateTransacaoViewBigqueryValues')

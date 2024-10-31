@@ -30,6 +30,8 @@ export interface TVFindUpdateValuesWhere {
   diasAnteriores?: number;
   idOperadora?: string[];
   valorPago_gt_zero?: boolean;
+  datetimeProcessamento?: { start: Date; end: Date };
+  nomeConsorcio?: string[];
 }
 
 @Injectable()
@@ -354,14 +356,24 @@ export class TransacaoViewRepository {
   public async findUpdateValues(where?: TVFindUpdateValuesWhere): Promise<TransacaoView[]> {
     const tv = TransacaoView.getSqlFields('tv');
     const qWhere: string[] = [];
-    if (where?.valorPago_gt_zero) {
+    if (where?.valorPago_gt_zero == false) {
       qWhere.push(`NOT ${tv.valorPago} > 0`);
+    }
+    if (where?.valorPago_gt_zero == true) {
+      qWhere.push(`${tv.valorPago} > 0`);
+    }
+    if (where?.datetimeProcessamento) {
+      const { start, end } = where.datetimeProcessamento;
+      qWhere.push(`${tv.datetimeProcessamento}::DATE BETWEEN '${start.toISOString()}'::DATE AND '${end.toISOString()}'::DATE`);
     }
     if (where?.diasAnteriores) {
       qWhere.push(`${tv.datetimeProcessamento}::DATE >= NOW() - INTERVAL '${where?.diasAnteriores} DAYS'`);
     }
     if (where?.idOperadora?.length) {
       qWhere.push(`${tv.idOperadora} IN('${where?.idOperadora.join("','")}')`);
+    }
+    if (where?.nomeConsorcio?.length) {
+      qWhere.push(`${tv.nomeConsorcio} IN('${where?.nomeConsorcio.join("','")}')`);
     }
     const raw: any[] = await this.transacaoViewRepository.query(
       compactQuery(`
