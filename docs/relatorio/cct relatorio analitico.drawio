@@ -1,0 +1,109 @@
+<mxfile host="65bd71144e">
+    <diagram id="w5Yq3exKE2vFbUa6enTL" name="Página-1">
+        <mxGraphModel dx="770" dy="446" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="9" style="edgeStyle=none;html=1;" parent="1" source="3" target="6" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="1. obter itens agrupados" style="swimlane;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="120" y="80" width="200" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="item agrupado" style="rounded=1;whiteSpace=wrap;html=1;" parent="3" vertex="1">
+                    <mxGeometry x="40" y="70" width="120" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="20" style="edgeStyle=none;html=1;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="600" y="210" as="sourcePoint"/>
+                        <mxPoint x="680" y="210" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="6" value="2. obter ordens&lt;br&gt;&lt;sup&gt;do agrupado&lt;/sup&gt;" style="swimlane;whiteSpace=wrap;html=1;startSize=30;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="80" width="200" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="ordens" style="rounded=1;whiteSpace=wrap;html=1;" parent="6" vertex="1">
+                    <mxGeometry x="60" y="170" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="11" style="edgeStyle=none;html=1;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" parent="6" source="10" target="7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="12" style="edgeStyle=none;html=1;" parent="6" source="10" target="7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="13" style="edgeStyle=none;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" parent="6" source="10" target="7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="item ag." style="rounded=1;whiteSpace=wrap;html=1;" parent="6" vertex="1">
+                    <mxGeometry x="60" y="50" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="27" style="edgeStyle=none;html=1;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="880" y="210" as="sourcePoint"/>
+                        <mxPoint x="960" y="210" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="14" value="3. Obter transação&lt;br&gt;&lt;sup&gt;do agrupado&lt;/sup&gt;" style="swimlane;whiteSpace=wrap;html=1;startSize=30;" parent="1" vertex="1">
+                    <mxGeometry x="680" y="80" width="200" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" value="transações" style="rounded=1;whiteSpace=wrap;html=1;" parent="14" vertex="1">
+                    <mxGeometry x="60" y="170" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="16" style="edgeStyle=none;html=1;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" parent="14" source="19" target="15" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="17" style="edgeStyle=none;html=1;" parent="14" source="19" target="15" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="18" style="edgeStyle=none;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" parent="14" source="19" target="15" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="19" value="item ag." style="rounded=1;whiteSpace=wrap;html=1;" parent="14" vertex="1">
+                    <mxGeometry x="60" y="50" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="35" style="edgeStyle=none;html=1;" parent="1" source="21" target="29" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="21" value="4. Obter ordens&lt;br&gt;&lt;sup&gt;da transação&lt;/sup&gt;" style="swimlane;whiteSpace=wrap;html=1;startSize=30;" parent="1" vertex="1">
+                    <mxGeometry x="960" y="80" width="200" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="22" value="ordens" style="rounded=1;whiteSpace=wrap;html=1;" parent="21" vertex="1">
+                    <mxGeometry x="60" y="170" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="23" style="edgeStyle=none;html=1;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" parent="21" source="26" target="22" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="24" value="itemTransacaoAgrupadoId" style="edgeStyle=none;html=1;" parent="21" source="26" target="22" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="25" style="edgeStyle=none;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" parent="21" source="26" target="22" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="26" value="transação" style="rounded=1;whiteSpace=wrap;html=1;" parent="21" vertex="1">
+                    <mxGeometry x="60" y="50" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="29" value="3. Filtrar ordem correta&lt;br&gt;&lt;sup&gt;da transação&lt;/sup&gt;" style="swimlane;whiteSpace=wrap;html=1;startSize=30;" parent="1" vertex="1">
+                    <mxGeometry x="1241" y="80" width="200" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="30" value="ordem" style="rounded=1;whiteSpace=wrap;html=1;" parent="29" vertex="1">
+                    <mxGeometry x="60" y="170" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="31" style="edgeStyle=none;html=1;entryX=0.25;entryY=0;entryDx=0;entryDy=0;dashed=1;endArrow=cross;endFill=0;" parent="29" source="34" target="30" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="32" value="" style="edgeStyle=none;html=1;" parent="29" source="34" target="30" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="33" style="edgeStyle=none;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;endArrow=cross;endFill=0;dashed=1;" parent="29" source="34" target="30" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="34" value="transação" style="rounded=1;whiteSpace=wrap;html=1;" parent="29" vertex="1">
+                    <mxGeometry x="60" y="50" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="36" value="Text" style="text;strokeColor=none;align=center;fillColor=none;html=1;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+                    <mxGeometry x="360" y="220" width="60" height="30" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

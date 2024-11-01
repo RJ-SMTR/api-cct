@@ -33,6 +33,7 @@ export class RelatorioAnaliticoRepository {
     let result: any[] = await queryRunner.query(compactQuery(query));
     queryRunner.release();
     const analiticos = result.map((r) => new RelatorioAnaliticoDto(r));
+    const test = analiticos.filter((a) => (a.favorecido == 'GLAUCIUS CESAR MANEZES BARAO'));
     this.setSomas(analiticos);
     return analiticos;
   }
@@ -163,226 +164,146 @@ export class RelatorioAnaliticoRepository {
   public getQueryNaoApagar(args: IFindPublicacaoRelatorio) {
     const dataInicio = args.dataInicio.toISOString().slice(0, 10);
     const dataFim = args.dataFim.toISOString().slice(0, 10);
-    let query = ` select distinct res.*, `;
 
-    // Subtotal
-    query += '0 AS subtotal,';
-    // query = query + `(select sum(ss."valorPago")::float  from `;
-    // query += `
-    //         (
-    //             SELECT DISTINCT ON (q.tv_id) *
-    //             FROM
-    //             (
-    //                 SELECT
-    //                     it.*,
-    //                     tv.id AS tv_id,
-    //                     ( it."dataOrdem"::DATE - tv."datetimeProcessamento"::DATE ) AS date_priority,
-    //                     it.id AS it_id,
-    //                     tv."datetimeProcessamento",
-    //                     tv."valorPago"::FLOAT
-    //                 FROM
-    // `;
-    // query =
-    //   query +
-    //   `  (select distinct dta.id,dta."valorLancamento",itt."itemTransacaoAgrupadoId",itt."dataOrdem"
-    //                       from detalhe_a dta
-    //                       inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
-    //                       inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tta."statusId"<>'5'
-    //                       left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
-    //                       left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
-    //                       LEFT JOIN cliente_favorecido cf ON itt."clienteFavorecidoId" = cf.id
-    //                       WHERE (1=1) `;
-    // if (args.emProcessamento !== undefined && args.emProcessamento === true) {
-    //   query = query + ` and app."isPago"=false and TRIM(dta."ocorrenciasCnab")='' `;
-    // } else if (args.pago !== undefined) {
-    //   query = query + ` and app."isPago"=${args.pago} and TRIM(dta."ocorrenciasCnab")<>'' `;
-    // }
-    // query = query + ` and tt."nomeConsorcio"=res.consorcio `;
-    // if (args.favorecidoNome !== undefined && !['Todos'].some((i) => args.favorecidoNome?.includes(i))) {
-    //   query = query + ` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;
-    // }
-    // const subtotalWhere2: string[] = [];
-    // if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) {
-    //   subtotalWhere2.push(`tv."datetimeTransacao"::DATE between '${dataInicio}' and '${dataFim}'`);
-    // }
-    // query += `
-    //                 ) it
-    //                 INNER JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId" AND tv."valorPago"::NUMERIC > 0 AND tv."datetimeProcessamento"::DATE < it."dataOrdem"::DATE
-    //                     AND tv."valorPago"::NUMERIC > 0
-    //                     AND tv."datetimeProcessamento"::DATE BETWEEN (it."dataOrdem"::DATE) - INTERVAL '6 DAYS'
-    //                     AND it."dataOrdem"::DATE - INTERVAL '1 DAY'
-    //                 WHERE (1=1) ${subtotalWhere2.length ? 'AND ' + subtotalWhere2.join(' AND ') : ''}
-    //             ) q
-    //             ORDER BY q.tv_id, q.date_priority, q.it_id DESC
-    // `;
-    // query = query + ` )as ss)  as subTotal, `;
-
-    // Total
-    query += '0 AS total ';
-    // query += `(select sum(tt."valorPago")::float from`;
-    // query += `
-    //         (
-    //             SELECT DISTINCT ON (q.tv_id) *
-    //             FROM
-    //             (
-    //                 SELECT
-    //                     it.*,
-    //                     tv.id AS tv_id,
-    //                     ( it."dataOrdem"::DATE - tv."datetimeProcessamento"::DATE ) AS date_priority,
-    //                     it.id AS it_id,
-    //                     tv."datetimeProcessamento",
-    //                     tv."valorPago"::FLOAT
-    //                 FROM
-    // `;
-    // query += `
-    //                   (select distinct dta.id,dta."valorLancamento",itt."itemTransacaoAgrupadoId", itt."dataOrdem"
-    //                   from detalhe_a dta
-    //                   inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
-    //                   inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tta."statusId"<>'5'
-    //                   left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
-    //                   left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
-    //                   LEFT JOIN cliente_favorecido cf ON itt."clienteFavorecidoId" = cf.id
-    //                   WHERE (1=1) `;
-    // if (args.emProcessamento !== undefined && args.emProcessamento === true) {
-    //   query = query + ` and app."isPago"=false and TRIM(dta."ocorrenciasCnab")='' `;
-    // } else if (args.pago !== undefined) {
-    //   query = query + ` and app."isPago"=${args.pago} and TRIM(dta."ocorrenciasCnab")<>'' `;
-    // }
-
-    // if (args.consorcioNome !== undefined && !['Todos'].some((i) => args.consorcioNome?.includes(i))) {
-    //   query = query + ` and tt."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;
-    // } else if (args.favorecidoNome !== undefined && !['Todos'].some((i) => args.favorecidoNome?.includes(i))) {
-    //   query = query + ` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;
-    // } else if ((['Todos'].some((i) => args.consorcioNome?.includes(i)) && ['Todos'].some((i) => args.favorecidoNome?.includes(i))) || (args.consorcioNome !== undefined && args.favorecidoNome !== undefined)) {
-    //   query =
-    //     query +
-    //     ` and tt."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
-    //                      'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
-    // } else if (['Todos'].some((i) => args.favorecidoNome?.includes(i))) {
-    //   query = query + ` and tt."nomeConsorcio" in('STPC','STPL','TEC') `;
-    // }
-    // const totalWhere2: string[] = [];
-    // if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) {
-    //   totalWhere2.push(`tv."datetimeTransacao"::DATE between '${dataInicio}' and '${dataFim}'`);
-    // }
-    // query += `
-    //                 ) it
-    //                 INNER JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId" AND tv."valorPago"::NUMERIC > 0 AND tv."datetimeProcessamento"::DATE < it."dataOrdem"::DATE
-    //                     AND tv."valorPago"::NUMERIC > 0
-    //                     AND tv."datetimeProcessamento"::DATE BETWEEN (it."dataOrdem"::DATE) - INTERVAL '6 DAYS'
-    //                     AND it."dataOrdem"::DATE - INTERVAL '1 DAY'
-    //                 WHERE 1=1 ${totalWhere2.length ? 'AND ' + totalWhere2.join(' AND ') : ''}
-    //             ) q
-    //             ORDER BY q.tv_id, q.date_priority, q.it_id DESC
-    // `;
-    // query = query + ` )as tt  )as total `;
-
-    // Resultado
-    query = query + `from ( `;
-    query += `
-        SELECT DISTINCT ON (q.tv_id) *
-        FROM 
-        (
-            SELECT
-                it.*,
-                tv.id AS tv_id,
-                (it."dataOrdem"::DATE - tv."datetimeProcessamento"::DATE) AS date_priority,
-                it.id AS it_id,
-                tv."datetimeProcessamento" AS dataprocessamento,
-                tv."valorPago"::FLOAT AS valor,
-                COALESCE(it.datatransacao_vlt, tv."datetimeTransacao"::VARCHAR) AS datatransacao
-            FROM
-                (
-    `;
-
-    query =
-      query +
-      `               
-    select distinct
-      it.id, 
-      case
-      when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=1 THEN --segunda
-      (da."dataVencimento":: Date - INTERVAL '4 day')::varchar 
-      when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=2 THEN --terça
-      (da."dataVencimento":: Date -  INTERVAL '4 day')::varchar 
-      when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=3 THEN --quarta
-      (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 
-      when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=4 THEN --quinta
-      (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 
-      when (it."nomeConsorcio" = 'VLT') and EXTRACT( DOW FROM da."dataVencimento")=5 THEN --Sexta
-      (da."dataVencimento":: Date - INTERVAL '2 day')::varchar 		
-      end as datatransacao_vlt,
-      da."dataVencimento"::date::Varchar As datapagamento,
-      cf."cpfCnpj",
-      da."dataEfetivacao",              -- dto
-      da."dataVencimento",              -- dto
-      it."nomeConsorcio" AS consorcio,  -- dto
-      cf.nome AS favorecido,            -- dto
-      it."valor"::float AS valor_ordem,
-      it."itemTransacaoAgrupadoId",
-      it."dataOrdem",
-      case 
-      when(not(ap."isPago") and TRIM(da."ocorrenciasCnab")='')then 'Aguardando Pagamento'	
-      when (ap."isPago") then 'pago' 
-        when (not (ap."isPago")) then 'naopago'
-        else 'apagar' end AS status,
-      case when (not (ap."isPago")) then oc."message" 
-      else '' end As mensagem_status `;
-
-    query =
-      query +
-      ` from item_transacao_agrupado ita
-      inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
-      inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
-      inner join transacao_agrupado ta on ta."id"=ita."transacaoAgrupadoId" and ta."statusId"<>'5'
-      inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
-      inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-      left join ocorrencia oc on oc."detalheAId"=da.id              
-      where (1=1) `;
+    const where1: string[] = [];
+    const where2: string[] = [];
 
     if (args.consorcioNome !== undefined && !['Todos'].some((i) => args.consorcioNome?.includes(i))) {
-      query = query + ` and it."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;
+      where1.push(`it."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`);
     } else if (args.favorecidoNome !== undefined && !['Todos'].some((i) => args.favorecidoNome?.includes(i))) {
-      query = query + ` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;
+      where1.push(`cf."nome" in('${args.favorecidoNome?.join("','")}')`);
     } else if ((['Todos'].some((i) => args.consorcioNome?.includes(i)) && ['Todos'].some((i) => args.favorecidoNome?.includes(i))) || (args.consorcioNome !== undefined && args.favorecidoNome !== undefined)) {
-      query =
-        query +
-        ` and it."nomeConsorcio" 
-      in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
+      where1.push(`it."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC')`);
     } else if (['Todos'].some((i) => args.favorecidoNome?.includes(i))) {
-      query = query + ` and it."nomeConsorcio" in('STPC','STPL','TEC') `;
+      where1.push(` and it."nomeConsorcio" in('STPC','STPL','TEC')`);
     }
-
     if (args.emProcessamento !== undefined && args.emProcessamento === true) {
-      query = query + `  and ap."isPago"=false and TRIM(da."ocorrenciasCnab")='' `;
+      where1.push(`ap."isPago" = false AND TRIM(da."ocorrenciasCnab") = ''`);
     } else if (args.pago !== undefined) {
-      query = query + ` and	ap."isPago"=${args.pago} and TRIM(da."ocorrenciasCnab")<>'' `;
+      where1.push(`ap."isPago" = ${args.pago} AND TRIM(da."ocorrenciasCnab") <> ''`);
+    }
+    if (args.valorMin !== undefined) {
+      where1.push(`it."valor" >= ${args.valorMin}`);
+    }
+    if (args.valorMax !== undefined) {
+      where1.push(`it."valor" <= ${args.valorMax}`);
     }
 
-    if (args.valorMin !== undefined) query = query + `  and it."valor">=${args.valorMin}`;
-
-    if (args.valorMax !== undefined) query = query + ` and it."valor"<=${args.valorMax}`;
-
-    const resultadoWhere2: string[] = [];
     if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) {
-      resultadoWhere2.push(` it."dataVencimento"::DATE between '${dataInicio}' and '${dataFim}'`);
+      where2.push(`it."dataVencimento"::DATE BETWEEN '${dataInicio}' AND '${dataFim}'`);
     }
-    query += `
-                ) it
-            INNER JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId" AND tv."valorPago"::NUMERIC > 0 AND tv."datetimeProcessamento"::DATE < it."dataOrdem"::DATE
-                AND tv."datetimeProcessamento"::DATE BETWEEN (it."dataOrdem"::DATE) - INTERVAL '6 DAYS'
-                AND it."dataOrdem"::DATE - INTERVAL '1 DAY'
-            WHERE (1=1) ${resultadoWhere2.length ? 'AND ' + resultadoWhere2.join(' AND ') : ''}
-        ) q
-        ORDER BY q.tv_id, q.date_priority, q.it_id DESC
+
+    const query = `
+        SELECT
+            DISTINCT res.*,
+            0 AS subtotal,
+            0 AS total
+        FROM
+        (   -- agrupa status de vanzeiro (caso seja) igual à tela do semanal  --
+            SELECT
+                MIN(tv."dataEfetivacao") AS "dataEfetivacao",
+                MIN(tv."dataVencimento") AS "dataVencimento",
+                MIN(tv.sexta_pgto) AS sexta_pgto,
+                MIN(tv.favorecido) AS favorecido,
+                MIN(tv.consorcio) AS consorcio,
+                MIN(tv.valor) AS valor,
+                MIN(tv.valor_ordem) AS valor_ordem,
+                MIN(tv.data_ordem)::DATE AS data_ordem,
+                MIN(tv.dataprocessamento) AS dataprocessamento,
+                MIN(tv.datatransacao) AS datatransacao,
+                MIN(tv.datapagamento) AS datapagamento,
+                MIN(tv.tv_id) AS tv_id,
+                MIN(tv.it_id) AS it_id,
+                CASE WHEN BOOL_AND(tv.is_vanzeiro) = false THEN MIN(tv.status_nao_vanzeiro) ELSE (
+                    CASE
+                        WHEN (NOT(BOOL_AND(tv.van_is_pago)) AND TRIM(MIN(tv.van_ocorrencias)) = '' ) THEN 'Aguardando Pagamento'
+                        WHEN (BOOL_AND(tv.van_is_pago)) THEN 'pago'
+                        WHEN (NOT(BOOL_AND(tv.van_is_pago))) THEN 'naopago'
+                        ELSE 'apagar'
+                    end
+                ) END AS status
+            FROM
+            (   -- join ordem vanzeiro - para ter status igual na tela do semanal (caso seja de vanzeriro)  --
+                SELECT
+                    tv.*,
+                    ap."isPago" AS van_is_pago,
+                    da."ocorrenciasCnab" AS van_ocorrencias,
+                    it.id AS van_it_id
+                FROM
+                (  -- 4. filtrar ordem da transação --
+                    SELECT DISTINCT ON (tv.it_id, tv.tv_id) *
+                    FROM
+                    (  -- 3. obter transação do agrupado --
+                        SELECT
+                            it.*,
+                            tv.id AS tv_id,
+                            (it2."dataOrdem"::DATE - tv."datetimeProcessamento"::DATE) AS date_priority,
+                            it2."dataOrdem" AS data_ordem,
+                            it2."dataOrdem"::DATE AS data_ordem_from_transacao,
+                            it2.id AS it2_id,
+                            tv."datetimeProcessamento" AS dataprocessamento,
+                            tv."valorPago"::FLOAT AS valor,
+                            DATE(CASE WHEN EXTRACT(DOW FROM DATE(tv."datetimeProcessamento")) = 4 THEN DATE(tv."datetimeProcessamento") + INTERVAL '8 days' ELSE tv."datetimeProcessamento"::DATE + (12 - EXTRACT(DOW FROM tv."datetimeProcessamento"::DATE)::integer + 7) % 7 + (CASE WHEN EXTRACT(DOW FROM tv."datetimeProcessamento"::DATE) = 5 THEN 7 ELSE 0 END) END) AS sexta_pgto,
+                            COALESCE( it.datatransacao_vlt, tv."datetimeTransacao"::VARCHAR ) AS datatransacao
+                        FROM
+                        (  -- query base do sitético  -  2. obter ordens do agrupado --
+                            SELECT
+                                CASE
+                                    WHEN (it."nomeConsorcio" = 'VLT') AND EXTRACT(DOW FROM da."dataVencimento") = 1 THEN (da."dataVencimento"::DATE - INTERVAL '4 day')::VARCHAR
+                                    WHEN (it."nomeConsorcio" = 'VLT') AND EXTRACT(DOW FROM da."dataVencimento") = 2 THEN (da."dataVencimento"::DATE - INTERVAL '4 day')::VARCHAR
+                                    WHEN (it."nomeConsorcio" = 'VLT') AND EXTRACT(DOW FROM da."dataVencimento") = 3 THEN (da."dataVencimento"::DATE - INTERVAL '2 day')::VARCHAR
+                                    WHEN (it."nomeConsorcio" = 'VLT') AND EXTRACT(DOW FROM da."dataVencimento") = 4 THEN (da."dataVencimento"::DATE - INTERVAL '2 day')::VARCHAR
+                                    WHEN (it."nomeConsorcio" = 'VLT') AND EXTRACT(DOW FROM da."dataVencimento") = 5 THEN (da."dataVencimento"::DATE - INTERVAL '2 day')::VARCHAR
+                                END AS datatransacao_vlt,
+                                da."dataVencimento"::DATE::VARCHAR AS datapagamento,
+                                cf."cpfCnpj" AS "cpfCnpj",
+                                da."dataEfetivacao" AS "dataEfetivacao",
+                                da."dataVencimento" AS "dataVencimento",
+                                it."nomeConsorcio" AS consorcio,
+                                cf.nome AS favorecido,
+                                it."valor"::float AS valor_ordem,
+                                it."itemTransacaoAgrupadoId",
+                                it."dataOrdem" AS data_ordem_from_agrupado,
+                                it."nomeConsorcio" IN ('STPC','STPL','TEC') AS is_vanzeiro,
+                                it."idOperadora",
+                                it.id AS it_id,
+                                CASE
+                                    WHEN (NOT(ap."isPago") AND TRIM(da."ocorrenciasCnab") = '' ) THEN 'Aguardando Pagamento'
+                                    WHEN (ap."isPago") THEN 'pago'
+                                    WHEN (NOT (ap."isPago")) THEN 'naopago'
+                                    ELSE 'apagar'
+                                END AS status_nao_vanzeiro,
+                                CASE WHEN (NOT (ap."isPago")) THEN oc."message" ELSE '' END AS mensagem_status
+                            FROM item_transacao_agrupado ita
+                                INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
+                                INNER JOIN item_transacao it ON ita.id = it."itemTransacaoAgrupadoId"
+                                INNER JOIN transacao_agrupado ta ON ta."id" = ita."transacaoAgrupadoId"
+                                AND ta."statusId" <> '5'
+                                INNER JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id
+                                INNER JOIN cliente_favorecido cf ON cf.id = it."clienteFavorecidoId"
+                                LEFT JOIN ocorrencia oc ON oc."detalheAId" = da.id
+                            WHERE (1 = 1) ${where1.length ? 'AND ' + where1.join(' AND ') : ''}
+                        ) it
+                        INNER JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
+                                AND tv."valorPago" :: NUMERIC > 0  -- ignora no relatório -- 
+                        INNER JOIN item_transacao it2 ON it2."itemTransacaoAgrupadoId" = tv."itemTransacaoAgrupadoId"
+                            AND tv."datetimeProcessamento"::DATE < it2."dataOrdem"::DATE  -- otimizar --
+                        WHERE (1 = 1) ${where2.length ? 'AND ' + where2.join(' AND ') : ''}
+                    ) tv
+                    ORDER BY tv.it_id, tv.tv_id, tv.date_priority, tv.it_id DESC
+                ) tv
+                LEFT JOIN item_transacao it ON tv.is_vanzeiro = true AND it."idOperadora" = tv."idOperadora" AND it."dataOrdem"::DATE BETWEEN tv.sexta_pgto - INTERVAL '7 DAYS' AND tv.sexta_pgto - INTERVAL '1 DAY'
+                LEFT JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
+                LEFT JOIN transacao_agrupado ta ON ta.id = ita."transacaoAgrupadoId"
+                LEFT JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id
+                LEFT JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
+                WHERE ta."statusId" != 5 AND tv.data_ordem_from_transacao = tv.data_ordem_from_agrupado
+            ) tv
+            GROUP BY tv.tv_id
+        ) AS res
+        ORDER BY "consorcio", "favorecido", "datapagamento", "dataprocessamento"
     `;
-    query =
-      query +
-      ` ) as res
-            order by  "consorcio", "favorecido","datapagamento", "dataprocessamento" `;
-
     this.logger.debug(compactQuery(query));
-
     return query;
   }
 }
