@@ -226,7 +226,7 @@ export class CnabManutencaoController {
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true })) dataOrdemInicial: any, //
     @Query('dataOrdemFinal', new ParseDatePipe({ transform: true })) dataOrdemFinal: any,
     @Query('consorcio') consorcio: string | undefined,
-    @Query('idTransacao', new ParseArrayPipe1({ optional: true })) idTransacao: string[], //
+    @Query('idTransacao', new ParseArrayPipe1({ optional: true })) idTransacao: string[],
   ) {
     const _dataOrdemInicial: Date = dataOrdemInicial;
     const _dataOrdemFinal: Date = dataOrdemFinal;

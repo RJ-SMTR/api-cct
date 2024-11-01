@@ -30,7 +30,7 @@ export class TransacaoViewService {
     return await this.transacaoViewRepository.updateManyRaw(dtos, fields, reference, manager);
   }
 
-  async removeDuplicates() {
+  async removeDuplicates(dataOrdemIncial?: Date, dataOrdemFinal?: Date) {
     return await this.transacaoViewRepository.removeDuplicates();
   }
 

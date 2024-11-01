@@ -9,6 +9,7 @@ import { DataSource, DeepPartial, EntityManager, FindManyOptions, In, LessThanOr
 import { IPreviousDaysArgs } from './interfaces/previous-days-args';
 import { IClearSyncOrdemPgto, ISyncOrdemPgto } from './interfaces/sync-transacao-ordem.interface';
 import { ITransacaoView, TransacaoView } from './transacao-view.entity';
+import { subDays } from 'date-fns';
 
 export interface TransacaoViewFindRawOptions {
   where: {
@@ -21,6 +22,7 @@ export interface TransacaoViewFindRawOptions {
     datetimeProcessamento?: 'ASC' | 'DESC';
     id?: 'ASC' | 'DESC';
   };
+  distinct?: 'id';
   eager?: boolean;
   limit?: number;
   offset?: number;
@@ -47,7 +49,11 @@ export class TransacaoViewRepository {
   /**
    * @returns Affected rows count
    */
-  async removeDuplicates() {
+  async removeDuplicates(dataOrdemIncial?: Date, dataOrdemFinal?: Date) {
+    const where: string[] = [];
+    if (dataOrdemIncial && dataOrdemFinal) {
+      where.push(`tv."datetimeProcessamento"::DATE BETWEEN '${subDays(dataOrdemIncial, 6).toISOString()}'::DATE AND '${subDays(dataOrdemFinal, 1).toISOString()}'::DATE`);
+    }
     const query = `
     DELETE FROM transacao_view
     WHERE id IN(
@@ -57,6 +63,7 @@ export class TransacaoViewRepository {
                 tv.id,
                 ROW_NUMBER() OVER (PARTITION BY tv."idTransacao" ORDER BY tv.id DESC) AS row_num
             FROM transacao_view tv
+            WHERE (1=1) ${where.length ? 'AND ' + where.join(' AND ') : ''}
             ) tv
         WHERE tv.row_num > 1
     )
@@ -336,7 +343,7 @@ export class TransacaoViewRepository {
             ${eager ? `'itemTransacao', json_build_object('id', it.id, 'itemTransacaoAgrupado', json_build_object('id', ita.id))` : ''}
         ) AS "arquivoPublicacao"`;
     const query = `
-      SELECT ${selectTv}
+      SELECT ${options?.distinct ? 'DISTINCT ON (tv.id)' : ''} ${selectTv}
       FROM transacao_view tv
       ${
         eager

@@ -33,7 +33,6 @@ export class RelatorioAnaliticoRepository {
     let result: any[] = await queryRunner.query(compactQuery(query));
     queryRunner.release();
     const analiticos = result.map((r) => new RelatorioAnaliticoDto(r));
-    const test = analiticos.filter((a) => (a.favorecido == 'GLAUCIUS CESAR MANEZES BARAO'));
     this.setSomas(analiticos);
     return analiticos;
   }

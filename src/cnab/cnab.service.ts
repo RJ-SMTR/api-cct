@@ -62,6 +62,7 @@ import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
 import { TVFindUpdateValuesWhere } from 'src/transacao-view/transacao-view.repository';
+import e from 'express';
 
 export interface ICnabInfo {
   name: string;
@@ -309,7 +310,7 @@ export class CnabService {
     return result;
   }
 
-  async deduplicateTransacaoView() {
+  async deduplicateTransacaoView(dataOrdemIncial?: Date, dataOrdemFinal?: Date) {
     const startDate = new Date();
     const removed = await this.transacaoViewService.removeDuplicates();
     const duration = formatDateInterval(new Date(), startDate);
@@ -350,12 +351,19 @@ export class CnabService {
    */
   async updateTransacaoViewBigquery(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string = 'Todos', idTransacao: string[] = []) {
     const METHOD = 'updateTransacaoViewBigquery';
+    let response = {
+      updated: 0,
+      created: 0,
+      deduplicated: 0,
+    };
     const trs = await this.findBigqueryTransacao(dataOrdemIncial, dataOrdemFinal, daysBack, consorcio);
+    const deduplicateResult = await this.deduplicateTransacaoView(dataOrdemIncial, dataOrdemFinal);
+    response.deduplicated += deduplicateResult.removed;
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       await queryRunner.startTransaction();
-      const response = await this.updateTransacaoViewBigqueryLimit(trs, queryRunner, idTransacao);
+      response = await this.updateTransacaoViewBigqueryLimit(trs, queryRunner, idTransacao);
       this.logger.log(`TransacaoView atualizado: ${JSON.stringify(response)}`, METHOD);
       await queryRunner.commitTransaction();
     } catch (error) {
@@ -364,11 +372,12 @@ export class CnabService {
     } finally {
       await queryRunner.release();
     }
+    return response;
   }
 
   async updateTransacaoViewBigqueryLimit(trsBq: BigqueryTransacao[], queryRunner: QueryRunner, idTransacao: string[] = []) {
     const trsFilter = idTransacao.length ? trsBq.filter((i) => idTransacao.includes(i.id_transacao)) : trsBq;
-    const existings = await this.transacaoViewService.findRaw({ where: { idTransacao: trsFilter.map((tv) => tv.id_transacao) } });
+    const existings = await this.transacaoViewService.findRaw({ where: { idTransacao: trsFilter.map((tv) => tv.id_transacao) }, distinct: 'id' });
     const response = { updated: 0, created: 0, deduplicated: 0 };
     for (const trBq of trsFilter) {
       const transacaoViewBq = TransacaoView.fromBigqueryTransacao(trBq);
