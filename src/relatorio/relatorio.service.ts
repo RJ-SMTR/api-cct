@@ -144,7 +144,11 @@ export class RelatorioService {
     const analiticosData = new RelatorioAnaliticoResultDto();
     analiticosData.count = analitico.length;
     analiticosData.data = analitico;
-    analiticosData.valor = +analitico.reduce((s, i) => s + i.valor, 0).toFixed(2);
+    if (args.pago) {
+      analiticosData.valor = +analitico.reduce((s, i) => s + i.valor, 0).toFixed(2);
+    } else {
+      analiticosData.valor = +(analitico?.[0]?.total || 0).toFixed(2);
+    }
     analiticosData.status = status;
     return analiticosData;
   }

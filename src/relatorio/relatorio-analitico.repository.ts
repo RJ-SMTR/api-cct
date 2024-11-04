@@ -33,7 +33,9 @@ export class RelatorioAnaliticoRepository {
     let result: any[] = await queryRunner.query(compactQuery(query));
     queryRunner.release();
     const analiticos = result.map((r) => new RelatorioAnaliticoDto(r));
-    this.setSomas(analiticos);
+    if (args.pago) {
+      this.setSomas(analiticos);
+    }
     return analiticos;
   }
 
@@ -48,15 +50,16 @@ export class RelatorioAnaliticoRepository {
 
   getSomas(analiticos: RelatorioAnaliticoDto[]): [Record<string, number>, number] {
     let total: number = 0;
-    const subtotais = analiticos.reduce((d: Record<string, number>, i) => {
-      total += i.valor;
-      const key = i.consorcio;
-      if (d[key]) {
-        return { ...d, [key]: d[key] + i.valor };
+    const subtotais: Record<string, number> = {};
+    for (const item of analiticos) {
+      total += +item.valor.toFixed(3);
+      const key = item.consorcio;
+      if (subtotais[key]) {
+        subtotais[key] += +item.valor.toFixed(3);
       } else {
-        return { ...d, [key]: i.valor };
+        subtotais[key] = +item.valor.toFixed(3);
       }
-    }, {});
+    }
     return [subtotais, total];
   }
 
@@ -98,7 +101,7 @@ export class RelatorioAnaliticoRepository {
     query = query + `  SELECT DISTINCT `;
     query = query + `  res.*, `;
     query = query + `  COALESCE(sub.subTotal, 0) AS subTotal,`;
-    query = query + `  total_data.Total`;
+    query = query + `  total_data.Total::NUMERIC::FLOAT AS total`;
     query = query + `  FROM (`;
 
     let body = ` SELECT DISTINCT

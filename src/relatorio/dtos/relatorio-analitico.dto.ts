@@ -25,10 +25,10 @@ export class RelatorioAnaliticoDto {
     if (!subtotal) {
       return;
     }
-    this.subtotal = +subtotal.toFixed(2);
+    this.subtotal = +subtotal.toFixed(3);
   }
 
   setTotal(total: number) {
-    this.total = +total.toFixed(2);
+    this.total = +total.toFixed(3);
   }
 }

@@ -31,7 +31,7 @@ export class TransacaoViewService {
   }
 
   async removeDuplicates(dataOrdemIncial?: Date, dataOrdemFinal?: Date) {
-    return await this.transacaoViewRepository.removeDuplicates();
+    return await this.transacaoViewRepository.removeDuplicates(dataOrdemIncial, dataOrdemFinal);
   }
 
   async count(fields?: EntityCondition<TransacaoView>) {
