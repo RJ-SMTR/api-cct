@@ -55,9 +55,8 @@ export const appSettings = {
 
   /** EVERY_DAY_AT_9AM */
   any__mail_report_cronjob: {
-    name: 'mail_report_cronjob',
-    value: CronExpression.EVERY_5_MINUTES,
-    // value: CronExpression.EVERY_DAY_AT_9AM,
+    name: 'mail_report_cronjob',  
+    value: CronExpression.EVERY_DAY_AT_9AM,
     version: null,
     editable: false,
     settingType: SettingTypeEnum.string,
