@@ -61,6 +61,9 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
+import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pagamento-indevido-service';
+import { PagamentoIndevidoDTO } from 'src/pagamento_indevido/dto/pagamento-indevido.dto';
+import { DetalheA } from './entity/pagamento/detalhe-a.entity';
 
 export interface ICnabInfo {
   name: string;
@@ -106,6 +109,7 @@ export class CnabService {
     @InjectDataSource()
     private dataSource: DataSource,
     private settingsService: SettingsService,
+    private pagamentoIndevidoService: PagamentoIndevidoService
   ) {}
 
   async findSendRemessas(args?: IFindRemessaArgs) {
@@ -786,5 +790,45 @@ export class CnabService {
     const duration = formatDateInterval(endDate, startDate);
     this.logger.debug(`Fim clear sync TransacaoView - duração: ${duration}`);
     return { duration, count };
+  }
+
+  async geraPagamentosIndevidos(dataInicio:Date,dataFim:Date,dataPagamento:Date){
+    const pagamentos = await this.pagamentosEfetuados(dataPagamento);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataInicio, dataFim, 0);  
+    let ordensFilter = ordens.filter(o => o.consorcio.trim() === 'STPC' 
+      || o.consorcio.trim() === 'STPL' || o.consorcio.trim() === 'TEC');
+
+    for (const pagamento of pagamentos) {
+      let valorAgrupado = 0;
+      for(const ordem of ordensFilter.filter(o=> o.idConsorcio === pagamento.itemTransacaoAgrupado.idConsorcio 
+        && o.idOperadora === pagamento.itemTransacaoAgrupado.idOperadora
+        && new Date(o.dataOrdem) === pagamento.itemTransacaoAgrupado.dataOrdem)) {
+        valorAgrupado+= Number(ordem.valorTotalTransacaoLiquido.toFixed(2)); 
+      }
+      if(pagamento.valorLancamento > valorAgrupado){
+         this.inserirPagamentoIndevido(pagamento, valorAgrupado);
+      } 
+    }
+  }  
+
+  async pagamentosEfetuados(dataPagamento:Date):Promise<DetalheA[]> {
+    const consorcios =['STPC','STPL','TEC'];
+    const das =  
+        await this.detalheAService.findMany({ dataVencimento: dataPagamento , 
+          ocorrenciasCnab: '00', itemTransacaoAgrupado:{ nomeConsorcio: In(consorcios.concat(","))}})      
+    return das;   
+  }
+
+  async inserirPagamentoIndevido(pagamento:DetalheA,valor:number){
+    const valorIndevido = pagamento.valorLancamento - valor;
+    const pagamentoIndevidoDTO: PagamentoIndevidoDTO = new PagamentoIndevidoDTO({
+       dataPagamento: pagamento.dataVencimento,
+       dataReferencia: new Date(),
+       nomeFavorecido: '',
+       valorPago: pagamento.valorLancamento,    
+       valorPagar: valorIndevido,    
+       saldoDevedor: valorIndevido 
+      });
+     await this.pagamentoIndevidoService.save(pagamentoIndevidoDTO);
   }
 }

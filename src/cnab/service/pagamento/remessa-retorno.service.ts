@@ -47,7 +47,7 @@ import { HeaderLoteConfService } from './header-lote-conf.service';
 import { HeaderLoteService } from './header-lote.service';
 import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
 import { ItemTransacaoService } from './item-transacao.service';
-import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pgamento-indevido-service';
+import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pagamento-indevido-service';
 import { ItemTransacao } from 'src/cnab/entity/pagamento/item-transacao.entity';
 import { PagamentoIndevidoDTO } from 'src/pagamento_indevido/dto/pagamento-indevido.dto';
 

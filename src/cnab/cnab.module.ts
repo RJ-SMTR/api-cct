@@ -71,7 +71,7 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { CnabManutencaoController } from './cnab-manutencao.controller';
-import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pgamento-indevido-service';
+import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pagamento-indevido-service';
 import { PagamentoIndevidoRepository } from 'src/pagamento_indevido/repository/pagamento-indevido.repository';
 import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indevido.entity';
 
