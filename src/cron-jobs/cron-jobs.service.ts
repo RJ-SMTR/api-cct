@@ -374,10 +374,10 @@ export class CronJobsService {
     const sex = subDays(today, 6);
     const qui = today;
 
-    await this.cnabService.saveTransacoesJae(sex, qui, 0,'Van');
-    // const listCnab = await this.cnabService.generateRemessa({ tipo: PagadorContaEnum.ContaBilhetagem
-    //   , dataPgto: today, isConference: false, isCancelamento: false, isTeste: false });
-    // await this.cnabService.sendRemessa(listCnab);
+    //await this.cnabService.saveTransacoesJae(sex, qui, 0,'Van');
+    const listCnab = await this.cnabService.generateRemessa({ tipo: PagadorContaEnum.ContaBilhetagem
+       , dataPgto: addDays(today,1), isConference: false, isCancelamento: false, isTeste: false });
+    await this.cnabService.sendRemessa(listCnab);
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
   }
 
