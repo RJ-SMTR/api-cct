@@ -1,8 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { ItemTransacaoAgrupado } from 'src/cnab/entity/pagamento/item-transacao-agrupado.entity';
 import { ItemTransacaoAgrupadoRepository } from 'src/cnab/repository/pagamento/item-transacao-agrupado.repository';
 import { CustomLogger } from 'src/utils/custom-logger';
 import {
+  DataSource,
   DeepPartial,
   FindManyOptions,
   FindOneOptions,
@@ -19,6 +21,8 @@ export class ItemTransacaoAgrupadoService {
   });
 
   constructor(
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private itemTransacaoAgRepository: ItemTransacaoAgrupadoRepository,
   ) {}
 
@@ -64,13 +68,14 @@ export class ItemTransacaoAgrupadoService {
   public async findManyByIdTransacaoAg(
     id_transacao: number,
   ): Promise<ItemTransacaoAgrupado[]> {
-    return await this.itemTransacaoAgRepository.findMany({
-      where: {
-        transacaoAgrupado: {
-          id: id_transacao,
-        },
-      },
-    });
+    const query = ` select ita.* from item_transacao_agrupado ita `
+                + ` where  ita."transacaoAgrupadoId"=${id_transacao} `
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    let result: any[] = await queryRunner.query(query);
+    queryRunner.release();
+    return result.map((r) => new ItemTransacaoAgrupado(r));    
   }
 
   public async findMany(options: FindManyOptions<ItemTransacaoAgrupado>) {

@@ -117,6 +117,7 @@ export class RemessaRetornoService {
     let loteCC: any;
     let valorAPagar: number| undefined ;
     for (const itemTransacaoAgrupado of itemTransacaoAgs) {
+      this.logger.debug('Consorcio = '+ itemTransacaoAgrupado.nomeConsorcio);
       valorAPagar = undefined;
       const itemTransacao = await this.itemTransacaoService.findOne({
         where: {
