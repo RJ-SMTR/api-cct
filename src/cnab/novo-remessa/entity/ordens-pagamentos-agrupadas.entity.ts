@@ -1,5 +1,6 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import {  Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { OrdemPagamentoEntity } from './ordens-pagamento.entity';
 
 @Entity()
 export class OrdemPagamentoAgrupadoEntity extends EntityHelper {
@@ -38,7 +39,7 @@ export class OrdemPagamentoAgrupadoEntity extends EntityHelper {
   ValorTotal: number;
 
   @Column({ type: String, unique: false, nullable: false })
-  ordensPagamentoId: string[];  
+  ordensPagamento: OrdemPagamentoEntity[];  
 
   @Column({ type: String, unique: false, nullable: false })
   statusRemessa: string; 

@@ -1,8 +1,6 @@
 
-import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import { asStringOrNumber } from 'src/utils/pipe-utils';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity()
 export class OrdemPagamentoEntity extends EntityHelper {
@@ -16,12 +14,9 @@ export class OrdemPagamentoEntity extends EntityHelper {
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Ordem_Pagamento_id' })
   id: number; 
 
-  @CreateDateColumn()
-  dataProcessamento: Date;
-
-  @CreateDateColumn()
-  dataCaptura: Date;
-
+  @Column({ type: String, unique: false, nullable: false })
+  dataOrdem: String;
+ 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   nomeConsorcio: string | null;
 
@@ -49,23 +44,12 @@ export class OrdemPagamentoEntity extends EntityHelper {
 
   /** CNPJ */
   @Column({ type: String, unique: false, nullable: true })
-  idConsorcio: string | null;
-
-  @Column({ type: Date, unique: false, nullable: false })
-  dataOrdem: Date;
+  idConsorcio: string | null; 
   
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
-
-  /** Não é uma coluna, usado apenas para consulta no ORM. */
-  @OneToOne(() => Lancamento, (l) => l.itemTransacao)
-  lancamento: Lancamento | null;  
-
-  @AfterLoad()
-  setReadValues() {
-    this.valor = asStringOrNumber(this.valor);
-  }
+  updatedAt: Date;  
+ 
 }

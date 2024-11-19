@@ -26,8 +26,10 @@ export class OrdemPagamentoRepository {
     });
   }
 
-  public async findAll(): Promise<OrdemPagamentoEntity[]> {
-    return await this.ordemPagamentoRepository.find({});
+  public async findAll(fields: EntityCondition<OrdemPagamentoEntity>): Promise<OrdemPagamentoEntity[]> {
+    return await this.ordemPagamentoRepository.find({
+      where: fields,
+    });
   }
  
 }
