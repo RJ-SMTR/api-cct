@@ -595,6 +595,7 @@ export class CnabService {
     return [];
   }
   for (const transacaoAg of transacoesAg) {
+    this.logger.debug('idOrdem = '+ transacaoAg.idOrdemPagamento);
     const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg,args.isConference,args.isTeste);
     const headerLoteDTOs = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, 
       args.isConference, args.isTeste, args.dataPgto);
