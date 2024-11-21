@@ -569,7 +569,7 @@ export function parseNumber(field: CnabField) {
   const num =
     typeof field.value === 'number'
       ? field.value
-      : Number(field.value) / Number(`10e${decimal - 1}`);
+      : Number(field.value);
   field.convertedValue = num;
   updateCnabFieldFormatValues(field, { formatType: 'number' });
 }
