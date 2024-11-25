@@ -16,6 +16,7 @@ import { CnabFieldType } from '../../types/cnab/cnab-field-type.type';
 import { getCnabFieldNameLog } from './cnab-metadata-utils';
 
 type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';
+type CnabFieldOp = 'stringify' | 'parse';
 
 /**
  * @param cropDecimals Crop decimals with no rouding
@@ -488,6 +489,7 @@ export function getCnabFieldConverted(field: CnabField) {
   setCnabFieldConvertedValue(field);
   return field.convertedValue;
 }
+
 /**
  * Set CnabField format convertedValue and other infos.
  *
@@ -569,7 +571,7 @@ export function parseNumber(field: CnabField) {
   const num =
     typeof field.value === 'number'
       ? field.value
-      : Number(field.value);
+      : Number(field.value) / Number(`10e${decimal - 1}`);
   field.convertedValue = num;
   updateCnabFieldFormatValues(field, { formatType: 'number' });
 }
