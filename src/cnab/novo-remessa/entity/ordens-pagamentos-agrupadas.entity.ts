@@ -26,6 +26,9 @@ export class OrdemPagamentoAgrupadoEntity extends EntityHelper {
   @Column({ type: String, unique: false, nullable: false })
   userBankAccount: string;
 
+  @Column({ type: String, unique: false, nullable: false })
+  userBankAccountDig: string;
+
   @CreateDateColumn()
   dataPagamento: Date;
 
@@ -42,10 +45,10 @@ export class OrdemPagamentoAgrupadoEntity extends EntityHelper {
   ordensPagamento: OrdemPagamentoEntity[];  
 
   @Column({ type: String, unique: false, nullable: false })
-  statusRemessa: string; 
+  statusRemessa: string; //Gerado, Enviado, Cancelado
   
   @Column({type: Boolean, unique: false, nullable: true})
-  isPago: boolean;  
+  isPago: boolean;  //Pago, Não Pago
 
   @CreateDateColumn()
   createdAt: Date;

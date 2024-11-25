@@ -1,6 +1,7 @@
 
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, DeepPartial, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { OrdemPagamentoAgrupadoEntity } from './ordens-pagamentos-agrupadas.entity';
 
 @Entity()
 export class OrdemPagamentoEntity extends EntityHelper {
@@ -24,7 +25,7 @@ export class OrdemPagamentoEntity extends EntityHelper {
   nomeOperadora: string | null;
    
   @Column({ type: String, unique: false, nullable: false })
-  userId: number;
+  userId?: number;
 
   @Column({
     type: 'decimal',
@@ -45,6 +46,10 @@ export class OrdemPagamentoEntity extends EntityHelper {
   /** CNPJ */
   @Column({ type: String, unique: false, nullable: true })
   idConsorcio: string | null; 
+
+  @ManyToOne(() => OrdemPagamentoAgrupadoEntity, { eager: true })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupado_ManyToOne' })
+  ordemPgamentoAgrupado: OrdemPagamentoAgrupadoEntity;
   
   @CreateDateColumn()
   createdAt: Date;

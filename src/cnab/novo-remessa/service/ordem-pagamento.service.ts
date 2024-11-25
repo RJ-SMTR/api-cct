@@ -25,11 +25,11 @@ export class OrdemPagamentoService {
     private usersService: UsersService       
    ){}
 
-   async sincronizarOrdensPagamento(dataOrdemInicialDate:Date,dataOrdemFinalDate:Date){
+   async sincronizarOrdensPagamento(dataOrdemInicialDate:Date,dataOrdemFinalDate:Date,consorcio:string){
         const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, 0);
-
-        ordens.forEach(async ordem=>{
-
+        
+        ordens.filter(o=>o.consorcio===consorcio)
+        .forEach(async ordem=>{
             if(ordem.operadoraCpfCnpj){
                 const user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
 
@@ -72,14 +72,12 @@ export class OrdemPagamentoService {
           }                 
 
           ordemPagamentoAgrupado.ValorTotal = ordem.valor;
-
           await this.ordemPamentoAgrupadoRepository.save(ordemPagamentoAgrupado);
         }
     }
 
-    convertOrdemPagamento(ordem: BigqueryOrdemPagamentoDTO, userId: any): OrdemPagamentoEntity {
-        var result = new OrdemPagamentoEntity();
-        result.createdAt = new Date();
+    async convertOrdemPagamento(ordem: BigqueryOrdemPagamentoDTO, userId: any): Promise<OrdemPagamentoEntity> {
+        var result = new OrdemPagamentoEntity();        
         result.dataOrdem = ordem.dataOrdem;
         result.idConsorcio = ordem.idConsorcio;
         result.idOperadora = ordem.idOperadora;
@@ -88,7 +86,9 @@ export class OrdemPagamentoService {
         result.nomeOperadora = ordem.operadora;
         result.userId = userId;
         result.valor = ordem.valorTotalTransacaoLiquido;
-        return result ;
+        result.createdAt = new Date();
+        result.updatedAt = new Date();
+        return result;
     }
 
 }
