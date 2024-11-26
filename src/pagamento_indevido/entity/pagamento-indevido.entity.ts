@@ -13,10 +13,10 @@ export class PagamentoIndevido extends EntityHelper {
   @PrimaryColumn({ primaryKeyConstraintName: 'PK_PagamentoIndevido_id' })
   id: number;
  
-  @Column({ type: Date, unique: false, nullable: false })
+  @Column({ type: Date, unique: false, nullable: true })
   dataPagamento: Date;
 
-  @Column({ type: Date, unique: false, nullable: false })
+  @Column({ type: Date, unique: false, nullable: true })
   dataReferencia: Date;
 
   @Column({ type: String, unique: false, nullable: false, length: 150 })
