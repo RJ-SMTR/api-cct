@@ -366,19 +366,14 @@ export class CnabService {
     const trsFilter = idTransacao.length ? trsBq.filter((i) => idTransacao.includes(i.id_transacao)) : trsBq;
     const existings = await this.transacaoViewService.findRaw({ where: { idTransacao: trsFilter.map((tv) => tv.id_transacao) } });
     const response = { updated: 0, created: 0, deduplicated: 0 };
-    for (const trBq of trsFilter) {
+    for (const trBq of trsFilter.filter(tr=>tr.operadora ==='RICARDO DE JESUS LEITE MOREIRA')) {
       const transacaoViewBq = TransacaoView.fromBigqueryTransacao(trBq);
       if (transacaoViewBq.modo && transacaoViewBq.nomeOperadora) {
-        const existing = existings.filter((ex) => ex.idTransacao == transacaoViewBq.idTransacao);
+        const existing = existings.filter((ex) => ex.idTransacao === transacaoViewBq.idTransacao);
         if (existing.length === 0) {
           await queryRunner.manager.getRepository(TransacaoView).save(transacaoViewBq);
           response.created += 1;
-        } else {
-          if (existing.length > 1) {
-            await queryRunner.manager.getRepository(TransacaoView).remove(existing.slice(1));
-            response.deduplicated += 1;
-          }
-
+        } else { 
           if (!existing[0].valorPago && transacaoViewBq.valorPago != existing[0].valorPago) {
             response.updated += 1;
             await this.transacaoViewService.updateManyRaw(
