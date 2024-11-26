@@ -1,3 +1,4 @@
+
 /**
  * Return if value !== undefined.
  */
@@ -37,4 +38,8 @@ export function isFilled(val: string | null | undefined): val is string {
 
 export function isStringNumber(val: string | null | undefined): val is string {
   return isContent(val) && val !== '';
+}
+
+export function isStringDecimal(val: string | null | undefined): val is string {
+  return isStringNumber(val) && Number(val) % 1 != 0;
 }

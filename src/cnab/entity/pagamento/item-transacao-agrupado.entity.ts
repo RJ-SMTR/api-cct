@@ -1,13 +1,13 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { asStringOrNumber } from 'src/utils/pipe-utils';
+import { asNullableStringOrNumber } from 'src/utils/pipe-utils';
 import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
+import { Exclude } from 'class-transformer';
 import { nextFriday, nextThursday, startOfDay } from 'date-fns';
 import { OrdemPagamentoDto } from 'src/cnab/dto/pagamento/ordem-pagamento.dto';
 import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { ItemTransacao } from './item-transacao.entity';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
-import { Exclude } from 'class-transformer';
 
 /**
  * Representa um destinatário, a ser pago pelo remetente (TransacaoAgrupado).
@@ -31,6 +31,7 @@ export class ItemTransacaoAgrupado extends EntityHelper {
     super();
     if (dto) {
       Object.assign(this, dto);
+      this.setReadValues();
       if (this?.transacaoAgrupado) {
         this.transacaoAgrupado = new TransacaoAgrupado(dto.transacaoAgrupado);
       }
@@ -129,6 +130,6 @@ export class ItemTransacaoAgrupado extends EntityHelper {
 
   @AfterLoad()
   setReadValues() {
-    this.valor = asStringOrNumber(this.valor);
+    (this.valor as string | number | null) = asNullableStringOrNumber(this.valor);
   }
 }
