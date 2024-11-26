@@ -5,9 +5,10 @@ import { cropDecimals } from 'src/utils/number-utils';
 import { asNumberStringDate, asStringOrDateDate } from 'src/utils/pipe-utils';
 import {
   getStringNoSpecials,
-  parseStringUpperUnaccent,
   isStringBasicAlnumUpper,
+  parseStringUpperUnaccent,
 } from 'src/utils/string-utils';
+import { isStringDecimal } from 'src/utils/type-utils';
 import {
   CnabField,
   CnabFieldFormat,
@@ -16,7 +17,6 @@ import { CnabFieldType } from '../../types/cnab/cnab-field-type.type';
 import { getCnabFieldNameLog } from './cnab-metadata-utils';
 
 type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';
-type CnabFieldOp = 'stringify' | 'parse';
 
 /**
  * @param cropDecimals Crop decimals with no rouding
@@ -551,7 +551,7 @@ export function parseDate(field: CnabField) {
 }
 
 /**
- * If no format defined, set format as number.
+ * Convert CNAB string to number.
  *
  * It supports number and NumberString.
  */
@@ -569,7 +569,7 @@ export function parseNumber(field: CnabField) {
   }
   const { decimal } = getPictureNumberSize(field.picture);
   const num =
-    typeof field.value === 'number'
+    (typeof field.value === 'number' || isStringDecimal(field.value))
       ? field.value
       : Number(field.value) / Number(`10e${decimal - 1}`);
   field.convertedValue = num;
