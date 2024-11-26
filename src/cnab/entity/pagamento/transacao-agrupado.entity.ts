@@ -61,7 +61,7 @@ export class TransacaoAgrupado extends EntityHelper {
   })
   pagador: Pagador;
 
-  @ManyToOne(() => TransacaoStatus, { eager: false, nullable: false })
+  @ManyToOne(() => TransacaoStatus, { eager: true, nullable: false })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_TransacaoAgrupado_status_ManyToOne',
   })
