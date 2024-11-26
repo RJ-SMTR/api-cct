@@ -4,7 +4,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial, Repository } from 'typeorm';
-import { OrdemPagamentoEntity } from '../entity/ordens-pagamento.entity';
+import { OrdemPagamentoEntity } from '../entity/ordem-pagamento.entity';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -31,5 +31,4 @@ export class OrdemPagamentoRepository {
       where: fields,
     });
   }
- 
 }
