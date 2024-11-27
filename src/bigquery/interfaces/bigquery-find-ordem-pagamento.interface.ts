@@ -3,6 +3,7 @@ import { TipoFavorecidoEnum } from 'src/cnab/enums/tipo-favorecido.enum';
 export interface IBigqueryFindOrdemPagamento {
   operadorCpfs?: string[];
   tipoFavorecido?: TipoFavorecidoEnum | null;
+  consorcioName?: string[];
   startDate: Date;
   endDate: Date;
   limit?: number;

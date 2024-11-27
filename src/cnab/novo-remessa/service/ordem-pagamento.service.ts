@@ -1,46 +1,61 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { AllPagadorDict } from 'src/cnab/interfaces/pagamento/all-pagador-dict.interface';
 import { PagadorService } from 'src/cnab/service/pagamento/pagador.service';
+import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
-import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-agrupado.repository';
-import { OrdemPagamentoEntity } from '../entity/ordem-pagamento.entity';
-import { User } from 'src/users/entities/user.entity';
+import { OnModuleLoad } from 'src/utils/interfaces/on-load.interface';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { Between } from 'typeorm';
-import { OrdemPagamentoAgrupadoEntity } from '../entity/ordem-pagamento-agrupado.entity';
+import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
+import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
+import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-agrupado.repository';
+import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 
 @Injectable()
-export class OrdemPagamentoService {
+export class OrdemPagamentoService implements OnModuleInit, OnModuleLoad {
   private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
 
-  constructor(private ordemPamentoRepository: OrdemPagamentoRepository, private ordemPamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository, private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private pagadorService: PagadorService, private usersService: UsersService) {}
+  constructor(
+    private ordemPamentoRepository: OrdemPagamentoRepository, //
+    private ordemPamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository,
+    private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
+    private pagadorService: PagadorService,
+    private usersService: UsersService,
+  ) {}
 
-  async sincronizarOrdensPagamento(dataOrdemInicialDate: Date, dataOrdemFinalDate: Date, consorcio: string) {
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, 0);
-
-    ordens
-      .filter((o) => o.consorcio === consorcio)
-      .forEach(async (ordem) => {
-        if (ordem.operadoraCpfCnpj) {
-          const user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
-
-          if (user) {
-            await this.inserirOrdemPagamento(ordem, user.id);
-          }
-        }
-      });
+  onModuleInit() {
+    this.onModuleLoad().catch((error: Error) => {
+      throw error;
+    });
   }
 
-  async preprararPagamentos(dataOrdemInicial: Date, dataOrdemFinal: Date, pagadorKey: keyof AllPagadorDict) {
+  async onModuleLoad(): Promise<any> {
+    await this.sincronizarOrdensPagamento(new Date('2024-11-15'), new Date('2024-11-21'), 'TEC');
+  }
+
+  async sincronizarOrdensPagamento(dataOrdemInicialDate: Date, dataOrdemFinalDate: Date, consorcio: string) {
+    const METHOD = 'sincronizarOrdensPagamento';
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, 0, { consorcioName: [consorcio] });
+    this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
+
+    for (const ordem of ordens) {
+      if (ordem.operadoraCpfCnpj) {
+        const user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
+        if (user) {
+          await this.inserirOrdemPagamento(ordem, user.id);
+        }
+      }
+    }
+    this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
+  }
+
+  async prepararPagamentoAgrupados(dataOrdemInicial: Date, dataOrdemFinal: Date, pagadorKey: keyof AllPagadorDict) {
     const ordens = await this.ordemPamentoRepository.findAll({ dataOrdem: Between(dataOrdemInicial, dataOrdemFinal) });
-
     const contaPagadora = await this.getPagador(pagadorKey);
-
-    const ordemPagamentoAgrupada = await this.inserirOrdemPagamentoAgrupada(ordens);
+    const ordemPagamentoAgrupada = await this.inserirOrdemPagamentoAgrupado(ordens);
   }
 
   async getPagador(pagadorKey: any) {
@@ -56,30 +71,32 @@ export class OrdemPagamentoService {
     await this.ordemPamentoRepository.save(ordemPagamento);
   }
 
-  async inserirOrdemPagamentoAgrupada(ordens: OrdemPagamentoEntity[]) {
+  async inserirOrdemPagamentoAgrupado(ordens: OrdemPagamento[]) {
     for (const ordem of ordens) {
       let ordemPagamentoAgrupado = await this.ordemPamentoAgrupadoRepository.findOne({ ordensPagamento: [{ id: ordem.id }] });
       if (!ordemPagamentoAgrupado) {
-        ordemPagamentoAgrupado = new OrdemPagamentoAgrupadoEntity();
+        ordemPagamentoAgrupado = new OrdemPagamentoAgrupado();
       }
 
-      ordemPagamentoAgrupado.ValorTotal = ordem.valor;
+      ordemPagamentoAgrupado.valorTotal = ordem.valor || 0;
       await this.ordemPamentoAgrupadoRepository.save(ordemPagamentoAgrupado);
     }
   }
 
-  async convertOrdemPagamento(ordem: BigqueryOrdemPagamentoDTO, userId: any): Promise<OrdemPagamentoEntity> {
-    var result = new OrdemPagamentoEntity();
-    result.dataOrdem = ordem.dataOrdem;
+  async convertOrdemPagamento(ordem: BigqueryOrdemPagamentoDTO, userId: number): Promise<OrdemPagamento> {
+    var result = new OrdemPagamento();
+    result.id = ordem.id;
+    result.dataOrdem = new Date(ordem.dataOrdem);
     result.idConsorcio = ordem.idConsorcio;
+    result.consorcioCnpj = ordem.consorcioCnpj;
     result.idOperadora = ordem.idOperadora;
+    result.operadoraCpfCnpj = ordem.operadoraCpfCnpj;
     result.idOrdemPagamento = ordem.idOrdemPagamento;
     result.nomeConsorcio = ordem.consorcio;
     result.nomeOperadora = ordem.operadora;
     result.userId = userId;
     result.valor = ordem.valorTotalTransacaoLiquido;
-    result.createdAt = new Date();
-    result.updatedAt = new Date();
+    result.bqUpdatedAt = new Date(ordem.datetimeUltimaAtualizacao);
     return result;
   }
 }

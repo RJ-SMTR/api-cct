@@ -3,6 +3,7 @@ import { isFriday, nextFriday, subDays } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from '../dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoRepository } from '../repositories/bigquery-ordem-pagamento.repository';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { IBigqueryFindOrdemPagamento } from '../interfaces/bigquery-find-ordem-pagamento.interface';
 
 @Injectable()
 export class BigqueryOrdemPagamentoService {
@@ -13,7 +14,7 @@ export class BigqueryOrdemPagamentoService {
   /**
    * Get data from current payment week (qui-qua). Also with older days.
    */
-  public async getFromWeek(dataOrdemInicial: Date, dataOrdemFinal: Date, daysBefore = 0): Promise<BigqueryOrdemPagamentoDTO[]> {
+  public async getFromWeek(dataOrdemInicial: Date, dataOrdemFinal: Date, daysBefore = 0, filter?: { consorcioName?: string[] }): Promise<BigqueryOrdemPagamentoDTO[]> {
     const today = new Date();
     let startDate: Date;
     let endDate: Date;
@@ -34,6 +35,7 @@ export class BigqueryOrdemPagamentoService {
       await this.bigqueryOrdemPagamentoRepository.findMany({
         startDate: startDate,
         endDate: endDate,
+        ...(filter ? filter : {}),
       })
     ).map((i) => ({ ...i } as BigqueryOrdemPagamentoDTO));
     return ordemPgto;

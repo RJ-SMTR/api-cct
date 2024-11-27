@@ -15,10 +15,16 @@ export class BigqueryOrdemPagamentoDTO {
     }
   }
 
+  /** id_ordem_pagamento_consorcio_operador_dia */
+  @IsNotEmpty()
+  id: number;
+  
   /**
    * Data da ordem de pagamento (partição)
    *
    * Para filtrar e ordenar por data
+   * 
+   * @example `2024-12-25`
    */
   @IsNotEmpty()
   @IsDateString()
@@ -150,6 +156,8 @@ export class BigqueryOrdemPagamentoDTO {
   consorcioCnpj: string | null;
 
   tipoFavorecido: TipoFavorecidoEnum | null;
+
+  datetimeUltimaAtualizacao: Date;
 
   public static findAgrupado(ordemAgs: BigqueryOrdemPagamentoDTO[], ordem: BigqueryOrdemPagamentoDTO, newDataOrdem = nextFriday(new Date())) {
     const filtered = ordemAgs.filter((i) => isSameDay(new Date(i.dataOrdem), newDataOrdem) && i.idConsorcio === ordem.idConsorcio)[0];

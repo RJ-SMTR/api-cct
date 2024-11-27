@@ -74,6 +74,11 @@ import { CnabManutencaoController } from './cnab-manutencao.controller';
 import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pgamento-indevido-service';
 import { PagamentoIndevidoRepository } from 'src/pagamento_indevido/repository/pagamento-indevido.repository';
 import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indevido.entity';
+import { OrdemPagamento } from './novo-remessa/entity/ordem-pagamento.entity';
+import { OrdemPagamentoAgrupado } from './novo-remessa/entity/ordem-pagamento-agrupado.entity';
+import { OrdemPagamentoService } from './novo-remessa/service/ordem-pagamento.service';
+import { OrdemPagamentoRepository } from './novo-remessa/repository/ordem-pagamento.repository';
+import { OrdemPagamentoAgrupadoRepository } from './novo-remessa/repository/ordem-pagamento-agrupado.repository';
 
 @Module({
   imports: [
@@ -105,7 +110,9 @@ import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indev
       ExtratoHeaderArquivo,
       ExtratoHeaderLote,
       ExtratoDetalheE,
-      PagamentoIndevido
+      PagamentoIndevido,
+      OrdemPagamento,
+      OrdemPagamentoAgrupado,
     ]),
   ],
   providers: [
@@ -152,7 +159,10 @@ import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indev
     TransacaoRepository,
     TransacaoService,
     PagamentoIndevidoRepository,
-    PagamentoIndevidoService
+    PagamentoIndevidoService,
+    OrdemPagamentoService,
+    OrdemPagamentoRepository,
+    OrdemPagamentoAgrupadoRepository,
   ],
   exports: [
     CnabService, //
@@ -193,7 +203,10 @@ import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indev
     RemessaRetornoService,
     OcorrenciaService,
     PagamentoIndevidoRepository,
-    PagamentoIndevidoService
+    PagamentoIndevidoService,
+    OrdemPagamentoService,
+    OrdemPagamentoRepository,
+    OrdemPagamentoAgrupadoRepository,
   ],
   controllers: [CnabController, CnabManutencaoController],
 })
