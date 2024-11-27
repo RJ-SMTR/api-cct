@@ -78,7 +78,7 @@ export class BigqueryTransacaoRepository {
           t.valor_pagamento,
           t.versao AS bqDataVersion,
           t.consorcio,
-          t.operadora,
+          o.operadora_completo AS operadora,
           t.id_consorcio,
           t.id_operadora,
           o.documento AS operadoraCpfCnpj,
