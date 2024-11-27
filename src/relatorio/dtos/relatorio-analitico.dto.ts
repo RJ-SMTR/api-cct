@@ -12,6 +12,7 @@ export class RelatorioAnaliticoDto {
   favorecido: string;
   consorcio: string;
   valor: number = 0;
+  valor_lancamento: number = 0;
   status: string;
   ocorrencia: string;
   subtotal: number = 0;

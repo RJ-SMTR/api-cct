@@ -51,18 +51,26 @@ export class RelatorioAnaliticoRepository {
   getSomas(analiticos: RelatorioAnaliticoDto[]): [Record<string, number>, number] {
     let total: number = 0;
     const subtotais: Record<string, number> = {};
+    const processedFavorecidos = new Set<string>();
+
     for (const item of analiticos) {
-      total += +item.valor.toFixed(3);
+      if (processedFavorecidos.has(item.favorecido)) {
+        continue; 
+      }
+
+      processedFavorecidos.add(item.favorecido);
+
+      total += +item.valor_lancamento.toFixed(3);
+
       const key = item.consorcio;
       if (subtotais[key]) {
-        subtotais[key] += +item.valor.toFixed(3);
+        subtotais[key] += +item.valor_lancamento.toFixed(3);
       } else {
-        subtotais[key] = +item.valor.toFixed(3);
+        subtotais[key] = +item.valor_lancamento.toFixed(3);
       }
     }
     return [subtotais, total];
   }
-
   public getQueryApagar(args: IFindPublicacaoRelatorio) {
     const dataInicio = args.dataInicio.toISOString().slice(0, 10);
     const dataFim = args.dataFim.toISOString().slice(0, 10);
@@ -198,6 +206,7 @@ export class RelatorioAnaliticoRepository {
     const query = `
         SELECT
             DISTINCT res.*,
+            res.valor_lancamento,
             0 AS subtotal,
             0 AS total
         FROM
@@ -209,6 +218,7 @@ export class RelatorioAnaliticoRepository {
                 MIN(tv.favorecido) AS favorecido,
                 MIN(tv.consorcio) AS consorcio,
                 MIN(tv.valor) AS valor,
+                MIN(tv."valorLancamento"::float) AS valor_lancamento,
                 MIN(tv.valor_ordem) AS valor_ordem,
                 MIN(tv.data_ordem)::DATE AS data_ordem,
                 MIN(tv.dataprocessamento) AS dataprocessamento,
@@ -230,6 +240,7 @@ export class RelatorioAnaliticoRepository {
                     tv.*,
                     ap."isPago" AS van_is_pago,
                     da."ocorrenciasCnab" AS van_ocorrencias,
+                    da."valorLancamento",
                     it.id AS van_it_id
                 FROM
                 (  -- 4. filtrar ordem da transação --
@@ -284,13 +295,15 @@ export class RelatorioAnaliticoRepository {
                                 INNER JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id
                                 INNER JOIN cliente_favorecido cf ON cf.id = it."clienteFavorecidoId"
                                 LEFT JOIN ocorrencia oc ON oc."detalheAId" = da.id
-                            WHERE (1 = 1) ${where1.length ? 'AND ' + where1.join(' AND ') : ''}
+                                  WHERE (1 = 1) ${where1.length ? 'AND ' + where1.join(' AND ') : ''}
+                           -- WHERE (1 = 1 )AND it."nomeConsorcio" in ('STPC') AND ap."isPago" = true AND TRIM(da."ocorrenciasCnab") <> ''
                         ) it
                         INNER JOIN transacao_view tv ON tv."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
                                 AND tv."valorPago" :: NUMERIC > 0  -- ignora no relatório -- 
                         INNER JOIN item_transacao it2 ON it2."itemTransacaoAgrupadoId" = tv."itemTransacaoAgrupadoId"
-                            AND tv."datetimeProcessamento"::DATE < it2."dataOrdem"::DATE  -- otimizar --
-                        WHERE (1 = 1) ${where2.length ? 'AND ' + where2.join(' AND ') : ''}
+                            -- AND tv."datetimeProcessamento"::DATE < it2."dataOrdem"::DATE  -- otimizar --
+                        -- WHERE (1 = 1) AND it."dataVencimento"::DATE BETWEEN '2024-09-28' AND '2024-10-04'
+                        WHERE (1 = 1) ${where2.length ? 'AND ' + where2.join(' AND ') : ''} 
                     ) tv
                     ORDER BY tv.it_id, tv.tv_id, tv.date_priority, tv.it_id DESC
                 ) tv
