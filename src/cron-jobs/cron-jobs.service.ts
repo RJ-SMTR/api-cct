@@ -84,7 +84,8 @@ export class CronJobsService {
 
 
   async onModuleLoad() {  
-    await this.sendStatusReport();
+    await this.generateRemessaVLT();
+    await this.syncTransacaoViewOrdem('vlt');
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -410,12 +411,12 @@ export class CronJobsService {
     } else if (isTuesday(today)) {
       daysBeforeBegin = 3;
     }
-    const startDate = subDays(today, daysBeforeBegin);
-    const endDate = subDays(today, daysBeforeEnd);
+    const startDate = new Date('2024-11-19') //subDays(today, daysBeforeBegin);
+    const endDate = new Date('2024-11-20') //subDays(today, daysBeforeEnd);
     await this.cnabService.saveTransacoesJae(startDate, endDate, undefined, 'VLT');
     const listCnab = await this.cnabService.generateRemessa({
       tipo: PagadorContaEnum.ContaBilhetagem,
-      dataPgto: new Date(),
+      dataPgto: new Date('2024-11-03'),
       isConference: false,
       isCancelamento: false,
       isTeste: false,
