@@ -82,9 +82,9 @@ export class CronJobsService {
     });
   }
 
-
-  async onModuleLoad() {  
-    await this.sendStatusReport();
+  async onModuleLoad() {    
+    await this.updateTransacaoViewValues()
+    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -366,17 +366,17 @@ export class CronJobsService {
   async generateRemessaVanzeiros(debug?: ICronjobDebug,isUnico?:boolean) {
     const METHOD = 'generateRemessaVanzeiros';
     // if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
-    //     return;
+    //   return;
     // }
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
     const today = debug?.today || new Date();
-    const sex = new Date('2024-11-22') // subDays(today, 6);
-    const qui = new Date('2024-11-24') // today;
+    const sex = subDays(today, 7);
+    const qui = subDays(today, 1);
 
     await this.cnabService.saveTransacoesJae(sex, qui, 0,'Van');
     const listCnab = await this.cnabService.generateRemessa({ tipo: PagadorContaEnum.ContaBilhetagem
-       , dataPgto: addDays(today,1), isConference: false, isCancelamento: false, isTeste: false });
+      , dataPgto: today, isConference: false, isCancelamento: false, isTeste: false });
     await this.cnabService.sendRemessa(listCnab);
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
   }
