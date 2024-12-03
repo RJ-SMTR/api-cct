@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
-import { TicketRevenueDTO } from 'src/ticket-revenues/dtos/ticket-revenue.dto';
 import { asStringDate } from 'src/utils/pipe-utils';
 import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
@@ -102,6 +101,9 @@ export class TransacaoView {
   @Column({ type: String, nullable: true })
   consorcioCnpj: string | null;
 
+  @Column({ type: Number, nullable: true })
+  idOrdemPagamento: number | null;
+
   /** @deprecated Replaced by `itemTransacaoAgrupadoId` */
   @ManyToOne(() => ArquivoPublicacao, { eager: true, nullable: true })
   @JoinColumn({
@@ -195,6 +197,7 @@ export class TransacaoView {
       valorPago: bq.valor_pagamento,
       operadoraCpfCnpj: bq.operadoraCpfCnpj,
       consorcioCnpj: bq.consorcioCnpj,
+      idOrdemPagamento: bq.id_ordem_pagamento
     });
   }
 

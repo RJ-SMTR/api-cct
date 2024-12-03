@@ -84,7 +84,8 @@ export class BigqueryTransacaoRepository {
           t.id_operadora,
           o.documento AS operadoraCpfCnpj,
           c.cnpj AS consorcioCnpj,
-          'ok' AS status
+          'ok' AS status,
+          t.id_ordem_pagamento
         FROM \`${qArgs.transacao}\` t\n
         LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
         LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
