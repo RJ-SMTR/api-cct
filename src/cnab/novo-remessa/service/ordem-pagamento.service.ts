@@ -15,7 +15,7 @@ import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 
 @Injectable()
-export class OrdemPagamentoService implements OnModuleInit, OnModuleLoad {
+export class OrdemPagamentoService {
   private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
 
   constructor(
@@ -26,15 +26,8 @@ export class OrdemPagamentoService implements OnModuleInit, OnModuleLoad {
     private usersService: UsersService,
   ) {}
 
-  onModuleInit() {
-    this.onModuleLoad().catch((error: Error) => {
-      throw error;
-    });
-  }
 
-  async onModuleLoad(): Promise<any> {
-    await this.sincronizarOrdensPagamento(new Date('2024-11-15'), new Date('2024-11-21'), 'TEC');
-  }
+ 
 
   async sincronizarOrdensPagamento(dataOrdemInicialDate: Date, dataOrdemFinalDate: Date, consorcio: string) {
     const METHOD = 'sincronizarOrdensPagamento';
