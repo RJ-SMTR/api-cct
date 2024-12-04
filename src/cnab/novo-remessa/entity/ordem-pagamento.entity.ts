@@ -13,7 +13,7 @@ export class OrdemPagamento extends EntityHelper {
   }
 
   /** id_ordem_pagamento_consorcio_operador_dia */
-  @PrimaryColumn({ primaryKeyConstraintName: 'PK_Ordem_Pagamento_id' })
+  @PrimaryColumn({ primaryKeyConstraintName: 'PK_OrdemPagamentoId' })
   id: number;
 
   // @Column({ type: Number, unique: true, nullable: false })

@@ -220,7 +220,7 @@ export class CnabManutencaoController {
   @ApiBearerAuth()
   @ApiQuery({ name: 'dataOrdemInicial', type: Date, required: true, description: 'Data da Ordem de Pagamento Inicial' })
   @ApiQuery({ name: 'dataOrdemFinal', type: Date, required: true, description: 'Data da Ordem de Pagamento Final' })
-  @ApiQuery({ name: 'consorcio', type: String, required: false, description: ApiDescription({ _: 'Nome do consorcio - salvar transações', default: 'Todos' }), example: 'Todos / Van / Empresa /Nome Consorcio' })
+  @ApiQuery({ name: 'consorcio', type: String, required: false, description: ApiDescription({ _: 'Nome do consorcio - salvar transações', default: 'Todos' }), example: 'Todos / Van / Empresa / Nome Consorcio' })
   @ApiQuery({ name: 'idTransacao', type: String, required: false, description: 'Lista de idTransacao para atualizar' })
   async getUpdateTransacaoViewBigquery(
     @Query('dataOrdemInicial', new ParseDatePipe({ transform: true })) dataOrdemInicial: any, //

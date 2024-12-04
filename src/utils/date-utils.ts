@@ -155,12 +155,15 @@ export function getDateFromCnabName(fileName: string) {
     match = fileName.match(/_(\d{2})(\d{2})(\d{4})_(\d{2})(\d{2})(\d{2})\.ext$/);
   } else if (fileName.endsWith('.cmp')) {
     match = fileName.match(/_(\d{2})(\d{2})(\d{4})_(\d{2})(\d{2})(\d{2})\.cmp$/);
+  } else if (fileName.endsWith('.rem')) {
+    match = fileName.match(/_(\d{2})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.rem$/);
   } else if (!fileName.endsWith('.ret')) {
-    throw new Error('Nome de arquivo Cnab não reconhecido (esperava: .ret, .ext, .cmp)');
+    throw new Error('Nome de arquivo Cnab não reconhecido (esperava: .rem, .ret, .ext, .cmp)');
   }
   if (match) {
     const [_, day, month, year, hour, minute, second] = match;
-    const date = new Date(`${year}-${month}-${day} ${hour}:${minute}:${second}.0`);
+    const _year = !fileName.endsWith('.rem') ?  year : `${new Date().getUTCFullYear()}`.slice(0, 2) + year;
+    const date = new Date(`${_year}-${month}-${day} ${hour}:${minute}:${second}.0`);
     return date;
   } else {
     throw new Error('Formato de data não esperado');

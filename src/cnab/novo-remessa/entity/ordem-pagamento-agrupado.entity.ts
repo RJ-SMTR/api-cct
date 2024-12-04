@@ -13,7 +13,7 @@ export class OrdemPagamentoAgrupado extends EntityHelper {
     }
   }
 
-  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_Ordem_Pagamento_Agrupado_id' })
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_OrdemPagamentoAgrupadoId' })
   id: number;
 
   @Column({ type: String, unique: false, nullable: false })

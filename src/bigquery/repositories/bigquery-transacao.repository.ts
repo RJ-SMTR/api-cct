@@ -24,6 +24,7 @@ export interface IBqFindTransacao {
   valor_pagamento?: number[] | null | ['>=' | '<=' | '>' | '<', number] | 'NOT NULL';
   id_transacao?: string[] | null;
   id_operadora?: string[];
+  nomeConsorcio?: { in?: string[], notIn?: string[]};
 }
 
 @Injectable()
@@ -83,7 +84,8 @@ export class BigqueryTransacaoRepository {
           t.id_operadora,
           o.documento AS operadoraCpfCnpj,
           c.cnpj AS consorcioCnpj,
-          'ok' AS status
+          'ok' AS status,
+          t.id_ordem_pagamento
         FROM \`${qArgs.transacao}\` t\n
         LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
         LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
@@ -137,6 +139,12 @@ export class BigqueryTransacaoRepository {
     }
     if (args?.previousDaysOnly === true) {
       queryBuilder.pushAND('DATE(t.datetime_processamento) > DATE(t.datetime_transacao)');
+    }
+    if (args?.nomeConsorcio?.in?.length) {
+      queryBuilder.pushAND(`t.consorcio IN ('${args.nomeConsorcio.in.join("','")}')`);
+    }
+    if (args?.nomeConsorcio?.notIn?.length) {
+      queryBuilder.pushAND(`t.consorcio NOT IN ('${args.nomeConsorcio.notIn.join("','")}')`);
     }
     if (args?.valor_pagamento !== undefined) {
       const _value = args.valor_pagamento;
