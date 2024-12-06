@@ -13,7 +13,7 @@ import { RelatorioService } from './relatorio.service';
   version: '1',
 })
 export class RelatorioController {
-  constructor(private relatorioService: RelatorioService) {}
+  constructor(private relatorioService: RelatorioService) { }
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
@@ -24,6 +24,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
   @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
   @ApiQuery({ name: 'emProcessamento', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a emProcessamento', default: false }) })
+  @ApiQuery({ name: 'eleicao', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for em Processamento', default: false }) })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('consolidado')
@@ -33,25 +34,27 @@ export class RelatorioController {
     @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
     dataFim: Date,
     @Query('favorecidoNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    favorecidoNome: string[],    
+    favorecidoNome: string[],
     @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    consorcioNome: string[],    
+    consorcioNome: string[],
     @Query('valorMin', new ParseNumberPipe({ optional: true }))
     valorMin: number | undefined,
     @Query('valorMax', new ParseNumberPipe({ optional: true }))
     valorMax: number | undefined,
-    @Query('pago',new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,     
-    @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
-    @Query('emProcessamento',new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined
-  ){
-      try{
-        const result = await this.relatorioService.findConsolidado({      
-          dataInicio,dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar,emProcessamento
-        });
-        return result;
-      }catch(e){
-        return new HttpException({ error: e.message}, HttpStatus.BAD_REQUEST);
-      }     
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
+    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    @Query('eleicao', new ParseBooleanPipe({ optional: true })) eleicao: boolean | undefined
+
+  ) {
+    try {
+      const result = await this.relatorioService.findConsolidado({
+        dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, eleicao
+      });
+      return result;
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
   }
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
@@ -63,6 +66,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
   @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
   @ApiQuery({ name: 'emProcessamento', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for em Processamento', default: false }) })
+  @ApiQuery({ name: 'eleicao', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for em Processamento', default: false }) })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -73,25 +77,27 @@ export class RelatorioController {
     @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
     dataFim: Date,
     @Query('favorecidoNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    favorecidoNome: string[],    
+    favorecidoNome: string[],
     @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    consorcioNome: string[],    
+    consorcioNome: string[],
     @Query('valorMin', new ParseNumberPipe({ optional: true }))
     valorMin: number | undefined,
     @Query('valorMax', new ParseNumberPipe({ optional: true }))
     valorMax: number | undefined,
-    @Query('pago',new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,     
-    @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
-    @Query('emProcessamento',new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined     
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
+    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    @Query('eleicao', new ParseBooleanPipe({ optional: true })) eleicao: boolean | undefined,
+
   ) {
-    try{
+    try {
       const result = await this.relatorioService.findSintetico({
-        dataInicio,dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar,emProcessamento
+        dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, eleicao
       });
       return result;
-    }catch(e){
-      return new HttpException({ error: e.message}, HttpStatus.BAD_REQUEST);
-    }     
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
   }
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
@@ -112,24 +118,24 @@ export class RelatorioController {
     @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
     dataFim: Date,
     @Query('favorecidoNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    favorecidoNome: string[],    
+    favorecidoNome: string[],
     @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    consorcioNome: string[],    
+    consorcioNome: string[],
     @Query('valorMin', new ParseNumberPipe({ optional: true }))
     valorMin: number | undefined,
     @Query('valorMax', new ParseNumberPipe({ optional: true }))
     valorMax: number | undefined,
-    @Query('pago',new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,     
-    @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined   
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined
   ) {
-    try{
+    try {
       const result = await this.relatorioService.findAnalitico({
-        dataInicio,dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar
+        dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar
       });
       return result;
-    }catch(e){
-      return new HttpException({ error: e.message}, HttpStatus.BAD_REQUEST);
-    }     
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
   }
 
 }
