@@ -9,6 +9,7 @@ export class BigqueryTransacao {
   datetime_captura: string | null;
   modo: string;
   id_consorcio: string;
+  id_ordem_pagamento: number;
   /** Nome do consórcio */
   consorcio: string;
   id_operadora: string;

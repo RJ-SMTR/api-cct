@@ -26,6 +26,7 @@ export interface ITransacaoView {
   itemTransacaoAgrupadoId: number | null;
   createdAt: Date;
   updatedAt: Date;
+  idOrdemPagamento: number; 
 }
 
 /**
@@ -63,6 +64,10 @@ export class TransacaoView {
 
   @Column({ type: String })
   modo: string;
+
+  @Column({ type: 'integer' })
+  idOrdemPagamento: number;
+
 
   @Column({ type: String, nullable: true })
   idConsorcio: string | null;
@@ -152,6 +157,7 @@ export class TransacaoView {
       itemTransacaoAgrupadoId: `${table ? `${table}.` : ''}"itemTransacaoAgrupadoId"`,
       createdAt: `${table ? `${table}.` : ''}"createdAt"`,
       updatedAt: `${table ? `${table}.` : ''}"updatedAt"`,
+      idOrdemPagamento: `${table ? `${table}.` : ''}"idOrdemPagamento"`,
     };
   }
 
@@ -177,6 +183,7 @@ export class TransacaoView {
     itemTransacaoAgrupadoId: 'INT',
     createdAt: 'TIMESTAMP',
     updatedAt: 'TIMESTAMP',
+    idOrdemPagamento: 'INT'
   };
 
   public static fromBigqueryTransacao(bq: BigqueryTransacao) {
@@ -187,6 +194,7 @@ export class TransacaoView {
       idConsorcio: bq.id_consorcio,
       idOperadora: bq.id_operadora,
       idTransacao: bq.id_transacao,
+      idOrdemPagamento: bq.id_ordem_pagamento,
       modo: bq.modo,
       nomeConsorcio: bq.consorcio,
       nomeOperadora: bq.operadora,
@@ -236,6 +244,7 @@ export class TransacaoView {
       modo: this.modo,
       idConsorcio: this.idConsorcio,
       nomeConsorcio: this.nomeConsorcio,
+      idOrdemPagamento: this.idOrdemPagamento,
       idOperadora: this.idOperadora,
       nomeOperadora: this.nomeOperadora,
       idTransacao: this.idTransacao,

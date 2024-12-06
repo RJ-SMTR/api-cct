@@ -82,6 +82,7 @@ export class BigqueryTransacaoRepository {
           o.operadora_completo AS operadora,
           t.id_consorcio,
           t.id_operadora,
+          t.id_ordem_pagamento,
           o.documento AS operadoraCpfCnpj,
           c.cnpj AS consorcioCnpj,
           'ok' AS status,
