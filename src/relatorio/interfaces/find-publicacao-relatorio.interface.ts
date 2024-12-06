@@ -1,11 +1,12 @@
 export interface IFindPublicacaoRelatorio {
   dataInicio: Date;
   dataFim: Date;
-  favorecidoNome?: string[];  
+  favorecidoNome?: string[];
   consorcioNome?: string[];
   valorMin?: number;
   valorMax?: number;
   pago?: boolean;
   aPagar?: boolean;
-  emProcessamento?:boolean;
+  emProcessamento?: boolean;
+  eleicao?: boolean;
 }
