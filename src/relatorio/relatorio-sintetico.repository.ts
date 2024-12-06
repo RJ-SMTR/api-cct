@@ -161,7 +161,10 @@ export class RelatorioSinteticoRepository {
         dataInicio === '2024-11-22' ||
         dataFim === '2024-11-22' ||
         dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05'
+        dataFim === '2024-11-05' ||
+         dataInicio === '2024-12-06' ||
+          dataFim === '2024-12-06'
+         
       ) {
         query += ` and dta."valorLancamento" = 1030 `;
       }
@@ -170,7 +173,9 @@ export class RelatorioSinteticoRepository {
         dataInicio === '2024-11-22' ||
         dataFim === '2024-11-22' ||
         dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05'
+        dataFim === '2024-11-05' ||
+        dataInicio === '2024-12-06' ||
+        dataFim === '2024-12-06'
       ) {
         query += ` and dta."valorLancamento" != '1030' `;
       }
@@ -212,7 +217,9 @@ export class RelatorioSinteticoRepository {
         dataInicio === '2024-11-22' ||
         dataFim === '2024-11-22' ||
         dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05'
+        dataFim === '2024-11-05' ||
+        dataInicio === '2024-12-06' ||
+        dataFim === '2024-12-06'
       ) {
         query += ` and dta."valorLancamento" = 1030 `;
       }
@@ -221,7 +228,9 @@ export class RelatorioSinteticoRepository {
         dataInicio === '2024-11-22' ||
         dataFim === '2024-11-22' ||
         dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05'
+        dataFim === '2024-11-05' ||
+        dataInicio === '2024-12-06' ||
+        dataFim === '2024-12-06'
       ) {
         query += ` and dta."valorLancamento" != '1030' `;
       }
@@ -276,7 +285,9 @@ export class RelatorioSinteticoRepository {
         dataInicio === '2024-11-22' ||
         dataFim === '2024-11-22' ||
         dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05'
+        dataFim === '2024-11-05' ||
+        dataInicio === '2024-12-06' ||
+        dataFim === '2024-12-06'
       ) {
         query += ` and da."valorLancamento" = 1030 `;
       }
@@ -285,7 +296,9 @@ export class RelatorioSinteticoRepository {
         dataInicio === '2024-11-22' ||
         dataFim === '2024-11-22' ||
         dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05'
+        dataFim === '2024-11-05' ||
+        dataInicio === '2024-12-06' ||
+        dataFim === '2024-12-06'
       ) {
         query += ` and da."valorLancamento" != '1030' `;
       }
