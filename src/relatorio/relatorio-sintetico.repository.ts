@@ -158,7 +158,7 @@ export class RelatorioSinteticoRepository {
       query = query + ` and app."isPago"=${args.pago} and TRIM(dta."ocorrenciasCnab")<>'' `;
     }
     if (args.eleicao !== undefined) {
-
+    
       query += ` and tt."idOrdemPagamento" LIKE '%U%'`;
     } else {
 
@@ -196,7 +196,11 @@ export class RelatorioSinteticoRepository {
       query = query + ` and tt."nomeConsorcio" in('STPC','STPL','TEC') `;
     }
     if (args.eleicao !== undefined) {
-      valor = 'da."valorRealEfetivado"'
+      if(args.pago){
+        valor = 'da."valorRealEfetivado"'
+      } else {
+        valor = 'it."valor"'
+      }
       query += ` and tt."idOrdemPagamento" LIKE '%U%'`;
     } else {
       valor = 'it."valor"'
@@ -248,7 +252,7 @@ export class RelatorioSinteticoRepository {
       where  `;
     if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) query = query + ` da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
     if (args.eleicao !== undefined) {
-
+  
       query += ` and ita."idOrdemPagamento" LIKE '%U%'`;
     } else {
 
