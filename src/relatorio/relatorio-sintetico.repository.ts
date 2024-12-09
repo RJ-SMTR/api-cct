@@ -139,6 +139,7 @@ export class RelatorioSinteticoRepository {
   public getQueryNaoApagar(args: IFindPublicacaoRelatorio) {
     const dataInicio = args.dataInicio.toISOString().slice(0, 10);
     const dataFim = args.dataFim.toISOString().slice(0, 10);
+    let valor = '';
     let query = ` select distinct res.*, `;
     query = query + `(select sum(ss."valorLancamento")::float  from `;
     query =
@@ -157,33 +158,12 @@ export class RelatorioSinteticoRepository {
       query = query + ` and app."isPago"=${args.pago} and TRIM(dta."ocorrenciasCnab")<>'' `;
     }
     if (args.eleicao !== undefined) {
-      if (
-        dataInicio === '2024-11-22' ||
-        dataFim === '2024-11-22' ||
-        dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05' ||
-         dataInicio === '2024-12-06' ||
-          dataFim === '2024-12-06' ||
-         dataInicio === '2024-12-05' ||
-          dataFim === '2024-12-05'
-         
-      ) {
-        query += ` and dta."valorLancamento" = 1030 `;
-      }
-    } else {
-      if (
-        dataInicio === '2024-11-22' ||
-        dataFim === '2024-11-22' ||
-        dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05' ||
-        dataInicio === '2024-12-06' ||
-        dataFim === '2024-12-06' || dataInicio === '2024-12-05' ||
-        dataFim === '2024-12-05'
-      ) {
-        query += ` and dta."valorLancamento" != '1030' `;
-      }
-    }
 
+      query += ` and tt."idOrdemPagamento" LIKE '%U%'`;
+    } else {
+
+      query += `and tt."idOrdemPagamento" NOT LIKE '%U%' `;
+    }
     query = query + ` and tt."nomeConsorcio"=res.consorcio `;
     query = query + ` )as ss)  as subTotal, `;
 
@@ -216,30 +196,11 @@ export class RelatorioSinteticoRepository {
       query = query + ` and tt."nomeConsorcio" in('STPC','STPL','TEC') `;
     }
     if (args.eleicao !== undefined) {
-      if (
-        dataInicio === '2024-11-22' ||
-        dataFim === '2024-11-22' ||
-        dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05' ||
-        dataInicio === '2024-12-06' ||
-        dataFim === '2024-12-06' ||
-        dataInicio === '2024-12-05' ||
-        dataFim === '2024-12-05'
-      ) {
-        query += ` and dta."valorLancamento" = 1030 `;
-      }
+      valor = 'da."valorRealEfetivado"'
+      query += ` and tt."idOrdemPagamento" LIKE '%U%'`;
     } else {
-      if (
-        dataInicio === '2024-11-22' ||
-        dataFim === '2024-11-22' ||
-        dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05' ||
-        dataInicio === '2024-12-06' ||
-        dataFim === '2024-12-06' || dataInicio === '2024-12-05' ||
-        dataFim === '2024-12-05'
-      ) {
-        query += ` and dta."valorLancamento" != '1030' `;
-      }
+      valor = 'it."valor"'
+      query += `and tt."idOrdemPagamento" NOT LIKE '%U%' `;
     }
     query = query + ` )as tt  )as total `;
 
@@ -266,7 +227,7 @@ export class RelatorioSinteticoRepository {
       it."nomeConsorcio" AS consorcio,	
       cf.nome AS favorecido,
       cf."cpfCnpj",	
-      it."valor"::float as valor,			      
+      ${valor}::float as valor,			      
       case 
       when(not(ap."isPago") and TRIM(da."ocorrenciasCnab")='')then 'Aguardando Pagamento'	
       when (ap."isPago") then 'pago' 
@@ -287,30 +248,11 @@ export class RelatorioSinteticoRepository {
       where  `;
     if (dataInicio !== undefined && dataFim !== undefined && (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio))) query = query + ` da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
     if (args.eleicao !== undefined) {
-      if (
-        dataInicio === '2024-11-22' ||
-        dataFim === '2024-11-22' ||
-        dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05' ||
-        dataInicio === '2024-12-06' ||
-        dataFim === '2024-12-06'||
-        dataInicio === '2024-12-05' ||
-        dataFim === '2024-12-05'
-      ) {
-        query += ` and da."valorLancamento" = 1030 `;
-      }
+
+      query += ` and ita."idOrdemPagamento" LIKE '%U%'`;
     } else {
-      if (
-        dataInicio === '2024-11-22' ||
-        dataFim === '2024-11-22' ||
-        dataInicio === '2024-11-05' ||
-        dataFim === '2024-11-05' ||
-        dataInicio === '2024-12-06' ||
-        dataFim === '2024-12-06' || dataInicio === '2024-12-05' ||
-        dataFim === '2024-12-05'
-      ) {
-        query += ` and da."valorLancamento" != '1030' `;
-      }
+
+      query += `and ita."idOrdemPagamento" NOT LIKE '%U%' `;
     }
     if (args.consorcioNome !== undefined && !['Todos'].some((i) => args.consorcioNome?.includes(i))) {
       query = query + ` and it."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;
