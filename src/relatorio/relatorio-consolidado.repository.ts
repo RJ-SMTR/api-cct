@@ -173,7 +173,11 @@ export class RelatorioConsolidadoRepository {
   private getQueryOperadores(dataInicio: string, dataFim: string, pago?: boolean, valorMin?: number, valorMax?: number, favorecidoNome?: string[], emProcessamento?: boolean, eleicao?: boolean) {
     let valor = '';
     if(eleicao){
-      valor ='da."valorRealEfetivado"'
+      if(pago){
+        valor = 'da."valorRealEfetivado"'
+      } else {
+        valor = ' da."valorLancamento"'
+      }
     } else {
       valor = ' da."valorLancamento"'
     }
@@ -185,7 +189,7 @@ export class RelatorioConsolidadoRepository {
                         ita."nomeConsorcio" AS consorcio,	
                         cf.nome AS favorecido,
                         cf."cpfCnpj" AS favorecido_cpfcnpj,                        
-		                  ${valor} AS valor_agrupado
+		                    ${valor} AS valor_agrupado
                         from transacao_agrupado ta 
                         inner join item_transacao_agrupado ita on ita."transacaoAgrupadoId"=ta."id" 
                         inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
