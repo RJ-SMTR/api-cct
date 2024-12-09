@@ -408,12 +408,12 @@ export class CronJobsService {
     } else if (isTuesday(today)) {
       daysBeforeBegin = 3;
     }
-    const startDate = new Date('2024-11-19') //subDays(today, daysBeforeBegin);
-    const endDate = new Date('2024-11-20') //subDays(today, daysBeforeEnd);
+    const startDate = subDays(today, daysBeforeBegin);
+    const endDate = subDays(today, daysBeforeEnd);
     await this.cnabService.saveTransacoesJae(startDate, endDate, undefined, 'VLT');
     const listCnab = await this.cnabService.generateRemessa({
       tipo: PagadorContaEnum.ContaBilhetagem,
-      dataPgto: new Date('2024-11-03'),
+      dataPgto: today,
       isConference: false,
       isCancelamento: false,
       isTeste: false,
