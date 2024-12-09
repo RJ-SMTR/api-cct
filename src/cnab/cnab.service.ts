@@ -333,8 +333,7 @@ export class CnabService {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio === consorcio.trim());
     }
     const ordemDtos = ordensFilter.map((o) => OrdemPagamentoDto.fromBigqueryOrdem(o));
-    await this.saveOrdens(ordemDtos.filter(o=>o.idOperadora === '810012965' 
-      || o.idOperadora ==='810020012'), 'contaBilhetagem');
+    await this.saveOrdens(ordemDtos, 'contaBilhetagem');
   }
 
   private async updateAllFavorecidosFromUsers() {
