@@ -82,7 +82,9 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {    
+  async onModuleLoad() { 
+    await this.generateRemessaVanzeiros();
+    await this.syncTransacaoViewOrdem('van');   
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
@@ -172,7 +174,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.sendReport,
         cronJobParameters: {
-          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+         cronTime:  (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: async () => await this.sendStatusReport(),
         },
       },
@@ -295,7 +297,7 @@ export class CronJobsService {
    * - É staging se .env -> nodeEnv = production, Banco -> settings.api_env = staging
    */
   public async getIsProd(method?: string) {
-    const apiEnv = await this.settingsService.getOneBySettingData(appSettings.any__api_env);
+    const apiEnv = await this.settingsService.getOneBySettingData(appSettings.any__bigquery_env);
     const nodeEnv = this.configService.getOrThrow('app.nodeEnv', { infer: true });
     const isProd = nodeEnv === 'production' && apiEnv.getValueAsString() === 'production';
     if (method !== undefined && !isProd) {
