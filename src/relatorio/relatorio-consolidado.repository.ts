@@ -68,17 +68,32 @@ export class RelatorioConsolidadoRepository {
     emProcessamento?: boolean,
     eleicao?: boolean
   ) {
+    let distinct = '';
+    let cf = ''
+    if(eleicao){
+      if(pago){
+         distinct = 'ita.id AS id';
+      } else {
+         distinct = ` on (cf."nome")  ita.id AS id`
+        cf = ' inner join cliente_favorecido cf on it."clienteFavorecidoId" = cf.id'
+      }
+    } else {
+       distinct = 'ita.id AS id';
+    }
     let query = ` select * from ( `;
     query += ` select cs."consorcio" nomeFavorecido,sum(cs."valor_agrupado")::float valor from ( `;
     query += `
-    select distinct ita.id AS id,
+    select distinct ${distinct},
                     ita."nomeConsorcio" AS consorcio,	                                     
 		                da."valorLancamento" AS valor_agrupado
     from transacao_agrupado ta 
     inner join item_transacao_agrupado ita on ita."transacaoAgrupadoId"=ta."id"
     inner join detalhe_a da on da."itemTransacaoAgrupadoId"= ita.id
     inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
-    inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id                   
+    inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id   
+    ${cf}     
+     
+              
     where ta."statusId"<>5 `;
 
     if (
@@ -172,17 +187,21 @@ export class RelatorioConsolidadoRepository {
 
   private getQueryOperadores(dataInicio: string, dataFim: string, pago?: boolean, valorMin?: number, valorMax?: number, favorecidoNome?: string[], emProcessamento?: boolean, eleicao?: boolean) {
     let valor = '';
+    let valor_agrupado = '';
     if(eleicao){
       if(pago){
         valor = 'da."valorRealEfetivado"'
+        valor_agrupado = 'sum(cs."valor_agrupado")::float'
       } else {
         valor = ' da."valorLancamento"'
+        valor_agrupado = 'cs."valor_agrupado"::float';
       }
     } else {
       valor = ' da."valorLancamento"'
+      valor_agrupado = 'sum(cs."valor_agrupado")::float'
     }
     let query = ` select * from ( `;
-    query = query + ` select cs."favorecido" nomeFavorecido,sum(cs."valor_agrupado")::float  valor from ( `;
+    query = query + ` select cs."favorecido" nomeFavorecido,${valor_agrupado} as valor from ( `;
     query =
       query +
       ` select distinct ita.id AS id,
@@ -205,7 +224,6 @@ export class RelatorioConsolidadoRepository {
     }
 
     if (favorecidoNome !== undefined && !['Todos'].some((i) => favorecidoNome?.includes(i))) query = query + ` and cf.nome in('${favorecidoNome?.join("','")}')`;
-    console.log(eleicao)
 
     if (eleicao !== undefined) {
 
@@ -216,18 +234,25 @@ export class RelatorioConsolidadoRepository {
     }
     query = query + `) as cs `;
 
-    query = query + ` group by cs."consorcio", cs."favorecido" `;
+    query = query + `${eleicao && !pago ? 'group by cs."consorcio", cs."favorecido", cs."valor_agrupado"' : ' group by cs."consorcio", cs."favorecido"'}`;
 
     query = query + ` order by  cs."favorecido" `;
 
     query = query + `) as resul where (1=1) `;
 
-    if (valorMin !== undefined) query = query + `  and resul."valor">=${valorMin}`;
 
-    if (valorMax !== undefined) query = query + ` and resul."valor"<=${valorMax}`;
+    if (valorMin !== undefined) {
+     
+        query = query + `  and resul."valor" >=${valorMin}`;
+    }
+
+    if (valorMax !== undefined) {
+    
+        query = query + ` and resul."valor" <= ${valorMax}`;
+    }
     return query;
   }
-
+// ELEICAO COM FILTRO DE ERRO TIRA A SOMA 
   public async findConsolidado(args: IFindPublicacaoRelatorio): Promise<RelatorioConsolidadoDto[]> {
 
     let queryConsorcio = '';

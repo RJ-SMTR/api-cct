@@ -277,10 +277,22 @@ export class RelatorioSinteticoRepository {
       query = query + ` and	ap."isPago"=${args.pago} and TRIM(da."ocorrenciasCnab")<>'' `;
     }
 
-    if (args.valorMin !== undefined) query = query + `  and it."valor">=${args.valorMin}`;
+    if (args.valorMin !== undefined){
+      if(args.eleicao){
+        query = query + `  and da."valorRealEfetivado" >=${args.valorMin}`;
+      } else {
+        query = query + `  and it."valor" >=${args.valorMin}`;
+      }
+    }
 
-    if (args.valorMax !== undefined) query = query + ` and it."valor"<=${args.valorMax}`;
-
+    if (args.valorMax !== undefined){
+      if (args.eleicao) {
+        query = query + `  and da."valorRealEfetivado" <= ${args.valorMax }`;
+      } else {
+        query = query + ` and it."valor" <= ${ args.valorMax }`;
+      }
+    }
+    
     query =
       query +
       ` ) as res
