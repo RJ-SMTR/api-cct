@@ -26,6 +26,7 @@ export interface ITransacaoView {
   itemTransacaoAgrupadoId: number | null;
   createdAt: Date;
   updatedAt: Date;
+  idOrdemPagamento: number | null;
 }
 
 /**
