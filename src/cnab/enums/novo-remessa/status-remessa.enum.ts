@@ -1,5 +1,7 @@
 export enum StatusRemessaEnum {
-  _1_criado = 'criado',
-  _2_enviado = 'enviado',
-  _3_cancelado = 'cancelado',
+  Criado = 0,//Criado no CCT
+  EnviadoBanco = 1,//Aguardando Pagamento
+  AguardandoPagamento = 2, //primeiro retorno
+  Efetivado = 3,//Segundo retorno
+  NaoEfetivado = 4 //Retorno com Erro
 }

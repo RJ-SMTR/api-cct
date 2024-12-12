@@ -1,8 +1,9 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { AfterLoad, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn,  ManyToOne,  OneToMany, 
+   PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { OrdemPagamento } from './ordem-pagamento.entity';
-import { asNullableStringOrNumber, asStringOrNumber } from 'src/utils/pipe-utils';
-import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
+import { OrdemPagamentoAgrupadoHistorico } from './ordem-pagamento-agrupado-historico.entity';
+import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 
 @Entity()
 export class OrdemPagamentoAgrupado extends EntityHelper {
@@ -14,34 +15,8 @@ export class OrdemPagamentoAgrupado extends EntityHelper {
   }
 
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_OrdemPagamentoAgrupadoId' })
-  id: number;
+  id: number;  
 
-  @Column({ type: String, unique: false, nullable: false })
-  userId: number;
-
-  @Column({ type: String, unique: false, nullable: false })
-  userBankCode: string;
-
-  @Column({ type: String, unique: false, nullable: false })
-  userBankAgency: string;
-
-  @Column({ type: String, unique: false, nullable: false })
-  userBankAccount: string;
-
-  @Column({ type: String, unique: false, nullable: false })
-  userBankAccountDigit: string;
-
-  /**
-   * Data em que o pagamento agrupado foi gerado no CCT. Inclui data-hora para sabermos o momento exato da geração.
-   * É o mesmo que createdAt, para simplificação.
-   */
-  @CreateDateColumn()
-  dataPagamento: Date;
-
-  /**
-   * Valor da soma das Ordens.
-   * Se não houver valores a somar, o total deve ser `0.00`, nunca `null` - para simplificação.
-   */
   @Column({
     type: 'decimal',
     unique: false,
@@ -49,28 +24,28 @@ export class OrdemPagamentoAgrupado extends EntityHelper {
     precision: 13,
     scale: 5,
   })
-  valorTotal: number;
+  valorTotal: number;  
 
-  @OneToMany(() => OrdemPagamento, (op) => op.ordemPgamentoAgrupado, { eager: false })
+  @Column({ type: Date, unique: false, nullable: false })
+  dataPagamento: Date;
+  
+  @OneToMany(() => OrdemPagamento, (op) => op.ordemPagamentoAgrupado, { eager: false })
   @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupado_ordensPagamento_OneToMany' })
   ordensPagamento: OrdemPagamento[];
 
-  /** Gerado, Enviado, Cancelado */
-  @Column({ enum: StatusRemessaEnum, unique: false, nullable: false })
-  statusRemessa: StatusRemessaEnum;
+  @OneToMany(() => OrdemPagamentoAgrupadoHistorico, (op) => op.ordemPagamentoAgrupado, { eager: false })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupadoHistorico_ordensPagamento_OneToMany' })
+  ordensPagamentoAgrupadoHistorico: OrdemPagamentoAgrupadoHistorico[];
 
-  /** Pago, Não Pago */
-  @Column({ type: Boolean, unique: false, nullable: false })
-  isPago: boolean;
+  @ManyToOne(() => Pagador, { eager: true })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupado_pagador_ManyToOne',
+  })
+  pagador: Pagador;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt: Date; 
 
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  @AfterLoad()
-  setReadValues() {
-    this.valorTotal = asStringOrNumber(this.valorTotal);
-  }
+  @UpdateDateColumn() 
+  updatedAt: Date; 
 }
