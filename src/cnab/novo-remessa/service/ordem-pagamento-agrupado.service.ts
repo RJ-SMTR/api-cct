@@ -10,6 +10,7 @@ import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 import { BigQueryToOrdemPagamento } from '../convertTo/bigquery-to-ordem-pagamento.convert';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
+import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -18,6 +19,7 @@ export class OrdemPagamentoService {
   constructor(
     private ordemPamentoRepository: OrdemPagamentoRepository, 
     private ordemPamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository,
+    private ordemPamentoAgrupadoHistRepository: OrdemPagamentoAgrupadoHistoricoRepository,
     private pagadorService: PagadorService,  
   ) {}   
  
@@ -42,10 +44,12 @@ export class OrdemPagamentoService {
 
   async saveAll(ordens: OrdemPagamento[], pagador: Pagador,dataPgto:Date){
     for (const ordem of ordens) {
-      let ordemPagamentoAgrupado = await this.verificaOrdemPagamento(ordem,dataPgto);
+      let ordemPagamentoAgrupado = await this.verificaOrdemPagamento(ordem,dataPgto);      
       if (!ordemPagamentoAgrupado) {
         ordemPagamentoAgrupado = new OrdemPagamentoAgrupado();        
         ordemPagamentoAgrupado.createdAt = new Date();
+      }else{       
+
       }
 
       ordemPagamentoAgrupado.valorTotal += ordem.valor;      
@@ -55,7 +59,7 @@ export class OrdemPagamentoService {
       ordemPagamentoAgrupado.ordensPagamento.push(ordem);
       await this.ordemPamentoAgrupadoRepository.save(ordemPagamentoAgrupado);
     }
-  } 
+  }  
 
   async verificaOrdemPagamento(ordem:OrdemPagamento,dataPgto:Date){
     return await this.ordemPamentoAgrupadoRepository.findOne(
