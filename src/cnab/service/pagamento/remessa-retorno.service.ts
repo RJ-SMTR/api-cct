@@ -185,7 +185,7 @@ export class RemessaRetornoService {
   async verificaPagamentoIndevido(itemTransacao: ItemTransacao) {
     if (itemTransacao.nomeConsorcio === 'STPC' || itemTransacao.nomeConsorcio === 'STPL') {
       const pagamentoIndevido = (await this.pagamentoIndevidoService.findAll())
-        .filter(p => p.nomeFavorecido === itemTransacao.clienteFavorecido.nome);
+        .filter(p => p.nomeFavorecido === itemTransacao.clienteFavorecido.nome && p.saldoDevedor > 0);
       if (pagamentoIndevido && pagamentoIndevido[0] !== undefined
         && pagamentoIndevido[0].saldoDevedor !== undefined) {
         return pagamentoIndevido[0].saldoDevedor > 0 ? pagamentoIndevido[0] : undefined;
