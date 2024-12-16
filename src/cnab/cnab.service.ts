@@ -344,6 +344,7 @@ export class CnabService {
   /**
    * Atualiza a tabela TransacaoView com dados novos ou atualizados do bigquery
    */
+
   async updateTransacaoViewBigquery(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string = 'Todos', idTransacao: string[] = []) {
     const METHOD = 'updateTransacaoViewBigquery';
     const trs = await this.findBigqueryTransacao(dataOrdemIncial, dataOrdemFinal, daysBack, consorcio);
@@ -373,7 +374,31 @@ export class CnabService {
         if (existing.length === 0) {
           await queryRunner.manager.getRepository(TransacaoView).save(transacaoViewBq);
           response.created += 1;
-        } else { 
+        } else {
+          if (existing.length > 1) {
+            await queryRunner.manager.getRepository(TransacaoView).remove(existing.slice(1));
+            response.deduplicated += 1;
+          }
+
+          if (
+            existing[0].idOrdemPagamento !== undefined &&
+            transacaoViewBq.idOrdemPagamento !== null 
+          ) {
+            response.updated += 1;
+            await this.transacaoViewService.updateManyRaw(
+              [
+                {
+                  id: existing[0].id,
+                  idTransacao: existing[0].idTransacao,
+                  idOrdemPagamento: Number(transacaoViewBq.idOrdemPagamento),
+                },
+              ],
+              ['idTransacao', 'idOrdemPagamento'],
+              'idTransacao',
+              queryRunner.manager
+            );
+          }
+
           if (!existing[0].valorPago && transacaoViewBq.valorPago != existing[0].valorPago) {
             response.updated += 1;
             await this.transacaoViewService.updateManyRaw(

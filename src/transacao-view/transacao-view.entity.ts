@@ -26,6 +26,7 @@ export interface ITransacaoView {
   itemTransacaoAgrupadoId: number | null;
   createdAt: Date;
   updatedAt: Date;
+  idOrdemPagamento: number | null;
 }
 
 /**
@@ -152,6 +153,7 @@ export class TransacaoView {
       itemTransacaoAgrupadoId: `${table ? `${table}.` : ''}"itemTransacaoAgrupadoId"`,
       createdAt: `${table ? `${table}.` : ''}"createdAt"`,
       updatedAt: `${table ? `${table}.` : ''}"updatedAt"`,
+      idOrdemPagamento: `${table ? `${table}.` : ''}"idOrdemPagamento"`,
     };
   }
 
@@ -177,6 +179,7 @@ export class TransacaoView {
     itemTransacaoAgrupadoId: 'INT',
     createdAt: 'TIMESTAMP',
     updatedAt: 'TIMESTAMP',
+    idOrdemPagamento: 'INT',
   };
 
   public static fromBigqueryTransacao(bq: BigqueryTransacao) {
