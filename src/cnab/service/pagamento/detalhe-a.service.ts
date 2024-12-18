@@ -42,14 +42,22 @@ export class DetalheAService {
   public async saveRetornoFrom104(headerArq: CnabHeaderArquivo104, headerLotePgto: CnabHeaderLote104Pgto, r: CnabRegistros104Pgto, dataEfetivacao: Date, retornoName: string): Promise<DetalheA | ('favorecidoNotFound' | 'detalheANotFound' | 'hasUpdatedRetorno')> {
     const logRegistro = `HeaderArquivo: ${headerArq.nsa.convertedValue}, lote: ${headerLotePgto.codigoRegistro.value}`;
     const favorecido = await this.clienteFavorecidoService.findOneRaw({
-      detalheANumeroDocumento: [r.detalheA.numeroDocumentoEmpresa.convertedValue],
+      nome: [r.detalheA.nomeTerceiro.stringValue],
+      dataVencimento: [r.detalheA.dataVencimento.convertedValue],
+      valorRealEfetivado: [r.detalheA.valorRealEfetivado.convertedValue]
     });
 
     if (!favorecido) {
       this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue} - Favorecido não encontrado para o nome: '${r.detalheA.nomeTerceiro.stringValue.trim()}'`);
       return 'favorecidoNotFound';
     }
-    const detalheA = await this.detalheARepository.findOneRaw({ numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue });
+
+    const detalheA = await this.detalheARepository.findOneRaw({
+      nome: [r.detalheA.nomeTerceiro.stringValue],
+      dataVencimento: [r.detalheA.dataVencimento.convertedValue],
+      valorRealEfetivado: [r.detalheA.valorRealEfetivado.convertedValue]
+});
+    
     if (!detalheA) {
       this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue}, favorecido: '${favorecido.nome}' - NÃO ENCONTRADO!`);
       return 'detalheANotFound';
