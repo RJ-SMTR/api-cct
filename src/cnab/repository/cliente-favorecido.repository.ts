@@ -14,6 +14,8 @@ export interface IClienteFavorecidoRawWhere {
   cpfCnpj?: string;
   /** numeroDocumentoEmpresa */
   detalheANumeroDocumento?: number[];
+  dataVencimento?: Date[];
+  valorRealEfetivado?: number[];
 }
 
 export interface IClienteFavorecidoFindBy {
@@ -158,38 +160,64 @@ export class ClienteFavorecidoRepository {
   }
 
   public async findManyRaw(where: IClienteFavorecidoRawWhere): Promise<ClienteFavorecido[]> {
-    const qWhere: { query: string; params?: any[] } = { query: '' };
-    if (where.id) {
-      qWhere.query = 'WHERE cf.id IN ($1)';
-      qWhere.params = [where.id];
-    } else if (where.cpfCnpj) {
-      qWhere.query = `WHERE cf."cpfCnpj" = $1`;
-      qWhere.params = [where.cpfCnpj];
-    } else if (where.nome) {
-      const nomes = where.nome.map((n) => `'%${n}%'`);
-      qWhere.query = `WHERE cf.nome ILIKE ANY(ARRAY[${nomes.join(',')}])`;
-      qWhere.params = [];
-    } else if (where.detalheANumeroDocumento) {
-      qWhere.query = `WHERE da."numeroDocumentoEmpresa" IN (${where.detalheANumeroDocumento.join(',')})`;
-      qWhere.params = [];
-    }
-    const result: any[] = await this.clienteFavorecidoRepository.query(
-      compactQuery(`
-      SELECT cf.*
-      FROM cliente_favorecido cf
-      ${
-        where?.detalheANumeroDocumento
-          ? `INNER JOIN item_transacao it ON it."clienteFavorecidoId" = cf.id
-      INNER JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
-      INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id`
-          : ''
+    let query = `
+    SELECT cf.*
+    FROM cliente_favorecido cf
+    ${where.detalheANumeroDocumento || where.dataVencimento || where.valorRealEfetivado
+        ? `
+    INNER JOIN item_transacao it ON it."clienteFavorecidoId" = cf.id
+    INNER JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
+    INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
+        `
+        : ''
       }
-      ${qWhere.query}
-      ORDER BY cf.id
-    `),
-      qWhere.params,
-    );
-    const itens = result.map((i) => new ClienteFavorecido(i));
-    return itens;
+    WHERE 1=1
+  `;
+
+    if (where.id) {
+      query += ` AND cf.id IN (${where.id.map((id) => `'${id}'`).join(',')})`;
+    }
+
+    if (where.cpfCnpj) {
+      query += ` AND cf."cpfCnpj" = '${where.cpfCnpj}'`;
+    }
+
+    if (where.nome) {
+      const trimmedNames = where.nome.map((n) => n.trim());
+      const nomes = trimmedNames.map((n) => `'%${n}%'`);
+      query += ` AND cf.nome ILIKE ANY(ARRAY[${nomes.join(',')}])`;
+    }
+
+    if (where.detalheANumeroDocumento) {
+      query += ` AND da."numeroDocumentoEmpresa" IN (${where.detalheANumeroDocumento
+        .map((doc) => `'${doc}'`)
+        .join(',')})`;
+    }
+
+    if (where.dataVencimento) {
+      const normalizedDates = where.dataVencimento.map((date) => {
+        const parsedDate = new Date(date);
+        if (isNaN(parsedDate.getTime())) {
+          throw new Error(`Invalid date format: ${date}`);
+        }
+        return parsedDate.toISOString(); 
+      });
+      query += ` AND da."dataVencimento" = ANY(ARRAY[${normalizedDates
+        .map((date) => `'${date}'`)
+        .join(',')}]::timestamp[])`;
+    }
+
+    if (where.valorRealEfetivado) {
+      query += ` AND da."valorRealEfetivado" IN (${where.valorRealEfetivado
+        .map((valor) => `${valor}`)
+        .join(',')})`;
+    }
+
+    query += ` ORDER BY cf.id`;
+
+    const result: any[] = await this.clienteFavorecidoRepository.query(compactQuery(query));
+    return result.map((i) => new ClienteFavorecido(i));
   }
+
+
 }
