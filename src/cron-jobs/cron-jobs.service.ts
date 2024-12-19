@@ -515,7 +515,7 @@ export class CronJobsService {
       try {
         this.logger.log('Iniciando tarefa.', METHOD);
         if (consorcio == 'Van') {
-          startDate = subDays(startDate, 8);
+          startDate = subDays(startDate, 1);
         } else if (consorcio == 'VLT') {
           startDate = subDays(startDate, 1);
         } else {
@@ -536,7 +536,7 @@ export class CronJobsService {
   async updateTransacaoViewValues() {
     const METHOD = this.updateTransacaoViewValues.name;
     try {
-      await this.cnabService.updateTransacaoViewBigqueryValues(8);
+      await this.cnabService.updateTransacaoViewBigqueryValues(1);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
