@@ -44,8 +44,10 @@ export class DetalheAService {
     const favorecido = await this.clienteFavorecidoService.findOneRaw({
       nome: [r.detalheA.nomeTerceiro.stringValue],
       dataVencimento: [r.detalheA.dataVencimento.convertedValue],
-      valorRealEfetivado: [r.detalheA.valorRealEfetivado.convertedValue]
+      detalheANumeroDocumento: [r.detalheA.numeroDocumentoEmpresa.convertedValue],
+      valorRealEfetivado: [r.detalheA.valorLancamento.convertedValue]
     });
+
 
     if (!favorecido) {
       this.logger.warn(logRegistro + ` Detalhe A Documento: ${r.detalheA.numeroDocumentoEmpresa.convertedValue} - Favorecido não encontrado para o nome: '${r.detalheA.nomeTerceiro.stringValue.trim()}'`);
@@ -55,7 +57,8 @@ export class DetalheAService {
     const detalheA = await this.detalheARepository.findOneRaw({
       nome: [r.detalheA.nomeTerceiro.stringValue],
       dataVencimento: [r.detalheA.dataVencimento.convertedValue],
-      valorRealEfetivado: [r.detalheA.valorRealEfetivado.convertedValue]
+      numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
+      valorRealEfetivado: [r.detalheA.valorLancamento.convertedValue]
 });
     
     if (!detalheA) {
