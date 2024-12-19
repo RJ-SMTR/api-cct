@@ -86,7 +86,16 @@ export class DetalheARepository {
       const trimmedNames = where.nome.map((n) => n.trim());
       const nomes = trimmedNames.map((n) => `'%${n}%'`);
       qWhere.query += ` AND cf.nome ILIKE ANY(ARRAY[${nomes.join(',')}])`;
+
+      const containsCorsorcio = trimmedNames.some(
+        (name) => name.toLowerCase().includes('concessionaria') || name.toLowerCase().includes('consorcio')
+      );
+      if (containsCorsorcio && where.numeroDocumentoEmpresa) {
+        qWhere.query += ` AND da."numeroDocumentoEmpresa" = $${qWhere.params.length + 1}`;
+        qWhere.params.push(where.numeroDocumentoEmpresa);
+      }
     }
+
     const result: any[] = await this.detalheARepository.query(
       compactQuery(`
       SELECT

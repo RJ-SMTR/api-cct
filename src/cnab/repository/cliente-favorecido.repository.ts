@@ -186,8 +186,16 @@ export class ClienteFavorecidoRepository {
       const trimmedNames = where.nome.map((n) => n.trim());
       const nomes = trimmedNames.map((n) => `'%${n}%'`);
       query += ` AND cf.nome ILIKE ANY(ARRAY[${nomes.join(',')}])`;
-    }
 
+      const containsCorsorcio = trimmedNames.some(
+        (name) => name.toLowerCase().includes('concessionaria') || name.toLowerCase().includes('consorcio')
+      );
+      if (containsCorsorcio && where.detalheANumeroDocumento) {
+        query += ` AND da."numeroDocumentoEmpresa" IN (${where.detalheANumeroDocumento
+          .map((doc) => `'${doc}'`)
+          .join(',')})`;
+      }
+    }
     if (where.detalheANumeroDocumento) {
       query += ` AND da."numeroDocumentoEmpresa" IN (${where.detalheANumeroDocumento
         .map((doc) => `'${doc}'`)
@@ -216,6 +224,7 @@ export class ClienteFavorecidoRepository {
     query += ` ORDER BY cf.id`;
 
     const result: any[] = await this.clienteFavorecidoRepository.query(compactQuery(query));
+    
     return result.map((i) => new ClienteFavorecido(i));
   }
 
