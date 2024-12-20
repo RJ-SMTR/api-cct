@@ -17,9 +17,9 @@ export class OrdemPagamentoService {
     private usersService: UsersService,
   ) {}
 
-  async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string) {
+  async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
     const METHOD = 'sincronizarOrdensPagamento';
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: [consorcio] });
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: consorcio });
     this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
 
     for (const ordem of ordens) {

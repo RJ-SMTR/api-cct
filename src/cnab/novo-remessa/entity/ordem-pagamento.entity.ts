@@ -25,7 +25,7 @@ export class OrdemPagamento extends EntityHelper {
   nomeOperadora: string | null;
 
   @Column({ type: Number, unique: false, nullable: true })
-  userId: number | undefined;
+  userId?: number | undefined;
 
   @Column({
     type: 'decimal',
