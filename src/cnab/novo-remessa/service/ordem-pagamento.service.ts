@@ -43,9 +43,13 @@ export class OrdemPagamentoService implements OnModuleInit, OnModuleLoad {
 
     for (const ordem of ordens) {
       if (ordem.operadoraCpfCnpj) {
-        const user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
-        if (user) {
-          await this.inserirOrdemPagamento(ordem, user.id);
+        try {
+          const user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
+          if (user) {
+            await this.inserirOrdemPagamento(ordem, user.id);
+          }
+        } catch (error) {
+          this.logger.error(`Erro ao sincronizar ordem de pagamento ${ordem.id}: ${error.message}`, METHOD);
         }
       }
     }

@@ -4,7 +4,7 @@ export class UpdatePgtoIndevido1732654821584 implements MigrationInterface {
   name = 'UpdatePgtoIndevido1732654821584';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "transacao_agrupado" DROP COLUMN "isUnico"`);
+    await queryRunner.query(`ALTER TABLE "transacao_agrupado" DROP COLUMN IF EXISTS "isUnico"`);
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" DROP COLUMN "dataPagamento"`);
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" ADD "dataPagamento" TIMESTAMP`);
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" DROP COLUMN "dataReferencia"`);
