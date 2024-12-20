@@ -71,6 +71,9 @@ export class OrdemPagamento extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupado_ManyToOne' })
   ordemPgamentoAgrupado: OrdemPagamentoAgrupado;
 
+  @Column({ type: Date, unique: false, nullable: true })
+  dataCaptura: Date;
+
   /**
    *
    */

@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { HttpException, Injectable, OnModuleInit } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { AllPagadorDict } from 'src/cnab/interfaces/pagamento/all-pagador-dict.interface';
@@ -36,19 +36,26 @@ export class OrdemPagamentoService implements OnModuleInit, OnModuleLoad {
     await this.sincronizarOrdensPagamento(new Date('2024-11-15'), new Date('2024-11-21'), 'TEC');
   }
 
-  async sincronizarOrdensPagamento(dataOrdemInicialDate: Date, dataOrdemFinalDate: Date, consorcio: string) {
+  async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string) {
     const METHOD = 'sincronizarOrdensPagamento';
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, 0, { consorcioName: [consorcio] });
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: [consorcio] });
     this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
 
     for (const ordem of ordens) {
       if (ordem.operadoraCpfCnpj) {
+        let user: User | undefined;
         try {
-          const user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
+          user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
           if (user) {
             await this.inserirOrdemPagamento(ordem, user.id);
           }
         } catch (error) {
+          /***  TODO: Caso o erro lançado seja relacionado ao fato do usuário não ter sido encontrado,
+              ajustar o código para inserir a ordem de pagamento com o usuário nulo
+           ***/
+          if (error instanceof HttpException && !user) {
+            // await this.inserirOrdemPagamento(ordem, null);
+          }
           this.logger.error(`Erro ao sincronizar ordem de pagamento ${ordem.id}: ${error.message}`, METHOD);
         }
       }
@@ -101,6 +108,7 @@ export class OrdemPagamentoService implements OnModuleInit, OnModuleLoad {
     result.userId = userId;
     result.valor = ordem.valorTotalTransacaoLiquido;
     result.bqUpdatedAt = new Date(ordem.datetimeUltimaAtualizacao);
+    result.dataCaptura = ordem.dataCaptura;
     return result;
   }
 }
