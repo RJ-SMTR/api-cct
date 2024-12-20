@@ -15,7 +15,7 @@ export interface IClienteFavorecidoRawWhere {
   /** numeroDocumentoEmpresa */
   detalheANumeroDocumento?: number[];
   dataVencimento?: Date[];
-  valorRealEfetivado?: number[];
+  valorLancamento?: number[];
 }
 
 export interface IClienteFavorecidoFindBy {
@@ -163,7 +163,7 @@ export class ClienteFavorecidoRepository {
     let query = `
     SELECT cf.*
     FROM cliente_favorecido cf
-    ${where.detalheANumeroDocumento || where.dataVencimento || where.valorRealEfetivado
+    ${where.detalheANumeroDocumento || where.dataVencimento || where.valorLancamento
         ? `
     INNER JOIN item_transacao it ON it."clienteFavorecidoId" = cf.id
     INNER JOIN item_transacao_agrupado ita ON ita.id = it."itemTransacaoAgrupadoId"
@@ -215,8 +215,8 @@ export class ClienteFavorecidoRepository {
         .join(',')}]::timestamp[])`;
     }
 
-    if (where.valorRealEfetivado) {
-      query += ` AND da."valorRealEfetivado" IN (${where.valorRealEfetivado
+    if (where.valorLancamento) {
+      query += ` AND da."valorLancamento" IN (${where.valorLancamento
         .map((valor) => `${valor}`)
         .join(',')})`;
     }

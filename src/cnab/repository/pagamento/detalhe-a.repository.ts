@@ -17,7 +17,7 @@ export interface IDetalheARawWhere {
   headerLote?: { id: number[] };
   nome?: string[];
   dataVencimento?: Date[];
-  valorRealEfetivado?: number[];
+  valorLancamento?: number[];
 }
 
 @Injectable()
@@ -76,8 +76,8 @@ export class DetalheARepository {
         .join(',')}]::timestamp[])`;
     }
 
-    if (where.valorRealEfetivado) {
-      qWhere.query += ` AND da."valorRealEfetivado" IN (${where.valorRealEfetivado
+    if (where.valorLancamento) {
+      qWhere.query += ` AND da."valorLancamento" IN (${where.valorLancamento
         .map((valor) => `${valor}`)
         .join(',')})`;
     }
