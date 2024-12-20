@@ -374,16 +374,11 @@ export class CnabService {
     for (const trBq of trsFilter) {
       const transacaoViewBq = TransacaoView.fromBigqueryTransacao(trBq);
       if (transacaoViewBq.modo && transacaoViewBq.nomeOperadora) {
-        const existing = existings.filter((ex) => ex.idTransacao == transacaoViewBq.idTransacao);
+        const existing = existings.filter((ex) => ex.idTransacao === transacaoViewBq.idTransacao);
         if (existing.length === 0) {
           await queryRunner.manager.getRepository(TransacaoView).save(transacaoViewBq);
           response.created += 1;
-        } else {
-          if (existing.length > 1) {
-            await queryRunner.manager.getRepository(TransacaoView).remove(existing.slice(1));
-            response.deduplicated += 1;
-          }
-
+        } else { 
           if (!existing[0].valorPago && transacaoViewBq.valorPago != existing[0].valorPago) {
             response.updated += 1;
             await this.transacaoViewService.updateManyRaw(
@@ -400,14 +395,16 @@ export class CnabService {
   }
 
   async findBigqueryTransacao(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string): Promise<BigqueryTransacao[]> {
-    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(startOfDay(dataOrdemIncial), endOfDay(dataOrdemFinal), daysBack);
-    let trs = transacoesBq;
+    const nomeConsorcio: { in: string[], notIn: string[] } = {in: [], notIn: [] };
     if (consorcio === 'Van') {
-      trs = transacoesBq.filter((tr) => tr.consorcio === 'STPC' || tr.consorcio === 'STPL');
+      nomeConsorcio.in = ['STPC', 'STPL', 'TEC'];
     } else if (consorcio == 'Empresa') {
-      trs = transacoesBq.filter((tr) => tr.consorcio !== 'STPC' && tr.consorcio !== 'STPL');
+      nomeConsorcio.notIn = ['STPC', 'STPL', 'TEC'];
+    } else if (consorcio != 'Todos') {
+      nomeConsorcio.in = consorcio.split(',');
     }
-    return trs;
+    const transacoesBq = await this.bigqueryTransacaoService.getFromWeek(startOfDay(dataOrdemIncial), endOfDay(dataOrdemFinal), daysBack, { nomeConsorcio });
+    return transacoesBq;
   }
 
   // #region saveOrdens
@@ -586,32 +583,34 @@ export class CnabService {
     return listCnab;
   }
 
-  private async gerarRemessaPadrao(args: any, listCnab: ICnabInfo[] = []) {
-    const transacoesAg = await this.transacaoAgService.findAllNewTransacao(args.tipo);
-    if (!transacoesAg.length) {
-      this.logger.log(`Não há transações novas para gerar remessa, nada a fazer...`);
-      return [];
-    }
-    for (const transacaoAg of transacoesAg) {
-      const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg, args.isConference, args.isTeste);
-      const headerLoteDTOs = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, args.isConference, args.isTeste, args.dataPgto);
-      const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO, headerLoteDTOs, isTeste: args.isTeste });
-      if (headerArquivoDTO && cnab104) {
-        const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
-        for (const processedLote of processedCnab104.lotes) {
-          const savedLote = headerLoteDTOs.filter((i) => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
-          await this.remessaRetornoService.updateHeaderLoteDTOFrom104(savedLote, processedLote.headerLote, args.isConference);
-        }
-        if (!args.isConference) {
-          await this.updateStatusRemessa(headerArquivoDTO, processedCnab104.headerArquivo, transacaoAg.id);
-        }
-        if (cnabStr) {
-          listCnab.push({ name: '', content: cnabStr, headerArquivo: headerArquivoDTO });
-        }
+ private async gerarRemessaPadrao(args:any,listCnab: ICnabInfo[] = []){
+  const transacoesAg = await this.transacaoAgService.findAllNewTransacao(args.tipo);
+  if (!transacoesAg.length) {
+    this.logger.log(`Não há transações novas para gerar remessa, nada a fazer...`);
+    return [];
+  }
+  for (const transacaoAg of transacoesAg) {
+    this.logger.debug('idOrdem = '+ transacaoAg.idOrdemPagamento);
+    const headerArquivoDTO = await this.remessaRetornoService.saveHeaderArquivoDTO(transacaoAg,args.isConference,args.isTeste);
+    const headerLoteDTOs = await this.remessaRetornoService.getLotes(transacaoAg.pagador, headerArquivoDTO, 
+      args.isConference, args.isTeste, args.dataPgto);
+    const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO, headerLoteDTOs, isTeste: args.isTeste });
+    if(headerArquivoDTO && cnab104){
+      const [cnabStr, processedCnab104] = stringifyCnab104File(cnab104, true,'CnabPgtoRem');
+      for (const processedLote of processedCnab104.lotes){
+        const savedLote = headerLoteDTOs.filter((i) => i.formaLancamento === processedLote.headerLote.formaLancamento.value)[0];
+        await this.remessaRetornoService.updateHeaderLoteDTOFrom104(savedLote, processedLote.headerLote, args.isConference);
+      }
+      if (!args.isConference) {
+        await this.updateStatusRemessa(headerArquivoDTO, processedCnab104.headerArquivo, transacaoAg.id);
+      }
+      if (cnabStr) {
+        listCnab.push({ name: '', content: cnabStr, headerArquivo: headerArquivoDTO });
       }
     }
   }
-
+ }  
+  
   private async geraRemssaCancelamento(args: any, listCnab: ICnabInfo[] = [], currentNSA) {
     let nsaInicial = args.nsaInicial || currentNSA;
     let nsaFinal = args.nsaFinal || nsaInicial;

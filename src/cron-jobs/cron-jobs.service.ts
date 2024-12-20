@@ -5,6 +5,7 @@ import { CronJob, CronJobParameters } from 'cron';
 import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWithinInterval, setHours, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
+import { OrdemPagamentoService } from 'src/cnab/novo-remessa/service/ordem-pagamento.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -74,6 +75,7 @@ export class CronJobsService {
     private mailHistoryService: MailHistoryService,
     private usersService: UsersService,
     private cnabService: CnabService,
+    private ordemPagamentoService: OrdemPagamentoService
   ) {}
 
   onModuleInit() {
@@ -83,6 +85,9 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    await this.ordemPagamentoService.sincronizarOrdensPagamento(
+      new Date('2024-12-01'), new Date('2024-12-04'), 'STPC,STPL,TEC');
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {

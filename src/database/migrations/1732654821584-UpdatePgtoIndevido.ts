@@ -28,6 +28,5 @@ export class UpdatePgtoIndevido1732654821584 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" ADD "dataReferencia" date`);
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" DROP COLUMN "dataPagamento"`);
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" ADD "dataPagamento" date NOT NULL`);
-    await queryRunner.query(`ALTER TABLE "transacao_agrupado" ADD "isUnico" boolean`);
   }
 }

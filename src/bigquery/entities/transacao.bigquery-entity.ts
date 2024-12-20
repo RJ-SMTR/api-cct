@@ -34,6 +34,7 @@ export class BigqueryTransacao {
   valor_transacao: number;
   valor_pagamento: number;
   versao: string | null;
+  id_ordem_pagamento: number | null;
 
   public static fromJson(absPath: string) {
     const file = readFileSync(absPath, 'utf8');

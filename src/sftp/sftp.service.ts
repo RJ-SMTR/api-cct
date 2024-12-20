@@ -126,11 +126,15 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     const METHOD = 'submitCnabRemessa';
     await this.connectClient();
     const remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
-    const bkpPath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`);
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
-    await this.sftpClient.upload(Buffer.from(content, 'utf-8'), bkpPath);
+    await this.submitCnabBackupRemessa(content);
     this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
     return remotePath;
+  }
+
+  public async submitCnabBackupRemessa(content: string) {
+    const bkpPath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.getCnabDateFolder(this.generateRemessaName())}`);
+    await this.sftpClient.upload(Buffer.from(content, 'utf-8'), bkpPath);
   }
 
   /**
@@ -206,7 +210,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   /** Return `yyyy/mm/cnabName` */
   public getCnabDateFolder(cnabName: string) {
     const date = getDateFromCnabName(cnabName);
-    const dateString = formatDateISODateSlash(date).split('/').slice(0,-1).join('/');
+    const dateString = formatDateISODateSlash(date).split('/').slice(0, -1).join('/');
     return `${dateString}/${cnabName}`;
   }
 }

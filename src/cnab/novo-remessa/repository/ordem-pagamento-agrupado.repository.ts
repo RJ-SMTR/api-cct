@@ -4,7 +4,6 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial, Repository } from 'typeorm';
-import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 
 @Injectable()
@@ -16,8 +15,7 @@ export class OrdemPagamentoAgrupadoRepository {
     private ordemPagamentoAgrupadoRepository: Repository<OrdemPagamentoAgrupado>,
   ) {}
 
-  public async save(dto: DeepPartial<OrdemPagamentoAgrupado>): Promise<OrdemPagamentoAgrupado> {
-    const createdOrdem = this.ordemPagamentoAgrupadoRepository.create(dto);
+  public async save(dto: DeepPartial<OrdemPagamentoAgrupado>): Promise<OrdemPagamentoAgrupado> { 
     return this.ordemPagamentoAgrupadoRepository.save(dto);
   }
 

@@ -4,13 +4,16 @@ import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { User } from 'src/users/entities/user.entity';
 import { CommonApiParams } from 'src/utils/api-param/common-api-params';
 import { DateApiParams } from 'src/utils/api-param/date-api-param';
+import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
 import { getPagination } from 'src/utils/get-pagination';
 import { IRequest } from 'src/utils/interfaces/request.interface';
-import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
+import { nextFridayPay } from 'src/utils/payment-date-utils';
+import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseEnumPipe } from 'src/utils/pipes/parse-enum.pipe';
+import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
 import { getRequestLog } from 'src/utils/request-utils';
@@ -20,8 +23,6 @@ import { BSMePrevDaysTimeIntervalEnum } from './enums/bs-me-prev-days-time-inter
 import { BSMeTimeIntervalEnum } from './enums/bs-me-time-interval.enum';
 import { IBSGetMePreviousDaysResponse } from './interfaces/bs-get-me-previous-days-response.interface';
 import { IBSGetMeResponse } from './interfaces/bs-get-me-response.interface';
-import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
-import { ApiDescription } from 'src/utils/api-param/description-api-param';
 
 @ApiTags('BankStatements')
 @Controller({
@@ -68,8 +69,8 @@ export class BankStatementsController {
     this.logger.log(getRequestLog(request));
 
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
-    const yearMonthDate = yearMonth ? new Date(yearMonth) : new Date();
     const _timeInterval = timeInterval ? (timeInterval as unknown as TimeIntervalEnum) : undefined;
+    const yearMonthDate = yearMonth ? new Date(yearMonth) : _timeInterval === TimeIntervalEnum.LAST_MONTH ? nextFridayPay(new Date(), 'dataProcTransacao') : new Date();
 
     return this.bankStatementsService.getMe({
       yearMonth: yearMonthDate,
