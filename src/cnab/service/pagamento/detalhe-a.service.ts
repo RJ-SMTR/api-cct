@@ -45,7 +45,7 @@ export class DetalheAService {
       nome: [r.detalheA.nomeTerceiro.stringValue],
       dataVencimento: [r.detalheA.dataVencimento.convertedValue],
       detalheANumeroDocumento: [r.detalheA.numeroDocumentoEmpresa.convertedValue],
-      valorRealEfetivado: [r.detalheA.valorLancamento.convertedValue]
+      valorLancamento: [r.detalheA.valorLancamento.convertedValue]
     });
 
 
@@ -58,7 +58,7 @@ export class DetalheAService {
       nome: [r.detalheA.nomeTerceiro.stringValue],
       dataVencimento: [r.detalheA.dataVencimento.convertedValue],
       numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
-      valorRealEfetivado: [r.detalheA.valorLancamento.convertedValue]
+      valorLancamento: [r.detalheA.valorLancamento.convertedValue]
 });
     
     if (!detalheA) {
