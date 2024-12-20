@@ -24,8 +24,8 @@ export class OrdemPagamento extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true, length: 200 })
   nomeOperadora: string | null;
 
-  @Column({ type: Number, unique: false, nullable: false })
-  userId: number;
+  @Column({ type: Number, unique: false, nullable: true })
+  userId: number | undefined;
 
   @Column({
     type: 'decimal',
@@ -53,7 +53,7 @@ export class OrdemPagamento extends EntityHelper {
   ordemPagamentoAgrupado: OrdemPagamentoAgrupado;
 
   @Column({ type: Date, unique: false, nullable: true })
-  dataCaptura: Date;
+  dataCaptura: Date | undefined;
 
   /**
    *

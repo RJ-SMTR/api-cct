@@ -36,7 +36,7 @@ export class OrdemPagamentoService {
            ajustar o código para inserir a ordem de pagamento com o usuário nulo
            ***/
           if (error instanceof HttpException && !user) {
-            // await this.inserirOrdemPagamento(ordem, null);
+            await this.save(ordem, undefined);
           } else {
             this.logger.error(`Erro ao sincronizar ordem de pagamento ${ordem.id}: ${error.message}`, METHOD);
           }
@@ -46,7 +46,7 @@ export class OrdemPagamentoService {
     this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
   }
 
-  async save(ordem: BigqueryOrdemPagamentoDTO, userId: number) {
+  async save(ordem: BigqueryOrdemPagamentoDTO, userId: number | undefined) {
     const ordemPagamento = BigQueryToOrdemPagamento.convert(ordem, userId);
     await this.ordemPagamentoRepository.save(ordemPagamento);
   }
