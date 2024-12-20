@@ -123,7 +123,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.updateTransacaoViewVan,
         cronJobParameters: {
-          cronTime: '*/30 * * * *', //  Every 30 min
+          cronTime: '0 9 * * *',  // Every day, 09:00 GMT = 06:00 BRT (GMT-3)
           onTick: async () => {
             if (!this.validateJobsRemessa()) {
               this.logger.log(`Ignorando esta tarefa para não impedir tarefas prioritárias..`, 'saveRetornoPagamento');
