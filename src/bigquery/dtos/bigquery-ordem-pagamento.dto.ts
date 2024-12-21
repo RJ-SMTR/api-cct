@@ -159,6 +159,8 @@ export class BigqueryOrdemPagamentoDTO {
 
   datetimeUltimaAtualizacao: Date;
 
+  dataCaptura: Date;
+
   public static findAgrupado(ordemAgs: BigqueryOrdemPagamentoDTO[], ordem: BigqueryOrdemPagamentoDTO, newDataOrdem = nextFriday(new Date())) {
     const filtered = ordemAgs.filter((i) => isSameDay(new Date(i.dataOrdem), newDataOrdem) && i.idConsorcio === ordem.idConsorcio)[0];
     return filtered ? filtered : null;

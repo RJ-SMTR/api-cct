@@ -1,0 +1,8 @@
+version: '3'
+services:
+  sftp:
+    image: "emberstack/sftp"
+    ports:
+      - "23:22"
+    volumes:
+      - ../config/sftp.json:/app/config/sftp.json:ro

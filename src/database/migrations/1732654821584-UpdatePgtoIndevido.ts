@@ -3,7 +3,8 @@ import { MigrationInterface, QueryRunner } from "typeorm";
 export class UpdatePgtoIndevido1732654821584 implements MigrationInterface {
   name = 'UpdatePgtoIndevido1732654821584';
 
-  public async up(queryRunner: QueryRunner): Promise<void> {    
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`ALTER TABLE "transacao_agrupado" DROP COLUMN IF EXISTS "isUnico"`);
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" DROP COLUMN "dataPagamento"`);
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" ADD "dataPagamento" TIMESTAMP`);
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" DROP COLUMN "dataReferencia"`);
@@ -26,6 +27,6 @@ export class UpdatePgtoIndevido1732654821584 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" DROP COLUMN "dataReferencia"`);
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" ADD "dataReferencia" date`);
     await queryRunner.query(`ALTER TABLE "pagamento_indevido" DROP COLUMN "dataPagamento"`);
-    await queryRunner.query(`ALTER TABLE "pagamento_indevido" ADD "dataPagamento" date NOT NULL`);  
+    await queryRunner.query(`ALTER TABLE "pagamento_indevido" ADD "dataPagamento" date NOT NULL`);
   }
 }

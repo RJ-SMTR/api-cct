@@ -324,11 +324,11 @@ export class CnabService {
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
-  public async saveTransacoesJae(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBefore = 0, consorcio: 'VLT' | 'Van' | 'Empresa' | 'Todos' | string) {
-    const dataOrdemInicialDate = startOfDay(new Date(dataOrdemIncial));
-    const dataOrdemFinalDate = endOfDay(new Date(dataOrdemFinal));
+  public async saveTransacoesJae(dataCapturaInicial: Date, dataCapturaFinal: Date, daysBefore = 0, consorcio: 'VLT' | 'Van' | 'Empresa' | 'Todos' | string) {
+    const dataCapturaInicialDate = startOfDay(new Date(dataCapturaInicial));
+    const dataCapturaFinalDate = endOfDay(new Date(dataCapturaFinal));
     await this.updateAllFavorecidosFromUsers();
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, daysBefore);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, daysBefore);
     let ordensFilter: BigqueryOrdemPagamentoDTO[];
     if (consorcio.trim() === 'Empresa') {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL' && ordem.consorcio.trim() !== 'TEC');

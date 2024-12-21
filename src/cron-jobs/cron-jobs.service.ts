@@ -86,7 +86,7 @@ export class CronJobsService {
 
   async onModuleLoad() {
     await this.ordemPagamentoService.sincronizarOrdensPagamento(
-      new Date('2024-12-01'), new Date('2024-12-04'), 'STPC,STPL,TEC');
+      new Date('2024-12-19'), new Date('2024-12-20'), ['STPC', 'STPL','TEC']);
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
