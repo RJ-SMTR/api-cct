@@ -85,6 +85,7 @@ preencher as necessárias:
 
 - local_dev_example/sql/carga_settings.sql
 - local_dev_example/sql/carga_users.sql
+- local_dev_example/sql/carga_pagador.sql
 
 O SGBD PostgreSQL também necessita ter uma extensão para executar:
 ```sql

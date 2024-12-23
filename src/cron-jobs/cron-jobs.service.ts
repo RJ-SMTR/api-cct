@@ -21,6 +21,8 @@ import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { formatDateInterval, formatDateISODate } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
+import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
+import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
 
 /**
  * Enum CronJobServicesJobs
@@ -75,7 +77,8 @@ export class CronJobsService {
     private mailHistoryService: MailHistoryService,
     private usersService: UsersService,
     private cnabService: CnabService,
-    private ordemPagamentoService: OrdemPagamentoService
+    private ordemPagamentoService: OrdemPagamentoService,
+    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService
   ) {}
 
   onModuleInit() {
@@ -85,8 +88,12 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    await this.ordemPagamentoService.sincronizarOrdensPagamento(
-      new Date('2024-12-19'), new Date('2024-12-20'), ['STPC', 'STPL','TEC']);
+    //await this.ordemPagamentoService.sincronizarOrdensPagamento(
+    //  new Date('2024-12-19'), new Date('2024-12-20'), ['STPC', 'STPL','TEC']);
+    const pagadorKey: keyof AllPagadorDict = 'cett';
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
+      new Date('2024-12-19'), new Date('2024-12-20'), new Date('2024-12-20'), pagadorKey);
+
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(

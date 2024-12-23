@@ -48,25 +48,31 @@ export class OrdemPagamentoRepository {
         JSON_BUILD_OBJECT(
           'id', ordemPagamento.id,
           'dataOrdem', ordemPagamento.dataOrdem,
-          'valor', ordemPagamento.valor,
-          'createdAt', ordemPagamento.createdAt
+          'valor', "ordemPagamento".valor
         )
       ) as ordensPagamento`
       ])
       .where(fields)
       .groupBy('ordemPagamento.userId')
       .addGroupBy(`DATE_TRUNC('day', ordemPagamento.dataOrdem)`) // Ensure to group by truncated date
-      .addGroupBy('ordemPagamento.idOperadora')
-      .orderBy('MAX(ordemPagamento.createdAt)', 'ASC') // Order by the less recent within the group
+      .addGroupBy('ordemPagamento.idOperadora') // Order by the less recent within the group
       .getRawMany();
 
     const result: OrdensPagamentoAgrupadasDto[] = groupedData.map((item) => {
       return {
-        userId: item.userId,
-        dataOrdem: item.dataOrdem,
-        idOperadora: item.idOperadora,
-        valorTotal: item.valorTotal,
-        ordensPagamento: item.ordensPagamento.map((op: any) => new OrdemPagamento(op)) // Parse JSON array into OrdemPagamento objects
+        userId: item.ordemPagamento_userId,
+        dataOrdem: item.ordemPagamento_dataordem,
+        idOperadora: item.ordemPagamento_idOperadora,
+        valorTotal: item.valortotal,
+        ordensPagamento: item.ordenspagamento.map((op: any) => {
+          if (op) {
+            const ordemPagamento = new OrdemPagamento();
+            ordemPagamento.id = op.id;
+            ordemPagamento.dataOrdem = op.dataOrdem;
+            ordemPagamento.valor = op.valor;
+            return ordemPagamento;
+          }
+        }), // Parse JSON array into OrdemPagamento objects
       };
     });
 

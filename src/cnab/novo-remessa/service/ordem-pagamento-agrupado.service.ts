@@ -5,7 +5,6 @@ import { PagadorService } from 'src/cnab/service/pagamento/pagador.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { Between } from 'typeorm';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
-import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-agrupado.repository';
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 import { BigQueryToOrdemPagamento } from '../convertTo/bigquery-to-ordem-pagamento.convert';
@@ -16,8 +15,8 @@ import { StatusRemessaEnum } from '../../enums/novo-remessa/status-remessa.enum'
 import { UsersService } from '../../../users/users.service';
 
 @Injectable()
-export class OrdemPagamentoService {
-  private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
+export class OrdemPagamentoAgrupadoService {
+  private logger = new CustomLogger(OrdemPagamentoAgrupadoService.name, { timestamp: true });
 
   constructor(
     private ordemPamentoRepository: OrdemPagamentoRepository, 
@@ -36,8 +35,7 @@ export class OrdemPagamentoService {
   }
 
   async getPagador(pagadorKey: any) {
-     const conta = (await this.pagadorService.getAllPagador())[pagadorKey];
-     return await this.pagadorService.findByConta(conta);
+    return (await this.pagadorService.getAllPagador())[pagadorKey];
   } 
 
   async save(ordem: BigqueryOrdemPagamentoDTO, userId: number) {
@@ -63,6 +61,7 @@ export class OrdemPagamentoService {
 
 
   async buildHistoricoFromOrdemPagamentoAgrupado(ordemPagamentoAgrupado: OrdemPagamentoAgrupado): Promise<OrdemPagamentoAgrupadoHistorico> {
+    // comente o código abaixo para testes, se necessário
     const userId = ordemPagamentoAgrupado.ordensPagamento.find(op => op.userId !== undefined)?.userId;
     if (!userId) {
       this.logger.error('Nenhum usuário encontrado para a ordem de pagamento');
@@ -74,6 +73,13 @@ export class OrdemPagamentoService {
       this.logger.error('Dados bancários do usuário não encontrados');
       throw new Error('Dados bancários do usuário não encontrados');
     }
+    // desconmente o código abaixo para testes, se necessário
+    // const user = {
+    //   bankAccount: '123456',
+    //   bankAccountDigit: '1',
+    //   bankAgency: '1234',
+    //   bankCode: '123',
+    // }
 
     const ordemPagamentoAgrupadoHistorico = new OrdemPagamentoAgrupadoHistorico();
     ordemPagamentoAgrupadoHistorico.ordemPagamentoAgrupado = ordemPagamentoAgrupado;
