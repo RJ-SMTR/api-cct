@@ -39,31 +39,39 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoAgrupadas(fields: EntityCondition<OrdemPagamento>): Promise<OrdensPagamentoAgrupadasDto[]> {
     const groupedData = await this.ordemPagamentoRepository.createQueryBuilder('ordemPagamento')
+      // Usando a função DATE trunca a data por dia, removendo a hora
       .select([
         'ordemPagamento.userId',
-        'DATE_TRUNC(\'day\', ordemPagamento.dataOrdem) as dataOrdem',
+        'DATE(ordemPagamento.dataOrdem) as dataOrdem', // Substituto para DATE_TRUNC no MySQL
         'ordemPagamento.idOperadora',
-        'SUM(ordemPagamento.valor) as valorTotal'
+        'SUM(ordemPagamento.valor) as valorTotal',
+        `JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'id', ordemPagamento.id,
+            'dataOrdem', ordemPagamento.dataOrdem,
+            'valor', ordemPagamento.valor,
+            'createdAt', ordemPagamento.createdAt
+          )
+        ) as ordensPagamento`
       ])
       .where(fields)
       .groupBy('ordemPagamento.userId')
-      .addGroupBy('DATE_TRUNC(\'day\', ordemPagamento.dataOrdem)')
+      .addGroupBy('DATE(ordemPagamento.dataOrdem)')
       .addGroupBy('ordemPagamento.idOperadora')
       .orderBy('ordemPagamento.createdAt', 'DESC')
       .getRawMany();
 
-    const result : OrdensPagamentoAgrupadasDto[] = await Promise.all(groupedData.map(async (group) => {
-      const ordensPagamento = await this.ordemPagamentoRepository.createQueryBuilder('ordemPagamento')
-        .where('ordemPagamento.userId = :userId', { userId: group.userId })
-        .andWhere('DATE_TRUNC(\'day\', ordemPagamento.dataOrdem) = DATE_TRUNC(\'day\', :dataOrdem)', { dataOrdem: group.dataOrdem })
-        .andWhere('ordemPagamento.idOperadora = :idOperadora', { idOperadora: group.idOperadora })
-        .getMany();
+    const result: OrdensPagamentoAgrupadasDto[] = groupedData.map((item) => {
       return {
-        ...group,
-        ordensPagamento
+        userId: item.userId,
+        dataOrdem: item.dataOrdem,
+        idOperadora: item.idOperadora,
+        valorTotal: item.valorTotal,
+        ordensPagamento: JSON.parse(item.ordensPagamento) // Parseia o JSON retornado do MySQL
       };
-    }));
+    });
 
     return result;
   }
+
 }
