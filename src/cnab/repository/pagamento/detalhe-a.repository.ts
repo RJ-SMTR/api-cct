@@ -15,6 +15,9 @@ export interface IDetalheARawWhere {
   itemTransacaoAgrupado?: { id: number[] };
   numeroDocumentoEmpresa?: number;
   headerLote?: { id: number[] };
+  nome?: string[];
+  dataVencimento?: Date[];
+  valorLancamento?: number[];
 }
 
 @Injectable()
@@ -42,18 +45,57 @@ export class DetalheARepository {
   }
 
   public async findRaw(where: IDetalheARawWhere): Promise<DetalheA[]> {
-    const qWhere: { query: string; params?: any[] } = { query: '' };
+    const qWhere: { query: string; params: any[] } = { query: 'WHERE 1=1', params: [] };
+
     if (where.id) {
-      qWhere.query = `WHERE da.id IN (${where.id.join(',')})`;
-      qWhere.params = [];
-    } else if (where.numeroDocumentoEmpresa) {
-      qWhere.query = `WHERE da."numeroDocumentoEmpresa" = $1`;
-      qWhere.params = [where.numeroDocumentoEmpresa];
-    } else if (where.headerLote) {
-      qWhere.query = `WHERE hl.id IN(${where.headerLote.id.join(',')})`;
-    } else if (where.nsr && where.itemTransacaoAgrupado) {
-      qWhere.query = `WHERE da.nsr IN(${where.nsr.join(',')}) AND da."itemTransacaoAgrupadoId" IN(${where.itemTransacaoAgrupado.id.join(',')})`;
+      qWhere.query += ` AND da.id IN (${where.id.join(',')})`;
     }
+
+    if (where.numeroDocumentoEmpresa) {
+      qWhere.query += ` AND da."numeroDocumentoEmpresa" = $${qWhere.params.length + 1}`;
+      qWhere.params.push(where.numeroDocumentoEmpresa);
+    }
+
+    if (where.headerLote) {
+      qWhere.query += ` AND hl.id IN (${where.headerLote.id.join(',')})`;
+    }
+     if (where.nsr && where.itemTransacaoAgrupado) {
+      qWhere.query += ` AND da.nsr IN (${where.nsr.join(',')}) AND da."itemTransacaoAgrupadoId" IN (${where.itemTransacaoAgrupado.id.join(',')})`;
+    }
+
+    if (where.dataVencimento) {
+      const normalizedDates = where.dataVencimento.map((date) => {
+        const parsedDate = new Date(date);
+        if (isNaN(parsedDate.getTime())) {
+          throw new Error(`Invalid date format: ${date}`);
+        }
+        return parsedDate.toISOString();
+      });
+      qWhere.query += ` AND da."dataVencimento" = ANY(ARRAY[${normalizedDates
+        .map((date) => `'${date}'`)
+        .join(',')}]::timestamp[])`;
+    }
+
+    if (where.valorLancamento) {
+      qWhere.query += ` AND da."valorLancamento" IN (${where.valorLancamento
+        .map((valor) => `${valor}`)
+        .join(',')})`;
+    }
+
+    if (where.nome) {
+      const trimmedNames = where.nome.map((n) => n.trim());
+      const nomes = trimmedNames.map((n) => `'%${n}%'`);
+      qWhere.query += ` AND cf.nome ILIKE ANY(ARRAY[${nomes.join(',')}])`;
+
+      const containsCorsorcio = trimmedNames.some(
+        (name) => name.toLowerCase().includes('concessionaria') || name.toLowerCase().includes('consorcio')
+      );
+      if (containsCorsorcio && where.numeroDocumentoEmpresa) {
+        qWhere.query += ` AND da."numeroDocumentoEmpresa" = $${qWhere.params.length + 1}`;
+        qWhere.params.push(where.numeroDocumentoEmpresa);
+      }
+    }
+
     const result: any[] = await this.detalheARepository.query(
       compactQuery(`
       SELECT
@@ -81,6 +123,8 @@ export class DetalheARepository {
       INNER JOIN item_transacao_agrupado ita ON da."itemTransacaoAgrupadoId" = ita.id
       INNER JOIN transacao_agrupado ta ON ta.id = ita."transacaoAgrupadoId"
       INNER JOIN transacao_status ts ON ts.id = ta."statusId"
+      INNER JOIN item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
+      INNER JOIN cliente_favorecido cf on it."clienteFavorecidoId" = cf.id
       ${qWhere.query}
       ORDER BY da.id
     `),
