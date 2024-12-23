@@ -3,7 +3,7 @@ import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-paga
 import { AllPagadorDict } from 'src/cnab/interfaces/pagamento/all-pagador-dict.interface';
 import { PagadorService } from 'src/cnab/service/pagamento/pagador.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { Between } from 'typeorm';
+import { Between, DataSource } from 'typeorm';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-agrupado.repository';
@@ -13,10 +13,11 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 
 @Injectable()
-export class OrdemPagamentoService {
-  private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
+export class OrdemPagamentoAgrupadoService {
+ 
+  private logger = new CustomLogger(OrdemPagamentoAgrupadoService.name, { timestamp: true });
 
-  constructor(
+  constructor(  
     private ordemPamentoRepository: OrdemPagamentoRepository, 
     private ordemPamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository,
     private ordemPamentoAgrupadoHistRepository: OrdemPagamentoAgrupadoHistoricoRepository,
@@ -65,5 +66,9 @@ export class OrdemPagamentoService {
     return await this.ordemPamentoAgrupadoRepository.findOne(
       { ordensPagamento: [{ idOperadora: ordem.idOperadora }],
         dataPagamento: dataPgto });
+  }
+
+  async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined) {
+    return this.ordemPamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,consorcio);
   }
 }
