@@ -39,14 +39,13 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoAgrupadas(fields: EntityCondition<OrdemPagamento>): Promise<OrdensPagamentoAgrupadasDto[]> {
     const groupedData = await this.ordemPagamentoRepository.createQueryBuilder('ordemPagamento')
-      // Usando a função DATE trunca a data por dia, removendo a hora
       .select([
         'ordemPagamento.userId',
-        'DATE(ordemPagamento.dataOrdem) as dataOrdem', // Substituto para DATE_TRUNC no MySQL
+        `DATE_TRUNC('day', ordemPagamento.dataOrdem) as dataOrdem`, // Truncando a data ao nível de dia
         'ordemPagamento.idOperadora',
         'SUM(ordemPagamento.valor) as valorTotal',
-        `JSON_ARRAYAGG(
-          JSON_OBJECT(
+        `JSON_AGG(
+          JSON_BUILD_OBJECT(
             'id', ordemPagamento.id,
             'dataOrdem', ordemPagamento.dataOrdem,
             'valor', ordemPagamento.valor,
@@ -56,9 +55,9 @@ export class OrdemPagamentoRepository {
       ])
       .where(fields)
       .groupBy('ordemPagamento.userId')
-      .addGroupBy('DATE(ordemPagamento.dataOrdem)')
+      .addGroupBy(`DATE_TRUNC('day', ordemPagamento.dataOrdem)`) // Certifique-se de agrupar pela data truncada
       .addGroupBy('ordemPagamento.idOperadora')
-      .orderBy('ordemPagamento.createdAt', 'DESC')
+      .orderBy('MAX(ordemPagamento.createdAt)', 'DESC') // Ordena pelo mais recente dentro do grupo
       .getRawMany();
 
     const result: OrdensPagamentoAgrupadasDto[] = groupedData.map((item) => {
@@ -67,7 +66,7 @@ export class OrdemPagamentoRepository {
         dataOrdem: item.dataOrdem,
         idOperadora: item.idOperadora,
         valorTotal: item.valorTotal,
-        ordensPagamento: JSON.parse(item.ordensPagamento) // Parseia o JSON retornado do MySQL
+        ordensPagamento: item.ordensPagamento // `JSON_AGG` já retorna um array JSON estruturado
       };
     });
 
