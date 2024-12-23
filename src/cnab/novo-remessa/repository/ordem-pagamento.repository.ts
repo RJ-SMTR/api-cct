@@ -5,6 +5,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
+import { OrdensPagamentoAgrupadasDto } from '../dto/ordens-pagamento-agrupadas.dto';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -35,4 +36,41 @@ export class OrdemPagamentoRepository {
       where: fields,
     });
   }
+
+  public async findOrdensPagamentoAgrupadas(fields: EntityCondition<OrdemPagamento>): Promise<OrdensPagamentoAgrupadasDto[]> {
+    const groupedData = await this.ordemPagamentoRepository.createQueryBuilder('ordemPagamento')
+      .select([
+        'ordemPagamento.userId',
+        `DATE_TRUNC('day', ordemPagamento.dataOrdem) as dataOrdem`, // Truncating the date to day level
+        'ordemPagamento.idOperadora',
+        'SUM(ordemPagamento.valor) as valorTotal',
+        `JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'id', ordemPagamento.id,
+          'dataOrdem', ordemPagamento.dataOrdem,
+          'valor', ordemPagamento.valor,
+          'createdAt', ordemPagamento.createdAt
+        )
+      ) as ordensPagamento`
+      ])
+      .where(fields)
+      .groupBy('ordemPagamento.userId')
+      .addGroupBy(`DATE_TRUNC('day', ordemPagamento.dataOrdem)`) // Ensure to group by truncated date
+      .addGroupBy('ordemPagamento.idOperadora')
+      .orderBy('MAX(ordemPagamento.createdAt)', 'ASC') // Order by the less recent within the group
+      .getRawMany();
+
+    const result: OrdensPagamentoAgrupadasDto[] = groupedData.map((item) => {
+      return {
+        userId: item.userId,
+        dataOrdem: item.dataOrdem,
+        idOperadora: item.idOperadora,
+        valorTotal: item.valorTotal,
+        ordensPagamento: item.ordensPagamento.map((op: any) => new OrdemPagamento(op)) // Parse JSON array into OrdemPagamento objects
+      };
+    });
+
+    return result;
+  }
+
 }
