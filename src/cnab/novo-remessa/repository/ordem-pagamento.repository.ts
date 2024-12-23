@@ -41,23 +41,23 @@ export class OrdemPagamentoRepository {
     const groupedData = await this.ordemPagamentoRepository.createQueryBuilder('ordemPagamento')
       .select([
         'ordemPagamento.userId',
-        `DATE_TRUNC('day', ordemPagamento.dataOrdem) as dataOrdem`, // Truncando a data ao nível de dia
+        `DATE_TRUNC('day', ordemPagamento.dataOrdem) as dataOrdem`, // Truncating the date to day level
         'ordemPagamento.idOperadora',
         'SUM(ordemPagamento.valor) as valorTotal',
         `JSON_AGG(
-          JSON_BUILD_OBJECT(
-            'id', ordemPagamento.id,
-            'dataOrdem', ordemPagamento.dataOrdem,
-            'valor', ordemPagamento.valor,
-            'createdAt', ordemPagamento.createdAt
-          )
-        ) as ordensPagamento`
+        JSON_BUILD_OBJECT(
+          'id', ordemPagamento.id,
+          'dataOrdem', ordemPagamento.dataOrdem,
+          'valor', ordemPagamento.valor,
+          'createdAt', ordemPagamento.createdAt
+        )
+      ) as ordensPagamento`
       ])
       .where(fields)
       .groupBy('ordemPagamento.userId')
-      .addGroupBy(`DATE_TRUNC('day', ordemPagamento.dataOrdem)`) // Certifique-se de agrupar pela data truncada
+      .addGroupBy(`DATE_TRUNC('day', ordemPagamento.dataOrdem)`) // Ensure to group by truncated date
       .addGroupBy('ordemPagamento.idOperadora')
-      .orderBy('MAX(ordemPagamento.createdAt)', 'DESC') // Ordena pelo mais recente dentro do grupo
+      .orderBy('MAX(ordemPagamento.createdAt)', 'DESC') // Order by the most recent within the group
       .getRawMany();
 
     const result: OrdensPagamentoAgrupadasDto[] = groupedData.map((item) => {
@@ -66,7 +66,7 @@ export class OrdemPagamentoRepository {
         dataOrdem: item.dataOrdem,
         idOperadora: item.idOperadora,
         valorTotal: item.valorTotal,
-        ordensPagamento: item.ordensPagamento // `JSON_AGG` já retorna um array JSON estruturado
+        ordensPagamento: item.ordensPagamento.map((op: any) => new OrdemPagamento(op)) // Parse JSON array into OrdemPagamento objects
       };
     });
 
