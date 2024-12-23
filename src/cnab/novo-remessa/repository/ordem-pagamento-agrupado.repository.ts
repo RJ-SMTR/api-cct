@@ -19,6 +19,10 @@ export class OrdemPagamentoAgrupadoRepository {
     return this.ordemPagamentoAgrupadoRepository.save(dto);
   }
 
+  public async saveAll(dtos: DeepPartial<OrdemPagamentoAgrupado>[]): Promise<OrdemPagamentoAgrupado[]> {
+    return this.ordemPagamentoAgrupadoRepository.save(dtos);
+  }
+
   public async findOne(fields: EntityCondition<OrdemPagamentoAgrupado>): Promise<Nullable<OrdemPagamentoAgrupado>> {
     return await this.ordemPagamentoAgrupadoRepository.findOne({
       where: fields,
