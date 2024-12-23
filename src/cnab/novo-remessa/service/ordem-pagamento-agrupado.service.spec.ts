@@ -257,7 +257,6 @@ describe('OrdemPagamentoService', () => {
       const ordensAgrupadas: OrdensPagamentoAgrupadasDto[] = [
         {
           userId: 1,
-          dataOrdem: new Date(),
           idOperadora: 'op1',
           valorTotal: 100,
           ordensPagamento: [

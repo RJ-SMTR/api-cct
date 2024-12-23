@@ -30,7 +30,7 @@ export class OrdemPagamentoAgrupadoService {
     this.logger.debug(`Preparando agrupamentos`)
     const pagador = await this.getPagador(pagadorKey);
     if(pagador){
-      await this.saveAll(dataOrdemInicial, dataOrdemFinal,pagador,dataPgto);
+      await this.saveAll(dataOrdemInicial, dataOrdemFinal, pagador, dataPgto);
     }
   }
 
@@ -46,16 +46,20 @@ export class OrdemPagamentoAgrupadoService {
   async saveAll(dataInicial: Date, dataFinal: Date, pagador: Pagador, dataPgto:Date){
     const ordensAgrupadas = await this.ordemPamentoRepository.findOrdensPagamentoAgrupadas({ dataOrdem: Between(dataInicial, dataFinal) });
     for (const ordensAgrupada of ordensAgrupadas) {
-      const ordemPagamentoAgrupado = new OrdemPagamentoAgrupado();
-      ordemPagamentoAgrupado.valorTotal = ordensAgrupada.valorTotal;
-      ordemPagamentoAgrupado.dataPagamento = dataPgto;
-      ordemPagamentoAgrupado.ordensPagamento = ordensAgrupada.ordensPagamento;
-      ordemPagamentoAgrupado.pagador = pagador;
-      ordemPagamentoAgrupado.createdAt = new Date();
-      ordemPagamentoAgrupado.updatedAt = new Date();
-      const ordemPagamentoAgrupadoSaved = await this.ordemPamentoAgrupadoRepository.save(ordemPagamentoAgrupado);
-      const ordemPagamentoAgrupadoHistorico = await this.buildHistoricoFromOrdemPagamentoAgrupado(ordemPagamentoAgrupadoSaved);
-      await this.ordemPamentoAgrupadoHistRepository.save(ordemPagamentoAgrupadoHistorico);
+      try {
+        const ordemPagamentoAgrupado = new OrdemPagamentoAgrupado();
+        ordemPagamentoAgrupado.valorTotal = ordensAgrupada.valorTotal;
+        ordemPagamentoAgrupado.dataPagamento = dataPgto;
+        ordemPagamentoAgrupado.ordensPagamento = ordensAgrupada.ordensPagamento;
+        ordemPagamentoAgrupado.pagador = pagador;
+        ordemPagamentoAgrupado.createdAt = new Date();
+        ordemPagamentoAgrupado.updatedAt = new Date();
+        const ordemPagamentoAgrupadoSaved = await this.ordemPamentoAgrupadoRepository.save(ordemPagamentoAgrupado);
+        const ordemPagamentoAgrupadoHistorico = await this.buildHistoricoFromOrdemPagamentoAgrupado(ordemPagamentoAgrupadoSaved);
+        await this.ordemPamentoAgrupadoHistRepository.save(ordemPagamentoAgrupadoHistorico);
+      } catch (error) {
+        this.logger.error(`Erro ao salvar ordem de pagamento agrupada: ${error}`);
+      }
     }
   }
 

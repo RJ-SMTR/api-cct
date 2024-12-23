@@ -88,11 +88,11 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    //await this.ordemPagamentoService.sincronizarOrdensPagamento(
-    //  new Date('2024-12-19'), new Date('2024-12-20'), ['STPC', 'STPL','TEC']);
-    const pagadorKey: keyof AllPagadorDict = 'cett';
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
-      new Date('2024-12-19'), new Date('2024-12-20'), new Date('2024-12-20'), pagadorKey);
+    await this.ordemPagamentoService.sincronizarOrdensPagamento(
+     new Date('2024-12-21'), new Date('2024-12-23'), ['STPC', 'STPL','TEC']);
+    // const pagadorKey: keyof AllPagadorDict = 'cett';
+    // await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
+    //   new Date('2024-12-19'), new Date('2024-12-20'), new Date('2024-12-20'), pagadorKey);
 
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';

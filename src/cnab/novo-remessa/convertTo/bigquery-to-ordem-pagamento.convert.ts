@@ -26,6 +26,7 @@ export class BigQueryToOrdemPagamento {
         result.userId = userId;
         result.valor = ordem.valorTotalTransacaoLiquido;
         result.bqUpdatedAt = new Date(ordem.datetimeUltimaAtualizacao);
+        result.dataCaptura = ordem.dataCaptura;
         return result;
     }
 }

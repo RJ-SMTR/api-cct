@@ -41,7 +41,6 @@ export class OrdemPagamentoRepository {
     const groupedData = await this.ordemPagamentoRepository.createQueryBuilder('ordemPagamento')
       .select([
         'ordemPagamento.userId',
-        `DATE_TRUNC('day', ordemPagamento.dataOrdem) as dataOrdem`, // Truncating the date to day level
         'ordemPagamento.idOperadora',
         'SUM(ordemPagamento.valor) as valorTotal',
         `JSON_AGG(
@@ -54,21 +53,18 @@ export class OrdemPagamentoRepository {
       ])
       .where(fields)
       .groupBy('ordemPagamento.userId')
-      .addGroupBy(`DATE_TRUNC('day', ordemPagamento.dataOrdem)`) // Ensure to group by truncated date
       .addGroupBy('ordemPagamento.idOperadora') // Order by the less recent within the group
       .getRawMany();
 
     const result: OrdensPagamentoAgrupadasDto[] = groupedData.map((item) => {
       return {
         userId: item.ordemPagamento_userId,
-        dataOrdem: item.ordemPagamento_dataordem,
         idOperadora: item.ordemPagamento_idOperadora,
         valorTotal: item.valortotal,
         ordensPagamento: item.ordenspagamento.map((op: any) => {
           if (op) {
             const ordemPagamento = new OrdemPagamento();
             ordemPagamento.id = op.id;
-            ordemPagamento.dataOrdem = op.dataOrdem;
             ordemPagamento.valor = op.valor;
             return ordemPagamento;
           }
