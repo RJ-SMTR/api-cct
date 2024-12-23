@@ -57,7 +57,7 @@ export class OrdemPagamentoRepository {
       .groupBy('ordemPagamento.userId')
       .addGroupBy(`DATE_TRUNC('day', ordemPagamento.dataOrdem)`) // Ensure to group by truncated date
       .addGroupBy('ordemPagamento.idOperadora')
-      .orderBy('MAX(ordemPagamento.createdAt)', 'DESC') // Order by the most recent within the group
+      .orderBy('MAX(ordemPagamento.createdAt)', 'ASC') // Order by the less recent within the group
       .getRawMany();
 
     const result: OrdensPagamentoAgrupadasDto[] = groupedData.map((item) => {
