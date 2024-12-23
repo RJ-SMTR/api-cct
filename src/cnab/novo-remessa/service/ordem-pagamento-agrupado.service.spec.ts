@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { OrdemPagamentoService } from './ordem-pagamento-agrupado.service';
+import { OrdemPagamentoAgrupadoService } from './ordem-pagamento-agrupado.service';
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-agrupado.repository';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
@@ -16,7 +16,7 @@ import { User } from '../../../users/entities/user.entity';
 import { OrdensPagamentoAgrupadasDto } from '../dto/ordens-pagamento-agrupadas.dto';
 
 describe('OrdemPagamentoService', () => {
-  let service: OrdemPagamentoService;
+  let service: OrdemPagamentoAgrupadoService;
   let ordemPagamentoRepository: OrdemPagamentoRepository;
   let ordemPagamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository;
   let ordemPagamentoAgrupadoHistoricoRepository: OrdemPagamentoAgrupadoHistoricoRepository;
@@ -26,7 +26,7 @@ describe('OrdemPagamentoService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        OrdemPagamentoService,
+        OrdemPagamentoAgrupadoService,
         {
           provide: OrdemPagamentoRepository,
           useValue: {
@@ -69,7 +69,7 @@ describe('OrdemPagamentoService', () => {
       ],
     }).compile();
 
-    service = module.get<OrdemPagamentoService>(OrdemPagamentoService);
+    service = module.get<OrdemPagamentoAgrupadoService>(OrdemPagamentoAgrupadoService);
     ordemPagamentoRepository = module.get<OrdemPagamentoRepository>(OrdemPagamentoRepository);
     ordemPagamentoAgrupadoRepository = module.get<OrdemPagamentoAgrupadoRepository>(OrdemPagamentoAgrupadoRepository);
     ordemPagamentoAgrupadoHistoricoRepository = module.get<OrdemPagamentoAgrupadoHistoricoRepository>(OrdemPagamentoAgrupadoHistoricoRepository);
@@ -257,7 +257,6 @@ describe('OrdemPagamentoService', () => {
       const ordensAgrupadas: OrdensPagamentoAgrupadasDto[] = [
         {
           userId: 1,
-          dataOrdem: new Date(),
           idOperadora: 'op1',
           valorTotal: 100,
           ordensPagamento: [

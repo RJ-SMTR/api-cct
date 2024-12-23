@@ -41,32 +41,34 @@ export class OrdemPagamentoRepository {
     const groupedData = await this.ordemPagamentoRepository.createQueryBuilder('ordemPagamento')
       .select([
         'ordemPagamento.userId',
-        `DATE_TRUNC('day', ordemPagamento.dataOrdem) as dataOrdem`, // Truncating the date to day level
         'ordemPagamento.idOperadora',
         'SUM(ordemPagamento.valor) as valorTotal',
         `JSON_AGG(
         JSON_BUILD_OBJECT(
           'id', ordemPagamento.id,
           'dataOrdem', ordemPagamento.dataOrdem,
-          'valor', ordemPagamento.valor,
-          'createdAt', ordemPagamento.createdAt
+          'valor', "ordemPagamento".valor
         )
       ) as ordensPagamento`
       ])
       .where(fields)
       .groupBy('ordemPagamento.userId')
-      .addGroupBy(`DATE_TRUNC('day', ordemPagamento.dataOrdem)`) // Ensure to group by truncated date
-      .addGroupBy('ordemPagamento.idOperadora')
-      .orderBy('MAX(ordemPagamento.createdAt)', 'ASC') // Order by the less recent within the group
+      .addGroupBy('ordemPagamento.idOperadora') // Order by the less recent within the group
       .getRawMany();
 
     const result: OrdensPagamentoAgrupadasDto[] = groupedData.map((item) => {
       return {
-        userId: item.userId,
-        dataOrdem: item.dataOrdem,
-        idOperadora: item.idOperadora,
-        valorTotal: item.valorTotal,
-        ordensPagamento: item.ordensPagamento.map((op: any) => new OrdemPagamento(op)) // Parse JSON array into OrdemPagamento objects
+        userId: item.ordemPagamento_userId,
+        idOperadora: item.ordemPagamento_idOperadora,
+        valorTotal: item.valortotal,
+        ordensPagamento: item.ordenspagamento.map((op: any) => {
+          if (op) {
+            const ordemPagamento = new OrdemPagamento();
+            ordemPagamento.id = op.id;
+            ordemPagamento.valor = op.valor;
+            return ordemPagamento;
+          }
+        }), // Parse JSON array into OrdemPagamento objects
       };
     });
 
