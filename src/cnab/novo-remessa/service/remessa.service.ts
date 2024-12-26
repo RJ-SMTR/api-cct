@@ -70,6 +70,6 @@ export class RemessaService {
     }
 
     private gerarDetalheAB(headerLote?: HeaderLote,ordem?:OrdemPagamentoAgrupado) {
-        this.detalheAService.save()
+
     }
 }
