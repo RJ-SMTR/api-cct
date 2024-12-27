@@ -84,8 +84,6 @@ export class CronJobsService {
 
  async onModuleLoad() {    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    await this.generateRemessaVanzeiros();
-    await this.syncTransacaoViewOrdem('van');
     this.jobsConfig.push(
       {
         /**
