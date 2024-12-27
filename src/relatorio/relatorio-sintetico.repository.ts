@@ -270,12 +270,38 @@ export class RelatorioSinteticoRepository {
     } else if (['Todos'].some((i) => args.favorecidoNome?.includes(i))) {
       query = query + ` and it."nomeConsorcio" in('STPC','STPL','TEC') `;
     }
-
-    if (args.emProcessamento !== undefined && args.emProcessamento === true) {
-      query = query + `  and ap."isPago"=false and TRIM(da."ocorrenciasCnab")='' `;
+    if (args.emProcessamento === true) {
+      if (args.pago === true) {
+        query += `
+      and (
+        ap."isPago" = true 
+        OR (ap."isPago" = false AND TRIM(da."ocorrenciasCnab") = '')
+      )
+    `
+      } else if (args.pago === false) {
+        query += `
+      and (
+        ap."isPago" = false 
+        AND (
+          TRIM(da."ocorrenciasCnab") = '' 
+          OR TRIM(da."ocorrenciasCnab") <> ''
+        )
+      )
+    `
+      } else {
+        query += ` 
+      and ap."isPago" = false 
+      AND TRIM(da."ocorrenciasCnab") = '' 
+    `
+      }
     } else if (args.pago !== undefined) {
-      query = query + ` and	ap."isPago"=${args.pago} and TRIM(da."ocorrenciasCnab")<>'' `;
+      query += `
+    and ap."isPago" = ${args.pago} 
+    AND TRIM(da."ocorrenciasCnab") <> '' 
+  `
     }
+
+    
 
     if (args.valorMin !== undefined) query = query + `  and it."valor">=${args.valorMin}`;
 
