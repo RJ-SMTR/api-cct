@@ -6,6 +6,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 import { BigQueryToOrdemPagamento } from '../convertTo/bigquery-to-ordem-pagamento.convert';
 import { User } from 'src/users/entities/user.entity';
+import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -50,4 +51,13 @@ export class OrdemPagamentoService {
     const ordemPagamento = BigQueryToOrdemPagamento.convert(ordem, userId);
     await this.ordemPagamentoRepository.save(ordemPagamento);
   }
+
+  async findOrdensPagamentoAgrupadasPorMes(userId: number, yearMonth: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasPorMes(userId, yearMonth);
+  }
+
+  async findOrdensPagamento(userId: number, dataPagamento: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasPorMes(userId, dataPagamento);
+  }
+
 }

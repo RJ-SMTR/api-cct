@@ -84,6 +84,7 @@ import {
   OrdemPagamentoAgrupadoHistoricoRepository
 } from './novo-remessa/repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from './novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
+import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagamento.controller';
 
 @Module({
   imports: [
@@ -218,6 +219,6 @@ import { OrdemPagamentoAgrupadoHistorico } from './novo-remessa/entity/ordem-pag
     OrdemPagamentoAgrupadoService,
     OrdemPagamentoAgrupadoHistoricoRepository
   ],
-  controllers: [CnabController, CnabManutencaoController],
+  controllers: [CnabController, CnabManutencaoController, OrdemPagamentoController],
 })
 export class CnabModule {}

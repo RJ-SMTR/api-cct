@@ -1,3 +1,5 @@
+import { StatusRemessaEnum } from './novo-remessa/status-remessa.enum';
+
 export enum OcorrenciaEnum {
   /** Este código indica que o pagamento foi confirmado  */
   '00' = 'Crédito ou Débito Efetivado',
@@ -95,4 +97,9 @@ export enum OcorrenciaEnum {
   'ZW' = 'Dados do Pagador Incorretos',
   /** Ocorrências X são erros customizados do CCT. Não existem no CNAB */
   '  ' = 'Ocorreu um erro! Por favor, aguarde a liberação do pagamento.',
+}
+
+export function getCodigoOcorrenciaEnumByValue(value: OcorrenciaEnum): string | undefined {
+  return Object.keys(OcorrenciaEnum)
+    .find(key => OcorrenciaEnum[key as keyof typeof OcorrenciaEnum] === value);
 }

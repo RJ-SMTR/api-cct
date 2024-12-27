@@ -5,3 +5,9 @@ export enum StatusRemessaEnum {
   Efetivado = 3,//Segundo retorno
   NaoEfetivado = 4 //Retorno com Erro
 }
+
+
+export function getStatusRemessaEnumByValue(value: StatusRemessaEnum): string | undefined {
+  return Object.keys(StatusRemessaEnum)
+    .find(key => StatusRemessaEnum[key as keyof typeof StatusRemessaEnum] === value);
+}
