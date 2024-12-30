@@ -97,12 +97,13 @@ export class BigqueryService {
    * Run bigquery query with complete log and error handling
    * @throws `HttpException`
    */
-  public async query(source: BigquerySource, query: string) {
+  public async query(source: BigquerySource, query: string, params?: any[]) {
     const _query = compactQuery(query);
     console.log(`${formatSqlTitle('bigquery:')} ${formatSqlQuery(query)}`);
     try {
       const [rows] = await this.getBqInstance(source).query({
         query: _query,
+        params: params,
       });
       this.logger.debug(`Query finished. Count: ${rows.length}`);
       return rows;
