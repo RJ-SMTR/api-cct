@@ -41,8 +41,6 @@ export class OrdemPagamentoRepository {
   }
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
-    // TODO: Perguntar ao William se o pagamento é agrupado por usuário
-
     const query = `
         WITH month_dates AS (SELECT generate_series(
                                             DATE_TRUNC('month', $1::DATE),
@@ -50,7 +48,7 @@ export class OrdemPagamentoRepository {
                                             '1 day'
                                     ) AS data)
         SELECT data,
-               (SELECT "valorTotal"
+               (SELECT ROUND("valorTotal", 2)
                 FROM ordem_pagamento_agrupado opa
                 WHERE 1 = 1
                 AND DATE_TRUNC('day', opa."dataPagamento") = data::date
@@ -90,7 +88,7 @@ export class OrdemPagamentoRepository {
     return result.map((row: any) => {
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
-      dto.valorTotal = parseFloat(parseFloat(row.sum)?.toFixed(2));
+      dto.valorTotal = row.valorTotal != null? row.valorTotal: null;
       if (row.motivoStatusRemessa != null){
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
