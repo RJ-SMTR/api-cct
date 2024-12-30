@@ -20,7 +20,7 @@ import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { getRequestLog } from 'src/utils/request-utils';
 import { OrdemPagamentoService } from '../service/ordem-pagamento.service';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
-import { OrdemPagamentoDiarioDto } from '../dto/ordem-pagamento-diario.dto';
+import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 
 @ApiTags('OrdemPagamento')
 @Controller({
@@ -53,16 +53,16 @@ export class OrdemPagamentoController {
   }
 
 
-  @Get('diario/:ordemPagamentoAgrupadoId')
+  @Get('semanal/:ordemPagamentoAgrupadoId')
   @UseGuards(AuthGuard('jwt'))
   @SerializeOptions({ groups: ['me'] })
   @ApiBearerAuth()
   @ApiParam(CommonApiParams.ordemPagamentoAgrupadoId)
   @HttpCode(HttpStatus.OK)
-  async getDiario(
+  async getSemanal(
     @Request() request: IRequest, //
     @Param('ordemPagamentoAgrupadoId', new ParseNumberPipe({ min: 1, optional: false })) ordemPagamentoAgrupadoId: number,
-  ): Promise<OrdemPagamentoDiarioDto[]> {
+  ): Promise<OrdemPagamentoSemanalDto[]> {
     this.logger.log(getRequestLog(request));
     return this.ordemPagamentoService.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId);
   }

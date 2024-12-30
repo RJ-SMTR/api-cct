@@ -1,13 +1,13 @@
 import { DeepPartial } from 'typeorm';
 
-export class OrdemPagamentoDiarioDto {
+export class OrdemPagamentoSemanalDto {
   valor: number;
   dataOrdem: Date;
   dataReferencia: Date;
   statusRemessa: string;
   motivoStatusRemessa: string;
 
-  constructor(dto?: DeepPartial<OrdemPagamentoDiarioDto>) {
+  constructor(dto?: DeepPartial<OrdemPagamentoSemanalDto>) {
     if (dto) {
       Object.assign(this, dto);
     }

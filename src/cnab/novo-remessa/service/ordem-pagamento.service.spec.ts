@@ -8,6 +8,7 @@ import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado
 import { nextFriday } from 'date-fns';
 import { getStatusRemessaEnumByValue, StatusRemessaEnum } from '../../enums/novo-remessa/status-remessa.enum';
 import { getCodigoOcorrenciaEnumByValue, OcorrenciaEnum } from '../../enums/ocorrencia.enum';
+import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 
 describe('OrdemPagamentoService', () => {
   let service: OrdemPagamentoService;
@@ -21,6 +22,7 @@ describe('OrdemPagamentoService', () => {
           provide: OrdemPagamentoRepository,
           useValue: {
             findOrdensPagamentoAgrupadasPorMes: jest.fn(),
+            findOrdensPagamentoByOrdemPagamentoAgrupadoId: jest.fn(),
           },
         },
         {
@@ -66,6 +68,29 @@ describe('OrdemPagamentoService', () => {
 
       expect(result).toEqual(expectedResult);
       expect(ordemPagamentoRepository.findOrdensPagamentoAgrupadasPorMes).toHaveBeenCalledWith(userId, yearMonth);
+    });
+  });
+
+
+  describe('findOrdensPagamentoByOrdemPagamentoAgrupadoId', () => {
+    it('should return an array of OrdemPagamentoDiarioDto', async () => {
+      const ordemPagamentoAgrupadoId = 1;
+      const expectedResult: OrdemPagamentoSemanalDto[] = [
+        {
+          valor: 100,
+          dataOrdem: new Date(),
+          dataReferencia: new Date(),
+          statusRemessa: 'AguardandoPagamento',
+          motivoStatusRemessa: 'AA',
+        },
+      ];
+
+      jest.spyOn(ordemPagamentoRepository, 'findOrdensPagamentoByOrdemPagamentoAgrupadoId').mockResolvedValue(expectedResult);
+
+      const result = await service.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId);
+
+      expect(result).toEqual(expectedResult);
+      expect(ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId).toHaveBeenCalledWith(ordemPagamentoAgrupadoId);
     });
   });
 });

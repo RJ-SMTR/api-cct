@@ -7,7 +7,7 @@ import { DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { OrdensPagamentoAgrupadasDto } from '../dto/ordens-pagamento-agrupadas.dto';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
-import { OrdemPagamentoDiarioDto } from '../dto/ordem-pagamento-diario.dto';
+import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { getStatusRemessaEnumByValue } from '../../enums/novo-remessa/status-remessa.enum';
 
 @Injectable()
@@ -110,7 +110,7 @@ export class OrdemPagamentoRepository {
     });
   }
 
-  public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoDiarioDto[]> {
+  public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoSemanalDto[]> {
     const query = `
         SELECT valor,
                o."dataOrdem"
@@ -125,7 +125,7 @@ export class OrdemPagamentoRepository {
 
     const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId]);
     return result.map((row: any) => {
-      return new OrdemPagamentoDiarioDto(row);
+      return new OrdemPagamentoSemanalDto(row);
     });
   }
 
