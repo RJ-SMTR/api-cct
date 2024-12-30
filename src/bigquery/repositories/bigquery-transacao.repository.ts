@@ -48,10 +48,8 @@ export class BigqueryTransacaoRepository {
 
 
   public async findManyByOrdemPagamentoId(ordemPagamentoId: number): Promise<BigqueryTransacao[]> {
-    const query = `SELECT t.id_consorcio,
-                          t.datetime_transacao,
-                          t.datetime_processamento,
-                          t.id_ordem_pagamento_consorcio_operador_dia,
+    const query = `SELECT CAST(t.datetime_transacao AS STRING) datetime_transacao,
+                          CAST(t.datetime_processamento AS STRING) datetime_processamento,
                           ROUND(t.valor_pagamento, 2) valor_pagamento,
                           ROUND(t.valor_transacao, 2) valor_transacao,
                           t.tipo_pagamento,
