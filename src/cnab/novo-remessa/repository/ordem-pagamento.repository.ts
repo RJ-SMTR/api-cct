@@ -103,7 +103,7 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoSemanalDto[]> {
     const query = `
-        SELECT valor,
+        SELECT ROUND(valor, 2) valor,
                o."dataOrdem"
         FROM ordem_pagamento o
         INNER JOIN ordem_pagamento_agrupado opa
