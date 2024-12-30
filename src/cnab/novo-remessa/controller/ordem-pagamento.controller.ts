@@ -21,6 +21,8 @@ import { getRequestLog } from 'src/utils/request-utils';
 import { OrdemPagamentoService } from '../service/ordem-pagamento.service';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
+import { BigqueryTransacaoService } from '../../../bigquery/services/bigquery-transacao.service';
+import { BigqueryTransacao } from '../../../bigquery/entities/transacao.bigquery-entity';
 
 @ApiTags('OrdemPagamento')
 @Controller({
@@ -32,7 +34,8 @@ export class OrdemPagamentoController {
     timestamp: true,
   });
 
-  constructor(private readonly ordemPagamentoService: OrdemPagamentoService) {}
+  constructor(private readonly ordemPagamentoService: OrdemPagamentoService,
+              private readonly bigqueryTransacaoService: BigqueryTransacaoService) {}
 
   @Get('mensal')
   @UseGuards(AuthGuard('jwt'))
@@ -65,6 +68,21 @@ export class OrdemPagamentoController {
   ): Promise<OrdemPagamentoSemanalDto[]> {
     this.logger.log(getRequestLog(request));
     return this.ordemPagamentoService.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId);
+  }
+
+
+  @Get('diario/:ordemPagamentoId')
+  @UseGuards(AuthGuard('jwt'))
+  @SerializeOptions({ groups: ['me'] })
+  @ApiBearerAuth()
+  @ApiParam(CommonApiParams.ordemPagamentoId)
+  @HttpCode(HttpStatus.OK)
+  async getDiario(
+    @Request() request: IRequest, //
+    @Param('ordemPagamentoId', new ParseNumberPipe({ min: 1, optional: false })) ordemPagamentoId: number,
+  ): Promise<BigqueryTransacao[]> {
+    this.logger.log(getRequestLog(request));
+    return this.bigqueryTransacaoService.findByOrdemPagamentoId(ordemPagamentoId);
   }
 
 }

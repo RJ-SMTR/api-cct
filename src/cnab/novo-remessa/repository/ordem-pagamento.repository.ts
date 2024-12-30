@@ -50,13 +50,6 @@ export class OrdemPagamentoRepository {
                                             '1 day'
                                     ) AS data)
         SELECT data,
-            /*(SELECT SUM(valor)
-             FROM ordem_pagamento o
-             WHERE 1 = 1
-               AND DATE_TRUNC('day', o."dataOrdem") <= (data::date - 1)
-               AND DATE_TRUNC('day', o."dataOrdem") >= (data::date - 7)
-               AND o."userId" = 1
-               AND o."dataCaptura" IS NOT NULL),*/
                (SELECT "valorTotal"
                 FROM ordem_pagamento_agrupado opa
                 WHERE 1 = 1

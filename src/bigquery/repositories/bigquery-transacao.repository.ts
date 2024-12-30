@@ -46,6 +46,26 @@ export class BigqueryTransacaoRepository {
     return transacoes;
   }
 
+
+  public async findManyByOrdemPagamentoId(ordemPagamentoId: number): Promise<BigqueryTransacao[]> {
+    const query = `SELECT t.id_consorcio,
+                          t.datetime_transacao,
+                          t.datetime_processamento,
+                          t.id_ordem_pagamento_consorcio_operador_dia,
+                          ROUND(t.valor_pagamento, 2) valor_pagamento,
+                          ROUND(t.valor_transacao, 2) valor_transacao,
+                          t.tipo_pagamento,
+                          t.tipo_transacao
+                   FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+                            LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
+                            LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+                   WHERE 1 = 1
+                     AND t.valor_pagamento > 0
+                     AND t.id_ordem_pagamento_consorcio_operador_dia = ?`;
+    const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoId.toString()]);
+    return this.mapBqTransacao(queryResult);
+  }
+
   private async queryData(args?: IBqFindTransacao): Promise<{
     data: BigqueryTransacao[]; //
     countAll: number;

@@ -20,5 +20,13 @@ export const CommonApiParams = {
     description: ApiDescription({
       default: 'O ID das ordem pagamento agrupadas',
     }),
+  },
+  ordemPagamentoId: {
+    name: 'ordemPagamentoId',
+    type: Number,
+    required: true,
+    description: ApiDescription({
+      default: 'O ID da ordem de pagamento',
+    }),
   }
 };
