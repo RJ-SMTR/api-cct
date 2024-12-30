@@ -41,6 +41,8 @@ export class OrdemPagamentoRepository {
   }
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
+    // TODO: Perguntar ao William se o pagamento é agrupado por usuário
+
     const query = `
         WITH month_dates AS (SELECT generate_series(
                                             DATE_TRUNC('month', $1::DATE),
@@ -48,13 +50,25 @@ export class OrdemPagamentoRepository {
                                             '1 day'
                                     ) AS data)
         SELECT data,
-               (SELECT SUM(valor)
-                FROM ordem_pagamento o
+            /*(SELECT SUM(valor)
+             FROM ordem_pagamento o
+             WHERE 1 = 1
+               AND DATE_TRUNC('day', o."dataOrdem") <= (data::date - 1)
+               AND DATE_TRUNC('day', o."dataOrdem") >= (data::date - 7)
+               AND o."userId" = 1
+               AND o."dataCaptura" IS NOT NULL),*/
+               (SELECT "valorTotal"
+                FROM ordem_pagamento_agrupado opa
                 WHERE 1 = 1
-                  AND DATE_TRUNC('day', o."dataOrdem") <= (data::date - 1)
-                  AND DATE_TRUNC('day', o."dataOrdem") >= (data::date - 7)
-                  AND o."userId" = $2
-                  AND o."dataCaptura" IS NOT NULL),
+                AND DATE_TRUNC('day', opa."dataPagamento") = data::date
+                  AND EXISTS (SELECT 1
+                              FROM ordem_pagamento op
+                              WHERE op."userId" = $2
+                                AND op."dataCaptura" IS NOT NULL
+                                AND op."ordemPagamentoAgrupadoId" = opa.id
+                    LIMIT 1)
+                ORDER BY opa."dataPagamento" DESC
+                   LIMIT 1 ) "valorTotal",
                (data::date - 1) data_final_operacoes,
                (data::date - 7) data_inicial_operacoes,
                "dataReferencia",
@@ -62,23 +76,19 @@ export class OrdemPagamentoRepository {
                "motivoStatusRemessa",
                "ordemPagamentoAgrupadoId"
         FROM month_dates m
-        LEFT JOIN LATERAL (
-            SELECT opah."dataReferencia",
-                   opah."statusRemessa",
-                   opah."motivoStatusRemessa",
-                   opah."ordemPagamentoAgrupadoId",
-                   opa."dataPagamento"
+            LEFT JOIN LATERAL (
+            SELECT opah."dataReferencia", opah."statusRemessa", opah."motivoStatusRemessa", opah."ordemPagamentoAgrupadoId", opa."dataPagamento"
             FROM ordem_pagamento_agrupado_historico opah
-                     INNER JOIN ordem_pagamento_agrupado opa
-                                ON opa.id = opah."ordemPagamentoAgrupadoId"
-                     INNER JOIN ordem_pagamento op
-                                ON opah."ordemPagamentoAgrupadoId" = opa.id
+            INNER JOIN ordem_pagamento_agrupado opa
+            ON opa.id = opah."ordemPagamentoAgrupadoId"
+            INNER JOIN ordem_pagamento op
+            ON opah."ordemPagamentoAgrupadoId" = opa.id
             WHERE 1 = 1
-              AND op."userId" = $2
-              AND DATE_TRUNC('day', opa."dataPagamento") = DATE_TRUNC('day', m.data)
+            AND op."userId" = $2
+            AND DATE_TRUNC('day', opa."dataPagamento") = DATE_TRUNC('day', m.data)
             ORDER BY opah."dataReferencia" DESC
             LIMIT 1
-        ) opa_aux
+            ) opa_aux
         ON DATE_TRUNC('day', opa_aux."dataPagamento") = DATE_TRUNC('day', m.data)
         WHERE EXTRACT (DOW FROM data) = 5
     `;
@@ -100,37 +110,20 @@ export class OrdemPagamentoRepository {
     });
   }
 
-  public async findOrdensPagamento(userId: number, targetDate: Date): Promise<OrdemPagamentoDiarioDto[]> {
+  public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoDiarioDto[]> {
     const query = `
         SELECT valor,
-               o."dataOrdem",
-               opah_aux."dataReferencia",
-               opah_aux."statusRemessa",
-               opah_aux."motivoStatusRemessa"
+               o."dataOrdem"
         FROM ordem_pagamento o
-        LEFT JOIN ordem_pagamento_agrupado opa
+        INNER JOIN ordem_pagamento_agrupado opa
         ON o."ordemPagamentoAgrupadoId" = opa.id
-        LEFT JOIN LATERAL (
-            SELECT MAX("dataReferencia") "dataReferencia",
-                   "statusRemessa",
-                   "motivoStatusRemessa",
-                   "ordemPagamentoAgrupadoId"
-            FROM ordem_pagamento_agrupado_historico opah
-            WHERE opah."ordemPagamentoAgrupadoId" = opa.id
-            GROUP BY "statusRemessa",
-                     "motivoStatusRemessa",
-                     "ordemPagamentoAgrupadoId"
-                ) opah_aux
-        ON opah_aux."ordemPagamentoAgrupadoId" = opa.id
         WHERE 1 = 1
-          AND DATE_TRUNC('day', o."dataOrdem") <= ('2024-12-20'::date - 1)
-          AND DATE_TRUNC('day', o."dataOrdem") >= ('2024-12-20'::date - 7)
-          AND o."userId" = 1
+          AND opa.id = $1
           AND o."dataCaptura" IS NOT NULL
         ORDER BY o."dataOrdem"
     `;
 
-    const result = await this.ordemPagamentoRepository.query(query, [targetDate, userId]);
+    const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId]);
     return result.map((row: any) => {
       return new OrdemPagamentoDiarioDto(row);
     });

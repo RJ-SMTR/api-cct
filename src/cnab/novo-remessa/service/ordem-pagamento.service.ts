@@ -7,6 +7,7 @@ import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.reposito
 import { BigQueryToOrdemPagamento } from '../convertTo/bigquery-to-ordem-pagamento.convert';
 import { User } from 'src/users/entities/user.entity';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
+import { OrdemPagamentoDiarioDto } from '../dto/ordem-pagamento-diario.dto';
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -56,8 +57,8 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasPorMes(userId, yearMonth);
   }
 
-  async findOrdensPagamento(userId: number, dataPagamento: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasPorMes(userId, dataPagamento);
+  async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoDiarioDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId);
   }
 
 }

@@ -1,5 +1,3 @@
-import { StatusRemessaEnum } from './novo-remessa/status-remessa.enum';
-
 export enum OcorrenciaEnum {
   /** Este código indica que o pagamento foi confirmado  */
   '00' = 'Crédito ou Débito Efetivado',
