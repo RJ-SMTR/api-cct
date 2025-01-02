@@ -145,7 +145,7 @@ export class OrdemPagamentoRepository {
                          inner join "user" u
                                     on o."userId" = u.id
                 where "statusRemessa" = 4
-                  and "motivoStatusRemessa" <> '00'
+                  and "motivoStatusRemessa" NOT IN ('00', 'BD')
                   and o."userId" is not null
                   and u."bankAccount" is not null
                   and u."bankAgency" is not null
@@ -153,10 +153,10 @@ export class OrdemPagamentoRepository {
                   and u."bankAccountDigit" is not null
                   and (
                     (
-                        "motivoStatusRemessa" NOT IN ('AG', 'AM', 'AN', 'AZ', 'BA')
+                        "motivoStatusRemessa" NOT IN ('AG', 'AM', 'AN', 'AZ', 'BA', '02')
                     )
                         or (
-                        "motivoStatusRemessa" IN ('AG', 'AM', 'AN', 'AZ', 'BA')
+                        "motivoStatusRemessa" IN ('AG', 'AM', 'AN', 'AZ', 'BA', '02')
                             and u."bankAccount" <> oph."userBankAccount"
                             and u."bankAgency" <> oph."userBankAgency"
                             and u."bankCode" <> cast(oph."userBankCode" as integer)
@@ -167,7 +167,7 @@ export class OrdemPagamentoRepository {
     return result.map((row: any) => {
       const ordemPagamentoPendente = new OrdemPagamentoPendenteDto();
       ordemPagamentoPendente.id = row.id;
-      ordemPagamentoPendente.valor = row.valor;
+      ordemPagamentoPendente.valor = row.valoe? parseFloat(row.valor) : 0;
       ordemPagamentoPendente.dataPagamento = row.dataPagamento;
       ordemPagamentoPendente.dataReferencia = row.dataReferencia;
       ordemPagamentoPendente.statusRemessa = row.statusRemessa;
@@ -200,11 +200,11 @@ export class OrdemPagamentoRepository {
                  left join "user" u
                            on o."userId" = u.id
                  inner join lateral (
-            select date_trunc('day', max(opa2."dataPagamento")) as "ultimaDataPagamento"
-            from ordem_pagamento_agrupado opa2
-            where date_trunc('day', opa2."dataPagamento") <= date_trunc('day', current_date)
+                      select date_trunc('day', max(opa2."dataPagamento")) as "ultimaDataPagamento"
+                      from ordem_pagamento_agrupado opa2
+                      where date_trunc('day', opa2."dataPagamento") <= date_trunc('day', current_date)
                 ) ultimo_pagamento
-                            on true
+                on true
         where 1 = 1
           and opa.id is null
           and (

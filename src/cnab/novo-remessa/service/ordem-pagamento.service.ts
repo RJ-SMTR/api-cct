@@ -57,7 +57,8 @@ export class OrdemPagamentoService {
     ordemPagamentoMensal.ordens = ordensDoMes;
     ordemPagamentoMensal.valorTotal = ordensDoMes.reduce((acc, ordem) => acc + (ordem.valorTotal || 0), 0);
     ordemPagamentoMensal.valorTotalPago = ordensDoMes.reduce((acc, ordem) => {
-      if (ordem.motivoStatusRemessa && ordem.motivoStatusRemessa.toString() === '00') {
+      if (ordem.motivoStatusRemessa &&
+          (ordem.motivoStatusRemessa.toString() === '00' || ordem.motivoStatusRemessa.toString() === 'BD')) {
         return acc + (ordem.valorTotal || 0);
       }
       return acc;
