@@ -48,10 +48,8 @@ export class BigqueryTransacaoRepository {
 
 
   public async findManyByOrdemPagamentoId(ordemPagamentoId: number): Promise<BigqueryTransacao[]> {
-    const query = `SELECT t.id_consorcio,
-                          t.datetime_transacao,
-                          t.datetime_processamento,
-                          t.id_ordem_pagamento_consorcio_operador_dia,
+    const query = `SELECT CAST(t.datetime_transacao AS STRING) datetime_transacao,
+                          CAST(t.datetime_processamento AS STRING) datetime_processamento,
                           ROUND(t.valor_pagamento, 2) valor_pagamento,
                           ROUND(t.valor_transacao, 2) valor_transacao,
                           t.tipo_pagamento,
@@ -63,7 +61,16 @@ export class BigqueryTransacaoRepository {
                      AND t.valor_pagamento > 0
                      AND t.id_ordem_pagamento_consorcio_operador_dia = ?`;
     const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoId.toString()]);
-    return this.mapBqTransacao(queryResult);
+    return queryResult.map((item: any) => {
+      const bigqueryTransacao = new BigqueryTransacao();
+      bigqueryTransacao.datetime_transacao = item.datetime_transacao;
+      bigqueryTransacao.datetime_processamento = item.datetime_processamento;
+      bigqueryTransacao.valor_pagamento = item.valor_pagamento;
+      bigqueryTransacao.valor_transacao = item.valor_transacao;
+      bigqueryTransacao.tipo_pagamento = item.tipo_pagamento;
+      bigqueryTransacao.tipo_transacao = item.tipo_transacao;
+      return bigqueryTransacao;
+    });
   }
 
   private async queryData(args?: IBqFindTransacao): Promise<{

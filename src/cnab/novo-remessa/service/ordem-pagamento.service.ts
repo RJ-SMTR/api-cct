@@ -6,18 +6,15 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 import { BigQueryToOrdemPagamento } from '../convertTo/bigquery-to-ordem-pagamento.convert';
 import { User } from 'src/users/entities/user.entity';
-import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
+import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
+import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 
 @Injectable()
 export class OrdemPagamentoService {
   private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
 
-  constructor(
-    private ordemPagamentoRepository: OrdemPagamentoRepository,
-    private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
-    private usersService: UsersService,
-  ) {}
+  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository, private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) {}
 
   async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
     const METHOD = 'sincronizarOrdensPagamento';
@@ -25,7 +22,7 @@ export class OrdemPagamentoService {
     this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
 
     for (const ordem of ordens) {
-      let user : User | undefined;
+      let user: User | undefined;
       if (ordem.operadoraCpfCnpj) {
         try {
           user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
@@ -53,12 +50,21 @@ export class OrdemPagamentoService {
     await this.ordemPagamentoRepository.save(ordemPagamento);
   }
 
-  async findOrdensPagamentoAgrupadasPorMes(userId: number, yearMonth: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasPorMes(userId, yearMonth);
+  async findOrdensPagamentoAgrupadasPorMes(userId: number, yearMonth: Date): Promise<OrdemPagamentoMensalDto> {
+    const ordensDoMes = await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasPorMes(userId, yearMonth);
+    const ordemPagamentoMensal = new OrdemPagamentoMensalDto();
+    ordemPagamentoMensal.ordens = ordensDoMes;
+    ordemPagamentoMensal.valorTotal = ordensDoMes.reduce((acc, ordem) => acc + (ordem.valorTotal || 0), 0);
+    ordemPagamentoMensal.valorTotalPago = ordensDoMes.reduce((acc, ordem) => {
+      if (ordem.motivoStatusRemessa && ordem.motivoStatusRemessa.toString() === '00') {
+        return acc + (ordem.valorTotal || 0);
+      }
+      return acc;
+    }, 0);
+    return ordemPagamentoMensal;
   }
 
   async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoSemanalDto[]> {
     return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId);
   }
-
 }
