@@ -92,12 +92,37 @@ export class RelatorioConsolidadoRepository {
     if (nomeConsorcio !== undefined && !['Todos'].some((i) => nomeConsorcio?.includes(i))) {
       query += ` and ita."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;
     }
-
-    if (emProcessamento) {
-      query += ` and ap."isPago"=false and TRIM(da."ocorrenciasCnab")='' `;
-    } else if (pago !== undefined) {
-      query += ` and	ap."isPago"=${pago} and TRIM(da."ocorrenciasCnab")<>'' `;
-    }
+    
+    if (emProcessamento === true) {
+        if (pago === true) {
+          query += `
+        and (
+          ap."isPago" = true 
+          OR (ap."isPago" = false AND TRIM(da."ocorrenciasCnab") = '')
+        )
+      `
+        } else if (pago === false) {
+          query += `
+        and (
+          ap."isPago" = false 
+          AND (
+            TRIM(da."ocorrenciasCnab") = '' 
+            OR TRIM(da."ocorrenciasCnab") <> ''
+          )
+        )
+      `
+        } else {
+          query += ` 
+        and ap."isPago" = false 
+        AND TRIM(da."ocorrenciasCnab") = '' 
+      `
+        }
+      } else if (pago !== undefined) {
+        query += `
+      and ap."isPago" = ${pago} 
+      AND TRIM(da."ocorrenciasCnab") <> '' 
+    `
+      }
     if (eleicao !== undefined) {
 
       query += ` and ita."idOrdemPagamento" LIKE '%U%'`;

@@ -43,7 +43,7 @@ export class DetalheAService {
     const logRegistro = `HeaderArquivo: ${headerArq.nsa.convertedValue}, lote: ${headerLotePgto.codigoRegistro.value}`;
     const favorecido = await this.clienteFavorecidoService.findOneRaw({
       nome: [r.detalheA.nomeTerceiro.stringValue],
-      dataVencimento: [r.detalheA.dataVencimento.convertedValue],
+      // dataVencimento: [r.detalheA.dataVencimento.convertedValue],
       detalheANumeroDocumento: [r.detalheA.numeroDocumentoEmpresa.convertedValue],
       valorLancamento: [r.detalheA.valorLancamento.convertedValue]
     });
@@ -56,7 +56,7 @@ export class DetalheAService {
 
     const detalheA = await this.detalheARepository.findOneRaw({
       nome: [r.detalheA.nomeTerceiro.stringValue],
-      dataVencimento: [r.detalheA.dataVencimento.convertedValue],
+      // dataVencimento: [r.detalheA.dataVencimento.convertedValue],
       numeroDocumentoEmpresa: r.detalheA.numeroDocumentoEmpresa.convertedValue,
       valorLancamento: [r.detalheA.valorLancamento.convertedValue]
 });
