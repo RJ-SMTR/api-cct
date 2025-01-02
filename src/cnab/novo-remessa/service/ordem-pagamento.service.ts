@@ -8,7 +8,8 @@ import { BigQueryToOrdemPagamento } from '../convertTo/bigquery-to-ordem-pagamen
 import { User } from 'src/users/entities/user.entity';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
-import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
+import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
+import { OrdemPagamentoPendenteRespUsuarioDto } from '../dto/ordem-pagamento-pendente-resp-usuario.dto';
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -67,4 +68,13 @@ export class OrdemPagamentoService {
   async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoSemanalDto[]> {
     return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId);
   }
+
+  async findOrdensPagamentoPendentes(): Promise<OrdemPagamentoPendenteDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentes();
+  }
+
+  async findOrdensPagamentoPendentesPorRespUsuario(): Promise<OrdemPagamentoPendenteRespUsuarioDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentesPorResponsabilidadeUsuario();
+  }
+
 }
