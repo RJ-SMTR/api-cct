@@ -23,6 +23,7 @@ import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { BigqueryTransacaoService } from '../../../bigquery/services/bigquery-transacao.service';
 import { BigqueryTransacao } from '../../../bigquery/entities/transacao.bigquery-entity';
+import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
 
 @ApiTags('OrdemPagamento')
 @Controller({
@@ -48,7 +49,7 @@ export class OrdemPagamentoController {
     @Request() request: IRequest, //
     @Query(...DateQueryParams.yearMonth) yearMonth: string,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: true })) userId?: number | null,
-  ): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
+  ): Promise<OrdemPagamentoMensalDto> {
     this.logger.log(getRequestLog(request));
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     const yearMonthDate = yearMonth ? new Date(yearMonth): new Date();

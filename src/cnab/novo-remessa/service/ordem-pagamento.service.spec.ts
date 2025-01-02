@@ -4,11 +4,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BigqueryOrdemPagamentoService } from '../../../bigquery/services/bigquery-ordem-pagamento.service';
 import { UsersService } from '../../../users/users.service';
 import { CustomLogger } from '../../../utils/custom-logger';
-import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { nextFriday } from 'date-fns';
 import { getStatusRemessaEnumByValue, StatusRemessaEnum } from '../../enums/novo-remessa/status-remessa.enum';
-import { getCodigoOcorrenciaEnumByValue, OcorrenciaEnum } from '../../enums/ocorrencia.enum';
+import { getDescricaoOcorrenciaEnumByValue, OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
+import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
 
 describe('OrdemPagamentoService', () => {
   let service: OrdemPagamentoService;
@@ -48,21 +48,60 @@ describe('OrdemPagamentoService', () => {
   });
 
   describe('findOrdensPagamentoAgrupadasPorMes', () => {
-    it('should return an array of OrdemPagamentoAgrupadoMensalDto', async () => {
+    it('should return an instance of OrdemPagamentoMensalDto', async () => {
       const userId = 1;
       const yearMonth = new Date();
-      const expectedResult: OrdemPagamentoAgrupadoMensalDto[] = [
+      const ordensDoMes = [
         {
+          ordemPagamentoAgrupadoId: 100,
           valorTotal: 100,
           data: nextFriday(new Date()),
-          statusRemessa: StatusRemessaEnum.AguardandoPagamento,
-          motivoStatusRemessa: OcorrenciaEnum.AA,
-          descricaoMotivoStatusRemessa: getCodigoOcorrenciaEnumByValue(OcorrenciaEnum['00']),
-          descricaoStatusRemessa: getStatusRemessaEnumByValue(StatusRemessaEnum.AguardandoPagamento),
+          statusRemessa: 2,
+          motivoStatusRemessa: 'AA',
+          descricaoMotivoStatusRemessa: getDescricaoOcorrenciaEnumByValue(OcorrenciaEnum['AA']),
+          descricaoStatusRemessa: getStatusRemessaEnumByValue(StatusRemessaEnum.NaoEfetivado),
         },
       ];
 
-      jest.spyOn(ordemPagamentoRepository, 'findOrdensPagamentoAgrupadasPorMes').mockResolvedValue(expectedResult);
+      const expectedResult: OrdemPagamentoMensalDto = {
+        ordens: ordensDoMes,
+        valorTotal: 100,
+        valorTotalPago: 0,
+      };
+
+      jest.spyOn(ordemPagamentoRepository, 'findOrdensPagamentoAgrupadasPorMes').mockResolvedValue(ordensDoMes);
+
+      const result = await service.findOrdensPagamentoAgrupadasPorMes(userId, yearMonth);
+
+      expect(result).toEqual(expectedResult);
+      expect(ordemPagamentoRepository.findOrdensPagamentoAgrupadasPorMes).toHaveBeenCalledWith(userId, yearMonth);
+    });
+  });
+
+
+  describe('findOrdensPagamentoAgrupadasPorMesComValorPago', () => {
+    it('should return an instance of OrdemPagamentoMensalDto', async () => {
+      const userId = 1;
+      const yearMonth = new Date();
+      const ordensDoMes = [
+        {
+          ordemPagamentoAgrupadoId: 100,
+          valorTotal: 100,
+          data: nextFriday(new Date()),
+          statusRemessa: 3,
+          motivoStatusRemessa: '00',
+          descricaoMotivoStatusRemessa: getDescricaoOcorrenciaEnumByValue(OcorrenciaEnum['00']),
+          descricaoStatusRemessa: getStatusRemessaEnumByValue(StatusRemessaEnum.Efetivado),
+        },
+      ];
+
+      const expectedResult: OrdemPagamentoMensalDto = {
+        ordens: ordensDoMes,
+        valorTotal: 100,
+        valorTotalPago: 100,
+      };
+
+      jest.spyOn(ordemPagamentoRepository, 'findOrdensPagamentoAgrupadasPorMes').mockResolvedValue(ordensDoMes);
 
       const result = await service.findOrdensPagamentoAgrupadasPorMes(userId, yearMonth);
 
@@ -80,8 +119,9 @@ describe('OrdemPagamentoService', () => {
           valor: 100,
           dataOrdem: new Date(),
           dataReferencia: new Date(),
-          statusRemessa: 'AguardandoPagamento',
+          statusRemessa: 2,
           motivoStatusRemessa: 'AA',
+          ordemId: 1,
         },
       ];
 

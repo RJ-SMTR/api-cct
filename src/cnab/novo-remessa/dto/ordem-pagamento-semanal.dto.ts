@@ -1,11 +1,12 @@
 import { DeepPartial } from 'typeorm';
 
 export class OrdemPagamentoSemanalDto {
+  ordemId: number
   valor: number;
   dataOrdem: Date;
   dataReferencia: Date;
-  statusRemessa: string;
-  motivoStatusRemessa: string;
+  statusRemessa: number | undefined;
+  motivoStatusRemessa: string | undefined;
 
   constructor(dto?: DeepPartial<OrdemPagamentoSemanalDto>) {
     if (dto) {

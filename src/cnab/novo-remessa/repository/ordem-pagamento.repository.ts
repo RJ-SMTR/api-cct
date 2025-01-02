@@ -9,6 +9,7 @@ import { OrdensPagamentoAgrupadasDto } from '../dto/ordens-pagamento-agrupadas.d
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { getStatusRemessaEnumByValue } from '../../enums/novo-remessa/status-remessa.enum';
+import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -88,10 +89,11 @@ export class OrdemPagamentoRepository {
     return result.map((row: any) => {
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
-      dto.valorTotal = row.valorTotal != null? row.valorTotal: null;
+      dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
+      dto.valorTotal = row.valorTotal != null? parseFloat(row.valorTotal): 0;
       if (row.motivoStatusRemessa != null){
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
-        dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
+        dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
       }
       if (row.statusRemessa != null) {
         dto.statusRemessa =row.statusRemessa;
@@ -103,7 +105,8 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoSemanalDto[]> {
     const query = `
-        SELECT ROUND(valor, 2) valor,
+        SELECT o.id,
+               ROUND(valor, 2) valor,
                o."dataOrdem"
         FROM ordem_pagamento o
         INNER JOIN ordem_pagamento_agrupado opa
@@ -116,7 +119,11 @@ export class OrdemPagamentoRepository {
 
     const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId]);
     return result.map((row: any) => {
-      return new OrdemPagamentoSemanalDto(row);
+      const ordemPagamento = new OrdemPagamentoSemanalDto();
+      ordemPagamento.ordemId = row.id;
+      ordemPagamento.dataOrdem = row.dataOrdem;
+      ordemPagamento.valor = row.valor? parseFloat(row.valor): 0;
+      return ordemPagamento;
     });
   }
 

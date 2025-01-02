@@ -97,7 +97,7 @@ export enum OcorrenciaEnum {
   '  ' = 'Ocorreu um erro! Por favor, aguarde a liberação do pagamento.',
 }
 
-export function getCodigoOcorrenciaEnumByValue(value: OcorrenciaEnum): string | undefined {
+export function getDescricaoOcorrenciaEnumByValue(value: OcorrenciaEnum): string | undefined {
   return Object.keys(OcorrenciaEnum)
     .find(key => OcorrenciaEnum[key as keyof typeof OcorrenciaEnum] === value);
 }
