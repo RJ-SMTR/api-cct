@@ -11,7 +11,7 @@ export class BigQueryToOrdemPagamento {
 
     constructor() { }
 
-    static convert(ordem: BigqueryOrdemPagamentoDTO, userId: number) {
+    static convert(ordem: BigqueryOrdemPagamentoDTO, userId: number | undefined) {
         const METHOD = 'convert';
         this.logger.debug(`Sincronizado ${ordem.idOrdemPagamento} `, METHOD);
         var result = new OrdemPagamento();
@@ -26,6 +26,7 @@ export class BigQueryToOrdemPagamento {
         result.userId = userId;
         result.valor = ordem.valorTotalTransacaoLiquido;
         result.bqUpdatedAt = new Date(ordem.datetimeUltimaAtualizacao);
+        result.dataCaptura = ordem.dataCaptura;
         return result;
     }
 }

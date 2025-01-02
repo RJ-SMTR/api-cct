@@ -84,6 +84,9 @@ export class BigqueryOrdemPagamento {
   /** Código de controle de versão do dado (SHA Github) */
   versao: string;
 
+  /** Data de captura **/
+  dataCaptura: Date;
+
   public static getGroupId(ordem: BigqueryOrdemPagamento) {
     return `${ordem.idOrdemPagamento},${ordem.idConsorcio},${ordem.idOperadora}`;
   }

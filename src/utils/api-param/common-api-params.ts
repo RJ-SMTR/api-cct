@@ -13,4 +13,12 @@ export const CommonApiParams = {
       default: 'Your logged user id (me / request.user.id)',
     }),
   } as ApiParamOptions,
+  ordemPagamentoAgrupadoId: {
+    name: 'ordemPagamentoAgrupadoId',
+    type: Number,
+    required: true,
+    description: ApiDescription({
+      default: 'O ID das ordem pagamento agrupadas',
+    }),
+  }
 };

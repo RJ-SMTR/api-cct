@@ -79,6 +79,12 @@ import { OrdemPagamentoAgrupado } from './novo-remessa/entity/ordem-pagamento-ag
 import { OrdemPagamentoService } from './novo-remessa/service/ordem-pagamento.service';
 import { OrdemPagamentoRepository } from './novo-remessa/repository/ordem-pagamento.repository';
 import { OrdemPagamentoAgrupadoRepository } from './novo-remessa/repository/ordem-pagamento-agrupado.repository';
+import { OrdemPagamentoAgrupadoService } from './novo-remessa/service/ordem-pagamento-agrupado.service';
+import {
+  OrdemPagamentoAgrupadoHistoricoRepository
+} from './novo-remessa/repository/ordem-pagamento-agrupado-historico.repository';
+import { OrdemPagamentoAgrupadoHistorico } from './novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
+import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagamento.controller';
 
 @Module({
   imports: [
@@ -113,6 +119,7 @@ import { OrdemPagamentoAgrupadoRepository } from './novo-remessa/repository/orde
       PagamentoIndevido,
       OrdemPagamento,
       OrdemPagamentoAgrupado,
+      OrdemPagamentoAgrupadoHistorico
     ]),
   ],
   providers: [
@@ -163,6 +170,8 @@ import { OrdemPagamentoAgrupadoRepository } from './novo-remessa/repository/orde
     OrdemPagamentoService,
     OrdemPagamentoRepository,
     OrdemPagamentoAgrupadoRepository,
+    OrdemPagamentoAgrupadoService,
+    OrdemPagamentoAgrupadoHistoricoRepository
   ],
   exports: [
     CnabService, //
@@ -207,7 +216,9 @@ import { OrdemPagamentoAgrupadoRepository } from './novo-remessa/repository/orde
     OrdemPagamentoService,
     OrdemPagamentoRepository,
     OrdemPagamentoAgrupadoRepository,
+    OrdemPagamentoAgrupadoService,
+    OrdemPagamentoAgrupadoHistoricoRepository
   ],
-  controllers: [CnabController, CnabManutencaoController],
+  controllers: [CnabController, CnabManutencaoController, OrdemPagamentoController],
 })
 export class CnabModule {}

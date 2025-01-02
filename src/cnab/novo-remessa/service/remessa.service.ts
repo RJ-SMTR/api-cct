@@ -14,9 +14,9 @@ import { UsersService } from "src/users/users.service";
 import { HeaderLote } from "src/cnab/entity/pagamento/header-lote.entity";
 import { HeaderLoteDTO } from "src/cnab/dto/pagamento/header-lote.dto";
 import { Cnab104FormaLancamento } from "src/cnab/enums/104/cnab-104-forma-lancamento.enum";
-import { DetalheADTO } from "src/cnab/dto/pagamento/detalhe-a.dto";
 import { HeaderLoteToDetalheA } from "../convertTo/header-lote-to-detalhe-a.convert";
 import { DetalheAToDetalheB } from "../convertTo/detalhe-a-to-detalhe-b.convert";
+import { CnabFile104PgtoDTO } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface";
 
 
 @Injectable()
@@ -24,7 +24,7 @@ export class RemessaService {
   private logger = new CustomLogger(RemessaService.name, { timestamp: true });
 
   constructor(    
-    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,        
+    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
     private headerArquivoService: HeaderArquivoService,
     private headerLoteService: HeaderLoteService,
     private detalheAService: DetalheAService,
@@ -89,7 +89,9 @@ export class RemessaService {
     return detalheB.nsr;
   }
 
-  private enviarRemessa(){
+  public async enviarRemessa(){
+    const headerArquivoDTO =  await this.headerArquivoService.findOne({});
+    const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO, headerLoteDTOs });   
 
   }
 }
