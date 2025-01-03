@@ -12,6 +12,7 @@ import { getStatusRemessaEnumByValue } from '../../enums/novo-remessa/status-rem
 import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteRespUsuarioDto } from '../dto/ordem-pagamento-pendente-resp-usuario.dto';
+import { Pagador } from '../../entity/pagamento/pagador.entity';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -260,11 +261,12 @@ export class OrdemPagamentoRepository {
         'ordemPagamento.idOperadora',
         'SUM(ordemPagamento.valor) as valorTotal',
         `JSON_AGG(
-        JSON_BUILD_OBJECT(
-          'id', ordemPagamento.id,
-          'dataOrdem', ordemPagamento.dataOrdem,
-          'valor', "ordemPagamento".valor
-        )
+            JSON_BUILD_OBJECT(
+              'id', ordemPagamento.id,
+              'dataOrdem', ordemPagamento.dataOrdem,
+              'valor', "ordemPagamento".valor,
+              'userId', "ordemPagamento"."userId"
+            )
       ) as ordensPagamento`,
       ])
       .where(fields)
@@ -283,6 +285,7 @@ export class OrdemPagamentoRepository {
             const ordemPagamento = new OrdemPagamento();
             ordemPagamento.id = op.id;
             ordemPagamento.valor = op.valor.toFixed(2);
+            ordemPagamento.userId = op.userId;
             return ordemPagamento;
           }
         }), // Parse JSON array into OrdemPagamento objects
@@ -290,5 +293,9 @@ export class OrdemPagamentoRepository {
     });
 
     return result;
+  }
+
+  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador): Promise<void> {
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4)`, [dataInicial, dataFinal, dataPgto, pagador.id]);
   }
 }
