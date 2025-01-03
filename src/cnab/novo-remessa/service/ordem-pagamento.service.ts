@@ -9,7 +9,9 @@ import { User } from 'src/users/entities/user.entity';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
-import { OrdemPagamentoPendenteRespUsuarioDto } from '../dto/ordem-pagamento-pendente-resp-usuario.dto';
+import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
+import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
+import { replaceUndefinedWithNull } from '../../../utils/type-utils';
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -54,7 +56,18 @@ export class OrdemPagamentoService {
   async findOrdensPagamentoAgrupadasPorMes(userId: number, yearMonth: Date): Promise<OrdemPagamentoMensalDto> {
     const ordensDoMes = await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasPorMes(userId, yearMonth);
     const ordemPagamentoMensal = new OrdemPagamentoMensalDto();
-    ordemPagamentoMensal.ordens = ordensDoMes;
+    ordemPagamentoMensal.ordens = ordensDoMes.map((ordem) => {
+      const o = new OrdemPagamentoAgrupadoMensalDto();
+      o.ordemPagamentoAgrupadoId = ordem.ordemPagamentoAgrupadoId;
+      o.motivoStatusRemessa = ordem.motivoStatusRemessa;
+      o.valorTotal = ordem.valorTotal;
+      o.statusRemessa = ordem.statusRemessa;
+      o.descricaoMotivoStatusRemessa = ordem.descricaoMotivoStatusRemessa;
+      o.descricaoStatusRemessa = ordem.descricaoStatusRemessa;
+      o.data = ordem.data;
+      replaceUndefinedWithNull(o);
+      return o;
+    });
     ordemPagamentoMensal.valorTotal = ordensDoMes.reduce((acc, ordem) => acc + (ordem.valorTotal || 0), 0);
     ordemPagamentoMensal.valorTotalPago = ordensDoMes.reduce((acc, ordem) => {
       if (ordem.motivoStatusRemessa &&
@@ -74,8 +87,8 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findOrdensPagamentosPendentes();
   }
 
-  async findOrdensPagamentoPendentesPorRespUsuario(): Promise<OrdemPagamentoPendenteRespUsuarioDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentesPorResponsabilidadeUsuario();
+  async findOrdensPagamentosPendentesQueNuncaForamRemetidas(): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentesQueNuncaForamRemetidas();
   }
 
 }

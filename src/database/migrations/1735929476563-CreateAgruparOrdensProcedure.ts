@@ -20,7 +20,7 @@ export class CreateAgruparOrdensProcedure1735929476563 implements MigrationInter
                     SELECT id, valor, "userId"
                     FROM public.ordem_pagamento
                     WHERE "userId" IS NOT NULL
-                      AND "dataOrdem" BETWEEN dataInicial AND dataFinal
+                      AND "dataCaptura" BETWEEN dataInicial AND dataFinal
                       AND "ordemPagamentoAgrupadoId" IS NULL
                 )
                     LOOP
