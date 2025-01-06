@@ -24,7 +24,7 @@ export interface IBqFindTransacao {
   valor_pagamento?: number[] | null | ['>=' | '<=' | '>' | '<', number] | 'NOT NULL';
   id_transacao?: string[] | null;
   id_operadora?: string[];
-  nomeConsorcio?: { in?: string[], notIn?: string[]};
+  nomeConsorcio?: { in?: string[]; notIn?: string[] };
 }
 
 @Injectable()
@@ -46,22 +46,23 @@ export class BigqueryTransacaoRepository {
     return transacoes;
   }
 
+  public async findManyByOrdemPagamentoId(ordemPagamentoId: number, cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
+    let query = `SELECT CAST(t.datetime_transacao AS STRING)     datetime_transacao,
+                        CAST(t.datetime_processamento AS STRING) datetime_processamento,
+                        ROUND(t.valor_pagamento, 2)              valor_pagamento,
+                        ROUND(t.valor_transacao, 2)              valor_transacao,
+                        t.tipo_pagamento,
+                        t.tipo_transacao
+                 FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+                     LEFT JOIN \`rj-smtr.cadastro.operadoras\` o
+                 ON o.id_operadora = t.id_operadora
+                     LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+                 WHERE 1 = 1
+                   AND t.valor_pagamento
+                     > 0
+                   AND t.id_ordem_pagamento_consorcio_operador_dia = ?`;
 
-  public async findManyByOrdemPagamentoId(ordemPagamentoId: number): Promise<BigqueryTransacao[]> {
-    const query = `SELECT CAST(t.datetime_transacao AS STRING) datetime_transacao,
-                          CAST(t.datetime_processamento AS STRING) datetime_processamento,
-                          ROUND(t.valor_pagamento, 2) valor_pagamento,
-                          ROUND(t.valor_transacao, 2) valor_transacao,
-                          t.tipo_pagamento,
-                          t.tipo_transacao
-                   FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
-                            LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
-                            LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
-                   WHERE 1 = 1
-                     AND t.valor_pagamento > 0
-                     AND t.id_ordem_pagamento_consorcio_operador_dia = ?`;
-    const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoId.toString()]);
-    return queryResult.map((item: any) => {
+    function mapBigQueryTransacao(item: any) {
       const bigqueryTransacao = new BigqueryTransacao();
       bigqueryTransacao.datetime_transacao = item.datetime_transacao;
       bigqueryTransacao.datetime_processamento = item.datetime_processamento;
@@ -70,7 +71,64 @@ export class BigqueryTransacaoRepository {
       bigqueryTransacao.tipo_pagamento = item.tipo_pagamento;
       bigqueryTransacao.tipo_transacao = item.tipo_transacao;
       return bigqueryTransacao;
-    });
+    }
+
+    if (!isAdmin) {
+      query += ` AND CAST(o.documento AS STRING) = ?`;
+      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoId.toString()]);
+      return queryResult.map((item: any) => {
+        return mapBigQueryTransacao(item);
+      });
+    } else {
+      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoId.toString(), cpfCnpj]);
+      return queryResult.map((item: any) => {
+        return mapBigQueryTransacao(item);
+      });
+    }
+  }
+
+  public async findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordemPagamentoId: number[], cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
+    let query = `SELECT ROUND(t.valor_pagamento, 2) valor_pagamento,
+                        ROUND(t.valor_transacao, 2) valor_transacao,
+                        t.tipo_pagamento,
+                        t.tipo_transacao
+                 FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+                     LEFT JOIN \`rj-smtr.cadastro.operadoras\` o
+                 ON o.id_operadora = t.id_operadora
+                     LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+                 WHERE 1 = 1
+                   AND t.valor_pagamento
+                     > 0
+                   AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST(?)`;
+
+    const ordensPagamentoIdStr = ordemPagamentoId.map((id) => id.toString());
+
+    function mapBigQueryTransacaoAgrupado(item: any) {
+      const bigqueryTransacao = new BigqueryTransacao();
+      bigqueryTransacao.valor_pagamento = item.valor_pagamento;
+      bigqueryTransacao.valor_transacao = item.valor_transacao;
+      bigqueryTransacao.tipo_pagamento = item.tipo_pagamento;
+      bigqueryTransacao.tipo_transacao = item.tipo_transacao;
+      Object.keys(bigqueryTransacao).map((key) => {
+        if (bigqueryTransacao[key] === null) {
+          bigqueryTransacao[key] = undefined;
+        }
+      });
+      return bigqueryTransacao;
+    }
+
+    if (!isAdmin) {
+      query += ` AND CAST(o.documento AS STRING) = ?`;
+      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordensPagamentoIdStr, cpfCnpj]);
+      return queryResult.map((item: any) => {
+        return mapBigQueryTransacaoAgrupado(item);
+      });
+    } else {
+      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordensPagamentoIdStr]);
+      return queryResult.map((item: any) => {
+        return mapBigQueryTransacaoAgrupado(item);
+      });
+    }
   }
 
   private async queryData(args?: IBqFindTransacao): Promise<{
@@ -81,41 +139,40 @@ export class BigqueryTransacaoRepository {
     const qArgs = this.getQueryArgs(isBqProd, args);
     const query =
       `
-        SELECT
-          CAST(t.data AS STRING) AS \`data\`,
-          t.hora,
-          CAST(t.datetime_captura AS STRING) AS datetime_captura,
-          CAST(t.datetime_transacao AS STRING) AS datetime_transacao,
-          CAST(t.datetime_processamento AS STRING) AS datetime_processamento,
-          t.datetime_captura AS captureDateTime,
-          t.modo,
-          t.sentido,
-          t.id_veiculo,
-          t.id_cliente,
-          t.id_transacao,
-          t.${qArgs.tTipoPgto} AS tipo_pagamento,
-          t.tipo_transacao_smtr AS tipo_transacao,
-          t.id_tipo_integracao,
-          t.id_integracao,
-          t.latitude,
-          t.longitude,
-          t.stop_id,
-          t.stop_lat,
-          t.stop_lon,
-          t.valor_transacao,
-          t.valor_pagamento,
-          t.versao AS bqDataVersion,
-          t.consorcio,
-          o.operadora_completo AS operadora,
-          t.id_consorcio,
-          t.id_operadora,
-          o.documento AS operadoraCpfCnpj,
-          c.cnpj AS consorcioCnpj,
-          'ok' AS status,
-          t.id_ordem_pagamento
-        FROM \`${qArgs.transacao}\` t\n
-        LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora
-        LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+          SELECT CAST(t.data AS STRING) AS \`data\`, t.hora,
+                 CAST(t.datetime_captura AS STRING)       AS datetime_captura,
+                 CAST(t.datetime_transacao AS STRING)     AS datetime_transacao,
+                 CAST(t.datetime_processamento AS STRING) AS datetime_processamento,
+                 t.datetime_captura                       AS captureDateTime,
+                 t.modo,
+                 t.sentido,
+                 t.id_veiculo,
+                 t.id_cliente,
+                 t.id_transacao,
+                 t.${qArgs.tTipoPgto}                     AS tipo_pagamento,
+                 t.tipo_transacao_smtr                    AS tipo_transacao,
+                 t.id_tipo_integracao,
+                 t.id_integracao,
+                 t.latitude,
+                 t.longitude,
+                 t.stop_id,
+                 t.stop_lat,
+                 t.stop_lon,
+                 t.valor_transacao,
+                 t.valor_pagamento,
+                 t.versao                                 AS bqDataVersion,
+                 t.consorcio,
+                 o.operadora_completo                     AS operadora,
+                 t.id_consorcio,
+                 t.id_operadora,
+                 o.documento                              AS operadoraCpfCnpj,
+                 c.cnpj                                   AS consorcioCnpj,
+                 'ok'                                     AS status,
+                 t.id_ordem_pagamento
+          FROM \` ${qArgs.transacao}\` t
+              LEFT JOIN \`rj-smtr.cadastro.operadoras\` o
+          ON o.id_operadora = t.id_operadora
+              LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
       ` +
       '\n' +
       qArgs.joinIntegracao +

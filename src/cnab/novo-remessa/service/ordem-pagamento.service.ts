@@ -12,6 +12,7 @@ import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { replaceUndefinedWithNull } from '../../../utils/type-utils';
+import { IRequest } from '../../../utils/interfaces/request.interface';
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -79,16 +80,16 @@ export class OrdemPagamentoService {
     return ordemPagamentoMensal;
   }
 
-  async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoSemanalDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId);
+  async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
   }
 
   async findOrdensPagamentoPendentes(): Promise<OrdemPagamentoPendenteDto[]> {
     return await this.ordemPagamentoRepository.findOrdensPagamentosPendentes();
   }
 
-  async findOrdensPagamentosPendentesQueNuncaForamRemetidas(): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentesQueNuncaForamRemetidas();
+  async findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId?: number | undefined): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId);
   }
 
 }

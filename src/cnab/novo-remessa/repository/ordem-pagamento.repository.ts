@@ -12,6 +12,7 @@ import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
+import { parseNumber } from '../../utils/cnab/cnab-field-utils';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -180,15 +181,15 @@ export class OrdemPagamentoRepository {
 
   /***
         Busca as ordens que não foram agrupadas e pagas
-        pela última rotina de pagamento por responsabilidade do usuário nas seguintes
+        São ignoradas as seguintes situações
         situações:
         - Usuário não cadastrou dados bancários
         - Usuário não se cadastrou no CCT, e foi gerada uma ordem com ID null
+   @param userId - Id do usuário (opcional)
    @returns OrdemPagamentoPendenteNuncaRemetidasDto[] - Lista de ordens de pagamento pendentes
    */
-  public async findOrdensPagamentosPendentesQueNuncaForamRemetidas(): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
-
-    const query = `
+  public async findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId?: number | undefined): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
+    let query = `
         select o.id,
                o.valor,
                o."dataOrdem",
@@ -208,27 +209,40 @@ export class OrdemPagamentoRepository {
         where 1 = 1
           and opa.id is null
           and (
-            o."userId" is not null
+                o."userId" is not null
                 and u."bankAccount" is not null
                 and u."bankAgency" is not null
                 and u."bankCode" is not null
                 and u."bankAccountDigit" is not null
             )
           and date_trunc('day', "dataOrdem") <= ultimo_pagamento."ultimaDataPagamento"`;
-    const result = await this.ordemPagamentoRepository.query(query);
-    return result.map((row: any) => {
-      const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
-      ordemPagamentoPendente.id = row.id;
-      ordemPagamentoPendente.valor = row.valor;
-      ordemPagamentoPendente.userId = row.userId;
-      ordemPagamentoPendente.dataOrdem = row.dataOrdem;
-    });
+    if (userId) {
+      query += ` and o."userId" = $1`;
+      const result = await this.ordemPagamentoRepository.query(query, [userId]);
+      return result.map((row: any) => {
+        const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
+        ordemPagamentoPendente.id = row.id;
+        ordemPagamentoPendente.valor = row.valor? parseFloat(Number(row.valor).toFixed(2)): 0;
+        ordemPagamentoPendente.userId = row.userId;
+        ordemPagamentoPendente.dataOrdem = row.dataOrdem;
+        return ordemPagamentoPendente;
+      });
+    } else {
+      const result = await this.ordemPagamentoRepository.query(query);
+      return result.map((row: any) => {
+        const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
+        ordemPagamentoPendente.id = row.id;
+        ordemPagamentoPendente.valor = row.valor? parseFloat(Number(row.valor).toFixed(2)): 0;
+        ordemPagamentoPendente.userId = row.userId;
+        ordemPagamentoPendente.dataOrdem = row.dataOrdem;
+        return ordemPagamentoPendente;
+      });
+    }
   }
 
 
 
-
-  public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoSemanalDto[]> {
+  public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
     const query = `
         SELECT o.id,
                ROUND(valor, 2) valor,
@@ -239,10 +253,11 @@ export class OrdemPagamentoRepository {
         WHERE 1 = 1
           AND opa.id = $1
           AND o."dataCaptura" IS NOT NULL
+          AND o."userId" = $2
         ORDER BY o."dataOrdem"
     `;
 
-    const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId]);
+    const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
     return result.map((row: any) => {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
       ordemPagamento.ordemId = row.id;
