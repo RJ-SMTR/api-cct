@@ -208,7 +208,7 @@ export class OrdemPagamentoRepository {
         where 1 = 1
           and opa.id is null
           and (
-            o."userId" is null
+            o."userId" is not null
                 and u."bankAccount" is not null
                 and u."bankAgency" is not null
                 and u."bankCode" is not null
