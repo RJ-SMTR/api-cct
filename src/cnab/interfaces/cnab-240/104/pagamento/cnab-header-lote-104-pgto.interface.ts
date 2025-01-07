@@ -1,5 +1,6 @@
 import { HeaderLoteDTO } from 'src/cnab/dto/pagamento/header-lote.dto';
 import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
+import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-all/cnab-field.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
@@ -57,7 +58,7 @@ export class CnabHeaderLote104PgtoDTO {
   constructor(dto: CnabHeaderLote104Pgto) {
     Object.assign(this, dto);
   }
-  static fromDTO(headerLoteDTO: HeaderLoteDTO): CnabHeaderLote104Pgto {
+  static fromDTO(headerLoteDTO: HeaderLoteDTO | HeaderLote): CnabHeaderLote104Pgto {
     const headerLote104 = new CnabHeaderLote104PgtoDTO(structuredClone(Cnab104PgtoTemplates.file104.registros.headerLote));
     const headerArquivo = headerLoteDTO.headerArquivo as HeaderArquivo;
     const pagador = headerLoteDTO.pagador as DeepPartial<Pagador>;

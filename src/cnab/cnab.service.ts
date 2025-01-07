@@ -66,7 +66,7 @@ import { OrdemPagamentoService } from './novo-remessa/service/ordem-pagamento.se
 export interface ICnabInfo {
   name: string;
   content: string;
-  headerArquivo: HeaderArquivoDTO;
+  headerArquivo: HeaderArquivoDTO | HeaderArquivo;
 }
 
 interface IFindRemessaArgs {
@@ -259,12 +259,9 @@ export class CnabService {
   public async sendRemessa(listCnab: ICnabInfo[]) {
     for (const cnab of listCnab) {
       cnab.name = await this.sftpService.submitCnabRemessa(cnab.content);
-      const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
-      if (cnab.headerArquivo._isConf) {
-        await this.headerArquivoConfService.save({ id: cnab.headerArquivo.id, remessaName, status: HeaderArquivoStatus._3_remessaEnviado });
-      } else {
-        await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName, status: HeaderArquivoStatus._3_remessaEnviado });
-      }
+      const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();     
+      await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName,
+        status: HeaderArquivoStatus._3_remessaEnviado });      
     }
   }
 

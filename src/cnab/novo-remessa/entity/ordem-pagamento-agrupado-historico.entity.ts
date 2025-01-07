@@ -1,5 +1,5 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { OrdemPagamentoAgrupado } from './ordem-pagamento-agrupado.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
@@ -39,5 +39,6 @@ export class OrdemPagamentoAgrupadoHistorico extends EntityHelper {
   
   @ManyToOne(() => OrdemPagamentoAgrupado, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupadoHistorico_ordensPagamento_OneToMany' })
-  ordemPagamentoAgrupado: OrdemPagamentoAgrupado;
+  ordemPagamentoAgrupado: OrdemPagamentoAgrupado; 
+
 }

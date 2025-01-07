@@ -21,7 +21,10 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
 
   public async findOne(fields: EntityCondition<OrdemPagamentoAgrupadoHistorico>): Promise<Nullable<OrdemPagamentoAgrupadoHistorico>> {
     return await this.ordemPagamentoAgrupadoHistoricoRepository.findOne({
-      where: fields,
+      where: fields,      
+      order: {
+        id: 'DESC',
+      },
     });
   }
 
