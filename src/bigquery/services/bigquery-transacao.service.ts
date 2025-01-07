@@ -61,4 +61,8 @@ export class BigqueryTransacaoService {
     });
     callback(transacoes);
   }
+
+  public async findByOrdemPagamentoId(ordemPagamentoId: number): Promise<BigqueryTransacao[]> {
+    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoId(ordemPagamentoId);
+  }
 }

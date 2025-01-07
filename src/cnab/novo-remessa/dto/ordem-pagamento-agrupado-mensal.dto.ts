@@ -1,11 +1,9 @@
-import { StatusRemessaEnum } from '../../enums/novo-remessa/status-remessa.enum';
-import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
-
 export class OrdemPagamentoAgrupadoMensalDto {
+  ordemPagamentoAgrupadoId: number | undefined;
   data: Date;
   valorTotal: number | undefined;
-  statusRemessa: StatusRemessaEnum | undefined;
-  motivoStatusRemessa: OcorrenciaEnum | undefined;
+  statusRemessa: number | undefined;
+  motivoStatusRemessa: string | undefined;
   descricaoStatusRemessa: string | undefined;
   descricaoMotivoStatusRemessa: string | undefined;
 }

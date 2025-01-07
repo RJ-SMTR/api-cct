@@ -9,6 +9,7 @@ import { OrdensPagamentoAgrupadasDto } from '../dto/ordens-pagamento-agrupadas.d
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { getStatusRemessaEnumByValue } from '../../enums/novo-remessa/status-remessa.enum';
+import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -41,8 +42,6 @@ export class OrdemPagamentoRepository {
   }
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
-    // TODO: Perguntar ao William se o pagamento é agrupado por usuário
-
     const query = `
         WITH month_dates AS (SELECT generate_series(
                                             DATE_TRUNC('month', $1::DATE),
@@ -50,14 +49,7 @@ export class OrdemPagamentoRepository {
                                             '1 day'
                                     ) AS data)
         SELECT data,
-            /*(SELECT SUM(valor)
-             FROM ordem_pagamento o
-             WHERE 1 = 1
-               AND DATE_TRUNC('day', o."dataOrdem") <= (data::date - 1)
-               AND DATE_TRUNC('day', o."dataOrdem") >= (data::date - 7)
-               AND o."userId" = 1
-               AND o."dataCaptura" IS NOT NULL),*/
-               (SELECT "valorTotal"
+               (SELECT ROUND("valorTotal", 2)
                 FROM ordem_pagamento_agrupado opa
                 WHERE 1 = 1
                 AND DATE_TRUNC('day', opa."dataPagamento") = data::date
@@ -97,10 +89,11 @@ export class OrdemPagamentoRepository {
     return result.map((row: any) => {
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
-      dto.valorTotal = parseFloat(parseFloat(row.sum)?.toFixed(2));
+      dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
+      dto.valorTotal = row.valorTotal != null? parseFloat(row.valorTotal): 0;
       if (row.motivoStatusRemessa != null){
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
-        dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
+        dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
       }
       if (row.statusRemessa != null) {
         dto.statusRemessa =row.statusRemessa;
@@ -112,7 +105,8 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoSemanalDto[]> {
     const query = `
-        SELECT valor,
+        SELECT o.id,
+               ROUND(valor, 2) valor,
                o."dataOrdem"
         FROM ordem_pagamento o
         INNER JOIN ordem_pagamento_agrupado opa
@@ -125,7 +119,11 @@ export class OrdemPagamentoRepository {
 
     const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId]);
     return result.map((row: any) => {
-      return new OrdemPagamentoSemanalDto(row);
+      const ordemPagamento = new OrdemPagamentoSemanalDto();
+      ordemPagamento.ordemId = row.id;
+      ordemPagamento.dataOrdem = row.dataOrdem;
+      ordemPagamento.valor = row.valor? parseFloat(row.valor): 0;
+      return ordemPagamento;
     });
   }
 
