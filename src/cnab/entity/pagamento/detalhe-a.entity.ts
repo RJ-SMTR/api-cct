@@ -31,7 +31,7 @@ export class DetalheA extends EntityHelper {
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_DetalheA_id' })
   id: number;
 
-  @ManyToOne(() => HeaderLote, { eager: true })
+  @ManyToOne(() => HeaderLote, { eager: false })
   @JoinColumn({ foreignKeyConstraintName: 'FK_DetalheA_headerLote_ManyToOne' })
   headerLote: HeaderLote;
 

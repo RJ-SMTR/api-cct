@@ -5,11 +5,14 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
-import { OrdensPagamentoAgrupadasDto } from '../dto/ordens-pagamento-agrupadas.dto';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { getStatusRemessaEnumByValue } from '../../enums/novo-remessa/status-remessa.enum';
 import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
+import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
+import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
+import { Pagador } from '../../entity/pagamento/pagador.entity';
+import { parseNumber } from '../../utils/cnab/cnab-field-utils';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -103,7 +106,143 @@ export class OrdemPagamentoRepository {
     });
   }
 
-  public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoSemanalDto[]> {
+  /***
+    * Obtém as ordens que foram agrupadas mas o pagamento falhou.
+   * Existem dois tipos de falhas:
+   * - Falhas nas quais o usuário deve modificar os dados bancários.
+   * - Falhas nas quais houve um erro desconhecido no arquivo de retorno do banco
+   * Não são retornadas ordens que o usuário não modificou os dados bancários caso houveram os erros referentes a conta
+   * do usuário.
+   * @returns OrdemPagamentoPendenteDto[] - Lista de ordens de pagamento pendentes
+   *  */
+  public async findOrdensPagamentosPendentes(): Promise<OrdemPagamentoPendenteDto[]> {
+
+    const query = `select o.id,
+                       o."valor",
+                       "dataPagamento",
+                       "dataReferencia",
+                       "statusRemessa",
+                       "motivoStatusRemessa",
+                       opa.id as "ordemPagamentoAgrupadoId",
+                       "userId"
+                from ordem_pagamento o
+                         inner join ordem_pagamento_agrupado opa
+                                    on o."ordemPagamentoAgrupadoId" = opa.id
+                         inner join lateral (
+                                select "dataReferencia",
+                                       "statusRemessa",
+                                       "motivoStatusRemessa",
+                                       "ordemPagamentoAgrupadoId",
+                                       "userBankCode",
+                                       "userBankAgency",
+                                       "userBankAccount",
+                                       "userBankAccountDigit"
+                                from ordem_pagamento_agrupado_historico oph
+                                where opa.id = oph."ordemPagamentoAgrupadoId"
+                                order by oph."dataReferencia" desc
+                                limit 1
+                         ) oph
+                        on opa.id = oph."ordemPagamentoAgrupadoId"
+                         inner join "user" u
+                                    on o."userId" = u.id
+                where "statusRemessa" = 4
+                  and "motivoStatusRemessa" NOT IN ('00', 'BD')
+                  and o."userId" is not null
+                  and u."bankAccount" is not null
+                  and u."bankAgency" is not null
+                  and u."bankCode" is not null
+                  and u."bankAccountDigit" is not null
+                  and (
+                    (
+                        "motivoStatusRemessa" NOT IN ('AG', 'AM', 'AN', 'AZ', 'BA', '02')
+                    )
+                        or (
+                        "motivoStatusRemessa" IN ('AG', 'AM', 'AN', 'AZ', 'BA', '02')
+                            and u."bankAccount" <> oph."userBankAccount"
+                            and u."bankAgency" <> oph."userBankAgency"
+                            and u."bankCode" <> cast(oph."userBankCode" as integer)
+                            and u."bankAccountDigit" <> oph."userBankAccountDigit"
+                        )
+                    )`;
+    const result = await this.ordemPagamentoRepository.query(query);
+    return result.map((row: any) => {
+      const ordemPagamentoPendente = new OrdemPagamentoPendenteDto();
+      ordemPagamentoPendente.id = row.id;
+      ordemPagamentoPendente.valor = row.valoe? parseFloat(row.valor) : 0;
+      ordemPagamentoPendente.dataPagamento = row.dataPagamento;
+      ordemPagamentoPendente.dataReferencia = row.dataReferencia;
+      ordemPagamentoPendente.statusRemessa = row.statusRemessa;
+      ordemPagamentoPendente.motivoStatusRemessa = row.motivoStatusRemessa;
+      ordemPagamentoPendente.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
+      ordemPagamentoPendente.userId = row.userId;
+    });
+  }
+
+
+  /***
+        Busca as ordens que não foram agrupadas e pagas
+        São ignoradas as seguintes situações
+        situações:
+        - Usuário não cadastrou dados bancários
+        - Usuário não se cadastrou no CCT, e foi gerada uma ordem com ID null
+   @param userId - Id do usuário (opcional)
+   @returns OrdemPagamentoPendenteNuncaRemetidasDto[] - Lista de ordens de pagamento pendentes
+   */
+  public async findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId?: number | undefined): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
+    let query = `
+        select o.id,
+               o.valor,
+               o."dataOrdem",
+               "userId",
+               "ultimaDataPagamento"
+        from ordem_pagamento o
+                 left join ordem_pagamento_agrupado opa
+                           on o."ordemPagamentoAgrupadoId" = opa.id
+                 left join "user" u
+                           on o."userId" = u.id
+                 inner join lateral (
+                      select date_trunc('day', max(opa2."dataPagamento")) as "ultimaDataPagamento"
+                      from ordem_pagamento_agrupado opa2
+                      where date_trunc('day', opa2."dataPagamento") <= date_trunc('day', current_date)
+                ) ultimo_pagamento
+                on true
+        where 1 = 1
+          and opa.id is null
+          and (
+                o."userId" is not null
+                and u."bankAccount" is not null
+                and u."bankAgency" is not null
+                and u."bankCode" is not null
+                and u."bankAccountDigit" is not null
+            )
+          and date_trunc('day', "dataOrdem") <= ultimo_pagamento."ultimaDataPagamento"`;
+    if (userId) {
+      query += ` and o."userId" = $1`;
+      const result = await this.ordemPagamentoRepository.query(query, [userId]);
+      return result.map((row: any) => {
+        const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
+        ordemPagamentoPendente.id = row.id;
+        ordemPagamentoPendente.valor = row.valor? parseFloat(Number(row.valor).toFixed(2)): 0;
+        ordemPagamentoPendente.userId = row.userId;
+        ordemPagamentoPendente.dataOrdem = row.dataOrdem;
+        return ordemPagamentoPendente;
+      });
+    } else {
+      const result = await this.ordemPagamentoRepository.query(query);
+      return result.map((row: any) => {
+        const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
+        ordemPagamentoPendente.id = row.id;
+        ordemPagamentoPendente.valor = row.valor? parseFloat(Number(row.valor).toFixed(2)): 0;
+        ordemPagamentoPendente.userId = row.userId;
+        ordemPagamentoPendente.dataOrdem = row.dataOrdem;
+        return ordemPagamentoPendente;
+      });
+    }
+  }
+
+
+
+  public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
     const query = `
         SELECT o.id,
                ROUND(valor, 2) valor,
@@ -114,10 +253,11 @@ export class OrdemPagamentoRepository {
         WHERE 1 = 1
           AND opa.id = $1
           AND o."dataCaptura" IS NOT NULL
+          AND o."userId" = $2
         ORDER BY o."dataOrdem"
     `;
 
-    const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId]);
+    const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
     return result.map((row: any) => {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
       ordemPagamento.ordemId = row.id;
@@ -127,42 +267,7 @@ export class OrdemPagamentoRepository {
     });
   }
 
-  public async findOrdensPagamentoAgrupadas(fields: EntityCondition<OrdemPagamento>): Promise<OrdensPagamentoAgrupadasDto[]> {
-    const groupedData = await this.ordemPagamentoRepository
-      .createQueryBuilder('ordemPagamento')
-      .select([
-        'ordemPagamento.userId',
-        'ordemPagamento.idOperadora',
-        'SUM(ordemPagamento.valor) as valorTotal',
-        `JSON_AGG(
-        JSON_BUILD_OBJECT(
-          'id', ordemPagamento.id,
-          'dataOrdem', ordemPagamento.dataOrdem,
-          'valor', "ordemPagamento".valor
-        )
-      ) as ordensPagamento`,
-      ])
-      .where(fields)
-      .groupBy('ordemPagamento.userId')
-      .addGroupBy('ordemPagamento.idOperadora') // Order by the less recent within the group
-      .getRawMany();
-
-    const result: OrdensPagamentoAgrupadasDto[] = groupedData.map((item) => {
-      return {
-        userId: item.ordemPagamento_userId,
-        idOperadora: item.ordemPagamento_idOperadora,
-        valorTotal: item.valortotal,
-        ordensPagamento: item.ordenspagamento.map((op: any) => {
-          if (op) {
-            const ordemPagamento = new OrdemPagamento();
-            ordemPagamento.id = op.id;
-            ordemPagamento.valor = op.valor.toFixed(2);
-            return ordemPagamento;
-          }
-        }), // Parse JSON array into OrdemPagamento objects
-      };
-    });
-
-    return result;
+  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador): Promise<void> {
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4)`, [dataInicial, dataFinal, dataPgto, pagador.id]);
   }
 }
