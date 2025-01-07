@@ -8,7 +8,11 @@ import { BigQueryToOrdemPagamento } from '../convertTo/bigquery-to-ordem-pagamen
 import { User } from 'src/users/entities/user.entity';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
-import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
+import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
+import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
+import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
+import { replaceUndefinedWithNull } from '../../../utils/type-utils';
+import { IRequest } from '../../../utils/interfaces/request.interface';
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -53,10 +57,22 @@ export class OrdemPagamentoService {
   async findOrdensPagamentoAgrupadasPorMes(userId: number, yearMonth: Date): Promise<OrdemPagamentoMensalDto> {
     const ordensDoMes = await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasPorMes(userId, yearMonth);
     const ordemPagamentoMensal = new OrdemPagamentoMensalDto();
-    ordemPagamentoMensal.ordens = ordensDoMes;
+    ordemPagamentoMensal.ordens = ordensDoMes.map((ordem) => {
+      const o = new OrdemPagamentoAgrupadoMensalDto();
+      o.ordemPagamentoAgrupadoId = ordem.ordemPagamentoAgrupadoId;
+      o.motivoStatusRemessa = ordem.motivoStatusRemessa;
+      o.valorTotal = ordem.valorTotal;
+      o.statusRemessa = ordem.statusRemessa;
+      o.descricaoMotivoStatusRemessa = ordem.descricaoMotivoStatusRemessa;
+      o.descricaoStatusRemessa = ordem.descricaoStatusRemessa;
+      o.data = ordem.data;
+      replaceUndefinedWithNull(o);
+      return o;
+    });
     ordemPagamentoMensal.valorTotal = ordensDoMes.reduce((acc, ordem) => acc + (ordem.valorTotal || 0), 0);
     ordemPagamentoMensal.valorTotalPago = ordensDoMes.reduce((acc, ordem) => {
-      if (ordem.motivoStatusRemessa && ordem.motivoStatusRemessa.toString() === '00') {
+      if (ordem.motivoStatusRemessa &&
+          (ordem.motivoStatusRemessa.toString() === '00' || ordem.motivoStatusRemessa.toString() === 'BD')) {
         return acc + (ordem.valorTotal || 0);
       }
       return acc;
@@ -64,7 +80,16 @@ export class OrdemPagamentoService {
     return ordemPagamentoMensal;
   }
 
-  async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number): Promise<OrdemPagamentoSemanalDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId);
+  async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
   }
+
+  async findOrdensPagamentoPendentes(): Promise<OrdemPagamentoPendenteDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentes();
+  }
+
+  async findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId?: number | undefined): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId);
+  }
+
 }

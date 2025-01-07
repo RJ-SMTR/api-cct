@@ -26,11 +26,11 @@ export class OrdemPagamentoAgrupadoService {
     private usersService: UsersService,
   ) {}   
  
-  async prepararPagamentoAgrupados(dataOrdemInicial: Date, dataOrdemFinal: Date,dataPgto:Date, pagadorKey: keyof AllPagadorDict) {
+  async prepararPagamentoAgrupados(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto:Date, pagadorKey: keyof AllPagadorDict) {
     this.logger.debug(`Preparando agrupamentos`)
     const pagador = await this.getPagador(pagadorKey);
-    if(pagador){
-      await this.saveAll(dataOrdemInicial, dataOrdemFinal, pagador, dataPgto);
+    if(pagador) {
+      await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
     }
   }
 
@@ -38,62 +38,7 @@ export class OrdemPagamentoAgrupadoService {
     return (await this.pagadorService.getAllPagador())[pagadorKey];
   } 
 
-  async save(ordem: BigqueryOrdemPagamentoDTO, userId: number) {
-    const ordemPagamento = BigQueryToOrdemPagamento.convert(ordem, userId);
-    await this.ordemPamentoRepository.save(ordemPagamento);
-  }
-
-  async saveAll(dataInicial: Date, dataFinal: Date, pagador: Pagador, dataPgto:Date){
-    const ordensAgrupadas = await this.ordemPamentoRepository.findOrdensPagamentoAgrupadas({ dataOrdem: Between(dataInicial, dataFinal) });
-    for (const ordensAgrupada of ordensAgrupadas) {
-      try {
-        const ordemPagamentoAgrupado = new OrdemPagamentoAgrupado();
-        ordemPagamentoAgrupado.valorTotal = ordensAgrupada.valorTotal;
-        ordemPagamentoAgrupado.dataPagamento = dataPgto;
-        ordemPagamentoAgrupado.ordensPagamento = ordensAgrupada.ordensPagamento;
-        ordemPagamentoAgrupado.pagador = pagador;
-        ordemPagamentoAgrupado.createdAt = new Date();
-        ordemPagamentoAgrupado.updatedAt = new Date();
-        const ordemPagamentoAgrupadoSaved = await this.ordemPamentoAgrupadoRepository.save(ordemPagamentoAgrupado);
-        const ordemPagamentoAgrupadoHistorico = await this.buildHistoricoFromOrdemPagamentoAgrupado(ordemPagamentoAgrupadoSaved);
-        await this.ordemPamentoAgrupadoHistRepository.save(ordemPagamentoAgrupadoHistorico);
-      } catch (error) {
-        this.logger.error(`Erro ao salvar ordem de pagamento agrupada: ${error}`);
-      }
-    }
-  }
-
-
-  async buildHistoricoFromOrdemPagamentoAgrupado(ordemPagamentoAgrupado: OrdemPagamentoAgrupado): Promise<OrdemPagamentoAgrupadoHistorico> {
-    // comente o código abaixo para testes, se necessário
-    const userId = ordemPagamentoAgrupado.ordensPagamento.find(op => op.userId !== undefined)?.userId;
-    if (!userId) {
-      this.logger.error('Nenhum usuário encontrado para a ordem de pagamento');
-      throw new Error('Nenhum usuário encontrado para a ordem de pagamento');
-    }
-
-    const user = await this.usersService.getOne({ id: userId });
-    if (!user.bankAccount || !user.bankAccountDigit || !user.bankAgency || !user.bankCode) {
-      this.logger.error('Dados bancários do usuário não encontrados');
-      throw new Error('Dados bancários do usuário não encontrados');
-    }
-    // desconmente o código abaixo para testes, se necessário
-    // const user = {
-    //   bankAccount: '123456',
-    //   bankAccountDigit: '1',
-    //   bankAgency: '1234',
-    //   bankCode: '123',
-    // }
-
-    const ordemPagamentoAgrupadoHistorico = new OrdemPagamentoAgrupadoHistorico();
-    ordemPagamentoAgrupadoHistorico.ordemPagamentoAgrupado = ordemPagamentoAgrupado;
-    ordemPagamentoAgrupadoHistorico.dataReferencia = new Date();
-    ordemPagamentoAgrupadoHistorico.userBankCode = user.bankCode.toString();
-    ordemPagamentoAgrupadoHistorico.userBankAgency = user.bankAgency.toString();
-    ordemPagamentoAgrupadoHistorico.userBankAccount = user.bankAccount.toString();
-    ordemPagamentoAgrupadoHistorico.userBankAccountDigit = user.bankAccountDigit.toString();
-    ordemPagamentoAgrupadoHistorico.statusRemessa = StatusRemessaEnum.Criado;
-
-    return ordemPagamentoAgrupadoHistorico;
+  async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador) {
+    await this.ordemPamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador);
   }
 }

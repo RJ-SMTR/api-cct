@@ -43,3 +43,12 @@ export function isStringNumber(val: string | null | undefined): val is string {
 export function isStringDecimal(val: string | null | undefined): val is string {
   return isStringNumber(val) && Number(val) % 1 != 0;
 }
+
+export function replaceUndefinedWithNull(obj: Record<string, any>): void {
+  for (const key in obj) {
+    if (obj[key] === undefined) {
+      obj[key] = null;
+    }
+  }
+}
+

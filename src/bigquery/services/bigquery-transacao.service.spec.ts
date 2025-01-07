@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BigqueryTransacaoService } from './bigquery-transacao.service';
 import { BigqueryTransacaoRepository } from '../repositories/bigquery-transacao.repository';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
+import { Role } from '../../roles/entities/role.entity';
 
 describe('BigqueryTransacaoService', () => {
   let service: BigqueryTransacaoService;
@@ -69,9 +70,13 @@ describe('BigqueryTransacaoService', () => {
 
     jest.spyOn(repository, 'findManyByOrdemPagamentoId').mockResolvedValue(mockData);
 
-    const result = await service.findByOrdemPagamentoId(ordemPagamentoId);
+    const role = new Role();
+    role.name = 'dummy';
+    role.id = 1;
+    const user = { user: { id: 1, role: role } };
+    const result = await service.findByOrdemPagamentoId(ordemPagamentoId, '99999999999', { ...user } as any);
 
     expect(result).toEqual(mockData);
-    expect(repository.findManyByOrdemPagamentoId).toHaveBeenCalledWith(ordemPagamentoId);
+    expect(repository.findManyByOrdemPagamentoId).toHaveBeenCalledWith(ordemPagamentoId, '99999999999', false);
   });
 });
