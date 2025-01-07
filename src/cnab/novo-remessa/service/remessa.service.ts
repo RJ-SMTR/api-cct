@@ -16,7 +16,10 @@ import { HeaderLoteDTO } from "src/cnab/dto/pagamento/header-lote.dto";
 import { Cnab104FormaLancamento } from "src/cnab/enums/104/cnab-104-forma-lancamento.enum";
 import { HeaderLoteToDetalheA } from "../convertTo/header-lote-to-detalhe-a.convert";
 import { DetalheAToDetalheB } from "../convertTo/detalhe-a-to-detalhe-b.convert";
-import { CnabFile104PgtoDTO } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface";
+import { HeaderArquivoToCnabFile } from "../convertTo/header-arquivo-to-cnabfile.convert";
+import { ICnabInfo } from "src/cnab/cnab.service";
+import { SftpService } from "src/sftp/sftp.service";
+import { HeaderArquivoStatus } from "src/cnab/enums/pagamento/header-arquivo-status.enum";
 
 
 @Injectable()
@@ -30,17 +33,18 @@ export class RemessaService {
     private detalheAService: DetalheAService,
     private detalheBService: DetalheBService,
     private settingsService: SettingsService, 
-    private userService: UsersService
+    private userService: UsersService,
+    private sftpService: SftpService,
   ) {}
   
   public async prepararRemessa(dataInicio:Date,dataFim:Date,pagador: Pagador,consorcio?:string[]){ 
     const ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio,dataFim,consorcio);
     const headerArquivo = await this.gerarHeaderArquivo(pagador);
     let nsr = 1;
-    let nsrAux =0;
+    let nsrAux = 0;
     ordens.forEach(async opa => {      
       if(opa.ordensPagamento[0].userId !=null){
-        const user = await this.getuser(opa.ordensPagamento[0].userId);
+        const user = await this.getUser(opa.ordensPagamento[0].userId);
         if(user.bankCode){
           const headerLote = await this.gerarHeaderLote(headerArquivo,user.bankCode.toString(),opa);
           if(headerLote){
@@ -77,21 +81,33 @@ export class RemessaService {
     })[0];   
   }
 
-  private async getuser(userId: number){
+  private async getUser(userId: number){
     return await this.userService.getOne({id: userId});
   }
 
   private async gerarDetalheAB(headerLote: HeaderLote,ordem:OrdemPagamentoAgrupado,nsr?:number){
-    const detalheA = HeaderLoteToDetalheA.convert(headerLote, ordem, nsr);
+    const detalheA = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr);
     const detalheASavesd = await this.detalheAService.save(detalheA);
     const detalheB = DetalheAToDetalheB.convert(detalheASavesd,ordem)
     await this.detalheBService.save(detalheB);
     return detalheB.nsr;
   }
 
-  public async enviarRemessa(){
-    const headerArquivoDTO =  await this.headerArquivoService.findOne({});
-    const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO, headerLoteDTOs });   
+  public async gerarCnabText(dataRemessa: Date){
+    const headerArquivoDTO = await this.headerArquivoService.findOne({dataGeracao: dataRemessa});
+    if(headerArquivoDTO){
+      return HeaderArquivoToCnabFile.convert(headerArquivoDTO); 
+    }
+    return null;
+  }
 
+  public async enviarRemessa(listCnab: ICnabInfo[]){ 
+      for (const cnab of listCnab) {
+      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content);
+      const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();     
+      await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName,
+      status: HeaderArquivoStatus._3_remessaEnviado });         
+      //Atualizar Status Historico Remessa      
+    }
   }
 }

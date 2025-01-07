@@ -13,6 +13,7 @@ import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-p
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from '../../enums/novo-remessa/status-remessa.enum';
 import { UsersService } from '../../../users/users.service';
+import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {
@@ -97,6 +98,13 @@ export class OrdemPagamentoAgrupadoService {
   }
 
   async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined) {
-    return this.ordemPamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,consorcio);
+    return await this.ordemPamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,consorcio);
   }
+
+  async getUltimoHistoricoOrdem(ordemPagamento:OrdemPagamentoAgrupado){
+    return this.ordemPamentoAgrupadoHistRepository.findOne({ 
+      ordemPagamentoAgrupado:{ id:  ordemPagamento.id }
+    });
+  }
+
 }

@@ -7,6 +7,8 @@ import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { Ocorrencia } from './ocorrencia.entity';
 import { isAfter } from 'date-fns';
 import { getDateFromCnabName } from 'src/utils/date-utils';
+import { OrdemPagamentoAgrupadoHistorico } from 'src/cnab/novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
+import { Nullable } from 'src/utils/types/nullable.type';
 
 /**
  * Pagamento.DetalheA
@@ -122,6 +124,12 @@ export class DetalheA extends EntityHelper {
     foreignKeyConstraintName: 'FK_DetalheA_itemTransacaoAgrupado_OneToOne',
   })
   itemTransacaoAgrupado: ItemTransacaoAgrupado;
+
+  @OneToOne(() => ItemTransacaoAgrupado, { eager: true, nullable: false })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheA_OrdemPagamentoAgrupadoHistorico_OneToOne',
+  })
+  ordemPagamentoAgrupadoHistorico: OrdemPagamentoAgrupadoHistorico | Nullable<OrdemPagamentoAgrupadoHistorico>;
 
   /** Nome do retorno mais recente lido, para referência. */
   @Column({ type: String, unique: false, nullable: true })
