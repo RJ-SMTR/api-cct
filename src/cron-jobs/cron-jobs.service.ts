@@ -83,8 +83,8 @@ export class CronJobsService {
   }
 
  async onModuleLoad() {  
-    this.generateRemessaEmpresa();
-    await this.syncTransacaoViewOrdem('empresa');
+    this.generateRemessaVanzeiros();
+    await this.syncTransacaoViewOrdem('van');
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -365,9 +365,9 @@ export class CronJobsService {
    */
   async generateRemessaVanzeiros(debug?: ICronjobDebug,isUnico?:boolean) {
     const METHOD = 'generateRemessaVanzeiros';
-    if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
-       return;
-   }
+    // if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
+    //    return;
+    // }
     this.logger.log('Tarefa iniciada', METHOD);
     const startDate = new Date();
     const today = debug?.today || new Date();
