@@ -1,7 +1,7 @@
 export enum StatusRemessaEnum {
   Criado = 0,//Criado no CCT
-  EnviadoBanco = 1,//Remessa enviado
-  AguardandoPagamento = 2, //Aguardando Pagamento // Primeiro retorno
+  PreparadoParaEnvio = 1,//Remessa enviado
+  AguardandoPagamento = 2, //Aguardando Pagamento
   Efetivado = 3,//Segundo retorno
   NaoEfetivado = 4 //Retorno com Erro
 }

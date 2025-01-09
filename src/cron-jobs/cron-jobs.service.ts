@@ -5,7 +5,6 @@ import { CronJob, CronJobParameters } from 'cron';
 import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWithinInterval, setHours, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
-import { OrdemPagamentoService } from 'src/cnab/novo-remessa/service/ordem-pagamento.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -21,8 +20,6 @@ import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { formatDateInterval, formatDateISODate } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
-import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
-import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
 
 /**
  * Enum CronJobServicesJobs
@@ -77,8 +74,6 @@ export class CronJobsService {
     private mailHistoryService: MailHistoryService,
     private usersService: UsersService,
     private cnabService: CnabService,
-    private ordemPagamentoService: OrdemPagamentoService,
-    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService
   ) {}
 
   onModuleInit() {
@@ -88,13 +83,6 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    // await this.ordemPagamentoService.sincronizarOrdensPagamento(
-    //  new Date('2024-12-27'), new Date('2025-01-02'), ['STPC', 'STPL','TEC']);
-
-    // const pagadorKey: keyof AllPagadorDict = 'cett';
-    // await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
-    //   new Date('2024-12-27'), new Date('2025-01-02'), new Date('2025-01-03'), pagadorKey);
-
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(

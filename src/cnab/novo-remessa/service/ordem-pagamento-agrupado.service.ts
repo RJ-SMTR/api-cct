@@ -7,6 +7,8 @@ import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
+import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
+import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 
 
 @Injectable()
@@ -45,6 +47,11 @@ export class OrdemPagamentoAgrupadoService {
     return this.ordemPamentoAgrupadoHistRepository.findOne({ 
       ordemPagamentoAgrupado:{ id:  ordemPagamento.id }
     });
+  }
+
+  async saveStatusHistorico(historico: OrdemPagamentoAgrupadoHistorico,statusRemessa:StatusRemessaEnum){
+    historico.statusRemessa = statusRemessa;    
+    this.ordemPamentoAgrupadoHistRepository.save(historico);
   }
 
 }

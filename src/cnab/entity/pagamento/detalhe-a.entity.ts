@@ -125,7 +125,7 @@ export class DetalheA extends EntityHelper {
   })
   itemTransacaoAgrupado: ItemTransacaoAgrupado;
 
-  @OneToOne(() => ItemTransacaoAgrupado, { eager: true, nullable: true })
+  @OneToOne(() => OrdemPagamentoAgrupadoHistorico, { eager: true, nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_DetalheA_OrdemPagamentoAgrupadoHistorico_OneToOne',
   })
