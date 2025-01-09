@@ -44,7 +44,7 @@ export class LancamentoAutorizacaoHistory extends EntityHelper implements ILanca
   @Index('IDX_LancamentoAutorizacaoHistory_lancamento')
   lancamentoHistory: LancamentoHistory;
 
-  @ManyToOne(() => User, (user) => user.lancamentos, { onDelete: 'CASCADE', onUpdate: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.lancamentoHistories, { onDelete: 'CASCADE', onUpdate: 'CASCADE' })
   @JoinColumn({ foreignKeyConstraintName: 'FK_LancamentoAutorizacaoHistory_user' })
   @Index('IDX_LancamentoAutorizacaoHistory_user')
   user: User;
