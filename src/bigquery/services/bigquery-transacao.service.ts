@@ -3,7 +3,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { BigqueryTransacaoRepository, IBqFindTransacao } from '../repositories/bigquery-transacao.repository';
 import { IRequest } from '../../utils/interfaces/request.interface';
-import { isAdmin } from '../../utils/request-utils';
+import { isUser } from '../../utils/request-utils';
 
 @Injectable()
 export class BigqueryTransacaoService {
@@ -65,10 +65,10 @@ export class BigqueryTransacaoService {
   }
 
   public async findByOrdemPagamentoId(ordemPagamentoId: number, cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
-    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoId(ordemPagamentoId, cpfCnpj, isAdmin(request));
+    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoId(ordemPagamentoId, cpfCnpj, !isUser(request));
   }
 
   public async findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds: number[], cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
-    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds, cpfCnpj, isAdmin(request));
+    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds, cpfCnpj, !isUser(request));
   }
 }

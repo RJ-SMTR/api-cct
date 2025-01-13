@@ -17,7 +17,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
-import { canProceed, getRequestLog, isAdmin } from 'src/utils/request-utils';
+import { canProceed, getRequestLog } from 'src/utils/request-utils';
 import { OrdemPagamentoService } from '../service/ordem-pagamento.service';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { BigqueryTransacaoService } from '../../../bigquery/services/bigquery-transacao.service';
