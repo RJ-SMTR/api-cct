@@ -38,9 +38,9 @@ export class RemessaService {
   ) { }
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
-  public async prepararRemessa(dataInicio: Date, dataFim: Date, pagador: Pagador, consorcio?: string[]) {
-    const ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
-    const headerArquivo = await this.gerarHeaderArquivo(pagador);
+  public async prepararRemessa(dataInicio: Date, dataFim: Date, consorcio?: string[]) {    
+    const ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);    
+    const headerArquivo = await this.gerarHeaderArquivo(ordens[0].pagador);
     let nsr = 1;
     let nsrAux = 0;
     ordens.forEach(async opa => {
@@ -60,12 +60,12 @@ export class RemessaService {
   }
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO
-  public async gerarCnabText(dataRemessa: Date) {
+  public async gerarCnabText(dataRemessa: Date):Promise<ICnabInfo[]>  {
     const headerArquivoDTO = await this.headerArquivoService.findOne({ dataGeracao: dataRemessa });
     if (headerArquivoDTO) {
       return HeaderArquivoToCnabFile.convert(headerArquivoDTO);
     }
-    return null;
+   return [];
   }
 
   //PEGA O ARQUIVO TXT GERADO E ENVIA PARA O SFTP

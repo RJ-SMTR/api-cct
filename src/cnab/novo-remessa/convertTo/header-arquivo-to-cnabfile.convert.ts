@@ -21,7 +21,7 @@ export class HeaderArquivoToCnabFile {
 
   constructor() { }
 
-  static convert(headerArquivo: HeaderArquivo): ICnabInfo[] | null {
+  static convert(headerArquivo: HeaderArquivo): ICnabInfo[]{
 
     const listCnab: ICnabInfo[] = [];
 
