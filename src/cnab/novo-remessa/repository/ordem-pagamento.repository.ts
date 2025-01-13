@@ -254,13 +254,39 @@ export class OrdemPagamentoRepository {
           AND opa.id = $1
           AND o."dataCaptura" IS NOT NULL
           AND o."userId" = $2
-        ORDER BY o."dataOrdem"
+          AND date_trunc('day', o."dataOrdem") BETWEEN date_trunc('day', "dataPagamento") - INTERVAL '7 days' AND date_trunc('day', "dataPagamento") - INTERVAL '1 day'
+        ORDER BY o."dataOrdem" desc
     `;
 
     const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
     return result.map((row: any) => {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
       ordemPagamento.ordemId = row.id;
+      ordemPagamento.dataOrdem = row.dataOrdem;
+      ordemPagamento.valor = row.valor? parseFloat(row.valor): 0;
+      return ordemPagamento;
+    });
+  }
+
+  public async findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
+    const query = `
+        SELECT SUM(ROUND(valor, 2)) valor,
+               o."dataOrdem"
+        FROM ordem_pagamento o
+        INNER JOIN ordem_pagamento_agrupado opa
+        ON o."ordemPagamentoAgrupadoId" = opa.id
+        WHERE 1 = 1
+          AND opa.id = $1
+          AND o."dataCaptura" IS NOT NULL
+          AND o."userId" = $2
+          AND date_trunc('day', o."dataOrdem") < date_trunc('day', "dataPagamento") - INTERVAL '7 days'
+        GROUP BY o."dataOrdem"
+        ORDER BY o."dataOrdem" desc
+    `;
+
+    const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
+    return result.map((row: any) => {
+      const ordemPagamento = new OrdemPagamentoSemanalDto();
       ordemPagamento.dataOrdem = row.dataOrdem;
       ordemPagamento.valor = row.valor? parseFloat(row.valor): 0;
       return ordemPagamento;
