@@ -77,7 +77,7 @@ export class OrdemPagamentoRepository {
             INNER JOIN ordem_pagamento_agrupado opa
             ON opa.id = opah."ordemPagamentoAgrupadoId"
             INNER JOIN ordem_pagamento op
-            ON opah."ordemPagamentoAgrupadoId" = opa.id
+            ON op."ordemPagamentoAgrupadoId" = opa.id
             WHERE 1 = 1
             AND op."userId" = $2
             AND DATE_TRUNC('day', opa."dataPagamento") = DATE_TRUNC('day', m.data)
