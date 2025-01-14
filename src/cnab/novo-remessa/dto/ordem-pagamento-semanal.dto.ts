@@ -7,6 +7,7 @@ export class OrdemPagamentoSemanalDto {
   dataReferencia: Date;
   statusRemessa: number | undefined;
   motivoStatusRemessa: string | undefined;
+  dataCaptura: Date | undefined;
 
   constructor(dto?: DeepPartial<OrdemPagamentoSemanalDto>) {
     if (dto) {
