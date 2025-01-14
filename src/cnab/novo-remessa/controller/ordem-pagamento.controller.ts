@@ -126,7 +126,7 @@ export class OrdemPagamentoController {
     return this.bigqueryTransacaoService.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordemPagamentoIds, user?.cpfCnpj, request);
   }
 
-  @Get('transacoes-dias-anteriores')
+  @Get('transacoes-dias-anteriores/:ordemPagamentoAgrupadoId')
   @UseGuards(AuthGuard('jwt'))
   @SerializeOptions({ groups: ['me'] })
   @ApiBearerAuth()
@@ -134,13 +134,14 @@ export class OrdemPagamentoController {
   @ApiQuery(CommonApiParams.userId)
   async getTransacoesDiasAnteriores(
     @Request() request: IRequest, //
+    @Param('ordemPagamentoAgrupadoId', new ParseNumberPipe({ min: 1, optional: false })) ordemPagamentoAgrupadoId: number,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
-  ): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
+  ): Promise<OrdemPagamentoSemanalDto[]> {
     this.logger.log(getRequestLog(request));
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
     canProceed(request, Number(userId));
-    return this.ordemPagamentoService.findOrdensPagamentosPendentesQueNuncaForamRemetidas(userIdNum);
+    return this.ordemPagamentoService.findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userIdNum);
   }
 
 }
