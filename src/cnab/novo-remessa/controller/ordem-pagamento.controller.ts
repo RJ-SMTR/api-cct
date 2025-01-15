@@ -3,7 +3,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
+  Param, ParseArrayPipe,
   Query,
   Request,
   SerializeOptions,
@@ -77,7 +77,7 @@ export class OrdemPagamentoController {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
     canProceed(request, Number(userId));
-    return this.ordemPagamentoService.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userIdNum);
+    return this.ordemPagamentoService.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userIdNum);
   }
 
 
@@ -98,7 +98,27 @@ export class OrdemPagamentoController {
     const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
     const user = await this.usersService.findOne({ id: userIdNum})
     canProceed(request, Number(userId));
-    return this.bigqueryTransacaoService.findByOrdemPagamentoId(ordemPagamentoId, user?.cpfCnpj, request);
+    return this.bigqueryTransacaoService.findByOrdemPagamentoIdIn([ordemPagamentoId], user?.cpfCnpj, request);
+  }
+
+  @Get('diario')
+  @UseGuards(AuthGuard('jwt'))
+  @SerializeOptions({ groups: ['me'] })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'ordemPagamentoIds', type: [Number], required: true })
+  @ApiQuery(CommonApiParams.userId)
+  @HttpCode(HttpStatus.OK)
+  async getDiarioParaVariasOrdens(
+    @Request() request: IRequest, //
+    @Query('ordemPagamentoIds', new ParseArrayPipe()) ordemPagamentoIds: number[],
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
+  ): Promise<BigqueryTransacao[]> {
+    this.logger.log(getRequestLog(request));
+    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
+    const user = await this.usersService.findOne({ id: userIdNum });
+    canProceed(request, Number(userId));
+    return this.bigqueryTransacaoService.findByOrdemPagamentoIdIn(ordemPagamentoIds, user?.cpfCnpj, request);
   }
 
 

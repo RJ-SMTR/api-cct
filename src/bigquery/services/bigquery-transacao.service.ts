@@ -64,11 +64,11 @@ export class BigqueryTransacaoService {
     callback(transacoes);
   }
 
-  public async findByOrdemPagamentoId(ordemPagamentoId: number, cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
-    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoId(ordemPagamentoId, cpfCnpj, !isUser(request));
+  public async findByOrdemPagamentoIdIn(ordemPagamentoIds: number[], cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
+    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoIdIn(ordemPagamentoIds, cpfCnpj, !isUser(request));
   }
 
-  public async findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds: number[], cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
+  public async findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds: (number | undefined)[], cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
     return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds, cpfCnpj, !isUser(request));
   }
 }

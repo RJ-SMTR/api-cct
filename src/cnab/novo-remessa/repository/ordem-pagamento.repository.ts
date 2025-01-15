@@ -12,7 +12,6 @@ import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
-import { parseNumber } from '../../utils/cnab/cnab-field-utils';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -93,13 +92,13 @@ export class OrdemPagamentoRepository {
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
-      dto.valorTotal = row.valorTotal != null? parseFloat(row.valorTotal): 0;
-      if (row.motivoStatusRemessa != null){
+      dto.valorTotal = row.valorTotal != null ? parseFloat(row.valorTotal) : 0;
+      if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
       }
       if (row.statusRemessa != null) {
-        dto.statusRemessa =row.statusRemessa;
+        dto.statusRemessa = row.statusRemessa;
         dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
       }
       return dto;
@@ -107,7 +106,7 @@ export class OrdemPagamentoRepository {
   }
 
   /***
-    * Obtém as ordens que foram agrupadas mas o pagamento falhou.
+   * Obtém as ordens que foram agrupadas mas o pagamento falhou.
    * Existem dois tipos de falhas:
    * - Falhas nas quais o usuário deve modificar os dados bancários.
    * - Falhas nas quais houve um erro desconhecido no arquivo de retorno do banco
@@ -116,7 +115,6 @@ export class OrdemPagamentoRepository {
    * @returns OrdemPagamentoPendenteDto[] - Lista de ordens de pagamento pendentes
    *  */
   public async findOrdensPagamentosPendentes(): Promise<OrdemPagamentoPendenteDto[]> {
-
     const query = `select o.id,
                        o."valor",
                        "dataPagamento",
@@ -168,7 +166,7 @@ export class OrdemPagamentoRepository {
     return result.map((row: any) => {
       const ordemPagamentoPendente = new OrdemPagamentoPendenteDto();
       ordemPagamentoPendente.id = row.id;
-      ordemPagamentoPendente.valor = row.valoe? parseFloat(row.valor) : 0;
+      ordemPagamentoPendente.valor = row.valoe ? parseFloat(row.valor) : 0;
       ordemPagamentoPendente.dataPagamento = row.dataPagamento;
       ordemPagamentoPendente.dataReferencia = row.dataReferencia;
       ordemPagamentoPendente.statusRemessa = row.statusRemessa;
@@ -177,7 +175,6 @@ export class OrdemPagamentoRepository {
       ordemPagamentoPendente.userId = row.userId;
     });
   }
-
 
   /***
         Busca as ordens que não foram agrupadas e pagas
@@ -222,7 +219,7 @@ export class OrdemPagamentoRepository {
       return result.map((row: any) => {
         const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
         ordemPagamentoPendente.id = row.id;
-        ordemPagamentoPendente.valor = row.valor? parseFloat(Number(row.valor).toFixed(2)): 0;
+        ordemPagamentoPendente.valor = row.valor ? parseFloat(Number(row.valor).toFixed(2)) : 0;
         ordemPagamentoPendente.userId = row.userId;
         ordemPagamentoPendente.dataOrdem = row.dataOrdem;
         return ordemPagamentoPendente;
@@ -232,15 +229,13 @@ export class OrdemPagamentoRepository {
       return result.map((row: any) => {
         const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
         ordemPagamentoPendente.id = row.id;
-        ordemPagamentoPendente.valor = row.valor? parseFloat(Number(row.valor).toFixed(2)): 0;
+        ordemPagamentoPendente.valor = row.valor ? parseFloat(Number(row.valor).toFixed(2)) : 0;
         ordemPagamentoPendente.userId = row.userId;
         ordemPagamentoPendente.dataOrdem = row.dataOrdem;
         return ordemPagamentoPendente;
       });
     }
   }
-
-
 
   public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
     const query = `
@@ -263,9 +258,51 @@ export class OrdemPagamentoRepository {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
       ordemPagamento.ordemId = row.id;
       ordemPagamento.dataOrdem = row.dataOrdem;
-      ordemPagamento.valor = row.valor? parseFloat(row.valor): 0;
+      ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
       return ordemPagamento;
     });
+  }
+
+  public async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
+    const query = `
+        SELECT o.id,
+               ROUND(valor, 2) valor,
+               date_trunc('day', o."dataCaptura") "dataCaptura"
+        FROM ordem_pagamento o
+        INNER JOIN ordem_pagamento_agrupado opa
+        ON o."ordemPagamentoAgrupadoId" = opa.id
+        WHERE 1 = 1
+          AND opa.id = $1
+          AND o."dataCaptura" IS NOT NULL
+          AND o."userId" = $2
+          AND date_trunc('day', o."dataOrdem") BETWEEN date_trunc('day', "dataPagamento") - INTERVAL '7 days' AND date_trunc('day', "dataPagamento") - INTERVAL '1 day'
+        ORDER BY o."dataCaptura" desc
+    `;
+
+    let result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
+    result = result.map((row: any) => {
+      const ordemPagamento = new OrdemPagamentoSemanalDto();
+      ordemPagamento.ordemId = row.id;
+      ordemPagamento.dataCaptura = row.dataCaptura;
+      ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
+      return ordemPagamento;
+    });
+    return result.reduce((acc: OrdemPagamentoSemanalDto[], row: OrdemPagamentoSemanalDto) => {
+      const existing = acc.find((item) => item.dataCaptura === row.dataCaptura);
+      if (existing) {
+        existing.valor += row.valor;
+        if (!existing.ids) {
+          existing.ids = [];
+        }
+        existing.ids.push(row.ordemId);
+        existing.ordemId = undefined;
+      } else {
+        row.ids = [row.ordemId];
+        row.ordemId = undefined;
+        acc.push(row);
+      }
+      return acc;
+    }, []);
   }
 
   public async findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
@@ -289,7 +326,7 @@ export class OrdemPagamentoRepository {
     return result.map((row: any) => {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
       ordemPagamento.dataOrdem = row.dataOrdem;
-      ordemPagamento.valor = row.valor? parseFloat(row.valor): 0;
+      ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
       ordemPagamento.dataCaptura = row.dataCaptura;
       return ordemPagamento;
     });
