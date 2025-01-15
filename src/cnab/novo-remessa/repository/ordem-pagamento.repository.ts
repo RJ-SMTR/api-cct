@@ -275,7 +275,6 @@ export class OrdemPagamentoRepository {
           AND opa.id = $1
           AND o."dataCaptura" IS NOT NULL
           AND o."userId" = $2
-          AND date_trunc('day', o."dataOrdem") BETWEEN date_trunc('day', "dataPagamento") - INTERVAL '7 days' AND date_trunc('day', "dataPagamento") - INTERVAL '1 day'
         ORDER BY o."dataCaptura" desc
     `;
 
