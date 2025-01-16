@@ -286,8 +286,11 @@ export class OrdemPagamentoRepository {
       ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
       return ordemPagamento;
     });
-    return result.reduce((acc: OrdemPagamentoSemanalDto[], row: OrdemPagamentoSemanalDto) => {
-      const existing = acc.find((item) => item.dataCaptura === row.dataCaptura);
+
+    const resultGrouped: OrdemPagamentoSemanalDto[] = [];
+
+    for (const row of result) {
+      const existing = resultGrouped.find((item) => item.dataCaptura?.toISOString() == row.dataCaptura.toISOString());
       if (existing) {
         existing.valor += row.valor;
         if (!existing.ids) {
@@ -298,10 +301,10 @@ export class OrdemPagamentoRepository {
       } else {
         row.ids = [row.ordemId];
         row.ordemId = undefined;
-        acc.push(row);
+        resultGrouped.push(row);
       }
-      return acc;
-    }, []);
+    }
+    return resultGrouped;
   }
 
   public async findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
