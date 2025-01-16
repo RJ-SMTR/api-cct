@@ -82,7 +82,10 @@ export class CronJobsService {
     });
   }
 
- async onModuleLoad() {    
+ async onModuleLoad() {   
+    await this.generateRemessaEmpresa();
+    await this.syncTransacaoViewOrdem("empresa")
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
