@@ -6,6 +6,7 @@ import { Nullable } from 'src/utils/types/nullable.type';
 import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
+import { formatDateISODate } from 'src/utils/date-utils';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoRepository {
@@ -36,27 +37,30 @@ export class OrdemPagamentoAgrupadoRepository {
   }
 
   public async findAllCustom(dataInicio:Date,dataFim:Date,nomeConsorcio?:string[],statusRemessa?:StatusRemessaEnum): Promise<OrdemPagamentoAgrupado[]> {
-    let query = ` select opa.* 
-                  from ordem_pagamento_agrupado opa
-                  inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId 
-                  where oph."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico ophh 
-                                                where ophh.ordemPagamentoAgrupadoId=opa.id ) `
+    const dataIniForm = formatDateISODate(dataInicio)
+    const dataFimForm = formatDateISODate(dataFim)
+    let query = ` select distinct opa.* from ordem_pagamento op
+					        inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
+							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
+							                            and oph."dataReferencia" =
+                                          (select max(ophh."dataReferencia") from ordem_pagamento_agrupado_historico ophh
+					                                where ophh."ordemPagamentoAgrupadoId"=op."ordemPagamentoAgrupadoId") 
+                  where (1=1) `
                   
     if(statusRemessa === undefined || statusRemessa === StatusRemessaEnum.Criado){
-      query = query +` and oph."statusRemessa"= 0 and `;
+      query = query +` and oph."statusRemessa"= 1 `;
     }else{
-      query = query +` and oph."statusRemessa"=${statusRemessa} and`;
+      query = query +` and oph."statusRemessa"=${statusRemessa} `;
     }
 
-    if(dataInicio!==undefined && dataFim!==undefined && 
-      (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))){
-      query = query +` and opa."dataOrdem" between '${dataInicio}' and '${dataFim}' `;
+    if(dataInicio!==undefined && dataFim!==undefined && dataFim >=dataInicio){
+      query = query +` and op."dataOrdem" between '${dataIniForm}' and '${dataFimForm}' `;
     }else{
       return [];
     }  
 
     if(nomeConsorcio) {
-      query = query +` AND opa."nomeConsorcio" in (${nomeConsorcio}) `;
+      query = query +` and op."nomeConsorcio" in ('${nomeConsorcio.join(",")}') `;
     }
 
     this.logger.debug(query);

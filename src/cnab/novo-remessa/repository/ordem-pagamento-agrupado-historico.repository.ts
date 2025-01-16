@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 
@@ -19,8 +18,8 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     return this.ordemPagamentoAgrupadoHistoricoRepository.save(dto);
   }
 
-  public async findOne(fields: EntityCondition<OrdemPagamentoAgrupadoHistorico>): Promise<Nullable<OrdemPagamentoAgrupadoHistorico>> {
-    return await this.ordemPagamentoAgrupadoHistoricoRepository.findOne({
+  public async findOne(fields: EntityCondition<OrdemPagamentoAgrupadoHistorico>): Promise<OrdemPagamentoAgrupadoHistorico[]> {
+    return await this.ordemPagamentoAgrupadoHistoricoRepository.find({
       where: fields,      
       order: {
         id: 'DESC',
@@ -28,7 +27,10 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     });
   }
 
-  public async findAll(): Promise<OrdemPagamentoAgrupadoHistorico[]> {
-    return await this.ordemPagamentoAgrupadoHistoricoRepository.find({});
+  public async findAll(fields: EntityCondition<OrdemPagamentoAgrupadoHistorico>): Promise<OrdemPagamentoAgrupadoHistorico[]> {
+    return await this.ordemPagamentoAgrupadoHistoricoRepository.find({
+      where: fields,
+    });
   }
+
 }

@@ -4,15 +4,17 @@ import { SettingsService } from 'src/settings/settings.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { DeepPartial, FindOptionsWhere } from 'typeorm';
+import { DataSource, DeepPartial, FindOptionsWhere } from 'typeorm';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { HeaderArquivoRepository } from '../../repository/pagamento/header-arquivo.repository';
 import { PagadorService } from './pagador.service';
+import { HeaderArquivoStatus, HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 
 @Injectable()
 export class HeaderArquivoService {
+ 
   public async getHeaderArquivoNsa(index: number) {
     return this.getOne({ nsa: index });
   }
@@ -23,6 +25,7 @@ export class HeaderArquivoService {
     private headerArquivoRepository: HeaderArquivoRepository, //
     private pagadorService: PagadorService,
     private settingsService: SettingsService,
+    private dataSource: DataSource
   ) {}
 
   /**
@@ -59,5 +62,9 @@ export class HeaderArquivoService {
 
   public async getOne(fields: EntityCondition<HeaderArquivo>): Promise<HeaderArquivo> {
     return await this.headerArquivoRepository.getOne(fields);
+  }
+
+  public async getExists(status: HeaderArquivoStatus, remessaName: HeaderName) {
+    return await this.headerArquivoRepository.getHeaderArquivo(status,remessaName);
   }
 }

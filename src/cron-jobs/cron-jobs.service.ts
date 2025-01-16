@@ -5,6 +5,8 @@ import { CronJob, CronJobParameters } from 'cron';
 import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWithinInterval, setHours, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
+import { OrdemPagamentoAgrupadoService } from 'src/cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
+import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -74,6 +76,8 @@ export class CronJobsService {
     private mailHistoryService: MailHistoryService,
     private usersService: UsersService,
     private cnabService: CnabService,
+    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
+    private remessaService: RemessaService 
   ) {}
 
   onModuleInit() {
@@ -83,7 +87,11 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
+       new Date("2025-01-07"),new Date("2025-01-07"),new Date(),"contaBilhetagem",["VLT"]);
+    await this.remessaService.prepararRemessa(new Date("2025-01-07"),new Date("2025-01-07"),["VLT"]);   
 
+    await this.remessaService.gerarCnabText(new Date("2025-01-07"),["VLT"]);
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {

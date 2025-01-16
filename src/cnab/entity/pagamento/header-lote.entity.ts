@@ -59,12 +59,12 @@ export class HeaderLote extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true })
   formaLancamento: string;
 
-  @ManyToOne(() => Pagador, { eager: true })
+  @ManyToOne(() => Pagador, { eager: false })
   @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderLote_pagador_ManyToOne' })
   pagador: Pagador;
 
   @OneToMany(() => DetalheA, (detalheA) => detalheA.headerLote, {
-      eager: true,
+      eager: false,
     })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_HeaderLote_detalheA_OneToMany',

@@ -7,6 +7,7 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 
 @Entity()
 export class OrdemPagamentoAgrupado extends EntityHelper {
+  pagadorId: number;
   constructor(dto?: DeepPartial<OrdemPagamentoAgrupado>) {
     super();
     if (dto) {
@@ -33,7 +34,7 @@ export class OrdemPagamentoAgrupado extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupado_ordensPagamento_OneToMany' })
   ordensPagamento: OrdemPagamento[];
 
-  @OneToMany(() => OrdemPagamentoAgrupadoHistorico, (op) => op.ordemPagamentoAgrupado, { eager: false })
+  @OneToMany(() => OrdemPagamentoAgrupadoHistorico, (op) => op.ordemPagamentoAgrupado, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupadoHistorico_ordensPagamento_OneToMany' })
   ordensPagamentoAgrupadoHistorico: OrdemPagamentoAgrupadoHistorico[];
 

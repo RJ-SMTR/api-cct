@@ -6,6 +6,7 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import {
+  DataSource,
   DeepPartial,
   FindManyOptions,
   In,
@@ -16,6 +17,7 @@ import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
 
 @Injectable()
 export class HeaderLoteRepository {
+  
   private logger: Logger = new Logger('HeaderLoteRepository', {
     timestamp: true,
   });
@@ -23,6 +25,7 @@ export class HeaderLoteRepository {
   constructor(
     @InjectRepository(HeaderLote)
     private headerLoteRepository: Repository<HeaderLote>,
+    private readonly dataSource: DataSource
   ) {}
 
   /**
@@ -128,5 +131,17 @@ export class HeaderLoteRepository {
     options?: FindManyOptions<HeaderLote>,
   ): Promise<HeaderLote[]> {
     return await this.headerLoteRepository.find(options);
+  }
+
+  async findAll(headerArquivoId: number) {
+    const query = (`select hl.* from header_lote hl where hl."headerArquivoId"=${headerArquivoId}`)
+    
+    const queryRunner = this.dataSource.createQueryRunner();
+    queryRunner.connect();
+     
+    let result: any = await queryRunner.query(query);
+         queryRunner.release();
+
+    return result.map((r: DeepPartial<HeaderLote> | undefined) => new HeaderLote(r)); 
   }
 }

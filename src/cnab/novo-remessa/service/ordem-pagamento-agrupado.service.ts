@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { AllPagadorDict } from 'src/cnab/interfaces/pagamento/all-pagador-dict.interface';
 import { PagadorService } from 'src/cnab/service/pagamento/pagador.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-agrupado.repository';
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
@@ -23,35 +22,38 @@ export class OrdemPagamentoAgrupadoService {
     private pagadorService: PagadorService,
   ) {}   
  
-  async prepararPagamentoAgrupados(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto:Date, pagadorKey: keyof AllPagadorDict) {
+  async prepararPagamentoAgrupados(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto:Date,
+     pagadorKey: keyof AllPagadorDict,consorcios:String[]) {
     this.logger.debug(`Preparando agrupamentos`)
     const pagador = await this.getPagador(pagadorKey);
     if(pagador) {
-      await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
+      await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador,consorcios);
     }
   }
-
-  async getPagador(pagadorKey: any) {
-    return (await this.pagadorService.getAllPagador())[pagadorKey];
-  } 
-
-  async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador) {
-    await this.ordemPamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador);
+ 
+  private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador,consorcios:String[]) {
+    await this.ordemPamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador,consorcios);
   }
 
   async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined) {
     return await this.ordemPamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,consorcio);
   }
 
-  async getUltimoHistoricoOrdem(ordemPagamento:OrdemPagamentoAgrupado){
-    return this.ordemPamentoAgrupadoHistRepository.findOne({ 
-      ordemPagamentoAgrupado:{ id:  ordemPagamento.id }
-    });
+  async getHistoricosOrdem(idOrdem: number){
+    return await this.ordemPamentoAgrupadoHistRepository.findAll({ ordemPagamentoAgrupado: { id: idOrdem } });
   }
 
   async saveStatusHistorico(historico: OrdemPagamentoAgrupadoHistorico,statusRemessa:StatusRemessaEnum){
     historico.statusRemessa = statusRemessa;    
     this.ordemPamentoAgrupadoHistRepository.save(historico);
+  }
+
+  private async getPagador(pagadorKey: any) {
+    return (await this.pagadorService.getAllPagador())[pagadorKey];
+  } 
+
+  public async getOrdemPagamento(idOrdemPagamentoAg: number){
+    return await this.ordemPamentoRepository.findOne({ordemPagamentoAgrupado:{ id: idOrdemPagamentoAg}  })
   }
 
 }

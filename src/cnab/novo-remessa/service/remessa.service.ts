@@ -19,8 +19,11 @@ import { DetalheAToDetalheB } from "../convertTo/detalhe-a-to-detalhe-b.convert"
 import { HeaderArquivoToCnabFile } from "../convertTo/header-arquivo-to-cnabfile.convert";
 import { ICnabInfo } from "src/cnab/cnab.service";
 import { SftpService } from "src/sftp/sftp.service";
-import { HeaderArquivoStatus } from "src/cnab/enums/pagamento/header-arquivo-status.enum";
+import { HeaderArquivoStatus, HeaderName } from "src/cnab/enums/pagamento/header-arquivo-status.enum";
 import { StatusRemessaEnum } from "src/cnab/enums/novo-remessa/status-remessa.enum";
+import { isEmpty } from "class-validator";
+import { PagadorService } from "src/cnab/service/pagamento/pagador.service";
+import { OrdemPagamentoAgrupadoHistorico } from "../entity/ordem-pagamento-agrupado-historico.entity";
 
 @Injectable()
 export class RemessaService {
@@ -35,37 +38,44 @@ export class RemessaService {
     private settingsService: SettingsService,
     private userService: UsersService,
     private sftpService: SftpService,
+    private pagadorService: PagadorService
   ) { }
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
-  public async prepararRemessa(dataInicio: Date, dataFim: Date, consorcio?: string[]) {    
-    const ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);    
-    const headerArquivo = await this.gerarHeaderArquivo(ordens[0].pagador);
-    let nsr = 1;
-    let nsrAux = 0;
-    ordens.forEach(async opa => {
-      if (opa.ordensPagamento[0].userId != null) {
-        const user = await this.userService.getOne({ id: opa.ordensPagamento[0].userId });
-        if (user.bankCode) {
-          const headerLote = await this.gerarHeaderLote(headerArquivo, user.bankCode.toString(), opa);
-          if (headerLote) {
-            nsrAux = await this.gerarDetalheAB(headerLote, opa, nsr);
-          }
-        }       
-        this.atualizaStatusRemessa(opa, StatusRemessaEnum.PreparadoParaEnvio);
-        this.logger.debug(`Remessa preparado para: ${user.fullName}`)
-        nsr = nsrAux++;
-      }
-    });
-  }
+  public async prepararRemessa(dataInicio: Date, dataFim: Date, consorcio?: string[]) {
+    const ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
+    const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId)
+    if (!isEmpty(ordens)) {
+      const headerArquivo = await this.gerarHeaderArquivo(pagador,this.getHeaderName(consorcio));
+      let nsr = 1;
+      let nsrAux = 0;
+      ordens.forEach(async opa => {
+        const op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(opa.id);
+        if(op != null) {
+          const user = await this.userService.getOne({ id: op.userId });
+          if (user.bankCode) {            
+            const headerLote = await this.gerarHeaderLote(headerArquivo,pagador,user.bankCode);
+            if (headerLote) {
+              nsrAux = await this.gerarDetalheAB(headerLote, op.ordemPagamentoAgrupado, nsr);
+              if(nsrAux !== nsr){
+                this.atualizaStatusRemessa(opa, StatusRemessaEnum.PreparadoParaEnvio);
+                this.logger.debug(`Remessa preparado para: ${user.fullName}`)
+                nsr = nsrAux++;
+              }
+            }
+          }          
+        }
+      });
+    }
+  }  
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO
-  public async gerarCnabText(dataRemessa: Date):Promise<ICnabInfo[]>  {
+  public async gerarCnabText(dataRemessa: Date,consorcios:String[]): Promise<ICnabInfo[]> {
     const headerArquivoDTO = await this.headerArquivoService.findOne({ dataGeracao: dataRemessa });
     if (headerArquivoDTO) {
       return HeaderArquivoToCnabFile.convert(headerArquivoDTO);
     }
-   return [];
+    return [];
   }
 
   //PEGA O ARQUIVO TXT GERADO E ENVIA PARA O SFTP
@@ -80,43 +90,78 @@ export class RemessaService {
     }
   }
 
-  private async gerarHeaderArquivo(pagador: Pagador) {
-    const nsa = await this.settingsService.getNextNSA(false);
-    const convertToHeader = OrdemPagamentoAgrupadoToHeaderArquivo.convert(pagador, nsa);
-    return await this.headerArquivoService.save(convertToHeader);
-  }
-
-  private async gerarHeaderLote(headerArquivo: HeaderArquivo, convenioBanco: String,
-    ordem: OrdemPagamentoAgrupado) {
-    //verifica se existe header lote para o convenio para esse header arquivo  
-    var headerLote = headerArquivo.headersLote.filter(h => {
-      h.codigoConvenioBanco === convenioBanco
-    })[0];
-
-    if (!headerLote) { //Se não existe cria
-      var headerLoteNew = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivo, ordem.pagador,
-        convenioBanco === '104' ? Cnab104FormaLancamento.CreditoContaCorrente : Cnab104FormaLancamento.TED);
-      await this.headerLoteService.saveDto(headerLoteNew);
+  private async gerarHeaderArquivo(pagador: Pagador,remessaName:HeaderName) {  
+    let headerArquivoExists = 
+    await this.headerArquivoService.getExists( HeaderArquivoStatus._2_remessaGerado, remessaName )
+    if(!headerArquivoExists) {
+      const nsa = await this.settingsService.getNextNSA(false);
+      const convertToHeader = OrdemPagamentoAgrupadoToHeaderArquivo.convert(pagador, nsa, remessaName);
+      return await this.headerArquivoService.save(convertToHeader);
     }
-    //vai no banco e retorna o header arquivo corrente ja com o header do lote
-    var headerArquivoUpdated = await this.headerArquivoService.findOne({ id: headerArquivo.id });
-    return headerArquivoUpdated?.headersLote.filter(h => {
-      h.codigoConvenioBanco === convenioBanco
-    })[0];
+    return headerArquivoExists[0];
   }
 
-  private async gerarDetalheAB(headerLote: HeaderLote, ordem: OrdemPagamentoAgrupado, nsr?: number) {
-    const detalheA = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr);
-    const detalheASavesd = await this.detalheAService.save(detalheA);
-    const detalheB = DetalheAToDetalheB.convert(detalheASavesd, ordem)
-    await this.detalheBService.save(detalheB);
-    return detalheB.nsr;
+  private async gerarHeaderLote(headerArquivo: HeaderArquivo,pagador:Pagador, bankCode: number) {
+    //verifica se existe header lote para o convenio para esse header arquivo  
+    const headersLote = await this.headerLoteService.findAll( headerArquivo.id)
+    const formaLancamento = (bankCode === 104) ? Cnab104FormaLancamento.CreditoContaCorrente : 
+                    Cnab104FormaLancamento.TED;
+
+    if(!isEmpty(headersLote)){
+      var headerLote = headersLote.filter(h =>h.formaLancamento === formaLancamento);
+
+      if (!headerLote) { //Se não existe cria
+        return await this.criarHeaderLote(headerArquivo, pagador, formaLancamento)
+      }else {
+        return headerLote[0];
+      }
+    }else{
+      return await this.criarHeaderLote(headerArquivo, pagador, formaLancamento)
+    }     
+  }
+
+  private async gerarDetalheAB(headerLote: HeaderLote, ordem: OrdemPagamentoAgrupado, nsr: number) {    
+    const hist = await this.ordemPagamentoAgrupadoService.getHistoricosOrdem(ordem.id);
+    const ultimoHistorico  = hist[hist.length - 1]
+    const detalheA = await this.existsDetalheA(ultimoHistorico)
+    if(!detalheA) {
+      const numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());  
+      const detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr,ultimoHistorico,numeroDocumento);   
+      const detalheASavesd = await this.detalheAService.save(detalheADTO);
+      const detalheB = DetalheAToDetalheB.convert(detalheASavesd, ordem)
+      await this.detalheBService.save(detalheB);
+      return detalheB.nsr;
+    }
+    return nsr;
   }
 
   private async atualizaStatusRemessa(opa: OrdemPagamentoAgrupado, statusRemessa: StatusRemessaEnum) {
-    const historico = await this.ordemPagamentoAgrupadoService.getUltimoHistoricoOrdem(opa);
+    const historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdem(opa.id);
     if (historico) {
-      this.ordemPagamentoAgrupadoService.saveStatusHistorico(historico, statusRemessa);
+      this.ordemPagamentoAgrupadoService.saveStatusHistorico(historico[historico.length-1], statusRemessa);
     }
   }
+
+  private getHeaderName(consorcio: string[] | undefined): HeaderName {
+    if(['VLT'].some(i=>consorcio?.includes(i))){
+      return HeaderName.VLT;
+    }else if(['STPC','STPL','TEC'].some(i=>consorcio?.includes(i))){
+      return HeaderName.MODAL;
+    }else{
+      return HeaderName.CONSORCIO;
+    }
+  }
+
+  private async criarHeaderLote(headerArquivo:HeaderArquivo,pagador:Pagador,formaPagamento:Cnab104FormaLancamento){
+    var headerLoteNew = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivo, pagador,formaPagamento);
+     return await this.headerLoteService.saveDto(headerLoteNew);
+  }
+
+  async existsDetalheA(ultimoHistorico: OrdemPagamentoAgrupadoHistorico) {
+    const result  = await this.detalheAService.existsDetalheA(ultimoHistorico.id)
+    return result;
+  }
 }
+
+ 
+

@@ -4,7 +4,6 @@ import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
 import { TransacaoAgrupado } from 'src/cnab/entity/pagamento/transacao-agrupado.entity';
 import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 import { DeepPartial } from 'typeorm';
-import { Transacao } from '../../entity/pagamento/transacao.entity';
 import { HeaderArquivoTipoArquivo } from 'src/cnab/enums/pagamento/header-arquivo-tipo-arquivo.enum';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';

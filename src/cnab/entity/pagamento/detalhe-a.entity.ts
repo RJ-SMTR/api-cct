@@ -25,6 +25,9 @@ export class DetalheA extends EntityHelper {
       if (detalheA.headerLote) {
         detalheA.headerLote = new HeaderLote(detalheA.headerLote);
       }
+      if (detalheA.ordemPagamentoAgrupadoHistorico) {
+        detalheA.ordemPagamentoAgrupadoHistorico = new OrdemPagamentoAgrupadoHistorico(detalheA.ordemPagamentoAgrupadoHistorico);
+      }
     }
   }
 
@@ -119,7 +122,7 @@ export class DetalheA extends EntityHelper {
   nsr: number;
 
   /** `UQ_DetalheA_itemTransacaoAgrupado` */
-  @OneToOne(() => ItemTransacaoAgrupado, { eager: true, nullable: false })
+  @OneToOne(() => ItemTransacaoAgrupado, { eager: false, nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_DetalheA_itemTransacaoAgrupado_OneToOne',
   })

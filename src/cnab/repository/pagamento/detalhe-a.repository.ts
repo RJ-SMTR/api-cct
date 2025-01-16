@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { endOfDay, startOfDay } from 'date-fns';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DeepPartial, FindManyOptions, FindOneOptions, InsertResult, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { DataSource, DeepPartial, FindManyOptions, FindOneOptions, InsertResult, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 
 import { compactQuery } from 'src/utils/console-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
@@ -19,11 +19,13 @@ export interface IDetalheARawWhere {
 
 @Injectable()
 export class DetalheARepository {
+ 
   private logger: Logger = new Logger('DetalheARepository', { timestamp: true });
 
   constructor(
     @InjectRepository(DetalheA)
     private detalheARepository: Repository<DetalheA>,
+    private readonly dataSource: DataSource
   ) {}
 
   public insert(dtos: DeepPartial<DetalheA>[]): Promise<InsertResult> {
@@ -88,6 +90,25 @@ export class DetalheARepository {
     );
     const detalhes = result.map((i) => new DetalheA(i));
     return detalhes;
+  }
+
+  async existsDetalheA(id: number) {
+    const query = (`select da.* from detalhe_a da  
+                                inner join ordem_pagamento_agrupado_historico oph 
+                                on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
+                                where da."ordemPagamentoAgrupadoHistoricoId" =${id} ` )
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    const result: any[] = await queryRunner.query(query);
+
+    const detalhes = result.map((i) => new DetalheA(i));
+
+    queryRunner.release()
+
+    return detalhes;
+                                
   }
 
   public async findOneRaw(where: IDetalheARawWhere): Promise<DetalheA | null> {

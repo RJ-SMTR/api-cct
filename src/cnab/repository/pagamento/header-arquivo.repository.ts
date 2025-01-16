@@ -5,6 +5,7 @@ import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
 import {
+  DataSource,
   DeepPartial,
   FindManyOptions,
   FindOneOptions,
@@ -25,6 +26,7 @@ export class HeaderArquivoRepository {
   constructor(
     @InjectRepository(HeaderArquivo)
     private headerArquivoRepository: Repository<HeaderArquivo>,
+    private readonly dataSource: DataSource,
   ) {}
 
   public async save(dto: DeepPartial<HeaderArquivo>): Promise<HeaderArquivo> {
@@ -133,5 +135,17 @@ export class HeaderArquivoRepository {
     options: FindManyOptions<HeaderArquivo>,
   ): Promise<HeaderArquivo[]> {
     return await this.headerArquivoRepository.find(options);
+  }
+
+  public async getHeaderArquivo(status:string,remessaName:string): Promise<HeaderArquivo>{
+    const query  = (`select ha.* from header_arquivo ha where ha."status" ='${status}' 
+      and ha."remessaName" ='${remessaName}' `);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();   
+    let result: any = await queryRunner.query(query);
+    queryRunner.release();
+    return result.map((r: DeepPartial<HeaderArquivo> | undefined) => new HeaderArquivo(r));
+
+   
   }
 }

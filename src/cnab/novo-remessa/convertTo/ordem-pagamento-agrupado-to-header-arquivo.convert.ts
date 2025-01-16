@@ -5,6 +5,7 @@ import { Cnab104AmbienteCliente } from "src/cnab/enums/104/cnab-104-ambiente-cli
 import { HeaderArquivoDTO } from "src/cnab/dto/pagamento/header-arquivo.dto";
 import { Cnab104PgtoTemplates } from "src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const";
 import { HeaderArquivoTipoArquivo } from "src/cnab/enums/pagamento/header-arquivo-tipo-arquivo.enum";
+import { HeaderArquivoStatus, HeaderName } from "src/cnab/enums/pagamento/header-arquivo-status.enum";
 
 
 @Injectable()
@@ -14,7 +15,7 @@ export class OrdemPagamentoAgrupadoToHeaderArquivo {
 
     constructor() { }
 
-    static convert(pagador: Pagador, nsa: number) {
+    static convert(pagador: Pagador, nsa: number,headerName: HeaderName) {
         const now = new Date();
             return new HeaderArquivoDTO({
               _isConf: false,
@@ -32,6 +33,8 @@ export class OrdemPagamentoAgrupadoToHeaderArquivo {
               numeroConta: pagador.conta,
               tipoArquivo: HeaderArquivoTipoArquivo.Remessa,
               nsa:nsa,
+              status: HeaderArquivoStatus._2_remessaGerado,
+              remessaName: headerName,  
               ambienteCliente: Cnab104AmbienteCliente.Producao,            
             });
     }

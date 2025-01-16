@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DeepPartial, Repository } from 'typeorm';
+import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
@@ -12,7 +12,6 @@ import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
-import { parseNumber } from '../../utils/cnab/cnab-field-utils';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -21,7 +20,8 @@ export class OrdemPagamentoRepository {
   constructor(
     @InjectRepository(OrdemPagamento)
     private ordemPagamentoRepository: Repository<OrdemPagamento>,
-  ) {}
+    private readonly dataSource: DataSource
+  ) { }
 
   public async save(dto: DeepPartial<OrdemPagamento>): Promise<OrdemPagamento> {
     const existing = await this.ordemPagamentoRepository.findOneBy({ id: dto.id });
@@ -93,13 +93,13 @@ export class OrdemPagamentoRepository {
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
-      dto.valorTotal = row.valorTotal != null? parseFloat(row.valorTotal): 0;
-      if (row.motivoStatusRemessa != null){
+      dto.valorTotal = row.valorTotal != null ? parseFloat(row.valorTotal) : 0;
+      if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
       }
       if (row.statusRemessa != null) {
-        dto.statusRemessa =row.statusRemessa;
+        dto.statusRemessa = row.statusRemessa;
         dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
       }
       return dto;
@@ -168,7 +168,7 @@ export class OrdemPagamentoRepository {
     return result.map((row: any) => {
       const ordemPagamentoPendente = new OrdemPagamentoPendenteDto();
       ordemPagamentoPendente.id = row.id;
-      ordemPagamentoPendente.valor = row.valoe? parseFloat(row.valor) : 0;
+      ordemPagamentoPendente.valor = row.valoe ? parseFloat(row.valor) : 0;
       ordemPagamentoPendente.dataPagamento = row.dataPagamento;
       ordemPagamentoPendente.dataReferencia = row.dataReferencia;
       ordemPagamentoPendente.statusRemessa = row.statusRemessa;
@@ -222,7 +222,7 @@ export class OrdemPagamentoRepository {
       return result.map((row: any) => {
         const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
         ordemPagamentoPendente.id = row.id;
-        ordemPagamentoPendente.valor = row.valor? parseFloat(Number(row.valor).toFixed(2)): 0;
+        ordemPagamentoPendente.valor = row.valor ? parseFloat(Number(row.valor).toFixed(2)) : 0;
         ordemPagamentoPendente.userId = row.userId;
         ordemPagamentoPendente.dataOrdem = row.dataOrdem;
         return ordemPagamentoPendente;
@@ -232,7 +232,7 @@ export class OrdemPagamentoRepository {
       return result.map((row: any) => {
         const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
         ordemPagamentoPendente.id = row.id;
-        ordemPagamentoPendente.valor = row.valor? parseFloat(Number(row.valor).toFixed(2)): 0;
+        ordemPagamentoPendente.valor = row.valor ? parseFloat(Number(row.valor).toFixed(2)) : 0;
         ordemPagamentoPendente.userId = row.userId;
         ordemPagamentoPendente.dataOrdem = row.dataOrdem;
         return ordemPagamentoPendente;
@@ -262,12 +262,33 @@ export class OrdemPagamentoRepository {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
       ordemPagamento.ordemId = row.id;
       ordemPagamento.dataOrdem = row.dataOrdem;
-      ordemPagamento.valor = row.valor? parseFloat(row.valor): 0;
+      ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
       return ordemPagamento;
     });
   }
 
-  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador): Promise<void> {
-    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4)`, [dataInicial, dataFinal, dataPgto, pagador.id]);
+  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date,
+    pagador: Pagador, consorcios: String[]): Promise<void> {
+
+    const joins = `{${consorcios.join(',')}}`;
+
+    const query = "call public.p_agrupar_ordens($1, $2, $3, $4, $5)";
+
+    const values = [dataInicial, dataFinal, dataPgto, pagador.id, joins];
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    await queryRunner.connect();
+
+    try {
+      await queryRunner.startTransaction();
+      queryRunner.manager.connection.query(query, values)
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      queryRunner.rollbackTransaction();
+    }finally {
+      await queryRunner.release();
+    }
+  
   }
 }

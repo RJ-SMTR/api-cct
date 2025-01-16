@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
 import { SchedulerRegistry } from "@nestjs/schedule/dist/scheduler.registry";
-
 import { CronJob, CronJobParameters } from "cron";
 import { CustomLogger } from "src/utils/custom-logger";
 import { OrdemPagamentoAgrupadoService } from "./ordem-pagamento-agrupado.service";
@@ -11,7 +10,6 @@ interface ICronJob {
     name: string;
     cronJobParameters: CronJobParameters;
 }
-
 
 /**
  * CronJob tasks and management
@@ -28,38 +26,39 @@ export class CronRemessaService {
         private remessaService: RemessaService
     ) { }
 
-    async onModuleLoad() {
+    onModuleInit() {
+        this.onModuleLoad().catch((error: Error) => {
+          throw error;
+        });
+      }
 
-       //Todo: Definir dia/hora     
-       this.jobsConfig.push({      
-        name: "AgrupamentoOrdensPagamento",cronJobParameters: {cronTime: '0 6 * * *',onTick: async () => this.agrupamentoOrdensPagamento()},
-       });
+    async onModuleLoad() {       
 
-       this.jobsConfig.push({      
-        name: "VLT",cronJobParameters: {cronTime: '0 7 * * *',onTick: async () => this.geracaoRemessaVLT()},
-       });
+    //    //Todo: Definir dia/hora     
+    //    this.jobsConfig.push({      
+    //     name: "AgrupamentoOrdensPagamento",cronJobParameters: {cronTime: '0 6 * * *',onTick: async () => this.agrupamentoOrdensPagamento()},
+    //    });
+
+    //    this.jobsConfig.push({      
+    //     name: "VLT",cronJobParameters: {cronTime: '0 7 * * *',onTick: async () => this.geracaoRemessaVLT()},
+    //    });
        
-       //Todo: Definir dia/hora
-       this.jobsConfig.push({      
-        name: "Consorcios",cronJobParameters: {cronTime: '0 7 * * *',onTick: async () => this.geracaoRemessaConsorcios()},
-       });
+    //    //Todo: Definir dia/hora
+    //    this.jobsConfig.push({      
+    //     name: "Consorcios",cronJobParameters: {cronTime: '0 7 * * *',onTick: async () => this.geracaoRemessaConsorcios()},
+    //    });
 
-       //Todo: Definir dia/hora
-       this.jobsConfig.push({      
-        name: "Vans",cronJobParameters: {cronTime: '0 7 * * *',onTick: async () => this.geracaoRemessaVans()},
-       });
+    //    //Todo: Definir dia/hora
+    //    this.jobsConfig.push({      
+    //     name: "Vans",cronJobParameters: {cronTime: '0 7 * * *',onTick: async () => this.geracaoRemessaVans()},
+    //    });
 
        this.executeJobs();
     }
 
     //Agru
     //TODO: Definir dia e Hora para rodar
-    private async agrupamentoOrdensPagamento(){
-        const dataInicial = new Date()
-        const dataFinal = new Date()
-        const dataPagamento = new Date()
-        this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicial,dataFinal,dataPagamento,"cett");
-    }
+    
 
     private async geracaoRemessaVLT(){
         const dataInicial = new Date()

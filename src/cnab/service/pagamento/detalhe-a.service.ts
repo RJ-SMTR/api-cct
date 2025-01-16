@@ -19,6 +19,7 @@ import { CnabHeaderArquivo104 } from 'src/cnab/dto/cnab-240/104/cnab-header-arqu
 
 @Injectable()
 export class DetalheAService {
+ 
   private logger = new CustomLogger('DetalheAService', { timestamp: true });
 
   constructor(private detalheARepository: DetalheARepository, private clienteFavorecidoService: ClienteFavorecidoService, private transacaoAgrupadoService: TransacaoAgrupadoService, private pagamentosPendentesService: PagamentosPendentesService) {}
@@ -83,7 +84,7 @@ export class DetalheAService {
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
-    await validateDTO(DetalheADTO, dto);
+    // await validateDTO(DetalheADTO, dto);
     return await this.detalheARepository.save(dto);
   }
 
@@ -140,5 +141,9 @@ export class DetalheAService {
    */
   public async getNextNumeroDocumento(date: Date): Promise<number> {
     return await this.detalheARepository.getNextNumeroDocumento(date);
+  }
+
+  public async existsDetalheA(id: number) {
+    return await this.detalheARepository.existsDetalheA(id);
   }
 }
