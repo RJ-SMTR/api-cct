@@ -145,7 +145,5 @@ export class HeaderArquivoRepository {
     let result: any = await queryRunner.query(query);
     queryRunner.release();
     return result.map((r: DeepPartial<HeaderArquivo> | undefined) => new HeaderArquivo(r));
-
-   
   }
 }

@@ -4,6 +4,7 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWithinInterval, setHours, startOfDay, subDays, subHours } from 'date-fns';
 import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
+import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { OrdemPagamentoAgrupadoService } from 'src/cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
@@ -87,11 +88,12 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
-       new Date("2025-01-07"),new Date("2025-01-07"),new Date(),"contaBilhetagem",["VLT"]);
-    await this.remessaService.prepararRemessa(new Date("2025-01-07"),new Date("2025-01-07"),["VLT"]);   
+    // await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
+    //    new Date("2025-01-07"),new Date("2025-01-07"),new Date(),"contaBilhetagem",["VLT"]);
+    // await this.remessaService.prepararRemessa(new Date("2025-01-07"),new Date("2025-01-07"),["VLT"]);   
 
-    await this.remessaService.gerarCnabText(new Date("2025-01-07"),["VLT"]);
+    await this.remessaService.gerarCnabText(HeaderName.VLT);
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {

@@ -24,6 +24,12 @@ import { StatusRemessaEnum } from "src/cnab/enums/novo-remessa/status-remessa.en
 import { isEmpty } from "class-validator";
 import { PagadorService } from "src/cnab/service/pagamento/pagador.service";
 import { OrdemPagamentoAgrupadoHistorico } from "../entity/ordem-pagamento-agrupado-historico.entity";
+import { DetalhesToCnab } from "../convertTo/detalhes-to-cnab.convert";
+import { CnabRegistros104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface";
+import { Cnab104PgtoTemplates } from "src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const";
+import { CnabFile104PgtoDTO } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface";
+import { CnabHeaderLote104PgtoDTO } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface";
+import { stringifyCnab104File } from "src/cnab/utils/cnab/cnab-104-utils";
 
 @Injectable()
 export class RemessaService {
@@ -70,13 +76,59 @@ export class RemessaService {
   }  
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO
-  public async gerarCnabText(dataRemessa: Date,consorcios:String[]): Promise<ICnabInfo[]> {
-    const headerArquivoDTO = await this.headerArquivoService.findOne({ dataGeracao: dataRemessa });
-    if (headerArquivoDTO) {
-      return HeaderArquivoToCnabFile.convert(headerArquivoDTO);
+  public async gerarCnabText(headerName:HeaderName): Promise<ICnabInfo[]> {
+    const headerArquivo = await this.headerArquivoService.getExists(HeaderArquivoStatus._2_remessaGerado,headerName);
+    if (headerArquivo) {
+      const headerArquivoCnab = HeaderArquivoToCnabFile.convert(headerArquivo[0]);
+      return await this.gerarListaCnab(headerArquivoCnab,headerArquivo[0])
     }
     return [];
   }
+
+  private async gerarListaCnab(headerArquivoCnab,headerArquivo:HeaderArquivo){
+    const listCnab: ICnabInfo[] = [];
+
+    const trailerArquivo104 = structuredClone(Cnab104PgtoTemplates.file104.registros.trailerArquivo);
+
+    const registros: CnabRegistros104Pgto[] = [];  
+    
+    const headersLote = await this.headerLoteService.findAll(headerArquivo.id);
+        
+    headersLote.forEach(async (headerLote:HeaderLote) => {
+      
+      const detalhesA = await this.detalheAService.findMany({headerLote:{id:headerLote.id}}); 
+
+      detalhesA.forEach(async (detalheA) => {
+         
+        const detalheB = await this.detalheBService.findOne({detalheA:{id: detalheA.id}});
+          if(detalheB) {
+            const detalhes = await DetalhesToCnab.convert(detalheA, detalheB);        
+            registros.push(detalhes);
+          }
+        });        
+
+    });     
+
+    const cnab104 = new CnabFile104PgtoDTO({
+      headerArquivo: headerArquivoCnab,
+      lotes: headersLote.map((headerLote) => ({
+        headerLote: CnabHeaderLote104PgtoDTO.fromDTO(headerLote),
+        registros: registros,
+        trailerLote: structuredClone(Cnab104PgtoTemplates.file104.registros.trailerLote),
+      })),
+      trailerArquivo: trailerArquivo104,
+    });
+
+    if (cnab104) {
+      const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
+      if (!cnabStr) {
+        this.logger.warn(`Não foi gerado um cnabString - headerArqId: ${headerArquivo.id}`);   
+      }
+      listCnab.push({ name: '', content: cnabStr, headerArquivo: headerArquivo });
+    }
+    return listCnab;
+  }
+  
 
   //PEGA O ARQUIVO TXT GERADO E ENVIA PARA O SFTP
   public async enviarRemessa(listCnab: ICnabInfo[]) {

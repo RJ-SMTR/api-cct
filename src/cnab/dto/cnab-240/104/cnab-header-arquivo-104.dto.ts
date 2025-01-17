@@ -52,7 +52,7 @@ export class CnabHeaderArquivo104DTO implements CnabHeaderArquivo104 {
     Object.assign(this, dto);
   }
 
-  static fromDTO(headerArquivoDTO: HeaderArquivoDTO | HeaderArquivo, isTeste?: boolean): CnabHeaderArquivo104 {
+  static fromDTO(headerArquivoDTO: HeaderArquivoDTO, isTeste?: boolean): CnabHeaderArquivo104 {
     const headerArquivo104: CnabHeaderArquivo104 = structuredClone(Cnab104PgtoTemplates.file104.registros.headerArquivo);
     headerArquivo104.codigoBanco.value = headerArquivoDTO.codigoBanco;
     headerArquivo104.numeroInscricao.value = headerArquivoDTO.numeroInscricao;
@@ -70,6 +70,7 @@ export class CnabHeaderArquivo104DTO implements CnabHeaderArquivo104 {
     headerArquivo104.ambienteCliente.value = isTeste ? Cnab104AmbienteCliente.Teste : Cnab104AmbienteCliente.Producao;
     return headerArquivo104;
   }
+
 
   codigoBanco: CnabField;
   loteServico: CnabFieldAs<number>;

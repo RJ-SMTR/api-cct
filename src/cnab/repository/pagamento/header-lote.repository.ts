@@ -140,7 +140,7 @@ export class HeaderLoteRepository {
     queryRunner.connect();
      
     let result: any = await queryRunner.query(query);
-         queryRunner.release();
+    queryRunner.release();
 
     return result.map((r: DeepPartial<HeaderLote> | undefined) => new HeaderLote(r)); 
   }

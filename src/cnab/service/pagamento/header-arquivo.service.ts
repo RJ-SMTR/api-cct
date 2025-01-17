@@ -4,7 +4,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { DataSource, DeepPartial, FindOptionsWhere } from 'typeorm';
+import {  DeepPartial, FindOptionsWhere } from 'typeorm';
 import { HeaderArquivoDTO } from '../../dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from '../../entity/pagamento/header-arquivo.entity';
 import { HeaderArquivoTipoArquivo } from '../../enums/pagamento/header-arquivo-tipo-arquivo.enum';
@@ -25,7 +25,6 @@ export class HeaderArquivoService {
     private headerArquivoRepository: HeaderArquivoRepository, //
     private pagadorService: PagadorService,
     private settingsService: SettingsService,
-    private dataSource: DataSource
   ) {}
 
   /**

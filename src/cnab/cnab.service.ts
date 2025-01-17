@@ -638,7 +638,9 @@ export class CnabService {
         headerLoteDTOs.push(headerLoteDTO);
         detalhes = [];
       }
-      const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO: headerArquivo, headerLoteDTOs, isCancelamento: true, isTeste: args.isTeste });
+      
+      const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO: headerArquivoDTO, headerLoteDTOs: headerLoteDTOs, 
+        isCancelamento: true, isTeste: args.isTeste });
       if (headerArquivo && cnab104) {
         const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
         if (!cnabStr) {
