@@ -25,7 +25,7 @@ export class HeaderArquivoToCnabFile {
       headerArquivo104.dvConta.value = headerArquivo.dvConta;
       headerArquivo104.nomeEmpresa.value = headerArquivo.nomeEmpresa;
       headerArquivo104.tipoArquivo.value = headerArquivo.tipoArquivo;
-      headerArquivo104.dataGeracaoArquivo.value = headerArquivo.dataGeracao;
+      headerArquivo104.dataGeracaoArquivo.value =  headerArquivo.dataGeracao;
       headerArquivo104.horaGeracaoArquivo.value = headerArquivo.horaGeracao;
       headerArquivo104.nsa.value = headerArquivo.nsa;
       headerArquivo104.ambienteCliente.value = Cnab104AmbienteCliente.Producao;

@@ -60,7 +60,7 @@ export class OrdemPagamentoAgrupadoRepository {
     }  
 
     if(nomeConsorcio) {
-      query = query +` and op."nomeConsorcio" in ('${nomeConsorcio.join(",")}') `;
+      query = query +` and op."nomeConsorcio" in ('${nomeConsorcio.join("','")}') `;
     }
 
     this.logger.debug(query);

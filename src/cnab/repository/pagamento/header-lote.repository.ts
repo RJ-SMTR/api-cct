@@ -133,13 +133,15 @@ export class HeaderLoteRepository {
     return await this.headerLoteRepository.find(options);
   }
 
-  async findAll(headerArquivoId: number) {
+  public async findAll(headerArquivoId: number) {
     const query = (`select hl.* from header_lote hl where hl."headerArquivoId"=${headerArquivoId}`)
     
     const queryRunner = this.dataSource.createQueryRunner();
+
     queryRunner.connect();
      
     let result: any = await queryRunner.query(query);
+
     queryRunner.release();
 
     return result.map((r: DeepPartial<HeaderLote> | undefined) => new HeaderLote(r)); 

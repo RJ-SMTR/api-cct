@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DeepPartial, FindManyOptions, In, InsertResult, Repository } from 'typeorm';
+import { DataSource, DeepPartial, FindManyOptions, In, InsertResult, Repository } from 'typeorm';
 import { DetalheBDTO } from '../../dto/pagamento/detalhe-b.dto';
 import { DetalheB } from '../../entity/pagamento/detalhe-b.entity';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
@@ -19,6 +19,7 @@ export class DetalheBRepository {
   constructor(
     @InjectRepository(DetalheB)
     private detalheBRepository: Repository<DetalheB>,
+    private dataSource: DataSource
   ) { }
 
   /**
@@ -93,5 +94,23 @@ export class DetalheBRepository {
 
   public async findMany(options?: FindManyOptions<DetalheB>): Promise<DetalheB[]> {
     return await this.detalheBRepository.find(options);
+  }
+
+  async getDetalheBDetalheAId(detalheAId: number) {
+    
+    const query = (`select ddb.* from detalhe_b ddb where ddb."detalheAId" = ${detalheAId}`)
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    const result: any[] = await queryRunner.manager.getRepository(DetalheB).query(query);
+
+    const detalheB = result.map((i) => new DetalheB(i));
+
+    queryRunner.release()
+
+    return detalheB[0];
+
   }
 }

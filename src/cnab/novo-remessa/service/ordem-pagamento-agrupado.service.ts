@@ -12,13 +12,14 @@ import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.en
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {
+  
 
   private logger = new CustomLogger(OrdemPagamentoAgrupadoService.name, { timestamp: true });
 
   constructor(  
-    private ordemPamentoRepository: OrdemPagamentoRepository, 
-    private ordemPamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository,
-    private ordemPamentoAgrupadoHistRepository: OrdemPagamentoAgrupadoHistoricoRepository,
+    private ordemPagamentoRepository: OrdemPagamentoRepository, 
+    private ordemPagamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository,
+    private ordemPagamentoAgrupadoHistRepository: OrdemPagamentoAgrupadoHistoricoRepository,
     private pagadorService: PagadorService,
   ) {}   
  
@@ -32,20 +33,20 @@ export class OrdemPagamentoAgrupadoService {
   }
  
   private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador,consorcios:String[]) {
-    await this.ordemPamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador,consorcios);
+    await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador,consorcios);
   }
 
   async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined) {
-    return await this.ordemPamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,consorcio);
+    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,consorcio);
   }
 
   async getHistoricosOrdem(idOrdem: number){
-    return await this.ordemPamentoAgrupadoHistRepository.findAll({ ordemPagamentoAgrupado: { id: idOrdem } });
+    return await this.ordemPagamentoAgrupadoHistRepository.findAll({ ordemPagamentoAgrupado: { id: idOrdem } });
   }
 
   async saveStatusHistorico(historico: OrdemPagamentoAgrupadoHistorico,statusRemessa:StatusRemessaEnum){
     historico.statusRemessa = statusRemessa;    
-    this.ordemPamentoAgrupadoHistRepository.save(historico);
+    this.ordemPagamentoAgrupadoHistRepository.save(historico);
   }
 
   private async getPagador(pagadorKey: any) {
@@ -53,7 +54,10 @@ export class OrdemPagamentoAgrupadoService {
   } 
 
   public async getOrdemPagamento(idOrdemPagamentoAg: number){
-    return await this.ordemPamentoRepository.findOne({ordemPagamentoAgrupado:{ id: idOrdemPagamentoAg}  })
+    return await this.ordemPagamentoRepository.findOne({ordemPagamentoAgrupado:{ id: idOrdemPagamentoAg}  })
   }
 
+  public async getHistoricosOrdemDetalheA(id: number) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id)
+  }
 }

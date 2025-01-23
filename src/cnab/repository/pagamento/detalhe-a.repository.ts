@@ -19,22 +19,22 @@ export interface IDetalheARawWhere {
 
 @Injectable()
 export class DetalheARepository {
- 
+
   private logger: Logger = new Logger('DetalheARepository', { timestamp: true });
 
   constructor(
     @InjectRepository(DetalheA)
     private detalheARepository: Repository<DetalheA>,
     private readonly dataSource: DataSource
-  ) {}
+  ) { }
 
   public insert(dtos: DeepPartial<DetalheA>[]): Promise<InsertResult> {
     return this.detalheARepository.insert(dtos);
   }
 
   public async save(dto: DeepPartial<DetalheA>): Promise<DetalheA> {
-    const saved = await this.detalheARepository.save(dto);
-    return await this.getOneRaw({ id: [saved.id] });
+    return await this.detalheARepository.save(dto);
+    // return await this.getOneRaw({ id: [saved.id] });
   }
 
   public async getOne(fields: EntityCondition<DetalheA>): Promise<DetalheA> {
@@ -96,7 +96,8 @@ export class DetalheARepository {
     const query = (`select da.* from detalhe_a da  
                                 inner join ordem_pagamento_agrupado_historico oph 
                                 on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
-                                where da."ordemPagamentoAgrupadoHistoricoId" =${id} ` )
+                                where da."ordemPagamentoAgrupadoHistoricoId"=${id} `)
+
     const queryRunner = this.dataSource.createQueryRunner();
 
     queryRunner.connect();
@@ -108,7 +109,25 @@ export class DetalheARepository {
     queryRunner.release()
 
     return detalhes;
-                                
+
+  }
+
+  async getDetalheAHeaderLote(id: number) {
+    
+    const query = (`select da.* from detalhe_a da where da."headerLoteId" = ${id}`)
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    const result: any[] = await queryRunner.manager.getRepository(DetalheA).query(query);
+
+    const detalhes = result.map((i) => new DetalheA(i));
+
+    queryRunner.release()
+
+    return detalhes;
+
   }
 
   public async findOneRaw(where: IDetalheARawWhere): Promise<DetalheA | null> {

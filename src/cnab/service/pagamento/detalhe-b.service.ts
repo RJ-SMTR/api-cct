@@ -52,4 +52,8 @@ export class DetalheBService {
   public async findMany(options?: FindManyOptions<DetalheB>): Promise<DetalheB[]> {
     return await this.detalheBRepository.findMany(options);
   }
+
+  public async findDetalheBDetalheAId(detalheAId: number): Promise<DetalheB>{
+    return await this.detalheBRepository.getDetalheBDetalheAId(detalheAId);
+  }
 }

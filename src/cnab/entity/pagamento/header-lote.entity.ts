@@ -64,7 +64,7 @@ export class HeaderLote extends EntityHelper {
   pagador: Pagador;
 
   @OneToMany(() => DetalheA, (detalheA) => detalheA.headerLote, {
-      eager: false,
+      eager: true,
     })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_HeaderLote_detalheA_OneToMany',

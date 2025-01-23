@@ -65,7 +65,7 @@ export class CnabHeaderArquivo104DTO implements CnabHeaderArquivo104 {
     headerArquivo104.nomeEmpresa.value = headerArquivoDTO.nomeEmpresa;
     headerArquivo104.tipoArquivo.value = headerArquivoDTO.tipoArquivo;
     headerArquivo104.dataGeracaoArquivo.value = headerArquivoDTO.dataGeracao;
-    headerArquivo104.horaGeracaoArquivo.value = headerArquivoDTO.horaGeracao;
+    headerArquivo104.horaGeracaoArquivo.value = headerArquivoDTO.dataGeracao;
     headerArquivo104.nsa.value = headerArquivoDTO.nsa;
     headerArquivo104.ambienteCliente.value = isTeste ? Cnab104AmbienteCliente.Teste : Cnab104AmbienteCliente.Producao;
     return headerArquivo104;

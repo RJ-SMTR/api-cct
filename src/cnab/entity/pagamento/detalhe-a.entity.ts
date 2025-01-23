@@ -18,13 +18,7 @@ export class DetalheA extends EntityHelper {
   constructor(detalheA?: DeepPartial<DetalheA>) {
     super();
     if (detalheA) {
-      Object.assign(this, detalheA);
-      if (detalheA.itemTransacaoAgrupado) {
-        detalheA.itemTransacaoAgrupado = new ItemTransacaoAgrupado(detalheA.itemTransacaoAgrupado);
-      }
-      if (detalheA.headerLote) {
-        detalheA.headerLote = new HeaderLote(detalheA.headerLote);
-      }
+      Object.assign(this, detalheA); 
       if (detalheA.ordemPagamentoAgrupadoHistorico) {
         detalheA.ordemPagamentoAgrupadoHistorico = new OrdemPagamentoAgrupadoHistorico(detalheA.ordemPagamentoAgrupadoHistorico);
       }

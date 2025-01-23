@@ -4,6 +4,7 @@ import { HeaderLote } from "src/cnab/entity/pagamento/header-lote.entity";
 import { OrdemPagamentoAgrupado } from "../entity/ordem-pagamento-agrupado.entity";
 import { OrdemPagamentoAgrupadoHistorico } from "../entity/ordem-pagamento-agrupado-historico.entity";
 import { DetalheADTO } from "src/cnab/dto/pagamento/detalhe-a.dto";
+import { Cnab104FormaParcelamento } from "src/cnab/enums/104/cnab-104-forma-parcelamento.enum";
 
 
 @Injectable()
@@ -18,11 +19,20 @@ export class HeaderLoteToDetalheA {
        
         const da = new DetalheADTO();
         da.headerLote = headerLote;
-        da.nsr = nsr?nsr:1;
-        da.dataVencimento = ordem.dataPagamento;
-        da.valorLancamento = ordem.valorTotal;
+        da.nsr = nsr?nsr:1;        
+        da.dataVencimento = hist?.dataReferencia ?? ordem.dataPagamento;
+        da.periodoVencimento = ordem.dataPagamento; 
+        da.valorLancamento = ordem.valorTotal;       
+        da.numeroDocumentoEmpresa = numeroDocumento;
+        da.indicadorBloqueio = 'N';
+        da.quantidadeMoeda = 0;
+        da.indicadorFormaParcelamento = Cnab104FormaParcelamento.DataFixa.toString();  
+        da.finalidadeDOC = "00";
+        da.loteServico = headerLote.formaLancamento === '41'?1:2;     
+        da.tipoMoeda ='BRL';  
+        da.numeroDocumentoBanco = "0";          
+        da.numeroParcela = 1;
         da.quantidadeParcelas = 1;   
-        da.numeroDocumentoEmpresa  = numeroDocumento;         
         if(hist)
           da.ordemPagamentoAgrupadoHistorico = hist;
         return da;

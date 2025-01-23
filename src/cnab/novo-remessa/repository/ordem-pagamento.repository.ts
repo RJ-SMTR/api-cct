@@ -12,6 +12,7 @@ import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
+import { formatDateISODate } from 'src/utils/date-utils';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -269,12 +270,20 @@ export class OrdemPagamentoRepository {
 
   public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date,
     pagador: Pagador, consorcios: String[]): Promise<void> {
+ 
+    const dtInicialIso = formatDateISODate(dataInicial)
+    
+    const dtFinalIso = formatDateISODate(dataFinal)
 
+    const dtPgtoIso = formatDateISODate(dataPgto)
+ 
     const joins = `{${consorcios.join(',')}}`;
 
     const query = "call public.p_agrupar_ordens($1, $2, $3, $4, $5)";
 
-    const values = [dataInicial, dataFinal, dataPgto, pagador.id, joins];
+    this.logger.debug(query);
+
+    const values = [dtInicialIso, dtFinalIso, dtPgtoIso, pagador.id, joins];
 
     const queryRunner = this.dataSource.createQueryRunner();
 

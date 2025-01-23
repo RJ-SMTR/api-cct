@@ -6,8 +6,7 @@ import { CnabRegistros104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { validateDTO } from 'src/utils/validation-utils';
-import { DeepPartial, FindOneOptions } from 'typeorm';
+import { FindOneOptions } from 'typeorm';
 import { DetalheADTO } from '../../dto/pagamento/detalhe-a.dto';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
 import { DetalheARepository, IDetalheARawWhere } from '../../repository/pagamento/detalhe-a.repository';
@@ -16,6 +15,7 @@ import { PagamentosPendentes } from './../../entity/pagamento/pagamentos-pendent
 import { PagamentosPendentesService } from './pagamentos-pendentes.service';
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
 import { CnabHeaderArquivo104 } from 'src/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto';
+import { validateDTO } from 'src/utils/validation-utils';
 
 @Injectable()
 export class DetalheAService {
@@ -84,7 +84,7 @@ export class DetalheAService {
   }
 
   public async save(dto: DetalheADTO): Promise<DetalheA> {
-    // await validateDTO(DetalheADTO, dto);
+    await validateDTO(DetalheADTO, dto);
     return await this.detalheARepository.save(dto);
   }
 
@@ -145,5 +145,9 @@ export class DetalheAService {
 
   public async existsDetalheA(id: number) {
     return await this.detalheARepository.existsDetalheA(id);
+  }
+
+  public async getDetalheAHeaderLote(headerLoteId: number){
+    return await this.detalheARepository.getDetalheAHeaderLote(headerLoteId)
   }
 }
