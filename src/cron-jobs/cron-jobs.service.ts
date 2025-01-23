@@ -67,7 +67,7 @@ export class CronJobsService {
   public jobsConfig: ICronJob[] = [];
 
   constructor(
-    private configService: ConfigService, //
+    private configService: ConfigService, 
     private settingsService: SettingsService,
     private schedulerRegistry: SchedulerRegistry,
     private mailService: MailService,
@@ -83,6 +83,8 @@ export class CronJobsService {
   }
 
  async onModuleLoad() {   
+    await this.generateRemessaEmpresa();
+    await this.syncTransacaoViewOrdem('empresa');
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
