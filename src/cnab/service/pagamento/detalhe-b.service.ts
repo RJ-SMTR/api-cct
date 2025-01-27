@@ -40,9 +40,9 @@ export class DetalheBService {
     return await this.detalheBRepository.save(detalheB);
   }
 
-  public async save(dto: DetalheBDTO): Promise<void> {
+  public async save(dto: DetalheBDTO): Promise<DetalheB> {
     await validateDTO(DetalheBDTO, dto);
-    await this.detalheBRepository.save(dto);
+    return await this.detalheBRepository.save(dto);
   }
 
   public async findOne(fields: EntityCondition<DetalheB>): Promise<Nullable<DetalheB>> {

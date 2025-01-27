@@ -73,4 +73,8 @@ export class HeaderLoteService {
   public async findAll(headerArquivoId: number){
     return await this.headerLoteRepository.findAll(headerArquivoId)
   } 
+
+  public async findByFormaLancamento(headerArquivoId: number,formaLancamento: string){
+    return await this.headerLoteRepository.findByFormaLancamento(headerArquivoId,formaLancamento)
+  } 
 }

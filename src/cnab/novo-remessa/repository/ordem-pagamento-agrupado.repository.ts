@@ -48,7 +48,7 @@ export class OrdemPagamentoAgrupadoRepository {
                   where (1=1) `
                   
     if(statusRemessa === undefined || statusRemessa === StatusRemessaEnum.Criado){
-      query = query +` and oph."statusRemessa"= 1 `;
+      query = query +` and oph."statusRemessa"= 0 `;
     }else{
       query = query +` and oph."statusRemessa"=${statusRemessa} `;
     }

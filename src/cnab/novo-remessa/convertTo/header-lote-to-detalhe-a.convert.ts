@@ -19,10 +19,11 @@ export class HeaderLoteToDetalheA {
        
         const da = new DetalheADTO();
         da.headerLote = headerLote;
-        da.nsr = nsr?nsr:1;        
+        da.nsr = nsr;        
         da.dataVencimento = hist?.dataReferencia ?? ordem.dataPagamento;
         da.periodoVencimento = ordem.dataPagamento; 
-        da.valorLancamento = ordem.valorTotal;       
+        da.valorLancamento = ordem.valorTotal;   
+        da.valorRealEfetivado = ordem.valorTotal;    
         da.numeroDocumentoEmpresa = numeroDocumento;
         da.indicadorBloqueio = 'N';
         da.quantidadeMoeda = 0;

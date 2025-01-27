@@ -114,7 +114,8 @@ export class DetalheARepository {
 
   async getDetalheAHeaderLote(id: number) {
     
-    const query = (`select da.* from detalhe_a da where da."headerLoteId" = ${id}`)
+    const query = (`select da.* from detalhe_a da where da."headerLoteId" = ${id} 
+      order by da."nsr" asc `)
 
     const queryRunner = this.dataSource.createQueryRunner();
 

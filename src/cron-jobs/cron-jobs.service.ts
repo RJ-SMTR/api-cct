@@ -88,20 +88,22 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    const dataInicio = new Date("2024-12-06");
-    const dataFim = new Date("2024-12-12");
+    const dataInicio = new Date("2024-12-13");
+    const dataFim = new Date("2024-12-13");
     const dataPagamento = new Date();
-    const consorcios = ["Internorte","Intersul","Transcarioca","Santa Cruz","MobiRio"];
+    const consorcios = ["Intersul","Internorte"];
 
     //Agrupa pagamentos
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-      dataFim,dataPagamento,"contaBilhetagem",consorcios);
-   
+     for (let index = 0; index < consorcios.length; index++) {      
+     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+       dataFim,dataPagamento,"contaBilhetagem",consorcios);
+    }
+      
      //Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio,dataFim,consorcios);   
 
     //Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(HeaderName.MODAL);
+    const txt = await this.remessaService.gerarCnabText(HeaderName.CONSORCIO);
 
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt);

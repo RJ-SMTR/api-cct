@@ -146,4 +146,20 @@ export class HeaderLoteRepository {
 
     return result.map((r: DeepPartial<HeaderLote> | undefined) => new HeaderLote(r)); 
   }
+
+
+  public async findByFormaLancamento(headerArquivoId: number, formaLancamento:string) {
+    const query = (`select hl.* from header_lote hl where hl."headerArquivoId"=${headerArquivoId} 
+      and hl."formaLancamento"='${formaLancamento}'`)
+    
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+     
+    let result: any = await queryRunner.query(query);
+
+    queryRunner.release();
+
+    return result.map((r: DeepPartial<HeaderLote> | undefined) => new HeaderLote(r)); 
+  }
 }

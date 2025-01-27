@@ -37,13 +37,14 @@ export class DetalhesToCnab {
         detalheACnab.valorLancamento.value = Number(detalheA.valorLancamento);
         detalheACnab.valorRealEfetivado.value = detalheA.valorRealEfetivado;        
         detalheACnab.nsr.value = detalheA.nsr;
+        
 
         // DetalheB
         const detalheBCnab: CnabDetalheB_104 = sc(PgtoRegistros.detalheB);
         detalheBCnab.tipoInscricao.value = isCpfOrCnpj(historico?.usercpfcnpj) ==='cpf'?CnabTipoInscricao.CPF:CnabTipoInscricao.CNPJ;          
         detalheBCnab.numeroInscricao.value = historico?.usercpfcnpj;
         detalheBCnab.dataVencimento.value = detalheA.dataVencimento;    
-        detalheBCnab.nsr.value = detalheA.nsr+1;
+        detalheBCnab.nsr.value = detalheB.nsr;
 
         return {
             detalheA: detalheACnab,
