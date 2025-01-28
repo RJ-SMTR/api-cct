@@ -1,5 +1,3 @@
-import { Exclude } from 'class-transformer';
-import { SetValue } from 'src/utils/decorators/set-value.decorator';
 import { DeepPartial } from 'typeorm';
 
 export class RelatorioConsolidadoNovoRemessaDto {
@@ -16,7 +14,7 @@ export class RelatorioConsolidadoNovoRemessaDto {
 }
 
 export class RelatorioConsolidadoNovoRemessaData {
-  constructor(consolidado?: DeepPartial<RelatorioConsolidadoNovoRemessaDto>) {
+  constructor(consolidado?: DeepPartial<RelatorioConsolidadoNovoRemessaData>) {
     if (consolidado !== undefined) {
       Object.assign(this, consolidado);
     }

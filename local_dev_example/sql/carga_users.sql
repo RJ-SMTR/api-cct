@@ -26,3 +26,31 @@ VALUES
     (8, 'user7@example.com', '$2b$12$Fj8WzjBY1fEiPjV42SbtpOKNtr9vgKXQpfpW784Vo7Znh7qVIIpRy', 'email', null, 'Emma Wilson', 'Emma', 'Wilson', null, now(), now(), null, 1, null, '789456', '99988877766', 212, '0008', '66778899', '2', '5551222222222', false, null),
     (9, 'user8@example.com', '$2b$12$Fj8WzjBY1fEiPjV42SbtpOKNtr9vgKXQpfpW784Vo7Znh7qVIIpRy', 'email', null, 'Frank Brown', 'Frank', 'Brown', null, now(), now(), null, 1, null, '123789', '33344455599', 399, '0009', '88990011', '1', '5551111111111', false, null),
     (10, 'user9@example.com', '$2b$12$Fj8WzjBY1fEiPjV42SbtpOKNtr9vgKXQpfpW784Vo7Znh7qVIIpRy', 'email', null, 'Grace Taylor', 'Grace', 'Taylor', null, now(), now(), null, 1, null, '987321', '11133355577', 001, '0010', '11122233', '0', '5551000000000', false, null);
+
+
+-- atualiza o permit code dos consorcios
+update "user"
+set "permitCode" = (select "idConsorcio" from ordem_pagamento where "nomeConsorcio" = 'VLT' limit 1)
+where "cpfCnpj" = '18201378000119'; -- permit code = id consorcio
+
+update "user"
+set "permitCode" = (select "idConsorcio" from ordem_pagamento where "nomeConsorcio" = 'Intersul' limit 1)
+where "cpfCnpj" = '12464869000176'; -- permit code = id consorcio
+
+
+update "user"
+set "permitCode" = (select "idConsorcio" from ordem_pagamento where "nomeConsorcio" = 'Internorte' limit 1)
+where "cpfCnpj" = '12464539000180'; -- permit code = id consorcio
+
+update "user"
+set "permitCode" = (select "idConsorcio" from ordem_pagamento where "nomeConsorcio" = 'Transcarioca' limit 1)
+where "cpfCnpj" = '12464553000184';
+
+
+update "user"
+set "permitCode" = (select "idConsorcio" from ordem_pagamento where "nomeConsorcio" = 'MobiRio' limit 1)
+where "cpfCnpj" = '44520687000161';
+
+update "user"
+set "permitCode" = (select "idConsorcio" from ordem_pagamento where "nomeConsorcio" = 'Santa Cruz' limit 1)
+where "cpfCnpj" = '12464577000133';
