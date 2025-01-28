@@ -2,7 +2,19 @@ import { HttpStatus, Injectable, NotImplementedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWithinInterval, setHours, startOfDay, subDays, subHours } from 'date-fns';
+import {
+  addDays,
+  endOfDay,
+  isFriday,
+  isMonday,
+  isSaturday,
+  isSunday,
+  isThursday,
+  isTuesday,
+  isWithinInterval,
+  startOfDay,
+  subDays,
+} from 'date-fns';
 import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
 import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { OrdemPagamentoService } from 'src/cnab/novo-remessa/service/ordem-pagamento.service';
@@ -23,6 +35,7 @@ import { formatDateInterval, formatDateISODate } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
 import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
+import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 
 /**
  * Enum CronJobServicesJobs
@@ -33,15 +46,11 @@ export enum CronJobsEnum {
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
   updateRetorno = 'updateRetorno',
-  updateTransacaoViewEmpresa = 'updateTransacaoViewEmpresa',
-  updateTransacaoViewVan = 'updateTransacaoViewVan',
-  updateTransacaoViewVLT = 'updateTransacaoViewVLT',
-  updateTransacaoViewValues = 'updateTransacaoViewValues',
-  syncTransacaoViewOrdem = 'syncTransacaoViewOrdem',
   generateRemessaVLT = 'generateRemessaVLT',
   generateRemessaEmpresa = 'generateRemessaEmpresa',
   generateRemessaVanzeiros = 'generateRemessaVanzeiros',
   generateRemessaLancamento = 'generateRemessaLancamento',
+  sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -69,6 +78,9 @@ export class CronJobsService {
 
   public jobsConfig: ICronJob[] = [];
 
+  private static readonly MODAIS = ['STPC', 'STPL', 'TEC'];
+  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz'];
+
   constructor(
     private configService: ConfigService, //
     private settingsService: SettingsService,
@@ -78,7 +90,8 @@ export class CronJobsService {
     private usersService: UsersService,
     private cnabService: CnabService,
     private ordemPagamentoService: OrdemPagamentoService,
-    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService
+    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
+    private distributedLockService: DistributedLockService,
   ) {}
 
   onModuleInit() {
@@ -88,14 +101,6 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    // await this.ordemPagamentoService.sincronizarOrdensPagamento(
-    //  new Date('2024-12-27'), new Date('2025-01-02'), ['STPC', 'STPL','TEC']);
-
-    // const pagadorKey: keyof AllPagadorDict = 'cett';
-    // await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
-    //   new Date('2024-12-27'), new Date('2025-01-02'), new Date('2025-01-03'), pagadorKey);
-
-
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -125,52 +130,6 @@ export class CronJobsService {
               return;
             }
             await this.saveRetornoPagamento();
-          },
-        },
-      },
-      {
-        /**
-         * Atualizar Transações Vanzeiro - DLake para CCT para CCT - todo dia, a cada 30m
-         *
-         * Atualizar transações BQ Van
-         */
-        name: CronJobsEnum.updateTransacaoViewVan,
-        cronJobParameters: {
-          cronTime: '*/30 * * * *', //  Every 30 min
-          onTick: async () => {
-            if (!this.validateJobsRemessa()) {
-              this.logger.log(`Ignorando esta tarefa para não impedir tarefas prioritárias..`, 'saveRetornoPagamento');
-              return;
-            }
-            await this.updateTransacaoViewBigquery('Van');
-          },
-        },
-      },
-      {
-        /**
-         * Atualizar Transações Empresa - DLake para CCT - todo dia, 05:00, duração: 5 min
-         *
-         * Atualizar transações BQ empresa
-         */
-        name: CronJobsEnum.updateTransacaoViewEmpresa,
-        cronJobParameters: {
-          cronTime: '0 8 * * *', // Every day, 08:00 GMT = 05:00 BRT (GMT-3)
-          onTick: async () => {
-            await this.updateTransacaoViewBigquery('Empresa');
-          },
-        },
-      },
-      {
-        /**
-         * Atualizar Transações VLT - DLake para CCT - todo dia, 05:10, duração: 5 min
-         *
-         * Atualizar transações BQ VLT
-         */
-        name: CronJobsEnum.updateTransacaoViewVLT,
-        cronJobParameters: {
-          cronTime: '10 8 * * *', // Every day, 08:10 GMT = 05:10 BRT (GMT-3)
-          onTick: async () => {
-            await this.updateTransacaoViewBigquery('VLT');
           },
         },
       },
@@ -236,18 +195,6 @@ export class CronJobsService {
           onTick: async () => await this.bulkResendInvites(),
         },
       },
-      {
-        /**
-         * Atualizar Transações Campos Nulos CCT - DLake para CCT - todo dia, 12:00, duração: 10 min
-         *
-         * Atualizar transações com campos nulos do BQ
-         */
-        name: CronJobsEnum.updateTransacaoViewValues,
-        cronJobParameters: {
-          cronTime: '0 15 * * *', // Every day, 15:00 GMT = 12:00 BRT (GMT-3)
-          onTick: async () => await this.updateTransacaoViewValues(),
-        },
-      },
       // {
       //   /**
       //    * Gerar arquivo Remessa dos Consórcios - toda 5a, 17:00, duração: 15 min
@@ -288,6 +235,14 @@ export class CronJobsService {
       //     },
       //   },
       // },
+      {
+        name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
+        cronJobParameters: {
+          // Every day at 06 AM
+          cronTime: '0 6 * * *',
+          onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
+        },
+      },
     );
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
@@ -374,7 +329,7 @@ export class CronJobsService {
   /**
    * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
    */
-  async generateRemessaVanzeiros(debug?: ICronjobDebug,isUnico?:boolean) {
+  async generateRemessaVanzeiros(debug?: ICronjobDebug, isUnico?: boolean) {
     const METHOD = 'generateRemessaVanzeiros';
     // if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
     //   return;
@@ -385,9 +340,8 @@ export class CronJobsService {
     const sex = subDays(today, 7);
     const qui = subDays(today, 1);
 
-    await this.cnabService.saveTransacoesJae(sex, qui, 0,'Van');
-    const listCnab = await this.cnabService.generateRemessa({ tipo: PagadorContaEnum.ContaBilhetagem
-      , dataPgto: today, isConference: false, isCancelamento: false, isTeste: false });
+    await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Van');
+    const listCnab = await this.cnabService.generateRemessa({ tipo: PagadorContaEnum.ContaBilhetagem, dataPgto: today, isConference: false, isCancelamento: false, isTeste: false });
     await this.cnabService.sendRemessa(listCnab);
     this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
   }
@@ -966,5 +920,64 @@ export class CronJobsService {
     } catch (error) {
       this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
     }
+  }
+
+  async sincronizarEAgruparOrdensPagamento() {
+    const METHOD = 'sincronizarEAgruparOrdensPagamento';
+    this.logger.log('Tentando adquirir lock para execução da tarefa de sincronização e agrupamento.');
+    const locked = await this.distributedLockService.acquireLock(METHOD);
+    if (locked) {
+      try {
+        this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
+        // Sincroniza as ordens de pagamento para todos os modais e consorcios
+        const nextThursday = this.getNextThursday();
+        const lastFriday = this.getLastFriday();
+        const nextFriday = this.getNextFriday();
+        this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${lastFriday.toISOString()}, Data Fim: ${nextThursday.toISOString()}`, METHOD);
+        const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
+        await this.ordemPagamentoService.sincronizarOrdensPagamento(lastFriday, nextThursday, consorciosEModais);
+        this.logger.log('Sincronização finalizada. Iniciando agrupamento para modais.', METHOD);
+        const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
+        // Agrupa para os modais
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(lastFriday, nextThursday, nextFriday, pagadorKey, CronJobsService.MODAIS);
+        this.logger.log('Tarefa finalizada com sucesso.', METHOD);
+      } catch (error) {
+        this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
+      } finally {
+        await this.distributedLockService.releaseLock(METHOD);
+      }
+    } else {
+      this.logger.log('Não foi possível adquirir o lock para a tarefa de sincronização e agrupamento.');
+    }
+  }
+
+  getNextThursday(date = new Date()) {
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 4) {
+      return new Date(date.toISOString().split('T')[0]);
+    }
+    const daysUntilNextThursday = (4 - dayOfWeek + 7) % 7 || 7;
+    const nextThursday = new Date(date);
+    nextThursday.setDate(date.getDate() + daysUntilNextThursday);
+    return new Date(nextThursday.toISOString().split('T')[0]);
+  }
+
+  getLastFriday(date = new Date()) {
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 5) {
+      return new Date(date.toISOString().split('T')[0]);
+    }
+    const daysSinceLastFriday = ((dayOfWeek + 2) % 7) + 1;
+    const lastFriday = new Date(date);
+    lastFriday.setDate(date.getDate() - daysSinceLastFriday);
+    return new Date(lastFriday.toISOString().split('T')[0]);
+  }
+
+  getNextFriday(date = new Date()) {
+    const dayOfWeek = date.getDay();
+    const daysUntilNextFriday = (5 - dayOfWeek + 7) % 7 || 7;
+    const nextFriday = new Date(date);
+    nextFriday.setDate(date.getDate() + daysUntilNextFriday);
+    return new Date(nextFriday.toISOString().split('T')[0]);
   }
 }

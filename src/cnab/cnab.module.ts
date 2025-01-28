@@ -85,6 +85,8 @@ import {
 } from './novo-remessa/repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from './novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
 import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagamento.controller';
+import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
+import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
 
 @Module({
   imports: [
@@ -171,7 +173,9 @@ import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagame
     OrdemPagamentoRepository,
     OrdemPagamentoAgrupadoRepository,
     OrdemPagamentoAgrupadoService,
-    OrdemPagamentoAgrupadoHistoricoRepository
+    OrdemPagamentoAgrupadoHistoricoRepository,
+    DistributedLockService,
+    DistributedLockRepository
   ],
   exports: [
     CnabService, //
@@ -217,7 +221,9 @@ import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagame
     OrdemPagamentoRepository,
     OrdemPagamentoAgrupadoRepository,
     OrdemPagamentoAgrupadoService,
-    OrdemPagamentoAgrupadoHistoricoRepository
+    OrdemPagamentoAgrupadoHistoricoRepository,
+    DistributedLockService,
+    DistributedLockRepository
   ],
   controllers: [CnabController, CnabManutencaoController, OrdemPagamentoController],
 })

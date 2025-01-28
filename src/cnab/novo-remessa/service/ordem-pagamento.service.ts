@@ -28,7 +28,15 @@ export class OrdemPagamentoService {
       let user: User | undefined;
       if (ordem.operadoraCpfCnpj) {
         try {
-          user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
+          /*
+              Caso sejam modais, obtemos o usuário pelo CPF/CNPJ.
+              Caso contrário, obtemos pelo idConsorcio === permitCode
+           */
+          if (ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio === 'TEC') {
+            user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
+          } else {
+            user = await this.usersService.getOne({ permitCode: ordem.idConsorcio });
+          }
           if (user) {
             this.logger.debug(`Salvando a ordem: ${ordem.idOrdemPagamento} para usuario: ${user.fullName}`, METHOD);
             await this.save(ordem, user.id);

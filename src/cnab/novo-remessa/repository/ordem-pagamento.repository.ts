@@ -334,7 +334,10 @@ export class OrdemPagamentoRepository {
     });
   }
 
-  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador): Promise<void> {
-    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4)`, [dataInicial, dataFinal, dataPgto, pagador.id]);
+  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]): Promise<void> {
+    const dtInicialStr = dataInicial.toISOString().split('T')[0];
+    const dtFinalStr = dataFinal.toISOString().split('T')[0];
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4, $5)`, [dtInicialStr, dtFinalStr, dtPgtoStr, pagador.id, consorcios.join(',')]);
   }
 }
