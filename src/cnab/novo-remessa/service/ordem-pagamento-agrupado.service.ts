@@ -8,7 +8,6 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
-import { DistributedLockRepository } from '../repository/distributed-lock.repository';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {  
@@ -23,7 +22,7 @@ export class OrdemPagamentoAgrupadoService {
   ) {}   
  
   async prepararPagamentoAgrupados(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto:Date,
-     pagadorKey: keyof AllPagadorDict,consorcios:String[]) {
+     pagadorKey: keyof AllPagadorDict,consorcios:string[]) {
     this.logger.debug(`Preparando agrupamentos`)
     const pagador = await this.getPagador(pagadorKey);
     if(pagador) {
@@ -31,7 +30,7 @@ export class OrdemPagamentoAgrupadoService {
     }
   }
  
-  private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador,consorcios:String[]) {
+  private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador,consorcios: string[]) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador,consorcios);
   }
 
@@ -44,9 +43,6 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoAgrupadoHistRepository.findAll({ ordemPagamentoAgrupado: { id: idOrdem } });
   }
   
-  async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador, consorcios: string[]) {
-    await this.ordemPamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
-  }
 
   async saveStatusHistorico(historico: OrdemPagamentoAgrupadoHistorico,statusRemessa:StatusRemessaEnum){
     historico.statusRemessa = statusRemessa;    

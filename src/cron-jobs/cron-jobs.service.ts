@@ -2,10 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { addDays, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWithinInterval, setHours, startOfDay, subDays, subHours } from 'date-fns';
-import { CnabService } from 'src/cnab/cnab.service';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
-import { OrdemPagamentoAgrupadoService } from 'src/cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
 
@@ -100,9 +97,8 @@ export class CronJobsService {
     private remessaService: RemessaService,
     private retornoService: RetornoService,
     private ordemPagamentoService: OrdemPagamentoService,
-    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
     private distributedLockService: DistributedLockService,
-  ) {}
+  ) { }
 
 
   onModuleInit() {
@@ -141,10 +137,6 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
           onTick: async () => {
-            if (!this.validateJobsRemessa()) {
-              this.logger.log(`Ignorando esta tarefa para não impedir tarefas prioritárias..`, 'saveRetornoPagamento');
-              return;
-            }           
             await this.retornoExec();
           },
         },
@@ -279,29 +271,6 @@ export class CronJobsService {
     job.start();
   }
 
- 
-  private validateGenerateRemessaVanzeiros(method: string, debug?: ICronjobDebug): boolean {
-    const today = debug?.today || new Date();
-    if (!isFriday(today)) {
-      this.logger.error('Não implementado - Hoje não é sexta-feira. Abortando...', undefined, method);
-      return false;
-    }
-    return true;
-  }
-
-  public async saveAndSendRemessa(dataPgto: Date, isConference = false, isCancelamento = false, nsaInicial = 0, nsaFinal = 0, dataCancelamento = new Date()) {
-    const listCnabStr = await this.cnabService.generateRemessa({
-      tipo: PagadorContaEnum.ContaBilhetagem,
-      dataPgto,
-      isConference,
-      isCancelamento,
-      isTeste: false,
-      nsaInicial,
-      nsaFinal,
-      dataCancelamento,
-    });
-    if (listCnabStr) await this.sendRemessa(listCnabStr);
-  }
 
   deleteCron(jobName: string) {
     this.schedulerRegistry.deleteCronJob(jobName);
@@ -647,22 +616,6 @@ export class CronJobsService {
     }
   }
 
-  async saveRetornoPagamento() {
-    const METHOD = this.saveRetornoPagamento.name;
-    try {
-      await this.cnabService.readRetornoPagamento();
-      this.logger.log('Tarefa finalizada com sucesso.', METHOD);
-    } catch (error) {
-      this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
-    }
-  }
-
-  validateJobsRemessa() {
-    const today = new Date();
-    const isValid = !this.isDateInRemessaVan(today) && !this.isDateInRemessaVLT(today) && !this.isDateInRemessaConsorcio(today);
-    return isValid;
-  } 
-  
   async readRetornoExtrato() {
     const METHOD = 'readRetornoExtrato';
     try {
@@ -703,7 +656,7 @@ export class CronJobsService {
     }
     const dataInicio = subDays(today, daysBeforeBegin);
     const dataFim = subDays(today, daysBeforeEnd);
-    await this.geradorRemessaExec(dataInicio, dataFim, today, 
+    await this.geradorRemessaExec(dataInicio, dataFim, today,
       ['VLT'], HeaderName.VLT);
   }
 
@@ -712,7 +665,7 @@ export class CronJobsService {
     const today = new Date();
     const dataInicio = new Date('2025-01-03')  // subDays(today, 6);
     const dataFim = new Date('2025-01-09') //subDays(today, 0); 
-    await this.geradorRemessaExec(dataInicio, dataFim, today   /*addDays(today,1)*/, 
+    await this.geradorRemessaExec(dataInicio, dataFim, today   /*addDays(today,1)*/,
       ['STPC', 'STPL', 'TEC'], HeaderName.MODAL);
   }
 
@@ -732,8 +685,7 @@ export class CronJobsService {
   }
 
 
-
-async sincronizarEAgruparOrdensPagamento() {
+  async sincronizarEAgruparOrdensPagamento() {
     const METHOD = 'sincronizarEAgruparOrdensPagamento';
     this.logger.log('Tentando adquirir lock para execução da tarefa de sincronização e agrupamento.');
     const locked = await this.distributedLockService.acquireLock(METHOD);

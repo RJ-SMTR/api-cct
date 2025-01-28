@@ -70,7 +70,6 @@ import { PagamentosPendentesService } from './service/pagamento/pagamentos-pende
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
-import { CnabManutencaoController } from './cnab-manutencao.controller';
 import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pgamento-indevido-service';
 import { PagamentoIndevidoRepository } from 'src/pagamento_indevido/repository/pagamento-indevido.repository';
 import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indevido.entity';
@@ -231,6 +230,6 @@ import { DistributedLockRepository } from './novo-remessa/repository/distributed
     DistributedLockService,
     DistributedLockRepository
   ],
-  controllers: [CnabController, CnabManutencaoController, OrdemPagamentoController],
+  controllers: [CnabController, OrdemPagamentoController],
 })
 export class CnabModule {}
