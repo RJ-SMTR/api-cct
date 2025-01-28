@@ -61,7 +61,7 @@ import { RemessaRetornoService } from './service/pagamento/remessa-retorno.servi
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
-import { OrdemPagamentoService } from './novo-remessa/service/ordem-pagamento.service';
+
 
 export interface ICnabInfo {
   name: string;
@@ -91,8 +91,7 @@ export class CnabService {
     private extDetalheEService: ExtratoDetalheEService,
     private extHeaderArquivoService: ExtratoHeaderArquivoService,
     private extHeaderLoteService: ExtratoHeaderLoteService,
-    private headerArquivoService: HeaderArquivoService,
-    private headerArquivoConfService: HeaderArquivoService,
+    private headerArquivoService: HeaderArquivoService, 
     private headerLoteService: HeaderLoteService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private itemTransacaoService: ItemTransacaoService,
@@ -107,7 +106,6 @@ export class CnabService {
     @InjectDataSource()
     private dataSource: DataSource,
     private settingsService: SettingsService,
-    private ordemPagamentoService: OrdemPagamentoService,
   ) {}
 
   async findSendRemessas(args?: IFindRemessaArgs) {
@@ -640,7 +638,9 @@ export class CnabService {
         headerLoteDTOs.push(headerLoteDTO);
         detalhes = [];
       }
-      const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO: headerArquivo, headerLoteDTOs, isCancelamento: true, isTeste: args.isTeste });
+      
+      const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO: headerArquivoDTO, headerLoteDTOs: headerLoteDTOs, 
+        isCancelamento: true, isTeste: args.isTeste });
       if (headerArquivo && cnab104) {
         const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
         if (!cnabStr) {

@@ -109,7 +109,7 @@ function processCnab104TrailerLote(lote: CnabLote104) {
 }
 
 function getSomarioValoresCnabLote(lote: CnabLote104): number {
-  const original = lote.registros.map((i) => Number(i.detalheA?.valorLancamento?.convertedValue || 0));
+  const original = lote.registros.map((i) => Number(i.detalheA?.valorLancamento?.value || 0));
   const rounded = original.map((i) => Number(i.toFixed(2)));
   const sum = rounded.reduce((num, sum) => sum + num, 0);
   return sum;

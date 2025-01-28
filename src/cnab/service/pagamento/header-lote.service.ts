@@ -1,8 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { HeaderArquivoDTO } from 'src/cnab/dto/pagamento/header-arquivo.dto';
 import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
-import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
-import { Cnab104FormaLancamento } from 'src/cnab/enums/104/cnab-104-forma-lancamento.enum';
 import { CnabLote104Pgto } from 'src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
@@ -12,7 +9,6 @@ import { HeaderLoteDTO } from '../../dto/pagamento/header-lote.dto';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
 import { HeaderLoteRepository } from '../../repository/pagamento/header-lote.repository';
 import { PagadorService } from './pagador.service';
-import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 
 @Injectable()
 export class HeaderLoteService {
@@ -70,7 +66,15 @@ export class HeaderLoteService {
     return await this.headerLoteRepository.findOne(fields);
   }
 
-  public async findMany(fields: EntityCondition<HeaderLote>): Promise<HeaderLote[]> {
+  public async findMany(fields: EntityCondition<HeaderLote>): Promise<HeaderLote[]> {  
     return await this.headerLoteRepository.findMany({ where: fields });
   }
+
+  public async findAll(headerArquivoId: number){
+    return await this.headerLoteRepository.findAll(headerArquivoId)
+  } 
+
+  public async findByFormaLancamento(headerArquivoId: number,formaLancamento: string){
+    return await this.headerLoteRepository.findByFormaLancamento(headerArquivoId,formaLancamento)
+  } 
 }

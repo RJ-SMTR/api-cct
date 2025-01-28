@@ -18,7 +18,7 @@ export class DetalheB extends EntityHelper {
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_DetalheB_id' })
   id: number;
 
-  @OneToOne(() => DetalheA, { eager: false })
+  @OneToOne(() => DetalheA, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_DetalheB_detalheA_OneToOne' })
   detalheA: DetalheA;
 

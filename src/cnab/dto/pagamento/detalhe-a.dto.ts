@@ -12,6 +12,7 @@ import { getDateFromCnabName } from 'src/utils/date-utils';
 import { DeepPartial } from 'typeorm';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
 import { CnabHeaderArquivo104 } from '../cnab-240/104/cnab-header-arquivo-104.dto';
+import { OrdemPagamentoAgrupadoHistorico } from 'src/cnab/novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
 
 function isCreate(object: DetalheADTO): boolean {
   return object.id === undefined;
@@ -24,7 +25,7 @@ export class DetalheADTO {
     }
   }
 
-  static fromRemessa(detalheA: CnabDetalheA_104, existing: DetalheA | DetalheAConf | null, headerLoteId: number, itemTransacaoAg: ItemTransacaoAgrupado) {
+  static fromRemessa(detalheA: CnabDetalheA_104, existing: DetalheA | DetalheAConf | null, headerLoteId: number,itemTransacaoAg?: ItemTransacaoAgrupado, historico?: OrdemPagamentoAgrupadoHistorico) {
     return new DetalheADTO({
       ...(existing ? { id: existing.id } : {}),
       nsr: Number(detalheA.nsr.value),
@@ -45,7 +46,8 @@ export class DetalheADTO {
       numeroParcela: getCnabFieldConverted(detalheA.numeroParcela),
       dataEfetivacao: getCnabFieldConverted(detalheA.dataEfetivacao),
       headerLote: { id: headerLoteId },
-      itemTransacaoAgrupado: itemTransacaoAg,
+      ordemPagamentoAgrupadoHistorico: historico,
+      itemTransacaoAg: itemTransacaoAg
     });
   }
 
@@ -145,7 +147,10 @@ export class DetalheADTO {
   @IsNotEmpty()
   nsr?: number;
 
-  itemTransacaoAgrupado?: ItemTransacaoAgrupado;
+  ordemPagamentoAgrupadoHistorico?: OrdemPagamentoAgrupadoHistorico;
+
+  itemTransacaoAg?: ItemTransacaoAgrupado;
+
   retornoName?: string | null;
   retornoDatetime?: Date | null;
 }

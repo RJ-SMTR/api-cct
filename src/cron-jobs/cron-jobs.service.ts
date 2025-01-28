@@ -1,7 +1,14 @@
-import { HttpStatus, Injectable, NotImplementedException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
+import { addDays, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWithinInterval, setHours, startOfDay, subDays, subHours } from 'date-fns';
+import { CnabService } from 'src/cnab/cnab.service';
+import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
+import { OrdemPagamentoAgrupadoService } from 'src/cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
+import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
+import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
+
 import {
   addDays,
   endOfDay,
@@ -31,7 +38,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { formatDateInterval, formatDateISODate } from 'src/utils/date-utils';
+import { formatDateISODate } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
 import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
@@ -89,10 +96,14 @@ export class CronJobsService {
     private mailHistoryService: MailHistoryService,
     private usersService: UsersService,
     private cnabService: CnabService,
+    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
+    private remessaService: RemessaService,
+    private retornoService: RetornoService,
     private ordemPagamentoService: OrdemPagamentoService,
     private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
     private distributedLockService: DistributedLockService,
   ) {}
+
 
   onModuleInit() {
     this.onModuleLoad().catch((error: Error) => {
@@ -101,6 +112,11 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    //CHAMADAS PARA TESTE
+    //await this.remessaVLTExec();
+    //await this.remessaModalExec();
+    //await this.remessaConsorciosExec();
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -128,8 +144,8 @@ export class CronJobsService {
             if (!this.validateJobsRemessa()) {
               this.logger.log(`Ignorando esta tarefa para não impedir tarefas prioritárias..`, 'saveRetornoPagamento');
               return;
-            }
-            await this.saveRetornoPagamento();
+            }           
+            await this.retornoExec();
           },
         },
       },
@@ -143,14 +159,14 @@ export class CronJobsService {
          */
         name: CronJobsEnum.sendReport,
         cronJobParameters: {
-          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob,
+            true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: async () => await this.sendStatusReport(),
         },
       },
       {
         /**
-         * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min
-         * + BD do CCT - Sincronizar Transações com Ordem Pgto
+         * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min       
          *
          * Gerar remessa VLT
          */
@@ -162,27 +178,38 @@ export class CronJobsService {
             if (isSaturday(today) || isSunday(today)) {
               return;
             }
-            await this.generateRemessaVLT();
-            await this.syncTransacaoViewOrdem('vlt');
+            await this.remessaVLTExec();
           },
         },
       },
-      // {
-      //   /**
-      //    * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min
-      //    * + BD do CCT - Sincronizar Transações com Ordem Pgto
-      //    *
-      //    * Gerar remessa vanzeiros
-      //    */
-      //   name: CronJobsEnum.generateRemessaVanzeiros,
-      //   cronJobParameters: {
-      //     cronTime: '0 13 * * 5', // Every Friday (see method), 13:00 GMT = 10:00 BRT (GMT-3)
-      //     onTick: async () => {
-      //       await this.generateRemessaVanzeiros();
-      //       await this.syncTransacaoViewOrdem('van');
-      //     },
-      //   },
-      // },
+      {
+        /**
+         * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min         
+         *
+         * Gerar remessa vanzeiros
+         */
+        name: CronJobsEnum.generateRemessaVanzeiros,
+        cronJobParameters: {
+          cronTime: '0 16 * * THU', // Rodar todas as quintas 16:00 GMT = 13:00 BRT (GMT-3)
+          onTick: async () => {
+            await this.remessaModalExec();
+          },
+        },
+      },
+      {
+        /**
+         * Gerar arquivo Remessa dos Consórcios - toda 5a, 13:00, duração: 15 min
+         *
+         * Gerar remessa consórcios
+         */
+        name: CronJobsEnum.generateRemessaEmpresa,
+        cronJobParameters: {
+          cronTime: '0 13 * * THU', // Rodar todas as quintas 13:00 GMT = 10:00 BRT (GMT-3)
+          onTick: async () => {
+            await this.remessaConsorciosExec();
+          },
+        },
+      },
       {
         /**
          * Reenvio de E-mail para Vanzeiros - 1 aceso ou Cadastro de Contas Bancárias - dia 15 de cada mês, 11:45, duração: 5 min
@@ -195,22 +222,6 @@ export class CronJobsService {
           onTick: async () => await this.bulkResendInvites(),
         },
       },
-      // {
-      //   /**
-      //    * Gerar arquivo Remessa dos Consórcios - toda 5a, 17:00, duração: 15 min
-      //    * + BD do CCT - Sincronizar Transações com Ordem Pgto
-      //    *
-      //    * Gerar remessa consórcios
-      //    */
-      //   name: CronJobsEnum.generateRemessaEmpresa,
-      //   cronJobParameters: {
-      //     cronTime: '0 20 * * *', // Every Thursday (see method), 20:00 GMT = 17:00 BRT (GMT-3)
-      //     onTick: async () => {
-      //       await this.generateRemessaEmpresa();
-      //       await this.syncTransacaoViewOrdem('empresa');
-      //     },
-      //   },
-      // },
       {
         /**
          * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
@@ -221,26 +232,6 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: async () => await this.bulkSendInvites(),
-        },
-      },
-      // {
-      //   /**
-      //    * Gerar arquivo Remessa do Lançamento - todo dia, duração: 15 min
-      //    */
-      //   name: CronJobsEnum.generateRemessaLancamento,
-      //   cronJobParameters: {
-      //     cronTime: '0 17 * * *', // Every day, 17:00 GMT = 14:00 BRT (GMT-3)
-      //     onTick: async () => {
-      //       await this.generateRemessaLancamento();
-      //     },
-      //   },
-      // },
-      {
-        name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
-        cronJobParameters: {
-          // Every day at 06 AM
-          cronTime: '0 6 * * *',
-          onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
     );
@@ -288,64 +279,7 @@ export class CronJobsService {
     job.start();
   }
 
-  /**
-   * Gera na quinta, paga na sexta.
-   */
-  //TODO: GERAR PAGAMENTO SEXTA
-  async generateRemessaEmpresa(debug?: ICronjobDebug) {
-    const METHOD = 'generateRemessaEmpresa';
-    try {
-      const today = debug?.today || new Date();
-      if (!isThursday(today)) {
-        this.logger.log('Não implementado - Hoje não é quinta-feira. Abortando...', METHOD);
-        return;
-      }
-      if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
-        return;
-      }
-      if (!isThursday(today)) {
-        this.logger.error('Não implementado - Hoje não é quinta-feira. Abortando...', undefined, METHOD);
-        return;
-      }
-      this.logger.log('Tarefa iniciada', METHOD);
-      const startDate = new Date();
-      const sex = subDays(today, 6);
-      const qui = today;
-      await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Empresa');
-      const listCnab = await this.cnabService.generateRemessa({
-        tipo: PagadorContaEnum.ContaBilhetagem,
-        dataPgto: addDays(today, 1),
-        isConference: false,
-        isCancelamento: false,
-        isTeste: false,
-      });
-      await this.cnabService.sendRemessa(listCnab);
-      this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
-    } catch (error) {
-      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
-    }
-  }
-
-  /**
-   * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
-   */
-  async generateRemessaVanzeiros(debug?: ICronjobDebug, isUnico?: boolean) {
-    const METHOD = 'generateRemessaVanzeiros';
-    // if (!this.validateGenerateRemessaVanzeiros(METHOD, debug)) {
-    //   return;
-    // }
-    this.logger.log('Tarefa iniciada', METHOD);
-    const startDate = new Date();
-    const today = debug?.today || new Date();
-    const sex = subDays(today, 7);
-    const qui = subDays(today, 1);
-
-    await this.cnabService.saveTransacoesJae(sex, qui, 0, 'Van');
-    const listCnab = await this.cnabService.generateRemessa({ tipo: PagadorContaEnum.ContaBilhetagem, dataPgto: today, isConference: false, isCancelamento: false, isTeste: false });
-    await this.cnabService.sendRemessa(listCnab);
-    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
-  }
-
+ 
   private validateGenerateRemessaVanzeiros(method: string, debug?: ICronjobDebug): boolean {
     const today = debug?.today || new Date();
     if (!isFriday(today)) {
@@ -353,91 +287,6 @@ export class CronJobsService {
       return false;
     }
     return true;
-  }
-
-  /**
-   * Regras de negócio:
-   * - Se hoje for terça, obter de sáb, dom, seg
-   * - Se hoje for segunda, obter de sexta apenas
-   * - Se hoje for demais dias, obter 1 dia anterior
-   */
-  public async generateRemessaVLT(debug?: ICronjobDebug) {
-    const METHOD = 'generateRemessaVLT';
-    this.logger.log('Tarefa iniciada', METHOD);
-    const today = debug?.today || new Date();
-    const startDateLog = new Date();
-    /** defaut: qua,qui,sex,sáb,dom */
-    let daysBeforeBegin = 1;
-    let daysBeforeEnd = 1;
-    if (isMonday(today)) {
-      daysBeforeBegin = 3;
-      daysBeforeEnd = 3;
-    } else if (isTuesday(today)) {
-      daysBeforeBegin = 3;
-    }
-    const startDate = subDays(today, daysBeforeBegin);
-    const endDate = subDays(today, daysBeforeEnd);
-    await this.cnabService.saveTransacoesJae(startDate, endDate, undefined, 'VLT');
-    const listCnab = await this.cnabService.generateRemessa({
-      tipo: PagadorContaEnum.ContaBilhetagem,
-      dataPgto: new Date(),
-      isConference: false,
-      isCancelamento: false,
-      isTeste: false,
-    });
-    await this.cnabService.sendRemessa(listCnab);
-    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDateLog)}`, METHOD);
-  }
-
-  /**
-   * Regras de negócio:
-   * - Todo dia gera remessa de Lançamentos com dataOrdem = hoje
-   */
-  public async generateRemessaLancamento(debug?: ICronjobDebug) {
-    const METHOD = 'generateRemessaLancamento';
-    try {
-      this.logger.log('Tarefa iniciada', METHOD);
-      const today = debug?.today || new Date();
-      const startDateLog = new Date();
-      const startDate = today;
-      const endDate = today;
-      throw new NotImplementedException();
-      // await this.cnabService.saveTransacoesLancamento(startDate, endDate);
-      const listCnab = await this.cnabService.generateRemessa({
-        tipo: PagadorContaEnum.CETT,
-        dataPgto: undefined, // data programada no Lançamento
-        isConference: false,
-        isCancelamento: false,
-        isTeste: false,
-      });
-      await this.cnabService.sendRemessa(listCnab);
-      this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDateLog)}`, METHOD);
-    } catch (error) {
-      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
-    }
-  }
-
-  public async syncTransacaoViewOrdem(filterConsorcios?: 'vlt' | 'van' | 'empresa') {
-    const METHOD = `syncTransacaoViewOrdem`;
-    try {
-      const startDate = subDays(new Date(), 30);
-      const today = new Date();
-      this.logger.log(`Sincronizando TransacaoViews ${filterConsorcios || ''} entre ${formatDateISODate(startDate)} e ${formatDateISODate(today)}`, METHOD);
-      const consorcio: { in: string[]; notIn: string[] } = { in: [], notIn: [] };
-      if (filterConsorcios === 'van') {
-        consorcio.in.push('STPC');
-        consorcio.in.push('STPL');
-        consorcio.in.push('TEC');
-      } else if (filterConsorcios === 'vlt') {
-        consorcio.in.push('VLT');
-      } else if (filterConsorcios === 'empresa') {
-        consorcio.notIn = ['STPC', 'STPL', 'TEC', 'VLT'];
-      }
-      await this.cnabService.syncTransacaoViewOrdemPgto({ consorcio, dataOrdem_between: [startOfDay(startDate), endOfDay(today)] });
-      this.logger.log(`Trefa finalizada com sucesso.`, METHOD);
-    } catch (error) {
-      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
-    }
   }
 
   public async saveAndSendRemessa(dataPgto: Date, isConference = false, isCancelamento = false, nsaInicial = 0, nsaFinal = 0, dataCancelamento = new Date()) {
@@ -456,57 +305,6 @@ export class CronJobsService {
 
   deleteCron(jobName: string) {
     this.schedulerRegistry.deleteCronJob(jobName);
-  }
-
-  /**
-   * Atualiza todos os itens do dia de ontem.
-   *
-   * @param consorcio
-   * `Van`: De 30 em 30 minutos, buscar até 8 dias atrás.
-   *
-   * `VLT`: Todo dia pega 1 dia antes.
-   *
-   * `Empresa`: Todo dia pega no dia atual.
-   *
-   */
-  async updateTransacaoViewBigquery(consorcio: 'Van' | 'Empresa' | 'VLT', debug?: ICronjobDebug) {
-    const METHOD = this.updateTransacaoViewBigquery.name;
-    try {
-      if (!(await this.getIsCnabJobEnabled(METHOD)) && !debug?.force) {
-        return;
-      }
-      const today = debug?.today || new Date();
-      let startDate = today;
-      let endDate = today;
-
-      try {
-        this.logger.log('Iniciando tarefa.', METHOD);
-        if (consorcio == 'Van') {
-          startDate = subDays(startDate, 8);
-        } else if (consorcio == 'VLT') {
-          startDate = subDays(startDate, 1);
-        } else {
-          /** Empresa */
-          startDate = startOfDay(startDate);
-          endDate = endOfDay(endDate);
-        }
-        await this.cnabService.updateTransacaoViewBigquery(startDate, endDate, 0, consorcio);
-        this.logger.log('TransacaoViews atualizados com sucesso.', METHOD);
-      } catch (error) {
-        this.logger.error(`ERRO CRÍTICO - ${JSON.stringify(error)}`, error?.stack, METHOD);
-      }
-    } catch (error) {
-      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
-    }
-  }
-
-  async updateTransacaoViewValues() {
-    const METHOD = this.updateTransacaoViewValues.name;
-    try {
-      await this.cnabService.updateTransacaoViewBigqueryValues(8);
-    } catch (error) {
-      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
-    }
   }
 
   async bulkSendInvites() {
@@ -849,17 +647,6 @@ export class CronJobsService {
     }
   }
 
-  async sendRemessa(listCnab: ICnabInfo[]) {
-    const METHOD = this.sendRemessa.name;
-    try {
-      this.logger.log('Iniciando tarefa.', METHOD);
-      await this.cnabService.sendRemessa(listCnab);
-      this.logger.log('Tarefa finalizada com sucesso.', METHOD);
-    } catch (error) {
-      this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
-    }
-  }
-
   async saveRetornoPagamento() {
     const METHOD = this.saveRetornoPagamento.name;
     try {
@@ -874,44 +661,8 @@ export class CronJobsService {
     const today = new Date();
     const isValid = !this.isDateInRemessaVan(today) && !this.isDateInRemessaVLT(today) && !this.isDateInRemessaConsorcio(today);
     return isValid;
-  }
-
-  /**
-   * Requisitos:
-   * O job do remessa Van roda toda sexta, 10:00 - 10:30, usaremos uma gordura de 10m
-   *
-   * Ou seja: 09:50 - 10:40 BRT (GMT-3) ou 12:50 - 13:40 GMT (código)
-   */
-  isDateInRemessaVan(date: Date): boolean {
-    const dateStr = formatDateISODate(date);
-    const hourInterval = { start: new Date(`${dateStr} 12:50`), end: new Date(`${dateStr} 13:40`) };
-    return isFriday(date) && isWithinInterval(date, hourInterval);
-  }
-
-  /**
-   * Requisitos:
-   * O job do remessa VLT roda todo dia, 08:00 - 08:30, usaremos uma gordura de 10m
-   *
-   * Ou seja: 07:50 - 08:40 BRT (GMT-3) ou 10:50 - 11:40 GMT
-   */
-  isDateInRemessaVLT(date: Date): boolean {
-    const dateStr = formatDateISODate(date);
-    const hourInterval = { start: new Date(`${dateStr} 10:50`), end: new Date(`${dateStr} 11:40`) };
-    return isWithinInterval(date, hourInterval);
-  }
-
-  /**
-   * Requisitos:
-   * O job do remessa consórcio roda toda quinta, 17:00 - 17:30, usaremos uma gordura de 10m
-   *
-   * Ou seja: 16:50 - 17:40 BRT (GMT-3) ou 19:50 - 20:40 GMT (código)
-   */
-  isDateInRemessaConsorcio(date: Date): boolean {
-    const dateStr = formatDateISODate(date);
-    const hourInterval = { start: new Date(`${dateStr} 19:50`), end: new Date(`${dateStr} 20:40`) };
-    return isThursday(date) && isWithinInterval(date, hourInterval);
-  }
-
+  } 
+  
   async readRetornoExtrato() {
     const METHOD = 'readRetornoExtrato';
     try {
@@ -922,7 +673,67 @@ export class CronJobsService {
     }
   }
 
-  async sincronizarEAgruparOrdensPagamento() {
+  private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
+    consorcios: string[], headerName: HeaderName) {
+    //Agrupa pagamentos     
+
+    for (let index = 0; index < consorcios.length; index++) {
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+        dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+    }
+    //Prepara o remessa
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, consorcios);
+    //Gera o TXT
+    const txt = await this.remessaService.gerarCnabText(headerName);
+    //Envia para o SFTP
+    await this.remessaService.enviarRemessa(txt);
+  }
+
+  async remessaVLTExec() {
+    //Rodar de segunda a sexta   
+    const today = new Date();
+    /** defaut: qua,qui,sex,sáb,dom */
+    let daysBeforeBegin = 1;
+    let daysBeforeEnd = 1;
+    if (isMonday(today)) {
+      daysBeforeBegin = 3;
+      daysBeforeEnd = 3;
+    } else if (isTuesday(today)) {
+      daysBeforeBegin = 3;
+    }
+    const dataInicio = subDays(today, daysBeforeBegin);
+    const dataFim = subDays(today, daysBeforeEnd);
+    await this.geradorRemessaExec(dataInicio, dataFim, today, 
+      ['VLT'], HeaderName.VLT);
+  }
+
+  async remessaModalExec() {
+    //Rodar Quinta 
+    const today = new Date();
+    const dataInicio = new Date('2025-01-03')  // subDays(today, 6);
+    const dataFim = new Date('2025-01-09') //subDays(today, 0); 
+    await this.geradorRemessaExec(dataInicio, dataFim, today   /*addDays(today,1)*/, 
+      ['STPC', 'STPL', 'TEC'], HeaderName.MODAL);
+  }
+
+  async remessaConsorciosExec() {
+    //Rodar na Quinta
+    const today = new Date();
+    const dataInicio = new Date('2025-01-17')  // subDays(today, 6);
+    const dataFim = new Date('2025-01-23') //subDays(today, 0); 
+    await this.geradorRemessaExec(dataInicio, dataFim, today /*addDays(today,1)*/,
+      ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO);
+  }
+
+  async retornoExec() {
+    const txt = await this.retornoService.lerRetornoSftp();
+    if (txt)
+      await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
+  }
+
+
+
+async sincronizarEAgruparOrdensPagamento() {
     const METHOD = 'sincronizarEAgruparOrdensPagamento';
     this.logger.log('Tentando adquirir lock para execução da tarefa de sincronização e agrupamento.');
     const locked = await this.distributedLockService.acquireLock(METHOD);

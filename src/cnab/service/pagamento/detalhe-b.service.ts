@@ -40,9 +40,9 @@ export class DetalheBService {
     return await this.detalheBRepository.save(detalheB);
   }
 
-  public async save(dto: DetalheBDTO): Promise<void> {
+  public async save(dto: DetalheBDTO): Promise<DetalheB> {
     await validateDTO(DetalheBDTO, dto);
-    await this.detalheBRepository.save(dto);
+    return await this.detalheBRepository.save(dto);
   }
 
   public async findOne(fields: EntityCondition<DetalheB>): Promise<Nullable<DetalheB>> {
@@ -51,5 +51,9 @@ export class DetalheBService {
 
   public async findMany(options?: FindManyOptions<DetalheB>): Promise<DetalheB[]> {
     return await this.detalheBRepository.findMany(options);
+  }
+
+  public async findDetalheBDetalheAId(detalheAId: number): Promise<DetalheB>{
+    return await this.detalheBRepository.getDetalheBDetalheAId(detalheAId);
   }
 }

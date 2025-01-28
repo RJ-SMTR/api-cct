@@ -1,0 +1,15 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { CronRemessaService } from './cron-remessa.service';
+import { OrdemPagamentoAgrupadoService } from './ordem-pagamento-agrupado.service';
+
+
+@Module({
+  imports: [
+    ScheduleModule.forRoot(),       
+  ], 
+  providers: [CronRemessaService],
+  exports: [CronRemessaService],
+})
+export class CronRemessaModule {}

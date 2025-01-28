@@ -7,6 +7,9 @@ import { Cnab104PgtoTemplates } from "src/cnab/templates/cnab-240/104/pagamento/
 import { UsersService } from "src/users/users.service";
 import { isCpfOrCnpj } from "src/utils/cpf-cnpj";
 import { CustomLogger } from "src/utils/custom-logger";
+import { OrdemPagamentoAgrupadoHistorico } from "../entity/ordem-pagamento-agrupado-historico.entity";
+import { OrdemPagamentoAgrupadoHistoricoDTO } from "../dto/ordem-pagamento-agrupado-historico.dto";
+import { CnabTipoInscricao } from "src/cnab/enums/all/cnab-tipo-inscricao.enum";
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -20,27 +23,26 @@ export class DetalhesToCnab {
 
     constructor() { }    
 
-    static async convert(detalheA: DetalheA, detalheB: DetalheB) {
+    static async convert(detalheA: DetalheA, detalheB: DetalheB,
+        historico: OrdemPagamentoAgrupadoHistoricoDTO) {
         const detalheACnab: CnabDetalheA_104 = sc(PgtoRegistros.detalheA);
-        const historico = detalheA.ordemPagamentoAgrupadoHistorico;
-        const user = await this.userService.findOne({ id: historico?.ordemPagamentoAgrupado.ordensPagamento[0].userId });
-
         detalheACnab.codigoBancoDestino.value = historico?.userBankCode;
         detalheACnab.codigoAgenciaDestino.value = historico?.userBankAgency.substring(0, historico.userBankAgency.length - 1);   ;
         detalheACnab.dvAgenciaDestino.value = historico?.userBankAgency.substring(historico.userBankAgency.length - 1); 
         detalheACnab.contaCorrenteDestino.value = historico?.userBankAccount;
         detalheACnab.dvContaDestino.value = historico?.userBankAccountDigit;
-        detalheACnab.nomeTerceiro.value = user?.fullName;
+        detalheACnab.nomeTerceiro.value = historico.username;
         detalheACnab.numeroDocumentoEmpresa.value = detalheA.numeroDocumentoEmpresa;
         detalheACnab.dataVencimento.value = detalheA.dataVencimento;
-        detalheACnab.valorLancamento.value = detalheA.valorLancamento;
+        detalheACnab.valorLancamento.value = Number(detalheA.valorLancamento);
         detalheACnab.valorRealEfetivado.value = detalheA.valorRealEfetivado;        
         detalheACnab.nsr.value = detalheA.nsr;
+        
 
         // DetalheB
         const detalheBCnab: CnabDetalheB_104 = sc(PgtoRegistros.detalheB);
-        detalheBCnab.tipoInscricao.value = isCpfOrCnpj(user?.cpfCnpj);          
-        detalheBCnab.numeroInscricao.value = user?.cpfCnpj;
+        detalheBCnab.tipoInscricao.value = isCpfOrCnpj(historico?.usercpfcnpj) ==='cpf'?CnabTipoInscricao.CPF:CnabTipoInscricao.CNPJ;          
+        detalheBCnab.numeroInscricao.value = historico?.usercpfcnpj;
         detalheBCnab.dataVencimento.value = detalheA.dataVencimento;    
         detalheBCnab.nsr.value = detalheB.nsr;
 

@@ -85,6 +85,8 @@ import {
 } from './novo-remessa/repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from './novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
 import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagamento.controller';
+import { RemessaService } from './novo-remessa/service/remessa.service';
+import { RetornoService } from './novo-remessa/service/retorno.service';
 import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
 import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
 
@@ -174,6 +176,8 @@ import { DistributedLockRepository } from './novo-remessa/repository/distributed
     OrdemPagamentoAgrupadoRepository,
     OrdemPagamentoAgrupadoService,
     OrdemPagamentoAgrupadoHistoricoRepository,
+    RemessaService,
+    RetornoService,
     DistributedLockService,
     DistributedLockRepository
   ],
@@ -222,6 +226,8 @@ import { DistributedLockRepository } from './novo-remessa/repository/distributed
     OrdemPagamentoAgrupadoRepository,
     OrdemPagamentoAgrupadoService,
     OrdemPagamentoAgrupadoHistoricoRepository,
+    RemessaService,
+    RetornoService,
     DistributedLockService,
     DistributedLockRepository
   ],

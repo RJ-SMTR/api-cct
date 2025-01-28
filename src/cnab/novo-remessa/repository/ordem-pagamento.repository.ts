@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DeepPartial, Repository } from 'typeorm';
+import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
@@ -12,6 +12,7 @@ import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
+import { formatDateISODate } from 'src/utils/date-utils';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -20,7 +21,8 @@ export class OrdemPagamentoRepository {
   constructor(
     @InjectRepository(OrdemPagamento)
     private ordemPagamentoRepository: Repository<OrdemPagamento>,
-  ) {}
+    private readonly dataSource: DataSource
+  ) { }
 
   public async save(dto: DeepPartial<OrdemPagamento>): Promise<OrdemPagamento> {
     const existing = await this.ordemPagamentoRepository.findOneBy({ id: dto.id });
