@@ -1,11 +1,10 @@
-import { HttpStatus, Injectable, NotImplementedException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { addDays, endOfDay, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWithinInterval, setHours, startOfDay, subDays, subHours } from 'date-fns';
-import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
+import { addDays, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWithinInterval, setHours, startOfDay, subDays, subHours } from 'date-fns';
+import { CnabService } from 'src/cnab/cnab.service';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
-import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { OrdemPagamentoAgrupadoService } from 'src/cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
@@ -22,7 +21,7 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { formatDateInterval, formatDateISODate } from 'src/utils/date-utils';
+import { formatDateISODate } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
 
 /**
@@ -82,7 +81,7 @@ export class CronJobsService {
     private remessaService: RemessaService,
     private retornoService: RetornoService,
 
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.onModuleLoad().catch((error: Error) => {
@@ -90,7 +89,11 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {    
+  async onModuleLoad() {
+    //CHAMADAS PARA TESTE
+    //await this.remessaVLTExec();
+    // await this.remessaModalExec();
+    //await this.remessaConsorciosExec();
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
@@ -119,12 +122,11 @@ export class CronJobsService {
             if (!this.validateJobsRemessa()) {
               this.logger.log(`Ignorando esta tarefa para não impedir tarefas prioritárias..`, 'saveRetornoPagamento');
               return;
-            }
-            // await this.saveRetornoPagamento();
+            }           
             await this.retornoExec();
           },
         },
-      },      
+      },
       {
         /**
          * Envio de Relatório Estatística dos Dados - todo dia, 06:00 - 06:01
@@ -135,7 +137,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.sendReport,
         cronJobParameters: {
-          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob, 
+          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob,
             true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: async () => await this.sendStatusReport(),
         },
@@ -154,7 +156,7 @@ export class CronJobsService {
             if (isSaturday(today) || isSunday(today)) {
               return;
             }
-            await this.remessaVLTExec();          
+            await this.remessaVLTExec();
           },
         },
       },
@@ -168,7 +170,7 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '0 16 * * THU', // Rodar todas as quintas 16:00 GMT = 13:00 BRT (GMT-3)
           onTick: async () => {
-            await this.remessaModalExec();            
+            await this.remessaModalExec();
           },
         },
       },
@@ -209,7 +211,7 @@ export class CronJobsService {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: async () => await this.bulkSendInvites(),
         },
-      },     
+      },
     );
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
@@ -255,24 +257,6 @@ export class CronJobsService {
     job.start();
   }
 
-  /**
-   * Gera e envia remessa da semana atual, a ser pago numa sexta-feira.
-   */
-  async generateRemessaVanzeiros(debug?: ICronjobDebug,isUnico?:boolean) {
-    const METHOD = 'generateRemessaVanzeiros';   
-    this.logger.log('Tarefa iniciada', METHOD);
-    const startDate = new Date();
-    const today = debug?.today || new Date();
-    const sex = subDays(today, 7);
-    const qui = subDays(today, 1);
-
-    await this.cnabService.saveTransacoesJae(sex, qui, 0,'Van');
-    const listCnab = await this.cnabService.generateRemessa({ tipo: PagadorContaEnum.ContaBilhetagem
-      , dataPgto: today, isConference: false, isCancelamento: false, isTeste: false });
-    await this.cnabService.sendRemessa(listCnab);
-    this.logger.log(`Tarefa finalizada - ${formatDateInterval(new Date(), startDate)}`, METHOD);
-  }
-  
 
   deleteCron(jobName: string) {
     this.schedulerRegistry.deleteCronJob(jobName);
@@ -618,7 +602,7 @@ export class CronJobsService {
       this.logger.error(`Erro ao executar tarefa, abortando. - ${httpException}`, httpException?.stack, METHOD);
     }
   }
-  
+
   async saveRetornoPagamento() {
     const METHOD = this.saveRetornoPagamento.name;
     try {
@@ -681,22 +665,23 @@ export class CronJobsService {
     }
   }
 
-  private async geradorRemessaExec(dataInicio:Date,dataFim: Date,dataPagamento:Date,
-    consorcios:string[],headerName:HeaderName){
-    //Agrupa pagamentos
-     for (let index = 0; index < consorcios.length; index++) {      
-     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-       dataFim,dataPagamento,"contaBilhetagem",consorcios);
-    }      
-     //Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio,dataFim,consorcios);
+  private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
+    consorcios: string[], headerName: HeaderName) {
+    //Agrupa pagamentos     
+
+    for (let index = 0; index < consorcios.length; index++) {
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+        dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+    }
+    //Prepara o remessa
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, consorcios);
     //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName);
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt);
   }
 
-  async remessaVLTExec(){  
+  async remessaVLTExec() {
     //Rodar de segunda a sexta   
     const today = new Date();
     /** defaut: qua,qui,sex,sáb,dom */
@@ -710,30 +695,32 @@ export class CronJobsService {
     }
     const dataInicio = subDays(today, daysBeforeBegin);
     const dataFim = subDays(today, daysBeforeEnd);
-    await this.geradorRemessaExec(dataInicio,dataFim,today,['VLT'],HeaderName.VLT);
+    await this.geradorRemessaExec(dataInicio, dataFim, today, 
+      ['VLT'], HeaderName.VLT);
   }
 
-  async remessaModalExec(){   
+  async remessaModalExec() {
     //Rodar Quinta 
-    const today = new Date();   
-    const dataInicio = subDays(today, 6);
-    const dataFim = subDays(today, 0); 
-    await this.geradorRemessaExec(dataInicio,dataFim,addDays(today,1),['STPC','STPL','TEC'],HeaderName.MODAL);
+    const today = new Date();
+    const dataInicio = new Date('2025-01-03')  // subDays(today, 6);
+    const dataFim = new Date('2025-01-09') //subDays(today, 0); 
+    await this.geradorRemessaExec(dataInicio, dataFim, today   /*addDays(today,1)*/, 
+      ['STPC', 'STPL', 'TEC'], HeaderName.MODAL);
   }
 
-  async remessaConsorciosExec(){    
+  async remessaConsorciosExec() {
     //Rodar na Quinta
-    const today = new Date();   
-    const dataInicio = subDays(today, 6);
-    const dataFim = subDays(today, 0); 
-    await this.geradorRemessaExec(dataInicio,dataFim,addDays(today,1),
-    ['Internorte','Intersul','MobiRio','Santa Cruz','Transcarioca'],HeaderName.CONSORCIO);
+    const today = new Date();
+    const dataInicio = new Date('2025-01-17')  // subDays(today, 6);
+    const dataFim = new Date('2025-01-23') //subDays(today, 0); 
+    await this.geradorRemessaExec(dataInicio, dataFim, today /*addDays(today,1)*/,
+      ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO);
   }
 
-  async retornoExec(){
-    const txt =  await this.retornoService.lerRetornoSftp();
-    if(txt)
-      await this.retornoService.salvarRetorno({name: txt?.name,content: txt?.content});
+  async retornoExec() {
+    const txt = await this.retornoService.lerRetornoSftp();
+    if (txt)
+      await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
   }
 
 }

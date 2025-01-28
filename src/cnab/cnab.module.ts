@@ -86,6 +86,7 @@ import {
 import { OrdemPagamentoAgrupadoHistorico } from './novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
 import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagamento.controller';
 import { RemessaService } from './novo-remessa/service/remessa.service';
+import { RetornoService } from './novo-remessa/service/retorno.service';
 
 @Module({
   imports: [
@@ -174,6 +175,7 @@ import { RemessaService } from './novo-remessa/service/remessa.service';
     OrdemPagamentoAgrupadoService,
     OrdemPagamentoAgrupadoHistoricoRepository,
     RemessaService,
+    RetornoService
   ],
   exports: [
     CnabService, //
@@ -221,6 +223,7 @@ import { RemessaService } from './novo-remessa/service/remessa.service';
     OrdemPagamentoAgrupadoService,
     OrdemPagamentoAgrupadoHistoricoRepository,
     RemessaService,
+    RetornoService
   ],
   controllers: [CnabController, CnabManutencaoController, OrdemPagamentoController],
 })
