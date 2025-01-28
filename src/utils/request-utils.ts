@@ -9,15 +9,15 @@ export function getRequestLog(request: IRequest) {
 
 export function canProceed(request: IRequest, userId: number | undefined) {
   if (request.user && request.user.role && request.user.role.name) {
-    if (!isAdmin(request) && (request.user.id != userId)) {
+    if (isUser(request) && (request.user.id != userId)) {
       throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
     }
   }
 }
 
-export function isAdmin(request: IRequest) {
+export function isUser(request: IRequest) {
   if (request.user && request.user.role && request.user.role.name) {
-    return request.user.role.name.toUpperCase() === 'ADMIN';
+    return request.user.role.name.toUpperCase().startsWith('USER');
   }
   return false;
 }

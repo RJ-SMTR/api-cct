@@ -8,6 +8,23 @@ import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum'
 import { OrdemPagamentoAgrupadoService } from 'src/cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
+
+import {
+  addDays,
+  endOfDay,
+  isFriday,
+  isMonday,
+  isSaturday,
+  isSunday,
+  isThursday,
+  isTuesday,
+  isWithinInterval,
+  startOfDay,
+  subDays,
+} from 'date-fns';
+import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
+import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
+import { OrdemPagamentoService } from 'src/cnab/novo-remessa/service/ordem-pagamento.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -23,6 +40,9 @@ import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { formatDateISODate } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
+import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
+import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
+import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 
 /**
  * Enum CronJobServicesJobs
@@ -33,15 +53,11 @@ export enum CronJobsEnum {
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
   updateRetorno = 'updateRetorno',
-  updateTransacaoViewEmpresa = 'updateTransacaoViewEmpresa',
-  updateTransacaoViewVan = 'updateTransacaoViewVan',
-  updateTransacaoViewVLT = 'updateTransacaoViewVLT',
-  updateTransacaoViewValues = 'updateTransacaoViewValues',
-  syncTransacaoViewOrdem = 'syncTransacaoViewOrdem',
   generateRemessaVLT = 'generateRemessaVLT',
   generateRemessaEmpresa = 'generateRemessaEmpresa',
   generateRemessaVanzeiros = 'generateRemessaVanzeiros',
   generateRemessaLancamento = 'generateRemessaLancamento',
+  sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -69,6 +85,9 @@ export class CronJobsService {
 
   public jobsConfig: ICronJob[] = [];
 
+  private static readonly MODAIS = ['STPC', 'STPL', 'TEC'];
+  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz'];
+
   constructor(
     private configService: ConfigService, //
     private settingsService: SettingsService,
@@ -80,8 +99,11 @@ export class CronJobsService {
     private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
     private remessaService: RemessaService,
     private retornoService: RetornoService,
+    private ordemPagamentoService: OrdemPagamentoService,
+    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
+    private distributedLockService: DistributedLockService,
+  ) {}
 
-  ) { }
 
   onModuleInit() {
     this.onModuleLoad().catch((error: Error) => {
@@ -92,7 +114,7 @@ export class CronJobsService {
   async onModuleLoad() {
     //CHAMADAS PARA TESTE
     //await this.remessaVLTExec();
-    // await this.remessaModalExec();
+    //await this.remessaModalExec();
     //await this.remessaConsorciosExec();
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
@@ -257,11 +279,33 @@ export class CronJobsService {
     job.start();
   }
 
+ 
+  private validateGenerateRemessaVanzeiros(method: string, debug?: ICronjobDebug): boolean {
+    const today = debug?.today || new Date();
+    if (!isFriday(today)) {
+      this.logger.error('Não implementado - Hoje não é sexta-feira. Abortando...', undefined, method);
+      return false;
+    }
+    return true;
+  }
+
+  public async saveAndSendRemessa(dataPgto: Date, isConference = false, isCancelamento = false, nsaInicial = 0, nsaFinal = 0, dataCancelamento = new Date()) {
+    const listCnabStr = await this.cnabService.generateRemessa({
+      tipo: PagadorContaEnum.ContaBilhetagem,
+      dataPgto,
+      isConference,
+      isCancelamento,
+      isTeste: false,
+      nsaInicial,
+      nsaFinal,
+      dataCancelamento,
+    });
+    if (listCnabStr) await this.sendRemessa(listCnabStr);
+  }
 
   deleteCron(jobName: string) {
     this.schedulerRegistry.deleteCronJob(jobName);
   }
-
 
   async bulkSendInvites() {
     const METHOD = this.bulkSendInvites.name;
@@ -617,44 +661,8 @@ export class CronJobsService {
     const today = new Date();
     const isValid = !this.isDateInRemessaVan(today) && !this.isDateInRemessaVLT(today) && !this.isDateInRemessaConsorcio(today);
     return isValid;
-  }
-
-  /**
-   * Requisitos:
-   * O job do remessa Van roda toda sexta, 10:00 - 10:30, usaremos uma gordura de 10m
-   *
-   * Ou seja: 09:50 - 10:40 BRT (GMT-3) ou 12:50 - 13:40 GMT (código)
-   */
-  isDateInRemessaVan(date: Date): boolean {
-    const dateStr = formatDateISODate(date);
-    const hourInterval = { start: new Date(`${dateStr} 12:50`), end: new Date(`${dateStr} 13:40`) };
-    return isFriday(date) && isWithinInterval(date, hourInterval);
-  }
-
-  /**
-   * Requisitos:
-   * O job do remessa VLT roda todo dia, 08:00 - 08:30, usaremos uma gordura de 10m
-   *
-   * Ou seja: 07:50 - 08:40 BRT (GMT-3) ou 10:50 - 11:40 GMT
-   */
-  isDateInRemessaVLT(date: Date): boolean {
-    const dateStr = formatDateISODate(date);
-    const hourInterval = { start: new Date(`${dateStr} 10:50`), end: new Date(`${dateStr} 11:40`) };
-    return isWithinInterval(date, hourInterval);
-  }
-
-  /**
-   * Requisitos:
-   * O job do remessa consórcio roda toda quinta, 17:00 - 17:30, usaremos uma gordura de 10m
-   *
-   * Ou seja: 16:50 - 17:40 BRT (GMT-3) ou 19:50 - 20:40 GMT (código)
-   */
-  isDateInRemessaConsorcio(date: Date): boolean {
-    const dateStr = formatDateISODate(date);
-    const hourInterval = { start: new Date(`${dateStr} 19:50`), end: new Date(`${dateStr} 20:40`) };
-    return isThursday(date) && isWithinInterval(date, hourInterval);
-  }
-
+  } 
+  
   async readRetornoExtrato() {
     const METHOD = 'readRetornoExtrato';
     try {
@@ -723,4 +731,64 @@ export class CronJobsService {
       await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
   }
 
+
+
+async sincronizarEAgruparOrdensPagamento() {
+    const METHOD = 'sincronizarEAgruparOrdensPagamento';
+    this.logger.log('Tentando adquirir lock para execução da tarefa de sincronização e agrupamento.');
+    const locked = await this.distributedLockService.acquireLock(METHOD);
+    if (locked) {
+      try {
+        this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
+        // Sincroniza as ordens de pagamento para todos os modais e consorcios
+        const nextThursday = this.getNextThursday();
+        const lastFriday = this.getLastFriday();
+        const nextFriday = this.getNextFriday();
+        this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${lastFriday.toISOString()}, Data Fim: ${nextThursday.toISOString()}`, METHOD);
+        const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
+        await this.ordemPagamentoService.sincronizarOrdensPagamento(lastFriday, nextThursday, consorciosEModais);
+        this.logger.log('Sincronização finalizada. Iniciando agrupamento para modais.', METHOD);
+        const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
+        // Agrupa para os modais
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(lastFriday, nextThursday, nextFriday, pagadorKey, CronJobsService.MODAIS);
+        this.logger.log('Tarefa finalizada com sucesso.', METHOD);
+      } catch (error) {
+        this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
+      } finally {
+        await this.distributedLockService.releaseLock(METHOD);
+      }
+    } else {
+      this.logger.log('Não foi possível adquirir o lock para a tarefa de sincronização e agrupamento.');
+    }
+  }
+
+  getNextThursday(date = new Date()) {
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 4) {
+      return new Date(date.toISOString().split('T')[0]);
+    }
+    const daysUntilNextThursday = (4 - dayOfWeek + 7) % 7 || 7;
+    const nextThursday = new Date(date);
+    nextThursday.setDate(date.getDate() + daysUntilNextThursday);
+    return new Date(nextThursday.toISOString().split('T')[0]);
+  }
+
+  getLastFriday(date = new Date()) {
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 5) {
+      return new Date(date.toISOString().split('T')[0]);
+    }
+    const daysSinceLastFriday = ((dayOfWeek + 2) % 7) + 1;
+    const lastFriday = new Date(date);
+    lastFriday.setDate(date.getDate() - daysSinceLastFriday);
+    return new Date(lastFriday.toISOString().split('T')[0]);
+  }
+
+  getNextFriday(date = new Date()) {
+    const dayOfWeek = date.getDay();
+    const daysUntilNextFriday = (5 - dayOfWeek + 7) % 7 || 7;
+    const nextFriday = new Date(date);
+    nextFriday.setDate(date.getDate() + daysUntilNextFriday);
+    return new Date(nextFriday.toISOString().split('T')[0]);
+  }
 }

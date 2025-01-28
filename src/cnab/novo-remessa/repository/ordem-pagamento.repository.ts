@@ -78,7 +78,7 @@ export class OrdemPagamentoRepository {
             INNER JOIN ordem_pagamento_agrupado opa
             ON opa.id = opah."ordemPagamentoAgrupadoId"
             INNER JOIN ordem_pagamento op
-            ON opah."ordemPagamentoAgrupadoId" = opa.id
+            ON op."ordemPagamentoAgrupadoId" = opa.id
             WHERE 1 = 1
             AND op."userId" = $2
             AND DATE_TRUNC('day', opa."dataPagamento") = DATE_TRUNC('day', m.data)
@@ -108,7 +108,7 @@ export class OrdemPagamentoRepository {
   }
 
   /***
-    * Obtém as ordens que foram agrupadas mas o pagamento falhou.
+   * Obtém as ordens que foram agrupadas mas o pagamento falhou.
    * Existem dois tipos de falhas:
    * - Falhas nas quais o usuário deve modificar os dados bancários.
    * - Falhas nas quais houve um erro desconhecido no arquivo de retorno do banco
@@ -117,7 +117,6 @@ export class OrdemPagamentoRepository {
    * @returns OrdemPagamentoPendenteDto[] - Lista de ordens de pagamento pendentes
    *  */
   public async findOrdensPagamentosPendentes(): Promise<OrdemPagamentoPendenteDto[]> {
-
     const query = `select o.id,
                        o."valor",
                        "dataPagamento",
@@ -178,7 +177,6 @@ export class OrdemPagamentoRepository {
       ordemPagamentoPendente.userId = row.userId;
     });
   }
-
 
   /***
         Busca as ordens que não foram agrupadas e pagas
@@ -241,8 +239,6 @@ export class OrdemPagamentoRepository {
     }
   }
 
-
-
   public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
     const query = `
         SELECT o.id,
@@ -255,7 +251,8 @@ export class OrdemPagamentoRepository {
           AND opa.id = $1
           AND o."dataCaptura" IS NOT NULL
           AND o."userId" = $2
-        ORDER BY o."dataOrdem"
+          AND date_trunc('day', o."dataOrdem") BETWEEN date_trunc('day', "dataPagamento") - INTERVAL '7 days' AND date_trunc('day', "dataPagamento") - INTERVAL '1 day'
+        ORDER BY o."dataOrdem" desc
     `;
 
     const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
@@ -268,36 +265,81 @@ export class OrdemPagamentoRepository {
     });
   }
 
-  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date,
-    pagador: Pagador, consorcios: String[]): Promise<void> {
- 
-    const dtInicialIso = formatDateISODate(dataInicial)
-    
-    const dtFinalIso = formatDateISODate(dataFinal)
+  public async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
+    const query = `
+        SELECT o.id,
+               ROUND(valor, 2) valor,
+               date_trunc('day', o."dataCaptura") "dataCaptura"
+        FROM ordem_pagamento o
+        INNER JOIN ordem_pagamento_agrupado opa
+        ON o."ordemPagamentoAgrupadoId" = opa.id
+        WHERE 1 = 1
+          AND opa.id = $1
+          AND o."dataCaptura" IS NOT NULL
+          AND o."userId" = $2
+        ORDER BY o."dataCaptura" desc
+    `;
 
-    const dtPgtoIso = formatDateISODate(dataPgto)
- 
-    const joins = `{${consorcios.join(',')}}`;
+    let result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
+    result = result.map((row: any) => {
+      const ordemPagamento = new OrdemPagamentoSemanalDto();
+      ordemPagamento.ordemId = row.id;
+      ordemPagamento.dataCaptura = row.dataCaptura;
+      ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
+      return ordemPagamento;
+    });
 
-    const query = "call public.p_agrupar_ordens($1, $2, $3, $4, $5)";
+    const resultGrouped: OrdemPagamentoSemanalDto[] = [];
 
-    this.logger.debug(query);
-
-    const values = [dtInicialIso, dtFinalIso, dtPgtoIso, pagador.id, joins];
-
-    const queryRunner = this.dataSource.createQueryRunner();
-
-    await queryRunner.connect();
-
-    try {
-      await queryRunner.startTransaction();
-      queryRunner.manager.connection.query(query, values)
-      await queryRunner.commitTransaction();
-    } catch (err) {
-      queryRunner.rollbackTransaction();
-    }finally {
-      await queryRunner.release();
+    for (const row of result) {
+      const existing = resultGrouped.find((item) => item.dataCaptura?.toISOString() == row.dataCaptura.toISOString());
+      if (existing) {
+        existing.valor += row.valor;
+        if (!existing.ids) {
+          existing.ids = [];
+        }
+        existing.ids.push(row.ordemId);
+        existing.ordemId = undefined;
+      } else {
+        row.ids = [row.ordemId];
+        row.ordemId = undefined;
+        resultGrouped.push(row);
+      }
     }
-  
+    return resultGrouped;
+  }
+
+  public async findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
+    const query = `
+        SELECT SUM(ROUND(valor, 2)) valor,
+               o."dataOrdem",
+               o."dataCaptura"
+        FROM ordem_pagamento o
+        INNER JOIN ordem_pagamento_agrupado opa
+        ON o."ordemPagamentoAgrupadoId" = opa.id
+        WHERE 1 = 1
+          AND opa.id = $1
+          AND o."dataCaptura" IS NOT NULL
+          AND o."userId" = $2
+          AND date_trunc('day', o."dataOrdem") < date_trunc('day', "dataPagamento") - INTERVAL '7 days'
+        GROUP BY o."dataOrdem", o."dataCaptura"
+        ORDER BY o."dataOrdem" desc
+    `;
+
+    const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
+    return result.map((row: any) => {
+      const ordemPagamento = new OrdemPagamentoSemanalDto();
+      ordemPagamento.dataOrdem = row.dataOrdem;
+      ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
+      ordemPagamento.dataCaptura = row.dataCaptura;
+      return ordemPagamento;
+    });
+  }
+
+  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]): Promise<void> {
+    const dtInicialStr = dataInicial.toISOString().split('T')[0];
+    const dtFinalStr = dataFinal.toISOString().split('T')[0];
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4, $5)`, [dtInicialStr, dtFinalStr, dtPgtoStr, pagador.id, consorcios.join(',')]);
   }
 }

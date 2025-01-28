@@ -8,11 +8,10 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
-
+import { DistributedLockRepository } from '../repository/distributed-lock.repository';
 
 @Injectable()
-export class OrdemPagamentoAgrupadoService {
-  
+export class OrdemPagamentoAgrupadoService {  
 
   private logger = new CustomLogger(OrdemPagamentoAgrupadoService.name, { timestamp: true });
 
@@ -40,8 +39,13 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,consorcio);
   }
 
+
   async getHistoricosOrdem(idOrdem: number){
     return await this.ordemPagamentoAgrupadoHistRepository.findAll({ ordemPagamentoAgrupado: { id: idOrdem } });
+  }
+  
+  async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador, consorcios: string[]) {
+    await this.ordemPamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
   }
 
   async saveStatusHistorico(historico: OrdemPagamentoAgrupadoHistorico,statusRemessa:StatusRemessaEnum){

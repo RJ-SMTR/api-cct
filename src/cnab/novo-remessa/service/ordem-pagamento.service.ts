@@ -28,7 +28,15 @@ export class OrdemPagamentoService {
       let user: User | undefined;
       if (ordem.operadoraCpfCnpj) {
         try {
-          user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
+          /*
+              Caso sejam modais, obtemos o usuário pelo CPF/CNPJ.
+              Caso contrário, obtemos pelo idConsorcio === permitCode
+           */
+          if (ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio === 'TEC') {
+            user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
+          } else {
+            user = await this.usersService.getOne({ permitCode: ordem.idConsorcio });
+          }
           if (user) {
             this.logger.debug(`Salvando a ordem: ${ordem.idOrdemPagamento} para usuario: ${user.fullName}`, METHOD);
             await this.save(ordem, user.id);
@@ -83,12 +91,20 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
   }
 
+  async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
+  }
+
   async findOrdensPagamentoPendentes(): Promise<OrdemPagamentoPendenteDto[]> {
     return await this.ordemPagamentoRepository.findOrdensPagamentosPendentes();
   }
 
   async findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId?: number | undefined): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
     return await this.ordemPagamentoRepository.findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId);
+  }
+
+  async findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
   }
 
 }

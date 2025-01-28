@@ -46,7 +46,7 @@ export class BigqueryTransacaoRepository {
     return transacoes;
   }
 
-  public async findManyByOrdemPagamentoId(ordemPagamentoId: number, cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
+  public async findManyByOrdemPagamentoIdIn(ordemPagamentoIds: number[], cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
     let query = `SELECT CAST(t.datetime_transacao AS STRING)     datetime_transacao,
                         CAST(t.datetime_processamento AS STRING) datetime_processamento,
                         ROUND(t.valor_pagamento, 2)              valor_pagamento,
@@ -60,7 +60,7 @@ export class BigqueryTransacaoRepository {
                  WHERE 1 = 1
                    AND t.valor_pagamento
                      > 0
-                   AND t.id_ordem_pagamento_consorcio_operador_dia = ?`;
+                   AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST(?)`;
 
     function mapBigQueryTransacao(item: any) {
       const bigqueryTransacao = new BigqueryTransacao();
@@ -75,19 +75,19 @@ export class BigqueryTransacaoRepository {
 
     if (!isAdmin) {
       query += ` AND CAST(o.documento AS STRING) = ?`;
-      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoId.toString()]);
+      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoIds]);
       return queryResult.map((item: any) => {
         return mapBigQueryTransacao(item);
       });
     } else {
-      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoId.toString(), cpfCnpj]);
+      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoIds, cpfCnpj]);
       return queryResult.map((item: any) => {
         return mapBigQueryTransacao(item);
       });
     }
   }
 
-  public async findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordemPagamentoId: number[], cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
+  public async findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordemPagamentoId: (number | undefined)[], cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
     let query = `SELECT ROUND(t.valor_pagamento, 2) valor_pagamento,
                         ROUND(t.valor_transacao, 2) valor_transacao,
                         t.tipo_pagamento,
@@ -101,7 +101,7 @@ export class BigqueryTransacaoRepository {
                      > 0
                    AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST(?)`;
 
-    const ordensPagamentoIdStr = ordemPagamentoId.map((id) => id.toString());
+    const ordensPagamentoIdStr = ordemPagamentoId.map((id) => id?.toString());
 
     function mapBigQueryTransacaoAgrupado(item: any) {
       const bigqueryTransacao = new BigqueryTransacao();

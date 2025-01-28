@@ -68,15 +68,15 @@ describe('BigqueryTransacaoService', () => {
       },
     ];
 
-    jest.spyOn(repository, 'findManyByOrdemPagamentoId').mockResolvedValue(mockData);
+    jest.spyOn(repository, 'findManyByOrdemPagamentoIdIn').mockResolvedValue(mockData);
 
     const role = new Role();
     role.name = 'dummy';
     role.id = 1;
     const user = { user: { id: 1, role: role } };
-    const result = await service.findByOrdemPagamentoId(ordemPagamentoId, '99999999999', { ...user } as any);
+    const result = await service.findByOrdemPagamentoIdIn([ordemPagamentoId], '99999999999', { ...user } as any);
 
     expect(result).toEqual(mockData);
-    expect(repository.findManyByOrdemPagamentoId).toHaveBeenCalledWith(ordemPagamentoId, '99999999999', false);
+    expect(repository.findManyByOrdemPagamentoIdIn).toHaveBeenCalledWith([ordemPagamentoId], '99999999999', false);
   });
 });

@@ -3,7 +3,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
+  Param, ParseArrayPipe,
   Query,
   Request,
   SerializeOptions,
@@ -17,7 +17,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
-import { canProceed, getRequestLog, isAdmin } from 'src/utils/request-utils';
+import { canProceed, getRequestLog } from 'src/utils/request-utils';
 import { OrdemPagamentoService } from '../service/ordem-pagamento.service';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { BigqueryTransacaoService } from '../../../bigquery/services/bigquery-transacao.service';
@@ -77,7 +77,7 @@ export class OrdemPagamentoController {
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
     canProceed(request, Number(userId));
-    return this.ordemPagamentoService.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userIdNum);
+    return this.ordemPagamentoService.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userIdNum);
   }
 
 
@@ -98,7 +98,27 @@ export class OrdemPagamentoController {
     const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
     const user = await this.usersService.findOne({ id: userIdNum})
     canProceed(request, Number(userId));
-    return this.bigqueryTransacaoService.findByOrdemPagamentoId(ordemPagamentoId, user?.cpfCnpj, request);
+    return this.bigqueryTransacaoService.findByOrdemPagamentoIdIn([ordemPagamentoId], user?.cpfCnpj, request);
+  }
+
+  @Get('diario')
+  @UseGuards(AuthGuard('jwt'))
+  @SerializeOptions({ groups: ['me'] })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'ordemPagamentoIds', type: [Number], required: true })
+  @ApiQuery(CommonApiParams.userId)
+  @HttpCode(HttpStatus.OK)
+  async getDiarioParaVariasOrdens(
+    @Request() request: IRequest, //
+    @Query('ordemPagamentoIds', new ParseArrayPipe()) ordemPagamentoIds: number[],
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
+  ): Promise<BigqueryTransacao[]> {
+    this.logger.log(getRequestLog(request));
+    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
+    const user = await this.usersService.findOne({ id: userIdNum });
+    canProceed(request, Number(userId));
+    return this.bigqueryTransacaoService.findByOrdemPagamentoIdIn(ordemPagamentoIds, user?.cpfCnpj, request);
   }
 
 
@@ -126,7 +146,7 @@ export class OrdemPagamentoController {
     return this.bigqueryTransacaoService.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordemPagamentoIds, user?.cpfCnpj, request);
   }
 
-  @Get('transacoes-dias-anteriores')
+  @Get('transacoes-dias-anteriores/:ordemPagamentoAgrupadoId')
   @UseGuards(AuthGuard('jwt'))
   @SerializeOptions({ groups: ['me'] })
   @ApiBearerAuth()
@@ -134,13 +154,14 @@ export class OrdemPagamentoController {
   @ApiQuery(CommonApiParams.userId)
   async getTransacoesDiasAnteriores(
     @Request() request: IRequest, //
+    @Param('ordemPagamentoAgrupadoId', new ParseNumberPipe({ min: 1, optional: false })) ordemPagamentoAgrupadoId: number,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
-  ): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
+  ): Promise<OrdemPagamentoSemanalDto[]> {
     this.logger.log(getRequestLog(request));
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
     canProceed(request, Number(userId));
-    return this.ordemPagamentoService.findOrdensPagamentosPendentesQueNuncaForamRemetidas(userIdNum);
+    return this.ordemPagamentoService.findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userIdNum);
   }
 
 }

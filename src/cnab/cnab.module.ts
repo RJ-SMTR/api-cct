@@ -87,6 +87,8 @@ import { OrdemPagamentoAgrupadoHistorico } from './novo-remessa/entity/ordem-pag
 import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagamento.controller';
 import { RemessaService } from './novo-remessa/service/remessa.service';
 import { RetornoService } from './novo-remessa/service/retorno.service';
+import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
+import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
 
 @Module({
   imports: [
@@ -175,7 +177,9 @@ import { RetornoService } from './novo-remessa/service/retorno.service';
     OrdemPagamentoAgrupadoService,
     OrdemPagamentoAgrupadoHistoricoRepository,
     RemessaService,
-    RetornoService
+    RetornoService,
+    DistributedLockService,
+    DistributedLockRepository
   ],
   exports: [
     CnabService, //
@@ -223,7 +227,9 @@ import { RetornoService } from './novo-remessa/service/retorno.service';
     OrdemPagamentoAgrupadoService,
     OrdemPagamentoAgrupadoHistoricoRepository,
     RemessaService,
-    RetornoService
+    RetornoService,
+    DistributedLockService,
+    DistributedLockRepository
   ],
   controllers: [CnabController, CnabManutencaoController, OrdemPagamentoController],
 })
