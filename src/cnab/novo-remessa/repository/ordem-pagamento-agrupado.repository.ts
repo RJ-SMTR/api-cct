@@ -54,7 +54,7 @@ export class OrdemPagamentoAgrupadoRepository {
     }
 
     if(dataInicio!==undefined && dataFim!==undefined && dataFim >=dataInicio){
-      query = query +` and op."dataCaptura" between '${dataIniForm}' and '${dataFimForm}' 
+      query = query +` and op."dataCaptura" between '${dataIniForm} 00:00:00' and '${dataFimForm} 23:59:59' 
        and op."ordemPagamentoAgrupadoId" is not null `;
     }else{
       return [];

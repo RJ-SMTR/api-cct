@@ -109,9 +109,9 @@ export class CronJobsService {
 
   async onModuleLoad() {
     //CHAMADAS PARA TESTE
-    //await this.remessaVLTExec();
-    //await this.remessaModalExec();
-    //await this.remessaConsorciosExec();
+    // await this.remessaVLTExec();
+    // await this.remessaModalExec();
+    // await this.remessaConsorciosExec();
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
@@ -663,8 +663,8 @@ export class CronJobsService {
   async remessaModalExec() {
     //Rodar Quinta 
     const today = new Date();
-    const dataInicio = new Date('2025-01-03')  // subDays(today, 6);
-    const dataFim = new Date('2025-01-09') //subDays(today, 0); 
+    const dataInicio = subDays(today, 6);
+    const dataFim = subDays(today, 0); 
     await this.geradorRemessaExec(dataInicio, dataFim, today   /*addDays(today,1)*/,
       ['STPC', 'STPL', 'TEC'], HeaderName.MODAL);
   }
@@ -672,8 +672,8 @@ export class CronJobsService {
   async remessaConsorciosExec() {
     //Rodar na Quinta
     const today = new Date();
-    const dataInicio = new Date('2025-01-17')  // subDays(today, 6);
-    const dataFim = new Date('2025-01-23') //subDays(today, 0); 
+    const dataInicio = subDays(today, 6);
+    const dataFim = subDays(today, 0); 
     await this.geradorRemessaExec(dataInicio, dataFim, today /*addDays(today,1)*/,
       ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO);
   }
