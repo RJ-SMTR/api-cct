@@ -12,7 +12,6 @@ import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { replaceUndefinedWithNull } from '../../../utils/type-utils';
-import { startOfDay } from 'date-fns';
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -24,14 +23,10 @@ export class OrdemPagamentoService {
     const METHOD = 'sincronizarOrdensPagamento';
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: consorcio });
 
-    const todayTrunc = startOfDay(new Date());
-    const ultimaDataCapturaDTO = await this.findNumeroDeOrdensAtualizadasParaUltimaDataDeCaptura();
-    const numOrdensUltimaDataCaptura = ordens.filter((ordem) => ultimaDataCapturaDTO?.dataCaptura && startOfDay(ordem.dataCaptura).getTime() === startOfDay(ultimaDataCapturaDTO?.dataCaptura).getTime()).length;
+    const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(dataCapturaInicialDate, dataCapturaFinalDate);
     // Verifica se a ultima data de captura é igual a data atual
     // E se o número de ordens é diferente.
-    if (ultimaDataCapturaDTO && ultimaDataCapturaDTO.dataCaptura &&
-      todayTrunc.getTime() === startOfDay(ultimaDataCapturaDTO?.dataCaptura).getTime()
-      && numOrdensUltimaDataCaptura === ultimaDataCapturaDTO.qtde) {
+    if (numOrdensSemana === ordens.length) {
       this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de ontem.`, METHOD);
       return;
     }
@@ -121,8 +116,8 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
   }
 
-  async findNumeroDeOrdensAtualizadasParaUltimaDataDeCaptura() {
-    return await this.ordemPagamentoRepository.findNumeroDeOrdensAtualizadasParaUltimaDataDeCaptura();
+  async findNumeroDeOrdensPorIntervalo(startDate: Date, endDate: Date) {
+    return await this.ordemPagamentoRepository.findNumeroOrdensPorIntervaloDataCaptura(startDate, endDate);
   }
 
 }
