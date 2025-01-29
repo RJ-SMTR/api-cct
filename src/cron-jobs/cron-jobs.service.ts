@@ -229,12 +229,12 @@ export class CronJobsService {
       {
         /**
          * Sincroniza e agrupa ordens de pagamento.
-         * Todos os dias 06:00
+         * Todos os dias, a cada duas horas
          * */
         name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
         cronJobParameters: {
-          // duas em duas horas
-          cronTime: "0 */2 * * *",
+          // duas em duas horas depois das 6h
+          cronTime: "0 6-22/2 * * *",
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
