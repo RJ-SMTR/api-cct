@@ -27,7 +27,7 @@ export class OrdemPagamentoService {
     // Verifica se a ultima data de captura é igual a data atual
     // E se o número de ordens é diferente.
     if (numOrdensSemana === ordens.length) {
-      this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de ontem.`, METHOD);
+      this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
       return;
     }
 
