@@ -7,20 +7,13 @@ import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
 
 import {
-  addDays,
-  endOfDay,
-  isFriday,
   isMonday,
   isSaturday,
   isSunday,
-  isThursday,
   isTuesday,
-  isWithinInterval,
-  startOfDay,
   subDays,
 } from 'date-fns';
 import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
-import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { OrdemPagamentoService } from 'src/cnab/novo-remessa/service/ordem-pagamento.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';

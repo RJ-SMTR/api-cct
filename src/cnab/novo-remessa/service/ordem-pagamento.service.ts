@@ -27,7 +27,7 @@ export class OrdemPagamentoService {
     const todayTrunc = startOfDay(new Date());
     const ultimaDataCapturaDTO = await this.findNumeroDeOrdensAtualizadasParaUltimaDataDeCaptura();
     const numOrdensUltimaDataCaptura = ordens.filter((ordem) => ultimaDataCapturaDTO?.dataCaptura && startOfDay(ordem.dataCaptura).getTime() === startOfDay(ultimaDataCapturaDTO?.dataCaptura).getTime()).length;
-    // Verifica se a ultima data de captura é maior que a data atual
+    // Verifica se a ultima data de captura é igual a data atual
     // E se o número de ordens é diferente.
     if (ultimaDataCapturaDTO && ultimaDataCapturaDTO.dataCaptura &&
       todayTrunc.getTime() === startOfDay(ultimaDataCapturaDTO?.dataCaptura).getTime()
