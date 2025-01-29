@@ -226,6 +226,18 @@ export class CronJobsService {
           onTick: async () => await this.bulkSendInvites(),
         },
       },
+      {
+        /**
+         * Sincroniza e agrupa ordens de pagamento.
+         * Todos os dias 06:00
+         * */
+        name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
+        cronJobParameters: {
+          // duas em duas horas
+          cronTime: "0 */2 * * *",
+          onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
+        },
+      },
     );
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
@@ -743,4 +755,5 @@ export class CronJobsService {
     nextFriday.setDate(date.getDate() + daysUntilNextFriday);
     return new Date(nextFriday.toISOString().split('T')[0]);
   }
+
 }

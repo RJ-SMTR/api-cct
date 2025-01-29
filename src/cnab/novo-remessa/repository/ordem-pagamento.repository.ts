@@ -12,7 +12,8 @@ import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
-import { formatDateISODate } from 'src/utils/date-utils';
+import { UltimaDataCapturaDTO } from '../dto/ultima-data-captura.dto';
+import { parseNumber } from '../../utils/cnab/cnab-field-utils';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -341,5 +342,22 @@ export class OrdemPagamentoRepository {
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
     await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4, $5)`, [dtInicialStr, dtFinalStr, dtPgtoStr, pagador.id, consorcios.join(',')]);
+  }
+
+  async findNumeroDeOrdensAtualizadasParaUltimaDataDeCaptura() {
+    // Query max dataCaptura
+    const query = `SELECT "dataCaptura", COUNT(*) as qtde FROM ordem_pagamento op 
+                    group by "dataCaptura"
+                   order by "dataCaptura" desc limit 1`;
+    const result = await this.ordemPagamentoRepository.query(query);
+    if (result.length > 0) {
+      if (result[0].dataCaptura) {
+        const ultimaDataCaptura =  new UltimaDataCapturaDTO();
+        ultimaDataCaptura.dataCaptura = result[0].dataCaptura;
+        ultimaDataCaptura.qtde = parseFloat(result[0].qtde);
+        return ultimaDataCaptura;
+      }
+    }
+    return Promise.resolve(undefined);
   }
 }
