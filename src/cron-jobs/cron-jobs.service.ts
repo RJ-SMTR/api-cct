@@ -7,20 +7,13 @@ import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
 
 import {
-  addDays,
-  endOfDay,
-  isFriday,
   isMonday,
   isSaturday,
   isSunday,
-  isThursday,
   isTuesday,
-  isWithinInterval,
-  startOfDay,
   subDays,
 } from 'date-fns';
 import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
-import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 import { OrdemPagamentoService } from 'src/cnab/novo-remessa/service/ordem-pagamento.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
@@ -224,6 +217,18 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: async () => await this.bulkSendInvites(),
+        },
+      },
+      {
+        /**
+         * Sincroniza e agrupa ordens de pagamento.
+         * Todos os dias, a cada duas horas
+         * */
+        name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
+        cronJobParameters: {
+          // duas em duas horas depois das 6h
+          cronTime: "0 6-22/2 * * *",
+          onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
     );
@@ -743,4 +748,5 @@ export class CronJobsService {
     nextFriday.setDate(date.getDate() + daysUntilNextFriday);
     return new Date(nextFriday.toISOString().split('T')[0]);
   }
+
 }

@@ -22,6 +22,15 @@ export class OrdemPagamentoService {
   async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
     const METHOD = 'sincronizarOrdensPagamento';
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: consorcio });
+
+    const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(dataCapturaInicialDate, dataCapturaFinalDate);
+    // Verifica se a ultima data de captura é igual a data atual
+    // E se o número de ordens é diferente.
+    if (numOrdensSemana === ordens.length) {
+      this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
+      return;
+    }
+
     this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
 
     for (const ordem of ordens) {
@@ -105,6 +114,10 @@ export class OrdemPagamentoService {
 
   async findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
     return await this.ordemPagamentoRepository.findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
+  }
+
+  async findNumeroDeOrdensPorIntervalo(startDate: Date, endDate: Date) {
+    return await this.ordemPagamentoRepository.findNumeroOrdensPorIntervaloDataCaptura(startDate, endDate);
   }
 
 }

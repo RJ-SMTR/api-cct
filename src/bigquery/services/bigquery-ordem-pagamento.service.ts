@@ -37,7 +37,13 @@ export class BigqueryOrdemPagamentoService {
         endDate: endDate,
         ...(filter ? filter : {}),
       })
-    ).map((i) => ({ ...i } as BigqueryOrdemPagamentoDTO));
+    ).map((i) => ({ ...i } as BigqueryOrdemPagamentoDTO))
+    .map((ordem) => {
+        if (ordem.dataCaptura) {
+          ordem.dataCaptura = new Date(ordem.dataCaptura);
+        }
+        return ordem;
+    });
     return ordemPgto;
   }
 }

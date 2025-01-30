@@ -12,7 +12,7 @@ import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
-import { formatDateISODate } from 'src/utils/date-utils';
+import { parseNumber } from '../../utils/cnab/cnab-field-utils';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -343,4 +343,16 @@ export class OrdemPagamentoRepository {
     const consorciosJoin = consorcios.join(',');
     await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${consorciosJoin}}`]);
   }
+
+  async findNumeroOrdensPorIntervaloDataCaptura(startDate: Date, endDate: Date) {
+    // Query max dataCaptura
+    const query = `SELECT COUNT(*) as qtde FROM ordem_pagamento op 
+                    where "dataCaptura" between $1 and $2`;
+    const result = await this.ordemPagamentoRepository.query(query, [startDate, endDate]);
+    if (result.length > 0) {
+      return parseFloat(result[0].qtde);
+    }
+    return Promise.resolve(undefined);
+  }
+
 }
