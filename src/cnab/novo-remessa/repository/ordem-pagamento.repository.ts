@@ -347,7 +347,7 @@ export class OrdemPagamentoRepository {
   async findNumeroOrdensPorIntervaloDataCaptura(startDate: Date, endDate: Date) {
     // Query max dataCaptura
     const query = `SELECT COUNT(*) as qtde FROM ordem_pagamento op 
-                    where "dataCaptura" between $1 and $2`;
+                    where date_trunc('day', "dataCaptura") between $1 and $2`;
     const result = await this.ordemPagamentoRepository.query(query, [startDate, endDate]);
     if (result.length > 0) {
       return parseFloat(result[0].qtde);

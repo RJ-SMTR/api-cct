@@ -141,7 +141,7 @@ export class BigqueryOrdemPagamentoRepository {
     const startDate = args.startDate.toISOString().slice(0, 10);
     const endDate = args.endDate.toISOString().slice(0, 10);
     let qWhere =
-      `t.datetime_captura BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CNPJ' ` +
+      `date(t.datetime_captura) BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CNPJ' ` +
       'AND t.valor_total_transacao_liquido > 0 AND c.consorcio <> \'STPC\'';
     if (args.consorcioName?.length) {
       qWhere += ` AND c.consorcio IN ('${args.consorcioName.join("', '")}')`
@@ -153,7 +153,7 @@ export class BigqueryOrdemPagamentoRepository {
     const startDate = args.startDate.toISOString().slice(0, 10);
     const endDate = args.endDate.toISOString().slice(0, 10);
     let qWhere =
-      `t.datetime_captura BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CPF' ` +
+      `date(t.datetime_captura) BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CPF' ` +
       'AND t.valor_total_transacao_liquido > 0';
     if (args.consorcioName?.length) {
       qWhere += ` AND c.consorcio IN ('${args.consorcioName.join("', '")}')`;

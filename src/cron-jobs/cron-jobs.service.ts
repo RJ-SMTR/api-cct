@@ -5,7 +5,6 @@ import { CronJob, CronJobParameters } from 'cron';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
-
 import {
   isMonday,
   isSaturday,
@@ -226,8 +225,7 @@ export class CronJobsService {
          * */
         name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
         cronJobParameters: {
-          // duas em duas horas depois das 6h
-          cronTime: "0 6-22/2 * * *",
+          cronTime: "0 6-22 * * *",
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
