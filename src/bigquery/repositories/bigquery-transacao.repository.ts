@@ -49,8 +49,8 @@ export class BigqueryTransacaoRepository {
   public async findManyByOrdemPagamentoIdIn(ordemPagamentoIds: number[], cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
     let query = `SELECT CAST(t.datetime_transacao AS STRING)     datetime_transacao,
                         CAST(t.datetime_processamento AS STRING) datetime_processamento,
-                        ROUND(t.valor_pagamento, 2)              valor_pagamento,
-                        ROUND(t.valor_transacao, 2)              valor_transacao,
+                        t.valor_pagamento             valor_pagamento,
+                        t.valor_transacao             valor_transacao,
                         t.tipo_pagamento,
                         t.tipo_transacao_smtr,
                         t.tipo_transacao
