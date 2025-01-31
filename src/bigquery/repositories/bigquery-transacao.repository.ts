@@ -52,6 +52,7 @@ export class BigqueryTransacaoRepository {
                         ROUND(t.valor_pagamento, 2)              valor_pagamento,
                         ROUND(t.valor_transacao, 2)              valor_transacao,
                         t.tipo_pagamento,
+                        t.tipo_transacao_smtr,
                         t.tipo_transacao
                  FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
                      LEFT JOIN \`rj-smtr.cadastro.operadoras\` o
@@ -70,6 +71,7 @@ export class BigqueryTransacaoRepository {
       bigqueryTransacao.valor_transacao = item.valor_transacao;
       bigqueryTransacao.tipo_pagamento = item.tipo_pagamento;
       bigqueryTransacao.tipo_transacao = item.tipo_transacao;
+      bigqueryTransacao.tipo_transacao_smtr = item.tipo_transacao_smtr;
       return bigqueryTransacao;
     }
 
