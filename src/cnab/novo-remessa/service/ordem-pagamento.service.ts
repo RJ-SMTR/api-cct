@@ -12,6 +12,7 @@ import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { replaceUndefinedWithNull } from '../../../utils/type-utils';
+import { endOfDay, startOfDay } from 'date-fns';
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -23,7 +24,7 @@ export class OrdemPagamentoService {
     const METHOD = 'sincronizarOrdensPagamento';
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: consorcio });
 
-    const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(dataCapturaInicialDate, dataCapturaFinalDate);
+    const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
     // Verifica se a ultima data de captura é igual a data atual
     // E se o número de ordens é diferente.
     if (numOrdensSemana === ordens.length) {
