@@ -221,11 +221,10 @@ export class CronJobsService {
       {
         /**
          * Sincroniza e agrupa ordens de pagamento.
-         * Todos os dias, a cada duas horas
          * */
         name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
         cronJobParameters: {
-          cronTime: "0 6-22 * * *",
+          cronTime: "0 9-21 * * *", // 06:00 BRT (GMT-3) = 09:00 GMT, 18:00 BRT (GMT-3) = 21:00 GMT
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
