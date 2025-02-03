@@ -12,7 +12,7 @@ import {
   isTuesday,
   subDays,
 } from 'date-fns';
-import { CnabService, ICnabInfo } from 'src/cnab/cnab.service';
+import { CnabService } from 'src/cnab/cnab.service';
 import { OrdemPagamentoService } from 'src/cnab/novo-remessa/service/ordem-pagamento.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
@@ -27,11 +27,11 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { formatDateISODate } from 'src/utils/date-utils';
 import { validateEmail } from 'validations-br';
 import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
+import {nextFriday, nextThursday, previousFriday, isFriday, isThursday} from 'date-fns';
 
 /**
  * Enum CronJobServicesJobs
@@ -717,33 +717,21 @@ export class CronJobsService {
   }
 
   getNextThursday(date = new Date()) {
-    const dayOfWeek = date.getDay();
-    if (dayOfWeek === 4) {
+    if (isThursday(date)) {
       return new Date(date.toISOString().split('T')[0]);
     }
-    const daysUntilNextThursday = (4 - dayOfWeek + 7) % 7 || 7;
-    const nextThursday = new Date(date);
-    nextThursday.setDate(date.getDate() + daysUntilNextThursday);
-    return new Date(nextThursday.toISOString().split('T')[0]);
+    return nextThursday(date);
   }
 
   getLastFriday(date = new Date()) {
-    const dayOfWeek = date.getDay();
-    if (dayOfWeek === 5) {
+    if (isFriday(date)) {
       return new Date(date.toISOString().split('T')[0]);
     }
-    const daysSinceLastFriday = ((dayOfWeek + 2) % 7) + 1;
-    const lastFriday = new Date(date);
-    lastFriday.setDate(date.getDate() - daysSinceLastFriday);
-    return new Date(lastFriday.toISOString().split('T')[0]);
+    return previousFriday(date);
   }
 
   getNextFriday(date = new Date()) {
-    const dayOfWeek = date.getDay();
-    const daysUntilNextFriday = (5 - dayOfWeek + 7) % 7 || 7;
-    const nextFriday = new Date(date);
-    nextFriday.setDate(date.getDate() + daysUntilNextFriday);
-    return new Date(nextFriday.toISOString().split('T')[0]);
+    return nextFriday(date);
   }
 
 }
