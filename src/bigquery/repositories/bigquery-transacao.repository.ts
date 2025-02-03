@@ -53,7 +53,7 @@ export class BigqueryTransacaoRepository {
                         t.valor_transacao             valor_transacao,
                         t.tipo_pagamento,
                         CASE t.tipo_transacao_smtr
-                                when 'Débito EMV' then 'Integração'
+                                when 'Débito EMV' then 'Integral'
                                 else t.tipo_transacao_smtr
                         end tipo_transacao_smtr,
                         t.tipo_transacao
