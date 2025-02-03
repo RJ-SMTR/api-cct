@@ -52,7 +52,10 @@ export class BigqueryTransacaoRepository {
                         t.valor_pagamento             valor_pagamento,
                         t.valor_transacao             valor_transacao,
                         t.tipo_pagamento,
-                        t.tipo_transacao_smtr,
+                        CASE t.tipo_transacao_smtr
+                                when 'Débito EMV' then 'Integral'
+                                else t.tipo_transacao_smtr
+                        end tipo_transacao_smtr,
                         t.tipo_transacao
                  FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
                      LEFT JOIN \`rj-smtr.cadastro.operadoras\` o
