@@ -1,8 +1,9 @@
 import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { HeaderArquivo } from './header-arquivo.entity';
 import { Pagador } from './pagador.entity';
 import { Cnab104CodigoCompromisso } from 'src/cnab/enums/104/cnab-104-codigo-compromisso.enum';
+import { DetalheA } from './detalhe-a.entity';
 
 /**
  * Pagamento.HeaderLote
@@ -58,9 +59,17 @@ export class HeaderLote extends EntityHelper {
   @Column({ type: String, unique: false, nullable: true })
   formaLancamento: string;
 
-  @ManyToOne(() => Pagador, { eager: true })
+  @ManyToOne(() => Pagador, { eager: false })
   @JoinColumn({ foreignKeyConstraintName: 'FK_HeaderLote_pagador_ManyToOne' })
   pagador: Pagador;
+
+  @OneToMany(() => DetalheA, (detalheA) => detalheA.headerLote, {
+      eager: true,
+    })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_HeaderLote_detalheA_OneToMany',
+  })
+  detalhesA: DetalheA[];
 
   @CreateDateColumn()
   createdAt: Date;

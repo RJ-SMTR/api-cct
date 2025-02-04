@@ -70,10 +70,24 @@ import { PagamentosPendentesService } from './service/pagamento/pagamentos-pende
 import { RemessaRetornoService } from './service/pagamento/remessa-retorno.service';
 import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado.service';
 import { TransacaoService } from './service/pagamento/transacao.service';
-import { CnabManutencaoController } from './cnab-manutencao.controller';
 import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pgamento-indevido-service';
 import { PagamentoIndevidoRepository } from 'src/pagamento_indevido/repository/pagamento-indevido.repository';
 import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indevido.entity';
+import { OrdemPagamento } from './novo-remessa/entity/ordem-pagamento.entity';
+import { OrdemPagamentoAgrupado } from './novo-remessa/entity/ordem-pagamento-agrupado.entity';
+import { OrdemPagamentoService } from './novo-remessa/service/ordem-pagamento.service';
+import { OrdemPagamentoRepository } from './novo-remessa/repository/ordem-pagamento.repository';
+import { OrdemPagamentoAgrupadoRepository } from './novo-remessa/repository/ordem-pagamento-agrupado.repository';
+import { OrdemPagamentoAgrupadoService } from './novo-remessa/service/ordem-pagamento-agrupado.service';
+import {
+  OrdemPagamentoAgrupadoHistoricoRepository
+} from './novo-remessa/repository/ordem-pagamento-agrupado-historico.repository';
+import { OrdemPagamentoAgrupadoHistorico } from './novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
+import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagamento.controller';
+import { RemessaService } from './novo-remessa/service/remessa.service';
+import { RetornoService } from './novo-remessa/service/retorno.service';
+import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
+import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
 
 @Module({
   imports: [
@@ -105,7 +119,10 @@ import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indev
       ExtratoHeaderArquivo,
       ExtratoHeaderLote,
       ExtratoDetalheE,
-      PagamentoIndevido
+      PagamentoIndevido,
+      OrdemPagamento,
+      OrdemPagamentoAgrupado,
+      OrdemPagamentoAgrupadoHistorico
     ]),
   ],
   providers: [
@@ -152,7 +169,16 @@ import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indev
     TransacaoRepository,
     TransacaoService,
     PagamentoIndevidoRepository,
-    PagamentoIndevidoService
+    PagamentoIndevidoService,
+    OrdemPagamentoService,
+    OrdemPagamentoRepository,
+    OrdemPagamentoAgrupadoRepository,
+    OrdemPagamentoAgrupadoService,
+    OrdemPagamentoAgrupadoHistoricoRepository,
+    RemessaService,
+    RetornoService,
+    DistributedLockService,
+    DistributedLockRepository
   ],
   exports: [
     CnabService, //
@@ -193,8 +219,17 @@ import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indev
     RemessaRetornoService,
     OcorrenciaService,
     PagamentoIndevidoRepository,
-    PagamentoIndevidoService
+    PagamentoIndevidoService,
+    OrdemPagamentoService,
+    OrdemPagamentoRepository,
+    OrdemPagamentoAgrupadoRepository,
+    OrdemPagamentoAgrupadoService,
+    OrdemPagamentoAgrupadoHistoricoRepository,
+    RemessaService,
+    RetornoService,
+    DistributedLockService,
+    DistributedLockRepository
   ],
-  controllers: [CnabController, CnabManutencaoController],
+  controllers: [CnabController, OrdemPagamentoController],
 })
 export class CnabModule {}

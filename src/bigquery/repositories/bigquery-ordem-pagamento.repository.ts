@@ -86,10 +86,11 @@ export class BigqueryOrdemPagamentoRepository {
       SELECT
         CAST(t.data_ordem AS STRING) AS dataOrdem,
         CAST(t.data_pagamento AS STRING) AS dataPagamento,
+        t.id_ordem_pagamento_consorcio_operador_dia AS id,
         t.id_consorcio AS idConsorcio,
         t.consorcio,
         t.id_operadora AS idOperadora,
-        t.operadora AS operadora,
+        o.operadora_completo AS operadora,
         t.id_ordem_pagamento AS idOrdemPagamento,
         t.quantidade_transacao_debito AS quantidadeTransacaoDebito,
         t.valor_debito AS valorDebito,
@@ -110,6 +111,8 @@ export class BigqueryOrdemPagamentoRepository {
         o.tipo_documento AS operadoraTipoDocumento,
         CAST(c.cnpj AS STRING) AS consorcioCnpj,
         CAST(o.documento AS STRING) AS operadoraCpfCnpj,
+        CAST(datetime_ultima_atualizacao AS STRING) AS datetimeUltimaAtualizacao,
+        CAST(t.datetime_captura AS STRING) dataCaptura
       FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.ordem_pagamento_consorcio_operador_dia\` t
       LEFT JOIN \`rj-smtr.cadastro.operadoras\` o ON o.id_operadora = t.id_operadora 
       LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio \n
@@ -137,18 +140,24 @@ export class BigqueryOrdemPagamentoRepository {
   private getQueryArgsConsorcio(args: IBigqueryFindOrdemPagamento) {
     const startDate = args.startDate.toISOString().slice(0, 10);
     const endDate = args.endDate.toISOString().slice(0, 10);
-    const qWhere =
-      `t.data_ordem BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CNPJ' ` +
+    let qWhere =
+      `date(t.datetime_captura) BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CNPJ' ` +
       'AND t.valor_total_transacao_liquido > 0 AND c.consorcio <> \'STPC\'';
+    if (args.consorcioName?.length) {
+      qWhere += ` AND c.consorcio IN ('${args.consorcioName.join("', '")}')`
+    }
     return qWhere;
   }
 
   private getQueryArgsOperadora(args: IBigqueryFindOrdemPagamento) {
     const startDate = args.startDate.toISOString().slice(0, 10);
     const endDate = args.endDate.toISOString().slice(0, 10);
-    const qWhere =
-      `t.data_ordem BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CPF' ` +
+    let qWhere =
+      `date(t.datetime_captura) BETWEEN '${startDate}' AND '${endDate}' AND o.tipo_documento = 'CPF' ` +
       'AND t.valor_total_transacao_liquido > 0';
+    if (args.consorcioName?.length) {
+      qWhere += ` AND c.consorcio IN ('${args.consorcioName.join("', '")}')`;
+    }
     return qWhere;
   }
 }

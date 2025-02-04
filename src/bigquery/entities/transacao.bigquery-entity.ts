@@ -23,6 +23,7 @@ export class BigqueryTransacao {
   id_transacao: string;
   tipo_pagamento: string;
   tipo_transacao: string | null;
+  tipo_transacao_smtr: string | null;
   tipo_gratuidade: string | null;
   tipo_integracao: string | null;
   id_integracao: number | null;

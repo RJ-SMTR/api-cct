@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { BigqueryTransacaoRepository, IBqFindTransacao } from '../repositories/bigquery-transacao.repository';
+import { IRequest } from '../../utils/interfaces/request.interface';
+import { isUser } from '../../utils/request-utils';
 
 @Injectable()
 export class BigqueryTransacaoService {
@@ -60,5 +62,13 @@ export class BigqueryTransacaoService {
       manyCpfCnpj: cpfCnpjs,
     });
     callback(transacoes);
+  }
+
+  public async findByOrdemPagamentoIdIn(ordemPagamentoIds: number[], cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
+    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoIdIn(ordemPagamentoIds, cpfCnpj, !isUser(request));
+  }
+
+  public async findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds: (number | undefined)[], cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
+    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds, cpfCnpj, !isUser(request));
   }
 }

@@ -1,8 +1,6 @@
-import { nextFriday, startOfDay } from 'date-fns';
 import { OrdemPagamentoDto } from 'src/cnab/dto/pagamento/ordem-pagamento.dto';
 import { TransacaoStatusEnum } from 'src/cnab/enums/pagamento/transacao-status.enum';
 import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
-import { yearMonthDayToDate } from 'src/utils/date-utils';
 import { EntityHelper } from 'src/utils/entity-helper';
 import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';

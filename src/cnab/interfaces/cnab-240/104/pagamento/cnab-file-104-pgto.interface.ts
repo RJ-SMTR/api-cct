@@ -27,7 +27,7 @@ export class CnabFile104PgtoDTO implements CnabFile104Pgto {
   trailerArquivo: CnabTrailerArquivo104;
 
   static fromDTO(args: {
-    headerArquivoDTO: HeaderArquivoDTO | HeaderArquivo; //
+    headerArquivoDTO: HeaderArquivoDTO;
     headerLoteDTOs: HeaderLoteDTO[];
     isCancelamento?: boolean;
     isTeste?: boolean;

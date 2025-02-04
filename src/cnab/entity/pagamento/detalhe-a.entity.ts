@@ -7,6 +7,8 @@ import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { Ocorrencia } from './ocorrencia.entity';
 import { isAfter } from 'date-fns';
 import { getDateFromCnabName } from 'src/utils/date-utils';
+import { OrdemPagamentoAgrupadoHistorico } from 'src/cnab/novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
+import { Nullable } from 'src/utils/types/nullable.type';
 
 /**
  * Pagamento.DetalheA
@@ -16,12 +18,9 @@ export class DetalheA extends EntityHelper {
   constructor(detalheA?: DeepPartial<DetalheA>) {
     super();
     if (detalheA) {
-      Object.assign(this, detalheA);
-      if (detalheA.itemTransacaoAgrupado) {
-        detalheA.itemTransacaoAgrupado = new ItemTransacaoAgrupado(detalheA.itemTransacaoAgrupado);
-      }
-      if (detalheA.headerLote) {
-        detalheA.headerLote = new HeaderLote(detalheA.headerLote);
+      Object.assign(this, detalheA); 
+      if (detalheA.ordemPagamentoAgrupadoHistorico) {
+        detalheA.ordemPagamentoAgrupadoHistorico = new OrdemPagamentoAgrupadoHistorico(detalheA.ordemPagamentoAgrupadoHistorico);
       }
     }
   }
@@ -29,7 +28,7 @@ export class DetalheA extends EntityHelper {
   @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_DetalheA_id' })
   id: number;
 
-  @ManyToOne(() => HeaderLote, { eager: true })
+  @ManyToOne(() => HeaderLote, { eager: false })
   @JoinColumn({ foreignKeyConstraintName: 'FK_DetalheA_headerLote_ManyToOne' })
   headerLote: HeaderLote;
 
@@ -117,11 +116,17 @@ export class DetalheA extends EntityHelper {
   nsr: number;
 
   /** `UQ_DetalheA_itemTransacaoAgrupado` */
-  @OneToOne(() => ItemTransacaoAgrupado, { eager: true, nullable: false })
+  @OneToOne(() => ItemTransacaoAgrupado, { eager: false, nullable: true })
   @JoinColumn({
     foreignKeyConstraintName: 'FK_DetalheA_itemTransacaoAgrupado_OneToOne',
   })
   itemTransacaoAgrupado: ItemTransacaoAgrupado;
+
+  @OneToOne(() => OrdemPagamentoAgrupadoHistorico, { eager: true, nullable: true })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_DetalheA_OrdemPagamentoAgrupadoHistorico_OneToOne',
+  })
+  ordemPagamentoAgrupadoHistorico: OrdemPagamentoAgrupadoHistorico | Nullable<OrdemPagamentoAgrupadoHistorico>;
 
   /** Nome do retorno mais recente lido, para referência. */
   @Column({ type: String, unique: false, nullable: true })

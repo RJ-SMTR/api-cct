@@ -62,10 +62,11 @@ import { TransacaoAgrupadoService } from './service/pagamento/transacao-agrupado
 import { TransacaoService } from './service/pagamento/transacao.service';
 import { parseCnab240Extrato, parseCnab240Pagamento, stringifyCnab104File } from './utils/cnab/cnab-104-utils';
 
+
 export interface ICnabInfo {
   name: string;
   content: string;
-  headerArquivo: HeaderArquivoDTO;
+  headerArquivo: HeaderArquivoDTO | HeaderArquivo;
 }
 
 interface IFindRemessaArgs {
@@ -90,8 +91,7 @@ export class CnabService {
     private extDetalheEService: ExtratoDetalheEService,
     private extHeaderArquivoService: ExtratoHeaderArquivoService,
     private extHeaderLoteService: ExtratoHeaderLoteService,
-    private headerArquivoService: HeaderArquivoService,
-    private headerArquivoConfService: HeaderArquivoService,
+    private headerArquivoService: HeaderArquivoService, 
     private headerLoteService: HeaderLoteService,
     private itemTransacaoAgService: ItemTransacaoAgrupadoService,
     private itemTransacaoService: ItemTransacaoService,
@@ -184,11 +184,16 @@ export class CnabService {
     now = new Date();
 
     const listCnab = await this.generateRemessa({
-      tipo: PagadorContaEnum.ContaBilhetagem, 
-      dataPgto, isConference, isCancelamento, isTeste, nsaInicial, nsaFinal,  dataCancelamento
+      tipo: PagadorContaEnum.ContaBilhetagem,
+      dataPgto,
+      isConference,
+      isCancelamento,
+      isTeste,
+      nsaInicial,
+      nsaFinal,
+      dataCancelamento,
     });
 
-    
     duration.generateRemessa = formatDateInterval(new Date(), now);
     now = new Date();
 
@@ -252,12 +257,9 @@ export class CnabService {
   public async sendRemessa(listCnab: ICnabInfo[]) {
     for (const cnab of listCnab) {
       cnab.name = await this.sftpService.submitCnabRemessa(cnab.content);
-      const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
-      if (cnab.headerArquivo._isConf) {
-        await this.headerArquivoConfService.save({ id: cnab.headerArquivo.id, remessaName, status: HeaderArquivoStatus._3_remessaEnviado });
-      } else {
-        await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName, status: HeaderArquivoStatus._3_remessaEnviado });
-      }
+      const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();     
+      await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName,
+        status: HeaderArquivoStatus._3_remessaEnviado });      
     }
   }
 
@@ -317,18 +319,16 @@ export class CnabService {
    *
    * Requirement: **Salvar novas transações Jaé** - {@link https://github.com/RJ-SMTR/api-cct/issues/207#issuecomment-1984421700 #207, items 3}
    */
-  public async saveTransacoesJae(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBefore = 0, consorcio: 'VLT' | 'Van' | 'Empresa' | 'Todos' | string) {
-    const dataOrdemInicialDate = startOfDay(new Date(dataOrdemIncial));
-    const dataOrdemFinalDate = endOfDay(new Date(dataOrdemFinal));
+  public async saveTransacoesJae(dataCapturaInicial: Date, dataCapturaFinal: Date, daysBefore = 0, consorcio: 'VLT' | 'Van' | 'Empresa' | 'Todos' | string) {
+    const dataCapturaInicialDate = startOfDay(new Date(dataCapturaInicial));
+    const dataCapturaFinalDate = endOfDay(new Date(dataCapturaFinal));
     await this.updateAllFavorecidosFromUsers();
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataOrdemInicialDate, dataOrdemFinalDate, daysBefore);
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, daysBefore);
     let ordensFilter: BigqueryOrdemPagamentoDTO[];
     if (consorcio.trim() === 'Empresa') {
-      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT'
-       && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL' && ordem.consorcio.trim() !=='TEC');
+      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() !== 'VLT' && ordem.consorcio.trim() !== 'STPC' && ordem.consorcio.trim() !== 'STPL' && ordem.consorcio.trim() !== 'TEC');
     } else if (consorcio.trim() === 'Van') {
-      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() === 'STPC' 
-      || ordem.consorcio.trim() === 'STPL' || ordem.consorcio.trim() === 'TEC');
+      ordensFilter = ordens.filter((ordem) => ordem.consorcio.trim() === 'STPC' || ordem.consorcio.trim() === 'STPL' || ordem.consorcio.trim() === 'TEC');
     } else {
       ordensFilter = ordens.filter((ordem) => ordem.consorcio === consorcio.trim());
     }
@@ -457,11 +457,10 @@ export class CnabService {
     const METHOD = 'saveAgrupamentos';
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let transacaoAg: Nullable<TransacaoAgrupado>=null;
+    let transacaoAg: Nullable<TransacaoAgrupado> = null;
     try {
       await queryRunner.startTransaction();
-      this.logger.debug(`Salvando Agrupamento - ${JSON.stringify({ consorcio: ordem.consorcio, 
-        operadora: favorecido.nome, favorecidoCpfCnpj: ordem.favorecidoCpfCnpj })}`, METHOD);
+      this.logger.debug(`Salvando Agrupamento - ${JSON.stringify({ consorcio: ordem.consorcio, operadora: favorecido.nome, favorecidoCpfCnpj: ordem.favorecidoCpfCnpj })}`, METHOD);
       transacaoAg = await this.transacaoAgService.findOne({
         dataOrdem: ordem.getTransacaoAgrupadoDataOrdem(),
         pagador: { id: pagador.id },
@@ -481,7 +480,7 @@ export class CnabService {
       this.logger.debug('Fim Agrupamento Consorcio: ' + ordem.consorcio);
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      if(transacaoAg!==null){        
+      if (transacaoAg !== null) {
         transacaoAg.status.id = TransacaoStatusEnum.cancelado;
         await this.transacaoAgService.save(transacaoAg);
       }
@@ -508,7 +507,7 @@ export class CnabService {
         },
         ...(ordem.consorcio.length || ordem.operadora.length
           ? // Se for Jaé, agrupa por vanzeiro ou empresa
-            ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio ==='TEC'
+            ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio === 'TEC'
             ? { idOperadora: ordem.idOperadora }
             : { idConsorcio: ordem.idConsorcio }
           : // Se for Lançamento, agrupa por favorecido e dataOrdem
@@ -577,21 +576,17 @@ export class CnabService {
   //   await this.saveOrdens(ordensCb, 'contaBilhetagem');
   // }
 
-  public async generateRemessa(args: {
-    tipo: PagadorContaEnum;  dataPgto?: Date;
-    isConference: boolean; isCancelamento: boolean;
-    isTeste: boolean;  nsaInicial?: number;
-    nsaFinal?: number;  dataCancelamento?: Date }): Promise<ICnabInfo[]> {    
-    const currentNSA = await this.settingsService.getCurrentNSA(args.isTeste); 
+  public async generateRemessa(args: { tipo: PagadorContaEnum; dataPgto?: Date; isConference: boolean; isCancelamento: boolean; isTeste: boolean; nsaInicial?: number; nsaFinal?: number; dataCancelamento?: Date }): Promise<ICnabInfo[]> {
+    const currentNSA = await this.settingsService.getCurrentNSA(args.isTeste);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     const listCnab: ICnabInfo[] = [];
     try {
       await queryRunner.startTransaction();
       if (args.isCancelamento) {
-        await this.geraRemssaCancelamento(args,listCnab,currentNSA);        
+        await this.geraRemssaCancelamento(args, listCnab, currentNSA);
       } else {
-        await this.gerarRemessaPadrao(args,listCnab);
+        await this.gerarRemessaPadrao(args, listCnab);
       }
       await queryRunner.commitTransaction();
     } catch (error) {
@@ -635,9 +630,8 @@ export class CnabService {
     }
   }
  }  
-
-
-  private async geraRemssaCancelamento(args: any,listCnab: ICnabInfo[] = [],currentNSA){
+  
+  private async geraRemssaCancelamento(args: any, listCnab: ICnabInfo[] = [], currentNSA) {
     let nsaInicial = args.nsaInicial || currentNSA;
     let nsaFinal = args.nsaFinal || nsaInicial;
     if (this.validateCancel(args.nsaInicial, args.nsaFinal)) {
@@ -657,11 +651,10 @@ export class CnabService {
       const headerLoteDTOs: HeaderLoteDTO[] = [];
       let detalhes: CnabRegistros104Pgto[] = [];
       for (const lote of lotes) {
-        const headerLoteDTO = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivo, 
-          lote.pagador, lote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente, args.isTeste);
+        const headerLoteDTO = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivo, lote.pagador, lote.formaLancamento == '41' ? Cnab104FormaLancamento.TED : Cnab104FormaLancamento.CreditoContaCorrente, args.isTeste);
         const detalhesA = (await this.detalheAService.findMany({ headerLote: { id: lote.id } })).sort((a, b) => a.nsr - b.nsr);
         for (const detalheA of detalhesA) {
-          const detalhe = await this.remessaRetornoService.saveDetalhes104(undefined,detalheA.numeroDocumentoEmpresa, headerLoteDTO, detalheA.itemTransacaoAgrupado, detalheA.nsr, false, detalheA.dataVencimento, true, detalheA);
+          const detalhe = await this.remessaRetornoService.saveDetalhes104(undefined, detalheA.numeroDocumentoEmpresa, headerLoteDTO, detalheA.itemTransacaoAgrupado, detalheA.nsr, false, detalheA.dataVencimento, true, detalheA);
           if (detalhe) {
             detalhes.push(detalhe);
           }
@@ -670,7 +663,9 @@ export class CnabService {
         headerLoteDTOs.push(headerLoteDTO);
         detalhes = [];
       }
-      const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO: headerArquivo, headerLoteDTOs, isCancelamento: true,isTeste: args.isTeste });
+      
+      const cnab104 = CnabFile104PgtoDTO.fromDTO({ headerArquivoDTO: headerArquivoDTO, headerLoteDTOs: headerLoteDTOs, 
+        isCancelamento: true, isTeste: args.isTeste });
       if (headerArquivo && cnab104) {
         const [cnabStr] = stringifyCnab104File(cnab104, true, 'CnabPgtoRem');
         if (!cnabStr) {

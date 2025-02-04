@@ -68,7 +68,7 @@ Login no adminer (login de exemplo):
 * Senha: `secret`
 * Base de dados: `api`
 
-Configurar projeto:
+## Configurar projeto:
 
 ```bash
 npm install
@@ -79,6 +79,21 @@ npm run seed:run
 
 npm run start:dev
 ```
+
+Este projeto depende de algumas tabelas preenchidas. Por isso, execute os scripts abaixo para 
+preencher as necessárias:
+
+- local_dev_example/sql/carga_settings.sql
+- local_dev_example/sql/carga_users.sql
+- local_dev_example/sql/carga_pagador.sql
+
+O SGBD PostgreSQL também necessita ter uma extensão para executar:
+```sql
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+```
+## Swagger
+A documentação swagger é acessível pelo endereço: http://localhost:3001/docs
+
 
 Rodar seed caso o banco não esteja vazio:
 

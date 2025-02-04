@@ -19,7 +19,7 @@ import { CronJobsManutencaoController } from './cron-jobs-manutencao.controller'
     MailModule,
     UsersModule,
     MailCountModule,
-    CnabModule,
+    CnabModule    
   ],
   controllers: [CronJobsManutencaoController],
   providers: [CronJobsService],

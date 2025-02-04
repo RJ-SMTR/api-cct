@@ -1,6 +1,8 @@
 import { HeaderLoteDTO } from 'src/cnab/dto/pagamento/header-lote.dto';
 import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
+import { HeaderLote } from 'src/cnab/entity/pagamento/header-lote.entity';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
+import { CnabTipoInscricao } from 'src/cnab/enums/all/cnab-tipo-inscricao.enum';
 import { CnabField, CnabFieldAs } from 'src/cnab/interfaces/cnab-all/cnab-field.interface';
 import { Cnab104PgtoTemplates } from 'src/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
 import { DeepPartial } from 'typeorm';
@@ -57,7 +59,7 @@ export class CnabHeaderLote104PgtoDTO {
   constructor(dto: CnabHeaderLote104Pgto) {
     Object.assign(this, dto);
   }
-  static fromDTO(headerLoteDTO: HeaderLoteDTO): CnabHeaderLote104Pgto {
+  static fromDTO(headerLoteDTO: HeaderLoteDTO | HeaderLote): CnabHeaderLote104Pgto {
     const headerLote104 = new CnabHeaderLote104PgtoDTO(structuredClone(Cnab104PgtoTemplates.file104.registros.headerLote));
     const headerArquivo = headerLoteDTO.headerArquivo as HeaderArquivo;
     const pagador = headerLoteDTO.pagador as DeepPartial<Pagador>;
@@ -81,6 +83,25 @@ export class CnabHeaderLote104PgtoDTO {
     headerLote104.cep.value = pagador.cep;
     headerLote104.complementoCep.value = pagador.complementoCep;
     headerLote104.siglaEstado.value = pagador.uf;
+    return headerLote104;
+  }
+
+
+  static convert(headerLoteDTO: HeaderLote, headerArquivo: HeaderArquivo): CnabHeaderLote104Pgto {
+    const headerLote104 = new CnabHeaderLote104PgtoDTO(structuredClone(Cnab104PgtoTemplates.file104.registros.headerLote));    
+    headerLote104.codigoConvenioBanco.value = headerLoteDTO.codigoConvenioBanco;
+    headerLote104.numeroInscricao.value = headerLoteDTO.numeroInscricao;
+    headerLote104.parametroTransmissao.value = headerLoteDTO.parametroTransmissao;
+    headerLote104.tipoInscricao.value = headerLoteDTO.tipoInscricao ==='cpf'?CnabTipoInscricao.CPF:CnabTipoInscricao.CNPJ;
+    headerLote104.formaLancamento.value = headerLoteDTO.formaLancamento;
+    headerLote104.codigoCompromisso.value = headerLoteDTO.codigoCompromisso;
+    // Pagador
+    headerLote104.agenciaContaCorrente.value = headerArquivo.agencia;
+    headerLote104.dvAgencia.value = headerArquivo.dvAgencia;
+    headerLote104.numeroConta.value = headerArquivo.numeroConta;
+    headerLote104.dvConta.value = headerArquivo.dvConta;
+    headerLote104.nomeEmpresa.value = headerArquivo.nomeEmpresa;
+ 
     return headerLote104;
   }
 

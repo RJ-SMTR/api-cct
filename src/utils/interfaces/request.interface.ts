@@ -1,6 +1,9 @@
+import { Role } from '../../roles/entities/role.entity';
+
 export interface IRequest {
   user: {
-    id: number;
+    id: number,
+    role: Role
   };
   method: string;
   protocol: string;

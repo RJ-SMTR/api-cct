@@ -96,3 +96,8 @@ export enum OcorrenciaEnum {
   /** Ocorrências X são erros customizados do CCT. Não existem no CNAB */
   '  ' = 'Ocorreu um erro! Por favor, aguarde a liberação do pagamento.',
 }
+
+export function getDescricaoOcorrenciaEnumByValue(value: OcorrenciaEnum): string | undefined {
+  return Object.keys(OcorrenciaEnum)
+    .find(key => OcorrenciaEnum[key as keyof typeof OcorrenciaEnum] === value);
+}

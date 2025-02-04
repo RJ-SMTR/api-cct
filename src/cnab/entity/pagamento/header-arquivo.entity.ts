@@ -1,9 +1,10 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { asStringOrDateTime } from 'src/utils/pipe-utils';
-import { AfterLoad, BeforeInsert, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { AfterLoad, BeforeInsert, Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { TransacaoAgrupado } from './transacao-agrupado.entity';
 import { Cnab104AmbienteCliente } from 'src/cnab/enums/104/cnab-104-ambiente-cliente.enum';
 import { HeaderArquivoStatus } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
+import { HeaderLote } from './header-lote.entity';
 
 /**
  * Pagamento.HeaderArquivo
@@ -86,6 +87,14 @@ export class HeaderArquivo extends EntityHelper {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => HeaderLote, (headerLote) => headerLote.headerArquivo, {
+    eager: false,
+  })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_HeaderArquivo_headerLote_OneToMany',
+  })
+  headersLote: HeaderLote[];
 
   @BeforeInsert()
   setLoadValues() {
