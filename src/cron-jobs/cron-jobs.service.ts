@@ -101,7 +101,7 @@ export class CronJobsService {
 
   async onModuleLoad() {
     //CHAMADAS PARA TESTE
-    // await this.remessaVLTExec();
+      // await this.remessaVLTExec();
     // await this.remessaModalExec();
     // await this.remessaConsorciosExec();
 
