@@ -129,7 +129,7 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
           onTick: async () => {
-            await this.retornoExec();
+            // await this.retornoExec();
           },
         },
       },
