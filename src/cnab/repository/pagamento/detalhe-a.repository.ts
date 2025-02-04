@@ -186,8 +186,6 @@ export class DetalheARepository {
                                 oph."userBankAccount"='${userBankAccount}' and
                                 oph."statusRemessa" in(1,2)`)  
     
-    this.logger.debug(query);   
-
     const queryRunner = this.dataSource.createQueryRunner();
 
     queryRunner.connect();
