@@ -58,4 +58,26 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
         return oph[0];
   }
 
+  public async getHistorico(detalheAId: number):Promise<OrdemPagamentoAgrupadoHistorico>{
+
+    const query = (`select distinct 
+                    oph.* from ordem_pagamento_agrupado_historico oph 
+                    inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id 
+                    left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
+                    left join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id ` +
+          `where da."id" = ${detalheAId}`)
+    
+        const queryRunner = this.dataSource.createQueryRunner();
+    
+        queryRunner.connect();
+    
+        const result: any[] = await queryRunner.manager.query(query);
+    
+        const oph = result.map((i) => new OrdemPagamentoAgrupadoHistorico(i));
+    
+        queryRunner.release()
+    
+        return oph[0];
+  }
+
 }
