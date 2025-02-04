@@ -8,6 +8,7 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
+import { OrdemPagamentoAgrupadoHistoricoDTO } from '../dto/ordem-pagamento-agrupado-historico.dto';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {  
@@ -47,7 +48,7 @@ export class OrdemPagamentoAgrupadoService {
   
 
   async saveStatusHistorico(historico: OrdemPagamentoAgrupadoHistorico,statusRemessa:StatusRemessaEnum){
-    historico.statusRemessa = statusRemessa;    
+    historico.statusRemessa = statusRemessa;
     this.ordemPagamentoAgrupadoHistRepository.save(historico);
   }
 
@@ -61,5 +62,9 @@ export class OrdemPagamentoAgrupadoService {
 
   public async getHistoricosOrdemDetalheA(id: number) {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id)
+  }
+
+  public async getHistorico(id: number) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistorico(id)
   }
 }

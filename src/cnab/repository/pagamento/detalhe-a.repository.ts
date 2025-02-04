@@ -8,6 +8,7 @@ import { DataSource, DeepPartial, FindManyOptions, FindOneOptions, InsertResult,
 import { compactQuery } from 'src/utils/console-utils';
 import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { DetalheA } from '../../entity/pagamento/detalhe-a.entity';
+import { formatDateISODate } from 'src/utils/date-utils';
 
 export interface IDetalheARawWhere {
   id?: number[];
@@ -170,5 +171,32 @@ export class DetalheARepository {
       .where([{ createdAt: MoreThanOrEqual(startOfDay(date)) }, { createdAt: LessThanOrEqual(endOfDay(date)) }])
       .getCount();
     return count + 1;
+  }
+
+
+  async getDetalheARetorno(dataVencimento: Date,valorLancamento: number,
+    userBankCode:string,userBankAccount:string){
+    const dataIso = formatDateISODate(dataVencimento);
+    const query = (`select da.* from detalhe_a da  
+                                inner join ordem_pagamento_agrupado_historico oph 
+                                on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
+                                where da."dataVencimento"='${dataIso}' and 
+                                da."valorLancamento" =${valorLancamento} and 
+                                oph."userBankCode"='${userBankCode}' and                              
+                                oph."userBankAccount"='${userBankAccount}' and
+                                oph."statusRemessa" in(1,2)`)  
+    
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    const result: any[] = await queryRunner.query(query);
+
+    const detalhes = result.map((i) => new DetalheA(i));
+
+    queryRunner.release()
+
+    return detalhes;
+
   }
 }

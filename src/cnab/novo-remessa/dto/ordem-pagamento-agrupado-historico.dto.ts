@@ -1,10 +1,7 @@
-import { EntityHelper } from 'src/utils/entity-helper';
-import { Column, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {  DeepPartial   } from 'typeorm';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
-import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 
-@Entity()
 export class OrdemPagamentoAgrupadoHistoricoDTO{
 
   constructor(dto?: DeepPartial<OrdemPagamentoAgrupadoHistoricoDTO>) {

@@ -30,17 +30,13 @@ export class RetornoService {
 
         for (const cnabLote of retorno104.lotes) {
             for (const registro of cnabLote.registros) {
-                const detalheA = await this.detalheAService.getOne({
-                    dataVencimento: registro.detalheA.dataVencimento.value,
-                    valorLancamento: registro.detalheA.valorLancamento.value,
-                    ordemPagamentoAgrupadoHistorico: {
-                        userBankCode: registro.detalheA.codigoBancoDestino.value,
-                        userBankAgency: registro.detalheA.codigoAgenciaDestino.value,
-                        userBankAccount: registro.detalheA.contaCorrenteDestino.value,
-                        statusRemessa: StatusRemessaEnum.PreparadoParaEnvio | StatusRemessaEnum.AguardandoPagamento
-                    }
-                })
-                this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA);
+                const detalheA = await this.detalheAService.getDetalheARetorno(
+                    registro.detalheA.dataVencimento.convertedValue,
+                    registro.detalheA.valorLancamento.convertedValue,
+                    registro.detalheA.codigoBancoDestino.convertedValue,                    
+                    registro.detalheA.contaCorrenteDestino.convertedValue                                       
+                )
+                await this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA[0]);
             }
         }
     }
@@ -48,32 +44,34 @@ export class RetornoService {
     private async atualizarStatusRemessaHistorico(
         cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA
     ) {
-        if (detalheA && detalheA.ordemPagamentoAgrupadoHistorico) {
-            if (detalheA.ordemPagamentoAgrupadoHistorico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio) {
+        const historico = await this.ordemPagamentoAgrupadoService.getHistorico(detalheA.id);
+
+        if (detalheA && historico) {
+            if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio) {
                 await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-                    detalheA.ordemPagamentoAgrupadoHistorico,
+                    historico,
                     StatusRemessaEnum.AguardandoPagamento
                 );
-            } else if (detalheA.ordemPagamentoAgrupadoHistorico.statusRemessa === StatusRemessaEnum.AguardandoPagamento) {
-                detalheA.ordemPagamentoAgrupadoHistorico.dataReferencia = new Date();
-                detalheA.ordemPagamentoAgrupadoHistorico.motivoStatusRemessa =
+            } else if (historico.statusRemessa === StatusRemessaEnum.AguardandoPagamento) {
+                historico.dataReferencia = new Date();
+                historico.motivoStatusRemessa =
                     registro.detalheA.ocorrencias.value;
                 //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
                 if (!cnabLote.headerLote.ocorrencias.value.in('BD', '00')) {
-                    detalheA.ordemPagamentoAgrupadoHistorico.motivoStatusRemessa =
+                    historico.motivoStatusRemessa =
                         cnabLote.headerLote.ocorrencias.value;
                     await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-                        detalheA.ordemPagamentoAgrupadoHistorico,
+                        historico,
                         StatusRemessaEnum.NaoEfetivado
                     )
                 } else if (registro.detalheA.ocorrencias.value.in('BD', '00')) {
                     await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-                        detalheA.ordemPagamentoAgrupadoHistorico,
+                        historico,
                         StatusRemessaEnum.Efetivado
                     )
                 } else {
                     await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-                        detalheA.ordemPagamentoAgrupadoHistorico,
+                        historico,
                         StatusRemessaEnum.NaoEfetivado
                     );
                 }

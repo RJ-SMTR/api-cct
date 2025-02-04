@@ -78,7 +78,7 @@ export class CronJobsService {
   private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz'];
 
   constructor(
-    private configService: ConfigService, //
+    private configService: ConfigService, 
     private settingsService: SettingsService,
     private schedulerRegistry: SchedulerRegistry,
     private mailService: MailService,
@@ -100,6 +100,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    // await this.retornoExec();
     //CHAMADAS PARA TESTE
       // await this.remessaVLTExec();
     // await this.remessaModalExec();
@@ -129,7 +130,7 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
           onTick: async () => {
-            // await this.retornoExec();
+            await this.retornoExec();
           },
         },
       },
