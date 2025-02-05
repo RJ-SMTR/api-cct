@@ -157,7 +157,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
-          cronTime: '0 13 * * *', // Every day, 13:00 GMT = 10:00 BRT (GMT-3)
+          cronTime: '0 11 * * *', // Every day, 11:00 GMT = 8:00 BRT (GMT-3)
           onTick: async () => {
             const today = new Date();
             if (isSaturday(today) || isSunday(today)) {
