@@ -27,6 +27,8 @@ export class RelatorioNovoRemessaController {
   @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
   @ApiQuery({ name: 'emProcessamento', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a emProcessamento', default: false }) })
   @ApiQuery({ name: 'erro', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status do pagamento é de erro', default: false }) })
+  @ApiQuery({ name: 'todosVanzeiros', required: false, type: Boolean, description: ApiDescription({ _: 'Se a pesquisa deve ser feita para todos os vanzeiros', default: false }) })
+  @ApiQuery({ name: 'todosConsorcios', required: false, type: Boolean, description: ApiDescription({ _: 'Se a pesquisa deve ser feita para todos os consórcios', default: false }) })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('consolidado')
@@ -47,11 +49,12 @@ export class RelatorioNovoRemessaController {
     @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
     @Query('emProcessamento',new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
     @Query('erro',new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
+    @Query('todosVanzeiros', new ParseBooleanPipe({ optional: true })) todosVanzeiros: boolean | undefined,
+    @Query('todosConsorcios', new ParseBooleanPipe({ optional: true })) todosConsorcios: boolean | undefined,
 ){
       try{
         const result = await this.relatorioNovoRemessaService.findConsolidado({
-          dataInicio,dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar,emProcessamento, erro
-        });
+          dataInicio,dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar,emProcessamento, erro, todosVanzeiros, todosConsorcios});
         return result;
       }catch(e){
         return new HttpException({ error: e.message}, HttpStatus.BAD_REQUEST);
