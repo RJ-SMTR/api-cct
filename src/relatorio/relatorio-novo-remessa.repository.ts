@@ -11,7 +11,8 @@ import { parseNumber } from '../cnab/utils/cnab/cnab-field-utils';
 
 @Injectable()
 export class RelatorioNovoRemessaRepository {
-  private static readonly QUERY_CONSOLIDADO = `
+
+  private static readonly QUERY_CONSOLIDADO_VANZEIROS = `
       select op."userId", u."fullName", sum(op.valor) as "valorTotal"
       from ordem_pagamento op
                inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
@@ -32,11 +33,44 @@ export class RelatorioNovoRemessaRepository {
           and ("userId" = any($1) or $1 is null)
           and (date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null)
           and ("statusRemessa" = any($4) or $4 is null)
-          and (trim(upper("nomeConsorcio")) = any($5) or $5 is null)
+          and u."cpfCnpj" not in ('18201378000119',
+                                  '12464869000176',
+                                  '12464539000180',
+                                  '12464553000184',
+                                  '44520687000161',
+                                  '12464577000133')         
       group by op."userId", u."fullName"
-      having (sum(op.valor) >= $6 or $6 is null)
-         and (sum(op.valor) <= $7 or $7 is null)
+      having (sum(op.valor) >= $5 or $5 is null)
+         and (sum(op.valor) <= $6 or $6 is null)
       order by u."fullName"
+  `;
+
+
+  private static readonly QUERY_CONSOLIDADO_CONSORCIOS = `
+      select op."nomeConsorcio" as "fullName", sum(op.valor) as "valorTotal"
+      from ordem_pagamento op
+               left join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
+               left join lateral (
+          select opah."dataReferencia",
+                 opah."statusRemessa",
+                 opah."motivoStatusRemessa",
+                 opah."ordemPagamentoAgrupadoId",
+                 opah."userBankCode",
+                 opah."userBankAgency",
+                 opah."userBankAccount",
+                 opah."userBankAccountDigit"
+          from ordem_pagamento_agrupado_historico opah
+          where opa.id = opah."ordemPagamentoAgrupadoId"
+            and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
+          ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
+               inner join "user" u on op."userId" = u.id
+          and (date_trunc('day', op."dataCaptura") BETWEEN $1 and $2 or $1 is null or $2 is null)
+          and ("statusRemessa" = any($3) or $3 is null or ("statusRemessa" is null and 1 = any($3)))
+          and (trim(upper("nomeConsorcio")) = any($4) or $4 is null)
+      group by op."nomeConsorcio"
+      having (sum(op.valor) >= $5 or $5 is null)
+         and (sum(op.valor) <= $6 or $6 is null)
+      order by op."nomeConsorcio"
   `;
 
   private static readonly QUERY_SINTETICO = `
@@ -78,15 +112,22 @@ export class RelatorioNovoRemessaRepository {
   private logger = new CustomLogger(RelatorioNovoRemessaRepository.name, { timestamp: true });
 
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
-    this.logger.debug(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO);
-
     if (filter.consorcioNome) {
       filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
     }
 
-    const parameters =
+    const parametersQueryVanzeiros =
       [
         filter.userIds || null,
+        filter.dataInicio || null,
+        filter.dataFim || null,
+        this.getStatusParaFiltro(filter),
+        filter.valorMin || null,
+        filter.valorMax || null
+      ];
+
+    const parametersQueryConsorciosEModais =
+      [
         filter.dataInicio || null,
         filter.dataFim || null,
         this.getStatusParaFiltro(filter),
@@ -97,7 +138,26 @@ export class RelatorioNovoRemessaRepository {
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    const result: any[] = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO, parameters);
+    let result : any[] = [];
+    let resultConsorciosEModais : any[] = [];
+    let resultVanzeiros : any[] = [];
+
+    // Caso não filtre por usuário, consórcio ou modal, traz todos os resultados
+    if ((!filter.userIds || filter.userIds.length == 0) &&
+        (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
+      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
+      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
+      result = resultVanzeiros.concat(resultConsorciosEModais);
+    } else {
+      // Caso contrário, busca apenas os resultados que atendem aos filtros
+      if (filter.userIds && filter.userIds.length > 0) {
+        resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
+      }
+      if (filter.consorcioNome && filter.consorcioNome.length > 0) {
+        resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
+      }
+      result = resultVanzeiros.concat(resultConsorciosEModais);
+    }
     await queryRunner.release();
     const count = result.length;
     const valorTotal = result.reduce((acc, curr) => acc + parseFloat(curr.valorTotal), 0);
