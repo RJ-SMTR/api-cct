@@ -8,6 +8,7 @@ import {
   RelatorioConsolidadoNovoRemessaDto,
 } from './dtos/relatorio-consolidado-novo-remessa.dto';
 import { parseNumber } from '../cnab/utils/cnab/cnab-field-utils';
+import { fi } from 'date-fns/locale';
 
 @Injectable()
 export class RelatorioNovoRemessaRepository {
@@ -142,22 +143,34 @@ export class RelatorioNovoRemessaRepository {
     let resultConsorciosEModais : any[] = [];
     let resultVanzeiros : any[] = [];
 
-    // Caso não filtre por usuário, consórcio ou modal, traz todos os resultados
-    if ((!filter.userIds || filter.userIds.length == 0) &&
-        (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
+    if (filter.todosVanzeiros) {
+      filter.userIds = undefined;
+      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
+    }
+
+    if (filter.todosConsorcios) {
+      filter.consorcioNome = undefined;
+      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
+    }
+
+    if (filter.userIds && filter.userIds.length > 0) {
+      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
+    }
+
+    if (filter.consorcioNome && filter.consorcioNome.length > 0) {
+      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
+    }
+
+    // Nenhum critério, trás todos.
+    if (!filter.todosVanzeiros &&
+      !filter.todosConsorcios
+      && (!filter.userIds || filter.userIds.length == 0) && (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
       resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
       resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
-      result = resultVanzeiros.concat(resultConsorciosEModais);
-    } else {
-      // Caso contrário, busca apenas os resultados que atendem aos filtros
-      if (filter.userIds && filter.userIds.length > 0) {
-        resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
-      }
-      if (filter.consorcioNome && filter.consorcioNome.length > 0) {
-        resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
-      }
-      result = resultVanzeiros.concat(resultConsorciosEModais);
     }
+
+    result = resultVanzeiros.concat(resultConsorciosEModais);
+
     await queryRunner.release();
     const count = result.length;
     const valorTotal = result.reduce((acc, curr) => acc + parseFloat(curr.valorTotal), 0);
