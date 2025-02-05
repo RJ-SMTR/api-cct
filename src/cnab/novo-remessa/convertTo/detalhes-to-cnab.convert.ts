@@ -27,8 +27,7 @@ export class DetalhesToCnab {
         historico: OrdemPagamentoAgrupadoHistoricoDTO) {
         const detalheACnab: CnabDetalheA_104 = sc(PgtoRegistros.detalheA);
         detalheACnab.codigoBancoDestino.value = historico?.userBankCode;
-        detalheACnab.codigoAgenciaDestino.value = historico?.userBankAgency.substring(0, historico.userBankAgency.length - 1);   ;
-        detalheACnab.dvAgenciaDestino.value = historico?.userBankAgency.substring(historico.userBankAgency.length - 1); 
+        detalheACnab.codigoAgenciaDestino.value = historico?.userBankAgency;        
         detalheACnab.contaCorrenteDestino.value = historico?.userBankAccount;
         detalheACnab.dvContaDestino.value = historico?.userBankAccountDigit;
         detalheACnab.nomeTerceiro.value = historico.username;
@@ -36,8 +35,7 @@ export class DetalhesToCnab {
         detalheACnab.dataVencimento.value = detalheA.dataVencimento;
         detalheACnab.valorLancamento.value = Number(detalheA.valorLancamento);
         detalheACnab.valorRealEfetivado.value = detalheA.valorRealEfetivado;        
-        detalheACnab.nsr.value = detalheA.nsr;
-        
+        detalheACnab.nsr.value = detalheA.nsr;        
 
         // DetalheB
         const detalheBCnab: CnabDetalheB_104 = sc(PgtoRegistros.detalheB);

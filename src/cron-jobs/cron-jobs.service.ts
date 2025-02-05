@@ -102,7 +102,7 @@ export class CronJobsService {
   async onModuleLoad() {
     // await this.retornoExec();
     //CHAMADAS PARA TESTE
-      // await this.remessaVLTExec();
+    //  await this.remessaVLTExec();
     // await this.remessaModalExec();
     // await this.remessaConsorciosExec();
 
@@ -157,7 +157,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
-          cronTime: '0 11 * * *', // Every day, 11:00 GMT = 08:00 BRT (GMT-3)
+          cronTime: '0 13 * * *', // Every day, 13:00 GMT = 10:00 BRT (GMT-3)
           onTick: async () => {
             const today = new Date();
             if (isSaturday(today) || isSunday(today)) {
@@ -639,8 +639,10 @@ export class CronJobsService {
     }
     //Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, consorcios);
+
     //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName);
+
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt);
   }
@@ -657,8 +659,8 @@ export class CronJobsService {
     } else if (isTuesday(today)) {
       daysBeforeBegin = 3;
     }
-    const dataInicio = subDays(today, daysBeforeBegin);
-    const dataFim = subDays(today, daysBeforeEnd);
+    const dataInicio = new Date('2025-02-01')  //subDays(today, daysBeforeBegin);
+    const dataFim = new Date('2025-02-03') //subDays(today, daysBeforeEnd);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       ['VLT'], HeaderName.VLT);
   }
@@ -683,8 +685,9 @@ export class CronJobsService {
 
   async retornoExec() {
     const txt = await this.retornoService.lerRetornoSftp();
-    if (txt)
+    if (txt){
       await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
+    }
   }
 
 

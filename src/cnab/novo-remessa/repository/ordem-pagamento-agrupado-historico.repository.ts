@@ -17,7 +17,7 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
   ) {}
 
   public async save(dto: DeepPartial<OrdemPagamentoAgrupadoHistorico>): Promise<OrdemPagamentoAgrupadoHistorico> { 
-    return this.ordemPagamentoAgrupadoHistoricoRepository.save(dto);
+    return await this.ordemPagamentoAgrupadoHistoricoRepository.save(dto);
   }
 
   public async findOne(fields: EntityCondition<OrdemPagamentoAgrupadoHistorico>): Promise<OrdemPagamentoAgrupadoHistorico[]> {
