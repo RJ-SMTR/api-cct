@@ -49,7 +49,7 @@ export class OrdemPagamentoAgrupadoService {
 
   async saveStatusHistorico(historico: OrdemPagamentoAgrupadoHistorico,statusRemessa:StatusRemessaEnum){
     historico.statusRemessa = statusRemessa;
-    this.ordemPagamentoAgrupadoHistRepository.save(historico);
+    await this.ordemPagamentoAgrupadoHistRepository.save(historico);
   }
 
   private async getPagador(pagadorKey: any) {

@@ -8,6 +8,7 @@ import { StatusRemessaEnum } from "src/cnab/enums/novo-remessa/status-remessa.en
 import { DetalheA } from "src/cnab/entity/pagamento/detalhe-a.entity";
 import { CnabRegistros104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface";
 import { CnabLote104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface";
+import { SftpBackupFolder } from "src/sftp/enums/sftp-backup-folder.enum";
 
 @Injectable()
 export class RetornoService {
@@ -39,6 +40,7 @@ export class RetornoService {
                 await this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA[0]);
             }
         }
+        await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess, cnab.content);
     }
 
     private async atualizarStatusRemessaHistorico(
@@ -57,23 +59,21 @@ export class RetornoService {
                 historico.motivoStatusRemessa =
                     registro.detalheA.ocorrencias.value;
                 //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
-                if (!cnabLote.headerLote.ocorrencias.value.in('BD', '00')) {
+                if (cnabLote.headerLote.ocorrencias.value.trim() !=='BD' && cnabLote.headerLote.ocorrencias.value.trim() !=='00') {
                     historico.motivoStatusRemessa =
                         cnabLote.headerLote.ocorrencias.value;
                     await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                         historico,
                         StatusRemessaEnum.NaoEfetivado
                     )
-                } else if (registro.detalheA.ocorrencias.value.in('BD', '00')) {
+                }else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
                     await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                         historico,
                         StatusRemessaEnum.Efetivado
                     )
-                } else {
+                }else {
                     await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-                        historico,
-                        StatusRemessaEnum.NaoEfetivado
-                    );
+                        historico,StatusRemessaEnum.NaoEfetivado);
                 }
             }
         }
