@@ -102,7 +102,7 @@ export class CronJobsService {
   async onModuleLoad() {
     // await this.retornoExec();
     //CHAMADAS PARA TESTE
-    //  await this.remessaVLTExec();
+    await this.remessaVLTExec();
     // await this.remessaModalExec();
     // await this.remessaConsorciosExec();
 
@@ -659,8 +659,8 @@ export class CronJobsService {
     } else if (isTuesday(today)) {
       daysBeforeBegin = 3;
     }
-    const dataInicio = subDays(today, daysBeforeBegin);
-    const dataFim = subDays(today, daysBeforeEnd);
+    const dataInicio = new Date('2025-02-04')  //subDays(today, daysBeforeBegin);
+    const dataFim = new Date('2025-02-05') //subDays(today, daysBeforeEnd);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       ['VLT'], HeaderName.VLT);
   }
