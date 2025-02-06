@@ -659,8 +659,8 @@ export class CronJobsService {
     } else if (isTuesday(today)) {
       daysBeforeBegin = 3;
     }
-    const dataInicio = new Date('2025-02-01')  //subDays(today, daysBeforeBegin);
-    const dataFim = new Date('2025-02-03') //subDays(today, daysBeforeEnd);
+    const dataInicio = subDays(today, daysBeforeBegin);
+    const dataFim = subDays(today, daysBeforeEnd);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       ['VLT'], HeaderName.VLT);
   }
