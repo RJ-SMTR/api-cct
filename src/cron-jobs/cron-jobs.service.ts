@@ -6,6 +6,7 @@ import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum'
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
 import {
+  addDays,
   isMonday,
   isSaturday,
   isSunday,
