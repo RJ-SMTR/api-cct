@@ -100,13 +100,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {
-    // await this.retornoExec();
-    //CHAMADAS PARA TESTE
-    //await this.remessaVLTExec();
-    // await this.remessaModalExec();
-    // await this.remessaConsorciosExec();
-
+  async onModuleLoad() {   
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -176,7 +170,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.generateRemessaVanzeiros,
         cronJobParameters: {
-          cronTime: '0 16 * * THU', // Rodar todas as quintas 16:00 GMT = 13:00 BRT (GMT-3)
+          cronTime: '0 13 * * FRI', // Rodar todas as sextas 13:00 GMT = 10:00 BRT (GMT-3)
           onTick: async () => {
             await this.remessaModalExec();
           },
@@ -184,13 +178,13 @@ export class CronJobsService {
       },
       {
         /**
-         * Gerar arquivo Remessa dos Consórcios - toda 5a, 13:00, duração: 15 min
+         * Gerar arquivo Remessa dos Consórcios - toda 6a
          *
          * Gerar remessa consórcios
          */
         name: CronJobsEnum.generateRemessaEmpresa,
         cronJobParameters: {
-          cronTime: '0 13 * * THU', // Rodar todas as quintas 13:00 GMT = 10:00 BRT (GMT-3)
+          cronTime: '0 12 * * FRI', // Rodar todas as sextas 12:00 GMT = 09:00 BRT (GMT-3)
           onTick: async () => {
             await this.remessaConsorciosExec();
           },
@@ -667,20 +661,20 @@ export class CronJobsService {
   }
 
   async remessaModalExec() {
-    //Rodar Quinta 
+    //Rodar Sexta 
     const today = new Date();
-    const dataInicio = subDays(today, 6);
-    const dataFim = subDays(today, 0); 
-    await this.geradorRemessaExec(dataInicio, dataFim, addDays(today,1),
+    const dataInicio = subDays(today, 7);
+    const dataFim = subDays(today, 1); 
+    await this.geradorRemessaExec(dataInicio, dataFim, today,
       ['STPC', 'STPL', 'TEC'], HeaderName.MODAL);
   }
 
   async remessaConsorciosExec() {
-    //Rodar na Quinta
+    //Rodar na Sexta
     const today = new Date();
-    const dataInicio = subDays(today, 6);
-    const dataFim = subDays(today, 0); 
-    await this.geradorRemessaExec(dataInicio, dataFim, addDays(today,1),
+    const dataInicio =subDays(today,7);
+    const dataFim = subDays(today, 1); 
+    await this.geradorRemessaExec(dataInicio, dataFim, today, 
       ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO);
   }
 
@@ -690,7 +684,6 @@ export class CronJobsService {
       await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
     }
   }
-
 
   async sincronizarEAgruparOrdensPagamento() {
     const METHOD = 'sincronizarEAgruparOrdensPagamento';

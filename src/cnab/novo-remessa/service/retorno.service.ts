@@ -28,19 +28,22 @@ export class RetornoService {
     public async salvarRetorno(cnab: { name: string, content: string }) {
         this.logger.debug(`Iniciada a leitura do arquivo: ${cnab.name} - ${new Date()}`);
         const retorno104 = parseCnab240Pagamento(cnab.content);
-
-        for (const cnabLote of retorno104.lotes) {
-            for (const registro of cnabLote.registros) {
-                const detalheA = await this.detalheAService.getDetalheARetorno(
-                    registro.detalheA.dataVencimento.convertedValue,
-                    registro.detalheA.valorLancamento.convertedValue,
-                    registro.detalheA.codigoBancoDestino.convertedValue,                    
-                    registro.detalheA.contaCorrenteDestino.convertedValue                                       
-                )
-                await this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA[0]);
+        try {
+            for (const cnabLote of retorno104.lotes) {
+                for (const registro of cnabLote.registros) {
+                    const detalheA = await this.detalheAService.getDetalheARetorno(
+                        registro.detalheA.dataVencimento.convertedValue,
+                        registro.detalheA.valorLancamento.convertedValue,
+                        registro.detalheA.codigoBancoDestino.convertedValue,
+                        registro.detalheA.contaCorrenteDestino.convertedValue
+                    )
+                    await this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA[0]);
+                }
             }
+            await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess, cnab.content);
+        } catch (error) {
+            await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure, cnab.content);
         }
-        await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess, cnab.content);
     }
 
     private async atualizarStatusRemessaHistorico(
@@ -59,21 +62,21 @@ export class RetornoService {
                 historico.motivoStatusRemessa =
                     registro.detalheA.ocorrencias.value;
                 //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
-                if (cnabLote.headerLote.ocorrencias.value.trim() !=='BD' && cnabLote.headerLote.ocorrencias.value.trim() !=='00') {
+                if (cnabLote.headerLote.ocorrencias.value.trim() !== 'BD' && cnabLote.headerLote.ocorrencias.value.trim() !== '00') {
                     historico.motivoStatusRemessa =
                         cnabLote.headerLote.ocorrencias.value;
                     await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                         historico,
                         StatusRemessaEnum.NaoEfetivado
                     )
-                }else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
+                } else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
                     await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                         historico,
                         StatusRemessaEnum.Efetivado
                     )
-                }else {
+                } else {
                     await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-                        historico,StatusRemessaEnum.NaoEfetivado);
+                        historico, StatusRemessaEnum.NaoEfetivado);
                 }
             }
         }
