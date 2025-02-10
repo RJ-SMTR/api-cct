@@ -2,9 +2,9 @@ name: Linting and auditing
 
 on:
   push:
-    branches: [develop]
+    branches: [hmg]
   pull_request:
-    branches: [develop]
+    branches: [hmg]
     paths-ignore:
       - 'README.md'
       - 'docs/**'
