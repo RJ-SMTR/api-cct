@@ -5,8 +5,7 @@ import { CronJob, CronJobParameters } from 'cron';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
-import {
-  addDays,
+import {  
   isMonday,
   isSaturday,
   isSunday,
@@ -103,7 +102,7 @@ export class CronJobsService {
   async onModuleLoad() {
     // await this.retornoExec();
     //CHAMADAS PARA TESTE
-    // await this.remessaVLTExec();
+    //await this.remessaVLTExec();
     //await this.remessaModalExec();
     //await this.remessaConsorciosExec();
 
