@@ -37,6 +37,8 @@ export class RetornoService {
                         registro.detalheA.codigoBancoDestino.convertedValue,
                         registro.detalheA.contaCorrenteDestino.convertedValue
                     )
+                    this.logger.debug(`Banco: ${registro.detalheA.codigoBancoDestino.convertedValue} - agencia: ${registro.detalheA.codigoAgenciaDestino.convertedValue}
+                         - conta: ${registro.detalheA.contaCorrenteDestino.convertedValue}`);
                     await this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA[0]);
                 }
             }

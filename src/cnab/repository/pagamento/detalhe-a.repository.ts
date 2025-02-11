@@ -183,7 +183,7 @@ export class DetalheARepository {
                                 where da."dataVencimento"='${dataIso}' and 
                                 da."valorLancamento" =${valorLancamento} and 
                                 oph."userBankCode"='${userBankCode}' and                              
-                                oph."userBankAccount"='${userBankAccount}' and
+                                oph."userBankAccount" ilike '%${userBankAccount}%' and
                                 oph."statusRemessa" in(1,2)`)  
     
     const queryRunner = this.dataSource.createQueryRunner();

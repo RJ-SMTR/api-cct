@@ -18,6 +18,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   public readonly FOLDERS = {
     REMESSA: '/remessa',
     RETORNO: '/retorno',
+    AJUSTES: '/backup/retorno/ajuste_depois',
     BACKUP: '/backup',
     BACKUP_REMESSA: '/backup/remessa',
     BACKUP_RETORNO_FAILURE: '/backup/retorno/failure',
