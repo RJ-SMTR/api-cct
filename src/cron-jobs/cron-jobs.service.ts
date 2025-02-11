@@ -5,8 +5,7 @@ import { CronJob, CronJobParameters } from 'cron';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
-import {
-  addDays,
+import {  
   isMonday,
   isSaturday,
   isSunday,
@@ -152,7 +151,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
-          cronTime: '0 11 * * *', // Every day, 11:00 GMT = 8:00 BRT (GMT-3)
+          cronTime: '0 12 * * *', // Every day, 12:00 GMT = 9:00 BRT (GMT-3)
           onTick: async () => {
             const today = new Date();
             if (isSaturday(today) || isSunday(today)) {
