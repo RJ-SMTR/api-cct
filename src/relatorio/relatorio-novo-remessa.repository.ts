@@ -140,7 +140,16 @@ export class RelatorioNovoRemessaRepository {
                         inner join "user" u on op."userId" = u.id
                         left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
                where 1 = 1
-                 and (date_trunc('day', op."dataCaptura") BETWEEN $1 and $2 or $1 is null or $2 is null)
+                 and (
+                   (
+                       (0 = any($3) or 1 = any($3) or 2 = any($3) or $3 is null)
+                           and (date_trunc('day', op."dataCaptura") BETWEEN $1 and $2 or $1 is null or $2 is null)
+                       )
+                       or (
+                       (3 = any($3) or 4 = any($3) or $3 is null)
+                           and (date_trunc('day', coalesce(da."dataVencimento", opa."dataPagamento")) BETWEEN $1 and $2 or $1 is null or $2 is null)
+                       )
+                 )
                  and ($3 is null or "statusRemessa" = any($3) or ("statusRemessa" is null and 1 = any($3)))
                  and (trim(upper("nomeConsorcio")) = any($4) or $4 is null)
                  and (op."nomeConsorcio" in ('STPC', 'STPL', 'TEC'))
