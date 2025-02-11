@@ -35,16 +35,10 @@ export class RelatorioNovoRemessaRepository {
           left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
           where 1 = 1
           and ("userId" = any($1) or $1 is null)
-          and (date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null)
           and (
-              (
-                (0 = any($4) or 1 = any($4) or 2 = any($4) or $4 is null)
-                and (date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null)
-              )
-              or (
-                (3 = any($4) or 4 = any($4) or $4 is null)
-                and (date_trunc('day', coalesce(da."dataVencimento", opa."dataPagamento")) BETWEEN $2 and $3 or $2 is null or $3 is null)
-              )
+              ((date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null) and $7 = FALSE)
+               or
+              ((date_trunc('day', da."dataVencimento") BETWEEN $2 and $3 or $2 is null or $3 is null) and $7 = TRUE)
           )
           and ("statusRemessa" = any($4) or $4 is null)
           and u."cpfCnpj" not in ('18201378000119',
@@ -93,15 +87,10 @@ export class RelatorioNovoRemessaRepository {
                                  left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
                         where 1 = 1
                           and (
-                            (
-                                (0 = any($3) or 1 = any($3) or 2 = any($3) or $3 is null)
-                                    and (date_trunc('day', op."dataCaptura") BETWEEN $1 and $2 or $1 is null or $2 is null)
-                                )
-                                or (
-                                (3 = any($3) or 4 = any($3) or $3 is null)
-                                    and (date_trunc('day', coalesce(da."dataVencimento", opa."dataPagamento")) BETWEEN $1 and $2 or $1 is null or $2 is null)
-                                )
-                          )    
+                            ((date_trunc('day', op."dataCaptura") BETWEEN $1 and $2 or $1 is null or $2 is null) and $7 = FALSE)
+                                or
+                            ((date_trunc('day', da."dataVencimento") BETWEEN $1 and $2 or $1 is null or $2 is null) and $7 = TRUE)
+                            )
                           and ("statusRemessa" = any($3) or $3 is null or ("statusRemessa" is null and 1 = any($3)))
                           and (trim(upper("nomeConsorcio")) = any($4) or $4 is null)
                           and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))
@@ -141,15 +130,10 @@ export class RelatorioNovoRemessaRepository {
                         left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
                where 1 = 1
                  and (
-                   (
-                       (0 = any($3) or 1 = any($3) or 2 = any($3) or $3 is null)
-                           and (date_trunc('day', op."dataCaptura") BETWEEN $1 and $2 or $1 is null or $2 is null)
-                       )
-                       or (
-                       (3 = any($3) or 4 = any($3) or $3 is null)
-                           and (date_trunc('day', coalesce(da."dataVencimento", opa."dataPagamento")) BETWEEN $1 and $2 or $1 is null or $2 is null)
-                       )
-                 )
+                   ((date_trunc('day', op."dataCaptura") BETWEEN $1 and $2 or $1 is null or $2 is null) and $7 = FALSE)
+                       or
+                   ((date_trunc('day', da."dataVencimento") BETWEEN $1 and $2 or $1 is null or $2 is null) and $7 = TRUE)
+                   )
                  and ($3 is null or "statusRemessa" = any($3) or ("statusRemessa" is null and 1 = any($3)))
                  and (trim(upper("nomeConsorcio")) = any($4) or $4 is null)
                  and (op."nomeConsorcio" in ('STPC', 'STPL', 'TEC'))
@@ -202,6 +186,8 @@ export class RelatorioNovoRemessaRepository {
       filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
     }
 
+    const useDataPagamento= filter.pago || filter.erro;
+
     const parametersQueryVanzeiros =
       [
         filter.userIds || null,
@@ -209,7 +195,8 @@ export class RelatorioNovoRemessaRepository {
         filter.dataFim || null,
         this.getStatusParaFiltro(filter),
         filter.valorMin || null,
-        filter.valorMax || null
+        filter.valorMax || null,
+        useDataPagamento
       ];
 
     const parametersQueryConsorciosEModais =
@@ -219,7 +206,8 @@ export class RelatorioNovoRemessaRepository {
         this.getStatusParaFiltro(filter),
         filter.consorcioNome || null,
         filter.valorMin || null,
-        filter.valorMax || null
+        filter.valorMax || null,
+        useDataPagamento
       ];
 
     const queryRunner = this.dataSource.createQueryRunner();
