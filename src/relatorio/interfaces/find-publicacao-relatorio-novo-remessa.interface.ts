@@ -9,4 +9,6 @@ export interface IFindPublicacaoRelatorioNovoRemessa {
   aPagar?: boolean;
   emProcessamento?:boolean;
   erro?: boolean;
+  todosVanzeiros?: boolean;
+  todosConsorcios?: boolean;
 }

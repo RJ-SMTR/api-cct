@@ -99,13 +99,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {
-    // await this.retornoExec();
-    //CHAMADAS PARA TESTE
-    //await this.remessaVLTExec();
-    //await this.remessaModalExec();
-    //await this.remessaConsorciosExec();
-
+  async onModuleLoad() {   
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -130,7 +124,7 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
           onTick: async () => {
-            await this.retornoExec();
+            //await this.retornoExec();
           },
         },
       },
@@ -157,7 +151,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
-          cronTime: '0 13 * * *', // Every day, 13:00 GMT = 10:00 BRT (GMT-3)
+          cronTime: '0 12 * * *', // Every day, 12:00 GMT = 9:00 BRT (GMT-3)
           onTick: async () => {
             const today = new Date();
             if (isSaturday(today) || isSunday(today)) {
@@ -183,7 +177,7 @@ export class CronJobsService {
       },
       {
         /**
-         * Gerar arquivo Remessa dos Consórcios - toda 5a, 13:00, duração: 15 min
+         * Gerar arquivo Remessa dos Consórcios - toda 6a
          *
          * Gerar remessa consórcios
          */
@@ -666,7 +660,7 @@ export class CronJobsService {
   }
 
   async remessaModalExec() {
-    //Rodar Quinta 
+    //Rodar Sexta 
     const today = new Date();
     const dataInicio = subDays(today, 7);
     const dataFim = subDays(today, 1); 
@@ -675,7 +669,7 @@ export class CronJobsService {
   }
 
   async remessaConsorciosExec() {
-    //Rodar na Quinta
+    //Rodar na Sexta
     const today = new Date();
     const dataInicio =subDays(today,7);
     const dataFim = subDays(today, 1); 
@@ -689,7 +683,6 @@ export class CronJobsService {
       await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
     }
   }
-
 
   async sincronizarEAgruparOrdensPagamento() {
     const METHOD = 'sincronizarEAgruparOrdensPagamento';
