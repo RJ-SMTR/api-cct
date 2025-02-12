@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { format } from 'date-fns';
 import { AllConfigType } from 'src/config/config.type';
-import { CnabNameType, formatDateISODate, formatDateISODateSlash, getBRTFromUTC, getDateFromCnabName } from 'src/utils/date-utils';
+import { formatDateISODateSlash, getBRTFromUTC, getDateFromCnabName } from 'src/utils/date-utils';
 import { OnModuleLoad } from 'src/utils/interfaces/on-load.interface';
 import { SftpBackupFolder } from './enums/sftp-backup-folder.enum';
 import { ConnectConfig } from './interfaces/connect-config.interface';
