@@ -35,7 +35,7 @@ export class OrdemPagamentoAgrupadoHistorico extends EntityHelper {
   statusRemessa: StatusRemessaEnum; 
 
   @Column({ enum: OcorrenciaEnum, unique: false, nullable: true })
-  motivoStatusRemessa: OcorrenciaEnum;  
+  motivoStatusRemessa?: OcorrenciaEnum;  
   
   @ManyToOne(() => OrdemPagamentoAgrupado, { eager: false })
   @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupadoHistorico_ordensPagamento_OneToMany' })
