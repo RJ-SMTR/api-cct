@@ -45,6 +45,17 @@ export class OrdemPagamentoRepository {
     });
   }
 
+  public async findUltimaDataCapturaSincronizadaEAgrupada(): Promise<Date> {
+    const query = `
+        SELECT MAX("dataCaptura") as "dataCaptura"
+        FROM ordem_pagamento
+        WHERE "ordemPagamentoAgrupadoId" IS NOT NULL
+    `;
+    const result = await this.ordemPagamentoRepository.query(query);
+    return new Date(result[0].dataCaptura);
+  }
+
+
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
     const query = `
         WITH month_dates AS (SELECT generate_series(
