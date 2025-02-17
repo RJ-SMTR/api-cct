@@ -33,6 +33,8 @@ spec:
                 secretKeyRef:
                   name: api-cct-postgresql
                   key: postgres-password
+            - name: NODE_ENV
+              value: "production"
       restartPolicy: Always
 ---
 #Service

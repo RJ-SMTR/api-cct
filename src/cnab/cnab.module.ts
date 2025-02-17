@@ -88,6 +88,7 @@ import { RemessaService } from './novo-remessa/service/remessa.service';
 import { RetornoService } from './novo-remessa/service/retorno.service';
 import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
 import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
+import { DiscordService } from './service/discord/discord.service';
 
 @Module({
   imports: [
@@ -122,7 +123,8 @@ import { DistributedLockRepository } from './novo-remessa/repository/distributed
       PagamentoIndevido,
       OrdemPagamento,
       OrdemPagamentoAgrupado,
-      OrdemPagamentoAgrupadoHistorico
+      OrdemPagamentoAgrupadoHistorico,
+      DiscordService
     ]),
   ],
   providers: [
@@ -178,7 +180,8 @@ import { DistributedLockRepository } from './novo-remessa/repository/distributed
     RemessaService,
     RetornoService,
     DistributedLockService,
-    DistributedLockRepository
+    DistributedLockRepository,
+    DiscordService
   ],
   exports: [
     CnabService, //

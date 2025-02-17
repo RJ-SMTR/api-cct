@@ -12,58 +12,80 @@ import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { replaceUndefinedWithNull } from '../../../utils/type-utils';
-import { endOfDay, startOfDay } from 'date-fns';
+import { endOfDay, isToday, startOfDay } from 'date-fns';
+import { DiscordService } from '../../service/discord/discord.service';
 
 @Injectable()
 export class OrdemPagamentoService {
   private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
 
-  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository, private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) {}
+  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository,
+              private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService,
+              private usersService: UsersService,
+              private discordService: DiscordService) {}
 
   async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
     const METHOD = 'sincronizarOrdensPagamento';
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: consorcio });
+    try {
+      const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: consorcio });
 
-    const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
-    // Verifica se a ultima data de captura é igual a data atual
-    // E se o número de ordens é diferente.
-    if (numOrdensSemana === ordens.length) {
-      this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
-      return;
-    }
+      const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
+      const ultimaData = ordens
+        .filter((ordem) => ordem.dataCaptura)
+        .reduce((max, ordem) => ordem.dataCaptura > max ? ordem.dataCaptura : max, new Date(0));
 
-    this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
+      // Verifica se a ultima data de captura é igual a data atual
+      // E se o número de ordens é diferente.
+      if (numOrdensSemana === ordens.length) {
+        if (ultimaData != null && isToday(ultimaData)) {
+          this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
+        } else {
+          this.logger.warn(`Ainda não foram encontradas ordens para o dia de hoje.`, METHOD);
+          await this.discordService.sendMessage(`Ainda não foram encontradas ordens para o dia de hoje.`);
+        }
+        return;
+      }
 
-    for (const ordem of ordens) {
-      let user: User | undefined;
-      if (ordem.operadoraCpfCnpj) {
-        try {
-          /*
-              Caso sejam modais, obtemos o usuário pelo CPF/CNPJ.
-              Caso contrário, obtemos pelo idConsorcio === permitCode
-           */
-          if (ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio === 'TEC') {
-            user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
-          } else {
-            user = await this.usersService.getOne({ permitCode: ordem.idConsorcio });
-          }
-          if (user) {
-            this.logger.debug(`Salvando a ordem: ${ordem.idOrdemPagamento} para usuario: ${user.fullName}`, METHOD);
-            await this.save(ordem, user.id);
-          }
-        } catch (error) {
-          /***  TODO: Caso o erro lançado seja relacionado ao fato do usuário não ter sido encontrado,
-           ajustar o código para inserir a ordem de pagamento com o usuário nulo
-           ***/
-          if (error instanceof HttpException && !user) {
-            await this.save(ordem, undefined);
-          } else {
-            this.logger.error(`Erro ao sincronizar ordem de pagamento ${ordem.id}: ${error.message}`, METHOD);
+      this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
+
+      for (const ordem of ordens) {
+        let user: User | undefined;
+        if (ordem.operadoraCpfCnpj) {
+          try {
+            /*
+                Caso sejam modais, obtemos o usuário pelo CPF/CNPJ.
+                Caso contrário, obtemos pelo idConsorcio === permitCode
+             */
+            if (ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio === 'TEC') {
+              user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
+            } else {
+              user = await this.usersService.getOne({ permitCode: ordem.idConsorcio });
+            }
+            if (user) {
+              this.logger.debug(`Salvando a ordem: ${ordem.idOrdemPagamento} para usuario: ${user.fullName}`, METHOD);
+              await this.save(ordem, user.id);
+            }
+          } catch (error) {
+            /***  TODO: Caso o erro lançado seja relacionado ao fato do usuário não ter sido encontrado,
+             ajustar o código para inserir a ordem de pagamento com o usuário nulo
+             ***/
+            if (error instanceof HttpException && !user) {
+              await this.save(ordem, undefined);
+            } else {
+              this.logger.error(`Erro ao sincronizar ordem de pagamento ${ordem.id}: ${error.message}`, METHOD);
+            }
           }
         }
       }
+      if (ultimaData && isToday(ultimaData)) {
+        await this.discordService.sendMessage(`Sincronizadas ${ordens.length} ordens`);
+      }
+      this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
+    } catch (error) {
+      this.logger.error(`Erro ao sincronizar ordens de pagamento: ${error}`, METHOD);
+      await this.discordService.sendMessage(`Erro ao sincronizar ordens de pagamento: ${error}`);
+      throw error;
     }
-    this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
   }
 
   async save(ordem: BigqueryOrdemPagamentoDTO, userId: number | undefined) {
