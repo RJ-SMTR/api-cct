@@ -11,7 +11,7 @@ export class RelatorioSinteticoNovoRemessaDto {
 
   count: number;
   total: number;
-  data: RelatorioSinteticoNovoRemessaConsorcio[];
+  agrupamentoConsorcio: RelatorioSinteticoNovoRemessaConsorcio[];
 
 }
 
@@ -22,7 +22,7 @@ export class RelatorioSinteticoNovoRemessaConsorcio {
     }
   }
   subtotalConsorcio: number;
-  agrupamentoDia: RelatorioSinteticoNovoRemessaFavorecido[];
+  agrupamentoFavorecido: RelatorioSinteticoNovoRemessaFavorecido[];
 }
 
 export class RelatorioSinteticoNovoRemessaFavorecido {

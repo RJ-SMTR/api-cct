@@ -9,6 +9,8 @@ import {
 } from './dtos/relatorio-consolidado-novo-remessa.dto';
 import { parseNumber } from '../cnab/utils/cnab/cnab-field-utils';
 import { fi } from 'date-fns/locale';
+import { RelatorioSinteticoDto } from './dtos/relatorio-sintetico.dto';
+import { RelatorioSinteticoNovoRemessaDto } from './dtos/relatorio-sintetico-novo-remessa.dto';
 
 @Injectable()
 export class RelatorioNovoRemessaRepository {
@@ -175,6 +177,175 @@ export class RelatorioNovoRemessaRepository {
     and (op.valor <= $7 or $7 is null)
     order by u."fullName"`;
 
+
+  private static readonly QUERY_SINTETICO_VANZEIROS = `
+      select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura",
+             u."fullName", da."dataVencimento" as "dataPagamento", 
+             op.valor, da."valorLancamento" as "valorPagamento",
+             CASE opah."statusRemessa"
+                 WHEN 1 THEN 'A pagar'   
+                 WHEN 2 THEN 'Aguardando Pagamento'
+                 WHEN 3 THEN 'Pago'
+                 WHEN 4 THEN 'Não Pago'
+             END as status,
+            op."nomeConsorcio"
+      from ordem_pagamento op
+               inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
+               join lateral (
+          select opah.id,
+                 opah."dataReferencia",
+                 opah."statusRemessa",
+                 opah."motivoStatusRemessa",
+                 opah."ordemPagamentoAgrupadoId",
+                 opah."userBankCode",
+                 opah."userBankAgency",
+                 opah."userBankAccount",
+                 opah."userBankAccountDigit"
+          from ordem_pagamento_agrupado_historico opah
+          where opa.id = opah."ordemPagamentoAgrupadoId"
+            and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
+          ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
+               inner join "user" u on op."userId" = u.id
+          left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
+          where 1 = 1
+          and ("userId" = any($1) or $1 is null)
+          and (date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null)
+          and ("statusRemessa" = any($4) or $4 is null)
+          and ("statusRemessa" not in (2, 3, 4) or $4 is null)
+          and u."cpfCnpj" not in ('18201378000119',
+                                  '12464869000176',
+                                  '12464539000180',
+                                  '12464553000184',
+                                  '44520687000161',
+                                  '12464577000133')         
+          and (op.valor >= $5 or $5 is null)
+          and (op.valor <= $6 or $6 is null)
+   
+      union
+
+      select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura", 
+             u."fullName", da."dataVencimento" as "dataPagamento", 
+             opa."valorTotal", da."valorLancamento" as "valorPagamento",
+             CASE opah."statusRemessa"
+                 WHEN 1 THEN 'A pagar'
+                 WHEN 2 THEN 'Aguardando Pagamento'
+                 WHEN 3 THEN 'Pago'
+                 WHEN 4 THEN 'Não Pago'
+             END as status,
+             op."nomeConsorcio"
+      from ordem_pagamento op
+               inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
+               join lateral (
+          select opah.id,
+                 opah."dataReferencia",
+                 opah."statusRemessa",
+                 opah."motivoStatusRemessa",
+                 opah."ordemPagamentoAgrupadoId",
+                 opah."userBankCode",
+                 opah."userBankAgency",
+                 opah."userBankAccount",
+                 opah."userBankAccountDigit"
+          from ordem_pagamento_agrupado_historico opah
+          where opa.id = opah."ordemPagamentoAgrupadoId"
+            and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
+          ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
+               inner join "user" u on op."userId" = u.id
+               left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
+      where 1 = 1
+        and ("userId" = any($1) or $1 is null)
+        and (date_trunc('day', da."dataVencimento") BETWEEN $2 and $3 or $2 is null or $3 is null)
+        and ("statusRemessa" = any($4) or $4 is null)
+        and ("statusRemessa" in (2, 3, 4) or $4 is null)
+        and u."cpfCnpj" not in ('18201378000119',
+                                '12464869000176',
+                                '12464539000180',
+                                '12464553000184',
+                                '44520687000161',
+                                '12464577000133')
+        and (da."valorLancamento" >= $5 or $5 is null)
+        and (da."valorLancamento" <= $6 or $6 is null)
+      order by "fullName"
+      `;
+
+  private static readonly QUERY_SINTETICO_CONSORCIOS = `
+      select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura",
+             u."fullName", da."dataVencimento" as "dataPagamento", 
+             op.valor, da."valorLancamento" as "valorPagamento",
+             CASE opah."statusRemessa"
+                 WHEN 1 THEN 'A pagar'   
+                 WHEN 2 THEN 'Aguardando Pagamento'
+                 WHEN 3 THEN 'Pago'
+                 WHEN 4 THEN 'Não Pago'
+             END as status,
+             op."nomeConsorcio"
+      from ordem_pagamento op
+               inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
+               join lateral (
+          select opah.id,
+                 opah."dataReferencia",
+                 opah."statusRemessa",
+                 opah."motivoStatusRemessa",
+                 opah."ordemPagamentoAgrupadoId",
+                 opah."userBankCode",
+                 opah."userBankAgency",
+                 opah."userBankAccount",
+                 opah."userBankAccountDigit"
+          from ordem_pagamento_agrupado_historico opah
+          where opa.id = opah."ordemPagamentoAgrupadoId"
+            and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
+          ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
+               inner join "user" u on op."userId" = u.id
+          left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
+          where 1 = 1
+          and ("userId" = any($1) or $1 is null)
+          and (date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null)
+          and ("statusRemessa" = any($4) or $4 is null)
+          and ("statusRemessa" not in (2, 3, 4) or $4 is null)
+          and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))    
+          and (op.valor >= $5 or $5 is null)
+          and (op.valor <= $6 or $6 is null)
+   
+      union
+
+      select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura", 
+             u."fullName", da."dataVencimento" as "dataPagamento", 
+             opa."valorTotal", da."valorLancamento" as "valorPagamento",
+             CASE opah."statusRemessa"
+                 WHEN 1 THEN 'A pagar'
+                 WHEN 2 THEN 'Aguardando Pagamento'
+                 WHEN 3 THEN 'Pago'
+                 WHEN 4 THEN 'Não Pago'
+             END as status,
+             op."nomeConsorcio"
+      from ordem_pagamento op
+               inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
+               join lateral (
+          select opah.id,
+                 opah."dataReferencia",
+                 opah."statusRemessa",
+                 opah."motivoStatusRemessa",
+                 opah."ordemPagamentoAgrupadoId",
+                 opah."userBankCode",
+                 opah."userBankAgency",
+                 opah."userBankAccount",
+                 opah."userBankAccountDigit"
+          from ordem_pagamento_agrupado_historico opah
+          where opa.id = opah."ordemPagamentoAgrupadoId"
+            and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
+          ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
+               inner join "user" u on op."userId" = u.id
+               left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
+      where 1 = 1
+        and ("userId" = any($1) or $1 is null)
+        and (date_trunc('day', da."dataVencimento") BETWEEN $2 and $3 or $2 is null or $3 is null)
+        and ("statusRemessa" = any($4) or $4 is null)
+        and ("statusRemessa" in (2, 3, 4) or $4 is null)
+        and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))
+        and (da."valorLancamento" >= $5 or $5 is null)
+        and (da."valorLancamento" <= $6 or $6 is null)
+      order by "fullName"
+      `;
+
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
@@ -258,29 +429,68 @@ export class RelatorioNovoRemessaRepository {
 
   public async findSintetico(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
     this.logger.debug(RelatorioNovoRemessaRepository.QUERY_SINTETICO);
-
     if (filter.consorcioNome) {
       filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
     }
 
-    const parameters =
+    const parametersQueryVanzeiros =
       [
         filter.userIds || null,
         filter.dataInicio || null,
         filter.dataFim || null,
         this.getStatusParaFiltro(filter),
+        filter.valorMin || null,
+        filter.valorMax || null,
+      ];
+
+    const parametersQueryConsorciosEModais =
+      [
+        filter.dataInicio || null,
+        filter.dataFim || null,
+        this.getStatusParaFiltro(filter),
         filter.consorcioNome || null,
         filter.valorMin || null,
-        filter.valorMax || null
+        filter.valorMax || null,
       ];
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    const result: any[] = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO, parameters);
+    let result : any[] = [];
+    let resultConsorciosEModais : any[] = [];
+    let resultVanzeiros : any[] = [];
+
+    if (filter.todosVanzeiros) {
+      filter.userIds = undefined;
+      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_VANZEIROS, parametersQueryVanzeiros);
+    }
+
+    if (filter.todosConsorcios) {
+      filter.consorcioNome = undefined;
+      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_CONSORCIOS, parametersQueryConsorciosEModais);
+    }
+
+    if (filter.userIds && filter.userIds.length > 0) {
+      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_VANZEIROS, parametersQueryVanzeiros);
+    }
+
+    if (filter.consorcioNome && filter.consorcioNome.length > 0) {
+      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_CONSORCIOS, parametersQueryConsorciosEModais);
+    }
+
+    // Nenhum critério, trás todos.
+    if (!filter.todosVanzeiros &&
+      !filter.todosConsorcios
+      && (!filter.userIds || filter.userIds.length == 0) && (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
+      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_VANZEIROS, parametersQueryVanzeiros);
+      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_CONSORCIOS, parametersQueryConsorciosEModais);
+    }
+
+    result = resultVanzeiros.concat(resultConsorciosEModais);
+
     await queryRunner.release();
     const count = result.length;
     const valorTotal = result.reduce((acc, curr) => acc + parseFloat(curr.valorTotal), 0);
-    const relatorioConsolidadoDto = new RelatorioConsolidadoNovoRemessaDto();
+    const relatorioConsolidadoDto = new RelatorioSinteticoNovoRemessaDto();
     relatorioConsolidadoDto.valor = parseFloat(valorTotal);
     relatorioConsolidadoDto.count = count;
     relatorioConsolidadoDto.data = result
@@ -290,7 +500,7 @@ export class RelatorioNovoRemessaRepository {
         elem.valor = parseFloat(r.valorTotal);
         return elem;
       });
-    return relatorioConsolidadoDto;
+
   }
 
   private getStatusParaFiltro(filter: IFindPublicacaoRelatorioNovoRemessa) {
