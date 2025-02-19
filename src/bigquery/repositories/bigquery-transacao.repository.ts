@@ -80,12 +80,12 @@ export class BigqueryTransacaoRepository {
 
     if (!isAdmin) {
       query += ` AND CAST(o.documento AS STRING) = ?`;
-      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoIds]);
+      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoIds, cpfCnpj]);
       return queryResult.map((item: any) => {
         return mapBigQueryTransacao(item);
       });
     } else {
-      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoIds, cpfCnpj]);
+      const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [ordemPagamentoIds]);
       return queryResult.map((item: any) => {
         return mapBigQueryTransacao(item);
       });
