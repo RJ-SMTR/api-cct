@@ -116,11 +116,11 @@ export class User extends EntityHelper {
   hash: string | null;
 
   @CreateDateColumn()
-  @Exclude({ toPlainOnly: true })
+  //@Exclude({ toPlainOnly: true })
   createdAt: Date;
 
   @UpdateDateColumn()
-  @Exclude({ toPlainOnly: true })
+  //@Exclude({ toPlainOnly: true })
   updatedAt: Date;
 
   @DeleteDateColumn()
