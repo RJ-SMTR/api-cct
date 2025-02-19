@@ -63,7 +63,7 @@ export class RelatorioNovoRemessaController {
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
-  @ApiQuery({ name: 'userId', description: 'Pesquisa o id dos usuários.', required: false, type: String })
+  @ApiQuery({ name: 'userIds', description: 'Pesquisa o id dos usuários.', required: false, type: [Number] })
   @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String })
   @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto.', required: false, type: Number })
   @ApiQuery({ name: 'valorMax', description: 'Somatório do valor bruto.', required: false, type: Number })
@@ -71,6 +71,8 @@ export class RelatorioNovoRemessaController {
   @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
   @ApiQuery({ name: 'emProcessamento', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a emProcessamento', default: false }) })
   @ApiQuery({ name: 'erro', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status do pagamento é de erro', default: false }) })
+  @ApiQuery({ name: 'todosVanzeiros', required: false, type: Boolean, description: ApiDescription({ _: 'Se a pesquisa deve ser feita para todos os vanzeiros', default: false }) })
+  @ApiQuery({ name: 'todosConsorcios', required: false, type: Boolean, description: ApiDescription({ _: 'Se a pesquisa deve ser feita para todos os consórcios', default: false }) })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -80,8 +82,8 @@ export class RelatorioNovoRemessaController {
     dataInicio: Date,
     @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
     dataFim: Date,
-    @Query('favorecidoNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    favorecidoNome: string[],    
+    @Query('userIds', new ParseArrayPipe({ items: Int32, separator: ',', optional: true }))
+    userIds: number[],
     @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
     consorcioNome: string[],    
     @Query('valorMin', new ParseNumberPipe({ optional: true }))
@@ -91,11 +93,13 @@ export class RelatorioNovoRemessaController {
     @Query('pago',new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,     
     @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
     @Query('emProcessamento',new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
-    @Query('erro',new ParseBooleanPipe({ optional: true })) erro: boolean | undefined
+    @Query('erro',new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
+    @Query('todosVanzeiros', new ParseBooleanPipe({ optional: true })) todosVanzeiros: boolean | undefined,
+    @Query('todosConsorcios', new ParseBooleanPipe({ optional: true })) todosConsorcios: boolean | undefined,
   ) {
     try {
       const result = await this.relatorioNovoRemessaService.findSintetico({
-        dataInicio,dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar,emProcessamento
+        dataInicio,dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios
       });
       return result;
     }catch(e){

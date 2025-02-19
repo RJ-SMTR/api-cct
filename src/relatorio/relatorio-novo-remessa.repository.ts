@@ -10,7 +10,11 @@ import {
 import { parseNumber } from '../cnab/utils/cnab/cnab-field-utils';
 import { fi } from 'date-fns/locale';
 import { RelatorioSinteticoDto } from './dtos/relatorio-sintetico.dto';
-import { RelatorioSinteticoNovoRemessaDto } from './dtos/relatorio-sintetico-novo-remessa.dto';
+import {
+  RelatorioSinteticoNovoRemessaConsorcio,
+  RelatorioSinteticoNovoRemessaDia,
+  RelatorioSinteticoNovoRemessaDto, RelatorioSinteticoNovoRemessaFavorecido,
+} from './dtos/relatorio-sintetico-novo-remessa.dto';
 
 @Injectable()
 export class RelatorioNovoRemessaRepository {
@@ -180,7 +184,7 @@ export class RelatorioNovoRemessaRepository {
 
   private static readonly QUERY_SINTETICO_VANZEIROS = `
       select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura",
-             u."fullName", da."dataVencimento" as "dataPagamento", 
+             u."fullName" as "nomeFavorecido", da."dataVencimento" as "dataPagamento", 
              op.valor, da."valorLancamento" as "valorPagamento",
              CASE opah."statusRemessa"
                  WHEN 1 THEN 'A pagar'   
@@ -224,7 +228,7 @@ export class RelatorioNovoRemessaRepository {
       union
 
       select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura", 
-             u."fullName", da."dataVencimento" as "dataPagamento", 
+             u."fullName" as "nomeFavorecido", da."dataVencimento" as "dataPagamento", 
              opa."valorTotal", da."valorLancamento" as "valorPagamento",
              CASE opah."statusRemessa"
                  WHEN 1 THEN 'A pagar'
@@ -250,7 +254,7 @@ export class RelatorioNovoRemessaRepository {
             and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
           ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
                inner join "user" u on op."userId" = u.id
-               left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
+               inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
       where 1 = 1
         and ("userId" = any($1) or $1 is null)
         and (date_trunc('day', da."dataVencimento") BETWEEN $2 and $3 or $2 is null or $3 is null)
@@ -264,12 +268,12 @@ export class RelatorioNovoRemessaRepository {
                                 '12464577000133')
         and (da."valorLancamento" >= $5 or $5 is null)
         and (da."valorLancamento" <= $6 or $6 is null)
-      order by "fullName"
+      order by "nomeConsorcio", "nomeFavorecido", "dataCaptura"
       `;
 
   private static readonly QUERY_SINTETICO_CONSORCIOS = `
       select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura",
-             u."fullName", da."dataVencimento" as "dataPagamento", 
+             u."fullName" as "nomeFavorecido", da."dataVencimento" as "dataPagamento", 
              op.valor, da."valorLancamento" as "valorPagamento",
              CASE opah."statusRemessa"
                  WHEN 1 THEN 'A pagar'   
@@ -308,7 +312,7 @@ export class RelatorioNovoRemessaRepository {
       union
 
       select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura", 
-             u."fullName", da."dataVencimento" as "dataPagamento", 
+             u."fullName" as "nomeFavorecido", da."dataVencimento" as "dataPagamento", 
              opa."valorTotal", da."valorLancamento" as "valorPagamento",
              CASE opah."statusRemessa"
                  WHEN 1 THEN 'A pagar'
@@ -334,7 +338,7 @@ export class RelatorioNovoRemessaRepository {
             and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
           ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
                inner join "user" u on op."userId" = u.id
-               left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
+               inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
       where 1 = 1
         and ("userId" = any($1) or $1 is null)
         and (date_trunc('day', da."dataVencimento") BETWEEN $2 and $3 or $2 is null or $3 is null)
@@ -343,7 +347,7 @@ export class RelatorioNovoRemessaRepository {
         and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))
         and (da."valorLancamento" >= $5 or $5 is null)
         and (da."valorLancamento" <= $6 or $6 is null)
-      order by "fullName"
+      order by "nomeConsorcio", "nomeFavorecido", "dataCaptura"
       `;
 
   constructor(
@@ -427,7 +431,7 @@ export class RelatorioNovoRemessaRepository {
     return relatorioConsolidadoDto;
   }
 
-  public async findSintetico(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
+  public async findSintetico(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioSinteticoNovoRemessaDto> {
     this.logger.debug(RelatorioNovoRemessaRepository.QUERY_SINTETICO);
     if (filter.consorcioNome) {
       filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
@@ -489,18 +493,66 @@ export class RelatorioNovoRemessaRepository {
 
     await queryRunner.release();
     const count = result.length;
-    const valorTotal = result.reduce((acc, curr) => acc + parseFloat(curr.valorTotal), 0);
-    const relatorioConsolidadoDto = new RelatorioSinteticoNovoRemessaDto();
-    relatorioConsolidadoDto.valor = parseFloat(valorTotal);
-    relatorioConsolidadoDto.count = count;
-    relatorioConsolidadoDto.data = result
-      .map((r) => {
-        const elem = new RelatorioConsolidadoNovoRemessaData();
-        elem.nomefavorecido = r.fullName;
-        elem.valor = parseFloat(r.valorTotal);
-        return elem;
-      });
+    const valorTotal = result.reduce((acc, curr) => acc + curr.valorPagamento? parseFloat(curr.valorPagamento) : parseFloat(curr.valor), 0);
+    const relatorioSinteticoNovoRemessaDto = new RelatorioSinteticoNovoRemessaDto();
+    relatorioSinteticoNovoRemessaDto.count = count;
+    relatorioSinteticoNovoRemessaDto.total = valorTotal;
+    const elems: RelatorioSinteticoNovoRemessaDia[] = [];
+    result.forEach((r) => {
+      const elem = new RelatorioSinteticoNovoRemessaDia();
+      elem.userId = r.userId;
+      elem.dataCaptura = r.dataCaptura;
+      elem.nomeFavorecido = r.nomeFavorecido;
+      elem.dataPagamento = r.dataPagamento;
+      elem.valor = r.valor;
+      elem.valorPagamento = r.valorPagamento;
+      elem.status = r.status;
+      elem.nomeConsorcio = r.nomeConsorcio;
+      elems.push(elem);
+    });
 
+    // agrupa por consorcio
+    const agrupamentoConsorcio = elems.reduce((acc, curr) => {
+      if (!acc[curr.nomeConsorcio]) {
+        acc[curr.nomeConsorcio] = [];
+      }
+      acc[curr.nomeConsorcio].push(curr);
+      return acc;
+    }, {});
+
+    relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio = [];
+
+    for (const consorcio in agrupamentoConsorcio) {
+      const agrupamentoFavorecido = agrupamentoConsorcio[consorcio].reduce((acc, curr) => {
+        if (!acc[curr.nomeFavorecido]) {
+          acc[curr.nomeFavorecido] = [];
+        }
+        acc[curr.nomeFavorecido].push(curr);
+        return acc;
+      }, {});
+
+      for (const favorecido in agrupamentoFavorecido) {
+        const agrupamentoDia = agrupamentoFavorecido[favorecido];
+        const subtotalFavorecido = agrupamentoDia.reduce((acc, curr) => acc + curr.valorPagamento? parseFloat(curr.valorPagamento) : parseFloat(curr.valor), 0);
+        const relatorioFavorecido = new RelatorioSinteticoNovoRemessaFavorecido();
+        relatorioFavorecido.subtotalFavorecido = parseFloat(subtotalFavorecido);
+        relatorioFavorecido.nomeFavorecido = favorecido;
+        relatorioFavorecido.agrupamentoDia = agrupamentoDia;
+        agrupamentoFavorecido[favorecido] = relatorioFavorecido;
+      }
+
+      // @ts-ignore
+      const subtotalConsorcio = Object.values(agrupamentoFavorecido).reduce((acc, curr) => acc + parseFloat(curr.subtotalFavorecido), 0);
+      const relatorioConsorcio = new RelatorioSinteticoNovoRemessaConsorcio();
+      if (typeof subtotalConsorcio === 'string') {
+        relatorioConsorcio.subtotalConsorcio = parseFloat(subtotalConsorcio);
+      }
+      relatorioConsorcio.nomeConsorcio = consorcio;
+      relatorioConsorcio.agrupamentoFavorecido = Object.values(agrupamentoFavorecido);
+
+      relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio.push(relatorioConsorcio);
+    }
+    return relatorioSinteticoNovoRemessaDto;
   }
 
   private getStatusParaFiltro(filter: IFindPublicacaoRelatorioNovoRemessa) {

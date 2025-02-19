@@ -22,6 +22,7 @@ export class RelatorioSinteticoNovoRemessaConsorcio {
     }
   }
   subtotalConsorcio: number;
+  nomeConsorcio: string;
   agrupamentoFavorecido: RelatorioSinteticoNovoRemessaFavorecido[];
 }
 
@@ -32,6 +33,7 @@ export class RelatorioSinteticoNovoRemessaFavorecido {
     }
   }
   subtotalFavorecido: number;
+  nomeFavorecido: string;
   agrupamentoDia: RelatorioSinteticoNovoRemessaDia[];
 }
 
@@ -42,12 +44,13 @@ export class RelatorioSinteticoNovoRemessaDia {
       Object.assign(this, sintetico);
     }
   }
-  consorcio: string;
-  valor: number;
-  favorecido: string;
-  cpfCnpj: string;
-  status: string;
-  mensagemStatus: string;
+  userId: number;
+  dataCaptura: string;
+  nomeFavorecido: string;
   dataPagamento: string;
+  valor: number;
+  valorPagamento: number;
+  status: string;
+  nomeConsorcio: string;
 }
 
