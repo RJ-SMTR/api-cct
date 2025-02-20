@@ -48,7 +48,6 @@ export class RelatorioSinteticoNovoRemessaDia {
   dataCaptura: string;
   nomeFavorecido: string;
   dataPagamento: string;
-  valor: number;
   valorPagamento: number;
   status: string;
   nomeConsorcio: string;

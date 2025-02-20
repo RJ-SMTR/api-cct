@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { IFindPublicacaoRelatorioNovoRemessa } from './interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import {
@@ -18,7 +18,6 @@ import {
 
 @Injectable()
 export class RelatorioNovoRemessaRepository {
-
   private static readonly QUERY_CONSOLIDADO_VANZEIROS = `
       select distinct op."userId", u."fullName", coalesce(da."valorLancamento", sum(op.valor)) as "valorTotal"
       from ordem_pagamento op
@@ -58,7 +57,6 @@ export class RelatorioNovoRemessaRepository {
          and (sum(op.valor) <= $6 or $6 is null)
       order by u."fullName"
   `;
-
 
   private static readonly QUERY_CONSOLIDADO_CONSORCIOS = `
       select "fullName", sum("valorTotal") as "valorTotal"
@@ -149,42 +147,9 @@ export class RelatorioNovoRemessaRepository {
       order by "fullName"
   `;
 
-  private static readonly QUERY_SINTETICO = `
-    select op."userId", u."fullName", op.valor,
-       CASE opah."statusRemessa"
-              WHEN 3 THEN 'pago'
-              WHEN 4 THEN 'naopago'
-              ELSE 'apagar'
-         END as status,
-         opah."motivoStatusRemessa"
-    from ordem_pagamento op
-         inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
-         join lateral (
-    select opah."dataReferencia",
-           opah."statusRemessa",
-           opah."motivoStatusRemessa",
-           opah."ordemPagamentoAgrupadoId",
-           opah."userBankCode",
-           opah."userBankAgency",
-           opah."userBankAccount",
-           opah."userBankAccountDigit"
-    from ordem_pagamento_agrupado_historico opah
-    where opa.id = opah."ordemPagamentoAgrupadoId"
-      and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
-    ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
-         inner join "user" u on op."userId" = u.id
-    and ("userId" = any($1) or $1 is null)
-    and (date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null)
-    and ("statusRemessa" = any($4) or $4 is null)
-    and (trim(upper("nomeConsorcio")) = any($5) or $5 is null)
-    and (op.valor >= $6 or $6 is null)
-    and (op.valor <= $7 or $7 is null)
-    order by u."fullName"`;
-
-
   private static readonly QUERY_SINTETICO_VANZEIROS = `
       select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura",
-             u."fullName" as "nomeFavorecido", da."dataVencimento" as "dataPagamento", 
+             u."fullName" as "nomeFavorecido", coalesce(da."dataVencimento", opa."dataPagamento") as "dataPagamento", 
              op.valor, da."valorLancamento" as "valorPagamento",
              CASE opah."statusRemessa"
                  WHEN 1 THEN 'A pagar'   
@@ -192,7 +157,8 @@ export class RelatorioNovoRemessaRepository {
                  WHEN 3 THEN 'Pago'
                  WHEN 4 THEN 'Não Pago'
              END as status,
-            op."nomeConsorcio"
+            op."nomeConsorcio",
+            da.id "idDetalheA"
       from ordem_pagamento op
                inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
                join lateral (
@@ -215,7 +181,7 @@ export class RelatorioNovoRemessaRepository {
           and ("userId" = any($1) or $1 is null)
           and (date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null)
           and ("statusRemessa" = any($4) or $4 is null)
-          and ("statusRemessa" not in (2, 3, 4) or $4 is null)
+          and ("statusRemessa" not in (2, 3, 4))
           and u."cpfCnpj" not in ('18201378000119',
                                   '12464869000176',
                                   '12464539000180',
@@ -228,15 +194,16 @@ export class RelatorioNovoRemessaRepository {
       union
 
       select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura", 
-             u."fullName" as "nomeFavorecido", da."dataVencimento" as "dataPagamento", 
-             opa."valorTotal", da."valorLancamento" as "valorPagamento",
+             u."fullName" as "nomeFavorecido", coalesce(da."dataVencimento", opa."dataPagamento") as "dataPagamento",
+             op.valor, da."valorLancamento" as "valorPagamento",
              CASE opah."statusRemessa"
                  WHEN 1 THEN 'A pagar'
                  WHEN 2 THEN 'Aguardando Pagamento'
                  WHEN 3 THEN 'Pago'
                  WHEN 4 THEN 'Não Pago'
              END as status,
-             op."nomeConsorcio"
+             op."nomeConsorcio",
+             da.id "idDetalheA"
       from ordem_pagamento op
                inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
                join lateral (
@@ -259,7 +226,7 @@ export class RelatorioNovoRemessaRepository {
         and ("userId" = any($1) or $1 is null)
         and (date_trunc('day', da."dataVencimento") BETWEEN $2 and $3 or $2 is null or $3 is null)
         and ("statusRemessa" = any($4) or $4 is null)
-        and ("statusRemessa" in (2, 3, 4) or $4 is null)
+        and ("statusRemessa" in (2, 3, 4))
         and u."cpfCnpj" not in ('18201378000119',
                                 '12464869000176',
                                 '12464539000180',
@@ -273,7 +240,7 @@ export class RelatorioNovoRemessaRepository {
 
   private static readonly QUERY_SINTETICO_CONSORCIOS = `
       select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura",
-             u."fullName" as "nomeFavorecido", da."dataVencimento" as "dataPagamento", 
+             u."fullName" as "nomeFavorecido", coalesce(da."dataVencimento", opa."dataPagamento") as "dataPagamento", 
              op.valor, da."valorLancamento" as "valorPagamento",
              CASE opah."statusRemessa"
                  WHEN 1 THEN 'A pagar'   
@@ -281,10 +248,11 @@ export class RelatorioNovoRemessaRepository {
                  WHEN 3 THEN 'Pago'
                  WHEN 4 THEN 'Não Pago'
              END as status,
-             op."nomeConsorcio"
+             op."nomeConsorcio",
+             da.id "idDetalheA"
       from ordem_pagamento op
-               inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
-               join lateral (
+               left join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
+               left join lateral (
           select opah.id,
                  opah."dataReferencia",
                  opah."statusRemessa",
@@ -301,26 +269,27 @@ export class RelatorioNovoRemessaRepository {
                inner join "user" u on op."userId" = u.id
           left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
           where 1 = 1
-          and ("userId" = any($1) or $1 is null)
-          and (date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null)
-          and ("statusRemessa" = any($4) or $4 is null)
-          and ("statusRemessa" not in (2, 3, 4) or $4 is null)
-          and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))    
-          and (op.valor >= $5 or $5 is null)
-          and (op.valor <= $6 or $6 is null)
+            and (trim(upper("nomeConsorcio")) = any($1) or $1 is null)
+            and (date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null)
+            and ("statusRemessa" = any($4) or $4 is null)
+            and ("statusRemessa" not in (2, 3, 4))
+            and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))    
+            and (op.valor >= $5 or $5 is null)
+            and (op.valor <= $6 or $6 is null)
    
       union
 
       select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura", 
-             u."fullName" as "nomeFavorecido", da."dataVencimento" as "dataPagamento", 
-             opa."valorTotal", da."valorLancamento" as "valorPagamento",
+             u."fullName" as "nomeFavorecido", coalesce(da."dataVencimento", opa."dataPagamento") as "dataPagamento",
+             op.valor, da."valorLancamento" as "valorPagamento",
              CASE opah."statusRemessa"
                  WHEN 1 THEN 'A pagar'
                  WHEN 2 THEN 'Aguardando Pagamento'
                  WHEN 3 THEN 'Pago'
                  WHEN 4 THEN 'Não Pago'
              END as status,
-             op."nomeConsorcio"
+             op."nomeConsorcio",
+             da.id "idDetalheA"
       from ordem_pagamento op
                inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
                join lateral (
@@ -340,10 +309,10 @@ export class RelatorioNovoRemessaRepository {
                inner join "user" u on op."userId" = u.id
                inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
       where 1 = 1
-        and ("userId" = any($1) or $1 is null)
+        and (trim(upper("nomeConsorcio")) = any($1) or $1 is null)
         and (date_trunc('day', da."dataVencimento") BETWEEN $2 and $3 or $2 is null or $3 is null)
         and ("statusRemessa" = any($4) or $4 is null)
-        and ("statusRemessa" in (2, 3, 4) or $4 is null)
+        and ("statusRemessa" in (2, 3, 4))
         and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))
         and (da."valorLancamento" >= $5 or $5 is null)
         and (da."valorLancamento" <= $6 or $6 is null)
@@ -358,34 +327,20 @@ export class RelatorioNovoRemessaRepository {
 
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
     if (filter.consorcioNome) {
-      filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
+      filter.consorcioNome = filter.consorcioNome.map((c) => {
+        return c.toUpperCase().trim();
+      });
     }
 
-    const parametersQueryVanzeiros =
-      [
-        filter.userIds || null,
-        filter.dataInicio || null,
-        filter.dataFim || null,
-        this.getStatusParaFiltro(filter),
-        filter.valorMin || null,
-        filter.valorMax || null,
-      ];
+    const parametersQueryVanzeiros = [filter.userIds || null, filter.dataInicio || null, filter.dataFim || null, this.getStatusParaFiltro(filter), filter.valorMin || null, filter.valorMax || null];
 
-    const parametersQueryConsorciosEModais =
-      [
-        filter.dataInicio || null,
-        filter.dataFim || null,
-        this.getStatusParaFiltro(filter),
-        filter.consorcioNome || null,
-        filter.valorMin || null,
-        filter.valorMax || null,
-      ];
+    const parametersQueryConsorciosEModais = [filter.dataInicio || null, filter.dataFim || null, this.getStatusParaFiltro(filter), filter.consorcioNome || null, filter.valorMin || null, filter.valorMax || null];
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result : any[] = [];
-    let resultConsorciosEModais : any[] = [];
-    let resultVanzeiros : any[] = [];
+    let result: any[] = [];
+    let resultConsorciosEModais: any[] = [];
+    let resultVanzeiros: any[] = [];
 
     if (filter.todosVanzeiros) {
       filter.userIds = undefined;
@@ -406,9 +361,7 @@ export class RelatorioNovoRemessaRepository {
     }
 
     // Nenhum critério, trás todos.
-    if (!filter.todosVanzeiros &&
-      !filter.todosConsorcios
-      && (!filter.userIds || filter.userIds.length == 0) && (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
+    if (!filter.todosVanzeiros && !filter.todosConsorcios && (!filter.userIds || filter.userIds.length == 0) && (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
       resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
       resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
     }
@@ -421,47 +374,34 @@ export class RelatorioNovoRemessaRepository {
     const relatorioConsolidadoDto = new RelatorioConsolidadoNovoRemessaDto();
     relatorioConsolidadoDto.valor = parseFloat(valorTotal);
     relatorioConsolidadoDto.count = count;
-    relatorioConsolidadoDto.data = result
-      .map((r) => {
-        const elem = new RelatorioConsolidadoNovoRemessaData();
-        elem.nomefavorecido = r.fullName;
-        elem.valor = parseFloat(r.valorTotal);
-        return elem;
-      });
+    relatorioConsolidadoDto.data = result.map((r) => {
+      const elem = new RelatorioConsolidadoNovoRemessaData();
+      elem.nomefavorecido = r.fullName;
+      elem.valor = parseFloat(r.valorTotal);
+      return elem;
+    });
+
     return relatorioConsolidadoDto;
   }
 
   public async findSintetico(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioSinteticoNovoRemessaDto> {
-    this.logger.debug(RelatorioNovoRemessaRepository.QUERY_SINTETICO);
     if (filter.consorcioNome) {
-      filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
+      filter.consorcioNome = filter.consorcioNome.map((c) => {
+        return c.toUpperCase().trim();
+      });
     }
 
-    const parametersQueryVanzeiros =
-      [
-        filter.userIds || null,
-        filter.dataInicio || null,
-        filter.dataFim || null,
-        this.getStatusParaFiltro(filter),
-        filter.valorMin || null,
-        filter.valorMax || null,
-      ];
+    const parametersQueryVanzeiros = [filter.userIds || null, filter.dataInicio || null, filter.dataFim || null, this.getStatusParaFiltro(filter), filter.valorMin || null, filter.valorMax || null];
 
-    const parametersQueryConsorciosEModais =
-      [
-        filter.dataInicio || null,
-        filter.dataFim || null,
-        this.getStatusParaFiltro(filter),
-        filter.consorcioNome || null,
-        filter.valorMin || null,
-        filter.valorMax || null,
-      ];
+    const parametersQueryConsorciosEModais = [filter.consorcioNome || null, filter.dataInicio || null, filter.dataFim || null, this.getStatusParaFiltro(filter), filter.valorMin || null, filter.valorMax || null];
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result : any[] = [];
-    let resultConsorciosEModais : any[] = [];
-    let resultVanzeiros : any[] = [];
+    let result: any[] = [];
+    let resultConsorciosEModais: any[] = [];
+    let resultVanzeiros: any[] = [];
+
+    const mapModaisEConsorcios = await this.obterTotalConsorciosEModais(filter, queryRunner);
 
     if (filter.todosVanzeiros) {
       filter.userIds = undefined;
@@ -482,9 +422,7 @@ export class RelatorioNovoRemessaRepository {
     }
 
     // Nenhum critério, trás todos.
-    if (!filter.todosVanzeiros &&
-      !filter.todosConsorcios
-      && (!filter.userIds || filter.userIds.length == 0) && (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
+    if (!filter.todosVanzeiros && !filter.todosConsorcios && (!filter.userIds || filter.userIds.length == 0) && (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
       resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_VANZEIROS, parametersQueryVanzeiros);
       resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_CONSORCIOS, parametersQueryConsorciosEModais);
     }
@@ -493,10 +431,10 @@ export class RelatorioNovoRemessaRepository {
 
     await queryRunner.release();
     const count = result.length;
-    const valorTotal = result.reduce((acc, curr) => acc + curr.valorPagamento? parseFloat(curr.valorPagamento) : parseFloat(curr.valor), 0);
+
     const relatorioSinteticoNovoRemessaDto = new RelatorioSinteticoNovoRemessaDto();
     relatorioSinteticoNovoRemessaDto.count = count;
-    relatorioSinteticoNovoRemessaDto.total = valorTotal;
+
     const elems: RelatorioSinteticoNovoRemessaDia[] = [];
     result.forEach((r) => {
       const elem = new RelatorioSinteticoNovoRemessaDia();
@@ -504,8 +442,7 @@ export class RelatorioNovoRemessaRepository {
       elem.dataCaptura = r.dataCaptura;
       elem.nomeFavorecido = r.nomeFavorecido;
       elem.dataPagamento = r.dataPagamento;
-      elem.valor = r.valor;
-      elem.valorPagamento = r.valorPagamento;
+      elem.valorPagamento = r.valor;
       elem.status = r.status;
       elem.nomeConsorcio = r.nomeConsorcio;
       elems.push(elem);
@@ -533,26 +470,45 @@ export class RelatorioNovoRemessaRepository {
 
       for (const favorecido in agrupamentoFavorecido) {
         const agrupamentoDia = agrupamentoFavorecido[favorecido];
-        const subtotalFavorecido = agrupamentoDia.reduce((acc, curr) => acc + curr.valorPagamento? parseFloat(curr.valorPagamento) : parseFloat(curr.valor), 0);
+        const subtotalFavorecido = agrupamentoDia.reduce((acc, curr) => acc + parseFloat(curr.valorPagamento), 0);
         const relatorioFavorecido = new RelatorioSinteticoNovoRemessaFavorecido();
         relatorioFavorecido.subtotalFavorecido = parseFloat(subtotalFavorecido);
         relatorioFavorecido.nomeFavorecido = favorecido;
         relatorioFavorecido.agrupamentoDia = agrupamentoDia;
         agrupamentoFavorecido[favorecido] = relatorioFavorecido;
       }
-
-      // @ts-ignore
-      const subtotalConsorcio = Object.values(agrupamentoFavorecido).reduce((acc, curr) => acc + parseFloat(curr.subtotalFavorecido), 0);
       const relatorioConsorcio = new RelatorioSinteticoNovoRemessaConsorcio();
-      if (typeof subtotalConsorcio === 'string') {
-        relatorioConsorcio.subtotalConsorcio = parseFloat(subtotalConsorcio);
-      }
+
+      relatorioConsorcio.subtotalConsorcio = mapModaisEConsorcios[consorcio];
+
       relatorioConsorcio.nomeConsorcio = consorcio;
       relatorioConsorcio.agrupamentoFavorecido = Object.values(agrupamentoFavorecido);
 
       relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio.push(relatorioConsorcio);
     }
+    // o total geral passa a ser o total dos consorcios
+    relatorioSinteticoNovoRemessaDto.total = relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio.reduce((acc, curr) => acc + curr.subtotalConsorcio, 0);
     return relatorioSinteticoNovoRemessaDto;
+  }
+
+  private async obterTotalConsorciosEModais(filter: IFindPublicacaoRelatorioNovoRemessa, queryRunner: QueryRunner) {
+    /***
+     No caso dos vanzeiros, há sempre uma diferença do valor total do consolidado com o valor total dos detalhes.
+     Por isso, vamos buscar o consolidado e somar o consolidado.
+     ***/
+
+    const parametersQueryConsolidadoModais = [filter.dataInicio || null, filter.dataFim || null, this.getStatusParaFiltro(filter), filter.consorcioNome || null, filter.valorMin || null, filter.valorMax || null];
+
+    const resultConsolidadoModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsolidadoModais);
+    // Cria um mapa e agrupa os valores modais
+    const mapModaisEConsorcios = resultConsolidadoModais.reduce((acc, curr) => {
+      if (!acc[curr.fullName]) {
+        acc[curr.fullName] = 0;
+      }
+      acc[curr.fullName] += parseFloat(curr.valorTotal);
+      return acc;
+    }, {});
+    return mapModaisEConsorcios;
   }
 
   private getStatusParaFiltro(filter: IFindPublicacaoRelatorioNovoRemessa) {

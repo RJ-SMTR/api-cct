@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
@@ -77,6 +77,7 @@ export class RelatorioNovoRemessaController {
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('sintetico')
+  @Header('Cache-Control', 'no-store')
   async getSintetico(
     @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
     dataInicio: Date,
