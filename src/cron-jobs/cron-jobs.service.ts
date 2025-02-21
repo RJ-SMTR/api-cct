@@ -33,6 +33,7 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import {nextFriday, nextThursday, previousFriday, isFriday, isThursday} from 'date-fns';
 
+
 /**
  * Enum CronJobServicesJobs
  */
