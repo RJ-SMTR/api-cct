@@ -9,7 +9,6 @@ import { DetalheA } from "src/cnab/entity/pagamento/detalhe-a.entity";
 import { CnabRegistros104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface";
 import { CnabLote104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface";
 import { SftpBackupFolder } from "src/sftp/enums/sftp-backup-folder.enum";
-import { OcorrenciaEnum } from "src/cnab/enums/ocorrencia.enum";
 
 @Injectable()
 export class RetornoService {
