@@ -102,7 +102,12 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {   
-  
+    await this.remessaModalExec('2025-01-24','2025-01-30','2025-01-31');
+    await this.remessaModalExec('2025-01-17','2025-01-23','2025-01-24');
+    await this.remessaModalExec('2025-01-10','2025-01-16','2025-01-17');
+    await this.remessaModalExec('2025-01-03','2025-01-09','2025-01-10');
+    await this.remessaModalExec('2024-12-27','2025-01-02','2025-01-03');
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -641,7 +646,7 @@ export class CronJobsService {
     const txt = await this.remessaService.gerarCnabText(headerName);
 
     //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt);
+//  await this.remessaService.enviarRemessa(txt);
   }
 
   async remessaVLTExec() {
