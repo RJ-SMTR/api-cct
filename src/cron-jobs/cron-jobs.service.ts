@@ -101,7 +101,8 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {     
+  async onModuleLoad() {   
+  
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -661,12 +662,12 @@ export class CronJobsService {
       ['VLT'], HeaderName.VLT);
   }
 
-  async remessaModalExec() {
+  async remessaModalExec(dtInicio?:string,dtFim?:string,dataPagamento?:string) {
     //Rodar Sexta 
     const today = new Date();
-    const dataInicio = subDays(today, 7);
-    const dataFim = subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio, dataFim, today,
+    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 7);
+    const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
+    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today,
       ['STPC', 'STPL', 'TEC'], HeaderName.MODAL);
   }
 
@@ -680,9 +681,18 @@ export class CronJobsService {
   }
 
   async retornoExec() {
-    const txt = await this.retornoService.lerRetornoSftp();
-    if (txt){
-      await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
+    let arq = true;
+    while(arq){
+      const txt = await this.retornoService.lerRetornoSftp();
+      if(txt){
+        try{
+          await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
+        }catch(err){
+          console.log(err);
+        }
+      }else{
+        arq = false;
+      }
     }
   }
 
