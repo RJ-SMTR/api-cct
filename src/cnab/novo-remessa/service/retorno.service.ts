@@ -32,7 +32,7 @@ export class RetornoService {
             for (const cnabLote of retorno104.lotes) {
                 for (const registro of cnabLote.registros) {
                     const detalheA = await this.detalheAService.getDetalheARetorno(
-                        new Date('2025-02-21'),
+                        registro.detalheA.dataVencimento.convertedValue,
                         registro.detalheA.valorLancamento.convertedValue,
                         registro.detalheA.codigoBancoDestino.convertedValue,
                         registro.detalheA.contaCorrenteDestino.convertedValue
