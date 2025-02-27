@@ -101,12 +101,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {   
-    await this.remessaConsorciosExec('2025-01-24','2025-01-30','2025-01-31');
-    await this.remessaConsorciosExec('2025-01-17','2025-01-23','2025-01-24');
-    await this.remessaConsorciosExec('2025-01-10','2025-01-16','2025-01-17');
-    await this.remessaConsorciosExec('2025-01-03','2025-01-09','2025-01-10');
-    await this.remessaConsorciosExec('2024-12-27','2025-01-02','2025-01-03');
+  async onModuleLoad() {     
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
