@@ -34,6 +34,7 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import {nextFriday, nextThursday, previousFriday, isFriday, isThursday} from 'date-fns';
 
+
 /**
  * Enum CronJobServicesJobs
  */
@@ -94,15 +95,16 @@ export class CronJobsService {
   ) { }
 
 
-  onModuleInit() {
+  async onModuleInit() {
+    await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
+
   async onModuleLoad() {   
    await this.remessaModalExec();
-    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
