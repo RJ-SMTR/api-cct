@@ -5,8 +5,7 @@ import { CronJob, CronJobParameters } from 'cron';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
-import {  
-  addDays,
+import {    
   isMonday,
   isSaturday,
   isSunday,
@@ -103,8 +102,7 @@ export class CronJobsService {
   }
 
 
-  async onModuleLoad() {   
-   await this.remessaModalExec();
+  async onModuleLoad() {  
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -646,13 +644,13 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt);
   }
 
-  async remessaVLTExec(todayCustom:Date) {
+  async remessaVLTExec(todayCustom?:Date) {
     //Rodar de segunda a sexta   
     let today = todayCustom?todayCustom: new Date();
     /** defaut: qua,qui,sex,sáb,dom */
     let daysBeforeBegin = 1;
     let daysBeforeEnd = 1;
-     if (isMonday(today)) {
+    if (isMonday(today)) {
       daysBeforeBegin = 3;
       daysBeforeEnd = 3;
     } else if (isTuesday(today)) {
