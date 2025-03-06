@@ -37,7 +37,8 @@ export class RetornoService {
                         registro.detalheA.codigoBancoDestino.convertedValue,
                         registro.detalheA.contaCorrenteDestino.convertedValue
                     )
-                    this.logger.debug(`Banco: ${registro.detalheA.codigoBancoDestino.convertedValue} - agencia: ${registro.detalheA.codigoAgenciaDestino.convertedValue}
+                    this.logger.debug(`Banco: ${registro.detalheA.codigoBancoDestino.convertedValue} 
+                         - agencia: ${registro.detalheA.codigoAgenciaDestino.convertedValue}
                          - conta: ${registro.detalheA.contaCorrenteDestino.convertedValue}`);
                     if(detalheA[0])
                         await this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA[0]);
@@ -50,8 +51,7 @@ export class RetornoService {
     }
 
     private async atualizarStatusRemessaHistorico(
-        cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA
-    ) {
+        cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA){
         const historico = await this.ordemPagamentoAgrupadoService.getHistorico(detalheA.id);
 
         if (detalheA && historico) {
