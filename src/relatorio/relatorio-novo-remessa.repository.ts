@@ -19,43 +19,73 @@ import {
 @Injectable()
 export class RelatorioNovoRemessaRepository {
   private static readonly QUERY_CONSOLIDADO_VANZEIROS = `
-      select distinct op."userId", u."fullName", coalesce(da."valorLancamento", sum(op.valor)) as "valorTotal"
-      from ordem_pagamento op
-               inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
-               join lateral (
-          select opah.id,
-                 opah."dataReferencia",
-                 opah."statusRemessa",
-                 opah."motivoStatusRemessa",
-                 opah."ordemPagamentoAgrupadoId",
-                 opah."userBankCode",
-                 opah."userBankAgency",
-                 opah."userBankAccount",
-                 opah."userBankAccountDigit"
-          from ordem_pagamento_agrupado_historico opah
-          where opa.id = opah."ordemPagamentoAgrupadoId"
-            and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
-          ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
-               inner join "user" u on op."userId" = u.id
-          left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
-          where 1 = 1
-          and ("userId" = any($1) or $1 is null)
-          and (
-              ((date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null) and "statusRemessa" not in (2, 3, 4))
-               or
-              ((date_trunc('day', da."dataVencimento") BETWEEN $2 and $3 or $2 is null or $3 is null)  and "statusRemessa" in (2, 3, 4))
+      WITH latest_opah AS (
+          SELECT DISTINCT ON (opah."ordemPagamentoAgrupadoId")
+              opah."ordemPagamentoAgrupadoId",
+              opah.id AS "opahId",
+              opah."dataReferencia",
+              opah."statusRemessa",
+              opah."motivoStatusRemessa",
+              opah."userBankCode",
+              opah."userBankAgency",
+              opah."userBankAccount",
+              opah."userBankAccountDigit"
+          FROM ordem_pagamento_agrupado_historico opah
+          ORDER BY opah."ordemPagamentoAgrupadoId", opah."dataReferencia" DESC
+      )
+      SELECT
+          op."userId",
+          u."fullName",
+          COALESCE(da."valorLancamento", SUM(op.valor)) AS "valorTotal"
+      FROM ordem_pagamento op
+               JOIN ordem_pagamento_agrupado opa
+                    ON op."ordemPagamentoAgrupadoId" = opa.id
+               JOIN latest_opah l
+                    ON l."ordemPagamentoAgrupadoId" = opa.id
+               JOIN "user" u
+                    ON u.id = op."userId"
+               LEFT JOIN detalhe_a da
+                         ON da."ordemPagamentoAgrupadoHistoricoId" = l."opahId"
+      WHERE 1 = 1
+        AND (op."userId" = ANY($1) OR $1 IS NULL)
+        AND (
+          (
+              (date_trunc('day', op."dataCaptura") BETWEEN $2 AND $3 OR $2 IS NULL OR $3 IS NULL)
+                  AND l."statusRemessa" NOT IN (2, 3, 4)
+              )
+              OR
+          (
+              (date_trunc('day', da."dataVencimento") BETWEEN $2 AND $3 OR $2 IS NULL OR $3 IS NULL)
+                  AND l."statusRemessa" IN (2, 3, 4)
+              )
           )
-          and ("statusRemessa" = any($4) or $4 is null)
-          and u."cpfCnpj" not in ('18201378000119',
-                                  '12464869000176',
-                                  '12464539000180',
-                                  '12464553000184',
-                                  '44520687000161',
-                                  '12464577000133')         
-      group by op."userId", u."fullName", da."valorLancamento"
-      having (sum(op.valor) >= $5 or $5 is null)
-         and (sum(op.valor) <= $6 or $6 is null)
-      order by u."fullName"
+
+          /* statusRemessa array filter */
+        AND (
+            l."statusRemessa" = ANY($4)
+            OR (l."statusRemessa" IS NULL AND 1 = ANY($4))
+            OR $4 IS NULL
+        )
+
+          /* Exclude certain CPF/CNPJ */
+        AND u."cpfCnpj" NOT IN (
+                                '18201378000119',
+                                '12464869000176',
+                                '12464539000180',
+                                '12464553000184',
+                                '44520687000161',
+                                '12464577000133'
+          )
+      GROUP BY
+          op."userId",
+          u."fullName",
+          da."valorLancamento"
+      HAVING
+          (SUM(op.valor) >= $5 OR $5 IS NULL)
+         AND (SUM(op.valor) <= $6 OR $6 IS NULL)
+      ORDER BY
+          u."fullName";
+
   `;
 
   private static readonly QUERY_CONSOLIDADO_CONSORCIOS = `
