@@ -165,31 +165,35 @@ export class RelatorioNovoRemessaRepository {
            ),
 
            tec AS (
-               SELECT distinct 
-                   op."nomeConsorcio" AS "fullName",
-                   COALESCE(da."valorLancamento", opa."valorTotal") AS "valorTotal",
-                   opa.id as "ordemPagamentoAgrupadoId"
-               FROM ordem_pagamento op
-                        JOIN valid_aggregators va
-                             ON va."opaId" = op."ordemPagamentoAgrupadoId"
-                        JOIN "user" u
-                             ON op."userId" = u.id
-                        JOIN ordem_pagamento_agrupado opa
-                             ON op."ordemPagamentoAgrupadoId" = opa.id
-                        JOIN latest_opah l
-                             ON l."opaId" = opa.id
-                        LEFT JOIN detalhe_a da
-                                  ON da."ordemPagamentoAgrupadoHistoricoId" = l."opahId"
-               WHERE
-                   op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
-                 AND (
-                   TRIM(UPPER(op."nomeConsorcio")) = ANY($4)
-                       OR $4 IS NULL
-                   )
-               AND
-                  ( (COALESCE(da."valorLancamento", opa."valorTotal") >= $5 OR $5 IS NULL)
-                  AND
-                   COALESCE(da."valorLancamento", opa."valorTotal") <= $6 OR $6 IS NULL)
+               SELECT SUM("valorTotal") AS "valorTotal", "fullName"
+                   FROM (
+                            SELECT distinct
+                                op."nomeConsorcio" AS "fullName",
+                                COALESCE(da."valorLancamento", opa."valorTotal") AS "valorTotal",
+                                opa.id AS "ordemPagamentoAgrupadoId"
+                            FROM ordem_pagamento op
+                                     JOIN valid_aggregators va
+                                          ON va."opaId" = op."ordemPagamentoAgrupadoId"
+                                     JOIN "user" u
+                                          ON op."userId" = u.id
+                                     JOIN ordem_pagamento_agrupado opa
+                                          ON op."ordemPagamentoAgrupadoId" = opa.id
+                                     JOIN latest_opah l
+                                          ON l."opaId" = opa.id
+                                     LEFT JOIN detalhe_a da
+                                               ON da."ordemPagamentoAgrupadoHistoricoId" = l."opahId"
+                            WHERE
+                                op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
+                              AND (
+                                TRIM(UPPER(op."nomeConsorcio")) = ANY($4)
+                                    OR $4 IS NULL
+                                )
+                              AND
+                                ( (COALESCE(da."valorLancamento", opa."valorTotal") >= $5 OR $5 IS NULL)
+                                      AND
+                                  COALESCE(da."valorLancamento", opa."valorTotal") <= $6 OR $6 IS NULL)
+                   ) aux  
+                   GROUP BY "fullName"
            )
 
       SELECT "fullName", "valorTotal"
