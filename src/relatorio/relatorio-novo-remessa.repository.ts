@@ -165,7 +165,7 @@ export class RelatorioNovoRemessaRepository {
            ),
 
            tec AS (
-               SELECT
+               SELECT distinct 
                    op."nomeConsorcio" AS "fullName",
                    SUM(COALESCE(da."valorLancamento", opa."valorTotal")) AS "valorTotal"
                FROM ordem_pagamento op
