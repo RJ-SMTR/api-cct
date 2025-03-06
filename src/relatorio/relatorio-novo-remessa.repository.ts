@@ -167,7 +167,8 @@ export class RelatorioNovoRemessaRepository {
            tec AS (
                SELECT distinct 
                    op."nomeConsorcio" AS "fullName",
-                   SUM(COALESCE(da."valorLancamento", opa."valorTotal")) AS "valorTotal"
+                   COALESCE(da."valorLancamento", opa."valorTotal") AS "valorTotal",
+                   opa.id as "ordemPagamentoAgrupadoId"
                FROM ordem_pagamento op
                         JOIN valid_aggregators va
                              ON va."opaId" = op."ordemPagamentoAgrupadoId"
@@ -185,11 +186,10 @@ export class RelatorioNovoRemessaRepository {
                    TRIM(UPPER(op."nomeConsorcio")) = ANY($4)
                        OR $4 IS NULL
                    )
-               GROUP BY op."nomeConsorcio"
-               HAVING
-                   (SUM(COALESCE(da."valorLancamento", opa."valorTotal")) >= $5 OR $5 IS NULL)
+               AND
+                  ( (COALESCE(da."valorLancamento", opa."valorTotal") >= $5 OR $5 IS NULL)
                   AND
-                   (SUM(COALESCE(da."valorLancamento", opa."valorTotal")) <= $6 OR $6 IS NULL)
+                   COALESCE(da."valorLancamento", opa."valorTotal") <= $6 OR $6 IS NULL)
            )
 
       SELECT "fullName", "valorTotal"
