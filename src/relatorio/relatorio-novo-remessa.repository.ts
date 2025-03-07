@@ -14,133 +14,189 @@ import { fi } from 'date-fns/locale';
 export class RelatorioNovoRemessaRepository {
 
   private static readonly QUERY_CONSOLIDADO_VANZEIROS = `
-      select distinct op."userId", u."fullName", coalesce(da."valorLancamento", sum(op.valor)) as "valorTotal"
-      from ordem_pagamento op
-               inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
-               join lateral (
-          select opah.id,
-                 opah."dataReferencia",
-                 opah."statusRemessa",
-                 opah."motivoStatusRemessa",
-                 opah."ordemPagamentoAgrupadoId",
-                 opah."userBankCode",
-                 opah."userBankAgency",
-                 opah."userBankAccount",
-                 opah."userBankAccountDigit"
-          from ordem_pagamento_agrupado_historico opah
-          where opa.id = opah."ordemPagamentoAgrupadoId"
-            and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
-          ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
-               inner join "user" u on op."userId" = u.id
-          left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
-          where 1 = 1
-          and ("userId" = any($1) or $1 is null)
-          and (
-              ((date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null) and "statusRemessa" not in (2, 3, 4))
-               or
-              ((date_trunc('day', da."dataVencimento") BETWEEN $2 and $3 or $2 is null or $3 is null)  and "statusRemessa" in (2, 3, 4))
+      WITH latest_opah AS (
+          SELECT DISTINCT ON (opah."ordemPagamentoAgrupadoId")
+              opah."ordemPagamentoAgrupadoId",
+              opah.id AS "opahId",
+              opah."dataReferencia",
+              opah."statusRemessa",
+              opah."motivoStatusRemessa",
+              opah."userBankCode",
+              opah."userBankAgency",
+              opah."userBankAccount",
+              opah."userBankAccountDigit"
+          FROM ordem_pagamento_agrupado_historico opah
+          ORDER BY opah."ordemPagamentoAgrupadoId", opah."dataReferencia" DESC
+      )
+      SELECT
+          op."userId",
+          u."fullName",
+          COALESCE(da."valorLancamento", SUM(op.valor)) AS "valorTotal"
+      FROM ordem_pagamento op
+               JOIN ordem_pagamento_agrupado opa
+                    ON op."ordemPagamentoAgrupadoId" = opa.id
+               JOIN latest_opah l
+                    ON l."ordemPagamentoAgrupadoId" = opa.id
+               JOIN "user" u
+                    ON u.id = op."userId"
+               LEFT JOIN detalhe_a da
+                         ON da."ordemPagamentoAgrupadoHistoricoId" = l."opahId"
+      WHERE 1 = 1
+        AND (op."userId" = ANY($1) OR $1 IS NULL)
+        AND (
+          (
+              (date_trunc('day', op."dataCaptura") BETWEEN $2 AND $3 OR $2 IS NULL OR $3 IS NULL)
+                  AND l."statusRemessa" NOT IN (2, 3, 4)
+              )
+              OR
+          (
+              (date_trunc('day', da."dataVencimento") BETWEEN $2 AND $3 OR $2 IS NULL OR $3 IS NULL)
+                  AND l."statusRemessa" IN (2, 3, 4)
+              )
           )
-          and ("statusRemessa" = any($4) or $4 is null)
-          and u."cpfCnpj" not in ('18201378000119',
-                                  '12464869000176',
-                                  '12464539000180',
-                                  '12464553000184',
-                                  '44520687000161',
-                                  '12464577000133')         
-      group by op."userId", u."fullName", da."valorLancamento"
-      having (sum(op.valor) >= $5 or $5 is null)
-         and (sum(op.valor) <= $6 or $6 is null)
-      order by u."fullName"
+
+          /* statusRemessa array filter */
+        AND (
+            l."statusRemessa" = ANY($4)
+            OR (l."statusRemessa" IS NULL AND 1 = ANY($4))
+            OR $4 IS NULL
+        )
+
+          /* Exclude certain CPF/CNPJ */
+        AND u."cpfCnpj" NOT IN (
+                                '18201378000119',
+                                '12464869000176',
+                                '12464539000180',
+                                '12464553000184',
+                                '44520687000161',
+                                '12464577000133'
+          )
+      GROUP BY
+          op."userId",
+          u."fullName",
+          da."valorLancamento"
+      HAVING
+          (SUM(op.valor) >= $5 OR $5 IS NULL)
+         AND (SUM(op.valor) <= $6 OR $6 IS NULL)
+      ORDER BY
+          u."fullName";
+
   `;
 
-
   private static readonly QUERY_CONSOLIDADO_CONSORCIOS = `
-      select "fullName", sum("valorTotal") as "valorTotal"
-      from (
-               select "fullName",
-                      coalesce(
-                              (select "valorLancamento"
-                               from detalhe_a da
-                               where da."ordemPagamentoAgrupadoHistoricoId" = aux."ordemPagamentoAgrupadoHistoricoId"),
-                              "valorTotal") as "valorTotal"
-               from (
-                        select distinct op."nomeConsorcio" as "fullName",
-                                        sum(op.valor) as "valorTotal",
-                                        opah."id" as "ordemPagamentoAgrupadoHistoricoId"
-                        from ordem_pagamento op
-                                 left join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
-                                 left join lateral (
-                            select opah.id,
-                                   opah."dataReferencia",
-                                   opah."statusRemessa",
-                                   opah."motivoStatusRemessa",
-                                   opah."ordemPagamentoAgrupadoId",
-                                   opah."userBankCode",
-                                   opah."userBankAgency",
-                                   opah."userBankAccount",
-                                   opah."userBankAccountDigit"
-                            from ordem_pagamento_agrupado_historico opah
-                            where opa.id = opah."ordemPagamentoAgrupadoId"
-                              and opah."dataReferencia" = (select max("dataReferencia") from ordem_pagamento_agrupado_historico where "ordemPagamentoAgrupadoId" = opa.id)
-                            ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
-                                 inner join "user" u on op."userId" = u.id
-                                 left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
-                        where 1 = 1
-                          and (
-                            ((date_trunc('day', op."dataCaptura") BETWEEN $1 and $2 or $1 is null or $2 is null) and "statusRemessa" not in (2, 3, 4))
-                                or
-                            ((date_trunc('day', da."dataVencimento") BETWEEN $1 and $2 or $1 is null or $2 is null) and "statusRemessa" in (2, 3, 4))
-                            )
-                          and ("statusRemessa" = any($3) or $3 is null or ("statusRemessa" is null and 1 = any($3)))
-                          and (trim(upper("nomeConsorcio")) = any($4) or $4 is null)
-                          and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))
-                        group by op."nomeConsorcio", opah.id, da."valorLancamento"
-                    ) aux
-           ) aux2
-      where ("valorTotal" >= $5 or $5 is null) and ("valorTotal" <= $6 or $6 is null)
-      group by "fullName"
-      
-      union
+      WITH latest_opah AS (
+          SELECT DISTINCT ON (opah."ordemPagamentoAgrupadoId")
+              opah."ordemPagamentoAgrupadoId" AS "opaId",
+              opah.id                         AS "opahId",
+              opah."dataReferencia",
+              opah."statusRemessa",
+              opah."motivoStatusRemessa",
+              opah."userBankCode",
+              opah."userBankAgency",
+              opah."userBankAccount",
+              opah."userBankAccountDigit"
+          FROM ordem_pagamento_agrupado_historico opah
+          ORDER BY opah."ordemPagamentoAgrupadoId", opah."dataReferencia" DESC
+      ),
 
-      select "fullName",
-             sum("valorTotal") as "valorTotal"
-      from (
-               select distinct op."nomeConsorcio"        as "fullName",
-                               coalesce(da."valorLancamento", opa."valorTotal") as "valorTotal",
-                               opa.id
-               from ordem_pagamento op
-                        inner join public.ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
-                        inner join lateral (
-                   select opah.id,
-                          opah."dataReferencia",
-                          opah."statusRemessa",
-                          opah."motivoStatusRemessa",
-                          opah."ordemPagamentoAgrupadoId",
-                          opah."userBankCode",
-                          opah."userBankAgency",
-                          opah."userBankAccount",
-                          opah."userBankAccountDigit"
-                   from ordem_pagamento_agrupado_historico opah
-                   where opa.id = opah."ordemPagamentoAgrupadoId"
-                     and opah."dataReferencia" = (select max("dataReferencia")
-                                                  from ordem_pagamento_agrupado_historico
-                                                  where "ordemPagamentoAgrupadoId" = opa.id)
-                   ) opah on opah."ordemPagamentoAgrupadoId" = opa.id
-                        inner join "user" u on op."userId" = u.id
-                        left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
-               where 1 = 1
-                 and (
-                   ((date_trunc('day', op."dataCaptura") BETWEEN $1 and $2 or $1 is null or $2 is null) and "statusRemessa" not in (2, 3, 4))
-                       or
-                   ((date_trunc('day', da."dataVencimento") BETWEEN $1 and $2 or $1 is null or $2 is null) and "statusRemessa" in (2, 3, 4))
+           valid_aggregators AS (
+               SELECT DISTINCT op."ordemPagamentoAgrupadoId" AS "opaId"
+               FROM ordem_pagamento op
+                        JOIN latest_opah l
+                             ON l."opaId" = op."ordemPagamentoAgrupadoId"
+                        LEFT JOIN detalhe_a da
+                                  ON da."ordemPagamentoAgrupadoHistoricoId" = l."opahId"
+               WHERE
+                   (
+                       (
+                           (date_trunc('day', op."dataCaptura") BETWEEN $1 AND $2 OR $1 IS NULL OR $2 IS NULL)
+                               AND l."statusRemessa" NOT IN (2, 3, 4)
+                           )
+                           OR
+                       (
+                           (date_trunc('day', da."dataVencimento") BETWEEN $1 AND $2 OR $1 IS NULL OR $2 IS NULL)
+                               AND l."statusRemessa" IN (2, 3, 4)
+                           )
+                       )
+                 AND (
+                       l."statusRemessa" = ANY($3)
+                       OR (l."statusRemessa" IS NULL AND 1 = ANY($3))
+                       OR $3 IS NULL
                    )
-                 and ($3 is null or "statusRemessa" = any($3) or ("statusRemessa" is null and 1 = any($3)))
-                 and (trim(upper("nomeConsorcio")) = any($4) or $4 is null)
-                 and (op."nomeConsorcio" in ('STPC', 'STPL', 'TEC'))
-           ) as oooud
-      group by "fullName"
-      having (sum("valorTotal") >= $5 or $5 is null) and (sum("valorTotal") <= $6 or $6 is null)
-      order by "fullName"
+           ),
+
+           not_tec AS (
+               SELECT
+                   sub."fullName",
+                   SUM(COALESCE(da."valorLancamento", sub.sum_valor)) AS "valorTotal"
+               FROM (
+                        SELECT
+                            op."ordemPagamentoAgrupadoId" AS "opaId",
+                            op."nomeConsorcio"           AS "fullName",
+                            SUM(op.valor)                AS sum_valor
+                        FROM ordem_pagamento op
+                                 JOIN "user" u ON u.id = op."userId"
+                        WHERE op."nomeConsorcio" NOT IN ('STPC', 'STPL', 'TEC')
+                        GROUP BY op."ordemPagamentoAgrupadoId", op."nomeConsorcio"
+                    ) sub
+                        JOIN valid_aggregators va
+                             ON va."opaId" = sub."opaId"
+                        JOIN ordem_pagamento_agrupado opa
+                             ON opa.id = sub."opaId"
+                        JOIN latest_opah l
+                             ON l."opaId" = opa.id
+                        LEFT JOIN detalhe_a da
+                                  ON da."ordemPagamentoAgrupadoHistoricoId" = l."opahId"
+               WHERE
+                   (
+                       TRIM(UPPER(sub."fullName")) = ANY($4)
+                           OR $4 IS NULL
+                       )
+               GROUP BY sub."fullName"
+               HAVING
+                   (SUM(COALESCE(da."valorLancamento", sub.sum_valor)) >= $5 OR $5 IS NULL)
+                  AND
+                   (SUM(COALESCE(da."valorLancamento", sub.sum_valor)) <= $6 OR $6 IS NULL)
+           ),
+
+           tec AS (
+               SELECT SUM("valorTotal") AS "valorTotal", "fullName"
+                   FROM (
+                            SELECT distinct
+                                op."nomeConsorcio" AS "fullName",
+                                COALESCE(da."valorLancamento", opa."valorTotal") AS "valorTotal",
+                                opa.id AS "ordemPagamentoAgrupadoId"
+                            FROM ordem_pagamento op
+                                     JOIN valid_aggregators va
+                                          ON va."opaId" = op."ordemPagamentoAgrupadoId"
+                                     JOIN "user" u
+                                          ON op."userId" = u.id
+                                     JOIN ordem_pagamento_agrupado opa
+                                          ON op."ordemPagamentoAgrupadoId" = opa.id
+                                     JOIN latest_opah l
+                                          ON l."opaId" = opa.id
+                                     LEFT JOIN detalhe_a da
+                                               ON da."ordemPagamentoAgrupadoHistoricoId" = l."opahId"
+                            WHERE
+                                op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
+                              AND (
+                                TRIM(UPPER(op."nomeConsorcio")) = ANY($4)
+                                    OR $4 IS NULL
+                                )
+                              AND
+                                ( (COALESCE(da."valorLancamento", opa."valorTotal") >= $5 OR $5 IS NULL)
+                                      AND
+                                  COALESCE(da."valorLancamento", opa."valorTotal") <= $6 OR $6 IS NULL)
+                   ) aux  
+                   GROUP BY "fullName"
+           )
+
+      SELECT "fullName", "valorTotal"
+      FROM not_tec
+      UNION
+      SELECT "fullName", "valorTotal"
+      FROM tec
+      ORDER BY "fullName";
   `;
 
   private static readonly QUERY_SINTETICO = `
