@@ -640,7 +640,7 @@ export class CronJobsService {
     const txt = await this.remessaService.gerarCnabText(headerName);
 
     //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt);
+    await this.remessaService.enviarRemessa(txt,headerName);
   }
 
   async remessaVLTExec(todayCustom?:Date) {
