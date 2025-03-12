@@ -151,9 +151,9 @@ export class RemessaService {
 
 
   //PEGA O ARQUIVO TXT GERADO E ENVIA PARA O SFTP
-  public async enviarRemessa(listCnab: ICnabInfo[]) {
+  public async enviarRemessa(listCnab: ICnabInfo[],headerName?: string) {
     for (const cnab of listCnab) {
-      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content);
+      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content,headerName);
       const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
       await this.headerArquivoService.save({
         id: cnab.headerArquivo.id, remessaName,
