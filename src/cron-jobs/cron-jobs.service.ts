@@ -101,8 +101,8 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {  
-    await this.remessaModalExec();
+
+  async onModuleLoad(){
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -635,7 +635,7 @@ export class CronJobsService {
         dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
     }
     // Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, consorcios);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim,dataPagamento, consorcios);
 
     //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName);
@@ -643,6 +643,7 @@ export class CronJobsService {
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt,headerName);
   }
+
 
   async remessaVLTExec(todayCustom?:Date) {
     //Rodar de segunda a sexta   
@@ -672,8 +673,7 @@ export class CronJobsService {
     const today = new Date();
     const dataInicio = subDays(today, 7);
     const dataFim = subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio, dataFim,today,
-      ['STPC', 'STPL', 'TEC'], HeaderName.MODAL);
+    await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL);
   }
 
   async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string) {

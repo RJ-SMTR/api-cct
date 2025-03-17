@@ -38,8 +38,8 @@ export class OrdemPagamentoAgrupadoService {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador,consorcios);
   }
 
-  async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined) {
-    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,consorcio);
+  async getOrdens(dataInicio: Date, dataFim: Date,dataPgto:Date, consorcio: string[] | undefined) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,dataPgto,consorcio);
   }
 
 
