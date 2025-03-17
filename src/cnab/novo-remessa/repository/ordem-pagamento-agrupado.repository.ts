@@ -36,16 +36,17 @@ export class OrdemPagamentoAgrupadoRepository {
     return await this.ordemPagamentoAgrupadoRepository.find({});
   }
 
-  public async findAllCustom(dataInicio:Date,dataFim:Date,nomeConsorcio?:string[],statusRemessa?:StatusRemessaEnum): Promise<OrdemPagamentoAgrupado[]> {
+  public async findAllCustom(dataInicio:Date,dataFim:Date,dataPgto:Date,nomeConsorcio?:string[],statusRemessa?:StatusRemessaEnum): Promise<OrdemPagamentoAgrupado[]> {
     const dataIniForm = formatDateISODate(dataInicio)
     const dataFimForm = formatDateISODate(dataFim)
+    const dataPgtoForm = formatDateISODate(dataPgto)
     let query = ` select distinct opa.* from ordem_pagamento op
 					        inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
 							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
 							                            and oph."dataReferencia" =
                                           (select max(ophh."dataReferencia") from ordem_pagamento_agrupado_historico ophh
 					                                where ophh."ordemPagamentoAgrupadoId"=op."ordemPagamentoAgrupadoId") 
-                  where (1=1) `
+                  where (oph."dataReferencia"='${dataPgtoForm}') `
                   
     if(statusRemessa === undefined || statusRemessa === StatusRemessaEnum.Criado){
       query = query +` and oph."statusRemessa"= 0 `;
