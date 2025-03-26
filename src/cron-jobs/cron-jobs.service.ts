@@ -102,6 +102,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad(){  
+    await this.remessaVLTExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -640,7 +641,7 @@ export class CronJobsService {
     const txt = await this.remessaService.gerarCnabText(headerName);
 
     //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt,headerName);
+   await this.remessaService.enviarRemessa(txt,headerName);
   }
 
 
@@ -669,9 +670,13 @@ export class CronJobsService {
 
   async remessaModalExec() {
     //Rodar Sexta 
-    const today = new Date();
-    const dataInicio = subDays(today, 7);
-    const dataFim = subDays(today, 1); 
+    const today = new Date('2025-01-03');
+    const dataInicio = new Date('2024-12-27');
+    const dataFim =new Date('2025-01-02');
+
+    // const today = new Date();
+    // const dataInicio = subDays(today, 7);
+    // const dataFim = subDays(today, 1); 
     await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL);
   }
 
@@ -700,7 +705,7 @@ export class CronJobsService {
     }
   }
 
-  async sincronizarEAgruparOrdensPagamento() {
+  async sincronizarEAgruparOrdensPagamento(){
     const METHOD = 'sincronizarEAgruparOrdensPagamento';
     this.logger.log('Tentando adquirir lock para execução da tarefa de sincronização e agrupamento.');
     const locked = await this.distributedLockService.acquireLock(METHOD);
@@ -708,9 +713,10 @@ export class CronJobsService {
       try {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
         // Sincroniza as ordens de pagamento para todos os modais e consorcios
-        const nextThursday = this.getNextThursday();
-        const lastFriday = this.getLastFriday();
-        const nextFriday = this.getNextFriday();
+        
+        const lastFriday =  new Date('2024-12-27') //this.getLastFriday();
+        const nextThursday = new Date('2025-01-02') //this.getNextThursday();
+        const nextFriday =  new Date('2025-01-03') //this.getNextFriday();
         this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${lastFriday.toISOString()}, Data Fim: ${nextThursday.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
         await this.ordemPagamentoService.sincronizarOrdensPagamento(lastFriday, nextThursday, consorciosEModais);

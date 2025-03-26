@@ -30,6 +30,8 @@ import { CnabFile104PgtoDTO } from "src/cnab/interfaces/cnab-240/104/pagamento/c
 import { CnabHeaderLote104PgtoDTO } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface";
 import { stringifyCnab104File } from "src/cnab/utils/cnab/cnab-104-utils";
 import { CnabHeaderArquivo104DTO } from "src/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto";
+import { PagamentoIndevidoService } from "src/pagamento_indevido/service/pgamento-indevido-service";
+import { PagamentoIndevidoDTO } from "src/pagamento_indevido/dto/pagamento-indevido.dto";
 
 @Injectable()
 export class RemessaService {
@@ -44,7 +46,8 @@ export class RemessaService {
     private settingsService: SettingsService,
     private userService: UsersService,
     private sftpService: SftpService,
-    private pagadorService: PagadorService
+    private pagadorService: PagadorService,
+    private pagamentoIndevidoService: PagamentoIndevidoService 
   ) { }
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
@@ -60,20 +63,23 @@ export class RemessaService {
         for (let i = 0; i < ordens.length; i++) {
           const op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
           if (op != null) {
-            const user = await this.userService.getOne({ id: op.userId });
+            const user = await this.userService.getOne({ id: op.userId });            
+
             if (user.bankCode) {
+              let indevido = await this.pagamentoIndevidoService.findByNome(user.fullName);
+
               const headerLote = await this.gerarHeaderLote(headerArquivo, pagador, user.bankCode);
               let detB;
               if (headerLote) {
                 if (headerLote.formaLancamento === '41') {
-                  detB = await this.gerarDetalheAB(headerLote, op.ordemPagamentoAgrupado, nsrTed);
+                  detB = await this.gerarDetalheAB(headerLote, op.ordemPagamentoAgrupado, nsrTed,indevido?indevido[0]:indevido);
                   if (detB !== null) {
                     this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                     this.logger.debug(`Remessa preparado para: ${user.fullName} - TED`);
                     nsrTed = detB.nsr + 1;
                   }
                 } else {
-                  detB = await this.gerarDetalheAB(headerLote, op.ordemPagamentoAgrupado, nsrCC);
+                  detB = await this.gerarDetalheAB(headerLote, op.ordemPagamentoAgrupado, nsrCC,indevido?indevido[0]:indevido);
                   if (detB !== null) {
                     this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                     this.logger.debug(`Remessa preparado para: ${user.fullName} - CC`);
@@ -195,13 +201,13 @@ export class RemessaService {
     }
   }
 
-  private async gerarDetalheAB(headerLote: HeaderLote, ordem: OrdemPagamentoAgrupado, nsr: number) {
+  private async gerarDetalheAB(headerLote: HeaderLote, ordem: OrdemPagamentoAgrupado, nsr: number,indevido?:PagamentoIndevidoDTO) {
     const ultimoHistorico = ordem.ordensPagamentoAgrupadoHistorico[ordem.ordensPagamentoAgrupadoHistorico.length - 1];
     const detalheA = await this.existsDetalheA(ultimoHistorico)
 
     const numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());
 
-    const detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr, ultimoHistorico, numeroDocumento);
+    const detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr, ultimoHistorico, numeroDocumento);   
 
     if (detalheA.length > 0) {
       detalheADTO.id = detalheA[0].id;

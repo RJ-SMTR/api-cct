@@ -255,11 +255,19 @@ export class CnabService {
   // }
 
   public async sendRemessa(listCnab: ICnabInfo[]) {
+    let remessaEnviado = false;
     for (const cnab of listCnab) {
-      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content);
-      const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();     
-      await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName,
-        status: HeaderArquivoStatus._3_remessaEnviado });      
+      while(remessaEnviado){
+        try{
+          cnab.name = await this.sftpService.submitCnabRemessa(cnab.content);
+          const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();     
+          await this.headerArquivoService.save({ id: cnab.headerArquivo.id, remessaName,
+            status: HeaderArquivoStatus._3_remessaEnviado });   
+            remessaEnviado = true   
+        }catch(errors){
+          this.logger.error(`Ocorreu o seguinte erro ao tentar enviar para o SFTP: ${ errors}`);
+        }
+      }
     }
   }
 
