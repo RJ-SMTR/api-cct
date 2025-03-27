@@ -670,13 +670,9 @@ export class CronJobsService {
 
   async remessaModalExec() {
     //Rodar Sexta 
-    const today = new Date('2025-01-03');
-    const dataInicio = new Date('2024-12-27');
-    const dataFim =new Date('2025-01-02');
-
-    // const today = new Date();
-    // const dataInicio = subDays(today, 7);
-    // const dataFim = subDays(today, 1); 
+    const today = new Date();
+    const dataInicio = subDays(today, 7);
+    const dataFim = subDays(today, 1); 
     await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL);
   }
 

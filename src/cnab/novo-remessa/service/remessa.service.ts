@@ -206,8 +206,12 @@ export class RemessaService {
     const detalheA = await this.existsDetalheA(ultimoHistorico)
 
     const numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());
+    let detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr, ultimoHistorico, numeroDocumento);   
 
-    const detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr, ultimoHistorico, numeroDocumento);   
+    if(indevido && (indevido.saldoDevedor > 0) && detalheADTO.valorLancamento){
+      detalheADTO.valorLancamento = detalheADTO.valorLancamento - indevido.saldoDevedor;
+      detalheADTO.valorRealEfetivado = detalheADTO.valorLancamento - indevido.saldoDevedor;
+    }   
 
     if (detalheA.length > 0) {
       detalheADTO.id = detalheA[0].id;
