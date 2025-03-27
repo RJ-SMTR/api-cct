@@ -22,34 +22,24 @@ export class HeaderLoteToDetalheA {
     if (nomeConsorcio === 'Intersul') {
       da.valorLancamento = 251407.70;
       da.valorRealEfetivado = 251407.70;
-    }
-
-    if (nomeConsorcio === 'Transcarioca') {
+    }else if (nomeConsorcio === 'Transcarioca') {
       da.valorLancamento = 493902.78;
       da.valorRealEfetivado = 493902.78;
-    }
-
-    if (nomeConsorcio === 'Internorte') {
+    }else if (nomeConsorcio === 'Internorte') {
       da.valorLancamento = 557045.54;
       da.valorRealEfetivado = 557045.54;
-    }
-
-    if (nomeConsorcio === 'MobiRio') {
-      da.valorLancamento = ordem.valorTotal;
-      da.valorRealEfetivado = ordem.valorTotal;
-    }
-
-    if (nomeConsorcio === 'Santa Cruz') {
+    }else if (nomeConsorcio === 'Santa Cruz') {
       da.valorLancamento = 476517.54;
       da.valorRealEfetivado = 476517.54;
+    }else {
+      da.valorLancamento = ordem.valorTotal;
+      da.valorRealEfetivado = ordem.valorTotal;
     }
 
     da.headerLote = headerLote;
     da.nsr = nsr;
     da.dataVencimento = hist?.dataReferencia ?? ordem.dataPagamento;
-    da.periodoVencimento = ordem.dataPagamento;
-    // da.valorLancamento = ordem.valorTotal;
-    // da.valorRealEfetivado = ordem.valorTotal;
+    da.periodoVencimento = ordem.dataPagamento;  
     da.numeroDocumentoEmpresa = numeroDocumento;
     da.indicadorBloqueio = 'N';
     da.quantidadeMoeda = 0;
