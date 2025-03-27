@@ -52,7 +52,8 @@ export class RelatorioConsolidadoRepository {
 
     this.logger.debug(query);           
     return query;             
-  }  
+  }
+    
   
   private getQueryConsorcio(dataInicio:string,dataFim:string,pago?:boolean,
     valorMin?:number,valorMax?:number,nomeConsorcio?:string[],emProcessamento?:boolean){ 
@@ -137,7 +138,32 @@ export class RelatorioConsolidadoRepository {
     this.logger.debug(query);
     return query;
   }
-  
+// usar essa query comentada no getQueryOperadores e usar mesma lógica pro consorcio, usar valor real efetivado/dataEfetivacao
+//  ao inves de pesquisar por nome de usuario pesquisar por userId
+// SELECT *
+//     FROM(
+//       SELECT DISTINCT
+//             ita.id, da."dataVencimento":: DATE, cf.nome, cf."cpfCnpj", ita."nomeConsorcio", da."valorLancamento", da."valorRealEfetivado", ap."isPago", da."ocorrenciasCnab"
+//       FROM
+//             transacao_agrupado ta
+//             INNER JOIN item_transacao_agrupado ita ON ita."transacaoAgrupadoId" = ta."id"
+//       INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
+//             INNER JOIN item_transacao it ON ita.id = it."itemTransacaoAgrupadoId"
+//       INNER JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id
+//             INNER JOIN cliente_favorecido cf ON cf.id = it."clienteFavorecidoId"
+//       WHERE
+//           
+//               ita."nomeConsorcio" IN('STPC', 'STPL', 'TEC')
+//             AND ta."statusId" <> 5
+  // 
+// --AND ita."idOrdemPagamento" NOT LIKE '%U%'
+//             AND TRIM(da."ocorrenciasCnab") <> ''
+//     ) AS subquery
+// GROUP BY
+// subquery.id,
+//   nome
+// ORDER BY "dataVencimento", nome, "isPago"
+
   private getQueryOperadores(dataInicio:string,dataFim:string,pago?:boolean,valorMin?:number,
     valorMax?:number,favorecidoNome?:string[],emProcessamento?:boolean){
       let query = ` select * from ( `;
@@ -153,7 +179,7 @@ export class RelatorioConsolidadoRepository {
                         inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                         inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
                         inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"	  			
-                        where ta."statusId"<>5 and ita."nomeConsorcio" in('STPC','STPL','TEC') `;
+                        where ta."statusId"<>5 and ita."nomeConsorcio" in('STPC','STPL','TEC')`;
                         if(dataInicio!==undefined && dataFim!==undefined &&
                           (dataFim === dataInicio ||  new Date(dataFim)>new Date(dataInicio))) 
                           query = query +` and da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
@@ -163,13 +189,13 @@ export class RelatorioConsolidadoRepository {
                             query = query + ` and	ap."isPago"=${pago} and TRIM(da."ocorrenciasCnab")<>'' `;
                           }    
                        
-                        
+                        // Não pesquisar por nome --> usar userId
                         if(favorecidoNome!==undefined && !(['Todos'].some(i=>favorecidoNome?.includes(i))))
                           query = query +` and cf.nome in('${favorecidoNome?.join("','")}')`;
 
                         query = query +  `) as cs `;                                   
 
-                        query = query + ` group by cs."consorcio", cs."favorecido" `;
+                        query = query + ` group by  cs.id, cs."favorecido" `;
 
                         query = query + ` order by  cs."favorecido" `;
 

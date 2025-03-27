@@ -50,7 +50,7 @@ export class RelatorioNovoRemessaRepository {
               )
               OR
           (
-              (date_trunc('day', da."dataVencimento") BETWEEN $2 AND $3 OR $2 IS NULL OR $3 IS NULL)
+              (date_trunc('day', da."dataEfetivacao") BETWEEN $2 AND $3 OR $2 IS NULL OR $3 IS NULL)
                   AND l."statusRemessa" IN (2, 3, 4)
               )
           )
@@ -61,6 +61,10 @@ export class RelatorioNovoRemessaRepository {
             OR (l."statusRemessa" IS NULL AND 1 = ANY($4))
             OR $4 IS NULL
         )
+      AND (
+    (l."statusRemessa" != 3 AND l."motivoStatusRemessa" NOT IN ('AM'))
+    OR l."statusRemessa" = 3)
+
 
           /* Exclude certain CPF/CNPJ */
         AND u."cpfCnpj" NOT IN (
@@ -114,7 +118,7 @@ export class RelatorioNovoRemessaRepository {
                            )
                            OR
                        (
-                           (date_trunc('day', da."dataVencimento") BETWEEN $1 AND $2 OR $1 IS NULL OR $2 IS NULL)
+                           (date_trunc('day', da."dataEfetivacao") BETWEEN $1 AND $2 OR $1 IS NULL OR $2 IS NULL)
                                AND l."statusRemessa" IN (2, 3, 4)
                            )
                        )
@@ -123,6 +127,8 @@ export class RelatorioNovoRemessaRepository {
                        OR (l."statusRemessa" IS NULL AND 1 = ANY($3))
                        OR $3 IS NULL
                    )
+                       AND l."motivoStatusRemessa" NOT IN ('AM')
+                    
            ),
 
            not_tec AS (
@@ -162,10 +168,10 @@ export class RelatorioNovoRemessaRepository {
            tec AS (
                SELECT SUM("valorTotal") AS "valorTotal", "fullName"
                    FROM (
-                            SELECT distinct
-                                op."nomeConsorcio" AS "fullName",
-                                COALESCE(da."valorLancamento", opa."valorTotal") AS "valorTotal",
-                                opa.id AS "ordemPagamentoAgrupadoId"
+                             SELECT distinct on (op."ordemPagamentoAgrupadoId")
+                    op."nomeConsorcio" AS "fullName", COALESCE(
+                        da."valorLancamento"
+                    ) AS "valorTotal"
                             FROM ordem_pagamento op
                                      JOIN valid_aggregators va
                                           ON va."opaId" = op."ordemPagamentoAgrupadoId"
@@ -234,12 +240,12 @@ export class RelatorioNovoRemessaRepository {
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
   private logger = new CustomLogger(RelatorioNovoRemessaRepository.name, { timestamp: true });
 
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
     if (filter.consorcioNome) {
-      filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
+      filter.consorcioNome = filter.consorcioNome.map((c) => { return c.toUpperCase().trim(); });
     }
 
     const parametersQueryVanzeiros =
@@ -264,9 +270,9 @@ export class RelatorioNovoRemessaRepository {
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result : any[] = [];
-    let resultConsorciosEModais : any[] = [];
-    let resultVanzeiros : any[] = [];
+    let result: any[] = [];
+    let resultConsorciosEModais: any[] = [];
+    let resultVanzeiros: any[] = [];
 
     if (filter.todosVanzeiros) {
       filter.userIds = undefined;
@@ -316,7 +322,7 @@ export class RelatorioNovoRemessaRepository {
     this.logger.debug(RelatorioNovoRemessaRepository.QUERY_SINTETICO);
 
     if (filter.consorcioNome) {
-      filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
+      filter.consorcioNome = filter.consorcioNome.map((c) => { return c.toUpperCase().trim(); });
     }
 
     const parameters =
