@@ -48,8 +48,8 @@ export class HeaderLoteToDetalheA {
     da.nsr = nsr;
     da.dataVencimento = hist?.dataReferencia ?? ordem.dataPagamento;
     da.periodoVencimento = ordem.dataPagamento;
-    da.valorLancamento = ordem.valorTotal;
-    da.valorRealEfetivado = ordem.valorTotal;
+    // da.valorLancamento = ordem.valorTotal;
+    // da.valorRealEfetivado = ordem.valorTotal;
     da.numeroDocumentoEmpresa = numeroDocumento;
     da.indicadorBloqueio = 'N';
     da.quantidadeMoeda = 0;
