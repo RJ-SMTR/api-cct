@@ -7,7 +7,6 @@ import {
   RelatorioConsolidadoNovoRemessaData,
   RelatorioConsolidadoNovoRemessaDto,
 } from './dtos/relatorio-consolidado-novo-remessa.dto';
-import { debug } from 'console';
 
 @Injectable()
 export class RelatorioNovoRemessaDetalhadoRepository {
