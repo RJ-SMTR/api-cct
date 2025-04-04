@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IFindPublicacaoRelatorioNovoRemessa } from './interfaces/find-publicacao-relatorio-novo-remessa.interface';
+import { IFindPublicacaoRelatorioNovoDetalhado } from './interfaces/filter-publicacao-relatorio-novo-detalhado.interface';
 import { RelatorioNovoRemessaDetalhadoRepository } from './relatorio-novo-remessa-detalhado.repository';
 
 @Injectable()
@@ -10,11 +10,13 @@ export class RelatorioNovoRemessaDetalhadoService {
   /**
    * Gerar relatórios detalhado - agrupados por Favorecido.
    */
-  async findDetalhado(args: IFindPublicacaoRelatorioNovoRemessa) {
+  async findDetalhado(args: IFindPublicacaoRelatorioNovoDetalhado) {
     if (args.dataInicio === undefined || args.dataFim === undefined ||
       new Date(args.dataFim) < new Date(args.dataInicio)) {
       throw new Error('Parametro de data inválido');
     }
+
+    console.log(args)
 
     return this.relatorioNovoRemessaDetalhadoRepository.findDetalhado(args);
   }

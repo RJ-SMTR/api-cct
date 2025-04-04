@@ -7,8 +7,7 @@ import {
   RelatorioConsolidadoNovoRemessaData,
   RelatorioConsolidadoNovoRemessaDto,
 } from './dtos/relatorio-consolidado-novo-remessa.dto';
-import { parseNumber } from '../cnab/utils/cnab/cnab-field-utils';
-import { fi } from 'date-fns/locale';
+
 
 @Injectable()
 export class RelatorioNovoRemessaRepository {
@@ -234,12 +233,12 @@ export class RelatorioNovoRemessaRepository {
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
   private logger = new CustomLogger(RelatorioNovoRemessaRepository.name, { timestamp: true });
 
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
     if (filter.consorcioNome) {
-      filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
+      filter.consorcioNome = filter.consorcioNome.map((c) => { return c.toUpperCase().trim(); });
     }
 
     const parametersQueryVanzeiros =
@@ -264,9 +263,9 @@ export class RelatorioNovoRemessaRepository {
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result : any[] = [];
-    let resultConsorciosEModais : any[] = [];
-    let resultVanzeiros : any[] = [];
+    let result: any[] = [];
+    let resultConsorciosEModais: any[] = [];
+    let resultVanzeiros: any[] = [];
 
     if (filter.todosVanzeiros) {
       filter.userIds = undefined;
@@ -316,7 +315,7 @@ export class RelatorioNovoRemessaRepository {
     this.logger.debug(RelatorioNovoRemessaRepository.QUERY_SINTETICO);
 
     if (filter.consorcioNome) {
-      filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
+      filter.consorcioNome = filter.consorcioNome.map((c) => { return c.toUpperCase().trim(); });
     }
 
     const parameters =

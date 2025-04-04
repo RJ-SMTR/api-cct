@@ -1,49 +1,86 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { IFindPublicacaoRelatorioNovoRemessa } from './interfaces/find-publicacao-relatorio-novo-remessa.interface';
-import {
-  RelatorioConsolidadoNovoRemessaData,
-  RelatorioConsolidadoNovoRemessaDto,
-} from './dtos/relatorio-consolidado-novo-remessa.dto';
+import { RelatorioDetalhadoNovoRemessaDto, RelatorioDetalhadoNovoRemessaData } from './dtos/relatorio-detalhado-novo-remessa.dto';
+import { StatusPagamento } from './enum/statusRemessaDetalhado';
+import { DataSource } from 'typeorm';
+import { IFindPublicacaoRelatorioNovoDetalhado } from './interfaces/filter-publicacao-relatorio-novo-detalhado.interface';
 
 @Injectable()
 export class RelatorioNovoRemessaDetalhadoRepository {
   private static readonly queryNewReport = `
-    select distinct da."dataVencimento" dataPagamento,pu."fullName" nomes,pu."cpfCnpj",
-op."nomeConsorcio",da."valorLancamento" valor,
-         case when oph."motivoStatusRemessa" = '00' or oph."motivoStatusRemessa" = 'BD' then 'Pago'
-              when oph."motivoStatusRemessa" = '02' then 'Estorno'
-         else 'Rejeitado' end as status
-
+select distinct 
+  da."dataVencimento" as dataPagamento,
+  pu."fullName" as nomes,
+  pu."cpfCnpj",
+  op."nomeConsorcio",
+  da."valorLancamento" as valor,
+  case 
+    when oph."motivoStatusRemessa" = '00' or oph."motivoStatusRemessa" = 'BD' then 'Pago'
+    when oph."motivoStatusRemessa" = '02' then 'Estorno'
+    else 'Rejeitado'
+  end as status
 from ordem_pagamento op 
-         inner join ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id
-         inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
-         inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"=oph."id"
-         inner join public.user pu on pu."id" = op."userId"
-where da."dataVencimento" between :dataInicio and :dataFim
-and op."fullName" in(:fullName)
-and op."nomeConsorcio" in(:consorcios)
-and da."valorLancamento" between :valorMin and :valorMax
-and status in(:status)`;
+  inner join ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
+  inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId" = opa.id
+  inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
+  inner join public.user pu on pu."id" = op."userId"
+where da."dataVencimento" between $1 and $2 
+  and ($3::integer[] is null or pu."id" = any($3))
+  and ($5::text[] is null or op."nomeConsorcio" = any($5))
+  and (
+    ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
+    ($7::numeric is null or da."valorLancamento" <= $7::numeric)
+  )
+  and (
+    ARRAY $4::text[] is null or (
+      case 
+        when oph."motivoStatusRemessa" = '00' or oph."motivoStatusRemessa" = 'BD' then 'Pago'
+        when oph."motivoStatusRemessa" = '02' then 'Estorno'
+        else 'Rejeitado'
+      end
+    ) = ANY(ARRAY $4::text[])
+  )
+    LIMIT 100;
+
+`;
 
   // Add more parameters to filter
   private static readonly queryOlderReport = `
-  select distinct da."dataVencimento" dataPagamento,cf."nome" nomes,cf."cpfCnpj",
-ita."nomeConsorcio",da."valorLancamento" valor,
-         case when da."ocorrenciasCnab" = '00' or da."ocorrenciasCnab" = 'BD' or ap."isPago"=true then 'Pago'
-              when da."ocorrenciasCnab" = '02' then 'Estorno'
-         else 'Rejeitado' end as status,
-         ap."isPago"
-
+select distinct 
+  da."dataVencimento" as dataPagamento,
+  cf."nome" as nomes,
+  cf."cpfCnpj",
+  ita."nomeConsorcio",
+  da."valorLancamento" as valor,
+  case 
+    when da."ocorrenciasCnab" = '00' or da."ocorrenciasCnab" = 'BD' or ap."isPago" = true then 'Pago'
+    when da."ocorrenciasCnab" = '02' then 'Estorno'
+    else 'Rejeitado'
+  end as status,
+  ap."isPago"
 from item_transacao it 
-         inner join item_transacao_agrupado ita on it."itemTransacaoAgrupadoId"=ita."id"
-         inner join detalhe_a da on da."itemTransacaoAgrupadoId"=ita.id
-         inner join cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
-         inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
-where da."dataVencimento" between '2024-12-20' and '2024-12-30'
-and it."nomeConsorcio" in('VLT');`
+  inner join item_transacao_agrupado ita on it."itemTransacaoAgrupadoId" = ita."id"
+  inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
+  inner join cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
+  inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
+where da."dataVencimento" between $1 and $2
+  and ($3::text[] is null or it."nomeConsorcio" = any($3))
+  and ($4::text[] is null or it."fullName" = any($4))
+  and (
+    ($5 is null or da."valorLancamento" >= $5) and 
+    ($6 is null or da."valorLancamento" <= $6)
+  )
+  and (
+    $7::text[] is null or (
+      case 
+        when da."ocorrenciasCnab" = '00' or da."ocorrenciasCnab" = 'BD' or ap."isPago" = true then 'Pago'
+        when da."ocorrenciasCnab" = '02' then 'Estorno'
+        else 'Rejeitado'
+      end
+    ) = any(ARRAY[$7])
+  );
+`;
 
   private readonly queryMap = {
     2024: RelatorioNovoRemessaDetalhadoRepository.queryOlderReport,
@@ -56,67 +93,99 @@ and it."nomeConsorcio" in('VLT');`
   ) { }
   private logger = new CustomLogger(RelatorioNovoRemessaDetalhadoRepository.name, { timestamp: true });
 
-  public async findDetalhado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
+  public async findDetalhado(filter: IFindPublicacaoRelatorioNovoDetalhado): Promise<RelatorioDetalhadoNovoRemessaDto> {
     const year = filter.dataInicio.getFullYear();
     const query = this.getQueryByYear(year);
+    this.logger.log(`Utilizando esta query: ${query} `);
 
-    this.logger.debug(query);
+    const consorcioNome: string[] | null = filter.consorcioNome
+      ? filter.consorcioNome.map(nome => nome.toUpperCase().trim())
+      : null;
+    this.logger.log(`Nome(s) do consórcio: ${consorcioNome}`);
 
-    if (filter.consorcioNome) {
-      filter.consorcioNome = filter.consorcioNome.map((c) => { return c.toUpperCase().trim(); });
-    }
+    const {
+      dataInicio,
+      dataFim,
+      userIds,
+      valorMin,
+      valorMax,
+      todosConsorcios,
+      todosVanzeiros,
+    } = filter;
 
-    const parameters =
-      [
-        filter.dataInicio || null,
-        filter.dataFim || null,
-        this.getStatusParaFiltro(filter),
-        filter.consorcioNome || null,
-        filter.valorMin || null,
-        filter.valorMax || null
-      ];
+    const parameters = [
+      dataInicio || null,                   // $1
+      dataFim || null,                      // $2
+      userIds || null,                      // $3 
+      this.getStatusParaFiltro(filter) || null, // $4 
+      consorcioNome || null,                // $5
+      valorMin || null,                     // $6
+      valorMax || null,                     // $7
+      // todosConsorcios || null,              // $8
+      // todosVanzeiros || null,               // $9
+    ];
+
+    this.logger.log(`Parâmetros: ${JSON.stringify(parameters)} `);
 
     const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    const result: any[] = await queryRunner.query(query, parameters);
-    await queryRunner.release();
-    const count = result.length;
-    const valorTotal = result.reduce((acc, curr) => acc + parseFloat(curr.valorTotal), 0);
-    const relatorioConsolidadoDto = new RelatorioConsolidadoNovoRemessaDto();
-    relatorioConsolidadoDto.valor = parseFloat(valorTotal);
-    relatorioConsolidadoDto.count = count;
-    relatorioConsolidadoDto.data = result
-      .map((r) => {
-        const elem = new RelatorioConsolidadoNovoRemessaData();
-        elem.nomefavorecido = r.fullName;
-        elem.valor = parseFloat(r.valorTotal);
-        return elem;
+    try {
+      await queryRunner.connect();
+      this.logger.log("Conectado com sucesso.");
+
+      const result: any[] = await queryRunner.query(query, parameters);
+      this.logger.log(`Resultado da query: ${JSON.stringify(result)}`);
+
+      const count = result.length;
+      const valorTotal = result.reduce((acc, curr) => acc + Number.parseFloat(curr.valor), 0);
+
+      const relatorioDetalhadoDto = new RelatorioDetalhadoNovoRemessaDto({
+        count,
+        valor: Number.parseFloat(valorTotal.toString()),
+        data: result.map(r => new RelatorioDetalhadoNovoRemessaData({
+          dataPagamento: r.dataPagamento,
+          nomes: r.nomes,
+          cpfCnpj: r.cpfCnpj,
+          consorcio: r.nomeConsorcio,
+          valor: Number.parseFloat(r.valor),
+          status: r.status
+        }))
       });
-    return relatorioConsolidadoDto;
+
+
+      this.logger.log(`Relatório detalhado: ${JSON.stringify(relatorioDetalhadoDto)} `);
+      return relatorioDetalhadoDto;
+    } catch (error) {
+      this.logger.log("Erro ao executar a query:", error);
+      throw error;
+    } finally {
+      await queryRunner.release();
+      this.logger.log("QueryRunner liberado.");
+    }
   }
 
-  private getStatusParaFiltro(filter: IFindPublicacaoRelatorioNovoRemessa) {
-    let statuses: number[] | null = null;
-    if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar) {
-      statuses = [];
 
-      if (filter.aPagar) {
-        statuses.push(0);
-        statuses.push(1);
-      }
-      if (filter.emProcessamento) {
-        statuses.push(2);
-      }
 
-      if (filter.pago) {
-        statuses.push(3);
-      }
+  private getStatusParaFiltro(filter: {
+    pago?: boolean;
+    erroPago?: boolean;
+    erroEstorno?: boolean;
+    erroRejeitado?: boolean;
+  }): string[] | null {
+    const statuses: string[] = [];
 
-      if (filter.erro) {
-        statuses.push(4);
+    const statusMappings: { condition: boolean | undefined; statuses: StatusPagamento[] }[] = [
+      { condition: filter.pago, statuses: [StatusPagamento.PAGO] },
+      { condition: filter.erroEstorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
+      { condition: filter.erroRejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
+    ];
+
+    for (const mapping of statusMappings) {
+      if (mapping.condition) {
+        statuses.push(...mapping.statuses);
       }
     }
-    return statuses;
+
+    return statuses.length > 0 ? statuses : null;
   }
 
 

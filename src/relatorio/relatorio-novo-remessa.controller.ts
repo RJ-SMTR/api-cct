@@ -8,6 +8,8 @@ import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { Int32 } from 'typeorm';
 import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
 import { RelatorioNovoRemessaDetalhadoService } from './relatorio-novo-remessa-detalhado.service';
+import { ValidationPipe } from '@nestjs/common';
+import { DetalhadoQueryDto } from './dtos/detalhado-query.dto';
 
 @ApiTags('Cnab')
 @Controller({
@@ -107,42 +109,40 @@ export class RelatorioNovoRemessaController {
     }
   }
 
-  @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
-  @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
-  @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String })
-  @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto.', required: false, type: Number })
-
-  @ApiQuery({ name: 'valorMax', description: 'Somatório do valor bruto.', required: false, type: Number })
-  @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
-  @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
-  @ApiQuery({ name: 'emProcessamento', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a emProcessamento', default: false }) })
-  @ApiQuery({ name: 'erro', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status do pagamento é de erro', default: false }) })
+  // @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
+  // @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
+  // @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String })
+  // @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto.', required: false, type: Number })
+  // @ApiQuery({ name: 'valorMax', description: 'Somatório do valor bruto.', required: false, type: Number })
+  // @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
+  // @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
+  // @ApiQuery({ name: 'emProcessamento', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a emProcessamento', default: false }) })
+  // @ApiQuery({ name: 'erro', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status do pagamento é de erro', default: false }) })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('detalhado')
   async getDetalhado(
-    @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
-    dataInicio: Date,
-    @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
-    dataFim: Date,
-    @Query('favorecidoNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    favorecidoNome: string[],
-    @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    consorcioNome: string[],
-    @Query('valorMin', new ParseNumberPipe({ optional: true }))
-    valorMin: number | undefined,
-    @Query('valorMax', new ParseNumberPipe({ optional: true }))
-    valorMax: number | undefined,
-    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
-    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
-    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
-    @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined
+    @Query(new ValidationPipe({ transform: true })) queryParams: DetalhadoQueryDto,
+    // @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
+    // dataInicio: Date,
+    // @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
+    // dataFim: Date,
+    // @Query('favorecidoNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
+    // favorecidoNome: string[],
+    // @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
+    // consorcioNome: string[],
+    // @Query('valorMin', new ParseNumberPipe({ optional: true }))
+    // valorMin: number | undefined,
+    // @Query('valorMax', new ParseNumberPipe({ optional: true }))
+    // valorMax: number | undefined,
+    // @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    // @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
+    // @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    // @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined
   ) {
     try {
-      const result = await this.relatorioNovoRemessaDetalhadoService.findDetalhado({
-        dataInicio, dataFim, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento,
-      });
+      const result = await this.relatorioNovoRemessaDetalhadoService.findDetalhado(queryParams);
       return result;
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
