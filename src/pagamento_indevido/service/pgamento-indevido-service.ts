@@ -36,7 +36,7 @@ export class PagamentoIndevidoService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     const rawResult: any[] =
-     await this.dataSource.query(`select * from pagamento_indevido pi where pi."nomeFavorecido"=${nome}`);  
+     await this.dataSource.query(`select * from pagamento_indevido pi where pi."nomeFavorecido"='${nome}'`);  
     await queryRunner.release();        
     return rawResult.map((i) => new PagamentoIndevidoDTO(i)); 
   }

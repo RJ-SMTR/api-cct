@@ -208,15 +208,16 @@ export class RemessaService {
     const numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());
     let detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr, ultimoHistorico, numeroDocumento);   
 
-    if(indevido && (indevido.saldoDevedor > 0) && detalheADTO.valorLancamento){
-      detalheADTO.valorLancamento = detalheADTO.valorLancamento - indevido.saldoDevedor;
-      detalheADTO.valorRealEfetivado = detalheADTO.valorLancamento - indevido.saldoDevedor;
-    }   
-
     if (detalheA.length > 0) {
       detalheADTO.id = detalheA[0].id;
-      detalheADTO.valorRealEfetivado = detalheA[0].valorLancamento;
+      detalheADTO.valorRealEfetivado = detalheA[0].valorLancamento;     
     }
+
+    if(indevido && indevido.saldoDevedor > 0 ){      
+      const valor = await this.debitarPagamentoIndevido(indevido,detalheADTO.valorLancamento);
+      detalheADTO.valorLancamento = valor;
+      detalheADTO.valorRealEfetivado = valor;
+    }   
 
     const detalheASavesd = await this.detalheAService.save(detalheADTO);
     if (detalheASavesd) {
@@ -251,5 +252,34 @@ export class RemessaService {
   async existsDetalheA(ultimoHistorico: OrdemPagamentoAgrupadoHistorico) {
     return await this.detalheAService.existsDetalheA(ultimoHistorico.id)
 
+  }
+
+  async debitarPagamentoIndevido(pagamentoIndevido: PagamentoIndevidoDTO, valor: any) {
+    let aPagar = 0;      
+    var arr = Number(valor).toFixed(2);
+    let result = pagamentoIndevido.saldoDevedor - Number(arr);
+    let resultArr = result.toFixed(2);
+      result = Number(resultArr);
+      if (result > 0) {
+        //Vanzeiro continua devendo
+        //Atualizar o banco com o debito restante  
+        pagamentoIndevido.saldoDevedor = result;
+        pagamentoIndevido.dataReferencia = new Date();
+        await this.pagamentoIndevidoService.save(pagamentoIndevido);
+
+      } else {
+        //debito encerrado
+        if (result <= 0) {
+          //ex: result = -10          
+          //pagar diferença para o vanzeiro
+          aPagar = Math.abs(result);
+          pagamentoIndevido.saldoDevedor = 0;
+          pagamentoIndevido.dataReferencia = new Date();
+          //deletar debito do vanzeiro
+          await this.pagamentoIndevidoService.save(pagamentoIndevido);
+        }
+      }
+    
+    return aPagar;
   }
 }
