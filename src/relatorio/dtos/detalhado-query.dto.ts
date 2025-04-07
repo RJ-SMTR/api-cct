@@ -35,22 +35,16 @@ export class DetalhadoQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   pago?: boolean;
 
-  @ApiPropertyOptional({ description: 'Se o status de erro for Pago', default: false })
-  @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
-  erroPago?: boolean;
-
   @ApiPropertyOptional({ description: 'Se o status de erro for Estorno', default: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
-  erroEstorno?: boolean;
+  estorno?: boolean;
 
   @ApiPropertyOptional({ description: 'Se o status de erro for Rejeitado', default: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
-  erroRejeitado?: boolean;
+  rejeitado?: boolean;
 }
 

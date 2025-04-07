@@ -33,19 +33,18 @@ where da."dataVencimento" between $1 and $2
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
   )
   and (
-    ARRAY $4::text[] is null or (
-      case 
-        when oph."motivoStatusRemessa" = '00' or oph."motivoStatusRemessa" = 'BD' then 'Pago'
-        when oph."motivoStatusRemessa" = '02' then 'Estorno'
-        else 'Rejeitado'
-      end
-    ) = ANY(ARRAY $4::text[])
-  )
-    LIMIT 100;
+  $4::text[] is null or (
+    case 
+      when oph."motivoStatusRemessa" = '00' or oph."motivoStatusRemessa" = 'BD' then 'Pago'
+      when oph."motivoStatusRemessa" = '02' then 'Estorno'
+      else 'Rejeitado'
+    end
+  ) = ANY($4)
+)
+
 
 `;
 
-  // Add more parameters to filter
   private static readonly queryOlderReport = `
 select distinct 
   da."dataVencimento" as dataPagamento,
@@ -65,20 +64,19 @@ from item_transacao it
   inner join cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
 where da."dataVencimento" between $1 and $2
-  and ($3::text[] is null or it."nomeConsorcio" = any($3))
-  and ($4::text[] is null or it."fullName" = any($4))
+  and ($4::text[] is null or it."nomeConsorcio" = any($4))
   and (
-    ($5 is null or da."valorLancamento" >= $5) and 
-    ($6 is null or da."valorLancamento" <= $6)
+    ($5::numeric is null or da."valorLancamento" >= $5::numeric) and
+    ($6::numeric is null or da."valorLancamento" <= $6::numeric)
   )
   and (
-    $7::text[] is null or (
+    $3::text[] is null or (
       case 
         when da."ocorrenciasCnab" = '00' or da."ocorrenciasCnab" = 'BD' or ap."isPago" = true then 'Pago'
         when da."ocorrenciasCnab" = '02' then 'Estorno'
         else 'Rejeitado'
       end
-    ) = any(ARRAY[$7])
+    ) = any($3)
   );
 `;
 
@@ -95,42 +93,17 @@ where da."dataVencimento" between $1 and $2
 
   public async findDetalhado(filter: IFindPublicacaoRelatorioNovoDetalhado): Promise<RelatorioDetalhadoNovoRemessaDto> {
     const year = filter.dataInicio.getFullYear();
-    const query = this.getQueryByYear(year);
+
+    const { query, year: queryYear } = this.getQueryByYear(year);
     this.logger.log(`Utilizando esta query: ${query} `);
-
-    const consorcioNome: string[] | null = filter.consorcioNome
-      ? filter.consorcioNome.map(nome => nome.toUpperCase().trim())
-      : null;
-    this.logger.log(`Nome(s) do consórcio: ${consorcioNome}`);
-
-    const {
-      dataInicio,
-      dataFim,
-      userIds,
-      valorMin,
-      valorMax,
-      todosConsorcios,
-      todosVanzeiros,
-    } = filter;
-
-    const parameters = [
-      dataInicio || null,                   // $1
-      dataFim || null,                      // $2
-      userIds || null,                      // $3 
-      this.getStatusParaFiltro(filter) || null, // $4 
-      consorcioNome || null,                // $5
-      valorMin || null,                     // $6
-      valorMax || null,                     // $7
-      // todosConsorcios || null,              // $8
-      // todosVanzeiros || null,               // $9
-    ];
-
-    this.logger.log(`Parâmetros: ${JSON.stringify(parameters)} `);
 
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       await queryRunner.connect();
       this.logger.log("Conectado com sucesso.");
+
+      const parameters = this.getParametersByQuery(year, filter);
+
 
       const result: any[] = await queryRunner.query(query, parameters);
       this.logger.log(`Resultado da query: ${JSON.stringify(result)}`);
@@ -168,15 +141,15 @@ where da."dataVencimento" between $1 and $2
   private getStatusParaFiltro(filter: {
     pago?: boolean;
     erroPago?: boolean;
-    erroEstorno?: boolean;
-    erroRejeitado?: boolean;
+    estorno?: boolean;
+    rejeitado?: boolean;
   }): string[] | null {
     const statuses: string[] = [];
 
     const statusMappings: { condition: boolean | undefined; statuses: StatusPagamento[] }[] = [
       { condition: filter.pago, statuses: [StatusPagamento.PAGO] },
-      { condition: filter.erroEstorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
-      { condition: filter.erroRejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
+      { condition: filter.estorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
+      { condition: filter.rejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
     ];
 
     for (const mapping of statusMappings) {
@@ -189,8 +162,47 @@ where da."dataVencimento" between $1 and $2
   }
 
 
-  private getQueryByYear(year: number): string {
-    return this.queryMap[year] || "";
+  private getQueryByYear(year: number): { query: string; year: number } {
+    const query = this.queryMap[year];
+    return { query: query || "", year };
   }
+
+  private getParametersByQuery(year: number, filter: IFindPublicacaoRelatorioNovoDetalhado): any[] {
+    const consorcioNome: string[] | null = filter.consorcioNome
+      ? filter.consorcioNome.map(nome => nome.toUpperCase().trim())
+      : null;
+
+    this.logger.log(`Nome(s) do consórcio: ${consorcioNome}`);
+
+    const {
+      dataInicio,
+      dataFim,
+      userIds,
+      valorMin,
+      valorMax,
+    } = filter;
+
+    if (year === 2024) {
+      return [
+        dataInicio || null, // $1
+        dataFim || null, // $2
+        this.getStatusParaFiltro(filter) || null,// $3
+        consorcioNome || null, //$4
+        valorMin || null, // $5
+        valorMax || null, // $6
+      ];
+    }
+
+    return [
+      dataInicio || null, //$1
+      dataFim || null, //$2
+      userIds || null, // $3
+      this.getStatusParaFiltro(filter) || null, // $4
+      consorcioNome || null, // $5
+      valorMin || null, // $6
+      valorMax || null, // $7
+    ];
+  }
+
 
 }

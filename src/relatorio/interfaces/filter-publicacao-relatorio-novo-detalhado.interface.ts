@@ -10,6 +10,6 @@ export interface IFindPublicacaoRelatorioNovoDetalhado {
   todosConsorcios?: boolean;
   pago?: boolean;
   erroPago?: boolean;
-  erroEstorno?: boolean;
-  erroRejeitado?: boolean;
+  estorno?: boolean;
+  rejeitado?: boolean;
 }
