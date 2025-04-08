@@ -38,18 +38,18 @@ export class OrdemPagamentoAgrupadoService {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador,consorcios);
   }
 
-  async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined) {
-    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,consorcio);
+  async getOrdens(dataInicio: Date, dataFim: Date,dataPgto:Date, consorcio: string[] | undefined) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,dataPgto,consorcio);
   }
 
 
   async getHistoricosOrdem(idOrdem: number){
     return await this.ordemPagamentoAgrupadoHistRepository.findAll({ ordemPagamentoAgrupado: { id: idOrdem } });
-  }
-  
+  }  
 
   async saveStatusHistorico(historico: OrdemPagamentoAgrupadoHistorico,statusRemessa:StatusRemessaEnum){
     historico.statusRemessa = statusRemessa;
+    historico.dataReferencia = new Date();
     await this.ordemPagamentoAgrupadoHistRepository.save(historico);
   }
 

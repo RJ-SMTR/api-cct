@@ -1,13 +1,15 @@
-import { Body, Controller, Get, Header, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { RelatorioService } from './relatorio.service';
 import { Int32 } from 'typeorm';
 import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
+import { RelatorioNovoRemessaDetalhadoService } from './relatorio-novo-remessa-detalhado.service';
+import { ValidationPipe } from '@nestjs/common';
+import { DetalhadoQueryDto } from './dtos/detalhado-query.dto';
 
 @ApiTags('Cnab')
 @Controller({
@@ -15,7 +17,10 @@ import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
   version: '1',
 })
 export class RelatorioNovoRemessaController {
-  constructor(private relatorioNovoRemessaService: RelatorioNovoRemessaService) {}
+  constructor(
+    private relatorioNovoRemessaService: RelatorioNovoRemessaService,
+    private relatorioNovoRemessaDetalhadoService: RelatorioNovoRemessaDetalhadoService
+  ) { }
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
@@ -45,20 +50,21 @@ export class RelatorioNovoRemessaController {
     valorMin: number | undefined,
     @Query('valorMax', new ParseNumberPipe({ optional: true }))
     valorMax: number | undefined,
-    @Query('pago',new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,     
-    @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
-    @Query('emProcessamento',new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
-    @Query('erro',new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
+    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
     @Query('todosVanzeiros', new ParseBooleanPipe({ optional: true })) todosVanzeiros: boolean | undefined,
     @Query('todosConsorcios', new ParseBooleanPipe({ optional: true })) todosConsorcios: boolean | undefined,
-){
-      try{
-        const result = await this.relatorioNovoRemessaService.findConsolidado({
-          dataInicio,dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar,emProcessamento, erro, todosVanzeiros, todosConsorcios});
-        return result;
-      }catch(e){
-        return new HttpException({ error: e.message}, HttpStatus.BAD_REQUEST);
-      }     
+  ) {
+    try {
+      const result = await this.relatorioNovoRemessaService.findConsolidado({
+        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios
+      });
+      return result;
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
   }
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
@@ -86,26 +92,40 @@ export class RelatorioNovoRemessaController {
     @Query('userIds', new ParseArrayPipe({ items: Int32, separator: ',', optional: true }))
     userIds: number[],
     @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
-    consorcioNome: string[],    
+    consorcioNome: string[],
     @Query('valorMin', new ParseNumberPipe({ optional: true }))
     valorMin: number | undefined,
     @Query('valorMax', new ParseNumberPipe({ optional: true }))
     valorMax: number | undefined,
-    @Query('pago',new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,     
-    @Query('aPagar',new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
-    @Query('emProcessamento',new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
-    @Query('erro',new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
+    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
     @Query('todosVanzeiros', new ParseBooleanPipe({ optional: true })) todosVanzeiros: boolean | undefined,
     @Query('todosConsorcios', new ParseBooleanPipe({ optional: true })) todosConsorcios: boolean | undefined,
   ) {
     try {
       const result = await this.relatorioNovoRemessaService.findSintetico({
-        dataInicio,dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios
+        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios
       });
       return result;
-    }catch(e){
-      return new HttpException({ error: e.message}, HttpStatus.BAD_REQUEST);
-    }     
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
   }
 
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('detalhado')
+  async getDetalhado(
+    @Query(new ValidationPipe({ transform: true })) queryParams: DetalhadoQueryDto,
+  ) {
+    try {
+      const result = await this.relatorioNovoRemessaDetalhadoService.findDetalhado(queryParams);
+      return result;
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
 }

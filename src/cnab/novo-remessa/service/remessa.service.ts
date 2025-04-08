@@ -48,8 +48,9 @@ export class RemessaService {
   ) { }
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
-  public async prepararRemessa(dataInicio: Date, dataFim: Date, consorcio?: string[]) {
-    const ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
+  public async prepararRemessa(dataInicio: Date, dataFim: Date,dataPgto?:Date, consorcio?: string[]) {
+    const ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim,
+      dataPgto?dataPgto:new Date(),consorcio);
     if (ordens.length > 0) {
       const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId)
       if (!isEmpty(ordens)) {
@@ -151,9 +152,9 @@ export class RemessaService {
 
 
   //PEGA O ARQUIVO TXT GERADO E ENVIA PARA O SFTP
-  public async enviarRemessa(listCnab: ICnabInfo[]) {
+  public async enviarRemessa(listCnab: ICnabInfo[],headerName?: string) {
     for (const cnab of listCnab) {
-      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content);
+      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content,headerName);
       const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
       await this.headerArquivoService.save({
         id: cnab.headerArquivo.id, remessaName,

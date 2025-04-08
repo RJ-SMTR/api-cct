@@ -9,7 +9,6 @@ import { DetalheA } from "src/cnab/entity/pagamento/detalhe-a.entity";
 import { CnabRegistros104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface";
 import { CnabLote104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface";
 import { SftpBackupFolder } from "src/sftp/enums/sftp-backup-folder.enum";
-import { OcorrenciaEnum } from "src/cnab/enums/ocorrencia.enum";
 
 @Injectable()
 export class RetornoService {
@@ -38,7 +37,8 @@ export class RetornoService {
                         registro.detalheA.codigoBancoDestino.convertedValue,
                         registro.detalheA.contaCorrenteDestino.convertedValue
                     )
-                    this.logger.debug(`Banco: ${registro.detalheA.codigoBancoDestino.convertedValue} - agencia: ${registro.detalheA.codigoAgenciaDestino.convertedValue}
+                    this.logger.debug(`Banco: ${registro.detalheA.codigoBancoDestino.convertedValue} 
+                         - agencia: ${registro.detalheA.codigoAgenciaDestino.convertedValue}
                          - conta: ${registro.detalheA.contaCorrenteDestino.convertedValue}`);
                     if(detalheA[0])
                         await this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA[0]);
@@ -51,8 +51,7 @@ export class RetornoService {
     }
 
     private async atualizarStatusRemessaHistorico(
-        cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA
-    ) {
+        cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA){
         const historico = await this.ordemPagamentoAgrupadoService.getHistorico(detalheA.id);
 
         if (detalheA && historico) {

@@ -5,7 +5,7 @@ import { CronJob, CronJobParameters } from 'cron';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
-import {  
+import {    
   isMonday,
   isSaturday,
   isSunday,
@@ -32,6 +32,7 @@ import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/orde
 import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import {nextFriday, nextThursday, previousFriday, isFriday, isThursday} from 'date-fns';
+
 
 /**
  * Enum CronJobServicesJobs
@@ -93,13 +94,15 @@ export class CronJobsService {
   ) { }
 
 
-  onModuleInit() {
+  async onModuleInit() {
+    await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {     
+
+  async onModuleLoad(){
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -157,7 +160,7 @@ export class CronJobsService {
             if (isSaturday(today) || isSunday(today)) {
               return;
             }
-            await this.remessaVLTExec();
+            await this.remessaVLTExec(new Date());
           },
         },
       },
@@ -631,19 +634,20 @@ export class CronJobsService {
       await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
         dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
     }
-    //Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, consorcios);
+    // Prepara o remessa
+    await this.remessaService.prepararRemessa(dataInicio, dataFim,dataPagamento, consorcios);
 
     //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName);
 
     //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt);
+    await this.remessaService.enviarRemessa(txt,headerName);
   }
 
-  async remessaVLTExec() {
+
+  async remessaVLTExec(todayCustom?:Date) {
     //Rodar de segunda a sexta   
-    const today = new Date();
+    let today = todayCustom?todayCustom: new Date();
     /** defaut: qua,qui,sex,sáb,dom */
     let daysBeforeBegin = 1;
     let daysBeforeEnd = 1;
@@ -655,8 +659,13 @@ export class CronJobsService {
     }
     const dataInicio = subDays(today, daysBeforeBegin);
     const dataFim = subDays(today, daysBeforeEnd);
-    await this.geradorRemessaExec(dataInicio, dataFim, today,
-      ['VLT'], HeaderName.VLT);
+           
+    console.log(`data incicio: ${dataInicio}`);
+    console.log(`data fim: ${dataFim}`); 
+    console.log(`data pagamento: ${today}`);  
+
+     await this.geradorRemessaExec(dataInicio, dataFim, today,
+       ['VLT'], HeaderName.VLT);
   }
 
   async remessaModalExec() {
@@ -664,23 +673,31 @@ export class CronJobsService {
     const today = new Date();
     const dataInicio = subDays(today, 7);
     const dataFim = subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio, dataFim, today,
-      ['STPC', 'STPL', 'TEC'], HeaderName.MODAL);
+    await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL);
   }
 
-  async remessaConsorciosExec() {
+  async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string) {
     //Rodar na Sexta
     const today = new Date();
-    const dataInicio =subDays(today,7);
-    const dataFim = subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio, dataFim, today, 
+    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 7);
+    const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
+    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
       ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO);
   }
 
   async retornoExec() {
-    const txt = await this.retornoService.lerRetornoSftp();
-    if (txt){
-      await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
+    let arq = true;
+    while(arq){
+      const txt = await this.retornoService.lerRetornoSftp();
+      if(txt){
+        try{
+          await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
+        }catch(err){
+          console.log(err);
+        }
+      }else{
+        arq = false;
+      }
     }
   }
 

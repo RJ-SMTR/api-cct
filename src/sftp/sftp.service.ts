@@ -123,10 +123,18 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     this.logger.log(`Arquivo carregado em ${_remotePath}`, METHOD);
   }
 
-  public async submitCnabRemessa(content: string): Promise<string> {
+  public async submitCnabRemessa(content: string, headerName?:string): Promise<string> {
     const METHOD = 'submitCnabRemessa';
+
     await this.connectClient();
-    const remotePath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`);
+    let remotePath: string | PromiseLike<string>;
+    
+    // if(headerName ==='VLT'){
+    //   remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
+    // }else{
+      remotePath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`);
+    // }
+
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
     await this.submitCnabBackupRemessa(content);
     this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);

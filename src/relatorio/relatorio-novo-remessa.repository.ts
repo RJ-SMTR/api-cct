@@ -379,7 +379,7 @@ export class RelatorioNovoRemessaRepository {
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
   private logger = new CustomLogger(RelatorioNovoRemessaRepository.name, { timestamp: true });
 
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
