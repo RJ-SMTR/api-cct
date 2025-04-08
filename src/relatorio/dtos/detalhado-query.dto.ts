@@ -22,11 +22,13 @@ export class DetalhadoQueryDto {
   @ApiPropertyOptional({ description: 'Somatório do valor bruto', type: Number })
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   valorMin?: number;
 
   @ApiPropertyOptional({ description: 'Somatório do valor bruto', type: Number })
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   valorMax?: number;
 
   @ApiPropertyOptional({ description: 'Se o pagamento foi pago com sucesso', default: false })
