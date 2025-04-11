@@ -6,10 +6,8 @@ export interface IFindPublicacaoRelatorioNovoDetalhado {
   consorcioNome?: string[];
   valorMin?: number;
   valorMax?: number;
-  todosVanzeiros?: boolean;
-  todosConsorcios?: boolean;
   pago?: boolean;
-  erroPago?: boolean;
+  erro?: boolean;
   estorno?: boolean;
   rejeitado?: boolean;
 }

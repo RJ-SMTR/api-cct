@@ -16,8 +16,6 @@ export class RelatorioNovoRemessaDetalhadoService {
       throw new Error('Parametro de data inválido');
     }
 
-    console.log(args)
-
     return this.relatorioNovoRemessaDetalhadoRepository.findDetalhado(args);
   }
 

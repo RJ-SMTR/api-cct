@@ -41,8 +41,6 @@ where da."dataVencimento" between $1 and $2
     end
   ) = ANY($4)
 )
-
-
 `;
 
   private static readonly queryOlderReport = `
@@ -65,9 +63,10 @@ from item_transacao it
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
 where da."dataVencimento" between $1 and $2
   and ($4::text[] is null or it."nomeConsorcio" = any($4))
+  and ($5::integer[] is null or it."userId" = any($5))
   and (
-    ($5::numeric is null or da."valorLancamento" >= $5::numeric) and
-    ($6::numeric is null or da."valorLancamento" <= $6::numeric)
+    ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
+    ($7::numeric is null or da."valorLancamento" <= $7::numeric)
   )
   and (
     $3::text[] is null or (
@@ -94,8 +93,7 @@ where da."dataVencimento" between $1 and $2
   public async findDetalhado(filter: IFindPublicacaoRelatorioNovoDetalhado): Promise<RelatorioDetalhadoNovoRemessaDto> {
     const year = filter.dataInicio.getFullYear();
 
-    const { query, year: queryYear } = this.getQueryByYear(year);
-    this.logger.log(`Utilizando esta query: ${query} `);
+    const { query } = this.getQueryByYear(year);
 
     const queryRunner = this.dataSource.createQueryRunner();
     try {
@@ -140,7 +138,7 @@ where da."dataVencimento" between $1 and $2
 
   private getStatusParaFiltro(filter: {
     pago?: boolean;
-    erroPago?: boolean;
+    erro?: boolean;
     estorno?: boolean;
     rejeitado?: boolean;
   }): string[] | null {
@@ -148,6 +146,7 @@ where da."dataVencimento" between $1 and $2
 
     const statusMappings: { condition: boolean | undefined; statuses: StatusPagamento[] }[] = [
       { condition: filter.pago, statuses: [StatusPagamento.PAGO] },
+      { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] },
       { condition: filter.estorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
       { condition: filter.rejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
     ];
@@ -162,9 +161,9 @@ where da."dataVencimento" between $1 and $2
   }
 
 
-  private getQueryByYear(year: number): { query: string; year: number } {
+  private getQueryByYear(year: number): { query: string; } {
     const query = this.queryMap[year];
-    return { query: query || "", year };
+    return { query: query || "" };
   }
 
   private getParametersByQuery(year: number, filter: IFindPublicacaoRelatorioNovoDetalhado): any[] {
@@ -188,8 +187,9 @@ where da."dataVencimento" between $1 and $2
         dataFim || null, // $2
         this.getStatusParaFiltro(filter) || null,// $3
         consorcioNome || null, //$4
-        valorMin || null, // $5
-        valorMax || null, // $6
+        userIds || null, // $5
+        valorMin || null, // $6
+        valorMax || null, // $7
       ];
     }
 
