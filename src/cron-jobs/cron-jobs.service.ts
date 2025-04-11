@@ -103,6 +103,7 @@ export class CronJobsService {
 
 
   async onModuleLoad(){
+    await this.remessaVLTExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -641,9 +642,8 @@ export class CronJobsService {
     const txt = await this.remessaService.gerarCnabText(headerName);
 
     //Envia para o SFTP
-   await this.remessaService.enviarRemessa(txt,headerName);
+    await this.remessaService.enviarRemessa(txt,headerName);
   }
-
 
   async remessaVLTExec(todayCustom?:Date) {
     //Rodar de segunda a sexta   
@@ -663,8 +663,7 @@ export class CronJobsService {
     console.log(`data incicio: ${dataInicio}`);
     console.log(`data fim: ${dataFim}`); 
     console.log(`data pagamento: ${today}`);  
-
-     await this.geradorRemessaExec(dataInicio, dataFim, today,
+    await this.geradorRemessaExec(dataInicio, dataFim, today,
        ['VLT'], HeaderName.VLT);
   }
 
@@ -710,9 +709,9 @@ export class CronJobsService {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
         // Sincroniza as ordens de pagamento para todos os modais e consorcios
         
-        const lastFriday =  new Date('2024-12-27') //this.getLastFriday();
-        const nextThursday = new Date('2025-01-02') //this.getNextThursday();
-        const nextFriday =  new Date('2025-01-03') //this.getNextFriday();
+        const lastFriday = this.getLastFriday();
+        const nextThursday = this.getNextThursday();
+        const nextFriday = this.getNextFriday();
         this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${lastFriday.toISOString()}, Data Fim: ${nextThursday.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
         await this.ordemPagamentoService.sincronizarOrdensPagamento(lastFriday, nextThursday, consorciosEModais);
