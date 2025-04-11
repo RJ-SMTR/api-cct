@@ -33,6 +33,19 @@ spec:
                 secretKeyRef:
                   name: api-cct-postgresql
                   key: postgres-password
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - cct
+      tolerations:
+        - key: app
+          operator: Equal
+          value: cct
       restartPolicy: Always
 ---
 #Service
