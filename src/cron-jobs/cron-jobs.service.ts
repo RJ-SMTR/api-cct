@@ -710,9 +710,9 @@ export class CronJobsService {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
         // Sincroniza as ordens de pagamento para todos os modais e consorcios
         
-        const lastFriday =  new Date('2024-12-27') //this.getLastFriday();
-        const nextThursday = new Date('2025-01-02') //this.getNextThursday();
-        const nextFriday =  new Date('2025-01-03') //this.getNextFriday();
+        const lastFriday =  this.getLastFriday();
+        const nextThursday = this.getNextThursday();
+        const nextFriday =  this.getNextFriday();
         this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${lastFriday.toISOString()}, Data Fim: ${nextThursday.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
         await this.ordemPagamentoService.sincronizarOrdensPagamento(lastFriday, nextThursday, consorciosEModais);
