@@ -7,9 +7,9 @@ import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { Int32 } from 'typeorm';
 import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
-import { RelatorioNovoRemessaDetalhadoService } from './relatorio-novo-remessa-detalhado.service';
 import { ValidationPipe } from '@nestjs/common';
-import { DetalhadoQueryDto } from './dtos/detalhado-query.dto';
+import { PayAndPendingQueryDto } from './dtos/pay-and-pending-query.dto';
+import { RelatorioNovoRemessaPayAndPendingService } from './relatorio-novo-remessa-pay-and-pending.service';
 
 @ApiTags('Cnab')
 @Controller({
@@ -19,7 +19,7 @@ import { DetalhadoQueryDto } from './dtos/detalhado-query.dto';
 export class RelatorioNovoRemessaController {
   constructor(
     private relatorioNovoRemessaService: RelatorioNovoRemessaService,
-    private relatorioNovoRemessaDetalhadoService: RelatorioNovoRemessaDetalhadoService
+    private relatorioNovoRemessaPayAndPendingService: RelatorioNovoRemessaPayAndPendingService
   ) { }
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
@@ -117,12 +117,12 @@ export class RelatorioNovoRemessaController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('detalhado')
-  async getDetalhado(
-    @Query(new ValidationPipe({ transform: true })) queryParams: DetalhadoQueryDto,
+  @Get('pay-and-pending')
+  async getPayAndPending(
+    @Query(new ValidationPipe({ transform: true })) queryParams: PayAndPendingQueryDto,
   ) {
     try {
-      const result = await this.relatorioNovoRemessaDetalhadoService.findDetalhado(queryParams);
+      const result = await this.relatorioNovoRemessaPayAndPendingService.findPayAndPending(queryParams);
       return result;
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
