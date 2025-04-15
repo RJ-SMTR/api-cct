@@ -107,16 +107,31 @@ where da."dataVencimento" between $1 and $2
       const relatorioDetalhadoDto = new RelatorioDetalhadoNovoRemessaDto({
         count,
         valor: Number.parseFloat(valorTotal.toString()),
-        data: result.map(r => new RelatorioDetalhadoNovoRemessaData({
-          dataPagamento: new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento)),
-          nomes: r.nomes,
-          cpfCnpj: r.cpfCnpj,
-          consorcio: r.nomeConsorcio,
-          valor: Number.parseFloat(r.valor),
-          status: r.status
-        }))
-      });
+        data: result
+          .sort((a, b) => {
+            const statusOrder = { Estorno: 0, Pago: 1, Rejeitado: 2 };
 
+            //  Ordena por dataPagamento
+            const dateA = new Date(a.datapagamento).getTime();
+            const dateB = new Date(b.datapagamento).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+
+            //  Ordena por nome
+            const nameCompare = a.nomes.localeCompare(b.nomes, 'pt-BR');
+            if (nameCompare !== 0) return nameCompare;
+
+            // Ordena por status customizado
+            return statusOrder[a.status] - statusOrder[b.status];
+          })
+          .map(r => new RelatorioDetalhadoNovoRemessaData({
+            dataPagamento: new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento)),
+            nomes: r.nomes,
+            cpfCnpj: r.cpfCnpj,
+            consorcio: r.nomeConsorcio,
+            valor: Number.parseFloat(r.valor),
+            status: r.status
+          }))
+      });
 
       this.logger.log(`Relatório detalhado: ${JSON.stringify(relatorioDetalhadoDto)} `);
       return relatorioDetalhadoDto;
