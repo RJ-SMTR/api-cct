@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { RelatorioDetalhadoNovoRemessaDto, RelatorioDetalhadoNovoRemessaData } from './dtos/relatorio-detalhado-novo-remessa.dto';
-import { StatusPagamento } from './enum/statusRemessaDetalhado';
+import { StatusPagamento } from './enum/statusRemessaPayAndPending';
 import { DataSource } from 'typeorm';
-import { IFindPublicacaoRelatorioNovoDetalhado } from './interfaces/filter-publicacao-relatorio-novo-detalhado.interface';
+import { RelatorioPayAndPendingNovoRemessaDto, RelatorioPayAndPendingNovoRemessaData } from './dtos/relatorio-pay-and-pending-novo-remessa.dto';
+import { IFindPublicacaoRelatorioNovoPayAndPending } from './interfaces/filter-publicacao-relatorio-novo-pay-and-pending.interface';
 
 @Injectable()
-export class RelatorioNovoRemessaDetalhadoRepository {
+export class RelatorioNovoRemessaPayAndPendingRepository {
   private static readonly queryNewReport = `
 select distinct 
   da."dataVencimento" as dataPagamento,
@@ -83,9 +83,9 @@ where da."dataVencimento" between $1 and $2
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) { }
-  private logger = new CustomLogger(RelatorioNovoRemessaDetalhadoRepository.name, { timestamp: true });
+  private logger = new CustomLogger(RelatorioNovoRemessaPayAndPendingRepository.name, { timestamp: true });
 
-  public async findDetalhado(filter: IFindPublicacaoRelatorioNovoDetalhado): Promise<RelatorioDetalhadoNovoRemessaDto> {
+  public async findPayAndPending(filter: IFindPublicacaoRelatorioNovoPayAndPending): Promise<RelatorioPayAndPendingNovoRemessaDto> {
     const year = filter.dataInicio.getFullYear();
 
     const { query } = this.getQueryByYear(year);
@@ -104,22 +104,37 @@ where da."dataVencimento" between $1 and $2
       const count = result.length;
       const valorTotal = result.reduce((acc, curr) => acc + Number.parseFloat(curr.valor), 0);
 
-      const relatorioDetalhadoDto = new RelatorioDetalhadoNovoRemessaDto({
+      const relatorioPayAndPendingDto = new RelatorioPayAndPendingNovoRemessaDto({
         count,
         valor: Number.parseFloat(valorTotal.toString()),
-        data: result.map(r => new RelatorioDetalhadoNovoRemessaData({
-          dataPagamento: r.dataPagamento,
-          nomes: r.nomes,
-          cpfCnpj: r.cpfCnpj,
-          consorcio: r.nomeConsorcio,
-          valor: Number.parseFloat(r.valor),
-          status: r.status
-        }))
+        data: result
+          .sort((a, b) => {
+            const statusOrder = { Estorno: 0, Pago: 1, Rejeitado: 2 };
+
+            //  Ordena por dataPagamento
+            const dateA = new Date(a.datapagamento).getTime();
+            const dateB = new Date(b.datapagamento).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+
+            //  Ordena por nome
+            const nameCompare = a.nomes.localeCompare(b.nomes, 'pt-BR');
+            if (nameCompare !== 0) return nameCompare;
+
+            // Ordena por status customizado
+            return statusOrder[a.status] - statusOrder[b.status];
+          })
+          .map(r => new RelatorioPayAndPendingNovoRemessaData({
+            dataPagamento: new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento)),
+            nomes: r.nomes,
+            cpfCnpj: r.cpfCnpj,
+            consorcio: r.nomeConsorcio,
+            valor: Number.parseFloat(r.valor),
+            status: r.status
+          }))
       });
 
-
-      this.logger.log(`Relatório detalhado: ${JSON.stringify(relatorioDetalhadoDto)} `);
-      return relatorioDetalhadoDto;
+      this.logger.log(`Relatório payandpending: ${JSON.stringify(relatorioPayAndPendingDto)} `);
+      return relatorioPayAndPendingDto;
     } catch (error) {
       this.logger.log("Erro ao executar a query:", error);
       throw error;
@@ -158,13 +173,13 @@ where da."dataVencimento" between $1 and $2
 
   private getQueryByYear(year: number): { query: string; } {
     if (year <= 2024) {
-      return { query: RelatorioNovoRemessaDetalhadoRepository.queryOlderReport };
+      return { query: RelatorioNovoRemessaPayAndPendingRepository.queryOlderReport };
     }
 
-    return { query: RelatorioNovoRemessaDetalhadoRepository.queryNewReport };
+    return { query: RelatorioNovoRemessaPayAndPendingRepository.queryNewReport };
   }
 
-  private getParametersByQuery(year: number, filter: IFindPublicacaoRelatorioNovoDetalhado): any[] {
+  private getParametersByQuery(year: number, filter: IFindPublicacaoRelatorioNovoPayAndPending): any[] {
     const consorcioNome: string[] | null = filter.consorcioNome
       ? filter.consorcioNome.map(nome => nome.toUpperCase().trim())
       : null;

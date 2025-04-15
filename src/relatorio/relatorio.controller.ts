@@ -6,7 +6,6 @@ import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { RelatorioService } from './relatorio.service';
-import { RelatorioNovoRemessaDetalhadoService } from './relatorio-novo-remessa-detalhado.service';
 
 @ApiTags('Cnab')
 @Controller({
