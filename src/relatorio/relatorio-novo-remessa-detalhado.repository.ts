@@ -79,11 +79,6 @@ where da."dataVencimento" between $1 and $2
   );
 `;
 
-  private readonly queryMap = {
-    2024: RelatorioNovoRemessaDetalhadoRepository.queryOlderReport,
-    2025: RelatorioNovoRemessaDetalhadoRepository.queryNewReport,
-  };
-
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
@@ -162,8 +157,11 @@ where da."dataVencimento" between $1 and $2
 
 
   private getQueryByYear(year: number): { query: string; } {
-    const query = this.queryMap[year];
-    return { query: query || "" };
+    if (year <= 2024) {
+      return { query: RelatorioNovoRemessaDetalhadoRepository.queryOlderReport };
+    }
+
+    return { query: RelatorioNovoRemessaDetalhadoRepository.queryNewReport };
   }
 
   private getParametersByQuery(year: number, filter: IFindPublicacaoRelatorioNovoDetalhado): any[] {
