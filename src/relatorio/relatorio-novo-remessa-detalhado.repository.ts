@@ -108,7 +108,7 @@ where da."dataVencimento" between $1 and $2
         count,
         valor: Number.parseFloat(valorTotal.toString()),
         data: result.map(r => new RelatorioDetalhadoNovoRemessaData({
-          dataPagamento: r.dataPagamento,
+          dataPagamento: new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento)),
           nomes: r.nomes,
           cpfCnpj: r.cpfCnpj,
           consorcio: r.nomeConsorcio,
