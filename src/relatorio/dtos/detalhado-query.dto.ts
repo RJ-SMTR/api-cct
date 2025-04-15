@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsDate, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsDate, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class DetalhadoQueryDto {
   @ApiProperty({ description: 'Data da Ordem de Pagamento Inicial', required: true })
@@ -13,11 +13,44 @@ export class DetalhadoQueryDto {
   @IsDate()
   dataFim: Date;
 
-  @ApiPropertyOptional({ description: 'Pesquisa o nome parcial dos consórcios', type: [String] })
-  @IsArray()
+  @ApiPropertyOptional({
+    description: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas. Para STPC/STPL, agrupa todos os vanzeiros sob o consórcio.',
+    type: String,
+    isArray: true,
+    required: false,
+    example: ['VLT', 'Internorte'],
+  })
   @IsOptional()
+  @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',');
+    }
+    return value;
+  })
   consorcioNome?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Pesquisa o id dos usuários.',
+    type: Number,
+    isArray: true,
+    required: false,
+    example: [1, 2],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      return value.map((val) => parseInt(val, 10));
+    }
+    if (typeof value === 'string') {
+      return value.split(',').map((val) => parseInt(val, 10));
+    }
+    return value;
+  })
+  userIds?: number[];
 
   @ApiPropertyOptional({ description: 'Somatório do valor bruto', type: Number })
   @IsOptional()
@@ -36,6 +69,12 @@ export class DetalhadoQueryDto {
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   pago?: boolean;
+
+  @ApiPropertyOptional({ description: 'Se o status de erro for Erro de Pagamento', default: false })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  erro?: boolean;
 
   @ApiPropertyOptional({ description: 'Se o status de erro for Estorno', default: false })
   @IsOptional()
