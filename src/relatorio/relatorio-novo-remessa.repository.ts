@@ -527,7 +527,7 @@ export class RelatorioNovoRemessaRepository {
       condicoes = condicoes +` and op."nomeConsorcio" in('${filter.consorcioNome.join("','")}') `
     }    
     
-    sql =  `select "nome", sum("valor") valor from (`+ sql + condicoes+`)r group by r."nome" ` ;
+    sql =  `select "nome", null as "nomeConsorcio", sum("valor") valor from (`+ sql + condicoes+`)r group by r."nome" ` ;
 
     return sql;
   }

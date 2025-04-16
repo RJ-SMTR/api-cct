@@ -146,52 +146,52 @@ export class CronJobsService {
           onTick: async () => await this.sendStatusReport(),
         },
       },
-      {
-        /**
-         * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min       
-         *
-         * Gerar remessa VLT
-         */
-        name: CronJobsEnum.generateRemessaVLT,
-        cronJobParameters: {
-          cronTime: '0 11 * * *', // Every day, 11:00 GMT = 8:00 BRT (GMT-3)
-          onTick: async () => {
-            const today = new Date();
-            if (isSaturday(today) || isSunday(today)) {
-              return;
-            }
-            await this.remessaVLTExec(new Date());
-          },
-        },
-      },
-      {
-        /**
-         * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min         
-         *
-         * Gerar remessa vanzeiros
-         */
-        name: CronJobsEnum.generateRemessaVanzeiros,
-        cronJobParameters: {
-          cronTime: '0 13 * * FRI', // Rodar todas as sextas 13:00 GMT = 10:00 BRT (GMT-3)
-          onTick: async () => {
-            await this.remessaModalExec();
-          },
-        },
-      },
-      {
-        /**
-         * Gerar arquivo Remessa dos Consórcios - toda 6a
-         *
-         * Gerar remessa consórcios
-         */
-        name: CronJobsEnum.generateRemessaEmpresa,
-        cronJobParameters: {
-          cronTime: '0 12 * * FRI', // Rodar todas as sextas 12:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => {
-            await this.remessaConsorciosExec();
-          },
-        },
-      },
+      // {
+      //   /**
+      //    * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min       
+      //    *
+      //    * Gerar remessa VLT
+      //    */
+      //   name: CronJobsEnum.generateRemessaVLT,
+      //   cronJobParameters: {
+      //     cronTime: '0 11 * * *', // Every day, 11:00 GMT = 8:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       const today = new Date();
+      //       if (isSaturday(today) || isSunday(today)) {
+      //         return;
+      //       }
+      //       await this.remessaVLTExec(new Date());
+      //     },
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min         
+      //    *
+      //    * Gerar remessa vanzeiros
+      //    */
+      //   name: CronJobsEnum.generateRemessaVanzeiros,
+      //   cronJobParameters: {
+      //     cronTime: '0 13 * * FRI', // Rodar todas as sextas 13:00 GMT = 10:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       await this.remessaModalExec();
+      //     },
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Gerar arquivo Remessa dos Consórcios - toda 6a
+      //    *
+      //    * Gerar remessa consórcios
+      //    */
+      //   name: CronJobsEnum.generateRemessaEmpresa,
+      //   cronJobParameters: {
+      //     cronTime: '0 12 * * FRI', // Rodar todas as sextas 12:00 GMT = 09:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       await this.remessaConsorciosExec();
+      //     },
+      //   },
+      // },
       {
         /**
          * Reenvio de E-mail para Vanzeiros - 1 aceso ou Cadastro de Contas Bancárias - dia 15 de cada mês, 11:45, duração: 5 min
