@@ -86,41 +86,49 @@ where da."dataVencimento" between $1 and $2
   private logger = new CustomLogger(RelatorioNovoRemessaPayAndPendingRepository.name, { timestamp: true });
 
   public async findPayAndPending(filter: IFindPublicacaoRelatorioNovoPayAndPending): Promise<RelatorioPayAndPendingNovoRemessaDto> {
-    const year = filter.dataInicio.getFullYear();
+    const initialYear = filter.dataInicio.getFullYear();
+    const finalYear = filter.dataFim.getFullYear();
 
-    const { query } = this.getQueryByYear(year);
+    const queryDecision = this.getQueryByYear(initialYear, finalYear);
 
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       await queryRunner.connect();
       this.logger.log("Conectado com sucesso.");
 
-      const parameters = this.getParametersByQuery(year, filter);
+      let allResults: any[] = [];
 
+      if (queryDecision.requiresMerge) {
+        this.logger.log("Executando queries separadas por ano.");
+        // Executa query de 2024
+        const paramsFor2024 = this.getParametersByQuery(2024, filter);
+        const resultFrom2024 = await queryRunner.query(RelatorioNovoRemessaPayAndPendingRepository.queryOlderReport, paramsFor2024);
 
-      const result: any[] = await queryRunner.query(query, parameters);
-      this.logger.log(`Resultado da query: ${JSON.stringify(result)}`);
+        // Executa query para o restante (2025 em diante)
+        const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
+        const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
+        const resultFromNewerYears = await queryRunner.query(RelatorioNovoRemessaPayAndPendingRepository.queryNewReport, paramsForNewerYears);
 
-      const count = result.length;
-      const valorTotal = result.reduce((acc, curr) => acc + Number.parseFloat(curr.valor), 0);
+        allResults = [...resultFrom2024, ...resultFromNewerYears];
+      } else {
+        const paramsForYear = this.getParametersByQuery(initialYear, filter);
+        allResults = await queryRunner.query(queryDecision.query, paramsForYear);
+      }
 
-      const relatorioPayAndPendingDto = new RelatorioPayAndPendingNovoRemessaDto({
+      const count = allResults.length;
+      const valorTotal = allResults.reduce((acc, curr) => acc + Number.parseFloat(curr.valor), 0);
+
+      const relatorioDto = new RelatorioPayAndPendingNovoRemessaDto({
         count,
         valor: Number.parseFloat(valorTotal.toString()),
-        data: result
+        data: allResults
           .sort((a, b) => {
             const statusOrder = { Estorno: 0, Pago: 1, Rejeitado: 2 };
-
-            //  Ordena por dataPagamento
             const dateA = new Date(a.datapagamento).getTime();
             const dateB = new Date(b.datapagamento).getTime();
             if (dateA !== dateB) return dateA - dateB;
-
-            //  Ordena por nome
             const nameCompare = a.nomes.localeCompare(b.nomes, 'pt-BR');
             if (nameCompare !== 0) return nameCompare;
-
-            // Ordena por status customizado
             return statusOrder[a.status] - statusOrder[b.status];
           })
           .map(r => new RelatorioPayAndPendingNovoRemessaData({
@@ -133,8 +141,7 @@ where da."dataVencimento" between $1 and $2
           }))
       });
 
-      this.logger.log(`Relatório payandpending: ${JSON.stringify(relatorioPayAndPendingDto)} `);
-      return relatorioPayAndPendingDto;
+      return relatorioDto;
     } catch (error) {
       this.logger.log("Erro ao executar a query:", error);
       throw error;
@@ -171,20 +178,33 @@ where da."dataVencimento" between $1 and $2
   }
 
 
-  private getQueryByYear(year: number): { query: string; } {
-    if (year <= 2024) {
-      return { query: RelatorioNovoRemessaPayAndPendingRepository.queryOlderReport };
+  private getQueryByYear(initialYear: number, finalYear: number):
+    | { requiresMerge: true }
+    | { requiresMerge: false; query: string } {
+    const olderYearLimit = 2024;
+    const newerYearStart = 2025;
+
+    if (initialYear <= olderYearLimit && finalYear >= newerYearStart) {
+      return { requiresMerge: true };
     }
 
-    return { query: RelatorioNovoRemessaPayAndPendingRepository.queryNewReport };
+    if (initialYear <= olderYearLimit && finalYear <= olderYearLimit) {
+      return { requiresMerge: false, query: RelatorioNovoRemessaPayAndPendingRepository.queryOlderReport };
+    }
+
+    if (initialYear >= newerYearStart && finalYear >= newerYearStart) {
+      return { requiresMerge: false, query: RelatorioNovoRemessaPayAndPendingRepository.queryNewReport };
+    }
+
+    return { requiresMerge: true };
   }
+
+
 
   private getParametersByQuery(year: number, filter: IFindPublicacaoRelatorioNovoPayAndPending): any[] {
     const consorcioNome: string[] | null = filter.consorcioNome
       ? filter.consorcioNome.map(nome => nome.toUpperCase().trim())
       : null;
-
-    this.logger.log(`Nome(s) do consórcio: ${consorcioNome}`);
 
     const {
       dataInicio,
