@@ -7,11 +7,19 @@ import {
   RelatorioConsolidadoNovoRemessaData,
   RelatorioConsolidadoNovoRemessaDto,
 } from './dtos/relatorio-consolidado-novo-remessa.dto';
-import { parseNumber } from '../cnab/utils/cnab/cnab-field-utils';
-import { fi } from 'date-fns/locale';
+import { formatDateISODate } from 'src/utils/date-utils';
+
 
 @Injectable()
 export class RelatorioNovoRemessaRepository {
+  
+  private static readonly QUERY_FROM = ` from ordem_pagamento op 
+                    inner join ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id
+                    inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
+                    inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
+                    inner join public."user" uu on uu."id"=op."userId" 
+                    where (1=1) `;                    
+
 
   private static readonly QUERY_CONSOLIDADO_VANZEIROS = `
       WITH latest_opah AS (
@@ -237,88 +245,159 @@ export class RelatorioNovoRemessaRepository {
   ) {}
   private logger = new CustomLogger(RelatorioNovoRemessaRepository.name, { timestamp: true });
 
+  // public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
+  //   if (filter.consorcioNome) {
+  //     filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
+  //   }
+
+  //   const parametersQueryVanzeiros =
+  //     [
+  //       filter.userIds || null,
+  //       filter.dataInicio || null,
+  //       filter.dataFim || null,
+  //       this.getStatusParaFiltro(filter),
+  //       filter.valorMin || null,
+  //       filter.valorMax || null,
+  //     ];
+
+  //   const parametersQueryConsorciosEModais =
+  //     [
+  //       filter.dataInicio || null,
+  //       filter.dataFim || null,
+  //       this.getStatusParaFiltro(filter),
+  //       filter.consorcioNome || null,
+  //       filter.valorMin || null,
+  //       filter.valorMax || null,
+  //     ];
+
+  //   const queryRunner = this.dataSource.createQueryRunner();
+  //   await queryRunner.connect();
+  //   let result : any[] = [];
+  //   let resultConsorciosEModais : any[] = [];
+  //   let resultVanzeiros : any[] = [];
+
+  //   if (filter.todosVanzeiros) {
+  //     filter.userIds = undefined;
+  //     resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, 
+  //       parametersQueryVanzeiros);             
+  //   }
+
+  //   if (filter.todosConsorcios) {
+  //     filter.consorcioNome = undefined;
+  //     resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS,
+  //        parametersQueryConsorciosEModais);
+  //   }
+
+  //   if (filter.userIds && filter.userIds.length > 0) {
+  //     resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, 
+  //       parametersQueryVanzeiros);
+  //   }
+
+  //   if (filter.consorcioNome && filter.consorcioNome.length > 0) {
+  //     resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
+  //   }
+
+  //   // Nenhum critério, trás todos.
+  //   if (!filter.todosVanzeiros &&
+  //     !filter.todosConsorcios
+  //     && (!filter.userIds || filter.userIds.length == 0) && (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
+  //     resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
+  //     resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS,
+  //        parametersQueryConsorciosEModais);
+  //   }
+
+  //   result = resultVanzeiros.concat(resultConsorciosEModais);
+
+  //   await queryRunner.release();
+  //   const count = result.length;
+  //   const valorTotal = result.reduce((acc, curr) => acc + Number(curr.valorTotal), 0);
+  //   const relatorioConsolidadoDto = new RelatorioConsolidadoNovoRemessaDto();
+    
+  //   relatorioConsolidadoDto.valor = parseFloat(valorTotal);
+
+  //   relatorioConsolidadoDto.count = count;
+  //   relatorioConsolidadoDto.data = result
+  //     .map((r) => {
+  //       const elem = new RelatorioConsolidadoNovoRemessaData();
+  //       elem.nomefavorecido = r.fullName;
+  //       elem.valor = parseFloat(r.valorTotal);
+  //       return elem;
+  //     });
+  //   return relatorioConsolidadoDto;
+  // }
+
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
-    if (filter.consorcioNome) {
-      filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
-    }
-
-    const parametersQueryVanzeiros =
-      [
-        filter.userIds || null,
-        filter.dataInicio || null,
-        filter.dataFim || null,
-        this.getStatusParaFiltro(filter),
-        filter.valorMin || null,
-        filter.valorMax || null,
-      ];
-
-    const parametersQueryConsorciosEModais =
-      [
-        filter.dataInicio || null,
-        filter.dataFim || null,
-        this.getStatusParaFiltro(filter),
-        filter.consorcioNome || null,
-        filter.valorMin || null,
-        filter.valorMax || null,
-      ];
-
     const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    let result : any[] = [];
-    let resultConsorciosEModais : any[] = [];
-    let resultVanzeiros : any[] = [];
+    await queryRunner.connect();     
+    
+    let sql = ` `; 
 
-    if (filter.todosVanzeiros) {
-      filter.userIds = undefined;
-      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
-      console.log(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS)
-      console.log(parametersQueryVanzeiros)
+    let sqlModais;
+
+    let sqlConsorcios;
+
+    if(filter.todosVanzeiros || filter.userIds){
+      sqlModais = this.consultaVanzeiros(filter);
     }
-
-    if (filter.todosConsorcios) {
-      filter.consorcioNome = undefined;
-      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
-      console.log(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS)
-      console.log(parametersQueryConsorciosEModais);
+    
+    if(filter.todosConsorcios || filter.consorcioNome){
+      sqlConsorcios = this.consultaConsorcios(filter);
     }
-
-    if (filter.userIds && filter.userIds.length > 0) {
-      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
-      console.log(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS)
-      console.log(parametersQueryVanzeiros);
+   
+    if(sqlModais && sqlConsorcios){
+      sql = sqlModais + ` union all `+ sqlConsorcios; 
+    }else if(sqlModais){
+      sql = sqlModais;      
+    }else if(sqlConsorcios){
+      sql = sqlConsorcios;
     }
+    
+    sql = `select * from (${sql}) vv where (1=1) `;
 
-    if (filter.consorcioNome && filter.consorcioNome.length > 0) {
-      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
-      console.log(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS)
-      console.log(parametersQueryConsorciosEModais);
-    }
-
-    // Nenhum critério, trás todos.
-    if (!filter.todosVanzeiros &&
-      !filter.todosConsorcios
-      && (!filter.userIds || filter.userIds.length == 0) && (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
-      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
-      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
-      console.log(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS)
-      console.log(parametersQueryConsorciosEModais);
-    }
-
-    result = resultVanzeiros.concat(resultConsorciosEModais);
-
-    await queryRunner.release();
+    if(filter.valorMin){    
+      sql = sql +` and vv."valor">=${filter.valorMin} `
+    } 
+    
+    if(filter.valorMax){
+      sql = sql +` and vv."valor"<=${filter.valorMax} `
+    }  
+    
+    const result: any[] = await queryRunner.query(sql);
+    
     const count = result.length;
-    const valorTotal = result.reduce((acc, curr) => acc + parseFloat(curr.valorTotal), 0);
+
+    let valorTotal;
+    
     const relatorioConsolidadoDto = new RelatorioConsolidadoNovoRemessaDto();
+
+    if(filter.aPagar!=undefined || filter.emProcessamento!=undefined){
+      const sqlPagar =  this.somatorioTotalAPagar(sql);
+     
+      const resultTotal: any[] = await queryRunner.query(sqlPagar);
+
+      valorTotal = resultTotal.map(r => r.valor)
+    }
+
+    if(filter.pago!=undefined || filter.erro!=undefined){
+      const sqlPago =  this.somatorioTotalPagoErro(sql);
+
+      const resultTotal: any[] = await queryRunner.query(sqlPago);
+
+      valorTotal = resultTotal.map(r => r.valor)
+    }
+
     relatorioConsolidadoDto.valor = parseFloat(valorTotal);
     relatorioConsolidadoDto.count = count;
     relatorioConsolidadoDto.data = result
       .map((r) => {
         const elem = new RelatorioConsolidadoNovoRemessaData();
-        elem.nomefavorecido = r.fullName;
-        elem.valor = parseFloat(r.valorTotal);
+        elem.nomefavorecido = r.nome;
+        elem.valor = parseFloat(r.valor);
         return elem;
       });
+
+    await queryRunner.release();
+
     return relatorioConsolidadoDto;
   }
 
@@ -326,7 +405,7 @@ export class RelatorioNovoRemessaRepository {
     this.logger.debug(RelatorioNovoRemessaRepository.QUERY_SINTETICO);
 
     if (filter.consorcioNome) {
-      filter.consorcioNome = filter.consorcioNome.map((c) => {  return c.toUpperCase().trim();});
+      filter.consorcioNome = filter.consorcioNome.map((c) => { return c.toUpperCase().trim();});
     }
 
     const parameters =
@@ -381,5 +460,83 @@ export class RelatorioNovoRemessaRepository {
       }
     }
     return statuses;
+  }
+
+  private consultaVanzeiros(filter:IFindPublicacaoRelatorioNovoRemessa){
+    const dataInicio = formatDateISODate(filter.dataInicio) 
+    const dataFim = formatDateISODate(filter.dataFim) 
+    
+    let sql = ``;
+      
+    let condicoes = '';
+ 
+    if(filter.aPagar!==undefined || filter.emProcessamento!==undefined){
+      sql = `select distinct uu."fullName"nome,op."nomeConsorcio",opa."valor" `;
+      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
+      condicoes = condicoes +` and (date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' ) `;     
+    }
+
+    if(filter.pago!==undefined || filter.erro!==undefined){
+      sql = `select distinct uu."fullName"nome,op."nomeConsorcio", da."valorLancamento" valor `;
+      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
+      condicoes = condicoes +` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
+    }
+
+    let statuses =  this.getStatusParaFiltro(filter);
+    if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar){
+      condicoes = condicoes + ` and oph."statusRemessa" in(${statuses}) `;
+    }
+
+    if(filter.userIds){
+      condicoes = condicoes +` and "userId" in('${filter.userIds.join("','")}') `;
+    }else if(filter.todosVanzeiros){
+      condicoes = condicoes + ` and op."nomeConsorcio" in('STPC','STPL','TEC') `;
+    }    
+    return sql + condicoes;
+  }
+
+  private consultaConsorcios(filter:IFindPublicacaoRelatorioNovoRemessa){
+    const dataInicio = formatDateISODate(filter.dataInicio); 
+    const dataFim = formatDateISODate(filter.dataFim);        
+   
+    let sql = ``;
+
+    let condicoes = '';
+ 
+    if(filter.aPagar!=undefined || filter.emProcessamento!=undefined){
+      sql = `select distinct  uu."fullName",op."nomeConsorcio" nome, opa."valorTotal" valor `
+      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
+      condicoes = condicoes +` and (date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' ) `;      
+    }
+
+    if(filter.pago!=undefined || filter.erro!=undefined){
+      sql = `select distinct uu."fullName",op."nomeConsorcio" nome, da."valorLancamento" valor `;
+      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
+      condicoes = condicoes +` and  da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
+    }
+
+    let statuses =  this.getStatusParaFiltro(filter);
+    if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar){
+      condicoes = condicoes + ` and oph."statusRemessa" in(${statuses}) `;
+    }   
+
+    if(filter.todosConsorcios){
+      condicoes = condicoes +` and op."nomeConsorcio" in('STPC','STPL','VLT','Santa Cruz',
+        'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
+    }else if(filter.consorcioNome){
+      condicoes = condicoes +` and op."nomeConsorcio" in('${filter.consorcioNome.join("','")}') `
+    }    
+    
+    sql =  `select "nome", sum("valor") valor from (`+ sql + condicoes+`)r group by r."nome" ` ;
+
+    return sql;
+  }
+
+  private somatorioTotalPagoErro(sql:string){
+    return `select sum("valor") valor from (`+sql+`) s `; 
+  }
+
+  private somatorioTotalAPagar(sql:string){
+    return `select sum("valor") valor from (`+sql+`) s `;
   }
 }

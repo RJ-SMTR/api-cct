@@ -5,7 +5,6 @@ import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
-import { RelatorioService } from './relatorio.service';
 import { Int32 } from 'typeorm';
 import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
 
