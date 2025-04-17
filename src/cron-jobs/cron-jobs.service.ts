@@ -103,7 +103,6 @@ export class CronJobsService {
 
 
   async onModuleLoad(){
-    await this.remessaVLTExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -628,7 +627,7 @@ export class CronJobsService {
   }
 
   private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
-    consorcios: string[], headerName: HeaderName) {
+    consorcios: string[], headerName: HeaderName,pagamentoUnico?:boolean) {
     //Agrupa pagamentos     
 
     for (let index = 0; index < consorcios.length; index++) {
@@ -645,7 +644,7 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt,headerName);
   }
 
-  async remessaVLTExec(todayCustom?:Date) {
+  async remessaVLTExec(todayCustom?:Date,pagamentoUnico?:boolean) {
     //Rodar de segunda a sexta   
     let today = todayCustom?todayCustom: new Date();
     /** defaut: qua,qui,sex,sáb,dom */
@@ -664,24 +663,24 @@ export class CronJobsService {
     console.log(`data fim: ${dataFim}`); 
     console.log(`data pagamento: ${today}`);  
     await this.geradorRemessaExec(dataInicio, dataFim, today,
-       ['VLT'], HeaderName.VLT);
+       ['VLT'], HeaderName.VLT,pagamentoUnico);
   }
 
-  async remessaModalExec() {
+  async remessaModalExec(pagamentoUnico?:boolean) {
     //Rodar Sexta 
     const today = new Date();
     const dataInicio = subDays(today, 7);
     const dataFim = subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL);
+    await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL,pagamentoUnico);
   }
 
-  async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string) {
+  async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
     //Rodar na Sexta
     const today = new Date();
     const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 7);
     const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
     await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
-      ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO);
+      ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO,pagamentoUnico);
   }
 
   async retornoExec() {
