@@ -129,11 +129,11 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     await this.connectClient();
     let remotePath: string | PromiseLike<string>;
     
-    // if(headerName ==='VLT'){
-    //   remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
-    // }else{
+    if(headerName ==='VLT'){
+      remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
+    }else{
       remotePath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`);
-    // }
+    }
 
     await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
     await this.submitCnabBackupRemessa(content);

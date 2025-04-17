@@ -102,7 +102,7 @@ export class CronJobsService {
   }
 
 
-  async onModuleLoad(){
+  async onModuleLoad(){    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -174,7 +174,7 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '0 13 * * FRI', // Rodar todas as sextas 13:00 GMT = 10:00 BRT (GMT-3)
           onTick: async () => {
-            await this.remessaModalExec();
+            // await this.remessaModalExec(); 
           },
         },
       },
@@ -188,7 +188,7 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '0 12 * * FRI', // Rodar todas as sextas 12:00 GMT = 09:00 BRT (GMT-3)
           onTick: async () => {
-            await this.remessaConsorciosExec();
+            // await this.remessaConsorciosExec();
           },
         },
       },
@@ -640,8 +640,8 @@ export class CronJobsService {
     //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName);
 
-    //Envia para o SFTP
-   await this.remessaService.enviarRemessa(txt,headerName);
+    // Envia para o SFTP
+    await this.remessaService.enviarRemessa(txt,headerName);
   }
 
 
@@ -664,23 +664,29 @@ export class CronJobsService {
     console.log(`data fim: ${dataFim}`); 
     console.log(`data pagamento: ${today}`);  
 
-     await this.geradorRemessaExec(dataInicio, dataFim, today,
+    let dataPagamento = new Date('2025-04-22');
+    if(today >= dataPagamento ){
+      dataPagamento = new Date('2025-04-24')
+    }
+
+    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento,
        ['VLT'], HeaderName.VLT);
   }
 
-  async remessaModalExec() {
+  async remessaModalExec(dataPagamento?:string) {
     //Rodar Sexta 
-    const today = new Date();
-    const dataInicio = subDays(today, 7);
-    const dataFim = subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL);
+    const dataPgto = dataPagamento ? new Date(dataPagamento) : new Date();
+    const today = new Date()
+    const dataInicio = subDays(today, 6);
+    const dataFim = subDays(today, 0); 
+    await this.geradorRemessaExec(dataInicio,dataFim,dataPgto,['STPC','STPL','TEC'], HeaderName.MODAL);
   }
 
   async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string) {
     //Rodar na Sexta
     const today = new Date();
-    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 7);
-    const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
+    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 6);
+    const dataFim =dtFim?new Date(dtFim):subDays(today, 0); 
     await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
       ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO);
   }
