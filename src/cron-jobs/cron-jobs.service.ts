@@ -631,8 +631,13 @@ export class CronJobsService {
     //Agrupa pagamentos     
 
     for (let index = 0; index < consorcios.length; index++) {
-      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-        dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+      if(pagamentoUnico){
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
+          dataFim, dataPagamento, "cett", [consorcios[index]]);
+      }else{
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+      }
     }
     // Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim,dataPagamento, consorcios);
