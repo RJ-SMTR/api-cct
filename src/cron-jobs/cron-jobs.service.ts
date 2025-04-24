@@ -102,7 +102,7 @@ export class CronJobsService {
   }
 
 
-  async onModuleLoad(){    
+  async onModuleLoad(){       
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -635,13 +635,13 @@ export class CronJobsService {
         dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
     }
     // Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim,dataPagamento, consorcios);
+     await this.remessaService.prepararRemessa(dataInicio, dataFim,dataPagamento, consorcios);
 
     //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName);
 
     // Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt,headerName);
+      await this.remessaService.enviarRemessa(txt,headerName);
   }
 
 
@@ -664,12 +664,7 @@ export class CronJobsService {
     console.log(`data fim: ${dataFim}`); 
     console.log(`data pagamento: ${today}`);  
 
-    let dataPagamento = new Date('2025-04-22');
-    if(today >= dataPagamento ){
-      dataPagamento = new Date('2025-04-24')
-    }
-
-    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento,
+    await this.geradorRemessaExec(dataInicio, dataFim, today,
        ['VLT'], HeaderName.VLT);
   }
 
