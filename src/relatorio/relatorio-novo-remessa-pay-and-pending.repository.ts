@@ -9,38 +9,40 @@ import { IFindPublicacaoRelatorioNovoPayAndPending } from './interfaces/filter-p
 @Injectable()
 export class RelatorioNovoRemessaPayAndPendingRepository {
   private static readonly queryNewReport = `
-select distinct 
-  da."dataVencimento" as dataPagamento,
-  pu."fullName" as nomes,
-  pu."cpfCnpj",
-  op."nomeConsorcio",
-  da."valorLancamento" as valor,
-  case 
-    when oph."motivoStatusRemessa" = '00' or oph."motivoStatusRemessa" = 'BD' then 'Pago'
-    when oph."motivoStatusRemessa" = '02' then 'Estorno'
-    else 'Rejeitado'
-  end as status
-from ordem_pagamento op 
-  inner join ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
-  inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId" = opa.id
-  inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
-  inner join public.user pu on pu."id" = op."userId"
-where da."dataVencimento" between $1 and $2 
-  and ($3::integer[] is null or pu."id" = any($3))
-  and ($5::text[] is null or op."nomeConsorcio" = any($5))
-  and (
-    ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
-    ($7::numeric is null or da."valorLancamento" <= $7::numeric)
-  )
-  and (
-  $4::text[] is null or (
-    case 
-      when oph."motivoStatusRemessa" = '00' or oph."motivoStatusRemessa" = 'BD' then 'Pago'
-      when oph."motivoStatusRemessa" = '02' then 'Estorno'
-      else 'Rejeitado'
-    end
-  ) = ANY($4)
-)
+SELECT DISTINCT 
+    da."dataVencimento" AS dataPagamento,
+    pu."fullName" AS nomes,
+    pu."cpfCnpj",
+    op."nomeConsorcio",
+    da."valorLancamento" AS valor,
+    CASE
+        WHEN oph."motivoStatusRemessa" = '00' OR oph."motivoStatusRemessa" = 'BD' THEN 'Pago'
+        WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+        ELSE 'Rejeitado'
+    END AS status
+FROM
+    ordem_pagamento op
+    INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
+    INNER JOIN public."user" pu ON pu."id" = op."userId"
+WHERE
+    da."dataVencimento" BETWEEN $1 AND $2
+    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+    AND ($5::text[] IS NULL OR op."nomeConsorcio" = ANY($5))
+    AND (
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+    )
+    AND (
+        $4::text[] IS NULL OR (
+            CASE 
+                WHEN oph."motivoStatusRemessa" = '00' OR oph."motivoStatusRemessa" = 'BD' THEN 'Pago'
+                WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+                ELSE 'Rejeitado'
+            END
+        ) = ANY($4)
+    )
 `;
 
   private static readonly queryOlderReport = `
