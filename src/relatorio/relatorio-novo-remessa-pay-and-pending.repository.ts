@@ -78,7 +78,7 @@ where da."dataVencimento" between $1 and $2
         else 'Rejeitado'
       end
     ) = any($3)
-  );
+  ) 
 `;
 
   private static notCpf2025 = `AND pu."cpfCnpj" NOT IN ('18201378000119',
