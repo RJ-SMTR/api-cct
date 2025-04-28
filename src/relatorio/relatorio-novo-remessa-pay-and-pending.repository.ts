@@ -29,7 +29,8 @@ FROM
 WHERE
     da."dataVencimento" BETWEEN $1 AND $2
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR op."nomeConsorcio" = ANY($5))
+    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
+
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -64,7 +65,7 @@ from item_transacao it
   inner join cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
 where da."dataVencimento" between $1 and $2
-  and ($4::text[] is null or it."nomeConsorcio" = any($4))
+  and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
   and ($5::integer[] is null or it."clienteFavorecidoId" = any($5))
   and (
     ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
@@ -245,6 +246,7 @@ where da."dataVencimento" between $1 and $2
     const consorcioNome: string[] | null = filter.consorcioNome
       ? filter.consorcioNome.map(nome => nome.toUpperCase().trim())
       : null;
+
 
     const {
       dataInicio,
