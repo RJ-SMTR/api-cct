@@ -5,7 +5,6 @@ import { StatusPagamento } from './enum/statusRemessaPayAndPending';
 import { DataSource } from 'typeorm';
 import { RelatorioPayAndPendingNovoRemessaDto, RelatorioPayAndPendingNovoRemessaData } from './dtos/relatorio-pay-and-pending-novo-remessa.dto';
 import { IFindPublicacaoRelatorioNovoPayAndPending } from './interfaces/filter-publicacao-relatorio-novo-pay-and-pending.interface';
-import { query } from 'express';
 
 @Injectable()
 export class RelatorioNovoRemessaPayAndPendingRepository {
@@ -82,7 +81,14 @@ where da."dataVencimento" between $1 and $2
   );
 `;
 
-  private static notCpf = `AND u."cpfCnpj" NOT IN ('18201378000119',
+  private static notCpf2025 = `AND pu."cpfCnpj" NOT IN ('18201378000119',
+                                '12464869000176',
+                                '12464539000180',
+                                '12464553000184',
+                                '44520687000161',
+                                '12464577000133'
+          )`
+  private static notCpf2024 = `AND cpf."cpfCnpj" NOT IN ('18201378000119',
                                 '12464869000176',
                                 '12464539000180',
                                 '12464553000184',
@@ -113,11 +119,23 @@ where da."dataVencimento" between $1 and $2
         this.logger.log("Executando queries separadas por ano.");
 
         const paramsFor2024 = this.getParametersByQuery(2024, filter);
-        const resultFrom2024 = await queryRunner.query(RelatorioNovoRemessaPayAndPendingRepository.queryOlderReport, paramsFor2024);
+        let finalQuery2024 = RelatorioNovoRemessaPayAndPendingRepository.queryOlderReport;
+
+        if (filter.todosVanzeiros) {
+          finalQuery2024 += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf2024}`;
+        }
+
+        const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
         const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
         const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
-        const resultFromNewerYears = await queryRunner.query(RelatorioNovoRemessaPayAndPendingRepository.queryNewReport, paramsForNewerYears);
+        let finalQuery2025 = RelatorioNovoRemessaPayAndPendingRepository.queryNewReport;
+
+        if (filter.todosVanzeiros) {
+          finalQuery2025 += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf2025}`;
+        }
+
+        const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
 
         allResults = [...resultFrom2024, ...resultFromNewerYears];
 
@@ -127,7 +145,7 @@ where da."dataVencimento" between $1 and $2
         let finalQuery = queryDecision.query;
 
         if (filter.todosVanzeiros) {
-          finalQuery += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf}`;
+          finalQuery += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf2025}`;
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
