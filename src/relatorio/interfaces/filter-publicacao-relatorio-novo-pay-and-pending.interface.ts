@@ -4,6 +4,7 @@ export interface IFindPublicacaoRelatorioNovoPayAndPending {
   dataFim: Date;
   userIds?: number[];
   consorcioNome?: string[];
+  todosVanzeiros?: boolean;
   valorMin?: number;
   valorMax?: number;
   pago?: boolean;

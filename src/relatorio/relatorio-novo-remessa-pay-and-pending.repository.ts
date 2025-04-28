@@ -5,42 +5,45 @@ import { StatusPagamento } from './enum/statusRemessaPayAndPending';
 import { DataSource } from 'typeorm';
 import { RelatorioPayAndPendingNovoRemessaDto, RelatorioPayAndPendingNovoRemessaData } from './dtos/relatorio-pay-and-pending-novo-remessa.dto';
 import { IFindPublicacaoRelatorioNovoPayAndPending } from './interfaces/filter-publicacao-relatorio-novo-pay-and-pending.interface';
+import { query } from 'express';
 
 @Injectable()
 export class RelatorioNovoRemessaPayAndPendingRepository {
   private static readonly queryNewReport = `
-select distinct 
-  da."dataVencimento" as dataPagamento,
-  pu."fullName" as nomes,
-  pu."cpfCnpj",
-  op."nomeConsorcio",
-  da."valorLancamento" as valor,
-  case 
-    when oph."motivoStatusRemessa" = '00' or oph."motivoStatusRemessa" = 'BD' then 'Pago'
-    when oph."motivoStatusRemessa" = '02' then 'Estorno'
-    else 'Rejeitado'
-  end as status
-from ordem_pagamento op 
-  inner join ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId" = opa.id
-  inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId" = opa.id
-  inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
-  inner join public.user pu on pu."id" = op."userId"
-where da."dataVencimento" between $1 and $2 
-  and ($3::integer[] is null or pu."id" = any($3))
-  and ($5::text[] is null or op."nomeConsorcio" = any($5))
-  and (
-    ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
-    ($7::numeric is null or da."valorLancamento" <= $7::numeric)
-  )
-  and (
-  $4::text[] is null or (
-    case 
-      when oph."motivoStatusRemessa" = '00' or oph."motivoStatusRemessa" = 'BD' then 'Pago'
-      when oph."motivoStatusRemessa" = '02' then 'Estorno'
-      else 'Rejeitado'
-    end
-  ) = ANY($4)
-)
+SELECT DISTINCT 
+    da."dataVencimento" AS dataPagamento,
+    pu."fullName" AS nomes,
+    pu."cpfCnpj",
+    op."nomeConsorcio",
+    da."valorLancamento" AS valor,
+    CASE
+        WHEN oph."motivoStatusRemessa" = '00' OR oph."motivoStatusRemessa" = 'BD' THEN 'Pago'
+        WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+        ELSE 'Rejeitado'
+    END AS status
+FROM
+    ordem_pagamento op
+    INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
+    INNER JOIN public."user" pu ON pu."id" = op."userId"
+WHERE
+    da."dataVencimento" BETWEEN $1 AND $2
+    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+    AND ($5::text[] IS NULL OR op."nomeConsorcio" = ANY($5))
+    AND (
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+    )
+    AND (
+        $4::text[] IS NULL OR (
+            CASE 
+                WHEN oph."motivoStatusRemessa" = '00' OR oph."motivoStatusRemessa" = 'BD' THEN 'Pago'
+                WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+                ELSE 'Rejeitado'
+            END
+        ) = ANY($4)
+    )
 `;
 
   private static readonly queryOlderReport = `
@@ -79,6 +82,14 @@ where da."dataVencimento" between $1 and $2
   );
 `;
 
+  private static notCpf = `AND u."cpfCnpj" NOT IN ('18201378000119',
+                                '12464869000176',
+                                '12464539000180',
+                                '12464553000184',
+                                '44520687000161',
+                                '12464577000133'
+          )`
+
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
@@ -100,19 +111,26 @@ where da."dataVencimento" between $1 and $2
 
       if (queryDecision.requiresMerge) {
         this.logger.log("Executando queries separadas por ano.");
-        // Executa query de 2024
+
         const paramsFor2024 = this.getParametersByQuery(2024, filter);
         const resultFrom2024 = await queryRunner.query(RelatorioNovoRemessaPayAndPendingRepository.queryOlderReport, paramsFor2024);
 
-        // Executa query para o restante (2025 em diante)
         const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
         const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
         const resultFromNewerYears = await queryRunner.query(RelatorioNovoRemessaPayAndPendingRepository.queryNewReport, paramsForNewerYears);
 
         allResults = [...resultFrom2024, ...resultFromNewerYears];
+
       } else {
         const paramsForYear = this.getParametersByQuery(initialYear, filter);
-        allResults = await queryRunner.query(queryDecision.query, paramsForYear);
+
+        let finalQuery = queryDecision.query;
+
+        if (filter.todosVanzeiros) {
+          finalQuery += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf}`;
+        }
+
+        allResults = await queryRunner.query(finalQuery, paramsForYear);
       }
 
       const count = allResults.length;
