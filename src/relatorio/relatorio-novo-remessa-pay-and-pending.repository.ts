@@ -145,7 +145,11 @@ where da."dataVencimento" between $1 and $2
         let finalQuery = queryDecision.query;
 
         if (filter.todosVanzeiros) {
-          finalQuery += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf2025}`;
+          if (initialYear === 2025) {
+            finalQuery += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf2025}`;
+          } else if (initialYear === 2024) {
+            finalQuery += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf2024}`;
+          }
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
