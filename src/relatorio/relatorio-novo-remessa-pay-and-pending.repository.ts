@@ -5,6 +5,7 @@ import { StatusPagamento } from './enum/statusRemessaPayAndPending';
 import { DataSource } from 'typeorm';
 import { RelatorioPayAndPendingNovoRemessaDto, RelatorioPayAndPendingNovoRemessaData } from './dtos/relatorio-pay-and-pending-novo-remessa.dto';
 import { IFindPublicacaoRelatorioNovoPayAndPending } from './interfaces/filter-publicacao-relatorio-novo-pay-and-pending.interface';
+import { query } from 'express';
 
 @Injectable()
 export class RelatorioNovoRemessaPayAndPendingRepository {
@@ -81,6 +82,14 @@ where da."dataVencimento" between $1 and $2
   );
 `;
 
+  private static notCpf = `AND u."cpfCnpj" NOT IN ('18201378000119',
+                                '12464869000176',
+                                '12464539000180',
+                                '12464553000184',
+                                '44520687000161',
+                                '12464577000133'
+          )`
+
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
@@ -102,19 +111,26 @@ where da."dataVencimento" between $1 and $2
 
       if (queryDecision.requiresMerge) {
         this.logger.log("Executando queries separadas por ano.");
-        // Executa query de 2024
+
         const paramsFor2024 = this.getParametersByQuery(2024, filter);
         const resultFrom2024 = await queryRunner.query(RelatorioNovoRemessaPayAndPendingRepository.queryOlderReport, paramsFor2024);
 
-        // Executa query para o restante (2025 em diante)
         const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
         const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
         const resultFromNewerYears = await queryRunner.query(RelatorioNovoRemessaPayAndPendingRepository.queryNewReport, paramsForNewerYears);
 
         allResults = [...resultFrom2024, ...resultFromNewerYears];
+
       } else {
         const paramsForYear = this.getParametersByQuery(initialYear, filter);
-        allResults = await queryRunner.query(queryDecision.query, paramsForYear);
+
+        let finalQuery = queryDecision.query;
+
+        if (filter.todosVanzeiros) {
+          finalQuery += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf}`;
+        }
+
+        allResults = await queryRunner.query(finalQuery, paramsForYear);
       }
 
       const count = allResults.length;

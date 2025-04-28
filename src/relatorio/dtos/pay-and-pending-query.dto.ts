@@ -31,12 +31,22 @@ export class PayAndPendingQueryDto {
   })
   consorcioNome?: string[];
 
+
+  @ApiPropertyOptional({
+    description: 'Pesquisa todos os vanzeiros.', default: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  todosVanzeiros?: boolean;
+
+
   @ApiPropertyOptional({
     description: 'Pesquisa o id dos usuários.',
-    type: Number,
+    type: String,
     isArray: true,
     required: false,
-    example: [1, 2],
+    example: ['123'],
   })
   @IsOptional()
   @IsArray()
