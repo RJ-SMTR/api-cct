@@ -88,7 +88,7 @@ where da."dataVencimento" between $1 and $2
                                 '44520687000161',
                                 '12464577000133'
           )`
-  private static notCpf2024 = `AND cp."cpfCnpj" NOT IN ('18201378000119',
+  private static notCpf2024 = `AND cf."cpfCnpj" NOT IN ('18201378000119',
                                 '12464869000176',
                                 '12464539000180',
                                 '12464553000184',
