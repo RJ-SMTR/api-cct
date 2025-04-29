@@ -16,7 +16,7 @@ SELECT DISTINCT
     op."nomeConsorcio",
     da."valorLancamento" AS valor,
     CASE
-        WHEN oph."motivoStatusRemessa" = '00' OR oph."motivoStatusRemessa" = 'BD' THEN 'Pago'
+        WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
         WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
         ELSE 'Rejeitado'
     END AS status
@@ -30,7 +30,6 @@ WHERE
     da."dataVencimento" BETWEEN $1 AND $2
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
-
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -38,7 +37,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR (
             CASE 
-                WHEN oph."motivoStatusRemessa" = '00' OR oph."motivoStatusRemessa" = 'BD' THEN 'Pago'
+                WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                 WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                 ELSE 'Rejeitado'
             END
