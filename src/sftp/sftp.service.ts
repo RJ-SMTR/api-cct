@@ -123,23 +123,45 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     this.logger.log(`Arquivo carregado em ${_remotePath}`, METHOD);
   }
 
-  public async submitCnabRemessa(content: string, headerName?:string): Promise<string> {
+
+  public async submitCnabRemessa(content: string, headerName?: string): Promise<string> {
     const METHOD = 'submitCnabRemessa';
+    const MAX_RETRIES = 5;
+    let attempt = 0;
 
-    await this.connectClient();
-    let remotePath: string | PromiseLike<string>;
-    
-    if(headerName ==='VLT'){
-      remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
-    }else{
-      remotePath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`);
+    try {
+      while (attempt < MAX_RETRIES) {
+        try {
+          await this.connectClient();
+          break;
+        } catch (err) {
+          attempt++;
+          this.logger.warn(`Tentativa ${attempt} de conexão falhou`, METHOD);
+          if (attempt >= MAX_RETRIES) {
+            throw new Error(`Falha ao conectar após ${MAX_RETRIES} tentativas: ${err}`);
+          }
+          await new Promise(res => setTimeout(res, 1000));
+        }
+      }
+
+      const remessaName = this.generateRemessaName();
+      const remotePath =
+        headerName === 'VLT'
+          ? this.dir(`${this.FOLDERS.REMESSA}/${remessaName}`)
+          : this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${remessaName}`);
+
+      await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
+      await this.submitCnabBackupRemessa(content);
+
+      this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
+      return remotePath;
+
+    } catch (error) {
+      this.logger.error(`Erro em ${METHOD}: ${error.message}`, METHOD);
+      throw error;
     }
-
-    await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
-    await this.submitCnabBackupRemessa(content);
-    this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
-    return remotePath;
   }
+
 
   public async submitCnabBackupRemessa(content: string) {
     const bkpPath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.getCnabDateFolder(this.generateRemessaName())}`);
