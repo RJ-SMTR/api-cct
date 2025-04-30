@@ -43,6 +43,7 @@ WHERE
             END
         ) = ANY($4)
     )
+    and oph."motivoStatusRemessa" not in ('AM')
 `;
 
   private static readonly queryOlderReport = `
