@@ -8,6 +8,7 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
+import { bool } from 'aws-sdk/clients/signer';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {  
@@ -55,6 +56,10 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,dataPgto,consorcio);
   }
 
+  async getOrdensUnicas(dataInicio: Date, dataFim: Date,dataPgto:Date) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllUnica(dataInicio,dataFim,dataPgto);
+  }
+
   async getHistoricosOrdem(idOrdem: number){
     return await this.ordemPagamentoAgrupadoHistRepository.findAll({ ordemPagamentoAgrupado: { id: idOrdem } });
   }  
@@ -73,11 +78,23 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoRepository.findOne({ordemPagamentoAgrupado:{ id: idOrdemPagamentoAg}  })
   }
 
-  public async getHistoricosOrdemDetalheA(id: number) {
-    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id)
+  public async getOrdemPagamentoAgrupado(idOrdemPagamentoAg: number){
+    return await this.ordemPagamentoRepository.findCustom(idOrdemPagamentoAg)
+  }
+
+  public async getOrdemPagamentoUnico(idOrdemPagamentoAg: number){
+    return await this.ordemPagamentoRepository.findOrdemUnica(idOrdemPagamentoAg);
+  }
+
+  public async getHistoricosOrdemDetalheA(id: number,pagamentoUnico?:boolean) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id,pagamentoUnico)
   }
 
   public async getHistorico(id: number) {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistorico(id)
   }
+
+  public async getHistoricoUnico(id: number) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoUnico(id)
+  }  
 }

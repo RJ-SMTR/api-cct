@@ -13,9 +13,13 @@ import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
 import { parseNumber } from '../../utils/cnab/cnab-field-utils';
+import { OrdemPagamentoUnicoDto } from '../dto/ordem-pagamento-unico.dto';
+import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 
 @Injectable()
 export class OrdemPagamentoRepository {
+ 
+  
   private logger = new CustomLogger(OrdemPagamentoRepository.name, { timestamp: true });
 
   constructor(
@@ -348,7 +352,7 @@ export class OrdemPagamentoRepository {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];   
-    await this.ordemPagamentoRepository.query(`CALL p_agrupar_ordem_pagamento_unico($1, $2, $3, $4)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id]);
+    await this.ordemPagamentoRepository.query(`CALL p_agrupar_ordem_pagamento_unico($1, $2, $3, $4)`, [`${dtInicialStr}`, `${dtFinalStr}`, dtPgtoStr, pagador.id]);
   }
 
   async findNumeroOrdensPorIntervaloDataCaptura(startDate: Date, endDate: Date) {
@@ -360,6 +364,34 @@ export class OrdemPagamentoRepository {
       return parseFloat(result[0].qtde);
     }
     return Promise.resolve(undefined);
+  }
+
+  public async findOrdemUnica(idOrdemPagamentoAg: number) {
+    const query = `SELECT * FROM ordem_pagamento_unico op 
+                    where op."idOrdemPagamento"='${idOrdemPagamentoAg}' `;
+    const queryRunner = this.dataSource.createQueryRunner();
+    
+    queryRunner.connect();
+      
+    let result: any = await queryRunner.query(query);
+
+    queryRunner.release();
+
+    return result.map((r: DeepPartial<OrdemPagamentoUnicoDto> | undefined) => new OrdemPagamentoUnicoDto(r))[0]; 
+  }
+
+  public async findCustom(idOrdemPagamentoAg: number) {
+    const query = `SELECT * FROM ordem_pagamento_agrupado opa 
+                    where opa."id"='${idOrdemPagamentoAg}' `;
+    const queryRunner = this.dataSource.createQueryRunner();
+    
+    queryRunner.connect();
+      
+    let result: any = await queryRunner.query(query);
+
+    queryRunner.release();
+
+    return result.map((r: DeepPartial<OrdemPagamentoAgrupado> | undefined) => new OrdemPagamentoAgrupado(r))[0]; 
   }
 
 }
