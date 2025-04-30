@@ -1,5 +1,5 @@
 
-export interface IFindPublicacaoRelatorioNovoPayAndPending {
+export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   dataInicio: Date;
   dataFim: Date;
   userIds?: number[];
