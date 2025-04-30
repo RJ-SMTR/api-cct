@@ -33,6 +33,9 @@ spec:
           #       secretKeyRef:
           #         name: custom-envs
           #         key: NODE_ENV
+          env:
+            - name: NODE_ENV
+              value: "staging"
       restartPolicy: Always
 ---
 #Service
