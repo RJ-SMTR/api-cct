@@ -8,8 +8,8 @@ import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { Int32 } from 'typeorm';
 import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
 import { ValidationPipe } from '@nestjs/common';
-import { PayAndPendingQueryDto } from './dtos/pay-and-pending-query.dto';
-import { RelatorioNovoRemessaPayAndPendingService } from './relatorio-novo-remessa-pay-and-pending.service';
+import { FinancialMovementQueryDto } from './dtos/pay-and-pending-query.dto';
+import { RelatorioNovoRemessaFinancialMovementService } from './relatorio-novo-remessa-financial-movement.service';
 
 @ApiTags('Cnab')
 @Controller({
@@ -19,7 +19,7 @@ import { RelatorioNovoRemessaPayAndPendingService } from './relatorio-novo-remes
 export class RelatorioNovoRemessaController {
   constructor(
     private relatorioNovoRemessaService: RelatorioNovoRemessaService,
-    private relatorioNovoRemessaPayAndPendingService: RelatorioNovoRemessaPayAndPendingService
+    private relatorioNovoRemessaFinancialMovementService: RelatorioNovoRemessaFinancialMovementService
   ) { }
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
@@ -117,12 +117,12 @@ export class RelatorioNovoRemessaController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('pay-and-pending')
-  async getPayAndPending(
-    @Query(new ValidationPipe({ transform: true })) queryParams: PayAndPendingQueryDto,
+  @Get('financial-movement')
+  async getFinancialMovement(
+    @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
   ) {
     try {
-      const result = await this.relatorioNovoRemessaPayAndPendingService.findPayAndPending(queryParams);
+      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovement(queryParams);
       return result;
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);

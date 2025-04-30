@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { StatusPagamento } from './enum/statusRemessaPayAndPending';
 import { DataSource } from 'typeorm';
-import { RelatorioPayAndPendingNovoRemessaDto, RelatorioPayAndPendingNovoRemessaData } from './dtos/relatorio-pay-and-pending-novo-remessa.dto';
-import { IFindPublicacaoRelatorioNovoPayAndPending } from './interfaces/filter-publicacao-relatorio-novo-pay-and-pending.interface';
+import { RelatorioFinancialMovementNovoRemessaDto, RelatorioFinancialMovementNovoRemessaData } from './dtos/relatorio-pay-and-pending-novo-remessa.dto';
+import { IFindPublicacaoRelatorioNovoFinancialMovement } from './interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
+import { StatusPagamento } from './enum/statusRemessafinancial-movement';
 
 @Injectable()
-export class RelatorioNovoRemessaPayAndPendingRepository {
+export class RelatorioNovoRemessaFinancialMovementRepository {
   private static readonly queryNewReport = `
 SELECT DISTINCT 
     da."dataVencimento" AS dataPagamento,
@@ -17,7 +17,7 @@ SELECT DISTINCT
     da."valorLancamento" AS valor,
     CASE
         WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
-        WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+        WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno' 
         ELSE 'Rejeitado'
     END AS status
 FROM
@@ -100,9 +100,9 @@ where da."dataVencimento" between $1 and $2
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) { }
-  private logger = new CustomLogger(RelatorioNovoRemessaPayAndPendingRepository.name, { timestamp: true });
+  private logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementRepository.name, { timestamp: true });
 
-  public async findPayAndPending(filter: IFindPublicacaoRelatorioNovoPayAndPending): Promise<RelatorioPayAndPendingNovoRemessaDto> {
+  public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
     const initialYear = filter.dataInicio.getFullYear();
     const finalYear = filter.dataFim.getFullYear();
 
@@ -119,20 +119,20 @@ where da."dataVencimento" between $1 and $2
         this.logger.log("Executando queries separadas por ano.");
 
         const paramsFor2024 = this.getParametersByQuery(2024, filter);
-        let finalQuery2024 = RelatorioNovoRemessaPayAndPendingRepository.queryOlderReport;
+        let finalQuery2024 = RelatorioNovoRemessaFinancialMovementRepository.queryOlderReport;
 
         if (filter.todosVanzeiros) {
-          finalQuery2024 += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf2024}`;
+          finalQuery2024 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
         }
 
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
         const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
         const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
-        let finalQuery2025 = RelatorioNovoRemessaPayAndPendingRepository.queryNewReport;
+        let finalQuery2025 = RelatorioNovoRemessaFinancialMovementRepository.queryNewReport;
 
         if (filter.todosVanzeiros) {
-          finalQuery2025 += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf2025}`;
+          finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025}`;
         }
 
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
@@ -146,21 +146,42 @@ where da."dataVencimento" between $1 and $2
 
         if (filter.todosVanzeiros) {
           if (initialYear === 2025) {
-            finalQuery += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf2025}`;
+            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025}`;
           } else if (initialYear === 2024) {
-            finalQuery += ` ${RelatorioNovoRemessaPayAndPendingRepository.notCpf2024}`;
+            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
           }
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
       }
 
-      const count = allResults.length;
-      const valorTotal = allResults.reduce((acc, curr) => acc + Number.parseFloat(curr.valor), 0);
 
-      const relatorioDto = new RelatorioPayAndPendingNovoRemessaDto({
+      const count = allResults.length;
+      const { valorTotal, valorPago, valorRejeitado, valorEstornado } = allResults.reduce(
+        (acc, curr) => {
+          const valor = Number.parseFloat(curr.valor);
+          acc.valorTotal += valor;
+
+          if (curr.status === "Pago") acc.valorPago += valor;
+          else if (curr.status === "Rejeitado") acc.valorRejeitado += valor;
+          else if (curr.status === "Estorno") acc.valorEstornado += valor;
+
+          return acc;
+        },
+        {
+          valorTotal: 0,
+          valorPago: 0,
+          valorRejeitado: 0,
+          valorEstornado: 0,
+        }
+      );
+
+      const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
         count,
         valor: Number.parseFloat(valorTotal.toString()),
+        valorPago,
+        valorEstornado,
+        valorRejeitado,
         data: allResults
           .sort((a, b) => {
             const statusOrder = { Estorno: 0, Pago: 1, Rejeitado: 2 };
@@ -171,7 +192,7 @@ where da."dataVencimento" between $1 and $2
             if (nameCompare !== 0) return nameCompare;
             return statusOrder[a.status] - statusOrder[b.status];
           })
-          .map(r => new RelatorioPayAndPendingNovoRemessaData({
+          .map(r => new RelatorioFinancialMovementNovoRemessaData({
             dataPagamento: new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento)),
             nomes: r.nomes,
             cpfCnpj: r.cpfCnpj,
@@ -229,11 +250,11 @@ where da."dataVencimento" between $1 and $2
     }
 
     if (initialYear <= olderYearLimit && finalYear <= olderYearLimit) {
-      return { requiresMerge: false, query: RelatorioNovoRemessaPayAndPendingRepository.queryOlderReport };
+      return { requiresMerge: false, query: RelatorioNovoRemessaFinancialMovementRepository.queryOlderReport };
     }
 
     if (initialYear >= newerYearStart && finalYear >= newerYearStart) {
-      return { requiresMerge: false, query: RelatorioNovoRemessaPayAndPendingRepository.queryNewReport };
+      return { requiresMerge: false, query: RelatorioNovoRemessaFinancialMovementRepository.queryNewReport };
     }
 
     return { requiresMerge: true };
@@ -241,7 +262,7 @@ where da."dataVencimento" between $1 and $2
 
 
 
-  private getParametersByQuery(year: number, filter: IFindPublicacaoRelatorioNovoPayAndPending): any[] {
+  private getParametersByQuery(year: number, filter: IFindPublicacaoRelatorioNovoFinancialMovement): any[] {
     const consorcioNome: string[] | null = filter.consorcioNome
       ? filter.consorcioNome.map(nome => nome.toUpperCase().trim())
       : null;

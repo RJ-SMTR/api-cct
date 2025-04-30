@@ -2,7 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsArray, IsBoolean, IsDate, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
 
-export class PayAndPendingQueryDto {
+export class FinancialMovementQueryDto {
   @ApiProperty({ description: 'Data da Ordem de Pagamento Inicial', required: true })
   @Type(() => Date)
   @IsDate()

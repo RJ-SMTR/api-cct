@@ -1,7 +1,7 @@
 import { DeepPartial } from 'typeorm';
 
-export class RelatorioPayAndPendingNovoRemessaDto {
-  constructor(consolidado?: DeepPartial<RelatorioPayAndPendingNovoRemessaDto>) {
+export class RelatorioFinancialMovementNovoRemessaDto {
+  constructor(consolidado?: DeepPartial<RelatorioFinancialMovementNovoRemessaDto>) {
     if (consolidado !== undefined) {
       Object.assign(this, consolidado);
     }
@@ -9,11 +9,14 @@ export class RelatorioPayAndPendingNovoRemessaDto {
 
   count: number;
   valor: number;
-  data: RelatorioPayAndPendingNovoRemessaData[];
+  valorPago: number;
+  valorRejeitado: number;
+  valorEstornado: number;
+  data: RelatorioFinancialMovementNovoRemessaData[];
 }
 
-export class RelatorioPayAndPendingNovoRemessaData {
-  constructor(consolidado?: DeepPartial<RelatorioPayAndPendingNovoRemessaData>) {
+export class RelatorioFinancialMovementNovoRemessaData {
+  constructor(consolidado?: DeepPartial<RelatorioFinancialMovementNovoRemessaData>) {
     if (consolidado !== undefined) {
       Object.assign(this, consolidado);
     }
