@@ -101,7 +101,6 @@ export class CronJobsService {
     });
   }
 
-
   async onModuleLoad(){
     await this.remessaModalExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
@@ -155,7 +154,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
-          cronTime: '0 11 * * *', // Every day, 11:00 GMT = 8:00 BRT (GMT-3)
+          cronTime: '0 12 * * *', // Every day, 11:00 GMT = 8:00 BRT (GMT-3)
           onTick: async () => {
             const today = new Date();
             if (isSaturday(today) || isSunday(today)) {
@@ -175,7 +174,7 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '0 13 * * FRI', // Rodar todas as sextas 13:00 GMT = 10:00 BRT (GMT-3)
           onTick: async () => {
-            await this.remessaModalExec();
+            // await this.remessaModalExec(); 
           },
         },
       },
@@ -189,7 +188,7 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '0 12 * * FRI', // Rodar todas as sextas 12:00 GMT = 09:00 BRT (GMT-3)
           onTick: async () => {
-            await this.remessaConsorciosExec();
+            // await this.remessaConsorciosExec();
           },
         },
       },
@@ -683,8 +682,8 @@ export class CronJobsService {
   async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
     //Rodar na Sexta
     const today = new Date();
-    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 7);
-    const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
+    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 6);
+    const dataFim =dtFim?new Date(dtFim):subDays(today, 0); 
     await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
       ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO,pagamentoUnico);
   }
@@ -714,9 +713,10 @@ export class CronJobsService {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
         // Sincroniza as ordens de pagamento para todos os modais e consorcios
         
-        const lastFriday = this.getLastFriday();
+        const lastFriday =  this.getLastFriday();
         const nextThursday = this.getNextThursday();
-        const nextFriday = this.getNextFriday();
+        const nextFriday =  this.getNextFriday();
+
         this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${lastFriday.toISOString()}, Data Fim: ${nextThursday.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
         await this.ordemPagamentoService.sincronizarOrdensPagamento(lastFriday, nextThursday, consorciosEModais);
