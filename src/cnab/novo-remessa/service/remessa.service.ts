@@ -185,11 +185,15 @@ export class RemessaService {
   public async enviarRemessa(listCnab: ICnabInfo[],headerName?: string) {
     for (const cnab of listCnab) {
       cnab.name = await this.sftpService.submitCnabRemessa(cnab.content,headerName);
-      const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
-      await this.headerArquivoService.save({
-        id: cnab.headerArquivo.id, remessaName,
-        status: HeaderArquivoStatus._3_remessaEnviado
-      });
+      if(cnab.name !==''){
+        const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
+        await this.headerArquivoService.save({
+          id: cnab.headerArquivo.id, remessaName,
+          status: HeaderArquivoStatus._3_remessaEnviado
+        });
+      }else{
+        this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
+      }
     }
   }
 
