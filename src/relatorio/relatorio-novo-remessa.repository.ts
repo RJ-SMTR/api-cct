@@ -279,19 +279,19 @@ export class RelatorioNovoRemessaRepository {
       filter.consorcioNome = undefined;
       resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
       console.log(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS)
-      console.log(parametersQueryConsorciosEModais);
+      console.log(parametersQueryConsorciosEModais)
     }
 
     if (filter.userIds && filter.userIds.length > 0) {
       resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
       console.log(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS)
-      console.log(parametersQueryVanzeiros);
+      console.log(parametersQueryVanzeiros)
     }
 
     if (filter.consorcioNome && filter.consorcioNome.length > 0) {
       resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
       console.log(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS)
-      console.log(parametersQueryConsorciosEModais);
+      console.log(parametersQueryConsorciosEModais)
     }
 
     // Nenhum critério, trás todos.
@@ -301,7 +301,7 @@ export class RelatorioNovoRemessaRepository {
       resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_VANZEIROS, parametersQueryVanzeiros);
       resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS, parametersQueryConsorciosEModais);
       console.log(RelatorioNovoRemessaRepository.QUERY_CONSOLIDADO_CONSORCIOS)
-      console.log(parametersQueryConsorciosEModais);
+      console.log(parametersQueryConsorciosEModais)
     }
 
     result = resultVanzeiros.concat(resultConsorciosEModais);
