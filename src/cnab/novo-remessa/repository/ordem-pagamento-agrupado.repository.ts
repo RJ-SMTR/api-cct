@@ -72,4 +72,37 @@ export class OrdemPagamentoAgrupadoRepository {
     queryRunner.release();
     return result.map((r) => new OrdemPagamentoAgrupado(r));    
   }
+
+
+  public async findAllUnica(dataInicio:Date,dataFim:Date,dataPgto:Date,statusRemessa?:StatusRemessaEnum): Promise<OrdemPagamentoAgrupado[]> {
+    const dataIniForm = formatDateISODate(dataInicio)
+    const dataFimForm = formatDateISODate(dataFim)
+    const dataPgtoForm = formatDateISODate(dataPgto)
+    let query = ` select distinct opa.* from ordem_pagamento_unico op
+					        inner join ordem_pagamento_agrupado opa on cast(opa.id as varchar) = op."idOrdemPagamento" 
+							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
+							                            and oph."dataReferencia" =
+                                          (select max(ophh."dataReferencia") from ordem_pagamento_agrupado_historico ophh
+					                                where cast(ophh."ordemPagamentoAgrupadoId" as varchar)=op."idOrdemPagamento") 
+                  where (oph."dataReferencia"='${dataPgtoForm}') `
+                  
+    if(statusRemessa === undefined || statusRemessa === StatusRemessaEnum.Criado){
+      query = query +` and oph."statusRemessa"= 0 `;
+    }else{
+      query = query +` and oph."statusRemessa"=${statusRemessa} `;
+    }
+
+    if(dataInicio!==undefined && dataFim!==undefined && dataFim >=dataInicio){
+      query = query +` and cast(op."dataOrdem" as Date) between '${dataIniForm} ' and '${dataFimForm}' `;
+    }else{
+      return [];
+    }      
+
+    this.logger.debug(query);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    let result: any[] = await queryRunner.query(query);
+    queryRunner.release();
+    return result.map((r) => new OrdemPagamentoAgrupado(r));    
+  }
 }

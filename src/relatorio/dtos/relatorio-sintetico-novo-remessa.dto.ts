@@ -11,7 +11,7 @@ export class RelatorioSinteticoNovoRemessaDto {
 
   count: number;
   total: number;
-  data: RelatorioSinteticoNovoRemessaConsorcio[];
+  agrupamentoConsorcio: RelatorioSinteticoNovoRemessaConsorcio[];
 
 }
 
@@ -22,7 +22,8 @@ export class RelatorioSinteticoNovoRemessaConsorcio {
     }
   }
   subtotalConsorcio: number;
-  agrupamentoDia: RelatorioSinteticoNovoRemessaFavorecido[];
+  nomeConsorcio: string;
+  agrupamentoFavorecido: RelatorioSinteticoNovoRemessaFavorecido[];
 }
 
 export class RelatorioSinteticoNovoRemessaFavorecido {
@@ -32,6 +33,7 @@ export class RelatorioSinteticoNovoRemessaFavorecido {
     }
   }
   subtotalFavorecido: number;
+  nomeFavorecido: string;
   agrupamentoDia: RelatorioSinteticoNovoRemessaDia[];
 }
 
@@ -42,12 +44,12 @@ export class RelatorioSinteticoNovoRemessaDia {
       Object.assign(this, sintetico);
     }
   }
-  consorcio: string;
-  valor: number;
-  favorecido: string;
-  cpfCnpj: string;
-  status: string;
-  mensagemStatus: string;
+  userId: number;
+  dataCaptura: string;
+  nomeFavorecido: string;
   dataPagamento: string;
+  valorPagamento: number;
+  status: string;
+  nomeConsorcio: string;
 }
 

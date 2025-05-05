@@ -1,14 +1,14 @@
-export interface IFindPublicacaoRelatorioNovoRemessa {
+
+export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   dataInicio: Date;
   dataFim: Date;
   userIds?: number[];
   consorcioNome?: string[];
+  todosVanzeiros?: boolean;
   valorMin?: number;
   valorMax?: number;
   pago?: boolean;
-  aPagar?: boolean;
-  emProcessamento?: boolean;
   erro?: boolean;
-  todosVanzeiros?: boolean;
-  todosConsorcios?: boolean;
+  estorno?: boolean;
+  rejeitado?: boolean;
 }

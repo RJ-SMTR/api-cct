@@ -123,23 +123,45 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     this.logger.log(`Arquivo carregado em ${_remotePath}`, METHOD);
   }
 
-  public async submitCnabRemessa(content: string, headerName?:string): Promise<string> {
+
+  public async submitCnabRemessa(content: string, headerName?: string): Promise<string> {
     const METHOD = 'submitCnabRemessa';
+    const MAX_RETRIES = 5;
+    let attempt = 0;
+    let remotePath = '';
+    try {
+      while (attempt < MAX_RETRIES) {
+        try {
+          await this.connectClient();
+          break;
+        } catch (err) {
+          attempt++;
+          this.logger.warn(`Tentativa ${attempt} de conexão falhou`, METHOD);
+          if (attempt >= MAX_RETRIES) {
+            throw new Error(`Falha ao conectar após ${MAX_RETRIES} tentativas: ${err}`);
+          }
+          await new Promise(res => setTimeout(res, 1000));
+        }
+      }
+      
+      const remessaName = this.generateRemessaName();
+      remotePath =
+        headerName === 'VLT'
+          ? this.dir(`${this.FOLDERS.REMESSA}/${remessaName}`)
+          : this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${remessaName}`);
 
-    await this.connectClient();
-    let remotePath: string | PromiseLike<string>;
-    
-    // if(headerName ==='VLT'){
-    //   remotePath = this.dir(`${this.FOLDERS.REMESSA}/${this.generateRemessaName()}`);
-    // }else{
-      remotePath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.generateRemessaName()}`);
-    // }
+      await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
+      await this.submitCnabBackupRemessa(content);
 
-    await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
-    await this.submitCnabBackupRemessa(content);
-    this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
-    return remotePath;
+      this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);     
+
+    } catch (error) {     
+      this.logger.error(`Erro em ${METHOD}: ${error.message}`, METHOD);   
+    }finally{
+      return remotePath;
+    }    
   }
+
 
   public async submitCnabBackupRemessa(content: string) {
     const bkpPath = this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${this.getCnabDateFolder(this.generateRemessaName())}`);
@@ -166,11 +188,29 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     name: string;
     content: string;
   } | null> {
-    await this.connectClient();
+    const METHOD = 'submitCnabRemessa';
+    const MAX_RETRIES = 5;
+    let attempt = 0;
+
+    while (attempt < MAX_RETRIES) {
+      try {
+        await this.connectClient();
+        break;
+      } catch (err) {
+        attempt++;
+        this.logger.warn(`Tentativa ${attempt} de conexão falhou`, METHOD);
+        if (attempt >= MAX_RETRIES) {
+          throw new Error(`Falha ao conectar após ${MAX_RETRIES} tentativas: ${err}`);
+        }
+        await new Promise(res => setTimeout(res, 1000));
+      }
+    }
+
     const firstFile = (await this.sftpClient.list(this.dir(folder), this.REGEX.RETORNO)).pop();
     if (!firstFile) {
       return null;
     }
+
     const cnabPath = this.dir(`${folder}/${firstFile.name}`);
     const cnabString = await this.downloadToString(cnabPath);
     return { name: firstFile.name, content: cnabString };
