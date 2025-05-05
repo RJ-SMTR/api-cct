@@ -188,11 +188,29 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     name: string;
     content: string;
   } | null> {
-    await this.connectClient();
+    const METHOD = 'submitCnabRemessa';
+    const MAX_RETRIES = 5;
+    let attempt = 0;
+
+    while (attempt < MAX_RETRIES) {
+      try {
+        await this.connectClient();
+        break;
+      } catch (err) {
+        attempt++;
+        this.logger.warn(`Tentativa ${attempt} de conexão falhou`, METHOD);
+        if (attempt >= MAX_RETRIES) {
+          throw new Error(`Falha ao conectar após ${MAX_RETRIES} tentativas: ${err}`);
+        }
+        await new Promise(res => setTimeout(res, 1000));
+      }
+    }
+
     const firstFile = (await this.sftpClient.list(this.dir(folder), this.REGEX.RETORNO)).pop();
     if (!firstFile) {
       return null;
     }
+
     const cnabPath = this.dir(`${folder}/${firstFile.name}`);
     const cnabString = await this.downloadToString(cnabPath);
     return { name: firstFile.name, content: cnabString };
