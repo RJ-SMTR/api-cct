@@ -8,6 +8,7 @@ import {
   RelatorioConsolidadoNovoRemessaDto,
 } from './dtos/relatorio-consolidado-novo-remessa.dto';
 import { formatDateISODate } from 'src/utils/date-utils';
+import { RelatorioSinteticoNovoRemessaConsorcio, RelatorioSinteticoNovoRemessaDia, RelatorioSinteticoNovoRemessaDto, RelatorioSinteticoNovoRemessaFavorecido } from './dtos/relatorio-sintetico-novo-remessa.dto';
 
 
 @Injectable()
