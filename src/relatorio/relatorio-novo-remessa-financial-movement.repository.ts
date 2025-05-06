@@ -71,6 +71,8 @@ where da."dataVencimento" between $1 and $2
     ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
   )
+  and ita."idOrdemPagamento" NOT LIKE '%U%'
+  AND TRIM(da."ocorrenciasCnab") <> ''
   and (
     $3::text[] is null or (
       case 

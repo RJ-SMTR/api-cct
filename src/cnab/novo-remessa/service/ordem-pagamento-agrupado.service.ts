@@ -8,8 +8,7 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
-import { OrdemPagamentoAgrupadoHistoricoDTO } from '../dto/ordem-pagamento-agrupado-historico.dto';
-import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
+import { bool } from 'aws-sdk/clients/signer';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {  
@@ -33,15 +32,33 @@ export class OrdemPagamentoAgrupadoService {
       this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
     }
   }
+
+  async prepararPagamentoAgrupadosUnico(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto:Date,
+    pagadorKey: keyof AllPagadorDict,consorcios:string[]) {
+    this.logger.debug(`Preparando agrupamentos pagamento único`)
+    const pagador = await this.getPagador(pagadorKey);
+    if(pagador) { 
+      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
+      await this.agruparOrdemUnica(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
+      this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+    }
+  }
  
   private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador,consorcios: string[]) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador,consorcios);
   }
 
+  private async agruparOrdemUnica(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador) {
+    await this.ordemPagamentoRepository.agruparOrdensDePagamentoUnico(dataInicial, dataFinal, dataPgto, pagador);
+  }  
+
   async getOrdens(dataInicio: Date, dataFim: Date,dataPgto:Date, consorcio: string[] | undefined) {
     return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,dataPgto,consorcio);
   }
 
+  async getOrdensUnicas(dataInicio: Date, dataFim: Date,dataPgto:Date) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllUnica(dataInicio,dataFim,dataPgto);
+  }
 
   async getHistoricosOrdem(idOrdem: number){
     return await this.ordemPagamentoAgrupadoHistRepository.findAll({ ordemPagamentoAgrupado: { id: idOrdem } });
@@ -61,11 +78,23 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoRepository.findOne({ordemPagamentoAgrupado:{ id: idOrdemPagamentoAg}  })
   }
 
-  public async getHistoricosOrdemDetalheA(id: number) {
-    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id)
+  public async getOrdemPagamentoAgrupado(idOrdemPagamentoAg: number){
+    return await this.ordemPagamentoRepository.findCustom(idOrdemPagamentoAg)
+  }
+
+  public async getOrdemPagamentoUnico(idOrdemPagamentoAg: number){
+    return await this.ordemPagamentoRepository.findOrdemUnica(idOrdemPagamentoAg);
+  }
+
+  public async getHistoricosOrdemDetalheA(id: number,pagamentoUnico?:boolean) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id,pagamentoUnico)
   }
 
   public async getHistorico(id: number) {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistorico(id)
   }
+
+  public async getHistoricoUnico(id: number) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoUnico(id)
+  }  
 }

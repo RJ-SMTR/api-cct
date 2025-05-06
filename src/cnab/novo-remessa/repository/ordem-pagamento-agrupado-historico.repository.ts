@@ -14,15 +14,15 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     @InjectRepository(OrdemPagamentoAgrupadoHistorico)
     private ordemPagamentoAgrupadoHistoricoRepository: Repository<OrdemPagamentoAgrupadoHistorico>,
     private readonly dataSource: DataSource
-  ) {}
+  ) { }
 
-  public async save(dto: DeepPartial<OrdemPagamentoAgrupadoHistorico>): Promise<OrdemPagamentoAgrupadoHistorico> { 
+  public async save(dto: DeepPartial<OrdemPagamentoAgrupadoHistorico>): Promise<OrdemPagamentoAgrupadoHistorico> {
     return await this.ordemPagamentoAgrupadoHistoricoRepository.save(dto);
   }
 
   public async findOne(fields: EntityCondition<OrdemPagamentoAgrupadoHistorico>): Promise<OrdemPagamentoAgrupadoHistorico[]> {
     return await this.ordemPagamentoAgrupadoHistoricoRepository.find({
-      where: fields,      
+      where: fields,
       order: {
         id: 'DESC',
       },
@@ -35,49 +35,79 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     });
   }
 
-  public async getHistoricoDetalheA(detalheAId: number):Promise<OrdemPagamentoAgrupadoHistoricoDTO>{
+  public async getHistoricoDetalheA(detalheAId: number, pagamentoUnico?: boolean): Promise<OrdemPagamentoAgrupadoHistoricoDTO> {
 
-    const query = (`select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
-                    oph.* from ordem_pagamento_agrupado_historico oph 
-                    inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id 
-                    left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
-                    left join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
-                    left join public.user u on u."id" = op."userId"` +
-          `where da."id" = ${detalheAId}`)
-    
-        const queryRunner = this.dataSource.createQueryRunner();
-    
-        queryRunner.connect();
-    
-        const result: any[] = await queryRunner.manager.query(query);
-    
-        const oph = result.map((i) => new OrdemPagamentoAgrupadoHistoricoDTO(i));
-    
-        queryRunner.release()
-    
-        return oph[0];
+    let query = '';
+    if (pagamentoUnico) {
+      query = ` select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
+                      oph.* from ordem_pagamento_agrupado_historico oph
+                      inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
+                      left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
+                      left join ordem_pagamento_unico ou on ou."idOrdemPagamento" = cast(opa.id as varchar)
+                      left join public.user u on u."permitCode" = ou."idOperadora" `+          
+                ` where da."id" = ${detalheAId} `;
+    } else {
+      query = (`select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
+                      oph.* from ordem_pagamento_agrupado_historico oph 
+                      inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id 
+                      left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
+                      left join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
+                      left join public.user u on u."id" = op."userId"` +
+              ` where da."id" = ${detalheAId}`)
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    const result: any[] = await queryRunner.manager.query(query);
+
+    const oph = result.map((i) => new OrdemPagamentoAgrupadoHistoricoDTO(i));
+
+    queryRunner.release()
+
+    return oph[0];
   }
 
-  public async getHistorico(detalheAId: number):Promise<OrdemPagamentoAgrupadoHistorico>{
+  public async getHistorico(detalheAId: number): Promise<OrdemPagamentoAgrupadoHistorico> {
 
     const query = (`select distinct 
                     oph.* from ordem_pagamento_agrupado_historico oph 
                     inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id 
                     left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
                     left join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id ` +
-          `where da."id" = ${detalheAId}`)
-    
-        const queryRunner = this.dataSource.createQueryRunner();
-    
-        queryRunner.connect();
-    
-        const result: any[] = await queryRunner.manager.query(query);
-    
-        const oph = result.map((i) => new OrdemPagamentoAgrupadoHistorico(i));
-    
-        queryRunner.release()
-    
-        return oph[0];
+      `where da."id" = ${detalheAId}`)
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    const result: any[] = await queryRunner.manager.query(query);
+
+    const oph = result.map((i) => new OrdemPagamentoAgrupadoHistorico(i));
+
+    queryRunner.release()
+
+    return oph[0];
+  }
+
+  public async getHistoricoUnico(idOrdemAgrupada: number): Promise<OrdemPagamentoAgrupadoHistorico> {
+
+    const query = (`select distinct 
+                    oph.* from ordem_pagamento_agrupado_historico oph                     
+                     where oph."ordemPagamentoAgrupadoId" = ${idOrdemAgrupada}`)
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    const result: any[] = await queryRunner.manager.query(query);
+
+    const oph = result.map((i) => new OrdemPagamentoAgrupadoHistorico(i));
+
+    queryRunner.release()
+
+    return oph[0];
   }
 
 }
