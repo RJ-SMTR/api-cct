@@ -446,6 +446,12 @@ export class RelatorioNovoRemessaRepository {
       const resultTotal: any[] = await queryRunner.query(sqlPago);
 
       valorTotal = resultTotal.map(r => r.valor)
+    } else {
+      const sqlPago = this.somatorioTotalPagoErro(sql);
+
+      const resultTotal: any[] = await queryRunner.query(sqlPago);
+
+      valorTotal = resultTotal.map(r => r.valor)
     }
 
     relatorioConsolidadoDto.valor = parseFloat(valorTotal);
@@ -625,13 +631,13 @@ export class RelatorioNovoRemessaRepository {
     let condicoes = '';
  
     if(filter.aPagar!==undefined || filter.emProcessamento!==undefined){
-      sql = `select distinct uu."fullName"nome,op."nomeConsorcio",opa."valor" `;
+      sql = `select distinct  da."dataVencimento", uu."fullName"nome,op."nomeConsorcio",opa."valor" `;
       sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoes = condicoes +` and (date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' ) `;     
     }
 
     if(filter.pago!==undefined || filter.erro!==undefined){
-      sql = `select distinct uu."fullName"nome,op."nomeConsorcio", da."valorLancamento" valor `;
+      sql = `select distinct da."dataVencimento", uu."fullName"nome,op."nomeConsorcio", da."valorRealEfetivado" valor `;
       sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoes = condicoes +` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
     }
@@ -639,6 +645,10 @@ export class RelatorioNovoRemessaRepository {
     let statuses =  this.getStatusParaFiltro(filter);
     if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar){
       condicoes = condicoes + ` and oph."statusRemessa" in(${statuses}) `;
+    } else {
+      sql = `select distinct da."dataVencimento", uu."fullName"nome,op."nomeConsorcio", da."valorRealEfetivado" valor `;
+      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
+      condicoes = condicoes + ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
     }
 
     if(filter.userIds){
@@ -658,13 +668,13 @@ export class RelatorioNovoRemessaRepository {
     let condicoes = '';
  
     if(filter.aPagar!=undefined || filter.emProcessamento!=undefined){
-      sql = `select distinct  uu."fullName",op."nomeConsorcio" nome, opa."valorTotal" valor `
+      sql = `select distinct da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, opa."valorTotal" valor `
       sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoes = condicoes +` and (date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' ) `;      
     }
 
     if(filter.pago!=undefined || filter.erro!=undefined){
-      sql = `select distinct uu."fullName",op."nomeConsorcio" nome, da."valorLancamento" valor `;
+      sql = `select distinct  da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, da."valorLancamento" valor `;
       sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoes = condicoes +` and  da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
     }
@@ -672,7 +682,11 @@ export class RelatorioNovoRemessaRepository {
     let statuses =  this.getStatusParaFiltro(filter);
     if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar){
       condicoes = condicoes + ` and oph."statusRemessa" in(${statuses}) `;
-    }   
+    }  else {
+      sql = `select distinct  da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, da."valorLancamento" valor `;
+      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
+      condicoes = condicoes + ` and  da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
+    }
 
     if(filter.todosConsorcios){
       condicoes = condicoes +` and op."nomeConsorcio" in('STPC','STPL','VLT','Santa Cruz',
@@ -682,7 +696,6 @@ export class RelatorioNovoRemessaRepository {
     }    
     
     sql =  `select "nome", null as "nomeConsorcio", sum("valor") valor from (`+ sql + condicoes+`)r group by r."nome" ` ;
-
     return sql;
   }
 
