@@ -73,6 +73,7 @@ where da."dataVencimento" between $1 and $2
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
   )
  AND TRIM(da."ocorrenciasCnab") <> ''
+
   and (
     $3::text[] is null or (
       case 
@@ -133,7 +134,7 @@ where da."dataVencimento" between $1 and $2
         let finalQuery2024 = RelatorioNovoRemessaFinancialMovementRepository.queryOlderReport;
 
         if (filter.todosVanzeiros) {
-          finalQuery2024 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024} `;
+          finalQuery2024 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
         }
         if (filter.eleicao && initialYear === 2024) {
           finalQuery2024 += eleicaoExtraFilter;
