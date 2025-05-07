@@ -64,6 +64,7 @@ from item_transacao it
   inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
   inner join cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
+  INNER JOIN ordem_pagamento_unico opu on opu."operadoraCpfCnpj" = cf."cpfCnpj"
 where da."dataVencimento" between $1 and $2
   and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
   and ($5::integer[] is null or it."clienteFavorecidoId" = any($5))
@@ -71,8 +72,7 @@ where da."dataVencimento" between $1 and $2
     ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
   )
-  and ita."idOrdemPagamento" NOT LIKE '%U%'
-  AND TRIM(da."ocorrenciasCnab") <> ''
+ 
   and (
     $3::text[] is null or (
       case 
@@ -111,6 +111,8 @@ where da."dataVencimento" between $1 and $2
 
     const queryDecision = this.getQueryByYear(initialYear, finalYear);
 
+    const eleicaoExtraFilter = ` AND ita."idOrdemPagamento" LIKE '%U%'
+                             AND TRIM(da."ocorrenciasCnab") <> ''`;
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       await queryRunner.connect();
@@ -126,6 +128,10 @@ where da."dataVencimento" between $1 and $2
 
         if (filter.todosVanzeiros) {
           finalQuery2024 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
+
+        }
+        if (filter.eleicao && initialYear === 2024) {
+          finalQuery2024 += eleicaoExtraFilter;
         }
 
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
@@ -153,6 +159,10 @@ where da."dataVencimento" between $1 and $2
           } else if (initialYear === 2024) {
             finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
           }
+        }
+
+        if (filter.eleicao && initialYear === 2024) {
+          finalQuery += eleicaoExtraFilter;
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
