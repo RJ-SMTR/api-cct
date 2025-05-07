@@ -176,7 +176,6 @@ where da."dataVencimento" between $1 and $2
           finalQuery += notEleicaoFilter
         }
 
-
         allResults = await queryRunner.query(finalQuery, paramsForYear);
       }
 
