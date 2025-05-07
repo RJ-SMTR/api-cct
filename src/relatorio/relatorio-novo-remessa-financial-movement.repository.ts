@@ -72,7 +72,7 @@ where da."dataVencimento" between $1 and $2
     ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
   )
- 
+ AND TRIM(da."ocorrenciasCnab") <> ''
   and (
     $3::text[] is null or (
       case 
@@ -111,8 +111,13 @@ where da."dataVencimento" between $1 and $2
 
     const queryDecision = this.getQueryByYear(initialYear, finalYear);
 
-    const eleicaoExtraFilter = ` AND ita."idOrdemPagamento" LIKE '%U%'
-                             AND TRIM(da."ocorrenciasCnab") <> ''`;
+    const eleicaoExtraFilter = ` 
+    AND ita."idOrdemPagamento" LIKE '%U%'
+    `
+    const notEleicaoFilter = `  
+    AND ita."idOrdemPagamento" NOT LIKE '%U%'
+    `
+
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       await queryRunner.connect();
@@ -127,12 +132,13 @@ where da."dataVencimento" between $1 and $2
         let finalQuery2024 = RelatorioNovoRemessaFinancialMovementRepository.queryOlderReport;
 
         if (filter.todosVanzeiros) {
-          finalQuery2024 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
-
+          finalQuery2024 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024} `;
         }
         if (filter.eleicao && initialYear === 2024) {
           finalQuery2024 += eleicaoExtraFilter;
         }
+
+        finalQuery2024 += notEleicaoFilter
 
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
@@ -141,7 +147,7 @@ where da."dataVencimento" between $1 and $2
         let finalQuery2025 = RelatorioNovoRemessaFinancialMovementRepository.queryNewReport;
 
         if (filter.todosVanzeiros) {
-          finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025}`;
+          finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
         }
 
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
@@ -155,15 +161,17 @@ where da."dataVencimento" between $1 and $2
 
         if (filter.todosVanzeiros) {
           if (initialYear === 2025) {
-            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025}`;
+            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
           } else if (initialYear === 2024) {
-            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
+            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024} `;
           }
         }
 
         if (filter.eleicao && initialYear === 2024) {
           finalQuery += eleicaoExtraFilter;
         }
+
+        finalQuery += notEleicaoFilter
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
       }
