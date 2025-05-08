@@ -147,9 +147,6 @@ where da."dataVencimento" between $1 and $2
           finalQuery2024 += notEleicaoFilter2025
         }
 
-
-
-
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
         const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
