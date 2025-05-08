@@ -116,8 +116,11 @@ where da."dataVencimento" between $1 and $2
     const eleicaoExtraFilter = ` 
     AND ita."idOrdemPagamento" LIKE '%U%'
     `
-    const notEleicaoFilter = `  
+    const notEleicaoFilter2024 = `  
     AND ita."idOrdemPagamento" NOT LIKE '%U%'
+    `
+    const notEleicaoFilter2025 = `  
+    AND op."ordemPagamentoAgrupadoId" NOT LIKE '%U%'
     `
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -138,10 +141,11 @@ where da."dataVencimento" between $1 and $2
         }
         if (filter.eleicao && initialYear === 2024) {
           finalQuery2024 += eleicaoExtraFilter;
+        } else if (initialYear === 2024) {
+          finalQuery2024 += notEleicaoFilter2024
         } else {
-          finalQuery2024 += notEleicaoFilter
+          finalQuery2024 += notEleicaoFilter2025
         }
-
 
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
@@ -172,8 +176,10 @@ where da."dataVencimento" between $1 and $2
 
         if (filter.eleicao && initialYear === 2024) {
           finalQuery += eleicaoExtraFilter;
+        } else if (initialYear === 2024) {
+          finalQuery += notEleicaoFilter2024
         } else {
-          finalQuery += notEleicaoFilter
+          finalQuery += notEleicaoFilter2025
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
