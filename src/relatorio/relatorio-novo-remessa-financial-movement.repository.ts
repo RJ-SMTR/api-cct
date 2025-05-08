@@ -64,7 +64,7 @@ from item_transacao it
   inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
   inner join cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
-  INNER JOIN ordem_pagamento_unico opu on opu."operadoraCpfCnpj" = cf."cpfCnpj"
+  /* extra joins */
 where da."dataVencimento" between $1 and $2
   and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
   and ($5::integer[] is null or it."clienteFavorecidoId" = any($5))
@@ -107,22 +107,20 @@ where da."dataVencimento" between $1 and $2
   private logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementRepository.name, { timestamp: true });
 
   public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
-    console.log(filter)
     const initialYear = filter.dataInicio.getFullYear();
     const finalYear = filter.dataFim.getFullYear();
 
     const queryDecision = this.getQueryByYear(initialYear, finalYear);
 
+    const eleicaoInnerJoin = `
+      INNER JOIN ordem_pagamento_unico opu ON opu."operadoraCpfCnpj" = cf."cpfCnpj"
+      `
     const eleicaoExtraFilter = ` 
     AND ita."idOrdemPagamento" LIKE '%U%'
     `
     const notEleicaoFilter2024 = `  
     AND ita."idOrdemPagamento" NOT LIKE '%U%'
     `
-    const notEleicaoFilter2025 = `  
-    AND op."ordemPagamentoAgrupadoId" NOT LIKE '%U%'
-    `
-
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       await queryRunner.connect();
@@ -141,10 +139,9 @@ where da."dataVencimento" between $1 and $2
         }
         if (filter.eleicao && initialYear === 2024) {
           finalQuery2024 += eleicaoExtraFilter;
+          finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
         } else if (initialYear === 2024) {
           finalQuery2024 += notEleicaoFilter2024
-        } else {
-          finalQuery2024 += notEleicaoFilter2025
         }
 
 
@@ -179,10 +176,9 @@ where da."dataVencimento" between $1 and $2
 
         if (filter.eleicao && initialYear === 2024) {
           finalQuery += eleicaoExtraFilter;
+          finalQuery.replace('/* extra joins */', eleicaoInnerJoin)
         } else if (initialYear === 2024) {
           finalQuery += notEleicaoFilter2024
-        } else {
-          finalQuery += notEleicaoFilter2025
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
