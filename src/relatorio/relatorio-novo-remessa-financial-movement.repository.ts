@@ -68,7 +68,6 @@ from item_transacao it
   inner join header_lote hl on hl."id" = da."headerLoteId"
   inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
   /* extra joins */
-
 where da."dataVencimento" between $1 and $2
   and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
   and ($5::integer[] is null or it."clienteFavorecidoId" = any($5))
