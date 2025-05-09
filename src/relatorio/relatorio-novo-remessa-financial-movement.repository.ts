@@ -53,6 +53,7 @@ select distinct
   cf."cpfCnpj",
   ita."nomeConsorcio",
   da."valorLancamento" as valor,
+  ita.id,
   case 
     when da."ocorrenciasCnab" = '00' or da."ocorrenciasCnab" = 'BD' or ap."isPago" = true then 'Pago'
     when da."ocorrenciasCnab" = '02' then 'Estorno'
