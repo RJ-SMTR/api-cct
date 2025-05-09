@@ -637,7 +637,7 @@ export class RelatorioNovoRemessaRepository {
            
     }
     if(filter.emProcessamento!==undefined){
-      sql = `select distinct  da."dataVencimento", uu."fullName"nome,op."nomeConsorcio",opa."valorTotal" valor `;
+      sql = `select distinct  da."dataVencimento", uu."fullName"nome,op."nomeConsorcio",da."valorRealEfetivado" valor `;
       sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoes = condicoes +` and (date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' and '${dataFim}' ) `;
            
@@ -681,7 +681,7 @@ export class RelatorioNovoRemessaRepository {
     }
     
     if(filter.emProcessamento!=undefined ){
-      sql = `select distinct da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, opa."valorTotal" valor `
+      sql = `select distinct da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, da."valorRealEfetivado" valor `
       sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoes = condicoes +` and (date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' and '${dataFim}' ) `;      
     }
