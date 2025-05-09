@@ -630,10 +630,17 @@ export class RelatorioNovoRemessaRepository {
       
     let condicoes = '';
  
-    if(filter.aPagar!==undefined || filter.emProcessamento!==undefined){
-      sql = `select distinct  da."dataVencimento", uu."fullName"nome,op."nomeConsorcio",opa."valor" `;
+    if(filter.aPagar!==undefined ){
+      sql = `select distinct  da."dataVencimento", uu."fullName"nome,op."nomeConsorcio",opa."valorTotal" valor`;
       sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoes = condicoes +` and (date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' ) `;     
+      condicoes = condicoes +` and (date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' ) `;
+           
+    }
+    if(filter.emProcessamento!==undefined){
+      sql = `select distinct  da."dataVencimento", uu."fullName"nome,op."nomeConsorcio",opa."valorTotal" valor `;
+      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
+      condicoes = condicoes +` and (date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' and '${dataFim}' ) `;
+           
     }
 
     if(filter.pago!==undefined || filter.erro!==undefined){
@@ -667,13 +674,20 @@ export class RelatorioNovoRemessaRepository {
 
     let condicoes = '';
  
-    if(filter.aPagar!=undefined || filter.emProcessamento!=undefined){
+    if(filter.aPagar!=undefined ){
       sql = `select distinct da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, opa."valorTotal" valor `
       sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoes = condicoes +` and (date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' ) `;      
     }
+    
+    if(filter.emProcessamento!=undefined ){
+      sql = `select distinct da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, opa."valorTotal" valor `
+      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
+      condicoes = condicoes +` and (date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' and '${dataFim}' ) `;      
+    }
 
-    if(filter.pago!=undefined || filter.erro!=undefined){
+
+    if (filter.pago != undefined || filter.erro != undefined){
       sql = `select distinct  da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, da."valorLancamento" valor `;
       sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoes = condicoes +` and  da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
