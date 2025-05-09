@@ -6,12 +6,15 @@ import { RelatorioAnaliticoResultDto } from './dtos/relatorio-analitico-result.d
 import { RelatorioSinteticoResultDto } from './dtos/relatorio-sintetico-result.dto';
 import { RelatorioAnaliticoRepository } from './relatorio-analitico.repository';
 import { RelatorioSinteticoRepository } from './relatorio-sintetico.repository';
+import { RelatorioDetalhadoRepository } from './relatorio-detalhado-vanzeiro.repository';
 
 @Injectable()
 export class RelatorioService {
+  
   constructor(private relatorioConsolidadoRepository: RelatorioConsolidadoRepository,
     private relatorioSinteticoRepository: RelatorioSinteticoRepository,
-    private relatorioAnaliticoRepository: RelatorioAnaliticoRepository
+    private relatorioAnaliticoRepository: RelatorioAnaliticoRepository,
+    private relatorioDetalhadoRepository: RelatorioDetalhadoRepository
   ) {}
 
   /**
@@ -129,6 +132,14 @@ export class RelatorioService {
       result.push(await this.resultAnalitico(args));
     }
     return result;
+  }
+
+  async findDetalhadoVanzeiro(args: { userId:number; dataInicio: Date; dataFim: Date; }) {
+    if(args.dataInicio ===undefined || args.dataFim === undefined || 
+      new Date(args.dataFim) < new Date(args.dataInicio)){
+      throw new Error('Parametro de data inválido');
+    } 
+    return await this.relatorioDetalhadoRepository.findDetalhadoVanzeiro(args);    
   }
 
   private async resultAnalitico(args: IFindPublicacaoRelatorio){    

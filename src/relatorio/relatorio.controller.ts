@@ -134,5 +134,25 @@ export class RelatorioController {
     }
   }
 
-
+  @ApiQuery({ name: 'dataInicio', description: 'Data Inicial', required: true, type: String })
+  @ApiQuery({ name: 'dataFim', description: 'Data Final', required: true, type: String })
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('detalhadoVanzeiro')
+  async detalhadoVanzeiro(
+    @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
+    dataInicio: Date,
+    @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
+    dataFim: Date ,
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) 
+    userId: number ,
+  ) {
+    try {
+      const result = await this.relatorioService.findDetalhadoVanzeiro({userId, dataInicio, dataFim});
+      return result;
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
 }

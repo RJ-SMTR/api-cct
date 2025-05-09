@@ -7,7 +7,7 @@ import { RelatorioSinteticoDto } from './dtos/relatorio-sintetico.dto';
 import { query } from 'express';
 
 @Injectable()
-export class RelatorioSinteticoRepository { 
+export class RelatorioSinteticoRepository {  
   
   constructor(@InjectDataSource()
               private readonly dataSource: DataSource) {}
@@ -267,4 +267,5 @@ export class RelatorioSinteticoRepository {
         
     return query;
   }
+
 } 
