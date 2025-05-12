@@ -135,6 +135,8 @@ where da."dataVencimento" between $1 and $2
 
       if (queryDecision.requiresMerge) {
         this.logger.log("Executando queries separadas por ano.");
+        const actualDataFim = filter.dataFim
+        filter.dataFim = new Date("2024-12-31T00:00:00.000Z")
 
         const paramsFor2024 = this.getParametersByQuery(2024, filter);
         let finalQuery2024 = RelatorioNovoRemessaFinancialMovementRepository.queryOlderReport;
@@ -142,6 +144,7 @@ where da."dataVencimento" between $1 and $2
         if (filter.todosVanzeiros) {
           finalQuery2024 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
         }
+
         if (filter.eleicao && initialYear === 2024) {
           finalQuery2024 += eleicaoExtraFilter;
           finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
@@ -151,6 +154,8 @@ where da."dataVencimento" between $1 and $2
 
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
+        filter.dataFim = actualDataFim
+        filter.dataInicio = new Date("2025-01-01T00:00:00.000Z")
         const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
         const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
         let finalQuery2025 = RelatorioNovoRemessaFinancialMovementRepository.queryNewReport;
