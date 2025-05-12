@@ -53,6 +53,7 @@ select distinct
   cf."cpfCnpj",
   ita."nomeConsorcio",
   da."valorLancamento" as valor,
+  ita.id,
   case 
     when da."ocorrenciasCnab" = '00' or da."ocorrenciasCnab" = 'BD' or ap."isPago" = true then 'Pago'
     when da."ocorrenciasCnab" = '02' then 'Estorno'
@@ -64,6 +65,9 @@ from item_transacao it
   inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
   inner join cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
+  inner join header_lote hl on hl."id" = da."headerLoteId"
+  inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
+  /* extra joins */
 where da."dataVencimento" between $1 and $2
   and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
   and ($5::integer[] is null or it."clienteFavorecidoId" = any($5))
@@ -71,6 +75,8 @@ where da."dataVencimento" between $1 and $2
     ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
   )
+  AND TRIM(da."ocorrenciasCnab") <> ''
+	AND ha."status" <> '5'
   and (
     $3::text[] is null or (
       case 
@@ -80,6 +86,7 @@ where da."dataVencimento" between $1 and $2
       end
     ) = any($3)
   ) 
+
 `;
 
   private static notCpf2025 = `AND pu."cpfCnpj" NOT IN ('18201378000119',
@@ -109,6 +116,16 @@ where da."dataVencimento" between $1 and $2
 
     const queryDecision = this.getQueryByYear(initialYear, finalYear);
 
+    const eleicaoInnerJoin = `
+      INNER JOIN ordem_pagamento_unico opu ON opu."operadoraCpfCnpj" = cf."cpfCnpj"
+      `
+    const eleicaoExtraFilter = ` 
+    AND ita."idOrdemPagamento" LIKE '%U%'
+    `
+    const notEleicaoFilter2024 = `  
+    AND ita."idOrdemPagamento" NOT LIKE '%U%'
+    `
+
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       await queryRunner.connect();
@@ -118,6 +135,8 @@ where da."dataVencimento" between $1 and $2
 
       if (queryDecision.requiresMerge) {
         this.logger.log("Executando queries separadas por ano.");
+        const actualDataFim = filter.dataFim
+        filter.dataFim = new Date("2024-12-31T00:00:00.000Z")
 
         const paramsFor2024 = this.getParametersByQuery(2024, filter);
         let finalQuery2024 = RelatorioNovoRemessaFinancialMovementRepository.queryOlderReport;
@@ -126,14 +145,23 @@ where da."dataVencimento" between $1 and $2
           finalQuery2024 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
         }
 
+        if (filter.eleicao && initialYear === 2024) {
+          finalQuery2024 += eleicaoExtraFilter;
+          finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
+        } else if (initialYear === 2024) {
+          finalQuery2024 += notEleicaoFilter2024
+        }
+
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
+        filter.dataFim = actualDataFim
+        filter.dataInicio = new Date("2025-01-01T00:00:00.000Z")
         const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
         const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
         let finalQuery2025 = RelatorioNovoRemessaFinancialMovementRepository.queryNewReport;
 
         if (filter.todosVanzeiros) {
-          finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025}`;
+          finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
         }
 
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
@@ -147,10 +175,17 @@ where da."dataVencimento" between $1 and $2
 
         if (filter.todosVanzeiros) {
           if (initialYear === 2025) {
-            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025}`;
+            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
           } else if (initialYear === 2024) {
-            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
+            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024} `;
           }
+        }
+
+        if (filter.eleicao && initialYear === 2024) {
+          finalQuery += eleicaoExtraFilter;
+          finalQuery.replace('/* extra joins */', eleicaoInnerJoin)
+        } else if (initialYear === 2024) {
+          finalQuery += notEleicaoFilter2024
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
