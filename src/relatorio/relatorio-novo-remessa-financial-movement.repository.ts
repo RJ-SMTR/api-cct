@@ -154,19 +154,22 @@ where da."dataVencimento" between $1 and $2
 
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
-        filter.dataFim = actualDataFim
-        filter.dataInicio = new Date("2025-01-01T00:00:00.000Z")
-        const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
-        const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
-        let finalQuery2025 = RelatorioNovoRemessaFinancialMovementRepository.queryNewReport;
+        allResults = [...resultFrom2024];
 
-        if (filter.todosVanzeiros) {
-          finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
+        if (!(filter.eleicao && initialYear === 2024)) {
+          filter.dataFim = actualDataFim;
+          filter.dataInicio = new Date("2025-01-01T00:00:00.000Z");
+          const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
+          const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
+          let finalQuery2025 = RelatorioNovoRemessaFinancialMovementRepository.queryNewReport;
+
+          if (filter.todosVanzeiros) {
+            finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
+          }
+
+          const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
+          allResults = [...allResults, ...resultFromNewerYears];
         }
-
-        const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
-
-        allResults = [...resultFrom2024, ...resultFromNewerYears];
 
       } else {
         const paramsForYear = this.getParametersByQuery(initialYear, filter);
