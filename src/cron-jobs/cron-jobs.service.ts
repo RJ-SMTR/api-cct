@@ -43,6 +43,7 @@ export enum CronJobsEnum {
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
   updateRetorno = 'updateRetorno',
+  updateExtrato = 'updateExtrato',
   generateRemessaVLT = 'generateRemessaVLT',
   generateRemessaEmpresa = 'generateRemessaEmpresa',
   generateRemessaVanzeiros = 'generateRemessaVanzeiros',
@@ -102,6 +103,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad(){   
+    await this.readRetornoExtrato();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -130,6 +132,21 @@ export class CronJobsService {
           },
         },
       },
+      {
+        /**
+         * Atualizar Extrato - Leitura dos Arquivos de Extrato Retorno do Banco CEF para CCT - todo dia
+         *
+         * Não executa quando gerar o remessa.
+         */
+        name: CronJobsEnum.updateExtrato,
+        cronJobParameters: {
+          cronTime: '*/30 * * * *', //  Every 30 min
+          onTick: async () => {
+            await this.readRetornoExtrato();
+          },
+        },
+      },
+
       {
         /**
          * Envio de Relatório Estatística dos Dados - todo dia, 06:00 - 06:01
