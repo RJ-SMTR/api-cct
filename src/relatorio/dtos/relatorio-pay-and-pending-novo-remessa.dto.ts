@@ -12,6 +12,7 @@ export class RelatorioFinancialMovementNovoRemessaDto {
   valorPago: number;
   valorRejeitado: number;
   valorEstornado: number;
+  valorAguardandoPagamento: number
   data: RelatorioFinancialMovementNovoRemessaData[];
 }
 

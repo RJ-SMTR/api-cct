@@ -16,6 +16,7 @@ SELECT DISTINCT
     op."nomeConsorcio",
     da."valorLancamento" AS valor,
     CASE
+    		WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
         WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
         WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno' 
         ELSE 'Rejeitado'
@@ -37,6 +38,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR (
             CASE 
+    		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
                 WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                 WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                 ELSE 'Rejeitado'
@@ -192,8 +194,9 @@ where da."dataVencimento" between $1 and $2
       }
 
 
+      console.log(allResults)
       const count = allResults.length;
-      const { valorTotal, valorPago, valorRejeitado, valorEstornado } = allResults.reduce(
+      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento } = allResults.reduce(
         (acc, curr) => {
           const valor = Number.parseFloat(curr.valor);
           acc.valorTotal += valor;
@@ -201,6 +204,7 @@ where da."dataVencimento" between $1 and $2
           if (curr.status === "Pago") acc.valorPago += valor;
           else if (curr.status === "Rejeitado") acc.valorRejeitado += valor;
           else if (curr.status === "Estorno") acc.valorEstornado += valor;
+          else if (curr.status === "Aguardando Pagamento") acc.valorAguardandoPagamento += valor;
 
           return acc;
         },
@@ -209,8 +213,11 @@ where da."dataVencimento" between $1 and $2
           valorPago: 0,
           valorRejeitado: 0,
           valorEstornado: 0,
+          valorAguardandoPagamento: 0,
         }
       );
+
+      console.log()
 
       const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
         count,
@@ -218,6 +225,7 @@ where da."dataVencimento" between $1 and $2
         valorPago,
         valorEstornado,
         valorRejeitado,
+        valorAguardandoPagamento,
         data: allResults
           .sort((a, b) => {
             const statusOrder = { Estorno: 0, Pago: 1, Rejeitado: 2 };
