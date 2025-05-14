@@ -38,6 +38,15 @@ inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
                     where (1=1) `;                    
 
 
+
+  private static readonly ELEICAO_25 = ` FROM
+  ordem_pagamento_agrupado opa 
+    INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
+    inner join ordem_pagamento_unico opu on opu."idOrdemPagamento" = opa.id::VARCHAR
+    inner join public."user" pu on pu."cpfCnpj" = opu."operadoraCpfCnpj"
+WHERE (1=1) `;                        
+
   private static readonly QUERY_CONSOLIDADO_VANZEIROS = `
       WITH latest_opah AS (
           SELECT DISTINCT ON (opah."ordemPagamentoAgrupadoId")
@@ -406,7 +415,7 @@ inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
     const queryRunner = this.dataSource.createQueryRunner();
 
     await queryRunner.connect();     
-    
+
     let sql = ` `; 
 
     let sqlModais;
@@ -747,7 +756,7 @@ inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
     let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
     let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
     // --- BLOCO PARA 2024 ---
-    if (incluir2024 && (filter.pago !== undefined || filter.erro !== undefined)) {
+    if (incluir2024) {
       sql2024 = `
         SELECT distinct
           ita.id,
@@ -758,11 +767,25 @@ inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
         ${RelatorioNovoRemessaRepository.QUERY_FROM_24}
       `;
 
-      condicoes2024 += ` AND ap."isPago" = ${filter.pago ? 'true' : 'false'} `;
+        if (statuses) {
+          condicoes2024 += ` AND ap."isPago" = ${filter.pago ? 'true' : 'false'} `;
+      } 
+     
     }
     // --- BLOCO PARA 2025 em diante ---
-    if (incluirOutros && (filter.pago !== undefined || filter.erro !== undefined || filter.emProcessamento !== undefined || filter.aPagar !== undefined)) {
-      sqlOutros = `
+    if (incluirOutros) {
+      if(filter.eleicao){
+        sqlOutros = `
+     SELECT DISTINCT
+      da.id,
+      da."dataVencimento" AS dataPagamento,
+      pu."fullName" as nome,
+      opu.consorcio,
+          ${filter.aPagar !== undefined ? 'opa."valorTotal"' : 'da."valorLancamento"'} as valor
+        ${RelatorioNovoRemessaRepository.ELEICAO_25}
+      `;
+      } else{
+        sqlOutros = `
         SELECT distinct
         da.id,
           da."dataVencimento",
@@ -771,11 +794,13 @@ inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
           ${filter.aPagar !== undefined ? 'opa."valorTotal"' : 'da."valorLancamento"'} as valor
         ${RelatorioNovoRemessaRepository.QUERY_FROM}
       `;
+      }
+    
 
       if (filter.aPagar !== undefined) {
         condicoesOutros += ` AND date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' `;
-      } else if (filter.emProcessamento !== undefined) {
-        condicoesOutros += ` AND oph."statusRemessa" IN (${statuses}) `;
+      } else if (!statuses) {
+        condicoesOutros += ` AND oph."statusRemessa" IN (0,1,2,3) `;
       } else {
         condicoesOutros += ` AND oph."statusRemessa" IN (${statuses}) `;
       }
@@ -784,11 +809,15 @@ inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
     if (filter.todosConsorcios) {
       const consorcios = `'STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC'`;
       condicoes2024 += ` AND ita."nomeConsorcio" IN (${consorcios}) `;
-      condicoesOutros += ` AND op."nomeConsorcio" IN (${consorcios}) `;
+      condicoesOutros += ` AND ${filter.eleicao ? 'opu.consorcio' : 'op."nomeConsorcio"'} IN (${consorcios}) `;
     } else if (filter.consorcioNome) {
       const nomes = `'${filter.consorcioNome.join("','")}'`;
       condicoes2024 += ` AND ita."nomeConsorcio" IN (${nomes}) `;
-      condicoesOutros += ` AND op."nomeConsorcio" IN (${nomes}) `;
+      condicoesOutros += ` AND ${filter.eleicao ? 'opu.consorcio' : 'op."nomeConsorcio"'} IN (${nomes}) `;
+    }
+    if(filter.eleicao){
+      condicoes2024 += `  AND ita."idOrdemPagamento" LIKE '%U%'`;
+      // condicoesOutros += `      AND ita."idOrdemPagamento" LIKE '%U%'`;
     }
     // --- return ---
     let finalSQL = '';
@@ -815,7 +844,7 @@ inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
         GROUP BY r.nome
       `;
     }
-
+    this.logger.warn(finalSQL)
     return finalSQL;
   }
   
