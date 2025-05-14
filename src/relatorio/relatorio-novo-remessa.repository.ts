@@ -19,6 +19,22 @@ export class RelatorioNovoRemessaRepository {
                     inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
                     inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
                     inner join public."user" uu on uu."id"=op."userId" 
+                    where (1=1) `;    
+
+  private static readonly QUERY_FROM_24 = `    from
+                    transacao_agrupado ta
+                    inner join item_transacao_agrupado ita on ita."transacaoAgrupadoId" = ta."id"
+                    inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
+                    inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
+                    inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
+                    where (1=1) `;  
+
+  private static readonly USER_FROM_24 = `    from
+                 item_transacao_agrupado ita
+INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
+INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
+INNER JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id
+inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
                     where (1=1) `;                    
 
 
@@ -621,97 +637,188 @@ export class RelatorioNovoRemessaRepository {
     }
     return statuses;
   }
+  private consultaVanzeiros(filter: IFindPublicacaoRelatorioNovoRemessa) {
+    const dataInicio = formatDateISODate(filter.dataInicio);
+    const dataFim = formatDateISODate(filter.dataFim);
+    const anoInicio = new Date(filter.dataInicio).getFullYear();
+    const anoFim = new Date(filter.dataFim).getFullYear();
 
-  private consultaVanzeiros(filter:IFindPublicacaoRelatorioNovoRemessa){
-    const dataInicio = formatDateISODate(filter.dataInicio) 
-    const dataFim = formatDateISODate(filter.dataFim) 
-    
-    let sql = ``;
-      
-    let condicoes = '';
- 
-    if(filter.aPagar!==undefined ){
-      sql = `select distinct  da."dataVencimento", uu."fullName"nome,op."nomeConsorcio",opa."valorTotal" valor`;
-      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoes = condicoes +` and (date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' ) `;
-           
-    }
-    if(filter.emProcessamento!==undefined){
-      sql = `select distinct  da."dataVencimento", uu."fullName"nome,op."nomeConsorcio",da."valorRealEfetivado" valor `;
-      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoes = condicoes +` and (date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' and '${dataFim}' ) `;
-           
+    let sql2024 = '';
+    let condicoes2024 = '';
+
+    let sqlOutros = '';
+    let condicoesOutros = '';
+
+    const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined;
+
+    // --- BLOCO PARA 2024 ---
+    if (anoInicio <= 2024) {
+      sql2024 = `select distinct 
+                  ita.id, 
+                  da."dataVencimento", 
+                  uu.nome as nome, 
+                  da."valorLancamento" as valor,
+                  ita."nomeConsorcio" as "nomeConsorcio"
+                `;
+      sql2024 += RelatorioNovoRemessaRepository.USER_FROM_24;
+      condicoes2024 += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'`;
+
+      if (filter.pago !== undefined || filter.erro !== undefined) {
+        condicoes2024 += ` and ap."isPago" = ${filter.pago ? 'true' : 'false'}`;
+      }
+
+      if (filter.valorMin !== undefined) {
+        condicoes2024 += ` and da."valorLancamento" >= ${filter.valorMin}`;
+      }
+
+      if (filter.valorMax !== undefined) {
+        condicoes2024 += ` and da."valorLancamento" <= ${filter.valorMax}`;
+      }
+
+      if (filter.userIds) {
+        condicoes2024 += ` and uu.id in('${filter.userIds.join("','")}')`;
+      } else if (filter.todosVanzeiros) {
+        condicoes2024 += ` and ita."nomeConsorcio" in('STPC','STPL','TEC')`;
+      }
     }
 
-    if(filter.pago!==undefined || filter.erro!==undefined){
-      sql = `select distinct da."dataVencimento", uu."fullName"nome,op."nomeConsorcio", da."valorRealEfetivado" valor `;
-      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoes = condicoes +` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
+    // --- BLOCO PARA 2025 em diante ---
+    if (anoFim >= 2025) {
+      sqlOutros = `select distinct 
+                    da.id,
+                    da."dataVencimento", 
+                    uu."fullName" as nome, 
+                    da."valorRealEfetivado" as valor,
+                    op."nomeConsorcio"
+                  `;
+      sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
+      condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'`;
+
+      const statuses = this.getStatusParaFiltro(filter);
+      if (hasStatusFilter) {
+        condicoesOutros += ` and oph."statusRemessa" in(${statuses})`;
+      }
+
+      if (filter.valorMin !== undefined) {
+        condicoesOutros += ` and da."valorRealEfetivado" >= ${filter.valorMin}`;
+      }
+
+      if (filter.valorMax !== undefined) {
+        condicoesOutros += ` and da."valorRealEfetivado" <= ${filter.valorMax}`;
+      }
+
+      if (filter.userIds) {
+        condicoesOutros += ` and userId in('${filter.userIds.join("','")}')`;
+      } else if (filter.todosVanzeiros) {
+        condicoesOutros += ` and op."nomeConsorcio" in('STPC','STPL','TEC')`;
+      }
     }
 
-    let statuses =  this.getStatusParaFiltro(filter);
-    if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar){
-      condicoes = condicoes + ` and oph."statusRemessa" in(${statuses}) `;
-    } else {
-      sql = `select distinct da."dataVencimento", uu."fullName"nome,op."nomeConsorcio", da."valorRealEfetivado" valor `;
-      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoes = condicoes + ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
+    // --- return ---
+    let finalSQL = '';
+    if (sql2024 && sqlOutros) {
+      finalSQL = `
+      SELECT * FROM (
+        (${sql2024} ${condicoes2024})
+        UNION ALL
+        (${sqlOutros} ${condicoesOutros})
+      ) AS resultado
+    `;
+    } else if (sql2024) {
+      finalSQL = sql2024 + condicoes2024;
+    } else if (sqlOutros) {
+      finalSQL = sqlOutros + condicoesOutros;
     }
 
-    if(filter.userIds){
-      condicoes = condicoes +` and "userId" in('${filter.userIds.join("','")}') `;
-    }else if(filter.todosVanzeiros){
-      condicoes = condicoes + ` and op."nomeConsorcio" in('STPC','STPL','TEC') `;
-    }    
-    return sql + condicoes;
+    return finalSQL;
   }
+  private consultaConsorcios(filter: IFindPublicacaoRelatorioNovoRemessa) {
+    const dataInicio = formatDateISODate(filter.dataInicio);
+    const dataFim = formatDateISODate(filter.dataFim);
+    const anoInicio = new Date(filter.dataInicio).getFullYear();
+    const anoFim = new Date(filter.dataFim).getFullYear();
+    const incluir2024 = anoInicio <= 2024 && anoFim >= 2024;
+    const incluirOutros = !(anoInicio === 2024 && anoFim === 2024);
 
-  private consultaConsorcios(filter:IFindPublicacaoRelatorioNovoRemessa){
-    const dataInicio = formatDateISODate(filter.dataInicio); 
-    const dataFim = formatDateISODate(filter.dataFim);        
-   
-    let sql = ``;
+    const statuses = this.getStatusParaFiltro(filter);
 
-    let condicoes = '';
- 
-    if(filter.aPagar!=undefined ){
-      sql = `select distinct da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, opa."valorTotal" valor `
-      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoes = condicoes +` and (date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' ) `;      
+    let sql2024 = '';
+    let sqlOutros = '';
+    let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
+    let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
+    // --- BLOCO PARA 2024 ---
+    if (incluir2024 && (filter.pago !== undefined || filter.erro !== undefined)) {
+      sql2024 = `
+        SELECT distinct
+          ita.id,
+          da."dataVencimento",
+          ita."nomeOperadora" as "fullName",
+          ita."nomeConsorcio" as nome,
+          da."valorLancamento" as valor
+        ${RelatorioNovoRemessaRepository.QUERY_FROM_24}
+      `;
+
+      condicoes2024 += ` AND ap."isPago" = ${filter.pago ? 'true' : 'false'} `;
     }
-    
-    if(filter.emProcessamento!=undefined ){
-      sql = `select distinct da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, da."valorRealEfetivado" valor `
-      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoes = condicoes +` and (date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' and '${dataFim}' ) `;      
+    // --- BLOCO PARA 2025 em diante ---
+    if (incluirOutros && (filter.pago !== undefined || filter.erro !== undefined || filter.emProcessamento !== undefined || filter.aPagar !== undefined)) {
+      sqlOutros = `
+        SELECT distinct
+        da.id,
+          da."dataVencimento",
+          uu."fullName",
+          op."nomeConsorcio" as nome,
+          ${filter.aPagar !== undefined ? 'opa."valorTotal"' : 'da."valorLancamento"'} as valor
+        ${RelatorioNovoRemessaRepository.QUERY_FROM}
+      `;
+
+      if (filter.aPagar !== undefined) {
+        condicoesOutros += ` AND date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' `;
+      } else if (filter.emProcessamento !== undefined) {
+        condicoesOutros += ` AND oph."statusRemessa" IN (${statuses}) `;
+      } else {
+        condicoesOutros += ` AND oph."statusRemessa" IN (${statuses}) `;
+      }
     }
 
-
-    if (filter.pago != undefined || filter.erro != undefined){
-      sql = `select distinct  da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, da."valorLancamento" valor `;
-      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoes = condicoes +` and  da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
+    if (filter.todosConsorcios) {
+      const consorcios = `'STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC'`;
+      condicoes2024 += ` AND ita."nomeConsorcio" IN (${consorcios}) `;
+      condicoesOutros += ` AND op."nomeConsorcio" IN (${consorcios}) `;
+    } else if (filter.consorcioNome) {
+      const nomes = `'${filter.consorcioNome.join("','")}'`;
+      condicoes2024 += ` AND ita."nomeConsorcio" IN (${nomes}) `;
+      condicoesOutros += ` AND op."nomeConsorcio" IN (${nomes}) `;
+    }
+    // --- return ---
+    let finalSQL = '';
+    if (sql2024 && sqlOutros) {
+      finalSQL = `
+        SELECT nome, NULL as "nomeConsorcio", SUM(valor) as valor
+        FROM (
+          (${sql2024} ${condicoes2024})
+          UNION ALL
+          (${sqlOutros} ${condicoesOutros})
+        ) AS r
+        GROUP BY r.nome
+      `;
+    } else if (sql2024) {
+      finalSQL = `
+        SELECT nome, NULL as "nomeConsorcio", SUM(valor) as valor
+        FROM (${sql2024} ${condicoes2024}) AS r
+        GROUP BY r.nome
+      `;
+    } else if (sqlOutros) {
+      finalSQL = `
+        SELECT nome, NULL as "nomeConsorcio", SUM(valor) as valor
+        FROM (${sqlOutros} ${condicoesOutros}) AS r
+        GROUP BY r.nome
+      `;
     }
 
-    let statuses =  this.getStatusParaFiltro(filter);
-    if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar){
-      condicoes = condicoes + ` and oph."statusRemessa" in(${statuses}) `;
-    }  else {
-      sql = `select distinct  da."dataVencimento", uu."fullName",op."nomeConsorcio" nome, da."valorLancamento" valor `;
-      sql = sql + RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoes = condicoes + ` and  da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `; 
-    }
-
-    if(filter.todosConsorcios){
-      condicoes = condicoes +` and op."nomeConsorcio" in('STPC','STPL','VLT','Santa Cruz',
-        'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
-    }else if(filter.consorcioNome){
-      condicoes = condicoes +` and op."nomeConsorcio" in('${filter.consorcioNome.join("','")}') `
-    }    
-    
-    sql =  `select "nome", null as "nomeConsorcio", sum("valor") valor from (`+ sql + condicoes+`)r group by r."nome" ` ;
-    return sql;
+    return finalSQL;
   }
+  
 
   private somatorioTotalPagoErro(sql:string){
     return `select sum("valor") valor from (`+sql+`) s `; 
