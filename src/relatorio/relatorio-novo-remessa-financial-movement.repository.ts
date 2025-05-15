@@ -189,14 +189,12 @@ where da."dataVencimento" between $1 and $2
         }
 
         if (filter.eleicao && initialYear === 2024) {
-          console.log("eleicao 2024")
           finalQuery2024 += eleicaoExtraFilter;
           finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
         } else if (initialYear === 2024) {
           finalQuery2024 += notEleicaoFilter2024
         }
 
-        console.log(finalQuery2024)
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
         filter.dataFim = actualDataFim
@@ -211,10 +209,8 @@ where da."dataVencimento" between $1 and $2
 
         if (filter.eleicao && actualDataFim.getFullYear() === 2025) {
           finalQuery2025 = this.eleicao2025
-          console.log("eleicao 2025")
         }
 
-        console.log(finalQuery2025)
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
 
         allResults = [...resultFrom2024, ...resultFromNewerYears];
