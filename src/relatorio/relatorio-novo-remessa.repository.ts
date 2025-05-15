@@ -659,9 +659,9 @@ WHERE (1=1) `;
     let condicoesOutros = '';
 
     const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined;
-
+    const isPagoOuErro = filter.pago !== undefined || filter.erro !== undefined;
     // --- BLOCO PARA 2024 ---
-    if (anoInicio <= 2024) {
+    if (anoInicio <= 2024 && isPagoOuErro) {
       sql2024 = `select distinct 
                   ita.id, 
                   da."dataVencimento", 
@@ -756,7 +756,7 @@ WHERE (1=1) `;
     let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
     let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
     // --- BLOCO PARA 2024 ---
-    if (incluir2024) {
+    if ((filter.pago !== undefined || filter.erro !== undefined) && incluir2024) {
       sql2024 = `
         SELECT distinct
           ita.id,
@@ -766,11 +766,7 @@ WHERE (1=1) `;
           da."valorLancamento" as valor
         ${RelatorioNovoRemessaRepository.QUERY_FROM_24}
       `;
-
-        if (statuses) {
-          condicoes2024 += ` AND ap."isPago" = ${filter.pago ? 'true' : 'false'} `;
-      } 
-     
+      condicoes2024 += ` AND ap."isPago" = ${filter.pago ? 'true' : 'false'} `;
     }
     // --- BLOCO PARA 2025 em diante ---
     if (incluirOutros) {
@@ -799,6 +795,7 @@ WHERE (1=1) `;
 
       if (filter.aPagar !== undefined) {
         condicoesOutros += ` AND date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' `;
+        condicoesOutros += ` AND oph."statusRemessa" IN (${statuses}) `;
       } else if (!statuses) {
         condicoesOutros += ` AND oph."statusRemessa" IN (0,1,2,3) `;
       } else {
@@ -821,7 +818,7 @@ WHERE (1=1) `;
     }
     // --- return ---
     let finalSQL = '';
-    if (sql2024 && sqlOutros) {
+    if ((filter.pago !== undefined || filter.erro !== undefined) && sql2024 && sqlOutros) {
       finalSQL = `
         SELECT nome, NULL as "nomeConsorcio", SUM(valor) as valor
         FROM (
