@@ -5,9 +5,9 @@ import { CnabModule } from 'src/cnab/cnab.module';
 import { RelatorioConsolidadoRepository } from './relatorio-consolidado.repository';
 import { RelatorioSinteticoRepository } from './relatorio-sintetico.repository';
 import { RelatorioAnaliticoRepository } from './relatorio-analitico.repository';
-import { RelatorioNovoRemessaController } from './relatorio-novo-remessa.controller';
-import { RelatorioNovoRemessaRepository } from './relatorio-novo-remessa.repository';
-import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
+import { RelatorioNovoRemessaController } from './novo-remessa/relatorio-novo-remessa.controller';
+import { RelatorioNovoRemessaRepository } from './novo-remessa/relatorio-novo-remessa.repository';
+import { RelatorioNovoRemessaService } from './novo-remessa/relatorio-novo-remessa.service';
 import { RelatorioNovoRemessaFinancialMovementService } from './relatorio-novo-remessa-financial-movement.service';
 import { RelatorioNovoRemessaFinancialMovementRepository } from './relatorio-novo-remessa-financial-movement.repository';
 

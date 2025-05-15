@@ -1,17 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
+import { IFindExtrato, IFindPublicacaoRelatorio } from './interfaces/find-extrato.interface';
 import { RelatorioConsolidadoRepository } from './relatorio-consolidado.repository';
 import { RelatorioConsolidadoResultDto } from './dtos/relatorio-consolidado-result.dto';
 import { RelatorioAnaliticoResultDto } from './dtos/relatorio-analitico-result.dto';
 import { RelatorioSinteticoResultDto } from './dtos/relatorio-sintetico-result.dto';
 import { RelatorioAnaliticoRepository } from './relatorio-analitico.repository';
 import { RelatorioSinteticoRepository } from './relatorio-sintetico.repository';
+import { RelatorioExtratoBancarioDto } from './dtos/relatorio-extrato-bancario.dto';
+import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio-extrato-bancario.repository';
 
 @Injectable()
 export class RelatorioService {
   constructor(private relatorioConsolidadoRepository: RelatorioConsolidadoRepository,
     private relatorioSinteticoRepository: RelatorioSinteticoRepository,
-    private relatorioAnaliticoRepository: RelatorioAnaliticoRepository
+    private relatorioAnaliticoRepository: RelatorioAnaliticoRepository,
+    private relatorioExtratoRepository: RelatorioExtratoBancarioRepository
   ) {}
 
   /**
@@ -73,7 +76,6 @@ export class RelatorioService {
   }
  
   ///////SINTETICO //////
-
   async findSintetico(args: IFindPublicacaoRelatorio){
     if(args.dataInicio ===undefined || args.dataFim === undefined || 
       new Date(args.dataFim) < new Date(args.dataInicio)){
@@ -83,6 +85,15 @@ export class RelatorioService {
     let result: RelatorioSinteticoResultDto[]=[];
     result.push(await this.resultSintetico(args));   
     return result;
+  }
+
+   ///////EXTRATO //////
+  async findExtrato(args: IFindExtrato){
+    if(args.dataInicio ===undefined || args.dataFim === undefined || 
+      new Date(args.dataFim) < new Date(args.dataInicio)){
+      throw new Error('Parametro de data inválido');
+    }   
+    return await this.relatorioExtratoRepository.findExtrato(args);
   }
 
   private async resultSintetico(args: IFindPublicacaoRelatorio){    

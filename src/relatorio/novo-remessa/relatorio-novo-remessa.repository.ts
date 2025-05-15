@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, QueryRunner } from 'typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { IFindPublicacaoRelatorioNovoRemessa } from './interfaces/find-publicacao-relatorio-novo-remessa.interface';
+import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import {
   RelatorioConsolidadoNovoRemessaData,
   RelatorioConsolidadoNovoRemessaDto,
-} from './dtos/relatorio-consolidado-novo-remessa.dto';
+} from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { formatDateISODate } from 'src/utils/date-utils';
-import { RelatorioSinteticoNovoRemessaConsorcio, RelatorioSinteticoNovoRemessaDia, RelatorioSinteticoNovoRemessaDto, RelatorioSinteticoNovoRemessaFavorecido } from './dtos/relatorio-sintetico-novo-remessa.dto';
+import { RelatorioSinteticoNovoRemessaConsorcio, RelatorioSinteticoNovoRemessaDia, RelatorioSinteticoNovoRemessaDto, RelatorioSinteticoNovoRemessaFavorecido } from '../dtos/relatorio-sintetico-novo-remessa.dto';
 
 
 @Injectable()
