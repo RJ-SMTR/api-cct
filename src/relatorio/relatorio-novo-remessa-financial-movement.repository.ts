@@ -16,6 +16,7 @@ SELECT DISTINCT
     op."nomeConsorcio",
     da."valorLancamento" AS valor,
     CASE
+    		WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
         WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
         WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno' 
         ELSE 'Rejeitado'
@@ -37,6 +38,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR (
             CASE 
+    		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
                 WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                 WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                 ELSE 'Rejeitado'
@@ -154,22 +156,19 @@ where da."dataVencimento" between $1 and $2
 
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
-        allResults = [...resultFrom2024];
+        filter.dataFim = actualDataFim
+        filter.dataInicio = new Date("2025-01-01T00:00:00.000Z")
+        const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
+        const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
+        let finalQuery2025 = RelatorioNovoRemessaFinancialMovementRepository.queryNewReport;
 
-        if (!(filter.eleicao && initialYear === 2024)) {
-          filter.dataFim = actualDataFim;
-          filter.dataInicio = new Date("2025-01-01T00:00:00.000Z");
-          const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
-          const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
-          let finalQuery2025 = RelatorioNovoRemessaFinancialMovementRepository.queryNewReport;
-
-          if (filter.todosVanzeiros) {
-            finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
-          }
-
-          const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
-          allResults = [...allResults, ...resultFromNewerYears];
+        if (filter.todosVanzeiros) {
+          finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
         }
+
+        const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
+
+        allResults = [...resultFrom2024, ...resultFromNewerYears];
 
       } else {
         const paramsForYear = this.getParametersByQuery(initialYear, filter);
@@ -196,7 +195,7 @@ where da."dataVencimento" between $1 and $2
 
 
       const count = allResults.length;
-      const { valorTotal, valorPago, valorRejeitado, valorEstornado } = allResults.reduce(
+      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento } = allResults.reduce(
         (acc, curr) => {
           const valor = Number.parseFloat(curr.valor);
           acc.valorTotal += valor;
@@ -204,6 +203,7 @@ where da."dataVencimento" between $1 and $2
           if (curr.status === "Pago") acc.valorPago += valor;
           else if (curr.status === "Rejeitado") acc.valorRejeitado += valor;
           else if (curr.status === "Estorno") acc.valorEstornado += valor;
+          else if (curr.status === "Aguardando Pagamento") acc.valorAguardandoPagamento += valor;
 
           return acc;
         },
@@ -212,6 +212,7 @@ where da."dataVencimento" between $1 and $2
           valorPago: 0,
           valorRejeitado: 0,
           valorEstornado: 0,
+          valorAguardandoPagamento: 0,
         }
       );
 
@@ -221,6 +222,7 @@ where da."dataVencimento" between $1 and $2
         valorPago,
         valorEstornado,
         valorRejeitado,
+        valorAguardandoPagamento,
         data: allResults
           .sort((a, b) => {
             const statusOrder = { Estorno: 0, Pago: 1, Rejeitado: 2 };
