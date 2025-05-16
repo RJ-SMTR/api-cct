@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { IFindExtrato, IFindPublicacaoRelatorio } from './interfaces/find-extrato.interface';
-import { RelatorioConsolidadoRepository } from './relatorio-consolidado.repository';
+
 import { RelatorioConsolidadoResultDto } from './dtos/relatorio-consolidado-result.dto';
 import { RelatorioAnaliticoResultDto } from './dtos/relatorio-analitico-result.dto';
 import { RelatorioSinteticoResultDto } from './dtos/relatorio-sintetico-result.dto';
-import { RelatorioAnaliticoRepository } from './relatorio-analitico.repository';
-import { RelatorioSinteticoRepository } from './relatorio-sintetico.repository';
+
 import { RelatorioExtratoBancarioDto } from './dtos/relatorio-extrato-bancario.dto';
 import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio-extrato-bancario.repository';
+import { RelatorioAnaliticoRepository } from './analitico/relatorio-analitico.repository';
+import { RelatorioConsolidadoRepository } from './consolidado/relatorio-consolidado.repository';
+import { IFindExtrato } from './interfaces/find-extrato.interface';
+import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface copy';
+import { RelatorioSinteticoRepository } from './sintetico/relatorio-sintetico.repository';
 
 @Injectable()
 export class RelatorioService {

@@ -180,10 +180,7 @@ where da."dataVencimento" between $1 and $2
 
       const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
         count,
-        valor: Number.parseFloat(valorTotal.toString()),
-        valorPago,
-        valorEstornado,
-        valorRejeitado,
+        valor: Number.parseFloat(valorTotal.toString()),  
         data: allResults
           .sort((a, b) => {
             const statusOrder = { Estorno: 0, Pago: 1, Rejeitado: 2 };
