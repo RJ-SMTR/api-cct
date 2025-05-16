@@ -16,6 +16,7 @@ SELECT DISTINCT
     op."nomeConsorcio",
     da."valorLancamento" AS valor,
     CASE
+    		WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
         WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
         WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno' 
         ELSE 'Rejeitado'
@@ -37,6 +38,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR (
             CASE 
+    		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
                 WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                 WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                 ELSE 'Rejeitado'
@@ -53,6 +55,7 @@ select distinct
   cf."cpfCnpj",
   ita."nomeConsorcio",
   da."valorLancamento" as valor,
+  ita.id,
   case 
     when da."ocorrenciasCnab" = '00' or da."ocorrenciasCnab" = 'BD' or ap."isPago" = true then 'Pago'
     when da."ocorrenciasCnab" = '02' then 'Estorno'
@@ -64,6 +67,9 @@ from item_transacao it
   inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
   inner join cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
+  inner join header_lote hl on hl."id" = da."headerLoteId"
+  inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
+  /* extra joins */
 where da."dataVencimento" between $1 and $2
   and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
   and ($5::integer[] is null or it."clienteFavorecidoId" = any($5))
@@ -71,6 +77,8 @@ where da."dataVencimento" between $1 and $2
     ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
   )
+  AND TRIM(da."ocorrenciasCnab") <> ''
+	AND ha."status" <> '5'
   and (
     $3::text[] is null or (
       case 
@@ -80,7 +88,49 @@ where da."dataVencimento" between $1 and $2
       end
     ) = any($3)
   ) 
+
 `;
+
+  private eleicao2025 = `
+  SELECT DISTINCT
+      da."dataVencimento" AS dataPagamento,
+      pu."fullName" AS nomes,
+      pu."cpfCnpj",
+	    opu."consorcio" AS "nomeConsorcio",
+      da."valorLancamento" AS valor,
+      CASE
+          WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
+          WHEN oph."motivoStatusRemessa" IN ('00', 'BD')
+          OR oph."statusRemessa" = 3 THEN 'Pago'
+          WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+          ELSE 'Rejeitado'
+      END AS status
+  FROM
+    ordem_pagamento_agrupado opa 
+      INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+      INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
+      inner join ordem_pagamento_unico opu on opu."idOrdemPagamento" = opa.id::VARCHAR
+      inner join public."user" pu on pu."cpfCnpj" = opu."operadoraCpfCnpj"
+  WHERE
+      da."dataVencimento" BETWEEN $1 AND $2
+      AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+      AND ($5::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY($5))
+      AND (
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+      )
+    AND (
+        $4::text[] IS NULL OR (
+            CASE 
+    		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
+                WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
+                WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+                ELSE 'Rejeitado'
+            END
+        ) = ANY($4)
+    )
+  `
+
 
   private static notCpf2025 = `AND pu."cpfCnpj" NOT IN ('18201378000119',
                                 '12464869000176',
@@ -109,6 +159,16 @@ where da."dataVencimento" between $1 and $2
 
     const queryDecision = this.getQueryByYear(initialYear, finalYear);
 
+    const eleicaoInnerJoin = `
+      INNER JOIN ordem_pagamento_unico opu ON opu."operadoraCpfCnpj" = cf."cpfCnpj"
+      `
+    const eleicaoExtraFilter = ` 
+    AND ita."idOrdemPagamento" LIKE '%U%'
+    `
+    const notEleicaoFilter2024 = `  
+    AND ita."idOrdemPagamento" NOT LIKE '%U%'
+    `
+
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       await queryRunner.connect();
@@ -118,6 +178,8 @@ where da."dataVencimento" between $1 and $2
 
       if (queryDecision.requiresMerge) {
         this.logger.log("Executando queries separadas por ano.");
+        const actualDataFim = filter.dataFim
+        filter.dataFim = new Date("2024-12-31T00:00:00.000Z")
 
         const paramsFor2024 = this.getParametersByQuery(2024, filter);
         let finalQuery2024 = RelatorioNovoRemessaFinancialMovementRepository.queryOlderReport;
@@ -126,14 +188,27 @@ where da."dataVencimento" between $1 and $2
           finalQuery2024 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
         }
 
+        if (filter.eleicao && initialYear === 2024) {
+          finalQuery2024 += eleicaoExtraFilter;
+          finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
+        } else if (initialYear === 2024) {
+          finalQuery2024 += notEleicaoFilter2024
+        }
+
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
+        filter.dataFim = actualDataFim
+        filter.dataInicio = new Date("2025-01-01T00:00:00.000Z")
         const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
         const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
         let finalQuery2025 = RelatorioNovoRemessaFinancialMovementRepository.queryNewReport;
 
         if (filter.todosVanzeiros) {
-          finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025}`;
+          finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
+        }
+
+        if (filter.eleicao && actualDataFim.getFullYear() === 2025) {
+          finalQuery2025 = this.eleicao2025
         }
 
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
@@ -147,10 +222,21 @@ where da."dataVencimento" between $1 and $2
 
         if (filter.todosVanzeiros) {
           if (initialYear === 2025) {
-            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025}`;
+            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
           } else if (initialYear === 2024) {
-            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
+            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024} `;
           }
+        }
+
+        if (filter.eleicao && initialYear === 2024) {
+          finalQuery += eleicaoExtraFilter;
+          finalQuery.replace('/* extra joins */', eleicaoInnerJoin)
+        } else if (initialYear === 2024) {
+          finalQuery += notEleicaoFilter2024
+        }
+
+        if (filter.eleicao && initialYear === 2025) {
+          finalQuery = this.eleicao2025
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
@@ -158,7 +244,7 @@ where da."dataVencimento" between $1 and $2
 
 
       const count = allResults.length;
-      const { valorTotal, valorPago, valorRejeitado, valorEstornado } = allResults.reduce(
+      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento } = allResults.reduce(
         (acc, curr) => {
           const valor = Number.parseFloat(curr.valor);
           acc.valorTotal += valor;
@@ -166,6 +252,7 @@ where da."dataVencimento" between $1 and $2
           if (curr.status === "Pago") acc.valorPago += valor;
           else if (curr.status === "Rejeitado") acc.valorRejeitado += valor;
           else if (curr.status === "Estorno") acc.valorEstornado += valor;
+          else if (curr.status === "Aguardando Pagamento") acc.valorAguardandoPagamento += valor;
 
           return acc;
         },
@@ -174,6 +261,7 @@ where da."dataVencimento" between $1 and $2
           valorPago: 0,
           valorRejeitado: 0,
           valorEstornado: 0,
+          valorAguardandoPagamento: 0,
         }
       );
 
@@ -183,6 +271,7 @@ where da."dataVencimento" between $1 and $2
         valorPago,
         valorEstornado,
         valorRejeitado,
+        valorAguardandoPagamento,
         data: allResults
           .sort((a, b) => {
             const statusOrder = { Estorno: 0, Pago: 1, Rejeitado: 2 };

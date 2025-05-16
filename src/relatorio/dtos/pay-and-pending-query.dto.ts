@@ -31,6 +31,13 @@ export class FinancialMovementQueryDto {
   })
   consorcioNome?: string[];
 
+  @ApiPropertyOptional({
+    description: 'Pesquisa usuarios de eleição.', default: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  eleicao?: boolean;
 
   @ApiPropertyOptional({
     description: 'Pesquisa todos os vanzeiros.', default: false
