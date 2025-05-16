@@ -149,13 +149,13 @@ export class RelatorioController {
     dataInicio: Date,
     @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
     dataFim: Date,
-    @Query('tipo')  tipo: string,
-    @Query('operacao') operacao: string
-   
+    @Query('tipo') tipo: string,
+    @Query('operacao') operacao: string,
+    @Query('conta') conta: string
   ) {
     try {
       const result = await this.relatorioService.findExtrato ({
-        dataInicio, dataFim, tipo, operacao
+        dataInicio, dataFim, tipo, operacao, conta
       });
       return result;
     } catch (e) {

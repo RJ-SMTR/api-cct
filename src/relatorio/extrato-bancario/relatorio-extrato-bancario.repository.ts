@@ -14,7 +14,7 @@ export class RelatorioExtratoBancarioRepository {
 
               private logger = new CustomLogger(RelatorioExtratoBancarioRepository.name, { timestamp: true });
   
-  private getQuery(dataInicio:string,dataFim:string,tipo:string,operacao:string){ 
+  private getQuery(dataInicio:string,dataFim:string,tipo:string,operacao:string,conta:string){ 
     let query = ` SELECT distinct                
                   de."dataLancamento",
                   de."valorLancamento" valor,
@@ -37,13 +37,20 @@ export class RelatorioExtratoBancarioRepository {
     if(tipo){
       query = query +` and de."descricaoHistoricoBanco"='${operacao}' `;
     }
+    if(conta){
+      if(conta === 'cett'){
+        query = query +` and de."nomeEmpresa"='CETT CTA ESTAB TARIFARIA TRANS' `;
+      }else{
+        query = query +` and de."nomeEmpresa"='CONTA BILHETAGEM - CB' `;
+      }
+    }
 
     return query;             
   }    
 
   public async findExtrato(args: any): Promise<RelatorioExtratoBancarioDto[]> {   
     let query = this.getQuery(args.dataInicio.toISOString().slice(0,10),
-      args.dataFim.toISOString().slice(0,10),args.tipo,args.operacao);         
+      args.dataFim.toISOString().slice(0,10),args.tipo,args.operacao,args.conta);         
     
     this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();

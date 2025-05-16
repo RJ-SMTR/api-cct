@@ -3,4 +3,5 @@ export interface IFindExtrato {
   dataFim: Date;
   tipo?:string;
   operacao?:string;
+  conta?:string;
 }

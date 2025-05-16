@@ -1,4 +1,3 @@
-import { Exclude } from 'class-transformer';
 import { DeepPartial } from 'typeorm';
 
 export class RelatorioExtratoBancarioDto {
@@ -9,8 +8,7 @@ export class RelatorioExtratoBancarioDto {
   }
   
   dataLancamento: Date;
-  valorLancamento: number = 0;
-  nome: String;
+  valorLancamento: number = 0;  
   tipo: String;
-  descricao:String;
+  operacao:String;
 }
