@@ -88,7 +88,7 @@ where da."dataVencimento" between $1 and $2
       end
     ) = any($3)
   ) 
-
+  and da."ocorrenciasCnab" <> 'AM'
 `;
 
   private static notCpf2025 = `AND pu."cpfCnpj" NOT IN ('18201378000119',
@@ -194,7 +194,6 @@ where da."dataVencimento" between $1 and $2
       }
 
 
-      console.log(allResults)
       const count = allResults.length;
       const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento } = allResults.reduce(
         (acc, curr) => {
@@ -217,7 +216,6 @@ where da."dataVencimento" between $1 and $2
         }
       );
 
-      console.log()
 
       const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
         count,
