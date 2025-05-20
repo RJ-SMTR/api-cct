@@ -88,7 +88,7 @@ where da."dataVencimento" between $1 and $2
       end
     ) = any($3)
   ) 
-
+  and da."ocorrenciasCnab" <> 'AM'
 `;
 
   private eleicao2025 = `
