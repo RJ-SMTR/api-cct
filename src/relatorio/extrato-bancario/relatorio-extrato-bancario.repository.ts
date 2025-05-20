@@ -18,7 +18,7 @@ export class RelatorioExtratoBancarioRepository {
     let query = ` SELECT distinct                
                   de."dataLancamento",
                   de."valorLancamento" valor,
-                  case when de."tipoLancamento"='D' then 'Debito' else 'Credito' end as tipo,
+                  case when de."tipoLancamento"='D' then 'Saída' else 'Entrada' end as tipo,
                   de."descricaoHistoricoBanco" operacao, 
                   hl."valorSaldoInicial"         
 
@@ -35,7 +35,7 @@ export class RelatorioExtratoBancarioRepository {
       query = query +` and de."tipoLancamento"='${tipo}' `;
     }
 
-    if(tipo){
+    if(operacao){
       query = query +` and de."descricaoHistoricoBanco"='${operacao}' `;
     }
     if(conta){
