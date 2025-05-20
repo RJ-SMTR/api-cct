@@ -19,7 +19,8 @@ export class RelatorioExtratoBancarioRepository {
                   de."dataLancamento",
                   de."valorLancamento" valor,
                   case when de."tipoLancamento"='D' then 'Debito' else 'Credito' end as tipo,
-                  de."descricaoHistoricoBanco" operacao           
+                  de."descricaoHistoricoBanco" operacao, 
+                  hl."valorSaldoInicial"         
 
                   FROM public.extrato_header_arquivo ha 
                   INNER JOIN public.extrato_header_lote hl ON ha.id = hl."extratoHeaderArquivoId"
@@ -44,6 +45,8 @@ export class RelatorioExtratoBancarioRepository {
         query = query +` and de."nomeEmpresa"='CONTA BILHETAGEM - CB' `;
       }
     }
+
+    query = query +` order by de."dataLancamento" asc `;
 
     return query;             
   }    

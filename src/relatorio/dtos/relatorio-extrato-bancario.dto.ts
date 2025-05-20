@@ -11,4 +11,5 @@ export class RelatorioExtratoBancarioDto {
   valorLancamento: number = 0;  
   tipo: String;
   operacao:String;
+  valorSaldoInicial: number;
 }

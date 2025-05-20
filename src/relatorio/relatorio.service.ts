@@ -11,6 +11,7 @@ import { RelatorioConsolidadoRepository } from './consolidado/relatorio-consolid
 import { IFindExtrato } from './interfaces/find-extrato.interface';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface copy';
 import { RelatorioSinteticoRepository } from './sintetico/relatorio-sintetico.repository';
+import { RelatorioExtratoBancarioResponseDto } from './dtos/relatorio-extrato-bancario-response.dto';
 
 @Injectable()
 export class RelatorioService {
@@ -96,9 +97,20 @@ export class RelatorioService {
       new Date(args.dataFim) < new Date(args.dataInicio)){
       throw new Error('Parametro de data inválido');
     }   
-    return await this.relatorioExtratoRepository.findExtrato(args);
+
+    const extrato = await this.relatorioExtratoRepository.findExtrato(args)
+
+    const response  = new RelatorioExtratoBancarioResponseDto();
+
+    response.extrato = extrato;
+
+    response.saldoConta = extrato[extrato.length].valorSaldoInicial;
+
+    return response;
   }
 
+
+ 
   private async resultSintetico(args: IFindPublicacaoRelatorio){    
     return this.instanceDataSintetico(args,'todos');
   }  
