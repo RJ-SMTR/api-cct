@@ -104,7 +104,7 @@ export class RelatorioService {
 
     response.extrato = extrato;
 
-    response.saldoConta = extrato[extrato.length].valorSaldoInicial;
+    response.saldoConta = extrato[extrato.length - 1]?.valorSaldoInicial ?? 0;
 
     return response;
   }
