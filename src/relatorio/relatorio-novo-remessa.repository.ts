@@ -689,6 +689,12 @@ WHERE (1=1) `;
       } else if (filter.todosVanzeiros) {
         condicoes2024 += ` and ita."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
+
+      if(filter.eleicao){
+        condicoes2024 += `AND ita."idOrdemPagamento" LIKE '%U%'`;
+      } else {
+        condicoes2024 += `AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
+      }
     }
 
     // --- BLOCO PARA 2025 em diante ---
@@ -721,6 +727,8 @@ WHERE (1=1) `;
       } else if (filter.todosVanzeiros) {
         condicoesOutros += ` and op."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
+
+
     }
 
     // --- return ---
@@ -815,6 +823,8 @@ WHERE (1=1) `;
     if(filter.eleicao){
       condicoes2024 += `  AND ita."idOrdemPagamento" LIKE '%U%'`;
       // condicoesOutros += `      AND ita."idOrdemPagamento" LIKE '%U%'`;
+    } else {
+      condicoes2024 += `  AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
     }
     // --- return ---
     let finalSQL = '';
