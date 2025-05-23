@@ -88,9 +88,8 @@ where da."dataVencimento" between $1 and $2
         else 'Rejeitado'
       end
     ) = any($3)
-  )   
+  ) 
   and da."ocorrenciasCnab" <> 'AM'
-
 `;
 
   private eleicao2025 = `
@@ -311,6 +310,7 @@ where da."dataVencimento" between $1 and $2
     erro?: boolean;
     estorno?: boolean;
     rejeitado?: boolean;
+    emProcessamento?: boolean;
   }): string[] | null {
     const statuses: string[] = [];
 
@@ -319,6 +319,7 @@ where da."dataVencimento" between $1 and $2
       { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] },
       { condition: filter.estorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
       { condition: filter.rejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
+      { condition: filter.emProcessamento, statuses: [StatusPagamento.AGUARDANDO_PAGAMENTO] }
     ];
 
     for (const mapping of statusMappings) {
