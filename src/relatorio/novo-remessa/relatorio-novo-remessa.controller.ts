@@ -6,10 +6,10 @@ import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { Int32 } from 'typeorm';
-import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
 import { ValidationPipe } from '@nestjs/common';
-import { FinancialMovementQueryDto } from './dtos/pay-and-pending-query.dto';
-import { RelatorioNovoRemessaFinancialMovementService } from './relatorio-novo-remessa-financial-movement.service';
+import { FinancialMovementQueryDto } from '../dtos/pay-and-pending-query.dto';
+import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
+import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
 
 @ApiTags('Cnab')
 @Controller({
