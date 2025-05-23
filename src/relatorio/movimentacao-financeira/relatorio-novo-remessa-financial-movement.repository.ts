@@ -266,10 +266,6 @@ where da."dataVencimento" between $1 and $2
         }
       );
 
-<<<<<<< HEAD:src/relatorio/relatorio-novo-remessa-financial-movement.repository.ts
-
-=======
->>>>>>> refs/remotes/origin/hmg:src/relatorio/movimentacao-financeira/relatorio-novo-remessa-financial-movement.repository.ts
       const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
         count,
         valor: Number.parseFloat(valorTotal.toString()),
@@ -314,6 +310,7 @@ where da."dataVencimento" between $1 and $2
     erro?: boolean;
     estorno?: boolean;
     rejeitado?: boolean;
+    emProcessamento?: boolean;
   }): string[] | null {
     const statuses: string[] = [];
 
@@ -322,6 +319,7 @@ where da."dataVencimento" between $1 and $2
       { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] },
       { condition: filter.estorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
       { condition: filter.rejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
+      { condition: filter.emProcessamento, statuses: [StatusPagamento.AGUARDANDO_PAGAMENTO] }
     ];
 
     for (const mapping of statusMappings) {
