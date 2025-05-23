@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { DataSource } from 'typeorm';
-import { RelatorioFinancialMovementNovoRemessaDto, RelatorioFinancialMovementNovoRemessaData } from './dtos/relatorio-pay-and-pending-novo-remessa.dto';
-import { IFindPublicacaoRelatorioNovoFinancialMovement } from './interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
-import { StatusPagamento } from './enum/statusRemessafinancial-movement';
+import { RelatorioFinancialMovementNovoRemessaDto, RelatorioFinancialMovementNovoRemessaData } from '../dtos/relatorio-detalhado-novo-remessa.dto';
+import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
+import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
+
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementRepository {
@@ -91,6 +92,47 @@ where da."dataVencimento" between $1 and $2
   and da."ocorrenciasCnab" <> 'AM'
 `;
 
+  private eleicao2025 = `
+  SELECT DISTINCT
+      da."dataVencimento" AS dataPagamento,
+      pu."fullName" AS nomes,
+      pu."cpfCnpj",
+	    opu."consorcio" AS "nomeConsorcio",
+      da."valorLancamento" AS valor,
+      CASE
+          WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
+          WHEN oph."motivoStatusRemessa" IN ('00', 'BD')
+          OR oph."statusRemessa" = 3 THEN 'Pago'
+          WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+          ELSE 'Rejeitado'
+      END AS status
+  FROM
+    ordem_pagamento_agrupado opa 
+      INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+      INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
+      inner join ordem_pagamento_unico opu on opu."idOrdemPagamento" = opa.id::VARCHAR
+      inner join public."user" pu on pu."cpfCnpj" = opu."operadoraCpfCnpj"
+  WHERE
+      da."dataVencimento" BETWEEN $1 AND $2
+      AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+      AND ($5::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY($5))
+      AND (
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+      )
+    AND (
+        $4::text[] IS NULL OR (
+            CASE 
+    		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
+                WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
+                WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+                ELSE 'Rejeitado'
+            END
+        ) = ANY($4)
+    )
+  `
+
+
   private static notCpf2025 = `AND pu."cpfCnpj" NOT IN ('18201378000119',
                                 '12464869000176',
                                 '12464539000180',
@@ -166,6 +208,10 @@ where da."dataVencimento" between $1 and $2
           finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
         }
 
+        if (filter.eleicao && actualDataFim.getFullYear() === 2025) {
+          finalQuery2025 = this.eleicao2025
+        }
+
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
 
         allResults = [...resultFrom2024, ...resultFromNewerYears];
@@ -188,6 +234,10 @@ where da."dataVencimento" between $1 and $2
           finalQuery.replace('/* extra joins */', eleicaoInnerJoin)
         } else if (initialYear === 2024) {
           finalQuery += notEleicaoFilter2024
+        }
+
+        if (filter.eleicao && initialYear === 2025) {
+          finalQuery = this.eleicao2025
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
@@ -216,7 +266,10 @@ where da."dataVencimento" between $1 and $2
         }
       );
 
+<<<<<<< HEAD:src/relatorio/relatorio-novo-remessa-financial-movement.repository.ts
 
+=======
+>>>>>>> refs/remotes/origin/hmg:src/relatorio/movimentacao-financeira/relatorio-novo-remessa-financial-movement.repository.ts
       const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
         count,
         valor: Number.parseFloat(valorTotal.toString()),
