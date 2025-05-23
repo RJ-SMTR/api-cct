@@ -4,7 +4,6 @@ import { DataSource } from 'typeorm';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { RelatorioSinteticoDto } from './dtos/relatorio-sintetico.dto';
-import { query } from 'express';
 
 @Injectable()
 export class RelatorioSinteticoRepository { 
