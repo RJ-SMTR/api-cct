@@ -14,7 +14,7 @@ export class RelatorioExtratoBancarioRepository {
 
               private logger = new CustomLogger(RelatorioExtratoBancarioRepository.name, { timestamp: true });
   
-  private getQuery(dataInicio:string,dataFim:string,tipo:string,operacao:string,conta:string){ 
+  private getQuery(dataInicio:string,dataFim:string,tipo:string,operacao:Array<[]>,conta:string){ 
     let query = ` SELECT distinct                
                   de."dataLancamento",
                   de."valorLancamento" valor,
@@ -36,7 +36,8 @@ export class RelatorioExtratoBancarioRepository {
     }
 
     if(operacao){
-      query = query +` and de."descricaoHistoricoBanco"='${operacao}' `;
+      const operacoes = `'${operacao.join("','")}'`;
+      query = query +` and de."descricaoHistoricoBanco" in (${operacoes}) `;
     }
     if(conta){
       if(conta === 'cett'){
