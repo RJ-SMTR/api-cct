@@ -767,7 +767,7 @@ WHERE (1=1) `;
     let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
     and da."ocorrenciasCnab" <> 'AM' `;
     let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
-  and oph."motivoStatusRemessa" NOT IN ('AM')'`;
+  and oph."motivoStatusRemessa" NOT IN ('AM')`;
     // --- BLOCO PARA 2024 ---
     if ((filter.pago !== undefined || filter.erro !== undefined) && incluir2024) {
       sql2024 = `
