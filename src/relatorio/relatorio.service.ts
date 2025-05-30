@@ -9,7 +9,7 @@ import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio
 import { RelatorioAnaliticoRepository } from './analitico/relatorio-analitico.repository';
 import { RelatorioConsolidadoRepository } from './consolidado/relatorio-consolidado.repository';
 import { IFindExtrato } from './interfaces/find-extrato.interface';
-import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface copy';
+import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
 import { RelatorioSinteticoRepository } from './sintetico/relatorio-sintetico.repository';
 import { RelatorioExtratoBancarioResponseDto } from './dtos/relatorio-extrato-bancario-response.dto';
 
