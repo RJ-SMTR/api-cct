@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 
 import { CustomLogger } from 'src/utils/custom-logger';
 import { RelatorioConsolidadoDto } from '../dtos/relatorio-consolidado.dto';
-import { IFindPublicacaoRelatorio } from '../interfaces/find-publicacao-relatorio.interface copy';
+import { IFindPublicacaoRelatorio } from '../interfaces/find-publicacao-relatorio.interface';
 
 
 @Injectable()
