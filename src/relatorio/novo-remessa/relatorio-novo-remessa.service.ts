@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
-import { RelatorioSinteticoResultDto } from './dtos/relatorio-sintetico-result.dto';
 
-import { IFindPublicacaoRelatorioNovoRemessa } from './interfaces/find-publicacao-relatorio-novo-remessa.interface';
+import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import { RelatorioNovoRemessaRepository } from './relatorio-novo-remessa.repository';
 
 @Injectable()

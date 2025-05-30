@@ -1,17 +1,24 @@
 import { Injectable } from '@nestjs/common';
-import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
-import { RelatorioConsolidadoRepository } from './relatorio-consolidado.repository';
+
 import { RelatorioConsolidadoResultDto } from './dtos/relatorio-consolidado-result.dto';
 import { RelatorioAnaliticoResultDto } from './dtos/relatorio-analitico-result.dto';
 import { RelatorioSinteticoResultDto } from './dtos/relatorio-sintetico-result.dto';
-import { RelatorioAnaliticoRepository } from './relatorio-analitico.repository';
-import { RelatorioSinteticoRepository } from './relatorio-sintetico.repository';
+
+import { RelatorioExtratoBancarioDto } from './dtos/relatorio-extrato-bancario.dto';
+import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio-extrato-bancario.repository';
+import { RelatorioAnaliticoRepository } from './analitico/relatorio-analitico.repository';
+import { RelatorioConsolidadoRepository } from './consolidado/relatorio-consolidado.repository';
+import { IFindExtrato } from './interfaces/find-extrato.interface';
+import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface copy';
+import { RelatorioSinteticoRepository } from './sintetico/relatorio-sintetico.repository';
+import { RelatorioExtratoBancarioResponseDto } from './dtos/relatorio-extrato-bancario-response.dto';
 
 @Injectable()
 export class RelatorioService {
   constructor(private relatorioConsolidadoRepository: RelatorioConsolidadoRepository,
     private relatorioSinteticoRepository: RelatorioSinteticoRepository,
-    private relatorioAnaliticoRepository: RelatorioAnaliticoRepository
+    private relatorioAnaliticoRepository: RelatorioAnaliticoRepository,
+    private relatorioExtratoRepository: RelatorioExtratoBancarioRepository
   ) {}
 
   /**
@@ -73,7 +80,6 @@ export class RelatorioService {
   }
  
   ///////SINTETICO //////
-
   async findSintetico(args: IFindPublicacaoRelatorio){
     if(args.dataInicio ===undefined || args.dataFim === undefined || 
       new Date(args.dataFim) < new Date(args.dataInicio)){
@@ -85,6 +91,26 @@ export class RelatorioService {
     return result;
   }
 
+   ///////EXTRATO //////
+  async findExtrato(args: IFindExtrato){
+    if(args.dataInicio ===undefined || args.dataFim === undefined || 
+      new Date(args.dataFim) < new Date(args.dataInicio)){
+      throw new Error('Parametro de data inválido');
+    }   
+
+    const extrato = await this.relatorioExtratoRepository.findExtrato(args)
+
+    const response  = new RelatorioExtratoBancarioResponseDto();
+
+    response.extrato = extrato;
+
+    response.saldoConta = extrato[extrato.length - 1]?.valorSaldoInicial ?? 0;
+
+    return response;
+  }
+
+
+ 
   private async resultSintetico(args: IFindPublicacaoRelatorio){    
     return this.instanceDataSintetico(args,'todos');
   }  
