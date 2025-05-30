@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { DataSource } from 'typeorm';
-import { RelatorioFinancialMovementNovoRemessaDto, RelatorioFinancialMovementNovoRemessaData } from './dtos/relatorio-pay-and-pending-novo-remessa.dto';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from './interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import { StatusPagamento } from './enum/statusRemessafinancial-movement';
+import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from './dtos/relatorio-financial-and-movement.dto';
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementRepository {
@@ -309,6 +309,7 @@ where da."dataVencimento" between $1 and $2
     erro?: boolean;
     estorno?: boolean;
     rejeitado?: boolean;
+    emProcessamento?: boolean;
   }): string[] | null {
     const statuses: string[] = [];
 
@@ -317,6 +318,7 @@ where da."dataVencimento" between $1 and $2
       { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] },
       { condition: filter.estorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
       { condition: filter.rejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
+      { condition: filter.emProcessamento, statuses: [StatusPagamento.AGUARDANDO_PAGAMENTO] }
     ];
 
     for (const mapping of statusMappings) {
