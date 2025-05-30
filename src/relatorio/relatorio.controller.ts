@@ -6,6 +6,9 @@ import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { RelatorioService } from './relatorio.service';
+import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
+import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
+import { getPagination } from 'src/utils/get-pagination';
 
 @ApiTags('Cnab')
 @Controller({
@@ -56,6 +59,8 @@ export class RelatorioController {
     }
   }
 
+  @ApiQuery(PaginationApiParams.page)
+  @ApiQuery(PaginationApiParams.limit)
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
   @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome parcial dos favorecidos, sem distinção de acento ou maiúsculas.', required: false, type: String })
@@ -70,6 +75,8 @@ export class RelatorioController {
   @UseGuards(AuthGuard('jwt'))
   @Get('sintetico')
   async getSintetico(
+    @Query(...PaginationQueryParams.page) page: number,
+    @Query(...PaginationQueryParams.limit) limit: number,
     @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
     dataInicio: Date,
     @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
@@ -88,9 +95,15 @@ export class RelatorioController {
   ) {
     try {
       const result = await this.relatorioService.findSintetico({
-        dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento
-      });
-      return result;
+        dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento},{ limit, page });
+      return getPagination(
+            result,
+            {
+              dataLenght: result.data.length,
+              maxCount: result.data.length,
+            },         
+            { limit, page },
+          );
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }

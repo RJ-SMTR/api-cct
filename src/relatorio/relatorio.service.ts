@@ -6,6 +6,7 @@ import { RelatorioAnaliticoResultDto } from './dtos/relatorio-analitico-result.d
 import { RelatorioSinteticoResultDto } from './dtos/relatorio-sintetico-result.dto';
 import { RelatorioAnaliticoRepository } from './relatorio-analitico.repository';
 import { RelatorioSinteticoRepository } from './relatorio-sintetico.repository';
+import { PaginationOptions } from 'src/utils/types/pagination-options';
 
 @Injectable()
 export class RelatorioService {
@@ -73,31 +74,17 @@ export class RelatorioService {
   }
  
   ///////SINTETICO //////
-
-  async findSintetico(args: IFindPublicacaoRelatorio){
+  async findSintetico(args: IFindPublicacaoRelatorio,paginationOptions: PaginationOptions){
     if(args.dataInicio ===undefined || args.dataFim === undefined || 
       new Date(args.dataFim) < new Date(args.dataInicio)){
       throw new Error('Parametro de data inválido');
     }
-
-    let result: RelatorioSinteticoResultDto[]=[];
-    result.push(await this.resultSintetico(args));   
-    return result;
+    return await this.resultSintetico(args,paginationOptions);   
   }
 
-  private async resultSintetico(args: IFindPublicacaoRelatorio){    
-    return this.instanceDataSintetico(args,'todos');
-  }  
-
-  private async instanceDataSintetico(args: IFindPublicacaoRelatorio,status:string){
-    const sintetico  = await this.relatorioSinteticoRepository.findSintetico(args); 
-    const sintenticosData = new RelatorioSinteticoResultDto();
-    sintenticosData.count = sintetico.length;
-    sintenticosData.data = sintetico;
-    sintenticosData.valor = (sintetico!==undefined && sintetico[0]!==undefined)?sintetico[0].total:0;
-    sintenticosData.status = status;
-    return sintenticosData;
-  }
+  private async resultSintetico(args: IFindPublicacaoRelatorio,paginationOptions: PaginationOptions){    
+    return await this.relatorioSinteticoRepository.findSintetico(args,paginationOptions);  
+  }   
 
   ///////////////////////
   ///////ANALITICO //////
