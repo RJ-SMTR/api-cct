@@ -709,7 +709,6 @@ WHERE (1=1) `;
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
-      and oph."motivoStatusRemessa" NOT IN ('AM')
       `;
 
       const statuses = this.getStatusParaFiltro(filter);
@@ -766,8 +765,7 @@ WHERE (1=1) `;
     let sqlOutros = '';
     let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
     and da."ocorrenciasCnab" <> 'AM' `;
-    let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
-  and oph."motivoStatusRemessa" NOT IN ('AM')`;
+    let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
     // --- BLOCO PARA 2024 ---
     if ((filter.pago !== undefined || filter.erro !== undefined) && incluir2024) {
       sql2024 = `
@@ -807,7 +805,6 @@ WHERE (1=1) `;
     
 
       if (filter.aPagar !== undefined) {
-        condicoesOutros += ` AND date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' `;
         condicoesOutros += ` AND oph."statusRemessa" IN (${statuses}) `;
       } else if (!statuses) {
         condicoesOutros += ` AND oph."statusRemessa" IN (0,1,2,3) `;
