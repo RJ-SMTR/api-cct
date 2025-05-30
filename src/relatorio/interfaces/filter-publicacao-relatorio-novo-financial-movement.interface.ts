@@ -8,6 +8,7 @@ export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   valorMin?: number;
   valorMax?: number;
   eleicao?: boolean;
+  emProcessamento?: boolean;
   pago?: boolean;
   erro?: boolean;
   estorno?: boolean;

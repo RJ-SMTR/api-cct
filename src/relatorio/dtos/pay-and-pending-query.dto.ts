@@ -31,6 +31,13 @@ export class FinancialMovementQueryDto {
   })
   consorcioNome?: string[];
 
+  @ApiPropertyOptional({
+    description: 'Pesquisa usuarios de eleição.', default: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  eleicao?: boolean;
 
   @ApiPropertyOptional({
     description: 'Pesquisa todos os vanzeiros.', default: false
@@ -88,6 +95,12 @@ export class FinancialMovementQueryDto {
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   pago?: boolean;
+
+  @ApiPropertyOptional({ description: 'Se o pagamento esta em processo para ser pago', default: false })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  emProcessamento?: boolean;
 
   @ApiPropertyOptional({ description: 'Se o status de erro for Erro de Pagamento', default: false })
   @IsOptional()

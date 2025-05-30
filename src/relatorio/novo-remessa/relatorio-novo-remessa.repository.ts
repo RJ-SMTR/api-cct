@@ -670,7 +670,8 @@ WHERE (1=1) `;
                   ita."nomeConsorcio" as "nomeConsorcio"
                 `;
       sql2024 += RelatorioNovoRemessaRepository.USER_FROM_24;
-      condicoes2024 += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'`;
+      condicoes2024 += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
+      and da."ocorrenciasCnab" <> 'AM'`;
 
       if (filter.pago !== undefined || filter.erro !== undefined) {
         condicoes2024 += ` and ap."isPago" = ${filter.pago ? 'true' : 'false'}`;
@@ -689,6 +690,12 @@ WHERE (1=1) `;
       } else if (filter.todosVanzeiros) {
         condicoes2024 += ` and ita."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
+
+      if(filter.eleicao){
+        condicoes2024 += `AND ita."idOrdemPagamento" LIKE '%U%'`;
+      } else {
+        condicoes2024 += `AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
+      }
     }
 
     // --- BLOCO PARA 2025 em diante ---
@@ -701,7 +708,9 @@ WHERE (1=1) `;
                     op."nomeConsorcio"
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'`;
+      condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
+      and oph."motivoStatusRemessa" NOT IN ('AM')
+      `;
 
       const statuses = this.getStatusParaFiltro(filter);
       if (hasStatusFilter) {
@@ -721,6 +730,8 @@ WHERE (1=1) `;
       } else if (filter.todosVanzeiros) {
         condicoesOutros += ` and op."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
+
+
     }
 
     // --- return ---
@@ -753,8 +764,10 @@ WHERE (1=1) `;
 
     let sql2024 = '';
     let sqlOutros = '';
-    let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
-    let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
+    let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
+    and da."ocorrenciasCnab" <> 'AM' `;
+    let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
+  and oph."motivoStatusRemessa" NOT IN ('AM')`;
     // --- BLOCO PARA 2024 ---
     if ((filter.pago !== undefined || filter.erro !== undefined) && incluir2024) {
       sql2024 = `
@@ -815,6 +828,8 @@ WHERE (1=1) `;
     if(filter.eleicao){
       condicoes2024 += `  AND ita."idOrdemPagamento" LIKE '%U%'`;
       // condicoesOutros += `      AND ita."idOrdemPagamento" LIKE '%U%'`;
+    } else {
+      condicoes2024 += `  AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
     }
     // --- return ---
     let finalSQL = '';
