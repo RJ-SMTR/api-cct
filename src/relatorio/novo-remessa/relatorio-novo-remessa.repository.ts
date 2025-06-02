@@ -27,6 +27,8 @@ export class RelatorioNovoRemessaRepository {
                     inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
                     inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                     inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
+                        inner join header_lote hl on hl."id" = da."headerLoteId"
+inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
                     where (1=1) `;  
 
   private static readonly USER_FROM_24 = `    from
@@ -35,6 +37,8 @@ INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
 INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
 INNER JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id
 inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
+    inner join header_lote hl on hl."id" = da."headerLoteId"
+inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
                     where (1=1) `;                    
 
 
@@ -670,8 +674,9 @@ WHERE (1=1) `;
                   ita."nomeConsorcio" as "nomeConsorcio"
                 `;
       sql2024 += RelatorioNovoRemessaRepository.USER_FROM_24;
-      condicoes2024 += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
-      and da."ocorrenciasCnab" <> 'AM'`;
+      condicoes2024 += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '2024-12-31'
+      and da."ocorrenciasCnab" <> 'AM' 
+         AND ha."status" <> '5'`;
 
       if (filter.pago !== undefined || filter.erro !== undefined) {
         condicoes2024 += ` and ap."isPago" = ${filter.pago ? 'true' : 'false'}`;
@@ -709,6 +714,7 @@ WHERE (1=1) `;
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
+           and oph."motivoStatusRemessa" <> 'AM'
       `;
 
       const statuses = this.getStatusParaFiltro(filter);
@@ -748,7 +754,7 @@ WHERE (1=1) `;
     } else if (sqlOutros) {
       finalSQL = sqlOutros + condicoesOutros;
     }
-
+    this.logger.warn(finalSQL)
     return finalSQL;
   }
   private consultaConsorcios(filter: IFindPublicacaoRelatorioNovoRemessa) {
@@ -763,9 +769,11 @@ WHERE (1=1) `;
 
     let sql2024 = '';
     let sqlOutros = '';
-    let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
-    and da."ocorrenciasCnab" <> 'AM' `;
-    let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
+    let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '2024-12-31'
+    and da."ocorrenciasCnab" <> 'AM' 
+  AND ha."status" <> '5'`;
+    let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
+     and oph."motivoStatusRemessa" <> 'AM'`;
     // --- BLOCO PARA 2024 ---
     if ((filter.pago !== undefined || filter.erro !== undefined) && incluir2024) {
       sql2024 = `
