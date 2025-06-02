@@ -16,7 +16,7 @@ export class RelatorioDetalhadoRepository {
     const dataInicio = args.dataInicio.toISOString().slice(0,10)
     const dataFim = args.dataFim.toISOString().slice(0,10)
     let query = ` select distinct da."dataVencimento",sum(da."valorLancamento") valor,
-                  case when ap."isPago"=true then 'pago'
+                  case when ap."isPago"=true then 'Pago'
                   else 'Não Pago' end as status ,
                   oc."message" motivo
                   from item_transacao it         
@@ -27,10 +27,10 @@ export class RelatorioDetalhadoRepository {
                     inner join ocorrencia oc on oc."detalheAId" = da."id"
                     inner join public.user pu on pu."cpfCnpj"=cf."cpfCnpj"
                   where it."nomeConsorcio" in('STPC','STPL','TEC')
-                  and it."dataOrdem" between '${dataInicio}' and '${dataFim}'	
+                  and da."dataVencimento" between '${dataInicio}' and '${dataFim}'	
                   and pu."id"=${args.userId}
-                  group by cf."nome",da."dataVencimento",oc."message"
-                  order by da."dataVencimento",cf."nome" `;  
+                  group by cf."nome",da."dataVencimento",oc."message", status
+                  `;  
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     let result: any[] = await queryRunner.query(query);
