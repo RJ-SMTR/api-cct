@@ -31,9 +31,17 @@ export class RelatorioSinteticoRepository {
     let result: any[] = await queryRunner.query(query);
     queryRunner.release();
     const sinteticos = result.map((r) => new RelatorioSinteticoDto(r));    
-    return getPagination<{ data: RelatorioSinteticoDto[]}>(
+
+    let totalGeral = sinteticos.reduce((s, i) => s + Number(i.valor), 0);
+
+    console.log(totalGeral);
+
+    console.log(sinteticos);
+
+    return getPagination<{ data: RelatorioSinteticoDto[],total:string}>(
       {
-        data: sinteticos    
+        data: sinteticos,
+        total: totalGeral.toFixed(2) 
       },
       {
         dataLenght: sinteticos.length,
