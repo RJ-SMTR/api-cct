@@ -26,13 +26,18 @@ export class RelatorioDetalhadoRepository {
                     inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
                     inner join ocorrencia oc on oc."detalheAId" = da."id"
                     inner join public.user pu on pu."cpfCnpj"=cf."cpfCnpj"
+                    inner join header_lote hl on hl.id = da."headerLoteId"
+                    inner join header_arquivo ha on ha.id = hl."headerArquivoId"
                   where it."nomeConsorcio" in('STPC','STPL','TEC')
                   and da."dataVencimento" between '${dataInicio}' and '${dataFim}'	
+                     AND ita."idOrdemPagamento"  NOT LIKE '%U%'
+                   and ha.status <> '5'
                   and pu."id"=${args.userId}
-                  group by cf."nome",da."dataVencimento",oc."message", status
+                  group by cf."nome",da."dataVencimento",oc."message", status, ap."isPago"
                   `;  
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+    this.logger.warn(query)
     let result: any[] = await queryRunner.query(query);
     queryRunner.release();
     const detalhado = result.map((r) => new RelatorioDetalhadoVanzeiroDto(r));
