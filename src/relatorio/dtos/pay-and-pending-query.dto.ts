@@ -40,6 +40,15 @@ export class FinancialMovementQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   todosVanzeiros?: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Pesquisa usuarios de eleição.', default: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  eleicao?: boolean;
+
+
 
   @ApiPropertyOptional({
     description: 'Pesquisa o id dos usuários.',
@@ -74,11 +83,18 @@ export class FinancialMovementQueryDto {
   @Type(() => Number)
   valorMax?: number;
 
+
   @ApiPropertyOptional({ description: 'Se o pagamento foi pago com sucesso', default: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   pago?: boolean;
+
+  @ApiPropertyOptional({ description: 'Se o pagamento esta em processo para ser pago', default: false })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  emProcessamento?: boolean;
 
   @ApiPropertyOptional({ description: 'Se o status de erro for Erro de Pagamento', default: false })
   @IsOptional()

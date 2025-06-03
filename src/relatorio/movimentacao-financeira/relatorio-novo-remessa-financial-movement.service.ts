@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { IFindPublicacaoRelatorioNovoFinancialMovement } from './interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import { RelatorioNovoRemessaFinancialMovementRepository } from './relatorio-novo-remessa-financial-movement.repository';
+import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementService {

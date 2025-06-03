@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { IFindPublicacaoRelatorioNovoRemessa } from './interfaces/find-publicacao-relatorio-novo-remessa.interface';
+
+import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import { RelatorioNovoRemessaRepository } from './relatorio-novo-remessa.repository';
 
 @Injectable()
