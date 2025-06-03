@@ -23,20 +23,22 @@ export class RelatorioSinteticoRepository {
 
     let query = this.getQuery2024(args)+ ` union all ` + this.getQuery2025(args);
 
-    query = query + `LIMIT ${paginationOptions.limit} OFFSET ${offset} `;
-
-    this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
+
+    let resultGeral: any[] = await queryRunner.query(query);
+
+    const sinteticosGeral = resultGeral.map((r) => new RelatorioSinteticoDto(r)); 
+
+    query = query + `LIMIT ${paginationOptions.limit} OFFSET ${offset} `;
+        
     let result: any[] = await queryRunner.query(query);
+
     queryRunner.release();
+
     const sinteticos = result.map((r) => new RelatorioSinteticoDto(r));    
 
-    let totalGeral = sinteticos.reduce((s, i) => s + Number(i.valor), 0);
-
-    console.log(totalGeral);
-
-    console.log(sinteticos);
+    let totalGeral = sinteticosGeral.reduce((s, i) => s + Number(i.valor), 0);
 
     return getPagination<{ data: RelatorioSinteticoDto[],total:string}>(
       {
