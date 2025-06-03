@@ -128,7 +128,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     const METHOD = 'submitCnabRemessa';
     const MAX_RETRIES = 5;
     let attempt = 0;
-    let remotePath = '';
+
     try {
       while (attempt < MAX_RETRIES) {
         try {
@@ -143,9 +143,9 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
           await new Promise(res => setTimeout(res, 1000));
         }
       }
-      
+
       const remessaName = this.generateRemessaName();
-      remotePath =
+      const remotePath =
         headerName === 'VLT'
           ? this.dir(`${this.FOLDERS.REMESSA}/${remessaName}`)
           : this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${remessaName}`);
@@ -153,13 +153,13 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
       await this.submitCnabBackupRemessa(content);
 
-      this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);     
-
-    } catch (error) {     
-      this.logger.error(`Erro em ${METHOD}: ${error.message}`, METHOD);   
-    }finally{
+      this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
       return remotePath;
-    }    
+
+    } catch (error) {
+      this.logger.error(`Erro em ${METHOD}: ${error.message}`, METHOD);
+      throw error;
+    }
   }
 
 
