@@ -15,7 +15,7 @@ export class RelatorioDetalhadoRepository {
   async findDetalhadoVanzeiro(args: { userId: number;dataInicio: Date; dataFim: Date; }) {
     const dataInicio = args.dataInicio.toISOString().slice(0,10)
     const dataFim = args.dataFim.toISOString().slice(0,10)
-    let query = ` select distinct da."dataVencimento",sum(da."valorLancamento") valor,
+    let query = ` select distinct da.id, da."dataVencimento",da."valorLancamento" valor,
                   case when ap."isPago"=true then 'Pago'
                   else 'Não Pago' end as status ,
                   oc."message" motivo
@@ -33,7 +33,12 @@ export class RelatorioDetalhadoRepository {
                      AND ita."idOrdemPagamento"  NOT LIKE '%U%'
                    and ha.status <> '5'
                   and pu."id"=${args.userId}
-                  group by cf."nome",da."dataVencimento",oc."message", status, ap."isPago"
+                  group by    da.id,
+    cf."nome",
+    da."dataVencimento",
+    oc."message",
+    status,
+    ap."isPago""
                   `;  
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
