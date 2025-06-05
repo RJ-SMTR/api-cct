@@ -38,7 +38,7 @@ export class RelatorioDetalhadoRepository {
     da."dataVencimento",
     oc."message",
     status,
-    ap."isPago""
+    ap."isPago"
                   `;  
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
