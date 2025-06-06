@@ -714,12 +714,13 @@ WHERE (1=1) `;
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
-           and oph."motivoStatusRemessa" <> 'AM'
+         
       `;
 
       const statuses = this.getStatusParaFiltro(filter);
       if (hasStatusFilter) {
-        condicoesOutros += ` and oph."statusRemessa" in(${statuses})`;
+        condicoesOutros += ` and oph."statusRemessa" in(${statuses})
+        `;
       }
 
       if (filter.valorMin !== undefined) {
@@ -765,6 +766,7 @@ WHERE (1=1) `;
     const incluir2024 = anoInicio <= 2024 && anoFim >= 2024;
     const incluirOutros = !(anoInicio === 2024 && anoFim === 2024);
 
+    const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined;
     const statuses = this.getStatusParaFiltro(filter);
 
     let sql2024 = '';
@@ -773,7 +775,7 @@ WHERE (1=1) `;
     and da."ocorrenciasCnab" <> 'AM' 
   AND ha."status" <> '5'`;
     let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
-     and oph."motivoStatusRemessa" <> 'AM'`;
+    `;
     // --- BLOCO PARA 2024 ---
     if ((filter.pago !== undefined || filter.erro !== undefined) && incluir2024) {
       sql2024 = `
@@ -812,12 +814,9 @@ WHERE (1=1) `;
       }
     
 
-      if (filter.aPagar !== undefined) {
-        condicoesOutros += ` AND oph."statusRemessa" IN (${statuses}) `;
-      } else if (!statuses) {
-        condicoesOutros += ` AND oph."statusRemessa" IN (0,1,2,3) `;
-      } else {
-        condicoesOutros += ` AND oph."statusRemessa" IN (${statuses}) `;
+      if (hasStatusFilter) {
+        condicoesOutros += ` AND oph."statusRemessa" IN (${statuses})
+          `;
       }
     }
 
