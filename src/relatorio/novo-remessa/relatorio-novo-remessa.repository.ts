@@ -718,10 +718,16 @@ WHERE (1=1) `;
       `;
 
       const statuses = this.getStatusParaFiltro(filter);
-      if (hasStatusFilter) {
-        condicoesOutros += ` and oph."statusRemessa" in(${statuses})
-        `;
-      }
+     
+if (hasStatusFilter) {
+  condicoesOutros += ` and oph."statusRemessa" in (${statuses?.join(',')})\n`;
+
+  const has3or4 = statuses?.includes(3) || statuses?.includes(4);
+
+  if (has3or4) {
+    condicoesOutros += ` and oph."motivoStatusRemessa" <> 'AM'\n`;
+  }
+}
 
       if (filter.valorMin !== undefined) {
         condicoesOutros += ` and da."valorRealEfetivado" >= ${filter.valorMin}`;
@@ -814,9 +820,15 @@ WHERE (1=1) `;
       }
     
 
+
       if (hasStatusFilter) {
-        condicoesOutros += ` AND oph."statusRemessa" IN (${statuses})
-          `;
+        condicoesOutros += ` and oph."statusRemessa" in (${statuses?.join(',')})\n`;
+
+        const has3or4 = statuses?.includes(3) || statuses?.includes(4);
+
+        if (has3or4) {
+          condicoesOutros += ` and oph."motivoStatusRemessa" <> 'AM'\n`;
+        }
       }
     }
 
