@@ -32,13 +32,13 @@ inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
                     where (1=1) `;  
 
   private static readonly USER_FROM_24 = `    from
-                 item_transacao_agrupado ita
-INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
-INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
-INNER JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id
-inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
+    item_transacao_agrupado ita
+    INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
+    INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
+    INNER JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id
+    inner join public."user" uu on uu."permitCode" = ita."idOperadora"
     inner join header_lote hl on hl."id" = da."headerLoteId"
-inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
+    inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
                     where (1=1) `;                    
 
 
@@ -666,15 +666,16 @@ WHERE (1=1) `;
     const isPagoOuErro = filter.pago !== undefined || filter.erro !== undefined;
     // --- BLOCO PARA 2024 ---
     if (anoInicio <= 2024 && isPagoOuErro) {
+    const dataFim24 = anoFim <= 2024 ? dataFim : '2024-12-31'
       sql2024 = `select distinct 
                   ita.id, 
                   da."dataVencimento", 
-                  uu.nome as nome, 
+                 uu."fullName" as nome,
                   da."valorLancamento" as valor,
                   ita."nomeConsorcio" as "nomeConsorcio"
                 `;
       sql2024 += RelatorioNovoRemessaRepository.USER_FROM_24;
-      condicoes2024 += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '2024-12-31'
+      condicoes2024 += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim24}'
       and da."ocorrenciasCnab" <> 'AM' 
          AND ha."status" <> '5'`;
 
@@ -738,7 +739,7 @@ if (hasStatusFilter) {
       }
 
       if (filter.userIds) {
-        condicoesOutros += ` and userId in('${filter.userIds.join("','")}')`;
+        condicoesOutros += ` and uu.id in('${filter.userIds.join("','")}')`;
       } else if (filter.todosVanzeiros) {
         condicoesOutros += ` and op."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
