@@ -30,7 +30,7 @@ oc."message" motivo
             inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
             inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
             inner join cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
-            inner join ocorrencia oc on oc."detalheAId" = da."id"
+            left join ocorrencia oc on oc."detalheAId" = da."id"
             inner join public.user pu on pu."cpfCnpj" = cf."cpfCnpj"
             inner join header_lote hl on hl.id = da."headerLoteId"
             inner join header_arquivo ha on ha.id = hl."headerArquivoId"
