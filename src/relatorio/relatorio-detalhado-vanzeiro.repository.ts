@@ -15,7 +15,7 @@ export class RelatorioDetalhadoRepository {
   async findDetalhadoVanzeiro(args: { userId: number;dataInicio: Date; dataFim: Date; }) {
     const dataInicio = args.dataInicio.toISOString().slice(0,10)
     const dataFim = args.dataFim.toISOString().slice(0,10)
-    let query = ` select data."dataVencimento", sum(data."valorLancamento") as valor, data.status, data.motivo
+    let query = ` select data."dataVencimento", sum(distinct data."valorLancamento") as valor, data.status, data.motivo
 from (
         select distinct
             da.id, da."dataVencimento", da."valorLancamento",
