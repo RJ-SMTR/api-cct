@@ -663,9 +663,9 @@ WHERE (1=1) `;
     let condicoesOutros = '';
 
     const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined;
-    const isPagoOuErro = filter.pago !== undefined || filter.erro !== undefined;
+    // const isPagoOuErro = filter.pago !== undefined || filter.erro !== undefined;
     // --- BLOCO PARA 2024 ---
-    if (anoInicio <= 2024 && isPagoOuErro) {
+    if (anoInicio <= 2024 ) {
     const dataFim24 = anoFim <= 2024 ? dataFim : '2024-12-31'
       sql2024 = `select distinct 
                   ita.id, 
