@@ -665,6 +665,25 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt,headerName);
   }
 
+
+  private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
+    consorcios: string[], headerName: HeaderName,reprocesso:boolean){
+    
+    for (let index = 0; index < consorcios.length; index++) {     
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio,
+          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]],reprocesso);      
+    }
+
+    // Prepara o remessa
+    await this.remessaService.prepararRemessa(dataInicio, dataFim,dataPagamento, consorcios,undefined);
+
+    // // Gera o TXT
+    const txt = await this.remessaService.gerarCnabText(headerName,undefined);
+
+    //Envia para o SFTP
+    await this.remessaService.enviarRemessa(txt,headerName);
+  }
+
   async remessaVLTExec(todayCustom?:Date,pagamentoUnico?:boolean) {
     //Rodar de segunda a sexta   
     let today = todayCustom?todayCustom: new Date();
@@ -686,7 +705,7 @@ export class CronJobsService {
     await this.geradorRemessaExec(dataInicio, dataFim, today,
        ['VLT'], HeaderName.VLT,pagamentoUnico);
   }
-
+  
   async remessaModalExec(pagamentoUnico?:boolean,dataInicioU?:string,dataFimU?:string) {
     //Rodar Sexta 
     const today = new Date();
@@ -703,6 +722,16 @@ export class CronJobsService {
     await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
       ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO,pagamentoUnico);
   }
+
+async remessaPendentesExec(pagamentoUnico?:boolean,dataInicioU?:string,dataFimU?:string) {
+    //Rodar Sexta 
+    const today = new Date();
+    const dataInicio = dataInicioU?new Date(dataInicioU):subDays(today, 7);
+    const dataFim = dataFimU?new Date(dataFimU):subDays(today, 1); 
+    await this.geradorRemessaPendenteExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL);
+  }
+
+
 
   async retornoExec() {
     let arq = true;
