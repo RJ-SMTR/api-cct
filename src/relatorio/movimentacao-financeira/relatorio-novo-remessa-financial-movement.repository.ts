@@ -66,14 +66,14 @@ select distinct
 from item_transacao it 
   inner join item_transacao_agrupado ita on it."itemTransacaoAgrupadoId" = ita."id"
   inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
-  inner join public."user" cf on cf."permitCode" = ita."idOperadora"
+  inner join public.user pu on pu."cpfCnpj" = cf."cpfCnpj"
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
   inner join header_lote hl on hl."id" = da."headerLoteId"
   inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
   /* extra joins */
 where da."dataVencimento" between $1 and $2
   and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
-  and ($5::integer[] is null or cf."id" = any($5))
+  and ($3::integer[] is null or pu."id" = any($3))
   and (
     ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
