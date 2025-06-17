@@ -770,6 +770,7 @@ if (hasStatusFilter) {
     const dataFim = formatDateISODate(filter.dataFim);
     const anoInicio = new Date(filter.dataInicio).getFullYear();
     const anoFim = new Date(filter.dataFim).getFullYear();
+    const dataFim24 = anoFim <= 2024 ? dataFim : '2024-12-31'
     const incluir2024 = anoInicio <= 2024 && anoFim >= 2024;
     const incluirOutros = !(anoInicio === 2024 && anoFim === 2024);
 
@@ -778,7 +779,7 @@ if (hasStatusFilter) {
 
     let sql2024 = '';
     let sqlOutros = '';
-    let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '2024-12-31'
+    let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim24}'
     and da."ocorrenciasCnab" <> 'AM' 
   AND ha."status" <> '5'`;
     let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
