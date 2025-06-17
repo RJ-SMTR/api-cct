@@ -89,6 +89,7 @@ where da."dataVencimento" between $1 and $2
       end
     ) = any($3)
 <<<<<<< HEAD
+<<<<<<< HEAD
   ) 
   and da."ocorrenciasCnab" <> 'AM'
 =======
@@ -96,6 +97,10 @@ where da."dataVencimento" between $1 and $2
   and da."ocorrenciasCnab" <> 'AM'
 
 >>>>>>> origin
+=======
+  ) 
+  and da."ocorrenciasCnab" <> 'AM'
+>>>>>>> 3b4044f813ae059a6822219aade65712abc69598
 `;
 
   private eleicao2025 = `

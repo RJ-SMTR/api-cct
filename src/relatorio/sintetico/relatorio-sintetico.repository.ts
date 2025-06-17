@@ -15,7 +15,14 @@ import { IFindPublicacaoRelatorio } from '../interfaces/find-publicacao-relatori
 
 >>>>>>> origin
 @Injectable()
+<<<<<<< HEAD
 export class RelatorioSinteticoRepository {
+=======
+export class RelatorioSinteticoRepository {  
+  
+  constructor(@InjectDataSource()
+              private readonly dataSource: DataSource) {}
+>>>>>>> 3b4044f813ae059a6822219aade65712abc69598
 
   constructor(@InjectDataSource()
   private readonly dataSource: DataSource) { }
@@ -275,4 +282,5 @@ export class RelatorioSinteticoRepository {
 
     return query;
   }
+
 } 
