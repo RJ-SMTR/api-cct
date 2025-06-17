@@ -3,7 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { RelatorioAnaliticoDto } from '../dtos/relatorio-analitico.dto';
-import { IFindPublicacaoRelatorio } from '../interfaces/find-publicacao-relatorio.interface copy';
+import { IFindPublicacaoRelatorio } from '../interfaces/find-publicacao-relatorio.interface';
 
 
 @Injectable()

@@ -27,14 +27,18 @@ export class RelatorioNovoRemessaRepository {
                     inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
                     inner join item_transacao it on ita.id = it."itemTransacaoAgrupadoId"
                     inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
+                        inner join header_lote hl on hl."id" = da."headerLoteId"
+inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
                     where (1=1) `;  
 
   private static readonly USER_FROM_24 = `    from
-                 item_transacao_agrupado ita
-INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
-INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
-INNER JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id
-inner join cliente_favorecido uu on uu.id = it."clienteFavorecidoId"
+    item_transacao_agrupado ita
+    INNER JOIN detalhe_a da ON da."itemTransacaoAgrupadoId" = ita.id
+    INNER JOIN item_transacao it ON it."itemTransacaoAgrupadoId" = ita.id
+    INNER JOIN arquivo_publicacao ap ON ap."itemTransacaoId" = it.id
+    inner join public."user" uu on uu."permitCode" = ita."idOperadora"
+    inner join header_lote hl on hl."id" = da."headerLoteId"
+    inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
                     where (1=1) `;                    
 
 
@@ -659,18 +663,21 @@ WHERE (1=1) `;
     let condicoesOutros = '';
 
     const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined;
-    const isPagoOuErro = filter.pago !== undefined || filter.erro !== undefined;
+    // const isPagoOuErro = filter.pago !== undefined || filter.erro !== undefined;
     // --- BLOCO PARA 2024 ---
-    if (anoInicio <= 2024 && isPagoOuErro) {
+    if (anoInicio <= 2024 ) {
+    const dataFim24 = anoFim <= 2024 ? dataFim : '2024-12-31'
       sql2024 = `select distinct 
                   ita.id, 
                   da."dataVencimento", 
-                  uu.nome as nome, 
+                 uu."fullName" as nome,
                   da."valorLancamento" as valor,
                   ita."nomeConsorcio" as "nomeConsorcio"
                 `;
       sql2024 += RelatorioNovoRemessaRepository.USER_FROM_24;
-      condicoes2024 += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'`;
+      condicoes2024 += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim24}'
+      and da."ocorrenciasCnab" <> 'AM' 
+         AND ha."status" <> '5'`;
 
       if (filter.pago !== undefined || filter.erro !== undefined) {
         condicoes2024 += ` and ap."isPago" = ${filter.pago ? 'true' : 'false'}`;
@@ -707,12 +714,21 @@ WHERE (1=1) `;
                     op."nomeConsorcio"
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'`;
+      condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
+         
+      `;
 
       const statuses = this.getStatusParaFiltro(filter);
-      if (hasStatusFilter) {
-        condicoesOutros += ` and oph."statusRemessa" in(${statuses})`;
-      }
+     
+if (hasStatusFilter) {
+  condicoesOutros += ` and oph."statusRemessa" in (${statuses?.join(',')})\n`;
+
+  const has3or4 = statuses?.includes(3) || statuses?.includes(4);
+
+  if (has3or4) {
+    condicoesOutros += ` and oph."motivoStatusRemessa" <> 'AM'\n`;
+  }
+}
 
       if (filter.valorMin !== undefined) {
         condicoesOutros += ` and da."valorRealEfetivado" >= ${filter.valorMin}`;
@@ -723,7 +739,7 @@ WHERE (1=1) `;
       }
 
       if (filter.userIds) {
-        condicoesOutros += ` and userId in('${filter.userIds.join("','")}')`;
+        condicoesOutros += ` and uu.id in('${filter.userIds.join("','")}')`;
       } else if (filter.todosVanzeiros) {
         condicoesOutros += ` and op."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
@@ -746,7 +762,7 @@ WHERE (1=1) `;
     } else if (sqlOutros) {
       finalSQL = sqlOutros + condicoesOutros;
     }
-
+    this.logger.warn(finalSQL)
     return finalSQL;
   }
   private consultaConsorcios(filter: IFindPublicacaoRelatorioNovoRemessa) {
@@ -754,15 +770,20 @@ WHERE (1=1) `;
     const dataFim = formatDateISODate(filter.dataFim);
     const anoInicio = new Date(filter.dataInicio).getFullYear();
     const anoFim = new Date(filter.dataFim).getFullYear();
+    const dataFim24 = anoFim <= 2024 ? dataFim : '2024-12-31'
     const incluir2024 = anoInicio <= 2024 && anoFim >= 2024;
     const incluirOutros = !(anoInicio === 2024 && anoFim === 2024);
 
+    const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined;
     const statuses = this.getStatusParaFiltro(filter);
 
     let sql2024 = '';
     let sqlOutros = '';
-    let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
-    let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
+    let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim24}'
+    and da."ocorrenciasCnab" <> 'AM' 
+  AND ha."status" <> '5'`;
+    let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
+    `;
     // --- BLOCO PARA 2024 ---
     if ((filter.pago !== undefined || filter.erro !== undefined) && incluir2024) {
       sql2024 = `
@@ -801,13 +822,15 @@ WHERE (1=1) `;
       }
     
 
-      if (filter.aPagar !== undefined) {
-        condicoesOutros += ` AND date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}' and '${dataFim}' `;
-        condicoesOutros += ` AND oph."statusRemessa" IN (${statuses}) `;
-      } else if (!statuses) {
-        condicoesOutros += ` AND oph."statusRemessa" IN (0,1,2,3) `;
-      } else {
-        condicoesOutros += ` AND oph."statusRemessa" IN (${statuses}) `;
+
+      if (hasStatusFilter) {
+        condicoesOutros += ` and oph."statusRemessa" in (${statuses?.join(',')})\n`;
+
+        const has3or4 = statuses?.includes(3) || statuses?.includes(4);
+
+        if (has3or4) {
+          condicoesOutros += ` and oph."motivoStatusRemessa" <> 'AM'\n`;
+        }
       }
     }
 

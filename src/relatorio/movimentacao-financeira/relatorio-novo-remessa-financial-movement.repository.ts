@@ -4,7 +4,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
-import { RelatorioFinancialMovementNovoRemessaDto, RelatorioFinancialMovementNovoRemessaData } from '../dtos/relatorio-financial-moviment.dto';
+import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
 
 
 @Injectable()
@@ -88,8 +88,14 @@ where da."dataVencimento" between $1 and $2
         else 'Rejeitado'
       end
     ) = any($3)
+<<<<<<< HEAD
   ) 
   and da."ocorrenciasCnab" <> 'AM'
+=======
+  )   
+  and da."ocorrenciasCnab" <> 'AM'
+
+>>>>>>> origin
 `;
 
   private eleicao2025 = `
@@ -314,6 +320,7 @@ where da."dataVencimento" between $1 and $2
     erro?: boolean;
     estorno?: boolean;
     rejeitado?: boolean;
+    emProcessamento?: boolean;
   }): string[] | null {
     const statuses: string[] = [];
 
@@ -322,6 +329,7 @@ where da."dataVencimento" between $1 and $2
       { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] },
       { condition: filter.estorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
       { condition: filter.rejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
+      { condition: filter.emProcessamento, statuses: [StatusPagamento.AGUARDANDO_PAGAMENTO] }
     ];
 
     for (const mapping of statusMappings) {
