@@ -3,26 +3,13 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 import { CustomLogger } from 'src/utils/custom-logger';
-<<<<<<< HEAD
-import { RelatorioSinteticoDto } from './dtos/relatorio-sintetico.dto';
-import { IFindPublicacaoRelatorio } from '../interfaces/find-publicacao-relatorio.interface copy';
-
-=======
 import { RelatorioSinteticoDto } from '../dtos/relatorio-sintetico.dto';
 import { IFindPublicacaoRelatorio } from '../interfaces/find-publicacao-relatorio.interface';
 
 
 
->>>>>>> origin
 @Injectable()
-<<<<<<< HEAD
 export class RelatorioSinteticoRepository {
-=======
-export class RelatorioSinteticoRepository {  
-  
-  constructor(@InjectDataSource()
-              private readonly dataSource: DataSource) {}
->>>>>>> 3b4044f813ae059a6822219aade65712abc69598
 
   constructor(@InjectDataSource()
   private readonly dataSource: DataSource) { }
@@ -282,5 +269,4 @@ export class RelatorioSinteticoRepository {
 
     return query;
   }
-
-} 
+}  
