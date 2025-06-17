@@ -18,11 +18,7 @@ import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entit
 
 @Injectable()
 export class OrdemPagamentoRepository {
-  getOrdensPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date) {
-    throw new Error('Method not implemented.');
-  }
- 
-  
+   
   private logger = new CustomLogger(OrdemPagamentoRepository.name, { timestamp: true });
 
   constructor(
@@ -395,6 +391,10 @@ export class OrdemPagamentoRepository {
     queryRunner.release();
 
     return result.map((r: DeepPartial<OrdemPagamentoAgrupado> | undefined) => new OrdemPagamentoAgrupado(r))[0]; 
+  }
+
+  public async getOrdensPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date) {
+    throw new Error('Method not implemented.');
   }
 
 }

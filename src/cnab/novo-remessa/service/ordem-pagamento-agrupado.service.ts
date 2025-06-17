@@ -14,6 +14,7 @@ import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {
+  
  
   private logger = new CustomLogger(OrdemPagamentoAgrupadoService.name, { timestamp: true });
 
@@ -53,23 +54,23 @@ export class OrdemPagamentoAgrupadoService {
     const pagador = await this.getPagador(pagadorKey);
    
     if(pagador) {
-          // Estornado / Rejeitado
-        if(reprocesso){
-          //Query 2025
-          var oph = await this.ordemPagamentoAgrupadoRepository.getOrdensExtornadasRejeitadas(dataOrdemInicial,dataOrdemFinal); 
-          
-          for (let index = 0; index < oph.length; index++) {
-            //Gerar novo historico pra cada ordem
-            this.inserirNovoHistorico(oph[index]);
-          }
-
-        }else{
-          //Não Pagos antigos(a pagar)
-          const ordens = await this.ordemPagamentoRepository.getOrdensPendentes(dataOrdemInicial,dataOrdemFinal);
-          //Novo agrupamento para geracao do remessa
-          await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
-
+      // Estornado / Rejeitado
+      if(reprocesso){
+        //Query 2025
+        var oph = await this.ordemPagamentoAgrupadoRepository.getOrdensExtornadasRejeitadas(dataOrdemInicial,dataOrdemFinal); 
+        
+        for (let index = 0; index < oph.length; index++) {
+          //Gerar novo historico pra cada ordem
+          await this.inserirNovoHistorico(oph[index]);
         }
+
+      }else{
+        //Não Pagos antigos(a pagar)
+        const ordens = await this.ordemPagamentoRepository.getOrdensPendentes(dataOrdemInicial,dataOrdemFinal);
+        //Novo agrupamento para geracao do remessa
+        await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
+
+      }
     }
   }  
  
@@ -141,5 +142,9 @@ export class OrdemPagamentoAgrupadoService {
             ophn.userBankAgency = user?.bankAgency;
             ophn.userBankCode = user?.bankCode?.toString();
             this.ordemPagamentoAgrupadoHistRepository.save(ophn);
+  }
+
+  public async getOrdensPendentes(dataInicio: Date, dataFim: Date, dataPagamento: Date, consorcio: string[] | undefined) {
+     return await this.ordemPagamentoRepository.
   }
 }

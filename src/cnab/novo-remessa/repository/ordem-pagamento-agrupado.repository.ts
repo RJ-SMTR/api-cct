@@ -112,7 +112,7 @@ export class OrdemPagamentoAgrupadoRepository {
 
   //QUERY RETORNA TODOS OS PAGAMENTOS PENDENTES - ESTORNADOS E REJEITADOS QUE A PESSOA TENHA RECEBIDO ALGUM PAGAMENTOS APÓS
   async getOrdensExtornadasRejeitadas(dataInicio: Date, dataFim: Date):Promise<OrdemPagamentoAgrupadoHistoricoDTO[]> {
-     const dataIniForm = formatDateISODate(dataInicio)
+    const dataIniForm = formatDateISODate(dataInicio)
     const dataFimForm = formatDateISODate(dataFim)
     let query = ` select distinct oph.*,op."userId" from ordem_pagamento op
 					        inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"

@@ -103,7 +103,6 @@ export class CronJobsService {
   }
 
   async onModuleLoad(){      
-    await this.remessaModalExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -674,8 +673,8 @@ export class CronJobsService {
           dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]],reprocesso);      
     }
 
-    // Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim,dataPagamento, consorcios,undefined);
+    // Prepara o remessa pendente 
+    await this.remessaService.prepararRemessaPendente(dataInicio, dataFim,dataPagamento, consorcios);
 
     // // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName,undefined);
@@ -723,15 +722,13 @@ export class CronJobsService {
       ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO,pagamentoUnico);
   }
 
-async remessaPendentesExec(pagamentoUnico?:boolean,dataInicioU?:string,dataFimU?:string) {
+async remessaPendentesExec(dataInicioU?:string,dataFimU?:string) {
     //Rodar Sexta 
     const today = new Date();
     const dataInicio = dataInicioU?new Date(dataInicioU):subDays(today, 7);
     const dataFim = dataFimU?new Date(dataFimU):subDays(today, 1); 
-    await this.geradorRemessaPendenteExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL);
+    await this.geradorRemessaPendenteExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL,false);
   }
-
-
 
   async retornoExec() {
     let arq = true;
