@@ -48,16 +48,6 @@ export class FinancialMovementQueryDto {
   todosVanzeiros?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Pesquisa usuarios de eleição.', default: false
-  })
-  @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
-  eleicao?: boolean;
-
-
-
-  @ApiPropertyOptional({
     description: 'Pesquisa o id dos usuários.',
     type: String,
     isArray: true,
