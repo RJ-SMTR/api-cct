@@ -52,7 +52,7 @@ WHERE
   private static readonly queryOlderReport = `
 select distinct 
   da."dataVencimento" as dataPagamento,
-  cf."fullName" as nomes,
+  cf."nome" as nomes,
   cf."cpfCnpj",
   ita."nomeConsorcio",
   da."valorLancamento" as valor,
@@ -66,14 +66,15 @@ select distinct
 from item_transacao it 
   inner join item_transacao_agrupado ita on it."itemTransacaoAgrupadoId" = ita."id"
   inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id
+  inner join cliente_favorecido cf on cf.id = it."clienteFavorecidoId"
   inner join public.user pu on pu."cpfCnpj" = cf."cpfCnpj"
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
   inner join header_lote hl on hl."id" = da."headerLoteId"
   inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
   /* extra joins */
-where da."dataVencimento" between $1 and $2
+  where da."dataVencimento" between $1 and $2
+  AND ($5::integer[] IS NULL OR pu."id" = ANY($5))
   and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
-  and ($3::integer[] is null or pu."id" = any($3))
   and (
     ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
@@ -218,7 +219,9 @@ where da."dataVencimento" between $1 and $2
         allResults = [...resultFrom2024, ...resultFromNewerYears];
 
       } else {
+        this.logger.log("Executando query única para o ano.");
         const paramsForYear = this.getParametersByQuery(initialYear, filter);
+        this.logger.log(`Executando query para o ano ${initialYear} com os parâmetros: ${JSON.stringify(paramsForYear)}`);
 
         let finalQuery = queryDecision.query;
 
