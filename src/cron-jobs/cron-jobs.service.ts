@@ -662,6 +662,7 @@ export class CronJobsService {
 
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt,headerName);
+    
   }
 
   async remessaVLTExec(todayCustom?:Date,pagamentoUnico?:boolean) {
