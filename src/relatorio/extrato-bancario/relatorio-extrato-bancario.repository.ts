@@ -15,7 +15,8 @@ export class RelatorioExtratoBancarioRepository {
               private logger = new CustomLogger(RelatorioExtratoBancarioRepository.name, { timestamp: true });
   
   private getQuery(dataInicio:string,dataFim:string,tipo:string,operacao:Array<[]>,conta:string){ 
-    let query = ` SELECT distinct                
+    let query = ` SELECT distinct    
+                  de.id,            
                   de."dataLancamento",
                   de."valorLancamento" valor,
                   case when de."tipoLancamento"='D' then 'Saída' else 'Entrada' end as tipo,
