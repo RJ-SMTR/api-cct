@@ -87,6 +87,7 @@ export class FinancialMovementQueryDto {
   @Type(() => Number)
   valorMax?: number;
 
+
   @ApiPropertyOptional({ description: 'Se o pagamento foi pago com sucesso', default: false })
   @IsOptional()
   @IsBoolean()
