@@ -312,14 +312,14 @@ export class UsersRepository {
 
     // Update user
     dataToUpdate.password = await user.parseNewPassword(dataToUpdate.password);
+    dataToUpdate.updatedAt = new Date();
     await this.usersRepository.update(id, dataToUpdate);
     const updatedUser = await this.getOne({ where: { id: id } });
     await this.loadLazyRelations([updatedUser]);
 
     // Log
-    const reqUser = new User(requestUser);
     const logMsg =
-      `Usuário ${reqUser.getLogInfo()} atualizou os campos de ` +
+      `Usuário ${id} atualizou os campos de ` +
       +`${user.getLogInfo()}: [ ${Object.keys(dataToUpdate)} ]`;
     this.logger.log(logMsg, 'update()');
 
