@@ -295,6 +295,14 @@ export class UsersRepository {
       ...dataToUpdate,
     } as UpdateUserRepositoryDto);
 
+    if (
+      dataToUpdate.bankCode &&
+      user.bankCode &&
+      dataToUpdate.bankCode !== user.bankCode
+    ) {
+      dataToUpdate.previousBankCode = user.bankCode;
+    }
+
     // If email is different, update invite email
     if (
       dataToUpdate.email &&
