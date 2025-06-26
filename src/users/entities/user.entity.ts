@@ -153,7 +153,10 @@ export class User extends EntityHelper {
 
   @Column({ type: String, nullable: true })
   passValidatorId?: string;
-
+  
+  @Column({ type: Number, nullable: true })
+  previousBankCode?: number;
+  
   @ManyToMany(() => Lancamento, (lancamento) => lancamento)
   lancamentos: Lancamento[];
 

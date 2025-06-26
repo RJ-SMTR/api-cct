@@ -72,9 +72,9 @@ from item_transacao it
   inner join header_lote hl on hl."id" = da."headerLoteId"
   inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
   /* extra joins */
-  where da."dataVencimento" between $1 and $2
-  AND ($5::integer[] IS NULL OR pu."id" = ANY($5))
+where da."dataVencimento" between $1 and $2
   and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
+  AND ($5::integer[] IS NULL OR pu."id" = ANY($5))
   and (
     ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
@@ -89,9 +89,8 @@ from item_transacao it
         else 'Rejeitado'
       end
     ) = any($3)
-  )   
+  ) 
   and da."ocorrenciasCnab" <> 'AM'
-
 `;
 
   private eleicao2025 = `
@@ -219,9 +218,7 @@ from item_transacao it
         allResults = [...resultFrom2024, ...resultFromNewerYears];
 
       } else {
-        this.logger.log("Executando query única para o ano.");
         const paramsForYear = this.getParametersByQuery(initialYear, filter);
-        this.logger.log(`Executando query para o ano ${initialYear} com os parâmetros: ${JSON.stringify(paramsForYear)}`);
 
         let finalQuery = queryDecision.query;
 
