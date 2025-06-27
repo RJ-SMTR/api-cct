@@ -295,6 +295,14 @@ export class UsersRepository {
       ...dataToUpdate,
     } as UpdateUserRepositoryDto);
 
+    if (
+      dataToUpdate.bankCode &&
+      user.bankCode &&
+      dataToUpdate.bankCode !== user.bankCode
+    ) {
+      dataToUpdate.previousBankCode = user.bankCode;
+    }
+
     // If email is different, update invite email
     if (
       dataToUpdate.email &&
@@ -309,7 +317,13 @@ export class UsersRepository {
         METHOD,
       );
     }
-
+    if (
+      'bankAccount' in dataToUpdate ||
+      'bankCode' in dataToUpdate ||
+      'bankAgency' in dataToUpdate
+    ) {
+      dataToUpdate.updatedAt = new Date();
+    }
     // Update user
     dataToUpdate.password = await user.parseNewPassword(dataToUpdate.password);
     await this.usersRepository.update(id, dataToUpdate);
@@ -317,9 +331,8 @@ export class UsersRepository {
     await this.loadLazyRelations([updatedUser]);
 
     // Log
-    const reqUser = new User(requestUser);
     const logMsg =
-      `Usuário ${reqUser.getLogInfo()} atualizou os campos de ` +
+      `Usuário ${id} atualizou os campos de ` +
       +`${user.getLogInfo()}: [ ${Object.keys(dataToUpdate)} ]`;
     this.logger.log(logMsg, 'update()');
 
