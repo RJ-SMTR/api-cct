@@ -15,7 +15,6 @@ import { UsersService } from 'src/users/users.service';
 @Injectable()
 export class OrdemPagamentoAgrupadoService {
   
- 
   private logger = new CustomLogger(OrdemPagamentoAgrupadoService.name, { timestamp: true });
 
   constructor(  
@@ -48,32 +47,6 @@ export class OrdemPagamentoAgrupadoService {
     }
   }
 
-  //Retorna ordens Pendentes e que serão tratadas para reprocessamento
-  async prepararPagamentoAgrupadosPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto:Date,
-    pagadorKey: keyof AllPagadorDict,consorcios:string[],reprocesso:boolean) {    
-    const pagador = await this.getPagador(pagadorKey);
-   
-    if(pagador) {
-      // Estornado / Rejeitado
-      if(reprocesso){
-        //Query 2025
-        var oph = await this.ordemPagamentoAgrupadoRepository.getOrdensExtornadasRejeitadas(dataOrdemInicial,dataOrdemFinal); 
-        
-        for (let index = 0; index < oph.length; index++) {
-          //Gerar novo historico pra cada ordem
-          await this.inserirNovoHistorico(oph[index]);
-        }
-
-      }else{
-        //Não Pagos antigos(a pagar)
-        const ordens = await this.ordemPagamentoRepository.getOrdensPendentes(dataOrdemInicial,dataOrdemFinal);
-        //Novo agrupamento para geracao do remessa
-        await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
-
-      }
-    }
-  }  
- 
   private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador,consorcios: string[]) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador,consorcios);
   }
@@ -129,22 +102,22 @@ export class OrdemPagamentoAgrupadoService {
   }  
 
   private async inserirNovoHistorico(oph:OrdemPagamentoAgrupadoHistoricoDTO){
-            const ophn = new OrdemPagamentoAgrupadoHistoricoDTO();
-            ophn.dataReferencia = new Date();
-            ophn.statusRemessa = 1; //preparado envio    
-            ophn.ordemPagamentoAgrupadoId = oph.ordemPagamentoAgrupadoId;
-            const user = await this.userService.findOne({ id: ophn.userId});
-            ophn.username = oph.username;
-            ophn.usercpfcnpj = oph.usercpfcnpj;
-            ophn.userBankAgency = user?.bankAgency; 
-            ophn.userBankAccount = user?.bankAccount;
-            ophn.userBankAccountDigit = user?.bankAccountDigit;
-            ophn.userBankAgency = user?.bankAgency;
-            ophn.userBankCode = user?.bankCode?.toString();
-            this.ordemPagamentoAgrupadoHistRepository.save(ophn);
+    const ophn = new OrdemPagamentoAgrupadoHistoricoDTO();
+    ophn.dataReferencia = new Date();
+    ophn.statusRemessa = 1; //preparado envio    
+    ophn.ordemPagamentoAgrupadoId = oph.ordemPagamentoAgrupadoId;
+    const user = await this.userService.findOne({ id: ophn.userId});
+    ophn.username = oph.username;
+    ophn.usercpfcnpj = oph.usercpfcnpj;
+    ophn.userBankAgency = user?.bankAgency; 
+    ophn.userBankAccount = user?.bankAccount;
+    ophn.userBankAccountDigit = user?.bankAccountDigit;
+    ophn.userBankAgency = user?.bankAgency;
+    ophn.userBankCode = user?.bankCode?.toString();
+    this.ordemPagamentoAgrupadoHistRepository.save(ophn);
   }
 
-  public async getOrdensPendentes(dataInicio: Date, dataFim: Date, dataPagamento: Date, consorcio: string[] | undefined) {
-     return await this.ordemPagamentoRepository.
-  }
+  async prepararPagamentoAgrupadosPendentes(dataInicio: Date, dataFim: Date, dataPagamento: Date, arg3: string) {
+    //TODO: CHAMAR PROCEDURE 
+  }  
 }

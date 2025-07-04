@@ -664,17 +664,17 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt,headerName);
   }
 
-
-  private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
-    consorcios: string[], headerName: HeaderName,reprocesso:boolean){
+  private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date, 
+    headerName: HeaderName,nomes:string[]){
     
-    for (let index = 0; index < consorcios.length; index++) {     
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio,
-          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]],reprocesso);      
-    }
-
+    // PEGAR ORDENS NÃO PAGAS
+    const ordensPendentes = await this.ordemPagamentoService.getOrdensPendentes(dataInicio,dataFim,nomes);
+    
+    // AGRUPAR ORDENS POR INDIVIDUO
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio,dataFim, dataPagamento, "contaBilhetagem");
+     
     // Prepara o remessa pendente 
-    await this.remessaService.prepararRemessaPendente(dataInicio, dataFim,dataPagamento, consorcios);
+    // await this.remessaService.prepararRemessaPendente(dataInicio, dataFim, dataPagamento, consorcios, nome);
 
     // // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName,undefined);
@@ -713,6 +713,15 @@ export class CronJobsService {
     await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL,pagamentoUnico);
   }
 
+  async remessaPendenteExec(dtInicio?:string,dtFim?:string,dataPagamento?:string, nomes:string[]) {
+    //Rodar na Sexta
+    const today = new Date();
+    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 7);
+    const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
+    await this.geradorRemessaPendenteExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
+       HeaderName.MODAL,nomes);
+  }
+
   async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
     //Rodar na Sexta
     const today = new Date();
@@ -722,7 +731,7 @@ export class CronJobsService {
       ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO,pagamentoUnico);
   }
 
-async remessaPendentesExec(dataInicioU?:string,dataFimU?:string) {
+  async remessaPendentesExec(dataInicioU?:string,dataFimU?:string) {
     //Rodar Sexta 
     const today = new Date();
     const dataInicio = dataInicioU?new Date(dataInicioU):subDays(today, 7);

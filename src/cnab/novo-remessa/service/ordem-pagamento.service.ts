@@ -105,14 +105,6 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
   }
 
-  async findOrdensPagamentoPendentes(): Promise<OrdemPagamentoPendenteDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentes();
-  }
-
-  async findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId?: number | undefined): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId);
-  }
-
   async findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
     return await this.ordemPagamentoRepository.findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
   }
@@ -121,4 +113,7 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findNumeroOrdensPorIntervaloDataCaptura(startDate, endDate);
   }
 
+  public async getOrdensPendentes(dataInicio: Date, dataFim: Date, nomes:string[]) {
+    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentes(dataInicio,dataFim,nomes)
+  }
 }

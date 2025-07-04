@@ -1,12 +1,14 @@
+import { DeepPartial } from "typeorm/common/DeepPartial";
+
 export class OrdemPagamentoPendenteDto {
-  id: number;
+  constructor(dto?: DeepPartial<OrdemPagamentoPendenteDto>) {
+      if (dto) {
+      Object.assign(this, dto);
+    }
+  }
+  idOrdemPagamento: number;
+  nome: string; 
+  dataOrdem: Date;
+  consorcio: string;
   valor: number;
-  dataPagamento: Date;
-  dataReferencia: Date;
-  statusRemessa: string;
-  motivoStatusRemessa: string;
-  ordemPagamentoAgrupadoId: number;
-  userId: number;
-  createdAt: Date;
-  updatedAt: Date;
 }

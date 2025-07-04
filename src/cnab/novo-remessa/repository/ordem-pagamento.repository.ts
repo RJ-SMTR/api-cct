@@ -15,6 +15,7 @@ import { Pagador } from '../../entity/pagamento/pagador.entity';
 import { parseNumber } from '../../utils/cnab/cnab-field-utils';
 import { OrdemPagamentoUnicoDto } from '../dto/ordem-pagamento-unico.dto';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
+import { formatDateISODate } from 'src/utils/date-utils';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -110,136 +111,82 @@ export class OrdemPagamentoRepository {
     });
   }
 
-  /***
-   * Obtém as ordens que foram agrupadas mas o pagamento falhou.
-   * Existem dois tipos de falhas:
-   * - Falhas nas quais o usuário deve modificar os dados bancários.
-   * - Falhas nas quais houve um erro desconhecido no arquivo de retorno do banco
-   * Não são retornadas ordens que o usuário não modificou os dados bancários caso houveram os erros referentes a conta
-   * do usuário.
-   * @returns OrdemPagamentoPendenteDto[] - Lista de ordens de pagamento pendentes
-   *  */
-  public async findOrdensPagamentosPendentes(): Promise<OrdemPagamentoPendenteDto[]> {
-    const query = `select o.id,
-                       o."valor",
-                       "dataPagamento",
-                       "dataReferencia",
-                       "statusRemessa",
-                       "motivoStatusRemessa",
-                       opa.id as "ordemPagamentoAgrupadoId",
-                       "userId"
-                from ordem_pagamento o
-                         inner join ordem_pagamento_agrupado opa
-                                    on o."ordemPagamentoAgrupadoId" = opa.id
-                         inner join lateral (
-                                select "dataReferencia",
-                                       "statusRemessa",
-                                       "motivoStatusRemessa",
-                                       "ordemPagamentoAgrupadoId",
-                                       "userBankCode",
-                                       "userBankAgency",
-                                       "userBankAccount",
-                                       "userBankAccountDigit"
-                                from ordem_pagamento_agrupado_historico oph
-                                where opa.id = oph."ordemPagamentoAgrupadoId"
-                                order by oph."dataReferencia" desc
-                                limit 1
-                         ) oph
-                        on opa.id = oph."ordemPagamentoAgrupadoId"
-                         inner join "user" u
-                                    on o."userId" = u.id
-                where "statusRemessa" = 4
-                  and "motivoStatusRemessa" NOT IN ('00', 'BD')
-                  and o."userId" is not null
-                  and u."bankAccount" is not null
-                  and u."bankAgency" is not null
-                  and u."bankCode" is not null
-                  and u."bankAccountDigit" is not null
-                  and (
-                    (
-                        "motivoStatusRemessa" NOT IN ('AG', 'AM', 'AN', 'AZ', 'BA', '02')
-                    )
-                        or (
-                        "motivoStatusRemessa" IN ('AG', 'AM', 'AN', 'AZ', 'BA', '02')
-                            and u."bankAccount" <> oph."userBankAccount"
-                            and u."bankAgency" <> oph."userBankAgency"
-                            and u."bankCode" <> cast(oph."userBankCode" as integer)
-                            and u."bankAccountDigit" <> oph."userBankAccountDigit"
-                        )
-                    )`;
-    const result = await this.ordemPagamentoRepository.query(query);
-    return result.map((row: any) => {
-      const ordemPagamentoPendente = new OrdemPagamentoPendenteDto();
-      ordemPagamentoPendente.id = row.id;
-      ordemPagamentoPendente.valor = row.valoe ? parseFloat(row.valor) : 0;
-      ordemPagamentoPendente.dataPagamento = row.dataPagamento;
-      ordemPagamentoPendente.dataReferencia = row.dataReferencia;
-      ordemPagamentoPendente.statusRemessa = row.statusRemessa;
-      ordemPagamentoPendente.motivoStatusRemessa = row.motivoStatusRemessa;
-      ordemPagamentoPendente.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
-      ordemPagamentoPendente.userId = row.userId;
-    });
-  }
+  public async findOrdensPagamentosPendentes(dataInicio: Date, dataFim: Date,nomes:string[]): Promise<OrdemPagamentoPendenteDto[]> {
+    const dataIniForm = formatDateISODate(dataInicio)
+    const dataFimForm = formatDateISODate(dataFim)
+   
+    const query = `
+      --QUERY RETORNA TODOS OS PAGAMENTOS NÃO PROCESSADOS
+      SELECT DISTINCT it."idOrdemPagamento",uu."fullName" nome,it."dataOrdem",it."nomeConsorcio" AS consorcio,it."valor"            
+      from item_transacao it 
+      left join public.user uu on uu."permitCode"=it."idOperadora"
+      where it."dataOrdem" between '${dataIniForm}' and '${dataFimForm}'
+      and it."nomeConsorcio" in('STPC','STPL','TEC')
+      and uu."fullName" in('${nomes?.join("','")}')
 
-  /***
-        Busca as ordens que não foram agrupadas e pagas
-        São ignoradas as seguintes situações
-        situações:
-        - Usuário não cadastrou dados bancários
-        - Usuário não se cadastrou no CCT, e foi gerada uma ordem com ID null
-   @param userId - Id do usuário (opcional)
-   @returns OrdemPagamentoPendenteNuncaRemetidasDto[] - Lista de ordens de pagamento pendentes
-   */
-  public async findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId?: number | undefined): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
-    let query = `
-        select o.id,
-               o.valor,
-               o."dataOrdem",
-               "userId",
-               "ultimaDataPagamento"
-        from ordem_pagamento o
-                 left join ordem_pagamento_agrupado opa
-                           on o."ordemPagamentoAgrupadoId" = opa.id
-                 left join "user" u
-                           on o."userId" = u.id
-                 inner join lateral (
-                      select date_trunc('day', max(opa2."dataPagamento")) as "ultimaDataPagamento"
-                      from ordem_pagamento_agrupado opa2
-                      where date_trunc('day', opa2."dataPagamento") <= date_trunc('day', current_date)
-                ) ultimo_pagamento
-                on true
-        where 1 = 1
-          and opa.id is null
-          and (
-                o."userId" is not null
-                and u."bankAccount" is not null
-                and u."bankAgency" is not null
-                and u."bankCode" is not null
-                and u."bankAccountDigit" is not null
-            )
-          and date_trunc('day', "dataOrdem") <= ultimo_pagamento."ultimaDataPagamento"`;
-    if (userId) {
-      query += ` and o."userId" = $1`;
-      const result = await this.ordemPagamentoRepository.query(query, [userId]);
-      return result.map((row: any) => {
-        const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
-        ordemPagamentoPendente.id = row.id;
-        ordemPagamentoPendente.valor = row.valor ? parseFloat(Number(row.valor).toFixed(2)) : 0;
-        ordemPagamentoPendente.userId = row.userId;
-        ordemPagamentoPendente.dataOrdem = row.dataOrdem;
-        return ordemPagamentoPendente;
-      });
-    } else {
-      const result = await this.ordemPagamentoRepository.query(query);
-      return result.map((row: any) => {
-        const ordemPagamentoPendente = new OrdemPagamentoPendenteNuncaRemetidasDto();
-        ordemPagamentoPendente.id = row.id;
-        ordemPagamentoPendente.valor = row.valor ? parseFloat(Number(row.valor).toFixed(2)) : 0;
-        ordemPagamentoPendente.userId = row.userId;
-        ordemPagamentoPendente.dataOrdem = row.dataOrdem;
-        return ordemPagamentoPendente;
-      });
-    }
+      union all
+
+      --QUERY RETORNA TODOS OS PAGAMENTOS PENDENTES - ESTORNADOS E REJEITADOS QUE A PESSOA TENHA RECEBIDO ALGUM PAGAMENTOS APÓS 2024
+      SELECT DISTINCT it."idOrdemPagamento",uu."fullName" nome,it."dataOrdem",it."nomeConsorcio" AS consorcio,it."valor"       
+      from item_transacao it 
+      left join item_transacao_agrupado ita on it."itemTransacaoAgrupadoId"=ita.id
+      left join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
+      left join detalhe_a da on da."itemTransacaoAgrupadoId"=ita."id"
+      left join public.user uu on uu."permitCode"=it."idOperadora"
+      where it."dataOrdem" between '${dataIniForm}' and '${dataFimForm}'
+      and it."nomeConsorcio" in('STPC','STPL','TEC')
+      and ap."isPago"=false
+      and uu."fullName" in('${nomes?.join("','")}')
+      and exists(select 1 from item_transacao itt 
+                          inner join item_transacao_agrupado itta on itt."itemTransacaoAgrupadoId"=itta.id
+                          inner join arquivo_publicacao apt on apt."itemTransacaoId"=itt.id
+                          inner join detalhe_a dat on dat."itemTransacaoAgrupadoId"=itta."id" 
+                          left join public.user uut on uut."permitCode"=itt."idOperadora"
+                          where itt."dataOrdem" between '${dataIniForm}' and '${dataFimForm}'
+                          and itt."nomeConsorcio" in('STPC','STPL','TEC')
+                          and apt."isPago"=true
+                          and uut."fullName" in('${nomes?.join("','")}'))
+
+      union all
+
+      --QUERY RETORNA OS SEM REMESSA
+
+      select distinct op."idOrdemPagamento",op."nomeOperadora" nome, op."dataOrdem",op."nomeConsorcio" consorcio,op."valor" 
+              from ordem_pagamento op				
+              where
+              op."nomeOperadora" in('${nomes?.join("','")}')
+              op."ordemPagamentoAgrupadoId" is null
+              and op."dataCaptura" between '${dataIniForm}' and '${dataFimForm}'
+      union all
+
+      --QUERY RETORNA TODOS OS PAGAMENTOS PENDENTES - ESTORNADOS E REJEITADOS QUE A PESSOA TENHA RECEBIDO ALGUM PAGAMENTOS APÓS 2025
+
+      select distinct op."idOrdemPagamento",op."nomeOperadora" nome, op."dataOrdem",op."nomeConsorcio" consorcio,op."valor" 
+      from ordem_pagamento op
+      inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
+      inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
+      and oph."dataReferencia" = (select max(opph."dataReferencia") 
+                                  from ordem_pagamento opp
+                                  inner join ordem_pagamento_agrupado oppa on oppa.id = opp."ordemPagamentoAgrupadoId"
+                                  inner join ordem_pagamento_agrupado_historico opph on oppa.id = opph."ordemPagamentoAgrupadoId"
+                                  where opph."ordemPagamentoAgrupadoId" =oph."ordemPagamentoAgrupadoId" 
+                                  and op."idOrdemPagamento"=opp."idOrdemPagamento" 
+                                  and op."dataOrdem"=opp."dataOrdem"
+                                  and op."idOperadora"=opp."idOperadora"										  
+                                  ) 
+      where oph."statusRemessa"= 4 
+      and op."dataCaptura" between '${dataIniForm}' and '${dataFimForm}'
+      and exists (select 1  from ordem_pagamento opv
+                            inner join ordem_pagamento_agrupado opav on opav.id = opv."ordemPagamentoAgrupadoId"
+                            inner join ordem_pagamento_agrupado_historico ophv on opav.id = ophv."ordemPagamentoAgrupadoId"
+                            where opv."idOperadora"=op."idOperadora" 
+                            and ophv."statusRemessa"=3
+                  )
+      and op."nomeOperadora" in('${nomes?.join("','")}')
+      order by "dataOrdem"`;
+    const result = await this.ordemPagamentoRepository.query(query);
+    return result.map((r: DeepPartial<OrdemPagamentoPendenteDto> | undefined) => { new OrdemPagamentoPendenteDto(r);
+   });
   }
 
   public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {

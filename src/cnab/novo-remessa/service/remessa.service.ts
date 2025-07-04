@@ -64,19 +64,7 @@ export class RemessaService {
     if (ordens.length > 0) {
       await this.gerarCnab(ordens,consorcio,pagamentoUnico);
     }
-  }
-
-   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
-  public async prepararRemessaPendente(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[]) {
-      let ordens;    
-      ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim,
-        dataPgto ? dataPgto : new Date(), consorcio);    
-
-    if (ordens.length > 0) {
-      await this.gerarCnab(ordens,consorcio,undefined);
-    }
-  }
-  
+  }  
 
   private async gerarCnab(ordens,consorcio,pagamentoUnico) {
     const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId);
