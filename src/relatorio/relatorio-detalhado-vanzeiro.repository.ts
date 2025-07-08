@@ -38,6 +38,7 @@ oc."message" motivo
                   it."nomeConsorcio" in('STPC','STPL','TEC')
                   and da."dataVencimento" between '${dataInicio}' and '${dataFim}'	
                      AND ita."idOrdemPagamento"  NOT LIKE '%U%'
+                     and da."ocorrenciasCnab" <> 'AM'
                    and ha.status <> '5'
                   and pu."id"=${args.userId}
       ) as data
