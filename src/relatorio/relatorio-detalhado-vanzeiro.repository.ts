@@ -10,15 +10,13 @@ export class RelatorioDetalhadoRepository {
   constructor(@InjectDataSource()
               private readonly dataSource: DataSource) {}
 
-              private logger = new CustomLogger(RelatorioDetalhadoRepository.name, { timestamp: true }); 
-              
-  async findDetalhadoVanzeiro(args: { userId: number;dataInicio: Date; dataFim: Date; }) {
-    const dataInicio = args.dataInicio.toISOString().slice(0,10)
-    const dataFim = args.dataFim.toISOString().slice(0,10)
-    let query = ` select data."dataVencimento", sum(DISTINCT data."valor") as valor, data.status, data.motivo
+  async findDetalhadoVanzeiro(args: { userId: number; dataInicio: Date; dataFim: Date; }) {
+    const dataInicio = args.dataInicio.toISOString().slice(0, 10)
+    const dataFim = args.dataFim.toISOString().slice(0, 10)
+    let query = ` select data."dataVencimento", sum( data."valor") as valor, data.status, data.motivo
 from (
         select distinct
-            da.id, da."dataVencimento",   ita."valor",
+            ita.id, da."dataVencimento",   ita."valor",
 case
     when ap."isPago" = true then 'Pago'
     else 'Não Pago'
@@ -47,13 +45,13 @@ group by
     data.status,
     data.motivo
 order by data."dataVencimento"
-                  `;  
+                  `;
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     this.logger.warn(query)
     let result: any[] = await queryRunner.query(query);
     queryRunner.release();
     const detalhado = result.map((r) => new RelatorioDetalhadoVanzeiroDto(r));
-    return detalhado;  
-  }   
+    return detalhado;
+  }
 } 
