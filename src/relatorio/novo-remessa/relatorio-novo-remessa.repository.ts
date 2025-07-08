@@ -486,16 +486,38 @@ WHERE (1=1) `;
     relatorioConsolidadoDto.valor = parseFloat(valorTotal);
     relatorioConsolidadoDto.count = count;
 
-    relatorioConsolidadoDto.data = result
-      .map((r) => {
+    if (filter.userIds && filter.userIds.length > 0 || filter.todosVanzeiros) {
+      console.log('Consolidado por usuário');
+      const valorPorUsuario: Record<string, number> = {};
+
+      for (const row of result) {
+        const nome = row.nome;
+        const valor = parseFloat(row.valor);
+
+        if (!valorPorUsuario[nome]) {
+          valorPorUsuario[nome] = 0;
+        }
+
+        valorPorUsuario[nome] += valor;
+      }
+
+      relatorioConsolidadoDto.data = Object.entries(valorPorUsuario).map(([nome, valor]: [string, number]) => {
+        const elem = new RelatorioConsolidadoNovoRemessaData();
+        elem.nomefavorecido = nome;
+        elem.valor = parseFloat(valor.toFixed(2)); // agora sem erro
+        return elem;
+      });
+    } else {
+      console.log('Consolidado por consórcio');
+      relatorioConsolidadoDto.data = result.map((r) => {
         const elem = new RelatorioConsolidadoNovoRemessaData();
         elem.nomefavorecido = r.nome;
         elem.valor = parseFloat(r.valor);
         return elem;
       });
+    }
 
     await queryRunner.release();
-
 
     return relatorioConsolidadoDto;
   }
