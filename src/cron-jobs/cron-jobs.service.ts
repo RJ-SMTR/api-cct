@@ -103,7 +103,7 @@ export class CronJobsService {
   }
 
 
-  async onModuleLoad(){     
+  async onModuleLoad(){   
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -162,24 +162,24 @@ export class CronJobsService {
           onTick: async () => await this.sendStatusReport(),
         },
       },
-      // {
-      //   /**
-      //    * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min       
-      //    *
-      //    * Gerar remessa VLT
-      //    */
-      //   name: CronJobsEnum.generateRemessaVLT,
-      //   cronJobParameters: {
-      //     cronTime: '0 12 * * *', // Every day, 11:00 GMT = 8:00 BRT (GMT-3)
-      //     onTick: async () => {
-      //       const today = new Date();
-      //       if (isSaturday(today) || isSunday(today)) {
-      //         return;
-      //       }
-      //       await this.remessaVLTExec(new Date());
-      //     },
-      //   },
-      // },
+      {
+        /**
+         * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min       
+         *
+         * Gerar remessa VLT
+         */
+        name: CronJobsEnum.generateRemessaVLT,
+        cronJobParameters: {
+          cronTime: '0 12 * * *', // Every day, 12:00 GMT = 9:00 BRT (GMT-3)
+          onTick: async () => {
+            const today = new Date();
+            if (isSaturday(today) || isSunday(today)) {
+              return;
+            }
+            await this.remessaVLTExec(new Date());
+          },
+        },
+      },
       {
         /**
          * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min         
