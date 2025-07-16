@@ -13,6 +13,9 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 SELECT DISTINCT 
     da."dataVencimento" AS dataPagamento,
     pu."fullName" AS nomes,
+      pu.email,
+    pu."bankCode" AS "codBanco",
+    bc.name AS "nomeBanco",
     pu."cpfCnpj",
     op."nomeConsorcio",
     da."valorLancamento" AS valor,
@@ -28,6 +31,7 @@ FROM
     INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
     INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
     INNER JOIN public."user" pu ON pu."id" = op."userId"
+          JOIN bank bc on bc.code = pu."bankCode"
 WHERE
     da."dataVencimento" BETWEEN $1 AND $2
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
@@ -53,6 +57,9 @@ WHERE
 select distinct 
   da."dataVencimento" as dataPagamento,
   cf."nome" as nomes,
+     pu.email,
+    pu."bankCode" AS "codBanco",
+    bc.name AS "nomeBanco",
   cf."cpfCnpj",
   ita."nomeConsorcio",
   da."valorLancamento" as valor,
@@ -71,6 +78,7 @@ from item_transacao it
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
   inner join header_lote hl on hl."id" = da."headerLoteId"
   inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
+      JOIN bank bc on bc.code = pu."bankCode"
   /* extra joins */
 where da."dataVencimento" between $1 and $2
   and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
@@ -97,6 +105,9 @@ where da."dataVencimento" between $1 and $2
   SELECT DISTINCT
       da."dataVencimento" AS dataPagamento,
       pu."fullName" AS nomes,
+         pu.email,
+    pu."bankCode" AS "codBanco",
+    bc.name AS "nomeBanco",
       pu."cpfCnpj",
 	    opu."consorcio" AS "nomeConsorcio",
       da."valorLancamento" AS valor,
@@ -113,6 +124,7 @@ where da."dataVencimento" between $1 and $2
       INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
       inner join ordem_pagamento_unico opu on opu."idOrdemPagamento" = opa.id::VARCHAR
       inner join public."user" pu on pu."cpfCnpj" = opu."operadoraCpfCnpj"
+       JOIN bank bc on bc.code = pu."bankCode"
   WHERE
       da."dataVencimento" BETWEEN $1 AND $2
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
@@ -287,6 +299,9 @@ where da."dataVencimento" between $1 and $2
           .map(r => new RelatorioFinancialMovementNovoRemessaData({
             dataPagamento: new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento)),
             nomes: r.nomes,
+            email: r.email,
+            codBanco: r.codBanco,
+            nomeBanco: r.nomeBanco,
             cpfCnpj: r.cpfCnpj,
             consorcio: r.nomeConsorcio,
             valor: Number.parseFloat(r.valor),

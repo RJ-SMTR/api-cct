@@ -102,7 +102,8 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad(){  
+
+  async onModuleLoad(){   
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -169,7 +170,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
-          cronTime: '0 12 * * *', // Every day, 11:00 GMT = 8:00 BRT (GMT-3)
+          cronTime: '0 12 * * *', // Every day, 12:00 GMT = 9:00 BRT (GMT-3)
           onTick: async () => {
             const today = new Date();
             if (isSaturday(today) || isSunday(today)) {

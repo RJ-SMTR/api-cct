@@ -317,10 +317,15 @@ export class UsersRepository {
         METHOD,
       );
     }
-
+    if (
+      'bankAccount' in dataToUpdate ||
+      'bankCode' in dataToUpdate ||
+      'bankAgency' in dataToUpdate
+    ) {
+      dataToUpdate.updatedAt = new Date();
+    }
     // Update user
     dataToUpdate.password = await user.parseNewPassword(dataToUpdate.password);
-    dataToUpdate.updatedAt = new Date();
     await this.usersRepository.update(id, dataToUpdate);
     const updatedUser = await this.getOne({ where: { id: id } });
     await this.loadLazyRelations([updatedUser]);
