@@ -25,6 +25,9 @@ export class RelatorioFinancialMovementNovoRemessaData {
 
   dataPagamento: string;
   nomes: string;
+  email: string;
+  codBanco: number;
+  nomeBanco: string;
   cpfCnpj: string;
   consorcio: string;
   valor: number;
