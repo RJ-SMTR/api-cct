@@ -294,6 +294,14 @@ export class OrdemPagamentoRepository {
     await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${consorciosJoin}}`]);
   }
 
+  public async agruparOrdensDePagamentoPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, nomes?: string[]): Promise<void> {
+    const dtInicialStr = dataInicial.toISOString().split('T')[0];
+    const dtFinalStr = dataFinal.toISOString().split('T')[0];
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];  
+    const nomesJoin = nomes?nomes.join(','):'';
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${nomesJoin}}`]);
+  }
+
   public async agruparOrdensDePagamentoUnico(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];

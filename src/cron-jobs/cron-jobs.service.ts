@@ -96,13 +96,14 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento();
+   // await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
   async onModuleLoad(){      
+    await this.remessaPendenteExec('2024-12-01','2024-12-10','2025-07-16',['AIRTON GUIMARAES LIMA'])
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -665,16 +666,13 @@ export class CronJobsService {
   }
 
   private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date, 
-    headerName: HeaderName,nomes:string[]){
-    
-    // PEGAR ORDENS NÃO PAGAS
-    const ordensPendentes = await this.ordemPagamentoService.getOrdensPendentes(dataInicio,dataFim,nomes);
-    
+    headerName: HeaderName,nomes?:string[]){    
+      
     // AGRUPAR ORDENS POR INDIVIDUO
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio,dataFim, dataPagamento, "contaBilhetagem");
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio,dataFim, dataPagamento, "contaBilhetagem",nomes);
      
-    // Prepara o remessa pendente 
-    // await this.remessaService.prepararRemessaPendente(dataInicio, dataFim, dataPagamento, consorcios, nome);
+    // Prepara o remessa
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC','STPL','TEC'], undefined);
 
     // // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName,undefined);
@@ -713,11 +711,11 @@ export class CronJobsService {
     await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL,pagamentoUnico);
   }
 
-  async remessaPendenteExec(dtInicio?:string,dtFim?:string,dataPagamento?:string, nomes:string[]) {
+  async remessaPendenteExec(dtInicio:string,dtFim:string,dataPagamento?:string, nomes?: string[]) {
     //Rodar na Sexta
     const today = new Date();
-    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 7);
-    const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
+    const dataInicio = new Date(dtInicio);
+    const dataFim =new Date(dtFim); 
     await this.geradorRemessaPendenteExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
        HeaderName.MODAL,nomes);
   }
@@ -729,14 +727,6 @@ export class CronJobsService {
     const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
     await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
       ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO,pagamentoUnico);
-  }
-
-  async remessaPendentesExec(dataInicioU?:string,dataFimU?:string) {
-    //Rodar Sexta 
-    const today = new Date();
-    const dataInicio = dataInicioU?new Date(dataInicioU):subDays(today, 7);
-    const dataFim = dataFimU?new Date(dataFimU):subDays(today, 1); 
-    await this.geradorRemessaPendenteExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL,false);
   }
 
   async retornoExec() {
