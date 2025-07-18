@@ -273,7 +273,8 @@ export class OrdemPagamentoRepository {
     const query = `
         SELECT o.id,
                ROUND(valor, 2) valor,
-               date_trunc('day', o."dataCaptura") "dataCaptura"
+               date_trunc('day', o."dataCaptura") "dataCaptura",
+               o."dataOrdem"
         FROM ordem_pagamento o
         INNER JOIN ordem_pagamento_agrupado opa
         ON o."ordemPagamentoAgrupadoId" = opa.id
@@ -281,8 +282,7 @@ export class OrdemPagamentoRepository {
           AND opa.id = $1
           AND o."dataCaptura" IS NOT NULL
           AND o."userId" = $2
-        ORDER BY o."dataCaptura" desc
-    `;
+        ORDER BY o."dataCaptura" desc `;
 
     let result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
     result = result.map((row: any) => {
