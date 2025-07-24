@@ -70,6 +70,10 @@ export class OrdemPagamentoAgrupadoService {
     await this.ordemPagamentoAgrupadoHistRepository.save(historico);
   }
 
+   async atualizaContaBancaria(historico: OrdemPagamentoAgrupadoHistorico){  
+    return await this.ordemPagamentoAgrupadoHistRepository.save(historico);
+  }
+
   private async getPagador(pagadorKey: any) {
     return (await this.pagadorService.getAllPagador())[pagadorKey];
   } 
