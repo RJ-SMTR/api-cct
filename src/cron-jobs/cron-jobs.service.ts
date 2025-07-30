@@ -103,7 +103,9 @@ export class CronJobsService {
   }
 
   async onModuleLoad(){      
-    await this.remessaPendenteExec('2024-11-01 00:00:00','2024-11-30 23:59:59','2025-07-28',['ADMAR MOREIRA ALVES'])
+    await this.remessaPendenteExec('2024-11-01 00:00:00','2024-11-30 23:59:59','2025-07-28',['GILSON FRISSO CRUZ',
+'JOAO SERGIO XIMENES DE FREITAS','SEVERINO LUIZ DO NASCIMENTO','ADRIANA FELICIANO HONORIO DA SILVA','ANANIAS BARBOSA DA COSTA',
+'HILARIO RUSSIN'])
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
