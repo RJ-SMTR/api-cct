@@ -42,9 +42,9 @@ export class RelatorioExtratoBancarioRepository {
     }
     if(conta){
       if(conta === 'cett'){
-        query = query +` and de."nomeEmpresa"='CETT CTA ESTAB TARIFARIA TRANS' `;
+        query = query +` and de.conta='006000071083' `;
       }else{
-        query = query +` and de."nomeEmpresa"='CONTA BILHETAGEM - CB' `;
+        query = query +` and de.conta='006000071084' `;
       }
     }
 
