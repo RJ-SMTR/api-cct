@@ -30,7 +30,7 @@ export class RelatorioExtratoBancarioRepository {
 
     if(dataInicio!==undefined && dataFim!==undefined && 
       (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
-      query = query +` and de."dataLancamento" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;
+      query = query +` and de."dataLancamento" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 00:00:00'}' `;
    
     if(tipo){
       query = query +` and de."tipoLancamento"='${tipo}' `;
