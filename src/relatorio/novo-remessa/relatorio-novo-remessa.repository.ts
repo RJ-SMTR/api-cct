@@ -815,8 +815,9 @@ if (hasStatusFilter) {
         da.id,
           da."dataVencimento",
           uu."fullName",
+          uu."permitCode",
           op."nomeConsorcio" as nome,
-          ${filter.aPagar !== undefined ? 'opa."valorTotal"' : 'da."valorLancamento"'} as valor
+         da."valorLancamento" as valor
         ${RelatorioNovoRemessaRepository.QUERY_FROM}
       `;
       }
