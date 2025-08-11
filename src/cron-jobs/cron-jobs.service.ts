@@ -694,7 +694,7 @@ export class CronJobsService {
     const today = new Date();
     const dataInicio = dataInicioU?new Date(dataInicioU):subDays(today, 7);
     const dataFim = dataFimU?new Date(dataFimU):subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio,dataFim,new Date('2025-08-11'),['STPC','STPL','TEC'], HeaderName.MODAL,pagamentoUnico);
+    await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL,pagamentoUnico);
   }
 
   async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
