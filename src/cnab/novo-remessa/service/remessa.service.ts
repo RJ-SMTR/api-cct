@@ -52,13 +52,13 @@ export class RemessaService {
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
   public async prepararRemessa(dataInicio: Date, dataFim: Date,dataPgto?:Date, consorcio?: string[],pagamentoUnico?:boolean) {
-    let ordens;
+    let ordens;    
     if(pagamentoUnico){
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
         dataPgto?dataPgto:new Date());
     }else{    
       ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim,
-      dataPgto?dataPgto:new Date(),consorcio);
+      new Date('2025-08-15'),consorcio);
     }
 
     if (ordens.length > 0) {
