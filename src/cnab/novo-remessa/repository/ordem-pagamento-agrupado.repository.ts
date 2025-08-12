@@ -46,7 +46,7 @@ export class OrdemPagamentoAgrupadoRepository {
 							                            and oph."dataReferencia" =
                                           (select max(ophh."dataReferencia") from ordem_pagamento_agrupado_historico ophh
 					                                where ophh."ordemPagamentoAgrupadoId"=op."ordemPagamentoAgrupadoId") 
-                  where (oph."dataReferencia"='${dataPgtoForm}') `
+                  where (1=1) `
                   
     if(statusRemessa === undefined || statusRemessa === StatusRemessaEnum.Criado){
       query = query +` and oph."statusRemessa"= 0 `;

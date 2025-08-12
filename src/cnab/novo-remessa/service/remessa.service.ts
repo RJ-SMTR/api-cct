@@ -58,7 +58,7 @@ export class RemessaService {
         dataPgto?dataPgto:new Date());
     }else{    
       ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim,
-      new Date('2025-08-15'),consorcio);
+      dataPgto?dataPgto:new Date(),consorcio);
     }
 
     if (ordens.length > 0) {

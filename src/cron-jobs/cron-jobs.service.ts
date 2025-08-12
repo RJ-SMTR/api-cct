@@ -104,7 +104,7 @@ export class CronJobsService {
 
 
   async onModuleLoad(){   
-    await this.remessaModalExec(false,'2025-08-07','2025-08-10');
+    await this.remessaModalExec('2025-08-07','2025-08-10','2025-08-12');
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -659,11 +659,11 @@ export class CronJobsService {
     // Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim,dataPagamento, consorcios,pagamentoUnico);
 
-  //   // Gera o TXT
-  //  const txt = await this.remessaService.gerarCnabText(headerName,pagamentoUnico);
+    // Gera o TXT
+   const txt = await this.remessaService.gerarCnabText(headerName,pagamentoUnico);
 
-  //   //Envia para o SFTP
-  //  await this.remessaService.enviarRemessa(txt,headerName);
+    //Envia para o SFTP
+   await this.remessaService.enviarRemessa(txt,headerName);
     
   }
 
@@ -689,12 +689,13 @@ export class CronJobsService {
        ['VLT'], HeaderName.VLT,pagamentoUnico);
   }
 
-  async remessaModalExec(pagamentoUnico?:boolean,dataInicioU?:string,dataFimU?:string) {
+  async remessaModalExec(dataInicioU?:string,dataFimU?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
     //Rodar Sexta 
     const today = new Date();
     const dataInicio = dataInicioU?new Date(dataInicioU):subDays(today, 7);
     const dataFim = dataFimU?new Date(dataFimU):subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL,pagamentoUnico);
+    await this.geradorRemessaExec(dataInicio,dataFim,dataPagamento?new Date(dataPagamento):today,
+    ['STPC','STPL','TEC'], HeaderName.MODAL,pagamentoUnico);
   }
 
   async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
