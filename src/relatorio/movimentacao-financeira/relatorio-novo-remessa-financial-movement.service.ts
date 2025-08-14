@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { RelatorioNovoRemessaFinancialMovementRepository } from './relatorio-novo-remessa-financial-movement.repository';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
+import { IPagination } from '../interfaces/pagination';
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementService {
@@ -10,13 +11,13 @@ export class RelatorioNovoRemessaFinancialMovementService {
   /**
    * Gerar relatórios payandpending - agrupados por Favorecido.
    */
-  async findFinancialMovement(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
+  async findFinancialMovement(args: IFindPublicacaoRelatorioNovoFinancialMovement, pagination: IPagination) {
     if (args.dataInicio === undefined || args.dataFim === undefined ||
       new Date(args.dataFim) < new Date(args.dataInicio)) {
       throw new Error('Parametro de data inválido');
     }
 
-    return this.relatorioNovoRemessaFinancialMovementRepository.findFinancialMovement(args);
+    return this.relatorioNovoRemessaFinancialMovementRepository.findFinancialMovement(args, pagination);
   }
 
 

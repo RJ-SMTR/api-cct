@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsDate, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsDate, IsInt, IsNumber, IsOptional, IsString, isNumber } from 'class-validator';
 
 export class FinancialMovementQueryDto {
   @ApiProperty({ description: 'Data da Ordem de Pagamento Inicial', required: true })
@@ -117,5 +117,26 @@ export class FinancialMovementQueryDto {
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   rejeitado?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Quantidade máxima de registros retornados por página',
+    type: Number,
+    example: 20,
+  })
+  @IsNumber()
+  @Type(() => Number)
+  limit: number;
+
+  @ApiPropertyOptional({
+    description: 'Número da página a ser retornada (inicia em 1)',
+    type: Number,
+    example: 1,
+  })
+  @IsNumber()
+  @Type(() => Number)
+  page: number;
+
+
+
 }
 

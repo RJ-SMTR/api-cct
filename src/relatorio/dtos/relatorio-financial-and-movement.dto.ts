@@ -8,6 +8,7 @@ export class RelatorioFinancialMovementNovoRemessaDto {
   }
 
   count: number;
+  page: number
   valor: number;
   valorPago: number;
   valorRejeitado: number;

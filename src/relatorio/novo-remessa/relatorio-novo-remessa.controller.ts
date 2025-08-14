@@ -122,9 +122,15 @@ export class RelatorioNovoRemessaController {
   @Get('financial-movement')
   async getFinancialMovement(
     @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
+    @Query('page') page = 1,
+    @Query('limit') limit = 50,
   ) {
+    const pagination = {
+      page: Number(page),
+      limit: Number(limit)
+    };
     try {
-      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovement(queryParams);
+      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovement(queryParams, pagination);
       return result;
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
