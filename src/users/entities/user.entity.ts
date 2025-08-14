@@ -150,6 +150,8 @@ export class User extends EntityHelper {
 
   @Column({ type: Boolean, nullable: true })
   isSgtuBlocked?: boolean;
+  @Column({ type: Boolean, nullable: true })
+  bloqueado?: boolean;
 
   @Column({ type: String, nullable: true })
   passValidatorId?: string;
