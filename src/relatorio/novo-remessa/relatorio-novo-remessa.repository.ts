@@ -651,6 +651,7 @@ WHERE (1=1) `;
     return statuses;
   }
   private consultaVanzeiros(filter: IFindPublicacaoRelatorioNovoRemessa) {
+    this.logger.warn(`${filter}`)
     const dataInicio = formatDateISODate(filter.dataInicio);
     const dataFim = formatDateISODate(filter.dataFim);
     const anoInicio = new Date(filter.dataInicio).getFullYear();
@@ -742,6 +743,11 @@ if (hasStatusFilter) {
         condicoesOutros += ` and uu.id in('${filter.userIds.join("','")}')`;
       } else if (filter.todosVanzeiros) {
         condicoesOutros += ` and op."nomeConsorcio" in('STPC','STPL','TEC')`;
+      }
+      if (filter.desativados) {
+        condicoesOutros += `AND uu.bloqueado = true`;
+      } else {
+        condicoesOutros += `AND uu.bloqueado = false`;
       }
 
 
