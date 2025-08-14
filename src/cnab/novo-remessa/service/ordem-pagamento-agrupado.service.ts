@@ -8,7 +8,6 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
-import { bool } from 'aws-sdk/clients/signer';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {  
@@ -52,8 +51,8 @@ export class OrdemPagamentoAgrupadoService {
     await this.ordemPagamentoRepository.agruparOrdensDePagamentoUnico(dataInicial, dataFinal, dataPgto, pagador);
   }  
 
-  async getOrdens(dataInicio: Date, dataFim: Date,dataPgto:Date, consorcio: string[] | undefined) {
-    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,dataPgto,consorcio);
+  async getOrdens(dataInicio: Date, dataFim: Date,consorcio: string[] | undefined) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,consorcio);
   }
 
   async getOrdensUnicas(dataInicio: Date, dataFim: Date,dataPgto:Date) {
