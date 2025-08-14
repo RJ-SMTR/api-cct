@@ -20,7 +20,7 @@ export class HeaderLoteToDetalheA {
     const da = new DetalheADTO();
     da.headerLote = headerLote;
     da.nsr = nsr;
-    da.dataVencimento = hist?.dataReferencia ?? ordem.dataPagamento;
+    da.dataVencimento = ordem.dataPagamento;
     da.periodoVencimento = ordem.dataPagamento;
     da.valorLancamento = ordem.valorTotal;
     da.valorRealEfetivado = ordem.valorTotal;

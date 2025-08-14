@@ -96,7 +96,7 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento();
+    //await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -104,6 +104,8 @@ export class CronJobsService {
 
 
   async onModuleLoad(){   
+    //Remover após geracao
+    // await this.remessaModalExec('2025-08-07','2025-08-14','2025-08-14');
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -658,11 +660,11 @@ export class CronJobsService {
     // Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim,dataPagamento, consorcios,pagamentoUnico);
 
-    // // Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName,pagamentoUnico);
+    // Gera o TXT
+   const txt = await this.remessaService.gerarCnabText(headerName,pagamentoUnico);
 
     //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt,headerName);
+   await this.remessaService.enviarRemessa(txt,headerName);
     
   }
 
@@ -688,12 +690,13 @@ export class CronJobsService {
        ['VLT'], HeaderName.VLT,pagamentoUnico);
   }
 
-  async remessaModalExec(pagamentoUnico?:boolean,dataInicioU?:string,dataFimU?:string) {
+  async remessaModalExec(dataInicioU?:string,dataFimU?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
     //Rodar Sexta 
     const today = new Date();
     const dataInicio = dataInicioU?new Date(dataInicioU):subDays(today, 7);
     const dataFim = dataFimU?new Date(dataFimU):subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio,dataFim,today,['STPC','STPL','TEC'], HeaderName.MODAL,pagamentoUnico);
+    await this.geradorRemessaExec(dataInicio,dataFim,dataPagamento?new Date(dataPagamento):today,
+    ['STPC','STPL','TEC'], HeaderName.MODAL,pagamentoUnico);
   }
 
   async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
@@ -702,7 +705,16 @@ export class CronJobsService {
     const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 7);
     const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
     await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
-      ['Internorte', 'Intersul', 'MobiRio', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO,pagamentoUnico);
+      [ 'MobiRio'], HeaderName.CONSORCIO,pagamentoUnico);
+  }
+
+  async remessaConsorciosBloqueioExec(dtInicio?:string,dtFim?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
+    //Rodar na Sexta
+    const today = new Date();
+    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 4);
+    const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
+    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
+      ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO,pagamentoUnico);
   }
 
   async retornoExec() {

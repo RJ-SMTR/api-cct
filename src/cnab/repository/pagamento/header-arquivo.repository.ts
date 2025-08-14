@@ -141,9 +141,16 @@ export class HeaderArquivoRepository {
     const query  = (`select ha.* from header_arquivo ha where ha."status" ='${status}' 
       and ha."remessaName" ='${remessaName}' `);
     const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();   
-    let result: any = await queryRunner.query(query);
-    queryRunner.release();
-    return result.map((r: DeepPartial<HeaderArquivo> | undefined) => new HeaderArquivo(r));
+    try{
+      await queryRunner.connect();   
+      await queryRunner.startTransaction();
+      let result: any = await queryRunner.query(query);
+      if(queryRunner.isTransactionActive){
+        await queryRunner.commitTransaction()
+      }
+      return result.map((r: DeepPartial<HeaderArquivo> | undefined) => new HeaderArquivo(r));
+    }finally{
+      await queryRunner.release();
+    }
   }
 }

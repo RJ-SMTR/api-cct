@@ -114,22 +114,27 @@ export class DetalheARepository {
   }
 
   async getDetalheAHeaderLote(id: number) {
-    
+
     const query = (`select da.* from detalhe_a da where da."headerLoteId" = ${id} 
       order by da."nsr" asc `)
 
     const queryRunner = this.dataSource.createQueryRunner();
 
-    queryRunner.connect();
+    try {
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
 
-    const result: any[] = await queryRunner.manager.getRepository(DetalheA).query(query);
+      const result: any[] = await queryRunner.manager.getRepository(DetalheA).query(query);
 
-    const detalhes = result.map((i) => new DetalheA(i));
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.commitTransaction();
+      }
 
-    queryRunner.release()
+      return result.map((i) => new DetalheA(i));
 
-    return detalhes;
-
+    } finally {
+      await queryRunner.release()
+    }
   }
 
   public async findOneRaw(where: IDetalheARawWhere): Promise<DetalheA | null> {
@@ -174,8 +179,8 @@ export class DetalheARepository {
   }
 
 
-  async getDetalheARetorno(dataVencimento: Date,valorLancamento: number,
-    userBankCode:string,userBankAccount:string){
+  async getDetalheARetorno(dataVencimento: Date, valorLancamento: number,
+    userBankCode: string, userBankAccount: string) {
     const dataIso = formatDateISODate(dataVencimento);
     const query = (`select da.* from detalhe_a da  
                                 inner join ordem_pagamento_agrupado_historico oph 
@@ -184,8 +189,8 @@ export class DetalheARepository {
                                 da."valorLancamento" =${valorLancamento} and 
                                 oph."userBankCode"='${userBankCode}' and                              
                                 oph."userBankAccount" ilike '%${userBankAccount}%' and
-                                oph."statusRemessa" in(1,2)`)  
-    
+                                oph."statusRemessa" in(1,2)`)
+
     const queryRunner = this.dataSource.createQueryRunner();
 
     queryRunner.connect();
