@@ -5,7 +5,7 @@ import { CronJob, CronJobParameters } from 'cron';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
-import {    
+import {
   isMonday,
   isSaturday,
   isSunday,
@@ -31,7 +31,7 @@ import { validateEmail } from 'validations-br';
 import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
-import {nextFriday, nextThursday, previousFriday, isFriday, isThursday} from 'date-fns';
+import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 
 
 /**
@@ -80,7 +80,7 @@ export class CronJobsService {
   private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz'];
 
   constructor(
-    private configService: ConfigService, 
+    private configService: ConfigService,
     private settingsService: SettingsService,
     private schedulerRegistry: SchedulerRegistry,
     private mailService: MailService,
@@ -103,9 +103,10 @@ export class CronJobsService {
   }
 
 
-  async onModuleLoad(){   
+  async onModuleLoad() {
     //Remover após geracao
-   // await this.remessaModalExec('2025-08-07','2025-08-14','2025-08-15');
+    // await this.remessaConsorciosExec();
+    await this.remessaModalExec('2025-08-07','2025-08-14','2025-08-15');
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -645,32 +646,32 @@ export class CronJobsService {
   }
 
   private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
-    consorcios: string[], headerName: HeaderName,pagamentoUnico?:boolean) {
+    consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     //Agrupa pagamentos     
 
     for (let index = 0; index < consorcios.length; index++) {
-      if(pagamentoUnico){
+      if (pagamentoUnico) {
         await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
           dataFim, dataPagamento, "cett", [consorcios[index]]);
-      }else{
+      } else {
         await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
           dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
       }
     }
     // Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim,dataPagamento, consorcios,pagamentoUnico);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
 
     // Gera o TXT
-   const txt = await this.remessaService.gerarCnabText(headerName,pagamentoUnico);
+    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
 
     //Envia para o SFTP
-   await this.remessaService.enviarRemessa(txt,headerName);
-    
+    await this.remessaService.enviarRemessa(txt, headerName);
+
   }
 
-  async remessaVLTExec(todayCustom?:Date,pagamentoUnico?:boolean) {
+  async remessaVLTExec(todayCustom?: Date, pagamentoUnico?: boolean) {
     //Rodar de segunda a sexta   
-    let today = todayCustom?todayCustom: new Date();
+    let today = todayCustom ? todayCustom : new Date();
     /** defaut: qua,qui,sex,sáb,dom */
     let daysBeforeBegin = 1;
     let daysBeforeEnd = 1;
@@ -682,58 +683,58 @@ export class CronJobsService {
     }
     const dataInicio = subDays(today, daysBeforeBegin);
     const dataFim = subDays(today, daysBeforeEnd);
-           
+
     console.log(`data incicio: ${dataInicio}`);
-    console.log(`data fim: ${dataFim}`); 
-    console.log(`data pagamento: ${today}`);  
+    console.log(`data fim: ${dataFim}`);
+    console.log(`data pagamento: ${today}`);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
-       ['VLT'], HeaderName.VLT,pagamentoUnico);
+      ['VLT'], HeaderName.VLT, pagamentoUnico);
   }
 
-  async remessaModalExec(dataInicioU?:string,dataFimU?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
+  async remessaModalExec(dataInicioU?: string, dataFimU?: string, dataPagamento?: string, pagamentoUnico?: boolean) {
     //Rodar Sexta 
     const today = new Date();
-    const dataInicio = dataInicioU?new Date(dataInicioU):subDays(today, 7);
-    const dataFim = dataFimU?new Date(dataFimU):subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio,dataFim,dataPagamento?new Date(dataPagamento):today,
-    ['STPC','STPL','TEC'], HeaderName.MODAL,pagamentoUnico);
+    const dataInicio = dataInicioU ? new Date(dataInicioU) : subDays(today, 7);
+    const dataFim = dataFimU ? new Date(dataFimU) : subDays(today, 1);
+    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
+      ['STPC', 'STPL', 'TEC'], HeaderName.MODAL, pagamentoUnico);
   }
 
-  async remessaConsorciosExec(dtInicio?:string,dtFim?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
+  async remessaConsorciosExec(dtInicio?: string, dtFim?: string, dataPagamento?: string, pagamentoUnico?: boolean) {
     //Rodar na Sexta
     const today = new Date();
-    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 7);
-    const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
-      [ 'MobiRio'], HeaderName.CONSORCIO,pagamentoUnico);
+    const dataInicio = dtInicio ? new Date(dtInicio) : subDays(today, 7);
+    const dataFim = dtFim ? new Date(dtFim) : subDays(today, 1);
+    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
+      ['MobiRio'], HeaderName.CONSORCIO, pagamentoUnico);
   }
 
-  async remessaConsorciosBloqueioExec(dtInicio?:string,dtFim?:string,dataPagamento?:string,pagamentoUnico?:boolean) {
+  async remessaConsorciosBloqueioExec(dtInicio?: string, dtFim?: string, dataPagamento?: string, pagamentoUnico?: boolean) {
     //Rodar na Sexta
     const today = new Date();
-    const dataInicio = dtInicio?new Date(dtInicio):subDays(today, 4);
-    const dataFim =dtFim?new Date(dtFim):subDays(today, 1); 
-    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento?new Date(dataPagamento):today, 
-      ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO,pagamentoUnico);
+    const dataInicio = dtInicio ? new Date(dtInicio) : subDays(today, 4);
+    const dataFim = dtFim ? new Date(dtFim) : subDays(today, 1);
+    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
+      ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO, pagamentoUnico);
   }
 
   async retornoExec() {
     let arq = true;
-    while(arq){
+    while (arq) {
       const txt = await this.retornoService.lerRetornoSftp();
-      if(txt){
-        try{
+      if (txt) {
+        try {
           await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
-        }catch(err){
+        } catch (err) {
           console.log(err);
         }
-      }else{
+      } else {
         arq = false;
       }
     }
   }
 
-  async sincronizarEAgruparOrdensPagamento(){
+  async sincronizarEAgruparOrdensPagamento() {
     const METHOD = 'sincronizarEAgruparOrdensPagamento';
     this.logger.log('Tentando adquirir lock para execução da tarefa de sincronização e agrupamento.');
     const locked = await this.distributedLockService.acquireLock(METHOD);
@@ -741,10 +742,10 @@ export class CronJobsService {
       try {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
         // Sincroniza as ordens de pagamento para todos os modais e consorcios
-        
-        const lastFriday =  this.getLastFriday();
+
+        const lastFriday = this.getLastFriday();
         const nextThursday = this.getNextThursday();
-        const nextFriday =  this.getNextFriday();
+        const nextFriday = this.getNextFriday();
 
         this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${lastFriday.toISOString()}, Data Fim: ${nextThursday.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
