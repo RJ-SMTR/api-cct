@@ -15,6 +15,7 @@ import {
 } from '../../interfaces/cnab-all/cnab-field.interface';
 import { CnabFieldType } from '../../types/cnab/cnab-field-type.type';
 import { getCnabFieldNameLog } from './cnab-metadata-utils';
+import { CustomLogger } from 'src/utils/custom-logger';
 
 type CropFillOnCrop = 'error' | 'cropLeft' | 'cropRight';
 
@@ -44,7 +45,10 @@ export function stringifyCnabField(field: CnabField): string {
  * With necessary validation.
  */
 export function getStringFromCnabField(field: CnabField): string {
+  const logger = new CustomLogger("", { timestamp: true });
+  logger.debug(field.value);
   const cnabFieldType = getCnabFieldType(field);
+  
   if (cnabFieldType === 'date') {
     formatDate(field);
   } else if (cnabFieldType === 'number') {
