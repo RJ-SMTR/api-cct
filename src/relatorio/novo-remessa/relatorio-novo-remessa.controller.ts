@@ -122,12 +122,10 @@ export class RelatorioNovoRemessaController {
   @Get('financial-movement')
   async getFinancialMovement(
     @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
-    @Query('page') page = 1,
-    @Query('limit') limit = 50,
   ) {
     const pagination = {
-      page: Number(page),
-      limit: Number(limit)
+      page: Number(queryParams.page),
+      limit: Number(queryParams.limit)
     };
     try {
       const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovement(queryParams, pagination);

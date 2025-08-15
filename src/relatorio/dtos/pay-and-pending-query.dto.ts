@@ -123,9 +123,10 @@ export class FinancialMovementQueryDto {
     type: Number,
     example: 20,
   })
+  @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  limit: number;
+  limit: number = 50;
 
   @ApiPropertyOptional({
     description: 'Número da página a ser retornada (inicia em 1)',
