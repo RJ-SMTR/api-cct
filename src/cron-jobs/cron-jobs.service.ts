@@ -105,8 +105,7 @@ export class CronJobsService {
 
   async onModuleLoad(){   
     //Remover após geracao
-
-    await this.remessaModalExec('2025-08-07','2025-08-14','2025-08-15');
+   // await this.remessaModalExec('2025-08-07','2025-08-14','2025-08-15');
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
