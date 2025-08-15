@@ -182,7 +182,9 @@ where da."dataVencimento" between $1 and $2
     const notEleicaoFilter2024 = `  
     AND ita."idOrdemPagamento" NOT LIKE '%U%'
     `
-
+    if(filter.desativados){
+      
+    }
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       await queryRunner.connect();
