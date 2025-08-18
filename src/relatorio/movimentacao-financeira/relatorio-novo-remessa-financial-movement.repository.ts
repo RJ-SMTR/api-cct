@@ -168,6 +168,7 @@ where da."dataVencimento" between $1 and $2
   private logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementRepository.name, { timestamp: true });
 
   public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
+
     const initialYear = filter.dataInicio.getFullYear();
     const finalYear = filter.dataFim.getFullYear();
 
@@ -207,7 +208,10 @@ where da."dataVencimento" between $1 and $2
         } else if (initialYear === 2024) {
           finalQuery2024 += notEleicaoFilter2024
         }
-
+        if (filter.desativados) {
+          finalQuery2024 += `AND pu.bloqueado = true`
+         
+        }
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
         filter.dataFim = actualDataFim
@@ -223,6 +227,7 @@ where da."dataVencimento" between $1 and $2
         if (filter.eleicao && actualDataFim.getFullYear() === 2025) {
           finalQuery2025 = this.eleicao2025
         }
+     
 
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
 
@@ -250,6 +255,10 @@ where da."dataVencimento" between $1 and $2
 
         if (filter.eleicao && initialYear === 2025) {
           finalQuery = this.eleicao2025
+        }
+
+        if (filter.desativados) {
+          finalQuery += ` AND pu.bloqueado = true`;
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
