@@ -96,7 +96,7 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento();
+    //await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -105,7 +105,6 @@ export class CronJobsService {
 
   async onModuleLoad(){   
     //Remover após geracao
-    // await this.remessaModalExec('2025-08-07','2025-08-10','2025-08-12');
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {

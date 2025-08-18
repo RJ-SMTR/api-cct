@@ -134,18 +134,19 @@ export class HeaderLoteRepository {
   }
 
   public async findAll(headerArquivoId: number) {
-    const query = (`select hl.* from header_lote hl where hl."headerArquivoId"=${headerArquivoId}`)
-    
-    const queryRunner = this.dataSource.createQueryRunner();
+    const query = 'SELECT hl.* FROM header_lote hl WHERE hl."headerArquivoId" = $1';
 
-    queryRunner.connect();
-     
-    let result: any = await queryRunner.query(query);
+    const queryRunner = this.dataSource.createQueryRunner();   
 
-    queryRunner.release();
+    try {    
+      await queryRunner.connect();    
+      const result: any = await queryRunner.manager.query(query, [headerArquivoId]);      
+      return result.map((r: DeepPartial<HeaderLote>) => new HeaderLote(r));
+    } finally {
+        await queryRunner.release();
+    }
+}
 
-    return result.map((r: DeepPartial<HeaderLote> | undefined) => new HeaderLote(r)); 
-  }
 
 
   public async findByFormaLancamento(headerArquivoId: number, formaLancamento:string) {

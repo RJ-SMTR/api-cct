@@ -183,7 +183,6 @@ where da."dataVencimento" between $1 and $2
     const notEleicaoFilter2024 = `  
     AND ita."idOrdemPagamento" NOT LIKE '%U%'
     `
-  
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       await queryRunner.connect();
@@ -288,25 +287,28 @@ where da."dataVencimento" between $1 and $2
         }
       );
 
-      const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
-        count,
-        valor: Number.parseFloat(valorTotal.toString()),
-        valorPago,
-        valorEstornado,
-        valorRejeitado,
-        valorAguardandoPagamento,
-        data: allResults
-          .sort((a, b) => {
-            const statusOrder = { Estorno: 0, Pago: 1, Rejeitado: 2 };
-            const dateA = new Date(a.datapagamento).getTime();
-            const dateB = new Date(b.datapagamento).getTime();
-            if (dateA !== dateB) return dateA - dateB;
-            const nameCompare = a.nomes.localeCompare(b.nomes, 'pt-BR');
-            if (nameCompare !== 0) return nameCompare;
-            return statusOrder[a.status] - statusOrder[b.status];
-          })
-          .map(r => new RelatorioFinancialMovementNovoRemessaData({
-            dataPagamento: new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento)),
+      const grouped = new Map<string, {
+        dataPagamento: string;
+        nomes: string;
+        cpfCnpj: string;
+        email: string,
+        codBanco: number;
+        nomeBanco: string,
+        consorcio: string;
+        valor: number;
+        status: string;
+      }>();
+
+      for (const r of allResults) {
+        const dataPagamento = new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento));
+        const key = `${dataPagamento}|${r.nomes}`;
+
+        if (grouped.has(key)) {
+          const existing = grouped.get(key)!;
+          existing.valor += Number.parseFloat(r.valor);
+        } else {
+          grouped.set(key, {
+            dataPagamento,
             nomes: r.nomes,
             email: r.email,
             codBanco: r.codBanco,
@@ -314,8 +316,39 @@ where da."dataVencimento" between $1 and $2
             cpfCnpj: r.cpfCnpj,
             consorcio: r.nomeConsorcio,
             valor: Number.parseFloat(r.valor),
-            status: r.status
-          }))
+            status: r.status,
+          });
+        }
+      }
+
+      const dataOrdenada = Array.from(grouped.values())
+        .sort((a, b) => {
+          const dateA = new Date(a.dataPagamento.split('/').reverse().join('-')).getTime();
+          const dateB = new Date(b.dataPagamento.split('/').reverse().join('-')).getTime();
+          const nameCompare = a.nomes.localeCompare(b.nomes, 'pt-BR');
+          if (dateA !== dateB) return dateA - dateB;
+          return nameCompare;
+        })
+        .map(r => new RelatorioFinancialMovementNovoRemessaData({
+          dataPagamento: r.dataPagamento,
+          nomes: r.nomes,
+          email: r.email,
+          codBanco: r.codBanco,
+          nomeBanco: r.nomeBanco,
+          cpfCnpj: r.cpfCnpj,
+          consorcio: r.consorcio,
+          valor: r.valor,
+          status: r.status,
+        }));
+
+      const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
+        count,
+        valor: Number.parseFloat(valorTotal.toString()),
+        valorPago,
+        valorEstornado,
+        valorRejeitado,
+        valorAguardandoPagamento,
+        data: dataOrdenada,
       });
 
       return relatorioDto;

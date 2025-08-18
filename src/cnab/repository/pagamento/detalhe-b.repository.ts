@@ -97,20 +97,21 @@ export class DetalheBRepository {
   }
 
   async getDetalheBDetalheAId(detalheAId: number) {
-    
+
     const query = (`select ddb.* from detalhe_b ddb where ddb."detalheAId" = ${detalheAId}`)
 
     const queryRunner = this.dataSource.createQueryRunner();
 
-    queryRunner.connect();
+    try {
+      await queryRunner.connect();
 
-    const result: any[] = await queryRunner.manager.getRepository(DetalheB).query(query);
+      const result: any[] = await queryRunner.manager.query(query);
 
-    const detalheB = result.map((i) => new DetalheB(i));
+      const detalheB = result.map((i) => new DetalheB(i));
 
-    queryRunner.release()
-
-    return detalheB[0];
-
+      return detalheB[0];
+    } finally {
+      await queryRunner.release()
+    }
   }
 }
