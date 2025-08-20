@@ -8,10 +8,13 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { logWarn } from 'src/utils/log-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BigqueryService, BigquerySource } from '../bigquery.service';
-import { BigqueryTransacao, BigqueryTransacaoDiario } from '../entities/transacao.bigquery-entity';
+import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
+import { BigqueryTransacaoDiario } from '../entities/transaca-diario-entity';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
-
+import { DeepPartial, Repository } from 'typeorm';
+import { BigqueryTransacaoDiarioDto } from '../dtos/transacao.dto';
+import { InjectRepository } from '@nestjs/typeorm';
 export interface IBqFindTransacao {
   cpfCnpj?: string;
   manyCpfCnpj?: string[];
@@ -27,14 +30,19 @@ export interface IBqFindTransacao {
   nomeConsorcio?: { in?: string[]; notIn?: string[] };
 }
 
+
 @Injectable()
 export class BigqueryTransacaoRepository {
   private logger = new CustomLogger('BigqueryTransacaoRepository', {
     timestamp: true,
   });
 
-  constructor(private readonly bigqueryService: BigqueryService, private readonly settingsService: SettingsService) {}
+  constructor(private readonly bigqueryService: BigqueryService, 
+    private readonly settingsService: SettingsService,
+    @InjectRepository(BigqueryTransacaoDiario)
+    private readonly bigqueryTransacaoRepo: Repository<BigqueryTransacaoDiario>, 
 
+  ) {}
   public async countAll() {
     const result = await this.bigqueryService.query(BigquerySource.smtr, 'SELECT COUNT(*) as length FROM `rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao`');
     const len = result[0].length;
@@ -45,6 +53,26 @@ export class BigqueryTransacaoRepository {
     const transacoes: BigqueryTransacao[] = (await this.queryData(filter)).data;
     return transacoes;
   }
+  public async saveTransacao(
+    dto: DeepPartial<BigqueryTransacaoDiarioDto>
+  ): Promise<BigqueryTransacaoDiario> {
+    if (!dto.id_transacao) {
+      const created = this.bigqueryTransacaoRepo.create(dto);
+      return this.bigqueryTransacaoRepo.save(created);
+    }
+
+    const existing = await this.bigqueryTransacaoRepo.findOneBy({
+      id_transacao: dto.id_transacao,
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    const created = this.bigqueryTransacaoRepo.create(dto);
+    return this.bigqueryTransacaoRepo.save(created);
+  }
+
   public async getAllTransacoes(data: Date): Promise<BigqueryTransacaoDiario[]> {
     
     const query = `SELECT * from \`rj-smtr.projeto_app_cct.transacao_cct\` where 1 = 1 limit 100`;
@@ -63,9 +91,7 @@ export class BigqueryTransacaoRepository {
 
     }
 
-    this.logger.warn(`${mapTransacaoDiario}`)
     const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [data]);
-    this.logger.warn(`${queryResult}`)
     return queryResult.map((item: any) => {
       return mapTransacaoDiario(item);
     });

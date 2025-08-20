@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
+// import { BigqueryTransacaoDiario } from '../entities/transaca-diario-entity';
 import { BigqueryTransacaoRepository, IBqFindTransacao } from '../repositories/bigquery-transacao.repository';
 import { IRequest } from '../../utils/interfaces/request.interface';
 import { isUser } from '../../utils/request-utils';
@@ -76,7 +77,16 @@ export class BigqueryTransacaoService {
   /**
   * Pegar transacoes de hoje
   */
+  //  async saveTransacao(ordem: BigqueryTransacaoDiario) {
+  //    await this.bigqueryTransacaoRepository.save(ordemPagamento);
+  //  }
  public async getAllTransacoes(data: Date){
-  return await this.bigqueryTransacaoRepository.getAllTransacoes(data)
- }
+  const transacoes =  await this.bigqueryTransacaoRepository.getAllTransacoes(data)
+  return transacoes;
+  // if(transacoes){
+  //   try {
+  //     await this.save(transacoes,);
+  //   }
+  // }
+}
 }
