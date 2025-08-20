@@ -88,6 +88,7 @@ import { RemessaService } from './novo-remessa/service/remessa.service';
 import { RetornoService } from './novo-remessa/service/retorno.service';
 import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
 import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
+import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 
 @Module({
   imports: [
@@ -128,6 +129,7 @@ import { DistributedLockRepository } from './novo-remessa/repository/distributed
   providers: [
     ArquivoPublicacaoRepository, //
     ArquivoPublicacaoService,
+    BigqueryTransacaoService,
     ClienteFavorecidoRepository,
     ClienteFavorecidoService,
     CnabService,
@@ -184,6 +186,7 @@ import { DistributedLockRepository } from './novo-remessa/repository/distributed
     CnabService, //
     HeaderArquivoRepository,
     HeaderArquivoService,
+    BigqueryTransacaoService,
     HeaderLoteRepository,
     HeaderLoteService,
     DetalheARepository,

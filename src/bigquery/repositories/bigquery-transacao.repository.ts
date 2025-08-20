@@ -8,7 +8,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { logWarn } from 'src/utils/log-utils';
 import { QueryBuilder } from 'src/utils/query-builder/query-builder';
 import { BigqueryService, BigquerySource } from '../bigquery.service';
-import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
+import { BigqueryTransacao, BigqueryTransacaoDiario } from '../entities/transacao.bigquery-entity';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
 
@@ -45,7 +45,31 @@ export class BigqueryTransacaoRepository {
     const transacoes: BigqueryTransacao[] = (await this.queryData(filter)).data;
     return transacoes;
   }
+  public async getAllTransacoes(data: Date): Promise<BigqueryTransacaoDiario[]> {
+    
+    const query = `SELECT * from \`rj-smtr.projeto_app_cct.transacao_cct\` where 1 = 1 limit 100`;
 
+    function mapTransacaoDiario(item: any){
+      const bigQueryDiario  = new BigqueryTransacaoDiario();
+      bigQueryDiario.id_transacao = item.id_transacao;
+      bigQueryDiario.data = item.data;
+      bigQueryDiario.datetime_transacao = item.datetime_transacao;
+      bigQueryDiario.consorcio = item.consorcio;
+      bigQueryDiario.valor_pagamento = item.valor_pagamento;
+      bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
+      bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;
+      bigQueryDiario.datetime_ultima_atualizacao = item.datetime_ultima_atualizacao;
+      return bigQueryDiario
+
+    }
+
+    this.logger.warn(`${mapTransacaoDiario}`)
+    const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query, [data]);
+    this.logger.warn(`${queryResult}`)
+    return queryResult.map((item: any) => {
+      return mapTransacaoDiario(item);
+    });
+  }
   public async findManyByOrdemPagamentoIdIn(ordemPagamentoIds: number[], cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
     let query = `SELECT CAST(t.datetime_transacao AS STRING)     datetime_transacao,
                         CAST(t.datetime_processamento AS STRING) datetime_processamento,

@@ -32,6 +32,7 @@ export class BigqueryTransacaoService {
     const transacaoView = transacaoBq.map((i) => i as BigqueryTransacao);
     return transacaoView;
   }
+  
 
   public async findManyPaginated(filter: IBqFindTransacao, limit: number, callback: (items: BigqueryTransacao[]) => void) {
     let page = 1;
@@ -71,4 +72,11 @@ export class BigqueryTransacaoService {
   public async findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds: (number | undefined)[], cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
     return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds, cpfCnpj, !isUser(request));
   }
+
+  /**
+  * Pegar transacoes de hoje
+  */
+ public async getAllTransacoes(data: Date){
+  return await this.bigqueryTransacaoRepository.getAllTransacoes(data)
+ }
 }

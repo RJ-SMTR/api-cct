@@ -43,3 +43,21 @@ export class BigqueryTransacao {
     return obj;
   }
 }
+
+
+export class BigqueryTransacaoDiario {
+  id_transacao: string | null;
+  data: Date | null;
+  datetime_transacao: Date | null;
+  consorcio: string | null;
+  valor_pagamento: number | null;
+  id_ordem_pagamento: string | null;
+  id_ordem_pagamento_consorcio_operador_dia: string | null;
+  datetime_ultima_atualizacao: Date | null;
+
+  public static fromJson(absPath: string) {
+    const file = readFileSync(absPath, 'utf8');
+    const obj: BigqueryTransacaoDiario[] = JSON.parse(file);
+    return obj;
+  }
+}
