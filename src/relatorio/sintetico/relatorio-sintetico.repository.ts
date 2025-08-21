@@ -9,7 +9,7 @@ import { IFindPublicacaoRelatorio } from '../interfaces/find-publicacao-relatori
 
 
 @Injectable()
-export class RelatorioSinteticoRepository { 
+export class RelatorioSinteticoRepository {  
   
   constructor(@InjectDataSource()
               private readonly dataSource: DataSource) {}
@@ -269,4 +269,5 @@ export class RelatorioSinteticoRepository {
         
     return query;
   }
+
 } 

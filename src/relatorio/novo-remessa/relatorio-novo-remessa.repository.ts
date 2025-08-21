@@ -791,7 +791,7 @@ if (hasStatusFilter) {
     let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
     `;
     // --- BLOCO PARA 2024 ---
-    if ((filter.pago !== undefined || filter.erro !== undefined) && incluir2024) {
+    if (incluir2024) {
       sql2024 = `
         SELECT distinct
           ita.id,
