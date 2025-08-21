@@ -77,16 +77,8 @@ export class BigqueryTransacaoService {
   /**
   * Pegar transacoes de hoje
   */
-  //  async saveTransacao(ordem: BigqueryTransacaoDiario) {
-  //    await this.bigqueryTransacaoRepository.save(ordemPagamento);
-  //  }
  public async getAllTransacoes(data: Date){
-  const transacoes =  await this.bigqueryTransacaoRepository.getAllTransacoes(data)
+  const transacoes =  await this.bigqueryTransacaoRepository.syncTransacoes(data)
   return transacoes;
-  // if(transacoes){
-  //   try {
-  //     await this.save(transacoes,);
-  //   }
-  // }
 }
 }
