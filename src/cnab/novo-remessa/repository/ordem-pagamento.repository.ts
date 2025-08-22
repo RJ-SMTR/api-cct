@@ -12,14 +12,12 @@ import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
-import { parseNumber } from '../../utils/cnab/cnab-field-utils';
 import { OrdemPagamentoUnicoDto } from '../dto/ordem-pagamento-unico.dto';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 
 @Injectable()
 export class OrdemPagamentoRepository {
- 
-  
+
   private logger = new CustomLogger(OrdemPagamentoRepository.name, { timestamp: true });
 
   constructor(
@@ -90,8 +88,7 @@ export class OrdemPagamentoRepository {
             LIMIT 1
             ) opa_aux
         ON DATE_TRUNC('day', opa_aux."dataPagamento") = DATE_TRUNC('day', m.data)
-        WHERE EXTRACT (DOW FROM data) = 5
-    `;
+        WHERE EXTRACT (DOW FROM data) = 5 `;
 
     const result = await this.ordemPagamentoRepository.query(query, [targetDate, userId]);
     return result.map((row: any) => {
@@ -351,7 +348,7 @@ export class OrdemPagamentoRepository {
   public async agruparOrdensDePagamentoUnico(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
-    const dtPgtoStr = dataPgto.toISOString().split('T')[0];   
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
     await this.ordemPagamentoRepository.query(`CALL p_agrupar_ordem_pagamento_unico($1, $2, $3, $4)`, [`${dtInicialStr}`, `${dtFinalStr}`, dtPgtoStr, pagador.id]);
   }
 
@@ -370,28 +367,65 @@ export class OrdemPagamentoRepository {
     const query = `SELECT * FROM ordem_pagamento_unico op 
                     where op."idOrdemPagamento"='${idOrdemPagamentoAg}' `;
     const queryRunner = this.dataSource.createQueryRunner();
-    
+
     queryRunner.connect();
-      
+
     let result: any = await queryRunner.query(query);
 
     queryRunner.release();
 
-    return result.map((r: DeepPartial<OrdemPagamentoUnicoDto> | undefined) => new OrdemPagamentoUnicoDto(r))[0]; 
+    return result.map((r: DeepPartial<OrdemPagamentoUnicoDto> | undefined) => new OrdemPagamentoUnicoDto(r))[0];
   }
 
   public async findCustom(idOrdemPagamentoAg: number) {
     const query = `SELECT * FROM ordem_pagamento_agrupado opa 
                     where opa."id"='${idOrdemPagamentoAg}' `;
     const queryRunner = this.dataSource.createQueryRunner();
-    
+
     queryRunner.connect();
-      
+
     let result: any = await queryRunner.query(query);
 
     queryRunner.release();
 
-    return result.map((r: DeepPartial<OrdemPagamentoAgrupado> | undefined) => new OrdemPagamentoAgrupado(r))[0]; 
+    return result.map((r: DeepPartial<OrdemPagamentoAgrupado> | undefined) => new OrdemPagamentoAgrupado(r))[0];
+  }
+
+  public async findOrdensAgrupadas(dataInicio: Date, dataFim: Date, consorcios: string[]) {
+
+    const dtInicialStr = dataInicio.toISOString().split('T')[0];
+    const dtFinalStr = dataFim.toISOString().split('T')[0];
+    const consorciosJoin = consorcios.join("','");
+
+    const query = `SELECT distinct op."ordemPagamentoAgrupadoId" FROM ordem_pagamento op 
+                    where date_trunc('day', op."dataCaptura") between '${dtInicialStr}' and '${dtFinalStr}'  
+                    and op."nomeConsorcio" in('${consorciosJoin}') 
+                    and op."ordemPagamentoAgrupadoId" is not null `;
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    let result: any = await queryRunner.query(query);
+
+    queryRunner.release();
+
+    return result;
+  }
+
+  async removerAgrupamento(consorcios: string[], ids: string) {    
+    const consorciosJoin = consorcios.join("','");
+    const queryRunner = this.dataSource.createQueryRunner();
+    try {
+      queryRunner.connect();
+      const query = ` update ordem_pagamento set "ordemPagamentoAgrupadoId"=null 
+                    where "nomeConsorcio" in('${consorciosJoin}') 
+                    and "ordemPagamentoAgrupadoId" in('${ids}') `;
+
+      await queryRunner.query(query);
+    } finally {
+      queryRunner.release();
+    }
   }
 
 }
