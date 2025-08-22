@@ -23,8 +23,8 @@ import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { BigqueryTransacaoService } from '../../../bigquery/services/bigquery-transacao.service';
 import { BigqueryTransacao } from '../../../bigquery/entities/transacao.bigquery-entity';
 import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
-import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { UsersService } from '../../../users/users.service';
+import { BigqueryTransacaoDiario } from 'src/bigquery/entities/transaca-diario.entity';
 
 @ApiTags('OrdemPagamento')
 @Controller({
@@ -92,13 +92,13 @@ export class OrdemPagamentoController {
     @Request() request: IRequest, //
     @Param('ordemPagamentoId', new ParseNumberPipe({ min: 1, optional: false })) ordemPagamentoId: number,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
-  ): Promise<BigqueryTransacao[]> {
+  ): Promise<BigqueryTransacaoDiario[]> {
     this.logger.log(getRequestLog(request));
-    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
-    const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
-    const user = await this.usersService.findOne({ id: userIdNum})
+    // const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    // const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
+    // const user = await this.usersService.findOne({ id: userIdNum})
     canProceed(request, Number(userId));
-    return this.bigqueryTransacaoService.findByOrdemPagamentoIdIn([ordemPagamentoId], user?.cpfCnpj, request);
+    return this.bigqueryTransacaoService.findTransacoesByOp([ordemPagamentoId]);
   }
 
   @Get('diario')
@@ -111,14 +111,11 @@ export class OrdemPagamentoController {
   async getDiarioParaVariasOrdens(
     @Request() request: IRequest, //
     @Query('ordemPagamentoIds', new ParseArrayPipe()) ordemPagamentoIds: number[],
-    @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
-  ): Promise<BigqueryTransacao[]> {
+    // @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
+  ): Promise<BigqueryTransacaoDiario[]> {
     this.logger.log(getRequestLog(request));
-    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
-    const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
-    const user = await this.usersService.findOne({ id: userIdNum });
-    canProceed(request, Number(userId));
-    return this.bigqueryTransacaoService.findByOrdemPagamentoIdIn(ordemPagamentoIds, user?.cpfCnpj, request);
+
+    return this.bigqueryTransacaoService.findTransacoesByOp(ordemPagamentoIds);
   }
 
 

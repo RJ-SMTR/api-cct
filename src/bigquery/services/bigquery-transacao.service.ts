@@ -5,6 +5,7 @@ import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { BigqueryTransacaoRepository, IBqFindTransacao } from '../repositories/bigquery-transacao.repository';
 import { IRequest } from '../../utils/interfaces/request.interface';
 import { isUser } from '../../utils/request-utils';
+import { BigqueryTransacaoDiario } from '../entities/transaca-diario.entity';
 
 @Injectable()
 export class BigqueryTransacaoService {
@@ -81,4 +82,8 @@ export class BigqueryTransacaoService {
   const transacoes =  await this.bigqueryTransacaoRepository.syncTransacoes(data)
   return transacoes;
 }
+
+  public async findTransacoesByOp(ordemPagamentoIds: number[]): Promise<BigqueryTransacaoDiario[]> {
+    return await this.bigqueryTransacaoRepository.findTransacoesByOp(ordemPagamentoIds);
+  }
 }

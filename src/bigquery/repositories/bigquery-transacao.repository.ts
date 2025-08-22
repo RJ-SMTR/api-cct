@@ -125,25 +125,35 @@ export class BigqueryTransacaoRepository {
     return saved;
   }
 
+  public async findTransacoesByOp(ordemPagamentoIds: number[]) {
+    const query = `SELECT * FROM 
+    transacoes_bq where id_ordem_pagamento_consorcio_operador_dia IN ($1) 
+    AND valor_pagamento > 0 
+    ORDER BY datetime_transacao DESC`;
+    
+    function mapTransacaoDiario(item: any) {
+      const bigQueryDiario = new BigqueryTransacaoDiario();
+      bigQueryDiario.id_transacao = item.id_transacao;
+      bigQueryDiario.data = new Date(item.data);
+      bigQueryDiario.datetime_transacao = new Date(item.datetime_transacao);
+      bigQueryDiario.consorcio = item.consorcio;
+      bigQueryDiario.valor_pagamento = item.valor_pagamento;
+      bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
+      bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;
+      bigQueryDiario.datetime_ultima_atualizacao = new Date(item.datetime_ultima_atualizacao,
+      );
+      return bigQueryDiario;
+    }
+
+    const queryResult = await this.bigqueryTransacaoRepo.query(query, ordemPagamentoIds)
+    return queryResult.map((item: any) => {
+      return mapTransacaoDiario(item);
+    });
+
+  }
+
   public async findManyByOrdemPagamentoIdIn(ordemPagamentoIds: number[], cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
-    let query = `SELECT CAST(t.datetime_transacao AS STRING)     datetime_transacao,
-                        CAST(t.datetime_processamento AS STRING) datetime_processamento,
-                        t.valor_pagamento             valor_pagamento,
-                        t.valor_transacao             valor_transacao,
-                        t.tipo_pagamento,
-                        CASE t.tipo_transacao_smtr
-                                when 'Débito EMV' then 'Integral'
-                                else t.tipo_transacao_smtr
-                        end tipo_transacao_smtr,
-                        t.tipo_transacao
-                 FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
-                     LEFT JOIN \`rj-smtr.cadastro.operadoras\` o
-                 ON o.id_operadora = t.id_operadora
-                     LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
-                 WHERE 1 = 1
-                   AND t.valor_pagamento
-                     > 0
-                   AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST(?)`;
+    let query = ``;
 
     function mapBigQueryTransacao(item: any) {
       const bigqueryTransacao = new BigqueryTransacao();
