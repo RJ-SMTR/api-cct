@@ -14,75 +14,75 @@ import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {
-  
+
   private logger = new CustomLogger(OrdemPagamentoAgrupadoService.name, { timestamp: true });
 
-  constructor(  
-    private ordemPagamentoRepository: OrdemPagamentoRepository, 
+  constructor(
+    private ordemPagamentoRepository: OrdemPagamentoRepository,
     private ordemPagamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository,
     private ordemPagamentoAgrupadoHistRepository: OrdemPagamentoAgrupadoHistoricoRepository,
     private pagadorService: PagadorService,
     private userService: UsersService
-  ) {}   
- 
-  async prepararPagamentoAgrupados(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto:Date,
-     pagadorKey: keyof AllPagadorDict,consorcios:string[]) {
+  ) { }
+
+  async prepararPagamentoAgrupados(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
+    pagadorKey: keyof AllPagadorDict, consorcios: string[]) {
     this.logger.debug(`Preparando agrupamentos`)
     const pagador = await this.getPagador(pagadorKey);
-    if(pagador) {
+    if (pagador) {
       this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
       await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
       this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
     }
   }
 
-  async prepararPagamentoAgrupadosPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto:Date,
-     pagadorKey: keyof AllPagadorDict,nomes?:string[]) {
+  async prepararPagamentoAgrupadosPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
+    pagadorKey: keyof AllPagadorDict, idOperadoras?: string[]) {
     this.logger.debug(`Preparando agrupamentos Pendentes`)
     const pagador = await this.getPagador(pagadorKey);
-    if(pagador) {
-      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, nomes ${nomes}`);
-      await this.agruparOrdensPendentes(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, nomes);
+    if (pagador) {
+      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, idOperadoras ${idOperadoras}`);
+      await this.agruparOrdensPendentes(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, idOperadoras);
       this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
     }
   }
 
-  async prepararPagamentoAgrupadosUnico(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto:Date,
-    pagadorKey: keyof AllPagadorDict,consorcios:string[]) {
+  async prepararPagamentoAgrupadosUnico(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
+    pagadorKey: keyof AllPagadorDict, consorcios: string[]) {
     this.logger.debug(`Preparando agrupamentos pagamento único`)
     const pagador = await this.getPagador(pagadorKey);
-    if(pagador) { 
+    if (pagador) {
       this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
       await this.agruparOrdemUnica(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
       this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
     }
   }
 
-  private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador,consorcios: string[]) {
-    await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador,consorcios);
+  private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]) {
+    await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
   }
 
-   private async agruparOrdensPendentes(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador,nomes?: string[]) {
-    await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador,nomes);
+  private async agruparOrdensPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, nomes?: string[]) {
+    await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
   }
 
-  private async agruparOrdemUnica(dataInicial: Date, dataFinal: Date, dataPgto:Date, pagador: Pagador) {
+  private async agruparOrdemUnica(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamentoUnico(dataInicial, dataFinal, dataPgto, pagador);
-  }  
-
-  async getOrdens(dataInicio: Date, dataFim: Date,dataPgto:Date, consorcio: string[] | undefined) {
-    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio,dataFim,dataPgto,consorcio);
   }
 
-  async getOrdensUnicas(dataInicio: Date, dataFim: Date,dataPgto:Date) {
-    return await this.ordemPagamentoAgrupadoRepository.findAllUnica(dataInicio,dataFim,dataPgto);
+  async getOrdens(dataInicio: Date, dataFim: Date, dataPgto: Date, consorcio: string[] | undefined) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio, dataFim, dataPgto, consorcio);
   }
 
-  async getHistoricosOrdem(idOrdem: number){
+  async getOrdensUnicas(dataInicio: Date, dataFim: Date, dataPgto: Date) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllUnica(dataInicio, dataFim, dataPgto);
+  }
+
+  async getHistoricosOrdem(idOrdem: number) {
     return await this.ordemPagamentoAgrupadoHistRepository.findAll({ ordemPagamentoAgrupado: { id: idOrdem } });
-  }  
+  }
 
-  async saveStatusHistorico(historico: OrdemPagamentoAgrupadoHistorico,statusRemessa:StatusRemessaEnum){
+  async saveStatusHistorico(historico: OrdemPagamentoAgrupadoHistorico, statusRemessa: StatusRemessaEnum) {
     historico.statusRemessa = statusRemessa;
     historico.dataReferencia = new Date();
     await this.ordemPagamentoAgrupadoHistRepository.save(historico);
@@ -90,22 +90,22 @@ export class OrdemPagamentoAgrupadoService {
 
   private async getPagador(pagadorKey: any) {
     return (await this.pagadorService.getAllPagador())[pagadorKey];
-  } 
-
-  public async getOrdemPagamento(idOrdemPagamentoAg: number){
-    return await this.ordemPagamentoRepository.findOne({ordemPagamentoAgrupado:{ id: idOrdemPagamentoAg}  })
   }
 
-  public async getOrdemPagamentoAgrupado(idOrdemPagamentoAg: number){
+  public async getOrdemPagamento(idOrdemPagamentoAg: number) {
+    return await this.ordemPagamentoRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
+  }
+
+  public async getOrdemPagamentoAgrupado(idOrdemPagamentoAg: number) {
     return await this.ordemPagamentoRepository.findCustom(idOrdemPagamentoAg)
   }
 
-  public async getOrdemPagamentoUnico(idOrdemPagamentoAg: number){
+  public async getOrdemPagamentoUnico(idOrdemPagamentoAg: number) {
     return await this.ordemPagamentoRepository.findOrdemUnica(idOrdemPagamentoAg);
   }
 
-  public async getHistoricosOrdemDetalheA(id: number,pagamentoUnico?:boolean) {
-    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id,pagamentoUnico)
+  public async getHistoricosOrdemDetalheA(id: number, pagamentoUnico?: boolean) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id, pagamentoUnico)
   }
 
   public async getHistorico(id: number) {
@@ -114,22 +114,22 @@ export class OrdemPagamentoAgrupadoService {
 
   public async getHistoricoUnico(id: number) {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoUnico(id)
-  }  
+  }
 
-  private async inserirNovoHistorico(oph:OrdemPagamentoAgrupadoHistoricoDTO){
+  private async inserirNovoHistorico(oph: OrdemPagamentoAgrupadoHistoricoDTO) {
     const ophn = new OrdemPagamentoAgrupadoHistoricoDTO();
     ophn.dataReferencia = new Date();
     ophn.statusRemessa = 1; //preparado envio    
     ophn.ordemPagamentoAgrupadoId = oph.ordemPagamentoAgrupadoId;
-    const user = await this.userService.findOne({ id: ophn.userId});
+    const user = await this.userService.findOne({ id: ophn.userId });
     ophn.username = oph.username;
     ophn.usercpfcnpj = oph.usercpfcnpj;
-    ophn.userBankAgency = user?.bankAgency; 
+    ophn.userBankAgency = user?.bankAgency;
     ophn.userBankAccount = user?.bankAccount;
     ophn.userBankAccountDigit = user?.bankAccountDigit;
     ophn.userBankAgency = user?.bankAgency;
     ophn.userBankCode = user?.bankCode?.toString();
     this.ordemPagamentoAgrupadoHistRepository.save(ophn);
   }
-  
+
 }

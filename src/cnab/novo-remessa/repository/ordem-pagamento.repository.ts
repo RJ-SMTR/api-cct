@@ -19,7 +19,7 @@ import { formatDateISODate } from 'src/utils/date-utils';
 
 @Injectable()
 export class OrdemPagamentoRepository {
-   
+
   private logger = new CustomLogger(OrdemPagamentoRepository.name, { timestamp: true });
 
   constructor(
@@ -111,10 +111,10 @@ export class OrdemPagamentoRepository {
     });
   }
 
-  public async findOrdensPagamentosPendentes(dataInicio: Date, dataFim: Date,nomes:string[]): Promise<OrdemPagamentoPendenteDto[]> {
+  public async findOrdensPagamentosPendentes(dataInicio: Date, dataFim: Date, nomes: string[]): Promise<OrdemPagamentoPendenteDto[]> {
     const dataIniForm = formatDateISODate(dataInicio)
     const dataFimForm = formatDateISODate(dataFim)
-   
+
     const query = `
       --QUERY RETORNA TODOS OS PAGAMENTOS NÃO PROCESSADOS
       SELECT DISTINCT it."idOrdemPagamento",uu."fullName" nome,it."dataOrdem",it."nomeConsorcio" AS consorcio,it."valor"            
@@ -185,8 +185,9 @@ export class OrdemPagamentoRepository {
       and op."nomeOperadora" in('${nomes?.join("','")}')
       order by "dataOrdem"`;
     const result = await this.ordemPagamentoRepository.query(query);
-    return result.map((r: DeepPartial<OrdemPagamentoPendenteDto> | undefined) => { new OrdemPagamentoPendenteDto(r);
-   });
+    return result.map((r: DeepPartial<OrdemPagamentoPendenteDto> | undefined) => {
+      new OrdemPagamentoPendenteDto(r);
+    });
   }
 
   public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
@@ -294,18 +295,18 @@ export class OrdemPagamentoRepository {
     await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${consorciosJoin}}`]);
   }
 
-  public async agruparOrdensDePagamentoPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, nomes?: string[]): Promise<void> {
+  public async agruparOrdensDePagamentoPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idOperadoras?: string[]): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
-    const dtPgtoStr = dataPgto.toISOString().split('T')[0];  
-    const nomesJoin = nomes?nomes.join(','):'';
-    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${nomesJoin}}`]);
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
+    const ipOperadorasJoin = idOperadoras ? idOperadoras.join(',') : '';
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${ipOperadorasJoin}}`]);
   }
 
   public async agruparOrdensDePagamentoUnico(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
-    const dtPgtoStr = dataPgto.toISOString().split('T')[0];   
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
     await this.ordemPagamentoRepository.query(`CALL p_agrupar_ordem_pagamento_unico($1, $2, $3, $4)`, [`${dtInicialStr}`, `${dtFinalStr}`, dtPgtoStr, pagador.id]);
   }
 
@@ -324,28 +325,28 @@ export class OrdemPagamentoRepository {
     const query = `SELECT * FROM ordem_pagamento_unico op 
                     where op."idOrdemPagamento"='${idOrdemPagamentoAg}' `;
     const queryRunner = this.dataSource.createQueryRunner();
-    
+
     queryRunner.connect();
-      
+
     let result: any = await queryRunner.query(query);
 
     queryRunner.release();
 
-    return result.map((r: DeepPartial<OrdemPagamentoUnicoDto> | undefined) => new OrdemPagamentoUnicoDto(r))[0]; 
+    return result.map((r: DeepPartial<OrdemPagamentoUnicoDto> | undefined) => new OrdemPagamentoUnicoDto(r))[0];
   }
 
   public async findCustom(idOrdemPagamentoAg: number) {
     const query = `SELECT * FROM ordem_pagamento_agrupado opa 
                     where opa."id"='${idOrdemPagamentoAg}' `;
     const queryRunner = this.dataSource.createQueryRunner();
-    
+
     queryRunner.connect();
-      
+
     let result: any = await queryRunner.query(query);
 
     queryRunner.release();
 
-    return result.map((r: DeepPartial<OrdemPagamentoAgrupado> | undefined) => new OrdemPagamentoAgrupado(r))[0]; 
+    return result.map((r: DeepPartial<OrdemPagamentoAgrupado> | undefined) => new OrdemPagamentoAgrupado(r))[0];
   }
 
   public async getOrdensPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date) {
