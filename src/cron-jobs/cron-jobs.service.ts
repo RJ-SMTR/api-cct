@@ -10,6 +10,7 @@ import {
   isSaturday,
   isSunday,
   isTuesday,
+  isWednesday,
   subDays,
 } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
@@ -96,7 +97,7 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-   // await this.sincronizarEAgruparOrdensPagamento();
+    // await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -104,6 +105,7 @@ export class CronJobsService {
 
 
   async onModuleLoad() {
+    await this.remessaModalTerSexExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -659,10 +661,10 @@ export class CronJobsService {
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
 
     //Gera o TXT
-   const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
+    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
 
-   //Envia para o SFTP
-   await this.remessaService.enviarRemessa(txt, headerName);
+    //Envia para o SFTP
+    await this.remessaService.enviarRemessa(txt, headerName);
 
   }
 
@@ -697,6 +699,45 @@ export class CronJobsService {
       ['STPC', 'STPL', 'TEC'], HeaderName.MODAL, pagamentoUnico);
   }
 
+  async remessaModalTerSexExec(pagamentoUnico?: boolean) {
+
+    const today = new Date();
+    let subDaysInt = 0;
+
+    if(isTuesday(today)){
+      subDaysInt = 4;
+    }else if(isThursday(today)){
+      subDaysInt = 2;
+    }else{
+      return;
+    }   
+
+    const dataInicio = subDays(today, subDaysInt);
+    const dataFim = subDays(today, 0);
+    const consorcios = ['STPC', 'STPL', 'TEC'];
+    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    await this.geradorRemessaExec(dataInicio, dataFim, today,
+      consorcios, HeaderName.MODAL, pagamentoUnico);
+  }
+
+  async limparAgrupamentos(dataInicio: Date, dataFim: Date, consorcios: string[]) {
+    const ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
+
+    const idsAgrupamentos =
+      ordensAgrupadas.map(f => f.ordemPagamentoAgrupadoId)
+        .join("','");
+
+    if(idsAgrupamentos && idsAgrupamentos.trim()!=''){
+      //exclui historico
+      await this.ordemPagamentoAgrupadoService.excluirHistorico(idsAgrupamentos);
+      //atualizar ordens
+      await this.ordemPagamentoService.removerAgrupamentos(consorcios, idsAgrupamentos);
+      //excluir ordens agrupadas
+      await this.ordemPagamentoAgrupadoService.excluirOrdensAgrupadas(idsAgrupamentos);
+    }
+  }
+
+
   async remessaConsorciosExec(dtInicio?: string, dtFim?: string, dataPagamento?: string, pagamentoUnico?: boolean) {
     //Rodar na Sexta
     const today = new Date();
@@ -707,19 +748,19 @@ export class CronJobsService {
   }
 
   async remessaConsorciosBloqueioExec(pagamentoUnico?: boolean) {
-    
+
     const today = new Date();
-   
+
     let subDaysInt = 0;
 
-    if(isTuesday(today)){
+    if (isTuesday(today)) {
       subDaysInt = 4;
-    }else if(isThursday(today)){
+    } else if (isThursday(today)) {
       subDaysInt = 3;
-    }else{
+    } else {
       return;
     }
-    
+
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
     await this.geradorRemessaExec(dataInicio, dataFim, today,

@@ -66,4 +66,6 @@ export class OrdemPagamento extends EntityHelper {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  ordemPagamentoAgrupadoId: number;
 }

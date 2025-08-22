@@ -5,9 +5,11 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { OrdemPagamentoAgrupadoHistoricoDTO } from '../dto/ordem-pagamento-agrupado-historico.dto';
+import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoHistoricoRepository {
+  
   private logger = new CustomLogger(OrdemPagamentoAgrupadoHistoricoRepository.name, { timestamp: true });
 
   constructor(
@@ -108,6 +110,20 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     queryRunner.release()
 
     return oph[0];
+  }
+
+  async excluirHistorico(ids: string) {   
+
+    const query = (`delete from ordem_pagamento_agrupado_historico oph
+      where oph."ordemPagamentoAgrupadoId" in ('${ids}')`)
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    await queryRunner.manager.query(query);   
+
+    queryRunner.release()
   }
 
 }
