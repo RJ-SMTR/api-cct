@@ -659,10 +659,8 @@ export class CronJobsService {
     }
     // Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
-
     //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
-
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
 
