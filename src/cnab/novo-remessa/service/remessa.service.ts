@@ -52,6 +52,8 @@ export class RemessaService {
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
   public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean) {
+    this.logger.debug('Sera que tem ordens???')
+
     let ordens;
     if (pagamentoUnico) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
@@ -61,12 +63,15 @@ export class RemessaService {
         dataPgto ? dataPgto : new Date(), consorcio);
     }
 
-    if (ordens.length > 0) {
-      await this.gerarCnab(ordens,consorcio,pagamentoUnico);
-    }
-  }  
+    this.logger.debug(JSON.stringify(ordens))
 
-  private async gerarCnab(ordens,consorcio,pagamentoUnico) {
+
+    if (ordens.length > 0) {
+      await this.gerarCnab(ordens, consorcio, pagamentoUnico);
+    }
+  }
+
+  private async gerarCnab(ordens, consorcio, pagamentoUnico) {
     const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId);
     const headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio));
     let nsrTed = 1;
@@ -87,7 +92,7 @@ export class RemessaService {
           user = await this.userService.getOne({ id: op.userId });
         }
         if (user.bankCode) {
-          let indevido = await this.pagamentoIndevidoService.findByNome(user.fullName);
+          const indevido = await this.pagamentoIndevidoService.findByNome(user.fullName);
 
           const headerLote = await this.gerarHeaderLote(headerArquivo, pagador, user.bankCode);
           let detB;
@@ -200,7 +205,7 @@ export class RemessaService {
   }
 
   private async gerarHeaderArquivo(pagador: Pagador, remessaName: HeaderName) {
-    let headerArquivoExists =
+    const headerArquivoExists =
       await this.headerArquivoService.getExists(HeaderArquivoStatus._2_remessaGerado, remessaName)
     if (isEmpty(headerArquivoExists) || headerArquivoExists[0] === undefined) {
       const nsa = await this.settingsService.getNextNSA(false);
@@ -218,7 +223,7 @@ export class RemessaService {
     const headersLote = await this.headerLoteService.findByFormaLancamento(headerArquivo.id, formaLancamento);
 
     if (!isEmpty(headersLote) && headersLote.length > 0) {
-      var headerLote = headersLote.filter((h: { formaLancamento: Cnab104FormaLancamento; }) =>
+      const headerLote = headersLote.filter((h: { formaLancamento: Cnab104FormaLancamento; }) =>
         h.formaLancamento === formaLancamento);
 
       if (headerLote) {
@@ -243,7 +248,7 @@ export class RemessaService {
     const detalheA = await this.existsDetalheA(ultimoHistorico)
 
     const numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());
-    let detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr, ultimoHistorico, numeroDocumento);
+    const detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr, ultimoHistorico, numeroDocumento);
 
     if (detalheA.length > 0) {
       detalheADTO.id = detalheA[0].id;
@@ -282,7 +287,7 @@ export class RemessaService {
   }
 
   private async criarHeaderLote(headerArquivo: HeaderArquivo, pagador: Pagador, formaPagamento: Cnab104FormaLancamento) {
-    var headerLoteNew = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivo, pagador, formaPagamento);
+    const headerLoteNew = HeaderLoteDTO.fromHeaderArquivoDTO(headerArquivo, pagador, formaPagamento);
     return await this.headerLoteService.saveDto(headerLoteNew);
   }
 
@@ -293,9 +298,9 @@ export class RemessaService {
 
   async debitarPagamentoIndevido(pagamentoIndevido: PagamentoIndevidoDTO, valor: any) {
     let aPagar = 0;
-    var arr = Number(valor).toFixed(2);
+    const arr = Number(valor).toFixed(2);
     let result = pagamentoIndevido.saldoDevedor - Number(arr);
-    let resultArr = result.toFixed(2);
+    const resultArr = result.toFixed(2);
     result = Number(resultArr);
     if (result > 0) {
       //Vanzeiro continua devendo

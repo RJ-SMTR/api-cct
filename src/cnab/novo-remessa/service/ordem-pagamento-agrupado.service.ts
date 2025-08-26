@@ -38,12 +38,31 @@ export class OrdemPagamentoAgrupadoService {
 
   async prepararPagamentoAgrupadosPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
     pagadorKey: keyof AllPagadorDict, idOperadoras?: string[]) {
+
     this.logger.debug(`Preparando agrupamentos Pendentes`)
     const pagador = await this.getPagador(pagadorKey);
+
     if (pagador) {
-      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, idOperadoras ${idOperadoras}`);
-      await this.agruparOrdensPendentes(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, idOperadoras);
-      this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+      if (dataOrdemInicial.getFullYear() === 2024 && dataOrdemFinal.getFullYear() === 2025) {
+        this.logger.log(`Detectado período entre anos (2024-2025). Executando agrupamento em duas etapas.`);
+
+        // First grouping: from initial date to end of 2024
+        const endOf2024 = new Date(2024, 11, 31); // December 31, 2024
+        this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${endOf2024}, idOperadoras ${idOperadoras} (Período 2024)`);
+        await this.agruparOrdensPendentes(dataOrdemInicial, endOf2024, dataPgto, pagador, idOperadoras);
+        this.logger.log(`Ordens agrupadas para o pagador ${pagador} - Período 2024 concluído`);
+
+        // Second grouping: from start of 2025 to final date
+        const startOf2025 = new Date(2025, 0, 1); // January 1, 2025
+        this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${startOf2025}, data de ordem final ${dataOrdemFinal}, idOperadoras ${idOperadoras} (Período 2025)`);
+        await this.agruparOrdensPendentes(startOf2025, dataOrdemFinal, dataPgto, pagador, idOperadoras);
+        this.logger.log(`Ordens agrupadas para o pagador ${pagador} - Período 2025 concluído`);
+      } else {
+        // Normal single grouping for same year or other cases
+        this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, idOperadoras ${idOperadoras}`);
+        await this.agruparOrdensPendentes(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, idOperadoras);
+        this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+      }
     }
   }
 
