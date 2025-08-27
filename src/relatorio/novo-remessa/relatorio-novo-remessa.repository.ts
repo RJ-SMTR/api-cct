@@ -651,6 +651,7 @@ WHERE (1=1) `;
     return statuses;
   }
   private consultaVanzeiros(filter: IFindPublicacaoRelatorioNovoRemessa) {
+    this.logger.warn(`${filter}`)
     const dataInicio = formatDateISODate(filter.dataInicio);
     const dataFim = formatDateISODate(filter.dataFim);
     const anoInicio = new Date(filter.dataInicio).getFullYear();
@@ -702,6 +703,12 @@ WHERE (1=1) `;
       } else {
         condicoes2024 += `AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
       }
+      if (filter.desativados) {
+        condicoes2024 += `AND uu.bloqueado = true`;
+      } else {
+        condicoes2024 += `AND uu.bloqueado = false`;
+      }
+
     }
 
     // --- BLOCO PARA 2025 em diante ---
@@ -748,6 +755,11 @@ if (hasStatusFilter) {
         condicoesOutros += ` and uu.id in('${filter.userIds.join("','")}')`;
       } else if (filter.todosVanzeiros) {
         condicoesOutros += ` and op."nomeConsorcio" in('STPC','STPL','TEC')`;
+      }
+      if (filter.desativados) {
+        condicoesOutros += `AND uu.bloqueado = true`;
+      } else {
+        condicoesOutros += `AND uu.bloqueado = false`;
       }
 
 
@@ -835,7 +847,11 @@ if (hasStatusFilter) {
       }
     
 
-
+      if (filter.desativados) {
+        condicoesOutros += `AND uu.bloqueado = true`;
+      } else {
+        condicoesOutros += `AND uu.bloqueado = false`;
+      }
       if (hasStatusFilter) {
         condicoesOutros += ` and oph."statusRemessa" in (${statuses?.join(',')})\n`;
 
@@ -861,6 +877,11 @@ if (hasStatusFilter) {
       // condicoesOutros += `      AND ita."idOrdemPagamento" LIKE '%U%'`;
     } else {
       condicoes2024 += `  AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
+    }
+    if (filter.desativados) {
+      condicoes2024 += `AND pu.bloqueado = true`;
+    } else {
+      condicoes2024 += `AND pu.bloqueado = false`;
     }
     // --- return ---
     let finalSQL = '';
