@@ -277,6 +277,23 @@ export class UsersService {
         where: [...(userFile.user.email ? [{ email: userFile.user.email }] : []), ...(userFile.user.codigo_permissionario ? [{ permitCode: userFile.user.codigo_permissionario }] : []), ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : [])],
       });
       if (dbFoundUsers.length > 0) {
+        for (const data of dbFoundUsers) {
+          const newData: any = {};
+
+          if (userFile.user.email && data.email != userFile.user.email) {
+            newData.email = data.email;
+          }
+          if (userFile.user.codigo_permissionario && data.permitCode != userFile.user.codigo_permissionario) {
+            newData.permitCode = data.permitCode;
+          }
+          if (userFile.user.cpf && data.cpfCnpj != userFile.user.cpf) {
+            newData.cpfCnpj = data.cpfCnpj;
+          }
+
+          if (Object.keys(newData).length > 0) {
+            await this.usersRepository.update(data.id, newData);
+          }
+        }
         for (const dbField of fields) {
           const dtoField = FileUserMap[dbField];
           if (dbFoundUsers.find((i) => i[dbField] === userFile.user[dtoField])) {
