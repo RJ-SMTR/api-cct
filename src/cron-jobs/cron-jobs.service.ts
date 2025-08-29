@@ -104,7 +104,7 @@ export class CronJobsService {
 
 
   async onModuleLoad() {
-    await this.remessaModalExec();
+    await this.remessaConsorciosBloqueioExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -659,9 +659,9 @@ export class CronJobsService {
     //Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     // //Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
-    //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt, headerName);
+    // const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
+    // //Envia para o SFTP
+    // await this.remessaService.enviarRemessa(txt, headerName);
 
   }
 
@@ -749,21 +749,19 @@ export class CronJobsService {
 
     const today = new Date();
 
-    let subDaysInt = 5;
+    let subDaysInt = 0;
 
     if (isTuesday(today)) {
       subDaysInt = 4;
-    } else if (isThursday(today)) {
+    } else if (isFriday(today)) {
       subDaysInt = 3;
+    } else {
+      return;
     }
-    // else {
-    //   return;
-    // }
 
     const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 2);
-    const consorcios =['MobiRio']   
-   //  ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca']
+    const dataFim = subDays(today, 1);
+    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca']
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
