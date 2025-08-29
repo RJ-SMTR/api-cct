@@ -13,8 +13,6 @@ export class PendentesQueryDTO {
   @IsDate()
   dataFim: Date;
 
-  //Async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idOperadoras?: string[]) {
-  //
   @ApiProperty({ description: 'Data de Pagamento', required: true })
   @Type(() => Date)
   @IsDate()
@@ -30,19 +28,6 @@ export class PendentesQueryDTO {
   })
   @IsOptional()
   @IsArray()
-  @IsInt({ each: true })
-  @Transform(({ value }) => {
-    if (Array.isArray(value)) {
-      return value.map((val) => parseInt(val, 10));
-    }
-    if (typeof value === 'string') {
-      return value.split(',').map((val) => parseInt(val, 10));
-    }
-    return value;
-  })
-  IdOperadoras?: number[];
-
-
-
+  IdOperadoras?: string[];
 }
 

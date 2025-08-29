@@ -5,6 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { CronJobsService } from 'src/cron-jobs/cron-jobs.service';
 
 import { PendentesQueryDTO } from './dto/pagamento-indevido.dto';
+import { query } from 'express';
 
 @ApiTags('Pendentes')
 @Controller({
@@ -24,9 +25,11 @@ export class PendenteController {
     @Query(new ValidationPipe({ transform: true })) queryParams: PendentesQueryDTO,
   ) {
     try {
-      const result = await this.cronService.remessaPendenteExec({
-        dataInicio: queryParams.dataInicio
-      })
+
+
+      const result = await this.cronService.remessaPendenteExec(
+        queryParams.dataInicio.toDateString(), queryParams.dataFim.toDateString(), queryParams.dataPagamento.toDateString(), queryParams.IdOperadoras
+      )
       return result;
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
