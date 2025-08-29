@@ -104,7 +104,7 @@ export class CronJobsService {
 
 
   async onModuleLoad() {
-    await this.remessaModalExec();
+    await this.remessaConsorciosExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -656,9 +656,9 @@ export class CronJobsService {
           dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
       }
     }
-    // Prepara o remessa
+    //Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
-    //Gera o TXT
+    // //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
@@ -699,18 +699,20 @@ export class CronJobsService {
   async remessaModalTerSexExec(pagamentoUnico?: boolean) {
 
     const today = new Date();
-    let subDaysInt = 0;
+    let subDaysInt = 5;
 
     if(isTuesday(today)){
       subDaysInt = 4;
-    }else if(isThursday(today)){
-      subDaysInt = 2;
-    }else{
-      return;
-    }   
+    }else if(isFriday(today)){
+      subDaysInt = 3;
+    }
+    
+    // else{
+    //   return;
+    // }   
 
     const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 0);
+    const dataFim = subDays(today, 2);
     const consorcios = ['STPC', 'STPL', 'TEC'];
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
@@ -734,7 +736,6 @@ export class CronJobsService {
     }
   }
 
-
   async remessaConsorciosExec(dtInicio?: string, dtFim?: string, dataPagamento?: string, pagamentoUnico?: boolean) {
     //Rodar na Sexta
     const today = new Date();
@@ -748,20 +749,23 @@ export class CronJobsService {
 
     const today = new Date();
 
-    let subDaysInt = 0;
+    let subDaysInt = 5;
 
     if (isTuesday(today)) {
       subDaysInt = 4;
     } else if (isThursday(today)) {
       subDaysInt = 3;
-    } else {
-      return;
     }
+    // else {
+    //   return;
+    // }
 
     const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 1);
-    await this.geradorRemessaExec(dataInicio, dataFim, today,
-      ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO, pagamentoUnico);
+    const dataFim = subDays(today, 2);
+    const consorcios =['MobiRio']   
+   //  ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca']
+    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
   async retornoExec() {
