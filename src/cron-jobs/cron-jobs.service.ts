@@ -7,8 +7,8 @@ import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
 import {
   isMonday,
-  isSaturday,
-  isSunday,
+  // isSaturday,
+  // isSunday,
   isTuesday,  
   subDays,
 } from 'date-fns';
@@ -104,7 +104,7 @@ export class CronJobsService {
 
 
   async onModuleLoad() {
-    await this.remessaConsorciosExec();
+    // await this.remessaConsorciosExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -173,11 +173,11 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '0 12 * * *', // Every day, 12:00 GMT = 9:00 BRT (GMT-3)
           onTick: async () => {
-            const today = new Date();
-            if (isSaturday(today) || isSunday(today)) {
-              return;
-            }
-            await this.remessaVLTExec(new Date());
+            // const today = new Date();
+            // if (isSaturday(today) || isSunday(today)) {
+            //   return;
+            // }
+            // await this.remessaVLTExec(new Date());
           },
         },
       },
