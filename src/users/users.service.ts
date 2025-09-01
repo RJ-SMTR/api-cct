@@ -27,6 +27,8 @@ import { FileUserMap } from './mappings/user-file.map';
 import { UsersRepository } from './users.repository';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { parseStringUpperUnaccent } from 'src/utils/string-utils';
+import { CreateAuxUserDesativadoDto } from './dto/create-aux.dto';
+import { AuxUserDesativado } from './entities/aux_user.entity';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -42,6 +44,10 @@ export class UsersService {
   async create(createProfileDto: CreateUserDto): Promise<User> {
     const createdUser = await this.usersRepository.create(createProfileDto);
     this.logger.log(`Usuário criado: ${createdUser.getLogInfo()}`);
+    return createdUser;
+  }
+  async createAux(createAux: CreateAuxUserDesativadoDto): Promise<AuxUserDesativado> {
+    const createdUser = await this.usersRepository.createAux(createAux);
     return createdUser;
   }
 
@@ -113,6 +119,12 @@ export class UsersService {
       for (const fileUser of updateUsers){
                
         if (fileUser.update.id) {
+          await this.usersRepository.createAux({
+            fullName: fileUser.user.nome,
+            cpfCnpj: fileUser.user.cpf,
+            permitCode: fileUser.update.lastPermitCode,
+            idUser: fileUser.update.id
+          })
           await this.usersRepository.update(fileUser.update.id, {
             permitCode: fileUser.update.codigo_permissionario,
           });
@@ -286,6 +298,7 @@ export class UsersService {
       //  CPF/Email iguais mas permitCode diferente → vai pra update, não gera erro
         if ((sameCpf || sameEmail) && dbUser.permitCode !== userFile.user.codigo_permissionario?.toString()) {
           updateDictionary.id = dbUser.id
+          updateDictionary.lastPermitCode = dbUser.permitCode
           updateDictionary.codigo_permissionario = userFile.user.codigo_permissionario!;
           continue;
         }

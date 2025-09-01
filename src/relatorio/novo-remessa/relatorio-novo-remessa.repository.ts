@@ -743,7 +743,6 @@ if (hasStatusFilter) {
       if (filter.valorMax !== undefined) {
         condicoesOutros += ` and da."valorRealEfetivado" <= ${filter.valorMax}`;
       }
-      // AVISO DE COD INATIVO --> usar nome ou email | relatorio e para visualizar a grade
       if (filter.userIds) {
         condicoesOutros += ` and uu.id in('${filter.userIds.join("','")}')`;
       } else if (filter.todosVanzeiros) {

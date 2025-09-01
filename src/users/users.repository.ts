@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { ConflictException, HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BanksService } from 'src/banks/banks.service';
 import { Bank } from 'src/banks/entities/bank.entity';
@@ -27,6 +27,7 @@ import { User } from './entities/user.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { RoleEnum } from 'src/roles/roles.enum';
+import { AuxUserDesativado } from './entities/aux_user.entity';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -42,6 +43,8 @@ export class UsersRepository {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(AuxUserDesativado)
+    private auxUsersRepository: Repository<AuxUserDesativado>,
     private mailHistoryService: MailHistoryService,
     private banksService: BanksService,
     private readonly entityManager: EntityManager,
@@ -80,7 +83,29 @@ export class UsersRepository {
     this.logger.log(`Usuário criado: ${createdUser.getLogInfo()}`);
     return createdUser;
   }
+  async createAux(createAuxDto: DeepPartial<AuxUserDesativado>): Promise<AuxUserDesativado> {
+    const existing = await this.auxUsersRepository.findOne({
+      where: { cpfCnpj: createAuxDto.cpfCnpj },
+    });
 
+    if (existing) {
+      if (existing.permitCode === createAuxDto.permitCode) {
+        throw new ConflictException(
+          `CPF/CNPJ ${createAuxDto.cpfCnpj} ja existe com  mesmo permitCode`,
+        );
+      }
+      if (!createAuxDto.permitCode) {
+        throw new ConflictException(`Cod. Permissionário necessário para atualização`)
+      }
+
+      existing.permitCode = createAuxDto.permitCode;
+      return await this.auxUsersRepository.save(existing);
+    }
+    const createdUser = this.auxUsersRepository.create(createAuxDto);
+    return await this.auxUsersRepository.save(createdUser);
+  }
+
+ 
   // #region loadLazyRelations
 
   /**

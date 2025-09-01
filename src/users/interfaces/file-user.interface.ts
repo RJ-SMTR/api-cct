@@ -2,7 +2,7 @@ import { ICreateUserFile } from './create-user-file.interface';
 export type IFileUserErrors = {
   [K in keyof ICreateUserFile]?: string;
 };
-export type IFileUserUpdates = Partial<{ id: number } & ICreateUserFile>;
+export type IFileUserUpdates = Partial<{ id: number, lastPermitCode: string } & ICreateUserFile>;
 
 
 
