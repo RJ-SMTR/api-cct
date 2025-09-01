@@ -20,7 +20,7 @@ import { CreateUserFileDto } from './dto/create-user-file.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
 import { ICreateUserFile } from './interfaces/create-user-file.interface';
-import { IFileUser } from './interfaces/file-user.interface';
+import { IFileUser, IFileUserErrors, IFileUserUpdates } from './interfaces/file-user.interface';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { IUserUploadResponse } from './interfaces/user-upload-response.interface';
 import { FileUserMap } from './mappings/user-file.map';
@@ -105,8 +105,21 @@ export class UsersService {
     const worksheet = this.getWorksheetFromFile(file);
     const fileUsers = await this.getUserFilesFromWorksheet(worksheet);
     const invalidUsers = fileUsers.filter((i) => Object.keys(i.errors).length > 0);
-    const validUsers = fileUsers.filter((i) => Object.keys(i.errors).length === 0);
+    const updateUsers = fileUsers.filter((i) => Object.keys(i.update).length > 0);
+    const validUsers = fileUsers.filter((i) => Object.keys(i.errors).length === 0 && Object.keys(i.update).length === 0);
 
+    
+    if(updateUsers.length > 0){
+      for (const fileUser of updateUsers){
+               
+        if (fileUser.update.id) {
+          await this.usersRepository.update(fileUser.update.id, {
+            permitCode: fileUser.update.codigo_permissionario,
+          });
+        }
+
+      }
+    }
     if (invalidUsers.length > 0) {
       throw new HttpException(
         {
@@ -215,20 +228,106 @@ export class UsersService {
     const fileUsers: IFileUser[] = fileData.map((item: Partial<ICreateUserFile>) => ({
       user: item,
       errors: {},
+      update: {}
     }));
+    
     let row = 2;
     for (let i = 0; i < fileUsers.length; i++) {
       const fileUser = fileUsers[i];
-      const errorDictionary = await this.validateFileValues(fileUser, fileUsers);
+      const { errors, updates } = await this.validateFileValues(fileUser, fileUsers);
       fileUsers[i] = {
-        row: row,
+        row,
         ...fileUser,
-        errors: errorDictionary,
+        errors,
+        update: updates,
       };
       row++;
     }
     return fileUsers;
   }
+  async validateFileValues(
+    userFile: IFileUser,
+    fileUsers: IFileUser[]
+  ): Promise<{ errors: IFileUserErrors; updates: IFileUserUpdates }> {
+    const schema = plainToClass(CreateUserFileDto, userFile.user);
+    const errors = await validate(schema as Record<string, any>, {
+      stopAtFirstError: false,
+    });
+
+    const SEPARATOR = '; ';
+    const errorDictionary: IFileUserErrors = {};
+    const updateDictionary: IFileUserUpdates = {};
+
+  
+    errors.forEach((error) => {
+      if (error.property && error.constraints) {
+        errorDictionary[error.property as keyof ICreateUserFile] =
+          Object.values(error.constraints).join(SEPARATOR);
+      }
+    });
+    const fields = ['email', 'permitCode', 'cpfCnpj'];
+
+    // Verificar duplicidade no DB
+    if (userFile.user.cpf || userFile.user.codigo_permissionario || userFile.user.email) {
+      const dbFoundUsers = await this.findMany({
+        where: [
+          ...(userFile.user.email ? [{ email: userFile.user.email }] : []),
+          ...(userFile.user.codigo_permissionario ? [{ permitCode: userFile.user.codigo_permissionario }] : []),
+          ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : []),
+        ],
+      });
+
+      for (const dbUser of dbFoundUsers) {
+        const sameCpf = userFile.user.cpf && dbUser.cpfCnpj === userFile.user.cpf;
+        const sameEmail = userFile.user.email && dbUser.email === userFile.user.email;
+        const samePermit =
+          userFile.user.codigo_permissionario && dbUser.permitCode === userFile.user.codigo_permissionario;
+
+      //  CPF/Email iguais mas permitCode diferente → vai pra update, não gera erro
+        if ((sameCpf || sameEmail) && dbUser.permitCode !== userFile.user.codigo_permissionario?.toString()) {
+          updateDictionary.id = dbUser.id
+          updateDictionary.codigo_permissionario = userFile.user.codigo_permissionario!;
+          continue;
+        }
+        if (sameCpf) {
+          errorDictionary.cpf =
+            (errorDictionary.cpf ? errorDictionary.cpf + SEPARATOR : '') +
+            userUploadEnum.FIELD_EXISTS;
+        }
+        if (sameEmail) {
+          errorDictionary.email =
+            (errorDictionary.email ? errorDictionary.email + SEPARATOR : '') +
+            userUploadEnum.FIELD_EXISTS;
+        }
+        if (samePermit) {
+          errorDictionary.codigo_permissionario =
+            (errorDictionary.codigo_permissionario ? errorDictionary.codigo_permissionario + SEPARATOR : '') +
+            userUploadEnum.FIELD_EXISTS;
+        }
+      }
+    }
+    const existingFileUser = fileUsers.filter((i) => i.user.email === userFile.user.email || i.user.codigo_permissionario === userFile.user.codigo_permissionario || i.user.cpf === userFile.user.cpf);
+    if (existingFileUser.length > 1) {
+      for (const dbField of fields) {
+        const dtoField = FileUserMap[dbField];
+        const existingFUserByField = existingFileUser.filter((i) => i.user[dbField] === userFile.user[dbField]);
+        if (existingFUserByField.length > 1) {
+          if (!errorDictionary.hasOwnProperty(dtoField)) {
+            errorDictionary[dtoField] = '';
+          }
+          if (errorDictionary[dtoField].length > 0) {
+            errorDictionary[dtoField] += SEPARATOR;
+          }
+          errorDictionary[dtoField] += userUploadEnum.DUPLICATED_FIELD;
+        }
+      }
+    }
+
+    return { errors: errorDictionary, updates: updateDictionary };
+  }
+
+
+
 
   private validateFileHeaders(worksheet: xlsx.WorkSheet) {
     const expectedFileUserFields: string[] = Object.values(FileUserMap);
@@ -256,79 +355,6 @@ export class UsersService {
     }
   }
 
-  async validateFileValues(userFile: IFileUser, fileUsers: IFileUser[]): Promise<InvalidRows> {
-    const schema = plainToClass(CreateUserFileDto, userFile.user);
-    const errors = await validate(schema as Record<string, any>, {
-      stopAtFirstError: false,
-    });
-    const SEPARATOR = '; ';
-    const errorDictionary: InvalidRows = errors.reduce((result, error) => {
-      const { property, constraints } = error;
-      if (property && constraints) {
-        result[property] = Object.values(constraints).join(SEPARATOR);
-      }
-      return result;
-    }, {});
-    const fields = ['email', 'permitCode', 'cpfCnpj'];
-
-    // If has another user in DB with same email OR permitCode OR cpfCnpj
-    if (userFile.user.email || userFile.user.codigo_permissionario || userFile.user.cpf) {
-      const dbFoundUsers = await this.findMany({
-        where: [...(userFile.user.email ? [{ email: userFile.user.email }] : []), ...(userFile.user.codigo_permissionario ? [{ permitCode: userFile.user.codigo_permissionario }] : []), ...(userFile.user.cpf ? [{ cpfCnpj: userFile.user.cpf }] : [])],
-      });
-      if (dbFoundUsers.length > 0) {
-        for (const data of dbFoundUsers) {
-          const newData: any = {};
-
-          if (userFile.user.email && data.email != userFile.user.email) {
-            newData.email = data.email;
-          }
-          if (userFile.user.codigo_permissionario && data.permitCode != userFile.user.codigo_permissionario) {
-            newData.permitCode = data.permitCode;
-          }
-          if (userFile.user.cpf && data.cpfCnpj != userFile.user.cpf) {
-            newData.cpfCnpj = data.cpfCnpj;
-          }
-
-          if (Object.keys(newData).length > 0) {
-            await this.usersRepository.update(data.id, newData);
-          }
-        }
-        for (const dbField of fields) {
-          const dtoField = FileUserMap[dbField];
-          if (dbFoundUsers.find((i) => i[dbField] === userFile.user[dtoField])) {
-            if (!errorDictionary.hasOwnProperty(dtoField)) {
-              errorDictionary[dtoField] = '';
-            }
-            if (errorDictionary[dtoField].length > 0) {
-              errorDictionary[dtoField] += SEPARATOR;
-            }
-            errorDictionary[dtoField] += userUploadEnum.FIELD_EXISTS;
-          }
-        }
-      }
-    }
-
-    // If has another user in upload with same email OR permitCode OR cpfCnpj
-    const existingFileUser = fileUsers.filter((i) => i.user.email === userFile.user.email || i.user.codigo_permissionario === userFile.user.codigo_permissionario || i.user.cpf === userFile.user.cpf);
-    if (existingFileUser.length > 1) {
-      for (const dbField of fields) {
-        const dtoField = FileUserMap[dbField];
-        const existingFUserByField = existingFileUser.filter((i) => i.user[dbField] === userFile.user[dbField]);
-        if (existingFUserByField.length > 1) {
-          if (!errorDictionary.hasOwnProperty(dtoField)) {
-            errorDictionary[dtoField] = '';
-          }
-          if (errorDictionary[dtoField].length > 0) {
-            errorDictionary[dtoField] += SEPARATOR;
-          }
-          errorDictionary[dtoField] += userUploadEnum.DUPLICATED_FIELD;
-        }
-      }
-    }
-
-    return errorDictionary;
-  }
 
   // #endregion
 
