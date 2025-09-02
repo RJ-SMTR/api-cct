@@ -97,15 +97,15 @@ export class CronJobsService {
   ) { }
 
 
-  async onModuleInit() {  
-    //await this.sincronizarEAgruparOrdensPagamento();
-    this.onModuleLoad().catch((error: Error) => {
+  async onModuleInit() {
+    // await this.sincronizarEAgruparOrdensPagamento();
+   await this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {
-    await this.remessaModalTerSexExec();
+
+  async onModuleLoad(){   
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {

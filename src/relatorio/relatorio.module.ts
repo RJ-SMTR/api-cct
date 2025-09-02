@@ -11,6 +11,7 @@ import { RelatorioConsolidadoRepository } from './consolidado/relatorio-consolid
 import { RelatorioNovoRemessaFinancialMovementRepository } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.repository';
 import { RelatorioNovoRemessaFinancialMovementService } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
 import { RelatorioSinteticoRepository } from './sintetico/relatorio-sintetico.repository';
+import { RelatorioDetalhadoRepository } from './relatorio-detalhado-vanzeiro.repository';
 import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio-extrato-bancario.repository';
 
 
@@ -18,6 +19,7 @@ import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio
   imports: [CnabModule],
   controllers: [RelatorioController, RelatorioNovoRemessaController],
   providers: [RelatorioService, RelatorioNovoRemessaService, RelatorioConsolidadoRepository,
+    RelatorioSinteticoRepository, RelatorioAnaliticoRepository, RelatorioNovoRemessaRepository,RelatorioDetalhadoRepository,
     RelatorioSinteticoRepository, RelatorioAnaliticoRepository, RelatorioNovoRemessaRepository,
     RelatorioExtratoBancarioRepository,
     RelatorioNovoRemessaFinancialMovementRepository, RelatorioNovoRemessaFinancialMovementService]
