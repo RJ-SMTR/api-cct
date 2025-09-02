@@ -739,8 +739,14 @@ WHERE (1=1) `;
                     da.id,
                     da."dataVencimento", 
                     uu."fullName" as nome, 
-                    da."valorRealEfetivado" as valor,
-                    op."nomeConsorcio"
+                      da."valorRealEfetivado" as valor,
+            CASE
+      WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
+      WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
+      WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
+      ELSE op."nomeConsorcio"
+  END AS "nomeConsorcio"
+
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
@@ -850,7 +856,13 @@ WHERE (1=1) `;
           da."dataVencimento",
           uu."fullName",
           uu."permitCode",
-          op."nomeConsorcio" as nome,
+ CASE
+                                WHEN op."idOperadora" = '8' THEN 'VLT'
+                                WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
+                                WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
+                                WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
+                                ELSE op."nomeConsorcio"
+                            END AS "nome",
          da."valorLancamento" as valor
         ${RelatorioNovoRemessaRepository.QUERY_FROM}
       `;

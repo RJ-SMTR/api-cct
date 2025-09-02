@@ -145,10 +145,16 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       }
 
       const remessaName = this.generateRemessaName();
+<<<<<<< HEAD
       const remotePath =
         headerName === 'VLT'
           ? this.dir(`${this.FOLDERS.REMESSA}/${remessaName}`)
           : this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${remessaName}`);
+=======
+      remotePath =
+       // headerName === 'VLT' ? this.dir(`${this.FOLDERS.REMESSA}/${remessaName}`) :
+         this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${remessaName}`);
+>>>>>>> 15c88a7ba06660637e42575de30744df2a74a976
 
       await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
       await this.submitCnabBackupRemessa(content);
