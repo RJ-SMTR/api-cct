@@ -9,7 +9,9 @@ import {
   isMonday,
   isSaturday,
   isSunday,
-  isTuesday,  
+  isTuesday,
+  nextMonday,
+  nextTuesday,
   subDays,
 } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
@@ -94,16 +96,15 @@ export class CronJobsService {
     private distributedLockService: DistributedLockService,
   ) { }
 
-
-  async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento();
+  async onModuleInit() {  
+    //await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-
-  async onModuleLoad() {   
+  async onModuleLoad() {
+    await this.remessaConsorciosBloqueioExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -175,7 +176,7 @@ export class CronJobsService {
             const today = new Date();
             if (isSaturday(today) || isSunday(today)) {
               return;
-            }           
+            }
           },
         },
       },
@@ -645,18 +646,18 @@ export class CronJobsService {
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     //Agrupa pagamentos     
 
-    for (let index = 0; index < consorcios.length; index++) {
-      if (pagamentoUnico) {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
-          dataFim, dataPagamento, "cett", [consorcios[index]]);
-      } else {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
-      }
-    }
-    //Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
-    //Gera o TXT
+    // for (let index = 0; index < consorcios.length; index++) {
+    //   if (pagamentoUnico) {
+    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
+    //       dataFim, dataPagamento, "cett", [consorcios[index]]);
+    //   } else {
+    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+    //       dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+    //   }
+    // }
+    // //Prepara o remessa
+    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    // //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
@@ -697,14 +698,14 @@ export class CronJobsService {
   async remessaModalTerSexExec(pagamentoUnico?: boolean) {
 
     const today = new Date();
-    let subDaysInt = 5;
+    let subDaysInt = 0;
 
-    if(isTuesday(today)){
+    if (isTuesday(today)) {
       subDaysInt = 4;
-    }else if(isFriday(today)){
+    } else if (isFriday(today)) {
       subDaysInt = 3;
     }
-    
+
     // else{
     //   return;
     // }   
@@ -724,7 +725,7 @@ export class CronJobsService {
       ordensAgrupadas.map(f => f.ordemPagamentoAgrupadoId)
         .join("','");
 
-    if(idsAgrupamentos && idsAgrupamentos.trim()!=''){
+    if (idsAgrupamentos && idsAgrupamentos.trim() != '') {
       //exclui historico
       await this.ordemPagamentoAgrupadoService.excluirHistorico(idsAgrupamentos);
       //atualizar ordens
@@ -759,7 +760,7 @@ export class CronJobsService {
 
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
-    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca']
+    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca','MobiRio','VLT']
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
@@ -787,19 +788,35 @@ export class CronJobsService {
     if (locked) {
       try {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
+
         // Sincroniza as ordens de pagamento para todos os modais e consorcios
+        const today = new Date();
+        let dataInicio = today
+        let dataFim = today
+        let dataPagamento = today;
 
-        const lastFriday = this.getLastFriday();
-        const nextThursday = this.getNextThursday();
-        const nextFriday = this.getNextFriday();
+        const dayOfWeek = today.getDay();
 
-        this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${lastFriday.toISOString()}, Data Fim: ${nextThursday.toISOString()}`, METHOD);
+        // Verifica se é sexta-feira (5), sábado (6), domingo (0) ou segunda-feira (1)
+        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
+          //Se está entre sexta e segunda!  
+          dataInicio = isFriday(today) ? today : this.getPreviousFriday(today);//data inicio sexta
+          dataFim = nextMonday(today);//data fim segunda
+          dataPagamento = nextTuesday(today);//data pagamento terça 
+        } else {
+          //Se está entre terça e quinta!  
+          dataInicio = isTuesday(today) ? today : this.getPreviousTuesday(today); //data inicio terça
+          dataFim = nextThursday(today); //data fim quinta
+          dataPagamento = nextFriday(today);//data pagamento sexta
+        }
+
+        this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
-        await this.ordemPagamentoService.sincronizarOrdensPagamento(lastFriday, nextThursday, consorciosEModais);
+        await this.ordemPagamentoService.sincronizarOrdensPagamento(dataInicio, dataFim, consorciosEModais);
         this.logger.log('Sincronização finalizada. Iniciando agrupamento para modais.', METHOD);
         const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
         // Agrupa para os modais
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(lastFriday, nextThursday, nextFriday, pagadorKey, CronJobsService.MODAIS);
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, pagadorKey, CronJobsService.MODAIS);
         this.logger.log('Tarefa finalizada com sucesso.', METHOD);
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
@@ -811,22 +828,21 @@ export class CronJobsService {
     }
   }
 
-  getNextThursday(date = new Date()) {
-    if (isThursday(date)) {
-      return new Date(date.toISOString().split('T')[0]);
-    }
-    return nextThursday(date);
+  getPreviousFriday(today: Date) {
+    const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, ..., 6 = sábado
+    // Calcula quantos dias voltar até a última sexta-feira
+    const daysSinceFriday = (dayOfWeek + 2) % 7 || 7;
+    const previousFriday = new Date(today);
+    previousFriday.setDate(today.getDate() - daysSinceFriday);
+    return previousFriday;
   }
 
-  getLastFriday(date = new Date()) {
-    if (isFriday(date)) {
-      return new Date(date.toISOString().split('T')[0]);
-    }
-    return previousFriday(date);
+  getPreviousTuesday(today: Date) {
+    const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, ..., 6 = sábado
+    // Calcula quantos dias voltar até a última terça-feira
+    const daysSinceTuesday = (dayOfWeek + 5) % 7 || 7;
+    const previousTuesday = new Date(today);
+    previousTuesday.setDate(today.getDate() - daysSinceTuesday);
+    return previousTuesday;
   }
-
-  getNextFriday(date = new Date()) {
-    return nextFriday(date);
-  }
-
 }
