@@ -41,8 +41,6 @@ inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
     inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
                     where (1=1) `;
 
-
-
   private static readonly ELEICAO_25 = ` FROM
   ordem_pagamento_agrupado opa 
     INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
@@ -52,7 +50,7 @@ inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
 WHERE (1=1) `;
 
   private static readonly QUERY_CONSOLIDADO_VANZEIROS = `
-      WITH latest_opah AS (
+       WITH latest_opah AS (
           SELECT DISTINCT ON (opah."ordemPagamentoAgrupadoId")
               opah."ordemPagamentoAgrupadoId",
               opah.id AS "opahId",
@@ -409,6 +407,21 @@ WHERE (1=1) `;
       order by "nomeConsorcio", "nomeFavorecido", "dataCaptura"
       `;
 
+  private readonly pendentes = `
+SELECT
+  DATE(op."dataOrdem") AS dataPagamento,
+  op."nomeOperadora" as nome,
+  op."valor" AS valor,
+  pu."bankCode"
+FROM ordem_pagamento op
+INNER JOIN public."user" pu ON pu.id = op."userId"
+WHERE
+    op."dataOrdem" BETWEEN $1  AND $2 
+    AND op."ordemPagamentoAgrupadoId" IS NULL
+    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
+`
+
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
@@ -453,37 +466,49 @@ WHERE (1=1) `;
       sql = sql + ` and vv."valor"<=${filter.valorMax} `
     }
 
-    const result: any[] = await queryRunner.query(sql);
+    let result: any[] = await queryRunner.query(sql);
+
+    if (filter.pendentes) {
+      const pendentes = await this.pendentesQuery(filter, queryRunner);
+      result = pendentes.concat(result);
+    }
 
     const count = result.length;
 
-    let valorTotal;
-
     const relatorioConsolidadoDto = new RelatorioConsolidadoNovoRemessaDto();
+
+
+    let valorTotal = 0;
 
     if (filter.aPagar != undefined || filter.emProcessamento != undefined) {
       const sqlPagar = this.somatorioTotalAPagar(sql);
-
       const resultTotal: any[] = await queryRunner.query(sqlPagar);
-
-      valorTotal = resultTotal.map(r => r.valor)
+      valorTotal = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
     }
 
     if (filter.pago != undefined || filter.erro != undefined) {
+      this.logger.log("cheguei aqui");
+
       const sqlPago = this.somatorioTotalPagoErro(sql);
-
       const resultTotal: any[] = await queryRunner.query(sqlPago);
+      valorTotal = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
 
-      valorTotal = resultTotal.map(r => r.valor)
+      this.logger.log('query pendentes');
+      const queryPendentes: any[] = await this.pendentesQuery(filter, queryRunner);
+      const resultTotalPendentes = queryPendentes.reduce((acc, r) => acc + Number(r.valor), 0);
+
+      this.logger.log(`resultTotalPendentes ${resultTotalPendentes}`);
+
+      valorTotal += resultTotalPendentes;
+      this.logger.log(`Valor total ${valorTotal}`);
     } else {
       const sqlPago = this.somatorioTotalPagoErro(sql);
-
       const resultTotal: any[] = await queryRunner.query(sqlPago);
-
-      valorTotal = resultTotal.map(r => r.valor)
+      valorTotal = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
     }
 
-    relatorioConsolidadoDto.valor = parseFloat(valorTotal);
+
+    relatorioConsolidadoDto.valor = parseFloat(String(valorTotal.toFixed(2)));
     relatorioConsolidadoDto.count = count;
 
     if (filter.userIds && filter.userIds.length > 0 || filter.todosVanzeiros) {
@@ -744,7 +769,6 @@ WHERE (1=1) `;
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
-         
       `;
 
       const statuses = this.getStatusParaFiltro(filter);
@@ -777,8 +801,6 @@ WHERE (1=1) `;
       } else {
         condicoesOutros += `AND uu.bloqueado = false`;
       }
-
-
     }
 
     // --- return ---
@@ -799,6 +821,13 @@ WHERE (1=1) `;
     this.logger.warn(finalSQL)
     return finalSQL;
   }
+
+  private async pendentesQuery(filter: IFindPublicacaoRelatorioNovoRemessa, queryRunner: QueryRunner) {
+    const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds]
+    const result = await queryRunner.query(this.pendentes, queryParams)
+    return result
+  }
+
   private consultaConsorcios(filter: IFindPublicacaoRelatorioNovoRemessa) {
     const dataInicio = formatDateISODate(filter.dataInicio);
     const dataFim = formatDateISODate(filter.dataFim);
@@ -928,6 +957,10 @@ WHERE (1=1) `;
   }
 
   private somatorioTotalAPagar(sql: string) {
+    return `select sum("valor") valor from (` + sql + `) s `;
+  }
+
+  private somatorioPendente(sql: string) {
     return `select sum("valor") valor from (` + sql + `) s `;
   }
 }

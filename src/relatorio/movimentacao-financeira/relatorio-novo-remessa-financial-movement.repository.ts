@@ -303,7 +303,7 @@ AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
 
 
       const count = allResults.length;
-      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento, pendentes } = allResults.reduce(
+      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento, valorPendente } = allResults.reduce(
         (acc, curr) => {
           const valor = Number.parseFloat(curr.valor);
           acc.valorTotal += valor;
@@ -312,7 +312,7 @@ AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
           else if (curr.status === "Rejeitado") acc.valorRejeitado += valor;
           else if (curr.status === "Estorno") acc.valorEstornado += valor;
           else if (curr.status === "Aguardando Pagamento") acc.valorAguardandoPagamento += valor;
-          else if (curr.status === "Pendente") acc.pendente += valor
+          else if (curr.status === "Pendente") acc.valorPendente += valor
 
           return acc;
         },
@@ -387,6 +387,7 @@ AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
         valorEstornado,
         valorRejeitado,
         valorAguardandoPagamento,
+        valorPendente,
         data: dataOrdenada,
       });
 
