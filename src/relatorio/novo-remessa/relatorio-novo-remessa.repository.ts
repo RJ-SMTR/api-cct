@@ -775,7 +775,7 @@ from item_transacao it
 
       if (filter.eleicao) {
         condicoes2024 += `AND ita."idOrdemPagamento" LIKE '%U%'`;
-      } else if (!filter.pendentes) {
+      } else {
         condicoes2024 += `AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
       }
       if (filter.desativados) {
