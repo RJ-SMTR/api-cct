@@ -9,11 +9,11 @@ import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNo
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementRepository {
-  private static readonly queryNewReport = `
+  private readonly queryNewReport = `
 SELECT DISTINCT 
     da."dataVencimento" AS dataPagamento,
     pu."fullName" AS nomes,
-      pu.email,
+    pu.email,
     pu."bankCode" AS "codBanco",
     bc.name AS "nomeBanco",
     pu."cpfCnpj",
@@ -53,13 +53,13 @@ WHERE
     and oph."motivoStatusRemessa" not in ('AM')
 `;
 
-  private static readonly queryOlderReport = `
+  private readonly queryOlderReport = `
 select distinct 
   da."dataVencimento" as dataPagamento,
   cf."nome" as nomes,
-     pu.email,
-    pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
+  pu.email,
+  pu."bankCode" AS "codBanco",
+  bc.name AS "nomeBanco",
   cf."cpfCnpj",
   ita."nomeConsorcio",
   da."valorLancamento" as valor,
@@ -105,9 +105,9 @@ where da."dataVencimento" between $1 and $2
   SELECT DISTINCT
       da."dataVencimento" AS dataPagamento,
       pu."fullName" AS nomes,
-         pu.email,
-    pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
       pu."cpfCnpj",
 	    opu."consorcio" AS "nomeConsorcio",
       da."valorLancamento" AS valor,
@@ -146,20 +146,79 @@ where da."dataVencimento" between $1 and $2
   `
 
 
-  private static notCpf2025 = `AND pu."cpfCnpj" NOT IN ('18201378000119',
+  private notCpf2025 = `AND pu."cpfCnpj" NOT IN ('18201378000119',
                                 '12464869000176',
                                 '12464539000180',
                                 '12464553000184',
                                 '44520687000161',
                                 '12464577000133'
           )`
-  private static notCpf2024 = `AND cf."cpfCnpj" NOT IN ('18201378000119',
+  private notCpf2024 = `AND cf."cpfCnpj" NOT IN ('18201378000119',
                                 '12464869000176',
                                 '12464539000180',
                                 '12464553000184',
                                 '44520687000161',
                                 '12464577000133'
           )`
+
+  private pendentes_25 = `
+UNION ALL
+
+SELECT
+  DATE(op."dataOrdem") AS dataPagamento,
+  op."nomeOperadora" as nomes,
+	pu.email,
+  pu."bankCode" AS "codBanco",
+  bc.name AS "nomeBanco",
+	pu."cpfCnpj",
+	op."nomeConsorcio",
+  op."valor" AS valor,
+  'Pendente' AS status
+FROM ordem_pagamento op
+INNER JOIN public."user" pu ON pu.id = op."userId"
+JOIN bank bc on bc.code = pu."bankCode"
+WHERE
+    op."dataOrdem" BETWEEN $1  AND $2 
+    AND op."ordemPagamentoAgrupadoId" IS NULL
+    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+    AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
+    AND (
+        ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR op."valor" <= $7::numeric)
+    )
+`
+
+  private pendentes_24 = `
+UNION ALL
+
+SELECT DISTINCT 
+    DATE(it."dataOrdem") AS dataPagamento,
+    uu."fullName" nome,
+    uu.email,
+    uu."bankCode" as "codBanco",
+    bc.name AS "nomeBanco",
+    uu."cpfCnpj",
+    it."nomeConsorcio" AS consorcio,
+    it."valor" AS valor,
+    uu.id,
+	'Pendente' AS status,
+   NULL::boolean
+from item_transacao it 
+        left join public.user uu on uu."permitCode"=it."idOperadora"
+		    JOIN bank bc on bc.code = uu."bankCode"
+        where it."dataOrdem" BETWEEN $1 AND $2
+        and it."nomeConsorcio" in('STPC','STPL','TEC')
+        AND ($5::integer[] IS NULL OR uu."id" = ANY($5::integer[]))
+        AND (
+         ($6::numeric IS NULL OR it."valor" >= $6::numeric) 
+         AND ($7::numeric IS NULL OR it."valor" <= $7::numeric)
+       )
+        and not exists
+          (
+            select 1 from detalhe_a da 
+                      where da."itemTransacaoAgrupadoId"=it."itemTransacaoAgrupadoId"
+          )
+`
 
   constructor(
     @InjectDataSource()
@@ -186,7 +245,6 @@ where da."dataVencimento" between $1 and $2
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       await queryRunner.connect();
-      this.logger.log("Conectado com sucesso.");
 
       let allResults: any[] = [];
 
@@ -196,38 +254,53 @@ where da."dataVencimento" between $1 and $2
         filter.dataFim = new Date("2024-12-31T00:00:00.000Z")
 
         const paramsFor2024 = this.getParametersByQuery(2024, filter);
-        let finalQuery2024 = RelatorioNovoRemessaFinancialMovementRepository.queryOlderReport;
+        let finalQuery2024 = this.queryOlderReport;
 
         if (filter.todosVanzeiros) {
-          finalQuery2024 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024}`;
+          finalQuery2024 += ` ${this.notCpf2024}`;
         }
 
-        if (filter.eleicao && initialYear === 2024) {
+        const is2024 = initialYear === 2024
+
+        if (is2024 && filter.eleicao) {
           finalQuery2024 += eleicaoExtraFilter;
           finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
-        } else if (initialYear === 2024) {
+        } else if (is2024 && !filter.pendentes) {
           finalQuery2024 += notEleicaoFilter2024
         }
+
         if (filter.desativados) {
           finalQuery2024 += `AND pu.bloqueado = true`
-         
+
         }
+
+        if (filter.pendentes && is2024) {
+          finalQuery2024 += this.pendentes_24
+        }
+
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
         filter.dataFim = actualDataFim
         filter.dataInicio = new Date("2025-01-01T00:00:00.000Z")
         const yearForNewQuery = finalYear >= 2025 ? finalYear : 2025;
         const paramsForNewerYears = this.getParametersByQuery(yearForNewQuery, filter);
-        let finalQuery2025 = RelatorioNovoRemessaFinancialMovementRepository.queryNewReport;
+        let finalQuery2025 = this.queryNewReport;
 
         if (filter.todosVanzeiros) {
-          finalQuery2025 += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
+          finalQuery2025 += ` ${this.notCpf2025} `;
         }
 
-        if (filter.eleicao && actualDataFim.getFullYear() === 2025) {
+
+        const is2025 = actualDataFim.getFullYear() === 2025
+        if (is2025 && filter.eleicao) {
           finalQuery2025 = this.eleicao2025
         }
-     
+
+        if (filter.pendentes && is2025) {
+          finalQuery2025 += this.pendentes_25
+          finalQuery2025 += `UNION ALL ${this.eleicao2025}`
+        }
+
 
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
 
@@ -235,25 +308,28 @@ where da."dataVencimento" between $1 and $2
 
       } else {
         const paramsForYear = this.getParametersByQuery(initialYear, filter);
+        const is2024 = initialYear === 2024
+        const is2025 = initialYear === 2025
+
 
         let finalQuery = queryDecision.query;
 
         if (filter.todosVanzeiros) {
-          if (initialYear === 2025) {
-            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2025} `;
+          if (is2025) {
+            finalQuery += ` ${this.notCpf2025} `;
           } else if (initialYear === 2024) {
-            finalQuery += ` ${RelatorioNovoRemessaFinancialMovementRepository.notCpf2024} `;
+            finalQuery += ` ${this.notCpf2024} `;
           }
         }
 
-        if (filter.eleicao && initialYear === 2024) {
+        if (is2024 && filter.eleicao) {
           finalQuery += eleicaoExtraFilter;
           finalQuery.replace('/* extra joins */', eleicaoInnerJoin)
-        } else if (initialYear === 2024) {
+        } else if (is2024 && !filter.pendentes) {
           finalQuery += notEleicaoFilter2024
         }
 
-        if (filter.eleicao && initialYear === 2025) {
+        if (filter.eleicao && is2025) {
           finalQuery = this.eleicao2025
         }
 
@@ -261,12 +337,21 @@ where da."dataVencimento" between $1 and $2
           finalQuery += ` AND pu.bloqueado = true`;
         }
 
+        if (filter.pendentes && is2025) {
+          finalQuery += this.pendentes_25
+          finalQuery += `UNION ALL ${this.eleicao2025}`
+        }
+
+        if (filter.pendentes && is2024) {
+          finalQuery += this.pendentes_24
+        }
+
         allResults = await queryRunner.query(finalQuery, paramsForYear);
       }
 
 
       const count = allResults.length;
-      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento } = allResults.reduce(
+      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento, valorPendente } = allResults.reduce(
         (acc, curr) => {
           const valor = Number.parseFloat(curr.valor);
           acc.valorTotal += valor;
@@ -275,6 +360,7 @@ where da."dataVencimento" between $1 and $2
           else if (curr.status === "Rejeitado") acc.valorRejeitado += valor;
           else if (curr.status === "Estorno") acc.valorEstornado += valor;
           else if (curr.status === "Aguardando Pagamento") acc.valorAguardandoPagamento += valor;
+          else if (curr.status === "Pendente") acc.valorPendente += valor
 
           return acc;
         },
@@ -284,6 +370,7 @@ where da."dataVencimento" between $1 and $2
           valorRejeitado: 0,
           valorEstornado: 0,
           valorAguardandoPagamento: 0,
+          valorPendente: 0,
         }
       );
 
@@ -301,7 +388,7 @@ where da."dataVencimento" between $1 and $2
 
       for (const r of allResults) {
         const dataPagamento = new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento));
-        const key = `${dataPagamento}|${r.nomes}`;
+        const key = `${dataPagamento}|${r.cpfCnpj}`;
 
         if (grouped.has(key)) {
           const existing = grouped.get(key)!;
@@ -348,6 +435,7 @@ where da."dataVencimento" between $1 and $2
         valorEstornado,
         valorRejeitado,
         valorAguardandoPagamento,
+        valorPendente,
         data: dataOrdenada,
       });
 
@@ -401,11 +489,11 @@ where da."dataVencimento" between $1 and $2
     }
 
     if (initialYear <= olderYearLimit && finalYear <= olderYearLimit) {
-      return { requiresMerge: false, query: RelatorioNovoRemessaFinancialMovementRepository.queryOlderReport };
+      return { requiresMerge: false, query: this.queryOlderReport };
     }
 
     if (initialYear >= newerYearStart && finalYear >= newerYearStart) {
-      return { requiresMerge: false, query: RelatorioNovoRemessaFinancialMovementRepository.queryNewReport };
+      return { requiresMerge: false, query: this.queryNewReport };
     }
 
     return { requiresMerge: true };

@@ -36,6 +36,7 @@ export class RelatorioNovoRemessaController {
   @ApiQuery({ name: 'todosConsorcios', required: false, type: Boolean, description: ApiDescription({ _: 'Se a pesquisa deve ser feita para todos os consórcios', default: false }) })
   @ApiQuery({ name: 'eleicao', required: false, type: Boolean, description: ApiDescription({ _: 'eleicao', default: false }) })
   @ApiQuery({ name: 'desativados', required: false, type: Boolean, description: ApiDescription({ _: 'desativados', default: false }) })
+  @ApiQuery({ name: 'pendentes', required: false, type: Boolean, description: ApiDescription({ _: 'pendentes', default: false }) })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('consolidado')
@@ -60,10 +61,11 @@ export class RelatorioNovoRemessaController {
     @Query('todosConsorcios', new ParseBooleanPipe({ optional: true })) todosConsorcios: boolean | undefined,
     @Query('eleicao', new ParseBooleanPipe({ optional: true })) eleicao: boolean | undefined,
     @Query('desativados', new ParseBooleanPipe({ optional: true })) desativados: boolean | undefined,
+    @Query('pendentes', new ParseBooleanPipe({ optional: true })) pendentes: boolean | undefined,
   ) {
     try {
       const result = await this.relatorioNovoRemessaService.findConsolidado({
-        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados
+        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes
       });
       return result;
     } catch (e) {

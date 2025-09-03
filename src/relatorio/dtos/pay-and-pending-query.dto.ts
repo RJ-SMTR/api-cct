@@ -56,9 +56,13 @@ export class FinancialMovementQueryDto {
   todosVanzeiros?: boolean;
 
 
-
-
-
+  @ApiPropertyOptional({
+    description: 'Pesquisa todos os pendentes.', default: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  pendentes?: boolean;
 
   @ApiPropertyOptional({
     description: 'Pesquisa o id dos usuários.',
