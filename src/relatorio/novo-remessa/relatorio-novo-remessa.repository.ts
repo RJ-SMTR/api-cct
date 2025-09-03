@@ -775,7 +775,7 @@ from item_transacao it
 
       if (filter.eleicao) {
         condicoes2024 += `AND ita."idOrdemPagamento" LIKE '%U%'`;
-      } else {
+      } else if (!filter.pendentes) {
         condicoes2024 += `AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
       }
       if (filter.desativados) {
@@ -792,8 +792,14 @@ from item_transacao it
                     da.id,
                     da."dataVencimento", 
                     uu."fullName" as nome, 
-                    da."valorRealEfetivado" as valor,
-                    op."nomeConsorcio"
+                      da."valorRealEfetivado" as valor,
+            CASE
+      WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
+      WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
+      WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
+      ELSE op."nomeConsorcio"
+  END AS "nomeConsorcio"
+
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
@@ -935,7 +941,13 @@ from item_transacao it
           da."dataVencimento",
           uu."fullName",
           uu."permitCode",
-          op."nomeConsorcio" as nome,
+ CASE
+                                WHEN op."idOperadora" = '8' THEN 'VLT'
+                                WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
+                                WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
+                                WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
+                                ELSE op."nomeConsorcio"
+                            END AS "nome",
          da."valorLancamento" as valor
         ${RelatorioNovoRemessaRepository.QUERY_FROM}
       `;
