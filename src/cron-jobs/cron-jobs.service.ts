@@ -33,7 +33,7 @@ import { validateEmail } from 'validations-br';
 import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
-import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
+import { nextFriday, nextThursday, isFriday } from 'date-fns';
 
 
 /**
@@ -98,14 +98,13 @@ export class CronJobsService {
 
 
   async onModuleInit() {  
-    //await this.sincronizarEAgruparOrdensPagamento();
+    await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {
-    await this.remessaModalTerSexExec();
+  async onModuleLoad() {   
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
