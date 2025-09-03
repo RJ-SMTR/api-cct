@@ -11,7 +11,6 @@ import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNo
 export class RelatorioNovoRemessaFinancialMovementRepository {
   private readonly queryNewReport = `
 SELECT DISTINCT 
-  'detalhe_a' AS tipo_registro,
     da."dataVencimento" AS dataPagamento,
     pu."fullName" AS nomes,
     pu.email,
@@ -106,9 +105,9 @@ where da."dataVencimento" between $1 and $2
   SELECT DISTINCT
       da."dataVencimento" AS dataPagamento,
       pu."fullName" AS nomes,
-         pu.email,
-    pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
       pu."cpfCnpj",
 	    opu."consorcio" AS "nomeConsorcio",
       da."valorLancamento" AS valor,
@@ -162,11 +161,10 @@ where da."dataVencimento" between $1 and $2
                                 '12464577000133'
           )`
 
-  private pendentes = `
+  private pendentes_25 = `
 UNION ALL
 
 SELECT
-  'operadora' AS tipo_registro,
   DATE(op."dataOrdem") AS dataPagamento,
   op."nomeOperadora" as nomes,
 	pu.email,
@@ -184,6 +182,34 @@ WHERE
     AND op."ordemPagamentoAgrupadoId" IS NULL
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
 AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
+`
+
+  private pendentes_24 = `
+UNION ALL
+
+SELECT DISTINCT 
+    DATE(it."dataOrdem") AS dataPagamento,
+    uu."fullName" nome,
+    uu.email,
+    uu."bankCode" as "codBanco",
+    bc.name AS "nomeBanco",
+    uu."cpfCnpj",
+    it."nomeConsorcio" AS consorcio,
+    it."valor" AS valor,
+    uu.id,
+	'Pendente' AS status,
+   NULL::boolean
+from item_transacao it 
+        left join public.user uu on uu."permitCode"=it."idOperadora"
+		    JOIN bank bc on bc.code = uu."bankCode"
+        where it."dataOrdem" BETWEEN $1 AND $2
+        and it."nomeConsorcio" in('STPC','STPL','TEC')
+        AND ($5::integer[] IS NULL OR uu."id" = ANY($5::integer[]))
+        and not exists
+          (
+            select 1 from detalhe_a da 
+                      where da."itemTransacaoAgrupadoId"=it."itemTransacaoAgrupadoId"
+          )
 `
 
   constructor(
@@ -226,16 +252,24 @@ AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
           finalQuery2024 += ` ${this.notCpf2024}`;
         }
 
-        if (filter.eleicao && initialYear === 2024) {
+        const is2024 = initialYear === 2024
+
+        if (is2024 && (filter.eleicao || filter.pendentes)) {
           finalQuery2024 += eleicaoExtraFilter;
           finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
-        } else if (initialYear === 2024) {
+        } else if (is2024) {
           finalQuery2024 += notEleicaoFilter2024
         }
+
         if (filter.desativados) {
           finalQuery2024 += `AND pu.bloqueado = true`
 
         }
+
+        if (filter.pendentes && is2024) {
+          finalQuery2024 += this.pendentes_24
+        }
+
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
 
         filter.dataFim = actualDataFim
@@ -250,12 +284,13 @@ AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
 
 
         const is2025 = actualDataFim.getFullYear() === 2025
-        if (filter.eleicao && is2025) {
+        if (is2025 && (filter.eleicao || filter.pendentes)) {
           finalQuery2025 = this.eleicao2025
         }
 
         if (filter.pendentes && is2025) {
-          finalQuery2025 += this.pendentes
+          finalQuery2025 += this.pendentes_25
+          finalQuery2025 += `UNION ALL ${this.eleicao2025}`
         }
 
 
@@ -279,7 +314,7 @@ AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
           }
         }
 
-        if (filter.eleicao && is2024) {
+        if (is2024 && (filter.eleicao || filter.pendentes)) {
           finalQuery += eleicaoExtraFilter;
           finalQuery.replace('/* extra joins */', eleicaoInnerJoin)
         } else if (is2024) {
@@ -295,7 +330,12 @@ AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
         }
 
         if (filter.pendentes && is2025) {
-          finalQuery += this.pendentes
+          finalQuery += this.pendentes_25
+          finalQuery += `UNION ALL ${this.eleicao2025}`
+        }
+
+        if (filter.pendentes && is2024) {
+          finalQuery += this.pendentes_24
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
