@@ -41,6 +41,7 @@ inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
     inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
                     where (1=1) `;
 
+
   private static readonly ELEICAO_25 = ` FROM
   ordem_pagamento_agrupado opa 
     INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
@@ -419,7 +420,11 @@ WHERE
     op."dataOrdem" BETWEEN $1  AND $2 
     AND op."ordemPagamentoAgrupadoId" IS NULL
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
+    AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
+    AND (
+          ($4::numeric IS NULL OR it."valor" >= $4::numeric) 
+          AND ($4::numeric IS NULL OR it."valor" <= $4::numeric)
+      )
 `
 
   private pendentes_24 = `
@@ -434,6 +439,10 @@ from item_transacao it
         where it."dataOrdem" BETWEEN $1 AND $2
         and it."nomeConsorcio" in('STPC','STPL','TEC')
         AND ($3::integer[] IS NULL OR uu."id" = ANY($3::integer[]))
+        AND (
+          ($4::numeric IS NULL OR it."valor" >= $4::numeric) 
+          AND ($4::numeric IS NULL OR it."valor" <= $4::numeric)
+        )
         and not exists
           (
             select 1 from detalhe_a da 
@@ -514,14 +523,11 @@ from item_transacao it
       const resultTotal: any[] = await queryRunner.query(sqlPago);
       valorTotal = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
 
-
       if (filter.pendentes) {
         const queryPendentes: any[] = await this.pendentesQuery(filter, queryRunner);
         const resultTotalPendentes = queryPendentes.reduce((acc, r) => acc + Number(r.valor), 0);
 
-
         valorTotal += resultTotalPendentes;
-        this.logger.log(`Valor total ${valorTotal}`);
       }
     } else {
       const sqlPago = this.somatorioTotalPagoErro(sql);
@@ -767,7 +773,7 @@ from item_transacao it
         condicoes2024 += ` and ita."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
 
-      if (filter.eleicao) {
+      if (filter.eleicao || filter.pendentes) {
         condicoes2024 += `AND ita."idOrdemPagamento" LIKE '%U%'`;
       } else {
         condicoes2024 += `AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
@@ -823,6 +829,7 @@ from item_transacao it
       } else {
         condicoesOutros += `AND uu.bloqueado = false`;
       }
+
     }
 
     // --- return ---
@@ -852,7 +859,7 @@ from item_transacao it
     const anoFim = new Date(filter.dataFim).getFullYear();
 
     if (anoInicio === 2024 && anoFim === 2024) {
-      const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds];
+      const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds, filter.valorMin, filter.valorMax];
       return await queryRunner.query(this.pendentes_24, queryParams);
     }
 
@@ -865,8 +872,8 @@ from item_transacao it
       const ateFinal2024 = `${anoInicio}-12-31`;
       const inicio2025 = `2025-01-01`;
 
-      const queryParams2024 = [filter.dataInicio, ateFinal2024, filter.userIds];
-      const queryParams2025 = [inicio2025, filter.dataFim, filter.userIds];
+      const queryParams2024 = [filter.dataInicio, ateFinal2024, filter.userIds, filter.valorMin, filter.valorMax];
+      const queryParams2025 = [inicio2025, filter.dataFim, filter.userIds, filter.valorMin, filter.valorMax];
 
       const result2024 = await queryRunner.query(this.pendentes_24, queryParams2024);
       const result2025 = await queryRunner.query(this.pendentes_25, queryParams2025);
@@ -1006,10 +1013,6 @@ from item_transacao it
   }
 
   private somatorioTotalAPagar(sql: string) {
-    return `select sum("valor") valor from (` + sql + `) s `;
-  }
-
-  private somatorioPendente(sql: string) {
     return `select sum("valor") valor from (` + sql + `) s `;
   }
 }
