@@ -422,8 +422,8 @@ WHERE
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
     AND (
-          ($4::numeric IS NULL OR it."valor" >= $4::numeric) 
-          AND ($4::numeric IS NULL OR it."valor" <= $4::numeric)
+          ($4::numeric IS NULL OR op."valor" >= $4::numeric) 
+          AND ($5::numeric IS NULL OR op."valor" <= $5::numeric)
       )
 `
 
@@ -441,7 +441,7 @@ from item_transacao it
         AND ($3::integer[] IS NULL OR uu."id" = ANY($3::integer[]))
         AND (
           ($4::numeric IS NULL OR it."valor" >= $4::numeric) 
-          AND ($4::numeric IS NULL OR it."valor" <= $4::numeric)
+          AND ($5::numeric IS NULL OR it."valor" <= $5::numeric)
         )
         and not exists
           (
@@ -773,9 +773,9 @@ from item_transacao it
         condicoes2024 += ` and ita."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
 
-      if (filter.eleicao || filter.pendentes) {
+      if (filter.eleicao) {
         condicoes2024 += `AND ita."idOrdemPagamento" LIKE '%U%'`;
-      } else {
+      } else if (!filter.pendentes) {
         condicoes2024 += `AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
       }
       if (filter.desativados) {

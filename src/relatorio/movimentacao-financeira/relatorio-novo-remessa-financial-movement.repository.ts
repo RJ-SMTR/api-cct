@@ -262,10 +262,10 @@ from item_transacao it
 
         const is2024 = initialYear === 2024
 
-        if (is2024 && (filter.eleicao || filter.pendentes)) {
+        if (is2024 && filter.eleicao) {
           finalQuery2024 += eleicaoExtraFilter;
           finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
-        } else if (is2024) {
+        } else if (is2024 && !filter.pendentes) {
           finalQuery2024 += notEleicaoFilter2024
         }
 
@@ -292,7 +292,7 @@ from item_transacao it
 
 
         const is2025 = actualDataFim.getFullYear() === 2025
-        if (is2025 && (filter.eleicao || filter.pendentes)) {
+        if (is2025 && filter.eleicao) {
           finalQuery2025 = this.eleicao2025
         }
 
@@ -322,10 +322,10 @@ from item_transacao it
           }
         }
 
-        if (is2024 && (filter.eleicao || filter.pendentes)) {
+        if (is2024 && filter.eleicao) {
           finalQuery += eleicaoExtraFilter;
           finalQuery.replace('/* extra joins */', eleicaoInnerJoin)
-        } else if (is2024) {
+        } else if (is2024 && !filter.pendentes) {
           finalQuery += notEleicaoFilter2024
         }
 
