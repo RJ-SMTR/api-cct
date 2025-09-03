@@ -265,7 +265,7 @@ from item_transacao it
         if (is2024 && filter.eleicao) {
           finalQuery2024 += eleicaoExtraFilter;
           finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
-        } else if (is2024 && !filter.pendentes) {
+        } else if (is2024) {
           finalQuery2024 += notEleicaoFilter2024
         }
 
@@ -298,7 +298,6 @@ from item_transacao it
 
         if (filter.pendentes && is2025) {
           finalQuery2025 += this.pendentes_25
-          finalQuery2025 += `UNION ALL ${this.eleicao2025}`
         }
 
 
@@ -325,7 +324,7 @@ from item_transacao it
         if (is2024 && filter.eleicao) {
           finalQuery += eleicaoExtraFilter;
           finalQuery.replace('/* extra joins */', eleicaoInnerJoin)
-        } else if (is2024 && !filter.pendentes) {
+        } else if (is2024) {
           finalQuery += notEleicaoFilter2024
         }
 
@@ -339,7 +338,6 @@ from item_transacao it
 
         if (filter.pendentes && is2025) {
           finalQuery += this.pendentes_25
-          finalQuery += `UNION ALL ${this.eleicao2025}`
         }
 
         if (filter.pendentes && is2024) {
