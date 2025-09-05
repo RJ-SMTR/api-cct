@@ -438,6 +438,7 @@ from item_transacao it
 		    JOIN bank bc on bc.code = uu."bankCode"
         where it."dataOrdem" BETWEEN $1 AND $2
         and it."nomeConsorcio" in('STPC','STPL','TEC')
+		    and it."idOrdemPagamento" <> 'PU04'
         AND ($3::integer[] IS NULL OR uu."id" = ANY($3::integer[]))
         AND (
           ($4::numeric IS NULL OR it."valor" >= $4::numeric) 
@@ -803,11 +804,11 @@ from item_transacao it
       WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
       WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
       ELSE op."nomeConsorcio"
-  END AS "nomeConsorcio"
+      END AS "nomeConsorcio"
 
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
+      condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
       `;
 
       const statuses = this.getStatusParaFiltro(filter);

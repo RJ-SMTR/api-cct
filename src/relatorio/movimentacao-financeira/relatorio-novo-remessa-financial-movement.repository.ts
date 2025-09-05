@@ -209,6 +209,7 @@ from item_transacao it
         where it."dataOrdem" BETWEEN $1 AND $2
         and it."nomeConsorcio" in('STPC','STPL','TEC')
         AND ($5::integer[] IS NULL OR uu."id" = ANY($5::integer[]))
+		    and it."idOrdemPagamento" <> 'PU04'
         AND (
          ($6::numeric IS NULL OR it."valor" >= $6::numeric) 
          AND ($7::numeric IS NULL OR it."valor" <= $7::numeric)
