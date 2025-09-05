@@ -105,7 +105,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {   
-    this.remessaConsorciosExec()
+    this.remessaModalExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -739,7 +739,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
     const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca','MobiRio','VLT']
-   // await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
