@@ -450,7 +450,6 @@ from item_transacao it
           )
 `
 
-
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
@@ -773,11 +772,15 @@ from item_transacao it
         condicoes2024 += ` and ita."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
 
-      if (filter.eleicao) {
-        condicoes2024 += `AND ita."idOrdemPagamento" LIKE '%U%'`;
-      } else if (!filter.pendentes) {
-        condicoes2024 += `AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
+      if (!(filter.eleicao && filter.pendentes)) {
+        if (filter.eleicao) {
+          condicoes2024 += ` AND ita."idOrdemPagamento" LIKE '%U%'`;
+        } else if (!filter.pendentes) {
+          condicoes2024 += ` AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
+        }
       }
+
+
       if (filter.desativados) {
         condicoes2024 += `AND uu.bloqueado = true`;
       } else {
@@ -836,16 +839,60 @@ from item_transacao it
         condicoesOutros += `AND uu.bloqueado = false`;
       }
 
+      if (filter.pendentes && filter.eleicao) {
+        condicoesOutros += ` \n UNION ALL
+        SELECT DISTINCT
+        da.id,
+        da."dataVencimento" AS dataPagamento,
+        pu."fullName" as nome,
+        da."valorLancamento" as valor,
+        opu."consorcio"
+        ${RelatorioNovoRemessaRepository.ELEICAO_25}
+        `;
+        condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'`;
+
+        const statuses = this.getStatusParaFiltro(filter);
+
+        if (hasStatusFilter) {
+          condicoesOutros += ` and oph."statusRemessa" in (${statuses?.join(',')}) \n`;
+
+          const has3or4 = statuses?.includes(3) || statuses?.includes(4);
+
+          if (has3or4) {
+            condicoesOutros += ` and oph."motivoStatusRemessa" <> 'AM'\n`;
+          }
+        }
+
+        if (filter.valorMin !== undefined) {
+          condicoesOutros += ` and da."valorRealEfetivado" >= ${filter.valorMin} `;
+        }
+
+        if (filter.valorMax !== undefined) {
+          condicoesOutros += ` and da."valorRealEfetivado" <= ${filter.valorMax} `;
+        }
+
+        if (filter.userIds) {
+          condicoesOutros += ` and uu.id in ('${filter.userIds.join("', '")}')`;
+        } else if (filter.todosVanzeiros) {
+          condicoesOutros += ` and opu."consorcio" in('STPC','STPL','TEC')`;
+        }
+        if (filter.desativados) {
+          condicoesOutros += `AND pu.bloqueado = true`;
+        } else {
+          condicoesOutros += `AND pu.bloqueado = false`;
+        }
+      }
+
     }
 
     // --- return ---
     let finalSQL = '';
     if (sql2024 && sqlOutros) {
       finalSQL = `
-      SELECT * FROM (
-        (${sql2024} ${condicoes2024})
+        SELECT * FROM(
+          (${sql2024} ${condicoes2024})
         UNION ALL
-        (${sqlOutros} ${condicoesOutros})
+          (${sqlOutros} ${condicoesOutros})
       ) AS resultado
     `;
     } else if (sql2024) {
@@ -870,12 +917,12 @@ from item_transacao it
     }
 
     if (anoInicio >= 2025 && anoFim >= 2025) {
-      const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds];
+      const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds, filter.valorMin, filter.valorMax];
       return await queryRunner.query(this.pendentes_25, queryParams);
     }
 
     if (anoInicio === 2024 && anoFim >= 2025) {
-      const ateFinal2024 = `${anoInicio}-12-31`;
+      const ateFinal2024 = `${anoInicio} -12 - 31`;
       const inicio2025 = `2025-01-01`;
 
       const queryParams2024 = [filter.dataInicio, ateFinal2024, filter.userIds, filter.valorMin, filter.valorMax];
@@ -910,7 +957,7 @@ from item_transacao it
     let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
     `;
     // --- BLOCO PARA 2024 ---
-    if (incluir2024) {
+    if ((filter.pago !== undefined || filter.erro !== undefined) && incluir2024) {
       sql2024 = `
         SELECT distinct
           ita.id,
@@ -941,7 +988,7 @@ from item_transacao it
           da."dataVencimento",
           uu."fullName",
           uu."permitCode",
- CASE
+          CASE
                                 WHEN op."idOperadora" = '8' THEN 'VLT'
                                 WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
                                 WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
@@ -954,11 +1001,6 @@ from item_transacao it
       }
 
 
-      if (filter.desativados) {
-        condicoesOutros += `AND uu.bloqueado = true`;
-      } else {
-        condicoesOutros += `AND uu.bloqueado = false`;
-      }
       if (hasStatusFilter) {
         condicoesOutros += ` and oph."statusRemessa" in (${statuses?.join(',')})\n`;
 
@@ -984,11 +1026,6 @@ from item_transacao it
       // condicoesOutros += `      AND ita."idOrdemPagamento" LIKE '%U%'`;
     } else {
       condicoes2024 += `  AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
-    }
-    if (filter.desativados) {
-      condicoes2024 += `AND pu.bloqueado = true`;
-    } else {
-      condicoes2024 += `AND pu.bloqueado = false`;
     }
     // --- return ---
     let finalSQL = '';
@@ -1021,10 +1058,10 @@ from item_transacao it
 
 
   private somatorioTotalPagoErro(sql: string) {
-    return `select sum("valor") valor from (` + sql + `) s `;
+    return `select sum("valor") valor from(` + sql + `) s `;
   }
 
   private somatorioTotalAPagar(sql: string) {
-    return `select sum("valor") valor from (` + sql + `) s `;
+    return `select sum("valor") valor from(` + sql + `) s`;
   }
 }

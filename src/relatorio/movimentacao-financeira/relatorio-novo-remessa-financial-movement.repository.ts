@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
+import { fi } from 'date-fns/locale';
 
 
 @Injectable()
@@ -262,20 +263,31 @@ from item_transacao it
 
         const is2024 = initialYear === 2024
 
-        if (is2024 && filter.eleicao) {
-          finalQuery2024 += eleicaoExtraFilter;
-          finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
-        } else if (is2024 && !filter.pendentes) {
-          finalQuery2024 += notEleicaoFilter2024
+        if (is2024) {
+          // Caso 1: Eleição + Pendentes juntos
+          if (filter.eleicao && filter.pendentes) {
+            this.logger.log("2024 -> pendentes e eleição")
+            finalQuery2024 += this.pendentes_24;
+            // Caso 2: Apenas Eleição
+          } else if (filter.eleicao) {
+            this.logger.log("2024 ->  eleição")
+            finalQuery2024 += eleicaoExtraFilter;
+            finalQuery2024 = finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin);
+            // Caso 3: Apenas Pendentes
+          } else if (filter.pendentes) {
+            this.logger.log('2024 → Apenas Pendentes');
+            finalQuery2024 += notEleicaoFilter2024;
+            finalQuery2024 += this.pendentes_24;
+            // Caso 4: Nem Eleição nem Pendentes
+          } else {
+            this.logger.log('2024 → Sem eleição e sem pendentes');
+            finalQuery2024 += notEleicaoFilter2024;
+          }
         }
 
         if (filter.desativados) {
           finalQuery2024 += `AND pu.bloqueado = true`
 
-        }
-
-        if (filter.pendentes && is2024) {
-          finalQuery2024 += this.pendentes_24
         }
 
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
@@ -292,63 +304,87 @@ from item_transacao it
 
 
         const is2025 = actualDataFim.getFullYear() === 2025
-        if (is2025 && filter.eleicao) {
-          finalQuery2025 = this.eleicao2025
-        }
 
-        if (filter.pendentes && is2025) {
-          finalQuery2025 += this.pendentes_25
-          finalQuery2025 += `UNION ALL ${this.eleicao2025}`
+        if (is2025) {
+          if (filter.eleicao && filter.pendentes) {
+            this.logger.log('eleicao e pendentes')
+            // eleição sozinho OU eleição + pendentes
+            finalQuery2025 += ` UNION ALL ${this.eleicao2025}`;
+            finalQuery2025 += this.pendentes_25;
+          } else if (filter.eleicao) {
+            this.logger.log('somente eleicao ')
+            finalQuery2025 = this.eleicao2025;
+          } else if (filter.pendentes) {
+            this.logger.log('somente pendentes')
+            // só pendentes
+            finalQuery2025 += this.pendentes_25;
+          }
         }
-
 
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
 
         allResults = [...resultFrom2024, ...resultFromNewerYears];
-
       } else {
         const paramsForYear = this.getParametersByQuery(initialYear, filter);
-        const is2024 = initialYear === 2024
-        const is2025 = initialYear === 2025
-
+        const is2024 = initialYear === 2024;
+        const is2025 = initialYear === 2025;
 
         let finalQuery = queryDecision.query;
 
         if (filter.todosVanzeiros) {
           if (is2025) {
             finalQuery += ` ${this.notCpf2025} `;
-          } else if (initialYear === 2024) {
+          } else if (is2024) {
             finalQuery += ` ${this.notCpf2024} `;
           }
         }
 
-        if (is2024 && filter.eleicao) {
-          finalQuery += eleicaoExtraFilter;
-          finalQuery.replace('/* extra joins */', eleicaoInnerJoin)
-        } else if (is2024 && !filter.pendentes) {
-          finalQuery += notEleicaoFilter2024
-        }
-
-        if (filter.eleicao && is2025) {
-          finalQuery = this.eleicao2025
-        }
 
         if (filter.desativados) {
           finalQuery += ` AND pu.bloqueado = true`;
         }
 
-        if (filter.pendentes && is2025) {
-          finalQuery += this.pendentes_25
-          finalQuery += `UNION ALL ${this.eleicao2025}`
+
+        if (is2024) {
+          // Caso 1: Eleição + Pendentes juntos
+          if (filter.eleicao && filter.pendentes) {
+            finalQuery += this.pendentes_24;
+            // Caso 2: Apenas Eleição
+          } else if (filter.eleicao) {
+            finalQuery += eleicaoExtraFilter;
+            finalQuery = finalQuery.replace('/* extra joins */', eleicaoInnerJoin);
+            // Caso 3: Apenas Pendentes
+          } else if (filter.pendentes) {
+            this.logger.log('2024 → Apenas Pendentes');
+            finalQuery += notEleicaoFilter2024;
+            finalQuery += this.pendentes_24;
+            // Caso 4: Nem Eleição nem Pendentes
+          } else {
+            this.logger.log('2024 → Sem eleição e sem pendentes');
+            finalQuery += notEleicaoFilter2024;
+          }
         }
 
-        if (filter.pendentes && is2024) {
-          finalQuery += this.pendentes_24
+
+        if (is2025) {
+          if (filter.eleicao && filter.pendentes) {
+            this.logger.log('eleicao e pendentes')
+            // eleição sozinho OU eleição + pendentes
+            finalQuery += ` UNION ALL ${this.eleicao2025}`;
+            finalQuery += this.pendentes_25;
+          } else if (filter.eleicao) {
+            this.logger.log('somente eleicao ')
+            finalQuery = this.eleicao2025;
+          } else if (filter.pendentes) {
+            this.logger.log('somente pendentes')
+            // só pendentes
+            finalQuery += this.pendentes_25;
+          }
         }
+
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
       }
-
 
       const count = allResults.length;
       const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento, valorPendente } = allResults.reduce(
