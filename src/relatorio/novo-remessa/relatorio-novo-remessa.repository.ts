@@ -449,6 +449,14 @@ from item_transacao it
             select 1 from detalhe_a da 
                       where da."itemTransacaoAgrupadoId"=it."itemTransacaoAgrupadoId"
           )
+      and not exists (
+			  select 1 from item_transacao itt
+			  inner join item_transacao_agrupado ita on itt."itemTransacaoAgrupadoId" = ita."id"
+  			inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id	
+		    where itt."dataOrdem" = it."dataOrdem"
+			  and itt."idOrdemPagamento" = it."idOrdemPagamento"
+			  and itt."idOperadora" = it."idOperadora"
+		)
 `
 
   constructor(
