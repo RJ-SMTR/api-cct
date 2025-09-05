@@ -105,6 +105,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {   
+    this.remessaConsorciosExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -658,44 +659,34 @@ export class CronJobsService {
     //Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     // //Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
-    //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt, headerName);
+    // const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
+    // //Envia para o SFTP
+    // await this.remessaService.enviarRemessa(txt, headerName);
   }
 
-  async remessaVLTExec(todayCustom?: Date, pagamentoUnico?: boolean) {
-    //Rodar de segunda a sexta   
-    let today = todayCustom ? todayCustom : new Date();
-    /** defaut: qua,qui,sex,sáb,dom */
-    let daysBeforeBegin = 1;
-    let daysBeforeEnd = 1;
-    if (isMonday(today)) {
-      daysBeforeBegin = 3;
-      daysBeforeEnd = 3;
-    } else if (isTuesday(today)) {
-      daysBeforeBegin = 3;
-    }
-    const dataInicio = subDays(today, daysBeforeBegin);
-    const dataFim = subDays(today, daysBeforeEnd);
+  // async remessaVLTExec(todayCustom?: Date, pagamentoUnico?: boolean) {
+  //   //Rodar de segunda a sexta   
+  //   let today = todayCustom ? todayCustom : new Date();
+  //   /** defaut: qua,qui,sex,sáb,dom */
+  //   let daysBeforeBegin = 1;
+  //   let daysBeforeEnd = 1;
+  //   if (isMonday(today)) {
+  //     daysBeforeBegin = 3;
+  //     daysBeforeEnd = 3;
+  //   } else if (isTuesday(today)) {
+  //     daysBeforeBegin = 3;
+  //   }
+  //   const dataInicio = subDays(today, daysBeforeBegin);
+  //   const dataFim = subDays(today, daysBeforeEnd);
 
-    console.log(`data incicio: ${dataInicio}`);
-    console.log(`data fim: ${dataFim}`);
-    console.log(`data pagamento: ${today}`);
-    await this.geradorRemessaExec(dataInicio, dataFim, today,
-      ['VLT'], HeaderName.VLT, pagamentoUnico);
-  }
+  //   console.log(`data incicio: ${dataInicio}`);
+  //   console.log(`data fim: ${dataFim}`);
+  //   console.log(`data pagamento: ${today}`);
+  //   await this.geradorRemessaExec(dataInicio, dataFim, today,
+  //     ['VLT'], HeaderName.VLT, pagamentoUnico);
+  // }
 
-  async remessaModalExec(dataInicioU?: string, dataFimU?: string, dataPagamento?: string, pagamentoUnico?: boolean) {
-    //Rodar Sexta 
-    const today = new Date();
-    const dataInicio = dataInicioU ? new Date(dataInicioU) : subDays(today, 7);
-    const dataFim = dataFimU ? new Date(dataFimU) : subDays(today, 1);
-    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
-      ['STPC', 'STPL', 'TEC'], HeaderName.MODAL, pagamentoUnico);
-  }
-
-  async remessaModalTerSexExec(pagamentoUnico?: boolean) {
-
+  async remessaModalExec(pagamentoUnico?: boolean) {
     const today = new Date();
     let subDaysInt = 0;
 
@@ -732,19 +723,9 @@ export class CronJobsService {
     }
   }
 
-  async remessaConsorciosExec(dtInicio?: string, dtFim?: string, dataPagamento?: string, pagamentoUnico?: boolean) {
-    //Rodar na Sexta
-    const today = new Date();
-    const dataInicio = dtInicio ? new Date(dtInicio) : subDays(today, 7);
-    const dataFim = dtFim ? new Date(dtFim) : subDays(today, 1);
-    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
-      ['MobiRio'], HeaderName.CONSORCIO, pagamentoUnico);
-  }
-
-  async remessaConsorciosBloqueioExec(pagamentoUnico?: boolean) {
+  async remessaConsorciosExec(pagamentoUnico?: boolean) {
 
     const today = new Date();
-
     let subDaysInt = 0;
 
     if (isTuesday(today)) {
@@ -758,7 +739,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
     const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca','MobiRio','VLT']
-   // await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
