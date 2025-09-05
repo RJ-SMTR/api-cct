@@ -40,6 +40,14 @@ export class FinancialMovementQueryDto {
   eleicao?: boolean;
 
   @ApiPropertyOptional({
+    description: 'Pesquisa usuarios desativados.', default: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  desativados?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Pesquisa todos os vanzeiros.', default: false
   })
   @IsOptional()
@@ -47,12 +55,14 @@ export class FinancialMovementQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   todosVanzeiros?: boolean;
 
+
   @ApiPropertyOptional({
-    description: 'Pesquisa usuarios de eleição.', default: false
+    description: 'Pesquisa todos os pendentes.', default: false
   })
-
-
-
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  pendentes?: boolean;
 
   @ApiPropertyOptional({
     description: 'Pesquisa o id dos usuários.',
@@ -87,6 +97,7 @@ export class FinancialMovementQueryDto {
   @Type(() => Number)
   valorMax?: number;
 
+
   @ApiPropertyOptional({ description: 'Se o pagamento foi pago com sucesso', default: false })
   @IsOptional()
   @IsBoolean()
@@ -117,4 +128,5 @@ export class FinancialMovementQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   rejeitado?: boolean;
 }
+
 
