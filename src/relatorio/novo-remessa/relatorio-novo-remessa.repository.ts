@@ -772,13 +772,15 @@ from item_transacao it
         condicoes2024 += ` and ita."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
 
-      if (!(filter.eleicao && filter.pendentes)) {
-        if (filter.eleicao) {
-          condicoes2024 += ` AND ita."idOrdemPagamento" LIKE '%U%'`;
-        } else if (!filter.pendentes) {
-          condicoes2024 += ` AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
-        }
+
+      if (filter.eleicao && !filter.pendentes) {
+        // Somente eleição
+        condicoes2024 += ` AND ita."idOrdemPagamento" LIKE '%U%'`;
+      } else if (!filter.eleicao && filter.pendentes) {
+        // Somente pendentes
+        condicoes2024 += ` AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
       }
+
 
 
       if (filter.desativados) {
