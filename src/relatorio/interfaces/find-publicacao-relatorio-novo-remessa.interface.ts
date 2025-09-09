@@ -12,4 +12,7 @@ export interface IFindPublicacaoRelatorioNovoRemessa {
   todosVanzeiros?: boolean;
   todosConsorcios?: boolean;
   eleicao?: boolean;
+  desativados?: boolean;
+  pendentes?: boolean;
 }
+
