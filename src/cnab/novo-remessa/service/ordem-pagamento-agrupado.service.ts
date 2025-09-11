@@ -8,6 +8,7 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
+import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {  
@@ -95,5 +96,13 @@ export class OrdemPagamentoAgrupadoService {
 
   public async getHistoricoUnico(id: number) {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoUnico(id)
+  }  
+
+  async excluirHistorico(ids:string) {
+     await this.ordemPagamentoAgrupadoHistRepository.excluirHistorico(ids);
+  } 
+
+  async excluirOrdensAgrupadas(ids:string) {
+    await this.ordemPagamentoAgrupadoRepository.excluirPorIds(ids)
   }  
 }

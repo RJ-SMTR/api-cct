@@ -10,6 +10,8 @@ import {
   isSaturday,
   isSunday,
   isTuesday,
+  nextMonday,
+  nextTuesday,
   subDays,
 } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
@@ -33,6 +35,7 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+
 
 
 /**
@@ -98,15 +101,15 @@ export class CronJobsService {
   ) { }
 
 
-  async onModuleInit() {
+  async onModuleInit() {  
     await this.sincronizarEAgruparOrdensPagamento();
      this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-
-  async onModuleLoad() {
+  async onModuleLoad() {   
+    //  await this.remessaModalExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -179,7 +182,6 @@ export class CronJobsService {
             if (isSaturday(today) || isSunday(today)) {
               return;
             }
-            await this.remessaVLTExec(new Date());
           },
         },
       },
@@ -247,7 +249,7 @@ export class CronJobsService {
       },
       {
         /**
-         * Sincroniza e agrupa ordens de pagamento.
+         * Sincroniza transacoes do BQ.
          * */
         name: CronJobsEnum.sincronizarTransacoesBq,
         cronJobParameters: {
@@ -668,64 +670,91 @@ export class CronJobsService {
           dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
       }
     }
-    // Prepara o remessa
+    //Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
-
-    // Gera o TXT
+    //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
-
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
-
   }
 
-  async remessaVLTExec(todayCustom?: Date, pagamentoUnico?: boolean) {
-    //Rodar de segunda a sexta   
-    let today = todayCustom ? todayCustom : new Date();
-    /** defaut: qua,qui,sex,sáb,dom */
-    let daysBeforeBegin = 1;
-    let daysBeforeEnd = 1;
-    if (isMonday(today)) {
-      daysBeforeBegin = 3;
-      daysBeforeEnd = 3;
-    } else if (isTuesday(today)) {
-      daysBeforeBegin = 3;
-    }
-    const dataInicio = subDays(today, daysBeforeBegin);
-    const dataFim = subDays(today, daysBeforeEnd);
+  // async remessaVLTExec(todayCustom?: Date, pagamentoUnico?: boolean) {
+  //   //Rodar de segunda a sexta   
+  //   let today = todayCustom ? todayCustom : new Date();
+  //   /** defaut: qua,qui,sex,sáb,dom */
+  //   let daysBeforeBegin = 1;
+  //   let daysBeforeEnd = 1;
+  //   if (isMonday(today)) {
+  //     daysBeforeBegin = 3;
+  //     daysBeforeEnd = 3;
+  //   } else if (isTuesday(today)) {
+  //     daysBeforeBegin = 3;
+  //   }
+  //   const dataInicio = subDays(today, daysBeforeBegin);
+  //   const dataFim = subDays(today, daysBeforeEnd);
 
-    console.log(`data incicio: ${dataInicio}`);
-    console.log(`data fim: ${dataFim}`);
-    console.log(`data pagamento: ${today}`);
+  //   console.log(`data incicio: ${dataInicio}`);
+  //   console.log(`data fim: ${dataFim}`);
+  //   console.log(`data pagamento: ${today}`);
+  //   await this.geradorRemessaExec(dataInicio, dataFim, today,
+  //     ['VLT'], HeaderName.VLT, pagamentoUnico);
+  // }
+
+  async remessaModalExec(pagamentoUnico?: boolean) {
+    const today = new Date();
+    let subDaysInt = 0;
+
+    if (isTuesday(today)) {
+      subDaysInt = 4;
+    } else if (isFriday(today)) {
+      subDaysInt = 3;
+    }else{
+      return;
+    }   
+
+    const dataInicio = subDays(today, subDaysInt);
+    const dataFim = subDays(today, 1);
+    const consorcios = ['STPC', 'STPL', 'TEC'];
+    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
-      ['VLT'], HeaderName.VLT, pagamentoUnico);
+      consorcios, HeaderName.MODAL, pagamentoUnico);
   }
 
-  async remessaModalExec(dataInicioU?: string, dataFimU?: string, dataPagamento?: string, pagamentoUnico?: boolean) {
-    //Rodar Sexta 
-    const today = new Date();
-    const dataInicio = dataInicioU ? new Date(dataInicioU) : subDays(today, 7);
-    const dataFim = dataFimU ? new Date(dataFimU) : subDays(today, 1);
-    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
-      ['STPC', 'STPL', 'TEC'], HeaderName.MODAL, pagamentoUnico);
+  async limparAgrupamentos(dataInicio: Date, dataFim: Date, consorcios: string[]) {
+    const ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
+
+    const idsAgrupamentos =
+      ordensAgrupadas.map(f => f.ordemPagamentoAgrupadoId)
+        .join("','");
+
+    if (idsAgrupamentos && idsAgrupamentos.trim() != '') {
+      //exclui historico
+      await this.ordemPagamentoAgrupadoService.excluirHistorico(idsAgrupamentos);
+      //atualizar ordens
+      await this.ordemPagamentoService.removerAgrupamentos(consorcios, idsAgrupamentos);
+      //excluir ordens agrupadas
+      await this.ordemPagamentoAgrupadoService.excluirOrdensAgrupadas(idsAgrupamentos);
+    }
   }
 
-  async remessaConsorciosExec(dtInicio?: string, dtFim?: string, dataPagamento?: string, pagamentoUnico?: boolean) {
-    //Rodar na Sexta
-    const today = new Date();
-    const dataInicio = dtInicio ? new Date(dtInicio) : subDays(today, 7);
-    const dataFim = dtFim ? new Date(dtFim) : subDays(today, 1);
-    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
-      ['MobiRio'], HeaderName.CONSORCIO, pagamentoUnico);
-  }
+  async remessaConsorciosExec(pagamentoUnico?: boolean) {
 
-  async remessaConsorciosBloqueioExec(dtInicio?: string, dtFim?: string, dataPagamento?: string, pagamentoUnico?: boolean) {
-    //Rodar na Sexta
     const today = new Date();
-    const dataInicio = dtInicio ? new Date(dtInicio) : subDays(today, 4);
-    const dataFim = dtFim ? new Date(dtFim) : subDays(today, 1);
-    await this.geradorRemessaExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
-      ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca'], HeaderName.CONSORCIO, pagamentoUnico);
+    let subDaysInt = 0;
+
+    if (isTuesday(today)) {
+      subDaysInt = 4;
+    } else if (isFriday(today)) {
+      subDaysInt = 3;
+    } else {
+      return;
+    }
+
+    const dataInicio = subDays(today, subDaysInt);
+    const dataFim = subDays(today, 1);
+    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca','MobiRio','VLT']
+   // await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
   async retornoExec() {
@@ -751,19 +780,35 @@ export class CronJobsService {
     if (locked) {
       try {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
+
         // Sincroniza as ordens de pagamento para todos os modais e consorcios
+        const today = new Date();
+        let dataInicio = today
+        let dataFim = today
+        let dataPagamento = today;
 
-        const lastFriday = this.getLastFriday();
-        const nextThursday = this.getNextThursday();
-        const nextFriday = this.getNextFriday();
+        const dayOfWeek = today.getDay();
 
-        this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${lastFriday.toISOString()}, Data Fim: ${nextThursday.toISOString()}`, METHOD);
+        // Verifica se é sexta-feira (5), sábado (6), domingo (0) ou segunda-feira (1)
+        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
+          //Se está entre sexta e segunda!  
+          dataInicio = isFriday(today) ? today : this.getPreviousFriday(today);//data inicio sexta
+          dataFim = nextMonday(today);//data fim segunda
+          dataPagamento = nextTuesday(today);//data pagamento terça 
+        } else {
+          //Se está entre terça e quinta!  
+          dataInicio = isTuesday(today) ? today : this.getPreviousTuesday(today); //data inicio terça
+          dataFim = nextThursday(today); //data fim quinta
+          dataPagamento = nextFriday(today);//data pagamento sexta
+        }
+
+        this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
-        await this.ordemPagamentoService.sincronizarOrdensPagamento(lastFriday, nextThursday, consorciosEModais);
+        await this.ordemPagamentoService.sincronizarOrdensPagamento(dataInicio, dataFim, consorciosEModais);
         this.logger.log('Sincronização finalizada. Iniciando agrupamento para modais.', METHOD);
         const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
         // Agrupa para os modais
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(lastFriday, nextThursday, nextFriday, pagadorKey, CronJobsService.MODAIS);
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, pagadorKey, CronJobsService.MODAIS);
         this.logger.log('Tarefa finalizada com sucesso.', METHOD);
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
@@ -783,7 +828,7 @@ export class CronJobsService {
       try {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
         // Sincroniza as ordens de pagamento para todos os modais e consorcios 
-        const today = new Date();
+        const today = new Date('2025-09-09');
 
         await this.bigQueryTransacaoService.getAllTransacoes(today);
     
@@ -796,7 +841,7 @@ export class CronJobsService {
       this.logger.log('Não foi possível adquirir o lock para a tarefa de sincronização e agrupamento.');
     }
   }
-
+  
   getNextThursday(date = new Date()) {
     if (isThursday(date)) {
       return new Date(date.toISOString().split('T')[0]);
@@ -815,4 +860,21 @@ export class CronJobsService {
     return nextFriday(date);
   }
 
+  getPreviousFriday(today: Date) {
+    const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, ..., 6 = sábado
+    // Calcula quantos dias voltar até a última sexta-feira
+    const daysSinceFriday = (dayOfWeek + 2) % 7 || 7;
+    const previousFriday = new Date(today);
+    previousFriday.setDate(today.getDate() - daysSinceFriday);
+
+  }
+
+  getPreviousTuesday(today: Date) {
+    const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, ..., 6 = sábado
+    // Calcula quantos dias voltar até a última terça-feira
+    const daysSinceTuesday = (dayOfWeek + 5) % 7 || 7;
+    const previousTuesday = new Date(today);
+    previousTuesday.setDate(today.getDate() - daysSinceTuesday);
+    return previousTuesday;
+  }
 }

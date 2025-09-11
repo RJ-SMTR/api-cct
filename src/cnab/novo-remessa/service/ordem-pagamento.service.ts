@@ -13,9 +13,12 @@ import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { replaceUndefinedWithNull } from '../../../utils/type-utils';
 import { endOfDay, startOfDay } from 'date-fns';
+import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
+import { OrdemPagamentoDto } from 'src/cnab/dto/pagamento/ordem-pagamento.dto';
 
 @Injectable()
-export class OrdemPagamentoService {
+export class OrdemPagamentoService {  
+  
   private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
 
   constructor(private ordemPagamentoRepository: OrdemPagamentoRepository, private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) {}
@@ -119,6 +122,14 @@ export class OrdemPagamentoService {
 
   async findNumeroDeOrdensPorIntervalo(startDate: Date, endDate: Date) {
     return await this.ordemPagamentoRepository.findNumeroOrdensPorIntervaloDataCaptura(startDate, endDate);
+  }
+
+  async findOrdensAgrupadas(dataInicio: Date, dataFim: Date, consorcios: string[]):Promise<OrdemPagamento[]> {
+    return this.ordemPagamentoRepository.findOrdensAgrupadas(dataInicio,dataFim,consorcios);    
+  } 
+
+  async removerAgrupamentos(consorcios:string[],ids:string) {
+    await this.ordemPagamentoRepository.removerAgrupamento(consorcios,ids) 
   }
 
 }
