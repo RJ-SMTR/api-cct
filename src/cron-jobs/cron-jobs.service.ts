@@ -828,7 +828,7 @@ export class CronJobsService {
       try {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
         // Sincroniza as ordens de pagamento para todos os modais e consorcios 
-        const today = new Date('2025-09-09');
+        const today = new Date();
 
         await this.bigQueryTransacaoService.getAllTransacoes(today);
     
