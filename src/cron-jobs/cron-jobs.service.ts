@@ -865,7 +865,7 @@ export class CronJobsService {
     const daysSinceFriday = (dayOfWeek + 2) % 7 || 7;
     const previousFriday = new Date(today);
     previousFriday.setDate(today.getDate() - daysSinceFriday);
-
+    return previousFriday;
   }
 
   getPreviousTuesday(today: Date) {
