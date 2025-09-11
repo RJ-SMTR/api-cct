@@ -127,7 +127,7 @@ export class BigqueryTransacaoRepository {
 
   public async findTransacoesByOp(ordemPagamentoIds: number[]) {
     const query = `SELECT * FROM 
-    transacoes_bq where id_ordem_pagamento_consorcio_operador_dia = ($1)
+    transacoes_bq where id_ordem_pagamento_consorcio_operador_dia IN ($1) 
     AND valor_pagamento > 0 
     ORDER BY datetime_transacao DESC`;
     
