@@ -269,9 +269,7 @@ export class RemessaService {
   }
 
   private getHeaderName(consorcio: string[] | undefined): HeaderName {
-    if (['VLT'].some(i => consorcio?.includes(i))) {
-      return HeaderName.VLT;
-    } else if (['STPC', 'STPL', 'TEC'].some(i => consorcio?.includes(i))) {
+    if (['STPC', 'STPL', 'TEC'].some(i => consorcio?.includes(i))) {
       return HeaderName.MODAL;
     } else {
       return HeaderName.CONSORCIO;
