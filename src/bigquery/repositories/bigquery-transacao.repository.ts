@@ -77,7 +77,7 @@ export class BigqueryTransacaoRepository {
 
   public async getAllTransacoes(data: Date): Promise<BigqueryTransacaoDiario[]> {
     const dataIniForm = formatDateISODate(data)
-    const query = `SELECT * from \`rj-smtr.projeto_app_cct.transacao_cct\` where data = '${dataIniForm}' limit 100`;
+    const query = `SELECT * from \`rj-smtr.projeto_app_cct.transacao_cct\` where data = '${dataIniForm}'`;
 
     function mapTransacaoDiario(item: any) {
       const bigQueryDiario = new BigqueryTransacaoDiario();

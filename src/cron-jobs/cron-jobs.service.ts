@@ -244,6 +244,16 @@ export class CronJobsService {
           cronTime: "0 9-21 * * *", // 06:00 BRT (GMT-3) = 09:00 GMT, 18:00 BRT (GMT-3) = 21:00 GMT
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
+      },
+      {
+        /**
+         * Sincroniza e agrupa ordens de pagamento.
+         * */
+        name: CronJobsEnum.sincronizarTransacoesBq,
+        cronJobParameters: {
+          cronTime: "0 10-24 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
+          onTick: async () => await this.sincronizarTransacoesBq(),
+        },
       }
     );
 
