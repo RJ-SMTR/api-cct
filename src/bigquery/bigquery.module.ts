@@ -6,9 +6,11 @@ import { BigqueryOrdemPagamentoRepository } from './repositories/bigquery-ordem-
 import { SettingsModule } from 'src/settings/settings.module';
 import { BigqueryTransacaoService } from './services/bigquery-transacao.service';
 import { BigqueryTransacaoRepository } from './repositories/bigquery-transacao.repository';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { BigqueryTransacaoDiario } from './entities/transaca-diario.entity';
 
 @Module({
-  imports: [ConfigModule, SettingsModule],
+  imports: [ConfigModule, SettingsModule, TypeOrmModule.forFeature([BigqueryTransacaoDiario])],
   providers: [
     BigqueryService,
     BigqueryOrdemPagamentoService,
