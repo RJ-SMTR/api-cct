@@ -6,12 +6,12 @@ import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum'
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
 import {
-  isMonday,
   isSaturday,
   isSunday,
   isTuesday,
   nextMonday,
   nextTuesday,
+  startOfDay,
   subDays,
 } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
@@ -827,10 +827,9 @@ export class CronJobsService {
     if (locked) {
       try {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
-        // Sincroniza as ordens de pagamento para todos os modais e consorcios 
-        const today = new Date();
+        const yesterday = startOfDay(subDays(new Date(), 1));
 
-        await this.bigQueryTransacaoService.getAllTransacoes(today);
+        await this.bigQueryTransacaoService.getAllTransacoes(yesterday);
     
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
