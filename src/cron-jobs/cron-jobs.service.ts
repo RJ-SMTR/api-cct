@@ -253,7 +253,7 @@ export class CronJobsService {
          * */
         name: CronJobsEnum.sincronizarTransacoesBq,
         cronJobParameters: {
-          cronTime: "0 10-24 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
+          cronTime: "0 10 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
           onTick: async () => await this.sincronizarTransacoesBq(),
         },
       }
