@@ -88,6 +88,7 @@ export class BigqueryTransacaoRepository {
       bigQueryDiario.valor_pagamento = item.valor_pagamento;
       bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
       bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;
+      bigQueryDiario.tipo_transacao = item.tipo_transacao;
       bigQueryDiario.datetime_ultima_atualizacao = new Date(item.datetime_ultima_atualizacao.value,
       );
       return bigQueryDiario;
@@ -139,6 +140,7 @@ export class BigqueryTransacaoRepository {
       bigQueryDiario.consorcio = item.consorcio;
       bigQueryDiario.valor_pagamento = item.valor_pagamento;
       bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
+      bigQueryDiario.tipo_transacao = item.tipo_transacao;
       bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;
       bigQueryDiario.datetime_ultima_atualizacao = new Date(item.datetime_ultima_atualizacao,
       );
