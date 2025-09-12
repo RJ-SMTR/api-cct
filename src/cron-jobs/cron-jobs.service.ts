@@ -6,12 +6,12 @@ import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum'
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
 import {
-  isMonday,
   isSaturday,
   isSunday,
   isTuesday,
   nextMonday,
   nextTuesday,
+  startOfDay,
   subDays,
 } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
@@ -33,7 +33,9 @@ import { validateEmail } from 'validations-br';
 import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
-import { nextFriday, nextThursday, isFriday } from 'date-fns';
+import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
+import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+
 
 
 /**
@@ -50,7 +52,8 @@ export enum CronJobsEnum {
   generateRemessaEmpresa = 'generateRemessaEmpresa',
   generateRemessaVanzeiros = 'generateRemessaVanzeiros',
   generateRemessaLancamento = 'generateRemessaLancamento',
-  sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento'
+  sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento',
+  sincronizarTransacoesBq = 'sincronizarTransacoesBq'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -93,13 +96,14 @@ export class CronJobsService {
     private remessaService: RemessaService,
     private retornoService: RetornoService,
     private ordemPagamentoService: OrdemPagamentoService,
+    private bigQueryTransacaoService: BigqueryTransacaoService,
     private distributedLockService: DistributedLockService,
   ) { }
 
 
   async onModuleInit() {  
     await this.sincronizarEAgruparOrdensPagamento();
-    this.onModuleLoad().catch((error: Error) => {
+     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
@@ -243,6 +247,16 @@ export class CronJobsService {
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
+      {
+        /**
+         * Sincroniza transacoes do BQ.
+         * */
+        name: CronJobsEnum.sincronizarTransacoesBq,
+        cronJobParameters: {
+          cronTime: "0 10 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
+          onTick: async () => await this.sincronizarTransacoesBq(),
+        },
+      }
     );
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
@@ -805,6 +819,45 @@ export class CronJobsService {
     } else {
       this.logger.log('Não foi possível adquirir o lock para a tarefa de sincronização e agrupamento.');
     }
+  }
+
+  async sincronizarTransacoesBq() {
+    const METHOD = 'sincronizarTransacoesBq';
+    this.logger.log('Tentando adquirir lock para execução da tarefa de sincronização das transações.');
+    const locked = await this.distributedLockService.acquireLock(METHOD);
+    if (locked) {
+      try {
+        this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
+        const yesterday = startOfDay(subDays(new Date(), 1));
+
+        await this.bigQueryTransacaoService.getAllTransacoes(yesterday);
+    
+      } catch (error) {
+        this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
+      } finally {
+        await this.distributedLockService.releaseLock(METHOD);
+      }
+    } else {
+      this.logger.log('Não foi possível adquirir o lock para a tarefa de sincronização e agrupamento.');
+    }
+  }
+  
+  getNextThursday(date = new Date()) {
+    if (isThursday(date)) {
+      return new Date(date.toISOString().split('T')[0]);
+    }
+    return nextThursday(date);
+  }
+
+  getLastFriday(date = new Date()) {
+    if (isFriday(date)) {
+      return new Date(date.toISOString().split('T')[0]);
+    }
+    return previousFriday(date);
+  }
+
+  getNextFriday(date = new Date()) {
+    return nextFriday(date);
   }
 
   getPreviousFriday(today: Date) {
