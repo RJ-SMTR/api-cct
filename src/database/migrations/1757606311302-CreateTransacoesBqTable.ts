@@ -50,6 +50,11 @@ export class CreateTransacoesBqTable1757606311302 implements MigrationInterface 
                     type: "timestamp",
                     isNullable: true,
                 },
+                {
+                    name: "tipo_transacao",
+                    type: "varchar",
+                    isNullable: true,
+                },
             ],
         }), true);
     }

@@ -77,7 +77,12 @@ export class BigqueryTransacaoRepository {
 
   public async getAllTransacoes(data: Date): Promise<BigqueryTransacaoDiario[]> {
     const dataIniForm = formatDateISODate(data)
-    const query = `SELECT * from \`rj-smtr.projeto_app_cct.transacao_cct\` where data = '${dataIniForm}'`;
+    const queryGetData = `SELECT DISTINCT data_transacao FROM \`rj-smtr.bilhetagem_interno.data_ordem_transacao\` WHERE data_ordem = '${dataIniForm}'`;
+    const queryResultData = await this.bigqueryService.query(BigquerySource.smtr, queryGetData, [data]);
+    const datas = queryResultData.map((i: any) => `'${i.data_transacao.value}'`).join(", ");
+
+   
+    const query = `SELECT * from \`rj-smtr.projeto_app_cct.transacao_cct\` where data IN (${datas})`;
 
     function mapTransacaoDiario(item: any) {
       const bigQueryDiario = new BigqueryTransacaoDiario();
@@ -88,6 +93,7 @@ export class BigqueryTransacaoRepository {
       bigQueryDiario.valor_pagamento = item.valor_pagamento;
       bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
       bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;
+      bigQueryDiario.tipo_transacao = item.tipo_transacao;
       bigQueryDiario.datetime_ultima_atualizacao = new Date(item.datetime_ultima_atualizacao.value,
       );
       return bigQueryDiario;
@@ -139,6 +145,7 @@ export class BigqueryTransacaoRepository {
       bigQueryDiario.consorcio = item.consorcio;
       bigQueryDiario.valor_pagamento = item.valor_pagamento;
       bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
+      bigQueryDiario.tipo_transacao = item.tipo_transacao;
       bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;
       bigQueryDiario.datetime_ultima_atualizacao = new Date(item.datetime_ultima_atualizacao,
       );

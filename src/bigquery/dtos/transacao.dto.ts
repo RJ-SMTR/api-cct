@@ -21,6 +21,9 @@ export class BigqueryTransacaoDiarioDto {
 
     @IsString()
     id_ordem_pagamento?: string;
+    
+    @IsString()
+    tipo_transacao?: string;
 
     @IsString()
     id_ordem_pagamento_consorcio_operador_dia?: string;

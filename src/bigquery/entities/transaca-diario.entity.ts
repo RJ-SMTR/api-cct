@@ -29,6 +29,9 @@ export class BigqueryTransacaoDiario {
     @Column({ type: 'varchar',  nullable: true })
     id_ordem_pagamento_consorcio_operador_dia?: string;
 
+    @Column({ type: 'varchar',  nullable: true })
+    tipo_transacao?: string;
+
     @Column({ type: 'timestamp', nullable: true })
     datetime_ultima_atualizacao?: Date;
 }
