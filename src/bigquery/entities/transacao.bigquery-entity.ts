@@ -42,4 +42,7 @@ export class BigqueryTransacao {
     const obj: BigqueryTransacao[] = JSON.parse(file);
     return obj;
   }
+
+
+
 }
