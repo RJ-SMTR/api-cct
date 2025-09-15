@@ -9,6 +9,7 @@ import {
 } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { formatDateISODate } from 'src/utils/date-utils';
 import { RelatorioSinteticoNovoRemessaConsorcio, RelatorioSinteticoNovoRemessaDia, RelatorioSinteticoNovoRemessaDto, RelatorioSinteticoNovoRemessaFavorecido } from '../dtos/relatorio-sintetico-novo-remessa.dto';
+import { query } from 'express';
 
 
 @Injectable()
@@ -235,6 +236,99 @@ WHERE (1=1) `;
       FROM tec
       ORDER BY "fullName";
   `;
+
+  private readonly WITH_ultimos_historicos = `
+with ultimos_historicos as (
+    select distinct on (opah."ordemPagamentoAgrupadoId")
+           opah.id,
+           opah."dataReferencia",
+           opah."statusRemessa",
+           opah."motivoStatusRemessa",
+           opah."ordemPagamentoAgrupadoId",
+           opah."userBankCode",
+           opah."userBankAgency",
+           opah."userBankAccount",
+           opah."userBankAccountDigit"
+    from ordem_pagamento_agrupado_historico opah
+    order by opah."ordemPagamentoAgrupadoId", opah."dataReferencia" desc
+)`
+  private readonly QUERY_SINTETICO_OTMIZADA = `
+select distinct
+       op."userId",
+       op."dataCaptura"::date as "dataCaptura",
+       u."fullName" as "nomeFavorecido",
+       coalesce(da."dataVencimento", opa."dataPagamento") as "dataPagamento",
+       op.valor,
+       da."valorLancamento" as "valorPagamento",
+       case opah."statusRemessa"
+           when 1 then 'A pagar'
+           when 2 then 'Aguardando Pagamento'
+           when 3 then 'Pago'
+           when 4 then 'Não Pago'
+       end as status,
+       op."nomeConsorcio",
+       da.id as "idDetalheA"
+from ordem_pagamento op
+join ordem_pagamento_agrupado opa
+  on op."ordemPagamentoAgrupadoId" = opa.id
+join ultimos_historicos opah
+  on opah."ordemPagamentoAgrupadoId" = opa.id
+join "user" u
+  on op."userId" = u.id
+left join detalhe_a da
+  on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
+where ( $1::int[] is null or op."userId" = any($1::int[]) )
+  and ( $2::date is null or $3::date is null 
+        or (op."dataCaptura" >= $2::date and op."dataCaptura" < $3::date + interval '1 day') )
+  and ( $4::int[] is null or opah."statusRemessa" = any($4::int[]) )
+  and opah."statusRemessa" not in (2, 3, 4)
+  and u."cpfCnpj" not in ('18201378000119','12464869000176','12464539000180',
+                          '12464553000184','44520687000161','12464577000133')
+  and ( $5::numeric is null or op.valor >= $5::numeric )
+  and ( $6::numeric is null or op.valor <= $6::numeric )
+  and ($7::text[] IS NULL OR op."nomeConsorcio" = ANY($7::text[]))
+
+union all
+
+select distinct
+       op."userId",
+       op."dataCaptura"::date as "dataCaptura",
+       u."fullName" as "nomeFavorecido",
+       coalesce(da."dataVencimento", opa."dataPagamento") as "dataPagamento",
+       op.valor,
+       da."valorLancamento" as "valorPagamento",
+       case opah."statusRemessa"
+           when 1 then 'A pagar'
+           when 2 then 'Aguardando Pagamento'
+           when 3 then 'Pago'
+           when 4 then 'Não Pago'
+       end as status,
+       op."nomeConsorcio",
+       da.id as "idDetalheA"
+from ordem_pagamento op
+join ordem_pagamento_agrupado opa
+  on op."ordemPagamentoAgrupadoId" = opa.id
+join ultimos_historicos opah
+  on opah."ordemPagamentoAgrupadoId" = opa.id
+join "user" u
+  on op."userId" = u.id
+join detalhe_a da
+  on da."ordemPagamentoAgrupadoHistoricoId" = opah.id
+WHERE 
+  ($2::date IS NULL OR $3::date IS NULL 
+     OR (da."dataVencimento" >= $2::date 
+         AND da."dataVencimento" < $3::date + INTERVAL '1 day'))
+  AND ($1::int[] IS NULL OR op."userId" = ANY($1::int[]))
+  AND ($4::int[] IS NULL OR opah."statusRemessa" = ANY($4::int[]))
+  AND opah."statusRemessa" IN (2, 3, 4)
+  AND u."cpfCnpj" NOT IN (
+      '18201378000119','12464869000176','12464539000180',
+      '12464553000184','44520687000161','12464577000133'
+  )
+  AND ($5::numeric IS NULL OR da."valorLancamento" >= $5::numeric)
+  AND ($6::numeric IS NULL OR da."valorLancamento" <= $6::numeric)
+  and ($7::text[] IS NULL OR op."nomeConsorcio" = ANY($7::text[]))
+`
 
   private static readonly QUERY_SINTETICO_VANZEIROS = `
       select distinct op."userId", date_trunc('day', op."dataCaptura") as "dataCaptura",
@@ -540,7 +634,6 @@ from item_transacao it
     relatorioConsolidadoDto.count = count;
 
     if (filter.userIds && filter.userIds.length > 0 || filter.todosVanzeiros) {
-      console.log('Consolidado por usuário');
       const valorPorUsuario: Record<string, number> = {};
 
       for (const row of result) {
@@ -561,7 +654,6 @@ from item_transacao it
         return elem;
       });
     } else {
-      console.log('Consolidado por consórcio');
       relatorioConsolidadoDto.data = result.map((r) => {
         const elem = new RelatorioConsolidadoNovoRemessaData();
         elem.nomefavorecido = r.nome;
@@ -577,14 +669,10 @@ from item_transacao it
 
   public async findSintetico(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioSinteticoNovoRemessaDto> {
     if (filter.consorcioNome) {
-
       filter.consorcioNome = filter.consorcioNome.map((c) => { return c.toUpperCase().trim(); });
-
     }
 
-    const parametersQueryVanzeiros = [filter.userIds || null, filter.dataInicio || null, filter.dataFim || null, this.getStatusParaFiltro(filter), filter.valorMin || null, filter.valorMax || null];
-
-    const parametersQueryConsorciosEModais = [filter.consorcioNome || null, filter.dataInicio || null, filter.dataFim || null, this.getStatusParaFiltro(filter), filter.valorMin || null, filter.valorMax || null];
+    const queryParams = [filter.userIds || null, filter.dataInicio || null, filter.dataFim || null, this.getStatusParaFiltro(filter), filter.valorMin || null, filter.valorMax || null, filter.consorcioNome || null];
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -594,26 +682,24 @@ from item_transacao it
 
     if (filter.todosVanzeiros) {
       filter.userIds = undefined;
-      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_VANZEIROS, parametersQueryVanzeiros);
+      resultVanzeiros = await queryRunner.query(`${this.WITH_ultimos_historicos} ${this.QUERY_SINTETICO_OTMIZADA}`, queryParams);
     }
 
     if (filter.todosConsorcios) {
       filter.consorcioNome = undefined;
-      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_CONSORCIOS, parametersQueryConsorciosEModais);
+      resultConsorciosEModais = await queryRunner.query(`${this.WITH_ultimos_historicos} ${this.QUERY_SINTETICO_OTMIZADA}`, queryParams)
     }
 
     if (filter.userIds && filter.userIds.length > 0) {
-      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_VANZEIROS, parametersQueryVanzeiros);
+      resultVanzeiros = await queryRunner.query(`${this.WITH_ultimos_historicos} ${this.QUERY_SINTETICO_OTMIZADA}`, queryParams);
     }
 
     if (filter.consorcioNome && filter.consorcioNome.length > 0) {
-      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_CONSORCIOS, parametersQueryConsorciosEModais);
+      resultConsorciosEModais = await queryRunner.query(`${this.WITH_ultimos_historicos} ${this.QUERY_SINTETICO_OTMIZADA}`, queryParams);
     }
 
-    // Nenhum critério, trás todos.
     if (!filter.todosVanzeiros && !filter.todosConsorcios && (!filter.userIds || filter.userIds.length == 0) && (!filter.consorcioNome || filter.consorcioNome.length == 0)) {
-      resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_VANZEIROS, parametersQueryVanzeiros);
-      resultConsorciosEModais = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_CONSORCIOS, parametersQueryConsorciosEModais);
+      resultVanzeiros = await queryRunner.query(`${this.WITH_ultimos_historicos} ${this.QUERY_SINTETICO_OTMIZADA}`, queryParams);
     }
 
     result = resultVanzeiros.concat(resultConsorciosEModais);
@@ -624,8 +710,8 @@ from item_transacao it
     const relatorioSinteticoNovoRemessaDto = new RelatorioSinteticoNovoRemessaDto();
     relatorioSinteticoNovoRemessaDto.count = count;
 
-    const elems: RelatorioSinteticoNovoRemessaDia[] = [];
-    result.forEach((r) => {
+
+    const elems: RelatorioSinteticoNovoRemessaDia[] = result.map(r => {
       const elem = new RelatorioSinteticoNovoRemessaDia();
       elem.userId = r.userId;
       elem.dataCaptura = r.dataCaptura;
@@ -634,57 +720,58 @@ from item_transacao it
       elem.valorPagamento = r.valor;
       elem.status = r.status;
       elem.nomeConsorcio = r.nomeConsorcio;
-      elems.push(elem);
+      return elem;
     });
 
     const agrupamentoConsorcio = elems.reduce((acc, curr) => {
-      if (!acc[curr.nomeConsorcio]) {
-        acc[curr.nomeConsorcio] = [];
-      }
+      if (!acc[curr.nomeConsorcio]) acc[curr.nomeConsorcio] = [];
       acc[curr.nomeConsorcio].push(curr);
       return acc;
-    }, {});
+    }, {} as Record<string, RelatorioSinteticoNovoRemessaDia[]>);
 
     relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio = [];
 
 
     for (const consorcio in agrupamentoConsorcio) {
       const agrupamentoFavorecido = agrupamentoConsorcio[consorcio].reduce((acc, curr) => {
-        if (!acc[curr.nomeFavorecido]) acc[curr.nomeFavorecido] = [];
-        acc[curr.nomeFavorecido].push(curr);
+        if (!acc[curr.userId]) acc[curr.userId] = [];
+        acc[curr.userId].push(curr);
         return acc;
-      }, {});
+      }, {} as Record<string, RelatorioSinteticoNovoRemessaDia[]>);
+
+      const userIdsDoConsorcio = Object.keys(agrupamentoFavorecido).map(id => Number(id));
+
 
       const relatorioConsorcio = new RelatorioSinteticoNovoRemessaConsorcio();
       relatorioConsorcio.nomeConsorcio = consorcio;
       relatorioConsorcio.agrupamentoFavorecido = [];
 
-      let subtotalConsorcio = 0;
+      relatorioConsorcio.subtotalConsorcio = await this.calcularValor(this.QUERY_SINTETICO_OTMIZADA, queryParams, "subtotalConsorcio");
 
-      for (const favorecido in agrupamentoFavorecido) {
-        const agrupamentoDia = agrupamentoFavorecido[favorecido];
-        const subtotalFavorecido = agrupamentoDia.reduce((acc, curr) => acc + parseFloat(curr.valorPagamento), 0);
+      const subtotaisPorFavorecido = await this.calcularValor(this.QUERY_SINTETICO_OTMIZADA, queryParams, "subtotalFavorecido");
 
-        subtotalConsorcio += subtotalFavorecido;
+      for (const userId in agrupamentoFavorecido) {
+        const agrupamentoDia = agrupamentoFavorecido[userId].sort(
+          (a, b) => new Date(a.dataCaptura).getTime() - new Date(b.dataCaptura).getTime()
+        );
+        const nomeFavorecido = agrupamentoDia[0].nomeFavorecido;
 
         const relatorioFavorecido = new RelatorioSinteticoNovoRemessaFavorecido();
-        relatorioFavorecido.subtotalFavorecido = subtotalFavorecido;
-        relatorioFavorecido.nomeFavorecido = favorecido;
+        relatorioFavorecido.subtotalFavorecido = subtotaisPorFavorecido[userId] || 0;
+        relatorioFavorecido.nomeFavorecido = nomeFavorecido;
         relatorioFavorecido.agrupamentoDia = agrupamentoDia;
 
         relatorioConsorcio.agrupamentoFavorecido.push(relatorioFavorecido);
       }
 
-      relatorioConsorcio.subtotalConsorcio = subtotalConsorcio;
       relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio.push(relatorioConsorcio);
     }
 
-    relatorioSinteticoNovoRemessaDto.total = relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio
-      .reduce((acc, curr) => acc + curr.subtotalConsorcio, 0);
+
+    relatorioSinteticoNovoRemessaDto.total = await this.calcularValor(this.QUERY_SINTETICO_OTMIZADA, queryParams, "totalGeral");
 
     return relatorioSinteticoNovoRemessaDto;
   }
-
   private async obterTotalConsorciosEModais(filter: IFindPublicacaoRelatorioNovoRemessa, queryRunner: QueryRunner) {
     /***
      No caso dos vanzeiros, há sempre uma diferença do valor total do consolidado com o valor total dos detalhes.
@@ -1029,5 +1116,68 @@ from item_transacao it
 
   private somatorioTotalAPagar(sql: string) {
     return `select sum("valor") valor from (` + sql + `) s `;
+  }
+
+  private async calcularValor(
+    sqlBase: string,
+    paramsArray: any[],  // <- todos os parâmetros em ordem
+    tipo: "subtotalConsorcio" | "subtotalFavorecido" | "totalsByStatus" | "totalGeral"
+  ): Promise<any> {
+
+    switch (tipo) {
+
+      case "subtotalConsorcio":
+        const subtotalConsorcioQuery = `
+        ${this.WITH_ultimos_historicos}
+        SELECT "nomeConsorcio", SUM(valor) as total
+        FROM (${sqlBase}) as base
+        GROUP BY "nomeConsorcio"
+      `;
+        const resConsorcio = await this.dataSource.query(subtotalConsorcioQuery, paramsArray);
+        return resConsorcio.reduce((acc, row) => {
+          acc[row.nomeConsorcio] = Number(row.total);
+          return acc;
+        }, {} as Record<string, number>);
+
+
+      case "subtotalFavorecido":
+        const subtotalFavorecidoQuery = `
+          ${this.WITH_ultimos_historicos}
+          SELECT "userId", SUM(valor) as total
+          FROM (${sqlBase}) as base
+          GROUP BY "userId"
+        `;
+        const resFavorecido = await this.dataSource.query(subtotalFavorecidoQuery, paramsArray);
+
+        return resFavorecido.reduce((acc, row) => {
+          acc[row.userId] = Number(row.total);
+          return acc;
+        }, {} as Record<string, number>);
+
+      case "totalsByStatus":
+        const totalsByStatusQuery = `
+          ${this.WITH_ultimos_historicos}
+          SELECT status, SUM(valor) as total
+          FROM (${sqlBase}) as base
+          GROUP BY status
+        `;
+        const resStatus = await this.dataSource.query(totalsByStatusQuery, paramsArray);
+        return resStatus.reduce((acc, row) => {
+          acc[row.status.trim()] = Number(row.total);
+          return acc;
+        }, {} as Record<string, number>);
+
+      case "totalGeral":
+        const totalGeralQuery = `
+          ${this.WITH_ultimos_historicos}
+          SELECT SUM(valor) as total
+          FROM (${sqlBase}) as base
+        `;
+        const resTotal = await this.dataSource.query(totalGeralQuery, paramsArray);
+        return Number(resTotal[0]?.total || 0);
+
+      default:
+        return 0;
+    }
   }
 }

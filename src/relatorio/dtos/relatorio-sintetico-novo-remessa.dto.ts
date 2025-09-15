@@ -24,6 +24,10 @@ export class RelatorioSinteticoNovoRemessaConsorcio {
   subtotalConsorcio: number;
   nomeConsorcio: string;
   agrupamentoFavorecido: RelatorioSinteticoNovoRemessaFavorecido[];
+  totalsByStatus: {
+    pago: 0,
+    erro: 0
+  }
 }
 
 export class RelatorioSinteticoNovoRemessaFavorecido {
