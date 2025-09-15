@@ -592,8 +592,6 @@ from item_transacao it
     let resultConsorciosEModais: any[] = [];
     let resultVanzeiros: any[] = [];
 
-    const mapModaisEConsorcios = await this.obterTotalConsorciosEModais(filter, queryRunner);
-
     if (filter.todosVanzeiros) {
       filter.userIds = undefined;
       resultVanzeiros = await queryRunner.query(RelatorioNovoRemessaRepository.QUERY_SINTETICO_VANZEIROS, parametersQueryVanzeiros);
@@ -639,7 +637,6 @@ from item_transacao it
       elems.push(elem);
     });
 
-    // agrupa por consorcio
     const agrupamentoConsorcio = elems.reduce((acc, curr) => {
       if (!acc[curr.nomeConsorcio]) {
         acc[curr.nomeConsorcio] = [];
@@ -650,35 +647,41 @@ from item_transacao it
 
     relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio = [];
 
+
     for (const consorcio in agrupamentoConsorcio) {
       const agrupamentoFavorecido = agrupamentoConsorcio[consorcio].reduce((acc, curr) => {
-        if (!acc[curr.nomeFavorecido]) {
-          acc[curr.nomeFavorecido] = [];
-        }
+        if (!acc[curr.nomeFavorecido]) acc[curr.nomeFavorecido] = [];
         acc[curr.nomeFavorecido].push(curr);
         return acc;
       }, {});
 
+      const relatorioConsorcio = new RelatorioSinteticoNovoRemessaConsorcio();
+      relatorioConsorcio.nomeConsorcio = consorcio;
+      relatorioConsorcio.agrupamentoFavorecido = [];
+
+      let subtotalConsorcio = 0;
+
       for (const favorecido in agrupamentoFavorecido) {
         const agrupamentoDia = agrupamentoFavorecido[favorecido];
         const subtotalFavorecido = agrupamentoDia.reduce((acc, curr) => acc + parseFloat(curr.valorPagamento), 0);
+
+        subtotalConsorcio += subtotalFavorecido;
+
         const relatorioFavorecido = new RelatorioSinteticoNovoRemessaFavorecido();
-        relatorioFavorecido.subtotalFavorecido = parseFloat(subtotalFavorecido);
+        relatorioFavorecido.subtotalFavorecido = subtotalFavorecido;
         relatorioFavorecido.nomeFavorecido = favorecido;
         relatorioFavorecido.agrupamentoDia = agrupamentoDia;
-        agrupamentoFavorecido[favorecido] = relatorioFavorecido;
+
+        relatorioConsorcio.agrupamentoFavorecido.push(relatorioFavorecido);
       }
-      const relatorioConsorcio = new RelatorioSinteticoNovoRemessaConsorcio();
 
-      relatorioConsorcio.subtotalConsorcio = mapModaisEConsorcios[consorcio];
-
-      relatorioConsorcio.nomeConsorcio = consorcio;
-      relatorioConsorcio.agrupamentoFavorecido = Object.values(agrupamentoFavorecido);
-
+      relatorioConsorcio.subtotalConsorcio = subtotalConsorcio;
       relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio.push(relatorioConsorcio);
     }
-    // o total geral passa a ser o total dos consorcios
-    relatorioSinteticoNovoRemessaDto.total = relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio.reduce((acc, curr) => acc + curr.subtotalConsorcio, 0);
+
+    relatorioSinteticoNovoRemessaDto.total = relatorioSinteticoNovoRemessaDto.agrupamentoConsorcio
+      .reduce((acc, curr) => acc + curr.subtotalConsorcio, 0);
+
     return relatorioSinteticoNovoRemessaDto;
   }
 
