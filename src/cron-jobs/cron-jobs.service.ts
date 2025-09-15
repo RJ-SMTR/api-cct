@@ -827,7 +827,6 @@ export class CronJobsService {
     if (locked) {
       try {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
-        const yesterday = startOfDay(subDays(new Date(), 1));
         const today = startOfDay(new Date());
 
         await this.bigQueryTransacaoService.getAllTransacoes(today);
