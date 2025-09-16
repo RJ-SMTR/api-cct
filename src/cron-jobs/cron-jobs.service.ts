@@ -109,6 +109,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() { 
+    await this.remessaModalExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -252,7 +253,7 @@ export class CronJobsService {
          * */
         name: CronJobsEnum.sincronizarTransacoesBq,
         cronJobParameters: {
-          cronTime: "0 10 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
+          cronTime: "0 12 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
           onTick: async () => await this.sincronizarTransacoesBq(),
         },
       }
@@ -827,9 +828,9 @@ export class CronJobsService {
     if (locked) {
       try {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
-        const yesterday = startOfDay(subDays(new Date(), 1));
+        const today = startOfDay(new Date());
 
-        await this.bigQueryTransacaoService.getAllTransacoes(yesterday);
+        await this.bigQueryTransacaoService.getAllTransacoes(today);
     
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
