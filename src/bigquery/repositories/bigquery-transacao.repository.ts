@@ -93,7 +93,7 @@ export class BigqueryTransacaoRepository {
       bigQueryDiario.valor_pagamento = item.valor_pagamento;
       bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
       bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;
-      bigQueryDiario.tipo_transacao = item.tipo_transacao;
+      bigQueryDiario.tipo_transacao = item.tipo_transacao_smtr;
       bigQueryDiario.datetime_ultima_atualizacao = new Date(item.datetime_ultima_atualizacao.value,
       );
       return bigQueryDiario;
