@@ -17,6 +17,9 @@ import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entit
 
 @Injectable()
 export class OrdemPagamentoRepository {
+  getOrdensPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date) {
+    throw new Error('Method not implemented.');
+  }
 
   private logger = new CustomLogger(OrdemPagamentoRepository.name, { timestamp: true });
 
@@ -412,7 +415,7 @@ ORDER BY m.data;
     return result;
   }
 
-  async removerAgrupamento(consorcios: string[], ids: string) {    
+  async removerAgrupamento(consorcios: string[], ids: string) {
     const consorciosJoin = consorcios.join("','");
     const queryRunner = this.dataSource.createQueryRunner();
     try {

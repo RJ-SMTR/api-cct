@@ -18,18 +18,20 @@ export class OrdemPagamentoAgrupadoHistoricoDTO{
 
   usercpfcnpj: string;
 
-  userBankCode: string;
+  userBankCode: string | undefined;
 
-  userBankAgency: string;
+  userBankAgency: string | undefined;
 
-  userBankAccount: string;
+  userBankAccount: string | undefined;
 
-  userBankAccountDigit: string;  
+  userBankAccountDigit: string | undefined;  
 
   statusRemessa: StatusRemessaEnum; 
 
   motivoStatusRemessa: OcorrenciaEnum;  
   
   ordemPagamentoAgrupadoId: Number;
+
+  userId: number;
 
 }

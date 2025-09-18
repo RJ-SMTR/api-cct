@@ -101,14 +101,14 @@ export class CronJobsService {
   ) { }
 
 
-  async onModuleInit() {  
+  async onModuleInit() {
     await this.sincronizarEAgruparOrdensPagamento();
-      this.onModuleLoad().catch((error: Error) => {
+    this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() { 
+  async onModuleLoad() {
     await this.remessaModalExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
@@ -678,6 +678,24 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
+
+  private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
+    headerName: HeaderName, idOperadoras?: string[]) {
+    this.logger.debug('iniicando o agrupamento pendente')
+    if (dataInicio)
+      // AGRUPAR ORDENS POR INDIVIDUO
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
+
+    // Prepara o remessa
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], undefined);
+
+    // // Gera o TXT
+    const txt = await this.remessaService.gerarCnabText(headerName, undefined);
+
+    //Envia para o SFTP
+    await this.remessaService.enviarRemessa(txt, headerName);
+  }
+
   // async remessaVLTExec(todayCustom?: Date, pagamentoUnico?: boolean) {
   //   //Rodar de segunda a sexta   
   //   let today = todayCustom ? todayCustom : new Date();
@@ -708,9 +726,9 @@ export class CronJobsService {
       subDaysInt = 4;
     } else if (isFriday(today)) {
       subDaysInt = 3;
-    }else{
+    } else {
       return;
-    }   
+    }
 
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
@@ -739,7 +757,7 @@ export class CronJobsService {
 
   async remessaConsorciosExec(pagamentoUnico?: boolean) {
 
-     const today = new Date();
+    const today = new Date();
     let subDaysInt = 0;
 
     if (isTuesday(today)) {
@@ -753,7 +771,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca' ,'MobiRio','VLT']
+    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca', 'MobiRio', 'VLT']
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
@@ -831,7 +849,7 @@ export class CronJobsService {
         const today = startOfDay(new Date());
 
         await this.bigQueryTransacaoService.getAllTransacoes(today);
-    
+
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
       } finally {
@@ -841,7 +859,7 @@ export class CronJobsService {
       this.logger.log('Não foi possível adquirir o lock para a tarefa de sincronização e agrupamento.');
     }
   }
-  
+
   getNextThursday(date = new Date()) {
     if (isThursday(date)) {
       return new Date(date.toISOString().split('T')[0]);
