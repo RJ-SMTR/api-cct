@@ -47,17 +47,17 @@ export class RemessaService {
     private userService: UsersService,
     private sftpService: SftpService,
     private pagadorService: PagadorService,
-    private pagamentoIndevidoService: PagamentoIndevidoService 
+    private pagamentoIndevidoService: PagamentoIndevidoService
   ) { }
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
-  public async prepararRemessa(dataInicio: Date, dataFim: Date,dataPgto?:Date, consorcio?: string[],pagamentoUnico?:boolean) {
-    let ordens;    
-    if(pagamentoUnico){
+  public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean) {
+    let ordens;
+    if (pagamentoUnico) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
-        dataPgto?dataPgto:new Date());
-    }else{    
-      ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim,consorcio);
+        dataPgto ? dataPgto : new Date());
+    } else {
+      ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
     }
 
     if (ordens.length > 0) {
@@ -68,18 +68,18 @@ export class RemessaService {
         let nsrCC = 1;
         for (let i = 0; i < ordens.length; i++) {
           let op;
-          if(pagamentoUnico){
+          if (pagamentoUnico) {
             op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoUnico(ordens[i].id);
-          }else{
+          } else {
             op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
           }
 
           if (op != null) {
             let user
-            if(pagamentoUnico){
-              user = await this.userService.getOne({ permitCode: op.idOperadora });   
-            }else{
-              user = await this.userService.getOne({ id: op.userId });            
+            if (pagamentoUnico) {
+              user = await this.userService.getOne({ permitCode: op.idOperadora });
+            } else {
+              user = await this.userService.getOne({ id: op.userId });
             }
             if (user.bankCode) {
               let indevido = await this.pagamentoIndevidoService.findByNome(user.fullName);
@@ -87,22 +87,22 @@ export class RemessaService {
               const headerLote = await this.gerarHeaderLote(headerArquivo, pagador, user.bankCode);
               let detB;
               let opa;
-              if(pagamentoUnico){
+              if (pagamentoUnico) {
                 opa = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupado(Number(op.idOrdemPagamento));
-              }else{
+              } else {
                 opa = op.ordemPagamentoAgrupado;
               }
 
               if (headerLote) {
                 if (headerLote.formaLancamento === '41') {
-                  detB = await this.gerarDetalheAB(headerLote,opa,nsrTed,indevido?indevido[0]:indevido,pagamentoUnico);
+                  detB = await this.gerarDetalheAB(headerLote, opa, nsrTed, indevido ? indevido[0] : indevido, pagamentoUnico);
                   if (detB !== null) {
                     this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                     this.logger.debug(`Remessa preparado para: ${user.fullName} - TED`);
                     nsrTed = detB.nsr + 1;
                   }
                 } else {
-                  detB = await this.gerarDetalheAB(headerLote,opa, nsrCC,indevido?indevido[0]:indevido,pagamentoUnico);
+                  detB = await this.gerarDetalheAB(headerLote, opa, nsrCC, indevido ? indevido[0] : indevido, pagamentoUnico);
                   if (detB !== null) {
                     this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                     this.logger.debug(`Remessa preparado para: ${user.fullName} - CC`);
@@ -118,16 +118,16 @@ export class RemessaService {
   }
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO
-  public async gerarCnabText(headerName: HeaderName,pagamentoUnico?:boolean): Promise<ICnabInfo[]> {
+  public async gerarCnabText(headerName: HeaderName, pagamentoUnico?: boolean): Promise<ICnabInfo[]> {
     const headerArquivo = await this.headerArquivoService.getExists(HeaderArquivoStatus._2_remessaGerado, headerName);
-    if (headerArquivo[0]!==null && headerArquivo[0] !== undefined) {
+    if (headerArquivo[0] !== null && headerArquivo[0] !== undefined) {
       const headerArquivoCnab = CnabHeaderArquivo104DTO.fromDTO(headerArquivo[0]);
-      return await this.gerarListaCnab(headerArquivoCnab, headerArquivo[0],pagamentoUnico)
+      return await this.gerarListaCnab(headerArquivoCnab, headerArquivo[0], pagamentoUnico)
     }
     return [];
   }
 
-  private async gerarListaCnab(headerArquivoCnab, headerArquivo: HeaderArquivo,pagamentoUnico?:boolean) {
+  private async gerarListaCnab(headerArquivoCnab, headerArquivo: HeaderArquivo, pagamentoUnico?: boolean) {
     const listCnab: ICnabInfo[] = [];
 
     const trailerArquivo104 = structuredClone(Cnab104PgtoTemplates.file104.registros.trailerArquivo);
@@ -163,7 +163,7 @@ export class RemessaService {
         headerLote: CnabHeaderLote104PgtoDTO.convert(headerLote, headerArquivo),
         registros: headerLote.formaLancamento === '41' ?//TED ou CC
           registros.filter(r => (r.detalheA.codigoBancoDestino.value !== '104')) : //Diferente de Caixa
-          registros.filter(r => (r.detalheA.codigoBancoDestino.value === '104')), 
+          registros.filter(r => (r.detalheA.codigoBancoDestino.value === '104')),
         trailerLote: structuredClone(Cnab104PgtoTemplates.file104.registros.trailerLote),
       })),
       trailerArquivo: trailerArquivo104,
@@ -181,16 +181,16 @@ export class RemessaService {
 
 
   //PEGA O ARQUIVO TXT GERADO E ENVIA PARA O SFTP
-  public async enviarRemessa(listCnab: ICnabInfo[],headerName?: string) {
+  public async enviarRemessa(listCnab: ICnabInfo[], headerName?: string) {
     for (const cnab of listCnab) {
-      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content,headerName);
-      if(cnab.name !==''){
+      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content, headerName);
+      if (cnab.name !== '') {
         const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
         await this.headerArquivoService.save({
           id: cnab.headerArquivo.id, remessaName,
           status: HeaderArquivoStatus._3_remessaEnviado
         });
-      }else{
+      } else {
         this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
       }
     }
@@ -229,29 +229,29 @@ export class RemessaService {
   }
 
   private async gerarDetalheAB(headerLote: HeaderLote, ordem: OrdemPagamentoAgrupado, nsr: number,
-    indevido?:PagamentoIndevidoDTO,pagamentoUnico?:boolean) {
+    indevido?: PagamentoIndevidoDTO, pagamentoUnico?: boolean) {
     let ultimoHistorico;
-    if(pagamentoUnico){
+    if (pagamentoUnico) {
       ultimoHistorico = await this.ordemPagamentoAgrupadoService.getHistoricoUnico(ordem.id);
-    }else{
+    } else {
       ultimoHistorico = ordem.ordensPagamentoAgrupadoHistorico[ordem.ordensPagamentoAgrupadoHistorico.length - 1];
     }
 
     const detalheA = await this.existsDetalheA(ultimoHistorico)
 
     const numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());
-    let detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr, ultimoHistorico, numeroDocumento);   
+    let detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr, ultimoHistorico, numeroDocumento);
 
     if (detalheA.length > 0) {
       detalheADTO.id = detalheA[0].id;
-      detalheADTO.valorRealEfetivado = detalheA[0].valorLancamento;     
+      detalheADTO.valorRealEfetivado = detalheA[0].valorLancamento;
     }
 
-    if(indevido && indevido.saldoDevedor > 0 ){      
-      const valor = await this.debitarPagamentoIndevido(indevido,detalheADTO.valorLancamento);
+    if (indevido && indevido.saldoDevedor > 0) {
+      const valor = await this.debitarPagamentoIndevido(indevido, detalheADTO.valorLancamento);
       detalheADTO.valorLancamento = valor;
       detalheADTO.valorRealEfetivado = valor;
-    }   
+    }
 
     const detalheASavesd = await this.detalheAService.save(detalheADTO);
     if (detalheASavesd) {
@@ -287,31 +287,31 @@ export class RemessaService {
   }
 
   async debitarPagamentoIndevido(pagamentoIndevido: PagamentoIndevidoDTO, valor: any) {
-    let aPagar = 0;      
+    let aPagar = 0;
     var arr = Number(valor).toFixed(2);
     let result = pagamentoIndevido.saldoDevedor - Number(arr);
     let resultArr = result.toFixed(2);
-      result = Number(resultArr);
-      if (result > 0) {
-        //Vanzeiro continua devendo
-        //Atualizar o banco com o debito restante  
-        pagamentoIndevido.saldoDevedor = result;
-        pagamentoIndevido.dataReferencia = new Date();
-        await this.pagamentoIndevidoService.save(pagamentoIndevido);
+    result = Number(resultArr);
+    if (result > 0) {
+      //Vanzeiro continua devendo
+      //Atualizar o banco com o debito restante  
+      pagamentoIndevido.saldoDevedor = result;
+      pagamentoIndevido.dataReferencia = new Date();
+      await this.pagamentoIndevidoService.save(pagamentoIndevido);
 
-      } else {
-        //debito encerrado
-        if (result <= 0) {
-          //ex: result = -10          
-          //pagar diferença para o vanzeiro
-          aPagar = Math.abs(result);
-          pagamentoIndevido.saldoDevedor = 0;
-          pagamentoIndevido.dataReferencia = new Date();
-          //deletar debito do vanzeiro
-          await this.pagamentoIndevidoService.save(pagamentoIndevido);
-        }
+    } else {
+      //debito encerrado
+      if (result <= 0) {
+        //ex: result = -10          
+        //pagar diferença para o vanzeiro
+        aPagar = Math.abs(result);
+        pagamentoIndevido.saldoDevedor = 0;
+        pagamentoIndevido.dataReferencia = new Date();
+        //deletar debito do vanzeiro
+        await this.pagamentoIndevidoService.save(pagamentoIndevido);
       }
-    
+    }
+
     return aPagar;
   }
 }

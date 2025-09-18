@@ -7,12 +7,10 @@ import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { formatDateISODate } from 'src/utils/date-utils';
-import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
-import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
-import { OrdemPagamentoAgrupadoHistoricoDTO } from '../dto/ordem-pagamento-agrupado-historico.dto';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoRepository {
+
   private logger = new CustomLogger(OrdemPagamentoAgrupadoRepository.name, { timestamp: true });
 
   constructor(
@@ -111,45 +109,5 @@ export class OrdemPagamentoAgrupadoRepository {
     } finally {
       queryRunner.release();
     }
-  }
-
-  //QUERY RETORNA TODOS OS PAGAMENTOS PENDENTES - ESTORNADOS E REJEITADOS QUE A PESSOA TENHA RECEBIDO ALGUM PAGAMENTOS APÓS
-  async getOrdensExtornadasRejeitadas(dataInicio: Date, dataFim: Date): Promise<OrdemPagamentoAgrupadoHistoricoDTO[]> {
-    const dataIniForm = formatDateISODate(dataInicio)
-    const dataFimForm = formatDateISODate(dataFim)
-    let query = ` select distinct oph.*,op."userId" from ordem_pagamento op
-					        inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
-							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
-							                            and oph."dataReferencia" =
-                                          (select max(opph."dataReferencia") 
-										  from ordem_pagamento opp
-											inner join ordem_pagamento_agrupado oppa on oppa.id = opp."ordemPagamentoAgrupadoId"
-											inner join ordem_pagamento_agrupado_historico opph on oppa.id = opph."ordemPagamentoAgrupadoId"
-											where opph."ordemPagamentoAgrupadoId" =oph."ordemPagamentoAgrupadoId" 
-										  and op."idOrdemPagamento"=opp."idOrdemPagamento" 
-										  and op."dataOrdem"=opp."dataOrdem"
-										  and op."idOperadora"=opp."idOperadora"										  
-										  ) 
-                  where oph."statusRemessa"= 4 
-				  
-				  and exists (select 1 from ordem_pagamento opv
-										inner join ordem_pagamento_agrupado opav on opav.id = opv."ordemPagamentoAgrupadoId"
-										inner join ordem_pagamento_agrupado_historico ophv on opav.id = ophv."ordemPagamentoAgrupadoId"
-							  where opv."idOperadora"=op."idOperadora" 
-							  and ophv."statusRemessa"=3
-							 ) `
-
-    if (dataInicio !== undefined && dataFim !== undefined && dataFim >= dataInicio) {
-      query = query + `  and op."dataCaptura" between '${dataIniForm} ' and '${dataFimForm}' `;
-    } else {
-      return [];
-    }
-
-    this.logger.debug(query);
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    let result: any[] = await queryRunner.query(query);
-    queryRunner.release();
-    return result.map((r) => new OrdemPagamentoAgrupadoHistoricoDTO(r));
   }
 }

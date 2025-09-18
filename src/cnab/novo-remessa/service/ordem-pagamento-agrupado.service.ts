@@ -9,6 +9,7 @@ import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-p
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
+
 @Injectable()
 export class OrdemPagamentoAgrupadoService {
 
@@ -28,17 +29,6 @@ export class OrdemPagamentoAgrupadoService {
     if (pagador) {
       this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
       await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
-      this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
-    }
-  }
-
-  async prepararPagamentoAgrupadosUnico(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
-    pagadorKey: keyof AllPagadorDict, consorcios: string[]) {
-    this.logger.debug(`Preparando agrupamentos pagamento único`)
-    const pagador = await this.getPagador(pagadorKey);
-    if (pagador) {
-      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
-      await this.agruparOrdemUnica(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
       this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
     }
   }
@@ -73,12 +63,19 @@ export class OrdemPagamentoAgrupadoService {
     }
   }
 
-  private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]) {
-    await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
+  async prepararPagamentoAgrupadosUnico(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
+    pagadorKey: keyof AllPagadorDict, consorcios: string[]) {
+    this.logger.debug(`Preparando agrupamentos pagamento único`)
+    const pagador = await this.getPagador(pagadorKey);
+    if (pagador) {
+      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
+      await this.agruparOrdemUnica(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
+      this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+    }
   }
 
-  private async agruparOrdensPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, nomes?: string[]) {
-    await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
+  private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]) {
+    await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
   }
 
   private async agruparOrdemUnica(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
@@ -103,6 +100,10 @@ export class OrdemPagamentoAgrupadoService {
     await this.ordemPagamentoAgrupadoHistRepository.save(historico);
   }
 
+
+  private async agruparOrdensPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, nomes?: string[]) {
+    await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
+  }
   private async getPagador(pagadorKey: any) {
     return (await this.pagadorService.getAllPagador())[pagadorKey];
   }
