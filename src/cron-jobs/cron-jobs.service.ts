@@ -109,7 +109,30 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    await this.remessaModalExec()
+    (async () => {
+      await new Promise(resolve => setTimeout(resolve, 10000))
+      await this.remessaPendenteExec('2025-01-01 00:00:00', '2025-09-16 23:59:59', '2025-09-13', [
+        '810014952',
+        '810001138',
+        '810018723',
+        "810016833",
+        "810002405",
+        "810012053",
+        "810000551",
+        "810010905",
+        "760000281",
+        "461323292",
+        "810020623",
+        "810007437",
+        "810010093",
+        "810017915",
+        "810002478",
+        "810006896",
+        "810016897",
+        "810006735"
+      ])
+    })();
+    //await this.remessaPendenteExec('2024-11-01 00:00:00', '2024-11-30 23:59:59', '2025-07-28', ['810014952'])
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
