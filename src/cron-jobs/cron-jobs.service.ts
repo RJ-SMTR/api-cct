@@ -101,15 +101,18 @@ export class CronJobsService {
   ) { }
 
 
-  async onModuleInit() {  
-    await this.sincronizarEAgruparOrdensPagamento();
-      this.onModuleLoad().catch((error: Error) => {
+  async onModuleInit() {
+    // await this.sincronizarEAgruparOrdensPagamento();
+    await this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() { 
-    await this.remessaModalExec()
+  async onModuleLoad() {
+    //await this.remessaPendenteExec('2025-01-01', '2025-09-19', '2025-09-19', [
+      //"810016833",
+     // "810000834"
+    //])
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -657,6 +660,8 @@ export class CronJobsService {
     }
   }
 
+
+
   private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     //Agrupa pagamentos     
@@ -674,6 +679,32 @@ export class CronJobsService {
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
+    //Envia para o SFTP
+    await this.remessaService.enviarRemessa(txt, headerName);
+  }
+
+
+  async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idOperadoras?: string[]) {
+    const today = new Date();
+    const dataInicio = new Date(dtInicio);
+    const dataFim = new Date(dtFim);
+    await this.geradorRemessaPendenteExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
+      HeaderName.MODAL, idOperadoras);
+  }
+
+  private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
+    headerName: HeaderName, idOperadoras?: string[]) {
+    this.logger.debug('iniicando o agrupamento pendente')
+    if (dataInicio)
+      // AGRUPAR ORDENS POR INDIVIDUO
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
+
+    // Prepara o remessa
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true);
+
+    // // Gera o TXT
+    const txt = await this.remessaService.gerarCnabText(headerName, undefined);
+
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
   }
@@ -708,9 +739,9 @@ export class CronJobsService {
       subDaysInt = 4;
     } else if (isFriday(today)) {
       subDaysInt = 3;
-    }else{
+    } else {
       return;
-    }   
+    }
 
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
@@ -739,7 +770,7 @@ export class CronJobsService {
 
   async remessaConsorciosExec(pagamentoUnico?: boolean) {
 
-     const today = new Date();
+    const today = new Date();
     let subDaysInt = 0;
 
     if (isTuesday(today)) {
@@ -753,7 +784,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca' ,'MobiRio','VLT']
+    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca', 'MobiRio', 'VLT']
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
@@ -831,7 +862,7 @@ export class CronJobsService {
         const today = startOfDay(new Date());
 
         await this.bigQueryTransacaoService.getAllTransacoes(today);
-    
+
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
       } finally {
@@ -841,7 +872,7 @@ export class CronJobsService {
       this.logger.log('Não foi possível adquirir o lock para a tarefa de sincronização e agrupamento.');
     }
   }
-  
+
   getNextThursday(date = new Date()) {
     if (isThursday(date)) {
       return new Date(date.toISOString().split('T')[0]);
