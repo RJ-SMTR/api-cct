@@ -64,7 +64,8 @@ SELECT
     opa_aux."dataReferencia",
     opa_aux."statusRemessa",
     opa_aux."motivoStatusRemessa",
-    opa_aux."ordemPagamentoAgrupadoId"
+    opa_aux."ordemPagamentoAgrupadoId",
+	  opa_aux."dataPagamento"
 FROM month_dates m
 LEFT JOIN LATERAL (
     SELECT
@@ -95,6 +96,7 @@ ORDER BY m.data;
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
       dto.valorTotal = row.valorTotal != null ? parseFloat(row.valorTotal) : 0;
+      dto.dataPagamento = row.dataPagamento
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
@@ -412,7 +414,7 @@ ORDER BY m.data;
     return result;
   }
 
-  async removerAgrupamento(consorcios: string[], ids: string) {    
+  async removerAgrupamento(consorcios: string[], ids: string) {
     const consorciosJoin = consorcios.join("','");
     const queryRunner = this.dataSource.createQueryRunner();
     try {
