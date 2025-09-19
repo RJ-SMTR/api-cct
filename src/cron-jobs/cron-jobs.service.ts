@@ -109,11 +109,10 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    await this.remessaPendenteExec('2025-01-01', '2025-09-16', '2025-09-13', [
-      "810016833",
-      "810000834"
-    ])
-    //await this.remessaPendenteExec('2024-11-01 00:00:00', '2024-11-30 23:59:59', '2025-07-28', ['810014952'])
+    //await this.remessaPendenteExec('2025-01-01', '2025-09-19', '2025-09-19', [
+      //"810016833",
+     // "810000834"
+    //])
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
