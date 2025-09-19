@@ -96,17 +96,35 @@ ORDER BY m.data;
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
       dto.valorTotal = row.valorTotal != null ? parseFloat(row.valorTotal) : 0;
-      dto.dataPagamento = row.dataPagamento
+      dto.dataPagamento = row.dataPagamento;
+
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
       }
+
       if (row.statusRemessa != null) {
         dto.statusRemessa = row.statusRemessa;
         dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
       }
+
+      // 🔹 Regra extra: se diferença > 7 dias -> statusRemessa = 6
+      if (dto.dataPagamento && dto.data) {
+        const dataBase = new Date(dto.data);
+        const dataPagamento = new Date(dto.dataPagamento);
+
+        const diffMs = dataPagamento.getTime() - dataBase.getTime();
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+        if (diffDays > 7) {
+          dto.statusRemessa = 6;
+          dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(6);
+        }
+      }
+
       return dto;
     });
+
   }
 
   /***
