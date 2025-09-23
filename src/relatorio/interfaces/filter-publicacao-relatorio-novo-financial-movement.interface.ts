@@ -15,4 +15,5 @@ export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   erro?: boolean;
   estorno?: boolean;
   rejeitado?: boolean;
+  pendenciaPaga?: boolean;
 }
