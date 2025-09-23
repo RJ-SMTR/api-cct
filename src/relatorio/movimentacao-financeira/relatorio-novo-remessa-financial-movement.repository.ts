@@ -20,6 +20,7 @@ SELECT DISTINCT
     op."nomeConsorcio",
     da."valorLancamento" AS valor,
     CASE
+        WHEN opa."dataPagamento" > da."dataVencimento" + INTERVAL '7 days' THEN 'Pendencia Paga'
     		WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
         WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
         WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno' 
@@ -349,7 +350,7 @@ from item_transacao it
 
 
       const count = allResults.length;
-      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento, valorPendente } = allResults.reduce(
+      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento, valorPendente, valorPendenciaPaga } = allResults.reduce(
         (acc, curr) => {
           const valor = Number.parseFloat(curr.valor);
           acc.valorTotal += valor;
@@ -358,7 +359,8 @@ from item_transacao it
           else if (curr.status === "Rejeitado") acc.valorRejeitado += valor;
           else if (curr.status === "Estorno") acc.valorEstornado += valor;
           else if (curr.status === "Aguardando Pagamento") acc.valorAguardandoPagamento += valor;
-          else if (curr.status === "Pendente") acc.valorPendente += valor
+          else if (curr.status === "Pendente") acc.valorPendente += valor;
+          else if (curr.status === "Pendencia Paga") acc.valorPendenciaPaga += valor;
 
           return acc;
         },
@@ -369,6 +371,7 @@ from item_transacao it
           valorEstornado: 0,
           valorAguardandoPagamento: 0,
           valorPendente: 0,
+          valorPendenciaPaga: 0
         }
       );
 
@@ -434,6 +437,7 @@ from item_transacao it
         valorRejeitado,
         valorAguardandoPagamento,
         valorPendente,
+        valorPendenciaPaga,
         data: dataOrdenada,
       });
 
