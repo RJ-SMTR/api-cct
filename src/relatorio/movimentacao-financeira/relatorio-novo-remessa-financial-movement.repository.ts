@@ -5,13 +5,14 @@ import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
+import { all } from 'axios';
 
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementRepository {
   private readonly queryNewReport = `
 SELECT DISTINCT 
-    da."dataVencimento" AS dataPagamento,
+    da."dataVencimento" AS "dataReferencia",
     pu."fullName" AS nomes,
     pu.email,
     pu."bankCode" AS "codBanco",
@@ -19,6 +20,7 @@ SELECT DISTINCT
     pu."cpfCnpj",
     op."nomeConsorcio",
     da."valorLancamento" AS valor,
+    opa."dataPagamento",
     CASE
         WHEN opa."dataPagamento" > da."dataVencimento" + INTERVAL '7 days' THEN 'Pendencia Paga'
     		WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
@@ -44,6 +46,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR (
             CASE 
+                WHEN opa."dataPagamento" > da."dataVencimento" + INTERVAL '7 days' THEN 'Pendencia Paga'
     		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
                 WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                 WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
@@ -174,6 +177,7 @@ SELECT
 	pu."cpfCnpj",
 	op."nomeConsorcio",
   op."valor" AS valor,
+  op."dataOrdem",
   'Pendente' AS status
 FROM ordem_pagamento op
 INNER JOIN public."user" pu ON pu.id = op."userId"
@@ -228,7 +232,6 @@ from item_transacao it
   private logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementRepository.name, { timestamp: true });
 
   public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
-
     const initialYear = filter.dataInicio.getFullYear();
     const finalYear = filter.dataFim.getFullYear();
 
@@ -348,7 +351,6 @@ from item_transacao it
         allResults = await queryRunner.query(finalQuery, paramsForYear);
       }
 
-
       const count = allResults.length;
       const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento, valorPendente, valorPendenciaPaga } = allResults.reduce(
         (acc, curr) => {
@@ -376,7 +378,7 @@ from item_transacao it
       );
 
       const grouped = new Map<string, {
-        dataPagamento: string;
+        dataReferencia: string;
         nomes: string;
         cpfCnpj: string;
         email: string,
@@ -385,18 +387,20 @@ from item_transacao it
         consorcio: string;
         valor: number;
         status: string;
+        dataPagamento: string
       }>();
 
       for (const r of allResults) {
-        const dataPagamento = new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento));
-        const key = `${dataPagamento}|${r.cpfCnpj}`;
+        const dataReferencia = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataReferencia));
+        const key = `${dataReferencia}|${r.cpfCnpj}`;
+        const dataPagamento = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataPagamento));
 
         if (grouped.has(key)) {
           const existing = grouped.get(key)!;
           existing.valor += Number.parseFloat(r.valor);
         } else {
           grouped.set(key, {
-            dataPagamento,
+            dataReferencia,
             nomes: r.nomes,
             email: r.email,
             codBanco: r.codBanco,
@@ -405,20 +409,21 @@ from item_transacao it
             consorcio: r.nomeConsorcio,
             valor: Number.parseFloat(r.valor),
             status: r.status,
+            dataPagamento
           });
         }
       }
 
       const dataOrdenada = Array.from(grouped.values())
         .sort((a, b) => {
-          const dateA = new Date(a.dataPagamento.split('/').reverse().join('-')).getTime();
-          const dateB = new Date(b.dataPagamento.split('/').reverse().join('-')).getTime();
+          const dateA = new Date(a.dataReferencia.split('/').reverse().join('-')).getTime();
+          const dateB = new Date(b.dataReferencia.split('/').reverse().join('-')).getTime();
           const nameCompare = a.nomes.localeCompare(b.nomes, 'pt-BR');
           if (dateA !== dateB) return dateA - dateB;
           return nameCompare;
         })
         .map(r => new RelatorioFinancialMovementNovoRemessaData({
-          dataPagamento: r.dataPagamento,
+          dataReferencia: r.dataReferencia,
           nomes: r.nomes,
           email: r.email,
           codBanco: r.codBanco,
@@ -427,6 +432,7 @@ from item_transacao it
           consorcio: r.consorcio,
           valor: r.valor,
           status: r.status,
+          dataPagamento: r.dataPagamento,
         }));
 
       const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
@@ -459,6 +465,7 @@ from item_transacao it
     estorno?: boolean;
     rejeitado?: boolean;
     emProcessamento?: boolean;
+    pendenciaPaga?: boolean;
   }): string[] | null {
     const statuses: string[] = [];
 
@@ -467,14 +474,18 @@ from item_transacao it
       { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] },
       { condition: filter.estorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
       { condition: filter.rejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
-      { condition: filter.emProcessamento, statuses: [StatusPagamento.AGUARDANDO_PAGAMENTO] }
+      { condition: filter.emProcessamento, statuses: [StatusPagamento.AGUARDANDO_PAGAMENTO] },
+      { condition: filter.pendenciaPaga, statuses: [StatusPagamento.PENDENCIA_PAGA] }
     ];
+
+    console.log(filter)
 
     for (const mapping of statusMappings) {
       if (mapping.condition) {
         statuses.push(...mapping.statuses);
       }
     }
+    console.log(statuses)
 
     return statuses.length > 0 ? statuses : null;
   }

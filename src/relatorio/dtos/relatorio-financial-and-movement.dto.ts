@@ -25,6 +25,8 @@ export class RelatorioFinancialMovementNovoRemessaData {
     }
   }
 
+
+  dataReferencia: string;
   dataPagamento: string;
   nomes: string;
   email: string;
