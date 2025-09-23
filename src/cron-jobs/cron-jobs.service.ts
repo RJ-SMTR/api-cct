@@ -102,17 +102,15 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-    // await this.sincronizarEAgruparOrdensPagamento();
-    await this.onModuleLoad().catch((error: Error) => {
+    await this.sincronizarEAgruparOrdensPagamento();
+       this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
   async onModuleLoad() {
-    //await this.remessaPendenteExec('2025-01-01', '2025-09-19', '2025-09-19', [
-      //"810016833",
-     // "810000834"
-    //])
+  
+    await this.remessaModalExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
