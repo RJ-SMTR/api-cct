@@ -3,5 +3,6 @@ export enum StatusPagamento {
   ERRO_ESTORNO = 'Estorno',
   ERRO_REJEITADO = 'Rejeitado',
   AGUARDANDO_PAGAMENTO = 'Aguardando Pagamento',
-  PENDENCIA_PAGA = 'Pendencia Paga'
+  PENDENCIA_PAGA = 'Pendencia Paga',
+  PENDENTES = 'Pendentes'
 }

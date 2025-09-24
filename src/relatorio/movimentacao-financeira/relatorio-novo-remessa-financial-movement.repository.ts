@@ -466,19 +466,20 @@ from item_transacao it
     rejeitado?: boolean;
     emProcessamento?: boolean;
     pendenciaPaga?: boolean;
+    pendentes?: boolean;
   }): string[] | null {
     const statuses: string[] = [];
 
     const statusMappings: { condition: boolean | undefined; statuses: StatusPagamento[] }[] = [
       { condition: filter.pago, statuses: [StatusPagamento.PAGO] },
-      { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] },
+      { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO, StatusPagamento.PENDENTES] },
       { condition: filter.estorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
       { condition: filter.rejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
       { condition: filter.emProcessamento, statuses: [StatusPagamento.AGUARDANDO_PAGAMENTO] },
-      { condition: filter.pendenciaPaga, statuses: [StatusPagamento.PENDENCIA_PAGA] }
+      { condition: filter.pendenciaPaga, statuses: [StatusPagamento.PENDENCIA_PAGA] },
+      { condition: filter.pendentes, statuses: [StatusPagamento.PENDENTES] }
     ];
 
-    console.log(filter)
 
     for (const mapping of statusMappings) {
       if (mapping.condition) {
