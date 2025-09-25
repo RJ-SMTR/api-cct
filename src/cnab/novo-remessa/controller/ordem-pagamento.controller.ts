@@ -71,13 +71,16 @@ export class OrdemPagamentoController {
   async getSemanal(
     @Request() request: IRequest, //
     @Param('ordemPagamentoAgrupadoId', new ParseNumberPipe({ min: 1, optional: false })) ordemPagamentoAgrupadoId: number,
+    @Query(...DateQueryParams.yearMonth) yearMonth: string,
+    @Query(...DateQueryParams.endDate) endDate: Date,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
   ): Promise<OrdemPagamentoSemanalDto[]> {
     this.logger.log(getRequestLog(request));
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
+   
     canProceed(request, Number(userId));
-    return this.ordemPagamentoService.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userIdNum);
+    return this.ordemPagamentoService.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userIdNum,  endDate);
   }
 
 
