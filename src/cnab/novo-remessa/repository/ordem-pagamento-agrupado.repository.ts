@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DataSource, DeepPartial, Repository } from 'typeorm';
+import { DataSource, DeepPartial, In, Repository } from 'typeorm';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { formatDateISODate } from 'src/utils/date-utils';
@@ -32,42 +32,89 @@ export class OrdemPagamentoAgrupadoRepository {
       where: fields,
     });
   }
+  public async findOnePai(fields: EntityCondition<OrdemPagamentoAgrupado>): Promise<Nullable<OrdemPagamentoAgrupado>> {
+    return await this.ordemPagamentoAgrupadoRepository.findOne({
+      where: fields,
+      relations: ['ordensPagamentoAgrupadoHistorico'], 
+    });
+  }
 
   public async findAll(): Promise<OrdemPagamentoAgrupado[]> {
     return await this.ordemPagamentoAgrupadoRepository.find({});
   }
 
-  public async findAllCustom(dataInicio: Date, dataFim: Date, nomeConsorcio?: string[], dataPagamento?: Date): Promise<OrdemPagamentoAgrupado[]> {
-    const dataIniForm = formatDateISODate(dataInicio)
-    const dataFimForm = formatDateISODate(dataFim)
+  
 
-    let query = ` select distinct opa.* from ordem_pagamento op
-					        inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
+  public async findParent(dataPagamento?: Date) {
+    let queryPai = `
+    select distinct opa.* from ordem_pagamento_agrupado opa
 							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
-                  where oph."statusRemessa"= 0 
-                  `;
+                  where oph."statusRemessa" = 0
+                  and EXISTS (
+                  SELECT 1 from ordem_pagamento_agrupado 
+                    where "ordemPagamentoAgrupadoId" = opa.id
+                  )
+    `
     if (dataPagamento) {
       const dataPagamentoForm = formatDateISODate(dataPagamento)
-      query = query + `and "dataPagamento" ='${dataPagamentoForm}'`
+      queryPai = queryPai + `and "dataPagamento" ='${dataPagamentoForm}'`
+
+    }
+    const queryRunnerPai = this.dataSource.createQueryRunner();
+    await queryRunnerPai.connect();
+    const resultPai: any[] = await queryRunnerPai.query(queryPai);
+    return resultPai.map(r => new OrdemPagamentoAgrupado(r))
+  }
+
+
+
+  public async findAllCustom(
+    dataInicio: Date,
+    dataFim: Date,
+    nomeConsorcio?: string[],
+    dataPagamento?: Date
+  ): Promise<OrdemPagamentoAgrupado[]> {
+    const dataIniForm = formatDateISODate(dataInicio);
+    const dataFimForm = formatDateISODate(dataFim);
+
+    const paiResult = await this.findParent(dataPagamento);
+    let result: OrdemPagamentoAgrupado[] = [...paiResult];
+
+    const queryRunnerChild = this.dataSource.createQueryRunner();
+    await queryRunnerChild.connect();
+
+    let query = `SELECT DISTINCT opa.* 
+               FROM ordem_pagamento_agrupado opa
+               INNER JOIN ordem_pagamento op ON opa.id = op."ordemPagamentoAgrupadoId"
+               INNER JOIN ordem_pagamento_agrupado_historico oph ON opa.id = oph."ordemPagamentoAgrupadoId"
+               WHERE oph."statusRemessa" = 0`;
+
+    if (dataPagamento) {
+      const dataPagamentoForm = formatDateISODate(dataPagamento);
+      query += ` AND opa."dataPagamento" = '${dataPagamentoForm}'`;
     }
 
-    if (dataInicio !== undefined && dataFim !== undefined && dataFim >= dataInicio) {
-      query = query + ` and op."dataCaptura" between '${dataIniForm} 00:00:00' and '${dataFimForm} 23:59:59' 
-       and op."ordemPagamentoAgrupadoId" is not null `;
+    if (dataInicio && dataFim && dataFim >= dataInicio) {
+      query += ` AND op."dataCaptura" BETWEEN '${dataIniForm} 00:00:00' AND '${dataFimForm} 23:59:59'`;
     } else {
-      return [];
+      await queryRunnerChild.release();
+      return result;
     }
 
-    if (nomeConsorcio) {
-      query = query + ` and op."nomeConsorcio" in ('${nomeConsorcio.join("','")}') `;
+    if (nomeConsorcio && nomeConsorcio.length) {
+      query += ` AND op."nomeConsorcio" IN ('${nomeConsorcio.join("','")}')`;
     }
 
     this.logger.debug(query);
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    const result: any[] = await queryRunner.query(query);
-    queryRunner.release();
-    return result.map((r) => new OrdemPagamentoAgrupado(r));
+
+    const childRows: any[] = await queryRunnerChild.query(query);
+    await queryRunnerChild.release();
+
+    const childResult = childRows.map(r => new OrdemPagamentoAgrupado(r));
+
+    result = [...result, ...childResult];
+
+    return result;
   }
 
 
