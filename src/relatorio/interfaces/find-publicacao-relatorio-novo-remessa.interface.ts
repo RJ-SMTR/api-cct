@@ -15,4 +15,3 @@ export interface IFindPublicacaoRelatorioNovoRemessa {
   desativados?: boolean;
   pendentes?: boolean;
 }
-
