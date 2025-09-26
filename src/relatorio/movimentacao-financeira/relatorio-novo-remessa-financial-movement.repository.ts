@@ -3,17 +3,16 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
-import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
-
-import { all } from 'axios';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
+import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
+import { all } from 'axios';
+
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementRepository {
   private readonly queryNewReport = `
 SELECT DISTINCT 
     da."dataVencimento" AS "dataReferencia",
-
     pu."fullName" AS nomes,
     pu.email,
     pu."bankCode" AS "codBanco",
@@ -215,8 +214,6 @@ from item_transacao it
         where it."dataOrdem" BETWEEN $1 AND $2
         and it."nomeConsorcio" in('STPC','STPL','TEC')
         AND ($5::integer[] IS NULL OR uu."id" = ANY($5::integer[]))
-
-
         AND (
          ($6::numeric IS NULL OR it."valor" >= $6::numeric) 
          AND ($7::numeric IS NULL OR it."valor" <= $7::numeric)
@@ -225,7 +222,8 @@ from item_transacao it
           (
             select 1 from detalhe_a da 
                       where da."itemTransacaoAgrupadoId"=it."itemTransacaoAgrupadoId"
-          )`;
+          )
+`
 
   constructor(
     @InjectDataSource()
@@ -234,7 +232,6 @@ from item_transacao it
   private logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementRepository.name, { timestamp: true });
 
   public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
-
     const initialYear = filter.dataInicio.getFullYear();
     const finalYear = filter.dataFim.getFullYear();
 
@@ -274,7 +271,6 @@ from item_transacao it
           finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
         } else if (is2024) {
           finalQuery2024 += notEleicaoFilter2024
-
         }
 
         if (filter.desativados) {
@@ -300,7 +296,6 @@ from item_transacao it
 
 
         const is2025 = actualDataFim.getFullYear() === 2025
-
         if (is2025 && filter.eleicao) {
           finalQuery2025 = this.eleicao2025
         }
@@ -313,11 +308,11 @@ from item_transacao it
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
 
         allResults = [...resultFrom2024, ...resultFromNewerYears];
+
       } else {
         const paramsForYear = this.getParametersByQuery(initialYear, filter);
         const is2024 = initialYear === 2024
         const is2025 = initialYear === 2025
-
 
 
         let finalQuery = queryDecision.query;
@@ -352,12 +347,12 @@ from item_transacao it
         if (filter.pendentes && is2024) {
           finalQuery += this.pendentes_24
         }
+
         allResults = await queryRunner.query(finalQuery, paramsForYear);
       }
 
       const count = allResults.length;
       const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento, valorPendente, valorPendenciaPaga } = allResults.reduce(
-
         (acc, curr) => {
           const valor = Number.parseFloat(curr.valor);
           acc.valorTotal += valor;
@@ -366,9 +361,9 @@ from item_transacao it
           else if (curr.status === "Rejeitado") acc.valorRejeitado += valor;
           else if (curr.status === "Estorno") acc.valorEstornado += valor;
           else if (curr.status === "Aguardando Pagamento") acc.valorAguardandoPagamento += valor;
-
           else if (curr.status === "Pendente") acc.valorPendente += valor;
           else if (curr.status === "Pendencia Paga") acc.valorPendenciaPaga += valor;
+
           return acc;
         },
         {
@@ -399,6 +394,7 @@ from item_transacao it
         const dataReferencia = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataReferencia));
         const key = `${dataReferencia}|${r.cpfCnpj}`;
         const dataPagamento = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataPagamento));
+
         if (grouped.has(key)) {
           const existing = grouped.get(key)!;
           existing.valor += Number.parseFloat(r.valor);
@@ -422,7 +418,6 @@ from item_transacao it
         .sort((a, b) => {
           const dateA = new Date(a.dataReferencia.split('/').reverse().join('-')).getTime();
           const dateB = new Date(b.dataReferencia.split('/').reverse().join('-')).getTime();
-
           const nameCompare = a.nomes.localeCompare(b.nomes, 'pt-BR');
           if (dateA !== dateB) return dateA - dateB;
           return nameCompare;
@@ -462,6 +457,8 @@ from item_transacao it
     }
   }
 
+
+
   private getStatusParaFiltro(filter: {
     pago?: boolean;
     erro?: boolean;
@@ -469,19 +466,20 @@ from item_transacao it
     rejeitado?: boolean;
     emProcessamento?: boolean;
     pendenciaPaga?: boolean;
+    pendentes?: boolean;
   }): string[] | null {
     const statuses: string[] = [];
 
     const statusMappings: { condition: boolean | undefined; statuses: StatusPagamento[] }[] = [
       { condition: filter.pago, statuses: [StatusPagamento.PAGO] },
-      { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] },
+      { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO, StatusPagamento.PENDENTES] },
       { condition: filter.estorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
       { condition: filter.rejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
       { condition: filter.emProcessamento, statuses: [StatusPagamento.AGUARDANDO_PAGAMENTO] },
-      { condition: filter.pendenciaPaga, statuses: [StatusPagamento.PENDENCIA_PAGA] }
+      { condition: filter.pendenciaPaga, statuses: [StatusPagamento.PENDENCIA_PAGA] },
+      { condition: filter.pendentes, statuses: [StatusPagamento.PENDENTES] }
     ];
 
-    console.log(filter)
 
     for (const mapping of statusMappings) {
       if (mapping.condition) {

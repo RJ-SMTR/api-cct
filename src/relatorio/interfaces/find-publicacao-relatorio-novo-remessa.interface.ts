@@ -14,4 +14,5 @@ export interface IFindPublicacaoRelatorioNovoRemessa {
   eleicao?: boolean;
   desativados?: boolean;
   pendentes?: boolean;
+  pendenciaPaga?: boolean;
 }
