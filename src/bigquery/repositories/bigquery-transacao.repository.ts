@@ -77,12 +77,12 @@ export class BigqueryTransacaoRepository {
 
   public async getAllTransacoes(data: Date): Promise<BigqueryTransacaoDiario[]> {
     const dataIniForm = formatDateISODate(data)
-    const queryGetData = `SELECT DISTINCT data_transacao FROM \`rj-smtr.bilhetagem_interno.data_ordem_transacao\` WHERE data_ordem between '2025-09-10' and '2025-09-15'`;
+    const queryGetData = `SELECT DISTINCT data_transacao FROM \`rj-smtr.bilhetagem_interno.data_ordem_transacao\` WHERE data_ordem between '2025-09-10' and '2025-09-11'`;
     
     //= '${dataIniForm}'`;
 
     const queryResultData = await this.bigqueryService.query(BigquerySource.smtr, queryGetData, [data]);
-    const datas = queryResultData.map((i: any) => `'${i.data_transacao.value}'`).join(", ");
+    const datas = queryResultData.map((i: any) => `'${i.data_transacao.value}'`).join(",");
 
 
     const query = `SELECT  *  FROM  \`rj-smtr.projeto_app_cct.transacao_cct\`
@@ -97,7 +97,7 @@ export class BigqueryTransacaoRepository {
         FROM
           rj-smtr.financeiro.bilhetagem_dia
         WHERE
-          data_ordem between '2025-09-10' and '2025-09-15')`;
+          data_ordem between '2025-09-10' and '2025-09-11')`;
 
           // = '${dataIniForm}');`;
 
