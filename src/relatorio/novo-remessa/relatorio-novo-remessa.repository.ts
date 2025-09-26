@@ -413,7 +413,8 @@ SELECT
   DATE(op."dataOrdem") AS dataPagamento,
   op."nomeOperadora" as nome,
   op."valor" AS valor,
-  pu."bankCode"
+  pu."bankCode",
+  op."nomeConsorcio"
 FROM ordem_pagamento op
 INNER JOIN public."user" pu ON pu.id = op."userId"
 WHERE
@@ -422,7 +423,7 @@ WHERE
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
     AND (
-          ($4::numeric IS NULL OR op."valor" >= $4::numeric) 
+          ($4::numeric IS NUL OR op."valor" >= $4::numeric) 
           AND ($5::numeric IS NULL OR op."valor" <= $5::numeric)
       )
 `
@@ -458,6 +459,8 @@ from item_transacao it
   private logger = new CustomLogger(RelatorioNovoRemessaRepository.name, { timestamp: true });
 
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
+    console.log(filter)
+
     const queryRunner = this.dataSource.createQueryRunner();
 
     await queryRunner.connect();
@@ -498,49 +501,87 @@ from item_transacao it
     let result: any[] = await queryRunner.query(sql);
 
 
+
+
+
+
     if (filter.pendentes) {
       const pendentes = await this.pendentesQuery(filter, queryRunner);
-      result = pendentes.concat(result);
+
+      for (const r of result) {
+        if (!r.nome) continue;
+
+        for (const p of pendentes) {
+          if (p.nomeConsorcio === r.nome) {
+            const valorResult = Number(r.valor ?? r.total ?? 0);
+            const valorPend = Number(p.total ?? p.valor ?? 0);
+            r.valor = valorResult + valorPend;
+          }
+        }
+      }
+
+      for (const p of pendentes) {
+        const jaExiste = result.some((r: any) => r.nome === p.nomeConsorcio);
+        if (!jaExiste) {
+          result.push({
+            nome: p.nomeConsorcio,
+            valor: Number(p.total ?? p.valor ?? 0),
+          });
+        }
+      }
+
+      result = result.map((r: any) => ({
+        nome: r.nome,
+        valor: Number(r.valor ?? r.total ?? 0),
+      }));
     }
+
+
+
 
 
     const count = result.length;
 
     const relatorioConsolidadoDto = new RelatorioConsolidadoNovoRemessaDto();
 
-
     let valorTotal = 0;
 
     if (filter.aPagar != undefined || filter.emProcessamento != undefined) {
       const sqlPagar = this.somatorioTotalAPagar(sql);
       const resultTotal: any[] = await queryRunner.query(sqlPagar);
-      valorTotal = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
+
+      const somaPagar = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
+
+      valorTotal += somaPagar;
     }
 
     if (filter.pago != undefined || filter.erro != undefined) {
-
       const sqlPago = this.somatorioTotalPagoErro(sql);
       const resultTotal: any[] = await queryRunner.query(sqlPago);
-      valorTotal = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
+
+      const somaPago = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
+
+      valorTotal += somaPago;
 
       if (filter.pendentes) {
         const queryPendentes: any[] = await this.pendentesQuery(filter, queryRunner);
-        const resultTotalPendentes = queryPendentes.reduce((acc, r) => acc + Number(r.valor), 0);
+        const somaPendentes = queryPendentes.reduce((acc, r) => acc + Number(r.valor ?? r.total ?? 0), 0);
 
-        valorTotal += resultTotalPendentes;
+        valorTotal += somaPendentes;
       }
     } else {
       const sqlPago = this.somatorioTotalPagoErro(sql);
       const resultTotal: any[] = await queryRunner.query(sqlPago);
-      valorTotal = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
-    }
 
+      const somaPago = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
+
+      valorTotal += somaPago;
+    }
 
     relatorioConsolidadoDto.valor = parseFloat(String(valorTotal.toFixed(2)));
     relatorioConsolidadoDto.count = count;
 
     if (filter.userIds && filter.userIds.length > 0 || filter.todosVanzeiros) {
-      console.log('Consolidado por usuário');
       const valorPorUsuario: Record<string, number> = {};
 
       for (const row of result) {
@@ -704,7 +745,7 @@ from item_transacao it
 
   private getStatusParaFiltro(filter: IFindPublicacaoRelatorioNovoRemessa) {
     let statuses: number[] | null = null;
-    if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar) {
+    if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar || filter.pendenciaPaga) {
       statuses = [];
 
       if (filter.aPagar) {
@@ -721,6 +762,10 @@ from item_transacao it
 
       if (filter.erro) {
         statuses.push(4);
+      }
+
+      if (filter.pendenciaPaga) {
+        status.push('')
       }
     }
     return statuses;
@@ -870,8 +915,36 @@ from item_transacao it
     }
 
     if (anoInicio >= 2025 && anoFim >= 2025) {
-      const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds];
-      return await queryRunner.query(this.pendentes_25, queryParams);
+      const queryParams = [
+        filter.dataInicio,
+        filter.dataFim,
+        filter.userIds,
+        filter.valorMin,
+        filter.valorMax,
+      ]
+
+      let sql = this.pendentes_25
+
+      if (!filter.todosVanzeiros) {
+        // faz a soma agrupada por consórcio
+        sql = `
+        SELECT 
+          vv."nomeConsorcio",
+          SUM(vv.valor) as total
+        FROM (${this.pendentes_25}) vv
+        GROUP BY vv."nomeConsorcio"
+        ORDER BY vv."nomeConsorcio"
+      `
+      } else {
+        // apenas adiciona o order by
+        sql = `
+        SELECT * 
+        FROM (${this.pendentes_25}) vv
+        ORDER BY vv."nomeConsorcio"
+      `
+      }
+
+      return await queryRunner.query(sql, queryParams)
     }
 
     if (anoInicio === 2024 && anoFim >= 2025) {
