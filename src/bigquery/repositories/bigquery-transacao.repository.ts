@@ -87,7 +87,7 @@ export class BigqueryTransacaoRepository {
 
     const query = `SELECT  *  FROM  \`rj-smtr.projeto_app_cct.transacao_cct\`
       WHERE
-        DATA IN ('${datas}')
+        DATA IN (${datas})
         AND consorcio IN ('STPC',
           'STPL',
           'TEC')
