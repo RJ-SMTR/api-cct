@@ -38,12 +38,12 @@ export class BigqueryTransacaoRepository {
     timestamp: true,
   });
 
-  constructor(private readonly bigqueryService: BigqueryService, 
+  constructor(private readonly bigqueryService: BigqueryService,
     private readonly settingsService: SettingsService,
     @InjectRepository(BigqueryTransacaoDiario)
-    private readonly bigqueryTransacaoRepo: Repository<BigqueryTransacaoDiario>, 
+    private readonly bigqueryTransacaoRepo: Repository<BigqueryTransacaoDiario>,
 
-  ) {}
+  ) { }
   public async countAll() {
     const result = await this.bigqueryService.query(BigquerySource.smtr, 'SELECT COUNT(*) as length FROM `rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao`');
     const len = result[0].length;
@@ -81,8 +81,20 @@ export class BigqueryTransacaoRepository {
     const queryResultData = await this.bigqueryService.query(BigquerySource.smtr, queryGetData, [data]);
     const datas = queryResultData.map((i: any) => `'${i.data_transacao.value}'`).join(", ");
 
-   
-    const query = `SELECT * from \`rj-smtr.projeto_app_cct.transacao_cct\` where data IN (${datas})`;
+
+    const query = `SELECT  *  FROM  \`rj-smtr.projeto_app_cct.transacao_cct\`
+      WHERE
+        DATA IN (${datas})
+        AND consorcio IN ('STPC',
+          'STPL',
+          'TEC')
+        AND id_ordem_pagamento IN (
+        SELECT
+          id_ordem_pagamento
+        FROM
+          rj-smtr.financeiro.bilhetagem_dia
+        WHERE
+          data_ordem = '${dataIniForm}');`;
 
     function mapTransacaoDiario(item: any) {
       const bigQueryDiario = new BigqueryTransacaoDiario();
@@ -136,7 +148,7 @@ export class BigqueryTransacaoRepository {
     transacoes_bq where id_ordem_pagamento_consorcio_operador_dia IN ($1) 
     AND valor_pagamento > 0 
     ORDER BY datetime_transacao DESC`;
-    
+
     function mapTransacaoDiario(item: any) {
       const bigQueryDiario = new BigqueryTransacaoDiario();
       bigQueryDiario.id_transacao = item.id_transacao;
