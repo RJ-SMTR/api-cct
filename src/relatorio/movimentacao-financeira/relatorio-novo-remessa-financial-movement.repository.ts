@@ -6,6 +6,7 @@ import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
 
 import { all } from 'axios';
+import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementRepository {
@@ -224,7 +225,7 @@ from item_transacao it
           (
             select 1 from detalhe_a da 
                       where da."itemTransacaoAgrupadoId"=it."itemTransacaoAgrupadoId"
-          )
+          )`;
 
   constructor(
     @InjectDataSource()
