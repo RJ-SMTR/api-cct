@@ -65,7 +65,8 @@ SELECT
     opa_aux."dataReferencia",
     opa_aux."statusRemessa",
     opa_aux."motivoStatusRemessa",
-    opa_aux."ordemPagamentoAgrupadoId"
+    opa_aux."ordemPagamentoAgrupadoId",
+    opa_aux."dataPagamento"
 FROM month_dates m
 LEFT JOIN LATERAL (
     SELECT
@@ -96,6 +97,7 @@ ORDER BY m.data;
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
       dto.valorTotal = row.valorTotal != null ? parseFloat(row.valorTotal) : 0;
+      dto.dataPagamento = row.dataPagamento;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
@@ -103,6 +105,18 @@ ORDER BY m.data;
       if (row.statusRemessa != null) {
         dto.statusRemessa = row.statusRemessa;
         dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
+      }
+      if (dto.dataPagamento && dto.data) {
+        const dataBase = new Date(dto.data);
+        const dataPagamento = new Date(dto.dataPagamento);
+
+        const diffMs = dataPagamento.getTime() - dataBase.getTime();
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+        if (diffDays > 7) {
+          dto.statusRemessa = 6;
+          dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(6);
+        }
       }
       return dto;
     });
