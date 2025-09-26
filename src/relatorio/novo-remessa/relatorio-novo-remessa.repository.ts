@@ -447,9 +447,7 @@ from item_transacao it
           (
             select 1 from detalhe_a da 
                       where da."itemTransacaoAgrupadoId"=it."itemTransacaoAgrupadoId"
-          )
-`
-
+          )`
 
   constructor(
     @InjectDataSource()
@@ -526,7 +524,6 @@ from item_transacao it
       if (filter.pendentes) {
         const queryPendentes: any[] = await this.pendentesQuery(filter, queryRunner);
         const resultTotalPendentes = queryPendentes.reduce((acc, r) => acc + Number(r.valor), 0);
-
         valorTotal += resultTotalPendentes;
       }
     } else {
@@ -783,7 +780,6 @@ from item_transacao it
       } else {
         condicoes2024 += `AND uu.bloqueado = false`;
       }
-
     }
 
     // --- BLOCO PARA 2025 em diante ---
@@ -798,11 +794,12 @@ from item_transacao it
       WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
       WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
       ELSE op."nomeConsorcio"
-  END AS "nomeConsorcio"
+      END AS "nomeConsorcio"
 
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
+
       `;
 
       const statuses = this.getStatusParaFiltro(filter);
@@ -835,17 +832,16 @@ from item_transacao it
       } else {
         condicoesOutros += `AND uu.bloqueado = false`;
       }
-
     }
 
     // --- return ---
     let finalSQL = '';
     if (sql2024 && sqlOutros) {
       finalSQL = `
-      SELECT * FROM (
-        (${sql2024} ${condicoes2024})
+        SELECT * FROM(
+          (${sql2024} ${condicoes2024})
         UNION ALL
-        (${sqlOutros} ${condicoesOutros})
+          (${sqlOutros} ${condicoesOutros})
       ) AS resultado
     `;
     } else if (sql2024) {
@@ -907,7 +903,7 @@ from item_transacao it
     let condicoes2024 = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim24}'
     and da."ocorrenciasCnab" <> 'AM' 
   AND ha."status" <> '5'`;
-    let condicoesOutros = ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
+    let condicoesOutros = `  where (1=1) and r."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
     `;
     // --- BLOCO PARA 2024 ---
     if (incluir2024) {
@@ -941,10 +937,12 @@ from item_transacao it
           da."dataVencimento",
           uu."fullName",
           uu."permitCode",
- CASE
+          oph."statusRemessa",
+          oph."motivoStatusRemessa",
+           CASE
                                 WHEN op."idOperadora" = '8' THEN 'VLT'
                                 WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
-                                WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
+                                WHEN op."idOperadora" LIKE '81%' THEN 'STPL'
                                 WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
                                 ELSE op."nomeConsorcio"
                             END AS "nome",
@@ -960,12 +958,12 @@ from item_transacao it
         condicoesOutros += `AND uu.bloqueado = false`;
       }
       if (hasStatusFilter) {
-        condicoesOutros += ` and oph."statusRemessa" in (${statuses?.join(',')})\n`;
+        condicoesOutros += `  and r."statusRemessa" in (${statuses?.join(',')})\n`;
 
         const has3or4 = statuses?.includes(3) || statuses?.includes(4);
 
         if (has3or4) {
-          condicoesOutros += ` and oph."motivoStatusRemessa" <> 'AM'\n`;
+          condicoesOutros += ` and r."motivoStatusRemessa" <> 'AM'\n`;
         }
       }
     }
@@ -973,11 +971,11 @@ from item_transacao it
     if (filter.todosConsorcios) {
       const consorcios = `'STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC'`;
       condicoes2024 += ` AND ita."nomeConsorcio" IN (${consorcios}) `;
-      condicoesOutros += ` AND ${filter.eleicao ? 'opu.consorcio' : 'op."nomeConsorcio"'} IN (${consorcios}) `;
+      condicoesOutros += ` AND ${filter.eleicao ? 'r.consorcio' : 'r."nome"'} IN (${consorcios}) `;
     } else if (filter.consorcioNome) {
       const nomes = `'${filter.consorcioNome.join("','")}'`;
       condicoes2024 += ` AND ita."nomeConsorcio" IN (${nomes}) `;
-      condicoesOutros += ` AND ${filter.eleicao ? 'opu.consorcio' : 'op."nomeConsorcio"'} IN (${nomes}) `;
+      condicoesOutros += ` AND ${filter.eleicao ? 'r.consorcio' : 'r."nome"'} IN (${nomes}) `;
     }
     if (filter.eleicao) {
       condicoes2024 += `  AND ita."idOrdemPagamento" LIKE '%U%'`;
@@ -1011,7 +1009,7 @@ from item_transacao it
     } else if (sqlOutros) {
       finalSQL = `
         SELECT nome, NULL as "nomeConsorcio", SUM(valor) as valor
-        FROM (${sqlOutros} ${condicoesOutros}) AS r
+        FROM (${sqlOutros}) AS r  ${condicoesOutros}
         GROUP BY r.nome
       `;
     }

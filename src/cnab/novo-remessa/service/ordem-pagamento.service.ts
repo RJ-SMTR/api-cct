@@ -17,11 +17,11 @@ import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { OrdemPagamentoDto } from 'src/cnab/dto/pagamento/ordem-pagamento.dto';
 
 @Injectable()
-export class OrdemPagamentoService {  
-  
+export class OrdemPagamentoService {
+
   private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
 
-  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository, private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) {}
+  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository, private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) { }
 
   async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
     const METHOD = 'sincronizarOrdensPagamento';
@@ -92,7 +92,7 @@ export class OrdemPagamentoService {
     ordemPagamentoMensal.valorTotal = ordensDoMes.reduce((acc, ordem) => acc + (ordem.valorTotal || 0), 0);
     ordemPagamentoMensal.valorTotalPago = ordensDoMes.reduce((acc, ordem) => {
       if (ordem.motivoStatusRemessa &&
-          (ordem.motivoStatusRemessa.toString() === '00' || ordem.motivoStatusRemessa.toString() === 'BD')) {
+        (ordem.motivoStatusRemessa.toString() === '00' || ordem.motivoStatusRemessa.toString() === 'BD')) {
         return acc + (ordem.valorTotal || 0);
       }
       return acc;
@@ -108,10 +108,6 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
   }
 
-  async findOrdensPagamentoPendentes(): Promise<OrdemPagamentoPendenteDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentes();
-  }
-
   async findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId?: number | undefined): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
     return await this.ordemPagamentoRepository.findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId);
   }
@@ -124,12 +120,16 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findNumeroOrdensPorIntervaloDataCaptura(startDate, endDate);
   }
 
-  async findOrdensAgrupadas(dataInicio: Date, dataFim: Date, consorcios: string[]):Promise<OrdemPagamento[]> {
-    return this.ordemPagamentoRepository.findOrdensAgrupadas(dataInicio,dataFim,consorcios);    
-  } 
+  async findOrdensAgrupadas(dataInicio: Date, dataFim: Date, consorcios: string[]): Promise<OrdemPagamento[]> {
+    return this.ordemPagamentoRepository.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
+  }
 
-  async removerAgrupamentos(consorcios:string[],ids:string) {
-    await this.ordemPagamentoRepository.removerAgrupamento(consorcios,ids) 
+  async removerAgrupamentos(consorcios: string[], ids: string) {
+    await this.ordemPagamentoRepository.removerAgrupamento(consorcios, ids)
+  }
+
+  public async getOrdensPendentes(dataInicio: Date, dataFim: Date, nomes: string[]) {
+    return await this.ordemPagamentoRepository.findOrdensPagamentosPendentes(dataInicio, dataFim, nomes)
   }
 
 }

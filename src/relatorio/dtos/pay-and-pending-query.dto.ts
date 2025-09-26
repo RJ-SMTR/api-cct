@@ -136,3 +136,4 @@ export class FinancialMovementQueryDto {
   pendenciaPaga?: boolean;
 }
 
+

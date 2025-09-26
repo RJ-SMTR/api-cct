@@ -1,4 +1,3 @@
-
 export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   dataInicio: Date;
   dataFim: Date;
@@ -9,6 +8,7 @@ export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   valorMax?: number;
   eleicao?: boolean;
   emProcessamento?: boolean;
+  pendentes?: boolean;
   pago?: boolean;
   desativados?: boolean;
   pendentes?: boolean;
@@ -16,4 +16,5 @@ export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   estorno?: boolean;
   rejeitado?: boolean;
   pendenciaPaga?: boolean;
+
 }
