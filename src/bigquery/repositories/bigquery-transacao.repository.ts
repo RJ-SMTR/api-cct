@@ -124,6 +124,7 @@ export class BigqueryTransacaoRepository {
 
   public async syncTransacoes(data: Date): Promise<BigqueryTransacaoDiario[]> {
     const queryResult = await this.getAllTransacoes(data);
+    this.logger.log(`Total de registros - ${queryResult.length}`);
 
     const saved: BigqueryTransacaoDiario[] = [];
 
@@ -140,6 +141,7 @@ export class BigqueryTransacaoRepository {
         datetime_ultima_atualizacao: item.datetime_ultima_atualizacao,
       };
 
+      this.logger.log(`Inicio inserção transacao - ${dto.id_transacao}`);
       const savedEntity = await this.saveTransacao(dto);
 
       saved.push(savedEntity);

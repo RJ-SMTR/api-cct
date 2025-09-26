@@ -863,6 +863,7 @@ export class CronJobsService {
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
       } finally {
+        this.logger.log('Finalizando sincronização e agrupamento.');
         await this.distributedLockService.releaseLock(METHOD);
       }
     } else {
