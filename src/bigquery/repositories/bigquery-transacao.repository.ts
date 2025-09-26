@@ -87,7 +87,7 @@ export class BigqueryTransacaoRepository {
 
     const query = `SELECT  *  FROM  \`rj-smtr.projeto_app_cct.transacao_cct\`
       WHERE
-        DATA IN (${datas})
+        DATA IN ('${datas}')
         AND consorcio IN ('STPC',
           'STPL',
           'TEC')
@@ -97,7 +97,7 @@ export class BigqueryTransacaoRepository {
         FROM
           rj-smtr.financeiro.bilhetagem_dia
         WHERE
-          data_ordem between '2025-09-10' and '2025-09-25'`;
+          data_ordem between '2025-09-10' and '2025-09-25')`;
 
           // = '${dataIniForm}');`;
 
