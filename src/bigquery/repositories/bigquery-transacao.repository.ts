@@ -77,7 +77,10 @@ export class BigqueryTransacaoRepository {
 
   public async getAllTransacoes(data: Date): Promise<BigqueryTransacaoDiario[]> {
     const dataIniForm = formatDateISODate(data)
-    const queryGetData = `SELECT DISTINCT data_transacao FROM \`rj-smtr.bilhetagem_interno.data_ordem_transacao\` WHERE data_ordem = '${dataIniForm}'`;
+    const queryGetData = `SELECT DISTINCT data_transacao FROM \`rj-smtr.bilhetagem_interno.data_ordem_transacao\` WHERE data_ordem between '2025-09-10' and '2025-09-25'`;
+    
+    //= '${dataIniForm}'`;
+
     const queryResultData = await this.bigqueryService.query(BigquerySource.smtr, queryGetData, [data]);
     const datas = queryResultData.map((i: any) => `'${i.data_transacao.value}'`).join(", ");
 
@@ -94,7 +97,9 @@ export class BigqueryTransacaoRepository {
         FROM
           rj-smtr.financeiro.bilhetagem_dia
         WHERE
-          data_ordem = '${dataIniForm}');`;
+          data_ordem between '2025-09-10' and '2025-09-25'`;
+
+          // = '${dataIniForm}');`;
 
     function mapTransacaoDiario(item: any) {
       const bigQueryDiario = new BigqueryTransacaoDiario();
