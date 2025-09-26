@@ -37,3 +37,4 @@ export class RelatorioFinancialMovementNovoRemessaData {
   valor: number;
   status: string;
 }
+

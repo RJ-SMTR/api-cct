@@ -1,4 +1,3 @@
-
 export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   dataInicio: Date;
   dataFim: Date;

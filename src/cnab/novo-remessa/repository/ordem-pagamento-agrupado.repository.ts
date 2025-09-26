@@ -37,13 +37,19 @@ export class OrdemPagamentoAgrupadoRepository {
     return await this.ordemPagamentoAgrupadoRepository.find({});
   }
 
-  public async findAllCustom(dataInicio: Date, dataFim: Date, nomeConsorcio?: string[]): Promise<OrdemPagamentoAgrupado[]> {
+  public async findAllCustom(dataInicio: Date, dataFim: Date, nomeConsorcio?: string[], dataPagamento?: Date): Promise<OrdemPagamentoAgrupado[]> {
     const dataIniForm = formatDateISODate(dataInicio)
     const dataFimForm = formatDateISODate(dataFim)
+
     let query = ` select distinct opa.* from ordem_pagamento op
 					        inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
 							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
-                  where oph."statusRemessa"= 0 ` ;
+                  where oph."statusRemessa"= 0 
+                  `;
+    if (dataPagamento) {
+      const dataPagamentoForm = formatDateISODate(dataPagamento)
+      query = query + `and "dataPagamento" ='${dataPagamentoForm}'`
+    }
 
     if (dataInicio !== undefined && dataFim !== undefined && dataFim >= dataInicio) {
       query = query + ` and op."dataCaptura" between '${dataIniForm} 00:00:00' and '${dataFimForm} 23:59:59' 
@@ -59,7 +65,7 @@ export class OrdemPagamentoAgrupadoRepository {
     this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result: any[] = await queryRunner.query(query);
+    const result: any[] = await queryRunner.query(query);
     queryRunner.release();
     return result.map((r) => new OrdemPagamentoAgrupado(r));
   }
@@ -92,13 +98,13 @@ export class OrdemPagamentoAgrupadoRepository {
     this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result: any[] = await queryRunner.query(query);
+    const result: any[] = await queryRunner.query(query);
     queryRunner.release();
     return result.map((r) => new OrdemPagamentoAgrupado(r));
   }
 
   async excluirPorIds(ids: string) {
-    let query = ` delete from ordem_pagamento_agrupado 
+    const query = ` delete from ordem_pagamento_agrupado 
             where id in('${ids}') `;
 
     const queryRunner = this.dataSource.createQueryRunner();
