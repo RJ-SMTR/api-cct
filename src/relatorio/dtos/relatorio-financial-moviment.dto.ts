@@ -13,8 +13,6 @@ export class RelatorioFinancialMovementNovoRemessaDto {
   valorRejeitado: number;
   valorEstornado: number;
   valorAguardandoPagamento: number
-  valorPendente: number
-  valorPendenciaPaga: number
   data: RelatorioFinancialMovementNovoRemessaData[];
 }
 
@@ -25,16 +23,10 @@ export class RelatorioFinancialMovementNovoRemessaData {
     }
   }
 
-
-  dataReferencia: string;
   dataPagamento: string;
   nomes: string;
-  email: string;
-  codBanco: number;
-  nomeBanco: string;
   cpfCnpj: string;
   consorcio: string;
   valor: number;
   status: string;
 }
-

@@ -19,7 +19,7 @@ export class RelatorioNovoRemessaRepository {
                     inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
                     inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
                     inner join public."user" uu on uu."id"=op."userId" 
-                   `;    
+                    where (1=1) `;
 
   private static readonly QUERY_FROM_24 = `    from
                     transacao_agrupado ta
@@ -438,7 +438,6 @@ from item_transacao it
 		    JOIN bank bc on bc.code = uu."bankCode"
         where it."dataOrdem" BETWEEN $1 AND $2
         and it."nomeConsorcio" in('STPC','STPL','TEC')
-		    and it."idOrdemPagamento" <> 'PU04'
         AND ($3::integer[] IS NULL OR uu."id" = ANY($3::integer[]))
         AND (
           ($4::numeric IS NULL OR it."valor" >= $4::numeric) 
@@ -448,16 +447,7 @@ from item_transacao it
           (
             select 1 from detalhe_a da 
                       where da."itemTransacaoAgrupadoId"=it."itemTransacaoAgrupadoId"
-          )
-      and not exists (
-			  select 1 from item_transacao itt
-			  inner join item_transacao_agrupado ita on itt."itemTransacaoAgrupadoId" = ita."id"
-  			inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id	
-		    where itt."dataOrdem" = it."dataOrdem"
-			  and itt."idOrdemPagamento" = it."idOrdemPagamento"
-			  and itt."idOperadora" = it."idOperadora"
-		)
-`
+          )`
 
   constructor(
     @InjectDataSource()
@@ -534,7 +524,6 @@ from item_transacao it
       if (filter.pendentes) {
         const queryPendentes: any[] = await this.pendentesQuery(filter, queryRunner);
         const resultTotalPendentes = queryPendentes.reduce((acc, r) => acc + Number(r.valor), 0);
-
         valorTotal += resultTotalPendentes;
       }
     } else {
@@ -781,23 +770,16 @@ from item_transacao it
         condicoes2024 += ` and ita."nomeConsorcio" in('STPC','STPL','TEC')`;
       }
 
-
-      if (filter.eleicao && !filter.pendentes) {
-        // Somente eleição
-        condicoes2024 += ` AND ita."idOrdemPagamento" LIKE '%U%'`;
-      } else if (!filter.eleicao && filter.pendentes) {
-        // Somente pendentes
-        condicoes2024 += ` AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
+      if (filter.eleicao) {
+        condicoes2024 += `AND ita."idOrdemPagamento" LIKE '%U%'`;
+      } else if (!filter.pendentes) {
+        condicoes2024 += `AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
       }
-
-
-
       if (filter.desativados) {
         condicoes2024 += `AND uu.bloqueado = true`;
       } else {
         condicoes2024 += `AND uu.bloqueado = false`;
       }
-
     }
 
     // --- BLOCO PARA 2025 em diante ---
@@ -816,7 +798,8 @@ from item_transacao it
 
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
+      condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
+
       `;
 
       const statuses = this.getStatusParaFiltro(filter);
@@ -849,51 +832,6 @@ from item_transacao it
       } else {
         condicoesOutros += `AND uu.bloqueado = false`;
       }
-
-      if (filter.pendentes && filter.eleicao) {
-        condicoesOutros += ` \n UNION ALL
-        SELECT DISTINCT
-        da.id,
-        da."dataVencimento" AS dataPagamento,
-        pu."fullName" as nome,
-        da."valorLancamento" as valor,
-        opu."consorcio"
-        ${RelatorioNovoRemessaRepository.ELEICAO_25}
-        `;
-        condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'`;
-
-        const statuses = this.getStatusParaFiltro(filter);
-
-        if (hasStatusFilter) {
-          condicoesOutros += ` and oph."statusRemessa" in (${statuses?.join(',')}) \n`;
-
-          const has3or4 = statuses?.includes(3) || statuses?.includes(4);
-
-          if (has3or4) {
-            condicoesOutros += ` and oph."motivoStatusRemessa" <> 'AM'\n`;
-          }
-        }
-
-        if (filter.valorMin !== undefined) {
-          condicoesOutros += ` and da."valorRealEfetivado" >= ${filter.valorMin} `;
-        }
-
-        if (filter.valorMax !== undefined) {
-          condicoesOutros += ` and da."valorRealEfetivado" <= ${filter.valorMax} `;
-        }
-
-        if (filter.userIds) {
-          condicoesOutros += ` and uu.id in ('${filter.userIds.join("', '")}')`;
-        } else if (filter.todosVanzeiros) {
-          condicoesOutros += ` and opu."consorcio" in('STPC','STPL','TEC')`;
-        }
-        if (filter.desativados) {
-          condicoesOutros += `AND pu.bloqueado = true`;
-        } else {
-          condicoesOutros += `AND pu.bloqueado = false`;
-        }
-      }
-
     }
 
     // --- return ---
@@ -928,12 +866,12 @@ from item_transacao it
     }
 
     if (anoInicio >= 2025 && anoFim >= 2025) {
-      const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds, filter.valorMin, filter.valorMax];
+      const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds];
       return await queryRunner.query(this.pendentes_25, queryParams);
     }
 
     if (anoInicio === 2024 && anoFim >= 2025) {
-      const ateFinal2024 = `${anoInicio} -12 - 31`;
+      const ateFinal2024 = `${anoInicio}-12-31`;
       const inicio2025 = `2025-01-01`;
 
       const queryParams2024 = [filter.dataInicio, ateFinal2024, filter.userIds, filter.valorMin, filter.valorMax];
@@ -968,7 +906,7 @@ from item_transacao it
     let condicoesOutros = `  where (1=1) and r."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
     `;
     // --- BLOCO PARA 2024 ---
-    if ((filter.pago !== undefined || filter.erro !== undefined) && incluir2024) {
+    if (incluir2024) {
       sql2024 = `
         SELECT distinct
           ita.id,
@@ -1014,6 +952,11 @@ from item_transacao it
       }
 
 
+      if (filter.desativados) {
+        condicoesOutros += `AND uu.bloqueado = true`;
+      } else {
+        condicoesOutros += `AND uu.bloqueado = false`;
+      }
       if (hasStatusFilter) {
         condicoesOutros += `  and r."statusRemessa" in (${statuses?.join(',')})\n`;
 
@@ -1039,6 +982,11 @@ from item_transacao it
       // condicoesOutros += `      AND ita."idOrdemPagamento" LIKE '%U%'`;
     } else {
       condicoes2024 += `  AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
+    }
+    if (filter.desativados) {
+      condicoes2024 += `AND pu.bloqueado = true`;
+    } else {
+      condicoes2024 += `AND pu.bloqueado = false`;
     }
     // --- return ---
     let finalSQL = '';
@@ -1071,10 +1019,10 @@ from item_transacao it
 
 
   private somatorioTotalPagoErro(sql: string) {
-    return `select sum("valor") valor from(` + sql + `) s `;
+    return `select sum("valor") valor from (` + sql + `) s `;
   }
 
   private somatorioTotalAPagar(sql: string) {
-    return `select sum("valor") valor from(` + sql + `) s`;
+    return `select sum("valor") valor from (` + sql + `) s `;
   }
 }

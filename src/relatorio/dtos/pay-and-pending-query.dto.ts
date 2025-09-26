@@ -127,6 +127,13 @@ export class FinancialMovementQueryDto {
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   rejeitado?: boolean;
+
+
+  @ApiPropertyOptional({ description: 'Se o status de erro for Pendencia Paga', default: false })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  pendenciaPaga?: boolean;
 }
 
 
