@@ -146,6 +146,8 @@ export class BigqueryTransacaoRepository {
 
     const dataFimStr = formatDateISODate(dataFim);
 
+    const ordensId = ordemPagamentoIds.join("','");
+
     const query = `SELECT t.id_transacao,
                     t.data, 
                     t.datetime_transacao,
@@ -161,11 +163,11 @@ export class BigqueryTransacaoRepository {
                   WHERE t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
                   AND t.consorcio in('STPC','STPL','TEC')
                   AND t.valor_pagamento > 0
-                  AND t.id_ordem_pagamento_consorcio_operador_dia IN($1)`;
+                  AND t.id_ordem_pagamento_consorcio_operador_dia IN('${ordensId}')`;
         
     this.logger.debug(query);
 
-    const queryResult = await this.bigqueryTransacaoRepo.query(query, ordemPagamentoIds)
+    const queryResult = await this.bigqueryTransacaoRepo.query(query)
     return queryResult.map((item: any) => {
       return this.mapTransacaoDiario(item);
     });
