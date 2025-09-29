@@ -147,21 +147,21 @@ export class BigqueryTransacaoRepository {
     const dataFimStr = formatDateISODate(dataFim);
 
     const query = `SELECT t.id_transacao,
-                      t.data, 
-                      t.datetime_transacao,
-                      t.consorcio,
-                      t.id_ordem_pagamento,
-                      t.id_ordem_pagamento_consorcio_operador_dia,
-                      ROUND(t.valor_pagamento, 2) valor_pagamento,
-                      ROUND(t.valor_transacao, 2) valor_transacao,
-                      t.tipo_pagamento,
-                      t.tipo_transacao,
-                      t.datetime_ultima_atualizacao
+                    t.data, 
+                    t.datetime_transacao,
+                    t.consorcio,
+                    t.id_ordem_pagamento,
+                    t.id_ordem_pagamento_consorcio_operador_dia,
+                    ROUND(t.valor_pagamento, 2) valor_pagamento,
+                    ROUND(t.valor_transacao, 2) valor_transacao,
+                    t.tipo_pagamento,
+                    t.tipo_transacao,
+                    t.datetime_ultima_atualizacao
                   FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t                  
                   WHERE t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
                   AND t.consorcio in('STPC','STPL','TEC')
                   AND t.valor_pagamento > 0
-                  AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST(?)`;
+                  AND t.id_ordem_pagamento_consorcio_operador_dia IN($1)`;
         
     this.logger.debug(query);
 
