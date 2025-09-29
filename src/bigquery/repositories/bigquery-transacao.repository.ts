@@ -132,10 +132,33 @@ export class BigqueryTransacaoRepository {
   }
 
   public async findTransacoesByOp(ordemPagamentoIds: number[]) {
-    const query = `SELECT * FROM 
-    transacoes_bq where id_ordem_pagamento_consorcio_operador_dia IN ($1) 
-    AND valor_pagamento > 0 
-    ORDER BY datetime_transacao DESC`;
+    // const query = `SELECT * FROM 
+    // transacoes_bq where id_ordem_pagamento_consorcio_operador_dia IN ($1) 
+    // AND valor_pagamento > 0 
+    // ORDER BY datetime_transacao DESC    
+    const dataInicio = new Date();
+
+    dataInicio.setDate(dataInicio.getDate() - 30);
+
+    const dataInicioStr = formatDateISODate(dataInicio);
+
+    const dataFim = new Date();
+
+    const dataFimStr = formatDateISODate(dataFim);
+
+    const query = `SELECT ROUND(t.valor_pagamento, 2) valor_pagamento,
+                        ROUND(t.valor_transacao, 2) valor_transacao,
+                        t.tipo_pagamento,
+                        t.tipo_transacao
+                 FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+                     LEFT JOIN \`rj-smtr.cadastro.operadoras\` o
+                 ON o.id_operadora = t.id_operadora
+                     LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
+                 WHERE 1 = 1
+                   AND t. AND t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
+                   AND t.valor_pagamento
+                     > 0
+                   AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST(?)`;
     
     function mapTransacaoDiario(item: any) {
       const bigQueryDiario = new BigqueryTransacaoDiario();
