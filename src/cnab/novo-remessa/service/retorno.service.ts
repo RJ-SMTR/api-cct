@@ -92,7 +92,7 @@ export class RetornoService {
         } else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
           const ordemPagamento = this.detalheAService.getOrdemPagamento(detalheA.id)
           const dataReferencia = detalheA.dataVencimento
-          const dataPagamentoDaOrdem = ordemPagamento.dataPagamento
+          const dataPagamentoDaOrdem = detalheA.dataVencimento
 
 
           const diferencaDias =
