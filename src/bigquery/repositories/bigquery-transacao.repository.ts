@@ -147,27 +147,32 @@ export class BigqueryTransacaoRepository {
     const dataFimStr = formatDateISODate(dataFim);
 
     const query = `SELECT t.id_transacao,
-                        t.data, 
-                        t.datetime_transacao,
-                        t.consorcio,
-                        t.id_ordem_pagamento,
-                        t.id_ordem_pagamento_consorcio_operador_dia,
-                        ROUND(t.valor_pagamento, 2) valor_pagamento,
-                        ROUND(t.valor_transacao, 2) valor_transacao,
-                        t.tipo_pagamento,
-                        t.tipo_transacao,
-                        t.datetime_ultima_atualizacao
-                 FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
-                     LEFT JOIN \`rj-smtr.cadastro.operadoras\` o
-                 ON o.id_operadora = t.id_operadora
-                     LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
-                 WHERE 1 = 1
-                   AND t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
-                   AND t.valor_pagamento
-                     > 0
-                   AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST(?)`;
-    
-    function mapTransacaoDiario(item: any) {
+                      t.data, 
+                      t.datetime_transacao,
+                      t.consorcio,
+                      t.id_ordem_pagamento,
+                      t.id_ordem_pagamento_consorcio_operador_dia,
+                      ROUND(t.valor_pagamento, 2) valor_pagamento,
+                      ROUND(t.valor_transacao, 2) valor_transacao,
+                      t.tipo_pagamento,
+                      t.tipo_transacao,
+                      t.datetime_ultima_atualizacao
+                  FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t                  
+                  WHERE t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
+                  AND t.consorcio in('STPC','STPL','TEC')
+                  AND t.valor_pagamento > 0
+                  AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST(?)`;
+        
+    this.logger.debug(query);
+
+    const queryResult = await this.bigqueryTransacaoRepo.query(query, ordemPagamentoIds)
+    return queryResult.map((item: any) => {
+      return this.mapTransacaoDiario(item);
+    });
+
+  }
+
+  public mapTransacaoDiario(item: any) {
       const bigQueryDiario = new BigqueryTransacaoDiario();
       bigQueryDiario.id_transacao = item.id_transacao;
       bigQueryDiario.data = new Date(item.data);
@@ -181,13 +186,6 @@ export class BigqueryTransacaoRepository {
       );
       return bigQueryDiario;
     }
-
-    const queryResult = await this.bigqueryTransacaoRepo.query(query, ordemPagamentoIds)
-    return queryResult.map((item: any) => {
-      return mapTransacaoDiario(item);
-    });
-
-  }
 
   public async findManyByOrdemPagamentoIdIn(ordemPagamentoIds: number[], cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
     let query = ``;
