@@ -68,7 +68,7 @@ export class OrdemPagamentoAgrupadoRepository {
 
 
 
-  public async findAllCustom(
+  public async findAllPendente(
     dataInicio: Date,
     dataFim: Date,
     nomeConsorcio?: string[],
@@ -117,6 +117,39 @@ export class OrdemPagamentoAgrupadoRepository {
     return result;
   }
 
+  
+  public async findAllCustom(dataInicio: Date, dataFim: Date, nomeConsorcio?: string[], dataPagamento?: Date): Promise<OrdemPagamentoAgrupado[]> {
+    const dataIniForm = formatDateISODate(dataInicio)
+    const dataFimForm = formatDateISODate(dataFim)
+
+    let query = ` select distinct opa.* from ordem_pagamento op
+					        inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
+							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
+                  where oph."statusRemessa"= 0 
+                  `;
+    if (dataPagamento) {
+      const dataPagamentoForm = formatDateISODate(dataPagamento)
+      query = query + `and "dataPagamento" ='${dataPagamentoForm}'`
+    }
+
+    if (dataInicio !== undefined && dataFim !== undefined && dataFim >= dataInicio) {
+      query = query + ` and op."dataCaptura" between '${dataIniForm} 00:00:00' and '${dataFimForm} 23:59:59' 
+       and op."ordemPagamentoAgrupadoId" is not null `;
+    } else {
+      return [];
+    }
+
+    if (nomeConsorcio) {
+      query = query + ` and op."nomeConsorcio" in ('${nomeConsorcio.join("','")}') `;
+    }
+
+    this.logger.debug(query);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    const result: any[] = await queryRunner.query(query);
+    queryRunner.release();
+    return result.map((r) => new OrdemPagamentoAgrupado(r));
+  }
 
   public async findAllUnica(dataInicio: Date, dataFim: Date, dataPgto: Date, statusRemessa?: StatusRemessaEnum): Promise<OrdemPagamentoAgrupado[]> {
     const dataIniForm = formatDateISODate(dataInicio)

@@ -1004,7 +1004,7 @@ from item_transacao it
            CASE
                                 WHEN op."idOperadora" = '8' THEN 'VLT'
                                 WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
-                                WHEN op."idOperadora" LIKE '81%' THEN 'STPL'
+                                WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
                                 WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
                                 ELSE op."nomeConsorcio"
                             END AS "nome",
