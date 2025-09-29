@@ -67,7 +67,8 @@ SELECT
     COALESCE(MAX(opa_aux.id), null) as opaId,
     opa_aux."statusRemessa",
     opa_aux."motivoStatusRemessa",
-    opa_aux."ordemPagamentoAgrupadoId"
+    opa_aux."ordemPagamentoAgrupadoId",
+    opa_aux."dataPagamento"
 FROM month_dates m
     LEFT JOIN LATERAL (
         SELECT DISTINCT
@@ -113,7 +114,9 @@ ORDER BY m.data;
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
-      dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
+
+      dto.valorTotal = row.valorTotal != null ? parseFloat(row.valorTotal) : 0;
+      dto.dataPagamento = row.dataPagamento;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
@@ -121,6 +124,18 @@ ORDER BY m.data;
       if (row.statusRemessa != null) {
         dto.statusRemessa = row.statusRemessa;
         dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
+      }
+      if (dto.dataPagamento && dto.data) {
+        const dataBase = new Date(dto.data);
+        const dataPagamento = new Date(dto.dataPagamento);
+
+        const diffMs = dataPagamento.getTime() - dataBase.getTime();
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+        if (diffDays > 7) {
+          dto.statusRemessa = 6;
+          dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(6);
+        }
       }
       return dto;
     });

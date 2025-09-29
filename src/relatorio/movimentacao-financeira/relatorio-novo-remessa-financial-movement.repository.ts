@@ -3,15 +3,16 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
-import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
+import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
+import { all } from 'axios';
 
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementRepository {
   private readonly queryNewReport = `
-    SELECT DISTINCT 
-    da."dataVencimento" AS dataPagamento,
+SELECT DISTINCT 
+    da."dataVencimento" AS "dataReferencia",
     pu."fullName" AS nomes,
     pu.email,
     pu."bankCode" AS "codBanco",
@@ -19,7 +20,9 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     pu."cpfCnpj",
     op."nomeConsorcio",
     da."valorLancamento" AS valor,
+    opa."dataPagamento",
     CASE
+        WHEN opa."dataPagamento" > da."dataVencimento" + INTERVAL '7 days' THEN 'Pendencia Paga'
     		WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
         WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
         WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno' 
@@ -43,6 +46,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR (
             CASE 
+                WHEN opa."dataPagamento" > da."dataVencimento" + INTERVAL '7 days' THEN 'Pendencia Paga'
     		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
                 WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                 WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
@@ -173,6 +177,7 @@ SELECT
 	pu."cpfCnpj",
 	op."nomeConsorcio",
   op."valor" AS valor,
+  op."dataOrdem",
   'Pendente' AS status
 FROM ordem_pagamento op
 INNER JOIN public."user" pu ON pu.id = op."userId"
@@ -209,7 +214,6 @@ from item_transacao it
         where it."dataOrdem" BETWEEN $1 AND $2
         and it."nomeConsorcio" in('STPC','STPL','TEC')
         AND ($5::integer[] IS NULL OR uu."id" = ANY($5::integer[]))
-		    and it."idOrdemPagamento" <> 'PU04'
         AND (
          ($6::numeric IS NULL OR it."valor" >= $6::numeric) 
          AND ($7::numeric IS NULL OR it."valor" <= $7::numeric)
@@ -219,16 +223,6 @@ from item_transacao it
             select 1 from detalhe_a da 
                       where da."itemTransacaoAgrupadoId"=it."itemTransacaoAgrupadoId"
           )
-        and not exists 
-        (
-			    select 1 from item_transacao itt
-			    inner join item_transacao_agrupado ita on itt."itemTransacaoAgrupadoId" = ita."id"
-  			  inner join detalhe_a da on da."itemTransacaoAgrupadoId" = ita.id	
-		      where itt."dataOrdem" = it."dataOrdem"
-			    and itt."idOrdemPagamento" = it."idOrdemPagamento"
-			    and itt."idOperadora" = it."idOperadora"
-		    )
-
 `
 
   constructor(
@@ -238,7 +232,6 @@ from item_transacao it
   private logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementRepository.name, { timestamp: true });
 
   public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
-
     const initialYear = filter.dataInicio.getFullYear();
     const finalYear = filter.dataFim.getFullYear();
 
@@ -273,31 +266,20 @@ from item_transacao it
 
         const is2024 = initialYear === 2024
 
-        if (is2024) {
-          // Caso 1: Eleição + Pendentes juntos
-          if (filter.eleicao && filter.pendentes) {
-            this.logger.log("2024 -> pendentes e eleição")
-            finalQuery2024 += this.pendentes_24;
-            // Caso 2: Apenas Eleição
-          } else if (filter.eleicao) {
-            this.logger.log("2024 ->  eleição")
-            finalQuery2024 += eleicaoExtraFilter;
-            finalQuery2024 = finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin);
-            // Caso 3: Apenas Pendentes
-          } else if (filter.pendentes) {
-            this.logger.log('2024 → Apenas Pendentes');
-            finalQuery2024 += notEleicaoFilter2024;
-            finalQuery2024 += this.pendentes_24;
-            // Caso 4: Nem Eleição nem Pendentes
-          } else {
-            this.logger.log('2024 → Sem eleição e sem pendentes');
-            finalQuery2024 += notEleicaoFilter2024;
-          }
+        if (is2024 && filter.eleicao) {
+          finalQuery2024 += eleicaoExtraFilter;
+          finalQuery2024.replace('/* extra joins */', eleicaoInnerJoin)
+        } else if (is2024) {
+          finalQuery2024 += notEleicaoFilter2024
         }
 
         if (filter.desativados) {
           finalQuery2024 += `AND pu.bloqueado = true`
 
+        }
+
+        if (filter.pendentes && is2024) {
+          finalQuery2024 += this.pendentes_24
         }
 
         const resultFrom2024 = await queryRunner.query(finalQuery2024, paramsFor2024);
@@ -314,90 +296,63 @@ from item_transacao it
 
 
         const is2025 = actualDataFim.getFullYear() === 2025
-
-        if (is2025) {
-          if (filter.eleicao && filter.pendentes) {
-            this.logger.log('eleicao e pendentes')
-            // eleição sozinho OU eleição + pendentes
-            finalQuery2025 += ` UNION ALL ${this.eleicao2025}`;
-            finalQuery2025 += this.pendentes_25;
-          } else if (filter.eleicao) {
-            this.logger.log('somente eleicao ')
-            finalQuery2025 = this.eleicao2025;
-          } else if (filter.pendentes) {
-            this.logger.log('somente pendentes')
-            // só pendentes
-            finalQuery2025 += this.pendentes_25;
-          }
+        if (is2025 && filter.eleicao) {
+          finalQuery2025 = this.eleicao2025
         }
+
+        if (filter.pendentes && is2025) {
+          finalQuery2025 += this.pendentes_25
+        }
+
 
         const resultFromNewerYears = await queryRunner.query(finalQuery2025, paramsForNewerYears);
 
         allResults = [...resultFrom2024, ...resultFromNewerYears];
+
       } else {
         const paramsForYear = this.getParametersByQuery(initialYear, filter);
-        const is2024 = initialYear === 2024;
-        const is2025 = initialYear === 2025;
+        const is2024 = initialYear === 2024
+        const is2025 = initialYear === 2025
+
 
         let finalQuery = queryDecision.query;
 
         if (filter.todosVanzeiros) {
           if (is2025) {
             finalQuery += ` ${this.notCpf2025} `;
-          } else if (is2024) {
+          } else if (initialYear === 2024) {
             finalQuery += ` ${this.notCpf2024} `;
           }
         }
 
+        if (is2024 && filter.eleicao) {
+          finalQuery += eleicaoExtraFilter;
+          finalQuery.replace('/* extra joins */', eleicaoInnerJoin)
+        } else if (is2024) {
+          finalQuery += notEleicaoFilter2024
+        }
+
+        if (filter.eleicao && is2025) {
+          finalQuery = this.eleicao2025
+        }
 
         if (filter.desativados) {
           finalQuery += ` AND pu.bloqueado = true`;
         }
 
-
-        if (is2024) {
-          // Caso 1: Eleição + Pendentes juntos
-          if (filter.eleicao && filter.pendentes) {
-            finalQuery += this.pendentes_24;
-            // Caso 2: Apenas Eleição
-          } else if (filter.eleicao) {
-            finalQuery += eleicaoExtraFilter;
-            finalQuery = finalQuery.replace('/* extra joins */', eleicaoInnerJoin);
-            // Caso 3: Apenas Pendentes
-          } else if (filter.pendentes) {
-            this.logger.log('2024 → Apenas Pendentes');
-            finalQuery += notEleicaoFilter2024;
-            finalQuery += this.pendentes_24;
-            // Caso 4: Nem Eleição nem Pendentes
-          } else {
-            this.logger.log('2024 → Sem eleição e sem pendentes');
-            finalQuery += notEleicaoFilter2024;
-          }
+        if (filter.pendentes && is2025) {
+          finalQuery += this.pendentes_25
         }
 
-
-        if (is2025) {
-          if (filter.eleicao && filter.pendentes) {
-            this.logger.log('eleicao e pendentes')
-            // eleição sozinho OU eleição + pendentes
-            finalQuery += ` UNION ALL ${this.eleicao2025}`;
-            finalQuery += this.pendentes_25;
-          } else if (filter.eleicao) {
-            this.logger.log('somente eleicao ')
-            finalQuery = this.eleicao2025;
-          } else if (filter.pendentes) {
-            this.logger.log('somente pendentes')
-            // só pendentes
-            finalQuery += this.pendentes_25;
-          }
+        if (filter.pendentes && is2024) {
+          finalQuery += this.pendentes_24
         }
-
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
       }
 
       const count = allResults.length;
-      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento, valorPendente } = allResults.reduce(
+      const { valorTotal, valorPago, valorRejeitado, valorEstornado, valorAguardandoPagamento, valorPendente, valorPendenciaPaga } = allResults.reduce(
         (acc, curr) => {
           const valor = Number.parseFloat(curr.valor);
           acc.valorTotal += valor;
@@ -406,7 +361,8 @@ from item_transacao it
           else if (curr.status === "Rejeitado") acc.valorRejeitado += valor;
           else if (curr.status === "Estorno") acc.valorEstornado += valor;
           else if (curr.status === "Aguardando Pagamento") acc.valorAguardandoPagamento += valor;
-          else if (curr.status === "Pendente") acc.valorPendente += valor
+          else if (curr.status === "Pendente") acc.valorPendente += valor;
+          else if (curr.status === "Pendencia Paga") acc.valorPendenciaPaga += valor;
 
           return acc;
         },
@@ -417,11 +373,12 @@ from item_transacao it
           valorEstornado: 0,
           valorAguardandoPagamento: 0,
           valorPendente: 0,
+          valorPendenciaPaga: 0
         }
       );
 
       const grouped = new Map<string, {
-        dataPagamento: string;
+        dataReferencia: string;
         nomes: string;
         cpfCnpj: string;
         email: string,
@@ -430,18 +387,20 @@ from item_transacao it
         consorcio: string;
         valor: number;
         status: string;
+        dataPagamento: string
       }>();
 
       for (const r of allResults) {
-        const dataPagamento = new Intl.DateTimeFormat('pt-BR').format(new Date(r.datapagamento));
-        const key = `${dataPagamento}|${r.cpfCnpj}`;
+        const dataReferencia = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataReferencia));
+        const key = `${dataReferencia}|${r.cpfCnpj}`;
+        const dataPagamento = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataPagamento));
 
         if (grouped.has(key)) {
           const existing = grouped.get(key)!;
           existing.valor += Number.parseFloat(r.valor);
         } else {
           grouped.set(key, {
-            dataPagamento,
+            dataReferencia,
             nomes: r.nomes,
             email: r.email,
             codBanco: r.codBanco,
@@ -450,20 +409,21 @@ from item_transacao it
             consorcio: r.nomeConsorcio,
             valor: Number.parseFloat(r.valor),
             status: r.status,
+            dataPagamento
           });
         }
       }
 
       const dataOrdenada = Array.from(grouped.values())
         .sort((a, b) => {
-          const dateA = new Date(a.dataPagamento.split('/').reverse().join('-')).getTime();
-          const dateB = new Date(b.dataPagamento.split('/').reverse().join('-')).getTime();
+          const dateA = new Date(a.dataReferencia.split('/').reverse().join('-')).getTime();
+          const dateB = new Date(b.dataReferencia.split('/').reverse().join('-')).getTime();
           const nameCompare = a.nomes.localeCompare(b.nomes, 'pt-BR');
           if (dateA !== dateB) return dateA - dateB;
           return nameCompare;
         })
         .map(r => new RelatorioFinancialMovementNovoRemessaData({
-          dataPagamento: r.dataPagamento,
+          dataReferencia: r.dataReferencia,
           nomes: r.nomes,
           email: r.email,
           codBanco: r.codBanco,
@@ -472,6 +432,7 @@ from item_transacao it
           consorcio: r.consorcio,
           valor: r.valor,
           status: r.status,
+          dataPagamento: r.dataPagamento,
         }));
 
       const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
@@ -482,6 +443,7 @@ from item_transacao it
         valorRejeitado,
         valorAguardandoPagamento,
         valorPendente,
+        valorPendenciaPaga,
         data: dataOrdenada,
       });
 
@@ -503,22 +465,28 @@ from item_transacao it
     estorno?: boolean;
     rejeitado?: boolean;
     emProcessamento?: boolean;
+    pendenciaPaga?: boolean;
+    pendentes?: boolean;
   }): string[] | null {
     const statuses: string[] = [];
 
     const statusMappings: { condition: boolean | undefined; statuses: StatusPagamento[] }[] = [
       { condition: filter.pago, statuses: [StatusPagamento.PAGO] },
-      { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] },
+      { condition: filter.erro, statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO, StatusPagamento.PENDENTES] },
       { condition: filter.estorno, statuses: [StatusPagamento.ERRO_ESTORNO] },
       { condition: filter.rejeitado, statuses: [StatusPagamento.ERRO_REJEITADO] },
-      { condition: filter.emProcessamento, statuses: [StatusPagamento.AGUARDANDO_PAGAMENTO] }
+      { condition: filter.emProcessamento, statuses: [StatusPagamento.AGUARDANDO_PAGAMENTO] },
+      { condition: filter.pendenciaPaga, statuses: [StatusPagamento.PENDENCIA_PAGA] },
+      { condition: filter.pendentes, statuses: [StatusPagamento.PENDENTES] }
     ];
+
 
     for (const mapping of statusMappings) {
       if (mapping.condition) {
         statuses.push(...mapping.statuses);
       }
     }
+    console.log(statuses)
 
     return statuses.length > 0 ? statuses : null;
   }
