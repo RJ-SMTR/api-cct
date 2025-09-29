@@ -68,7 +68,7 @@ SELECT
     opa_aux."statusRemessa",
     opa_aux."motivoStatusRemessa",
     opa_aux."ordemPagamentoAgrupadoId",
-    COALESCE( opa_aux."dataPagamento", null)
+     opa_aux."dataPagamento"
 FROM month_dates m
     LEFT JOIN LATERAL (
         SELECT DISTINCT
@@ -104,6 +104,7 @@ GROUP BY
     opa_aux."dataReferencia",
     opa_aux."statusRemessa",
     opa_aux."motivoStatusRemessa",
+    opa_aux."dataPagamento",
     opa_aux."ordemPagamentoAgrupadoId"
 ORDER BY m.data;
 
