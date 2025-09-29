@@ -146,16 +146,23 @@ export class BigqueryTransacaoRepository {
 
     const dataFimStr = formatDateISODate(dataFim);
 
-    const query = `SELECT ROUND(t.valor_pagamento, 2) valor_pagamento,
+    const query = `SELECT t.id_transacao,
+                        t.data, 
+                        t.datetime_transacao,
+                        t.consorcio,
+                        t.id_ordem_pagamento,
+                        t.id_ordem_pagamento_consorcio_operador_dia,
+                        ROUND(t.valor_pagamento, 2) valor_pagamento,
                         ROUND(t.valor_transacao, 2) valor_transacao,
                         t.tipo_pagamento,
-                        t.tipo_transacao
+                        t.tipo_transacao,
+                        t.datetime_ultima_atualizacao
                  FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
                      LEFT JOIN \`rj-smtr.cadastro.operadoras\` o
                  ON o.id_operadora = t.id_operadora
                      LEFT JOIN \`rj-smtr.cadastro.consorcios\` c ON c.id_consorcio = t.id_consorcio
                  WHERE 1 = 1
-                   AND t. AND t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
+                   AND t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
                    AND t.valor_pagamento
                      > 0
                    AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST(?)`;
