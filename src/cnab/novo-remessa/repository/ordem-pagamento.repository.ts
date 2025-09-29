@@ -133,7 +133,7 @@ ORDER BY m.data;
         const diffMs = dataPagamento.getTime() - dataBase.getTime();
         const diffDays = diffMs / (1000 * 60 * 60 * 24);
 
-        if (diffDays > 7) {
+        if (diffDays > 7 && row.statusRemessa === 3 ) {
           dto.statusRemessa = 6;
           dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(6);
         }
