@@ -126,6 +126,7 @@ ORDER BY m.data;
         dto.statusRemessa = row.statusRemessa;
         dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
       }
+
       return dto;
     });
   }
