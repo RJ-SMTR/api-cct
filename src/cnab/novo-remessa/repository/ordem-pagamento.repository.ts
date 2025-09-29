@@ -126,18 +126,7 @@ ORDER BY m.data;
         dto.statusRemessa = row.statusRemessa;
         dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
       }
-      if (dto.dataPagamento && dto.data) {
-        const dataBase = new Date(dto.data);
-        const dataPagamento = new Date(dto.dataPagamento);
 
-        const diffMs = dataPagamento.getTime() - dataBase.getTime();
-        const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-        if (diffDays > 7 && row.statusRemessa === 3 ) {
-          dto.statusRemessa = 6;
-          dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(6);
-        }
-      }
       return dto;
     });
   }
@@ -288,7 +277,7 @@ ORDER BY m.data;
       ${whereData}
     ORDER BY o."dataCaptura" DESC
   `;
-  
+
 
     let result = await this.ordemPagamentoRepository.query(query, params);
 
@@ -519,7 +508,7 @@ ORDER BY m.data;
     const dtInicialStr = dataInicio.toISOString().split('T')[0];
     const dtFinalStr = dataFim.toISOString().split('T')[0];
     const consorciosJoin = consorcios.join("','");
-    
+
 
     const query = `SELECT distinct op."ordemPagamentoAgrupadoId" FROM ordem_pagamento op 
                     where date_trunc('day', op."dataCaptura") between '${dtInicialStr}' and '${dtFinalStr}'  

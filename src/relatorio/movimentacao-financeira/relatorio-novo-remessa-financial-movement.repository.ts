@@ -5,7 +5,6 @@ import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
-import { all } from 'axios';
 
 
 @Injectable()
@@ -22,7 +21,7 @@ SELECT DISTINCT
     da."valorLancamento" AS valor,
     opa."dataPagamento",
     CASE
-        WHEN opa."dataPagamento" > da."dataVencimento" + INTERVAL '7 days' THEN 'Pendencia Paga'
+    		WHEN oph."statusRemessa" = 5 THEN 'Pendancia Paga'  
     		WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
         WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
         WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno' 
@@ -46,7 +45,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR (
             CASE 
-                WHEN opa."dataPagamento" > da."dataVencimento" + INTERVAL '7 days' THEN 'Pendencia Paga'
+    		        WHEN oph."statusRemessa" = 5 THEN 'Pendancia Paga'  
     		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
                 WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                 WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
@@ -116,6 +115,7 @@ where da."dataVencimento" between $1 and $2
 	    opu."consorcio" AS "nomeConsorcio",
       da."valorLancamento" AS valor,
       CASE
+    		  WHEN oph."statusRemessa" = 4 THEN 'Pendancia Paga'  
           WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
           WHEN oph."motivoStatusRemessa" IN ('00', 'BD')
           OR oph."statusRemessa" = 3 THEN 'Pago'
@@ -140,6 +140,7 @@ where da."dataVencimento" between $1 and $2
     AND (
         $4::text[] IS NULL OR (
             CASE 
+    		        WHEN oph."statusRemessa" = 5 THEN 'Pendancia Paga'  
     		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
                 WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                 WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
