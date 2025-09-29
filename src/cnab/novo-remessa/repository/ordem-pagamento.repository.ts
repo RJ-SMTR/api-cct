@@ -116,7 +116,7 @@ ORDER BY m.data;
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
 
-      dto.valorTotal = row.valorTotal != null ? parseFloat(row.valorTotal) : 0;
+      dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
       dto.dataPagamento = row.dataPagamento;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
