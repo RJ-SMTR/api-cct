@@ -10,9 +10,9 @@ import { ParseYearMonthPipe } from '../pipes/parse-year-month.pipe';
 export const DateQueryParams = {
   yearMonth: ['yearMonth', new ParseYearMonthPipe()] as QueryParamsType,
 
-  startDate: ['startDate', new ParseDatePipe()] as QueryParamsType,
+  startDate: ['startDate', new ParseDatePipe({ optional: true })] as QueryParamsType,
 
-  endDate: ['endDate', new ParseDatePipe()] as QueryParamsType,
+  endDate: ['endDate', new ParseDatePipe({ optional: true })] as QueryParamsType,
 
   getDate: (name: string, mandatory = false) =>
     [name, new ParseDatePipe({ optional: mandatory })] as QueryParamsType,
