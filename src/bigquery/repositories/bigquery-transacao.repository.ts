@@ -162,7 +162,7 @@ export class BigqueryTransacaoRepository {
           t.tipo_pagamento,
           t.tipo_transacao,
           t.datetime_ultima_atualizacao
-        FROM \`rj-smtr.projeto_app_cct.transacao_cct\` t
+        FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
         WHERE t.data_ordem BETWEEN '${dataInicioStr}' AND '${dataFimStr}'
           AND t.consorcio IN ('STPC','STPL','TEC')
           AND t.valor_pagamento > 0
