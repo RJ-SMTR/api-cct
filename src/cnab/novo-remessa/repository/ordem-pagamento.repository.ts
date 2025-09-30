@@ -90,11 +90,12 @@ dados_processados AS (
                 opa_aux."dataReferencia",
                 opa_aux."statusRemessa",
                 opa_aux."motivoStatusRemessa",
-                opa_aux."ordemPagamentoAgrupadoId"
+                opa_aux."ordemPagamentoAgrupadoId",
+                opa_aux."dataPagamento"
             FROM dias_relatorio m
                 LEFT JOIN LATERAL (
                     SELECT DISTINCT
-                        ON (op.id) op.valor, opa.id, opa."valorTotal", oph."dataReferencia", oph."statusRemessa", oph."motivoStatusRemessa", oph."ordemPagamentoAgrupadoId", op."dataOrdem"
+                        ON (op.id) op.valor, opa.id, opa."valorTotal", oph."dataReferencia", oph."statusRemessa", oph."motivoStatusRemessa", oph."ordemPagamentoAgrupadoId", op."dataOrdem", opa."dataPagamento"
                     FROM
                         ordem_pagamento op
                         LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
@@ -132,7 +133,8 @@ dados_processados AS (
         "dataReferencia",
         "ordemPagamentoAgrupadoId",
         "statusRemessa",
-        "motivoStatusRemessa"
+        "motivoStatusRemessa",
+         MAX("dataPagamento") as "dataPagamento"
     FROM dados_iniciais
     GROUP BY
         "ordemPagamentoAgrupadoId",
@@ -150,6 +152,7 @@ SELECT
     dp."ordemPagamentoAgrupadoId" as opaId,
     dp."statusRemessa",
     dp."motivoStatusRemessa",
+        dp."dataPagamento",
     dp."ordemPagamentoAgrupadoId"
 FROM
     dias_relatorio dr
