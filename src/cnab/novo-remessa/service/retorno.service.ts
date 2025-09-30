@@ -90,9 +90,12 @@ export class RetornoService {
             StatusRemessaEnum.NaoEfetivado
           )
         } else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
-          const ordemPagamento = this.detalheAService.getOrdemPagamento(detalheA.id)
+          const ordemPagamento = await this.detalheAService.getOrdemPagamento(detalheA.id)
+          if (!ordemPagamento) {
+            // não encontrou -> define status direto ou trata exceção
+          }
           const dataReferencia = detalheA.dataVencimento
-          const dataPagamentoDaOrdem = detalheA.dataVencimento
+          const dataPagamentoDaOrdem = ordemPagamento.dataPagamento
 
 
           const diferencaDias =
