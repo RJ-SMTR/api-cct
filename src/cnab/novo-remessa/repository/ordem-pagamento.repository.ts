@@ -52,14 +52,13 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
     const query = `
-    WITH
+WITH
     dias_relatorio AS (
         SELECT dias::DATE AS data
         FROM generate_series(
                 DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
             ) AS dias
-        WHERE
-            (
+        WHERE (
                 EXTRACT(
                     MONTH
                     FROM dias
@@ -80,66 +79,69 @@ export class OrdemPagamentoRepository {
                 ) IN (2, 5)
             )
     ),
-dados_processados AS (
-    WITH
-        dados_iniciais AS (
-            SELECT
-                m.data,
-                SUM(opa_aux.valor) AS valor,
-                MIN(opa_aux."valorTotal") as "valorTotal",
-                opa_aux."dataReferencia",
-                opa_aux."statusRemessa",
-                opa_aux."motivoStatusRemessa",
-                opa_aux."ordemPagamentoAgrupadoId"
-            FROM dias_relatorio m
-                LEFT JOIN LATERAL (
-                    SELECT DISTINCT
-                        ON (op.id) op.valor, opa.id, opa."valorTotal", oph."dataReferencia", oph."statusRemessa", oph."motivoStatusRemessa", oph."ordemPagamentoAgrupadoId", op."dataOrdem"
-                    FROM
-                        ordem_pagamento op
-                        LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-                        LEFT JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-                    WHERE
-                        op."userId" = $2
-                        AND (
-                            (
-                                op."ordemPagamentoAgrupadoId" IS NOT NULL
-                                AND DATE_TRUNC('day', opa."dataPagamento") = DATE_TRUNC('day', m.data)
-                                AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") <= INTERVAL '8 days'
+    dados_processados AS (
+        WITH
+            dados_iniciais AS (
+                SELECT
+                    m.data,
+                    SUM(opa_aux.valor) AS valor,
+                    MIN(opa_aux."valorTotal") as "valorTotal",
+                    opa_aux."dataReferencia",
+                    opa_aux."statusRemessa",
+                    opa_aux."motivoStatusRemessa",
+                    opa_aux."ordemPagamentoAgrupadoId",
+                    opa_aux."dataPagamento"
+                FROM dias_relatorio m
+                    LEFT JOIN LATERAL (
+                        SELECT DISTINCT
+                            ON (op.id) op.valor, opa.id, opa."valorTotal", oph."dataReferencia", oph."statusRemessa", oph."motivoStatusRemessa", oph."ordemPagamentoAgrupadoId", op."dataOrdem", opa."dataPagamento"
+                        FROM
+                            ordem_pagamento op
+                            LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+                            LEFT JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+                        WHERE
+                            op."userId" = $2
+                            AND (
+                                (
+                                    op."ordemPagamentoAgrupadoId" IS NOT NULL
+                                    AND DATE_TRUNC('day', opa."dataPagamento") = DATE_TRUNC('day', m.data)
+                                    AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") <= INTERVAL '8 days'
+                                )
+                                OR (
+                                    op."dataOrdem" BETWEEN (m.data - INTERVAL '7 days') AND (m.data - INTERVAL '1 day')
+                                    AND oph."statusRemessa" <> 3
+                                    AND oph."statusRemessa" <> 4
+                                    AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") > INTERVAL '7 days'
+                                )
                             )
-                            OR (
-                                op."dataOrdem" BETWEEN (m.data - INTERVAL '7 days') AND (m.data - INTERVAL '1 day')
-                                AND oph."statusRemessa" <> 3
-                                AND oph."statusRemessa" <> 4
-                                AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") > INTERVAL '7 days'
-                            )
-                        )
-                    ORDER BY op.id, oph."dataReferencia" DESC
-                ) opa_aux ON TRUE
-            WHERE
-                opa_aux."ordemPagamentoAgrupadoId" IS NOT NULL
-            GROUP BY
-                m.data,
-                opa_aux."dataReferencia",
-                opa_aux."statusRemessa",
-                opa_aux."motivoStatusRemessa",
-                opa_aux."ordemPagamentoAgrupadoId"
-        )
-    SELECT
-        MAX(data) AS data_pagamento,
-        SUM(valor) AS valor_total,
-        MIN("valorTotal") AS valor_total_agrupado,
-        "dataReferencia",
-        "ordemPagamentoAgrupadoId",
-        "statusRemessa",
-        "motivoStatusRemessa"
-    FROM dados_iniciais
-    GROUP BY
-        "ordemPagamentoAgrupadoId",
-        "dataReferencia",
-        "statusRemessa",
-        "motivoStatusRemessa"
-)
+                        ORDER BY op.id, oph."dataReferencia" DESC
+                    ) opa_aux ON TRUE
+                WHERE
+                    opa_aux."ordemPagamentoAgrupadoId" IS NOT NULL
+                GROUP BY
+                    m.data,
+                    opa_aux."dataReferencia",
+                    opa_aux."statusRemessa",
+                    opa_aux."dataPagamento",
+                    opa_aux."motivoStatusRemessa",
+                    opa_aux."ordemPagamentoAgrupadoId"
+            )
+        SELECT
+            MAX(data) AS data_pagamento,
+            SUM(valor) AS valor_total,
+            MIN("valorTotal") AS valor_total_agrupado,
+            "dataReferencia",
+            "ordemPagamentoAgrupadoId",
+            "statusRemessa",
+            "motivoStatusRemessa",
+            MAX("dataPagamento") as "dataPagamento" -- CORRIGIDO AQUI
+        FROM dados_iniciais
+        GROUP BY
+            "ordemPagamentoAgrupadoId",
+            "dataReferencia",
+            "statusRemessa",
+            "motivoStatusRemessa"
+    )
 SELECT
     dr.data,
     dp.valor_total AS valor,
@@ -149,6 +151,7 @@ SELECT
     dp."dataReferencia",
     dp."ordemPagamentoAgrupadoId" as opaId,
     dp."statusRemessa",
+    dp."dataPagamento",
     dp."motivoStatusRemessa",
     dp."ordemPagamentoAgrupadoId"
 FROM
@@ -316,7 +319,7 @@ ORDER BY dr.data;
       const dataFim = format(subDays(today, 1), 'yyyy-MM-dd');
 
       whereData = `AND o."dataOrdem" BETWEEN $3 AND $4
-      GROUP BY o.id,  o."dataOrdem", o."dataCaptura"`;
+      GROUP BY o.id,  o."dataOrdem", o."dataCaptura", opa."dataPagamento"`;
       params.push(dataInicio, dataFim);
     }
 
@@ -325,7 +328,8 @@ ORDER BY dr.data;
           o.id,
            MAX(ROUND(valor, 2)) as valor,
             date_trunc('day', o."dataCaptura") "dataCaptura",
-           o."dataOrdem"
+           o."dataOrdem",
+           opa."dataPagamento"
     FROM ordem_pagamento o
     INNER JOIN ordem_pagamento_agrupado opa
     ON o."ordemPagamentoAgrupadoId" = opa.id
@@ -343,6 +347,7 @@ ORDER BY dr.data;
     result = result.map((row: any) => {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
       ordemPagamento.ordemId = row.id;
+      ordemPagamento.dataPagamento = row.dataPagamento;
       ordemPagamento.dataCaptura = row.dataCaptura;
       ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
       return ordemPagamento;

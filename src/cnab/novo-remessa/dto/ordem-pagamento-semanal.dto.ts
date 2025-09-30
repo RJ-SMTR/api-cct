@@ -5,6 +5,7 @@ export class OrdemPagamentoSemanalDto {
   valor: number;
   dataOrdem: Date;
   dataReferencia: Date;
+  dataPagamento: Date;
   statusRemessa: number | undefined;
   motivoStatusRemessa: string | undefined;
   dataCaptura: Date | undefined;
