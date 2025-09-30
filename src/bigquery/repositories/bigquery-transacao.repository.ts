@@ -181,7 +181,9 @@ export class BigqueryTransacaoRepository {
       const bigQueryDiario = new BigqueryTransacaoDiario();
       bigQueryDiario.id_transacao = item.id_transacao;
       bigQueryDiario.data = new Date(item.data);
+      this.logger.debug(item.data);      
       bigQueryDiario.datetime_transacao = new Date(item.datetime_transacao);
+      this.logger.debug(item.datetime_transacao);
       bigQueryDiario.consorcio = item.consorcio;
       bigQueryDiario.valor_pagamento = item.valor_pagamento;
       bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
