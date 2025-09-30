@@ -150,34 +150,26 @@ export class BigqueryTransacaoRepository {
 
     const ordensId = ordemPagamentoIds.join("','");
 
-    const query = `SELECT t.id_transacao,
-                    t.data, 
-                    t.datetime_transacao,
-                    t.consorcio,
-                    t.id_ordem_pagamento,
-                    t.id_ordem_pagamento_consorcio_operador_dia,
-                    ROUND(t.valor_pagamento, 2) valor_pagamento,
-                    ROUND(t.valor_transacao, 2) valor_transacao,
-                    t.tipo_pagamento,
-                    t.tipo_transacao,
-                    t.datetime_ultima_atualizacao
-                  FROM \`rj-smtr.projeto_app_cct.transacao_cct\` t                  
-                  WHERE t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
-                  AND t.consorcio in('STPC','STPL','TEC')
-                  AND t.valor_pagamento > 0
-                  AND t.id_ordem_pagamento_consorcio_operador_dia IN('${ordensId}'); `;
-        
-    this.logger.debug(query);
-
-     const queryRunner = this.dataSource.createQueryRunner();
-
-    queryRunner.connect();
-
-    let queryResult: any = await queryRunner.query(query);
-
-    queryRunner.release();
-
-    // const queryResult = await this.bigqueryTransacaoRepo.query(query)
+      const query = `
+        SELECT 
+          t.id_transacao,
+          t.data, 
+          t.datetime_transacao,
+          t.consorcio,
+          t.id_ordem_pagamento,
+          t.id_ordem_pagamento_consorcio_operador_dia,
+          ROUND(t.valor_pagamento, 2) valor_pagamento,
+          ROUND(t.valor_transacao, 2) valor_transacao,
+          t.tipo_pagamento,
+          t.tipo_transacao,
+          t.datetime_ultima_atualizacao
+        FROM \`rj-smtr.projeto_app_cct.transacao_cct\` t
+        WHERE t.data_ordem BETWEEN '${dataInicioStr} AND '${dataFimStr}'
+          AND t.consorcio IN ('STPC','STPL','TEC')
+          AND t.valor_pagamento > 0
+          AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST('${ordensId}')`;
+   
+   const queryResult = await this.bigqueryTransacaoRepo.query(query)
     return queryResult.map((item: any) => {
       return this.mapTransacaoDiario(item);
     });
