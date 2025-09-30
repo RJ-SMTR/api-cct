@@ -161,11 +161,11 @@ export class BigqueryTransacaoRepository {
                     t.tipo_pagamento,
                     t.tipo_transacao,
                     t.datetime_ultima_atualizacao
-                  FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t                  
+                  FROM \`rj-smtr.projeto_app_cct.transacao_cct\` t                  
                   WHERE t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
                   AND t.consorcio in('STPC','STPL','TEC')
                   AND t.valor_pagamento > 0
-                  AND t.id_ordem_pagamento_consorcio_operador_dia IN('${ordensId}');`;
+                  AND t.id_ordem_pagamento_consorcio_operador_dia IN('${ordensId}'); `;
         
     this.logger.debug(query);
 
