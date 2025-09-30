@@ -42,7 +42,6 @@ export class BigqueryTransacaoRepository {
     private readonly settingsService: SettingsService,
     @InjectRepository(BigqueryTransacaoDiario)
     private readonly bigqueryTransacaoRepo: Repository<BigqueryTransacaoDiario>, 
-    private readonly dataSource: DataSource
 
   ) {}
   public async countAll() {
@@ -167,9 +166,11 @@ export class BigqueryTransacaoRepository {
         WHERE t.data_ordem BETWEEN '${dataInicioStr} AND '${dataFimStr}'
           AND t.consorcio IN ('STPC','STPL','TEC')
           AND t.valor_pagamento > 0
-          AND t.id_ordem_pagamento_consorcio_operador_dia IN UNNEST('${ordensId}')`;
+          AND t.id_ordem_pagamento_consorcio_operador_dia IN ('${ordensId}')`;
    
-   const queryResult = await this.bigqueryTransacaoRepo.query(query)
+
+    const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query);
+   
     return queryResult.map((item: any) => {
       return this.mapTransacaoDiario(item);
     });
