@@ -124,6 +124,7 @@ dados_processados AS (
                 opa_aux."dataReferencia",
                 opa_aux."statusRemessa",
                 opa_aux."motivoStatusRemessa",
+                opa_aux."dataPagamento",
                 opa_aux."ordemPagamentoAgrupadoId"
         )
     SELECT
