@@ -163,7 +163,7 @@ export class BigqueryTransacaoRepository {
                   WHERE t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
                   AND t.consorcio in('STPC','STPL','TEC')
                   AND t.valor_pagamento > 0
-                  AND t.id_ordem_pagamento_consorcio_operador_dia IN('${ordensId}')`;
+                  AND t.id_ordem_pagamento_consorcio_operador_dia IN('${ordensId}');`;
         
     this.logger.debug(query);
 
