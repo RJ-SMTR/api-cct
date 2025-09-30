@@ -161,7 +161,7 @@ export class BigqueryTransacaoRepository {
                     t.tipo_pagamento,
                     t.tipo_transacao,
                     t.datetime_ultima_atualizacao
-                  FROM \`rj-smtr.projeto_app_cct.transacao_cct\` t                  
+                  FROM rj-smtr.projeto_app_cct.transacao_cct t                  
                   WHERE t.data_ordem between '${dataInicioStr}' and '${dataFimStr}'
                   AND t.consorcio in('STPC','STPL','TEC')
                   AND t.valor_pagamento > 0
