@@ -21,7 +21,7 @@ SELECT DISTINCT
     da."valorLancamento" AS valor,
     opa."dataPagamento",
     CASE
-    		WHEN oph."statusRemessa" = 6 THEN 'Pendancia Paga'  
+    		WHEN oph."statusRemessa" = 6 THEN 'Pendencia Paga'  
     		WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
         WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
         WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno' 
@@ -45,7 +45,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR (
             CASE 
-    		        WHEN oph."statusRemessa" = 6 THEN 'Pendancia Paga'  
+    		        WHEN oph."statusRemessa" = 6 THEN 'Pendencia Paga'  
     		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
                 WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                 WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
@@ -115,7 +115,7 @@ where da."dataVencimento" between $1 and $2
 	    opu."consorcio" AS "nomeConsorcio",
       da."valorLancamento" AS valor,
       CASE
-    		  WHEN oph."statusRemessa" = 6 THEN 'Pendancia Paga'  
+    		  WHEN oph."statusRemessa" = 6 THEN 'Pendencia Paga'  
           WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
           WHEN oph."motivoStatusRemessa" IN ('00', 'BD')
           OR oph."statusRemessa" = 3 THEN 'Pago'
@@ -140,7 +140,7 @@ where da."dataVencimento" between $1 and $2
     AND (
         $4::text[] IS NULL OR (
             CASE 
-    		        WHEN oph."statusRemessa" = 6 THEN 'Pendancia Paga'  
+    		        WHEN oph."statusRemessa" = 6 THEN 'Pendencia Paga'  
     		        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'  
                 WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                 WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
