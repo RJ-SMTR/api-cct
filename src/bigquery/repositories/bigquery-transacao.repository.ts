@@ -12,7 +12,7 @@ import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { BigqueryTransacaoDiario } from '../entities/transaca-diario.entity';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
-import { DeepPartial, Repository } from 'typeorm';
+import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { BigqueryTransacaoDiarioDto } from '../dtos/transacao.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { formatDateISODate } from 'src/utils/date-utils';
@@ -42,6 +42,7 @@ export class BigqueryTransacaoRepository {
     private readonly settingsService: SettingsService,
     @InjectRepository(BigqueryTransacaoDiario)
     private readonly bigqueryTransacaoRepo: Repository<BigqueryTransacaoDiario>, 
+    private readonly dataSource: DataSource
 
   ) {}
   public async countAll() {
@@ -135,7 +136,8 @@ export class BigqueryTransacaoRepository {
     // const query = `SELECT * FROM 
     // transacoes_bq where id_ordem_pagamento_consorcio_operador_dia IN ($1) 
     // AND valor_pagamento > 0 
-    // ORDER BY datetime_transacao DESC    
+    // ORDER BY datetime_transacao DESC 
+
     const dataInicio = new Date();
 
     dataInicio.setDate(dataInicio.getDate() - 30);
@@ -167,7 +169,15 @@ export class BigqueryTransacaoRepository {
         
     this.logger.debug(query);
 
-    const queryResult = await this.bigqueryTransacaoRepo.query(query)
+     const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    let queryResult: any = await queryRunner.query(query);
+
+    queryRunner.release();
+
+    // const queryResult = await this.bigqueryTransacaoRepo.query(query)
     return queryResult.map((item: any) => {
       return this.mapTransacaoDiario(item);
     });
