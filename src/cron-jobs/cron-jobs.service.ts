@@ -102,10 +102,12 @@ export class CronJobsService {
 
   async onModuleInit() {
     await this.sincronizarEAgruparOrdensPagamento();
+
        this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
+
 
   async onModuleLoad() {  
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
@@ -660,6 +662,7 @@ export class CronJobsService {
   private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     //Agrupa pagamentos     
+    // Agrupa pagamentos     
 
     for (let index = 0; index < consorcios.length; index++) {
       if (pagamentoUnico) {
@@ -670,9 +673,9 @@ export class CronJobsService {
           dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
       }
     }
-    //Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
-    // // //Gera o TXT
+    // //Prepara o remessa
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico, false);
+    // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
@@ -691,14 +694,14 @@ export class CronJobsService {
     headerName: HeaderName, idOperadoras?: string[]) {
     this.logger.debug('iniicando o agrupamento pendente')
     if (dataInicio)
-      // AGRUPAR ORDENS POR INDIVIDUO
-      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
+    // AGRUPAR ORDENS POR INDIVIDUO
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
     // Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
 
-    // // Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName, undefined);
+    // Gera o TXT
+    const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
