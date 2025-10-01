@@ -100,20 +100,16 @@ export class CronJobsService {
     private distributedLockService: DistributedLockService,
   ) { }
 
-
   async onModuleInit() {
     await this.sincronizarEAgruparOrdensPagamento();
-     this.onModuleLoad().catch((error: Error) => {
+
+       this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {
-    // await this.remessaPendenteExec('2025-01-01', '2025-09-18', '2025-09-19', [
-    // "810016833",
-    //  "810000834"
-    // ])
 
+  async onModuleLoad() {  
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {

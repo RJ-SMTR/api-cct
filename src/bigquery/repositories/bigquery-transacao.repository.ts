@@ -12,7 +12,7 @@ import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
 import { BigqueryTransacaoDiario } from '../entities/transaca-diario.entity';
 import { BqTsansacaoTipoIntegracaoMap } from '../maps/bq-transacao-tipo-integracao.map';
 import { BqTransacaoTipoPagamentoMap } from '../maps/bq-transacao-tipo-pagamento.map';
-import { DeepPartial, Repository } from 'typeorm';
+import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { BigqueryTransacaoDiarioDto } from '../dtos/transacao.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { formatDateISODate } from 'src/utils/date-utils';
@@ -132,32 +132,67 @@ export class BigqueryTransacaoRepository {
   }
 
   public async findTransacoesByOp(ordemPagamentoIds: number[]) {
-    const query = `SELECT * FROM 
-    transacoes_bq where id_ordem_pagamento_consorcio_operador_dia IN ($1) 
-    AND valor_pagamento > 0 
-    ORDER BY datetime_transacao DESC`;
-    
-    function mapTransacaoDiario(item: any) {
+    // const query = `SELECT * FROM 
+    // transacoes_bq where id_ordem_pagamento_consorcio_operador_dia IN ($1) 
+    // AND valor_pagamento > 0 
+    // ORDER BY datetime_transacao DESC 
+
+    const dataInicio = new Date();
+
+    dataInicio.setDate(dataInicio.getDate() - 30);
+
+    const dataInicioStr = formatDateISODate(dataInicio);
+
+    const dataFim = new Date();
+
+    const dataFimStr = formatDateISODate(dataFim);
+
+    const ordensId = ordemPagamentoIds.join("','");
+
+      const query = `
+        SELECT 
+          t.id_transacao,
+          t.data, 
+          t.datetime_transacao,
+          t.consorcio,
+          t.id_ordem_pagamento,
+          t.id_ordem_pagamento_consorcio_operador_dia,
+          ROUND(t.valor_pagamento, 2) valor_pagamento,
+          ROUND(t.valor_transacao, 2) valor_transacao,
+          t.tipo_pagamento,
+          t.tipo_transacao,
+          t.datetime_ultima_atualizacao
+        FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+        WHERE t.data_ordem BETWEEN '${dataInicioStr}' AND '${dataFimStr}'
+          AND t.consorcio IN ('STPC','STPL','TEC')
+          AND t.valor_pagamento > 0
+          AND t.id_ordem_pagamento_consorcio_operador_dia IN ('${ordensId}')`;
+   
+
+    const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query);
+   
+    return queryResult.map((item: any) => {
+      return this.mapTransacaoDiario(item);
+    });
+
+  }
+
+  public mapTransacaoDiario(item: any) {
       const bigQueryDiario = new BigqueryTransacaoDiario();
       bigQueryDiario.id_transacao = item.id_transacao;
-      bigQueryDiario.data = new Date(item.data);
-      bigQueryDiario.datetime_transacao = new Date(item.datetime_transacao);
+      bigQueryDiario.data = new Date(item.data as string);
+      this.logger.debug("data ->"+ item.data as string);      
+      bigQueryDiario.datetime_transacao = new Date(item.datetime_transacao as string);
+      this.logger.debug("datetime ->"+ item.datetime_transacao as string);
       bigQueryDiario.consorcio = item.consorcio;
       bigQueryDiario.valor_pagamento = item.valor_pagamento;
       bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
       bigQueryDiario.tipo_transacao = item.tipo_transacao;
-      bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;
-      bigQueryDiario.datetime_ultima_atualizacao = new Date(item.datetime_ultima_atualizacao,
-      );
+      bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;      
+      bigQueryDiario.datetime_ultima_atualizacao = new Date(item.datetime_ultima_atualizacao as string);
+      this.logger.debug("data_ultima_atualizacao ->"+ item.datetime_ultima_atualizacao as string);
       return bigQueryDiario;
     }
-
-    const queryResult = await this.bigqueryTransacaoRepo.query(query, ordemPagamentoIds)
-    return queryResult.map((item: any) => {
-      return mapTransacaoDiario(item);
-    });
-
-  }
 
   public async findManyByOrdemPagamentoIdIn(ordemPagamentoIds: number[], cpfCnpj: string | undefined, isAdmin: boolean): Promise<BigqueryTransacao[]> {
     let query = ``;
