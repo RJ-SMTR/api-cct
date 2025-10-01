@@ -16,6 +16,7 @@ import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { BigqueryTransacaoDiarioDto } from '../dtos/transacao.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { formatDateISODate } from 'src/utils/date-utils';
+import { BigQueryDate, BigQueryDatetime } from '@google-cloud/bigquery';
 export interface IBqFindTransacao {
   cpfCnpj?: string;
   manyCpfCnpj?: string[];
@@ -180,17 +181,17 @@ export class BigqueryTransacaoRepository {
   public mapTransacaoDiario(item: any) {
       const bigQueryDiario = new BigqueryTransacaoDiario();
       bigQueryDiario.id_transacao = item.id_transacao;
-      bigQueryDiario.data = new Date(item.data as string);
-      this.logger.debug("data ->"+ item.data as string);      
-      bigQueryDiario.datetime_transacao = new Date(item.datetime_transacao as string);
-      this.logger.debug("datetime ->"+ item.datetime_transacao as string);
+      const dataBq = item.data as BigQueryDate;
+      bigQueryDiario.data = new Date(dataBq.value);
+      const datetimeTransacaoBq = item.datetime_transacao as BigQueryDatetime;    
+      bigQueryDiario.datetime_transacao = new Date(datetimeTransacaoBq.value);
       bigQueryDiario.consorcio = item.consorcio;
       bigQueryDiario.valor_pagamento = item.valor_pagamento;
       bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
       bigQueryDiario.tipo_transacao = item.tipo_transacao;
-      bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;      
-      bigQueryDiario.datetime_ultima_atualizacao = new Date(item.datetime_ultima_atualizacao as string);
-      this.logger.debug("data_ultima_atualizacao ->"+ item.datetime_ultima_atualizacao as string);
+      bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;
+      const dtUltimaBq = item.datetime_ultima_atualizacao as BigQueryDatetime;
+      bigQueryDiario.datetime_ultima_atualizacao = new Date(dtUltimaBq.value);
       return bigQueryDiario;
     }
 
