@@ -51,13 +51,13 @@ export class RemessaService {
   ) { }
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
-  public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean) {
+  public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idOperadoras?: string[]) {
     let ordens;
     if (pagamentoUnico) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
         dataPgto ? dataPgto : new Date());
     } if (isPendente) {
-      ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto);
+      ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idOperadoras);
     } else {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
     }

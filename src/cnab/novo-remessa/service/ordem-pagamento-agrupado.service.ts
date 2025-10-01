@@ -84,8 +84,8 @@ export class OrdemPagamentoAgrupadoService {
   async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date ) {
     return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio, dataFim, consorcio, dataPagamento);
   }
-  async getOrdensPendentes(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date, ) {
-    return await this.ordemPagamentoAgrupadoRepository.findAllPendente(dataInicio, dataFim, consorcio, dataPagamento);
+  async getOrdensPendentes(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date, idOperadoras?: string[] ) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllPendente(dataInicio, dataFim, consorcio, dataPagamento, idOperadoras);
   }
 
   async getOrdensUnicas(dataInicio: Date, dataFim: Date, dataPgto: Date) {
@@ -105,7 +105,7 @@ export class OrdemPagamentoAgrupadoService {
 
   private async agruparOrdensPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, nomes?: string[]) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
-    await this.ordemPagamentoRepository.agruparOrdensDeEstornadosRejeitados(dataInicial, dataFinal, dataPgto, pagador, nomes);
+    // await this.ordemPagamentoRepository.agruparOrdensDeEstornadosRejeitados(dataInicial, dataFinal, dataPgto, pagador, nomes);
   }
   private async getPagador(pagadorKey: any) {
     return (await this.pagadorService.getAllPagador())[pagadorKey];

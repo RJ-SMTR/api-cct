@@ -102,8 +102,8 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-    // await this.sincronizarEAgruparOrdensPagamento();
-    await this.onModuleLoad().catch((error: Error) => {
+    await this.sincronizarEAgruparOrdensPagamento();
+     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
@@ -702,7 +702,7 @@ export class CronJobsService {
     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
     // Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
