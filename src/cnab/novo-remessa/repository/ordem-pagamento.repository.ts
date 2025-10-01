@@ -128,7 +128,7 @@ dados_processados AS (
                 opa_aux."ordemPagamentoAgrupadoId"
         )
     SELECT
-        MAX(data) AS data_pagamento,
+        data AS data_pagamento,
         SUM(valor) AS valor_total,
         MIN("valorTotal") AS valor_total_agrupado,
         "dataReferencia",
@@ -138,6 +138,7 @@ dados_processados AS (
          MAX("dataPagamento") as "dataPagamento"
     FROM dados_iniciais
     GROUP BY
+        data,
         "ordemPagamentoAgrupadoId",
         "dataReferencia",
         "statusRemessa",
