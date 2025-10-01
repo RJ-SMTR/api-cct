@@ -205,10 +205,13 @@ export class DetalheARepository {
 
   }
 
+
   async getOrdemPagamento(detalheAId: number) {
     const sql = `
     SELECT DISTINCT 
-      opa."dataPagamento"
+      opa."dataPagamento",
+      opa."valorTotal",
+      opa."id" as "ordemPagamentoAgrupadoId"
     FROM detalhe_a da
     INNER JOIN ordem_pagamento_agrupado_historico oph 
       ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -221,6 +224,9 @@ export class DetalheARepository {
 
     const result = await this.dataSource.query(sql, [detalheAId]);
 
-    return result;
+    if (!result || result.length === 0) return null;
+
+    return result[0];
   }
+
 }
