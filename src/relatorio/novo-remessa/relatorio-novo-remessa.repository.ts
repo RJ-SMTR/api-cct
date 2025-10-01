@@ -545,15 +545,17 @@ from item_transacao it
     let valorTotal = 0;
 
     if (filter.aPagar != undefined || filter.emProcessamento != undefined) {
+      console.log("entrei aqui")
       const sqlPagar = this.somatorioTotalAPagar(sql);
       const resultTotal: any[] = await queryRunner.query(sqlPagar);
 
       const somaPagar = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
+      console.log(valorTotal)
+      console.log(somaPagar)
 
       valorTotal += somaPagar;
-    }
-
-    if (filter.pago != undefined || filter.erro != undefined) {
+    } else if (filter.pago != undefined || filter.erro != undefined) {
+      console.log('nao posso vir pra ca')
       const sqlPago = this.somatorioTotalPagoErro(sql);
       const resultTotal: any[] = await queryRunner.query(sqlPago);
 
