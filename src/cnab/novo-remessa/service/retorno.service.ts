@@ -53,7 +53,8 @@ export class RetornoService {
     private async atualizarStatusRemessaHistorico(
         cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA){
         const historicos = await this.ordemPagamentoAgrupadoService.getHistorico(detalheA.id);
-        for  ( const historico of historicos){
+        for (let i = 0; i < historicos.length; i++) {
+            const historico = historicos[i];
         if (detalheA && historico) {
             if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio) {
                 historico.dataReferencia = new Date();
@@ -90,10 +91,13 @@ export class RetornoService {
                        StatusRemessaEnum.NaoEfetivado
                    )
                } else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
+                
+                   const status = i === 0 ? StatusRemessaEnum.Efetivado : StatusRemessaEnum.PendenciaPaga;
+
                    await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                        historico,
-                       StatusRemessaEnum.Efetivado
-                   )
+                       status
+                   );
                } else {
                    await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                        historico, StatusRemessaEnum.NaoEfetivado);
@@ -102,4 +106,5 @@ export class RetornoService {
         }
     }
     }
+
 }  
