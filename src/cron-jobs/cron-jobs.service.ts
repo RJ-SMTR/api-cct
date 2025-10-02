@@ -100,21 +100,19 @@ export class CronJobsService {
     private distributedLockService: DistributedLockService,
   ) { }
 
-
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento();
-     await this.onModuleLoad().catch((error: Error) => {    
+
+    // await this.sincronizarEAgruparOrdensPagamento();
+       this.onModuleLoad().catch((error: Error) => {
+
       throw error;
     });
   }
 
 
-  async onModuleLoad(){   
-//     await this.sincronizarTransacoesBq()
-//         await this.remessaPendenteExec('2025-01-01', '2025-09-18', '2025-09-19', [
-//     "810016833",
-//      "810000834"
-//     ])
+
+  async onModuleLoad() {  
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -703,7 +701,7 @@ export class CronJobsService {
     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
     // Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);

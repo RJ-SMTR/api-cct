@@ -3,9 +3,9 @@ export enum StatusRemessaEnum {
   PreparadoParaEnvio = 1,//Remessa enviado
   AguardandoPagamento = 2, //Aguardando Pagamento
   Efetivado = 3,//Segundo retorno
-  NaoEfetivado = 4,//Retorno com Erro
-  Pendente = 5, // Pagamento Pendente
-  PendenciaPaga = 6,// Pagamento de um pendente  
+  NaoEfetivado = 4, //Retorno com Erro
+  PendenciaPaga = 5 //Retorno com Erro
+
 }
 
 

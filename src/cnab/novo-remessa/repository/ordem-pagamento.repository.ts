@@ -28,7 +28,7 @@ export class OrdemPagamentoRepository {
     private readonly dataSource: DataSource
   ) { }
 
-  
+
   public async save(dto: DeepPartial<OrdemPagamento>): Promise<OrdemPagamento> {
     const existing = await this.ordemPagamentoRepository.findOneBy({ id: dto.id });
     if (existing) {
@@ -112,6 +112,7 @@ dados_processados AS (
                                 op."dataOrdem" BETWEEN (m.data - INTERVAL '7 days') AND (m.data - INTERVAL '1 day')
                                 AND oph."statusRemessa" <> 3
                                 AND oph."statusRemessa" <> 4
+                                AND oph."statusRemessa" <> 5
                                 AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") > INTERVAL '7 days'
                             )
                         )
@@ -128,7 +129,7 @@ dados_processados AS (
                 opa_aux."ordemPagamentoAgrupadoId"
         )
     SELECT
-        MAX(data) AS data_pagamento,
+        data AS data_pagamento,
         SUM(valor) AS valor_total,
         MIN("valorTotal") AS valor_total_agrupado,
         "dataReferencia",
@@ -138,6 +139,7 @@ dados_processados AS (
          MAX("dataPagamento") as "dataPagamento"
     FROM dados_iniciais
     GROUP BY
+        data,
         "ordemPagamentoAgrupadoId",
         "dataReferencia",
         "statusRemessa",
@@ -182,6 +184,7 @@ ORDER BY dr.data;
       return dto;
     });
   }
+
 
   /***
    * Obtém as ordens que foram agrupadas mas o pagamento falhou.
