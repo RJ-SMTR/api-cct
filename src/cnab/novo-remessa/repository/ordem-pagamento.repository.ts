@@ -112,6 +112,7 @@ dados_processados AS (
                                 op."dataOrdem" BETWEEN (m.data - INTERVAL '7 days') AND (m.data - INTERVAL '1 day')
                                 AND oph."statusRemessa" <> 3
                                 AND oph."statusRemessa" <> 4
+                                AND oph."statusRemessa" <> 5
                                 AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") > INTERVAL '7 days'
                             )
                         )
