@@ -52,8 +52,8 @@ export class RetornoService {
 
     private async atualizarStatusRemessaHistorico(
         cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA){
-        const historico = await this.ordemPagamentoAgrupadoService.getHistorico(detalheA.id);
-
+        const historicos = await this.ordemPagamentoAgrupadoService.getHistorico(detalheA.id);
+        for  ( const historico of historicos){
         if (detalheA && historico) {
             if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio) {
                 historico.dataReferencia = new Date();
@@ -100,5 +100,6 @@ export class RetornoService {
                }
            }
         }
+    }
     }
 }  
