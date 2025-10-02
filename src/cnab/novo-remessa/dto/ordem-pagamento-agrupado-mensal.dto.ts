@@ -7,4 +7,5 @@ export class OrdemPagamentoAgrupadoMensalDto {
   motivoStatusRemessa: string | undefined;
   descricaoStatusRemessa: string | undefined;
   descricaoMotivoStatusRemessa: string | undefined;
+  dataPagamento: string | undefined;
 }

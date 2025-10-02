@@ -101,14 +101,18 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
+
     // await this.sincronizarEAgruparOrdensPagamento();
        this.onModuleLoad().catch((error: Error) => {
+
       throw error;
     });
   }
 
 
+
   async onModuleLoad() {  
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -863,6 +867,7 @@ export class CronJobsService {
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
       } finally {
+        this.logger.log('Finalizando sincronização e agrupamento.');
         await this.distributedLockService.releaseLock(METHOD);
       }
     } else {

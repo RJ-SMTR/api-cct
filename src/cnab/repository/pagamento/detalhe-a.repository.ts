@@ -204,4 +204,29 @@ export class DetalheARepository {
     return detalhes;
 
   }
+
+
+  async getOrdemPagamento(detalheAId: number) {
+    const sql = `
+    SELECT DISTINCT 
+      opa."dataPagamento",
+      opa."valorTotal",
+      opa."id" as "ordemPagamentoAgrupadoId"
+    FROM detalhe_a da
+    INNER JOIN ordem_pagamento_agrupado_historico oph 
+      ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    INNER JOIN ordem_pagamento_agrupado opa 
+      ON opa.id = oph."ordemPagamentoAgrupadoId"
+    INNER JOIN ordem_pagamento op 
+      ON op."ordemPagamentoAgrupadoId" = opa.id
+    WHERE da.id = $1
+  `;
+
+    const result = await this.dataSource.query(sql, [detalheAId]);
+
+    if (!result || result.length === 0) return null;
+
+    return result[0];
+  }
+
 }
