@@ -101,8 +101,7 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento();
-
+    // await this.sincronizarEAgruparOrdensPagamento();
        this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -247,16 +246,16 @@ export class CronJobsService {
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
-      {
-        /**
-         * Sincroniza transacoes do BQ.
-         * */
-        name: CronJobsEnum.sincronizarTransacoesBq,
-        cronJobParameters: {
-          cronTime: "0 12 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
-          onTick: async () => await this.sincronizarTransacoesBq(),
-        },
-      }
+      // {
+      //   /**
+      //    * Sincroniza transacoes do BQ.
+      //    * */
+      //   name: CronJobsEnum.sincronizarTransacoesBq,
+      //   cronJobParameters: {
+      //     cronTime: "0 12 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
+      //     onTick: async () => await this.sincronizarTransacoesBq(),
+      //   },
+      // }
     );
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
