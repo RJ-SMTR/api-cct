@@ -781,7 +781,7 @@ export class CronJobsService {
     const dataFim = subDays(today, 1);
 
     const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca', 'MobiRio', 'VLT']
-    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+   // await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
