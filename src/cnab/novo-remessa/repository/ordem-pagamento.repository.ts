@@ -52,14 +52,22 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
     const query = `
-    WITH
+WITH
+    historico_recente AS (
+        SELECT DISTINCT
+            ON ("ordemPagamentoAgrupadoId") *
+        FROM
+            ordem_pagamento_agrupado_historico
+        ORDER BY
+            "ordemPagamentoAgrupadoId",
+            "dataReferencia" DESC
+    ),
     dias_relatorio AS (
         SELECT dias::DATE AS data
         FROM generate_series(
-                DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
+                $1::DATE, $1::DATE + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
             ) AS dias
-        WHERE
-            (
+        WHERE (
                 EXTRACT(
                     MONTH
                     FROM dias
@@ -79,87 +87,56 @@ export class OrdemPagamentoRepository {
                     FROM dias
                 ) IN (2, 5)
             )
-    ),
-dados_processados AS (
-    WITH
-        dados_iniciais AS (
-            SELECT
-                m.data,
-                SUM(opa_aux.valor) AS valor,
-                MIN(opa_aux."valorTotal") as "valorTotal",
-                opa_aux."dataReferencia",
-                opa_aux."statusRemessa",
-                opa_aux."motivoStatusRemessa",
-                opa_aux."ordemPagamentoAgrupadoId",
-                opa_aux."dataPagamento"
-            FROM dias_relatorio m
-                LEFT JOIN LATERAL (
-                    SELECT DISTINCT
-                        ON (op.id) op.valor, opa.id, opa."valorTotal", oph."dataReferencia", oph."statusRemessa", oph."motivoStatusRemessa", oph."ordemPagamentoAgrupadoId", op."dataOrdem", opa."dataPagamento"
-                    FROM
-                        ordem_pagamento op
-                        LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-                        LEFT JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-                    WHERE
-                        op."userId" = $2
-                        AND (
-                            (
-                                op."ordemPagamentoAgrupadoId" IS NOT NULL
-                                AND DATE_TRUNC('day', opa."dataPagamento") = DATE_TRUNC('day', m.data)
-                                AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") <= INTERVAL '8 days'
-                            )
-                            OR (
-                                op."dataOrdem" BETWEEN (m.data - INTERVAL '7 days') AND (m.data - INTERVAL '1 day')
-                                AND oph."statusRemessa" <> 3
-                                AND oph."statusRemessa" <> 4
-                                AND oph."statusRemessa" <> 5
-                                AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") > INTERVAL '7 days'
-                            )
-                        )
-                    ORDER BY op.id, oph."dataReferencia" DESC
-                ) opa_aux ON TRUE
-            WHERE
-                opa_aux."ordemPagamentoAgrupadoId" IS NOT NULL
-            GROUP BY
-                m.data,
-                opa_aux."dataReferencia",
-                opa_aux."statusRemessa",
-                opa_aux."motivoStatusRemessa",
-                opa_aux."dataPagamento",
-                opa_aux."ordemPagamentoAgrupadoId"
-        )
-    SELECT
-        data AS data_pagamento,
-        SUM(valor) AS valor_total,
-        MIN("valorTotal") AS valor_total_agrupado,
-        "dataReferencia",
-        "ordemPagamentoAgrupadoId",
-        "statusRemessa",
-        "motivoStatusRemessa",
-         MAX("dataPagamento") as "dataPagamento"
-    FROM dados_iniciais
-    GROUP BY
-        data,
-        "ordemPagamentoAgrupadoId",
-        "dataReferencia",
-        "statusRemessa",
-        "motivoStatusRemessa"
-)
+    )
 SELECT
     dr.data,
-    dp.valor_total AS valor,
-    dp.valor_total_agrupado,
-    (dr.data::date - 1) AS data_final_operacoes,
-    (dr.data::date - 7) AS data_inicial_operacoes,
+    SUM(dp.valor) AS valor,
+    MIN(dp."valorTotal") AS valor_total_agrupado,
+    (dr.data - 1) AS data_final_operacoes,
+    (dr.data - 7) AS data_inicial_operacoes,
     dp."dataReferencia",
-    dp."ordemPagamentoAgrupadoId" as opaId,
+    dp."opaId" AS opaId,
     dp."statusRemessa",
     dp."motivoStatusRemessa",
-        dp."dataPagamento",
+    dp."dataPagamento",
     dp."ordemPagamentoAgrupadoId"
 FROM
     dias_relatorio dr
-    LEFT JOIN dados_processados dp ON dr.data = dp.data_pagamento
+    LEFT JOIN LATERAL (
+        SELECT
+            op.valor,
+            opa."valorTotal",
+            oph."dataReferencia",
+            oph."statusRemessa",
+            oph."motivoStatusRemessa",
+            opa.id AS "opaId",
+            opa."dataPagamento",
+            opa."ordemPagamentoAgrupadoId"
+        FROM
+            ordem_pagamento op
+            JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+            JOIN historico_recente oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+        WHERE
+            op."userId" = $2
+            AND (
+            opa."dataPagamento"::DATE = dr.data
+
+OR (
+                
+                    opa."ordemPagamentoAgrupadoId" IS NULL
+                    AND op."dataOrdem"::DATE BETWEEN (dr.data - 7) AND (dr.data - 1)
+                    AND oph."statusRemessa" NOT IN (3, 4)
+                )
+            )
+    ) dp ON TRUE
+GROUP BY
+    dr.data,
+    dp."dataPagamento",
+    dp."ordemPagamentoAgrupadoId",
+    dp."opaId",
+    dp."dataReferencia",
+    dp."statusRemessa",
+    dp."motivoStatusRemessa"
 ORDER BY dr.data;
 
 `;
