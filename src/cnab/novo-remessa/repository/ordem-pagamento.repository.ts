@@ -52,7 +52,6 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
     const query = `
-   -- (Os CTEs `historico_recente` e `dias_relatorio` continuam os mesmos)
 WITH
     historico_recente AS (
         SELECT DISTINCT
