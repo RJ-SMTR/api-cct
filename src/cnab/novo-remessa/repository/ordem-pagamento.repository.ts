@@ -126,6 +126,7 @@ OR (
                     opa."ordemPagamentoAgrupadoId" IS NULL
                     AND op."dataOrdem"::DATE BETWEEN (dr.data - 7) AND (dr.data - 1)
                     AND oph."statusRemessa" NOT IN (3, 4)
+                    AND opa."dataPagamento"::DATE > dr.data
                 )
             )
     ) dp ON TRUE
