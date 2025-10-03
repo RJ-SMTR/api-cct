@@ -147,9 +147,8 @@ ORDER BY dr.data;
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoId = row.opaid;
-
+      dto.dataPagamento = row.dataReferencia;
       dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
-      dto.dataPagamento = row.dataPagamento;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
