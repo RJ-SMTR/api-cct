@@ -126,6 +126,7 @@ OR (
                     opa."ordemPagamentoAgrupadoId" IS NULL
                     AND op."dataOrdem"::DATE BETWEEN (dr.data - 7) AND (dr.data - 1)
                     AND oph."statusRemessa" NOT IN (3, 4)
+                    AND opa."dataPagamento"::DATE > dr.data
                 )
             )
     ) dp ON TRUE
@@ -148,7 +149,7 @@ ORDER BY dr.data;
       dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
 
       dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
-      dto.dataPagamento = row.dataPagamento;
+      dto.dataPagamento = row.dataReferencia;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
