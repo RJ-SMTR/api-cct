@@ -34,6 +34,9 @@ export class OrdemPagamentoAgrupado extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupado_ordensPagamento_OneToMany' })
   ordensPagamento: OrdemPagamento[];
 
+  @Column({})
+  ordemPagamentoAgrupadoId: number;
+
   @OneToMany(() => OrdemPagamentoAgrupadoHistorico, (op) => op.ordemPagamentoAgrupado, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupadoHistorico_ordensPagamento_OneToMany' })
   ordensPagamentoAgrupadoHistorico: OrdemPagamentoAgrupadoHistorico[];

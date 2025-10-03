@@ -15,6 +15,7 @@ import { Pagador } from '../../entity/pagamento/pagador.entity';
 import { OrdemPagamentoUnicoDto } from '../dto/ordem-pagamento-unico.dto';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 import { formatDateISODate } from 'src/utils/date-utils';
+import { format, getMonth, getYear, isFriday, isTuesday, max, subDays } from 'date-fns';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -26,6 +27,7 @@ export class OrdemPagamentoRepository {
     private ordemPagamentoRepository: Repository<OrdemPagamento>,
     private readonly dataSource: DataSource
   ) { }
+
 
   public async save(dto: DeepPartial<OrdemPagamento>): Promise<OrdemPagamento> {
     const existing = await this.ordemPagamentoRepository.findOneBy({ id: dto.id });
@@ -50,43 +52,114 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
     const query = `
-    WITH month_dates AS (
-    SELECT generate_series(
-        DATE_TRUNC('month', $1::DATE),
-        DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day',
-        '1 day'
-    ) AS data
+    WITH
+    dias_relatorio AS (
+        SELECT dias::DATE AS data
+        FROM generate_series(
+                DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
+            ) AS dias
+        WHERE
+            (
+                EXTRACT(
+                    MONTH
+                    FROM dias
+                ) < 9
+                AND EXTRACT(
+                    DOW
+                    FROM dias
+                ) = 5
+            )
+            OR (
+                EXTRACT(
+                    MONTH
+                    FROM dias
+                ) >= 9
+                AND EXTRACT(
+                    DOW
+                    FROM dias
+                ) IN (2, 5)
+            )
+    ),
+dados_processados AS (
+    WITH
+        dados_iniciais AS (
+            SELECT
+                m.data,
+                SUM(opa_aux.valor) AS valor,
+                MIN(opa_aux."valorTotal") as "valorTotal",
+                opa_aux."dataReferencia",
+                opa_aux."statusRemessa",
+                opa_aux."motivoStatusRemessa",
+                opa_aux."ordemPagamentoAgrupadoId",
+                opa_aux."dataPagamento"
+            FROM dias_relatorio m
+                LEFT JOIN LATERAL (
+                    SELECT DISTINCT
+                        ON (op.id) op.valor, opa.id, opa."valorTotal", oph."dataReferencia", oph."statusRemessa", oph."motivoStatusRemessa", oph."ordemPagamentoAgrupadoId", op."dataOrdem", opa."dataPagamento"
+                    FROM
+                        ordem_pagamento op
+                        LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+                        LEFT JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+                    WHERE
+                        op."userId" = $2
+                        AND (
+                            (
+                                op."ordemPagamentoAgrupadoId" IS NOT NULL
+                                AND DATE_TRUNC('day', opa."dataPagamento") = DATE_TRUNC('day', m.data)
+                                AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") <= INTERVAL '8 days'
+                            )
+                            OR (
+                                op."dataOrdem" BETWEEN (m.data - INTERVAL '7 days') AND (m.data - INTERVAL '1 day')
+                                AND oph."statusRemessa" <> 3
+                                AND oph."statusRemessa" <> 4
+                                AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") > INTERVAL '7 days'
+                            )
+                        )
+                    ORDER BY op.id, oph."dataReferencia" DESC
+                ) opa_aux ON TRUE
+            WHERE
+                opa_aux."ordemPagamentoAgrupadoId" IS NOT NULL
+            GROUP BY
+                m.data,
+                opa_aux."dataReferencia",
+                opa_aux."statusRemessa",
+                opa_aux."motivoStatusRemessa",
+                opa_aux."dataPagamento",
+                opa_aux."ordemPagamentoAgrupadoId"
+        )
+    SELECT
+        data AS data_pagamento,
+        SUM(valor) AS valor_total,
+        MIN("valorTotal") AS valor_total_agrupado,
+        "dataReferencia",
+        "ordemPagamentoAgrupadoId",
+        "statusRemessa",
+        "motivoStatusRemessa",
+         MAX("dataPagamento") as "dataPagamento"
+    FROM dados_iniciais
+    GROUP BY
+        data,
+        "ordemPagamentoAgrupadoId",
+        "dataReferencia",
+        "statusRemessa",
+        "motivoStatusRemessa"
 )
 SELECT
-    m.data,
-    opa_aux."valorTotal",
-    (m.data::date - 1) AS data_final_operacoes,
-    (m.data::date - 7) AS data_inicial_operacoes,
-    opa_aux."dataReferencia",
-    opa_aux."statusRemessa",
-    opa_aux."motivoStatusRemessa",
-    opa_aux."ordemPagamentoAgrupadoId"
-FROM month_dates m
-LEFT JOIN LATERAL (
-    SELECT
-        opah."dataReferencia",
-        opah."statusRemessa",
-        opah."motivoStatusRemessa",
-        opah."ordemPagamentoAgrupadoId",
-        opa."dataPagamento",
-        ROUND(opa."valorTotal", 2) AS "valorTotal"
-    FROM ordem_pagamento_agrupado_historico opah
-    INNER JOIN ordem_pagamento_agrupado opa
-        ON opa.id = opah."ordemPagamentoAgrupadoId"
-    INNER JOIN ordem_pagamento op
-        ON op."ordemPagamentoAgrupadoId" = opa.id
-    WHERE op."userId" = $2
-      AND DATE_TRUNC('day', opa."dataPagamento") = DATE_TRUNC('day', m.data)
-    ORDER BY opah."dataReferencia" DESC
-    LIMIT 1
-) opa_aux ON TRUE 
-WHERE EXTRACT(DOW FROM m.data) IN (2, 5)
-ORDER BY m.data;
+    dr.data,
+    dp.valor_total AS valor,
+    dp.valor_total_agrupado,
+    (dr.data::date - 1) AS data_final_operacoes,
+    (dr.data::date - 7) AS data_inicial_operacoes,
+    dp."dataReferencia",
+    dp."ordemPagamentoAgrupadoId" as opaId,
+    dp."statusRemessa",
+    dp."motivoStatusRemessa",
+        dp."dataPagamento",
+    dp."ordemPagamentoAgrupadoId"
+FROM
+    dias_relatorio dr
+    LEFT JOIN dados_processados dp ON dr.data = dp.data_pagamento
+ORDER BY dr.data;
 
 `;
 
@@ -95,7 +168,9 @@ ORDER BY m.data;
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
-      dto.valorTotal = row.valorTotal != null ? parseFloat(row.valorTotal) : 0;
+
+      dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
+      dto.dataPagamento = row.dataPagamento;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
@@ -104,9 +179,11 @@ ORDER BY m.data;
         dto.statusRemessa = row.statusRemessa;
         dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
       }
+
       return dto;
     });
   }
+
 
   /***
    * Obtém as ordens que foram agrupadas mas o pagamento falhou.
@@ -206,22 +283,58 @@ ORDER BY m.data;
     });
   }
 
-  public async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
-    const query = `
-        SELECT o.id,
-               ROUND(valor, 2) valor,
-               date_trunc('day', o."dataCaptura") "dataCaptura",
-               o."dataOrdem"
-        FROM ordem_pagamento o
-        INNER JOIN ordem_pagamento_agrupado opa
-        ON o."ordemPagamentoAgrupadoId" = opa.id
-        WHERE 1 = 1
-          AND opa.id = $1
-          AND o."dataCaptura" IS NOT NULL
-          AND o."userId" = $2
-        ORDER BY o."dataCaptura" desc `;
+  public async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(
+    ordemPagamentoAgrupadoId: number,
+    userId: number,
+    endDateParam?: Date
+  ): Promise<OrdemPagamentoSemanalDto[]> {
+    const params: any[] = [ordemPagamentoAgrupadoId, userId];
+    let whereData = '';
 
-    let result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
+    if (endDateParam) {
+      const today = new Date(endDateParam);
+      const isAntesDeSetembro2025 = getYear(today) === 2025 && getMonth(today) < 8;
+      let subDaysInt = 0;
+
+      if (isAntesDeSetembro2025) {
+        subDaysInt = 7;
+      } else if (isFriday(today)) {
+        subDaysInt = 3;
+      } else if (isTuesday(today)) {
+        subDaysInt = 4;
+      }
+
+      const dataCalculada = subDays(today, subDaysInt);
+      const dataLimite = new Date('2025-01-01');
+      const dataInicio = format(max([dataCalculada, dataLimite]), 'yyyy-MM-dd');
+
+      const dataFim = format(subDays(today, 1), 'yyyy-MM-dd');
+
+      whereData = `AND o."dataOrdem" BETWEEN $3 AND $4
+      GROUP BY o.id,  o."dataOrdem", o."dataCaptura"`;
+      params.push(dataInicio, dataFim);
+    }
+
+    const query = `
+    SELECT
+          o.id,
+           MAX(ROUND(valor, 2)) as valor,
+            date_trunc('day', o."dataCaptura") "dataCaptura",
+           o."dataOrdem"
+    FROM ordem_pagamento o
+    INNER JOIN ordem_pagamento_agrupado opa
+    ON o."ordemPagamentoAgrupadoId" = opa.id
+    WHERE 1 = 1
+      AND opa.id = $1
+      AND o."dataCaptura" IS NOT NULL
+      AND o."userId" = $2
+      ${whereData}
+    ORDER BY o."dataCaptura" DESC
+  `;
+
+
+    let result = await this.ordemPagamentoRepository.query(query, params);
+
     result = result.map((row: any) => {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
       ordemPagamento.ordemId = row.id;
@@ -233,7 +346,9 @@ ORDER BY m.data;
     const resultGrouped: OrdemPagamentoSemanalDto[] = [];
 
     for (const row of result) {
-      const existing = resultGrouped.find((item) => item.dataCaptura?.toISOString() == row.dataCaptura.toISOString());
+      const existing = resultGrouped.find(
+        (item) => item.dataCaptura?.toISOString() === row.dataCaptura.toISOString()
+      );
       if (existing) {
         existing.valor += row.valor;
         if (!existing.ids) {
@@ -247,8 +362,10 @@ ORDER BY m.data;
         resultGrouped.push(row);
       }
     }
+
     return resultGrouped;
   }
+
 
   public async findOrdensPagamentoDiasAnterioresByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
     const query = `
@@ -410,6 +527,20 @@ ORDER BY m.data;
 
     return result.map((r: DeepPartial<OrdemPagamentoAgrupado> | undefined) => new OrdemPagamentoAgrupado(r))[0];
   }
+  public async findCustomChild(idOrdemPagamentoAg: number) {
+    const query = `SELECT * FROM ordem_pagamento_agrupado opa 
+                    where opa."ordemPagamentoAgrupadoId"='${idOrdemPagamentoAg}' 
+                    LIMIT 1`;
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    let result: any = await queryRunner.query(query);
+
+    queryRunner.release();
+
+    return result.map((r: DeepPartial<OrdemPagamentoAgrupado> | undefined) => new OrdemPagamentoAgrupado(r))[0];
+  }
 
   public async agruparOrdensDePagamentoPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idOperadoras?: string[]): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
@@ -418,12 +549,20 @@ ORDER BY m.data;
     const ipOperadorasJoin = idOperadoras ? idOperadoras.join(',') : '';
     await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${ipOperadorasJoin}}`]);
   }
+  public async agruparOrdensDeEstornadosRejeitados(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idOperadoras?: string[]): Promise<void> {
+    const dtInicialStr = dataInicial.toISOString().split('T')[0];
+    const dtFinalStr = dataFinal.toISOString().split('T')[0];
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
+    const ipOperadorasJoin = idOperadoras ? idOperadoras.join(',') : '';
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_ESTORNOS_REJEITADOS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${ipOperadorasJoin}}`]);
+  }
 
   public async findOrdensAgrupadas(dataInicio: Date, dataFim: Date, consorcios: string[]) {
 
     const dtInicialStr = dataInicio.toISOString().split('T')[0];
     const dtFinalStr = dataFim.toISOString().split('T')[0];
     const consorciosJoin = consorcios.join("','");
+
 
     const query = `SELECT distinct op."ordemPagamentoAgrupadoId" FROM ordem_pagamento op 
                     where date_trunc('day', op."dataCaptura") between '${dtInicialStr}' and '${dtFinalStr}'  
