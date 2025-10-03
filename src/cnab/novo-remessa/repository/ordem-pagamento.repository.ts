@@ -149,7 +149,7 @@ ORDER BY dr.data;
       dto.ordemPagamentoAgrupadoId = row.opaid;
 
       dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
-      dto.dataPagamento = row.dataPagamento;
+      dto.dataPagamento = row.dataReferencia;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
