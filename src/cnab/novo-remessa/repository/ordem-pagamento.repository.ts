@@ -89,29 +89,29 @@ WITH
             )
     )
 SELECT
-    dr.data,
+   dr.data,
     SUM(dp.valor) AS valor,
     MIN(dp."valorTotal") AS valor_total_agrupado,
     (dr.data - 1) AS data_final_operacoes,
     (dr.data - 7) AS data_inicial_operacoes,
     dp."dataReferencia",
-    dp."opaId" AS opaId,
+    dp.opa_id AS opaId,
     dp."statusRemessa",
     dp."motivoStatusRemessa",
-    dp."dataPagamento",
-    dp."ordemPagamentoAgrupadoId"
+    dp.data_pagamento,
+    dp.opa_origem_id
 FROM
     dias_relatorio dr
-    LEFT JOIN LATERAL (
+   LEFT JOIN LATERAL (
         SELECT
             op.valor,
             opa."valorTotal",
             oph."dataReferencia",
             oph."statusRemessa",
             oph."motivoStatusRemessa",
-            opa.id AS "opaId",
-            opa."dataPagamento",
-            opa."ordemPagamentoAgrupadoId"
+     opa.id AS opa_id,
+            opa."dataPagamento" AS data_pagamento,
+            opa."ordemPagamentoAgrupadoId" AS opa_origem_id
         FROM
             ordem_pagamento op
             JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
@@ -132,9 +132,9 @@ OR (
     ) dp ON TRUE
 GROUP BY
     dr.data,
-    dp."dataPagamento",
-    dp."ordemPagamentoAgrupadoId",
-    dp."opaId",
+    dp.data_pagamento,
+    dp.opa_origem_id,
+    dp.opa_id,
     dp."dataReferencia",
     dp."statusRemessa",
     dp."motivoStatusRemessa"
@@ -146,7 +146,7 @@ ORDER BY dr.data;
     return result.map((row: any) => {
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
-      dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
+      dto.ordemPagamentoAgrupadoId = row.opaid;
 
       dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
       dto.dataPagamento = row.dataPagamento;
