@@ -110,6 +110,7 @@ export class CronJobsService {
 
 
   async onModuleLoad() {  
+    await this.remessaConsorciosExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -673,12 +674,13 @@ export class CronJobsService {
           dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
       }
     }
-    // //Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico, false);
-    // Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
-    //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt, headerName);
+
+    //Prepara o remessa
+    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    // // // //Gera o TXT
+    // const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
+    // //Envia para o SFTP
+    // await this.remessaService.enviarRemessa(txt, headerName);
   }
 
 
