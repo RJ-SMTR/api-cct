@@ -90,14 +90,28 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     return oph[0];
   }
 
-  public async getHistorico(detalheAId: number): Promise<OrdemPagamentoAgrupadoHistorico> {
+  public async getHistorico(detalheAId: number): Promise<OrdemPagamentoAgrupadoHistorico[]> {
 
-    const query = (`select distinct 
-                    oph.* from ordem_pagamento_agrupado_historico oph 
-                    inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id 
-                    left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
-                    left join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id ` +
-      `where da."id" = ${detalheAId}`)
+    const query = (`WITH raiz AS (
+    SELECT opa.id
+    FROM ordem_pagamento_agrupado opa
+    left JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+    left JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    WHERE da.id = ${detalheAId}
+),
+filhos AS (
+    SELECT id
+    FROM ordem_pagamento_agrupado
+    WHERE "ordemPagamentoAgrupadoId" IN (SELECT id FROM raiz)
+)
+SELECT DISTINCT oph.*
+FROM ordem_pagamento_agrupado_historico oph
+left JOIN detalhe_a da 
+    ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+WHERE da.id = ${detalheAId}
+   OR oph."ordemPagamentoAgrupadoId" IN (SELECT id FROM filhos)
+   and oph."statusRemessa" NOT IN (4,3)
+`)
 
     const queryRunner = this.dataSource.createQueryRunner();
 
@@ -109,7 +123,7 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
 
     queryRunner.release()
 
-    return oph[0];
+    return oph.length ? oph : [];
   }
 
   public async getHistoricoUnico(idOrdemAgrupada: number): Promise<OrdemPagamentoAgrupadoHistorico> {
