@@ -65,7 +65,7 @@ WITH
     dias_relatorio AS (
         SELECT dias::DATE AS data
         FROM generate_series(
-                $1::DATE, $1::DATE + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
+               DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
             ) AS dias
         WHERE (
                 EXTRACT(
