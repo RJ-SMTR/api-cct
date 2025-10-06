@@ -52,70 +52,59 @@ export class RetornoService {
 
   private async atualizarStatusRemessaHistorico(
     cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA) {
-    const historico = await this.ordemPagamentoAgrupadoService.getHistorico(detalheA.id);
+    const historicos = await this.ordemPagamentoAgrupadoService.getHistorico(detalheA.id);
+    for (let i = 0; i < historicos.length; i++) {
+      const historico = historicos[i];
+      if (detalheA && historico) {
+        if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio) {
+          historico.dataReferencia = new Date();
+          //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
+          if (cnabLote.headerLote.ocorrencias.value.trim() === 'BD' || cnabLote.headerLote.ocorrencias.value.trim() === '00') {
+            historico.motivoStatusRemessa = registro.detalheA.ocorrencias.value.trim();
 
-    if (detalheA && historico) {
-      if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio) {
-        historico.dataReferencia = new Date();
-        //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
-        if (cnabLote.headerLote.ocorrencias.value.trim() === 'BD' || cnabLote.headerLote.ocorrencias.value.trim() === '00') {
-          historico.motivoStatusRemessa = registro.detalheA.ocorrencias.value.trim();
-
-          if (registro.detalheA.ocorrencias.value.trim() === '00' || registro.detalheA.ocorrencias.value.trim() == 'BD') {
+            if (registro.detalheA.ocorrencias.value.trim() === '00' || registro.detalheA.ocorrencias.value.trim() == 'BD') {
+              await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
+                historico,
+                StatusRemessaEnum.AguardandoPagamento
+              );
+            } else {
+              await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
+                historico,
+                StatusRemessaEnum.NaoEfetivado,
+              );
+            }
+          } else {
+            historico.motivoStatusRemessa = cnabLote.headerLote.ocorrencias.value.trim();
             await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
               historico,
-              StatusRemessaEnum.AguardandoPagamento
+              StatusRemessaEnum.NaoEfetivado
+            );
+          }
+        } else if (historico.statusRemessa === StatusRemessaEnum.AguardandoPagamento) {
+          historico.dataReferencia = new Date();
+          historico.motivoStatusRemessa = registro.detalheA.ocorrencias.value.trim();
+          //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
+          if (cnabLote.headerLote.ocorrencias.value.trim() !== 'BD' && cnabLote.headerLote.ocorrencias.value.trim() !== '00') {
+            historico.motivoStatusRemessa = cnabLote.headerLote.ocorrencias.value;
+            await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
+              historico,
+              StatusRemessaEnum.NaoEfetivado
+            )
+          } else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
+
+            const status = i === 0 ? StatusRemessaEnum.Efetivado : StatusRemessaEnum.PendenciaPaga;
+
+            await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
+              historico,
+              status
             );
           } else {
             await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-              historico,
-              StatusRemessaEnum.NaoEfetivado,
-            );
+              historico, StatusRemessaEnum.NaoEfetivado);
           }
-        } else {
-          historico.motivoStatusRemessa = cnabLote.headerLote.ocorrencias.value.trim();
-          await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-            historico,
-            StatusRemessaEnum.NaoEfetivado
-          );
-        }
-      } else if (historico.statusRemessa === StatusRemessaEnum.AguardandoPagamento) {
-        historico.dataReferencia = new Date();
-        historico.motivoStatusRemessa = registro.detalheA.ocorrencias.value.trim();
-        //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
-        if (cnabLote.headerLote.ocorrencias.value.trim() !== 'BD' && cnabLote.headerLote.ocorrencias.value.trim() !== '00') {
-          historico.motivoStatusRemessa = cnabLote.headerLote.ocorrencias.value;
-          await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-            historico,
-            StatusRemessaEnum.NaoEfetivado
-          )
-        } else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
-          const ordemPagamento = await this.detalheAService.getOrdemPagamento(detalheA.id)
-          if (!ordemPagamento) {
-            // não encontrou -> define status direto ou trata exceção
-          }
-          const dataReferencia = detalheA.dataVencimento
-          const dataPagamentoDaOrdem = ordemPagamento.dataPagamento
-
-
-          const diferencaDias =
-            (new Date(dataPagamentoDaOrdem).getTime() - new Date(dataReferencia).getTime()) /
-            (1000 * 60 * 60 * 24)
-
-          const status =
-            diferencaDias > 7
-              ? StatusRemessaEnum.Efetivado
-              : StatusRemessaEnum.PendenciaPaga
-
-          await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-            historico,
-            status
-          )
-        } else {
-          await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-            historico, StatusRemessaEnum.NaoEfetivado);
         }
       }
     }
   }
-}  
+
+}

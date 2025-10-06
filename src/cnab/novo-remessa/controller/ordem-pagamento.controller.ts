@@ -102,6 +102,7 @@ export class OrdemPagamentoController {
     // const user = await this.usersService.findOne({ id: userIdNum})
     canProceed(request, Number(userId));
     return this.bigqueryTransacaoService.findTransacoesByOp([ordemPagamentoId]);
+    
   }
 
   @Get('diario')
@@ -117,7 +118,7 @@ export class OrdemPagamentoController {
     // @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
   ): Promise<BigqueryTransacaoDiario[]> {
     this.logger.log(getRequestLog(request));
-
+    //return this.bigqueryTransacaoService.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordemPagamentoIds,undefined,request)
     return this.bigqueryTransacaoService.findTransacoesByOp(ordemPagamentoIds);
   }
 

@@ -28,6 +28,7 @@ export class OrdemPagamentoRepository {
     private readonly dataSource: DataSource
   ) { }
 
+
   public async save(dto: DeepPartial<OrdemPagamento>): Promise<OrdemPagamento> {
     const existing = await this.ordemPagamentoRepository.findOneBy({ id: dto.id });
     if (existing) {
@@ -52,61 +53,92 @@ export class OrdemPagamentoRepository {
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
     const query = `
 WITH
-    month_dates AS (
-        SELECT generate_series(
-                DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
-            )::DATE AS data
+    historico_recente AS (
+        SELECT DISTINCT
+            ON ("ordemPagamentoAgrupadoId") *
+        FROM
+            ordem_pagamento_agrupado_historico
+        ORDER BY
+            "ordemPagamentoAgrupadoId",
+            "dataReferencia" DESC
+    ),
+    dias_relatorio AS (
+        SELECT dias::DATE AS data
+        FROM generate_series(
+                $1::DATE, $1::DATE + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
+            ) AS dias
+        WHERE (
+                EXTRACT(
+                    MONTH
+                    FROM dias
+                ) < 9
+                AND EXTRACT(
+                    DOW
+                    FROM dias
+                ) = 5
+            )
+            OR (
+                EXTRACT(
+                    MONTH
+                    FROM dias
+                ) >= 9
+                AND EXTRACT(
+                    DOW
+                    FROM dias
+                ) IN (2, 5)
+            )
     )
 SELECT
-    m.data,
-    SUM(opa_aux.valor) AS valor,
-    MAX(opa_aux."valorTotal"),
-    (m.data::date - 1) AS data_final_operacoes,
-    (m.data::date - 7) AS data_inicial_operacoes,
-    opa_aux."dataReferencia",
-    COALESCE(MAX(opa_aux.id), null) as opaId,
-    opa_aux."statusRemessa",
-    opa_aux."motivoStatusRemessa",
-    opa_aux."ordemPagamentoAgrupadoId",
-     opa_aux."dataPagamento"
-FROM month_dates m
-    LEFT JOIN LATERAL (
-        SELECT DISTINCT
-            ON (op.id) op.valor, opa.id, opa."valorTotal", oph."dataReferencia", oph."statusRemessa", oph."motivoStatusRemessa", oph."ordemPagamentoAgrupadoId", op."dataOrdem", opa."dataPagamento"
+   dr.data,
+    SUM(dp.valor) AS valor,
+    MIN(dp."valorTotal") AS valor_total_agrupado,
+    (dr.data - 1) AS data_final_operacoes,
+    (dr.data - 7) AS data_inicial_operacoes,
+    dp."dataReferencia",
+    dp.opa_id AS opaId,
+    dp."statusRemessa",
+    dp."motivoStatusRemessa",
+    dp.data_pagamento,
+    dp.opa_origem_id
+FROM
+    dias_relatorio dr
+   LEFT JOIN LATERAL (
+        SELECT
+            op.valor,
+            opa."valorTotal",
+            oph."dataReferencia",
+            oph."statusRemessa",
+            oph."motivoStatusRemessa",
+     opa.id AS opa_id,
+            opa."dataPagamento" AS data_pagamento,
+            opa."ordemPagamentoAgrupadoId" AS opa_origem_id
         FROM
             ordem_pagamento op
-            LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-            LEFT JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+            JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+            JOIN historico_recente oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         WHERE
             op."userId" = $2
             AND (
-                (
-                    op."ordemPagamentoAgrupadoId" IS NOT NULL
-                    AND DATE_TRUNC('day', opa."dataPagamento") = DATE_TRUNC('day', m.data)
-                    AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") <= INTERVAL '8 days'
-                )
-                OR (
-                    op."dataOrdem" BETWEEN (m.data - INTERVAL '7 days') AND (m.data - INTERVAL '1 day')
-                    and oph."statusRemessa" <> 3
-                    and oph."statusRemessa" <> 4
-                    AND DATE_TRUNC('day', opa."dataPagamento") - date_trunc('day', op."dataOrdem") > INTERVAL '7 days'
+            opa."dataPagamento"::DATE = dr.data
+
+OR (
+                
+                    opa."ordemPagamentoAgrupadoId" IS NULL
+                    AND op."dataOrdem"::DATE BETWEEN (dr.data - 7) AND (dr.data - 1)
+                    AND oph."statusRemessa" NOT IN (3, 4)
+                    AND opa."dataPagamento"::DATE > dr.data
                 )
             )
-        ORDER BY op.id, oph."dataReferencia" DESC
-    ) opa_aux ON TRUE
-WHERE
-    (
-      (EXTRACT(MONTH FROM m.data) < 9 AND EXTRACT(DOW FROM m.data) = 5)
-      OR (EXTRACT(MONTH FROM m.data) >= 9 AND EXTRACT(DOW FROM m.data) IN (2,5))
-    )
+    ) dp ON TRUE
 GROUP BY
-    m.data,
-    opa_aux."dataReferencia",
-    opa_aux."statusRemessa",
-    opa_aux."motivoStatusRemessa",
-    opa_aux."dataPagamento",
-    opa_aux."ordemPagamentoAgrupadoId"
-ORDER BY m.data;
+    dr.data,
+    dp.data_pagamento,
+    dp.opa_origem_id,
+    dp.opa_id,
+    dp."dataReferencia",
+    dp."statusRemessa",
+    dp."motivoStatusRemessa"
+ORDER BY dr.data;
 
 `;
 
@@ -114,10 +146,10 @@ ORDER BY m.data;
     return result.map((row: any) => {
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
-      dto.ordemPagamentoAgrupadoId = row.ordemPagamentoAgrupadoId;
+      dto.ordemPagamentoAgrupadoId = row.opaid;
 
       dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
-      dto.dataPagamento = row.dataPagamento;
+      dto.dataPagamento = row.dataReferencia;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
@@ -130,6 +162,7 @@ ORDER BY m.data;
       return dto;
     });
   }
+
 
   /***
    * Obtém as ordens que foram agrupadas mas o pagamento falhou.

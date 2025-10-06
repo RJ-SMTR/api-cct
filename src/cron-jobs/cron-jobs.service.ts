@@ -100,21 +100,19 @@ export class CronJobsService {
     private distributedLockService: DistributedLockService,
   ) { }
 
-
   async onModuleInit() {
+
     // await this.sincronizarEAgruparOrdensPagamento();
-     await this.onModuleLoad().catch((error: Error) => {    
+       this.onModuleLoad().catch((error: Error) => {
+
       throw error;
     });
   }
 
 
-  async onModuleLoad(){   
-//     await this.sincronizarTransacoesBq()
-//         await this.remessaPendenteExec('2025-01-01', '2025-09-18', '2025-09-19', [
-//     "810016833",
-//      "810000834"
-//     ])
+
+  async onModuleLoad() {  
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -252,16 +250,16 @@ export class CronJobsService {
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
-      {
-        /**
-         * Sincroniza transacoes do BQ.
-         * */
-        name: CronJobsEnum.sincronizarTransacoesBq,
-        cronJobParameters: {
-          cronTime: "0 12 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
-          onTick: async () => await this.sincronizarTransacoesBq(),
-        },
-      }
+      // {
+      //   /**
+      //    * Sincroniza transacoes do BQ.
+      //    * */
+      //   name: CronJobsEnum.sincronizarTransacoesBq,
+      //   cronJobParameters: {
+      //     cronTime: "0 12 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
+      //     onTick: async () => await this.sincronizarTransacoesBq(),
+      //   },
+      // }
     );
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
@@ -703,7 +701,7 @@ export class CronJobsService {
     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
     // Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);

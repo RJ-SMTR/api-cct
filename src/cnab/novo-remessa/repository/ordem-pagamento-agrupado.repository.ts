@@ -72,7 +72,8 @@ export class OrdemPagamentoAgrupadoRepository {
     dataInicio: Date,
     dataFim: Date,
     nomeConsorcio?: string[],
-    dataPagamento?: Date
+    dataPagamento?: Date,
+    idOperadoras?: string[]
   ): Promise<OrdemPagamentoAgrupado[]> {
     const dataIniForm = formatDateISODate(dataInicio);
     const dataFimForm = formatDateISODate(dataFim);
@@ -103,6 +104,9 @@ export class OrdemPagamentoAgrupadoRepository {
 
     if (nomeConsorcio && nomeConsorcio.length) {
       query += ` AND op."nomeConsorcio" IN ('${nomeConsorcio.join("','")}')`;
+    }
+    if(idOperadoras && idOperadoras.length){
+      query += ` AND op."idOperadora" IN ('${idOperadoras.join("','")}')`;
     }
 
     this.logger.debug(query);

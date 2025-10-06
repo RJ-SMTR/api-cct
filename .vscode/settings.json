@@ -2,5 +2,8 @@
     "githubPullRequests.ignoredPullRequestBranches": [
         "main",
         "main"
-    ]
+    ],
+    "sftp.debug": true,
+    "sftp.downloadWhenOpenInRemoteExplorer": true,
+    "sftp.printDebugLog": true
 }
