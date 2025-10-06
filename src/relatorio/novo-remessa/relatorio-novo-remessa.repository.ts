@@ -923,16 +923,20 @@ from item_transacao it
     } else if (sql2024) {
       finalSQL = sql2024 + condicoes2024;
     } else if (sqlOutros) {
-      const sqlPendenciaPaga = this.pendenciasPagas.replace(
-        '/* DATA_VENCIMENTO */',
-        ` '${dataInicio}' and '${dataFim}'`
-      );
+      if (filter.pendenciaPaga) {
+        const sqlPendenciaPaga = this.pendenciasPagas.replace(
+          '/* DATA_VENCIMENTO */',
+          ` '${dataInicio}' and '${dataFim}'`
+        );
 
-      finalSQL = `
-    ${sqlOutros + condicoesOutros}
-    UNION ALL
-    ${sqlPendenciaPaga}
-    `;
+        finalSQL = `
+          ${sqlOutros + condicoesOutros}
+          UNION ALL
+          ${sqlPendenciaPaga}
+          `;
+      } else {
+        finalSQL = sqlOutros + condicoesOutros;
+      }
 
     }
     this.logger.warn(finalSQL)
@@ -983,7 +987,7 @@ from item_transacao it
         ORDER BY vv."nomeConsorcio"
       `
       } else {
-        // apenas adiciona o order by
+        //pendenciasPagas apenas adiciona o order by
         sql = `
         SELECT * 
         FROM (${this.pendentes_25}) vv
@@ -1132,11 +1136,37 @@ from item_transacao it
         GROUP BY r.nome
       `;
     } else if (sqlOutros) {
-      finalSQL = `
+      if (filter.pendenciaPaga) {
+        const sqlPendenciaPaga = this.pendenciasPagas.replace(
+          '/* DATA_VENCIMENTO */',
+          ` '${dataInicio}' and '${dataFim}'`
+        );
+
+        finalSQL = `
+        SELECT nome, SUM(valor) AS valor
+          FROM (
+            SELECT r.nome, SUM(valor) AS valor
+            FROM (${sqlOutros}) AS r
+            ${condicoesOutros}
+            GROUP BY r.nome
+
+          UNION ALL
+
+          SELECT r."nomeConsorcio" AS nome, SUM(valor) AS valor
+            FROM (${sqlPendenciaPaga}) AS r
+            GROUP BY r."nomeConsorcio"
+          ) AS uniao
+        GROUP BY nome
+        ORDER BY nome 
+      `;
+      } else {
+        finalSQL = `
         SELECT nome, NULL as "nomeConsorcio", SUM(valor) as valor
         FROM (${sqlOutros}) AS r  ${condicoesOutros}
         GROUP BY r.nome
       `;
+      }
+
     }
     this.logger.warn(finalSQL)
     return finalSQL;
