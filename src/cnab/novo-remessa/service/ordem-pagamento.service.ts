@@ -86,6 +86,7 @@ export class OrdemPagamentoService {
       o.descricaoMotivoStatusRemessa = ordem.descricaoMotivoStatusRemessa;
       o.descricaoStatusRemessa = ordem.descricaoStatusRemessa;
       o.data = ordem.data;
+      o.dataPagamento = ordem.dataPagamento;
       replaceUndefinedWithNull(o);
       return o;
     });
