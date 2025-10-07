@@ -57,7 +57,7 @@ export class RetornoService {
             const historico = historicos[i];
         if (detalheA && historico) {
             if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio) {
-                historico.dataReferencia = new Date();
+                historico.dataReferencia = detalheA.dataVencimento;
                 //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
                if (cnabLote.headerLote.ocorrencias.value.trim() === 'BD' || cnabLote.headerLote.ocorrencias.value.trim() === '00'){                   
                     historico.motivoStatusRemessa = registro.detalheA.ocorrencias.value.trim();
@@ -81,7 +81,7 @@ export class RetornoService {
                    );
                }
            } else if (historico.statusRemessa === StatusRemessaEnum.AguardandoPagamento) {
-               historico.dataReferencia = new Date();
+               historico.dataReferencia = detalheA.dataVencimento;
                historico.motivoStatusRemessa = registro.detalheA.ocorrencias.value.trim();
                //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
                if (cnabLote.headerLote.ocorrencias.value.trim() !== 'BD' && cnabLote.headerLote.ocorrencias.value.trim() !== '00') {
