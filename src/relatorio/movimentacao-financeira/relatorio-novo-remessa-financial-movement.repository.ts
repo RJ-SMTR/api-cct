@@ -54,6 +54,7 @@ WHERE
         ) = ANY($4)
     )
     and oph."motivoStatusRemessa" not in ('AM')
+    and oph."statusRemessa" <> 5
 `;
 
   private readonly queryOlderReport = `
@@ -166,65 +167,149 @@ where da."dataVencimento" between $1 and $2
                                 '12464577000133'
           )`
 
+
+  private readonly pendenciasPagasSQL = `
+SELECT DISTINCT
+    op."dataCaptura" AS "dataReferencia",
+    pu."fullName" AS nomes,
+    pu.email,
+    pu."bankCode" AS "codBanco",
+    bc.name AS "nomeBanco",
+    pu."cpfCnpj",
+    op."nomeConsorcio",
+    CASE 
+        WHEN oph."statusRemessa" = 5 THEN ROUND(op."valor", 2)
+        ELSE da."valorLancamento"
+    END AS valor,
+    CASE 
+        WHEN oph."statusRemessa" = 5 THEN opa."dataPagamento"
+        ELSE oph."dataReferencia"
+    END AS dataPagamento,
+    'Pendencia Paga' AS status
+FROM
+     ordem_pagamento op
+     INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+     INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+     INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
+     INNER JOIN public."user" pu ON pu."id" = op."userId"
+     LEFT JOIN bank bc ON bc.code = pu."bankCode"
+WHERE
+    da."dataVencimento" BETWEEN $1 AND $2
+    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
+    AND (
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+    )
+    and oph."statusRemessa" IN (5)
+    and oph."motivoStatusRemessa" not in ('AM')
+    `
+
+
+  private readonly pendenciasPagasEstRejSQL = `
+  SELECT DISTINCT
+    oph."dataReferencia" AS "dataReferencia",
+    uu."fullName" AS nomes,
+    uu.email,
+    uu."bankCode" AS "codBanco",
+    bc.name AS "nomeBanco",
+    uu."cpfCnpj",
+    CASE
+        WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
+        WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
+        WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
+        ELSE op."nomeConsorcio"
+    END AS "nomeConsorcio",
+    CASE 
+        WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),2)
+        ELSE da."valorLancamento"
+    END AS valor,
+    oph."dataReferencia" AS dataPagamento,
+    'Pendencia Paga' AS status
+  from ordem_pagamento op
+  inner join ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id
+  inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
+  left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
+  left join public."user" uu on uu."id"=op."userId"
+  LEFT JOIN bank bc ON bc.code = uu."bankCode"
+ where uu.bloqueado = false and
+      opa."ordemPagamentoAgrupadoId" in(
+                                    select distinct opaa.id
+                                    from ordem_pagamento_agrupado opaa
+                                    inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opaa.id
+                                    inner join detalhe_a daa on daa."ordemPagamentoAgrupadoHistoricoId"= oph.id
+                                    where daa."dataVencimento" BETWEEN   $1 and $2 
+                                    and exists(select 1 from ordem_pagamento_agrupado opa2 where opa2."ordemPagamentoAgrupadoId"= opaa.id)
+      )  
+    AND ($3::integer[] IS NULL OR uu."id" = ANY($3))
+    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
+    AND (
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+    )
+    AND oph."statusRemessa" IN (5)
+    AND oph."motivoStatusRemessa" NOT IN ('AM');
+  `
+
   private pendentes_25 = `
 UNION ALL
 
-SELECT
+  SELECT
   DATE(op."dataOrdem") AS dataPagamento,
   op."nomeOperadora" as nomes,
-	pu.email,
+  pu.email,
   pu."bankCode" AS "codBanco",
-  bc.name AS "nomeBanco",
-	pu."cpfCnpj",
-	op."nomeConsorcio",
-  op."valor" AS valor,
-  op."dataOrdem",
-  'Pendente' AS status
+    bc.name AS "nomeBanco",
+      pu."cpfCnpj",
+        op."nomeConsorcio",
+          op."valor" AS valor,
+            op."dataOrdem",
+              'Pendente' AS status
 FROM ordem_pagamento op
 INNER JOIN public."user" pu ON pu.id = op."userId"
 JOIN bank bc on bc.code = pu."bankCode"
 WHERE
-    op."dataOrdem" BETWEEN $1  AND $2 
+op."dataOrdem" BETWEEN $1  AND $2 
     AND op."ordemPagamentoAgrupadoId" IS NULL
-    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
-    AND (
-        ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR op."valor" <= $7::numeric)
+AND($3:: integer[] IS NULL OR pu."id" = ANY($3))
+    AND op."nomeConsorcio" IN('SPTC', 'STPL', 'TEC')
+AND(
+  ($6:: numeric IS NULL OR op."valor" >= $6:: numeric)
+AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
     )
 `
 
   private pendentes_24 = `
 UNION ALL
 
-SELECT DISTINCT 
-    DATE(it."dataOrdem") AS dataPagamento,
-    uu."fullName" nome,
+SELECT DISTINCT
+DATE(it."dataOrdem") AS dataPagamento,
+  uu."fullName" nome,
     uu.email,
     uu."bankCode" as "codBanco",
-    bc.name AS "nomeBanco",
-    uu."cpfCnpj",
-    it."nomeConsorcio" AS consorcio,
-    it."valor" AS valor,
-    uu.id,
-	'Pendente' AS status,
-   NULL::boolean
+      bc.name AS "nomeBanco",
+        uu."cpfCnpj",
+          it."nomeConsorcio" AS consorcio,
+            it."valor" AS valor,
+              uu.id,
+              'Pendente' AS status,
+                NULL:: boolean
 from item_transacao it 
-        left join public.user uu on uu."permitCode"=it."idOperadora"
+        left join public.user uu on uu."permitCode" = it."idOperadora"
 		    JOIN bank bc on bc.code = uu."bankCode"
         where it."dataOrdem" BETWEEN $1 AND $2
-        and it."nomeConsorcio" in('STPC','STPL','TEC')
-        AND ($5::integer[] IS NULL OR uu."id" = ANY($5::integer[]))
-        AND (
-         ($6::numeric IS NULL OR it."valor" >= $6::numeric) 
-         AND ($7::numeric IS NULL OR it."valor" <= $7::numeric)
+        and it."nomeConsorcio" in ('STPC', 'STPL', 'TEC')
+AND($5:: integer[] IS NULL OR uu."id" = ANY($5:: integer[]))
+AND(
+  ($6:: numeric IS NULL OR it."valor" >= $6:: numeric)
+AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
        )
         and not exists
-          (
-            select 1 from detalhe_a da 
-                      where da."itemTransacaoAgrupadoId"=it."itemTransacaoAgrupadoId"
-          )
-`
+  (
+    select 1 from detalhe_a da 
+                      where da."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
+  )
+  `
 
   constructor(
     @InjectDataSource()
@@ -240,10 +325,10 @@ from item_transacao it
 
     const eleicaoInnerJoin = `
       INNER JOIN ordem_pagamento_unico opu ON opu."operadoraCpfCnpj" = cf."cpfCnpj"
-      `
+  `
     const eleicaoExtraFilter = ` 
     AND ita."idOrdemPagamento" LIKE '%U%'
-    `
+  `
     const notEleicaoFilter2024 = `  
     AND ita."idOrdemPagamento" NOT LIKE '%U%'
     `
@@ -262,7 +347,7 @@ from item_transacao it
         let finalQuery2024 = this.queryOlderReport;
 
         if (filter.todosVanzeiros) {
-          finalQuery2024 += ` ${this.notCpf2024}`;
+          finalQuery2024 += ` ${this.notCpf2024} `;
         }
 
         const is2024 = initialYear === 2024
@@ -347,6 +432,14 @@ from item_transacao it
 
         if (filter.pendentes && is2024) {
           finalQuery += this.pendentes_24
+
+        }
+
+        console.log('estamos aqui')
+        if (filter.pendenciaPaga && is2025) {
+          console.log('entramos')
+          finalQuery += `UNION ALL ${this.pendenciasPagasSQL}`
+          finalQuery += `UNION ALL ${this.pendenciasPagasEstRejSQL}`
         }
 
         allResults = await queryRunner.query(finalQuery, paramsForYear);
@@ -393,7 +486,7 @@ from item_transacao it
 
       for (const r of allResults) {
         const dataReferencia = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataReferencia));
-        const key = `${dataReferencia}|${r.cpfCnpj}`;
+        const key = `${dataReferencia}| ${r.cpfCnpj} `;
         const dataPagamento = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataPagamento));
 
         if (grouped.has(key)) {
