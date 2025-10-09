@@ -19,7 +19,7 @@ export class RelatorioNovoRemessaRepository {
                     inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
                     inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
                     inner join public."user" uu on uu."id"=op."userId" 
-                   `;    
+                   `;
 
   private static readonly QUERY_FROM_24 = `    from
                     transacao_agrupado ta
@@ -420,7 +420,7 @@ WHERE
     op."dataOrdem" BETWEEN $1  AND $2 
     AND op."ordemPagamentoAgrupadoId" IS NULL
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
+    AND op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
     AND (
           ($4::numeric IS NULL OR op."valor" >= $4::numeric) 
           AND ($5::numeric IS NULL OR op."valor" <= $5::numeric)
