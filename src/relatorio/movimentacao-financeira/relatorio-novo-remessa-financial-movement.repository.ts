@@ -181,7 +181,7 @@ WHERE
     op."dataOrdem" BETWEEN $1  AND $2 
     AND op."ordemPagamentoAgrupadoId" IS NULL
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
+    AND op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
     AND (
         ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
         AND ($7::numeric IS NULL OR op."valor" <= $7::numeric)
