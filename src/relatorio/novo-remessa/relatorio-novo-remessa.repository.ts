@@ -411,7 +411,7 @@ WHERE (1=1) `;
   private readonly pendenciasPagas = `
 select distinct 
     case when (oph."statusRemessa" = 5) then opa."ordemPagamentoAgrupadoId" else da.id end as id,
-    oph."dataReferencia" dataVencimento,
+    oph."dataReferencia" "dataVencimento",
     uu."fullName" as nome,
      case when (oph."statusRemessa" = 5) then 
         round((select "valorTotal" from ordem_pagamento_agrupado where id = opa."ordemPagamentoAgrupadoId" ),2) 
@@ -932,7 +932,8 @@ from item_transacao it
         finalSQL = `
           ${sqlOutros + condicoesOutros}
           UNION ALL
-          ${sqlPendenciaPaga}
+          ${sqlPendenciaPaga + condicoesOutros}
+
           `;
       } else {
         finalSQL = sqlOutros + condicoesOutros;
@@ -954,7 +955,7 @@ from item_transacao it
     const consorcios =
       filter.consorcioNome && filter.consorcioNome.length > 0
         ? filter.consorcioNome
-        : ['SPTC', 'STPL', 'TEC'];
+        : ['STPC', 'STPL', 'TEC'];
 
     const anoInicio = new Date(filter.dataInicio).getFullYear();
     const anoFim = new Date(filter.dataFim).getFullYear();
@@ -1142,11 +1143,13 @@ from item_transacao it
           ` '${dataInicio}' and '${dataFim}'`
         );
 
+        const statusRemessa = `and oph."statusRemessa" = 5`
+
         finalSQL = `
         SELECT nome, SUM(valor) AS valor
           FROM (
             SELECT r.nome, SUM(valor) AS valor
-            FROM (${sqlOutros}) AS r
+            FROM (${sqlOutros + statusRemessa}) AS r
             ${condicoesOutros}
             GROUP BY r.nome
 
@@ -1154,6 +1157,7 @@ from item_transacao it
 
           SELECT r."nomeConsorcio" AS nome, SUM(valor) AS valor
             FROM (${sqlPendenciaPaga}) AS r
+            ${condicoesOutros}
             GROUP BY r."nomeConsorcio"
           ) AS uniao
         GROUP BY nome
