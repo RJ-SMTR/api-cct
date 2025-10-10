@@ -408,6 +408,40 @@ WHERE (1=1) `;
       order by "nomeConsorcio", "nomeFavorecido", "dataCaptura"
       `;
 
+  private readonly pendenciasPagas = `
+select distinct 
+    case when (oph."statusRemessa" = 5) then opa."ordemPagamentoAgrupadoId" else da.id end as id,
+    oph."dataReferencia" "dataVencimento",
+    uu."fullName" as nome,
+     case when (oph."statusRemessa" = 5) then 
+        round((select "valorTotal" from ordem_pagamento_agrupado where id = opa."ordemPagamentoAgrupadoId" ),2) 
+     else 
+          da."valorLancamento"
+     end as valor,
+       CASE
+      WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
+      WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
+      WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
+      ELSE op."nomeConsorcio"
+    END AS "nomeConsorcio" 
+from ordem_pagamento op
+inner join ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id
+inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
+left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
+left join public."user" uu on uu."id"=op."userId"
+where uu.bloqueado = false and
+      opa."ordemPagamentoAgrupadoId" in( 
+                                    select distinct opaa.id
+                                    from ordem_pagamento_agrupado opaa 
+                                    inner join ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opaa.id
+                                    inner join detalhe_a daa on daa."ordemPagamentoAgrupadoHistoricoId"= oph.id
+                                    where daa."dataVencimento" BETWEEN  /* DATA_VENCIMENTO */
+                                    and exists(select 1 from ordem_pagamento_agrupado opa2 where opa2."ordemPagamentoAgrupadoId"= opaa.id)
+)
+
+and oph."statusRemessa" in(5)
+`
+
   private readonly pendentes_25 = `
 SELECT
   DATE(op."dataOrdem") AS dataPagamento,
@@ -545,17 +579,13 @@ from item_transacao it
     let valorTotal = 0;
 
     if (filter.aPagar != undefined || filter.emProcessamento != undefined) {
-      console.log("entrei aqui")
       const sqlPagar = this.somatorioTotalAPagar(sql);
       const resultTotal: any[] = await queryRunner.query(sqlPagar);
 
       const somaPagar = resultTotal.reduce((acc, r) => acc + Number(r.valor), 0);
-      console.log(valorTotal)
-      console.log(somaPagar)
 
       valorTotal += somaPagar;
     } else if (filter.pago != undefined || filter.erro != undefined) {
-      console.log('nao posso vir pra ca')
       const sqlPago = this.somatorioTotalPagoErro(sql);
       const resultTotal: any[] = await queryRunner.query(sqlPago);
 
@@ -764,7 +794,7 @@ from item_transacao it
       }
 
       if (filter.pendenciaPaga) {
-        statuses.push(6)
+        statuses.push(5)
       }
     }
     return statuses;
@@ -842,12 +872,10 @@ from item_transacao it
       WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
       WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
       ELSE op."nomeConsorcio"
-  END AS "nomeConsorcio"
+  END AS "nomeConsorcio"`;
+      sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM
+      condicoesOutros += `and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'`;
 
-                  `;
-      sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
-      condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
-      `;
 
       const statuses = this.getStatusParaFiltro(filter);
 
@@ -895,9 +923,27 @@ from item_transacao it
     } else if (sql2024) {
       finalSQL = sql2024 + condicoes2024;
     } else if (sqlOutros) {
-      finalSQL = sqlOutros + condicoesOutros;
+      if (filter.pendenciaPaga) {
+        const sqlPendenciaPaga = this.pendenciasPagas.replace(
+          '/* DATA_VENCIMENTO */',
+          ` '${dataInicio}' and '${dataFim}'`
+        );
+
+        finalSQL = `
+          ${sqlOutros + condicoesOutros}
+          UNION ALL
+          ${sqlPendenciaPaga + condicoesOutros}
+
+          `;
+      } else {
+        finalSQL = sqlOutros + condicoesOutros;
+      }
+
     }
     this.logger.warn(finalSQL)
+
+    console.log('final SQL')
+    console.log(finalSQL)
     return finalSQL;
   }
 
@@ -909,7 +955,7 @@ from item_transacao it
     const consorcios =
       filter.consorcioNome && filter.consorcioNome.length > 0
         ? filter.consorcioNome
-        : ['SPTC', 'STPL', 'TEC'];
+        : ['STPC', 'STPL', 'TEC'];
 
     const anoInicio = new Date(filter.dataInicio).getFullYear();
     const anoFim = new Date(filter.dataFim).getFullYear();
@@ -942,7 +988,7 @@ from item_transacao it
         ORDER BY vv."nomeConsorcio"
       `
       } else {
-        // apenas adiciona o order by
+        //pendenciasPagas apenas adiciona o order by
         sql = `
         SELECT * 
         FROM (${this.pendentes_25}) vv
@@ -1091,11 +1137,40 @@ from item_transacao it
         GROUP BY r.nome
       `;
     } else if (sqlOutros) {
-      finalSQL = `
+      if (filter.pendenciaPaga) {
+        const sqlPendenciaPaga = this.pendenciasPagas.replace(
+          '/* DATA_VENCIMENTO */',
+          ` '${dataInicio}' and '${dataFim}'`
+        );
+
+        const statusRemessa = `and oph."statusRemessa" = 5`
+
+        finalSQL = `
+        SELECT nome, SUM(valor) AS valor
+          FROM (
+            SELECT r.nome, SUM(valor) AS valor
+            FROM (${sqlOutros + statusRemessa}) AS r
+            ${condicoesOutros}
+            GROUP BY r.nome
+
+          UNION ALL
+
+          SELECT r."nomeConsorcio" AS nome, SUM(valor) AS valor
+            FROM (${sqlPendenciaPaga}) AS r
+            ${condicoesOutros}
+            GROUP BY r."nomeConsorcio"
+          ) AS uniao
+        GROUP BY nome
+        ORDER BY nome 
+      `;
+      } else {
+        finalSQL = `
         SELECT nome, NULL as "nomeConsorcio", SUM(valor) as valor
         FROM (${sqlOutros}) AS r  ${condicoesOutros}
         GROUP BY r.nome
       `;
+      }
+
     }
     this.logger.warn(finalSQL)
     return finalSQL;
