@@ -808,9 +808,10 @@ from item_transacao it
                     uu."fullName" as nome, 
                       da."valorRealEfetivado" as valor,
             CASE
-      WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
-      WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
-      WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
+     WHEN uu."permitCode" = '8' THEN 'VLT'
+                WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
+                WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
+                WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
       ELSE op."nomeConsorcio"
       END AS "nomeConsorcio"
 
@@ -1002,10 +1003,10 @@ from item_transacao it
           oph."statusRemessa",
           oph."motivoStatusRemessa",
            CASE
-                                WHEN op."idOperadora" = '8' THEN 'VLT'
-                                WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
-                                WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
-                                WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
+                               WHEN uu."permitCode" = '8' THEN 'VLT'
+                WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
+                WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
+                WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
                                 ELSE op."nomeConsorcio"
                             END AS "nome",
          da."valorLancamento" as valor
