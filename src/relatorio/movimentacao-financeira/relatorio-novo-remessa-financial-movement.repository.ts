@@ -378,10 +378,10 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
         if (safeFilter.eleicao && finalYear >= 2025) query2025 = this.eleicao2025;
         if (safeFilter.pendentes) query2025 += this.pendentes_25;
         if (safeFilter.pendenciaPaga) {
-          // pendenciasPagasEstRejSQL depends on CTE `pendencia` — ensure WITH is prepended once to the whole query
-          query2025 = this.prependWithIfNeeded(`${query2025} UNION ALL ${this.pendenciasPagasSQL} UNION ALL ${this.pendenciasPagasEstRejSQL}`);
+          query2025 = `${query2025} UNION ALL ${this.pendenciasPagasSQL} UNION ALL ${this.pendenciasPagasEstRejSQL}`;
         }
         if (safeFilter.desativados) query2025 += ` AND pu.bloqueado = true`;
+        query2025 = this.prependWithIfNeeded(query2025);
 
         const res2025 = await queryRunner.query(query2025, params2025);
 
@@ -405,7 +405,11 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
         if (safeFilter.pendentes && is2025) finalQuery += this.pendentes_25;
         if (safeFilter.pendentes && is2024) finalQuery += this.pendentes_24;
         if (safeFilter.pendenciaPaga && is2025) {
-          finalQuery = this.prependWithIfNeeded(`${finalQuery} UNION ALL ${this.pendenciasPagasSQL} UNION ALL ${this.pendenciasPagasEstRejSQL}`);
+          finalQuery = `${finalQuery} UNION ALL ${this.pendenciasPagasSQL} UNION ALL ${this.pendenciasPagasEstRejSQL}`;
+        }
+
+        if (is2025) {
+          finalQuery = this.prependWithIfNeeded(finalQuery);
         }
 
         allResults = await queryRunner.query(finalQuery, params);
