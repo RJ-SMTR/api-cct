@@ -164,7 +164,7 @@ SELECT DISTINCT
     pu."cpfCnpj",
     op."nomeConsorcio",
     CASE 
-        WHEN oph."statusRemessa" = 5 THEN ROUND(op."valor", 2)
+        WHEN oph."statusRemessa" = 5 THEN ROUND(op."valor", 3)
         ELSE da."valorLancamento"
     END AS valor,
     CASE 
@@ -196,7 +196,7 @@ WHERE
   WITH RECURSIVE
 
 pendencia AS (
-  SELECT DISTINCT opaa.id
+  SELECT DISTINCT opaa.id, oph."dataReferencia"
   FROM ordem_pagamento_agrupado opaa
   INNER JOIN ordem_pagamento_agrupado_historico oph 
       ON oph."ordemPagamentoAgrupadoId" = opaa.id
@@ -244,10 +244,10 @@ SELECT DISTINCT
         ELSE op."nomeConsorcio"
     END AS "nomeConsorcio",
     CASE
-        WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),2)
+        WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),3)
         ELSE da."valorLancamento"
     END AS valor,
-    oph."dataReferencia" AS dataPagamento,
+	  pd."dataReferencia",
     'Pendencia Paga' AS status
 FROM ordem_pagamento op
   INNER JOIN ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id
