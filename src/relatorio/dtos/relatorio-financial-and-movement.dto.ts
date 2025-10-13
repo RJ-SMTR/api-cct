@@ -14,6 +14,7 @@ export class RelatorioFinancialMovementNovoRemessaDto {
   valorEstornado: number;
   valorAguardandoPagamento: number
   valorPendente: number
+  valorPendenciaPaga: number
   data: RelatorioFinancialMovementNovoRemessaData[];
 }
 
@@ -24,6 +25,8 @@ export class RelatorioFinancialMovementNovoRemessaData {
     }
   }
 
+
+  dataReferencia: string;
   dataPagamento: string;
   nomes: string;
   email: string;
@@ -34,4 +37,3 @@ export class RelatorioFinancialMovementNovoRemessaData {
   valor: number;
   status: string;
 }
-
