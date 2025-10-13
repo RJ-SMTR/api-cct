@@ -276,7 +276,7 @@ WHERE
 op."dataOrdem" BETWEEN $1  AND $2 
     AND op."ordemPagamentoAgrupadoId" IS NULL
 AND($3:: integer[] IS NULL OR pu."id" = ANY($3))
-    AND op."nomeConsorcio" IN('STPC', 'STPL', 'TEC')
+    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
 AND(
   ($6:: numeric IS NULL OR op."valor" >= $6:: numeric)
 AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
@@ -317,12 +317,14 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
   constructor(@InjectDataSource() private readonly dataSource: DataSource) { }
 
+
   public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
     const safeFilter: IFindPublicacaoRelatorioNovoFinancialMovement = {
       ...filter,
       dataInicio: filter.dataInicio ? new Date(filter.dataInicio) : filter.dataInicio,
       dataFim: filter.dataFim ? new Date(filter.dataFim) : filter.dataFim,
     };
+    console.log(safeFilter)
 
     const initialYear = safeFilter.dataInicio.getFullYear();
     const finalYear = safeFilter.dataFim.getFullYear();
@@ -395,6 +397,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
         if (is2025) {
           finalQuery = this.prependWithIfNeeded(finalQuery);
         }
+        console.log(params)
 
         allResults = await queryRunner.query(finalQuery, params);
       }
@@ -513,11 +516,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     return new Date(y, (m || 1) - 1, d || 1);
   }
 
-  /**
-   * If a fragment that references the `pendencia` CTE is appended to the query,
-   * the final SQL must start with the WITH clause. This helper prepends the
-   * WITH_AS fragment only when the query doesn't already start with a WITH.
-   */
+
   private prependWithIfNeeded(query: string): string {
     const trimmed = query.trim();
     if (trimmed.toUpperCase().startsWith('WITH')) return query;
@@ -560,8 +559,11 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     return { requiresMerge: true };
   }
 
+
   private getParametersByQuery(year: number, filter: IFindPublicacaoRelatorioNovoFinancialMovement): any[] {
-    const consorcioNome: string[] | null = filter.consorcioNome ? filter.consorcioNome.map(n => n.toUpperCase().trim()) : null;
+    let consorcioNome: string[] | null = filter.consorcioNome
+      ? filter.consorcioNome.map(n => n.toUpperCase().trim())
+      : null;
 
     const dataInicio = filter.dataInicio || null;
     const dataFim = filter.dataFim || null;
@@ -569,10 +571,31 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     const valorMin = filter.valorMin || null;
     const valorMax = filter.valorMax || null;
 
-    if (year === 2024) {
-      return [dataInicio, dataFim, this.getStatusParaFiltro(filter) || null, consorcioNome, userIds, valorMin, valorMax];
+    if (filter.pendentes && (!consorcioNome || consorcioNome.length === 0)) {
+      consorcioNome = ['STPC', 'STPL', 'TEC'];
     }
 
-    return [dataInicio, dataFim, userIds, this.getStatusParaFiltro(filter) || null, consorcioNome, valorMin, valorMax];
+    if (year === 2024) {
+      return [
+        dataInicio,
+        dataFim,
+        this.getStatusParaFiltro(filter) || null,
+        consorcioNome,
+        userIds,
+        valorMin,
+        valorMax
+      ];
+    }
+
+    return [
+      dataInicio,
+      dataFim,
+      userIds,
+      this.getStatusParaFiltro(filter) || null,
+      consorcioNome,
+      valorMin,
+      valorMax
+    ];
   }
+
 }
