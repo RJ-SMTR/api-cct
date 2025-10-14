@@ -352,16 +352,10 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
   constructor(@InjectDataSource() private readonly dataSource: DataSource) { }
 
-  /**
-   * Retorna true se devemos usar a versão COM cadeia_pagamento.
-   * Regras atuais:
-   * - se o filtro pede registros 'Pago', 'A Pagar' ou 'Aguardando Pagamento' então NÃO usamos cadeia (retorna false),
-   *   pois esses status não devem ser considerados na lógica de cadeia pai/filho.
-   */
   private shouldUseCadeia(filter: IFindPublicacaoRelatorioNovoFinancialMovement): boolean {
-    if (!filter) return true;
-    if (filter.pago || filter.aPagar || filter.emProcessamento) return false;
-    return true;
+    if (!filter) return false;
+    if (filter.pendenciaPaga || filter.erro) return true;
+    return false;
   }
 
 
@@ -429,22 +423,19 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
         let finalQuery: string;
 
         if (is2025) {
-          // escolha explícita da template para 2025+
           const useCadeiaSingle = this.shouldUseCadeia(safeFilter);
           finalQuery = useCadeiaSingle ? this.queryNewReport : this.queryNewReportNoCadeia;
 
           if (safeFilter.todosVanzeiros) finalQuery += ` ${this.notCpf2025}`;
-          if (safeFilter.eleicao) finalQuery = this.eleicao2025; // se eleicao sobrescreve a base
+          if (safeFilter.eleicao) finalQuery = this.eleicao2025;
           if (safeFilter.pendentes) finalQuery += this.pendentes_25;
           if (safeFilter.pendenciaPaga) {
             finalQuery = `${finalQuery} UNION ALL ${this.pendenciasPagasSQL} UNION ALL ${this.pendenciasPagasEstRejSQL}`;
           }
           if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
 
-          // sempre prefixar WITH para queries 2025+
           finalQuery = this.prependWithIfNeeded(finalQuery);
         } else {
-          // comportamento original para 2024 / outras
           finalQuery = queryDecision.query;
           if (safeFilter.todosVanzeiros) finalQuery += is2025 ? ` ${this.notCpf2025}` : ` ${this.notCpf2024}`;
           if (is2024 && safeFilter.eleicao) {
