@@ -548,7 +548,6 @@ from item_transacao it
     relatorioConsolidadoDto.count = count;
 
     if (filter.userIds && filter.userIds.length > 0 || filter.todosVanzeiros) {
-      console.log('Consolidado por usuário');
       const valorPorUsuario: Record<string, number> = {};
 
       for (const row of result) {
@@ -569,7 +568,6 @@ from item_transacao it
         return elem;
       });
     } else {
-      console.log('Consolidado por consórcio');
       relatorioConsolidadoDto.data = result.map((r) => {
         const elem = new RelatorioConsolidadoNovoRemessaData();
         elem.nomefavorecido = r.nome;
@@ -806,14 +804,7 @@ from item_transacao it
                     da.id,
                     da."dataVencimento", 
                     uu."fullName" as nome, 
-                      da."valorRealEfetivado" as valor,
-            CASE
-      WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
-      WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
-      WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
-      ELSE op."nomeConsorcio"
-      END AS "nomeConsorcio"
-
+                      da."valorRealEfetivado" as valor
                   `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
       condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
@@ -998,14 +989,14 @@ from item_transacao it
         da.id,
           da."dataVencimento",
           uu."fullName",
-          uu."permitCode",
           oph."statusRemessa",
+          uu."permitCode",
           oph."motivoStatusRemessa",
-           CASE
-                                WHEN op."idOperadora" = '8' THEN 'VLT'
-                                WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
-                                WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
-                                WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
+            CASE
+                               WHEN uu."permitCode" = '8' THEN 'VLT'
+                WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
+                WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
+                WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
                                 ELSE op."nomeConsorcio"
                             END AS "nome",
          da."valorLancamento" as valor
