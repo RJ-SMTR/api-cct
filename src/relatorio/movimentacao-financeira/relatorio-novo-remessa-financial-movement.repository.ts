@@ -97,6 +97,7 @@ WHERE
     )
     AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
     and oph."statusRemessa" <> 5
+    and oph."motivoStatusRemessa" NOT IN ('02')
 `;
   private readonly queryOlderReport = `
 select distinct 
@@ -352,9 +353,15 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
   constructor(@InjectDataSource() private readonly dataSource: DataSource) { }
 
+  private shouldUnionCadeiaAndNoCadeia = (safeFilter: any) => {
+    const filtraStatusBase =
+      safeFilter.aPagar || safeFilter.aguardandoPagamento || safeFilter.pago;
+    const filtraPendenciaOuErro = safeFilter.pendenciaPaga || safeFilter.erro || safeFilter.estorno || safeFilter.rejeitado;
+    return filtraStatusBase && filtraPendenciaOuErro;
+  };
   private shouldUseCadeia(filter: IFindPublicacaoRelatorioNovoFinancialMovement): boolean {
     if (!filter) return false;
-    if (filter.pendenciaPaga || filter.erro) return true;
+    if (filter.pendenciaPaga || filter.erro || filter.estorno || filter.rejeitado) return true;
     return false;
   }
 
@@ -384,21 +391,29 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
         if (safeFilter.desativados) query2024 += ` AND pu.bloqueado = true`;
         if (safeFilter.pendentes) query2024 += this.pendentes_24;
         if (safeFilter.eleicao && initialYear === 2024) {
-          query2024 = query2024.replace('/* extra joins */', `INNER JOIN ordem_pagamento_unico opu ON opu."operadoraCpfCnpj" = cf."cpfCnpj"`);
+          query2024 = query2024.replace(
+            '/* extra joins */',
+            `INNER JOIN ordem_pagamento_unico opu ON opu."operadoraCpfCnpj" = cf."cpfCnpj"`
+          );
           query2024 += ` AND ita."idOrdemPagamento" LIKE '%U%'`;
         } else if (initialYear === 2024) {
           query2024 += ` AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
         }
         const res2024 = await queryRunner.query(query2024, params2024);
 
-        // 2) 2025+ (sempre usar prepend WITH para queries 2025+)
+        // 2) 2025+ (prepend WITH)
         const params2025 = this.getParametersByQuery(2025, { ...safeFilter });
-        const useCadeia = this.shouldUseCadeia(safeFilter);
-        let query2025 = useCadeia ? this.queryNewReport : this.queryNewReportNoCadeia;
+
+        let query2025: string;
+        if (this.shouldUnionCadeiaAndNoCadeia(safeFilter)) {
+          query2025 = `(${this.queryNewReport}) UNION ALL (${this.queryNewReportNoCadeia})`;
+        } else {
+          const useCadeia = this.shouldUseCadeia(safeFilter);
+          query2025 = useCadeia ? this.queryNewReport : this.queryNewReportNoCadeia;
+        }
 
         if (safeFilter.todosVanzeiros) query2025 += ` ${this.notCpf2025}`;
         if (safeFilter.eleicao && finalYear >= 2025) {
-          // se for eleição, substitui a base por eleicao2025
           query2025 = this.eleicao2025;
         }
         if (safeFilter.pendentes) query2025 += this.pendentes_25;
@@ -423,8 +438,13 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
         let finalQuery: string;
 
         if (is2025) {
-          const useCadeiaSingle = this.shouldUseCadeia(safeFilter);
-          finalQuery = useCadeiaSingle ? this.queryNewReport : this.queryNewReportNoCadeia;
+          // 👇 Se deve unir as duas queries (mesma regra)
+          if (this.shouldUnionCadeiaAndNoCadeia(safeFilter)) {
+            finalQuery = `(${this.queryNewReport}) UNION ALL (${this.queryNewReportNoCadeia})`;
+          } else {
+            const useCadeiaSingle = this.shouldUseCadeia(safeFilter);
+            finalQuery = useCadeiaSingle ? this.queryNewReport : this.queryNewReportNoCadeia;
+          }
 
           if (safeFilter.todosVanzeiros) finalQuery += ` ${this.notCpf2025}`;
           if (safeFilter.eleicao) finalQuery = this.eleicao2025;
@@ -439,7 +459,10 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           finalQuery = queryDecision.query;
           if (safeFilter.todosVanzeiros) finalQuery += is2025 ? ` ${this.notCpf2025}` : ` ${this.notCpf2024}`;
           if (is2024 && safeFilter.eleicao) {
-            finalQuery = finalQuery.replace('/* extra joins */', `INNER JOIN ordem_pagamento_unico opu ON opu."operadoraCpfCnpj" = cf."cpfCnpj"`);
+            finalQuery = finalQuery.replace(
+              '/* extra joins */',
+              `INNER JOIN ordem_pagamento_unico opu ON opu."operadoraCpfCnpj" = cf."cpfCnpj"`
+            );
             finalQuery += ` AND ita."idOrdemPagamento" LIKE '%U%'`;
           } else if (is2024) {
             finalQuery += ` AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
