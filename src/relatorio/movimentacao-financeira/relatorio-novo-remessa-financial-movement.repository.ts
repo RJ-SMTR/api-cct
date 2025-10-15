@@ -10,7 +10,6 @@ import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNo
 export class RelatorioNovoRemessaFinancialMovementRepository {
   private readonly logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementRepository.name, { timestamp: true });
 
-  // Shared SQL fragments
   private readonly STATUS_CASE = `(
     CASE
       WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
@@ -95,9 +94,8 @@ WHERE
     AND (
         $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
     )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
+    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02') OR oph."motivoStatusRemessa" IS NULL)
     and oph."statusRemessa" <> 5
-    and oph."motivoStatusRemessa" NOT IN ('02')
 `;
   private readonly queryOlderReport = `
 select distinct 
@@ -437,10 +435,11 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
         let finalQuery: string;
 
+
         if (is2025) {
           // 👇 Se deve unir as duas queries (mesma regra)
           if (this.shouldUnionCadeiaAndNoCadeia(safeFilter)) {
-            finalQuery = `(${this.queryNewReport}) UNION ALL (${this.queryNewReportNoCadeia})`;
+            finalQuery = `${this.queryNewReport} UNION ALL ${this.queryNewReportNoCadeia}`;
           } else {
             const useCadeiaSingle = this.shouldUseCadeia(safeFilter);
             finalQuery = useCadeiaSingle ? this.queryNewReport : this.queryNewReportNoCadeia;
@@ -454,9 +453,12 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           }
           if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
 
+
           finalQuery = this.prependWithIfNeeded(finalQuery);
         } else {
+          console.log('----------------------------------------------------------------------------------------------')
           finalQuery = queryDecision.query;
+
           if (safeFilter.todosVanzeiros) finalQuery += is2025 ? ` ${this.notCpf2025}` : ` ${this.notCpf2024}`;
           if (is2024 && safeFilter.eleicao) {
             finalQuery = finalQuery.replace(
@@ -467,6 +469,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           } else if (is2024) {
             finalQuery += ` AND ita."idOrdemPagamento" NOT LIKE '%U%'`;
           }
+
 
           if (safeFilter.pendentes && is2025) finalQuery += this.pendentes_25;
           if (safeFilter.pendentes && is2024) finalQuery += this.pendentes_24;
