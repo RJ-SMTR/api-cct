@@ -65,7 +65,7 @@ WITH
     dias_relatorio AS (
         SELECT dias::DATE AS data
         FROM generate_series(
-                $1::DATE, $1::DATE + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
+               DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
             ) AS dias
         WHERE (
                 EXTRACT(
@@ -124,7 +124,16 @@ FROM
 OR (
                 
                     opa."ordemPagamentoAgrupadoId" IS NULL
-                    AND op."dataOrdem"::DATE BETWEEN (dr.data - 7) AND (dr.data - 1)
+
+                and    op."dataOrdem"::DATE BETWEEN (
+    dr.data - CASE
+        WHEN EXTRACT(
+            MONTH
+            FROM dr.data
+        ) >= 9 THEN 3
+        ELSE 7
+    END
+) AND (dr.data - 1)
                     AND oph."statusRemessa" NOT IN (3, 4)
                     AND opa."dataPagamento"::DATE > dr.data
                 )
@@ -147,9 +156,8 @@ ORDER BY dr.data;
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoId = row.opaid;
-
-      dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
       dto.dataPagamento = row.dataReferencia;
+      dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
         dto.descricaoMotivoStatusRemessa = OcorrenciaEnum[row.motivoStatusRemessa];
