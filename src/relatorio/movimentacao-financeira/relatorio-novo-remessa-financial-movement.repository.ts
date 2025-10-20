@@ -205,8 +205,8 @@ WHERE
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+        ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR op."valor" <= $7::numeric)
     )
     and oph."statusRemessa" IN (5)
 
