@@ -133,10 +133,9 @@ export class BigqueryTransacaoRepository {
   }
 
   public async findTransacoesByOp(ordemPagamentoIds: number[]) {
-    // const query = `SELECT * FROM 
-    // transacoes_bq where id_ordem_pagamento_consorcio_operador_dia IN ($1) 
-    // AND valor_pagamento > 0 
-    // ORDER BY datetime_transacao DESC 
+    const query = `SELECT * FROM 
+    transacao_bigquery where id_ordem_pagamento_consorcio_operador_dia IN ($1) 
+    ORDER BY datetime_transacao DESC `;
 
     const dataInicio = new Date();
 
@@ -150,27 +149,27 @@ export class BigqueryTransacaoRepository {
 
     const ordensId = ordemPagamentoIds.join("','");
 
-      const query = `
-        SELECT 
-          t.id_transacao,
-          t.data, 
-          t.datetime_transacao,
-          t.consorcio,
-          t.id_ordem_pagamento,
-          t.id_ordem_pagamento_consorcio_operador_dia,
-          ROUND(t.valor_pagamento, 2) valor_pagamento,
-          ROUND(t.valor_transacao, 2) valor_transacao,
-          t.tipo_pagamento,
-          t.tipo_transacao,
-          t.datetime_ultima_atualizacao
-        FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
-        WHERE t.data_ordem BETWEEN '${dataInicioStr}' AND '${dataFimStr}'
-          AND t.consorcio IN ('STPC','STPL','TEC')
-          AND t.valor_pagamento > 0
-          AND t.id_ordem_pagamento_consorcio_operador_dia IN ('${ordensId}')`;
+      // const query = `
+      //   SELECT 
+      //     t.id_transacao,
+      //     t.data, 
+      //     t.datetime_transacao,
+      //     t.consorcio,
+      //     t.id_ordem_pagamento,
+      //     t.id_ordem_pagamento_consorcio_operador_dia,
+      //     ROUND(t.valor_pagamento, 2) valor_pagamento,
+      //     ROUND(t.valor_transacao, 2) valor_transacao,
+      //     t.tipo_pagamento,
+      //     t.tipo_transacao,
+      //     t.datetime_ultima_atualizacao
+      //   FROM \`rj-smtr.br_rj_riodejaneiro_bilhetagem.transacao\` t
+      //   WHERE t.data_ordem BETWEEN '${dataInicioStr}' AND '${dataFimStr}'
+      //     AND t.consorcio IN ('STPC','STPL','TEC')
+      //     AND t.valor_pagamento > 0
+      //     AND t.id_ordem_pagamento_consorcio_operador_dia IN ('${ordensId}')`;
    
 
-    const queryResult = await this.bigqueryService.query(BigquerySource.smtr, query);
+    const queryResult = await this.bigqueryTransacaoRepo.query(query);
    
     return queryResult.map((item: any) => {
       return this.mapTransacaoDiario(item);

@@ -1,6 +1,6 @@
 import { Entity, PrimaryColumn, Column } from 'typeorm';
 
-@Entity('transacoes_bq') 
+@Entity('transacao_bigquery') 
 export class BigqueryTransacaoDiario {
     @PrimaryColumn({ type: 'varchar', length: 100 })
     id_transacao: string;
