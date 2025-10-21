@@ -475,7 +475,6 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
           finalQuery = this.prependWithIfNeeded(finalQuery);
         } else {
-          console.log('----------------------------------------------------------------------------------------------')
           finalQuery = queryDecision.query;
 
           if (safeFilter.todosVanzeiros) finalQuery += is2025 ? ` ${this.notCpf2025}` : ` ${this.notCpf2024}`;
@@ -581,7 +580,6 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     const map = new Map<string, any>();
 
     for (const r of rows) {
-      console.log(r)
       const dataReferencia = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataReferencia));
       const key = `${dataReferencia}|${r.cpfCnpj}|${r.status}`;
       const dataPagamento = r.dataPagamento ? new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataPagamento)) : null;
