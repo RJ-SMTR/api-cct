@@ -10,6 +10,15 @@ import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNo
 export class RelatorioNovoRemessaFinancialMovementRepository {
   private readonly logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementRepository.name, { timestamp: true });
 
+  private readonly CONSORCIO_CASE = `(
+  CASE
+      WHEN pu."permitCode" = '8' THEN 'VLT'
+      WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+      WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+      WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+      ELSE op."nomeConsorcio"
+    END
+  )`
   private readonly STATUS_CASE = `(
     CASE
       WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
@@ -32,7 +41,7 @@ SELECT DISTINCT
     pu."bankCode" AS "codBanco",
     bc.name AS "nomeBanco",
     pu."cpfCnpj",
-    op."nomeConsorcio",
+    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     da."valorLancamento" AS valor,
     opa."dataPagamento",
     ${this.STATUS_CASE} AS status
@@ -72,7 +81,7 @@ SELECT DISTINCT
     pu."bankCode" AS "codBanco",
     bc.name AS "nomeBanco",
     pu."cpfCnpj",
-    op."nomeConsorcio",
+    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     da."valorLancamento" AS valor,
     opa."dataPagamento",
     ${this.STATUS_CASE} AS status
@@ -183,7 +192,7 @@ where da."dataVencimento" between $1 and $2
     pu."bankCode" AS "codBanco",
     bc.name AS "nomeBanco",
     pu."cpfCnpj",
-    op."nomeConsorcio",
+    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     CASE 
         WHEN oph."statusRemessa" = 5 THEN ROUND(op."valor", 3)
         ELSE da."valorLancamento"
@@ -208,6 +217,10 @@ WHERE
         ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
         AND ($7::numeric IS NULL OR op."valor" <= $7::numeric)
     )
+    AND (
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+    )
     and oph."statusRemessa" IN (5)
 
 	AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
@@ -228,6 +241,11 @@ pendencia AS (
     AND EXISTS (
       SELECT 1 FROM ordem_pagamento_agrupado opa2 WHERE opa2."ordemPagamentoAgrupadoId" = opaa.id
     )
+  AND (
+        ($6::numeric IS NULL OR daa."valorLancamento" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR daa."valorLancamento" <= $7::numeric)
+    )
+
 ),
 
 cadeia_pagamento (ordem_id, pai_id, raiz_id) AS (
@@ -260,10 +278,11 @@ SELECT DISTINCT
     bc.name AS "nomeBanco",
     uu."cpfCnpj",
     CASE
-        WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
-        WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
-        WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
-        ELSE op."nomeConsorcio"
+      WHEN uu."permitCode" = '8' THEN 'VLT'
+      WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
+      WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
+      WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
+      ELSE op."nomeConsorcio"
     END AS "nomeConsorcio",
     CASE
         WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),3)
