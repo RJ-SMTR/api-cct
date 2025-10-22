@@ -150,18 +150,15 @@ export class BigqueryTransacaoRepository {
 
   public mapTransacaoDiario(item: any) {
       const bigQueryDiario = new BigqueryTransacaoDiario();
-      bigQueryDiario.id_transacao = item.id_transacao;
-      const dataBq = item.data as BigQueryDate;
-      bigQueryDiario.data = new Date(dataBq.value);
-      const datetimeTransacaoBq = item.datetime_transacao as BigQueryDatetime;    
-      bigQueryDiario.datetime_transacao = new Date(datetimeTransacaoBq.value);
+      bigQueryDiario.id_transacao = item.id_transacao;      
+      bigQueryDiario.data = item.data;      
+      bigQueryDiario.datetime_transacao = item.datetime_transacao
       bigQueryDiario.consorcio = item.consorcio;
       bigQueryDiario.valor_pagamento = item.valor_pagamento;
       bigQueryDiario.id_ordem_pagamento = item.id_ordem_pagamento;
       bigQueryDiario.tipo_transacao = item.tipo_transacao;
       bigQueryDiario.id_ordem_pagamento_consorcio_operador_dia = item.id_ordem_pagamento_consorcio_operador_dia;
-      const dtUltimaBq = item.datetime_ultima_atualizacao as BigQueryDatetime;
-      bigQueryDiario.datetime_ultima_atualizacao = new Date(dtUltimaBq.value);
+      bigQueryDiario.datetime_ultima_atualizacao = item.datetime_ultima_atualizacao;
       return bigQueryDiario;
     }
 
