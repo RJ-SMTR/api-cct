@@ -66,7 +66,7 @@ WHERE
     )
 AND (
         oph."motivoStatusRemessa" = '02' OR
-        (oph."motivoStatusRemessa" NOT IN ('00','BD', 'AL') AND oph."statusRemessa" NOT IN (3,5))
+        (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
     )
     AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)
     AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
@@ -103,7 +103,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
     )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02') OR oph."motivoStatusRemessa" IS NULL)
+    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02', 'AL') OR oph."motivoStatusRemessa" IS NULL)
     and oph."statusRemessa" <> 5
 `;
   private readonly queryOlderReport = `
@@ -376,6 +376,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     const filtraPendenciaOuErro = safeFilter.pendenciaPaga || safeFilter.erro || safeFilter.estorno || safeFilter.rejeitado;
     return filtraStatusBase && filtraPendenciaOuErro;
   };
+
   private shouldUseCadeia(filter: IFindPublicacaoRelatorioNovoFinancialMovement): boolean {
     if (!filter) return false;
     if (filter.pendenciaPaga || filter.erro || filter.estorno || filter.rejeitado) return true;
@@ -463,7 +464,6 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
             const useCadeiaSingle = this.shouldUseCadeia(safeFilter);
             finalQuery = useCadeiaSingle ? this.queryNewReport : this.queryNewReportNoCadeia;
           }
-
           if (safeFilter.todosVanzeiros) finalQuery += ` ${this.notCpf2025}`;
           if (safeFilter.eleicao) finalQuery = this.eleicao2025;
           if (safeFilter.pendentes) finalQuery += this.pendentes_25;
