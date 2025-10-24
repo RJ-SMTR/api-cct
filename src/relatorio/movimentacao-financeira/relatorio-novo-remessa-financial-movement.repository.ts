@@ -67,7 +67,7 @@ WHERE
     )
 AND (
         oph."motivoStatusRemessa" = '02' OR
-        (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
+        (oph."motivoStatusRemessa" NOT IN ('00','BD','AL') AND oph."statusRemessa" NOT IN (3,5))
     )
     AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)
     AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
