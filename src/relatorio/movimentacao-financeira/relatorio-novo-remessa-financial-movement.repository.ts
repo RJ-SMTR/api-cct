@@ -19,6 +19,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       ELSE op."nomeConsorcio"
     END
   )`
+
   private readonly STATUS_CASE = `(
     CASE
       WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
@@ -66,7 +67,7 @@ WHERE
     )
 AND (
         oph."motivoStatusRemessa" = '02' OR
-        (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
+        (oph."motivoStatusRemessa" NOT IN ('00','BD','AL') AND oph."statusRemessa" NOT IN (3,5))
     )
     AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)
     AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
@@ -316,12 +317,12 @@ UNION ALL
   op."nomeOperadora" as nomes,
   pu.email,
   pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
-      pu."cpfCnpj",
-        op."nomeConsorcio",
-          op."valor" AS valor,
-            op."dataOrdem",
-              'Pendente' AS status
+  bc.name AS "nomeBanco",
+  pu."cpfCnpj",
+  ${this.CONSORCIO_CASE} AS "nomeConsorcio",
+  op."valor" AS valor,
+  op."dataOrdem",
+  'Pendente' AS status
 FROM ordem_pagamento op
 INNER JOIN public."user" pu ON pu.id = op."userId"
 JOIN bank bc on bc.code = pu."bankCode"
@@ -329,7 +330,10 @@ WHERE
 op."dataOrdem" BETWEEN $1  AND $2 
     AND op."ordemPagamentoAgrupadoId" IS NULL
 AND($3:: integer[] IS NULL OR pu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
+AND op."nomeConsorcio" = ANY(
+          COALESCE(NULLIF($5::text[], '{}'), ARRAY['STPC','STPL','TEC'])
+    )
+and op."nomeConsorcio" <> 'VLT'
 AND(
   ($6:: numeric IS NULL OR op."valor" >= $6:: numeric)
 AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
@@ -663,6 +667,9 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
       ? filter.consorcioNome.map(n => n.toUpperCase().trim())
       : null;
 
+    const modaisEspeciais = ['SPTC', 'STPL', 'TEC'];
+
+    console.log(consorcioNome)
     const dataInicio = filter.dataInicio || null;
     const dataFim = filter.dataFim || null;
     const userIds = filter.userIds || null;
