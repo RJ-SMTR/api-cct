@@ -448,7 +448,9 @@ WHERE
     AND op."ordemPagamentoAgrupadoId" IS NULL
     AND pu."bankAccount" IS NOT NULL
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
+     AND op."nomeConsorcio" = ANY(
+          COALESCE(NULLIF($6::text[], '{}'), ARRAY['STPC','STPL','TEC'])
+    )
     AND (
           ($4::numeric IS NULL OR op."valor" >= $4::numeric) 
           AND ($5::numeric IS NULL OR op."valor" <= $5::numeric)
@@ -521,15 +523,18 @@ from item_transacao it
       sql = sqlConsorcios;
     }
 
-    sql = `select * from (${sql}) vv where (1=1) `;
-
-    if (filter.valorMin) {
-      sql = sql + ` and vv."valor">=${filter.valorMin} `
+    if(filter.valorMax || filter.valorMin){
+      sql = `select  vv.nome,
+  SUM(vv."valor") AS valor from (${sql}) vv where (1=1) `;
+    } else {
+      sql = `select * from (${sql}) vv where (1=1) `;
     }
-
     if (filter.valorMax) {
-      sql = sql + ` and vv."valor"<=${filter.valorMax} `
+      sql = sql + ` GROUP BY vv.nome
+      HAVING SUM(vv."valor") <= ${filter.valorMax} AND SUM(vv."valor") >= ${filter.valorMin}`
     }
+   
+   
 
     let result: any[] = await queryRunner.query(sql);
 
@@ -590,10 +595,11 @@ from item_transacao it
         valorPorUsuario[nome] += valor;
       }
 
-      relatorioConsolidadoDto.data = Object.entries(valorPorUsuario).map(([nome, valor]: [string, number]) => {
+      relatorioConsolidadoDto.data = Object.entries(valorPorUsuario)
+      .map(([nome, valor]: [string, number]) => {
         const elem = new RelatorioConsolidadoNovoRemessaData();
         elem.nomefavorecido = nome;
-        elem.valor = parseFloat(valor.toFixed(2)); // agora sem erro
+        elem.valor = parseFloat(valor.toFixed(2));
         return elem;
       });
     } else {
@@ -609,7 +615,6 @@ from item_transacao it
 
     return relatorioConsolidadoDto;
   }
-
   public async findSintetico(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioSinteticoNovoRemessaDto> {
     if (filter.consorcioNome) {
 
@@ -1016,7 +1021,7 @@ from item_transacao it
     }
 
     if (anoInicio >= 2025 && anoFim >= 2025) {
-      const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds, filter.valorMin, filter.valorMax];
+      const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds, filter.valorMin, filter.valorMax, filter.consorcioNome];
       let result2025 = '';
       if (filter.pendentes && filter.todosConsorcios || filter.pendentes && filter.consorcioNome) {
         result2025 = await queryRunner.query(`SELECT nome, NULL as "nomeConsorcio", SUM(valor) as valor
