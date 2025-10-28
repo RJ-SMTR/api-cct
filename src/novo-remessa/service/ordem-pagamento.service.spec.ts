@@ -1,12 +1,12 @@
 import { OrdemPagamentoService } from './ordem-pagamento.service';
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 import { Test, TestingModule } from '@nestjs/testing';
-import { BigqueryOrdemPagamentoService } from '../../../bigquery/services/bigquery-ordem-pagamento.service';
-import { UsersService } from '../../../users/users.service';
-import { CustomLogger } from '../../../utils/custom-logger';
+import { BigqueryOrdemPagamentoService } from '../../bigquery/services/bigquery-ordem-pagamento.service';
+import { UsersService } from '../../users/users.service';
+import { CustomLogger } from '../../utils/custom-logger';
 import { nextFriday } from 'date-fns';
-import { getStatusRemessaEnumByValue, StatusRemessaEnum } from '../../enums/novo-remessa/status-remessa.enum';
-import { getDescricaoOcorrenciaEnumByValue, OcorrenciaEnum } from '../../enums/ocorrencia.enum';
+import { getStatusRemessaEnumByValue, StatusRemessaEnum } from '../../cnab/enums/novo-remessa/status-remessa.enum';
+import { getDescricaoOcorrenciaEnumByValue, OcorrenciaEnum } from '../../cnab/enums/ocorrencia.enum';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
 

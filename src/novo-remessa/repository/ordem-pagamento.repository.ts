@@ -9,9 +9,9 @@ import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
-import { getStatusRemessaEnumByValue } from '../../enums/novo-remessa/status-remessa.enum';
-import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
-import { Pagador } from '../../entity/pagamento/pagador.entity';
+import { getStatusRemessaEnumByValue } from '../../cnab/enums/novo-remessa/status-remessa.enum';
+import { OcorrenciaEnum } from '../../cnab/enums/ocorrencia.enum';
+import { Pagador } from '../../cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoUnicoDto } from '../dto/ordem-pagamento-unico.dto';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 import { formatDateISODate } from 'src/utils/date-utils';

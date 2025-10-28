@@ -3,19 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
-import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
-import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
+import { RemessaService } from 'src/novo-remessa/service/remessa.service';
+import { RetornoService } from 'src/novo-remessa/service/retorno.service';
 import {
+  isMonday,
   isSaturday,
   isSunday,
   isTuesday,
+  isWednesday,
   nextMonday,
   nextTuesday,
   startOfDay,
   subDays,
 } from 'date-fns';
 import { CnabService } from 'src/cnab/cnab.service';
-import { OrdemPagamentoService } from 'src/cnab/novo-remessa/service/ordem-pagamento.service';
+import { OrdemPagamentoService } from 'src/novo-remessa/service/ordem-pagamento.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -30,9 +32,9 @@ import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { validateEmail } from 'validations-br';
-import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
+import { OrdemPagamentoAgrupadoService } from '../novo-remessa/service/ordem-pagamento-agrupado.service';
 import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
-import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
+import { DistributedLockService } from '../novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 
@@ -53,7 +55,8 @@ export enum CronJobsEnum {
   generateRemessaVanzeiros = 'generateRemessaVanzeiros',
   generateRemessaLancamento = 'generateRemessaLancamento',
   sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento',
-  sincronizarTransacoesBq = 'sincronizarTransacoesBq'
+  sincronizarTransacoesBq = 'sincronizarTransacoesBq',
+  executarAgenda = 'executarAgenda'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -109,9 +112,19 @@ export class CronJobsService {
 
 
   async onModuleLoad() {    
-    await this.remessaModalExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
+       {
+        /**
+         * CronJob responsavel por ler a agenda
+         *
+         *  Executar no dia e horario agendado         
+         */
+        name: CronJobsEnum.executarAgenda,
+        cronJobParameters:  ,
+      },
+     
+
       {
         /**
          * Job interno.
@@ -269,6 +282,45 @@ export class CronJobsService {
       this.logger.warn(`env->CRONJOBS = false. Cronjobs inativos.`);
     }
   }
+  
+
+  async executarAgenda():Promise<CronJobParameters|null>{
+    //consultar agenda
+    await this.verificarDiaSemana();
+    await this.verificarRemessaConsorcio();
+    await this.verificarRemessaModal();
+    await this.verificarRemessaIndividual();   
+     
+    return null;   
+  }
+ 
+  async verificarDiaSemana(diaSemana?:any,data?:Date,hora?: string){
+    if(data && data == new Date()){
+      //Montar parametro cron 
+    }else if(isMonday(diaSemana)) {
+      //Montar parametro cron 
+    } else if (isTuesday(diaSemana)) {
+      //Montar parametro cron 
+    } else if (isWednesday(diaSemana)) {
+      //Montar parametro cron 
+    }else if(isThursday(diaSemana)){
+      //Montar parametro cron 
+    } 
+  }
+
+   async verificarRemessaConsorcio(){
+
+   }
+
+   async verificarRemessaModal(){
+
+   }
+
+   async verificarRemessaIndividual(){
+
+   }
+  
+  
 
   /**
    * Verifica se o ambiente é realmente produção, pois:

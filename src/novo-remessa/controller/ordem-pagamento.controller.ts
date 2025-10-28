@@ -20,10 +20,10 @@ import { DateQueryParams } from 'src/utils/query-param/date.query-param';
 import { canProceed, getRequestLog } from 'src/utils/request-utils';
 import { OrdemPagamentoService } from '../service/ordem-pagamento.service';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
-import { BigqueryTransacaoService } from '../../../bigquery/services/bigquery-transacao.service';
-import { BigqueryTransacao } from '../../../bigquery/entities/transacao.bigquery-entity';
+import { BigqueryTransacaoService } from '../../bigquery/services/bigquery-transacao.service';
+import { BigqueryTransacao } from '../../bigquery/entities/transacao.bigquery-entity';
 import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
-import { UsersService } from '../../../users/users.service';
+import { UsersService } from '../../users/users.service';
 import { BigqueryTransacaoDiario } from 'src/bigquery/entities/transaca-diario.entity';
 
 @ApiTags('OrdemPagamento')

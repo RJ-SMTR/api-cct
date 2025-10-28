@@ -7,7 +7,7 @@ import { ItemTransacaoAgrupado } from './item-transacao-agrupado.entity';
 import { Ocorrencia } from './ocorrencia.entity';
 import { isAfter } from 'date-fns';
 import { getDateFromCnabName } from 'src/utils/date-utils';
-import { OrdemPagamentoAgrupadoHistorico } from 'src/cnab/novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
+import { OrdemPagamentoAgrupadoHistorico } from 'src/novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
 import { Nullable } from 'src/utils/types/nullable.type';
 
 /**

@@ -12,7 +12,7 @@ import { getDateFromCnabName } from 'src/utils/date-utils';
 import { DeepPartial } from 'typeorm';
 import { HeaderLote } from '../../entity/pagamento/header-lote.entity';
 import { CnabHeaderArquivo104 } from '../cnab-240/104/cnab-header-arquivo-104.dto';
-import { OrdemPagamentoAgrupadoHistorico } from 'src/cnab/novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
+import { OrdemPagamentoAgrupadoHistorico } from 'src/novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
 
 function isCreate(object: DetalheADTO): boolean {
   return object.id === undefined;

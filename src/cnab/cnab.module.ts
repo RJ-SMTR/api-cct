@@ -73,21 +73,21 @@ import { TransacaoService } from './service/pagamento/transacao.service';
 import { PagamentoIndevidoService } from 'src/pagamento_indevido/service/pgamento-indevido-service';
 import { PagamentoIndevidoRepository } from 'src/pagamento_indevido/repository/pagamento-indevido.repository';
 import { PagamentoIndevido } from 'src/pagamento_indevido/entity/pagamento-indevido.entity';
-import { OrdemPagamento } from './novo-remessa/entity/ordem-pagamento.entity';
-import { OrdemPagamentoAgrupado } from './novo-remessa/entity/ordem-pagamento-agrupado.entity';
-import { OrdemPagamentoService } from './novo-remessa/service/ordem-pagamento.service';
-import { OrdemPagamentoRepository } from './novo-remessa/repository/ordem-pagamento.repository';
-import { OrdemPagamentoAgrupadoRepository } from './novo-remessa/repository/ordem-pagamento-agrupado.repository';
-import { OrdemPagamentoAgrupadoService } from './novo-remessa/service/ordem-pagamento-agrupado.service';
+import { OrdemPagamento } from '../novo-remessa/entity/ordem-pagamento.entity';
+import { OrdemPagamentoAgrupado } from '../novo-remessa/entity/ordem-pagamento-agrupado.entity';
+import { OrdemPagamentoService } from '../novo-remessa/service/ordem-pagamento.service';
+import { OrdemPagamentoRepository } from '../novo-remessa/repository/ordem-pagamento.repository';
+import { OrdemPagamentoAgrupadoRepository } from '../novo-remessa/repository/ordem-pagamento-agrupado.repository';
+import { OrdemPagamentoAgrupadoService } from '../novo-remessa/service/ordem-pagamento-agrupado.service';
 import {
   OrdemPagamentoAgrupadoHistoricoRepository
-} from './novo-remessa/repository/ordem-pagamento-agrupado-historico.repository';
-import { OrdemPagamentoAgrupadoHistorico } from './novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
-import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagamento.controller';
-import { RemessaService } from './novo-remessa/service/remessa.service';
-import { RetornoService } from './novo-remessa/service/retorno.service';
-import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
-import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
+} from '../novo-remessa/repository/ordem-pagamento-agrupado-historico.repository';
+import { OrdemPagamentoAgrupadoHistorico } from '../novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
+import { OrdemPagamentoController } from '../novo-remessa/controller/ordem-pagamento.controller';
+import { RemessaService } from '../novo-remessa/service/remessa.service';
+import { RetornoService } from '../novo-remessa/service/retorno.service';
+import { DistributedLockService } from '../novo-remessa/service/distributed-lock.service';
+import { DistributedLockRepository } from '../novo-remessa/repository/distributed-lock.repository';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 
 @Module({

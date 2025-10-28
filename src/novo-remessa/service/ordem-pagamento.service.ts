@@ -11,7 +11,7 @@ import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
-import { replaceUndefinedWithNull } from '../../../utils/type-utils';
+import { replaceUndefinedWithNull } from '../../utils/type-utils';
 import { endOfDay, startOfDay } from 'date-fns';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { OrdemPagamentoDto } from 'src/cnab/dto/pagamento/ordem-pagamento.dto';
