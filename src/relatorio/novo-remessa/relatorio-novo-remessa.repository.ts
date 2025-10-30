@@ -1021,7 +1021,13 @@ from item_transacao it
     }
 
     if (anoInicio >= 2025 && anoFim >= 2025) {
-      const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds, filter.valorMin, filter.valorMax, filter.consorcioNome];
+      let queryParams;
+      if (filter.todosConsorcios ||filter.consorcioNome){
+
+         queryParams = [filter.dataInicio, filter.dataFim, filter.userIds, filter.valorMin, filter.valorMax, filter.consorcioNome];
+      } else {
+         queryParams = [filter.dataInicio, filter.dataFim, filter.userIds, filter.valorMin, filter.valorMax];
+      }
       let result2025 = '';
       if (filter.pendentes && filter.todosConsorcios || filter.pendentes && filter.consorcioNome) {
         result2025 = await queryRunner.query(`SELECT nome, NULL as "nomeConsorcio", SUM(valor) as valor
