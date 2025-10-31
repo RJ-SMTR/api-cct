@@ -1,12 +1,12 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { AllConfigType } from 'src/config/config.type';
-import { CronJobsService } from 'src/cron-jobs/cron-jobs.service';
+import { AllConfigType } from 'src/configuration/config.type';
+import { CronJobsService } from 'src/service/cron-jobs.service';
 import { TestEnvironmentsGuard } from 'src/test/test-environments.guard';
 import { TestService } from './test.service';
-import { MailHistoryService } from 'src/mail-history/mail-history.service';
-import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
+import { MailHistoryService } from 'src/service/mail-history.service';
+import { DetalheAService } from 'src/service/detalhe-a.service';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 

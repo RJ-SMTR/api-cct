@@ -3,8 +3,6 @@ import { Injectable } from '@nestjs/common';
 import { RelatorioConsolidadoResultDto } from './dtos/relatorio-consolidado-result.dto';
 import { RelatorioAnaliticoResultDto } from './dtos/relatorio-analitico-result.dto';
 import { RelatorioSinteticoResultDto } from './dtos/relatorio-sintetico-result.dto';
-
-import { RelatorioExtratoBancarioDto } from './dtos/relatorio-extrato-bancario.dto';
 import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio-extrato-bancario.repository';
 import { RelatorioAnaliticoRepository } from './analitico/relatorio-analitico.repository';
 import { RelatorioConsolidadoRepository } from './consolidado/relatorio-consolidado.repository';

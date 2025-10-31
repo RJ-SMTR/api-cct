@@ -1,11 +1,11 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { subDays } from 'date-fns';
-import { CronJobsService } from 'src/cron-jobs/cron-jobs.service';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
-import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
-import { MailHistoryService } from 'src/mail-history/mail-history.service';
-import { RoleEnum } from 'src/roles/roles.enum';
-import { UsersService } from 'src/users/users.service';
+import { CronJobsService } from 'src/service/cron-jobs.service';
+import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
+import { MailHistoryService } from 'src/service/mail-history.service';
+import { RoleEnum } from 'src/security/roles/roles.enum';
+import { UsersService } from 'src/service/users.service';
 import { isCpfOrCnpj } from 'src/utils/cpf-cnpj';
 import { In } from 'typeorm/find-options/operator/In';
 

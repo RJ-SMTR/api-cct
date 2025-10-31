@@ -1,7 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import { User } from 'src/users/entities/user.entity';
+import { User } from 'src/antigo/users/entities/user.entity';
 import * as request from 'supertest';
 import {
   APP_URL,

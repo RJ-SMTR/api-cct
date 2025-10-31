@@ -1,0 +1,89 @@
+import { Injectable } from '@nestjs/common';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
+// import { BigqueryTransacaoDiario } from '../entities/transaca-diario-entity';
+import { BigqueryTransacaoRepository, IBqFindTransacao } from '../repositories/bigquery-transacao.repository';
+import { IRequest } from '../../../utils/interfaces/request.interface';
+import { isUser } from '../../../utils/request-utils';
+import { BigqueryTransacaoDiario } from '../entities/transaca-diario.entity';
+
+@Injectable()
+export class BigqueryTransacaoService {
+  private logger = new CustomLogger('BigqueryOrdemPagamentoService', { timestamp: true });
+
+  constructor(private readonly bigqueryTransacaoRepository: BigqueryTransacaoRepository) {}
+
+  /**
+   * Obter dados da semana de pagamento (qui-qua).
+   *
+   * @param [daysBack=0] Pega a semana atual ou N dias atrás.
+   */
+  public async getFromWeek(dataOrdemInicial: Date, dataOrdemFinal: Date, daysBack = 0, filter?: IBqFindTransacao): Promise<BigqueryTransacao[]> {
+    const transacao = (
+      await this.bigqueryTransacaoRepository.findMany({
+        startDate: dataOrdemInicial,
+        endDate: dataOrdemFinal,
+        ...(filter ? filter : {}),
+      })
+    ).map((i) => ({ ...i } as BigqueryTransacao));
+    return transacao;
+  }
+
+  public async findMany(filter?: IBqFindTransacao) {
+    const transacaoBq = await this.bigqueryTransacaoRepository.findMany(filter);
+    const transacaoView = transacaoBq.map((i) => i as BigqueryTransacao);
+    return transacaoView;
+  }
+  
+
+  public async findManyPaginated(filter: IBqFindTransacao, limit: number, callback: (items: BigqueryTransacao[]) => void) {
+    let page = 1;
+    let offset = limit * page;
+    let transacoesBq = await this.bigqueryTransacaoRepository.findMany({ ...filter, limit, offset });
+    while (transacoesBq.length) {
+      callback(transacoesBq);
+      page += 1;
+      offset = limit * page;
+      transacoesBq = await this.bigqueryTransacaoRepository.findMany({ ...filter, limit, offset });
+    }
+  }
+
+  /**
+   * Get data from current payment week (qui-qua). Also with older days.
+   */
+  public async getAll(): Promise<BigqueryTransacao[]> {
+    // Read
+    const ordemPgto = (await this.bigqueryTransacaoRepository.findMany()).map((i) => ({ ...i } as BigqueryTransacao));
+    return ordemPgto;
+  }
+
+  /**
+   * A cada 10 dias, de hoje até a dataInicio, pesquisa e chama o callback
+   */
+  public async getAllPaginated(callback: (transacoes: BigqueryTransacao[]) => void, cpfCnpjs: string[] = []) {
+    const transacoes: BigqueryTransacao[] = await this.bigqueryTransacaoRepository.findMany({
+      manyCpfCnpj: cpfCnpjs,
+    });
+    callback(transacoes);
+  }
+
+  public async findByOrdemPagamentoIdIn(ordemPagamentoIds: number[], cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
+    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoIdIn(ordemPagamentoIds, cpfCnpj, !isUser(request));
+  }
+
+  public async findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds: (number | undefined)[], cpfCnpj: string | undefined, request: IRequest): Promise<BigqueryTransacao[]> {
+    return await this.bigqueryTransacaoRepository.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordensPagamentoIds, cpfCnpj, !isUser(request));
+  }
+
+  /**
+  * Pegar transacoes de hoje
+  */
+ public async getAllTransacoes(data: Date){
+  const transacoes =  await this.bigqueryTransacaoRepository.syncTransacoes(data)
+  return transacoes;
+}
+
+  public async findTransacoesByOp(ordemPagamentoIds: number[]): Promise<BigqueryTransacaoDiario[]> {
+    return await this.bigqueryTransacaoRepository.findTransacoesByOp(ordemPagamentoIds);
+  }
+}

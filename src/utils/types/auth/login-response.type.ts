@@ -1,4 +1,4 @@
-import { User } from '../../../users/entities/user.entity';
+import { User } from "src/domain/entity/user.entity";
 
 export type LoginResponseType = Readonly<{
   token: string;
