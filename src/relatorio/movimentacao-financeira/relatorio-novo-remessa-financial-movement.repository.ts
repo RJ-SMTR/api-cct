@@ -307,14 +307,6 @@ WHERE
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
     AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
     ) 
-	AND (
-	  CASE
-	    WHEN oph."statusRemessa" = 5 THEN ROUND(
-	      (SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"), 3
-	    )
-	    ELSE da."valorLancamento"
-	  END
-	) <> 8200.98
 `;
 
   private pendentes_25 = `
