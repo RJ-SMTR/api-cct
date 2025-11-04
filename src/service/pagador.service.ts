@@ -1,9 +1,9 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 import { Pagador } from '../domain/entity/pagador.entity';
 import { PagadorContaEnum } from '../domain/enum/pagador.enum';
 import { PagadorRepository } from '../repository/pagador.repository';
 import { AllPagadorDict } from 'src/domain/interface/all-pagador-dict.interface';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 
 @Injectable()
 export class PagadorService {

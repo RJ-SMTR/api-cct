@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { CnabDetalheE_104V030 } from 'src/configuration/cnab/interfaces/cnab-240/104/extrato/cnab-detalhe-e-104-v030.interface';
 import { ExtratoDetalheE } from 'src/domain/entity/extrato-detalhe-e.entity';
 import { ExtratoHeaderLote } from 'src/domain/entity/extrato-header-lote.entity';
-import { CnabDetalheE_104V030 } from 'src/configuration/cnab/interfaces/cnab-240/104/extrato/cnab-detalhe-e-104-v030.interface';
 import { ExtratoDetalheERepository } from 'src/repository/extrato-detalhe-e.repository';
 import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';

@@ -2,9 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
-import { HeaderName } from 'src/domain/enum/header-arquivo-status.enum';
-import { RemessaService } from 'src/service/remessa.service';
-import { RetornoService } from 'src/service/retorno.service';
+
 import {
   isMonday,
   isSaturday,
@@ -17,26 +15,30 @@ import {
   subDays,
 } from 'date-fns';
 import { CnabService } from 'src/configuration/cnab/cnab.service';
-import { OrdemPagamentoService } from 'src/service/ordem-pagamento.service';
-import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
-import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
-import { MailHistory } from 'src/domain/entity/mail-history.entity';
-import { MailHistoryService } from 'src/service/mail-history.service';
-import { MailService } from 'src/service/mail.service';
+
 import { appSettings } from 'src/configuration/settings/app.settings';
 import { cnabSettings } from 'src/configuration/settings/cnab.settings';
 import { SettingEntity } from 'src/configuration/settings/entities/setting.entity';
 import { ISettingData } from 'src/configuration/settings/interfaces/setting-data.interface';
-import { SettingsService } from 'src/configuration/settings/settings.service';
-import { UsersService } from 'src/service/users.service';
-import { CustomLogger } from 'src/utils/custom-logger';
+import { SettingsService } from 'src/configuration/settings/settings.service';;
 import { validateEmail } from 'validations-br';
 import { OrdemPagamentoAgrupadoService } from './ordem-pagamento-agrupado.service';
 import { AllPagadorDict } from '../domain/interface/all-pagador-dict.interface';
 import { DistributedLockService } from './distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/client/bigquery/services/bigquery-transacao.service';
+import { MailHistory } from 'src/domain/entity/mail-history.entity';
+import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { MailHistoryService } from './mail-history.service';
+import { MailService } from './mail.service';
+import { OrdemPagamentoService } from './ordem-pagamento.service';
+import { UsersService } from './users.service';
 import { User } from 'src/domain/entity/user.entity';
+import { HeaderName } from 'src/domain/enum/header-arquivo-status.enum';
+import { RemessaService } from './remessa.service';
+import { RetornoService } from './retorno.service';
+import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
 
 /**
  * Enum CronJobServicesJobs
@@ -674,7 +676,7 @@ export class CronJobsService {
         to: user.email as string,
         data: {
           hash: user.aux_inviteHash as string,
-          inviteStatus: user.aux_inviteStatus as InviteStatus,
+          inviteStatus: user.aux_inviteStatus as  InviteStatus,
         },
       });
 

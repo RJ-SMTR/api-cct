@@ -26,7 +26,6 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { InviteStatusNamesEnum } from 'src/domain/enum/mail-history-status.enum';
 import { Role } from 'src/security/roles/entities/role.entity';
 import { RoleEnum } from 'src/security/roles/roles.enum';
 import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
@@ -41,7 +40,8 @@ import { UpdateUserDto } from '../domain/dto/update-user.dto';
 import { IFindUserPaginated } from '../domain/interface/find-user-paginated.interface';
 import { IUserUploadResponse } from '../domain/interface/user-upload-response.interface';
 import { UsersService } from '../service/users.service';
-import { User } from 'src/domain/entity/user.entity';
+import { User } from '../domain/entity/user.entity';
+import { InviteStatusNamesEnum } from '../domain/enum/mail-history-status.enum';
 
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'))

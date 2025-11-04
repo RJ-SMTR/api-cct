@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AllConfigType } from 'src/configuration/config.type';
-import { GitInfo } from '../configuration/git-info.class';
+import { GitInfo } from 'src/configuration/git-info.class';
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pjson = require('../../package.json');

@@ -3,17 +3,17 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { AllConfigType } from 'src/configuration/config.type';
-import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
-import { IMailHistoryStatusCount } from 'src/domain/interface/mail-history-status-group.interface';
-import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
-import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
-import { logWarn } from 'src/utils/log-utils';
 import { MaybeType } from '../utils/types/maybe.type';
 import { EhloStatus } from '../domain/enum/ehlo-status.enum';
 import { MailData } from '../domain/interface/mail-data.interface';
 import { MailRegistrationInterface } from '../domain/interface/mail-registration.interface';
 import { MailSentInfo } from '../domain/interface/mail-sent-info.interface';
 import { MySentMessageInfo } from '../domain/interface/sent-message-info.interface';
+import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
+import { IMailHistoryStatusCount } from 'src/domain/interface/mail-history-status-group.interface';
+import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
+import { logWarn } from 'src/utils/log-utils';
+import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
 
 @Injectable()
 export class MailService {

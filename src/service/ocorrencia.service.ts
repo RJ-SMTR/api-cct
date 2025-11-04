@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { Ocorrencia } from 'src/domain/entity/ocorrencia.entity';
 import { OcorrenciaRepository } from 'src/repository/ocorrencia.repository';
 import { DeepPartial, FindManyOptions, FindOptionsWhere, QueryRunner } from 'typeorm';
 import { DetalheA } from '../domain/entity/detalhe-a.entity';
+import { Ocorrencia } from 'src/domain/entity/ocorrencia.entity';
 
 @Injectable()
 export class OcorrenciaService {

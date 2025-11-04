@@ -10,13 +10,13 @@ import { getPaymentDates, getPaymentWeek } from 'src/utils/payment-date-utils';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { Pagination } from 'src/utils/types/pagination.type';
 import { BankStatementsRepositoryService } from '../repository/bank-statements.repository';
-import { BankStatementDTO } from '../domain/dto/bank-statement.dto';
-import { BSMePrevDaysTimeIntervalEnum } from '../domain/enum/bs-me-prev-days-time-interval.enum';
-import { IBSGetMeArgs } from '../domain/interface/bs-get-me-args.interface';
-import { IBSGetMePreviousDaysArgs, IBSGetMePreviousDaysValidArgs } from '../domain/interface/bs-get-me-previous-days-args.interface';
-import { IBSGetMePreviousDaysResponse } from '../domain/interface/bs-get-me-previous-days-response.interface';
-import { IBSGetMeResponse } from '../domain/interface/bs-get-me-response.interface';
-import { IGetBSResponse } from '../domain/interface/get-bs-response.interface';
+import { BankStatementDTO } from 'src/domain/dto/bank-statement.dto';
+import { BSMePrevDaysTimeIntervalEnum } from 'src/domain/enum/bs-me-prev-days-time-interval.enum';
+import { IBSGetMeArgs } from 'src/domain/interface/bs-get-me-args.interface';
+import { IBSGetMePreviousDaysArgs, IBSGetMePreviousDaysValidArgs } from 'src/domain/interface/bs-get-me-previous-days-args.interface';
+import { IBSGetMePreviousDaysResponse } from 'src/domain/interface/bs-get-me-previous-days-response.interface';
+import { IBSGetMeResponse } from 'src/domain/interface/bs-get-me-response.interface';
+import { IGetBSResponse } from 'src/domain/interface/get-bs-response.interface';
 import { User } from 'src/domain/entity/user.entity';
 
 /**

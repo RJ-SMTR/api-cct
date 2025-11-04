@@ -10,8 +10,8 @@ import { getCnabFieldConverted } from 'src/configuration/cnab/utils/cnab/cnab-fi
 import { getDateFromCnabName } from 'src/utils/date-utils';
 import { DeepPartial } from 'typeorm';
 import { HeaderLote } from '../entity/header-lote.entity';
-import { CnabHeaderArquivo104 } from '../../configuration/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto';
 import { OrdemPagamentoAgrupadoHistorico } from 'src/domain/entity/ordem-pagamento-agrupado-historico.entity';
+import { CnabHeaderArquivo104 } from 'src/configuration/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto';
 
 function isCreate(object: DetalheADTO): boolean {
   return object.id === undefined;

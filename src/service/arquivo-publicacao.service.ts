@@ -1,7 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { addDays, isDate, isThursday, nextFriday, startOfDay } from 'date-fns';
-import { compactQuery } from 'src/utils/console-utils';
-import { EntityHelper } from 'src/utils/entity-helper';
 import { DeepPartial, FindManyOptions, QueryRunner } from 'typeorm';
 import { ArquivoPublicacaoBigqueryDTO } from '../domain/dto/arquivo-publicacao-bigquery.dto';
 import { ArquivoPublicacao } from '../domain/entity/arquivo-publicacao.entity';
@@ -10,6 +8,8 @@ import { ItemTransacao } from '../domain/entity/item-transacao.entity';
 import { ArquivoPublicacaoRepository, IArquivoPublicacaoRawWhere } from '../repository/arquivo-publicacao.repository';
 import { OcorrenciaService } from './ocorrencia.service';
 import { ItemTransacaoService } from './item-transacao.service';
+import { compactQuery } from 'src/utils/console-utils';
+import { EntityHelper } from 'src/utils/entity-helper';
 
 export type ArquivoPublicacaoFields = 'savePublicacaoRetorno';
 

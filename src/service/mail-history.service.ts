@@ -4,14 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { startOfDay } from 'date-fns';
-import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
-import { IMailHistoryStatusCount } from 'src/domain/interface/mail-history-status-group.interface';
-import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
 import { RoleEnum } from 'src/security/roles/roles.enum';
-import { CustomLogger } from 'src/utils/custom-logger';
-import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
-import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { Nullable } from 'src/utils/types/nullable.type';
+
 import {
   DeepPartial,
   EntityManager,
@@ -20,6 +14,14 @@ import {
   Repository,
 } from 'typeorm';
 import { MailHistory } from '../domain/entity/mail-history.entity';
+
+import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
+import { IMailHistoryStatusCount } from 'src/domain/interface/mail-history-status-group.interface';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
+import { Nullable } from 'src/utils/types/nullable.type';
+import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
 import { User } from 'src/domain/entity/user.entity';
 
 @Injectable()
@@ -117,7 +119,7 @@ export class MailHistoryService {
       // inviteStatus
       item.inviteStatus = {
         id: item['inviteStatusId'],
-      } as DeepPartial<InviteStatus>;
+      } as unknown as DeepPartial<InviteStatus>;
       delete item.inviteStatusId;
       entities.push(new MailHistory(item));
     }

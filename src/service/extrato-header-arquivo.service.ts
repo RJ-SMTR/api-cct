@@ -1,15 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ExtratoHeaderArquivo } from 'src/domain/entity/extrato-header-arquivo.entity';
 import { CnabHeaderArquivo104 } from 'src/configuration/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto';
 import { ExtratoHeaderArquivoRepository } from 'src/repository/extrato-header-arquivo.repository';
+import { DeepPartial, EntityManager } from 'typeorm';
+import { ExtratoDto } from '../domain/dto/extrato.dto';
+import { ExtratoHeaderArquivo } from 'src/domain/entity/extrato-header-arquivo.entity';
+import { PagadorContaEnum } from 'src/domain/enum/pagador.enum';
+import { compactQuery } from 'src/utils/console-utils';
 import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { SaveIfNotExists } from 'src/utils/types/save-if-not-exists.type';
-import { DeepPartial, EntityManager } from 'typeorm';
-import { ExtratoDto } from '../domain/dto/extrato.dto';
-import { PagadorContaEnum } from 'src/domain/enum/pagador.enum';
-import { compactQuery } from 'src/utils/console-utils';
+
 
 @Injectable()
 export class ExtratoHeaderArquivoService {

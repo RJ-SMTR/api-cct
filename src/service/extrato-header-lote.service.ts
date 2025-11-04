@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { CnabHeaderLote104Extrato } from 'src/configuration/cnab/interfaces/cnab-240/104/extrato/cnab-header-lote-104-extrato.interface';
 import { ExtratoHeaderArquivo } from 'src/domain/entity/extrato-header-arquivo.entity';
 import { ExtratoHeaderLote } from 'src/domain/entity/extrato-header-lote.entity';
-import { CnabHeaderLote104Extrato } from 'src/configuration/cnab/interfaces/cnab-240/104/extrato/cnab-header-lote-104-extrato.interface';
 import { ExtratoHeaderLoteRepository } from 'src/repository/extrato-header-lote.repository';
 import { logWarn } from 'src/utils/log-utils';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';

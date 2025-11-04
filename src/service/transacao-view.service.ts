@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { CustomLogger } from 'src/utils/custom-logger';
-import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { DeepPartial, EntityManager, FindManyOptions, QueryRunner } from 'typeorm';
 import { IPreviousDaysArgs } from '../domain/interface/previous-days-args.interface';
 import { ITransacaoView, TransacaoView } from '../domain/entity/transacao-view.entity';
 import { IClearSyncOrdemPgto, ISyncOrdemPgto } from '../domain/interface/sync-transacao-ordem.interface';
 import { TransacaoViewFindRawOptions, TransacaoViewRepository, TVFindUpdateValuesWhere } from 'src/repository/transacao-view.repository';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
 
 @Injectable()
 export class TransacaoViewService {
