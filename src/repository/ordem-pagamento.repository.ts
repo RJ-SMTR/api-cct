@@ -62,11 +62,23 @@ WITH
             "ordemPagamentoAgrupadoId",
             "dataReferencia" DESC
     ),
+WITH
+    historico_recente AS (
+        SELECT DISTINCT
+            ON ("ordemPagamentoAgrupadoId") *
+        FROM
+            ordem_pagamento_agrupado_historico
+        ORDER BY
+            "ordemPagamentoAgrupadoId",
+            "dataReferencia" DESC
+    ),
     dias_relatorio AS (
         SELECT dias::DATE AS data
         FROM generate_series(
                DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
+               DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
             ) AS dias
+        WHERE (
         WHERE (
                 EXTRACT(
                     MONTH
@@ -88,7 +100,13 @@ WITH
                 ) IN (2, 5)
             )
     )
+    )
 SELECT
+   dr.data,
+    SUM(dp.valor) AS valor,
+    MIN(dp."valorTotal") AS valor_total_agrupado,
+    (dr.data - 1) AS data_final_operacoes,
+    (dr.data - 7) AS data_inicial_operacoes,
    dr.data,
     SUM(dp.valor) AS valor,
     MIN(dp."valorTotal") AS valor_total_agrupado,
@@ -96,8 +114,11 @@ SELECT
     (dr.data - 7) AS data_inicial_operacoes,
     dp."dataReferencia",
     dp.opa_id AS opaId,
+    dp.opa_id AS opaId,
     dp."statusRemessa",
     dp."motivoStatusRemessa",
+    dp.data_pagamento,
+    dp.opa_origem_id
     dp.data_pagamento,
     dp.opa_origem_id
 FROM
@@ -146,6 +167,8 @@ ORDER BY dr.data;
     return result.map((row: any) => {
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
+      dto.ordemPagamentoAgrupadoId = row.opaid;
+      dto.dataPagamento = row.dataReferencia;
       dto.ordemPagamentoAgrupadoId = row.opaid;
       dto.dataPagamento = row.dataReferencia;
       dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;

@@ -111,6 +111,7 @@ export class CronJobsService {
   }
 
 
+
   async onModuleLoad() {    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
@@ -260,6 +261,16 @@ export class CronJobsService {
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
+      // {
+      //   /**
+      //    * Sincroniza transacoes do BQ.
+      //    * */
+      //   name: CronJobsEnum.sincronizarTransacoesBq,
+      //   cronJobParameters: {
+      //     cronTime: "0 12 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
+      //     onTick: async () => await this.sincronizarTransacoesBq(),
+      //   },
+      // }
       // {
       //   /**
       //    * Sincroniza transacoes do BQ.
@@ -892,6 +903,7 @@ export class CronJobsService {
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
       } finally {
+        this.logger.log('Finalizando sincronização e agrupamento.');
         await this.distributedLockService.releaseLock(METHOD);
       }
     } else {

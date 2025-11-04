@@ -12,43 +12,43 @@ import { SftpBackupFolder } from "src/configuration/sftp/enums/sftp-backup-folde
 
 @Injectable()
 export class RetornoService {
-    private logger = new CustomLogger(RetornoService.name, { timestamp: true });
+  private logger = new CustomLogger(RetornoService.name, { timestamp: true });
 
-    constructor(
-        private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
-        private detalheAService: DetalheAService,
-        private sftpService: SftpService,
-    ) { }
+  constructor(
+    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
+    private detalheAService: DetalheAService,
+    private sftpService: SftpService,
+  ) { }
 
-    //LER ARQUIVO TXT CNAB DO SFTP 
-    public async lerRetornoSftp(folder?: string) {
-        return await this.sftpService.getFirstRetornoPagamento(folder);
-    }
+  //LER ARQUIVO TXT CNAB DO SFTP 
+  public async lerRetornoSftp(folder?: string) {
+    return await this.sftpService.getFirstRetornoPagamento(folder);
+  }
 
-    public async salvarRetorno(cnab: { name: string, content: string }) {
-        this.logger.debug(`Iniciada a leitura do arquivo: ${cnab.name} - ${new Date()}`);
-        const retorno104 = parseCnab240Pagamento(cnab.content);
-        try {
-            for (const cnabLote of retorno104.lotes) {
-                for (const registro of cnabLote.registros) {
-                    const detalheA = await this.detalheAService.getDetalheARetorno(
-                        registro.detalheA.dataVencimento.convertedValue,
-                        registro.detalheA.valorLancamento.convertedValue,
-                        registro.detalheA.codigoBancoDestino.convertedValue,
-                        registro.detalheA.contaCorrenteDestino.convertedValue
-                    )
-                    this.logger.debug(`Banco: ${registro.detalheA.codigoBancoDestino.convertedValue} 
+  public async salvarRetorno(cnab: { name: string, content: string }) {
+    this.logger.debug(`Iniciada a leitura do arquivo: ${cnab.name} - ${new Date()}`);
+    const retorno104 = parseCnab240Pagamento(cnab.content);
+    try {
+      for (const cnabLote of retorno104.lotes) {
+        for (const registro of cnabLote.registros) {
+          const detalheA = await this.detalheAService.getDetalheARetorno(
+            registro.detalheA.dataVencimento.convertedValue,
+            registro.detalheA.valorLancamento.convertedValue,
+            registro.detalheA.codigoBancoDestino.convertedValue,
+            registro.detalheA.contaCorrenteDestino.convertedValue
+          )
+          this.logger.debug(`Banco: ${registro.detalheA.codigoBancoDestino.convertedValue} 
                          - agencia: ${registro.detalheA.codigoAgenciaDestino.convertedValue}
                          - conta: ${registro.detalheA.contaCorrenteDestino.convertedValue}`);
-                    if(detalheA[0])
-                        await this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA[0]);
-                }
-            }
-            await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess, cnab.content);
-        } catch (error) {
-            await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure, cnab.content);
+          if (detalheA[0])
+            await this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA[0]);
         }
+      }
+      await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess, cnab.content);
+    } catch (error) {
+      await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoFailure, cnab.content);
     }
+  }
 
     private async atualizarStatusRemessaHistorico(
         cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA){
@@ -94,17 +94,17 @@ export class RetornoService {
                   
                    const status = (historicos.length > 1) ? StatusRemessaEnum.PendenciaPaga:StatusRemessaEnum.Efetivado;
 
-                   await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-                       historico,
-                       status
-                   );
-               } else {
-                   await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-                       historico, StatusRemessaEnum.NaoEfetivado);
-               }
-           }
+            await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
+              historico,
+              status
+            );
+          } else {
+            await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
+              historico, StatusRemessaEnum.NaoEfetivado);
+          }
         }
+      }
     }
-    }
+  }
 
-}  
+}

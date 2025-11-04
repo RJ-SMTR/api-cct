@@ -19,10 +19,10 @@ import { Nullable } from 'src/utils/types/nullable.type';
 
 @Injectable()
 export class DetalheAService {
- 
+
   private logger = new CustomLogger('DetalheAService', { timestamp: true });
 
-  constructor(private detalheARepository: DetalheARepository, private clienteFavorecidoService: ClienteFavorecidoService, private transacaoAgrupadoService: TransacaoAgrupadoService, private pagamentosPendentesService: PagamentosPendentesService) {}
+  constructor(private detalheARepository: DetalheARepository, private clienteFavorecidoService: ClienteFavorecidoService, private transacaoAgrupadoService: TransacaoAgrupadoService, private pagamentosPendentesService: PagamentosPendentesService) { }
 
   /**
    * Assumimos que todos os detalheA do retorno têm dataVencimento na mesma semana.
@@ -147,13 +147,20 @@ export class DetalheAService {
     return await this.detalheARepository.existsDetalheA(id);
   }
 
-  public async getDetalheAHeaderLote(headerLoteId: number){
+  public async getDetalheAHeaderLote(headerLoteId: number) {
     return await this.detalheARepository.getDetalheAHeaderLote(headerLoteId)
   }
 
-  public async getDetalheARetorno(dataVencimento: Date,valorLancamento: number,
-    userBankCode:string,userBankAccount:string){
-    return await this.detalheARepository.getDetalheARetorno(dataVencimento,valorLancamento,userBankCode,
+  public async getDetalheARetorno(dataVencimento: Date, valorLancamento: number,
+    userBankCode: string, userBankAccount: string) {
+    return await this.detalheARepository.getDetalheARetorno(dataVencimento, valorLancamento, userBankCode,
       userBankAccount)
   }
+
+
+  public async getOrdemPagamento(detalheAId: number) {
+    return await this.detalheARepository.getOrdemPagamento(detalheAId)
+
+  }
+
 }

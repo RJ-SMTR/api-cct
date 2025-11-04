@@ -27,12 +27,25 @@ spec:
           #   limits:
           #     cpu: 500m
           #     memory: 128Mi
-          # env:
-          #   - name: NODE_ENV
-          #     valueFrom:
-          #       secretKeyRef:
-          #         name: custom-envs
-          #         key: NODE_ENV
+          env:
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-cct-postgresql
+                  key: postgres-password
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - cct
+      tolerations:
+        - key: app
+          operator: Equal
+          value: cct
       restartPolicy: Always
 ---
 #Service
@@ -44,7 +57,8 @@ metadata:
   name: cct-api
 spec:
   ports:
-    - port: 80
+    - name: "80"
+      port: 80
       targetPort: 3000
   selector:
     app: cct-api
@@ -77,6 +91,7 @@ spec:
                 name: cct-api
                 port:
                   number: 80
+
 ---
 apiVersion: cert-manager.io/v1
 kind: Issuer
