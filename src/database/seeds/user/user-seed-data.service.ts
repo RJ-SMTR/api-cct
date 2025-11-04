@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BigquerySource, BigqueryService } from 'src/bigquery/bigquery.service';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
-import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
-import { Role } from 'src/roles/entities/role.entity';
-import { RoleEnum } from 'src/roles/roles.enum';
-import { Status } from 'src/statuses/entities/status.entity';
-import { StatusEnum } from 'src/statuses/statuses.enum';
-import { UserSeedDataInterface } from 'src/users/interfaces/user-seed-data.interface';
+import { BigquerySource, BigqueryService } from 'src/client/bigquery/bigquery.service';
+import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
+import { Role } from 'src/security/roles/entities/role.entity';
+import { RoleEnum } from 'src/security/roles/roles.enum';
+import { Status } from 'src/domain/entity/status.entity';
+import { StatusEnum } from 'src/domain/enum/statuses.enum';
+import { UserSeedDataInterface } from 'src/domain/interface/user-seed-data.interface';
 
 @Injectable()
 export class UserSeedDataService {

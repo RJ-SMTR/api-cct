@@ -1,6 +1,6 @@
 import { CanActivate, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Environment } from 'src/config/app.config';
+import { Environment } from 'src/configuration/app.config';
 
 @Injectable()
 export class TestEnvironmentsGuard implements CanActivate {

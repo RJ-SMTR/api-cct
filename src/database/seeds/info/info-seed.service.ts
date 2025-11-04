@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Info } from 'src/info/entities/info.entity';
+import { Info } from 'src/domain/entity/info.entity';
 import { Repository } from 'typeorm';
 import { infoSeedData } from './info-seed-data';
 

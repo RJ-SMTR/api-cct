@@ -2,13 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
-import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
-import { IMailSeedData } from 'src/mail-history/interfaces/mail-history-data.interface';
-import { User } from 'src/users/entities/user.entity';
+import { MailHistory } from 'src/domain/entity/mail-history.entity';
+import { IMailSeedData } from 'src/domain/interface/mail-history-data.interface';
 import { Repository } from 'typeorm';
 import { MailHistorySeedDataService } from './mail-history-seed-data.service';
 import { UserSeedDataService } from '../user/user-seed-data.service';
 import { logLog, logWarn } from 'src/utils/log-utils';
+import { User } from 'src/domain/entity/user.entity';
 
 @Injectable()
 export class MailHistorySeedService {

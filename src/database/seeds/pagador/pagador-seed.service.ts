@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
+import { Pagador } from 'src/domain/entity/pagador.entity';
 import { Repository } from 'typeorm';
 import { pagadorSeedData } from './pagador-seed-data';
 

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransacaoStatusSeedService } from './transacao-status-seed.service';
-import { TransacaoStatus } from 'src/cnab/entity/pagamento/transacao-status.entity';
+import { TransacaoStatus } from 'src/domain/entity/transacao-status.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([TransacaoStatus])],

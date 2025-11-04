@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { RelatorioController } from './relatorio.controller';
 import { RelatorioService } from './relatorio.service';
-import { CnabModule } from 'src/cnab/cnab.module';
+import { CnabModule } from 'src/configuration/cnab/cnab.module';
 
 import { RelatorioNovoRemessaController } from './novo-remessa/relatorio-novo-remessa.controller';
 import { RelatorioNovoRemessaRepository } from './novo-remessa/relatorio-novo-remessa.repository';

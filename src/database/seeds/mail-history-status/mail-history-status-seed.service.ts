@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
-import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
 import { Repository } from 'typeorm';
 
 @Injectable()

@@ -10,6 +10,16 @@ import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNo
 export class RelatorioNovoRemessaFinancialMovementRepository {
   private readonly logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementRepository.name, { timestamp: true });
 
+  private readonly CONSORCIO_CASE = `(
+  CASE
+      WHEN pu."permitCode" = '8' THEN 'VLT'
+      WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+      WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+      WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+      ELSE op."nomeConsorcio"
+    END
+  )`
+
   private readonly STATUS_CASE = `(
     CASE
       WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
@@ -32,7 +42,7 @@ SELECT DISTINCT
     pu."bankCode" AS "codBanco",
     bc.name AS "nomeBanco",
     pu."cpfCnpj",
-    op."nomeConsorcio",
+    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     da."valorLancamento" AS valor,
     opa."dataPagamento",
     ${this.STATUS_CASE} AS status
@@ -57,7 +67,7 @@ WHERE
     )
 AND (
         oph."motivoStatusRemessa" = '02' OR
-        (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
+        (oph."motivoStatusRemessa" NOT IN ('00','BD','AL') AND oph."statusRemessa" NOT IN (3,5))
     )
     AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)
     AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
@@ -72,7 +82,7 @@ SELECT DISTINCT
     pu."bankCode" AS "codBanco",
     bc.name AS "nomeBanco",
     pu."cpfCnpj",
-    op."nomeConsorcio",
+    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     da."valorLancamento" AS valor,
     opa."dataPagamento",
     ${this.STATUS_CASE} AS status
@@ -94,7 +104,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
     )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02') OR oph."motivoStatusRemessa" IS NULL)
+    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02', 'AL') OR oph."motivoStatusRemessa" IS NULL)
     and oph."statusRemessa" <> 5
 `;
   private readonly queryOlderReport = `
@@ -183,7 +193,7 @@ where da."dataVencimento" between $1 and $2
     pu."bankCode" AS "codBanco",
     bc.name AS "nomeBanco",
     pu."cpfCnpj",
-    op."nomeConsorcio",
+    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     CASE 
         WHEN oph."statusRemessa" = 5 THEN ROUND(op."valor", 3)
         ELSE da."valorLancamento"
@@ -204,6 +214,10 @@ WHERE
     da."dataVencimento" BETWEEN $1 AND $2
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
+    AND (
+        ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR op."valor" <= $7::numeric)
+    )
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -228,6 +242,11 @@ pendencia AS (
     AND EXISTS (
       SELECT 1 FROM ordem_pagamento_agrupado opa2 WHERE opa2."ordemPagamentoAgrupadoId" = opaa.id
     )
+  AND (
+        ($6::numeric IS NULL OR daa."valorLancamento" >= $6::numeric) 
+        AND ($7::numeric IS NULL OR daa."valorLancamento" <= $7::numeric)
+    )
+
 ),
 
 cadeia_pagamento (ordem_id, pai_id, raiz_id) AS (
@@ -260,10 +279,11 @@ SELECT DISTINCT
     bc.name AS "nomeBanco",
     uu."cpfCnpj",
     CASE
-        WHEN op."idOperadora" LIKE '4%' THEN 'STPC'
-        WHEN op."idOperadora" LIKE '8%' THEN 'STPL'
-        WHEN op."idOperadora" LIKE '7%' THEN 'TEC'
-        ELSE op."nomeConsorcio"
+      WHEN uu."permitCode" = '8' THEN 'VLT'
+      WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
+      WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
+      WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
+      ELSE op."nomeConsorcio"
     END AS "nomeConsorcio",
     CASE
         WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),3)
@@ -286,7 +306,7 @@ WHERE
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
     AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-    );
+    ) 
 `;
 
   private pendentes_25 = `
@@ -297,12 +317,12 @@ UNION ALL
   op."nomeOperadora" as nomes,
   pu.email,
   pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
-      pu."cpfCnpj",
-        op."nomeConsorcio",
-          op."valor" AS valor,
-            op."dataOrdem",
-              'Pendente' AS status
+  bc.name AS "nomeBanco",
+  pu."cpfCnpj",
+  ${this.CONSORCIO_CASE} AS "nomeConsorcio",
+  op."valor" AS valor,
+  op."dataOrdem",
+  'Pendente' AS status
 FROM ordem_pagamento op
 INNER JOIN public."user" pu ON pu.id = op."userId"
 JOIN bank bc on bc.code = pu."bankCode"
@@ -310,7 +330,10 @@ WHERE
 op."dataOrdem" BETWEEN $1  AND $2 
     AND op."ordemPagamentoAgrupadoId" IS NULL
 AND($3:: integer[] IS NULL OR pu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
+AND op."nomeConsorcio" = ANY(
+          COALESCE(NULLIF($5::text[], '{}'), ARRAY['STPC','STPL','TEC'])
+    )
+and op."nomeConsorcio" <> 'VLT'
 AND(
   ($6:: numeric IS NULL OR op."valor" >= $6:: numeric)
 AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
@@ -357,6 +380,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     const filtraPendenciaOuErro = safeFilter.pendenciaPaga || safeFilter.erro || safeFilter.estorno || safeFilter.rejeitado;
     return filtraStatusBase && filtraPendenciaOuErro;
   };
+
   private shouldUseCadeia(filter: IFindPublicacaoRelatorioNovoFinancialMovement): boolean {
     if (!filter) return false;
     if (filter.pendenciaPaga || filter.erro || filter.estorno || filter.rejeitado) return true;
@@ -444,7 +468,6 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
             const useCadeiaSingle = this.shouldUseCadeia(safeFilter);
             finalQuery = useCadeiaSingle ? this.queryNewReport : this.queryNewReportNoCadeia;
           }
-
           if (safeFilter.todosVanzeiros) finalQuery += ` ${this.notCpf2025}`;
           if (safeFilter.eleicao) finalQuery = this.eleicao2025;
           if (safeFilter.pendentes) finalQuery += this.pendentes_25;
@@ -456,7 +479,6 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
           finalQuery = this.prependWithIfNeeded(finalQuery);
         } else {
-          console.log('----------------------------------------------------------------------------------------------')
           finalQuery = queryDecision.query;
 
           if (safeFilter.todosVanzeiros) finalQuery += is2025 ? ` ${this.notCpf2025}` : ` ${this.notCpf2024}`;
@@ -563,7 +585,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
     for (const r of rows) {
       const dataReferencia = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataReferencia));
-      const key = `${dataReferencia}|${r.cpfCnpj}`;
+      const key = `${dataReferencia}|${r.cpfCnpj}|${r.status}`;
       const dataPagamento = r.dataPagamento ? new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataPagamento)) : null;
 
       if (map.has(key)) {
@@ -645,6 +667,9 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
       ? filter.consorcioNome.map(n => n.toUpperCase().trim())
       : null;
 
+    const modaisEspeciais = ['SPTC', 'STPL', 'TEC'];
+
+    console.log(consorcioNome)
     const dataInicio = filter.dataInicio || null;
     const dataFim = filter.dataFim || null;
     const userIds = filter.userIds || null;

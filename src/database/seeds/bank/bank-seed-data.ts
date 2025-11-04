@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { BankDataInterface } from 'src/banks/interfaces/bank-data.interface';
+import { BankDataInterface } from 'src/domain/interface/bank-data.interface';
 
 /**
  * @see {@link https://brasilapi.com.br/docs#tag/BANKS brasilapi/banks}

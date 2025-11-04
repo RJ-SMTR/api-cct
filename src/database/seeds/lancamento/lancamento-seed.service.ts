@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
+import { Lancamento } from 'src/domain/entity/lancamento.entity';
 import { In, Repository } from 'typeorm';
 import { LancamentoSeedDataService } from './lancamento-seed-data.service';
 

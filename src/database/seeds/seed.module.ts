@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BigqueryModule } from 'src/bigquery/bigquery.module';
-import appConfig from 'src/config/app.config';
-import databaseConfig from 'src/config/database.config';
-import googleConfig from 'src/config/google.config';
-import mailConfig from 'src/config/mail.config';
+import { BigqueryModule } from 'src/client/bigquery/bigquery.module';
+import appConfig from 'src/configuration/app.config';
+import databaseConfig from 'src/configuration/database.config';
+import googleConfig from 'src/configuration/google.config';
+import mailConfig from 'src/configuration/mail.config';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { TypeOrmConfigService } from '../typeorm-config.service';
 import { BankSeedModule } from './bank/bank-seed.module';

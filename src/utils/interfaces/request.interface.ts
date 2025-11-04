@@ -1,4 +1,4 @@
-import { Role } from '../../roles/entities/role.entity';
+import { Role } from '../../security/roles/entities/role.entity';
 
 export interface IRequest {
   user: {

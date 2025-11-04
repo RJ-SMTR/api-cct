@@ -1,6 +1,6 @@
-import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { FavorecidoEmpresaCpfCnpjEnum, FavorecidoEmpresaNomeEnum } from 'src/cnab/enums/favorecido-empresa.enum';
-import { TipoFavorecidoEnum } from 'src/cnab/enums/tipo-favorecido.enum';
+import { ClienteFavorecido } from 'src/domain/entity/cliente-favorecido.entity';
+import { FavorecidoEmpresaCpfCnpjEnum, FavorecidoEmpresaNomeEnum } from 'src/domain/enum/favorecido-empresa.enum';
+import { TipoFavorecidoEnum } from 'src/domain/enum/tipo-favorecido.enum';
 
 export const ClienteFavorecidoSeedData: ClienteFavorecido[] = [
   new ClienteFavorecido({

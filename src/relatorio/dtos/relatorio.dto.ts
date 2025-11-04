@@ -1,6 +1,6 @@
 import { Exclude } from 'class-transformer';
-import { ArquivoPublicacao } from 'src/cnab/entity/arquivo-publicacao.entity';
-import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
+import { ArquivoPublicacao } from 'src/domain/entity/arquivo-publicacao.entity';
+import { Ocorrencia } from 'src/domain/entity/ocorrencia.entity';
 import { SetValue } from 'src/utils/decorators/set-value.decorator';
 import { DeepPartial } from 'typeorm';
 import { OcorrenciaRelatorio } from './ocorrencia-relatorio.dto';
