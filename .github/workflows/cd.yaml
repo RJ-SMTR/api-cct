@@ -3,7 +3,7 @@ name: Deploy [prod]
 on:
   push:
     branches:
-      - "master"
+      - "main"
     paths-ignore:
       - 'README.md'
       - 'docs/**'
