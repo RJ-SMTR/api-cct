@@ -145,7 +145,16 @@ FROM
 OR (
                 
                     opa."ordemPagamentoAgrupadoId" IS NULL
-                    AND op."dataOrdem"::DATE BETWEEN (dr.data - 7) AND (dr.data - 1)
+
+                and    op."dataOrdem"::DATE BETWEEN (
+    dr.data - CASE
+        WHEN EXTRACT(
+            MONTH
+            FROM dr.data
+        ) >= 9 THEN 3
+        ELSE 7
+    END
+) AND (dr.data - 1)
                     AND oph."statusRemessa" NOT IN (3, 4)
                     AND opa."dataPagamento"::DATE > dr.data
                 )
