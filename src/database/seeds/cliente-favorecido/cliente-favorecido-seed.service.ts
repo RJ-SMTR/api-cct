@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ClienteFavorecidoSeedData } from './cliente-favorecido-seed-data';
-import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
+import { ClienteFavorecido } from 'src/domain/entity/cliente-favorecido.entity';
 import { parseStringUpperUnaccent } from 'src/utils/string-utils';
 
 @Injectable()

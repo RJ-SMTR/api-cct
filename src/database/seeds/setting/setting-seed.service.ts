@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { SettingTypeEnum } from 'src/setting-types/setting-type.enum';
-import { SettingEntity } from 'src/settings/entities/setting.entity';
-import { ISettingData } from 'src/settings/interfaces/setting-data.interface';
+import { SettingTypeEnum } from 'src/configuration/setting-types/setting-type.enum';
+import { SettingEntity } from 'src/configuration/settings/entities/setting.entity';
+import { ISettingData } from 'src/configuration/settings/interfaces/setting-data.interface';
 import { Enum } from 'src/utils/enum';
 import { IsNull, Repository } from 'typeorm';
 import { settingSeedData } from './setting-seed-data';
-import { Environment } from 'src/config/app.config';
-import { BigqueryEnvironment } from 'src/settings/enums/bigquery-env.enum';
+import { Environment } from 'src/configuration/app.config';
+import { BigqueryEnvironment } from 'src/configuration/settings/enums/bigquery-env.enum';
 
 @Injectable()
 export class SettingSeedService {

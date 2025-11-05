@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { UserSeedDataService } from './user-seed-data.service';
 import * as crypto from 'crypto';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
-import { UserSeedDataInterface } from 'src/users/interfaces/user-seed-data.interface';
+import { UserSeedDataInterface } from 'src/domain/interface/user-seed-data.interface';
 import { InjectRepository } from '@nestjs/typeorm';
+import { User } from 'src/domain/entity/user.entity';
 
 @Injectable()
 export class UserSeedService {

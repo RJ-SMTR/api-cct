@@ -3,8 +3,6 @@ import { Injectable } from '@nestjs/common';
 import { RelatorioConsolidadoResultDto } from './dtos/relatorio-consolidado-result.dto';
 import { RelatorioAnaliticoResultDto } from './dtos/relatorio-analitico-result.dto';
 import { RelatorioSinteticoResultDto } from './dtos/relatorio-sintetico-result.dto';
-
-import { RelatorioExtratoBancarioDto } from './dtos/relatorio-extrato-bancario.dto';
 import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio-extrato-bancario.repository';
 import { RelatorioAnaliticoRepository } from './analitico/relatorio-analitico.repository';
 import { RelatorioConsolidadoRepository } from './consolidado/relatorio-consolidado.repository';
@@ -12,13 +10,16 @@ import { IFindExtrato } from './interfaces/find-extrato.interface';
 import { IFindPublicacaoRelatorio } from './interfaces/find-publicacao-relatorio.interface';
 import { RelatorioSinteticoRepository } from './sintetico/relatorio-sintetico.repository';
 import { RelatorioExtratoBancarioResponseDto } from './dtos/relatorio-extrato-bancario-response.dto';
+import { RelatorioDetalhadoRepository } from './relatorio-detalhado-vanzeiro.repository';
 
 @Injectable()
 export class RelatorioService {
+  
   constructor(private relatorioConsolidadoRepository: RelatorioConsolidadoRepository,
     private relatorioSinteticoRepository: RelatorioSinteticoRepository,
     private relatorioAnaliticoRepository: RelatorioAnaliticoRepository,
-    private relatorioExtratoRepository: RelatorioExtratoBancarioRepository
+    private relatorioExtratoRepository: RelatorioExtratoBancarioRepository,
+    private relatorioDetalhadoRepository: RelatorioDetalhadoRepository
   ) {}
 
   /**
@@ -155,6 +156,14 @@ export class RelatorioService {
       result.push(await this.resultAnalitico(args));
     }
     return result;
+  }
+
+  async findDetalhadoVanzeiro(args: { userId:number; dataInicio: Date; dataFim: Date; }) {
+    if(args.dataInicio ===undefined || args.dataFim === undefined || 
+      new Date(args.dataFim) < new Date(args.dataInicio)){
+      throw new Error('Parametro de data inválido');
+    } 
+    return await this.relatorioDetalhadoRepository.findDetalhadoVanzeiro(args);    
   }
 
   private async resultAnalitico(args: IFindPublicacaoRelatorio){    

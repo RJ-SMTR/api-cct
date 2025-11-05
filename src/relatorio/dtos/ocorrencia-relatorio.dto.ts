@@ -1,6 +1,6 @@
 import { Exclude } from 'class-transformer';
-import { Ocorrencia } from 'src/cnab/entity/pagamento/ocorrencia.entity';
-import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
+import { Ocorrencia } from 'src/domain/entity/ocorrencia.entity';
+import { OcorrenciaEnum } from 'src/domain/enum/ocorrencia.enum';
 import { SetValue } from 'src/utils/decorators/set-value.decorator';
 import { Enum } from 'src/utils/enum';
 import { DeepPartial } from 'typeorm';

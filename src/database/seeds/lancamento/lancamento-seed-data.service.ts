@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Exception } from 'handlebars';
-import { ClienteFavorecido } from 'src/cnab/entity/cliente-favorecido.entity';
-import { LancamentoSeedData } from 'src/lancamento/interfaces/lancamento-seed-data.interface';
-import { User } from 'src/users/entities/user.entity';
+import { ClienteFavorecido } from 'src/domain/entity/cliente-favorecido.entity';
+import { User } from 'src/domain/entity/user.entity';
+import { LancamentoSeedData } from 'src/domain/interface/lancamento-seed-data.interface';
 import { getBRTFromUTC } from 'src/utils/date-utils';
 import { Repository } from 'typeorm';
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { MailCount } from 'src/mail-count/entities/mail-count.entity';
+import { MailCount } from 'src/domain/entity/mail-count.entity';
 import { MailCountSeedDataService } from './mail-count-seed-data.service';
 
 @Injectable()

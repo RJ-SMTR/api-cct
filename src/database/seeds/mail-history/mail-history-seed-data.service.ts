@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { subDays } from 'date-fns';
-import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
-import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
-import { IMailSeedData } from 'src/mail-history/interfaces/mail-history-data.interface';
-import { UserSeedDataInterface } from 'src/users/interfaces/user-seed-data.interface';
+import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
+import { IMailSeedData } from 'src/domain/interface/mail-history-data.interface';
+import { UserSeedDataInterface } from 'src/domain/interface/user-seed-data.interface';
 import { UserSeedDataService } from '../user/user-seed-data.service';
 
 @Injectable()

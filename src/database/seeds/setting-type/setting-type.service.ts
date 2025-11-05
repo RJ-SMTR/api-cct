@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { SettingType } from 'src/setting-types/entities/setting-type.entity';
-import { SettingTypeEnum } from 'src/setting-types/setting-type.enum';
+import { SettingType } from 'src/configuration/setting-types/entities/setting-type.entity';
+import { SettingTypeEnum } from 'src/configuration/setting-types/setting-type.enum';
 import { Repository } from 'typeorm';
 
 @Injectable()

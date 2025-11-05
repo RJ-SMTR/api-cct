@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { RelatorioController } from './relatorio.controller';
 import { RelatorioService } from './relatorio.service';
-import { CnabModule } from 'src/cnab/cnab.module';
+import { CnabModule } from 'src/configuration/cnab/cnab.module';
 
 import { RelatorioNovoRemessaController } from './novo-remessa/relatorio-novo-remessa.controller';
 import { RelatorioNovoRemessaRepository } from './novo-remessa/relatorio-novo-remessa.repository';
@@ -11,6 +11,7 @@ import { RelatorioConsolidadoRepository } from './consolidado/relatorio-consolid
 import { RelatorioNovoRemessaFinancialMovementRepository } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.repository';
 import { RelatorioNovoRemessaFinancialMovementService } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
 import { RelatorioSinteticoRepository } from './sintetico/relatorio-sintetico.repository';
+import { RelatorioDetalhadoRepository } from './relatorio-detalhado-vanzeiro.repository';
 import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio-extrato-bancario.repository';
 
 
@@ -18,6 +19,7 @@ import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio
   imports: [CnabModule],
   controllers: [RelatorioController, RelatorioNovoRemessaController],
   providers: [RelatorioService, RelatorioNovoRemessaService, RelatorioConsolidadoRepository,
+    RelatorioSinteticoRepository, RelatorioAnaliticoRepository, RelatorioNovoRemessaRepository,RelatorioDetalhadoRepository,
     RelatorioSinteticoRepository, RelatorioAnaliticoRepository, RelatorioNovoRemessaRepository,
     RelatorioExtratoBancarioRepository,
     RelatorioNovoRemessaFinancialMovementRepository, RelatorioNovoRemessaFinancialMovementService]
