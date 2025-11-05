@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { TransacaoStatus } from 'src/domain/entity/transacao-status.entity';
+import { TransacaoStatusEnum } from 'src/domain/enum/transacao-status.enum';
 import { CnabHeaderLote104Pgto } from 'src/configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
 import { CnabRegistros104Pgto } from 'src/configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { FindOneOptions } from 'typeorm';
 import { DetalheADTO } from '../domain/dto/detalhe-a.dto';
 import { DetalheA } from '../domain/entity/detalhe-a.entity';
@@ -9,13 +14,8 @@ import { PagamentosPendentes } from '../domain/entity/pagamentos-pendentes.entit
 import { PagamentosPendentesService } from './pagamentos-pendentes.service';
 import { TransacaoAgrupadoService } from './transacao-agrupado.service';
 import { CnabHeaderArquivo104 } from 'src/configuration/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto';
-import { ClienteFavorecidoService } from './cliente-favorecido.service';
 import { validateDTO } from 'src/utils/validation-utils';
-import { TransacaoStatus } from 'src/domain/entity/transacao-status.entity';
-import { TransacaoStatusEnum } from 'src/domain/enum/transacao-status.enum';
-import { CustomLogger } from 'src/utils/custom-logger';
-import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { Nullable } from 'src/utils/types/nullable.type';
+import { ClienteFavorecidoService } from './cliente-favorecido.service';
 
 @Injectable()
 export class DetalheAService {

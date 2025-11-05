@@ -8,11 +8,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AnonymousStrategy } from './strategies/anonymous.strategy';
 import { ForgotModule } from 'src/module/forgot.module';
 import { MailModule } from 'src/module/mail.module';
-import { MailHistoryModule } from 'src/module/mail-history.module';
-import { UsersModule } from 'src/module/users.module';
 import { IsExist } from 'src/utils/validators/is-exists.validator';
 import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
 import { IsValidBankCodeConstraint } from 'src/utils/validators/is-valid-bank-code.validator';
+import { MailHistoryModule } from 'src/module/mail-history.module';
+import { UsersModule } from 'src/module/users.module';
 
 @Module({
   imports: [

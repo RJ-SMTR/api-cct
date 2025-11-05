@@ -28,7 +28,7 @@ import mailConfig from './configuration/mail.config';
 import sftpConfig from './configuration/sftp.config';
 import twitterConfig from './configuration/twitter.config';
 import { CronJobsModule } from './module/cron-jobs.module';
-import { TypeOrmConfigService } from './database/typeorm-config.service';
+import { TypeOrmConfigService } from './configuration/database/typeorm-config.service';
 import { FilesModule } from './module/files.module';
 import { ForgotModule } from './module/forgot.module';
 import { HomeModule } from './module/home.module';
@@ -36,18 +36,18 @@ import { InfoModule } from './module/info.module';
 import { LancamentoModule } from './module/lancamento.module';
 import { MailCountModule } from './module/mail-count.module';
 import { MailHistoryModule } from './module/mail-history.module';
+import { MailConfigService } from './service/mail-config.service';
 import { MailModule } from './module/mail.module';
 import { SettingsModule } from './configuration/settings/settings.module';
 import { SftpModule } from './configuration/sftp/sftp.module';
 import { TestModule } from './test/test.module';
 import { TicketRevenuesModule } from './module/ticket-revenues.module';
+import { TransacaoViewService } from './service/transacao-view.service';
+import { AppLoggerMiddleware } from './utils/logger-middleware';
 import { RelatorioModule } from './relatorio/relatorio.module';
 import { AppService } from './app.service';
 import { TransacaoViewModule } from './module/transacao-view.module';
 import { UsersModule } from './module/users.module';
-import { MailConfigService } from './service/mail-config.service';
-import { TransacaoViewService } from './service/transacao-view.service';
-import { AppLoggerMiddleware } from './utils/logger-middleware';
 
 @Module({
   imports: [

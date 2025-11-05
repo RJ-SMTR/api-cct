@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { startOfDay } from 'date-fns';
+import { DetalheA } from 'src/domain/entity/detalhe-a.entity';
 import { CnabRegistros104Pgto } from 'src/configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
 import { asCnabFieldDate } from 'src/configuration/cnab/utils/cnab/cnab-field-pipe-utils';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
+import { Nullable } from 'src/utils/types/nullable.type';
+import { validateDTO } from 'src/utils/validation-utils';
 import { DeepPartial, FindManyOptions } from 'typeorm';
 import { DetalheBDTO } from '../domain/dto/detalhe-b.dto';
 import { DetalheB } from '../domain/entity/detalhe-b.entity';
 import { DetalheBRepository } from '../repository/detalhe-b.repository';
-import { DetalheA } from 'src/domain/entity/detalhe-a.entity';
-import { EntityCondition } from 'src/utils/types/entity-condition.type';
-import { Nullable } from 'src/utils/types/nullable.type';
-import { validateDTO } from 'src/utils/validation-utils';
 
 @Injectable()
 export class DetalheBService {

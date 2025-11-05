@@ -1,7 +1,15 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { isSameDay, isToday, nextFriday, startOfDay, subDays } from 'date-fns';
-
-
+import { Ocorrencia } from 'src/domain/entity/ocorrencia.entity';
+import { UsersService } from 'src/service/users.service';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { getNthWeek } from 'src/utils/date-utils';
+import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
+import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
+import { logError } from 'src/utils/log-utils';
+import { PAYMENT_START_WEEKDAY, PaymentEndpointType, getPaymentDates } from 'src/utils/payment-date-utils';
+import { PaginationOptions } from 'src/utils/types/pagination-options';
+import { Pagination } from 'src/utils/types/pagination.type';
 import { TicketRevenueDTO } from '../domain/dto/ticket-revenue.dto';
 import { TicketRevenuesGroupDto } from '../domain/dto/ticket-revenues-group.dto';
 import { ITRGetMeGroupedArgs } from '../domain/interface/tr-get-me-grouped-args.interface';
@@ -10,16 +18,6 @@ import { ITRGetMeIndividualArgs } from '../domain/interface/tr-get-me-individual
 import { ITRGetMeIndividualResponse } from '../domain/interface/tr-get-me-individual-response.interface';
 import { TicketRevenuesRepositoryService as TicketRevenuesRepository } from '../repository/ticket-revenues.repository';
 import { TicketRevenuesGroups } from '../domain/types/ticket-revenues-groups.type';
-import { CustomLogger } from 'src/utils/custom-logger';
-import { Ocorrencia } from 'src/domain/entity/ocorrencia.entity';
-import { getNthWeek } from 'src/utils/date-utils';
-import { TimeIntervalEnum } from 'src/utils/enums/time-interval.enum';
-import { WeekdayEnum } from 'src/utils/enums/weekday.enum';
-import { logError } from 'src/utils/log-utils';
-import { getPaymentDates, PaymentEndpointType, PAYMENT_START_WEEKDAY } from 'src/utils/payment-date-utils';
-import { PaginationOptions } from 'src/utils/types/pagination-options';
-import { Pagination } from 'src/utils/types/pagination.type';
-import { UsersService } from './users.service';
 import { User } from 'src/domain/entity/user.entity';
 
 export interface IFetchTicketRevenues {

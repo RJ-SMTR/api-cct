@@ -2,12 +2,12 @@ import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BigqueryService } from 'src/client/bigquery/bigquery.service';
 import { TicketRevenuesRepositoryService } from 'src/repository/ticket-revenues.repository';
+import { TicketRevenuesService } from 'src/service/ticket-revenues.service';
+import { UsersService } from 'src/service/users.service';
 import { BankStatementsRepositoryService } from '../repository/bank-statements.repository';
 import { BankStatementDTO } from '../domain/dto/bank-statement.dto';
 import { SettingsService } from 'src/configuration/settings/settings.service';
 import { BankStatementsService } from './bank-statements.service';
-import { TicketRevenuesService } from './ticket-revenues.service';
-import { UsersService } from './users.service';
 
 const allBankStatements = [
   { id: 1, date: '2023-01-27', amount: 1 },

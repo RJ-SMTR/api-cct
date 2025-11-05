@@ -1,18 +1,17 @@
 import { HttpStatus } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { Exclude, Expose } from 'class-transformer';
+import { AuthProvidersEnum } from 'src/security/auth/auth-providers.enum';
+import { Bank } from 'src/domain/entity/bank.entity';
+import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
+import { MailHistory } from 'src/domain/entity/mail-history.entity';
+import { EntityHelper } from 'src/utils/entity-helper';
 import { AfterLoad, BeforeInsert, BeforeUpdate, Column, CreateDateColumn, DeepPartial, DeleteDateColumn, Entity, Index, JoinColumn, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-
+import { UserHttpException } from 'src/utils/http-exception/user-http-exception';
+import { Lancamento } from 'src/domain/entity/lancamento.entity';
 import { Status } from './status.entity';
 import { FileEntity } from './file.entity';
-import { AuthProvidersEnum } from 'src/security/auth/auth-providers.enum';
 import { Role } from 'src/security/roles/entities/role.entity';
-import { EntityHelper } from 'src/utils/entity-helper';
-import { UserHttpException } from 'src/utils/http-exception/user-http-exception';
-import { Bank } from './bank.entity';
-import { Lancamento } from './lancamento.entity';
-import { InviteStatus } from './mail-history-status.entity';
-import { MailHistory } from './mail-history.entity';
 
 /** uniqueConstraintName: `UQ_User_email` */
 @Entity()

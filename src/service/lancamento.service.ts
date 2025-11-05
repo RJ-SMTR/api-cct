@@ -1,6 +1,17 @@
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { ClienteFavorecido } from 'src/domain/entity/cliente-favorecido.entity';
+import { FavorecidoEmpresaCpfCnpjEnum, FavorecidoEmpresaNomeEnum } from 'src/domain/enum/favorecido-empresa.enum';
+import { ClienteFavorecidoService } from 'src/service/cliente-favorecido.service';
 import { RoleEnum } from 'src/security/roles/roles.enum';
+import { UsersService } from 'src/service/users.service';
+import { compactQuery } from 'src/utils/console-utils';
+import { CustomLogger } from 'src/utils/custom-logger';
+import { EntityHelper } from 'src/utils/entity-helper';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
+import { asStringOrNumber } from 'src/utils/pipe-utils';
+import { SqlDateOperator } from 'src/utils/sql/interfaces/sql-date-operator.interface';
+import { DateMonth } from 'src/utils/types/date-month.type';
 import { Between, DeepPartial, In, QueryRunner, UpdateResult } from 'typeorm';
 import { LancamentoAuthorizeDto } from '../domain/dto/lancamento-authorize.dto';
 import { LancamentoDeleteDto } from '../domain/dto/lancamento-delete.dto';
@@ -11,17 +22,6 @@ import { LancamentoAutorizacaoHistoryRepository } from '../repository/lancamento
 import { LancamentoHistoryRepository } from '../repository/lancamento-history.repository';
 import { LancamentoFindWhere, LancamentoRepository } from '../repository/lancamento.repository';
 import { LancamentoAutorizacaoRepository } from '../repository/lancamento-autorizacao.repository';
-import { ClienteFavorecido } from 'src/domain/entity/cliente-favorecido.entity';
-import { FavorecidoEmpresaNomeEnum, FavorecidoEmpresaCpfCnpjEnum } from 'src/domain/enum/favorecido-empresa.enum';
-import { compactQuery } from 'src/utils/console-utils';
-import { CustomLogger } from 'src/utils/custom-logger';
-import { EntityHelper } from 'src/utils/entity-helper';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { asStringOrNumber } from 'src/utils/pipe-utils';
-import { SqlDateOperator } from 'src/utils/sql/interfaces/sql-date-operator.interface';
-import { DateMonth } from 'src/utils/types/date-month.type';
-import { ClienteFavorecidoService } from './cliente-favorecido.service';
-import { UsersService } from './users.service';
 
 /** Usado para exibição no erro */
 const validFavorecidoNames = [

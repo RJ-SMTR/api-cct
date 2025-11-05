@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { IsNull, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Info } from 'src/domain/entity/info.entity';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-
+import { Info } from 'src/domain/entity/info.entity';
 
 @Injectable()
 export class InfoService {

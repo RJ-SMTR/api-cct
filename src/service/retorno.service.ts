@@ -91,8 +91,8 @@ export class RetornoService {
                        StatusRemessaEnum.NaoEfetivado
                    )
                } else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
-                  
-                   const status = (historicos.length > 1) ? StatusRemessaEnum.PendenciaPaga:StatusRemessaEnum.Efetivado;
+                
+                   const status = i === 0 ? StatusRemessaEnum.Efetivado : StatusRemessaEnum.PendenciaPaga;
 
             await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
               historico,

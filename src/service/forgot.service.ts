@@ -2,10 +2,10 @@ import * as crypto from 'crypto';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { FindOptions } from 'src/utils/types/find-options.type';
 import { DeepPartial, Repository } from 'typeorm';
 import { Forgot } from '../domain/entity/forgot.entity';
 import { Nullable } from '../utils/types/nullable.type';
-import { FindOptions } from 'src/utils/types/find-options.type';
 
 @Injectable()
 export class ForgotService {

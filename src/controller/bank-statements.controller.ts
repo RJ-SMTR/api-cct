@@ -22,7 +22,7 @@ import { BSMePrevDaysTimeIntervalEnum } from '../domain/enum/bs-me-prev-days-tim
 import { BSMeTimeIntervalEnum } from '../domain/enum/bs-me-time-interval.enum';
 import { IBSGetMePreviousDaysResponse } from '../domain/interface/bs-get-me-previous-days-response.interface';
 import { IBSGetMeResponse } from '../domain/interface/bs-get-me-response.interface';
-import { User } from '../domain/entity/user.entity';
+import { User } from 'src/domain/entity/user.entity';
 
 @ApiTags('BankStatements')
 @Controller({

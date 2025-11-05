@@ -1,12 +1,12 @@
 import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BigqueryService } from 'src/client/bigquery/bigquery.service';
+import { UsersService } from 'src/service/users.service';
 import { TicketRevenuesRepositoryService } from '../repository/ticket-revenues.repository';
 
 import { SettingsService } from 'src/configuration/settings/settings.service';
-import { TicketRevenuesService } from './ticket-revenues.service';
 import { User } from 'src/domain/entity/user.entity';
-import { UsersService } from './users.service';
+import { TicketRevenuesService } from './ticket-revenues.service';
 
 describe('TicketRevenuesService', () => {
   let ticketRevenuesService: TicketRevenuesService;

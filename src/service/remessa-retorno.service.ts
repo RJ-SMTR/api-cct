@@ -1,35 +1,10 @@
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { endOfDay, isFriday, nextFriday, startOfDay, subDays } from 'date-fns';
-
-import { HeaderArquivoDTO } from '../domain/dto/header-arquivo.dto';
-
-
-import { Cnab104FormaLancamento } from 'src/configuration/cnab/enums/104/cnab-104-forma-lancamento.enum';
-import { CnabFile104Pgto } from 'src/configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
-import { Cnab104PgtoTemplates } from 'src/configuration/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
-import { getCnabFieldConverted } from 'src/configuration/cnab/utils/cnab/cnab-field-utils';
-
-import { Between, DataSource, IsNull, Not, QueryRunner } from 'typeorm';
-import { DetalheBDTO } from '../domain/dto/detalhe-b.dto';
-import { HeaderArquivoTipoArquivo } from '../domain/enum/header-arquivo-tipo-arquivo.enum';
-import { DetalheAService } from './detalhe-a.service';
-import { DetalheBService } from './detalhe-b.service';
-import { HeaderArquivoService } from './header-arquivo.service';
-import { HeaderLoteService } from './header-lote.service';
-import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
-import { ItemTransacaoService } from './item-transacao.service';
-import { ArquivoPublicacaoService } from './arquivo-publicacao.service';
-import { OcorrenciaService } from './ocorrencia.service';
-import { CnabHeaderArquivo104 } from 'src/configuration/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto';
-import { CnabDetalheA_104 } from 'src/configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-detalhe-a-104.interface';
-import { CnabDetalheB_104 } from 'src/configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-detalhe-b-104.interface';
-import { CnabHeaderLote104Pgto } from 'src/configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
-import { CnabRegistros104Pgto } from 'src/configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
-import { getTipoInscricao } from 'src/configuration/cnab/utils/cnab/cnab-utils';
 import { DetalheADTO } from 'src/domain/dto/detalhe-a.dto';
 import { HeaderLoteDTO } from 'src/domain/dto/header-lote.dto';
-import { PagamentoIndevidoDTO } from 'src/domain/dto/pagamento-indevido.dto';
+import { HeaderArquivoDTO } from '../domain/dto/header-arquivo.dto';
+
 import { ArquivoPublicacao } from 'src/domain/entity/arquivo-publicacao.entity';
 import { ClienteFavorecido } from 'src/domain/entity/cliente-favorecido.entity';
 import { DetalheA } from 'src/domain/entity/detalhe-a.entity';
@@ -38,12 +13,34 @@ import { ItemTransacao } from 'src/domain/entity/item-transacao.entity';
 import { Ocorrencia } from 'src/domain/entity/ocorrencia.entity';
 import { Pagador } from 'src/domain/entity/pagador.entity';
 import { TransacaoAgrupado } from 'src/domain/entity/transacao-agrupado.entity';
+import { Cnab104FormaLancamento } from 'src/configuration/cnab/enums/104/cnab-104-forma-lancamento.enum';
+import { CnabFile104Pgto } from 'src/configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-file-104-pgto.interface';
+import { Cnab104PgtoTemplates } from 'src/configuration/cnab/templates/cnab-240/104/pagamento/cnab-104-pgto-templates.const';
+import { getCnabFieldConverted } from 'src/configuration/cnab/utils/cnab/cnab-field-utils';
 import { LancamentoStatus } from 'src/domain/enum/lancamento-status.enum';
+import { LancamentoService } from 'src/service/lancamento.service';
+import { PagamentoIndevidoDTO } from 'src/domain/dto/pagamento-indevido.dto';
+import { PagamentoIndevidoService } from 'src/service/pgamento-indevido-service';
+import { TransacaoViewService } from 'src/service/transacao-view.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { asString, asNumber } from 'src/utils/pipe-utils';
-import { LancamentoService } from './lancamento.service';
-import { PagamentoIndevidoService } from './pgamento-indevido-service';
-import { TransacaoViewService } from './transacao-view.service';
+import { asNumber, asString } from 'src/utils/pipe-utils';
+import { Between, DataSource, IsNull, Not, QueryRunner } from 'typeorm';
+import { CnabHeaderArquivo104 } from '../configuration/cnab/dto/cnab-240/104/cnab-header-arquivo-104.dto';
+import { DetalheBDTO } from '../domain/dto/detalhe-b.dto';
+import { HeaderArquivoTipoArquivo } from '../domain/enum/header-arquivo-tipo-arquivo.enum';
+import { CnabDetalheA_104 } from '../configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-detalhe-a-104.interface';
+import { CnabDetalheB_104 } from '../configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-detalhe-b-104.interface';
+import { CnabHeaderLote104Pgto } from '../configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-header-lote-104-pgto.interface';
+import { CnabRegistros104Pgto } from '../configuration/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface';
+import { getTipoInscricao } from '../configuration/cnab/utils/cnab/cnab-utils';
+import { DetalheAService } from './detalhe-a.service';
+import { DetalheBService } from './detalhe-b.service';
+import { HeaderArquivoService } from './header-arquivo.service';
+import { HeaderLoteService } from './header-lote.service';
+import { ItemTransacaoAgrupadoService } from './item-transacao-agrupado.service';
+import { ItemTransacaoService } from './item-transacao.service';
+import { ArquivoPublicacaoService } from './arquivo-publicacao.service';
+import { OcorrenciaService } from './ocorrencia.service';
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;

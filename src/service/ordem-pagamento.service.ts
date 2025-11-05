@@ -1,6 +1,8 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/client/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/client/bigquery/services/bigquery-ordem-pagamento.service';
+import { UsersService } from 'src/service/users.service';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 import { BigQueryToOrdemPagamento } from '../domain/convertTo/bigquery-to-ordem-pagamento.convert';
 import { OrdemPagamentoSemanalDto } from '../domain/dto/ordem-pagamento-semanal.dto';
@@ -10,9 +12,7 @@ import { OrdemPagamentoAgrupadoMensalDto } from '../domain/dto/ordem-pagamento-a
 import { replaceUndefinedWithNull } from '../utils/type-utils';
 import { endOfDay, startOfDay } from 'date-fns';
 import { OrdemPagamento } from '../domain/entity/ordem-pagamento.entity';
-import { UsersService } from './users.service';
 import { User } from 'src/domain/entity/user.entity';
-import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
 export class OrdemPagamentoService {

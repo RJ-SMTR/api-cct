@@ -5,11 +5,10 @@ import { BigqueryOrdemPagamentoService } from '../client/bigquery/services/bigqu
 import { UsersService } from './users.service';
 import { CustomLogger } from '../utils/custom-logger';
 import { nextFriday } from 'date-fns';
-import { OrdemPagamentoMensalDto } from 'src/domain/dto/ordem-pagamento-mensal.dto';
-import { OrdemPagamentoSemanalDto } from 'src/domain/dto/ordem-pagamento-semanal.dto';
-import { getDescricaoOcorrenciaEnumByValue, OcorrenciaEnum } from 'src/domain/enum/ocorrencia.enum';
-import { getStatusRemessaEnumByValue, StatusRemessaEnum } from 'src/domain/enum/status-remessa.enum';
-
+import { getStatusRemessaEnumByValue, StatusRemessaEnum } from '../domain/enum/status-remessa.enum';
+import { getDescricaoOcorrenciaEnumByValue, OcorrenciaEnum } from '../domain/enum/ocorrencia.enum';
+import { OrdemPagamentoSemanalDto } from '../domain/dto/ordem-pagamento-semanal.dto';
+import { OrdemPagamentoMensalDto } from '../domain/dto/ordem-pagamento-mensal.dto';
 
 describe('OrdemPagamentoService', () => {
   let service: OrdemPagamentoService;

@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Bank } from '../domain/entity/bank.entity';
-import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
-import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
+import { EntityCondition } from 'src/utils/types/entity-condition.type';
+import { CommonHttpException } from 'src/utils/http-exception/common-http-exception';
 
 @Injectable()
 export class BanksService {

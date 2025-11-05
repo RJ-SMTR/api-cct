@@ -1,14 +1,13 @@
 import { Injectable } from '@nestjs/common';
-
+import { AllPagadorDict } from 'src/domain/interface/all-pagador-dict.interface';
+import { PagadorService } from 'src/service/pagador.service';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-agrupado.repository';
 import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
+import { Pagador } from 'src/domain/entity/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../domain/entity/ordem-pagamento-agrupado-historico.entity';
-import { Pagador } from 'src/domain/entity/pagador.entity';
 import { StatusRemessaEnum } from 'src/domain/enum/status-remessa.enum';
-import { AllPagadorDict } from 'src/domain/interface/all-pagador-dict.interface';
-import { CustomLogger } from 'src/utils/custom-logger';
-import { PagadorService } from './pagador.service';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {

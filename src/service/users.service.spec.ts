@@ -1,19 +1,18 @@
 import { Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { BanksService } from 'src/service/banks.service';
+import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
+import { MailHistory } from 'src/domain/entity/mail-history.entity';
+import { MailHistoryService } from 'src/service/mail-history.service';
 import { EntityManager } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { CreateUserDto } from '../domain/dto/create-user.dto';
 import { ICreateUserFile } from '../domain/interface/create-user-file.interface';
 import { IFileUser } from '../domain/interface/file-user.interface';
 import { UsersService } from './users.service';
-import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
-import { MailHistory } from 'src/domain/entity/mail-history.entity';
-import { User } from 'src/domain/entity/user.entity';
-import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
 import { UsersRepository } from 'src/repository/users.repository';
-import { BanksService } from './banks.service';
-import { MailHistoryService } from './mail-history.service';
-
+import { User } from 'src/domain/entity/user.entity';
 
 describe('UsersService', () => {
   let usersService: UsersService;

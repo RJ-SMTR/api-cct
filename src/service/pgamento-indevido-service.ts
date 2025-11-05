@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { EntityCondition } from "src/utils/types/entity-condition.type";
+import { Nullable } from "src/utils/types/nullable.type";
 import { DataSource, Repository } from "typeorm";
 import { PagamentoIndevido } from "../domain/entity/pagamento-indevido.entity";
 import { PagamentoIndevidoDTO } from "../domain/dto/pagamento-indevido.dto";
 import { PagamentoIndevidoRepository } from "../repository/pagamento-indevido.repository";
-import { EntityCondition } from "src/utils/types/entity-condition.type";
-import { Nullable } from "src/utils/types/nullable.type";
 
 @Injectable()
 export class PagamentoIndevidoService {

@@ -2,22 +2,20 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CronJobsService } from './cron-jobs.service';
 import { ConfigService } from '@nestjs/config';
 import { Provider } from '@nestjs/common';
+import { MailHistoryService } from 'src/service/mail-history.service';
+import { UsersService } from 'src/service/users.service';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { MailService } from 'src/service/mail.service';
 import { SettingsService } from 'src/configuration/settings/settings.service';
 import { SettingEntity } from 'src/configuration/settings/entities/setting.entity';
-import { Role } from 'src/security/roles/entities/role.entity';
-
-import { RoleEnum } from 'src/security/roles/roles.enum';
-
-import { DeepPartial } from 'typeorm';
-import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
 import { MailHistory } from 'src/domain/entity/mail-history.entity';
-import { User } from 'src/domain/entity/user.entity';
+import { Role } from 'src/security/roles/entities/role.entity';
+import { InviteStatus } from 'src/domain/entity/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/domain/enum/mail-history-status.enum';
+import { RoleEnum } from 'src/security/roles/roles.enum';
 import { MailRegistrationInterface } from 'src/domain/interface/mail-registration.interface';
-import { MailHistoryService } from './mail-history.service';
-import { MailService } from './mail.service';
-import { UsersService } from './users.service';
+import { DeepPartial } from 'typeorm';
+import { User } from 'src/domain/entity/user.entity';
 
 xdescribe('CronJobsService', () => {
   let cronJobsService: CronJobsService;

@@ -6,9 +6,9 @@ import { randomStringGenerator } from '@nestjs/common/utils/random-string-genera
 import { S3Client } from '@aws-sdk/client-s3';
 import * as multerS3 from 'multer-s3';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { FileEntity } from '../domain/entity/file.entity';
 import { AllConfigType } from 'src/configuration/config.type';
 import { FilesController } from 'src/controller/files.controller';
-import { FileEntity } from 'src/domain/entity/file.entity';
 import { FilesService } from 'src/service/files.service';
 
 @Module({

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Nullable } from 'src/utils/types/nullable.type';
 import { DeepPartial, Repository } from 'typeorm';
 import { MailCount } from '../domain/entity/mail-count.entity';
-import { Nullable } from 'src/utils/types/nullable.type';
 
 @Injectable()
 export class MailCountService {
