@@ -18,14 +18,14 @@ import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { logLog, logWarn } from 'src/utils/log-utils';
-import { User } from '../users/entities/user.entity';
-import { LoginResponseType } from '../utils/types/auth/login-response.type';
-import { Nullable } from '../utils/types/nullable.type';
-import { AuthProvidersEnum } from './auth-providers.enum';
-import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
-import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
-import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
-import { AuthUpdateDto } from './dto/auth-update.dto';
+import { User } from '../../users/entities/user.entity';
+import { LoginResponseType } from '../../utils/types/auth/login-response.type';
+import { Nullable } from '../../utils/types/nullable.type';
+import { AuthProvidersEnum } from '../domain/enums/auth-providers.enum';
+import { AuthEmailLoginDto } from '../domain/dto/auth-email-login.dto';
+import { AuthRegisterLoginDto } from '../domain/dto/auth-register-login.dto';
+import { AuthResendEmailDto } from '../domain/dto/auth-resend-mail.dto';
+import { AuthUpdateDto } from '../domain/dto/auth-update.dto';
 import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
