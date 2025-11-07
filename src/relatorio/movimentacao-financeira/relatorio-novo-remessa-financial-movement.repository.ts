@@ -67,7 +67,7 @@ WHERE
     )
 AND (
         oph."motivoStatusRemessa" = '02' OR
-        (oph."motivoStatusRemessa" NOT IN ('00','BD','AL') AND oph."statusRemessa" NOT IN (3,5))
+        (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
     )
     AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)
     AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
@@ -104,7 +104,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
     )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02', 'AL') OR oph."motivoStatusRemessa" IS NULL)
+    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02') OR oph."motivoStatusRemessa" IS NULL)
     and oph."statusRemessa" <> 5
 `;
   private readonly queryOlderReport = `
@@ -301,6 +301,7 @@ FROM ordem_pagamento op
 WHERE
      oph."motivoStatusRemessa" NOT IN ('AM')
     AND da."dataVencimento" IS NOT NULL
+    AND op."ordemPagamentoAgrupadoId" IS NULL
     AND ($3::integer[] IS NULL OR uu."id" = ANY($3))
     AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
