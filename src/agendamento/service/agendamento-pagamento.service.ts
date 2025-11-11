@@ -1,45 +1,39 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { EntityCondition } from "src/utils/types/entity-condition.type";
 import { Nullable } from "src/utils/types/nullable.type";
-import { DataSource, Repository } from "typeorm";
 import { AgendamentoPagamentoDTO } from "../domain/dto/agendamento-pagamento.dto";
 import { AgendamentoPagamento } from "../domain/entity/agendamento-pagamento.entity";
 import { AgendamentoPagamentoRepository } from "../repository/agendamento-pagamento.repository";
-
+import { AgendamentoPagamentoConvert } from "../convert/agendamento-pagamento.convert";
 
 @Injectable()
 export class AgendamentoPagamentoService {
-  
+   
   constructor(
     @InjectRepository(AgendamentoPagamento)
-    private readonly infoRepository: Repository<AgendamentoPagamento>,
-    private dataSource: DataSource,
-    private agendamentoPagamentoRepository: AgendamentoPagamentoRepository
+    private agendamentoPagamentoRepository: AgendamentoPagamentoRepository,
+    private agendamentoPagamentoConvert: AgendamentoPagamentoConvert
   ) {}
 
-  async find(fields?: EntityCondition<AgendamentoPagamento>): Promise<Nullable<AgendamentoPagamento[]>> {
-    return this.infoRepository.find({
-      where: fields,
-    });
+  async findAll(): Promise<AgendamentoPagamentoDTO[]> {      
+    const entities = await this.agendamentoPagamentoRepository.findAll();
+
+    return Promise.all(
+      entities.map(p => this.agendamentoPagamentoConvert.convertEntityToDTO(p))
+    );
   }
 
-  async findAll(){      
-    return this.agendamentoPagamentoRepository.findAll(); 
-  } 
+  async findById(id: number): Promise<Nullable<AgendamentoPagamentoDTO>> { 
+    const entity = await this.agendamentoPagamentoRepository.findOne({id: id});
+    return entity? this.agendamentoPagamentoConvert.convertEntityToDTO(entity):null;
+  }
 
-  async save(agendamentoPagamento: AgendamentoPagamentoDTO) {    
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    try{          
-      await queryRunner.startTransaction();      
-      this.agendamentoPagamentoRepository.save(agendamentoPagamento);
-      await queryRunner.commitTransaction();
-    }catch(e){
-      await queryRunner.rollbackTransaction();
-    }finally{
-      await queryRunner.release();
-    }
+  async save(agendamentoPagamento: AgendamentoPagamentoDTO):Promise<AgendamentoPagamentoDTO> {    
+    return this.agendamentoPagamentoConvert.convertEntityToDTO(await this.agendamentoPagamentoRepository.save(agendamentoPagamento));   
+  }
+
+  async delete(id:number) {
+    await this.agendamentoPagamentoRepository.delete(id);
   }
 
 }

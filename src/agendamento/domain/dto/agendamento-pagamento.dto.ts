@@ -1,6 +1,6 @@
-import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
-import { User } from 'src/users/entities/user.entity';
 import { AprovacaoPagamentoDTO } from './aprovacao-pagamento.dto';
+import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
+import { CreateUserDto } from 'src/users/dto/create-user.dto';
 
 export class AgendamentoPagamentoDTO { 
 
@@ -8,7 +8,7 @@ export class AgendamentoPagamentoDTO {
 
   tipoBeneficiario: string | null;//Consorcio /Individual
 
-  beneficiarioUsuario: User;
+  beneficiarioUsuario: CreateUserDto;
 
   tipoPagamento: string | null; //Unico/Recorrente
 
@@ -18,21 +18,21 @@ export class AgendamentoPagamentoDTO {
 
   motivoPagamentoUnico: string;
 
-  pagador: Pagador;
+  pagador: PagadorDTO;
 
   diaSemana: string;
 
   horario: Date;
 
-  responsavel: User;
+  responsavel: CreateUserDto;
 
   aprovacao: Boolean;
 
   aprovacaoPagamento: AprovacaoPagamentoDTO;
 
-  cadastrador: User;
+  cadastrador: CreateUserDto;
 
-  modificador: User;
+  modificador: CreateUserDto;
 
   status: Boolean;
 }
