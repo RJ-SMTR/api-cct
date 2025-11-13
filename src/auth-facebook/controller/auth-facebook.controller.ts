@@ -1,9 +1,10 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from 'src/auth/service/auth.service';
-import { AuthFacebookService } from './auth-facebook.service';
-import { AuthFacebookLoginDto } from './domain/dto/auth-facebook-login.dto';
-import { LoginResponseType } from '../utils/types/auth/login-response.type';
+import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
+import { AuthFacebookLoginDto } from '../domain/dto/auth-facebook-login.dto';
+import { AuthFacebookService } from '../service/auth-facebook.service';
+
 
 @ApiTags('Auth')
 @Controller({

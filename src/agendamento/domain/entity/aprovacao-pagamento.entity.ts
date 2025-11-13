@@ -14,7 +14,7 @@ export class AprovacaoPagamento extends EntityHelper {
   }
 
   /** id_ordem_pagamento_consorcio_operador_dia */
-  @PrimaryColumn({ primaryKeyConstraintName: 'PK_OrdemPagamentoId' })
+  @PrimaryColumn({ primaryKeyConstraintName: 'PK_AprovacaoPagamentoId' })
   id: number;  
 
   @ManyToOne(() => DetalheA, { eager: true })
