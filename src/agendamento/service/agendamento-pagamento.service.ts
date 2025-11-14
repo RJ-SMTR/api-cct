@@ -1,22 +1,19 @@
 import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
 import { Nullable } from "src/utils/types/nullable.type";
 import { AgendamentoPagamentoDTO } from "../domain/dto/agendamento-pagamento.dto";
-import { AgendamentoPagamento } from "../domain/entity/agendamento-pagamento.entity";
 import { AgendamentoPagamentoRepository } from "../repository/agendamento-pagamento.repository";
 import { AgendamentoPagamentoConvert } from "../convert/agendamento-pagamento.convert";
 
 @Injectable()
 export class AgendamentoPagamentoService {
-   
   constructor(
-    @InjectRepository(AgendamentoPagamento)
-    private agendamentoPagamentoRepository: AgendamentoPagamentoRepository,
-    private agendamentoPagamentoConvert: AgendamentoPagamentoConvert
-  ) {}
+    private readonly agendamentoPagamentoRepository: AgendamentoPagamentoRepository,
+    private readonly agendamentoPagamentoConvert: AgendamentoPagamentoConvert,
+  ) { }
+
 
   async findAll(): Promise<AgendamentoPagamentoDTO[]> {      
-    const entities = await this.agendamentoPagamentoRepository.findAll();
+    const entities = await this.agendamentoPagamentoRepository.findAllBooking();
 
     return Promise.all(
       entities.map(p => this.agendamentoPagamentoConvert.convertEntityToDTO(p))

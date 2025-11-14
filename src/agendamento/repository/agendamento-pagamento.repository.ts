@@ -29,8 +29,12 @@ export class AgendamentoPagamentoRepository {
     });
   }
 
-  public async findAll(): Promise<AgendamentoPagamento[]> {
-    return await this.agendamentoPagamentoRepository.find();
+  public async findAllBooking(): Promise<AgendamentoPagamento[]> {
+    return await this.agendamentoPagamentoRepository.find(
+    {  order: {
+      id: 'desc',
+    },
+  });
   }
 
   public async delete(id: number) {

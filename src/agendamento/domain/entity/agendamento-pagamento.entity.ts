@@ -1,7 +1,7 @@
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import {  Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryColumn,  UpdateDateColumn } from 'typeorm';
+import {  Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne,  PrimaryGeneratedColumn,  UpdateDateColumn } from 'typeorm';
 import { AprovacaoPagamento } from './aprovacao-pagamento.entity';
 
 @Entity()
@@ -14,7 +14,7 @@ export class AgendamentoPagamento extends EntityHelper {
   }
 
   /** id_ordem_pagamento_consorcio_operador_dia */
-  @PrimaryColumn({ primaryKeyConstraintName: 'PK_AgendamentoPagamentoId' })
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_AgendamentoPagamentoId' })
   id: number;  
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
@@ -28,7 +28,7 @@ export class AgendamentoPagamento extends EntityHelper {
   tipoPagamento: string | null; //Unico/Recorrente
 
 
-  @Column({ type: 'date', unique: false, nullable: false })
+  @Column({ type: 'date', unique: false })
   dataPagamentoUnico: Date;
 
   @Column({
@@ -57,8 +57,8 @@ export class AgendamentoPagamento extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_ResponsavelUsuario_ManyToOne' })
   responsavel: User;
 
-  @Column({ type: Boolean, unique: false, nullable: true })
-  aprovacao: Boolean;
+  @Column({ type: 'boolean', unique: false, nullable: true })
+  aprovacao: boolean;
 
   @ManyToOne(() => AprovacaoPagamento, { eager: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_AprovacaoPagamento_ManyToOne' })
@@ -72,8 +72,8 @@ export class AgendamentoPagamento extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_ModificadorUsario_ManyToOne' })
   modificador: User;
 
-  @Column({ type: Boolean, unique: false, nullable: true })
-  status: Boolean;
+  @Column({ type: 'boolean', unique: false, nullable: true })
+  status: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

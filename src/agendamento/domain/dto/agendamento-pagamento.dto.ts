@@ -1,38 +1,64 @@
+import { IsOptional, IsString, IsBoolean, IsDate, IsNumber } from 'class-validator';
+import { Type } from 'class-transformer';
 import { AprovacaoPagamentoDTO } from './aprovacao-pagamento.dto';
 import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 
-export class AgendamentoPagamentoDTO { 
+export class AgendamentoPagamentoDTO {
+  @IsOptional()
+  id?: number;
 
-  id: number;  
+  @IsOptional()
+  @IsString()
+  tipoBeneficiario?: string | null; // Consorcio / Individual
 
-  tipoBeneficiario: string | null;//Consorcio /Individual
+  @IsOptional()
+  beneficiarioUsuario?: CreateUserDto;
 
-  beneficiarioUsuario: CreateUserDto;
+  @IsOptional()
+  @IsString()
+  tipoPagamento?: string | null; // Unico / Recorrente
 
-  tipoPagamento: string | null; //Unico/Recorrente
+  @IsOptional()
+  @Type(() => Date)
+  dataPagamentoUnico?: Date;
 
-  dataPagamentoUnico: Date;
-  
-  valorPagamentoUnico: number;
+  @IsOptional()
+  @IsNumber()
+  valorPagamentoUnico?: number;
 
-  motivoPagamentoUnico: string;
+  @IsOptional()
+  @IsString()
+  motivoPagamentoUnico?: string;
 
-  pagador: PagadorDTO;
+  @IsOptional()
+  pagador?: PagadorDTO;
 
-  diaSemana: string;
+  @IsOptional()
+  @IsString()
+  diaSemana?: string;
 
-  horario: Date;
+  @IsOptional()
+  @Type(() => Date)
+  horario?: Date;
 
-  responsavel: CreateUserDto;
+  @IsOptional()
+  responsavel?: CreateUserDto;
 
-  aprovacao: Boolean;
+  @IsOptional()
+  @IsBoolean()
+  aprovacao?: boolean;
 
-  aprovacaoPagamento: AprovacaoPagamentoDTO;
+  @IsOptional()
+  aprovacaoPagamento?: AprovacaoPagamentoDTO;
 
-  cadastrador: CreateUserDto;
+  @IsOptional()
+  cadastrador?: CreateUserDto;
 
-  modificador: CreateUserDto;
+  @IsOptional()
+  modificador?: CreateUserDto;
 
-  status: Boolean;
+  @IsOptional()
+  @IsBoolean()
+  status?: boolean;
 }
