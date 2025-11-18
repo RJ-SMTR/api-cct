@@ -59,7 +59,7 @@ export class AgendamentoPagamentoController {
     }
 
     @Delete('/:id')
-    @HttpCode(HttpStatus.NOT_FOUND)
+    @HttpCode(HttpStatus.NO_CONTENT)
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()    
     async delete(
