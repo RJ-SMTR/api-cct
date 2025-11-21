@@ -115,13 +115,6 @@ export class RemessaService {
                     opa = op.ordemPagamentoAgrupado
                   }
               }
-              // opa = op.ordemPagamentoAgrupado
-              // if (isPedente) {
-              //   const teste = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(op.ordemPagamentoAgrupado.id);
-              //   // opa = teste?.ordemPagamentoAgrupadoId
-              // } else
-
-              
 
               if (headerLote) {
                 if (headerLote.formaLancamento === '41') {

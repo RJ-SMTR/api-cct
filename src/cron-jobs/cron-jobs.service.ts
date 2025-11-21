@@ -35,7 +35,7 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
-
+import { AgendamentoPagamentoService } from 'src/agendamento/service/agendamento-pagamento.service';
 
 
 /**
@@ -53,7 +53,8 @@ export enum CronJobsEnum {
   generateRemessaVanzeiros = 'generateRemessaVanzeiros',
   generateRemessaLancamento = 'generateRemessaLancamento',
   sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento',
-  sincronizarTransacoesBq = 'sincronizarTransacoesBq'
+  sincronizarTransacoesBq = 'sincronizarTransacoesBq',
+  automacao = 'automacao'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -98,6 +99,7 @@ export class CronJobsService {
     private ordemPagamentoService: OrdemPagamentoService,
     private bigQueryTransacaoService: BigqueryTransacaoService,
     private distributedLockService: DistributedLockService,
+    private agendamentoPagamentoService: AgendamentoPagamentoService
   ) { }
 
   async onModuleInit() {
@@ -110,7 +112,18 @@ export class CronJobsService {
 
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-    this.jobsConfig.push(
+
+
+    this.jobsConfig.push(       
+       {
+        /**
+         * Job interno.
+         * NÃO REMOVER ESTE JOB, É ÚTIL PARA ALTERAR OS CRONJOBS EM CASO DE URGÊNCIA
+         */
+        name: CronJobsEnum.automacao,
+        cronJobParameters: this.geraCronJob()
+        
+      },
       {
         /**
          * Job interno.
@@ -706,28 +719,6 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
-  // async remessaVLTExec(todayCustom?: Date, pagamentoUnico?: boolean) {
-  //   //Rodar de segunda a sexta   
-  //   let today = todayCustom ? todayCustom : new Date();
-  //   /** defaut: qua,qui,sex,sáb,dom */
-  //   let daysBeforeBegin = 1;
-  //   let daysBeforeEnd = 1;
-  //   if (isMonday(today)) {
-  //     daysBeforeBegin = 3;
-  //     daysBeforeEnd = 3;
-  //   } else if (isTuesday(today)) {
-  //     daysBeforeBegin = 3;
-  //   }
-  //   const dataInicio = subDays(today, daysBeforeBegin);
-  //   const dataFim = subDays(today, daysBeforeEnd);
-
-  //   console.log(`data incicio: ${dataInicio}`);
-  //   console.log(`data fim: ${dataFim}`);
-  //   console.log(`data pagamento: ${today}`);
-  //   await this.geradorRemessaExec(dataInicio, dataFim, today,
-  //     ['VLT'], HeaderName.VLT, pagamentoUnico);
-  // }
-
   async remessaModalExec(pagamentoUnico?: boolean) {
     const today = new Date();
     let subDaysInt = 0;
@@ -905,4 +896,60 @@ export class CronJobsService {
     previousTuesday.setDate(today.getDate() - daysSinceTuesday);
     return previousTuesday;
   }
+
+
+  async geraCronJob(): Promise<CronJobParameters> {
+    const agendamentos =  this.agendamentoPagamentoService.findAll();
+
+    const jobs = (await agendamentos).forEach(agenda => {
+    
+      var diaSemana = this.getDiaSemanaFormatado(agenda.diaSemana);
+
+      var hoarioFormatado = this.getHorarioFormatado(agenda.horario);
+
+      return {
+        cronTime: hoarioFormatado, 
+        onTick: async () => {
+           this.verificaDiaSemana(diaSemana,agenda.aprovacaoPagamento);  
+        },
+      }
+    });
+  }
+
+  verificaDiaSemana(diaSemana,aprovacao) {
+
+    if (isTuesday(new Date())) {
+      
+    } 
+
+    if(aprovacao){
+      //pesquisar aprovacao
+       this.verificarAprovacao();
+      //Se aprovado 
+      //Verificar qual o remessa
+      //verificar mudanca de valores
+      
+      this.executaRemessa(diaSemana) //executar o remessa aprovado
+    }    
+  }
+
+  executaRemessa(diaSemana,pagamento) {        
+     this.remessaConsorciosExec()
+    
+     this.remessaModalExec()
+  }
+
+  getHorarioFormatado(horario: Date | undefined):string {
+     return ""
+  }
+
+
+  getDiaSemanaFormatado(diaSemana: string | undefined):string {
+    return ""
+  }
+
+  verificarAprovacao(){
+      
+  }
+  
 }
