@@ -232,7 +232,7 @@ WHERE
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
     )
     and oph."statusRemessa" IN (5)
-
+    AND opa."ordemPagamentoAgrupadoId" IS NULL
 	AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
 `;
 
@@ -279,6 +279,16 @@ cadeias_com_paga AS (
   INNER JOIN ordem_pagamento_agrupado_historico oph
       ON oph."ordemPagamentoAgrupadoId" = cp.ordem_id
   WHERE oph."statusRemessa" = 5
+),
+ultimo_historico_pai AS (
+    SELECT DISTINCT ON (oph_pai."ordemPagamentoAgrupadoId")
+        oph_pai."ordemPagamentoAgrupadoId",
+        oph_pai."statusRemessa",
+        oph_pai."dataReferencia",
+        oph_pai."motivoStatusRemessa",
+        oph_pai.id
+    FROM ordem_pagamento_agrupado_historico oph_pai
+    ORDER BY oph_pai."ordemPagamentoAgrupadoId", oph_pai."dataReferencia" DESC
 )
 `;
 
@@ -307,19 +317,26 @@ FROM ordem_pagamento op
   INNER JOIN ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id
   INNER JOIN ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
   INNER JOIN pendencia pd on opa."ordemPagamentoAgrupadoId" = pd.id
+  INNER JOIN cadeia_pagamento cp
+    ON cp.ordem_id = opa.id
+INNER JOIN ultimo_historico_pai oph_pai
+    ON oph_pai."ordemPagamentoAgrupadoId" = cp.raiz_id
+
   LEFT JOIN detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
   LEFT JOIN public."user" uu on uu."id"=op."userId"
   LEFT JOIN bank bc ON bc.code = uu."bankCode"
 WHERE
      oph."motivoStatusRemessa" NOT IN ('AM')
     AND da."dataVencimento" IS NOT NULL
-    AND op."ordemPagamentoAgrupadoId" IS NULL
+    AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
+
     AND ($3::integer[] IS NULL OR uu."id" = ANY($3))
     AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
     AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
     ) 
+   and oph_pai."statusRemessa" = 5
 `;
 
   private pendentes_25 = `
