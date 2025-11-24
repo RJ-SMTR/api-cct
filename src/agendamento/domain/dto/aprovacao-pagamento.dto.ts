@@ -1,5 +1,5 @@
 import { DetalheADTO } from 'src/cnab/dto/pagamento/detalhe-a.dto';
-import { User } from 'src/users/entities/user.entity';;
+import { User } from 'src/users/entities/user.entity';
 
 export class AprovacaoPagamentoDTO  {  
   

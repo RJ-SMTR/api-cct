@@ -39,8 +39,8 @@ export class AgendamentoPagamentoDTO {
   diaSemana?: string;
 
   @IsOptional()
-  @Type(() => Date)
-  horario?: Date;
+  @IsString()
+  horario?: string;
 
   @IsOptional()
   responsavel?: CreateUserDto;

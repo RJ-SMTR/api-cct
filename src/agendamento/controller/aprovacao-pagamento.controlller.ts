@@ -59,13 +59,13 @@ export class AprovacaoPagamentoController {
     }
 
     @Delete('/:id')
-    @HttpCode(HttpStatus.NOT_FOUND)
+    @HttpCode(HttpStatus.NO_CONTENT)
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()    
     async delete(
          @Param('id') id: number,
     ){
-        await this.aprovacaoPagamentoService.delete(id);
+       return await this.aprovacaoPagamentoService.delete(id);
     }
 
 }

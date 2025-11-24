@@ -38,7 +38,9 @@ export class AgendamentoPagamentoRepository {
   }
 
   public async delete(id: number) {
-    await this.agendamentoPagamentoRepository.delete(id);
+    const result = await this.agendamentoPagamentoRepository.delete(id);
+
+    return result
   }
 
 }
