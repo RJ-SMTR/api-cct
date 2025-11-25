@@ -1,8 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpException, HttpStatus, } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DeepPartial, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
+
+import * as bcrypt from 'bcryptjs';
 import { AgendamentoPagamento } from '../domain/entity/agendamento-pagamento.entity';
 import { AgendamentoPagamentoDTO } from '../domain/dto/agendamento-pagamento.dto';
 
@@ -37,8 +39,14 @@ export class AgendamentoPagamentoRepository {
   });
   }
 
-  public async delete(id: number) {
-    const result = await this.agendamentoPagamentoRepository.delete(id);
+  public async delete(id: number, LancamentoAuthorizeDto: string, userId: any): Promise<any>  {
+    let result 
+    const isValidPassword = await bcrypt.compare(LancamentoAuthorizeDto, userId.password)
+    if (!isValidPassword) { 
+      throw new HttpException('Usuário não encontrado', HttpStatus.UNAUTHORIZED);
+    } else {
+       result = await this.agendamentoPagamentoRepository.delete(id);
+    }
 
     return result
   }

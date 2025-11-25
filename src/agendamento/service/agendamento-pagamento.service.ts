@@ -1,14 +1,17 @@
+import { LancamentoAuthorizeDto } from './../../lancamento/dtos/lancamento-authorize.dto';
 import { Injectable } from "@nestjs/common";
 import { Nullable } from "src/utils/types/nullable.type";
 import { AgendamentoPagamentoDTO } from "../domain/dto/agendamento-pagamento.dto";
 import { AgendamentoPagamentoRepository } from "../repository/agendamento-pagamento.repository";
 import { AgendamentoPagamentoConvert } from "../convert/agendamento-pagamento.convert";
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class AgendamentoPagamentoService {
   constructor(
     private readonly agendamentoPagamentoRepository: AgendamentoPagamentoRepository,
     private readonly agendamentoPagamentoConvert: AgendamentoPagamentoConvert,
+    private readonly usersService: UsersService,
   ) { }
 
 
@@ -29,8 +32,9 @@ export class AgendamentoPagamentoService {
     return this.agendamentoPagamentoConvert.convertEntityToDTO(await this.agendamentoPagamentoRepository.save(agendamentoPagamento));   
   }
 
-  async delete(id:number) {
-    return await this.agendamentoPagamentoRepository.delete(id);
+  async delete(id: number, LancamentoAuthorizeDto: string, userId: number): Promise<any> {
+    const user = await this.usersService.findOne({ id: userId });
+    return await this.agendamentoPagamentoRepository.delete(id, LancamentoAuthorizeDto, user);
   }
 
 }

@@ -1,9 +1,14 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Request, UseGuards } from "@nestjs/common";
 import { AgendamentoPagamentoDTO } from "../domain/dto/agendamento-pagamento.dto";
 import { AgendamentoPagamentoService } from "../service/agendamento-pagamento.service";
 import { ApiBearerAuth, ApiBody, ApiTags } from "@nestjs/swagger";
 import { AuthGuard } from "@nestjs/passport";
 import { Nullable } from "src/utils/types/nullable.type";
+import { IRequest } from 'src/utils/interfaces/request.interface';
+import { Roles } from 'src/roles/roles.decorator';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
+import { LancamentoAuthorizeDto } from "src/lancamento/dtos/lancamento-authorize.dto";
 
 @ApiTags('AgendamentoPagamento')
 @Controller({
@@ -36,7 +41,10 @@ export class AgendamentoPagamentoController {
 
     @Post('/')
     @HttpCode(HttpStatus.CREATED)
-    @UseGuards(AuthGuard('jwt'))
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
+     @Roles(
+        RoleEnum.master, //
+      )
     @ApiBearerAuth()
     @ApiBody({ type: AgendamentoPagamentoDTO })
     async save(
@@ -60,12 +68,19 @@ export class AgendamentoPagamentoController {
 
     @Delete('/:id')
     @HttpCode(HttpStatus.NO_CONTENT)
-    @UseGuards(AuthGuard('jwt'))
-    @ApiBearerAuth()    
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
+    @Roles(
+        RoleEnum.master, //
+    )
+    @ApiBearerAuth() 
     async delete(
+        @Request() req: IRequest, //
+        @Body() lancamentoAuthorizeDto: LancamentoAuthorizeDto,
          @Param('id') id: number,
+         
     ){
-        await this.agendamentoPagamentoService.delete(id);
+        const userId = req.user.id;
+       return await this.agendamentoPagamentoService.delete(id, lancamentoAuthorizeDto.password, userId);
     }
 
 }
