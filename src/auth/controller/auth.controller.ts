@@ -5,17 +5,17 @@ import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
-import { User } from '../users/entities/user.entity';
-import { LoginResponseType } from '../utils/types/auth/login-response.type';
-import { Nullable } from '../utils/types/nullable.type';
-import { AuthService } from './auth.service';
-import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
-import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
-import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
-import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
-import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
-import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
-import { AuthUpdateDto } from './dto/auth-update.dto';
+import { User } from '../../users/entities/user.entity';
+import { LoginResponseType } from '../../utils/types/auth/login-response.type';
+import { Nullable } from '../../utils/types/nullable.type';
+import { AuthService } from '../service/auth.service';
+import { AuthConfirmEmailDto } from '../domain/dto/auth-confirm-email.dto';
+import { AuthEmailLoginDto } from '../domain/dto/auth-email-login.dto';
+import { AuthForgotPasswordDto } from '../domain/dto/auth-forgot-password.dto';
+import { AuthRegisterLoginDto } from '../domain/dto/auth-register-login.dto';
+import { AuthResendEmailDto } from '../domain/dto/auth-resend-mail.dto';
+import { AuthResetPasswordDto } from '../domain/dto/auth-reset-password.dto';
+import { AuthUpdateDto } from '../domain/dto/auth-update.dto';
 import { CustomLogger } from 'src/utils/custom-logger';
 
 @ApiTags('Auth')

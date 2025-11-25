@@ -108,8 +108,7 @@ export class CronJobsService {
   }
 
 
-  async onModuleLoad() {    
-    await this.remessaModalExec()
+  async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -661,7 +660,7 @@ export class CronJobsService {
 
   private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
-    //Agrupa pagamentos        
+    // Agrupa pagamentos        
 
     for (let index = 0; index < consorcios.length; index++) {
       if (pagamentoUnico) {
@@ -674,7 +673,7 @@ export class CronJobsService {
     }
 
     //Prepara o remessa
-     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     // //Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
     //Envia para o SFTP
@@ -694,8 +693,8 @@ export class CronJobsService {
     headerName: HeaderName, idOperadoras?: string[]) {
     this.logger.debug('iniicando o agrupamento pendente')
     if (dataInicio)
-    // AGRUPAR ORDENS POR INDIVIDUO
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
+      // AGRUPAR ORDENS POR INDIVIDUO
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
     // Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
