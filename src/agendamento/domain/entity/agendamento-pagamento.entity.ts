@@ -80,4 +80,7 @@ export class AgendamentoPagamento extends EntityHelper {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ type: Number, unique: false, nullable: true })
+    aprovacaoPagamentoId: number;
 }

@@ -4,7 +4,7 @@ export class AgendamentoPagamento1762891665531 implements MigrationInterface {
     name = 'AgendamentoPagamento1762891665531'
 
     public async up(queryRunner: QueryRunner): Promise<void> {   
-        await queryRunner.query(`CREATE TABLE "aprovacao_pagamento" ("id" integer NOT NULL, "valorGerado" numeric(13,5) NOT NULL, "valorAprovado" numeric(13,5) NOT NULL, "dataAprovacao" date NOT NULL, "status" character varying, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), "detalheAId" integer, "aprovadorId" integer, CONSTRAINT "PK_AprovacaoPagamentoId" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE TABLE "aprovacao_pagamento" ("id" SERIAL NOT NULL, "valorGerado" numeric(13,5), "valorAprovado" numeric(13,5), "dataAprovacao" date NOT NULL, "status" character varying, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), "detalheAId" integer, "aprovadorId" integer, CONSTRAINT "PK_AprovacaoPagamentoId" PRIMARY KEY ("id"))`);
       await queryRunner.query(`
   CREATE TABLE "agendamento_pagamento" (
     "id" SERIAL NOT NULL,

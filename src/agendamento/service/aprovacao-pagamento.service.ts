@@ -1,18 +1,17 @@
 import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
 import { Nullable } from "src/utils/types/nullable.type";
 import { AprovacaoPagamentoDTO } from "../domain/dto/aprovacao-pagamento.dto";
-import { AprovacaoPagamento } from "../domain/entity/aprovacao-pagamento.entity";
 import { AprovacaoPagamentoRepository } from "../repository/aprovacao-pagamento.repository";
 import { AprovacaoPagamentoConvert } from "../convert/aprovacao-pagamento.convert";
+import { UsersService } from "src/users/users.service";
 
 @Injectable()
 export class AprovacaoPagamentoService {
    
   constructor(
-    @InjectRepository(AprovacaoPagamento)
     private aprovacaoPagamentoRepository: AprovacaoPagamentoRepository,
-    private aprovacaoPagamentoConvert: AprovacaoPagamentoConvert
+    private aprovacaoPagamentoConvert: AprovacaoPagamentoConvert,
+    private readonly usersService: UsersService,
   ) {}
 
   async findAll(): Promise<AprovacaoPagamentoDTO[]> {      
@@ -30,6 +29,11 @@ export class AprovacaoPagamentoService {
 
   async save(aprovacaoPagamento: AprovacaoPagamentoDTO):Promise<AprovacaoPagamentoDTO> {    
     return this.aprovacaoPagamentoConvert.convertEntityToDTO(await this.aprovacaoPagamentoRepository.save(aprovacaoPagamento));   
+  }
+
+  async approvePayment(id:number, userId:number, password:string) {
+    const user = await this.usersService.findOne({ id: userId });
+    return await this.aprovacaoPagamentoRepository.approvePayment(id, user, password);
   }
 
   async delete(id:number) {
