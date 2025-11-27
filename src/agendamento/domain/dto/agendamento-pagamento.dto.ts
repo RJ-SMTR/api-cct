@@ -49,6 +49,10 @@ export class AgendamentoPagamentoDTO {
   @IsBoolean()
   aprovacao?: boolean;
 
+  diaInicioPagar:number;
+
+  diaFinalPagar:number;
+
   @IsOptional()
   aprovacaoPagamento?: AprovacaoPagamentoDTO;
 
@@ -61,4 +65,6 @@ export class AgendamentoPagamentoDTO {
   @IsOptional()
   @IsBoolean()
   status?: boolean;
+
+  
 }

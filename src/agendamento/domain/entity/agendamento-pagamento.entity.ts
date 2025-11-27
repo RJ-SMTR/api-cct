@@ -75,6 +75,10 @@ export class AgendamentoPagamento extends EntityHelper {
   @Column({ type: 'boolean', unique: false, nullable: true })
   status: boolean;
 
+  diaInciioPagar: number;
+
+  diaFinalPagar: number;
+
   @CreateDateColumn()
   createdAt: Date;
 
