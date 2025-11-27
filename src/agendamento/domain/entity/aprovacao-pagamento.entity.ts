@@ -1,8 +1,9 @@
+import { AprovacaoEnum } from 'src/agendamento/enums/aprovacao.enum';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
 import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { User } from 'src/users/entities/user.entity';
 import { EntityHelper } from 'src/utils/entity-helper';
-import {  Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryColumn,  UpdateDateColumn } from 'typeorm';
+import {  Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn,  UpdateDateColumn } from 'typeorm';
 
 @Entity()
 export class AprovacaoPagamento extends EntityHelper {
@@ -14,17 +15,17 @@ export class AprovacaoPagamento extends EntityHelper {
   }
 
   /** id_ordem_pagamento_consorcio_operador_dia */
-  @PrimaryColumn({ primaryKeyConstraintName: 'PK_AprovacaoPagamentoId' })
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_AprovacaoPagamentoId' })
   id: number;  
 
-  @ManyToOne(() => DetalheA, { eager: true })
+  @ManyToOne(() => DetalheA, { eager: true, nullable: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_DetalheA_ManyToOne' })
   detalheA: DetalheA;
 
   @Column({
     type: 'decimal',
     unique: false,
-    nullable: false,
+    nullable: true,
     precision: 13,
     scale: 5,
   })
@@ -33,22 +34,26 @@ export class AprovacaoPagamento extends EntityHelper {
   @Column({
     type: 'decimal',
     unique: false,
-    nullable: false,
+    nullable: true,
     precision: 13,
     scale: 5,
   })
   valorAprovado: number;
 
 
-  @Column({ type: 'date', unique: false, nullable: false })
+  @Column({ type: 'date', unique: false, nullable: true })
   dataAprovacao: Date;
 
-  @ManyToOne(() => User, { eager: true })
+  @ManyToOne(() => User, { eager: true, nullable: true })
   @JoinColumn({ foreignKeyConstraintName: 'FK_AprovadorUsuario_ManyToOne' })
   aprovador: User;
 
-  @Column({ type: String, unique: false, nullable: true })
-  status: string;
+  @Column({
+    type: 'enum',
+    enum: AprovacaoEnum,
+    default: AprovacaoEnum.Aprovado
+  })
+  status: AprovacaoEnum;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -57,6 +57,9 @@ export class AgendamentoPagamentoDTO {
   aprovacaoPagamento?: AprovacaoPagamentoDTO;
 
   @IsOptional()
+  aprovacaoPagamentoId?: number;
+
+  @IsOptional()
   cadastrador?: CreateUserDto;
 
   @IsOptional()

@@ -1,16 +1,18 @@
-import { LancamentoAuthorizeDto } from './../../lancamento/dtos/lancamento-authorize.dto';
 import { Injectable } from "@nestjs/common";
 import { Nullable } from "src/utils/types/nullable.type";
 import { AgendamentoPagamentoDTO } from "../domain/dto/agendamento-pagamento.dto";
 import { AgendamentoPagamentoRepository } from "../repository/agendamento-pagamento.repository";
 import { AgendamentoPagamentoConvert } from "../convert/agendamento-pagamento.convert";
+import { AprovacaoPagamentoRepository } from "../repository/aprovacao-pagamento.repository";
 import { UsersService } from 'src/users/users.service';
+import { AprovacaoEnum } from "../enums/aprovacao.enum";
 
 @Injectable()
 export class AgendamentoPagamentoService {
   constructor(
     private readonly agendamentoPagamentoRepository: AgendamentoPagamentoRepository,
     private readonly agendamentoPagamentoConvert: AgendamentoPagamentoConvert,
+    private readonly aprovacaoPagamentoRepository: AprovacaoPagamentoRepository,
     private readonly usersService: UsersService,
   ) { }
 
@@ -29,6 +31,18 @@ export class AgendamentoPagamentoService {
   }
 
   async save(agendamentoPagamento: AgendamentoPagamentoDTO):Promise<AgendamentoPagamentoDTO> {    
+    
+    if (agendamentoPagamento.aprovacao) {
+      const novaAprovacao = await this.aprovacaoPagamentoRepository.save({
+        valorGerado: 0,
+        valorAprovado: 0,
+        dataAprovacao: new Date(),
+        status: AprovacaoEnum.AguardandoAprovacao,
+      } as any);
+      
+      agendamentoPagamento.aprovacaoPagamentoId = novaAprovacao.id;
+    }
+    
     return this.agendamentoPagamentoConvert.convertEntityToDTO(await this.agendamentoPagamentoRepository.save(agendamentoPagamento));   
   }
 
