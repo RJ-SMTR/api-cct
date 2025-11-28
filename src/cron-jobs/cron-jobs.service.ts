@@ -38,6 +38,12 @@ import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transac
 import { AgendamentoPagamentoService } from 'src/agendamento/service/agendamento-pagamento.service';
 import { AgendamentoPagamentoRemessaDTO } from 'src/agendamento/domain/dto/agendamento-pagamento-remessa.dto';
 import { AgendamentoPagamentoDTO } from 'src/agendamento/domain/dto/agendamento-pagamento.dto';
+import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
+import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
+import { AprovacaoPagamentoService } from 'src/agendamento/service/aprovacao-pagamento.service';
+import { AprovacaoEnum } from 'src/agendamento/enums/aprovacao.enum';
+import { CreateUserDto } from 'src/users/dto/create-user.dto';
 
 
 /**
@@ -101,7 +107,9 @@ export class CronJobsService {
     private ordemPagamentoService: OrdemPagamentoService,
     private bigQueryTransacaoService: BigqueryTransacaoService,
     private distributedLockService: DistributedLockService,
-    private agendamentoPagamentoService: AgendamentoPagamentoService
+    private agendamentoPagamentoService: AgendamentoPagamentoService,
+    private aprovacaoService: AprovacaoPagamentoService,
+    private detalheAService: DetalheAService
   ) { }
 
   async onModuleInit() {
@@ -653,32 +661,29 @@ export class CronJobsService {
 
   private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
     consorcios: string[], rem: AgendamentoPagamentoRemessaDTO) {
-    // Agrupa pagamentos  
-
-      //verificar se remessa ja ta gerado no banco 
-          
-      const headerName = rem.tipoBeneficiario == "Consorcio" ? HeaderName.CONSORCIO : HeaderName.MODAL
-      for (let index = 0; index < consorcios.length; index++) {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-          dataFim, dataPagamento, rem.pagador, [consorcios[index]]);
-      }
-
-      //Prepara o remessa
-      await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios);
-
-      let pagamentoAprovado = false;
-
-      if (rem.aprovacao) {//se estiver marcado que necessita de aprovação
-        pagamentoAprovado = verificarAprovacao(rem) //atualizar o detalhe_a
-      }
-
-      if (rem.aprovacao === false || pagamentoAprovado) {//Se não precisar de aprovação ou tiver aprovado na tabela de
-        //Gera o TXT
-        const txt = await this.remessaService.gerarCnabText(headerName);
-        //Envia para o SFTP
-        await this.remessaService.enviarRemessa(txt, headerName);
-      }
+    // Agrupa pagamentos     
+    const headerName = rem.tipoBeneficiario == "Consorcio" ? HeaderName.CONSORCIO : HeaderName.MODAL
+    for (let index = 0; index < consorcios.length; index++) {
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+        dataFim, dataPagamento, rem.pagador, [consorcios[index]]);
     }
+
+    //Prepara o remessa
+    const headerArquivo = await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios);
+
+    let pagamentoAprovado = false;
+
+    if (rem.aprovacao) {//se estiver marcado que necessita de aprovação
+      pagamentoAprovado = await this.verificarAprovacao(rem, headerArquivo) //atualizar o detalhe_a e valor gerado
+    }
+
+    if (rem.aprovacao === false || pagamentoAprovado) {//Se não precisar de aprovação ou tiver aprovado na tabela de
+      //Gera o TXT
+      const txt = await this.remessaService.gerarCnabText(headerName);
+      //Envia para o SFTP
+      await this.remessaService.enviarRemessa(txt, headerName);
+    }
+  }
 
   async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idOperadoras?: string[]) {
     const today = new Date();
@@ -935,7 +940,6 @@ export class CronJobsService {
       throw new Error("Formato inválido. Use HH:mm");
     }
     const [hours, minutes] = time.split(":");
-
     // Cron: minuto hora dia-do-mês mês dia-da-semana
     return `${parseInt(minutes)} ${parseInt(hours)} * * *`;
   }
@@ -944,8 +948,41 @@ export class CronJobsService {
     return new Date().getDay() === dia;
   }
 
+  async verificarAprovacao(rem: AgendamentoPagamentoRemessaDTO, headerArquivo: HeaderArquivo): Promise<boolean> {
+    if (rem.aprovacaoPagamento?.id) {
+      const aprovacao = await this.aprovacaoService.findById(rem.aprovacaoPagamento.id);
+      if(aprovacao){
+        if (aprovacao.status === AprovacaoEnum.Aprovado) {
+          return true;
+        }else {
+          let detalhesA: DetalheA[] = [];
+          for (const headerLote of headerArquivo.headersLote) {
+            detalhesA.push(... await this.detalheAService.getDetalheAHeaderLote(headerLote.id));
+          }
+
+          for (const detalheA of detalhesA) {
+            for (const beneficiario of rem.beneficiarios) {
+              if(await this.verificaBeneficiarioPagamento(beneficiario,detalheA)){
+                aprovacao.valorGerado  = detalheA.valorLancamento;
+                aprovacao.detalheA.id =  detalheA.id
+                aprovacao.status = AprovacaoEnum.AguardandoAprovacao;   
+                this.aprovacaoService.save(aprovacao); // atualiza a aprovação com valor gerado e o detalhe A
+              }            
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  async verificaBeneficiarioPagamento(beneficiario: CreateUserDto, detalheA: DetalheA) {
+    const res = await this.detalheAService.existsDetalheABeneficiario(detalheA.id,beneficiario.permitCode?beneficiario.permitCode:"");
+    if(res.length>0){
+      return true;
+    }
+    return false;
+  }
 }
-function verificarAprovacao(rem: AgendamentoPagamentoRemessaDTO): boolean {
-  throw new Error('Function not implemented.');
-}
+
 

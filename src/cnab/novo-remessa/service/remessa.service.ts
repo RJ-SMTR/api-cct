@@ -53,6 +53,7 @@ export class RemessaService {
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
   public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idOperadoras?: string[]) {
     let ordens;
+    let headerArquivo: HeaderArquivo = new HeaderArquivo;
     if (pagamentoUnico) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
         dataPgto ? dataPgto : new Date());
@@ -62,12 +63,10 @@ export class RemessaService {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
     }
 
-    if (ordens.length > 0) {
-     
-    
+    if (ordens.length > 0) { 
       const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId)
       if (!isEmpty(ordens)) {
-        const headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio));
+        headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio));
         let nsrTed = 1;
         let nsrCC = 1;
         for (let i = 0; i < ordens.length; i++) {
@@ -138,6 +137,7 @@ export class RemessaService {
         }
       }
     }
+    return headerArquivo;
   }
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO

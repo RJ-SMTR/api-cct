@@ -19,7 +19,7 @@ export class AgendamentoPagamentoRemessaDTO {
 
   horario: string;
 
-  pagador?: PagadorDTO;
+  pagador: PagadorDTO;
 
   aprovacao?: boolean;
 

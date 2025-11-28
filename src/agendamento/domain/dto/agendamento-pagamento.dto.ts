@@ -32,7 +32,7 @@ export class AgendamentoPagamentoDTO {
   motivoPagamentoUnico?: string;
 
   @IsOptional()
-  pagador?: PagadorDTO;
+  pagador: PagadorDTO;
 
   @IsOptional()
   @IsString()
@@ -40,7 +40,7 @@ export class AgendamentoPagamentoDTO {
 
   @IsOptional()
   @IsString()
-  horario?: string;
+  horario: string;
 
   @IsOptional()
   responsavel?: CreateUserDto;
@@ -55,9 +55,6 @@ export class AgendamentoPagamentoDTO {
 
   @IsOptional()
   aprovacaoPagamento?: AprovacaoPagamentoDTO;
-
-  @IsOptional()
-  aprovacaoPagamentoId?: number;
 
   @IsOptional()
   cadastrador?: CreateUserDto;

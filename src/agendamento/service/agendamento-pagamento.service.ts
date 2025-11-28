@@ -6,6 +6,7 @@ import { AgendamentoPagamentoConvert } from "../convert/agendamento-pagamento.co
 import { AprovacaoPagamentoRepository } from "../repository/aprovacao-pagamento.repository";
 import { UsersService } from 'src/users/users.service';
 import { AprovacaoEnum } from "../enums/aprovacao.enum";
+import { AprovacaoPagamentoDTO } from "../domain/dto/aprovacao-pagamento.dto";
 
 @Injectable()
 export class AgendamentoPagamentoService {
@@ -39,8 +40,11 @@ export class AgendamentoPagamentoService {
         dataAprovacao: new Date(),
         status: AprovacaoEnum.AguardandoAprovacao,
       } as any);
+
+      let aprovacaoPagamento:AprovacaoPagamentoDTO = new AprovacaoPagamentoDTO();
+      aprovacaoPagamento.id = novaAprovacao.id;'  '
       
-      agendamentoPagamento.aprovacaoPagamentoId = novaAprovacao.id;
+      agendamentoPagamento.aprovacaoPagamento = aprovacaoPagamento; 
     }
     
     return this.agendamentoPagamentoConvert.convertEntityToDTO(await this.agendamentoPagamentoRepository.save(agendamentoPagamento));   
