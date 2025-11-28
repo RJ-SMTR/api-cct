@@ -31,9 +31,9 @@ export class AprovacaoPagamentoService {
     return this.aprovacaoPagamentoConvert.convertEntityToDTO(await this.aprovacaoPagamentoRepository.save(aprovacaoPagamento));   
   }
 
-  async approvePayment(id:number, userId:number, password:string) {
+  async approvePayment(id:number, userId:number, password:string, valorAprovado?:number):Promise<AprovacaoPagamentoDTO> {
     const user = await this.usersService.findOne({ id: userId });
-    return await this.aprovacaoPagamentoRepository.approvePayment(id, user, password);
+    return await this.aprovacaoPagamentoRepository.approvePayment(id, user, password, valorAprovado);
   }
 
   async delete(id:number) {
