@@ -61,6 +61,7 @@ export class AgendamentoPagamentoController {
     async update(
         @Body() agendamentoPagamentoDTO: AgendamentoPagamentoDTO,
         @Param('id') id: number
+        
     ): Promise<AgendamentoPagamentoDTO> {
         agendamentoPagamentoDTO.id = id;
         return await this.agendamentoPagamentoService.save(agendamentoPagamentoDTO);

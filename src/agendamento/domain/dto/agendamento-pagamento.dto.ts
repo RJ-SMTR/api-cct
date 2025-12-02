@@ -35,8 +35,8 @@ export class AgendamentoPagamentoDTO {
   pagador: PagadorDTO;
 
   @IsOptional()
-  @IsString()
-  diaSemana?: string;
+  @IsNumber()
+  diaSemana?: number;
 
   @IsOptional()
   @IsString()

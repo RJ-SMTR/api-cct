@@ -47,8 +47,8 @@ export class AgendamentoPagamento extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_Pagador_ManyToOne' })
   pagador: Pagador;
 
-  @Column({ type: String, unique: false, nullable: true })
-  diaSemana: string;
+  @Column({ type: Number, unique: false, nullable: true })
+  diaSemana: number;
 
   @Column({ type: 'time', unique: false, nullable: false })
   horario: string;

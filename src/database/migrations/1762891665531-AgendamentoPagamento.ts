@@ -13,7 +13,7 @@ export class AgendamentoPagamento1762891665531 implements MigrationInterface {
     "dataPagamentoUnico" date,
     "valorPagamentoUnico" numeric(13,5),
     "motivoPagamentoUnico" character varying,
-    "diaSemana" character varying,
+    "diaSemana" integer,
     "horario" TIME,
     "aprovacao" boolean,
     "status" boolean,
