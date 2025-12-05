@@ -7,7 +7,7 @@ export class AgendamentoPagamentoRemessaDTO {
 
   tipoBeneficiario?: string | null;
   
-  beneficiarios: CreateUserDto[];
+  beneficiarios: CreateUserDto[]=[];
 
   tipoPagamento?: string | null; // Unico / Recorrente
 
@@ -26,6 +26,8 @@ export class AgendamentoPagamentoRemessaDTO {
   diaInicioPagar:number;
 
   diaFinalPagar:number;
+
+  diaIntervalo: number;
 
   @IsOptional()
   aprovacaoPagamento?: AprovacaoPagamentoDTO;

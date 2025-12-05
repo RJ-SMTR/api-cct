@@ -53,6 +53,8 @@ export class AgendamentoPagamentoDTO {
 
   diaFinalPagar:number;
 
+  diaIntervalo: number;
+
   @IsOptional()
   aprovacaoPagamento?: AprovacaoPagamentoDTO;
 
@@ -65,6 +67,6 @@ export class AgendamentoPagamentoDTO {
   @IsOptional()
   @IsBoolean()
   status?: boolean;
-
   
+  createdAt: Date;
 }

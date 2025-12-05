@@ -208,18 +208,18 @@ export class RemessaService {
 
   //PEGA O ARQUIVO TXT GERADO E ENVIA PARA O SFTP
   public async enviarRemessa(listCnab: ICnabInfo[], headerName?: string) {
-    for (const cnab of listCnab) {
-      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content, headerName);
-      if (cnab.name !== '') {
-        const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
-        await this.headerArquivoService.save({
-          id: cnab.headerArquivo.id, remessaName,
-          status: HeaderArquivoStatus._3_remessaEnviado
-        });
-      } else {
-        this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
-      }
-    }
+    // for (const cnab of listCnab) {
+    //   cnab.name = await this.sftpService.submitCnabRemessa(cnab.content, headerName);
+    //   if (cnab.name !== '') {
+    //     const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
+    //     await this.headerArquivoService.save({
+    //       id: cnab.headerArquivo.id, remessaName,
+    //       status: HeaderArquivoStatus._3_remessaEnviado
+    //     });
+    //   } else {
+    //     this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
+    //   }
+    // }
   }
 
   private async gerarHeaderArquivo(pagador: Pagador, remessaName: HeaderName) {

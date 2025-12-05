@@ -22,7 +22,7 @@ export class RetornoService {
 
     //LER ARQUIVO TXT CNAB DO SFTP 
     public async lerRetornoSftp(folder?: string) {
-        return await this.sftpService.getFirstRetornoPagamento(folder);
+       // return await this.sftpService.getFirstRetornoPagamento(folder);
     }
 
     public async salvarRetorno(cnab: { name: string, content: string }) {

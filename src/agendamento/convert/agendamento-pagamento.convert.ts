@@ -28,6 +28,10 @@ export class AgendamentoPagamentoConvert {
     dto.cadastrador = agendamentoPagamento.cadastrador as CreateUserDto;
     dto.modificador = agendamentoPagamento.modificador as CreateUserDto;
     dto.status = agendamentoPagamento.status;
+    dto.createdAt = agendamentoPagamento.createdAt;
+    dto.diaInicioPagar = agendamentoPagamento.diaInicioPagar;
+    dto.diaFinalPagar = agendamentoPagamento.diaFinalPagar;
+    dto.diaIntervalo = agendamentoPagamento.diaIntervalo;
 
     return dto;
   }

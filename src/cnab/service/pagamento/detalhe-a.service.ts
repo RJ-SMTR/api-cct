@@ -88,6 +88,10 @@ export class DetalheAService {
     return await this.detalheARepository.save(dto);
   }
 
+  public async saveEntity(entity: DetalheA): Promise<DetalheA> {    
+    return await this.detalheARepository.save(entity);
+  }
+
   public async getOneRaw(where: IDetalheARawWhere): Promise<DetalheA> {
     return await this.detalheARepository.getOneRaw(where);
   }
