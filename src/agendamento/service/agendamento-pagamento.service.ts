@@ -41,7 +41,7 @@ export class AgendamentoPagamentoService {
         status: AprovacaoEnum.AguardandoAprovacao,
       } as any);
 
-      let aprovacaoPagamento:AprovacaoPagamentoDTO = new AprovacaoPagamentoDTO();
+      const aprovacaoPagamento:AprovacaoPagamentoDTO = new AprovacaoPagamentoDTO();
       aprovacaoPagamento.id = novaAprovacao.id;'  '
       
       agendamentoPagamento.aprovacaoPagamento = aprovacaoPagamento; 

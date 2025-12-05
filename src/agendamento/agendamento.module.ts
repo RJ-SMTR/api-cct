@@ -25,5 +25,11 @@ import { UsersModule } from "src/users/users.module";
         AprovacaoPagamentoRepository,
         AprovacaoPagamentoService
     ],
+    exports: [
+        AgendamentoPagamentoService,
+        AprovacaoPagamentoService,
+        AgendamentoPagamentoRepository,
+        AprovacaoPagamentoRepository,
+    ],
 })
 export class AgendamentoPagamentoModule { }

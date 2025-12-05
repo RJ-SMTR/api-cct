@@ -34,7 +34,7 @@ export class AprovacaoPagamentoRepository {
     return await this.aprovacaoPagamentoRepository.save(aprovacaoPagamentoDTO);
   }
 
-  public async approvePayment(id:number, user: any, password:string) {
+  public async approvePayment(id:number, user: any, password:string, valorAprovado?:number) {
    let query 
     const isValidPassword = await bcrypt.compare(password, user.password)
     if (!isValidPassword) { 
@@ -44,7 +44,7 @@ export class AprovacaoPagamentoRepository {
      query = this.aprovacaoPagamentoRepository
       .createQueryBuilder()
       .update(AprovacaoPagamento)
-      .set({ status: AprovacaoEnum.Aprovado, dataAprovacao: new Date(), aprovador: user })
+      .set({ status: AprovacaoEnum.Aprovado, dataAprovacao: new Date(), aprovador: user, valorAprovado: valorAprovado })
       .where("id = :id", { id: id });
 
     }

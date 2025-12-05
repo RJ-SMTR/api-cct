@@ -1,11 +1,11 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Request, UseGuards } from "@nestjs/common";
 import { AprovacaoPagamentoDTO } from "../domain/dto/aprovacao-pagamento.dto";
+import { AprovacaoPagamentoAuthorizeDto } from "../domain/dto/aprovacao-pagamento-authorize.dto";
 import { AprovacaoPagamentoService } from "../service/aprovacao-pagamento.service";
 import { ApiBearerAuth, ApiBody, ApiTags } from "@nestjs/swagger";
 import { AuthGuard } from "@nestjs/passport";
 import { Nullable } from "src/utils/types/nullable.type";
 import { IRequest } from "src/utils/interfaces/request.interface";
-import { LancamentoAuthorizeDto } from "src/lancamento/dtos/lancamento-authorize.dto";
 import { RolesGuard } from "src/roles/roles.guard";
 import { Roles } from "src/roles/roles.decorator";
 import { RoleEnum } from "src/roles/roles.enum";
@@ -66,18 +66,22 @@ export class AprovacaoPagamentoController {
 
     @Put('/aprovar/:id')
     @HttpCode(HttpStatus.NO_CONTENT)
-    @UseGuards(AuthGuard('jwt'))
-      @Roles(
-            RoleEnum.master, //
-        )
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
+    @Roles(RoleEnum.master)
     @ApiBearerAuth()
+    @ApiBody({ type: AprovacaoPagamentoAuthorizeDto })
     async put(
         @Request() req: IRequest, 
-        @Body() lancamentoAuthorizeDto: LancamentoAuthorizeDto,
+        @Body() aprovacaoPagamentoAuthorizeDto: AprovacaoPagamentoAuthorizeDto,
         @Param('id') id: number,
     ): Promise<AprovacaoPagamentoDTO> {
         const userId = req.user.id;
-        return await this.aprovacaoPagamentoService.approvePayment(id, userId, lancamentoAuthorizeDto.password);
+        return await this.aprovacaoPagamentoService.approvePayment(
+            id, 
+            userId, 
+            aprovacaoPagamentoAuthorizeDto.password,
+            aprovacaoPagamentoAuthorizeDto.valorAprovado
+        );
     }
 
     @Delete('/:id')
