@@ -115,7 +115,7 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-   // await this.sincronizarEAgruparOrdensPagamento();
+    await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -124,7 +124,7 @@ export class CronJobsService {
   async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
-    this.jobsConfig.push(       
+    this.jobsConfig.push(
       {
         /**
          * Job interno.
@@ -262,13 +262,15 @@ export class CronJobsService {
       },
     );
 
+    this.jobsConfig.push(...await this.geraCronJob());
+
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
     if (process.env.CRONJOBS != 'false') {
-      this.jobsConfig.push(...await this.geraCronJob());
-      for (const jobConfig of this.jobsConfig) {
+    
+    for (const jobConfig of this.jobsConfig) {
         this.startCron(jobConfig);
         this.logger.log(`Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`);
-      }
+      }  
     } else {
       this.logger.warn(`env->CRONJOBS = false. Cronjobs inativos.`);
     }
@@ -669,7 +671,7 @@ export class CronJobsService {
     for (let index = 0; index < consorcios.length; index++) {
       await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
         dataFim, dataPagamento, rem.pagador, [consorcios[index]]);
-    }       
+    }
 
     //Prepara o remessa
     const headerArquivo = await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios);
@@ -680,7 +682,7 @@ export class CronJobsService {
       pagamentoAprovado = await this.verificarAprovacao(rem, headerArquivo) //atualizar o detalhe_a e valor gerado
     }
 
-    if (rem.aprovacao === false || pagamentoAprovado) {//Se não precisar de aprovação ou tiver aprovado na tabela de
+    if (rem.aprovacao==null || rem.aprovacao == false || pagamentoAprovado) {//Se não precisar de aprovação ou tiver aprovado na tabela de
       //Gera o TXT
       const txt = await this.remessaService.gerarCnabText(headerName);
       //Envia para o SFTP
@@ -751,16 +753,26 @@ export class CronJobsService {
   }
 
   async remessaAutomacaoExec(rem: AgendamentoPagamentoRemessaDTO) {
-    const today = new Date();
-    let dataInicio;
-    let dataFim;
+    this.logger.log('INICIO AUTOMAÇÃO');
 
-    dataInicio = subDays(today, rem.diaFinalPagar);
-    dataFim = subDays(today, rem.diaInicioPagar); 
+    const today = new Date();      
+    const dataInicio =  this.getData(today.getDay()+1,rem.diaInicioPagar);  
+    const dataFim = this.getData(today.getDay()+1,rem.diaFinalPagar);
 
     const beneficiarios = rem.beneficiarios.flatMap(b => b.fullName ? [b.fullName] : [])
     await this.limparAgrupamentos(dataInicio, dataFim, beneficiarios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, beneficiarios, rem);
+    this.logger.log('TERMINO AUTOMAÇÃO');
+  }
+
+  getData(today:number,data:number):Date{
+    let diferenca = 0
+    if(data > today){
+      diferenca = data - today;
+    }else{
+      diferenca = today - data;
+    }    
+    return subDays(new Date(),diferenca);
   }
 
   async retornoExec() {
@@ -776,7 +788,7 @@ export class CronJobsService {
     //   } else {
     //     arq = false;
     //   }
-   // }
+    // }
   }
 
   async sincronizarEAgruparOrdensPagamento() {
@@ -888,25 +900,25 @@ export class CronJobsService {
     const cronsAutonomos: ICronJob[] = []
 
     const agendamentos = await this.agendamentoPagamentoService.findAll();
-
-    let remessa = new AgendamentoPagamentoRemessaDTO();
-
+   
     let listaRemessas: AgendamentoPagamentoRemessaDTO[] = [];
 
     for (const agenda of agendamentos) {
-      if (agenda.status && (this.verificaDiaSemana(agenda.diaSemana)) || this.verificarIntervalo(agenda.diaIntervalo,agenda.createdAt)) { // verifica se o agendamento esta ativo e se é do dia atual 
+      if (agenda.status && (this.verificaDiaSemana(agenda.diaSemana)) || this.verificarIntervalo(agenda.diaIntervalo, agenda.createdAt)) { // verifica se o agendamento esta ativo e se é do dia atual 
         if (agenda.beneficiarioUsuario) {
           const tipo = agenda.tipoBeneficiario; // Consorcio, Modal ou Individual
           // Procura a remessa existente
           let remessaExistente = listaRemessas.find(r => r.tipoBeneficiario === tipo);
           // Se não existe, cria e adiciona na lista
           if (!remessaExistente) {
-            this.instanciaRemessa(remessa, agenda);
-            listaRemessas.push(remessa);
-            remessaExistente = remessa;
-          }
+            const novaRemessa = new AgendamentoPagamentoRemessaDTO();
+            this.instanciaRemessa(novaRemessa, agenda);
+            listaRemessas.push(novaRemessa);
+            remessaExistente = novaRemessa;
+          }else{
           // Agora já garantimos que existe, então adiciona o beneficiário
-          remessaExistente.beneficiarios.push(agenda.beneficiarioUsuario);
+            remessaExistente.beneficiarios.push(agenda.beneficiarioUsuario);
+          }
         }
       }
     }
@@ -916,12 +928,13 @@ export class CronJobsService {
       */
     for (const rem of listaRemessas) {
       cronsAutonomos.push({
-        name: CronJobsEnum.automacao,
+        name: `${CronJobsEnum.automacao}_${rem.tipoBeneficiario}_${rem.horario}`,
         cronJobParameters: {
-          cronTime: this.getHorarioFormatado(this.remHours(rem.horario,3)),
+          cronTime: this.getHorarioFormatado(this.remHours(rem.horario, 0)),
           onTick: async () => {
             await this.remessaAutomacaoExec(rem);
-          }
+          },
+          timeZone: 'America/Sao_Paulo'
         }
       })
     }
@@ -957,21 +970,28 @@ export class CronJobsService {
   }
 
 
-  getHorarioFormatado(time) {
-    if (!/^\d{2}:\d{2}$/.test(time.slice(0, 5))) {
-      throw new Error("Formato inválido. Use HH:mm");
-    }
-    const [hours, minutes] = time.split(":");
-    // Cron: minuto hora dia-do-mês mês dia-da-semana
-    return `${parseInt(minutes)} ${parseInt(hours)} * * *`;
+ getHorarioFormatado(time) {
+  // Aceita "HH:mm" ou "HH:mm:ss"
+  const match = time.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+
+  if (!match) {
+    throw new Error("Formato inválido. Use HH:mm ou HH:mm:ss");
   }
 
-  
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+
+  // Cron no formato: minuto hora dia-do-mês mês dia-da-semana
+  // Ex: "30 13 * * *"
+  return `${minutes} ${hours} * * *`;
+}
+
+
   verificaDiaSemana(dia) {
-    return (new Date().getDay()+1) === Number(dia);
+    return (new Date().getDay() + 1) === Number(dia);
   }
 
-  verificarIntervalo(diaIntervalo: number, createdAt: Date){
+  verificarIntervalo(diaIntervalo: number, createdAt: Date) {
     let data = new Date(createdAt);
     const hoje = new Date();
 
@@ -993,53 +1013,53 @@ export class CronJobsService {
     if (rem.aprovacaoPagamento?.id) {
       const aprovacao = await this.aprovacaoService.findById(rem.aprovacaoPagamento.id);
 
-      if(aprovacao){
+      if (aprovacao) {
         let detalhesA: DetalheA[] = [];
         for (const headerLote of headerArquivo.headersLote) {
           detalhesA.push(... await this.detalheAService.getDetalheAHeaderLote(headerLote.id));
         }
 
         if (aprovacao.status === AprovacaoEnum.Aprovado) {
-          this.verificarValoresAprovados(detalhesA,rem.beneficiarios,aprovacao);//Se o pagamento estiver aprovado atualiza os valores de lancamento no detalhe_A
+          this.verificarValoresAprovados(detalhesA, rem.beneficiarios, aprovacao);//Se o pagamento estiver aprovado atualiza os valores de lancamento no detalhe_A
           return true;
-        }else {
-          this.atualizarValorGeradoBQ(detalhesA,rem.beneficiarios,aprovacao);          
+        } else {
+          this.atualizarValorGeradoBQ(detalhesA, rem.beneficiarios, aprovacao);
         }
       }
     }
     return false;
-  }  
+  }
 
-  async verificarValoresAprovados(detalhesA:DetalheA[],beneficiarios:CreateUserDto[],aprovacao:AprovacaoPagamentoDTO){
+  async verificarValoresAprovados(detalhesA: DetalheA[], beneficiarios: CreateUserDto[], aprovacao: AprovacaoPagamentoDTO) {
     for (const detalheA of detalhesA) {
       for (const beneficiario of beneficiarios) {
-        if(await this.verificaBeneficiarioPagamento(beneficiario,detalheA)){
+        if (await this.verificaBeneficiarioPagamento(beneficiario, detalheA)) {
           detalheA.valorLancamento = aprovacao.valorAprovado;
-          detalheA.valorRealEfetivado = aprovacao.valorAprovado;          
+          detalheA.valorRealEfetivado = aprovacao.valorAprovado;
           await this.detalheAService.saveEntity(detalheA);   //Atualiza valor aprovado no detalhe A     
-        }            
+        }
       }
     }
   }
 
-  async atualizarValorGeradoBQ(detalhesA: DetalheA[], beneficiarios: CreateUserDto[],aprovacao:AprovacaoPagamentoDTO) {
+  async atualizarValorGeradoBQ(detalhesA: DetalheA[], beneficiarios: CreateUserDto[], aprovacao: AprovacaoPagamentoDTO) {
     for (const detalheA of detalhesA) {
       for (const beneficiario of beneficiarios) {
-        if(await this.verificaBeneficiarioPagamento(beneficiario,detalheA)){
+        if (await this.verificaBeneficiarioPagamento(beneficiario, detalheA)) {
           aprovacao.valorGerado = detalheA.valorLancamento;
           aprovacao.detalheA.id = detalheA.id;
-          aprovacao.status = AprovacaoEnum.AguardandoAprovacao;   
+          aprovacao.status = AprovacaoEnum.AguardandoAprovacao;
           this.aprovacaoService.save(aprovacao); // atualiza a aprovação com valor gerado e o detalhe A
-        }            
+        }
       }
     }
   }
 
   async verificaBeneficiarioPagamento(beneficiario: CreateUserDto, detalheA: DetalheA) {
-    const res = await this.detalheAService.existsDetalheABeneficiario(detalheA.id,beneficiario.permitCode?beneficiario.permitCode:"");
-    if(res.length>0){
+    const res = await this.detalheAService.existsDetalheABeneficiario(detalheA.id, beneficiario.permitCode ? beneficiario.permitCode : "");
+    if (res.length > 0) {
       return true;
     }
     return false;
-  } 
+  }
 }
