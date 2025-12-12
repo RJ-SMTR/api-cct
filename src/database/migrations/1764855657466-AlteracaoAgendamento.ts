@@ -24,7 +24,7 @@ export class AlteracaoAgendamento1764855657466 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "aprovacao_pagamento" ALTER COLUMN "valorAprovado" DROP NOT NULL`);
         await queryRunner.query(`ALTER TABLE "aprovacao_pagamento" ALTER COLUMN "dataAprovacao" DROP NOT NULL`);
         await queryRunner.query(`ALTER TABLE "aprovacao_pagamento" DROP COLUMN "status"`);
-        await queryRunner.query(`CREATE TYPE IF NOT EXISTS "public"."aprovacao_pagamento_status_enum" AS ENUM('0', '1', '2')`);
+        await queryRunner.query(`CREATE TYPE "public"."aprovacao_pagamento_status_enum" AS ENUM('0', '1', '2')`);
         await queryRunner.query(`ALTER TABLE "aprovacao_pagamento" ADD "status" "public"."aprovacao_pagamento_status_enum" NOT NULL DEFAULT '1'`);
         await queryRunner.query(`CREATE SEQUENCE IF NOT EXISTS "agendamento_pagamento_id_seq" OWNED BY "agendamento_pagamento"."id"`);
         await queryRunner.query(`ALTER TABLE "agendamento_pagamento" ALTER COLUMN "id" SET DEFAULT nextval('"agendamento_pagamento_id_seq"')`);                        
