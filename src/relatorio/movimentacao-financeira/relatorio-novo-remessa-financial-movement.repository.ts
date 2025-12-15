@@ -219,6 +219,7 @@ INNER JOIN bank bc
     ON bc.code = pu."bankCode"
 WHERE
     da."dataVencimento" BETWEEN $1 AND $2
+        AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND (
         ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
@@ -282,36 +283,31 @@ cadeias_com_paga AS (
   private readonly pendenciasPagasEstRejSQL = `
 SELECT DISTINCT
     oph."dataReferencia" AS "dataReferencia",
-    uu."fullName" AS nomes,
-    uu.email,
-    uu."bankCode" AS "codBanco",
+    pu."fullName" AS nomes,
+    pu.email,
+    pu."bankCode" AS "codBanco",
     bc.name AS "nomeBanco",
-    uu."cpfCnpj",
-    CASE
-      WHEN uu."permitCode" = '8' THEN 'VLT'
-      WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
-      WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
-      WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
-      ELSE op."nomeConsorcio"
-    END AS "nomeConsorcio",
+    pu."cpfCnpj",
+    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     CASE
         WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),3)
         ELSE da."valorLancamento"
     END AS valor,
-	  pd."dataReferencia",
+	  pd."dataReferencia" AS "dataPagamento",
     'Pendencia Paga' AS status
 FROM ordem_pagamento op
   INNER JOIN ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id
   INNER JOIN ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
   INNER JOIN pendencia pd on opa."ordemPagamentoAgrupadoId" = pd.id
   LEFT JOIN detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
-  LEFT JOIN public."user" uu on uu."id"=op."userId"
-  LEFT JOIN bank bc ON bc.code = uu."bankCode"
+  LEFT JOIN public."user" pu on pu."id"=op."userId"
+  LEFT JOIN bank bc ON bc.code = pu."bankCode"
 WHERE
      oph."motivoStatusRemessa" NOT IN ('AM')
     AND da."dataVencimento" IS NOT NULL
     AND op."ordemPagamentoAgrupadoId" IS NULL
-    AND ($3::integer[] IS NULL OR uu."id" = ANY($3))
+    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+        AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
     AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -485,8 +481,12 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           }
           if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
 
+            if(safeFilter.pendenciaPaga){
+              finalQuery = this.prependWithIfNeeded(finalQuery);
+          } else {
 
-          finalQuery = this.wrapWithOuterFilters(finalQuery);
+            finalQuery = this.wrapWithOuterFilters(finalQuery);
+          }
         } else {
           finalQuery = queryDecision.query;
 
@@ -642,6 +642,7 @@ ${inner}
 WHERE
   t."dataReferencia" BETWEEN $1 AND $2
   AND ($5::text[] IS NULL OR TRIM(UPPER(t."nomeConsorcio")) = ANY($5))
+  AND ($4::text[] IS NULL OR t.status = ANY($4))
 `;
   }
 
@@ -691,7 +692,7 @@ WHERE
 
     // const modaisEspeciais = ['STPC', 'STPL', 'TEC'];
 
-    console.log(consorcioNome)
+    // console.log(consorcioNome)
     const dataInicio = filter.dataInicio || null;
     const dataFim = filter.dataFim || null;
     const userIds = filter.userIds || null;
