@@ -55,9 +55,8 @@ FROM
     JOIN bank bc on bc.code = pu."bankCode"
     INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id
 WHERE
-    da."dataVencimento" BETWEEN $1 AND $2
-    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
+
+   ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -96,7 +95,6 @@ FROM
 WHERE
     da."dataVencimento" BETWEEN $1 AND $2
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -222,7 +220,6 @@ INNER JOIN bank bc
 WHERE
     da."dataVencimento" BETWEEN $1 AND $2
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
         ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
         AND ($7::numeric IS NULL OR op."valor" <= $7::numeric)
@@ -315,7 +312,6 @@ WHERE
     AND da."dataVencimento" IS NOT NULL
     AND op."ordemPagamentoAgrupadoId" IS NULL
     AND ($3::integer[] IS NULL OR uu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
     AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -459,7 +455,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
         if (safeFilter.desativados) query2025 += ` AND pu.bloqueado = true`;
 
-        query2025 = this.prependWithIfNeeded(query2025);
+        query2025 = this.wrapWithOuterFilters(query2025);
 
         const res2025 = await queryRunner.query(query2025, params2025);
 
@@ -490,7 +486,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
 
 
-          finalQuery = this.prependWithIfNeeded(finalQuery);
+          finalQuery = this.wrapWithOuterFilters(finalQuery);
         } else {
           finalQuery = queryDecision.query;
 
@@ -636,6 +632,19 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     return `${this.WITH_AS}${query}`;
   }
 
+  private wrapWithOuterFilters(query: string): string {
+    const inner = this.prependWithIfNeeded(query);
+    return `
+SELECT *
+FROM (
+${inner}
+) t
+WHERE
+  t."dataReferencia" BETWEEN $1 AND $2
+  AND ($5::text[] IS NULL OR TRIM(UPPER(t."nomeConsorcio")) = ANY($5))
+`;
+  }
+
   private getStatusParaFiltro(filter: {
     pago?: boolean;
     erro?: boolean;
@@ -680,7 +689,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
       ? filter.consorcioNome.map(n => n.toUpperCase().trim())
       : null;
 
-    const modaisEspeciais = ['SPTC', 'STPL', 'TEC'];
+    // const modaisEspeciais = ['STPC', 'STPL', 'TEC'];
 
     console.log(consorcioNome)
     const dataInicio = filter.dataInicio || null;
