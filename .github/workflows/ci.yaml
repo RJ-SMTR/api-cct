@@ -2,9 +2,9 @@ name: Linting and auditing
 
 on:
   push:
-    branches: [hmg]
+    branches: [homol]
   pull_request:
-    branches: [hmg]
+    branches: [homol]
     paths-ignore:
       - 'README.md'
       - 'docs/**'
