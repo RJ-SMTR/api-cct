@@ -45,7 +45,6 @@ import { AprovacaoPagamentoService } from 'src/agendamento/service/aprovacao-pag
 import { AprovacaoEnum } from 'src/agendamento/enums/aprovacao.enum';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { AprovacaoPagamentoDTO } from 'src/agendamento/domain/dto/aprovacao-pagamento.dto';
-import { TipoBeneficarioEnum } from 'src/agendamento/enums/tipo-beneficiario.enum';
 
 
 /**
