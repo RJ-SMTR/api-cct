@@ -52,6 +52,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, options);
   SwaggerModule.setup('docs', app, document);
 
-  await app.listen(configService.getOrThrow('app.port', { infer: true }));
+  const port = configService.getOrThrow('app.port', { infer: true });
+  await app.listen(port);
+  const url = await app.getUrl();
+  console.log(`Lendo em ${url} (port: ${port})`);
 }
 void bootstrap();
