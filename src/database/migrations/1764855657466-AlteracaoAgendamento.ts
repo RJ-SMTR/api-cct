@@ -12,9 +12,9 @@ export class AlteracaoAgendamento1764855657466 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX "public"."statusRemessa_idx"`);
         await queryRunner.query(`DROP INDEX "public"."detalhe_a_dataVencimento_ordemPagamentoHistoricoId"`);
         await queryRunner.query(`CREATE TABLE "transacao_bigquery" ("id_transacao" character varying(100) NOT NULL, "data" date, "datetime_transacao" TIMESTAMP, "consorcio" character varying, "valor_pagamento" numeric(13,5) NOT NULL, "id_ordem_pagamento" character varying, "id_ordem_pagamento_consorcio_operador_dia" character varying, "tipo_transacao" character varying, "datetime_ultima_atualizacao" TIMESTAMP, CONSTRAINT "PK_84b632b4274a2dac3a01ee7b5a6" PRIMARY KEY ("id_transacao"))`);
-        await queryRunner.query(`ALTER TABLE "agendamento_pagamento" ADD "diaInicioPagar" integer NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "agendamento_pagamento" ADD "diaFinalPagar" integer NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "agendamento_pagamento" ADD "diaIntervalo" integer NOT NULL`);
+        await queryRunner.query(`ALTER TABLE "agendamento_pagamento" ADD "diaInicioPagar" integer`);
+        await queryRunner.query(`ALTER TABLE "agendamento_pagamento" ADD "diaFinalPagar" integer`);
+        await queryRunner.query(`ALTER TABLE "agendamento_pagamento" ADD "diaIntervalo" integer`);
         await queryRunner.query(`ALTER TABLE "user" ALTER COLUMN "updatedAt" DROP DEFAULT`);
         await queryRunner.query(`ALTER TABLE "user" ALTER COLUMN "bloqueado" DROP DEFAULT`);        
         await queryRunner.query(`ALTER TABLE "agendamento_pagamento" DROP CONSTRAINT "FK_AprovacaoPagamento_ManyToOne"`);
