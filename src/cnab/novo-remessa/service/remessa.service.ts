@@ -53,6 +53,7 @@ export class RemessaService {
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
   public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idOperadoras?: string[]) {
     let ordens;
+    let headerArquivo: HeaderArquivo = new HeaderArquivo;
     if (pagamentoUnico) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
         dataPgto ? dataPgto : new Date());
@@ -62,12 +63,10 @@ export class RemessaService {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
     }
 
-    if (ordens.length > 0) {
-     
-    
+    if (ordens.length > 0) { 
       const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId)
       if (!isEmpty(ordens)) {
-        const headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio));
+        headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio));
         let nsrTed = 1;
         let nsrCC = 1;
         for (let i = 0; i < ordens.length; i++) {
@@ -115,13 +114,6 @@ export class RemessaService {
                     opa = op.ordemPagamentoAgrupado
                   }
               }
-              // opa = op.ordemPagamentoAgrupado
-              // if (isPedente) {
-              //   const teste = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(op.ordemPagamentoAgrupado.id);
-              //   // opa = teste?.ordemPagamentoAgrupadoId
-              // } else
-
-              
 
               if (headerLote) {
                 if (headerLote.formaLancamento === '41') {
@@ -145,6 +137,7 @@ export class RemessaService {
         }
       }
     }
+    return headerArquivo;
   }
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO
@@ -215,18 +208,18 @@ export class RemessaService {
 
   //PEGA O ARQUIVO TXT GERADO E ENVIA PARA O SFTP
   public async enviarRemessa(listCnab: ICnabInfo[], headerName?: string) {
-    for (const cnab of listCnab) {
-      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content, headerName);
-      if (cnab.name !== '') {
-        const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
-        await this.headerArquivoService.save({
-          id: cnab.headerArquivo.id, remessaName,
-          status: HeaderArquivoStatus._3_remessaEnviado
-        });
-      } else {
-        this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
-      }
-    }
+    // for (const cnab of listCnab) {
+    //   cnab.name = await this.sftpService.submitCnabRemessa(cnab.content, headerName);
+    //   if (cnab.name !== '') {
+    //     const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
+    //     await this.headerArquivoService.save({
+    //       id: cnab.headerArquivo.id, remessaName,
+    //       status: HeaderArquivoStatus._3_remessaEnviado
+    //     });
+    //   } else {
+    //     this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
+    //   }
+    // }
   }
 
   private async gerarHeaderArquivo(pagador: Pagador, remessaName: HeaderName) {

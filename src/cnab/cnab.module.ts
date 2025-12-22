@@ -89,6 +89,14 @@ import { RetornoService } from './novo-remessa/service/retorno.service';
 import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
 import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+import { AgendamentoPagamentoService } from 'src/agendamento/service/agendamento-pagamento.service';
+import { AprovacaoPagamentoService } from 'src/agendamento/service/aprovacao-pagamento.service';
+import { AgendamentoPagamentoRepository } from 'src/agendamento/repository/agendamento-pagamento.repository';
+import { AprovacaoPagamentoRepository } from 'src/agendamento/repository/aprovacao-pagamento.repository';
+import { AgendamentoPagamentoConvert } from 'src/agendamento/convert/agendamento-pagamento.convert';
+import { AprovacaoPagamentoConvert } from 'src/agendamento/convert/aprovacao-pagamento.convert';
+import { AgendamentoPagamento } from 'src/agendamento/domain/entity/agendamento-pagamento.entity';
+import { AprovacaoPagamento } from 'src/agendamento/domain/entity/aprovacao-pagamento.entity';
 
 @Module({
   imports: [
@@ -123,7 +131,9 @@ import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transac
       PagamentoIndevido,
       OrdemPagamento,
       OrdemPagamentoAgrupado,
-      OrdemPagamentoAgrupadoHistorico
+      OrdemPagamentoAgrupadoHistorico,
+      AgendamentoPagamento,
+      AprovacaoPagamento
     ]),
   ],
   providers: [
@@ -180,7 +190,13 @@ import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transac
     RemessaService,
     RetornoService,
     DistributedLockService,
-    DistributedLockRepository
+    DistributedLockRepository,
+    AgendamentoPagamentoService,
+    AprovacaoPagamentoService,
+    AgendamentoPagamentoRepository,
+    AprovacaoPagamentoRepository,
+    AgendamentoPagamentoConvert,
+    AprovacaoPagamentoConvert
   ],
   exports: [
     CnabService, //
@@ -231,7 +247,13 @@ import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transac
     RemessaService,
     RetornoService,
     DistributedLockService,
-    DistributedLockRepository
+    DistributedLockRepository,
+    AgendamentoPagamentoService,
+    AprovacaoPagamentoService,
+    AgendamentoPagamentoRepository,
+    AprovacaoPagamentoRepository,
+    AgendamentoPagamentoConvert,
+    AprovacaoPagamentoConvert
   ],
   controllers: [CnabController, OrdemPagamentoController],
 })

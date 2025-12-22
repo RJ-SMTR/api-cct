@@ -16,6 +16,7 @@ import { OrdemPagamentoUnicoDto } from '../dto/ordem-pagamento-unico.dto';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 import { formatDateISODate } from 'src/utils/date-utils';
 import { format, getMonth, getYear, isFriday, isTuesday, max, subDays } from 'date-fns';
+import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -381,7 +382,7 @@ ORDER BY dr.data;
     });
   }
 
-  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]): Promise<void> {
+  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO, consorcios: string[]): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];

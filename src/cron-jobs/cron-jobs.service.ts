@@ -35,7 +35,17 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
-
+import { AgendamentoPagamentoService } from 'src/agendamento/service/agendamento-pagamento.service';
+import { AgendamentoPagamentoRemessaDTO } from 'src/agendamento/domain/dto/agendamento-pagamento-remessa.dto';
+import { AgendamentoPagamentoDTO } from 'src/agendamento/domain/dto/agendamento-pagamento.dto';
+import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
+import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
+import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
+import { AprovacaoPagamentoService } from 'src/agendamento/service/aprovacao-pagamento.service';
+import { AprovacaoEnum } from 'src/agendamento/enums/aprovacao.enum';
+import { CreateUserDto } from 'src/users/dto/create-user.dto';
+import { AprovacaoPagamentoDTO } from 'src/agendamento/domain/dto/aprovacao-pagamento.dto';
+import { TipoBeneficarioEnum } from 'src/agendamento/enums/tipo-beneficiario.enum';
 
 
 /**
@@ -53,7 +63,8 @@ export enum CronJobsEnum {
   generateRemessaVanzeiros = 'generateRemessaVanzeiros',
   generateRemessaLancamento = 'generateRemessaLancamento',
   sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento',
-  sincronizarTransacoesBq = 'sincronizarTransacoesBq'
+  sincronizarTransacoesBq = 'sincronizarTransacoesBq',
+  automacao = 'automacao'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -98,6 +109,9 @@ export class CronJobsService {
     private ordemPagamentoService: OrdemPagamentoService,
     private bigQueryTransacaoService: BigqueryTransacaoService,
     private distributedLockService: DistributedLockService,
+    private agendamentoPagamentoService: AgendamentoPagamentoService,
+    private aprovacaoService: AprovacaoPagamentoService,
+    private detalheAService: DetalheAService
   ) { }
 
   async onModuleInit() {
@@ -107,10 +121,10 @@ export class CronJobsService {
     });
   }
 
+  async onModuleLoad() {     
 
-  async onModuleLoad() {  
-    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
+
     this.jobsConfig.push(
       {
         /**
@@ -247,24 +261,17 @@ export class CronJobsService {
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
-      // {
-      //   /**
-      //    * Sincroniza transacoes do BQ.
-      //    * */
-      //   name: CronJobsEnum.sincronizarTransacoesBq,
-      //   cronJobParameters: {
-      //     cronTime: "0 12 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
-      //     onTick: async () => await this.sincronizarTransacoesBq(),
-      //   },
-      // }
     );
+
+    this.jobsConfig.push(...await this.geraCronJob());
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
     if (process.env.CRONJOBS != 'false') {
-      for (const jobConfig of this.jobsConfig) {
+    
+    for (const jobConfig of this.jobsConfig) {
         this.startCron(jobConfig);
         this.logger.log(`Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`);
-      }
+      }  
     } else {
       this.logger.warn(`env->CRONJOBS = false. Cronjobs inativos.`);
     }
@@ -658,27 +665,31 @@ export class CronJobsService {
   }
 
   private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
-    consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
-    // Agrupa pagamentos        
+    consorcios: string[], rem: AgendamentoPagamentoRemessaDTO) {
 
+    // Agrupa pagamentos     
+    const headerName = rem.tipoBeneficiario == "Consorcio" ? HeaderName.CONSORCIO : HeaderName.MODAL
     for (let index = 0; index < consorcios.length; index++) {
-      if (pagamentoUnico) {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
-          dataFim, dataPagamento, "cett", [consorcios[index]]);
-      } else {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
-      }
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+        dataFim, dataPagamento, rem.pagador, [consorcios[index]]);
     }
 
-    // //Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
-    //Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
-    //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt, headerName);
-  }
+    //Prepara o remessa
+    const headerArquivo = await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios);
 
+    let pagamentoAprovado = false;
+
+    if (rem.aprovacao) {//se estiver marcado que necessita de aprovação
+      pagamentoAprovado = await this.verificarAprovacao(rem, headerArquivo) //atualizar o detalhe_a e valor gerado
+    }
+
+    if (rem.aprovacao==null || rem.aprovacao == false || pagamentoAprovado) {//Se não precisar de aprovação ou tiver aprovado na tabela de
+      //Gera o TXT
+      const txt = await this.remessaService.gerarCnabText(headerName);
+      //Envia para o SFTP
+      await this.remessaService.enviarRemessa(txt, headerName);
+    }
+  }
 
   async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idOperadoras?: string[]) {
     const today = new Date();
@@ -690,7 +701,7 @@ export class CronJobsService {
 
   private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
     headerName: HeaderName, idOperadoras?: string[]) {
-    this.logger.debug('iniicando o agrupamento pendente')
+    this.logger.debug('iniciando o agrupamento pendente')
     if (dataInicio)
       // AGRUPAR ORDENS POR INDIVIDUO
       await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
@@ -705,47 +716,25 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
-  // async remessaVLTExec(todayCustom?: Date, pagamentoUnico?: boolean) {
-  //   //Rodar de segunda a sexta   
-  //   let today = todayCustom ? todayCustom : new Date();
-  //   /** defaut: qua,qui,sex,sáb,dom */
-  //   let daysBeforeBegin = 1;
-  //   let daysBeforeEnd = 1;
-  //   if (isMonday(today)) {
-  //     daysBeforeBegin = 3;
-  //     daysBeforeEnd = 3;
-  //   } else if (isTuesday(today)) {
-  //     daysBeforeBegin = 3;
+  // async remessaModalExec(pagamentoUnico?: boolean) {
+  //   const today = new Date();
+  //   let subDaysInt = 0;
+
+  //   if (isTuesday(today)) {
+  //     subDaysInt = 4;
+  //   } else if (isFriday(today)) {
+  //     subDaysInt = 3;
+  //   } else {
+  //     return;
   //   }
-  //   const dataInicio = subDays(today, daysBeforeBegin);
-  //   const dataFim = subDays(today, daysBeforeEnd);
 
-  //   console.log(`data incicio: ${dataInicio}`);
-  //   console.log(`data fim: ${dataFim}`);
-  //   console.log(`data pagamento: ${today}`);
+  //   const dataInicio = subDays(today, subDaysInt);
+  //   const dataFim = subDays(today, 1);
+  //   const consorcios = ['STPC', 'STPL', 'TEC'];
+  //   await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
   //   await this.geradorRemessaExec(dataInicio, dataFim, today,
-  //     ['VLT'], HeaderName.VLT, pagamentoUnico);
+  //     consorcios, HeaderName.MODAL, pagamentoUnico);
   // }
-
-  async remessaModalExec(pagamentoUnico?: boolean) {
-    const today = new Date();
-    let subDaysInt = 0;
-
-    if (isTuesday(today)) {
-      subDaysInt = 4;
-    } else if (isFriday(today)) {
-      subDaysInt = 3;
-    } else {
-      return;
-    }
-
-    const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 1);
-    const consorcios = ['STPC', 'STPL', 'TEC'];
-    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
-    await this.geradorRemessaExec(dataInicio, dataFim, today,
-      consorcios, HeaderName.MODAL, pagamentoUnico);
-  }
 
   async limparAgrupamentos(dataInicio: Date, dataFim: Date, consorcios: string[]) {
     const ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
@@ -764,41 +753,43 @@ export class CronJobsService {
     }
   }
 
-  async remessaConsorciosExec(pagamentoUnico?: boolean) {
+  async remessaAutomacaoExec(rem: AgendamentoPagamentoRemessaDTO) {
+    this.logger.log('INICIO AUTOMAÇÃO');
 
-    const today = new Date();
-    let subDaysInt = 0;
+    const today = new Date();      
+    const dataInicio =  this.getData(today.getDay()+1,rem.diaInicioPagar);  
+    const dataFim = this.getData(today.getDay()+1,rem.diaFinalPagar);
 
-    if (isTuesday(today)) {
-      subDaysInt = 4;
-    } else if (isFriday(today)) {
-      subDaysInt = 3;
-    } else {
-      return;
-    }
+    const beneficiarios = rem.beneficiarios.flatMap(b => b.fullName ? [b.fullName] : [])
+    await this.limparAgrupamentos(dataInicio, dataFim, beneficiarios);
+    await this.geradorRemessaExec(dataInicio, dataFim, today, beneficiarios, rem);
+    this.logger.log('TERMINO AUTOMAÇÃO');
+  }
 
-    const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 1);
-
-    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca', 'MobiRio', 'VLT']
-    // await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
-    await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
+  getData(today:number,data:number):Date{
+    let diferenca = 0
+    if(data > today){
+      diferenca = data - today;
+    }else{
+      diferenca = today - data;
+    }    
+    return subDays(new Date(),diferenca);
   }
 
   async retornoExec() {
-    let arq = true;
-    while (arq) {
-      const txt = await this.retornoService.lerRetornoSftp();
-      if (txt) {
-        try {
-          await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
-        } catch (err) {
-          console.log(err);
-        }
-      } else {
-        arq = false;
-      }
-    }
+    // let arq = true;
+    // while (arq) {
+    //   const txt = await this.retornoService.lerRetornoSftp();
+    //   if (txt) {
+    //     try {
+    //       await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
+    //     } catch (err) {
+    //       console.log(err);
+    //     }
+    //   } else {
+    //     arq = false;
+    //   }
+    // }
   }
 
   async sincronizarEAgruparOrdensPagamento() {
@@ -835,8 +826,9 @@ export class CronJobsService {
         await this.ordemPagamentoService.sincronizarOrdensPagamento(dataInicio, dataFim, consorciosEModais);
         this.logger.log('Sincronização finalizada. Iniciando agrupamento para modais.', METHOD);
         const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
+        const pagador = await this.ordemPagamentoAgrupadoService.getPagador(pagadorKey)
         // Agrupa para os modais
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, pagadorKey, CronJobsService.MODAIS);
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, pagador, CronJobsService.MODAIS);
         this.logger.log('Tarefa finalizada com sucesso.', METHOD);
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
@@ -903,5 +895,172 @@ export class CronJobsService {
     const previousTuesday = new Date(today);
     previousTuesday.setDate(today.getDate() - daysSinceTuesday);
     return previousTuesday;
+  }
+
+  async geraCronJob(): Promise<ICronJob[]> {
+    const cronsAutonomos: ICronJob[] = []
+
+    const agendamentos = await this.agendamentoPagamentoService.findAll();
+   
+    let listaRemessas: AgendamentoPagamentoRemessaDTO[] = [];
+
+    for (const agenda of agendamentos) {
+      if (agenda.status && (this.verificaDiaSemana(agenda.diaSemana)) || this.verificarIntervalo(agenda.diaIntervalo, agenda.createdAt)) { // verifica se o agendamento esta ativo e se é do dia atual 
+        if (agenda.beneficiarioUsuario) {
+          const tipo = agenda.tipoBeneficiario; // Consorcio, Modal ou Individual
+          // Procura a remessa existente
+          let remessaExistente = listaRemessas.find(r => r.tipoBeneficiario === tipo);
+          // Se não existe, cria e adiciona na lista
+          if (!remessaExistente) {
+            const novaRemessa = new AgendamentoPagamentoRemessaDTO();
+            this.instanciaRemessa(novaRemessa, agenda);
+            listaRemessas.push(novaRemessa);
+            remessaExistente = novaRemessa;
+          }else{
+          // Agora já garantimos que existe, então adiciona o beneficiário
+            remessaExistente.beneficiarios.push(agenda.beneficiarioUsuario);
+          }
+        }
+      }
+    }
+
+    /**                   
+      * CRON JOB AUTONOMO
+      */
+    for (const rem of listaRemessas) {
+      cronsAutonomos.push({
+        name: `${CronJobsEnum.automacao}_${rem.tipoBeneficiario}_${rem.horario}`,
+        cronJobParameters: {
+          cronTime: this.getHorarioFormatado(this.remHours(rem.horario, 0)),
+          onTick: async () => {
+            await this.remessaAutomacaoExec(rem);
+          },
+          timeZone: 'America/Sao_Paulo'
+        }
+      })
+    }
+    return cronsAutonomos;
+  }
+
+  remHours(time, hoursToAdd) {
+    const [h, m, s] = time.split(":").map(Number);
+
+    const date = new Date();
+    date.setHours(h, m, s);
+    date.setHours(date.getHours() - hoursToAdd);
+
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    const ss = String(date.getSeconds()).padStart(2, "0");
+
+    return `${hh}:${mm}:${ss}`;
+  }
+
+
+  instanciaRemessa(remessa: AgendamentoPagamentoRemessaDTO, agenda: AgendamentoPagamentoDTO) {
+    remessa.aprovacao = agenda.aprovacao;
+    if (agenda.beneficiarioUsuario != null) {
+      remessa.beneficiarios.push(agenda.beneficiarioUsuario);
+    }
+    remessa.diaIntervalo = agenda.diaIntervalo;
+    remessa.diaInicioPagar = agenda.diaInicioPagar;
+    remessa.diaFinalPagar = agenda.diaFinalPagar;
+    remessa.pagador = agenda.pagador;
+    remessa.tipoBeneficiario = agenda.tipoBeneficiario;
+    remessa.horario = agenda.horario;
+  }
+
+
+ getHorarioFormatado(time) {
+  // Aceita "HH:mm" ou "HH:mm:ss"
+  const match = time.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+
+  if (!match) {
+    throw new Error("Formato inválido. Use HH:mm ou HH:mm:ss");
+  }
+
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+
+  // Cron no formato: minuto hora dia-do-mês mês dia-da-semana
+  // Ex: "30 13 * * *"
+  return `${minutes} ${hours} * * *`;
+}
+
+
+  verificaDiaSemana(dia) {
+    return (new Date().getDay() + 1) === Number(dia);
+  }
+
+  verificarIntervalo(diaIntervalo: number, createdAt: Date) {
+    let data = new Date(createdAt);
+    const hoje = new Date();
+
+    while (data <= hoje) {
+      const nova = new Date(data);
+      nova.setDate(data.getDate() + diaIntervalo);
+      if (nova > hoje) return data; // o ciclo válido é o anterior
+      data = nova;
+    }
+
+    return (
+      data.getDate() === hoje.getDate() &&
+      data.getMonth() === hoje.getMonth() &&
+      data.getFullYear() === hoje.getFullYear()
+    );
+  }
+
+  async verificarAprovacao(rem: AgendamentoPagamentoRemessaDTO, headerArquivo: HeaderArquivo): Promise<boolean> {
+    if (rem.aprovacaoPagamento?.id) {
+      const aprovacao = await this.aprovacaoService.findById(rem.aprovacaoPagamento.id);
+
+      if (aprovacao) {
+        let detalhesA: DetalheA[] = [];
+        for (const headerLote of headerArquivo.headersLote) {
+          detalhesA.push(... await this.detalheAService.getDetalheAHeaderLote(headerLote.id));
+        }
+
+        if (aprovacao.status === AprovacaoEnum.Aprovado) {
+          this.verificarValoresAprovados(detalhesA, rem.beneficiarios, aprovacao);//Se o pagamento estiver aprovado atualiza os valores de lancamento no detalhe_A
+          return true;
+        } else {
+          this.atualizarValorGeradoBQ(detalhesA, rem.beneficiarios, aprovacao);
+        }
+      }
+    }
+    return false;
+  }
+
+  async verificarValoresAprovados(detalhesA: DetalheA[], beneficiarios: CreateUserDto[], aprovacao: AprovacaoPagamentoDTO) {
+    for (const detalheA of detalhesA) {
+      for (const beneficiario of beneficiarios) {
+        if (await this.verificaBeneficiarioPagamento(beneficiario, detalheA)) {
+          detalheA.valorLancamento = aprovacao.valorAprovado;
+          detalheA.valorRealEfetivado = aprovacao.valorAprovado;
+          await this.detalheAService.saveEntity(detalheA);   //Atualiza valor aprovado no detalhe A     
+        }
+      }
+    }
+  }
+
+  async atualizarValorGeradoBQ(detalhesA: DetalheA[], beneficiarios: CreateUserDto[], aprovacao: AprovacaoPagamentoDTO) {
+    for (const detalheA of detalhesA) {
+      for (const beneficiario of beneficiarios) {
+        if (await this.verificaBeneficiarioPagamento(beneficiario, detalheA)) {
+          aprovacao.valorGerado = detalheA.valorLancamento;
+          aprovacao.detalheA.id = detalheA.id;
+          aprovacao.status = AprovacaoEnum.AguardandoAprovacao;
+          this.aprovacaoService.save(aprovacao); // atualiza a aprovação com valor gerado e o detalhe A
+        }
+      }
+    }
+  }
+
+  async verificaBeneficiarioPagamento(beneficiario: CreateUserDto, detalheA: DetalheA) {
+    const res = await this.detalheAService.existsDetalheABeneficiario(detalheA.id, beneficiario.permitCode ? beneficiario.permitCode : "");
+    if (res.length > 0) {
+      return true;
+    }
+    return false;
   }
 }

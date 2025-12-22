@@ -88,6 +88,10 @@ export class DetalheAService {
     return await this.detalheARepository.save(dto);
   }
 
+  public async saveEntity(entity: DetalheA): Promise<DetalheA> {    
+    return await this.detalheARepository.save(entity);
+  }
+
   public async getOneRaw(where: IDetalheARawWhere): Promise<DetalheA> {
     return await this.detalheARepository.getOneRaw(where);
   }
@@ -146,6 +150,11 @@ export class DetalheAService {
   public async existsDetalheA(id: number) {
     return await this.detalheARepository.existsDetalheA(id);
   }
+
+  public async existsDetalheABeneficiario(id: number,permitCode:string) {
+    return await this.detalheARepository.existsDetalheABeneficiario(id,permitCode);
+  }
+
 
   public async getDetalheAHeaderLote(headerLoteId: number){
     return await this.detalheARepository.getDetalheAHeaderLote(headerLoteId)
