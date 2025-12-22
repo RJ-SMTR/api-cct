@@ -55,9 +55,8 @@ FROM
     JOIN bank bc on bc.code = pu."bankCode"
     INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id
 WHERE
-    da."dataVencimento" BETWEEN $1 AND $2
-    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
+
+   ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -67,7 +66,7 @@ WHERE
     )
 AND (
         oph."motivoStatusRemessa" = '02' OR
-        (oph."motivoStatusRemessa" NOT IN ('00','BD','AL') AND oph."statusRemessa" NOT IN (3,5))
+        (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
     )
     AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)
     AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
@@ -96,7 +95,6 @@ FROM
 WHERE
     da."dataVencimento" BETWEEN $1 AND $2
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -104,7 +102,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
     )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02', 'AL') OR oph."motivoStatusRemessa" IS NULL)
+    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02') OR oph."motivoStatusRemessa" IS NULL)
     and oph."statusRemessa" <> 5
 `;
   private readonly queryOlderReport = `
@@ -205,15 +203,24 @@ where da."dataVencimento" between $1 and $2
     'Pendencia Paga' AS status
 FROM
      ordem_pagamento op
-     INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-     INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-     INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
-     INNER JOIN public."user" pu ON pu."id" = op."userId"
-     LEFT JOIN bank bc ON bc.code = pu."bankCode"
+ INNER JOIN ordem_pagamento_agrupado opa 
+    ON opa.id = op."ordemPagamentoAgrupadoId"
+INNER JOIN cadeia_pagamento cp 
+    ON cp.ordem_id = opa.id
+INNER JOIN ordem_pagamento_agrupado op_pai 
+    ON op_pai.id = cp.raiz_id
+INNER JOIN ordem_pagamento_agrupado_historico oph 
+    ON oph."ordemPagamentoAgrupadoId" = op_pai.id
+INNER JOIN detalhe_a da 
+    ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+INNER JOIN public."user" pu 
+    ON pu.id = op."userId"
+INNER JOIN bank bc 
+    ON bc.code = pu."bankCode"
 WHERE
     da."dataVencimento" BETWEEN $1 AND $2
+        AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
         ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
         AND ($7::numeric IS NULL OR op."valor" <= $7::numeric)
@@ -248,23 +255,26 @@ pendencia AS (
     )
 
 ),
-
-cadeia_pagamento (ordem_id, pai_id, raiz_id) AS (
-  SELECT opa.id, opa."ordemPagamentoAgrupadoId", opa.id
+cadeia_pagamento AS (
+  SELECT
+    opa.id AS ordem_id,
+    opa."ordemPagamentoAgrupadoId" AS pai_id,
+    opa.id AS raiz_id
   FROM ordem_pagamento_agrupado opa
 
   UNION ALL
 
-  SELECT filho.id, filho."ordemPagamentoAgrupadoId", pai.raiz_id
+  SELECT
+    filho.id,
+    filho."ordemPagamentoAgrupadoId",
+    pai.raiz_id
   FROM ordem_pagamento_agrupado filho
-  INNER JOIN cadeia_pagamento pai
-      ON filho."ordemPagamentoAgrupadoId" = pai.ordem_id
+  INNER JOIN cadeia_pagamento pai ON filho."ordemPagamentoAgrupadoId" = pai.ordem_id
 ),
-
 cadeias_com_paga AS (
   SELECT DISTINCT cp.raiz_id
   FROM cadeia_pagamento cp
-  INNER JOIN ordem_pagamento_agrupado_historico oph 
+  INNER JOIN ordem_pagamento_agrupado_historico oph
       ON oph."ordemPagamentoAgrupadoId" = cp.ordem_id
   WHERE oph."statusRemessa" = 5
 )
@@ -273,36 +283,31 @@ cadeias_com_paga AS (
   private readonly pendenciasPagasEstRejSQL = `
 SELECT DISTINCT
     oph."dataReferencia" AS "dataReferencia",
-    uu."fullName" AS nomes,
-    uu.email,
-    uu."bankCode" AS "codBanco",
+    pu."fullName" AS nomes,
+    pu.email,
+    pu."bankCode" AS "codBanco",
     bc.name AS "nomeBanco",
-    uu."cpfCnpj",
-    CASE
-      WHEN uu."permitCode" = '8' THEN 'VLT'
-      WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
-      WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
-      WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
-      ELSE op."nomeConsorcio"
-    END AS "nomeConsorcio",
+    pu."cpfCnpj",
+    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     CASE
         WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),3)
         ELSE da."valorLancamento"
     END AS valor,
-	  pd."dataReferencia",
+	  pd."dataReferencia" AS "dataPagamento",
     'Pendencia Paga' AS status
 FROM ordem_pagamento op
   INNER JOIN ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id
   INNER JOIN ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
   INNER JOIN pendencia pd on opa."ordemPagamentoAgrupadoId" = pd.id
   LEFT JOIN detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
-  LEFT JOIN public."user" uu on uu."id"=op."userId"
-  LEFT JOIN bank bc ON bc.code = uu."bankCode"
+  LEFT JOIN public."user" pu on pu."id"=op."userId"
+  LEFT JOIN bank bc ON bc.code = pu."bankCode"
 WHERE
      oph."motivoStatusRemessa" NOT IN ('AM')
     AND da."dataVencimento" IS NOT NULL
-    AND ($3::integer[] IS NULL OR uu."id" = ANY($3))
-    AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
+    AND op."ordemPagamentoAgrupadoId" IS NULL
+    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+        AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
     AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -446,7 +451,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
         if (safeFilter.desativados) query2025 += ` AND pu.bloqueado = true`;
 
-        query2025 = this.prependWithIfNeeded(query2025);
+        query2025 = this.wrapWithOuterFilters(query2025);
 
         const res2025 = await queryRunner.query(query2025, params2025);
 
@@ -476,8 +481,12 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           }
           if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
 
+            if(safeFilter.pendenciaPaga){
+              finalQuery = this.prependWithIfNeeded(finalQuery);
+          } else {
 
-          finalQuery = this.prependWithIfNeeded(finalQuery);
+            finalQuery = this.wrapWithOuterFilters(finalQuery);
+          }
         } else {
           finalQuery = queryDecision.query;
 
@@ -623,6 +632,20 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     return `${this.WITH_AS}${query}`;
   }
 
+  private wrapWithOuterFilters(query: string): string {
+    const inner = this.prependWithIfNeeded(query);
+    return `
+SELECT *
+FROM (
+${inner}
+) t
+WHERE
+  t."dataReferencia" BETWEEN $1 AND $2
+  AND ($5::text[] IS NULL OR TRIM(UPPER(t."nomeConsorcio")) = ANY($5))
+  AND ($4::text[] IS NULL OR t.status = ANY($4))
+`;
+  }
+
   private getStatusParaFiltro(filter: {
     pago?: boolean;
     erro?: boolean;
@@ -667,9 +690,9 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
       ? filter.consorcioNome.map(n => n.toUpperCase().trim())
       : null;
 
-    const modaisEspeciais = ['SPTC', 'STPL', 'TEC'];
+    // const modaisEspeciais = ['STPC', 'STPL', 'TEC'];
 
-    console.log(consorcioNome)
+    // console.log(consorcioNome)
     const dataInicio = filter.dataInicio || null;
     const dataFim = filter.dataFim || null;
     const userIds = filter.userIds || null;
