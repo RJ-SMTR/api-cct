@@ -121,7 +121,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {     
+  async onModuleLoad() {
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
@@ -267,11 +267,11 @@ export class CronJobsService {
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
     if (process.env.CRONJOBS != 'false') {
-    
-    for (const jobConfig of this.jobsConfig) {
+
+      for (const jobConfig of this.jobsConfig) {
         this.startCron(jobConfig);
         this.logger.log(`Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`);
-      }  
+      }
     } else {
       this.logger.warn(`env->CRONJOBS = false. Cronjobs inativos.`);
     }
@@ -683,7 +683,7 @@ export class CronJobsService {
       pagamentoAprovado = await this.verificarAprovacao(rem, headerArquivo) //atualizar o detalhe_a e valor gerado
     }
 
-    if (rem.aprovacao==null || rem.aprovacao == false || pagamentoAprovado) {//Se não precisar de aprovação ou tiver aprovado na tabela de
+    if (rem.aprovacao == null || rem.aprovacao == false || pagamentoAprovado) {//Se não precisar de aprovação ou tiver aprovado na tabela de
       //Gera o TXT
       const txt = await this.remessaService.gerarCnabText(headerName);
       //Envia para o SFTP
@@ -756,9 +756,9 @@ export class CronJobsService {
   async remessaAutomacaoExec(rem: AgendamentoPagamentoRemessaDTO) {
     this.logger.log('INICIO AUTOMAÇÃO');
 
-    const today = new Date();      
-    const dataInicio =  this.getData(today.getDay()+1,rem.diaInicioPagar);  
-    const dataFim = this.getData(today.getDay()+1,rem.diaFinalPagar);
+    const today = new Date();
+    const dataInicio = this.getData(today.getDay() + 1, rem.diaInicioPagar);
+    const dataFim = this.getData(today.getDay() + 1, rem.diaFinalPagar);
 
     const beneficiarios = rem.beneficiarios.flatMap(b => b.fullName ? [b.fullName] : [])
     await this.limparAgrupamentos(dataInicio, dataFim, beneficiarios);
@@ -766,14 +766,14 @@ export class CronJobsService {
     this.logger.log('TERMINO AUTOMAÇÃO');
   }
 
-  getData(today:number,data:number):Date{
+  getData(today: number, data: number): Date {
     let diferenca = 0
-    if(data > today){
+    if (data > today) {
       diferenca = data - today;
-    }else{
+    } else {
       diferenca = today - data;
-    }    
-    return subDays(new Date(),diferenca);
+    }
+    return subDays(new Date(), diferenca);
   }
 
   async retornoExec() {
@@ -901,24 +901,27 @@ export class CronJobsService {
     const cronsAutonomos: ICronJob[] = []
 
     const agendamentos = await this.agendamentoPagamentoService.findAll();
-   
+
     let listaRemessas: AgendamentoPagamentoRemessaDTO[] = [];
 
     for (const agenda of agendamentos) {
-      if (agenda.status && (this.verificaDiaSemana(agenda.diaSemana)) || this.verificarIntervalo(agenda.diaIntervalo, agenda.createdAt)) { // verifica se o agendamento esta ativo e se é do dia atual 
-        if (agenda.beneficiarioUsuario) {
-          const tipo = agenda.tipoBeneficiario; // Consorcio, Modal ou Individual
-          // Procura a remessa existente
-          let remessaExistente = listaRemessas.find(r => r.tipoBeneficiario === tipo);
-          // Se não existe, cria e adiciona na lista
-          if (!remessaExistente) {
-            const novaRemessa = new AgendamentoPagamentoRemessaDTO();
-            this.instanciaRemessa(novaRemessa, agenda);
-            listaRemessas.push(novaRemessa);
-            remessaExistente = novaRemessa;
-          }else{
-          // Agora já garantimos que existe, então adiciona o beneficiário
-            remessaExistente.beneficiarios.push(agenda.beneficiarioUsuario);
+      if (agenda.status) {
+        if ((this.verificaDiaSemana(agenda.diaSemana))
+          || (agenda.diaIntervalo != null && this.verificarIntervalo(agenda.diaIntervalo, agenda.createdAt))) { // verifica se o agendamento esta ativo e se é do dia atual 
+          if (agenda.beneficiarioUsuario) {
+            const tipo = agenda.tipoBeneficiario; // Consorcio, Modal ou Individual
+            // Procura a remessa existente
+            let remessaExistente = listaRemessas.find(r => r.tipoBeneficiario === tipo);
+            // Se não existe, cria e adiciona na lista
+            if (!remessaExistente) {
+              const novaRemessa = new AgendamentoPagamentoRemessaDTO();
+              this.instanciaRemessa(novaRemessa, agenda);
+              listaRemessas.push(novaRemessa);
+              remessaExistente = novaRemessa;
+            } else {
+              // Agora já garantimos que existe, então adiciona o beneficiário
+              remessaExistente.beneficiarios.push(agenda.beneficiarioUsuario);
+            }
           }
         }
       }
@@ -971,21 +974,21 @@ export class CronJobsService {
   }
 
 
- getHorarioFormatado(time) {
-  // Aceita "HH:mm" ou "HH:mm:ss"
-  const match = time.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+  getHorarioFormatado(time) {
+    // Aceita "HH:mm" ou "HH:mm:ss"
+    const match = time.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
 
-  if (!match) {
-    throw new Error("Formato inválido. Use HH:mm ou HH:mm:ss");
+    if (!match) {
+      throw new Error("Formato inválido. Use HH:mm ou HH:mm:ss");
+    }
+
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+
+    // Cron no formato: minuto hora dia-do-mês mês dia-da-semana
+    // Ex: "30 13 * * *"
+    return `${minutes} ${hours} * * *`;
   }
-
-  const hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-
-  // Cron no formato: minuto hora dia-do-mês mês dia-da-semana
-  // Ex: "30 13 * * *"
-  return `${minutes} ${hours} * * *`;
-}
 
 
   verificaDiaSemana(dia) {
@@ -999,7 +1002,9 @@ export class CronJobsService {
     while (data <= hoje) {
       const nova = new Date(data);
       nova.setDate(data.getDate() + diaIntervalo);
-      if (nova > hoje) return data; // o ciclo válido é o anterior
+      if (nova > hoje)
+        return data;
+      // o ciclo válido é o anterior
       data = nova;
     }
 
