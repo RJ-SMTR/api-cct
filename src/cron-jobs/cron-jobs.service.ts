@@ -109,7 +109,7 @@ export class CronJobsService {
 
 
   async onModuleLoad() {   
-    
+    await this.remessaConsorciosExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
