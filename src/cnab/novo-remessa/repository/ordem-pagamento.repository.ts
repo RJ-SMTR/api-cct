@@ -16,6 +16,7 @@ import { OrdemPagamentoUnicoDto } from '../dto/ordem-pagamento-unico.dto';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 import { formatDateISODate } from 'src/utils/date-utils';
 import { format, getMonth, getYear, isFriday, isTuesday, max, subDays } from 'date-fns';
+import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
 
 @Injectable()
 export class OrdemPagamentoRepository {
@@ -62,32 +63,34 @@ WITH
             "ordemPagamentoAgrupadoId",
             "dataReferencia" DESC
     ),
-    dias_relatorio AS (
-        SELECT dias::DATE AS data
-        FROM generate_series(
-               DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
-            ) AS dias
-        WHERE (
-                EXTRACT(
-                    MONTH
-                    FROM dias
-                ) < 9
-                AND EXTRACT(
-                    DOW
-                    FROM dias
-                ) = 5
+ dias_relatorio AS (
+    SELECT dias::DATE AS data
+    FROM generate_series(
+        DATE_TRUNC('month', $1::DATE),
+        DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day',
+        '1 day'::INTERVAL
+    ) AS dias
+    WHERE
+        (
+            EXTRACT(YEAR FROM dias) = 2026
+            AND EXTRACT(DOW FROM dias) IN (2, 5)
+        )
+        OR
+        (
+            EXTRACT(YEAR FROM dias) <> 2026
+            AND (
+                (
+                    EXTRACT(MONTH FROM dias) < 9
+                    AND EXTRACT(DOW FROM dias) = 5
+                )
+                OR
+                (
+                    EXTRACT(MONTH FROM dias) >= 9
+                    AND EXTRACT(DOW FROM dias) IN (2, 5)
+                )
             )
-            OR (
-                EXTRACT(
-                    MONTH
-                    FROM dias
-                ) >= 9
-                AND EXTRACT(
-                    DOW
-                    FROM dias
-                ) IN (2, 5)
-            )
-    )
+        )
+)
 SELECT
    dr.data,
     SUM(dp.valor) AS valor,
@@ -381,7 +384,7 @@ ORDER BY dr.data;
     });
   }
 
-  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]): Promise<void> {
+  public async agruparOrdensDePagamento(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO, consorcios: string[]): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
