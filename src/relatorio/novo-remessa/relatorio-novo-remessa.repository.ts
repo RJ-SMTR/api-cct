@@ -489,6 +489,103 @@ from item_transacao it
 		)
 `
 
+  private readonly WITH_AS = `
+  WITH RECURSIVE
+
+pendencia AS (
+  SELECT DISTINCT opaa.id, oph."dataReferencia"
+  FROM ordem_pagamento_agrupado opaa
+  INNER JOIN ordem_pagamento_agrupado_historico oph 
+      ON oph."ordemPagamentoAgrupadoId" = opaa.id
+  INNER JOIN detalhe_a daa 
+      ON daa."ordemPagamentoAgrupadoHistoricoId" = oph.id
+  WHERE daa."dataVencimento" BETWEEN '%DATA_INICIO%' AND '%DATA_FIM%'
+    AND EXISTS (
+      SELECT 1 FROM ordem_pagamento_agrupado opa2 WHERE opa2."ordemPagamentoAgrupadoId" = opaa.id
+    )
+),
+
+cadeia_pagamento (ordem_id, pai_id, raiz_id) AS (
+  SELECT opa.id, opa."ordemPagamentoAgrupadoId", opa.id
+  FROM ordem_pagamento_agrupado opa
+
+  UNION ALL
+
+  SELECT filho.id, filho."ordemPagamentoAgrupadoId", pai.raiz_id
+  FROM ordem_pagamento_agrupado filho
+  INNER JOIN cadeia_pagamento pai ON filho."ordemPagamentoAgrupadoId" = pai.ordem_id
+),
+cadeias_com_paga AS (
+  SELECT DISTINCT cp.raiz_id
+  FROM cadeia_pagamento cp
+  INNER JOIN ordem_pagamento_agrupado_historico oph
+      ON oph."ordemPagamentoAgrupadoId" = cp.ordem_id
+  WHERE oph."statusRemessa" = 5
+)
+`;
+
+  private readonly pendenciaPagaSQL = `
+SELECT DISTINCT
+  da.id,
+  da."dataVencimento",
+  uu."fullName",
+  oph."statusRemessa",
+  uu."permitCode",
+  oph."motivoStatusRemessa",
+  CASE
+    WHEN uu."permitCode" = '8' THEN 'VLT'
+    WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
+    WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
+    WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
+    ELSE op."nomeConsorcio"
+  END AS "nome",
+  COALESCE(da."valorLancamento", opa."valorTotal") AS valor,
+  uu."bankAccount"
+${RelatorioNovoRemessaRepository.QUERY_FROM}
+WHERE da."dataVencimento" BETWEEN '%DATA_INICIO%' AND '%DATA_FIM%'
+  AND oph."statusRemessa" = 5
+  AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
+ %FILTRO_USER%
+ %FILTRO_CONSORCIO%
+   %FILTRO_VALOR_MIN%
+   %FILTRO_VALOR_MAX%
+`;
+
+  private readonly pendenciaPagaEstRejSQL = `
+SELECT DISTINCT
+    da.id,
+    oph."dataReferencia" AS "dataVencimento",
+    uu."fullName",
+    oph."statusRemessa",
+    uu."permitCode",
+    oph."motivoStatusRemessa",
+    CASE
+        WHEN uu."permitCode" = '8' THEN 'VLT'
+        WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
+        WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
+        WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
+        ELSE op."nomeConsorcio"
+    END AS "nome",
+    CASE
+        WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),3)
+        ELSE da."valorLancamento"
+    END AS valor,
+    uu."bankAccount"
+FROM ordem_pagamento op
+  INNER JOIN ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id
+  INNER JOIN ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
+  INNER JOIN pendencia pd on opa."ordemPagamentoAgrupadoId" = pd.id
+  LEFT JOIN detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
+  LEFT JOIN public."user" uu on uu."id"=op."userId"
+WHERE
+    oph."statusRemessa" = 5
+    AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
+   %FILTRO_USER%
+   %FILTRO_CONSORCIO%
+     %FILTRO_VALOR_MIN%
+     %FILTRO_VALOR_MAX%
+`;
+
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
@@ -744,7 +841,7 @@ from item_transacao it
 
   private getStatusParaFiltro(filter: IFindPublicacaoRelatorioNovoRemessa) {
     let statuses: number[] | null = null;
-    if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar || filter.estorno || filter.rejeitado) {
+    if (filter.emProcessamento || filter.pago || filter.erro || filter.aPagar || filter.estorno || filter.rejeitado || filter.pendenciaPaga) {
       statuses = [];
 
       if (filter.aPagar) {
@@ -761,6 +858,9 @@ from item_transacao it
 
       if (filter.erro || filter.estorno || filter.rejeitado) {
         statuses.push(4);
+      }
+      if(filter.pendenciaPaga){
+        statuses.push(5)
       }
      
     }
@@ -835,7 +935,7 @@ from item_transacao it
 
     // --- BLOCO PARA 2025 em diante ---
     if (anoFim >= 2025) {
-      if(filter.estorno || filter.rejeitado || filter.erro){
+      if(filter.estorno || filter.rejeitado || filter.erro || filter.pendenciaPaga){
      sqlOutros =    `
        WITH RECURSIVE
     pendencia AS (
@@ -1004,7 +1104,6 @@ from item_transacao it
     } else if (sqlOutros) {
       finalSQL = sqlOutros + condicoesOutros;
     }
-    this.logger.warn(finalSQL)
     return finalSQL;
   }
 
@@ -1049,7 +1148,7 @@ from item_transacao it
 
       const result2024 = await queryRunner.query(this.pendentes_24, queryParams2024);
       let result2025 = '';
-      if(filter.pendentes){
+      if(filter.pendentes || filter.pendenciaPaga){
          `SELECT nome, NULL as "nomeConsorcio", SUM(valor) as valor
         FROM(${ this.pendentes_25 }) AS r 
         GROUP BY r.nome`
@@ -1075,7 +1174,7 @@ from item_transacao it
     const incluir2024 = anoInicio <= 2024 && anoFim >= 2024;
     const incluirOutros = !(anoInicio === 2024 && anoFim === 2024);
 
-    const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined || filter.estorno || filter.rejeitado;
+    const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined || filter.estorno || filter.rejeitado || filter.pendenciaPaga;
     const statuses = this.getStatusParaFiltro(filter);
 
     let sql2024 = '';
@@ -1111,63 +1210,103 @@ from item_transacao it
         ${RelatorioNovoRemessaRepository.ELEICAO_25}
       `;
       }
-      else if (filter.estorno || filter.rejeitado || filter.erro) {
+      else if (filter.estorno || filter.rejeitado || filter.erro || filter.pendenciaPaga) {
+      if (filter.pendenciaPaga) {
+          const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
+          const nomes = filter.consorcioNome ? filter.consorcioNome.map((n) => n.toUpperCase().trim()) : [];
+          const consorciosDefault = `'STPC','STPL','TEC','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio'`;
+        const nomeCase = `CASE\n    WHEN uu."permitCode" = '8' THEN 'VLT'\n    WHEN uu."permitCode" LIKE '4%' THEN 'STPC'\n    WHEN uu."permitCode" LIKE '81%' THEN 'STPL'\n    WHEN uu."permitCode" LIKE '7%' THEN 'TEC'\n    ELSE op."nomeConsorcio"\n  END`;
+          const filtroConsorcio = filter.todosConsorcios
+            ? `AND TRIM(UPPER(${nomeCase})) IN (${consorciosDefault})`
+            : nomes.length
+              ? `AND TRIM(UPPER(${nomeCase})) IN ('${nomes.join("','")}')`
+              : '';
+          const filtroValorMin = filter.valorMin ? `AND COALESCE(da."valorLancamento", opa."valorTotal") >= ${filter.valorMin}` : '';
+          const filtroValorMax = filter.valorMax ? `AND COALESCE(da."valorLancamento", opa."valorTotal") <= ${filter.valorMax}` : '';
+
+        const withAs = this.WITH_AS
+        .replace(/%DATA_INICIO%/g, dataInicio)
+        .replace(/%DATA_FIM%/g, dataFim);
+
+        const pendenciaPaga = this.pendenciaPagaSQL
+        .replace(/%DATA_INICIO%/g, dataInicio)
+        .replace(/%DATA_FIM%/g, dataFim)
+        .replace(/%FILTRO_USER%/g, filtroUser)
+        .replace(/%FILTRO_CONSORCIO%/g, filtroConsorcio)
+        .replace(/%FILTRO_VALOR_MIN%/g, filtroValorMin)
+        .replace(/%FILTRO_VALOR_MAX%/g, filtroValorMax);
+
+        const pendenciaPagaEstRej = this.pendenciaPagaEstRejSQL
+        .replace(/%FILTRO_USER%/g, filtroUser)
+        .replace(/%FILTRO_CONSORCIO%/g, filtroConsorcio)
+        .replace(/%FILTRO_VALOR_MIN%/g, filtroValorMin)
+        .replace(/%FILTRO_VALOR_MAX%/g, filtroValorMax);
+
         sqlOutros = `
+  ${withAs}
+  ${pendenciaPaga}
+  UNION ALL
+  ${pendenciaPagaEstRej}
+        `;
+        condicoesOutros = ' where (1=1) ';
+      } else {
+      sqlOutros = `
     WITH RECURSIVE
       pendencia AS (
-          SELECT DISTINCT
-              opaa.id,
-              oph."dataReferencia"
-          FROM
-              ordem_pagamento_agrupado opaa
-              INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opaa.id
-              INNER JOIN detalhe_a daa ON daa."ordemPagamentoAgrupadoHistoricoId" = oph.id
-          WHERE
-                daa."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
-              AND EXISTS (
-                  SELECT 1
-                  FROM ordem_pagamento_agrupado opa2
-                  WHERE opa2."ordemPagamentoAgrupadoId" = opaa.id
-              )
+        SELECT DISTINCT
+          opaa.id,
+          oph."dataReferencia"
+        FROM
+          ordem_pagamento_agrupado opaa
+          INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opaa.id
+          INNER JOIN detalhe_a daa ON daa."ordemPagamentoAgrupadoHistoricoId" = oph.id
+        WHERE
+          daa."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}'
+          AND EXISTS (
+            SELECT 1
+            FROM ordem_pagamento_agrupado opa2
+            WHERE opa2."ordemPagamentoAgrupadoId" = opaa.id
+          )
       ),
       cadeia_pagamento (ordem_id, pai_id, raiz_id) AS (
-          SELECT opa.id, opa."ordemPagamentoAgrupadoId", opa.id
-          FROM ordem_pagamento_agrupado opa
-          UNION ALL
-          SELECT filho.id, filho."ordemPagamentoAgrupadoId", pai.raiz_id
-          FROM ordem_pagamento_agrupado filho
-              INNER JOIN cadeia_pagamento pai ON filho."ordemPagamentoAgrupadoId" = pai.ordem_id
+        SELECT opa.id, opa."ordemPagamentoAgrupadoId", opa.id
+        FROM ordem_pagamento_agrupado opa
+        UNION ALL
+        SELECT filho.id, filho."ordemPagamentoAgrupadoId", pai.raiz_id
+        FROM ordem_pagamento_agrupado filho
+          INNER JOIN cadeia_pagamento pai ON filho."ordemPagamentoAgrupadoId" = pai.ordem_id
       ),
       cadeias_com_paga AS (
-          SELECT DISTINCT cp.raiz_id
-          FROM cadeia_pagamento cp
-              INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = cp.ordem_id
-          WHERE oph."statusRemessa" = 5
+        SELECT DISTINCT cp.raiz_id
+        FROM cadeia_pagamento cp
+          INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = cp.ordem_id
+        WHERE oph."statusRemessa" = 5
       )
       SELECT DISTINCT
-          da.id,
-          da."dataVencimento",
-          uu."fullName",
-          oph."statusRemessa",
-          uu."permitCode",
-          oph."motivoStatusRemessa",
-          CASE
-              WHEN uu."permitCode" = '8' THEN 'VLT'
-              WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
-              WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
-              WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
-              ELSE op."nomeConsorcio"
-          END AS "nome",
-          da."valorLancamento" AS valor,
-          uu."bankAccount"
-                ${RelatorioNovoRemessaRepository.QUERY_FROM}
+        da.id,
+        da."dataVencimento",
+        uu."fullName",
+        oph."statusRemessa",
+        uu."permitCode",
+        oph."motivoStatusRemessa",
+        CASE
+          WHEN uu."permitCode" = '8' THEN 'VLT'
+          WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
+          WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
+          WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
+          ELSE op."nomeConsorcio"
+        END AS "nome",
+        da."valorLancamento" AS valor,
+        uu."bankAccount"
+          ${RelatorioNovoRemessaRepository.QUERY_FROM}
       INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id
       WHERE
-          oph."statusRemessa" = 4
-          AND oph."statusRemessa" NOT IN (3,5)
-          AND uu."bankAccount" IS NOT NULL
-          AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)
-  `;
+        oph."statusRemessa" = ${filter.pendenciaPaga ? `5` : '4'}
+        ${filter.pendenciaPaga ? `` : `AND oph."statusRemessa" NOT IN (3,5)`}
+        AND uu."bankAccount" IS NOT NULL
+       ${filter.pendenciaPaga ? ' AND cp.raiz_id IN (SELECT raiz_id FROM cadeias_com_paga)' : ' AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)'}
+    `;
+      }
 
       } else {
         sqlOutros = `
@@ -1195,7 +1334,7 @@ from item_transacao it
       if (hasStatusFilter) {
         condicoesOutros += ` and r."statusRemessa" in (${statuses?.join(',')})\n`;
 
-        const has3or4 = statuses?.includes(3) || statuses?.includes(4);
+        const has3or4 = statuses?.includes(3) || statuses?.includes(4) || statuses?.includes(5);
 
         if (has3or4) {
           condicoesOutros += ` and r."motivoStatusRemessa" <> 'AM'\n`;
@@ -1253,7 +1392,6 @@ from item_transacao it
         GROUP BY r.nome
       `;
     }
-    this.logger.warn(finalSQL)
     return finalSQL;
   }
 
