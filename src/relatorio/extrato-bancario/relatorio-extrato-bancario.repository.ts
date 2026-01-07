@@ -42,9 +42,9 @@ export class RelatorioExtratoBancarioRepository {
     }
     if(conta){
       if(conta === 'cett'){
-        query = query +` and de.loteServico='1' `;
+        query = query +` and de."loteServico"='1' `;
       }else{
-        query = query +` and de.loteServico='2' `;
+        query = query +` and de."loteServico"='2' `;
       }
     }
 
