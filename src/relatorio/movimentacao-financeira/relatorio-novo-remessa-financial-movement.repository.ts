@@ -640,9 +640,8 @@ FROM (
 ${inner}
 ) t
 WHERE
-  t."dataReferencia" BETWEEN $1 AND $2
-  AND ($5::text[] IS NULL OR TRIM(UPPER(t."nomeConsorcio")) = ANY($5))
-  AND ($4::text[] IS NULL OR t.status = ANY($4))
+     ($5::text[] IS NULL OR TRIM(UPPER(t."nomeConsorcio")) = ANY($5))
+
 `;
   }
 
