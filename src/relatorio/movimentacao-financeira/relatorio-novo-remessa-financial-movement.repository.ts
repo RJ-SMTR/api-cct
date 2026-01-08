@@ -337,7 +337,7 @@ AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
 
       // 👇 Se deve unir as duas queries (mesma regra)
       if (this.shouldUnionCadeiaAndNoCadeia(safeFilter)) {
-        finalQuery = `${this.queryReport} UNION ALL ${this.queryReportNoCadeia}`;
+        finalQuery = `${this.queryReport} UNION ${this.queryReportNoCadeia}`;
       } else {
         const useCadeiaSingle = this.shouldUseCadeia(safeFilter);
         finalQuery = useCadeiaSingle ? this.queryReport : this.queryReportNoCadeia;

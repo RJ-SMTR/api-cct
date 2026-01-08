@@ -11,7 +11,6 @@ export class AlteracaoAgendamento1764855657466 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX "public"."idx_historico_data_referencia_id_agrupado"`);
         await queryRunner.query(`DROP INDEX "public"."statusRemessa_idx"`);
         await queryRunner.query(`DROP INDEX "public"."detalhe_a_dataVencimento_ordemPagamentoHistoricoId"`);
-        await queryRunner.query(`CREATE TABLE "transacao_bigquery" ("id_transacao" character varying(100) NOT NULL, "data" date, "datetime_transacao" TIMESTAMP, "consorcio" character varying, "valor_pagamento" numeric(13,5) NOT NULL, "id_ordem_pagamento" character varying, "id_ordem_pagamento_consorcio_operador_dia" character varying, "tipo_transacao" character varying, "datetime_ultima_atualizacao" TIMESTAMP, CONSTRAINT "PK_84b632b4274a2dac3a01ee7b5a6" PRIMARY KEY ("id_transacao"))`);
         await queryRunner.query(`ALTER TABLE "agendamento_pagamento" ADD "diaInicioPagar" integer`);
         await queryRunner.query(`ALTER TABLE "agendamento_pagamento" ADD "diaFinalPagar" integer`);
         await queryRunner.query(`ALTER TABLE "agendamento_pagamento" ADD "diaIntervalo" integer`);
@@ -49,7 +48,6 @@ export class AlteracaoAgendamento1764855657466 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "agendamento_pagamento" DROP COLUMN "diaIntervalo"`);
         await queryRunner.query(`ALTER TABLE "agendamento_pagamento" DROP COLUMN "diaFinalPagar"`);
         await queryRunner.query(`ALTER TABLE "agendamento_pagamento" DROP COLUMN "diaInicioPagar"`);
-        await queryRunner.query(`DROP TABLE "transacao_bigquery"`);
         await queryRunner.query(`CREATE INDEX "detalhe_a_dataVencimento_ordemPagamentoHistoricoId" ON "detalhe_a" ("dataVencimento", "ordemPagamentoAgrupadoHistoricoId") `);
         await queryRunner.query(`CREATE INDEX "statusRemessa_idx" ON "ordem_pagamento_agrupado_historico" ("statusRemessa") `);
         await queryRunner.query(`CREATE INDEX "idx_historico_data_referencia_id_agrupado" ON "ordem_pagamento_agrupado_historico" ("dataReferencia", "ordemPagamentoAgrupadoId") `);
