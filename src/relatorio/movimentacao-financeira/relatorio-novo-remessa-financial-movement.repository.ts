@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
+import { format } from 'date-fns';
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementRepository {
@@ -466,9 +467,8 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
 
         if (is2025) {
-          // 👇 Se deve unir as duas queries (mesma regra)
           if (this.shouldUnionCadeiaAndNoCadeia(safeFilter)) {
-            finalQuery = `${this.queryNewReport} UNION ALL ${this.queryNewReportNoCadeia}`;
+            finalQuery = `${this.queryNewReport} UNION ${this.queryNewReportNoCadeia}`;
           } else {
             const useCadeiaSingle = this.shouldUseCadeia(safeFilter);
             finalQuery = useCadeiaSingle ? this.queryNewReport : this.queryNewReportNoCadeia;
@@ -481,8 +481,8 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           }
           if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
 
-            if(safeFilter.pendenciaPaga){
-              finalQuery = this.prependWithIfNeeded(finalQuery);
+          if (safeFilter.pendenciaPaga) {
+            finalQuery = this.prependWithIfNeeded(finalQuery);
           } else {
 
             finalQuery = this.wrapWithOuterFilters(finalQuery);
@@ -593,9 +593,9 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     const map = new Map<string, any>();
 
     for (const r of rows) {
-      const dataReferencia = new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataReferencia));
+      const dataReferencia = this.formatDateToBR(r.dataReferencia) || '01/01/1970';
       const key = `${dataReferencia}|${r.cpfCnpj}|${r.status}`;
-      const dataPagamento = r.dataPagamento ? new Intl.DateTimeFormat('pt-BR').format(new Date(r.dataPagamento)) : null;
+      const dataPagamento = this.formatDateToBR(r.dataPagamento);
 
       if (map.has(key)) {
         const ex = map.get(key);
@@ -619,10 +619,43 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     return map;
   }
 
-  private parseDateBR(dateStr: string) {
-    // dateStr expected dd/mm/yyyy
-    const [d, m, y] = dateStr.split('/').map(v => Number(v));
-    return new Date(y, (m || 1) - 1, d || 1);
+  private parseDateBR(dateStr: string | null | undefined) {
+    if (!dateStr) return new Date(0);
+    const parts = dateStr.split('/');
+    const [d, m, y] = parts.map(v => Number(v));
+    const parsed = new Date(y, (m || 1) - 1, d || 1);
+    return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+  }
+
+  private formatDateToBR(value: any): string | null {
+    try {
+      if (!value) return null;
+      
+      let date: Date;
+      if (value instanceof Date) {
+        date = value;
+      } else if (typeof value === 'string') {
+        if (value.includes('/')) {
+          const parts = value.split('/').map(p => parseInt(p, 10));
+          if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+            date = new Date(parts[2], parts[1] - 1, parts[0]);
+          } else {
+            return null;
+          }
+        } else {
+          date = new Date(value);
+        }
+      } else if (typeof value === 'number') {
+        date = new Date(value);
+      } else {
+        return null;
+      }
+      
+      if (Number.isNaN(date.getTime())) return null;
+      return new Intl.DateTimeFormat('pt-BR').format(date);
+    } catch (e) {
+      return null;
+    }
   }
 
 
@@ -641,7 +674,6 @@ ${inner}
 ) t
 WHERE
      ($5::text[] IS NULL OR TRIM(UPPER(t."nomeConsorcio")) = ANY($5))
-
 `;
   }
 
@@ -692,8 +724,8 @@ WHERE
     // const modaisEspeciais = ['STPC', 'STPL', 'TEC'];
 
     // console.log(consorcioNome)
-    const dataInicio = filter.dataInicio || null;
-    const dataFim = filter.dataFim || null;
+    const dataInicio = format(new Date(filter.dataInicio), 'yyyy-MM-dd') || null;
+    const dataFim = format(new Date(filter.dataFim), 'yyyy-MM-dd') || null;
     const userIds = filter.userIds || null;
     const valorMin = filter.valorMin || null;
     const valorMax = filter.valorMax || null;
