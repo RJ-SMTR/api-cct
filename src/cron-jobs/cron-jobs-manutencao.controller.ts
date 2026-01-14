@@ -17,5 +17,28 @@ export class CronJobsManutencaoController {
     private readonly cronJobsService: CronJobsService, //
   ) {}
 
-
+  @Get('/test-backup')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Testa o backup completo do SFTP para GCS' })
+  async testBackup() {
+    const METHOD = 'testBackup';
+    try {
+      this.logger.log('Iniciando teste de backup...', METHOD);
+      await this.cronJobsService.fullBackup();
+      return {
+        success: true,
+        message: 'Backup finalizado com sucesso!',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`Erro no teste de backup: ${error.message}`, error?.stack, METHOD);
+      return {
+        success: false,
+        message: `Erro ao executar backup: ${error.message}`,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
 }
