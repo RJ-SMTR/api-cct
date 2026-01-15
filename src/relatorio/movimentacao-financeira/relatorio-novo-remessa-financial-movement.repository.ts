@@ -56,8 +56,8 @@ FROM
     JOIN bank bc on bc.code = pu."bankCode"
     INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id
 WHERE
-
-   ($3::integer[] IS NULL OR pu."id" = ANY($3))
+    da."dataVencimento" BETWEEN $1 AND $2
+    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -304,7 +304,8 @@ FROM ordem_pagamento op
   LEFT JOIN public."user" pu on pu."id"=op."userId"
   LEFT JOIN bank bc ON bc.code = pu."bankCode"
 WHERE
-     oph."motivoStatusRemessa" NOT IN ('AM')
+     pd."dataReferencia" BETWEEN $1 AND $2
+    AND oph."motivoStatusRemessa" NOT IN ('AM')
     AND da."dataVencimento" IS NOT NULL
     AND op."ordemPagamentoAgrupadoId" IS NULL
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
