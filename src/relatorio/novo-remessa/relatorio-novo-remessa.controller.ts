@@ -62,10 +62,13 @@ export class RelatorioNovoRemessaController {
     @Query('eleicao', new ParseBooleanPipe({ optional: true })) eleicao: boolean | undefined,
     @Query('desativados', new ParseBooleanPipe({ optional: true })) desativados: boolean | undefined,
     @Query('pendentes', new ParseBooleanPipe({ optional: true })) pendentes: boolean | undefined,
+    @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
+    @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
+    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined
   ) {
     try {
       const result = await this.relatorioNovoRemessaService.findConsolidado({
-        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes
+        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes, rejeitado, estorno, pendenciaPaga
       });
       return result;
     } catch (e) {
