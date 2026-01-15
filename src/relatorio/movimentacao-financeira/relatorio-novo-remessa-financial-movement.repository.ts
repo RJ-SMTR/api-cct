@@ -632,6 +632,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     try {
       if (!value) return null;
       
+
       let date: Date;
       if (value instanceof Date) {
         date = value;
@@ -652,6 +653,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
         return null;
       }
       
+
       if (Number.isNaN(date.getTime())) return null;
       return new Intl.DateTimeFormat('pt-BR').format(date);
     } catch (e) {
