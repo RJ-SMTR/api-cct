@@ -65,7 +65,7 @@ WHERE
     AND (
         $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
     )
-AND (
+    AND (
         oph."motivoStatusRemessa" = '02' OR
         (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
     )
@@ -97,7 +97,7 @@ FROM
     JOIN bank bc on bc.code = pu."bankCode"
 WHERE
     da."dataVencimento" BETWEEN $1 AND $2
-    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+   and ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -258,6 +258,7 @@ pendencia AS (
     )
 
 ),
+
 cadeia_pagamento AS (
   SELECT
     opa.id AS ordem_id,
@@ -306,8 +307,8 @@ FROM ordem_pagamento op
   LEFT JOIN public."user" pu on pu."id"=op."userId"
   LEFT JOIN bank bc ON bc.code = pu."bankCode"
 WHERE
-     pd."dataReferencia" BETWEEN $1 AND $2
-    AND oph."motivoStatusRemessa" NOT IN ('AM')
+pd."dataReferencia" BETWEEN $1 AND $2
+and  oph."motivoStatusRemessa" NOT IN ('AM')
     AND da."dataVencimento" IS NOT NULL
     AND op."ordemPagamentoAgrupadoId" IS NULL
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
@@ -633,7 +634,6 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
   private formatDateToBR(value: any): string | null {
     try {
       if (!value) return null;
-      
 
       let date: Date;
       if (value instanceof Date) {
@@ -654,7 +654,6 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
       } else {
         return null;
       }
-      
 
       if (Number.isNaN(date.getTime())) return null;
       return new Intl.DateTimeFormat('pt-BR').format(date);

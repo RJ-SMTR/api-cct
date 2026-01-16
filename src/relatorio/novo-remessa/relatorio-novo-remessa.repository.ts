@@ -508,7 +508,7 @@ pendencia AS (
 cadeia_pagamento (ordem_id, pai_id, raiz_id) AS (
   SELECT opa.id, opa."ordemPagamentoAgrupadoId", opa.id
   FROM ordem_pagamento_agrupado opa
-
+    where opa."dataPagamento" BETWEEN '%DATA_INICIO%' AND '%DATA_FIM%' 
   UNION ALL
 
   SELECT filho.id, filho."ordemPagamentoAgrupadoId", pai.raiz_id
@@ -956,6 +956,7 @@ WHERE
     cadeia_pagamento (ordem_id, pai_id, raiz_id) AS (
         SELECT opa.id, opa."ordemPagamentoAgrupadoId", opa.id
         FROM ordem_pagamento_agrupado opa
+            where opa."dataPagamento" BETWEEN '%DATA_INICIO%' AND '%DATA_FIM%' 
         UNION ALL
         SELECT filho.id, filho."ordemPagamentoAgrupadoId", pai.raiz_id
         FROM
@@ -986,6 +987,11 @@ WHERE
                   `;
         sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
       }
+
+      sqlOutros = sqlOutros
+        .replace(/%DATA_INICIO%/g, dataInicio)
+        .replace(/%DATA_FIM%/g, dataFim);
+
       condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
       `;
 
@@ -1235,6 +1241,8 @@ WHERE
         .replace(/%FILTRO_VALOR_MAX%/g, filtroValorMax);
 
         const pendenciaPagaEstRej = this.pendenciaPagaEstRejSQL
+          .replace(/%DATA_INICIO%/g, dataInicio)
+          .replace(/%DATA_FIM%/g, dataFim)
         .replace(/%FILTRO_USER%/g, filtroUser)
         .replace(/%FILTRO_CONSORCIO%/g, filtroConsorcio)
         .replace(/%FILTRO_VALOR_MIN%/g, filtroValorMin)
@@ -1269,6 +1277,7 @@ WHERE
       cadeia_pagamento (ordem_id, pai_id, raiz_id) AS (
         SELECT opa.id, opa."ordemPagamentoAgrupadoId", opa.id
         FROM ordem_pagamento_agrupado opa
+            where opa."dataPagamento" BETWEEN '%DATA_INICIO%' AND '%DATA_FIM%' 
         UNION ALL
         SELECT filho.id, filho."ordemPagamentoAgrupadoId", pai.raiz_id
         FROM ordem_pagamento_agrupado filho
@@ -1305,6 +1314,10 @@ WHERE
        ${filter.pendenciaPaga ? ' AND cp.raiz_id IN (SELECT raiz_id FROM cadeias_com_paga)' : ' AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)'}
     `;
       }
+
+      sqlOutros = sqlOutros
+        .replace(/%DATA_INICIO%/g, dataInicio)
+        .replace(/%DATA_FIM%/g, dataFim);
 
       } else {
         sqlOutros = `
