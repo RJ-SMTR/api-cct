@@ -56,8 +56,8 @@ FROM
     JOIN bank bc on bc.code = pu."bankCode"
     INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id
 WHERE
-    da."dataVencimento" BETWEEN $1 AND $2
-    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+  opa."dataPagamento" BETWEEN $1 AND $2
+    and ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -69,9 +69,11 @@ AND (
         oph."motivoStatusRemessa" = '02' OR
         (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
     )
-    AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)
+    AND NOT EXISTS (
+        SELECT 1 FROM cadeias_com_paga ccp WHERE ccp.raiz_id = cp.raiz_id
+    )
     AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
-    and oph."statusRemessa" <> 5
+    AND oph."statusRemessa" NOT IN (5,2,1)
 `;
 
   private readonly queryNewReportNoCadeia = `
