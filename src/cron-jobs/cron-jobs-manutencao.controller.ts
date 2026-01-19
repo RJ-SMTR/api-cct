@@ -21,15 +21,25 @@ export class CronJobsManutencaoController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Testa o backup completo do SFTP para GCS' })
+  @ApiOperation({ 
+    summary: 'Testa o backup selecionado do SFTP para GCS',
+    description: 'Faz backup apenas das pastas: /backup/extrato/success/2026, /backup/remessa/2026, /backup/retorno/success/2026, /enviados, /retorno'
+  })
   async testBackup() {
     const METHOD = 'testBackup';
     try {
-      this.logger.log('Iniciando teste de backup...', METHOD);
+      this.logger.log('Iniciando teste de backup selecionado...', METHOD);
       await this.cronJobsService.fullBackup();
       return {
         success: true,
-        message: 'Backup finalizado com sucesso!',
+        message: 'Backup selecionado finalizado com sucesso!',
+        folders: [
+          '/backup/extrato/success/2026',
+          '/backup/remessa/2026',
+          '/backup/retorno/success/2026',
+          '/enviados',
+          '/retorno'
+        ],
         timestamp: new Date().toISOString(),
       };
     } catch (error) {

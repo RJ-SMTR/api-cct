@@ -437,17 +437,80 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     }
   }
 
+  /**
+   * Backup de pastas selecionadas para o GCS
+   * 
+   * @param folders Array de pastas para fazer backup (ex: ['/retorno', '/backup/remessa/2026'])
+   * @param gcsBasePath Caminho base no GCS
+   */
+  public async backupSelectedFoldersToGcs(
+    folders: string[],
+    gcsBasePath = 'api_cct_prod',
+  ): Promise<void> {
+    const METHOD = 'backupSelectedFoldersToGcs';
+
+    if (!this.isInitialized) {
+      this.logger.warn('SftpService ainda não inicializado. Backup cancelado.', METHOD);
+      return;
+    }
+
+    if (!folders || folders.length === 0) {
+      this.logger.warn('Nenhuma pasta especificada para backup.', METHOD);
+      return;
+    }
+
+    try {
+      await this.connectClient();
+
+      this.logger.log(
+        `Iniciando backup das pastas: ${folders.join(', ')}`,
+        METHOD,
+      );
+
+      let totalNewFiles = 0;
+
+      for (const folder of folders) {
+        const sftpPath = this.dir(folder);
+        
+        const exists = await this.sftpClient.exists(sftpPath);
+        if (!exists) {
+          this.logger.warn(`Pasta não existe: ${sftpPath}`, METHOD);
+          continue;
+        }
+
+        const newFiles = await this.backupDirectoryRecursive(
+          sftpPath,
+          gcsBasePath,
+        );
+
+        totalNewFiles += newFiles;
+      }
+
+      this.logger.log(
+        `Backup de pastas selecionadas finalizado: ${totalNewFiles} novos arquivos em total`,
+        METHOD,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Erro ao executar backup selecionado SFTP → GCS: ${error.message}`,
+        error.stack,
+        METHOD,
+      );
+      throw error;
+    }
+  }
+
   private async backupDirectoryRecursive(
     sftpDirPath: string,
     gcsBasePath: string,
-  ): Promise<void> {
+  ): Promise<number> {
     const METHOD = 'backupDirectoryRecursive';
 
     try {
       const items = await this.sftpClient.list(sftpDirPath);
       if (!items || items.length === 0) {
         this.logger.debug(`Pasta vazia: ${sftpDirPath}`, METHOD);
-        return;
+        return 0;
       }
 
       let newFilesCount = 0;
@@ -456,10 +519,11 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
         const remotePath = `${sftpDirPath}/${item.name}`.replace('//', '/');
 
         if (item.type === 'd') {
-          await this.backupDirectoryRecursive(
+          const subDirNewFiles = await this.backupDirectoryRecursive(
             remotePath,
             gcsBasePath,
           );
+          newFilesCount += subDirNewFiles;
           continue;
         }
 
@@ -493,12 +557,14 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       if (newFilesCount === 0) {
         this.logger.debug(`Nenhum arquivo novo em: ${sftpDirPath}`, METHOD);
       }
+
+      return newFilesCount;
     } catch (error) {
       this.logger.warn(
         `Erro ao fazer backup do diretório ${sftpDirPath}: ${error.message}`,
         METHOD,
       );
-
+      return 0;
     }
   }
 

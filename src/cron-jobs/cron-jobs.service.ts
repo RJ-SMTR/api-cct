@@ -930,11 +930,17 @@ export class CronJobsService {
   async fullBackup() {
     const METHOD = 'fullBackup';
     try {
-      this.logger.log('Iniciando BACKUP do SFTP', METHOD);
-      await this.sftpService.backupFolderToGcs();
-      this.logger.log('BACKUP finalizado', METHOD);
+      this.logger.log('Iniciando BACKUP selecionado do SFTP', METHOD);
+      await this.sftpService.backupSelectedFoldersToGcs([
+        '/backup/extrato/success/2026',
+        '/backup/remessa/2026',
+        '/backup/retorno/success/2026',
+        '/enviados',
+        '/retorno'
+      ]);
+      this.logger.log('BACKUP selecionado finalizado', METHOD);
     } catch (error) {
-      this.logger.error(`Erro ao executar backup completo: ${error.message}`, error?.stack, METHOD);
+      this.logger.error(`Erro ao executar backup selecionado: ${error.message}`, error?.stack, METHOD);
     }
   }
 }
