@@ -65,7 +65,7 @@ export enum CronJobsEnum {
   generateRemessaLancamento = 'generateRemessaLancamento',
   sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento',
   sincronizarTransacoesBq = 'sincronizarTransacoesBq',
-  backupSftp = 'backupSftp'
+  backupSftp = 'backupSftp',
   automacao = 'automacao'
 }
 interface ICronjobDebug {
