@@ -63,24 +63,34 @@ WITH
             "ordemPagamentoAgrupadoId",
             "dataReferencia" DESC
     ),
-    dias_relatorio AS (
-        SELECT dias::DATE AS data
-        FROM generate_series(
-               DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
-            ) AS dias
-        WHERE (
-	        EXTRACT(MONTH FROM dias) < 9
-	        AND EXTRACT(DOW FROM dias) = 5
+ dias_relatorio AS (
+    SELECT dias::DATE AS data
+    FROM generate_series(
+        DATE_TRUNC('month', $1::DATE),
+        DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day',
+        '1 day'::INTERVAL
+    ) AS dias
+    WHERE
+        (
+            EXTRACT(YEAR FROM dias) = 2026
+            AND EXTRACT(DOW FROM dias) IN (2, 5)
         )
-    OR (
-        EXTRACT(MONTH FROM dias) >= 9
-        AND EXTRACT(DOW FROM dias) IN (2, 5)
-      )
-    OR (
-        EXTRACT(YEAR FROM dias) = 2024
-        AND EXTRACT(DOW FROM dias) = 1
-      )
-    )
+        OR
+        (
+            EXTRACT(YEAR FROM dias) <> 2026
+            AND (
+                (
+                    EXTRACT(MONTH FROM dias) < 9
+                    AND EXTRACT(DOW FROM dias) = 5
+                )
+                OR
+                (
+                    EXTRACT(MONTH FROM dias) >= 9
+                    AND EXTRACT(DOW FROM dias) IN (2, 5)
+                )
+            )
+        )
+)
 SELECT
    dr.data,
     SUM(dp.valor) AS valor,
@@ -487,7 +497,7 @@ ORDER BY dr.data;
 
     queryRunner.connect();
 
-    const result: any = await queryRunner.query(query);
+    let result: any = await queryRunner.query(query);
 
     queryRunner.release();
 
@@ -501,7 +511,7 @@ ORDER BY dr.data;
 
     queryRunner.connect();
 
-    const result: any = await queryRunner.query(query);
+    let result: any = await queryRunner.query(query);
 
     queryRunner.release();
 
@@ -515,7 +525,7 @@ ORDER BY dr.data;
 
     queryRunner.connect();
 
-    const result: any = await queryRunner.query(query);
+    let result: any = await queryRunner.query(query);
 
     queryRunner.release();
 
@@ -553,7 +563,7 @@ ORDER BY dr.data;
 
     queryRunner.connect();
 
-    const result: any = await queryRunner.query(query);
+    let result: any = await queryRunner.query(query);
 
     queryRunner.release();
 

@@ -136,7 +136,7 @@ export class User extends EntityHelper {
   @Column({ type: Number, nullable: true })
   bankCode?: number;
 
-  @Column({ type: String, nullable: true, length: 4 })
+  @Column({ type: String, nullable: true, length: 5 })
   bankAgency?: string;
 
   @Column({ type: String, nullable: true, length: 20 })

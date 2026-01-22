@@ -1,3 +1,4 @@
+import { SftpService } from 'src/sftp/sftp.service';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
@@ -64,6 +65,7 @@ export enum CronJobsEnum {
   generateRemessaLancamento = 'generateRemessaLancamento',
   sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento',
   sincronizarTransacoesBq = 'sincronizarTransacoesBq',
+  backupSftp = 'backupSftp'
   automacao = 'automacao'
 }
 interface ICronjobDebug {
@@ -88,6 +90,8 @@ interface ICronJobSetting {
  */
 @Injectable()
 export class CronJobsService {
+
+
   private logger = new CustomLogger(CronJobsService.name, { timestamp: true });
 
   public jobsConfig: ICronJob[] = [];
@@ -106,6 +110,7 @@ export class CronJobsService {
     private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
     private remessaService: RemessaService,
     private retornoService: RetornoService,
+    private sftpService: SftpService,
     private ordemPagamentoService: OrdemPagamentoService,
     private bigQueryTransacaoService: BigqueryTransacaoService,
     private distributedLockService: DistributedLockService,
@@ -120,6 +125,9 @@ export class CronJobsService {
       throw error;
     });
   }
+
+
+
 
   async onModuleLoad() {
 
@@ -261,6 +269,30 @@ export class CronJobsService {
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
         },
       },
+      {
+        /**
+         *
+         * Atualizar Backup do SFTP - Leitura dos Arquivos do SFTP
+         * 
+         */
+        name: CronJobsEnum.backupSftp,
+        cronJobParameters: {
+          cronTime: "0 23 * * *", //  Todo dia as 20:00 
+          onTick: async () => {
+            await this.fullBackup();
+          },
+        },
+      },
+      // {
+      //   /**
+      //    * Sincroniza transacoes do BQ.
+      //    * */
+      //   name: CronJobsEnum.sincronizarTransacoesBq,
+      //   cronJobParameters: {
+      //     cronTime: "0 12 * * *", // 07:00 BRT (GMT-3) = 10:00 GMT, 21:00 BRT (GMT-3) = 24:00 GMT
+      //     onTick: async () => await this.sincronizarTransacoesBq(),
+      //   },
+      // }
     );
 
     this.jobsConfig.push(...await this.geraCronJob());
@@ -896,6 +928,26 @@ export class CronJobsService {
     previousTuesday.setDate(today.getDate() - daysSinceTuesday);
     return previousTuesday;
   }
+  
+  
+    async fullBackup() {
+    const METHOD = 'fullBackup';
+    try {
+      this.logger.log('Iniciando BACKUP selecionado do SFTP', METHOD);
+      await this.sftpService.backupSelectedFoldersToGcs([
+        '/backup/extrato/success/2026',
+        '/backup/remessa/2026',
+        '/backup/retorno/success/2026',
+        '/enviados',
+        '/retorno'
+      ]);
+      this.logger.log('BACKUP selecionado finalizado', METHOD);
+    } catch (error) {
+      this.logger.error(`Erro ao executar backup selecionado: ${error.message}`, error?.stack, METHOD);
+    }
+  }
+}
+  
 
   async geraCronJob(): Promise<ICronJob[]> {
     const cronsAutonomos: ICronJob[] = []

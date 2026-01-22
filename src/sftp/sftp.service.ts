@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { format } from 'date-fns';
+import { Storage } from '@google-cloud/storage';
+import { PassThrough } from 'stream';
 import { AllConfigType } from 'src/config/config.type';
 import { formatDateISODateSlash, getBRTFromUTC, getDateFromCnabName } from 'src/utils/date-utils';
 import { OnModuleLoad } from 'src/utils/interfaces/on-load.interface';
@@ -15,6 +17,7 @@ import { appSettings } from 'src/settings/app.settings';
 export class SftpService implements OnModuleInit, OnModuleLoad {
   private readonly logger: Logger;
   private rootFolder = '';
+  private isInitialized = false;
   public readonly FOLDERS = {
     REMESSA: '/remessa',
     RETORNO: '/retorno',
@@ -33,9 +36,36 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     /** smtr_prefeiturarj_eerdiario_ddMMyyyy_hhmmss.ext */
     EXTRATO: new RegExp(`smtr_prefeiturarj_eediario_\\d{8}_\\d{6}\\.ext`),
   };
+  private storage: Storage | null = null;
+  
+  private getStorage(): Storage {
+    if (!this.storage) {
+      const projectId = process.env.GOOGLE_CLIENT_API_PROJECT_BACKUP;
+      
+      if (projectId) {
+        this.storage = new Storage({ credentials: {
+          client_email: this.configService.getOrThrow('google.clientApiClientEmail', { infer: true }),
+          private_key: this.configService
+            .getOrThrow('google.clientApiPrivateKey', { infer: true })
+            .replace(/\\n/g, '\n'),
+        }, projectId });
+      } else {
+        this.storage = new Storage({ projectId });
+      }
+    }
+    return this.storage;
+  }
 
-  constructor(private readonly configService: ConfigService<AllConfigType>, private readonly sftpClient: SftpClientService, private readonly settingsService: SettingsService) {
+  private getBucket() {
+    const bucketName = this.configService.getOrThrow('gcs.bucketName', { infer: true });
+    return this.getStorage().bucket(bucketName);
+  }
+
+  constructor(private readonly configService: ConfigService<AllConfigType>, private readonly sftpClient: SftpClientService, private readonly settingsService: SettingsService,
+    
+  ) {
     this.logger = new CustomLogger(SftpService.name, { timestamp: true });
+    
   }
 
   onModuleInit() {
@@ -52,6 +82,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       this.rootFolder = await this.configService.getOrThrow('sftp.rootFolder', { infer: true });
     }
     await this.createMainFolders();
+    this.isInitialized = true;
   }
 
   /**
@@ -261,4 +292,284 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     const dateString = formatDateISODateSlash(date).split('/').slice(0, -1).join('/');
     return `${dateString}/${cnabName}`;
   }
+
+  private buildGcsPath(relativePath: string, gcsBasePath: string) {
+    const base = gcsBasePath.endsWith('/') ? gcsBasePath.slice(0, -1) : gcsBasePath;
+    const rel = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
+    return `${base}/${rel}`;
+  }
+
+
+  /**
+   * Backup incremental de todo SFTP para o GCS
+   * Se folder for especificado, faz backup apenas dessa pasta
+   * Se não, faz backup recursivo de todo o SFTP, apenas dos arquivos novos
+   * Estrutura no bucket: /<base>/<path/relativo> (respeitando pastas já existentes)
+   */
+  public async backupFolderToGcs(
+    folder?: string,
+    gcsBasePath = 'api_cct_prod',
+  ): Promise<void> {
+    const METHOD = 'backupFolderToGcs';
+
+    if (!this.isInitialized) {
+      this.logger.warn('SftpService ainda não inicializado. Backup cancelado.', METHOD);
+      return;
+    }
+
+    if (!folder) {
+      return this.backupFullSftpToGcs(gcsBasePath);
+    }
+
+    try {
+      await this.connectClient();
+
+      const sftpPath = this.dir(folder);
+      const files = await this.sftpClient.list(sftpPath);
+
+      this.logger.log(
+        `Iniciando backup da pasta ${sftpPath} (${files.length} arquivos)`,
+        METHOD,
+      );
+
+      let newFilesCount = 0;
+
+      for (const file of files) {
+        if (file.type !== '-') continue;
+
+        const remoteFilePath = `${sftpPath}/${file.name}`;
+        const relativePath = remoteFilePath.replace(this.rootFolder, '');
+        const gcsFilePath = this.buildGcsPath(relativePath, gcsBasePath);
+        const gcsFile = this.getBucket().file(gcsFilePath);
+
+        const [exists] = await gcsFile.exists();
+        if (exists) {
+          this.logger.debug(`Arquivo já existe no GCS: ${gcsFilePath}`, METHOD);
+          continue;
+        }
+
+        const readStream = await this.sftpClient.getStream(remoteFilePath);
+
+        await new Promise<void>((resolve, reject) => {
+          readStream
+            .pipe(gcsFile.createWriteStream())
+            .on('finish', resolve)
+            .on('error', reject);
+        });
+
+        newFilesCount++;
+        this.logger.log(`Backup realizado: ${relativePath}`, METHOD);
+      }
+
+      if (newFilesCount === 0) {
+        this.logger.log(`Nenhum arquivo novo encontrado em ${sftpPath}`, METHOD);
+      } else {
+        this.logger.log(`Backup finalizado: ${newFilesCount} novos arquivos em ${sftpPath}`, METHOD);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Erro ao executar backup SFTP → GCS: ${error.message}`,
+        error.stack,
+        METHOD,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Backup recursivo de toda a estrutura do SFTP para o GCS
+   *
+   * Estrutura no GCS:
+   * <base>/<path/original> (sem criar novas pastas de data)
+   */
+  public async backupFullSftpToGcs(
+    gcsBasePath = 'api_cct_prod',
+    startFolder = '',
+  ): Promise<void> {
+    const METHOD = 'backupFullSftpToGcs';
+
+    if (!this.isInitialized) {
+      this.logger.warn(
+        'SftpService ainda não foi inicializado. Aguardando inicialização...',
+        METHOD,
+      );
+      // Aguarda um pouco para dar tempo da inicialização completar
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      if (!this.isInitialized) {
+        this.logger.error(
+          'SftpService não foi inicializado. Backup cancelado.',
+          METHOD,
+        );
+        return;
+      }
+    }
+
+    try {
+      await this.connectClient();
+
+      const root = startFolder || this.rootFolder || '/';
+      
+      const exists = await this.sftpClient.exists(root);
+      if (!exists) {
+        this.logger.warn(
+          `Diretório não existe no SFTP: ${root}. Backup cancelado.`,
+          METHOD,
+        );
+        return;
+      }
+
+      this.logger.log(`Iniciando backup completo do SFTP: ${root}`, METHOD);
+
+      await this.backupDirectoryRecursive(
+        root,
+        gcsBasePath,
+      );
+
+      this.logger.log(`Backup completo do SFTP finalizado`, METHOD);
+    } catch (error) {
+      this.logger.error(
+        `Erro no backup completo SFTP → GCS: ${error.message}`,
+        error.stack,
+        METHOD,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Backup de pastas selecionadas para o GCS
+   * 
+   * @param folders Array de pastas para fazer backup (ex: ['/retorno', '/backup/remessa/2026'])
+   * @param gcsBasePath Caminho base no GCS
+   */
+  public async backupSelectedFoldersToGcs(
+    folders: string[],
+    gcsBasePath = 'api_cct_prod',
+  ): Promise<void> {
+    const METHOD = 'backupSelectedFoldersToGcs';
+
+    if (!this.isInitialized) {
+      this.logger.warn('SftpService ainda não inicializado. Backup cancelado.', METHOD);
+      return;
+    }
+
+    if (!folders || folders.length === 0) {
+      this.logger.warn('Nenhuma pasta especificada para backup.', METHOD);
+      return;
+    }
+
+    try {
+      await this.connectClient();
+
+      this.logger.log(
+        `Iniciando backup das pastas: ${folders.join(', ')}`,
+        METHOD,
+      );
+
+      let totalNewFiles = 0;
+
+      for (const folder of folders) {
+        const sftpPath = this.dir(folder);
+        
+        const exists = await this.sftpClient.exists(sftpPath);
+        if (!exists) {
+          this.logger.warn(`Pasta não existe: ${sftpPath}`, METHOD);
+          continue;
+        }
+
+        const newFiles = await this.backupDirectoryRecursive(
+          sftpPath,
+          gcsBasePath,
+        );
+
+        totalNewFiles += newFiles;
+      }
+
+      this.logger.log(
+        `Backup de pastas selecionadas finalizado: ${totalNewFiles} novos arquivos em total`,
+        METHOD,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Erro ao executar backup selecionado SFTP → GCS: ${error.message}`,
+        error.stack,
+        METHOD,
+      );
+      throw error;
+    }
+  }
+
+  private async backupDirectoryRecursive(
+    sftpDirPath: string,
+    gcsBasePath: string,
+  ): Promise<number> {
+    const METHOD = 'backupDirectoryRecursive';
+
+    try {
+      const items = await this.sftpClient.list(sftpDirPath);
+      if (!items || items.length === 0) {
+        this.logger.debug(`Pasta vazia: ${sftpDirPath}`, METHOD);
+        return 0;
+      }
+
+      let newFilesCount = 0;
+
+      for (const item of items) {
+        const remotePath = `${sftpDirPath}/${item.name}`.replace('//', '/');
+
+        if (item.type === 'd') {
+          const subDirNewFiles = await this.backupDirectoryRecursive(
+            remotePath,
+            gcsBasePath,
+          );
+          newFilesCount += subDirNewFiles;
+          continue;
+        }
+
+        if (item.type !== '-') continue;
+
+        const relativePath = remotePath.replace(this.rootFolder, '');
+          const gcsPath = this.buildGcsPath(relativePath, gcsBasePath);
+        const gcsFile = this.getBucket().file(gcsPath);
+
+        const [exists] = await gcsFile.exists();
+        if (exists) {
+          continue;
+        }
+
+        const stream = new PassThrough();
+
+        await Promise.all([
+          this.sftpClient.download(remotePath, stream),
+          new Promise<void>((resolve, reject) => {
+            stream
+              .pipe(gcsFile.createWriteStream())
+              .on('finish', resolve)
+              .on('error', reject);
+          }),
+        ]);
+
+        newFilesCount++;
+        this.logger.log(`Backup realizado: ${relativePath}`, METHOD);
+      }
+
+      if (newFilesCount === 0) {
+        this.logger.debug(`Nenhum arquivo novo em: ${sftpDirPath}`, METHOD);
+      }
+
+      return newFilesCount;
+    } catch (error) {
+      this.logger.warn(
+        `Erro ao fazer backup do diretório ${sftpDirPath}: ${error.message}`,
+        METHOD,
+      );
+      return 0;
+    }
+  }
+
+
+
 }
+
+
