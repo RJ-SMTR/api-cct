@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AgendamentoPagamentoModule } from 'src/agendamento/agendamento.module';
 import { CnabModule } from 'src/cnab/cnab.module';
 import { MailCountModule } from 'src/mail-count/mail-count.module';
 import { MailHistoryModule } from 'src/mail-history/mail-history.module';
@@ -22,6 +23,7 @@ import { CronJobsManutencaoController } from './cron-jobs-manutencao.controller'
     MailCountModule,
     CnabModule,
     SftpModule,
+    AgendamentoPagamentoModule
   ],
   controllers: [CronJobsManutencaoController],
   providers: [CronJobsService],

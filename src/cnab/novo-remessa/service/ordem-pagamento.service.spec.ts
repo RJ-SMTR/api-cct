@@ -122,6 +122,8 @@ describe('OrdemPagamentoService', () => {
           statusRemessa: 2,
           motivoStatusRemessa: 'AA',
           ordemId: 1,
+          dataCaptura: undefined,
+          ids: []
         },
       ];
 

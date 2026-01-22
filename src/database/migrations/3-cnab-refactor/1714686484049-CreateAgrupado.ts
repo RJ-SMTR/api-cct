@@ -15,7 +15,6 @@ export class CreateAgrupado1714686484049 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "transacao_agrupado" ADD CONSTRAINT "FK_TransacaoAgrupado_pagador_ManyToOne" FOREIGN KEY ("pagadorId") REFERENCES "pagador"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "transacao_agrupado" ADD CONSTRAINT "FK_TransacaoAgrupado_status_ManyToOne" FOREIGN KEY ("statusId") REFERENCES "transacao_status"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "header_arquivo" ADD CONSTRAINT "FK_HeaderArquivo_transacaoAgrupado_ManyToOne" FOREIGN KEY ("transacaoAgrupadoId") REFERENCES "transacao_agrupado"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "transacao" ADD CONSTRAINT "FK_Transacao_transacaoAgrupado_ManyToOne" FOREIGN KEY ("transacaoAgrupadoId") REFERENCES "transacao_agrupado"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
