@@ -40,7 +40,7 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
   
   private getStorage(): Storage {
     if (!this.storage) {
-      const projectId = process.env.GOOGLE_CLIENT_API_PROJECT_ID;
+      const projectId = process.env.GOOGLE_CLIENT_API_PROJECT_BACKUP;
       
       if (projectId) {
         this.storage = new Storage({ credentials: {
