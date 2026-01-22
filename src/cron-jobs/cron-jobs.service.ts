@@ -262,7 +262,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.backupSftp,
         cronJobParameters: {
-          cronTime: "0 9 * * *", //  Todo dia as 06 da manhã
+          cronTime: "0 23 * * *", //  Todo dia as 20:00 
           onTick: async () => {
             await this.fullBackup();
           },
