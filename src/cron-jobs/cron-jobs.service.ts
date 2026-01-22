@@ -946,8 +946,6 @@ export class CronJobsService {
       this.logger.error(`Erro ao executar backup selecionado: ${error.message}`, error?.stack, METHOD);
     }
   }
-}
-  
 
   async geraCronJob(): Promise<ICronJob[]> {
     const cronsAutonomos: ICronJob[] = []
@@ -1121,3 +1119,5 @@ export class CronJobsService {
     return false;
   }
 }
+  
+
