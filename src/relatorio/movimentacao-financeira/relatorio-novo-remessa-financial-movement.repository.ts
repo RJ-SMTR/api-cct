@@ -86,7 +86,8 @@ SELECT DISTINCT
     ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     da."valorLancamento" AS valor,
     opa."dataPagamento",
-    ${this.STATUS_CASE} AS status
+    ${this.STATUS_CASE} AS status,
+	opa.id
 FROM
     ordem_pagamento op
     INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
