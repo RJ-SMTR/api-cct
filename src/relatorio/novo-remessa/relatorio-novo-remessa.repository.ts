@@ -877,7 +877,7 @@ WHERE
     let sqlOutros = '';
     let condicoesOutros = '';
 
-    const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined || filter.estorno || filter.rejeitado;
+    const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined || filter.estorno || filter.rejeitado || filter.pendenciaPaga;
     // const isPagoOuErro = filter.pago !== undefined || filter.erro !== undefined;
     // --- BLOCO PARA 2024 ---
     if (anoInicio <= 2024) {
@@ -933,7 +933,7 @@ WHERE
 
     // --- BLOCO PARA 2025 em diante ---
     if (anoFim >= 2025) {
-      if(filter.estorno || filter.rejeitado || filter.erro || filter.pendenciaPaga){
+      if(filter.estorno || filter.rejeitado || filter.erro || filter.pendenciaPaga || filter.pago){
      sqlOutros =    `
        WITH RECURSIVE
     pendencia AS (
@@ -1214,17 +1214,9 @@ WHERE
         ${RelatorioNovoRemessaRepository.ELEICAO_25}
       `;
       }
-      else if (filter.estorno || filter.rejeitado || filter.erro || filter.pendenciaPaga) {
+      else if (filter.estorno || filter.rejeitado || filter.erro || filter.pendenciaPaga || filter.pago) {
       if (filter.pendenciaPaga) {
           const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
-          const nomes = filter.consorcioNome ? filter.consorcioNome.map((n) => n.toUpperCase().trim()) : [];
-          const consorciosDefault = `'STPC','STPL','TEC','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio'`;
-        const nomeCase = `CASE\n    WHEN uu."permitCode" = '8' THEN 'VLT'\n    WHEN uu."permitCode" LIKE '4%' THEN 'STPC'\n    WHEN uu."permitCode" LIKE '81%' THEN 'STPL'\n    WHEN uu."permitCode" LIKE '7%' THEN 'TEC'\n    ELSE op."nomeConsorcio"\n  END`;
-          const filtroConsorcio = filter.todosConsorcios
-            ? `AND TRIM(UPPER(${nomeCase})) IN (${consorciosDefault})`
-            : nomes.length
-              ? `AND TRIM(UPPER(${nomeCase})) IN ('${nomes.join("','")}')`
-              : '';
           const filtroValorMin = filter.valorMin ? `AND COALESCE(da."valorLancamento", opa."valorTotal") >= ${filter.valorMin}` : '';
           const filtroValorMax = filter.valorMax ? `AND COALESCE(da."valorLancamento", opa."valorTotal") <= ${filter.valorMax}` : '';
 
@@ -1236,7 +1228,7 @@ WHERE
         .replace(/%DATA_INICIO%/g, dataInicio)
         .replace(/%DATA_FIM%/g, dataFim)
         .replace(/%FILTRO_USER%/g, filtroUser)
-        .replace(/%FILTRO_CONSORCIO%/g, filtroConsorcio)
+        .replace(/%FILTRO_CONSORCIO%/g, '')
         .replace(/%FILTRO_VALOR_MIN%/g, filtroValorMin)
         .replace(/%FILTRO_VALOR_MAX%/g, filtroValorMax);
 
@@ -1244,7 +1236,7 @@ WHERE
           .replace(/%DATA_INICIO%/g, dataInicio)
           .replace(/%DATA_FIM%/g, dataFim)
         .replace(/%FILTRO_USER%/g, filtroUser)
-        .replace(/%FILTRO_CONSORCIO%/g, filtroConsorcio)
+        .replace(/%FILTRO_CONSORCIO%/g, '')
         .replace(/%FILTRO_VALOR_MIN%/g, filtroValorMin)
         .replace(/%FILTRO_VALOR_MAX%/g, filtroValorMax);
 
@@ -1255,6 +1247,25 @@ WHERE
   ${pendenciaPagaEstRej}
         `;
         condicoesOutros = ' where (1=1) ';
+      } else if (filter.pago) {
+        sqlOutros = `
+        SELECT distinct
+        da.id,
+          da."dataVencimento",
+          uu."fullName",
+          oph."statusRemessa",
+          uu."permitCode",
+          oph."motivoStatusRemessa",
+            CASE
+                               WHEN uu."permitCode" = '8' THEN 'VLT'
+                WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
+                WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
+                WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
+                                ELSE op."nomeConsorcio"
+                            END AS "nome",
+         da."valorLancamento" as valor
+        ${RelatorioNovoRemessaRepository.QUERY_FROM}
+      `;
       } else {
       sqlOutros = `
     WITH RECURSIVE
@@ -1319,26 +1330,6 @@ WHERE
         .replace(/%DATA_INICIO%/g, dataInicio)
         .replace(/%DATA_FIM%/g, dataFim);
 
-      } else {
-        sqlOutros = `
-        SELECT distinct
-        da.id,
-          da."dataVencimento",
-          uu."fullName",
-          oph."statusRemessa",
-          uu."permitCode",
-          oph."motivoStatusRemessa",
-          ${filter.pendentes ? 'op."ordemPagamentoAgrupadoId",': '' }
-            CASE
-                               WHEN uu."permitCode" = '8' THEN 'VLT'
-                WHEN uu."permitCode" LIKE '4%' THEN 'STPC'
-                WHEN uu."permitCode" LIKE '81%' THEN 'STPL'
-                WHEN uu."permitCode" LIKE '7%' THEN 'TEC'
-                                ELSE op."nomeConsorcio"
-                            END AS "nome",
-         da."valorLancamento" as valor
-        ${RelatorioNovoRemessaRepository.QUERY_FROM}
-      `;
       }
 
 

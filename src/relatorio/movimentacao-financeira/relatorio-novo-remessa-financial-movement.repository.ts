@@ -222,7 +222,6 @@ INNER JOIN bank bc
     ON bc.code = pu."bankCode"
 WHERE
     da."dataVencimento" BETWEEN $1 AND $2
-        AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND (
         ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
@@ -312,7 +311,6 @@ and  oph."motivoStatusRemessa" NOT IN ('AM')
     AND da."dataVencimento" IS NOT NULL
     AND op."ordemPagamentoAgrupadoId" IS NULL
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-        AND ($5::text[] IS NULL OR TRIM(UPPER(op."nomeConsorcio")) = ANY($5))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
     AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -485,12 +483,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           }
           if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
 
-          if (safeFilter.pendenciaPaga) {
-            finalQuery = this.prependWithIfNeeded(finalQuery);
-          } else {
-
-            finalQuery = this.wrapWithOuterFilters(finalQuery);
-          }
+          finalQuery = this.wrapWithOuterFilters(finalQuery);
         } else {
           finalQuery = queryDecision.query;
 
