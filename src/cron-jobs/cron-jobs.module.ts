@@ -6,6 +6,7 @@ import { MailCountModule } from 'src/mail-count/mail-count.module';
 import { MailHistoryModule } from 'src/mail-history/mail-history.module';
 import { MailModule } from 'src/mail/mail.module';
 import { SettingsModule } from 'src/settings/settings.module';
+import { SftpModule } from 'src/sftp/sftp.module';
 import { UsersModule } from 'src/users/users.module';
 import { CronJobsService } from './cron-jobs.service';
 import { CronJobsManutencaoController } from './cron-jobs-manutencao.controller';
@@ -19,7 +20,8 @@ import { CronJobsManutencaoController } from './cron-jobs-manutencao.controller'
     MailModule,
     UsersModule,
     MailCountModule,
-    CnabModule    
+    CnabModule,
+    SftpModule,
   ],
   controllers: [CronJobsManutencaoController],
   providers: [CronJobsService],

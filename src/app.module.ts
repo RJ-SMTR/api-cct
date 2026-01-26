@@ -23,6 +23,7 @@ import { AllConfigType } from './config/config.type';
 import databaseConfig from './config/database.config';
 import facebookConfig from './config/facebook.config';
 import fileConfig from './config/file.config';
+import gcsConfig from './config/gcs.config';
 import googleConfig from './config/google.config';
 import mailConfig from './config/mail.config';
 import sftpConfig from './config/sftp.config';
@@ -64,6 +65,7 @@ import { AppService } from './app.service';
         twitterConfig,
         appleConfig,
         sftpConfig,
+        gcsConfig,
       ],
       envFilePath: ['.env'],
     }),
