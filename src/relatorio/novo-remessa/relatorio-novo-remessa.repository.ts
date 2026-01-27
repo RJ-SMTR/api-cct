@@ -621,6 +621,15 @@ WHERE
       sql = sqlConsorcios;
     }
 
+    if (!sql || !sql.trim()) {
+      const relatorioConsolidadoDto = new RelatorioConsolidadoNovoRemessaDto();
+      relatorioConsolidadoDto.valor = 0;
+      relatorioConsolidadoDto.count = 0;
+      relatorioConsolidadoDto.data = [];
+      await queryRunner.release();
+      return relatorioConsolidadoDto;
+    }
+
     sql = `select vv.nome, SUM(vv."valor") AS valor from (${sql}) vv where (1=1) `;
     if (filter.valorMax) {
       sql = sql + ` GROUP BY vv.nome
@@ -1214,7 +1223,7 @@ WHERE
         ${RelatorioNovoRemessaRepository.ELEICAO_25}
       `;
       }
-      else if (filter.estorno || filter.rejeitado || filter.erro || filter.pendenciaPaga || filter.pago) {
+      else if (filter.estorno || filter.rejeitado || filter.erro || filter.pendenciaPaga || filter.pago || filter.aPagar) {
       if (filter.pendenciaPaga) {
           const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
           const filtroValorMin = filter.valorMin ? `AND COALESCE(da."valorLancamento", opa."valorTotal") >= ${filter.valorMin}` : '';
@@ -1247,7 +1256,7 @@ WHERE
   ${pendenciaPagaEstRej}
         `;
         condicoesOutros = ' where (1=1) ';
-      } else if (filter.pago) {
+      } else if (filter.pago || filter.aPagar) {
         sqlOutros = `
         SELECT distinct
         da.id,
