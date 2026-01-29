@@ -52,6 +52,30 @@ export class OrdemPagamentoRepository {
   }
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
+    const is2024 = getYear(new Date(targetDate))
+    let filtroData = '';
+    if (is2024) {
+      filtroData = `    op."dataOrdem"::DATE BETWEEN (
+                        dr.data - 
+                        7
+                    ) AND (dr.data - 1)
+                    AND opa."dataPagamento"::DATE <> dr.data)`
+    } else {
+      filtroData = `        opa."ordemPagamentoAgrupadoId" IS NULL
+
+                and    op."dataOrdem"::DATE BETWEEN (
+              dr.data - CASE
+                  WHEN EXTRACT(
+                      MONTH
+                      FROM dr.data
+                  ) >= 9 THEN 3
+                  ELSE 7
+              END
+          ) AND (dr.data - 1)
+                              AND oph."statusRemessa" NOT IN (3, 4)
+                              AND opa."dataPagamento"::DATE > dr.data
+                          ) `
+    }
     const query = `
 WITH
     historico_recente AS (
@@ -72,23 +96,22 @@ WITH
     ) AS dias
     WHERE
         (
-            EXTRACT(YEAR FROM dias) = 2026
+            EXTRACT(YEAR FROM dias) > 2025
             AND EXTRACT(DOW FROM dias) IN (2, 5)
         )
         OR
         (
-            EXTRACT(YEAR FROM dias) <> 2026
-            AND (
-                (
-                    EXTRACT(MONTH FROM dias) < 9
-                    AND EXTRACT(DOW FROM dias) = 5
-                )
-                OR
-                (
-                    EXTRACT(MONTH FROM dias) >= 9
-                    AND EXTRACT(DOW FROM dias) IN (2, 5)
-                )
+            EXTRACT(YEAR FROM dias) = 2025
+            AND EXTRACT(MONTH FROM dias) >= 9
+            AND EXTRACT(DOW FROM dias) IN (2, 5)
+        )
+        OR
+        (
+            (
+                EXTRACT(YEAR FROM dias) < 2025
+                OR (EXTRACT(YEAR FROM dias) = 2025 AND EXTRACT(MONTH FROM dias) < 9)
             )
+            AND EXTRACT(DOW FROM dias) = 5
         )
 )
 SELECT
@@ -126,20 +149,7 @@ FROM
 
 OR (
                 
-                    opa."ordemPagamentoAgrupadoId" IS NULL
-
-                and    op."dataOrdem"::DATE BETWEEN (
-    dr.data - CASE
-        WHEN EXTRACT(
-            MONTH
-            FROM dr.data
-        ) >= 9 THEN 3
-        ELSE 7
-    END
-) AND (dr.data - 1)
-                    AND oph."statusRemessa" NOT IN (3, 4)
-                    AND opa."dataPagamento"::DATE > dr.data
-                )
+            ${filtroData}
             )
     ) dp ON TRUE
 GROUP BY
@@ -283,11 +293,16 @@ ORDER BY dr.data;
 
     if (endDateParam) {
       const today = new Date(endDateParam);
-      const isAntesDeSetembro2025 = getYear(today) === 2025 && getMonth(today) < 8;
+      const is2026 = getYear(today)
       let subDaysInt = 0;
 
-      if (isAntesDeSetembro2025) {
-        subDaysInt = 7;
+      if (is2026 !== 2026) {
+        if (is2026 === 2025 && getMonth(today) < 8) {
+          subDaysInt = 7
+
+        } else {
+          subDaysInt = 7
+        }
       } else if (isFriday(today)) {
         subDaysInt = 3;
       } else if (isTuesday(today)) {
@@ -295,14 +310,14 @@ ORDER BY dr.data;
       }
 
       const dataCalculada = subDays(today, subDaysInt);
-      const dataLimite = new Date('2025-01-01');
-      const dataInicio = format(max([dataCalculada, dataLimite]), 'yyyy-MM-dd');
+      // const dataLimite = new Date('2025-01-01');
+      // const dataInicio = format(max([dataCalculada, dataLimite]), 'yyyy-MM-dd');
 
       const dataFim = format(subDays(today, 1), 'yyyy-MM-dd');
 
       whereData = `AND o."dataOrdem" BETWEEN $3 AND $4
       GROUP BY o.id,  o."dataOrdem", o."dataCaptura"`;
-      params.push(dataInicio, dataFim);
+      params.push(dataCalculada, dataFim);
     }
 
     const query = `
