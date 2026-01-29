@@ -56,7 +56,7 @@ FROM
     JOIN bank bc on bc.code = pu."bankCode"
     INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id
 WHERE
-    opa."dataPagamento" BETWEEN $1 AND $2
+    /* DATE QUERY */ 
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
@@ -310,6 +310,13 @@ AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
 
 
   public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
+    // Add this helper function to check the year
+    const getYearFromDate = (date: Date | string | undefined): number | null => {
+      if (!date) return null;
+      const dateObj = date instanceof Date ? date : new Date(date);
+      return dateObj.getFullYear();
+    };
+
     const safeFilter: IFindPublicacaoRelatorioNovoFinancialMovement = {
       ...filter,
       dataInicio: filter.dataInicio ? new Date(filter.dataInicio) : filter.dataInicio,
@@ -322,11 +329,15 @@ AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
     try {
       let allResults: any[] = [];
 
-
       // single-query case
       const params = this.getParametersByQuery(safeFilter);
       let finalQuery: string;
 
+      // Determine which date field to use based on year
+      const year = getYearFromDate(safeFilter.dataInicio) || getYearFromDate(safeFilter.dataFim);
+      const dateField = year === 2025
+        ? 'opa."dataPagamento"'
+        : 'da."dataVencimento"';
 
       // 👇 Se deve unir as duas queries (mesma regra)
       if (this.shouldUnionCadeiaAndNoCadeia(safeFilter)) {
@@ -334,7 +345,9 @@ AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
       } else {
         const useCadeiaSingle = this.shouldUseCadeia(safeFilter);
         finalQuery = useCadeiaSingle ? this.queryReport : this.queryReportNoCadeia;
+        finalQuery = finalQuery.replace('/* DATE QUERY */', `${dateField} BETWEEN $1 AND $2`);
       }
+
       if (safeFilter.todosVanzeiros) finalQuery += ` ${this.notCpf}`;
       if (safeFilter.eleicao) finalQuery = this.eleicao;
       if (safeFilter.pendentes) finalQuery += this.pendentes;
@@ -346,14 +359,10 @@ AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
       if (safeFilter.pendenciaPaga) {
         finalQuery = this.prependWithIfNeeded(finalQuery);
       } else {
-
         finalQuery = this.wrapWithOuterFilters(finalQuery);
       }
 
-
       allResults = await queryRunner.query(finalQuery, params);
-
-
 
 
 
