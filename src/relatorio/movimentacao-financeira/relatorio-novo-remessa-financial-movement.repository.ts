@@ -87,7 +87,8 @@ SELECT DISTINCT
     da."valorLancamento" AS valor,
     opa."dataPagamento",
     ${this.STATUS_CASE} AS status,
-	opa.id
+	  opa.id,
+    oph."dataReferencia" AS "dataTentativa"
 FROM
     ordem_pagamento op
     INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
@@ -120,8 +121,7 @@ WHERE
       ${this.STATUS_CASE} AS status
   FROM
     ordem_pagamento_agrupado opa 
-      INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-      INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
+      INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
       inner join ordem_pagamento_unico opu on opu."idOrdemPagamento" = opa.id::VARCHAR
       inner join public."user" pu on pu."cpfCnpj" = opu."operadoraCpfCnpj"
        JOIN bank bc on bc.code = pu."bankCode"
@@ -442,18 +442,25 @@ AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
    */
   private groupAndSum(rows: any[]) {
     const map = new Map<string, any>();
-
     for (const r of rows) {
       const dataReferencia = this.formatDateToBR(r.dataReferencia) || '01/01/1970';
-      const key = `${dataReferencia}|${r.cpfCnpj}|${r.status}`;
+      const dataTentativa = this.formatDateToBR(r.dataTentativa);
       const dataPagamento = this.formatDateToBR(r.dataPagamento);
+
+      // Use dataTentativa if it's different from dataReferencia, otherwise use dataReferencia
+      const displayDate = (dataTentativa && dataTentativa !== dataReferencia)
+        ? dataTentativa
+        : dataReferencia;
+
+
+      const key = `${displayDate}|${r.cpfCnpj}|${r.status}`;
 
       if (map.has(key)) {
         const ex = map.get(key);
         ex.valor += Number.parseFloat(r.valor || 0);
       } else {
         map.set(key, {
-          dataReferencia,
+          dataReferencia: displayDate,
           nomes: r.nomes,
           email: r.email,
           codBanco: r.codBanco,
@@ -466,7 +473,6 @@ AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
         });
       }
     }
-
     return map;
   }
 
