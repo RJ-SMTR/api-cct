@@ -106,17 +106,13 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
 
-  async onModuleLoad() {   
-
-    await this.remessaModalExec()
-
+  async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -487,7 +483,7 @@ export class CronJobsService {
       }
 
       //Email que recebe o report        
-       const mailRecipients = await this.settingsService.findManyBySettingDataGroup(appSettings.any__mail_report_recipient);
+      const mailRecipients = await this.settingsService.findManyBySettingDataGroup(appSettings.any__mail_report_recipient);
 
       if (!mailRecipients) {
         this.logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não foi encontrada (retornou: ${mailRecipients}).`, undefined, METHOD);
@@ -764,7 +760,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
     const consorcios = ['STPC', 'STPL', 'TEC'];
-   await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
   }
@@ -802,7 +798,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    const consorcios = ['Internorte', 'Intersul','Santa Cruz', 'Transcarioca', 'MobiRio', 'VLT']
+    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca', 'MobiRio', 'VLT']
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
