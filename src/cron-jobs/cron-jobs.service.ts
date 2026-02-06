@@ -484,7 +484,8 @@ export class CronJobsService {
         return;
       }
 
-      const mailRecipients = await this.settingsService.findManyBySettingDataGroup(appSettings.any__mail_report_recipient);
+      //Email que recebe o report        
+       const mailRecipients = await this.settingsService.findManyBySettingDataGroup(appSettings.any__mail_report_recipient);
 
       if (!mailRecipients) {
         this.logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não foi encontrada (retornou: ${mailRecipients}).`, undefined, METHOD);
@@ -693,9 +694,9 @@ export class CronJobsService {
     // // //Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     //Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
-    //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt, headerName);
+    // const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
+    // //Envia para o SFTP
+    // await this.remessaService.enviarRemessa(txt, headerName);
   }
 
 
@@ -799,7 +800,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca', 'MobiRio', 'VLT']
+    const consorcios = ['Internorte', /*'Intersul', */'Santa Cruz', 'Transcarioca', 'MobiRio', 'VLT']
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
