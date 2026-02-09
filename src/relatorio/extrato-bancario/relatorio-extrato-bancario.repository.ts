@@ -7,14 +7,14 @@ import { RelatorioExtratoBancarioDto } from '../dtos/relatorio-extrato-bancario.
 
 
 @Injectable()
-export class RelatorioExtratoBancarioRepository { 
-  
-  constructor(@InjectDataSource()
-              private readonly dataSource: DataSource) {}
+export class RelatorioExtratoBancarioRepository {
 
-              private logger = new CustomLogger(RelatorioExtratoBancarioRepository.name, { timestamp: true });
-  
-  private getQuery(dataInicio:string,dataFim:string,tipo:string,operacao:Array<[]>,conta:string){ 
+  constructor(@InjectDataSource()
+  private readonly dataSource: DataSource) { }
+
+  private logger = new CustomLogger(RelatorioExtratoBancarioRepository.name, { timestamp: true });
+
+  private getQuery(dataInicio: string, dataFim: string, tipo: string, operacao: Array<[]>, conta: string) {
     let query = ` SELECT distinct    
                   de.id,            
                   de."dataLancamento",
@@ -28,35 +28,49 @@ export class RelatorioExtratoBancarioRepository {
                   INNER JOIN public.extrato_detalhe_e de ON de."extratoHeaderLoteId"=hl.id 
                   where (1=1) `;
 
-    if(dataInicio!==undefined && dataFim!==undefined && 
-      (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) 
-      query = query +` and de."dataLancamento" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 00:00:00'}' `;
-   
-    if(tipo){
-      query = query +` and de."tipoLancamento"='${tipo}' `;
+    if (dataInicio !== undefined && dataFim !== undefined &&
+      (dataFim === dataInicio || new Date(dataFim) > new Date(dataInicio)))
+      query = query + ` and de."dataLancamento" between '${dataInicio + ' 00:00:00'}' and '${dataFim + ' 00:00:00'}' `;
+
+    if (tipo) {
+      query = query + ` and de."tipoLancamento"='${tipo}' `;
     }
 
-    if(operacao){
+    if (operacao) {
       const operacoes = `'${operacao.join("','")}'`;
-      query = query +` and de."descricaoHistoricoBanco" in (${operacoes}) `;
+      query = query + ` and de."descricaoHistoricoBanco" in (${operacoes}) `;
     }
-    if(conta){
-      if(conta === 'cett'){
-        query = query +` and de."loteServico"='1' `;
-      }else{
-        query = query +` and de."loteServico"='2' `;
+    if (conta) {
+      if (conta === 'cett') {
+        query = query + ` and de."loteServico"='1' `;
+      } else {
+        query = query + ` and de."loteServico"='2' `;
       }
     }
 
-    query = query +` order by de."dataLancamento" asc `;
+    query = query + ` order by de."dataLancamento" asc `;
 
-    return query;             
-  }    
+    return query;
+  }
 
-  public async findExtrato(args: any): Promise<RelatorioExtratoBancarioDto[]> {   
-    let query = this.getQuery(args.dataInicio.toISOString().slice(0,10),
-      args.dataFim.toISOString().slice(0,10),args.tipo,args.operacao,args.conta);         
-    
+  public async findExtrato(args: any): Promise<RelatorioExtratoBancarioDto[]> {
+    const operacoesNormalizadas = args.operacao?.map(op => {
+      if (op === 'DOC TED INTERNET') {
+        return 'DOC/TED INTERNET';
+      }
+      return op;
+    });
+
+    console.log(operacoesNormalizadas)
+
+    let query = this.getQuery(
+      args.dataInicio.toISOString().slice(0, 10),
+      args.dataFim.toISOString().slice(0, 10),
+      args.tipo,
+      operacoesNormalizadas,
+      args.conta
+    );
+
     this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -64,5 +78,5 @@ export class RelatorioExtratoBancarioRepository {
     queryRunner.release();
     const extratos = result.map((r) => new RelatorioExtratoBancarioDto(r));
     return extratos;
-  }   
+  }
 } 
