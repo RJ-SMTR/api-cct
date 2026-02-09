@@ -196,7 +196,7 @@ where da."dataVencimento" between $1 and $2
     pu."cpfCnpj",
     ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     CASE 
-        WHEN oph."statusRemessa" = 5 THEN ROUND(op."valor", 3)
+        WHEN oph."statusRemessa" = 5 THEN ROUND(op."valor", 2)
         ELSE da."valorLancamento"
     END AS valor,
     CASE 
@@ -293,7 +293,7 @@ SELECT DISTINCT
     pu."cpfCnpj",
     ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     CASE
-        WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),3)
+        WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),2)
         ELSE da."valorLancamento"
     END AS valor,
 	  pd."dataReferencia" AS "dataPagamento",
