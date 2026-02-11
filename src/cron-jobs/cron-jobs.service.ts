@@ -36,6 +36,7 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 
 
 
@@ -464,6 +465,8 @@ export class CronJobsService {
   async sendStatusReport() {
     const METHOD = this.sendStatusReport.name;
     try {
+     
+
       if (!(await this.getIsProd(METHOD))) {
         return;
       }
@@ -499,11 +502,18 @@ export class CronJobsService {
 
       // Send mail
       const emails = mailRecipients.reduce((l: string[], i) => [...l, i.getValueAsString()], []);
+
+      const body = await this.mailHistoryService.getStatusCount();
+      
+      if (!this.verificaMudancaReport(body)) { //se não houver mudanças no report não envia
+        return;
+      }
+
       try {
         const mailSentInfo = await this.mailService.sendStatusReport({
           to: emails,
           data: {
-            statusCount: await this.mailHistoryService.getStatusCount(),
+            statusCount: body,
           },
         } as any);
 
@@ -525,6 +535,15 @@ export class CronJobsService {
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
+  }
+
+  async verificaMudancaReport(body: string | IMailHistoryStatusCount): Promise<boolean> {
+    const sett = await this.settingsService.getOneByNameVersion('mail_report_send','1')
+    if(body !== sett.getValueAsString()){
+      await this.settingsService.update({ name:'mail_report_send', version:'1',value: sett.getValueAsString() }) 
+      return true;
+    }
+    return false;
   }
 
   async pollDb() {
@@ -727,29 +746,7 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
-  // async remessaVLTExec(todayCustom?: Date, pagamentoUnico?: boolean) {
-  //   //Rodar de segunda a sexta   
-  //   let today = todayCustom ? todayCustom : new Date();
-  //   /** defaut: qua,qui,sex,sáb,dom */
-  //   let daysBeforeBegin = 1;
-  //   let daysBeforeEnd = 1;
-  //   if (isMonday(today)) {
-  //     daysBeforeBegin = 3;
-  //     daysBeforeEnd = 3;
-  //   } else if (isTuesday(today)) {
-  //     daysBeforeBegin = 3;
-  //   }
-  //   const dataInicio = subDays(today, daysBeforeBegin);
-  //   const dataFim = subDays(today, daysBeforeEnd);
-
-  //   console.log(`data incicio: ${dataInicio}`);
-  //   console.log(`data fim: ${dataFim}`);
-  //   console.log(`data pagamento: ${today}`);
-  //   await this.geradorRemessaExec(dataInicio, dataFim, today,
-  //     ['VLT'], HeaderName.VLT, pagamentoUnico);
-  // }
-
-  async remessaModalExec(pagamentoUnico?: boolean) {
+   async remessaModalExec(pagamentoUnico?: boolean) {
     const today = new Date();
     let subDaysInt = 0;
 
