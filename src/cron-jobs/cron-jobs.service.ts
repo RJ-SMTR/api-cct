@@ -115,7 +115,9 @@ export class CronJobsService {
 
 
   async onModuleLoad() {
-    // Trigger sincronismo
+
+    await this.remessaModalExec()
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -797,7 +799,11 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    const consorcios = ['Internorte', 'Intersul', 'Santa Cruz', 'Transcarioca', 'MobiRio', 'VLT']
+    const consorcios = ['Internorte', 
+      // 'Intersul', 
+      'Santa Cruz', 
+      // 'Transcarioca', 
+      'MobiRio', 'VLT']
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
@@ -827,33 +833,33 @@ export class CronJobsService {
         this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
 
         // Sincroniza as ordens de pagamento para todos os modais e consorcios
-        // const today = new Date();
-        // let dataInicio = today
-        // let dataFim = today
-        // let dataPagamento = today;
+        const today = new Date();
+        let dataInicio = today
+        let dataFim = today
+        let dataPagamento = today;
 
-        // const dayOfWeek = today.getDay();
+        const dayOfWeek = today.getDay();
 
-        // // Verifica se é sexta-feira (5), sábado (6), domingo (0) ou segunda-feira (1)
-        // if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
-        //   //Se está entre sexta e segunda!  
-        //   dataInicio = isFriday(today) ? today : this.getPreviousFriday(today);//data inicio sexta
-        //   dataFim = nextMonday(today);//data fim segunda
-        //   // dataPagamento = nextTuesday(today);//data pagamento terça 
-        // } else {
-        //   //Se está entre terça e quinta!  
-        //   dataInicio = isTuesday(today) ? today : this.getPreviousTuesday(today); //data inicio terça
-        //   dataFim = nextThursday(today); //data fim quinta
-        //   // dataPagamento = nextFriday(today);//data pagamento sexta
-        // }
+        // Verifica se é sexta-feira (5), sábado (6), domingo (0) ou segunda-feira (1)
+        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
+          //Se está entre sexta e segunda!  
+          dataInicio = isFriday(today) ? today : this.getPreviousFriday(today);//data inicio sexta
+          dataFim = nextMonday(today);//data fim segunda
+          dataPagamento = nextTuesday(today);//data pagamento terça 
+        } else {
+          //Se está entre terça e quinta!  
+          dataInicio = isTuesday(today) ? today : this.getPreviousTuesday(today); //data inicio terça
+          dataFim = nextThursday(today); //data fim quinta
+          dataPagamento = nextFriday(today);//data pagamento sexta
+        }
 
-        // this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`, METHOD);
+        this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
-        await this.ordemPagamentoService.sincronizarOrdensPagamento(new Date('2026-02-15'), new Date('2026-02-16'), consorciosEModais);
+        await this.ordemPagamentoService.sincronizarOrdensPagamento(dataInicio, dataFim, consorciosEModais);
         this.logger.log('Sincronização finalizada. Iniciando agrupamento para modais.', METHOD);
         const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
         // Agrupa para os modais
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(new Date('2026-02-15'), new Date('2026-02-16'), new Date('2026-02-17'), pagadorKey, CronJobsService.MODAIS);
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, pagadorKey, CronJobsService.MODAIS);
         this.logger.log('Tarefa finalizada com sucesso.', METHOD);
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
