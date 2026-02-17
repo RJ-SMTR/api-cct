@@ -849,11 +849,11 @@ export class CronJobsService {
 
         // this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
-        await this.ordemPagamentoService.sincronizarOrdensPagamento(new Date('2026-02-16'), new Date('2026-02-16'), consorciosEModais);
+        await this.ordemPagamentoService.sincronizarOrdensPagamento(new Date('2026-02-15'), new Date('2026-02-16'), consorciosEModais);
         this.logger.log('Sincronização finalizada. Iniciando agrupamento para modais.', METHOD);
         const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
         // Agrupa para os modais
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(new Date('2026-02-16'), new Date('2026-02-16'), new Date('2026-02-17'), pagadorKey, CronJobsService.MODAIS);
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(new Date('2026-02-15'), new Date('2026-02-16'), new Date('2026-02-17'), pagadorKey, CronJobsService.MODAIS);
         this.logger.log('Tarefa finalizada com sucesso.', METHOD);
       } catch (error) {
         this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
