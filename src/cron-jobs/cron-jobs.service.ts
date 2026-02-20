@@ -783,21 +783,21 @@ export class CronJobsService {
 
   async remessaConsorciosExec(pagamentoUnico?: boolean) {
 
-    const today = new Date('2026-02-17');
+    const today = new Date();
     let subDaysInt = 0;
 
-    // if (isTuesday(today)) {
-    //   subDaysInt = 4;
-    // } else if (isFriday(today)) {
-    //   subDaysInt = 3;
-    // } else {
-    //   return;
-    // }
+    if (isTuesday(today)) {
+      subDaysInt = 4;
+    } else if (isFriday(today)) {
+      subDaysInt = 3;
+    } else {
+      return;
+    }
 
-    const dataInicio = new Date('2026-02-13') //subDays(today, subDaysInt);
-    const dataFim = new Date('2026-02-16') //subDays(today, 1);
+    const dataInicio = subDays(today, subDaysInt);
+    const dataFim = subDays(today, 1);
 
-    const consorcios = [/*'Internorte',*/ 'Intersul'/*, 'Santa Cruz'*/, 'Transcarioca'/*, 'MobiRio', 'VLT'*/]
+    const consorcios = ['Internorte', /*'Intersul'*/ 'Santa Cruz', 'Transcarioca', 'MobiRio', 'VLT']
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
   }
