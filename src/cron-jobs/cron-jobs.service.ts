@@ -115,9 +115,6 @@ export class CronJobsService {
 
 
   async onModuleLoad() {
-
-    await this.remessaConsorciosExec()
-
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -465,7 +462,7 @@ export class CronJobsService {
   async sendStatusReport() {
     const METHOD = this.sendStatusReport.name;
     try {
-     
+
 
       if (!(await this.getIsProd(METHOD))) {
         return;
@@ -504,7 +501,7 @@ export class CronJobsService {
       const emails = mailRecipients.reduce((l: string[], i) => [...l, i.getValueAsString()], []);
 
       const body = await this.mailHistoryService.getStatusCount();
-      
+
       if (!this.verificaMudancaReport(body)) { //se não houver mudanças no report não envia
         return;
       }
@@ -538,9 +535,9 @@ export class CronJobsService {
   }
 
   async verificaMudancaReport(body: string | IMailHistoryStatusCount): Promise<boolean> {
-    const sett = await this.settingsService.getOneByNameVersion('mail_report_send','1')
-    if(body !== sett.getValueAsString()){
-      await this.settingsService.update({ name:'mail_report_send', version:'1',value: sett.getValueAsString() }) 
+    const sett = await this.settingsService.getOneByNameVersion('mail_report_send', '1')
+    if (body !== sett.getValueAsString()) {
+      await this.settingsService.update({ name: 'mail_report_send', version: '1', value: sett.getValueAsString() })
       return true;
     }
     return false;
@@ -713,7 +710,7 @@ export class CronJobsService {
     }
 
     // // //Prepara o remessa
-      await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     // //Gera o TXT
     // const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
     // //Envia para o SFTP
@@ -746,7 +743,7 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
-   async remessaModalExec(pagamentoUnico?: boolean) {
+  async remessaModalExec(pagamentoUnico?: boolean) {
     const today = new Date();
     let subDaysInt = 0;
 
@@ -801,7 +798,7 @@ export class CronJobsService {
 
     const consorcios = [
       //'Internorte',
-      'Intersul', 
+      'Intersul',
       // 'Santa Cruz', 
       // 'Transcarioca', 
       // 'MobiRio', 
