@@ -394,6 +394,8 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
       ...filter,
       dataInicio: filter.dataInicio ? new Date(filter.dataInicio) : filter.dataInicio,
       dataFim: filter.dataFim ? new Date(filter.dataFim) : filter.dataFim,
+      page: filter.page ? Number(filter.page) : undefined,
+      pageSize: filter.pageSize ? Number(filter.pageSize) : undefined,
     };
 
     const initialYear = safeFilter.dataInicio.getFullYear();
@@ -516,8 +518,20 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
         })
         .map(r => new RelatorioFinancialMovementNovoRemessaData(r));
 
+      const hasPagination = Number.isInteger(safeFilter.page) || Number.isInteger(safeFilter.pageSize);
+      const currentPageRaw = Number(safeFilter.page);
+      const pageSizeRaw = Number(safeFilter.pageSize);
+      const currentPage = Number.isInteger(currentPageRaw) && currentPageRaw > 0 ? currentPageRaw : 1;
+      const pageSize = Number.isInteger(pageSizeRaw) && pageSizeRaw > 0 ? pageSizeRaw : 50;
+      const totalCount = dataOrdenada.length;
+      const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
+
+      const pagedData = hasPagination
+        ? dataOrdenada.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+        : dataOrdenada;
+
       const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
-        count: allResults.length,
+        count: totalCount,
         valor: Number.parseFloat(aggregates.valorTotal.toString()),
         valorPago: aggregates.valorPago,
         valorEstornado: aggregates.valorEstornado,
@@ -525,7 +539,10 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
         valorAguardandoPagamento: aggregates.valorAguardandoPagamento,
         valorPendente: aggregates.valorPendente,
         valorPendenciaPaga: aggregates.valorPendenciaPaga,
-        data: dataOrdenada,
+        currentPage,
+        pageSize,
+        totalPages,
+        data: pagedData,
       });
 
       return relatorioDto;
