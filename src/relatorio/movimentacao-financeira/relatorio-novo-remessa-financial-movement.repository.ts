@@ -53,11 +53,11 @@ FROM
     INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
     INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
     INNER JOIN public."user" pu ON pu."id" = op."userId"
-    JOIN bank bc on bc.code = pu."bankCode"
+    INNER JOIN bank bc on bc.code = pu."bankCode"
     INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id
 WHERE
   opa."dataPagamento" BETWEEN $1 AND $2
-    and ($3::integer[] IS NULL OR pu."id" = ANY($3))
+    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -65,15 +65,12 @@ WHERE
     AND (
         $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
     )
-    AND (
-        oph."motivoStatusRemessa" = '02' OR
-        (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
-    )
+    AND oph."statusRemessa" NOT IN (5,2,1)
+    AND (oph."motivoStatusRemessa" = '02' OR (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5)))
+    AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
     AND NOT EXISTS (
         SELECT 1 FROM cadeias_com_paga ccp WHERE ccp.raiz_id = cp.raiz_id
     )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
-    AND oph."statusRemessa" NOT IN (5,2,1)
 `;
 
   private readonly queryNewReportNoCadeia = `
@@ -94,10 +91,11 @@ FROM
     INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
     INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
     INNER JOIN public."user" pu ON pu."id" = op."userId"
-    JOIN bank bc on bc.code = pu."bankCode"
+    INNER JOIN bank bc on bc.code = pu."bankCode"
 WHERE
     da."dataVencimento" BETWEEN $1 AND $2
-   and ($3::integer[] IS NULL OR pu."id" = ANY($3))
+    AND oph."statusRemessa" <> 5
+    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
     AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -106,7 +104,6 @@ WHERE
         $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
     )
     AND (oph."motivoStatusRemessa" NOT IN ('AM', '02') OR oph."motivoStatusRemessa" IS NULL)
-    and oph."statusRemessa" <> 5
 `;
   private readonly queryOlderReport = `
 select distinct 
@@ -133,16 +130,16 @@ from item_transacao it
   inner join arquivo_publicacao ap on ap."itemTransacaoId" = it.id
   inner join header_lote hl on hl."id" = da."headerLoteId"
   inner join header_arquivo ha on ha."id" = hl."headerArquivoId"
-  JOIN bank bc on bc.code = pu."bankCode"
+  inner join bank bc on bc.code = pu."bankCode"
 where da."dataVencimento" between $1 and $2
+  and TRIM(da."ocorrenciasCnab") <> ''
+  AND ha."status" <> '5'
   and ($4::text[] is null or TRIM(UPPER(it."nomeConsorcio")) = any($4))
   AND ($5::integer[] IS NULL OR pu."id" = ANY($5))
   and (
     ($6::numeric is null or da."valorLancamento" >= $6::numeric) and
     ($7::numeric is null or da."valorLancamento" <= $7::numeric)
   )
-  AND TRIM(da."ocorrenciasCnab") <> ''
-  AND ha."status" <> '5'
   and (
     $3::text[] is null or (
       case 
@@ -163,27 +160,27 @@ where da."dataVencimento" between $1 and $2
       pu."bankCode" AS "codBanco",
       bc.name AS "nomeBanco",
       pu."cpfCnpj",
-    opu."consorcio" AS "nomeConsorcio",
+      opu."consorcio" AS "nomeConsorcio",
       da."valorLancamento" AS valor,
       ${this.STATUS_CASE} AS status
   FROM
-    ordem_pagamento_agrupado opa 
+      ordem_pagamento_agrupado opa 
       INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
       INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
-      inner join ordem_pagamento_unico opu on opu."idOrdemPagamento" = opa.id::VARCHAR
-      inner join public."user" pu on pu."cpfCnpj" = opu."operadoraCpfCnpj"
-       JOIN bank bc on bc.code = pu."bankCode"
+      INNER JOIN ordem_pagamento_unico opu ON opu."idOrdemPagamento" = opa.id::VARCHAR
+      INNER JOIN public."user" pu ON pu."cpfCnpj" = opu."operadoraCpfCnpj"
+      INNER JOIN bank bc ON bc.code = pu."bankCode"
   WHERE
       da."dataVencimento" BETWEEN $1 AND $2
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-      AND ($5::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY($5))
       AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
       )
-    AND (
+      AND (
         $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
-    )
+      )
+      AND ($5::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY($5))
   `;
 
   private readonly pendenciasPagasSQL = `
@@ -213,7 +210,7 @@ INNER JOIN cadeia_pagamento cp
 INNER JOIN ordem_pagamento_agrupado op_pai 
     ON op_pai.id = cp.raiz_id
 INNER JOIN ordem_pagamento_agrupado_historico oph 
-    ON oph."ordemPagamentoAgrupadoId" = op_pai.id
+    ON oph."ordemPagamentoAgrupadoId" = op_pai.id AND oph."statusRemessa" = 5
 INNER JOIN detalhe_a da 
     ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
 INNER JOIN public."user" pu 
@@ -231,9 +228,7 @@ WHERE
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
     )
-    and oph."statusRemessa" IN (5)
-
-	AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
+    AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
 `;
 
 
@@ -296,25 +291,23 @@ SELECT DISTINCT
         WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),3)
         ELSE da."valorLancamento"
     END AS valor,
-	  pd."dataReferencia" AS "dataPagamento",
+    pd."dataReferencia" AS "dataPagamento",
     'Pendencia Paga' AS status
 FROM ordem_pagamento op
-  INNER JOIN ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id
+  INNER JOIN ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id AND op."ordemPagamentoAgrupadoId" IS NULL
   INNER JOIN ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
   INNER JOIN pendencia pd on opa."ordemPagamentoAgrupadoId" = pd.id
-  LEFT JOIN detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
-  LEFT JOIN public."user" pu on pu."id"=op."userId"
-  LEFT JOIN bank bc ON bc.code = pu."bankCode"
+  INNER JOIN detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id AND da."dataVencimento" IS NOT NULL
+  INNER JOIN public."user" pu on pu."id"=op."userId"
+  INNER JOIN bank bc ON bc.code = pu."bankCode"
 WHERE
-pd."dataReferencia" BETWEEN $1 AND $2
-and  oph."motivoStatusRemessa" NOT IN ('AM')
-    AND da."dataVencimento" IS NOT NULL
-    AND op."ordemPagamentoAgrupadoId" IS NULL
-    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
+  pd."dataReferencia" BETWEEN $1 AND $2
+  AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+  AND (
+    ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
     AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-    ) 
+  ) 
+  AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
 `;
 
   private pendentes_25 = `
@@ -364,20 +357,20 @@ DATE(it."dataOrdem") AS dataPagamento,
               'Pendente' AS status,
                 NULL:: boolean
 from item_transacao it 
-        left join public.user uu on uu."permitCode" = it."idOperadora"
-        JOIN bank bc on bc.code = uu."bankCode"
-        where it."dataOrdem" BETWEEN $1 AND $2
+        inner join public.user uu on uu."permitCode" = it."idOperadora"
+        inner join bank bc on bc.code = uu."bankCode"
+where it."dataOrdem" BETWEEN $1 AND $2
         and it."nomeConsorcio" in ('STPC', 'STPL', 'TEC')
-AND($5:: integer[] IS NULL OR uu."id" = ANY($5:: integer[]))
+        AND NOT EXISTS
+          (
+            select 1 from detalhe_a da 
+                                      where da."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
+          )
+        AND($5:: integer[] IS NULL OR uu."id" = ANY($5:: integer[]))
 AND(
   ($6:: numeric IS NULL OR it."valor" >= $6:: numeric)
 AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
        )
-        and not exists
-  (
-    select 1 from detalhe_a da 
-                      where da."itemTransacaoAgrupadoId" = it."itemTransacaoAgrupadoId"
-  )
 `;
 
   constructor(@InjectDataSource() private readonly dataSource: DataSource) { }
@@ -549,54 +542,68 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
    * Compute aggregates in one pass
    */
   private calculateAggregates(rows: any[]) {
-    return rows.reduce(
-      (acc, cur) => {
-        const valor = Number.parseFloat(cur.valor || 0);
-        acc.valorTotal += valor;
-        switch ((cur.status || '').toString()) {
-          case 'Pago':
-            acc.valorPago += valor; break;
-          case 'Rejeitado':
-            acc.valorRejeitado += valor; break;
-          case 'Estorno':
-            acc.valorEstornado += valor; break;
-          case 'Aguardando Pagamento':
-            acc.valorAguardandoPagamento += valor; break;
-          case 'Pendente':
-            acc.valorPendente += valor; break;
-          case 'Pendencia Paga':
-            acc.valorPendenciaPaga += valor; break;
-          default:
-            break;
-        }
-        return acc;
-      },
-      {
-        valorTotal: 0,
-        valorPago: 0,
-        valorRejeitado: 0,
-        valorEstornado: 0,
-        valorAguardandoPagamento: 0,
-        valorPendente: 0,
-        valorPendenciaPaga: 0,
-      },
-    );
+    let valorTotal = 0;
+    let valorPago = 0;
+    let valorRejeitado = 0;
+    let valorEstornado = 0;
+    let valorAguardandoPagamento = 0;
+    let valorPendente = 0;
+    let valorPendenciaPaga = 0;
+
+    for (const cur of rows) {
+      const valor = Number.parseFloat(cur.valor || 0);
+      valorTotal += valor;
+
+      switch ((cur.status || '').toString()) {
+        case 'Pago':
+          valorPago += valor;
+          break;
+        case 'Rejeitado':
+          valorRejeitado += valor;
+          break;
+        case 'Estorno':
+          valorEstornado += valor;
+          break;
+        case 'Aguardando Pagamento':
+          valorAguardandoPagamento += valor;
+          break;
+        case 'Pendente':
+          valorPendente += valor;
+          break;
+        case 'Pendencia Paga':
+          valorPendenciaPaga += valor;
+          break;
+      }
+    }
+
+    return {
+      valorTotal,
+      valorPago,
+      valorRejeitado,
+      valorEstornado,
+      valorAguardandoPagamento,
+      valorPendente,
+      valorPendenciaPaga,
+    };
   }
 
-  /**
-   * Groups by (dataReferencia | cpfCnpj) and sums values. Returns Map with ready-to-use DTO shape
-   */
+
   private groupAndSum(rows: any[]) {
     const map = new Map<string, any>();
 
-    for (const r of rows) {
-      const dataReferencia = this.formatDateToBR(r.dataReferencia) || '01/01/1970';
-      const key = `${dataReferencia}|${r.cpfCnpj}|${r.status}`;
-      const dataPagamento = this.formatDateToBR(r.dataPagamento);
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
 
-      if (map.has(key)) {
-        const ex = map.get(key);
-        ex.valor += Number.parseFloat(r.valor || 0);
+      const dataReferencia = this.formatDateToBR(r.dataReferencia) || '01/01/1970';
+      const dataPagamento = this.formatDateToBR(r.dataPagamento);
+      const valor = +r.valor || 0;
+
+      const key = dataReferencia + r.cpfCnpj + r.status + dataPagamento;
+
+      const existing = map.get(key);
+
+      if (existing) {
+        existing.valor += valor;
       } else {
         map.set(key, {
           dataReferencia,
@@ -606,9 +613,9 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           nomeBanco: r.nomeBanco,
           cpfCnpj: r.cpfCnpj,
           consorcio: r.nomeConsorcio || r.consorcio,
-          valor: Number.parseFloat(r.valor || 0),
+          valor,
           status: r.status,
-          dataPagamento: dataPagamento,
+          dataPagamento,
         });
       }
     }
