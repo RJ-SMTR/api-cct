@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsDate, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsDate, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class FinancialMovementQueryDto {
   @ApiProperty({ description: 'Data da Ordem de Pagamento Inicial', required: true })
@@ -12,6 +12,20 @@ export class FinancialMovementQueryDto {
   @Type(() => Date)
   @IsDate()
   dataFim: Date;
+
+  @ApiPropertyOptional({ description: 'Página atual (base 1)', default: 1, type: Number })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ description: 'Quantidade de linhas por página', default: 50, type: Number })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pageSize?: number;
 
   @ApiPropertyOptional({
     description: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas. Para STPC/STPL, agrupa todos os vanzeiros sob o consórcio.',
