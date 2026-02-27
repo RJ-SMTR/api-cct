@@ -606,38 +606,52 @@ WHERE
 
     try {
       let allResults: any[] = [];
+      const onlyPendentes =
+        !!filter.pendentes &&
+        !filter.pago &&
+        !filter.aPagar &&
+        !filter.emProcessamento &&
+        !filter.erro &&
+        !filter.estorno &&
+        !filter.rejeitado &&
+        !filter.pendenciaPaga;
 
-      // Build queries for vanzeiros
-      let sqlVanzeiros = '';
-      if (filter.todosVanzeiros || filter.userIds) {
-        sqlVanzeiros = this.consultaVanzeiros(filter);
-      }
+      if (onlyPendentes) {
+        allResults = await this.pendentesQuery(filter, queryRunner);
+      } else {
 
-      // Build queries for consorcios
-      let sqlConsorcios = '';
-      if (filter.todosConsorcios || filter.consorcioNome) {
-        sqlConsorcios = this.consultaConsorcios(filter);
-      }
+        // Build queries for vanzeiros
+        let sqlVanzeiros = '';
+        if (filter.todosVanzeiros || filter.userIds) {
+          sqlVanzeiros = this.consultaVanzeiros(filter);
+        }
 
-      // Combine queries
-      let sql = '';
-      if (sqlVanzeiros && sqlConsorcios) {
-        sql = `${sqlVanzeiros} UNION ALL ${sqlConsorcios}`;
-      } else if (sqlVanzeiros) {
-        sql = sqlVanzeiros;
-      } else if (sqlConsorcios) {
-        sql = sqlConsorcios;
-      }
+        // Build queries for consorcios
+        let sqlConsorcios = '';
+        if (filter.todosConsorcios || filter.consorcioNome) {
+          sqlConsorcios = this.consultaConsorcios(filter);
+        }
 
-      if (sql) {
-        const finalQuery = `SELECT nome, SUM(valor) AS valor FROM (${sql}) AS combined GROUP BY nome`;
-        allResults = await queryRunner.query(finalQuery);
-      }
+        // Combine queries
+        let sql = '';
+        if (sqlVanzeiros && sqlConsorcios) {
+          sql = `${sqlVanzeiros} UNION ALL ${sqlConsorcios}`;
+        } else if (sqlVanzeiros) {
+          sql = sqlVanzeiros;
+        } else if (sqlConsorcios) {
+          sql = sqlConsorcios;
+        }
 
-      // Add pendentes if filter is active
-      if (filter.pendentes) {
-        const pendentesResults = await this.pendentesQuery(filter, queryRunner);
-        allResults = [...allResults, ...pendentesResults];
+        if (sql) {
+          const finalQuery = `SELECT nome, SUM(valor) AS valor FROM (${sql}) AS combined GROUP BY nome`;
+          allResults = await queryRunner.query(finalQuery);
+        }
+
+        // Add pendentes if filter is active
+        if (filter.pendentes) {
+          const pendentesResults = await this.pendentesQuery(filter, queryRunner);
+          allResults = [...allResults, ...pendentesResults];
+        }
       }
 
       const count = allResults.length;
@@ -1123,10 +1137,7 @@ WHERE
       }
     }
 
-    if (filter.pendentes && !filter.erro) {
-      condicoesOutros += `and r."statusRemessa" not in (3,5)\n`;
-      condicoesOutros += `AND r."ordemPagamentoAgrupadoId" IS NULL\n`;
-    }
+    // Pendentes é tratado em pendentesQuery() no fluxo principal.
 
     if (filter.todosConsorcios) {
       const consorcios = `'STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC'`;
@@ -1146,6 +1157,10 @@ WHERE
       }
     } else {
       sqlOutros = sqlErros
+    }
+
+    if (!sqlOutros || !sqlOutros.trim()) {
+      return '';
     }
 
     finalSQL = `
