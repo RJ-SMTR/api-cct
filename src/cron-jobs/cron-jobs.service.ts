@@ -116,6 +116,8 @@ export class CronJobsService {
 
   async onModuleLoad() {
 
+    await this.sendStatusReport();
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -498,14 +500,14 @@ export class CronJobsService {
         return;
       }
 
-      // Send mail
-      const emails = mailRecipients.reduce((l: string[], i) => [...l, i.getValueAsString()], []);
-
       const body = await this.mailHistoryService.getStatusCount();
 
-      if (!this.verificaMudancaReport(body)) { //se não houver mudanças no report não envia
+      if (!await this.verificaMudancaReport(JSON.stringify(body))) { //se não houver mudanças no report não envia
         return;
       }
+
+      // Send mail
+      const emails = mailRecipients.reduce((l: string[], i) => [...l, i.getValueAsString()], []);     
 
       try {
         const mailSentInfo = await this.mailService.sendStatusReport({
@@ -535,10 +537,10 @@ export class CronJobsService {
     }
   }
 
-  async verificaMudancaReport(body: string | IMailHistoryStatusCount): Promise<boolean> {
+  async verificaMudancaReport(body: String | IMailHistoryStatusCount): Promise<boolean> {
     const sett = await this.settingsService.getOneByNameVersion('mail_report_send', '1')
-    if (body !== sett.getValueAsString()) {
-      await this.settingsService.update({ name: 'mail_report_send', version: '1', value: sett.getValueAsString() })
+    if (body !=='' && body!== sett.value) {
+      await this.settingsService.update({ name: 'mail_report_send', version: '1', value: sett.value })
       return true;
     }
     return false;
