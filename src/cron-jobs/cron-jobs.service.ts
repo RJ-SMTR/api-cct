@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { CronJob, CronJobParameters } from 'cron';
+import { CronJob } from 'cron';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
@@ -37,7 +37,6 @@ import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from '
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 import { AgendamentoPagamentoService } from 'src/agendamento/service/agendamento-pagamento.service';
 import { AgendamentoPagamentoRemessaDTO } from 'src/agendamento/domain/dto/agendamento-pagamento-remessa.dto';
-import { AgendamentoPagamentoDTO } from 'src/agendamento/domain/dto/agendamento-pagamento.dto';
 import { HeaderArquivo } from 'src/cnab/entity/pagamento/header-arquivo.entity';
 import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
 import { DetalheA } from 'src/cnab/entity/pagamento/detalhe-a.entity';
@@ -46,6 +45,8 @@ import { AprovacaoEnum } from 'src/agendamento/enums/aprovacao.enum';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { AprovacaoPagamentoDTO } from 'src/agendamento/domain/dto/aprovacao-pagamento.dto';
 import { TipoBeneficarioEnum } from 'src/agendamento/enums/tipo-beneficiario.enum';
+import { buildAutomationCronJobs } from './cronjob-automation.builder';
+import { ICronJob } from './cron-jobs.interfaces';
 
 
 /**
@@ -72,11 +73,6 @@ interface ICronjobDebug {
   /** Ignora validação de cronjob*/
   force?: boolean;
 }
-interface ICronJob {
-  name: string;
-  cronJobParameters: CronJobParameters;
-}
-
 interface ICronJobSetting {
   setting: ISettingData;
   cronJob: CronJobsEnum;
@@ -898,117 +894,15 @@ export class CronJobsService {
   }
 
   async geraCronJob(): Promise<ICronJob[]> {
-    const cronsAutonomos: ICronJob[] = []
-
     const agendamentos = await this.agendamentoPagamentoService.findAll();
 
-    let listaRemessas: AgendamentoPagamentoRemessaDTO[] = [];
-
-    for (const agenda of agendamentos) {
-      if (agenda.status && ((this.verificaDiaSemana(agenda.diaSemana)) || this.verificarIntervalo(agenda.diaIntervalo, agenda.createdAt))) { // verifica se o agendamento esta ativo e se é do dia atual 
-        if (agenda.beneficiarioUsuario) {
-          const tipo = agenda.tipoBeneficiario; // Consorcio, Modal ou Individual
-          // Procura a remessa existente
-          let remessaExistente = listaRemessas.find(r => r.tipoBeneficiario === tipo);
-          // Se não existe, cria e adiciona na lista
-          if (!remessaExistente) {
-            const novaRemessa = new AgendamentoPagamentoRemessaDTO();
-            this.instanciaRemessa(novaRemessa, agenda);
-            listaRemessas.push(novaRemessa);
-            remessaExistente = novaRemessa;
-          } else {
-            // Agora já garantimos que existe, então adiciona o beneficiário
-            remessaExistente.beneficiarios.push(agenda.beneficiarioUsuario);
-          }
-        }
-      }
-    }
-
-    /**                   
-      * CRON JOB AUTONOMO
-      */
-    for (const rem of listaRemessas) {
-      cronsAutonomos.push({
-        name: `${CronJobsEnum.automacao}_${rem.tipoBeneficiario}_${rem.horario}`,
-        cronJobParameters: {
-          cronTime: this.getHorarioFormatado(this.remHours(rem.horario, 0)),
-          onTick: async () => {
-            await this.remessaAutomacaoExec(rem);
-          },
-          timeZone: 'America/Sao_Paulo'
-        }
-      })
-    }
-    return cronsAutonomos;
-  }
-
-  remHours(time, hoursToAdd) {
-    const [h, m, s = 0] = time.split(":").map(Number);
-
-    const date = new Date();
-    date.setHours(h, m, s);
-    date.setHours(date.getHours() - hoursToAdd);
-
-    const hh = String(date.getHours()).padStart(2, "0");
-    const mm = String(date.getMinutes()).padStart(2, "0");
-    const ss = String(date.getSeconds()).padStart(2, "0");
-
-    return `${hh}:${mm}:${ss}`;
-  }
-
-
-  instanciaRemessa(remessa: AgendamentoPagamentoRemessaDTO, agenda: AgendamentoPagamentoDTO) {
-    remessa.aprovacao = agenda.aprovacao;
-    remessa.aprovacaoPagamento = agenda.aprovacaoPagamento;
-    if (agenda.beneficiarioUsuario != null) {
-      remessa.beneficiarios.push(agenda.beneficiarioUsuario);
-    }
-    remessa.diaIntervalo = agenda.diaIntervalo;
-    remessa.diaInicioPagar = agenda.diaInicioPagar;
-    remessa.diaFinalPagar = agenda.diaFinalPagar;
-    remessa.pagador = agenda.pagador;
-    remessa.tipoBeneficiario = agenda.tipoBeneficiario;
-    remessa.horario = agenda.horario;
-  }
-
-
-  getHorarioFormatado(time) {
-    // Aceita "HH:mm" ou "HH:mm:ss"
-    const match = time.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
-
-    if (!match) {
-      throw new Error("Formato inválido. Use HH:mm ou HH:mm:ss");
-    }
-
-    const hours = parseInt(match[1], 10);
-    const minutes = parseInt(match[2], 10);
-
-    // Cron no formato: minuto hora dia-do-mês mês dia-da-semana
-    // Ex: "30 13 * * *"
-    return `${minutes} ${hours} * * *`;
-  }
-
-
-  verificaDiaSemana(dia) {
-    return (new Date().getDay() + 1) === Number(dia);
-  }
-
-  verificarIntervalo(diaIntervalo: number, createdAt: Date) {
-    let data = new Date(createdAt);
-    const hoje = new Date();
-
-    while (data <= hoje) {
-      const nova = new Date(data);
-      nova.setDate(data.getDate() + diaIntervalo);
-      if (nova > hoje) return data; // o ciclo válido é o anterior
-      data = nova;
-    }
-
-    return (
-      data.getDate() === hoje.getDate() &&
-      data.getMonth() === hoje.getMonth() &&
-      data.getFullYear() === hoje.getFullYear()
-    );
+    return buildAutomationCronJobs({
+      agendamentos,
+      jobNamePrefix: CronJobsEnum.automacao,
+      onTick: async (remessa) => {
+        await this.remessaAutomacaoExec(remessa);
+      },
+    });
   }
 
   async verificarAprovacao(rem: AgendamentoPagamentoRemessaDTO, headerArquivo: HeaderArquivo): Promise<boolean> {
