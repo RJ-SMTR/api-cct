@@ -30,13 +30,11 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { validateEmail } from 'validations-br';
 import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
-import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 
 
 
@@ -114,10 +112,7 @@ export class CronJobsService {
   }
 
 
-  async onModuleLoad() {  
-
-    await this.remessaConsorciosExec();
-
+  async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -465,85 +460,13 @@ export class CronJobsService {
   async sendStatusReport() {
     const METHOD = this.sendStatusReport.name;
     try {
-
-
       if (!(await this.getIsProd(METHOD))) {
         return;
       }
-      this.logger.log('Iniciando tarefa.', METHOD);
-
-      const isEnabledFlag = await this.settingsService.findOneBySettingData(appSettings.any__mail_report_enabled);
-      if (!isEnabledFlag) {
-        this.logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' ` + 'não foi encontrado no banco.', undefined, METHOD);
-        return;
-      } else if (isEnabledFlag.getValueAsBoolean() === false) {
-        this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
-        return;
-      }
-
-      if (!isEnabledFlag) {
-        this.logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' ` + 'não foi encontrado no banco.', undefined, METHOD);
-        return;
-      } else if (isEnabledFlag.getValueAsBoolean() === false) {
-        this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
-        return;
-      }
-
-      //Email que recebe o report        
-      const mailRecipients = await this.settingsService.findManyBySettingDataGroup(appSettings.any__mail_report_recipient);
-
-      if (!mailRecipients) {
-        this.logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não foi encontrada (retornou: ${mailRecipients}).`, undefined, METHOD);
-        return;
-      } else if (mailRecipients.some((i) => !validateEmail(i.getValueAsString()))) {
-        this.logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`, undefined, METHOD);
-        return;
-      }
-
-      const body = await this.mailHistoryService.getStatusCount();
-
-      if (!await this.verificaMudancaReport(JSON.stringify(body))) { //se não houver mudanças no report não envia
-        return;
-      }
-
-      // Send mail
-      const emails = mailRecipients.reduce((l: string[], i) => [...l, i.getValueAsString()], []);     
-
-      try {
-        const mailSentInfo = await this.mailService.sendStatusReport({
-          to: emails,
-          data: {
-            statusCount: body,
-          },
-        } as any);
-
-        // Success
-        if (mailSentInfo.success === true) {
-          this.logger.log(`Relatório enviado com sucesso para os emails ${emails}`, METHOD);
-        }
-
-        // SMTP error
-        else {
-          this.logger.error(`Relatório enviado para os emails ${emails} retornou erro. - ` + `mailSentInfo: ${JSON.stringify(mailSentInfo)}`, new Error().stack, METHOD);
-        }
-
-        // API error
-      } catch (httpException) {
-        this.logger.error(`Email falhou ao enviar para ${emails}`, httpException?.stack, METHOD);
-      }
-      this.logger.log('Tarefa finalizada.', METHOD);
+      await this.mailService.runStatusReportJob(this.logger, METHOD);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
-  }
-
-  async verificaMudancaReport(body: String | IMailHistoryStatusCount): Promise<boolean> {
-    const sett = await this.settingsService.getOneByNameVersion('mail_report_send', '1')
-    if (body !=='' && body!== sett.value) {
-      await this.settingsService.update({ name: 'mail_report_send', version: '1', value: sett.value })
-      return true;
-    }
-    return false;
   }
 
   async pollDb() {
@@ -802,10 +725,10 @@ export class CronJobsService {
     const consorcios = [
       'Internorte',
       'Intersul',
-       'Santa Cruz', 
-       'Transcarioca', 
-       'MobiRio', 
-       'VLT'
+      'Santa Cruz',
+      'Transcarioca',
+      'MobiRio',
+      'VLT'
     ]
     // await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
