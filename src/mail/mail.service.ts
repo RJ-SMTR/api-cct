@@ -6,6 +6,9 @@ import { AllConfigType } from 'src/config/config.type';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { appSettings } from 'src/settings/app.settings';
+import { SettingsService } from 'src/settings/settings.service';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
 import { logWarn } from 'src/utils/log-utils';
 import { MaybeType } from '../utils/types/maybe.type';
@@ -14,6 +17,7 @@ import { MailData } from './interfaces/mail-data.interface';
 import { MailRegistrationInterface } from './interfaces/mail-registration.interface';
 import { MailSentInfo } from './interfaces/mail-sent-info.interface';
 import { MySentMessageInfo } from './interfaces/nodemailer/sent-message-info';
+import { validateEmail } from 'validations-br';
 
 @Injectable()
 export class MailService {
@@ -22,6 +26,8 @@ export class MailService {
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AllConfigType>,
+    private readonly settingsService: SettingsService,
+    private readonly mailHistoryService: MailHistoryService,
   ) { }
 
   private getMailSentInfo(sentMessageInfo: MySentMessageInfo): MailSentInfo {
@@ -206,6 +212,89 @@ export class MailService {
     } catch (httpException) {
       throw httpException;
     }
+  }
+
+  async runStatusReportJob(logger: Logger, METHOD: string): Promise<void> {
+    logger.log('Iniciando tarefa.', METHOD);
+
+    const isEnabled = await this.isStatusReportEnabled(logger, METHOD);
+    if (!isEnabled) {
+      return;
+    }
+
+    //Email que recebe o report        
+    const emails = await this.getStatusReportRecipients(logger, METHOD);
+    if (!emails) {
+      return;
+    }
+
+    const body = await this.mailHistoryService.getStatusCount();
+
+    if (!await this.verificaMudancaReport(JSON.stringify(body))) { //se não houver mudanças no report não envia
+      return;
+    }
+
+    await this.sendStatusReportEmail(logger, emails, body, METHOD);
+    logger.log('Tarefa finalizada.', METHOD);
+  }
+
+  private async isStatusReportEnabled(logger: Logger, METHOD: string): Promise<boolean> {
+    const isEnabledFlag = await this.settingsService.findOneBySettingData(appSettings.any__mail_report_enabled);
+    if (!isEnabledFlag) {
+      logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' ` + 'não foi encontrado no banco.', undefined, METHOD);
+      return false;
+    }
+    if (isEnabledFlag.getValueAsBoolean() === false) {
+      logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
+      return false;
+    }
+    return true;
+  }
+
+  private async getStatusReportRecipients(logger: Logger, METHOD: string): Promise<string[] | null> {
+    const mailRecipients = await this.settingsService.findManyBySettingDataGroup(appSettings.any__mail_report_recipient);
+    if (!mailRecipients) {
+      logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não foi encontrada (retornou: ${mailRecipients}).`, undefined, METHOD);
+      return null;
+    }
+    if (mailRecipients.some((i) => !validateEmail(i.getValueAsString()))) {
+      logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`, undefined, METHOD);
+      return null;
+    }
+    return mailRecipients.reduce((l: string[], i) => [...l, i.getValueAsString()], []);
+  }
+
+  private async sendStatusReportEmail(logger: Logger, emails: string[], body: IMailHistoryStatusCount, METHOD: string): Promise<void> {
+    try {
+      const mailSentInfo = await this.sendStatusReport({
+        to: emails,
+        data: {
+          statusCount: body,
+        },
+      } as any);
+
+      // Success
+      if (mailSentInfo.success === true) {
+        logger.log(`Relatório enviado com sucesso para os emails ${emails}`, METHOD);
+      }
+
+      // SMTP error
+      else {
+        logger.error(`Relatório enviado para os emails ${emails} retornou erro. - ` + `mailSentInfo: ${JSON.stringify(mailSentInfo)}`, new Error().stack, METHOD);
+      }
+    } catch (httpException) {
+      // API error
+      logger.error(`Email falhou ao enviar para ${emails}`, httpException?.stack, METHOD);
+    }
+  }
+
+  private async verificaMudancaReport(body: string | IMailHistoryStatusCount): Promise<boolean> {
+    const sett = await this.settingsService.getOneByNameVersion('mail_report_send', '1')
+    if (body !== '' && body !== sett.value) {
+      await this.settingsService.update({ name: 'mail_report_send', version: '1', value: sett.value })
+      return true;
+    }
+    return false;
   }
 
   /**
