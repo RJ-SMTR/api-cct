@@ -109,7 +109,7 @@ FROM
         SELECT
             op.valor,
             opa."valorTotal",
-            oph."dataReferencia",
+            opa."dataPagamento"  as "dataReferencia",
             oph."statusRemessa",
             oph."motivoStatusRemessa",
      opa.id AS opa_id,
