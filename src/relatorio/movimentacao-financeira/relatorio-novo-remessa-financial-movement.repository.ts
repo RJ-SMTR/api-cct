@@ -151,10 +151,7 @@ WHERE
         WHEN oph."statusRemessa" = 5 THEN ROUND(op."valor", 2)
         ELSE da."valorLancamento"
     END AS valor,
-    CASE 
-        WHEN oph."statusRemessa" = 5 THEN opa."dataPagamento"
-        ELSE oph."dataReferencia"
-    END AS dataPagamento,
+    oph."dataReferencia" AS dataPagamento,
     'Pendencia Paga' AS status
 FROM
      ordem_pagamento op
