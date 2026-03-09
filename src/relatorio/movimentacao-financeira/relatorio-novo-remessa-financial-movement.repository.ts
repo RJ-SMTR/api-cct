@@ -431,7 +431,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
 
         let query2025: string;
         if (this.shouldUnionCadeiaAndNoCadeia(safeFilter)) {
-          query2025 = `(${this.queryNewReport}) UNION ALL (${this.queryNewReportNoCadeia})`;
+          query2025 = `(${this.queryNewReport}) UNION (${this.queryNewReportNoCadeia})`;
         } else {
           const useCadeia = this.shouldUseCadeia(safeFilter);
           query2025 = useCadeia ? this.queryNewReport : this.queryNewReportNoCadeia;
@@ -444,7 +444,11 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
         if (safeFilter.pendentes) query2025 += this.pendentes_25;
 
         if (safeFilter.pendenciaPaga) {
-          query2025 = `${query2025} UNION ALL ${this.pendenciasPagasSQL} UNION ALL ${this.pendenciasPagasEstRejSQL}`;
+          query2025 = `${query2025} UNION ALL ${this.pendenciasPagasSQL}`;
+        }
+        
+        if (safeFilter.pendenciaPaga && (safeFilter.erro || safeFilter.estorno || safeFilter.rejeitado)) {
+          query2025 += ` UNION ALL ${this.pendenciasPagasEstRejSQL}`;
         }
 
         if (safeFilter.desativados) query2025 += ` AND pu.bloqueado = true`;
@@ -474,7 +478,10 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           if (safeFilter.eleicao) finalQuery = this.eleicao2025;
           if (safeFilter.pendentes) finalQuery += this.pendentes_25;
           if (safeFilter.pendenciaPaga) {
-            finalQuery = `${finalQuery} UNION ALL ${this.pendenciasPagasSQL} UNION ALL ${this.pendenciasPagasEstRejSQL}`;
+            finalQuery = `${finalQuery} UNION ALL ${this.pendenciasPagasSQL}`;
+          }
+          if (safeFilter.pendenciaPaga && (safeFilter.erro || safeFilter.estorno || safeFilter.rejeitado)) {
+            finalQuery += ` UNION ALL ${this.pendenciasPagasEstRejSQL}`;
           }
           if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
 
@@ -498,7 +505,10 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
           if (safeFilter.pendentes && is2024) finalQuery += this.pendentes_24;
 
           if (safeFilter.pendenciaPaga && is2025) {
-            finalQuery = `${finalQuery} UNION ALL ${this.pendenciasPagasSQL} UNION ALL ${this.pendenciasPagasEstRejSQL}`;
+            finalQuery = `${finalQuery} UNION ALL ${this.pendenciasPagasSQL}`;
+            if (safeFilter.erro || safeFilter.estorno || safeFilter.rejeitado) {
+              finalQuery += ` UNION ALL ${this.pendenciasPagasEstRejSQL}`;
+            }
             finalQuery = this.prependWithIfNeeded(finalQuery);
           }
         }
@@ -568,6 +578,7 @@ AND($7:: numeric IS NULL OR it."valor" <= $7:: numeric)
     let valorPendenciaPaga = 0;
 
     for (const cur of rows) {
+
       const valor = Number.parseFloat(cur.valor || 0);
       valorTotal += valor;
 
@@ -755,18 +766,8 @@ WHERE
       consorcioNome = ['STPC', 'STPL', 'TEC'];
     }
 
-    if (year === 2024) {
-      return [
-        dataInicio,
-        dataFim,
-        this.getStatusParaFiltro(filter) || null,
-        consorcioNome,
-        userIds,
-        valorMin,
-        valorMax
-      ];
-    }
-
+    // FIX P3: Unify parameter order for both 2024 and 2025 queries
+    // Use consistent order: dataInicio, dataFim, userIds, status, consorcioNome, valorMin, valorMax
     return [
       dataInicio,
       dataFim,
