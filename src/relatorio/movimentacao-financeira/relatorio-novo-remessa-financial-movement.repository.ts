@@ -34,9 +34,10 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
   private readonly notCpf = `AND pu."cpfCnpj" NOT IN ('18201378000119','12464869000176','12464539000180','12464553000184','44520687000161','12464577000133')`;
 
-  private readonly queryNewReport = `
+  private readonly baseQuery = `
 SELECT DISTINCT 
     da."dataVencimento" AS "dataReferencia",
+    opa.id,
     pu."fullName" AS nomes,
     pu.email,
     pu."bankCode" AS "codBanco",
@@ -44,273 +45,48 @@ SELECT DISTINCT
     pu."cpfCnpj",
     ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     da."valorLancamento" AS valor,
-    opa."dataPagamento",
-    ${this.STATUS_CASE} AS status
-FROM
-    ordem_pagamento op
-    INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
-    INNER JOIN public."user" pu ON pu."id" = op."userId"
-    JOIN bank bc on bc.code = pu."bankCode"
-    INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id
-WHERE
-  opa."dataPagamento" BETWEEN $1 AND $2
-    and ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-    )
-    AND (
-        $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
-    )
-    AND (
-        oph."motivoStatusRemessa" = '02' OR
-        (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
-    )
-    AND NOT EXISTS (
-        SELECT 1 FROM cadeias_com_paga ccp WHERE ccp.raiz_id = cp.raiz_id
-    )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
-    AND oph."statusRemessa" NOT IN (5,2,1)
-`;
-
-  private readonly queryNewReportNoCadeia = `
-SELECT DISTINCT 
-    da."dataVencimento" AS "dataReferencia",
-    pu."fullName" AS nomes,
-    pu.email,
-    pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
-    pu."cpfCnpj",
-    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
-    da."valorLancamento" AS valor,
-    opa."dataPagamento",
-    ${this.STATUS_CASE} AS status
-FROM
-    ordem_pagamento op
-    INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
-    INNER JOIN public."user" pu ON pu."id" = op."userId"
-    JOIN bank bc on bc.code = pu."bankCode"
-WHERE
-    da."dataVencimento" BETWEEN $1 AND $2
-   and ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-    )
-    AND (
-        $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
-    )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02') OR oph."motivoStatusRemessa" IS NULL)
-    and oph."statusRemessa" <> 5
-`;
-
-  private eleicao = `
-  SELECT DISTINCT
-      da."dataVencimento" AS dataPagamento,
-      pu."fullName" AS nomes,
-      pu.email,
-      pu."bankCode" AS "codBanco",
-      bc.name AS "nomeBanco",
-      pu."cpfCnpj",
-    opu."consorcio" AS "nomeConsorcio",
-      da."valorLancamento" AS valor,
-      ${this.STATUS_CASE} AS status
-  FROM
-    ordem_pagamento_agrupado opa 
-      INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-      INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
-      inner join ordem_pagamento_unico opu on opu."idOrdemPagamento" = opa.id::VARCHAR
-      inner join public."user" pu on pu."cpfCnpj" = opu."operadoraCpfCnpj"
-       JOIN bank bc on bc.code = pu."bankCode"
-  WHERE
-      da."dataVencimento" BETWEEN $1 AND $2
-      AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-      AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-      )
-    AND (
-        $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
-    )
-  `;
-
-  private readonly pendenciasPagasSQL = `
-    SELECT DISTINCT
-    op."dataCaptura" AS "dataReferencia",
-    pu."fullName" AS nomes,
-    pu.email,
-    pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
-    pu."cpfCnpj",
-    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
-    CASE 
-        WHEN oph."statusRemessa" = 5 THEN ROUND(op."valor", 2)
-        ELSE da."valorLancamento"
-    END AS valor,
-    CASE 
-        WHEN oph."statusRemessa" = 5 THEN opa."dataPagamento"
-        ELSE oph."dataReferencia"
-    END AS dataPagamento,
-    'Pendencia Paga' AS status
-FROM
-     ordem_pagamento op
- INNER JOIN ordem_pagamento_agrupado opa 
-    ON opa.id = op."ordemPagamentoAgrupadoId"
-INNER JOIN cadeia_pagamento cp 
-    ON cp.ordem_id = opa.id
-INNER JOIN ordem_pagamento_agrupado op_pai 
-    ON op_pai.id = cp.raiz_id
-INNER JOIN ordem_pagamento_agrupado_historico oph 
-    ON oph."ordemPagamentoAgrupadoId" = op_pai.id AND oph."statusRemessa" = 5
-INNER JOIN detalhe_a da 
-    ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-INNER JOIN public."user" pu 
-    ON pu.id = op."userId"
-INNER JOIN bank bc 
-    ON bc.code = pu."bankCode"
-WHERE
-    da."dataVencimento" BETWEEN $1 AND $2
-    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND (
-        ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR op."valor" <= $7::numeric)
-    )
-    AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-    )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
-`;
-
-
-  private readonly WITH_AS = `
-  WITH RECURSIVE
-
-pendencia AS (
-  SELECT DISTINCT opaa.id, oph."dataReferencia"
-  FROM ordem_pagamento_agrupado opaa
-  INNER JOIN ordem_pagamento_agrupado_historico oph 
-      ON oph."ordemPagamentoAgrupadoId" = opaa.id
-  INNER JOIN detalhe_a daa 
-      ON daa."ordemPagamentoAgrupadoHistoricoId" = oph.id
-  WHERE daa."dataVencimento" BETWEEN $1 AND $2
-    AND EXISTS (
-      SELECT 1 FROM ordem_pagamento_agrupado opa2 WHERE opa2."ordemPagamentoAgrupadoId" = opaa.id
-    )
-  AND (
-        ($6::numeric IS NULL OR daa."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR daa."valorLancamento" <= $7::numeric)
-    )
-
-),
-
-cadeia_pagamento AS (
-  SELECT
-    opa.id AS ordem_id,
-    opa."ordemPagamentoAgrupadoId" AS pai_id,
-    opa.id AS raiz_id
-  FROM ordem_pagamento_agrupado opa
-
-  UNION ALL
-
-  SELECT
-    filho.id,
-    filho."ordemPagamentoAgrupadoId",
-    pai.raiz_id
-  FROM ordem_pagamento_agrupado filho
-  INNER JOIN cadeia_pagamento pai ON filho."ordemPagamentoAgrupadoId" = pai.ordem_id
-),
-cadeias_com_paga AS (
-  SELECT DISTINCT cp.raiz_id
-  FROM cadeia_pagamento cp
-  INNER JOIN ordem_pagamento_agrupado_historico oph
-      ON oph."ordemPagamentoAgrupadoId" = cp.ordem_id
-  WHERE oph."statusRemessa" = 5
-)
-`;
-
-  private readonly pendenciasPagasEstRejSQL = `
-SELECT DISTINCT
-    oph."dataReferencia" AS "dataReferencia",
-    pu."fullName" AS nomes,
-    pu.email,
-    pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
-    pu."cpfCnpj",
-    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
     CASE
-        WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),2)
-        ELSE da."valorLancamento"
-    END AS valor,
-	  pd."dataReferencia" AS "dataPagamento",
-    'Pendencia Paga' AS status
+      WHEN oph."statusRemessa" = 5
+           AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
+        THEN op_pai."dataPagamento"
+      ELSE opa."dataPagamento"
+    END AS "dataPagamento",
+    ${this.STATUS_CASE} AS status
 FROM ordem_pagamento op
-  INNER JOIN ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id AND op."ordemPagamentoAgrupadoId" IS NULL
-  INNER JOIN ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
-  INNER JOIN pendencia pd on opa."ordemPagamentoAgrupadoId" = pd.id
-  INNER JOIN detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id AND da."dataVencimento" IS NOT NULL
-  INNER JOIN public."user" pu on pu."id"=op."userId"
-  INNER JOIN bank bc ON bc.code = pu."bankCode"
+INNER JOIN ordem_pagamento_agrupado opa
+  ON op."ordemPagamentoAgrupadoId" = opa.id
+LEFT JOIN ordem_pagamento_agrupado op_pai
+  ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+INNER JOIN ordem_pagamento_agrupado_historico oph
+  ON oph."ordemPagamentoAgrupadoId" = opa.id
+INNER JOIN detalhe_a da
+  ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
+INNER JOIN public."user" pu
+  ON pu."id" = op."userId"
+JOIN bank bc
+  ON bc.code = pu."bankCode"
 WHERE
-  pd."dataReferencia" BETWEEN $1 AND $2
+  da."dataVencimento" BETWEEN $1 AND $2
   AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
   AND (
-    ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
+    ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
     AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-  ) 
-  AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
-`;
-
-  private pendentes = `
-UNION ALL
-
-  SELECT
-  DATE(op."dataOrdem") AS dataPagamento,
-  op."nomeOperadora" as nomes,
-  pu.email,
-  pu."bankCode" AS "codBanco",
-  bc.name AS "nomeBanco",
-  pu."cpfCnpj",
-  ${this.CONSORCIO_CASE} AS "nomeConsorcio",
-  op."valor" AS valor,
-  op."dataOrdem",
-  'Pendente' AS status
-FROM ordem_pagamento op
-INNER JOIN public."user" pu ON pu.id = op."userId"
-JOIN bank bc on bc.code = pu."bankCode"
-WHERE
-op."dataOrdem" BETWEEN $1  AND $2 
-    AND op."ordemPagamentoAgrupadoId" IS NULL
-AND($3:: integer[] IS NULL OR pu."id" = ANY($3))
-AND op."nomeConsorcio" = ANY(
-          COALESCE(NULLIF($5::text[], '{}'), ARRAY['STPC','STPL','TEC'])
-    )
-and op."nomeConsorcio" <> 'VLT'
-AND(
-  ($6:: numeric IS NULL OR op."valor" >= $6:: numeric)
-AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
-    )
+  )
+  AND (
+    $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
+  )
+  AND (
+    $5::text[] IS NULL OR ${this.CONSORCIO_CASE} = ANY($5)
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM ordem_pagamento_agrupado filha
+    WHERE filha."ordemPagamentoAgrupadoId" = opa.id
+  )
+  AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
 `;
 
   constructor(@InjectDataSource() private readonly dataSource: DataSource) { }
-
-  private shouldUnionCadeiaAndNoCadeia = (safeFilter: any) => {
-    const filtraStatusBase =
-      safeFilter.aPagar || safeFilter.aguardandoPagamento || safeFilter.pago;
-    const filtraPendenciaOuErro = safeFilter.pendenciaPaga || safeFilter.erro || safeFilter.estorno || safeFilter.rejeitado;
-    return filtraStatusBase && filtraPendenciaOuErro;
-  };
-
-  private shouldUseCadeia(filter: IFindPublicacaoRelatorioNovoFinancialMovement): boolean {
-    if (!filter) return false;
-    if (filter.pendenciaPaga || filter.erro || filter.estorno || filter.rejeitado) return true;
-    return false;
-  }
-
 
   public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
     const safeFilter: IFindPublicacaoRelatorioNovoFinancialMovement = {
@@ -325,24 +101,11 @@ AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
     await queryRunner.connect();
 
     try {
-      let finalQuery: string;
-
-      if (this.shouldUnionCadeiaAndNoCadeia(safeFilter)) {
-        finalQuery = `${this.queryNewReport} UNION ${this.queryNewReportNoCadeia}`;
-      } else {
-        const useCadeia = this.shouldUseCadeia(safeFilter);
-        finalQuery = useCadeia ? this.queryNewReport : this.queryNewReportNoCadeia;
-      }
+      let finalQuery: string = this.baseQuery;
 
       if (safeFilter.todosVanzeiros) finalQuery += ` ${this.notCpf}`;
-      if (safeFilter.eleicao) finalQuery = this.eleicao;
-      if (safeFilter.pendentes) finalQuery += this.pendentes;
-      if (safeFilter.pendenciaPaga) {
-        finalQuery = `${finalQuery} UNION ALL ${this.pendenciasPagasSQL} UNION ALL ${this.pendenciasPagasEstRejSQL}`;
-      }
       if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
-
-      finalQuery = this.wrapWithOuterFilters(finalQuery);
+      finalQuery += ` ORDER BY da."dataVencimento"`;
 
       const params = this.getQueryParameters(safeFilter);
       const allResults = await queryRunner.query(finalQuery, params);
@@ -520,24 +283,6 @@ AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
   }
 
 
-  private prependWithIfNeeded(query: string): string {
-    const trimmed = query.trim();
-    if (trimmed.toUpperCase().startsWith('WITH')) return query;
-    return `${this.WITH_AS}${query}`;
-  }
-
-  private wrapWithOuterFilters(query: string): string {
-    const inner = this.prependWithIfNeeded(query);
-    return `
-SELECT *
-FROM (
-${inner}
-) t
-WHERE
-     ($5::text[] IS NULL OR TRIM(UPPER(t."nomeConsorcio")) = ANY($5))
-`;
-  }
-
   private getStatusParaFiltro(filter: {
     pago?: boolean;
     erro?: boolean;
@@ -557,7 +302,6 @@ WHERE
       { cond: filter.rejeitado, vals: [StatusPagamento.ERRO_REJEITADO] },
       { cond: filter.emProcessamento, vals: [StatusPagamento.AGUARDANDO_PAGAMENTO] },
       { cond: filter.pendenciaPaga, vals: [StatusPagamento.PENDENCIA_PAGA] },
-      { cond: filter.pendentes, vals: [StatusPagamento.PENDENTES] },
       { cond: filter.aPagar, vals: [StatusPagamento.A_PAGAR] },
     ];
 
@@ -572,19 +316,11 @@ WHERE
       ? filter.consorcioNome.map(n => n.toUpperCase().trim())
       : null;
 
-    // const modaisEspeciais = ['STPC', 'STPL', 'TEC'];
-
-    // console.log(consorcioNome)
     const dataInicio = format(new Date(filter.dataInicio), 'yyyy-MM-dd') || null;
     const dataFim = format(new Date(filter.dataFim), 'yyyy-MM-dd') || null;
     const userIds = filter.userIds || null;
     const valorMin = filter.valorMin || null;
     const valorMax = filter.valorMax || null;
-
-    if (filter.pendentes && (!consorcioNome || consorcioNome.length === 0)) {
-      consorcioNome = ['STPC', 'STPL', 'TEC'];
-    }
-
 
     return [
       dataInicio,
