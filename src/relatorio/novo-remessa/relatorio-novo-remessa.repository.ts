@@ -877,7 +877,6 @@ WHERE
     const dataFim = formatDateISODate(filter.dataFim);
 
     let pendenciaPagaData: string | null = null;
-    let pendenciaAguardandoData: string | null = null;
 
     if (filter.pendenciaPaga) {
       const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
@@ -910,36 +909,6 @@ WHERE
       `;
     }
 
-    if (filter.emProcessamento) {
-      const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
-      const nomeCase = `CASE\n    WHEN uu."permitCode" = '8' THEN 'VLT'\n    WHEN uu."permitCode" LIKE '4%' THEN 'STPC'\n    WHEN uu."permitCode" LIKE '81%' THEN 'STPL'\n    WHEN uu."permitCode" LIKE '7%' THEN 'TEC'\n    ELSE op."nomeConsorcio"\n  END`;
-      const consorciosDefault = `'STPC','STPL','TEC','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio'`;
-      const filtroConsorcio = filter.todosVanzeiros
-        ? `AND TRIM(UPPER(${nomeCase})) IN (${consorciosDefault})`
-        : '';
-      const filtroValorMin = filter.valorMin ? `AND COALESCE(da."valorLancamento", opa."valorTotal") >= ${filter.valorMin}` : '';
-      const filtroValorMax = filter.valorMax ? `AND COALESCE(da."valorLancamento", opa."valorTotal") <= ${filter.valorMax}` : '';
-
-      const withAs = this.WITH_AS
-        .replace(/%DATA_INICIO%/g, dataInicio)
-        .replace(/%DATA_FIM%/g, dataFim);
-
-      const pendenciaAguardando = this.pendenciaAguardandoPagamentoSQL
-        .replace(/%DATA_INICIO%/g, dataInicio)
-        .replace(/%DATA_FIM%/g, dataFim)
-        .replace(/%FILTRO_USER%/g, filtroUser)
-        .replace(/%FILTRO_CONSORCIO%/g, filtroConsorcio)
-        .replace(/%FILTRO_VALOR_MIN%/g, filtroValorMin)
-        .replace(/%FILTRO_VALOR_MAX%/g, filtroValorMax);
-
-      pendenciaAguardandoData = `
-        SELECT nome, valor
-        FROM (
-          ${withAs}
-          ${pendenciaAguardando}
-        ) AS r
-      `;
-    }
 
     let sqlOutros = '';
     let condicoesOutros = '';
@@ -1060,7 +1029,7 @@ WHERE
     }
 
     const finalSQL = `${sqlOutros} ${condicoesOutros}`;
-    const extraStatusData = [pendenciaPagaData, pendenciaAguardandoData].filter(Boolean) as string[];
+    const extraStatusData = [pendenciaPagaData].filter(Boolean) as string[];
 
     if (extraStatusData.length) {
       const finalSQLNomeValor = `
@@ -1111,13 +1080,13 @@ WHERE
     const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined || filter.estorno || filter.rejeitado || filter.pendenciaPaga;
     const statuses = this.getStatusParaFiltro(filter);
     // FIX P2: Keep all statuses including 5, don't filter it out
+    const statusesForRegularPath = statuses;
 
     let sqlErros = '';
     let sqlPagos = '';
     let finalSQL = '';
     let condicoesOutros = ` where (1=1) and r."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
     let pendenciaPagaData: string | null = null;
-    let pendenciaAguardandoData: string | null = null;
 
     if (this.shouldUseErrorPath(filter)) {
       sqlErros = `
@@ -1272,41 +1241,6 @@ WHERE
       `;
     }
 
-    if (filter.emProcessamento) {
-      const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
-      const nomes = filter.consorcioNome ? filter.consorcioNome.map((n) => n.toUpperCase().trim()) : [];
-      const consorciosDefault = `'STPC','STPL','TEC','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio'`;
-      const nomeCase = `CASE\n    WHEN uu."permitCode" = '8' THEN 'VLT'\n    WHEN uu."permitCode" LIKE '4%' THEN 'STPC'\n    WHEN uu."permitCode" LIKE '81%' THEN 'STPL'\n    WHEN uu."permitCode" LIKE '7%' THEN 'TEC'\n    ELSE op."nomeConsorcio"\n  END`;
-      const filtroConsorcio = filter.todosConsorcios
-        ? `AND TRIM(UPPER(${nomeCase})) IN (${consorciosDefault})`
-        : nomes.length
-          ? `AND TRIM(UPPER(${nomeCase})) IN ('${nomes.join("','")}')`
-          : '';
-      const filtroValorMin = filter.valorMin ? `AND COALESCE(da."valorLancamento", opa."valorTotal") >= ${filter.valorMin}` : '';
-      const filtroValorMax = filter.valorMax ? `AND COALESCE(da."valorLancamento", opa."valorTotal") <= ${filter.valorMax}` : '';
-
-      const withAs = this.WITH_AS
-        .replace(/%DATA_INICIO%/g, dataInicio)
-        .replace(/%DATA_FIM%/g, dataFim);
-
-      const pendenciaAguardando = this.pendenciaAguardandoPagamentoSQL
-        .replace(/%DATA_INICIO%/g, dataInicio)
-        .replace(/%DATA_FIM%/g, dataFim)
-        .replace(/%FILTRO_USER%/g, filtroUser)
-        .replace(/%FILTRO_CONSORCIO%/g, filtroConsorcio)
-        .replace(/%FILTRO_VALOR_MIN%/g, filtroValorMin)
-        .replace(/%FILTRO_VALOR_MAX%/g, filtroValorMax);
-
-      const sqlOutros = `
-  ${withAs}
-  ${pendenciaAguardando}
-      `;
-
-      pendenciaAguardandoData = `
-        SELECT r."nomeConsorcio" as nome, r.valor
-        FROM (${sqlOutros}) AS r
-      `;
-    }
 
     if (hasStatusFilter && statusesForRegularPath && statusesForRegularPath.length > 0) {
       condicoesOutros += ` and r."statusRemessa" in (${statusesForRegularPath.join(',')})\n`;
@@ -1328,6 +1262,7 @@ WHERE
       }
     }
 
+    // Pendentes é tratado em pendentesQuery() no fluxo principal.
 
     if (filter.todosConsorcios) {
       const consorcios = `'STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC'`;
@@ -1337,6 +1272,7 @@ WHERE
       condicoesOutros += ` AND r."nomeConsorcio" IN (${nomes}) `;
     }
 
+    // Combine queries
     let sqlOutros = '';
     if (filter.pago || filter.aPagar || filter.emProcessamento) {
       if (filter.estorno || filter.rejeitado || filter.erro) {
@@ -1348,7 +1284,7 @@ WHERE
       sqlOutros = sqlErros
     }
 
-    const extraStatusData = [pendenciaPagaData, pendenciaAguardandoData].filter(Boolean) as string[];
+    const extraStatusData = [pendenciaPagaData].filter(Boolean) as string[];
 
     if (!sqlOutros || !sqlOutros.trim()) {
       if (!extraStatusData.length) {
