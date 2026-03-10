@@ -1,6 +1,8 @@
 export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   dataInicio: Date;
   dataFim: Date;
+  page?: number;
+  pageSize?: number;
   userIds?: number[];
   consorcioNome?: string[];
   todosVanzeiros?: boolean;

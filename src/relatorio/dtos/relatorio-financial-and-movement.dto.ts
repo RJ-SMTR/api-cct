@@ -15,6 +15,9 @@ export class RelatorioFinancialMovementNovoRemessaDto {
   valorAguardandoPagamento: number
   valorPendente: number
   valorPendenciaPaga: number
+  currentPage?: number;
+  pageSize?: number;
+  totalPages?: number;
   data: RelatorioFinancialMovementNovoRemessaData[];
 }
 
