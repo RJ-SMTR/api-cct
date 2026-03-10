@@ -295,8 +295,6 @@ export class CronJobsService {
       // }
     );
 
-    this.jobsConfig.push(...await this.geraCronJob());
-
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
     if (process.env.CRONJOBS != 'false') {
 
