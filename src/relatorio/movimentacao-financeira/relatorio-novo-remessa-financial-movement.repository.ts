@@ -105,44 +105,103 @@ WHERE
 
       if (safeFilter.todosVanzeiros) finalQuery += ` ${this.notCpf}`;
       if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
-      finalQuery += ` ORDER BY da."dataVencimento"`;
 
-      const params = this.getQueryParameters(safeFilter);
-      const allResults = await queryRunner.query(finalQuery, params);
-
-      const aggregates = this.calculateAggregates(allResults);
-      const grouped = this.groupAndSum(allResults);
-      const dataOrdenada = Array.from(grouped.values())
-        .sort((a, b) => {
-          const dateA = this.parseDateBR(a.dataReferencia).getTime();
-          const dateB = this.parseDateBR(b.dataReferencia).getTime();
-          if (dateA !== dateB) return dateA - dateB;
-          return a.nomes.localeCompare(b.nomes, 'pt-BR');
-        })
-        .map(r => new RelatorioFinancialMovementNovoRemessaData(r));
+      const groupedCte = `
+WITH base AS (
+  ${finalQuery}
+),
+grouped AS (
+  SELECT
+    "dataReferencia",
+    nomes,
+    email,
+    "codBanco",
+    "nomeBanco",
+    "cpfCnpj",
+    "nomeConsorcio",
+    status,
+    "dataPagamento",
+    SUM(valor) AS valor
+  FROM base
+  GROUP BY
+    "dataReferencia",
+    nomes,
+    email,
+    "codBanco",
+    "nomeBanco",
+    "cpfCnpj",
+    "nomeConsorcio",
+    status,
+    "dataPagamento"
+)
+`;
 
       const hasPagination = Number.isInteger(safeFilter.page) || Number.isInteger(safeFilter.pageSize);
       const currentPageRaw = Number(safeFilter.page);
       const pageSizeRaw = Number(safeFilter.pageSize);
       const currentPage = Number.isInteger(currentPageRaw) && currentPageRaw > 0 ? currentPageRaw : 1;
       const pageSize = Number.isInteger(pageSizeRaw) && pageSizeRaw > 0 ? pageSizeRaw : 50;
-      const totalCount = dataOrdenada.length;
-      const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
+      const params = this.getQueryParameters(safeFilter);
 
-      const pagedData = hasPagination
-        ? dataOrdenada.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-        : dataOrdenada;
+      const countQuery = `
+${groupedCte}
+SELECT COUNT(*)::int AS count
+FROM grouped
+`;
+      const aggregatesQuery = `
+WITH base AS (
+  ${finalQuery}
+)
+SELECT
+  COALESCE(SUM(valor), 0) AS "valorTotal",
+  COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) AS "valorPago",
+  COALESCE(SUM(CASE WHEN status = 'Estorno' THEN valor ELSE 0 END), 0) AS "valorEstornado",
+  COALESCE(SUM(CASE WHEN status = 'Rejeitado' THEN valor ELSE 0 END), 0) AS "valorRejeitado",
+  COALESCE(SUM(CASE WHEN status = 'Aguardando Pagamento' THEN valor ELSE 0 END), 0) AS "valorAguardandoPagamento",
+  COALESCE(SUM(CASE WHEN status = 'Pendente' THEN valor ELSE 0 END), 0) AS "valorPendente",
+  COALESCE(SUM(CASE WHEN status = 'Pendencia Paga' THEN valor ELSE 0 END), 0) AS "valorPendenciaPaga"
+FROM base
+`;
+      const dataQuery = `
+${groupedCte}
+SELECT
+  TO_CHAR("dataReferencia", 'DD/MM/YYYY') AS "dataReferencia",
+  TO_CHAR("dataPagamento", 'DD/MM/YYYY') AS "dataPagamento",
+  nomes,
+  email,
+  "codBanco",
+  "nomeBanco",
+  "cpfCnpj",
+  "nomeConsorcio" AS consorcio,
+  valor,
+  status
+FROM grouped
+ORDER BY "dataReferencia", nomes
+${hasPagination ? 'OFFSET $8 LIMIT $9' : ''}
+`;
+
+      const [countRow] = await queryRunner.query(countQuery, params);
+      const [aggregates] = await queryRunner.query(aggregatesQuery, params);
+
+      const totalCount = Number(countRow?.count ?? 0);
+      const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
+      const safeCurrentPage = Math.min(currentPage, totalPages);
+      const offset = (safeCurrentPage - 1) * pageSize;
+
+      const dataParams = hasPagination ? [...params, offset, pageSize] : params;
+      const pagedDataRaw = await queryRunner.query(dataQuery, dataParams);
+      const pagedData = pagedDataRaw.map(r => new RelatorioFinancialMovementNovoRemessaData(r));
 
       const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
         count: totalCount,
-        valor: Number.parseFloat(aggregates.valorTotal.toString()),
-        valorPago: aggregates.valorPago,
-        valorEstornado: aggregates.valorEstornado,
-        valorRejeitado: aggregates.valorRejeitado,
-        valorAguardandoPagamento: aggregates.valorAguardandoPagamento,
-        valorPendente: aggregates.valorPendente,
-        valorPendenciaPaga: aggregates.valorPendenciaPaga,
-        currentPage,
+        valor: Number.parseFloat((aggregates?.valorTotal ?? 0).toString()),
+        valorPago: aggregates?.valorPago ?? 0,
+        valorEstornado: aggregates?.valorEstornado ?? 0,
+        valorRejeitado: aggregates?.valorRejeitado ?? 0,
+        valorAguardandoPagamento: aggregates?.valorAguardandoPagamento ?? 0,
+        valorPendente: aggregates?.valorPendente ?? 0,
+        valorPendenciaPaga: aggregates?.valorPendenciaPaga ?? 0,
+        currentPage: safeCurrentPage,
         pageSize,
         totalPages,
         data: pagedData,
@@ -155,130 +214,6 @@ WHERE
     } finally {
       await queryRunner.release();
       this.logger.log('QueryRunner liberado.');
-    }
-  }
-
-  /**
-   * Compute aggregates in one pass
-   */
-  private calculateAggregates(rows: any[]) {
-    let valorTotal = 0;
-    let valorPago = 0;
-    let valorRejeitado = 0;
-    let valorEstornado = 0;
-    let valorAguardandoPagamento = 0;
-    let valorPendente = 0;
-    let valorPendenciaPaga = 0;
-
-    for (const cur of rows) {
-      const valor = Number.parseFloat(cur.valor || 0);
-      valorTotal += valor;
-
-      switch ((cur.status || '').toString()) {
-        case 'Pago':
-          valorPago += valor;
-          break;
-        case 'Rejeitado':
-          valorRejeitado += valor;
-          break;
-        case 'Estorno':
-          valorEstornado += valor;
-          break;
-        case 'Aguardando Pagamento':
-          valorAguardandoPagamento += valor;
-          break;
-        case 'Pendente':
-          valorPendente += valor;
-          break;
-        case 'Pendencia Paga':
-          valorPendenciaPaga += valor;
-          break;
-      }
-    }
-
-    return {
-      valorTotal,
-      valorPago,
-      valorRejeitado,
-      valorEstornado,
-      valorAguardandoPagamento,
-      valorPendente,
-      valorPendenciaPaga,
-    };
-  }
-
-
-  private groupAndSum(rows: any[]) {
-    const map = new Map<string, any>();
-
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
-
-      const dataReferencia = this.formatDateToBR(r.dataReferencia) || '01/01/1970';
-      const dataPagamento = this.formatDateToBR(r.dataPagamento);
-      const valor = +r.valor || 0;
-
-      const key = dataReferencia + r.cpfCnpj + r.status + dataPagamento;
-
-      const existing = map.get(key);
-
-      if (existing) {
-        existing.valor += valor;
-      } else {
-        map.set(key, {
-          dataReferencia,
-          nomes: r.nomes,
-          email: r.email,
-          codBanco: r.codBanco,
-          nomeBanco: r.nomeBanco,
-          cpfCnpj: r.cpfCnpj,
-          consorcio: r.nomeConsorcio || r.consorcio,
-          valor,
-          status: r.status,
-          dataPagamento,
-        });
-      }
-    }
-
-    return map;
-  }
-
-  private parseDateBR(dateStr: string | null | undefined) {
-    if (!dateStr) return new Date(0);
-    const parts = dateStr.split('/');
-    const [d, m, y] = parts.map(v => Number(v));
-    const parsed = new Date(y, (m || 1) - 1, d || 1);
-    return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
-  }
-
-  private formatDateToBR(value: any): string | null {
-    try {
-      if (!value) return null;
-
-      let date: Date;
-      if (value instanceof Date) {
-        date = value;
-      } else if (typeof value === 'string') {
-        if (value.includes('/')) {
-          const parts = value.split('/').map(p => parseInt(p, 10));
-          if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-            date = new Date(parts[2], parts[1] - 1, parts[0]);
-          } else {
-            return null;
-          }
-        } else {
-          date = new Date(value);
-        }
-      } else if (typeof value === 'number') {
-        date = new Date(value);
-      } else {
-        return null;
-      }
-
-      if (Number.isNaN(date.getTime())) return null;
-      return new Intl.DateTimeFormat('pt-BR').format(date);
-    } catch (e) {
-      return null;
     }
   }
 
