@@ -875,6 +875,7 @@ WHERE
     this.logger.warn(`${filter}`)
     const dataInicio = formatDateISODate(filter.dataInicio);
     const dataFim = formatDateISODate(filter.dataFim);
+    const hasOtherStatusFilters = !!(filter.aPagar || filter.emProcessamento || filter.pago || filter.erro || filter.estorno || filter.rejeitado);
 
     let pendenciaPagaData: string | null = null;
 
@@ -907,13 +908,21 @@ WHERE
           ${pendenciaPaga}
         ) AS r
       `;
+
+      if (!hasOtherStatusFilters) {
+        return `
+        SELECT nome, SUM(valor) as valor
+        FROM (${pendenciaPagaData}) AS r
+        GROUP BY nome
+      `;
+      }
     }
 
 
     let sqlOutros = '';
     let condicoesOutros = '';
 
-    const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined || filter.estorno || filter.rejeitado;
+    const hasStatusFilter = !!(filter.aPagar || filter.emProcessamento || filter.pago || filter.erro || filter.estorno || filter.rejeitado || filter.pendenciaPaga);
 
     if (this.shouldUseErrorPath(filter)) {
       sqlOutros = `
@@ -962,7 +971,9 @@ WHERE
 `;
       sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
       sqlOutros += `INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id`;
+      // FIX P1: Don't add conflicting statusRemessa condition here, will be handled below
       condicoesOutros += ` and uu."bankAccount" IS NOT NULL\n`;
+      // FIX P1: Only add cadeia condition based on status filter
       if (filter.pendenciaPaga) {
         condicoesOutros += ' and cp.raiz_id IN (SELECT raiz_id FROM cadeias_com_paga)\n';
       } else if (filter.erro || filter.estorno || filter.rejeitado) {
@@ -982,12 +993,16 @@ WHERE
       `;
 
     const statuses = this.getStatusParaFiltro(filter);
+    const statusesForRegularPath = filter.pendenciaPaga
+      ? statuses?.filter(status => status !== 5) || null
+      : statuses;
 
-    if (hasStatusFilter && statuses) {
-      condicoesOutros += ` and oph."statusRemessa" in (${statuses.join(',')})\n`;
+    if (hasStatusFilter && statusesForRegularPath && statusesForRegularPath.length > 0) {
+      condicoesOutros += ` and oph."statusRemessa" in (${statusesForRegularPath.join(',')})\n`;
 
-      const has3or4 = statuses.includes(3) || statuses.includes(4);
-      if (statuses.includes(4) && statuses.length === 1) {
+      // FIX P5: Only exclude status 3 if only status 4 is selected (not when combining with others)
+      const has3or4 = statusesForRegularPath.includes(3) || statusesForRegularPath.includes(4);
+      if (statusesForRegularPath.includes(4) && statusesForRegularPath.length === 1) {
         condicoesOutros += `and oph."statusRemessa" not in (3,5)\n`;
         if (this.shouldUseErrorPath(filter)) {
           condicoesOutros += `AND cp.raiz_id NOT IN ( SELECT raiz_id FROM cadeias_com_paga )\n`;
@@ -997,11 +1012,12 @@ WHERE
       if (has3or4) {
         condicoesOutros += ` and oph."motivoStatusRemessa" <> 'AM'\n`;
       }
+      // FIX P5: Validate reasons against status
       const motivosSelecionados: string[] = [];
-      if (filter.estorno && (statuses.includes(4) || statuses.includes(2))) {
+      if (filter.estorno && (statusesForRegularPath.includes(4) || statusesForRegularPath.includes(2))) {
         motivosSelecionados.push('02');
       }
-      if (filter.rejeitado && statuses.includes(4)) {
+      if (filter.rejeitado && statusesForRegularPath.includes(4)) {
         motivosSelecionados.push('AL');
       }
       if (motivosSelecionados.length > 0) {
@@ -1047,6 +1063,7 @@ WHERE
       return resultSQL;
     }
 
+    // FIX P9: Add logging for query debugging
     if (process.env.DEBUG_QUERIES === 'true') {
       console.log('[consultaVanzeiros] Generated SQL:', finalSQL.substring(0, 200) + '...');
     }
@@ -1057,6 +1074,7 @@ WHERE
     filter: IFindPublicacaoRelatorioNovoRemessa,
     queryRunner: QueryRunner
   ) {
+    // FIX P10: Ensure consistent parameter order regardless of consorcio filter
     const queryParams = [filter.dataInicio, filter.dataFim, filter.userIds, filter.valorMin, filter.valorMax, filter.consorcioNome];
 
     if (filter.todosConsorcios || filter.consorcioNome) {
@@ -1065,6 +1083,7 @@ WHERE
         GROUP BY r.nome`, queryParams);
       return result;
     } else {
+      // Use same parameter list but query only needs first 5 parameters
       const result = await queryRunner.query(this.pendentes_25, queryParams.slice(0, 5));
       return result;
     }
@@ -1077,10 +1096,11 @@ WHERE
     const dataFim = formatDateISODate(filter.dataFim);
 
     const hasOtherStatusFilters = !!(filter.aPagar || filter.emProcessamento || filter.pago || filter.erro || filter.estorno || filter.rejeitado);
-    const hasStatusFilter = filter.aPagar !== undefined || filter.emProcessamento !== undefined || filter.pago !== undefined || filter.erro !== undefined || filter.estorno || filter.rejeitado || filter.pendenciaPaga;
+    const hasStatusFilter = !!(filter.aPagar || filter.emProcessamento || filter.pago || filter.erro || filter.estorno || filter.rejeitado || filter.pendenciaPaga);
     const statuses = this.getStatusParaFiltro(filter);
-    // FIX P2: Keep all statuses including 5, don't filter it out
-    const statusesForRegularPath = statuses;
+    const statusesForRegularPath = filter.pendenciaPaga
+      ? statuses?.filter(status => status !== 5) || null
+      : statuses;
 
     let sqlErros = '';
     let sqlPagos = '';
@@ -1088,6 +1108,7 @@ WHERE
     let condicoesOutros = ` where (1=1) and r."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
     let pendenciaPagaData: string | null = null;
 
+    // Build error path query (with CTEs)
     if (this.shouldUseErrorPath(filter)) {
       sqlErros = `
     WITH RECURSIVE
@@ -1147,6 +1168,7 @@ WHERE
     `;
     }
 
+    // Build paid/valid path query (without CTEs)
     if (filter.pago || filter.aPagar || filter.emProcessamento) {
       sqlPagos = `
         SELECT distinct
@@ -1169,7 +1191,9 @@ WHERE
       `;
     }
 
+    // FIX P7: Store pendenciaPaga data for later aggregation, don't return early
     if (filter.pendenciaPaga && !hasOtherStatusFilters) {
+      // Special case: ONLY pendenciaPaga filter selected
       const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
       const nomes = filter.consorcioNome ? filter.consorcioNome.map((n) => n.toUpperCase().trim()) : [];
       const consorciosDefault = `'STPC','STPL','TEC','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio'`;
@@ -1205,7 +1229,7 @@ WHERE
         GROUP BY r."nomeConsorcio"
       `;
     } else if (filter.pendenciaPaga && hasOtherStatusFilters) {
-      
+      // pendenciaPaga combined with other status filters - prepare for aggregation later
       const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
       const nomes = filter.consorcioNome ? filter.consorcioNome.map((n) => n.toUpperCase().trim()) : [];
       const consorciosDefault = `'STPC','STPL','TEC','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio'`;
@@ -1242,6 +1266,7 @@ WHERE
     }
 
 
+    // Apply filters
     if (hasStatusFilter && statusesForRegularPath && statusesForRegularPath.length > 0) {
       condicoesOutros += ` and r."statusRemessa" in (${statusesForRegularPath.join(',')})\n`;
 
@@ -1250,6 +1275,7 @@ WHERE
       if (has3or4) {
         condicoesOutros += ` and r."motivoStatusRemessa" <> 'AM'\n`;
       }
+      // FIX P5: Verify that motivoStatusRemessa options are valid for selected statuses
       const motivosSelecionados: string[] = [];
       if (filter.rejeitado && statusesForRegularPath.includes(4)) {
         motivosSelecionados.push('AL');
@@ -1276,6 +1302,7 @@ WHERE
     let sqlOutros = '';
     if (filter.pago || filter.aPagar || filter.emProcessamento) {
       if (filter.estorno || filter.rejeitado || filter.erro) {
+        // Use UNION (not UNION ALL) to remove exact duplicates automatically
         sqlOutros = `${sqlErros} UNION ${sqlPagos}`
       } else {
         sqlOutros = sqlPagos
@@ -1297,28 +1324,33 @@ WHERE
       `;
     }
 
+    // Single aggregation: don't aggregate here, aggregate at outer level
     finalSQL = `
         SELECT r."nomeConsorcio" as nome, r.valor
         FROM (${sqlOutros}) AS r  ${condicoesOutros}
       `;
 
+    // FIX P7: Aggregate pendenciaPaga with other status filters properly
     if (extraStatusData.length) {
       const resultSQL = `
         SELECT nome, SUM(valor) as valor
         FROM (${extraStatusData.join(' UNION ALL ')} UNION ALL ${finalSQL}) AS r
         GROUP BY nome
       `;
+      // FIX P9: Add logging for query debugging
       if (process.env.DEBUG_QUERIES === 'true') {
         console.log('[consultaConsorcios-pendenciaPaga] Generated SQL:', resultSQL.substring(0, 200) + '...');
       }
       return resultSQL;
     }
 
+    // Single aggregation at outer level only
     const result = `
       SELECT nome, SUM(valor) as valor
       FROM (${finalSQL}) AS r
       GROUP BY nome
     `;
+    // FIX P9: Add logging for query debugging
     if (process.env.DEBUG_QUERIES === 'true') {
       console.log('[consultaConsorcios] Generated SQL:', result.substring(0, 200) + '...');
     }
