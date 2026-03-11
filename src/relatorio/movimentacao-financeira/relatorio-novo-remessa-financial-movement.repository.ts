@@ -86,6 +86,36 @@ WHERE
   AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
 `;
 
+  private readonly pendentes = `
+SELECT DISTINCT
+  DATE(op."dataOrdem") AS "dataReferencia",
+  NULL::integer AS id,
+  op."nomeOperadora" as nomes,
+  pu.email,
+  pu."bankCode" AS "codBanco",
+  bc.name AS "nomeBanco",
+  pu."cpfCnpj",
+  ${this.CONSORCIO_CASE} AS "nomeConsorcio",
+  op."valor" AS valor,
+  op."dataOrdem" AS "dataPagamento",
+  'Pendentes' AS status
+FROM ordem_pagamento op
+INNER JOIN public."user" pu ON pu.id = op."userId"
+JOIN bank bc on bc.code = pu."bankCode"
+WHERE
+  op."dataOrdem" BETWEEN $1  AND $2
+  AND op."ordemPagamentoAgrupadoId" IS NULL
+  AND ($3:: integer[] IS NULL OR pu."id" = ANY($3))
+  AND op."nomeConsorcio" = ANY(
+    COALESCE(NULLIF($5::text[], '{}'), ARRAY['STPC','STPL','TEC'])
+  )
+  AND op."nomeConsorcio" <> 'VLT'
+  AND (
+    ($6:: numeric IS NULL OR op."valor" >= $6:: numeric)
+    AND ($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
+  )
+`;
+
   constructor(@InjectDataSource() private readonly dataSource: DataSource) { }
 
   public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
@@ -106,35 +136,45 @@ WHERE
       if (safeFilter.todosVanzeiros) finalQuery += ` ${this.notCpf}`;
       if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
 
+      const includePendentes = Boolean(safeFilter.pendentes || safeFilter.erro);
+      if (includePendentes) {
+        let pendentesQuery = this.pendentes;
+        if (safeFilter.todosVanzeiros) pendentesQuery += ` ${this.notCpf}`;
+        if (safeFilter.desativados) pendentesQuery += ` AND pu.bloqueado = true`;
+        finalQuery = `${finalQuery}
+          UNION ALL
+          ${pendentesQuery}`;
+      }
+
       const groupedCte = `
-WITH base AS (
-  ${finalQuery}
-),
-grouped AS (
-  SELECT
-    "dataReferencia",
-    nomes,
-    email,
-    "codBanco",
-    "nomeBanco",
-    "cpfCnpj",
-    "nomeConsorcio",
-    status,
-    "dataPagamento",
-    SUM(valor) AS valor
-  FROM base
-  GROUP BY
-    "dataReferencia",
-    nomes,
-    email,
-    "codBanco",
-    "nomeBanco",
-    "cpfCnpj",
-    "nomeConsorcio",
-    status,
-    "dataPagamento"
-)
-`;
+      WITH base AS (
+        ${finalQuery}
+      ),
+      grouped AS (
+        SELECT
+          "dataReferencia",
+          nomes,
+          email,
+          "codBanco",
+          "nomeBanco",
+          "cpfCnpj",
+          "nomeConsorcio",
+          status,
+          "dataPagamento",
+          SUM(valor) AS valor
+      FROM base
+      GROUP BY
+        "dataReferencia",
+        nomes,
+        email,
+        "codBanco",
+        "nomeBanco",
+        "cpfCnpj",
+        "nomeConsorcio",
+        status,
+        "dataPagamento"
+    )
+    `;
 
       const hasPagination = Number.isInteger(safeFilter.page) || Number.isInteger(safeFilter.pageSize);
       const currentPageRaw = Number(safeFilter.page);
@@ -144,21 +184,21 @@ grouped AS (
       const params = this.getQueryParameters(safeFilter);
 
       const countQuery = `
-${groupedCte}
-SELECT COUNT(*)::int AS count
-FROM grouped
-`;
+      ${groupedCte}
+      SELECT COUNT(*)::int AS count
+      FROM grouped
+      `;
       const aggregatesQuery = `
-WITH base AS (
-  ${finalQuery}
-)
+      WITH base AS (
+      ${finalQuery}
+    )
 SELECT
   COALESCE(SUM(valor), 0) AS "valorTotal",
   COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) AS "valorPago",
   COALESCE(SUM(CASE WHEN status = 'Estorno' THEN valor ELSE 0 END), 0) AS "valorEstornado",
   COALESCE(SUM(CASE WHEN status = 'Rejeitado' THEN valor ELSE 0 END), 0) AS "valorRejeitado",
   COALESCE(SUM(CASE WHEN status = 'Aguardando Pagamento' THEN valor ELSE 0 END), 0) AS "valorAguardandoPagamento",
-  COALESCE(SUM(CASE WHEN status = 'Pendente' THEN valor ELSE 0 END), 0) AS "valorPendente",
+  COALESCE(SUM(CASE WHEN status = 'Pendentes' THEN valor ELSE 0 END), 0) AS "valorPendente",
   COALESCE(SUM(CASE WHEN status = 'Pendencia Paga' THEN valor ELSE 0 END), 0) AS "valorPendenciaPaga"
 FROM base
 `;
