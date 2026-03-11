@@ -421,7 +421,7 @@ WHERE
     AND op."ordemPagamentoAgrupadoId" IS NULL
     AND pu."bankAccount" IS NOT NULL
     AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND op."nomeConsorcio" IN ('SPTC', 'STPL', 'TEC')
+    AND op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
     AND (
           ($4::numeric IS NULL OR op."valor" >= $4::numeric) 
           AND ($5::numeric IS NULL OR op."valor" <= $5::numeric)
