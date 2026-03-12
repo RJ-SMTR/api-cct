@@ -886,9 +886,10 @@ WHERE
     this.logger.warn(`${filter}`)
     const dataInicio = formatDateISODate(filter.dataInicio);
     const dataFim = formatDateISODate(filter.dataFim);
-    const hasOtherStatusFilters = !!(filter.aPagar || filter.emProcessamento || filter.pago || filter.erro || filter.estorno || filter.rejeitado);
-
-    let pendenciaPagaData: string | null = null;
+    const hasErrorFilters = !!(filter.erro || filter.estorno || filter.rejeitado);
+    let sqlErros = '';
+    let sqlPagos = '';
+    let sqlPendenciaPaga = '';
 
     if (filter.pendenciaPaga) {
       const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
@@ -912,31 +913,24 @@ WHERE
         .replace(/%FILTRO_VALOR_MIN%/g, filtroValorMin)
         .replace(/%FILTRO_VALOR_MAX%/g, filtroValorMax);
 
-      pendenciaPagaData = `
-        SELECT nome, valor
-        FROM (
-          ${withAs}
-          ${pendenciaPaga}
-        ) AS r
+      const sqlBasePendenciaPaga = `
+        ${withAs}
+        ${pendenciaPaga}
       `;
 
-      if (!hasOtherStatusFilters) {
-        return `
-        SELECT nome, SUM(valor) as valor
-        FROM (${pendenciaPagaData}) AS r
-        GROUP BY nome
+      sqlPendenciaPaga = `
+        SELECT nome, valor
+        FROM (${sqlBasePendenciaPaga}) AS r
       `;
-      }
     }
 
 
-    let sqlOutros = '';
-    let condicoesOutros = '';
+    let condicoesOutros = ' WHERE 1=1\n';
 
     const hasStatusFilter = !!(filter.aPagar || filter.emProcessamento || filter.pago || filter.erro || filter.estorno || filter.rejeitado || filter.pendenciaPaga);
 
-    if (this.shouldUseErrorPath(filter)) {
-      sqlOutros = `
+    if (hasErrorFilters) {
+      sqlErros = `
        WITH RECURSIVE
     pendencia AS (
         SELECT DISTINCT
@@ -978,29 +972,35 @@ WHERE
                     da.id,
                     da."dataVencimento", 
                     uu."fullName" as nome, 
-                      da."valorLancamento" as valor
+                    oph."statusRemessa",
+                    oph."motivoStatusRemessa",
+                    op."ordemPagamentoAgrupadoId",
+                    op."nomeConsorcio",
+                    uu.id as "userId",
+                    da."valorLancamento" as valor
 `;
-      sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
-      sqlOutros += `INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id`;
-      // FIX P1: Don't add conflicting statusRemessa condition here, will be handled below
-      condicoesOutros += ` and uu."bankAccount" IS NOT NULL\n`;
-      // FIX P1: Only add cadeia condition based on status filter
-      if (filter.pendenciaPaga) {
-        condicoesOutros += ' and cp.raiz_id IN (SELECT raiz_id FROM cadeias_com_paga)\n';
-      } else if (filter.erro || filter.estorno || filter.rejeitado) {
-        condicoesOutros += ' and cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)\n';
-      }
-    } else {
-      sqlOutros = `select distinct 
+      sqlErros += RelatorioNovoRemessaRepository.QUERY_FROM;
+      sqlErros += `INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id`;
+      sqlErros += ` WHERE uu."bankAccount" IS NOT NULL\n`;
+      sqlErros += ` AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)\n`;
+    }
+
+    if (filter.pago || filter.aPagar || filter.emProcessamento) {
+      sqlPagos = `select distinct 
                     da.id,
                     da."dataVencimento", 
                     uu."fullName" as nome, 
-                      da."valorLancamento" as valor
+                    oph."statusRemessa",
+                    oph."motivoStatusRemessa",
+                    op."ordemPagamentoAgrupadoId",
+                    op."nomeConsorcio",
+                    uu.id as "userId",
+                    da."valorLancamento" as valor
                   `;
-      sqlOutros += RelatorioNovoRemessaRepository.QUERY_FROM;
+      sqlPagos += RelatorioNovoRemessaRepository.QUERY_FROM;
     }
 
-    condicoesOutros += ` and da."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
+    condicoesOutros += ` AND r."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' 
       `;
 
     const statuses = this.getStatusParaFiltro(filter);
@@ -1009,19 +1009,16 @@ WHERE
       : statuses;
 
     if (hasStatusFilter && statusesForRegularPath && statusesForRegularPath.length > 0) {
-      condicoesOutros += ` and oph."statusRemessa" in (${statusesForRegularPath.join(',')})\n`;
+      condicoesOutros += ` AND r."statusRemessa" in (${statusesForRegularPath.join(',')})\n`;
 
       // FIX P5: Only exclude status 3 if only status 4 is selected (not when combining with others)
       const has3or4 = statusesForRegularPath.includes(3) || statusesForRegularPath.includes(4);
       if (statusesForRegularPath.includes(4) && statusesForRegularPath.length === 1) {
-        condicoesOutros += `and oph."statusRemessa" not in (3,5)\n`;
-        if (this.shouldUseErrorPath(filter)) {
-          condicoesOutros += `AND cp.raiz_id NOT IN ( SELECT raiz_id FROM cadeias_com_paga )\n`;
-        }
+        condicoesOutros += `AND r."statusRemessa" not in (3,5)\n`;
       }
 
       if (has3or4) {
-        condicoesOutros += ` and oph."motivoStatusRemessa" <> 'AM'\n`;
+        condicoesOutros += ` AND r."motivoStatusRemessa" <> 'AM'\n`;
       }
       // FIX P5: Validate reasons against status
       const motivosSelecionados: string[] = [];
@@ -1032,53 +1029,76 @@ WHERE
         motivosSelecionados.push('AL');
       }
       if (motivosSelecionados.length > 0) {
-        condicoesOutros += ` and oph."motivoStatusRemessa" IN ('${motivosSelecionados.join("','")}')\n`;
+        condicoesOutros += ` AND r."motivoStatusRemessa" IN ('${motivosSelecionados.join("','")}')\n`;
       }
     }
 
     if (filter.pendentes && !filter.erro) {
-      condicoesOutros += `and oph."statusRemessa" not in (3,5)\n`;
-      condicoesOutros += `AND op."ordemPagamentoAgrupadoId" IS NULL\n`;
+      condicoesOutros += `AND r."statusRemessa" not in (3,5)\n`;
+      condicoesOutros += `AND r."ordemPagamentoAgrupadoId" IS NULL\n`;
     }
 
     if (filter.valorMin !== undefined) {
-      condicoesOutros += ` and da."valorLancamento" >= ${filter.valorMin}`;
+      condicoesOutros += ` AND r.valor >= ${filter.valorMin}`;
     }
 
     if (filter.valorMax !== undefined) {
-      condicoesOutros += ` and da."valorLancamento" <= ${filter.valorMax}`;
+      condicoesOutros += ` AND r.valor <= ${filter.valorMax}`;
     }
 
     if (filter.userIds) {
-      condicoesOutros += ` and uu.id in('${filter.userIds.join("','")}')`;
+      condicoesOutros += ` AND r."userId" in('${filter.userIds.join("','")}')`;
     } else if (filter.todosVanzeiros) {
-      condicoesOutros += ` and op."nomeConsorcio" in('STPC','STPL','TEC')`;
+      condicoesOutros += ` AND r."nomeConsorcio" in('STPC','STPL','TEC')`;
     }
 
-    const finalSQL = `${sqlOutros} ${condicoesOutros}`;
-    const extraStatusData = [pendenciaPagaData].filter(Boolean) as string[];
+    let sqlOutros = '';
+    const regularParts: string[] = [];
 
-    if (extraStatusData.length) {
-      const finalSQLNomeValor = `
+    if (sqlErros && sqlErros.trim()) {
+      regularParts.push(sqlErros.trim());
+    }
+
+    if (sqlPagos && sqlPagos.trim()) {
+      regularParts.push(sqlPagos.trim());
+    }
+
+    let sqlRegular = '';
+    if (regularParts.length > 1) {
+      sqlRegular = regularParts.join(' UNION ');
+    } else if (regularParts.length === 1) {
+      sqlRegular = regularParts[0];
+    }
+
+    const combinedParts: string[] = [];
+
+    if (sqlRegular) {
+      combinedParts.push(`
         SELECT r.nome, r.valor
-        FROM (${finalSQL}) AS r
-      `;
-      const resultSQL = `
-        SELECT nome, SUM(valor) as valor
-        FROM (${extraStatusData.join(' UNION ALL ')} UNION ALL ${finalSQLNomeValor}) AS r
-        GROUP BY nome
-      `;
-      if (process.env.DEBUG_QUERIES === 'true') {
-        console.log('[consultaVanzeiros-extraStatus] Generated SQL:', resultSQL.substring(0, 200) + '...');
-      }
-      return resultSQL;
+        FROM (${sqlRegular}) AS r ${condicoesOutros}
+      `);
     }
 
-    // FIX P9: Add logging for query debugging
-    if (process.env.DEBUG_QUERIES === 'true') {
-      console.log('[consultaVanzeiros] Generated SQL:', finalSQL.substring(0, 200) + '...');
+    if (sqlPendenciaPaga && sqlPendenciaPaga.trim()) {
+      combinedParts.push(sqlPendenciaPaga.trim());
     }
-    return finalSQL;
+
+    if (!combinedParts.length) {
+      return '';
+    }
+
+    sqlOutros = combinedParts.join(' UNION ALL ');
+
+    const resultSQL = `
+      SELECT nome, SUM(valor) as valor
+      FROM (${sqlOutros}) AS r
+      GROUP BY nome
+    `;
+
+    if (process.env.DEBUG_QUERIES === 'true') {
+      console.log('[consultaVanzeiros] Generated SQL:', resultSQL.substring(0, 200) + '...');
+    }
+    return resultSQL;
   }
 
   private async pendentesQuery(
