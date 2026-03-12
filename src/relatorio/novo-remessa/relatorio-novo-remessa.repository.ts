@@ -678,11 +678,22 @@ WHERE
           allResults = await queryRunner.query(finalQuery);
         }
 
-        // FIX P6: Add pendentes only if not already included in other status filters
-        // Avoid duplicating if pendenciaPaga is already being retrieved
-        if (filter.pendentes && !filter.pendenciaPaga) {
+        // Always include pendentes when requested.
+        if (filter.pendentes) {
           const pendentesResults = await this.pendentesQuery(filter, queryRunner);
           allResults = [...allResults, ...pendentesResults];
+        }
+
+        // Re-aggregate by nome after combining multiple query sources.
+        if (allResults.length > 0) {
+          const grouped = allResults.reduce((acc, row) => {
+            const nome = row.nome;
+            const valor = Number(row.valor || 0);
+            acc[nome] = (acc[nome] || 0) + valor;
+            return acc;
+          }, {} as Record<string, number>);
+
+          allResults = Object.entries(grouped).map(([nome, valor]) => ({ nome, valor }));
         }
       }
 
@@ -1095,7 +1106,7 @@ WHERE
     const dataInicio = formatDateISODate(filter.dataInicio);
     const dataFim = formatDateISODate(filter.dataFim);
 
-    const hasOtherStatusFilters = !!(filter.aPagar || filter.emProcessamento || filter.pago || filter.erro || filter.estorno || filter.rejeitado);
+    const hasErrorFilters = !!(filter.erro || filter.estorno || filter.rejeitado);
     const hasStatusFilter = !!(filter.aPagar || filter.emProcessamento || filter.pago || filter.erro || filter.estorno || filter.rejeitado || filter.pendenciaPaga);
     const statuses = this.getStatusParaFiltro(filter);
     const statusesForRegularPath = filter.pendenciaPaga
@@ -1104,12 +1115,11 @@ WHERE
 
     let sqlErros = '';
     let sqlPagos = '';
-    let finalSQL = '';
+    let sqlPendenciaPaga = '';
     let condicoesOutros = ` where (1=1) and r."dataVencimento" BETWEEN '${dataInicio}' and '${dataFim}' `;
-    let pendenciaPagaData: string | null = null;
 
     // Build error path query (with CTEs)
-    if (this.shouldUseErrorPath(filter)) {
+    if (hasErrorFilters) {
       sqlErros = `
     WITH RECURSIVE
       pendencia AS (
@@ -1164,7 +1174,7 @@ WHERE
       INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id
       WHERE
         uu."bankAccount" IS NOT NULL
-        ${filter.pendenciaPaga ? 'AND cp.raiz_id IN (SELECT raiz_id FROM cadeias_com_paga)' : 'AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)'}
+        AND cp.raiz_id NOT IN (SELECT raiz_id FROM cadeias_com_paga)
     `;
     }
 
@@ -1191,9 +1201,8 @@ WHERE
       `;
     }
 
-    // FIX P7: Store pendenciaPaga data for later aggregation, don't return early
-    if (filter.pendenciaPaga && !hasOtherStatusFilters) {
-      // Special case: ONLY pendenciaPaga filter selected
+    // Build pendencia paga path query separately
+    if (filter.pendenciaPaga) {
       const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
       const nomes = filter.consorcioNome ? filter.consorcioNome.map((n) => n.toUpperCase().trim()) : [];
       const consorciosDefault = `'STPC','STPL','TEC','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio'`;
@@ -1218,50 +1227,14 @@ WHERE
         .replace(/%FILTRO_VALOR_MIN%/g, filtroValorMin)
         .replace(/%FILTRO_VALOR_MAX%/g, filtroValorMax);
 
-      const sqlOutros = `
+      const sqlBasePendenciaPaga = `
   ${withAs}
   ${pendenciaPaga}
       `;
 
-      return `
-        SELECT r."nomeConsorcio" as nome, NULL as "nomeConsorcio", SUM(valor) as valor
-        FROM (${sqlOutros}) AS r
-        GROUP BY r."nomeConsorcio"
-      `;
-    } else if (filter.pendenciaPaga && hasOtherStatusFilters) {
-      // pendenciaPaga combined with other status filters - prepare for aggregation later
-      const filtroUser = filter.userIds ? `AND uu.id IN ('${filter.userIds.join("','")}')` : '';
-      const nomes = filter.consorcioNome ? filter.consorcioNome.map((n) => n.toUpperCase().trim()) : [];
-      const consorciosDefault = `'STPC','STPL','TEC','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio'`;
-      const nomeCase = `CASE\n    WHEN uu."permitCode" = '8' THEN 'VLT'\n    WHEN uu."permitCode" LIKE '4%' THEN 'STPC'\n    WHEN uu."permitCode" LIKE '81%' THEN 'STPL'\n    WHEN uu."permitCode" LIKE '7%' THEN 'TEC'\n    ELSE op."nomeConsorcio"\n  END`;
-      const filtroConsorcio = filter.todosConsorcios
-        ? `AND TRIM(UPPER(${nomeCase})) IN (${consorciosDefault})`
-        : nomes.length
-          ? `AND TRIM(UPPER(${nomeCase})) IN ('${nomes.join("','")}')`
-          : '';
-      const filtroValorMin = filter.valorMin ? `AND COALESCE(da."valorLancamento", opa."valorTotal") >= ${filter.valorMin}` : '';
-      const filtroValorMax = filter.valorMax ? `AND COALESCE(da."valorLancamento", opa."valorTotal") <= ${filter.valorMax}` : '';
-
-      const withAs = this.WITH_AS
-        .replace(/%DATA_INICIO%/g, dataInicio)
-        .replace(/%DATA_FIM%/g, dataFim);
-
-      const pendenciaPaga = this.pendenciaPagaSQL
-        .replace(/%DATA_INICIO%/g, dataInicio)
-        .replace(/%DATA_FIM%/g, dataFim)
-        .replace(/%FILTRO_USER%/g, filtroUser)
-        .replace(/%FILTRO_CONSORCIO%/g, filtroConsorcio)
-        .replace(/%FILTRO_VALOR_MIN%/g, filtroValorMin)
-        .replace(/%FILTRO_VALOR_MAX%/g, filtroValorMax);
-
-      const sqlOutros = `
-  ${withAs}
-  ${pendenciaPaga}
-      `;
-
-      pendenciaPagaData = `
+      sqlPendenciaPaga = `
         SELECT r."nomeConsorcio" as nome, r.valor
-        FROM (${sqlOutros}) AS r
+        FROM (${sqlBasePendenciaPaga}) AS r
       `;
     }
 
@@ -1298,56 +1271,48 @@ WHERE
       condicoesOutros += ` AND r."nomeConsorcio" IN (${nomes}) `;
     }
 
-    // Combine queries
+    // Combine queries in a single stage: sqlErros + sqlPagos + sqlPendenciaPaga
     let sqlOutros = '';
-    if (filter.pago || filter.aPagar || filter.emProcessamento) {
-      if (filter.estorno || filter.rejeitado || filter.erro) {
-        // Use UNION (not UNION ALL) to remove exact duplicates automatically
-        sqlOutros = `${sqlErros} UNION ${sqlPagos}`
-      } else {
-        sqlOutros = sqlPagos
-      }
-    } else {
-      sqlOutros = sqlErros
+    const regularParts: string[] = [];
+
+    if (sqlErros && sqlErros.trim()) {
+      regularParts.push(sqlErros.trim());
     }
 
-    const extraStatusData = [pendenciaPagaData].filter(Boolean) as string[];
-
-    if (!sqlOutros || !sqlOutros.trim()) {
-      if (!extraStatusData.length) {
-        return '';
-      }
-      return `
-        SELECT nome, SUM(valor) as valor
-        FROM (${extraStatusData.join(' UNION ALL ')}) AS r
-        GROUP BY nome
-      `;
+    if (sqlPagos && sqlPagos.trim()) {
+      regularParts.push(sqlPagos.trim());
     }
 
-    // Single aggregation: don't aggregate here, aggregate at outer level
-    finalSQL = `
+    let sqlRegular = '';
+    if (regularParts.length > 1) {
+      // Keep UNION for regular paths to avoid exact duplicates.
+      sqlRegular = regularParts.join(' UNION ');
+    } else if (regularParts.length === 1) {
+      sqlRegular = regularParts[0];
+    }
+
+    const combinedParts: string[] = [];
+
+    if (sqlRegular) {
+      combinedParts.push(`
         SELECT r."nomeConsorcio" as nome, r.valor
-        FROM (${sqlOutros}) AS r  ${condicoesOutros}
-      `;
-
-    // FIX P7: Aggregate pendenciaPaga with other status filters properly
-    if (extraStatusData.length) {
-      const resultSQL = `
-        SELECT nome, SUM(valor) as valor
-        FROM (${extraStatusData.join(' UNION ALL ')} UNION ALL ${finalSQL}) AS r
-        GROUP BY nome
-      `;
-      // FIX P9: Add logging for query debugging
-      if (process.env.DEBUG_QUERIES === 'true') {
-        console.log('[consultaConsorcios-pendenciaPaga] Generated SQL:', resultSQL.substring(0, 200) + '...');
-      }
-      return resultSQL;
+        FROM (${sqlRegular}) AS r ${condicoesOutros}
+      `);
     }
 
-    // Single aggregation at outer level only
+    if (sqlPendenciaPaga && sqlPendenciaPaga.trim()) {
+      combinedParts.push(sqlPendenciaPaga.trim());
+    }
+
+    if (!combinedParts.length) {
+      return '';
+    }
+
+    sqlOutros = combinedParts.join(' UNION ALL ');
+
     const result = `
       SELECT nome, SUM(valor) as valor
-      FROM (${finalSQL}) AS r
+      FROM (${sqlOutros}) AS r
       GROUP BY nome
     `;
     // FIX P9: Add logging for query debugging
