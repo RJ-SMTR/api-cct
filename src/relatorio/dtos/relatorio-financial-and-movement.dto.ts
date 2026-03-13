@@ -1,24 +1,40 @@
 import { DeepPartial } from 'typeorm';
 
-export class RelatorioFinancialMovementNovoRemessaDto {
-  constructor(consolidado?: DeepPartial<RelatorioFinancialMovementNovoRemessaDto>) {
+export type RelatorioFinancialMovementNovoRemessaCursor = {
+  dataReferencia: string;
+  nomes: string;
+  status: string;
+  cpfCnpj: string;
+};
+
+export class RelatorioFinancialMovementNovoRemessaSummaryDto {
+  constructor(consolidado?: DeepPartial<RelatorioFinancialMovementNovoRemessaSummaryDto>) {
     if (consolidado !== undefined) {
       Object.assign(this, consolidado);
     }
   }
 
   count: number;
-  valor: number;
+  valorTotal: number;
   valorPago: number;
   valorRejeitado: number;
   valorEstornado: number;
-  valorAguardandoPagamento: number
-  valorPendente: number
-  valorPendenciaPaga: number
-  currentPage?: number;
-  pageSize?: number;
-  totalPages?: number;
+  valorAguardandoPagamento: number;
+  valorPendente: number;
+  valorPendenciaPaga: number;
+}
+
+export class RelatorioFinancialMovementNovoRemessaPageDto {
+  constructor(consolidado?: DeepPartial<RelatorioFinancialMovementNovoRemessaPageDto>) {
+    if (consolidado !== undefined) {
+      Object.assign(this, consolidado);
+    }
+  }
+
+  currentPage: number;
+  pageSize: number;
   data: RelatorioFinancialMovementNovoRemessaData[];
+  nextCursor?: RelatorioFinancialMovementNovoRemessaCursor | null;
 }
 
 export class RelatorioFinancialMovementNovoRemessaData {
