@@ -216,7 +216,7 @@ SELECT
   valor,
   status
 FROM grouped
-ORDER BY "dataReferencia", nomes
+ORDER BY "dataReferencia" ASC, nomes ASC, status ASC
 ${hasPagination ? 'OFFSET $8 LIMIT $9' : ''}
 `;
 
