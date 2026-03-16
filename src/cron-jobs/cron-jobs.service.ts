@@ -146,143 +146,148 @@ export class CronJobsService {
           onTick: async () => await this.pollDb(),
         },
       },
-      {
-        /**
-         * Atualizar Retorno - Leitura dos Arquivos Retorno do Banco CEF para CCT - todo dia, a cada 30m
-         *
-         * Não executa quando gerar o remessa.
-         */
-        name: CronJobsEnum.updateRetorno,
-        cronJobParameters: {
-          cronTime: '*/30 * * * *', //  Every 30 min
-          onTick: async () => {
-            await this.retornoExec();
-          },
-        },
-      },
-      {
-        /**
-         * Atualizar Extrato - Leitura dos Arquivos de Extrato Retorno do Banco CEF para CCT - todo dia
-         *
-         * Não executa quando gerar o remessa.
-         */
-        name: CronJobsEnum.updateExtrato,
-        cronJobParameters: {
-          cronTime: '*/30 * * * *', //  Every 30 min
-          onTick: async () => {
-            await this.readRetornoExtrato();
-          },
-        },
-      },
+      //!!!!!!! NÃO TIRAR COMENTÁRIOS DOS JOBS!!!!!!
 
-      {
-        /**
-         * Envio de Relatório Estatística dos Dados - todo dia, 06:00 - 06:01
-         *
-         * NÃO DESABILITAR ENVIO DE REPORT - Every day, 09:00 GMT = 06:00 BRT (GMT-3)
-         *
-         * Envio relatório estatística
-         */
-        name: CronJobsEnum.sendReport,
-        cronJobParameters: {
-          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob,
-            true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
-          onTick: async () => await this.sendStatusReport(),
-        },
-      },
-      {
-        /**
-         * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min       
-         *
-         * Gerar remessa VLT
-         */
-        name: CronJobsEnum.generateRemessaVLT,
-        cronJobParameters: {
-          cronTime: '0 12 * * *', // Every day, 12:00 GMT = 9:00 BRT (GMT-3)
-          onTick: async () => {
-            const today = new Date();
-            if (isSaturday(today) || isSunday(today)) {
-              return;
-            }
-          },
-        },
-      },
-      {
-        /**
-         * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min         
-         *
-         * Gerar remessa vanzeiros
-         */
-        name: CronJobsEnum.generateRemessaVanzeiros,
-        cronJobParameters: {
-          cronTime: '0 13 * * FRI', // Rodar todas as sextas 13:00 GMT = 10:00 BRT (GMT-3)
-          onTick: async () => {
-            // await this.remessaModalExec(); 
-          },
-        },
-      },
-      {
-        /**
-         * Gerar arquivo Remessa dos Consórcios - toda 6a
-         *
-         * Gerar remessa consórcios
-         */
-        name: CronJobsEnum.generateRemessaEmpresa,
-        cronJobParameters: {
-          cronTime: '0 12 * * FRI', // Rodar todas as sextas 12:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => {
-            // await this.remessaConsorciosExec();
-          },
-        },
-      },
-      {
-        /**
-         * Reenvio de E-mail para Vanzeiros - 1 aceso ou Cadastro de Contas Bancárias - dia 15 de cada mês, 11:45, duração: 5 min
-         *
-         * Reenvio de emails para vanzeiros
-         */
-        name: CronJobsEnum.bulkResendInvites,
-        cronJobParameters: {
-          cronTime: '45 14 15 * *', // Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
-          onTick: async () => await this.bulkResendInvites(),
-        },
-      },
-      {
-        /**
-         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
-         *
-         * 19:00 BRT (GMT-3) = 22:00 GMT (10PM)
-         */
-        name: CronJobsEnum.bulkSendInvites,
-        cronJobParameters: {
-          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
-          onTick: async () => await this.bulkSendInvites(),
-        },
-      },
-      {
-        /**
-         * Sincroniza e agrupa ordens de pagamento.
-         * */
-        name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
-        cronJobParameters: {
-          cronTime: "0 9-21 * * *", // 06:00 BRT (GMT-3) = 09:00 GMT, 18:00 BRT (GMT-3) = 21:00 GMT
-          onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
-        },
-      },
-      {
-        /**
-         *
-         * Atualizar Backup do SFTP - Leitura dos Arquivos do SFTP
-         * 
-         */
-        name: CronJobsEnum.backupSftp,
-        cronJobParameters: {
-          cronTime: "0 23 * * *", //  Todo dia as 20:00 
-          onTick: async () => {
-            await this.fullBackup();
-          },
-        },
-      },
+
+
+      
+      // {
+      //   /**
+      //    * Atualizar Retorno - Leitura dos Arquivos Retorno do Banco CEF para CCT - todo dia, a cada 30m
+      //    *
+      //    * Não executa quando gerar o remessa.
+      //    */
+      //   name: CronJobsEnum.updateRetorno,
+      //   cronJobParameters: {
+      //     cronTime: '*/30 * * * *', //  Every 30 min
+      //     onTick: async () => {
+      //       await this.retornoExec();
+      //     },
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Atualizar Extrato - Leitura dos Arquivos de Extrato Retorno do Banco CEF para CCT - todo dia
+      //    *
+      //    * Não executa quando gerar o remessa.
+      //    */
+      //   name: CronJobsEnum.updateExtrato,
+      //   cronJobParameters: {
+      //     cronTime: '*/30 * * * *', //  Every 30 min
+      //     onTick: async () => {
+      //       await this.readRetornoExtrato();
+      //     },
+      //   },
+      // },
+
+      // {
+      //   /**
+      //    * Envio de Relatório Estatística dos Dados - todo dia, 06:00 - 06:01
+      //    *
+      //    * NÃO DESABILITAR ENVIO DE REPORT - Every day, 09:00 GMT = 06:00 BRT (GMT-3)
+      //    *
+      //    * Envio relatório estatística
+      //    */
+      //   name: CronJobsEnum.sendReport,
+      //   cronJobParameters: {
+      //     cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob,
+      //       true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+      //     onTick: async () => await this.sendStatusReport(),
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min       
+      //    *
+      //    * Gerar remessa VLT
+      //    */
+      //   name: CronJobsEnum.generateRemessaVLT,
+      //   cronJobParameters: {
+      //     cronTime: '0 12 * * *', // Every day, 12:00 GMT = 9:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       const today = new Date();
+      //       if (isSaturday(today) || isSunday(today)) {
+      //         return;
+      //       }
+      //     },
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min         
+      //    *
+      //    * Gerar remessa vanzeiros
+      //    */
+      //   name: CronJobsEnum.generateRemessaVanzeiros,
+      //   cronJobParameters: {
+      //     cronTime: '0 13 * * FRI', // Rodar todas as sextas 13:00 GMT = 10:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       // await this.remessaModalExec(); 
+      //     },
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Gerar arquivo Remessa dos Consórcios - toda 6a
+      //    *
+      //    * Gerar remessa consórcios
+      //    */
+      //   name: CronJobsEnum.generateRemessaEmpresa,
+      //   cronJobParameters: {
+      //     cronTime: '0 12 * * FRI', // Rodar todas as sextas 12:00 GMT = 09:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       // await this.remessaConsorciosExec();
+      //     },
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Reenvio de E-mail para Vanzeiros - 1 aceso ou Cadastro de Contas Bancárias - dia 15 de cada mês, 11:45, duração: 5 min
+      //    *
+      //    * Reenvio de emails para vanzeiros
+      //    */
+      //   name: CronJobsEnum.bulkResendInvites,
+      //   cronJobParameters: {
+      //     cronTime: '45 14 15 * *', // Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
+      //     onTick: async () => await this.bulkResendInvites(),
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
+      //    *
+      //    * 19:00 BRT (GMT-3) = 22:00 GMT (10PM)
+      //    */
+      //   name: CronJobsEnum.bulkSendInvites,
+      //   cronJobParameters: {
+      //     cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+      //     onTick: async () => await this.bulkSendInvites(),
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Sincroniza e agrupa ordens de pagamento.
+      //    * */
+      //   name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
+      //   cronJobParameters: {
+      //     cronTime: "0 9-21 * * *", // 06:00 BRT (GMT-3) = 09:00 GMT, 18:00 BRT (GMT-3) = 21:00 GMT
+      //     onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
+      //   },
+      // },
+      // {
+      //   /**
+      //    *
+      //    * Atualizar Backup do SFTP - Leitura dos Arquivos do SFTP
+      //    * 
+      //    */
+      //   name: CronJobsEnum.backupSftp,
+      //   cronJobParameters: {
+      //     cronTime: "0 23 * * *", //  Todo dia as 20:00 
+      //     onTick: async () => {
+      //       await this.fullBackup();
+      //     },
+      //   },
+      // },
       // {
       //   /**
       //    * Sincroniza transacoes do BQ.
