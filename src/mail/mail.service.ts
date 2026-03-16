@@ -290,8 +290,8 @@ export class MailService {
 
   private async verificaMudancaReport(body: string | IMailHistoryStatusCount): Promise<boolean> {
     const sett = await this.settingsService.getOneByNameVersion('mail_report_send', '1')
-    if (body !== '' && body !== sett.value) {
-      await this.settingsService.update({ name: 'mail_report_send', version: '1', value: sett.value })
+    if ((body !== '' && body !== sett.value) || (sett.value==='')) {   
+      await this.settingsService.update({ name: 'mail_report_send', version: '1', value: sett.value===''? body.toString():sett.value })
       return true;
     }
     return false;
