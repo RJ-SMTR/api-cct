@@ -7,7 +7,8 @@ import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import {
   RelatorioFinancialMovementNovoRemessaData,
-  RelatorioFinancialMovementNovoRemessaDto,
+  RelatorioFinancialMovementNovoRemessaPageDto,
+  RelatorioFinancialMovementNovoRemessaSummaryDto,
 } from '../dtos/relatorio-financial-and-movement.dto';
 
 type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
@@ -68,16 +69,143 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     private readonly dataSource: DataSource,
   ) { }
 
-  public async findFinancialMovement(
+  public async findFinancialMovementSummary(
     filter: IFindPublicacaoRelatorioNovoFinancialMovement,
-  ): Promise<RelatorioFinancialMovementNovoRemessaDto> {
+  ): Promise<RelatorioFinancialMovementNovoRemessaSummaryDto> {
     const safeFilter = this.normalizeFilter(filter);
     const statuses = this.resolveStatuses(safeFilter);
     const params = this.getQueryParameters(safeFilter, statuses.allSelectedStatuses);
 
     const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
 
-    const groupedCte = `
+    const groupedCte = this.buildGroupedCte(finalBaseQuery);
+
+    const countQuery = `
+      ${groupedCte}
+      SELECT COUNT(*)::int AS count
+      FROM grouped
+    `;
+
+    const aggregatesQuery = `
+      WITH base AS (
+        ${finalBaseQuery}
+      )
+      SELECT
+        COALESCE(SUM(valor), 0) AS "valorTotal",
+        COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) AS "valorPago",
+        COALESCE(SUM(CASE WHEN status = 'Estorno' THEN valor ELSE 0 END), 0) AS "valorEstornado",
+        COALESCE(SUM(CASE WHEN status = 'Rejeitado' THEN valor ELSE 0 END), 0) AS "valorRejeitado",
+        COALESCE(SUM(CASE WHEN status = 'Aguardando Pagamento' THEN valor ELSE 0 END), 0) AS "valorAguardandoPagamento",
+        COALESCE(SUM(CASE WHEN status = 'Pendentes' THEN valor ELSE 0 END), 0) AS "valorPendente",
+        COALESCE(SUM(CASE WHEN status = 'Pendencia Paga' THEN valor ELSE 0 END), 0) AS "valorPendenciaPaga"
+      FROM base
+    `;
+
+    try {
+      const [countRows, aggregateRows] = await Promise.all([
+        this.dataSource.query(countQuery, params),
+        this.dataSource.query(aggregatesQuery, params),
+      ]);
+
+      const totalCount = Number(countRows?.[0]?.count ?? 0);
+      const aggregates = aggregateRows?.[0] ?? {};
+      return new RelatorioFinancialMovementNovoRemessaSummaryDto({
+        count: totalCount,
+        valorTotal: Number.parseFloat((aggregates.valorTotal ?? 0).toString()),
+        valorPago: Number(aggregates.valorPago ?? 0),
+        valorEstornado: Number(aggregates.valorEstornado ?? 0),
+        valorRejeitado: Number(aggregates.valorRejeitado ?? 0),
+        valorAguardandoPagamento: Number(aggregates.valorAguardandoPagamento ?? 0),
+        valorPendente: Number(aggregates.valorPendente ?? 0),
+        valorPendenciaPaga: Number(aggregates.valorPendenciaPaga ?? 0),
+      });
+    } catch (error) {
+      this.logger.error('Erro ao executar a query', error);
+      throw error;
+    }
+  }
+
+  public async findFinancialMovementPage(
+    filter: IFindPublicacaoRelatorioNovoFinancialMovement,
+  ): Promise<RelatorioFinancialMovementNovoRemessaPageDto> {
+    const safeFilter = this.normalizeFilter(filter);
+    const statuses = this.resolveStatuses(safeFilter);
+    const params = this.getQueryParameters(safeFilter, statuses.allSelectedStatuses);
+
+    const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
+    const groupedCte = this.buildGroupedCte(finalBaseQuery);
+
+    const { currentPage, pageSize } = this.resolvePagination(safeFilter);
+
+    const hasCursor =
+      Boolean(safeFilter.cursorDataReferencia)
+      && Boolean(safeFilter.cursorNome)
+      && Boolean(safeFilter.cursorStatus)
+      && Boolean(safeFilter.cursorCpfCnpj);
+
+    const cursorDataReferencia = hasCursor ? safeFilter.cursorDataReferencia : null;
+    const cursorNome = hasCursor ? safeFilter.cursorNome : null;
+    const cursorStatus = hasCursor ? safeFilter.cursorStatus : null;
+    const cursorCpfCnpj = hasCursor ? safeFilter.cursorCpfCnpj : null;
+
+    const dataQuery = `
+      ${groupedCte}
+      SELECT
+        to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') AS "dataReferencia",
+        to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') AS "dataPagamento",
+        g.nomes,
+        g.email,
+        g."codBanco",
+        g."nomeBanco",
+        g."cpfCnpj",
+        g."nomeConsorcio" AS consorcio,
+        g.valor,
+        g.status
+      FROM grouped g
+      WHERE (
+        $8::text IS NULL
+        OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text)
+      )
+      ORDER BY g."dataReferencia" ASC, g.nomes ASC, g.status ASC, g."cpfCnpj" ASC
+      LIMIT $12
+    `;
+
+    try {
+      const dataParams = [
+        ...params,
+        cursorDataReferencia,
+        cursorNome,
+        cursorStatus,
+        cursorCpfCnpj,
+        pageSize,
+      ];
+      const rows = await this.dataSource.query(dataQuery, dataParams);
+
+      const data = rows.map((row) => new RelatorioFinancialMovementNovoRemessaData(row));
+      const lastRow = rows?.[rows.length - 1];
+      const nextCursor = lastRow
+        ? {
+          dataReferencia: lastRow.dataReferencia,
+          nomes: lastRow.nomes,
+          status: lastRow.status,
+          cpfCnpj: lastRow.cpfCnpj,
+        }
+        : null;
+
+      return new RelatorioFinancialMovementNovoRemessaPageDto({
+        currentPage,
+        pageSize,
+        data,
+        nextCursor,
+      });
+    } catch (error) {
+      this.logger.error('Erro ao executar a query', error);
+      throw error;
+    }
+  }
+
+  private buildGroupedCte(finalBaseQuery: string): string {
+    return `
       WITH base AS (
         ${finalBaseQuery}
       ),
@@ -106,84 +234,6 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
           "dataPagamento"
       )
     `;
-
-    const { currentPage, pageSize, hasPagination } =
-      this.resolvePagination(safeFilter);
-
-    const countQuery = `
-      ${groupedCte}
-      SELECT COUNT(*)::int AS count
-      FROM grouped
-    `;
-
-    const aggregatesQuery = `
-      WITH base AS (
-        ${finalBaseQuery}
-      )
-      SELECT
-        COALESCE(SUM(valor), 0) AS "valorTotal",
-        COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) AS "valorPago",
-        COALESCE(SUM(CASE WHEN status = 'Estorno' THEN valor ELSE 0 END), 0) AS "valorEstornado",
-        COALESCE(SUM(CASE WHEN status = 'Rejeitado' THEN valor ELSE 0 END), 0) AS "valorRejeitado",
-        COALESCE(SUM(CASE WHEN status = 'Aguardando Pagamento' THEN valor ELSE 0 END), 0) AS "valorAguardandoPagamento",
-        COALESCE(SUM(CASE WHEN status = 'Pendentes' THEN valor ELSE 0 END), 0) AS "valorPendente",
-        COALESCE(SUM(CASE WHEN status = 'Pendencia Paga' THEN valor ELSE 0 END), 0) AS "valorPendenciaPaga"
-      FROM base
-    `;
-
-    const dataQuery = `
-      ${groupedCte}
-      SELECT
-        to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') AS "dataReferencia",
-        to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') AS "dataPagamento",
-        g.nomes,
-        g.email,
-        g."codBanco",
-        g."nomeBanco",
-        g."cpfCnpj",
-        g."nomeConsorcio" AS consorcio,
-        g.valor,
-        g.status
-      FROM grouped g
-      ORDER BY g."dataReferencia" ASC, g.nomes ASC, g.status ASC
-      ${hasPagination ? 'OFFSET $8 LIMIT $9' : ''}
-    `;
-
-    try {
-      const [countRows, aggregateRows] = await Promise.all([
-        this.dataSource.query(countQuery, params),
-        this.dataSource.query(aggregatesQuery, params),
-      ]);
-
-      const totalCount = Number(countRows?.[0]?.count ?? 0);
-      const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
-      const safeCurrentPage = Math.min(currentPage, totalPages);
-      const safeOffset = (safeCurrentPage - 1) * pageSize;
-
-      const dataParams = hasPagination ? [...params, safeOffset, pageSize] : params;
-      const rows = await this.dataSource.query(dataQuery, dataParams);
-
-      const aggregates = aggregateRows?.[0] ?? {};
-      const data = rows.map((row) => new RelatorioFinancialMovementNovoRemessaData(row));
-
-      return new RelatorioFinancialMovementNovoRemessaDto({
-        count: totalCount,
-        valor: Number.parseFloat((aggregates.valorTotal ?? 0).toString()),
-        valorPago: Number(aggregates.valorPago ?? 0),
-        valorEstornado: Number(aggregates.valorEstornado ?? 0),
-        valorRejeitado: Number(aggregates.valorRejeitado ?? 0),
-        valorAguardandoPagamento: Number(aggregates.valorAguardandoPagamento ?? 0),
-        valorPendente: Number(aggregates.valorPendente ?? 0),
-        valorPendenciaPaga: Number(aggregates.valorPendenciaPaga ?? 0),
-        currentPage: safeCurrentPage,
-        pageSize,
-        totalPages,
-        data,
-      });
-    } catch (error) {
-      this.logger.error('Erro ao executar a query', error);
-      throw error;
-    }
   }
 
   private normalizeFilter(

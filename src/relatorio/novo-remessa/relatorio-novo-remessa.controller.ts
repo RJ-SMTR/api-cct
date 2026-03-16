@@ -126,16 +126,30 @@ export class RelatorioNovoRemessaController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('financial-movement')
-  async getFinancialMovement(
+  @Get('report/summary')
+  async getFinancialMovementSummary(
     @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
   ) {
     try {
-      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovement(queryParams);
+      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementSummary(queryParams);
+      return result;
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('report/page')
+  async getFinancialMovementPage(
+    @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
+  ) {
+    try {
+      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementPage(queryParams);
       return result;
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 }
-

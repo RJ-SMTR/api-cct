@@ -10,13 +10,21 @@ export class RelatorioNovoRemessaFinancialMovementService {
   /**
    * Gerar relatórios payandpending - agrupados por Favorecido.
    */
-  async findFinancialMovement(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
+  async findFinancialMovementSummary(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
+    this.ensureValidDateRange(args);
+    return this.relatorioNovoRemessaFinancialMovementRepository.findFinancialMovementSummary(args);
+  }
+
+  async findFinancialMovementPage(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
+    this.ensureValidDateRange(args);
+    return this.relatorioNovoRemessaFinancialMovementRepository.findFinancialMovementPage(args);
+  }
+
+  private ensureValidDateRange(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
     if (args.dataInicio === undefined || args.dataFim === undefined ||
       new Date(args.dataFim) < new Date(args.dataInicio)) {
       throw new Error('Parametro de data inválido');
     }
-
-    return this.relatorioNovoRemessaFinancialMovementRepository.findFinancialMovement(args);
   }
 
 
