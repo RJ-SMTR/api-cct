@@ -111,9 +111,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-
-    
-       const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
+    const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
         /**
