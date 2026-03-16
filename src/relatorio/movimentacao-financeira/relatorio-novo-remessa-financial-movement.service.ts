@@ -13,14 +13,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
    */
   async findFinancialMovementSummary(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
     this.ensureValidDateRange(args);
-    console.log('___________________________________________________ SUMMARRY')
     return this.relatorioNovoRemessaFinancialMovementRepository.findFinancialMovementSummary(args);
   }
 
   async findFinancialMovementPage(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
     this.ensureValidDateRange(args);
-
-    console.log('___________________________________________________ PAGE')
     return this.relatorioNovoRemessaFinancialMovementRepository.findFinancialMovementPage(args);
   }
 
