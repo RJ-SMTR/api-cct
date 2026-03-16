@@ -106,7 +106,7 @@ export class OrdemPagamentoAgrupadoRepository {
       query += ` AND op."nomeConsorcio" IN ('${nomeConsorcio.join("','")}')`;
     }
     if(idOperadoras && idOperadoras.length){
-      query += ` AND op."idOperadora" IN ('${idOperadoras.join("','")}')`;
+      query += ` AND op."userId" IN ('${idOperadoras.join("','")}')`;
     }
 
     this.logger.debug(query);
