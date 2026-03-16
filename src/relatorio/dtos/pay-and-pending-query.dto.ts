@@ -27,6 +27,26 @@ export class FinancialMovementQueryDto {
   @Min(1)
   pageSize?: number;
 
+  @ApiPropertyOptional({ description: 'Cursor: dataReferencia (DD/MM/YYYY)', type: String })
+  @IsOptional()
+  @IsString()
+  cursorDataReferencia?: string;
+
+  @ApiPropertyOptional({ description: 'Cursor: nomes', type: String })
+  @IsOptional()
+  @IsString()
+  cursorNome?: string;
+
+  @ApiPropertyOptional({ description: 'Cursor: status', type: String })
+  @IsOptional()
+  @IsString()
+  cursorStatus?: string;
+
+  @ApiPropertyOptional({ description: 'Cursor: cpfCnpj', type: String })
+  @IsOptional()
+  @IsString()
+  cursorCpfCnpj?: string;
+
   @ApiPropertyOptional({
     description: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas. Para STPC/STPL, agrupa todos os vanzeiros sob o consórcio.',
     type: String,
