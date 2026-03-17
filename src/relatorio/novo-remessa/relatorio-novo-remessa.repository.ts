@@ -1280,8 +1280,9 @@ WHERE
     // Pendentes é tratado em pendentesQuery() no fluxo principal.
 
     if (filter.todosConsorcios) {
-      const consorcios = `'STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC'`;
-      condicoesOutros += ` AND r."nomeConsorcio" IN (${consorcios}) `;
+      const consorcios = `'STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC','MOBI-Rio BUM'`;
+      condicoes2024 += ` AND ita."nomeConsorcio" IN (${consorcios}) `;
+      condicoesOutros += ` AND ${filter.eleicao ? 'r.consorcio' : 'r."nome"'} IN (${consorcios}) `;
     } else if (filter.consorcioNome) {
       const nomes = `'${filter.consorcioNome.join("','")}'`;
       condicoesOutros += ` AND r."nomeConsorcio" IN (${nomes}) `;

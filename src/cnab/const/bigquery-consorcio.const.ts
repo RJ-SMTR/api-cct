@@ -10,4 +10,5 @@ export const BigqueryConsorcio = [
   { consorcio: 'Internorte', idConsorcio: '221000032' },
   { consorcio: 'Santa Cruz', idConsorcio: '221000041' },
   { consorcio: 'MobiRio', idConsorcio: '229000010' },
+  { consorcio: 'MOBI-Rio BUM', idConsorcio: '16' }
 ];

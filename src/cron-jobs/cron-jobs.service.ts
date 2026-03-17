@@ -7,6 +7,7 @@ import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum'
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
 import {
+  isMonday,
   isSaturday,
   isSunday,
   isTuesday,
@@ -84,7 +85,7 @@ export class CronJobsService {
   public jobsConfig: ICronJob[] = [];
 
   private static readonly MODAIS = ['STPC', 'STPL', 'TEC'];
-  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz'];
+  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz','MOBI-Rio BUM'];
 
   constructor(
     private configService: ConfigService,
@@ -111,6 +112,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    await this.remessaModalExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -709,7 +711,7 @@ export class CronJobsService {
     const today = new Date();
     let subDaysInt = 0;
 
-    if (isTuesday(today)) {
+    if (isMonday(today) /*   isTuesday(today)*/) {
       subDaysInt = 4;
     } else if (isFriday(today)) {
       subDaysInt = 3;
@@ -719,17 +721,9 @@ export class CronJobsService {
 
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
-
-    const consorcios = [
-      'Internorte',
-      'Intersul',
-      'Santa Cruz',
-      'Transcarioca',
-      'MobiRio',
-      'VLT'
-    ]
-    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
-    await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.CONSORCIO, pagamentoUnico);
+ 
+    await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
   async retornoExec() {
