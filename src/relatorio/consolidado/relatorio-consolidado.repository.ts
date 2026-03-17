@@ -33,7 +33,7 @@ export class RelatorioConsolidadoRepository {
 
    if(['Todos'].some(i=>nomeConsorcio?.includes(i))) {
       query = query +` AND tv."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
-           'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
+           'Internorte','Intersul','Transcarioca','MobiRio','TEC','MOBI-Rio BUM') `;
    }else if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
       query = query +` and tv."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;                      
   

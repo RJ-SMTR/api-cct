@@ -1017,7 +1017,7 @@ from item_transacao it
     }
 
     if (filter.todosConsorcios) {
-      const consorcios = `'STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC'`;
+      const consorcios = `'STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC','MOBI-Rio BUM'`;
       condicoes2024 += ` AND ita."nomeConsorcio" IN (${consorcios}) `;
       condicoesOutros += ` AND ${filter.eleicao ? 'r.consorcio' : 'r."nome"'} IN (${consorcios}) `;
     } else if (filter.consorcioNome) {
