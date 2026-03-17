@@ -112,7 +112,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    await this.remessaModalExec()
+    await this.remessaConsorciosExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -638,9 +638,9 @@ export class CronJobsService {
     //Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     // // Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
-    //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt, headerName);
+    // const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
+    // //Envia para o SFTP
+    // await this.remessaService.enviarRemessa(txt, headerName);
   }
 
 
@@ -711,7 +711,7 @@ export class CronJobsService {
     const today = new Date();
     let subDaysInt = 0;
 
-    if (isMonday(today) /*   isTuesday(today)*/) {
+    if (isTuesday(today)) {
       subDaysInt = 4;
     } else if (isFriday(today)) {
       subDaysInt = 3;
@@ -773,7 +773,7 @@ export class CronJobsService {
 
         this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
-        await this.ordemPagamentoService.sincronizarOrdensPagamento(dataInicio, dataFim, consorciosEModais);
+        await this.ordemPagamentoService.sincronizarOrdensPagamento(dataInicio, dataFim, CronJobsService.CONSORCIOS);
         this.logger.log('Sincronização finalizada. Iniciando agrupamento para modais.', METHOD);
         const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
         // Agrupa para os modais
