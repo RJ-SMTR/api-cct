@@ -338,7 +338,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
         da."dataVencimento" BETWEEN $1 AND $2
         AND ($3::integer[] IS NULL OR pu.id = ANY($3))
         AND ($4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4))
-        AND ($5::text[] IS NULL OR ${this.CONSORCIO_CASE} = ANY($5))
+        AND ($5::text[] IS NULL OR UPPER(TRIM(${this.CONSORCIO_CASE})) = ANY($5))
         AND (
           ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
           AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -378,7 +378,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       AND op."ordemPagamentoAgrupadoId" IS NULL
       AND ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR TRUE)
-      AND ${this.CONSORCIO_CASE} = ANY(
+      AND UPPER(TRIM(${this.CONSORCIO_CASE})) = ANY(
         COALESCE(NULLIF($5::text[], '{}'), ARRAY['STPC','STPL','TEC'])
       )
       AND (
