@@ -1,27 +1,48 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { CustomLogger } from 'src/utils/custom-logger';
+import { format } from 'date-fns';
 import { DataSource } from 'typeorm';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
-import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaDto } from '../dtos/relatorio-financial-and-movement.dto';
-import { format } from 'date-fns';
+import {
+  RelatorioFinancialMovementNovoRemessaData,
+  RelatorioFinancialMovementNovoRemessaPageDto,
+  RelatorioFinancialMovementNovoRemessaSummaryDto,
+} from '../dtos/relatorio-financial-and-movement.dto';
+
+type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
+  dataInicio: Date;
+  dataFim: Date;
+  page?: number;
+  pageSize?: number;
+};
+
+type ResolvedStatuses = {
+  allSelectedStatuses: string[] | null;
+  baseStatuses: string[] | null;
+  includePendentes: boolean;
+  includeBase: boolean;
+};
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementRepository {
-  private readonly logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementRepository.name, { timestamp: true });
+  private readonly logger = new CustomLogger(
+    RelatorioNovoRemessaFinancialMovementRepository.name,
+    { timestamp: true },
+  );
 
-  private readonly CONSORCIO_CASE = `(
-  CASE
+  private readonly CONSORCIO_CASE = `
+    CASE
       WHEN pu."permitCode" = '8' THEN 'VLT'
       WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
       WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
       WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
       ELSE op."nomeConsorcio"
     END
-  )`
+  `;
 
-  private readonly STATUS_CASE = `(
+  private readonly STATUS_CASE = `
     CASE
       WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
       WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
@@ -30,512 +51,363 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
       ELSE 'Rejeitado'
     END
-  )`;
+  `;
 
-  private readonly notCpf = `AND pu."cpfCnpj" NOT IN ('18201378000119','12464869000176','12464539000180','12464553000184','44520687000161','12464577000133')`;
+  private readonly NOT_CPF_FILTER = `
+    AND pu."cpfCnpj" NOT IN (
+      '18201378000119',
+      '12464869000176',
+      '12464539000180',
+      '12464553000184',
+      '44520687000161',
+      '12464577000133'
+    )
+  `;
 
-  private readonly queryNewReport = `
-SELECT DISTINCT 
-    da."dataVencimento" AS "dataReferencia",
-    pu."fullName" AS nomes,
-    pu.email,
-    pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
-    pu."cpfCnpj",
-    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
-    da."valorLancamento" AS valor,
-    opa."dataPagamento",
-    ${this.STATUS_CASE} AS status
-FROM
-    ordem_pagamento op
-    INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
-    INNER JOIN public."user" pu ON pu."id" = op."userId"
-    JOIN bank bc on bc.code = pu."bankCode"
-    INNER JOIN cadeia_pagamento cp ON cp.ordem_id = opa.id
-WHERE
-  opa."dataPagamento" BETWEEN $1 AND $2
-    and ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-    )
-    AND (
-        $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
-    )
-    AND (
-        oph."motivoStatusRemessa" = '02' OR
-        (oph."motivoStatusRemessa" NOT IN ('00','BD') AND oph."statusRemessa" NOT IN (3,5))
-    )
-    AND NOT EXISTS (
-        SELECT 1 FROM cadeias_com_paga ccp WHERE ccp.raiz_id = cp.raiz_id
-    )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
-    AND oph."statusRemessa" NOT IN (5,2,1)
-`;
+  constructor(
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
+  ) { }
 
-  private readonly queryNewReportNoCadeia = `
-SELECT DISTINCT 
-    da."dataVencimento" AS "dataReferencia",
-    pu."fullName" AS nomes,
-    pu.email,
-    pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
-    pu."cpfCnpj",
-    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
-    da."valorLancamento" AS valor,
-    opa."dataPagamento",
-    ${this.STATUS_CASE} AS status
-FROM
-    ordem_pagamento op
-    INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
-    INNER JOIN public."user" pu ON pu."id" = op."userId"
-    JOIN bank bc on bc.code = pu."bankCode"
-WHERE
-    da."dataVencimento" BETWEEN $1 AND $2
-   and ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-    )
-    AND (
-        $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
-    )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM', '02') OR oph."motivoStatusRemessa" IS NULL)
-    and oph."statusRemessa" <> 5
-`;
+  public async findFinancialMovementSummary(
+    filter: IFindPublicacaoRelatorioNovoFinancialMovement,
+  ): Promise<RelatorioFinancialMovementNovoRemessaSummaryDto> {
+    const safeFilter = this.normalizeFilter(filter);
+    const statuses = this.resolveStatuses(safeFilter);
+    const params = this.getQueryParameters(safeFilter, statuses.allSelectedStatuses);
 
-  private eleicao = `
-  SELECT DISTINCT
-      da."dataVencimento" AS dataPagamento,
-      pu."fullName" AS nomes,
+    const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
+
+    const groupedCte = this.buildGroupedCte(finalBaseQuery);
+
+    const countQuery = `
+      ${groupedCte}
+      SELECT COUNT(*)::int AS count
+      FROM grouped
+    `;
+
+    const aggregatesQuery = `
+      WITH base AS (
+        ${finalBaseQuery}
+      )
+      SELECT
+        COALESCE(SUM(valor), 0) AS "valorTotal",
+        COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) AS "valorPago",
+        COALESCE(SUM(CASE WHEN status = 'Estorno' THEN valor ELSE 0 END), 0) AS "valorEstornado",
+        COALESCE(SUM(CASE WHEN status = 'Rejeitado' THEN valor ELSE 0 END), 0) AS "valorRejeitado",
+        COALESCE(SUM(CASE WHEN status = 'Aguardando Pagamento' THEN valor ELSE 0 END), 0) AS "valorAguardandoPagamento",
+        COALESCE(SUM(CASE WHEN status = 'Pendentes' THEN valor ELSE 0 END), 0) AS "valorPendente",
+        COALESCE(SUM(CASE WHEN status = 'Pendencia Paga' THEN valor ELSE 0 END), 0) AS "valorPendenciaPaga"
+      FROM base
+    `;
+
+    try {
+      const [countRows, aggregateRows] = await Promise.all([
+        this.dataSource.query(countQuery, params).then(res => {
+          console.log('COUNT finished');
+          return res;
+        }),
+        this.dataSource.query(aggregatesQuery, params).then(res => {
+          console.log('SUM finished');
+          return res;
+        }),
+      ]);
+
+      const totalCount = Number(countRows?.[0]?.count ?? 0);
+      const aggregates = aggregateRows?.[0] ?? {};
+      return new RelatorioFinancialMovementNovoRemessaSummaryDto({
+        count: totalCount,
+        valorTotal: Number.parseFloat((aggregates.valorTotal ?? 0).toString()),
+        valorPago: Number(aggregates.valorPago ?? 0),
+        valorEstornado: Number(aggregates.valorEstornado ?? 0),
+        valorRejeitado: Number(aggregates.valorRejeitado ?? 0),
+        valorAguardandoPagamento: Number(aggregates.valorAguardandoPagamento ?? 0),
+        valorPendente: Number(aggregates.valorPendente ?? 0),
+        valorPendenciaPaga: Number(aggregates.valorPendenciaPaga ?? 0),
+      });
+    } catch (error) {
+      this.logger.error('Erro ao executar a query', error);
+      throw error;
+    }
+  }
+
+  public async findFinancialMovementPage(
+    filter: IFindPublicacaoRelatorioNovoFinancialMovement,
+  ): Promise<RelatorioFinancialMovementNovoRemessaPageDto> {
+    const safeFilter = this.normalizeFilter(filter);
+    const statuses = this.resolveStatuses(safeFilter);
+    const params = this.getQueryParameters(safeFilter, statuses.allSelectedStatuses);
+
+    const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
+    const groupedCte = this.buildGroupedCte(finalBaseQuery);
+
+    const { currentPage, pageSize } = this.resolvePagination(safeFilter);
+
+    const hasCursor =
+      Boolean(safeFilter.cursorDataReferencia)
+      && Boolean(safeFilter.cursorNome)
+      && Boolean(safeFilter.cursorStatus)
+      && Boolean(safeFilter.cursorCpfCnpj);
+
+    const cursorDataReferencia = hasCursor ? safeFilter.cursorDataReferencia : null;
+    const cursorNome = hasCursor ? safeFilter.cursorNome : null;
+    const cursorStatus = hasCursor ? safeFilter.cursorStatus : null;
+    const cursorCpfCnpj = hasCursor ? safeFilter.cursorCpfCnpj : null;
+
+    const dataQuery = `
+      ${groupedCte}
+      SELECT
+        to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') AS "dataReferencia",
+        to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') AS "dataPagamento",
+        g.nomes,
+        g.email,
+        g."codBanco",
+        g."nomeBanco",
+        g."cpfCnpj",
+        g."nomeConsorcio" AS consorcio,
+        g.valor,
+        g.status
+      FROM grouped g
+      WHERE (
+        $8::text IS NULL
+        OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text)
+      )
+      ORDER BY g."dataReferencia" ASC, g.nomes ASC, g.status ASC, g."cpfCnpj" ASC
+      LIMIT $12
+    `;
+
+    try {
+      const dataParams = [
+        ...params,
+        cursorDataReferencia,
+        cursorNome,
+        cursorStatus,
+        cursorCpfCnpj,
+        pageSize,
+      ];
+      const rows = await this.dataSource.query(dataQuery, dataParams);
+
+      const data = rows.map((row) => new RelatorioFinancialMovementNovoRemessaData(row));
+      const lastRow = rows?.[rows.length - 1];
+      const nextCursor = lastRow
+        ? {
+          dataReferencia: lastRow.dataReferencia,
+          nomes: lastRow.nomes,
+          status: lastRow.status,
+          cpfCnpj: lastRow.cpfCnpj,
+        }
+        : null;
+
+      return new RelatorioFinancialMovementNovoRemessaPageDto({
+        currentPage,
+        pageSize,
+        data,
+        nextCursor,
+      });
+    } catch (error) {
+      this.logger.error('Erro ao executar a query', error);
+      throw error;
+    }
+  }
+
+  private buildGroupedCte(finalBaseQuery: string): string {
+    return `
+      WITH base AS (
+        ${finalBaseQuery}
+      ),
+      grouped AS (
+        SELECT
+          "dataReferencia",
+          nomes,
+          email,
+          "codBanco",
+          "nomeBanco",
+          "cpfCnpj",
+          "nomeConsorcio",
+          status,
+          "dataPagamento",
+          SUM(valor) AS valor
+        FROM base
+        GROUP BY
+          "dataReferencia",
+          nomes,
+          email,
+          "codBanco",
+          "nomeBanco",
+          "cpfCnpj",
+          "nomeConsorcio",
+          status,
+          "dataPagamento"
+      )
+    `;
+  }
+
+  private normalizeFilter(
+    filter: IFindPublicacaoRelatorioNovoFinancialMovement,
+  ): NormalizedFilter {
+    return {
+      ...filter,
+      dataInicio: new Date(filter.dataInicio),
+      dataFim: new Date(filter.dataFim),
+      page: filter.page ? Number(filter.page) : undefined,
+      pageSize: filter.pageSize ? Number(filter.pageSize) : undefined,
+    };
+  }
+
+  private resolveStatuses(filter: NormalizedFilter): ResolvedStatuses {
+    const allSelectedStatuses = this.getStatusParaFiltro(filter);
+
+    if (!allSelectedStatuses?.length) {
+      return {
+        allSelectedStatuses: null,
+        baseStatuses: null,
+        includePendentes: false,
+        includeBase: true,
+      };
+    }
+
+    const includePendentes = allSelectedStatuses.includes(StatusPagamento.PENDENTES);
+    const baseStatuses = allSelectedStatuses.filter(
+      (status) => status !== StatusPagamento.PENDENTES,
+    );
+
+    return {
+      allSelectedStatuses,
+      baseStatuses: baseStatuses.length ? baseStatuses : null,
+      includePendentes,
+      includeBase: baseStatuses.length > 0,
+    };
+  }
+
+  private buildFinalBaseQuery(
+    filter: NormalizedFilter,
+    statuses: ResolvedStatuses,
+  ): string {
+    const queries: string[] = [];
+
+    if (statuses.includeBase) {
+      queries.push(this.buildBaseQuery(filter));
+    }
+
+    if (statuses.includePendentes) {
+      queries.push(this.buildPendentesQuery(filter));
+    }
+
+    if (!queries.length) {
+      // case: user selected only Pendentes? handled above
+      // safety fallback to base query
+      return this.buildBaseQuery(filter);
+    }
+
+    return queries.join('\nUNION ALL\n');
+  }
+
+  private buildBaseQuery(filter: NormalizedFilter): string {
+    return `
+      SELECT DISTINCT
+        da."dataVencimento" AS "dataReferencia",
+        opa.id,
+        pu."fullName" AS nomes,
+        pu.email,
+        pu."bankCode" AS "codBanco",
+        bc.name AS "nomeBanco",
+        pu."cpfCnpj",
+        ${this.CONSORCIO_CASE} AS "nomeConsorcio",
+        da."valorLancamento" AS valor,
+        CASE
+          WHEN oph."statusRemessa" = 5
+            AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
+            THEN op_pai."dataPagamento"
+          ELSE opa."dataPagamento"
+        END AS "dataPagamento",
+        ${this.STATUS_CASE} AS status
+      FROM ordem_pagamento op
+      INNER JOIN ordem_pagamento_agrupado opa
+        ON op."ordemPagamentoAgrupadoId" = opa.id
+      LEFT JOIN ordem_pagamento_agrupado op_pai
+        ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+      INNER JOIN ordem_pagamento_agrupado_historico oph
+        ON oph."ordemPagamentoAgrupadoId" = opa.id
+      INNER JOIN detalhe_a da
+        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+      INNER JOIN public."user" pu
+        ON pu.id = op."userId"
+      INNER JOIN bank bc
+        ON bc.code = pu."bankCode"
+      WHERE
+        da."dataVencimento" BETWEEN $1 AND $2
+        AND ($3::integer[] IS NULL OR pu.id = ANY($3))
+        AND ($4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4))
+        AND ($5::text[] IS NULL OR ${this.CONSORCIO_CASE} = ANY($5))
+        AND (
+          ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
+          AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM ordem_pagamento_agrupado filha
+          WHERE filha."ordemPagamentoAgrupadoId" = opa.id
+        )
+        AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+        ${filter.todosVanzeiros ? this.NOT_CPF_FILTER : ''}
+        ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
+    `;
+  }
+
+  private buildPendentesQuery(filter: NormalizedFilter): string {
+    return `
+    SELECT DISTINCT
+      DATE(op."dataOrdem") AS "dataReferencia",
+      NULL::integer AS id,
+      op."nomeOperadora" AS nomes,
       pu.email,
       pu."bankCode" AS "codBanco",
       bc.name AS "nomeBanco",
       pu."cpfCnpj",
-    opu."consorcio" AS "nomeConsorcio",
-      da."valorLancamento" AS valor,
-      ${this.STATUS_CASE} AS status
-  FROM
-    ordem_pagamento_agrupado opa 
-      INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-      INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
-      inner join ordem_pagamento_unico opu on opu."idOrdemPagamento" = opa.id::VARCHAR
-      inner join public."user" pu on pu."cpfCnpj" = opu."operadoraCpfCnpj"
-       JOIN bank bc on bc.code = pu."bankCode"
-  WHERE
-      da."dataVencimento" BETWEEN $1 AND $2
-      AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-      AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+      ${this.CONSORCIO_CASE} AS "nomeConsorcio",
+      op.valor AS valor,
+      op."dataOrdem" AS "dataPagamento",
+      'Pendentes' AS status
+    FROM ordem_pagamento op
+    INNER JOIN public."user" pu
+      ON pu.id = op."userId"
+    INNER JOIN bank bc
+      ON bc.code = pu."bankCode"
+    WHERE
+      op."dataOrdem" BETWEEN $1 AND $2
+      AND op."ordemPagamentoAgrupadoId" IS NULL
+      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND ${this.CONSORCIO_CASE} = ANY(
+        COALESCE(NULLIF($5::text[], '{}'), ARRAY['STPC','STPL','TEC'])
       )
-    AND (
-        $4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4)
-    )
+      AND (
+        ($6::numeric IS NULL OR op.valor >= $6::numeric)
+        AND ($7::numeric IS NULL OR op.valor <= $7::numeric)
+      )
+      ${filter.todosVanzeiros ? this.NOT_CPF_FILTER : ''}
+      ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
   `;
-
-  private readonly pendenciasPagasSQL = `
-    SELECT DISTINCT
-    op."dataCaptura" AS "dataReferencia",
-    pu."fullName" AS nomes,
-    pu.email,
-    pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
-    pu."cpfCnpj",
-    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
-    CASE 
-        WHEN oph."statusRemessa" = 5 THEN ROUND(op."valor", 2)
-        ELSE da."valorLancamento"
-    END AS valor,
-    CASE 
-        WHEN oph."statusRemessa" = 5 THEN opa."dataPagamento"
-        ELSE oph."dataReferencia"
-    END AS dataPagamento,
-    'Pendencia Paga' AS status
-FROM
-     ordem_pagamento op
- INNER JOIN ordem_pagamento_agrupado opa 
-    ON opa.id = op."ordemPagamentoAgrupadoId"
-INNER JOIN cadeia_pagamento cp 
-    ON cp.ordem_id = opa.id
-INNER JOIN ordem_pagamento_agrupado op_pai 
-    ON op_pai.id = cp.raiz_id
-INNER JOIN ordem_pagamento_agrupado_historico oph 
-    ON oph."ordemPagamentoAgrupadoId" = op_pai.id AND oph."statusRemessa" = 5
-INNER JOIN detalhe_a da 
-    ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-INNER JOIN public."user" pu 
-    ON pu.id = op."userId"
-INNER JOIN bank bc 
-    ON bc.code = pu."bankCode"
-WHERE
-    da."dataVencimento" BETWEEN $1 AND $2
-    AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-    AND (
-        ($6::numeric IS NULL OR op."valor" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR op."valor" <= $7::numeric)
-    )
-    AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-    )
-    AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
-`;
-
-
-  private readonly WITH_AS = `
-  WITH RECURSIVE
-
-pendencia AS (
-  SELECT DISTINCT opaa.id, oph."dataReferencia"
-  FROM ordem_pagamento_agrupado opaa
-  INNER JOIN ordem_pagamento_agrupado_historico oph 
-      ON oph."ordemPagamentoAgrupadoId" = opaa.id
-  INNER JOIN detalhe_a daa 
-      ON daa."ordemPagamentoAgrupadoHistoricoId" = oph.id
-  WHERE daa."dataVencimento" BETWEEN $1 AND $2
-    AND EXISTS (
-      SELECT 1 FROM ordem_pagamento_agrupado opa2 WHERE opa2."ordemPagamentoAgrupadoId" = opaa.id
-    )
-  AND (
-        ($6::numeric IS NULL OR daa."valorLancamento" >= $6::numeric) 
-        AND ($7::numeric IS NULL OR daa."valorLancamento" <= $7::numeric)
-    )
-
-),
-
-cadeia_pagamento AS (
-  SELECT
-    opa.id AS ordem_id,
-    opa."ordemPagamentoAgrupadoId" AS pai_id,
-    opa.id AS raiz_id
-  FROM ordem_pagamento_agrupado opa
-
-  UNION ALL
-
-  SELECT
-    filho.id,
-    filho."ordemPagamentoAgrupadoId",
-    pai.raiz_id
-  FROM ordem_pagamento_agrupado filho
-  INNER JOIN cadeia_pagamento pai ON filho."ordemPagamentoAgrupadoId" = pai.ordem_id
-),
-cadeias_com_paga AS (
-  SELECT DISTINCT cp.raiz_id
-  FROM cadeia_pagamento cp
-  INNER JOIN ordem_pagamento_agrupado_historico oph
-      ON oph."ordemPagamentoAgrupadoId" = cp.ordem_id
-  WHERE oph."statusRemessa" = 5
-)
-`;
-
-  private readonly pendenciasPagasEstRejSQL = `
-SELECT DISTINCT
-    oph."dataReferencia" AS "dataReferencia",
-    pu."fullName" AS nomes,
-    pu.email,
-    pu."bankCode" AS "codBanco",
-    bc.name AS "nomeBanco",
-    pu."cpfCnpj",
-    ${this.CONSORCIO_CASE} AS "nomeConsorcio",
-    CASE
-        WHEN oph."statusRemessa" = 5 THEN ROUND((SELECT "valorTotal" FROM ordem_pagamento_agrupado WHERE id = opa."ordemPagamentoAgrupadoId"),2)
-        ELSE da."valorLancamento"
-    END AS valor,
-	  pd."dataReferencia" AS "dataPagamento",
-    'Pendencia Paga' AS status
-FROM ordem_pagamento op
-  INNER JOIN ordem_pagamento_agrupado opa on op."ordemPagamentoAgrupadoId"=opa.id AND op."ordemPagamentoAgrupadoId" IS NULL
-  INNER JOIN ordem_pagamento_agrupado_historico oph on oph."ordemPagamentoAgrupadoId"=opa.id
-  INNER JOIN pendencia pd on opa."ordemPagamentoAgrupadoId" = pd.id
-  INNER JOIN detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id AND da."dataVencimento" IS NOT NULL
-  INNER JOIN public."user" pu on pu."id"=op."userId"
-  INNER JOIN bank bc ON bc.code = pu."bankCode"
-WHERE
-  pd."dataReferencia" BETWEEN $1 AND $2
-  AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-  AND (
-    ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
-    AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-  ) 
-  AND (oph."motivoStatusRemessa" NOT IN ('AM') OR oph."motivoStatusRemessa" IS NULL)
-`;
-
-  private pendentes = `
-UNION ALL
-
-  SELECT
-  DATE(op."dataOrdem") AS dataPagamento,
-  op."nomeOperadora" as nomes,
-  pu.email,
-  pu."bankCode" AS "codBanco",
-  bc.name AS "nomeBanco",
-  pu."cpfCnpj",
-  ${this.CONSORCIO_CASE} AS "nomeConsorcio",
-  op."valor" AS valor,
-  op."dataOrdem",
-  'Pendente' AS status
-FROM ordem_pagamento op
-INNER JOIN public."user" pu ON pu.id = op."userId"
-JOIN bank bc on bc.code = pu."bankCode"
-WHERE
-op."dataOrdem" BETWEEN $1  AND $2 
-    AND op."ordemPagamentoAgrupadoId" IS NULL
-AND($3:: integer[] IS NULL OR pu."id" = ANY($3))
-AND op."nomeConsorcio" = ANY(
-          COALESCE(NULLIF($5::text[], '{}'), ARRAY['STPC','STPL','TEC'])
-    )
-and op."nomeConsorcio" <> 'VLT'
-AND(
-  ($6:: numeric IS NULL OR op."valor" >= $6:: numeric)
-AND($7:: numeric IS NULL OR op."valor" <= $7:: numeric)
-    )
-`;
-
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) { }
-
-  private shouldUnionCadeiaAndNoCadeia = (safeFilter: any) => {
-    const filtraStatusBase =
-      safeFilter.aPagar || safeFilter.aguardandoPagamento || safeFilter.pago;
-    const filtraPendenciaOuErro = safeFilter.pendenciaPaga || safeFilter.erro || safeFilter.estorno || safeFilter.rejeitado;
-    return filtraStatusBase && filtraPendenciaOuErro;
-  };
-
-  private shouldUseCadeia(filter: IFindPublicacaoRelatorioNovoFinancialMovement): boolean {
-    if (!filter) return false;
-    if (filter.pendenciaPaga || filter.erro || filter.estorno || filter.rejeitado) return true;
-    return false;
   }
 
+  private resolvePagination(filter: NormalizedFilter) {
+    const currentPageRaw = Number(filter.page);
+    const pageSizeRaw = Number(filter.pageSize);
 
-  public async findFinancialMovement(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaDto> {
-    const safeFilter: IFindPublicacaoRelatorioNovoFinancialMovement = {
-      ...filter,
-      dataInicio: filter.dataInicio ? new Date(filter.dataInicio) : filter.dataInicio,
-      dataFim: filter.dataFim ? new Date(filter.dataFim) : filter.dataFim,
-      page: filter.page ? Number(filter.page) : undefined,
-      pageSize: filter.pageSize ? Number(filter.pageSize) : undefined,
-    };
+    const currentPage =
+      Number.isInteger(currentPageRaw) && currentPageRaw > 0 ? currentPageRaw : 1;
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
+    const pageSize =
+      Number.isInteger(pageSizeRaw) && pageSizeRaw > 0 ? pageSizeRaw : 50;
 
-    try {
-      let finalQuery: string;
-
-      if (this.shouldUnionCadeiaAndNoCadeia(safeFilter)) {
-        finalQuery = `${this.queryNewReport} UNION ${this.queryNewReportNoCadeia}`;
-      } else {
-        const useCadeia = this.shouldUseCadeia(safeFilter);
-        finalQuery = useCadeia ? this.queryNewReport : this.queryNewReportNoCadeia;
-      }
-
-      if (safeFilter.todosVanzeiros) finalQuery += ` ${this.notCpf}`;
-      if (safeFilter.eleicao) finalQuery = this.eleicao;
-      if (safeFilter.pendentes) finalQuery += this.pendentes;
-      if (safeFilter.pendenciaPaga) {
-        finalQuery = `${finalQuery} UNION ALL ${this.pendenciasPagasSQL} UNION ALL ${this.pendenciasPagasEstRejSQL}`;
-      }
-      if (safeFilter.desativados) finalQuery += ` AND pu.bloqueado = true`;
-
-      finalQuery = this.wrapWithOuterFilters(finalQuery);
-
-      const params = this.getQueryParameters(safeFilter);
-      const allResults = await queryRunner.query(finalQuery, params);
-
-      const aggregates = this.calculateAggregates(allResults);
-      const grouped = this.groupAndSum(allResults);
-      const dataOrdenada = Array.from(grouped.values())
-        .sort((a, b) => {
-          const dateA = this.parseDateBR(a.dataReferencia).getTime();
-          const dateB = this.parseDateBR(b.dataReferencia).getTime();
-          if (dateA !== dateB) return dateA - dateB;
-          return a.nomes.localeCompare(b.nomes, 'pt-BR');
-        })
-        .map(r => new RelatorioFinancialMovementNovoRemessaData(r));
-
-      const hasPagination = Number.isInteger(safeFilter.page) || Number.isInteger(safeFilter.pageSize);
-      const currentPageRaw = Number(safeFilter.page);
-      const pageSizeRaw = Number(safeFilter.pageSize);
-      const currentPage = Number.isInteger(currentPageRaw) && currentPageRaw > 0 ? currentPageRaw : 1;
-      const pageSize = Number.isInteger(pageSizeRaw) && pageSizeRaw > 0 ? pageSizeRaw : 50;
-      const totalCount = dataOrdenada.length;
-      const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
-
-      const pagedData = hasPagination
-        ? dataOrdenada.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-        : dataOrdenada;
-
-      const relatorioDto = new RelatorioFinancialMovementNovoRemessaDto({
-        count: totalCount,
-        valor: Number.parseFloat(aggregates.valorTotal.toString()),
-        valorPago: aggregates.valorPago,
-        valorEstornado: aggregates.valorEstornado,
-        valorRejeitado: aggregates.valorRejeitado,
-        valorAguardandoPagamento: aggregates.valorAguardandoPagamento,
-        valorPendente: aggregates.valorPendente,
-        valorPendenciaPaga: aggregates.valorPendenciaPaga,
-        currentPage,
-        pageSize,
-        totalPages,
-        data: pagedData,
-      });
-
-      return relatorioDto;
-    } catch (error) {
-      this.logger.error('Erro ao executar a query', error);
-      throw error;
-    } finally {
-      await queryRunner.release();
-      this.logger.log('QueryRunner liberado.');
-    }
-  }
-
-  /**
-   * Compute aggregates in one pass
-   */
-  private calculateAggregates(rows: any[]) {
-    let valorTotal = 0;
-    let valorPago = 0;
-    let valorRejeitado = 0;
-    let valorEstornado = 0;
-    let valorAguardandoPagamento = 0;
-    let valorPendente = 0;
-    let valorPendenciaPaga = 0;
-
-    for (const cur of rows) {
-      const valor = Number.parseFloat(cur.valor || 0);
-      valorTotal += valor;
-
-      switch ((cur.status || '').toString()) {
-        case 'Pago':
-          valorPago += valor;
-          break;
-        case 'Rejeitado':
-          valorRejeitado += valor;
-          break;
-        case 'Estorno':
-          valorEstornado += valor;
-          break;
-        case 'Aguardando Pagamento':
-          valorAguardandoPagamento += valor;
-          break;
-        case 'Pendente':
-          valorPendente += valor;
-          break;
-        case 'Pendencia Paga':
-          valorPendenciaPaga += valor;
-          break;
-      }
-    }
+    const hasPagination =
+      Number.isInteger(filter.page) || Number.isInteger(filter.pageSize);
 
     return {
-      valorTotal,
-      valorPago,
-      valorRejeitado,
-      valorEstornado,
-      valorAguardandoPagamento,
-      valorPendente,
-      valorPendenciaPaga,
+      currentPage,
+      pageSize,
+      hasPagination,
     };
-  }
-
-
-  private groupAndSum(rows: any[]) {
-    const map = new Map<string, any>();
-
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
-
-      const dataReferencia = this.formatDateToBR(r.dataReferencia) || '01/01/1970';
-      const dataPagamento = this.formatDateToBR(r.dataPagamento);
-      const valor = +r.valor || 0;
-
-      const key = dataReferencia + r.cpfCnpj + r.status + dataPagamento;
-
-      const existing = map.get(key);
-
-      if (existing) {
-        existing.valor += valor;
-      } else {
-        map.set(key, {
-          dataReferencia,
-          nomes: r.nomes,
-          email: r.email,
-          codBanco: r.codBanco,
-          nomeBanco: r.nomeBanco,
-          cpfCnpj: r.cpfCnpj,
-          consorcio: r.nomeConsorcio || r.consorcio,
-          valor,
-          status: r.status,
-          dataPagamento,
-        });
-      }
-    }
-
-    return map;
-  }
-
-  private parseDateBR(dateStr: string | null | undefined) {
-    if (!dateStr) return new Date(0);
-    const parts = dateStr.split('/');
-    const [d, m, y] = parts.map(v => Number(v));
-    const parsed = new Date(y, (m || 1) - 1, d || 1);
-    return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
-  }
-
-  private formatDateToBR(value: any): string | null {
-    try {
-      if (!value) return null;
-
-      let date: Date;
-      if (value instanceof Date) {
-        date = value;
-      } else if (typeof value === 'string') {
-        if (value.includes('/')) {
-          const parts = value.split('/').map(p => parseInt(p, 10));
-          if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-            date = new Date(parts[2], parts[1] - 1, parts[0]);
-          } else {
-            return null;
-          }
-        } else {
-          date = new Date(value);
-        }
-      } else if (typeof value === 'number') {
-        date = new Date(value);
-      } else {
-        return null;
-      }
-
-      if (Number.isNaN(date.getTime())) return null;
-      return new Intl.DateTimeFormat('pt-BR').format(date);
-    } catch (e) {
-      return null;
-    }
-  }
-
-
-  private prependWithIfNeeded(query: string): string {
-    const trimmed = query.trim();
-    if (trimmed.toUpperCase().startsWith('WITH')) return query;
-    return `${this.WITH_AS}${query}`;
-  }
-
-  private wrapWithOuterFilters(query: string): string {
-    const inner = this.prependWithIfNeeded(query);
-    return `
-SELECT *
-FROM (
-${inner}
-) t
-WHERE
-     ($5::text[] IS NULL OR TRIM(UPPER(t."nomeConsorcio")) = ANY($5))
-`;
   }
 
   private getStatusParaFiltro(filter: {
@@ -561,40 +433,29 @@ WHERE
       { cond: filter.aPagar, vals: [StatusPagamento.A_PAGAR] },
     ];
 
-    for (const m of mapping) if (m.cond) statuses.push(...m.vals);
-
-    return statuses.length ? statuses : null;
-  }
-
-
-  private getQueryParameters(filter: IFindPublicacaoRelatorioNovoFinancialMovement): any[] {
-    let consorcioNome: string[] | null = filter.consorcioNome
-      ? filter.consorcioNome.map(n => n.toUpperCase().trim())
-      : null;
-
-    // const modaisEspeciais = ['STPC', 'STPL', 'TEC'];
-
-    // console.log(consorcioNome)
-    const dataInicio = format(new Date(filter.dataInicio), 'yyyy-MM-dd') || null;
-    const dataFim = format(new Date(filter.dataFim), 'yyyy-MM-dd') || null;
-    const userIds = filter.userIds || null;
-    const valorMin = filter.valorMin || null;
-    const valorMax = filter.valorMax || null;
-
-    if (filter.pendentes && (!consorcioNome || consorcioNome.length === 0)) {
-      consorcioNome = ['STPC', 'STPL', 'TEC'];
+    for (const item of mapping) {
+      if (item.cond) statuses.push(...item.vals);
     }
 
-
-    return [
-      dataInicio,
-      dataFim,
-      userIds,
-      this.getStatusParaFiltro(filter) || null,
-      consorcioNome,
-      valorMin,
-      valorMax
-    ];
+    return statuses.length ? [...new Set(statuses)] : null;
   }
 
+  private getQueryParameters(
+    filter: NormalizedFilter,
+    selectedStatuses: string[] | null,
+  ): any[] {
+    const consorcioNome = filter.consorcioNome?.length
+      ? filter.consorcioNome.map((nome) => nome.toUpperCase().trim())
+      : null;
+
+    return [
+      format(filter.dataInicio, 'yyyy-MM-dd'),
+      format(filter.dataFim, 'yyyy-MM-dd'),
+      filter.userIds?.length ? filter.userIds : null,
+      selectedStatuses,
+      consorcioNome,
+      filter.valorMin ?? null,
+      filter.valorMax ?? null,
+    ];
+  }
 }
