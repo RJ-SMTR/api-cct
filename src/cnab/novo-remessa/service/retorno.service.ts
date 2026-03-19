@@ -30,12 +30,10 @@ export class RetornoService {
         const retorno104 = parseCnab240Pagamento(cnab.content);
         try {
             for (const cnabLote of retorno104.lotes) {
-                for (const registro of cnabLote.registros) {
+                for (const registro of cnabLote.registros) {                    
                     const detalheA = await this.detalheAService.getDetalheARetorno(
                         registro.detalheA.dataVencimento.convertedValue,
-                        registro.detalheA.valorLancamento.convertedValue,
-                        registro.detalheA.codigoBancoDestino.convertedValue,
-                        registro.detalheA.contaCorrenteDestino.convertedValue
+                        registro.detalheB.numeroInscricao.convertedValue
                     )
                     this.logger.debug(`Banco: ${registro.detalheA.codigoBancoDestino.convertedValue} 
                          - agencia: ${registro.detalheA.codigoAgenciaDestino.convertedValue}
