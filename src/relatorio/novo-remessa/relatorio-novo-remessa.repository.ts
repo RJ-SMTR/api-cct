@@ -178,11 +178,11 @@ WHERE (1=1) `;
                     ) sub
                         JOIN valid_aggregators va
                              ON va."opaId" = sub."opaId"
-                        JOIN ordem_pagamento_agrupado opa
+                        RIGHT JOIN ordem_pagamento_agrupado opa
                              ON opa.id = sub."opaId"
-                        JOIN latest_opah l
+                        RIGHT JOIN latest_opah l
                              ON l."opaId" = opa.id
-                        LEFT JOIN detalhe_a da
+                        RIGHT JOIN detalhe_a da
                                   ON da."ordemPagamentoAgrupadoHistoricoId" = l."opahId"
                WHERE
                    (
@@ -204,15 +204,15 @@ WHERE (1=1) `;
                                 COALESCE(da."valorLancamento", opa."valorTotal") AS "valorTotal",
                                 opa.id AS "ordemPagamentoAgrupadoId"
                             FROM ordem_pagamento op
-                                     JOIN valid_aggregators va
+                                     RIGHT JOIN valid_aggregators va
                                           ON va."opaId" = op."ordemPagamentoAgrupadoId"
-                                     JOIN "user" u
+                                     RIGHT JOIN "user" u
                                           ON op."userId" = u.id
-                                     JOIN ordem_pagamento_agrupado opa
+                                     RIGHT JOIN ordem_pagamento_agrupado opa
                                           ON op."ordemPagamentoAgrupadoId" = opa.id
-                                     JOIN latest_opah l
+                                     RIGHT JOIN latest_opah l
                                           ON l."opaId" = opa.id
-                                     LEFT JOIN detalhe_a da
+                                     RIGHT JOIN detalhe_a da
                                                ON da."ordemPagamentoAgrupadoHistoricoId" = l."opahId"
                             WHERE
                                 op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
