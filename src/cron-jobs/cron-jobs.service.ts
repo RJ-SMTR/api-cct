@@ -706,7 +706,6 @@ export class CronJobsService {
   }
 
   async remessaConsorciosExec(pagamentoUnico?: boolean) {
-
     const today = new Date();
     let subDaysInt = 0;
 
