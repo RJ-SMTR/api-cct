@@ -73,7 +73,7 @@ WITH
     WHERE
         (
             EXTRACT(YEAR FROM dias) = 2026
-            AND EXTRACT(DOW FROM dias) IN (2, 5)
+            AND EXTRACT(DOW FROM dias) IN (2,4,5)
         )
         OR
         (
@@ -81,12 +81,12 @@ WITH
             AND (
                 (
                     EXTRACT(MONTH FROM dias) < 9
-                    AND EXTRACT(DOW FROM dias) = 5
+                    AND EXTRACT(DOW FROM dias) IN (4, 5)
                 )
                 OR
                 (
                     EXTRACT(MONTH FROM dias) >= 9
-                    AND EXTRACT(DOW FROM dias) IN (2, 5)
+                    AND EXTRACT(DOW FROM dias) IN (2, 4,5)
                 )
             )
         )
