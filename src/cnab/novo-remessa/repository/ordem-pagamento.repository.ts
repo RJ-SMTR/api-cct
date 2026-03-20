@@ -66,11 +66,7 @@ WITH
  dias_base AS (
     SELECT
         dias::DATE AS data,
-        EXTRACT(DOW FROM dias) AS dow,
-        (
-            DATE_TRUNC('month', dias)::DATE
-            + (((4 - EXTRACT(DOW FROM DATE_TRUNC('month', dias)) + 7) % 7))::INT
-        ) AS primeira_quinta
+        EXTRACT(DOW FROM dias) AS dow
     FROM generate_series(
         DATE_TRUNC('month', $1::DATE),
         DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day',
@@ -85,7 +81,6 @@ WITH
             EXTRACT(YEAR FROM data) = 2026
             AND (
                 dow IN (2, 5)
-                OR (dow = 4 AND data = primeira_quinta)
             )
         )
         OR
@@ -96,7 +91,6 @@ WITH
                     EXTRACT(MONTH FROM data) < 9
                     AND (
                         dow = 5
-                        OR (dow = 4 AND data = primeira_quinta)
                     )
                 )
                 OR
@@ -104,7 +98,6 @@ WITH
                     EXTRACT(MONTH FROM data) >= 9
                     AND (
                         dow IN (2, 5)
-                        OR (dow = 4 AND data = primeira_quinta)
                     )
                 )
             )
