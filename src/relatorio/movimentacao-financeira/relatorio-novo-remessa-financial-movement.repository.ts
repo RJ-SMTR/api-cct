@@ -25,6 +25,13 @@ type ResolvedStatuses = {
   includeBase: boolean;
 };
 
+type CursorValues = {
+  dataReferencia: string | null;
+  nome: string | null;
+  status: string | null;
+  cpfCnpj: string | null;
+};
+
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementRepository {
   private readonly logger = new CustomLogger(
@@ -77,58 +84,25 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     const params = this.getQueryParameters(safeFilter, statuses.allSelectedStatuses);
 
     const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
+    const { countQuery, aggregatesQuery } = this.buildSummaryQueries(finalBaseQuery);
 
-    const groupedCte = this.buildGroupedCte(finalBaseQuery);
+    const [countRows, aggregateRows] = await Promise.all([
+      this.executeQuery(countQuery, params, 'COUNT'),
+      this.executeQuery(aggregatesQuery, params, 'SUM'),
+    ]);
 
-    const countQuery = `
-      ${groupedCte}
-      SELECT COUNT(*)::int AS count
-      FROM grouped
-    `;
-
-    const aggregatesQuery = `
-      WITH base AS (
-        ${finalBaseQuery}
-      )
-      SELECT
-        COALESCE(SUM(valor), 0) AS "valorTotal",
-        COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) AS "valorPago",
-        COALESCE(SUM(CASE WHEN status = 'Estorno' THEN valor ELSE 0 END), 0) AS "valorEstornado",
-        COALESCE(SUM(CASE WHEN status = 'Rejeitado' THEN valor ELSE 0 END), 0) AS "valorRejeitado",
-        COALESCE(SUM(CASE WHEN status = 'Aguardando Pagamento' THEN valor ELSE 0 END), 0) AS "valorAguardandoPagamento",
-        COALESCE(SUM(CASE WHEN status = 'Pendentes' THEN valor ELSE 0 END), 0) AS "valorPendente",
-        COALESCE(SUM(CASE WHEN status = 'Pendencia Paga' THEN valor ELSE 0 END), 0) AS "valorPendenciaPaga"
-      FROM base
-    `;
-
-    try {
-      const [countRows, aggregateRows] = await Promise.all([
-        this.dataSource.query(countQuery, params).then(res => {
-          console.log('COUNT finished');
-          return res;
-        }),
-        this.dataSource.query(aggregatesQuery, params).then(res => {
-          console.log('SUM finished');
-          return res;
-        }),
-      ]);
-
-      const totalCount = Number(countRows?.[0]?.count ?? 0);
-      const aggregates = aggregateRows?.[0] ?? {};
-      return new RelatorioFinancialMovementNovoRemessaSummaryDto({
-        count: totalCount,
-        valorTotal: Number.parseFloat((aggregates.valorTotal ?? 0).toString()),
-        valorPago: Number(aggregates.valorPago ?? 0),
-        valorEstornado: Number(aggregates.valorEstornado ?? 0),
-        valorRejeitado: Number(aggregates.valorRejeitado ?? 0),
-        valorAguardandoPagamento: Number(aggregates.valorAguardandoPagamento ?? 0),
-        valorPendente: Number(aggregates.valorPendente ?? 0),
-        valorPendenciaPaga: Number(aggregates.valorPendenciaPaga ?? 0),
-      });
-    } catch (error) {
-      this.logger.error('Erro ao executar a query', error);
-      throw error;
-    }
+    const totalCount = Number(countRows?.[0]?.count ?? 0);
+    const aggregates = aggregateRows?.[0] ?? {};
+    return new RelatorioFinancialMovementNovoRemessaSummaryDto({
+      count: totalCount,
+      valorTotal: Number.parseFloat((aggregates.valorTotal ?? 0).toString()),
+      valorPago: Number(aggregates.valorPago ?? 0),
+      valorEstornado: Number(aggregates.valorEstornado ?? 0),
+      valorRejeitado: Number(aggregates.valorRejeitado ?? 0),
+      valorAguardandoPagamento: Number(aggregates.valorAguardandoPagamento ?? 0),
+      valorPendente: Number(aggregates.valorPendente ?? 0),
+      valorPendenciaPaga: Number(aggregates.valorPendenciaPaga ?? 0),
+    });
   }
 
   public async findFinancialMovementPage(
@@ -143,16 +117,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
     const { currentPage, pageSize } = this.resolvePagination(safeFilter);
 
-    const hasCursor =
-      Boolean(safeFilter.cursorDataReferencia)
-      && Boolean(safeFilter.cursorNome)
-      && Boolean(safeFilter.cursorStatus)
-      && Boolean(safeFilter.cursorCpfCnpj);
-
-    const cursorDataReferencia = hasCursor ? safeFilter.cursorDataReferencia : null;
-    const cursorNome = hasCursor ? safeFilter.cursorNome : null;
-    const cursorStatus = hasCursor ? safeFilter.cursorStatus : null;
-    const cursorCpfCnpj = hasCursor ? safeFilter.cursorCpfCnpj : null;
+    const cursor = this.resolveCursor(safeFilter);
 
     const dataQuery = `
       ${groupedCte}
@@ -176,45 +141,46 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       LIMIT $12
     `;
 
-    try {
-      const dataParams = [
-        ...params,
-        cursorDataReferencia,
-        cursorNome,
-        cursorStatus,
-        cursorCpfCnpj,
-        pageSize,
-      ];
-      const rows = await this.dataSource.query(dataQuery, dataParams);
+    const dataParams = [
+      ...params,
+      cursor.dataReferencia,
+      cursor.nome,
+      cursor.status,
+      cursor.cpfCnpj,
+      pageSize,
+    ];
+    const rows = await this.executeQuery(dataQuery, dataParams, 'PAGE');
 
-      const data = rows.map((row) => new RelatorioFinancialMovementNovoRemessaData(row));
-      const lastRow = rows?.[rows.length - 1];
-      const nextCursor = lastRow
-        ? {
-          dataReferencia: lastRow.dataReferencia,
-          nomes: lastRow.nomes,
-          status: lastRow.status,
-          cpfCnpj: lastRow.cpfCnpj,
-        }
-        : null;
+    const data = rows.map((row) => new RelatorioFinancialMovementNovoRemessaData(row));
+    const lastRow = rows?.[rows.length - 1];
+    const nextCursor = lastRow
+      ? {
+        dataReferencia: lastRow.dataReferencia,
+        nomes: lastRow.nomes,
+        status: lastRow.status,
+        cpfCnpj: lastRow.cpfCnpj,
+      }
+      : null;
 
-      return new RelatorioFinancialMovementNovoRemessaPageDto({
-        currentPage,
-        pageSize,
-        data,
-        nextCursor,
-      });
-    } catch (error) {
-      this.logger.error('Erro ao executar a query', error);
-      throw error;
-    }
+    return new RelatorioFinancialMovementNovoRemessaPageDto({
+      currentPage,
+      pageSize,
+      data,
+      nextCursor,
+    });
+  }
+
+  private buildBaseCte(finalBaseQuery: string): string {
+    return `
+      WITH base AS (
+        ${finalBaseQuery}
+      )
+    `;
   }
 
   private buildGroupedCte(finalBaseQuery: string): string {
     return `
-      WITH base AS (
-        ${finalBaseQuery}
-      ),
+      ${this.buildBaseCte(finalBaseQuery)},
       grouped AS (
         SELECT
           "dataReferencia",
@@ -240,6 +206,33 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
           "dataPagamento"
       )
     `;
+  }
+
+  private buildSummaryQueries(finalBaseQuery: string) {
+    const groupedCte = this.buildGroupedCte(finalBaseQuery);
+    const countQuery = `
+      ${groupedCte}
+      SELECT COUNT(*)::int AS count
+      FROM grouped
+    `;
+
+    const aggregatesQuery = `
+      ${this.buildBaseCte(finalBaseQuery)}
+      SELECT
+        COALESCE(SUM(valor), 0) AS "valorTotal",
+        COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) AS "valorPago",
+        COALESCE(SUM(CASE WHEN status = 'Estorno' THEN valor ELSE 0 END), 0) AS "valorEstornado",
+        COALESCE(SUM(CASE WHEN status = 'Rejeitado' THEN valor ELSE 0 END), 0) AS "valorRejeitado",
+        COALESCE(SUM(CASE WHEN status = 'Aguardando Pagamento' THEN valor ELSE 0 END), 0) AS "valorAguardandoPagamento",
+        COALESCE(SUM(CASE WHEN status = 'Pendentes' THEN valor ELSE 0 END), 0) AS "valorPendente",
+        COALESCE(SUM(CASE WHEN status = 'Pendencia Paga' THEN valor ELSE 0 END), 0) AS "valorPendenciaPaga"
+      FROM base
+    `;
+
+    return {
+      countQuery,
+      aggregatesQuery,
+    };
   }
 
   private normalizeFilter(
@@ -400,13 +393,33 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     const pageSize =
       Number.isInteger(pageSizeRaw) && pageSizeRaw > 0 ? pageSizeRaw : 50;
 
-    const hasPagination =
-      Number.isInteger(filter.page) || Number.isInteger(filter.pageSize);
-
     return {
       currentPage,
       pageSize,
-      hasPagination,
+    };
+  }
+
+  private resolveCursor(filter: NormalizedFilter): CursorValues {
+    const hasCursor =
+      Boolean(filter.cursorDataReferencia)
+      && Boolean(filter.cursorNome)
+      && Boolean(filter.cursorStatus)
+      && Boolean(filter.cursorCpfCnpj);
+
+    if (!hasCursor) {
+      return {
+        dataReferencia: null,
+        nome: null,
+        status: null,
+        cpfCnpj: null,
+      };
+    }
+
+    return {
+      dataReferencia: filter.cursorDataReferencia ?? null,
+      nome: filter.cursorNome ?? null,
+      status: filter.cursorStatus ?? null,
+      cpfCnpj: filter.cursorCpfCnpj ?? null,
     };
   }
 
@@ -457,5 +470,20 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       filter.valorMin ?? null,
       filter.valorMax ?? null,
     ];
+  }
+
+  private async executeQuery<T = any>(
+    query: string,
+    params: any[],
+    label: string,
+  ): Promise<T[]> {
+    try {
+      const result = await this.dataSource.query(query, params);
+      this.logger.debug(`${label} finished`);
+      return result;
+    } catch (error) {
+      this.logger.error(`Erro ao executar a query (${label})`, error);
+      throw error;
+    }
   }
 }
