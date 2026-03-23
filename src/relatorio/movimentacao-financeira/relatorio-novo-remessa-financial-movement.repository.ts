@@ -4,6 +4,13 @@ import { format } from 'date-fns';
 import { DataSource } from 'typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
+import {
+  buildBaseQuery,
+  buildPendentesQuery,
+  CONSORCIO_CASE,
+  NOT_CPF_FILTER,
+  STATUS_CASE,
+} from '../novo-remessa/queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import {
   RelatorioFinancialMovementNovoRemessaData,
@@ -39,37 +46,9 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     { timestamp: true },
   );
 
-  private readonly CONSORCIO_CASE = `
-    CASE
-      WHEN pu."permitCode" = '8' THEN 'VLT'
-      WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
-      WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
-      WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
-      ELSE op."nomeConsorcio"
-    END
-  `;
-
-  private readonly STATUS_CASE = `
-    CASE
-      WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
-      WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
-      WHEN oph."statusRemessa" IN (0,1) THEN 'A Pagar'
-      WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
-      WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
-      ELSE 'Rejeitado'
-    END
-  `;
-
-  private readonly NOT_CPF_FILTER = `
-    AND pu."cpfCnpj" NOT IN (
-      '18201378000119',
-      '12464869000176',
-      '12464539000180',
-      '12464553000184',
-      '44520687000161',
-      '12464577000133'
-    )
-  `;
+  private readonly CONSORCIO_CASE = CONSORCIO_CASE;
+  private readonly STATUS_CASE = STATUS_CASE;
+  private readonly NOT_CPF_FILTER = NOT_CPF_FILTER;
 
   constructor(
     @InjectDataSource()
@@ -296,89 +275,20 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
   }
 
   private buildBaseQuery(filter: NormalizedFilter): string {
+    const baseQuery = buildBaseQuery({
+      todosVanzeiros: filter.todosVanzeiros,
+      consorcioFilterParamIndex: 5,
+    }).trim();
     return `
-      SELECT DISTINCT
-        da."dataVencimento" AS "dataReferencia",
-        opa.id,
-        pu."fullName" AS nomes,
-        pu.email,
-        pu."bankCode" AS "codBanco",
-        bc.name AS "nomeBanco",
-        pu."cpfCnpj",
-        ${this.CONSORCIO_CASE} AS "nomeConsorcio",
-        da."valorLancamento" AS valor,
-        CASE
-          WHEN oph."statusRemessa" = 5
-            AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
-            THEN op_pai."dataPagamento"
-          ELSE opa."dataPagamento"
-        END AS "dataPagamento",
-        ${this.STATUS_CASE} AS status
-      FROM ordem_pagamento op
-      INNER JOIN ordem_pagamento_agrupado opa
-        ON op."ordemPagamentoAgrupadoId" = opa.id
-      LEFT JOIN ordem_pagamento_agrupado op_pai
-        ON op_pai.id = opa."ordemPagamentoAgrupadoId"
-      INNER JOIN ordem_pagamento_agrupado_historico oph
-        ON oph."ordemPagamentoAgrupadoId" = opa.id
-      INNER JOIN detalhe_a da
-        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-      INNER JOIN public."user" pu
-        ON pu.id = op."userId"
-      INNER JOIN bank bc
-        ON bc.code = pu."bankCode"
-      WHERE
-        da."dataVencimento" BETWEEN $1 AND $2
-        AND ($3::integer[] IS NULL OR pu.id = ANY($3))
-        AND ($4::text[] IS NULL OR ${this.STATUS_CASE} = ANY($4))
-        AND ($5::text[] IS NULL OR UPPER(TRIM(${this.CONSORCIO_CASE})) = ANY($5))
-        AND (
-          ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
-          AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-        )
-        AND NOT EXISTS (
-          SELECT 1
-          FROM ordem_pagamento_agrupado filha
-          WHERE filha."ordemPagamentoAgrupadoId" = opa.id
-        )
-        AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-        ${filter.todosVanzeiros ? this.NOT_CPF_FILTER : ''}
-        ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${baseQuery}
+      ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
     `;
   }
 
   private buildPendentesQuery(filter: NormalizedFilter): string {
+    const pendentesBase = buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros }).trim();
     return `
-    SELECT DISTINCT
-      DATE(op."dataOrdem") AS "dataReferencia",
-      NULL::integer AS id,
-      op."nomeOperadora" AS nomes,
-      pu.email,
-      pu."bankCode" AS "codBanco",
-      bc.name AS "nomeBanco",
-      pu."cpfCnpj",
-      ${this.CONSORCIO_CASE} AS "nomeConsorcio",
-      op.valor AS valor,
-      op."dataOrdem" AS "dataPagamento",
-      'Pendentes' AS status
-    FROM ordem_pagamento op
-    INNER JOIN public."user" pu
-      ON pu.id = op."userId"
-    INNER JOIN bank bc
-      ON bc.code = pu."bankCode"
-    WHERE
-      op."dataOrdem" BETWEEN $1 AND $2
-      AND op."ordemPagamentoAgrupadoId" IS NULL
-      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
-      AND ($4::text[] IS NULL OR TRUE)
-      AND UPPER(TRIM(${this.CONSORCIO_CASE})) = ANY(
-        COALESCE(NULLIF($5::text[], '{}'), ARRAY['STPC','STPL','TEC'])
-      )
-      AND (
-        ($6::numeric IS NULL OR op.valor >= $6::numeric)
-        AND ($7::numeric IS NULL OR op.valor <= $7::numeric)
-      )
-      ${filter.todosVanzeiros ? this.NOT_CPF_FILTER : ''}
+    ${pendentesBase}
       ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
   `;
   }

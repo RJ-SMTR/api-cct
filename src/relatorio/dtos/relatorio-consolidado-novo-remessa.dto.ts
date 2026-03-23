@@ -24,4 +24,6 @@ export class RelatorioConsolidadoNovoRemessaData {
 
   nomefavorecido: string;
 
+  cpfCnpj?: string | null;
+
 }
