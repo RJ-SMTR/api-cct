@@ -188,7 +188,7 @@ export class DetalheARepository {
                                 inner join public.user uu on uu.id = op."userId"
                                 where  date_trunc('day',da."dataVencimento")='${dataIso}'  
                                 and uu."cpfCnpj"='${cpf}'
-                                and da."valorLancamento='${valorLancamento}`)
+                                and da."valorLancamento"=${valorLancamento}`)                     
 
     const queryRunner = this.dataSource.createQueryRunner();
 
