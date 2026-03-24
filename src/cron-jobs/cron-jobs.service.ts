@@ -38,7 +38,6 @@ import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from '
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 
 
-
 /**
  * Enum CronJobServicesJobs
  */
@@ -112,7 +111,6 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    await this.remessaConsorciosExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -625,18 +623,18 @@ export class CronJobsService {
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     // Agrupa pagamentos        
 
-    // for (let index = 0; index < consorcios.length; index++) {
-    //   if (pagamentoUnico) {
-    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
-    //       dataFim, dataPagamento, "cett", [consorcios[index]]);
-    //   } else {
-    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-    //       dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
-    //   }
-    // }
+    for (let index = 0; index < consorcios.length; index++) {
+      if (pagamentoUnico) {
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
+          dataFim, dataPagamento, "cett", [consorcios[index]]);
+      } else {
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+      }
+    }
 
-    // //Prepara o remessa
-    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    //Prepara o remessa
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico);
     //Envia para o SFTP
@@ -721,7 +719,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-   // await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
