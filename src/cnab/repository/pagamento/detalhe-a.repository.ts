@@ -187,8 +187,9 @@ export class DetalheARepository {
                                 inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
                                 inner join public.user uu on uu.id = op."userId"
                                 where  date_trunc('day',da."dataVencimento")='${dataIso}'  
-                                and uu."cpfCnpj"='${cpf}'
-                                and da."valorLancamento"=${valorLancamento}`)                     
+                                and uu."cpfCnpj" ilike '%${cpf}'
+                                and da."valorLancamento"=${valorLancamento}
+                                and oph."statusRemessa" not in(3,4) `)                     
 
     const queryRunner = this.dataSource.createQueryRunner();
 
