@@ -7,6 +7,7 @@ import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import {
   buildBaseQuery,
   buildPendentesQuery,
+  buildPendenciaPagaSingleDateQuery,
   CONSORCIO_CASE,
   NOT_CPF_FILTER,
   STATUS_CASE,
@@ -26,10 +27,10 @@ type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
 };
 
 type ResolvedStatuses = {
-  allSelectedStatuses: string[] | null;
   baseStatuses: string[] | null;
   includePendentes: boolean;
   includeBase: boolean;
+  includePendenciaPagaSingleDate: boolean;
 };
 
 type CursorValues = {
@@ -60,7 +61,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
   ): Promise<RelatorioFinancialMovementNovoRemessaSummaryDto> {
     const safeFilter = this.normalizeFilter(filter);
     const statuses = this.resolveStatuses(safeFilter);
-    const params = this.getQueryParameters(safeFilter, statuses.allSelectedStatuses);
+    const params = this.getQueryParameters(safeFilter, statuses.baseStatuses);
 
     const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
     const { countQuery, aggregatesQuery } = this.buildSummaryQueries(finalBaseQuery);
@@ -89,7 +90,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
   ): Promise<RelatorioFinancialMovementNovoRemessaPageDto> {
     const safeFilter = this.normalizeFilter(filter);
     const statuses = this.resolveStatuses(safeFilter);
-    const params = this.getQueryParameters(safeFilter, statuses.allSelectedStatuses);
+    const params = this.getQueryParameters(safeFilter, statuses.baseStatuses);
 
     const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
     const groupedCte = this.buildGroupedCte(finalBaseQuery);
@@ -231,23 +232,26 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
     if (!allSelectedStatuses?.length) {
       return {
-        allSelectedStatuses: null,
         baseStatuses: null,
         includePendentes: false,
         includeBase: true,
+        includePendenciaPagaSingleDate: false,
       };
     }
 
     const includePendentes = allSelectedStatuses.includes(StatusPagamento.PENDENTES);
-    const baseStatuses = allSelectedStatuses.filter(
-      (status) => status !== StatusPagamento.PENDENTES,
+    const includePendenciaPagaSingleDate = this.isSingleDate(filter)
+      && allSelectedStatuses.includes(StatusPagamento.PENDENCIA_PAGA);
+    const baseStatuses = allSelectedStatuses.filter((status) =>
+      status !== StatusPagamento.PENDENTES
+      && (!includePendenciaPagaSingleDate || status !== StatusPagamento.PENDENCIA_PAGA),
     );
 
     return {
-      allSelectedStatuses,
       baseStatuses: baseStatuses.length ? baseStatuses : null,
       includePendentes,
       includeBase: baseStatuses.length > 0,
+      includePendenciaPagaSingleDate,
     };
   }
 
@@ -259,6 +263,10 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
     if (statuses.includeBase) {
       queries.push(this.buildBaseQuery(filter));
+    }
+
+    if (statuses.includePendenciaPagaSingleDate) {
+      queries.push(this.buildPendenciaPagaSingleDateQuery(filter));
     }
 
     if (statuses.includePendentes) {
@@ -291,6 +299,21 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     ${pendentesBase}
       ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
   `;
+  }
+
+  private buildPendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
+    const baseQuery = buildPendenciaPagaSingleDateQuery({
+      todosVanzeiros: filter.todosVanzeiros,
+      consorcioFilterParamIndex: 5,
+    }).trim();
+    return `
+      ${baseQuery}
+      ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
+    `;
+  }
+
+  private isSingleDate(filter: NormalizedFilter): boolean {
+    return format(filter.dataInicio, 'yyyy-MM-dd') === format(filter.dataFim, 'yyyy-MM-dd');
   }
 
   private resolvePagination(filter: NormalizedFilter) {

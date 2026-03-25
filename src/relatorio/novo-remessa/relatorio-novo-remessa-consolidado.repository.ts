@@ -11,6 +11,7 @@ import {
 import {
   buildBaseQuery,
   buildPendentesQuery,
+  buildPendenciaPagaSingleDateQuery,
   CONSORCIO_CASE,
   NOT_CPF_FILTER,
   STATUS_CASE,
@@ -55,6 +56,12 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     const safeFilter = this.normalizeFilter(filter);
     const selectedStatuses = this.getStatusParaFiltro(safeFilter);
+    const includePendenciaPagaSingleDate = this.isSingleDate(safeFilter)
+      && Boolean(selectedStatuses?.includes(StatusPagamento.PENDENCIA_PAGA));
+    const baseStatuses = includePendenciaPagaSingleDate
+      ? selectedStatuses?.filter((status) => status !== StatusPagamento.PENDENCIA_PAGA) ?? null
+      : selectedStatuses;
+    const includeBase = baseStatuses === null ? !includePendenciaPagaSingleDate : baseStatuses.length > 0;
     const includePendentes = Boolean(
       safeFilter.pendentes || selectedStatuses?.includes(StatusPagamento.PENDENTES),
     );
@@ -67,24 +74,48 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       const consorcioOverride = safeFilter.userIds && safeFilter.userIds.length > 0
         ? null
         : this.PENDENTES_CONSORCIOS;
-      const params = this.getQueryParameters(
-        { ...safeFilter, consorcioNome: consorcioOverride ?? safeFilter.consorcioNome },
-        selectedStatuses,
-        consorcioOverride,
-      );
-      const sqlModais = this.buildConsolidadoPorNomeQuery(safeFilter, 'nomes');
-      groupedQueries.push({ query: sqlModais, params });
+      if (includeBase) {
+        const params = this.getQueryParameters(
+          { ...safeFilter, consorcioNome: consorcioOverride ?? safeFilter.consorcioNome },
+          baseStatuses,
+          consorcioOverride,
+        );
+        const sqlModais = this.buildConsolidadoPorNomeQuery(safeFilter, 'nomes');
+        groupedQueries.push({ query: sqlModais, params });
+      }
+      if (includePendenciaPagaSingleDate) {
+        const pendenciaParams = this.getQueryParameters(
+          { ...safeFilter, consorcioNome: consorcioOverride ?? safeFilter.consorcioNome },
+          [StatusPagamento.PENDENCIA_PAGA],
+          consorcioOverride,
+        );
+        const pendenciaBase = this.buildPendenciaPagaSingleDateQuery(safeFilter);
+        const sqlPendencia = this.buildConsolidadoPorNomeQuery(safeFilter, 'nomes', pendenciaBase);
+        groupedQueries.push({ query: sqlPendencia, params: pendenciaParams });
+      }
     }
 
     if (safeFilter.todosConsorcios || (safeFilter.consorcioNome && safeFilter.consorcioNome.length > 0)) {
       const consorcioOverride = safeFilter.todosConsorcios ? this.TODOS_CONSORCIOS : safeFilter.consorcioNome;
-      const params = this.getQueryParameters(
-        { ...safeFilter, userIds: undefined },
-        selectedStatuses,
-        consorcioOverride,
-      );
-      const sqlConsorcios = this.buildConsolidadoPorNomeQuery(safeFilter, '"nomeConsorcio"');
-      groupedQueries.push({ query: sqlConsorcios, params });
+      if (includeBase) {
+        const params = this.getQueryParameters(
+          { ...safeFilter, userIds: undefined },
+          baseStatuses,
+          consorcioOverride,
+        );
+        const sqlConsorcios = this.buildConsolidadoPorNomeQuery(safeFilter, '"nomeConsorcio"');
+        groupedQueries.push({ query: sqlConsorcios, params });
+      }
+      if (includePendenciaPagaSingleDate) {
+        const pendenciaParams = this.getQueryParameters(
+          { ...safeFilter, userIds: undefined },
+          [StatusPagamento.PENDENCIA_PAGA],
+          consorcioOverride,
+        );
+        const pendenciaBase = this.buildPendenciaPagaSingleDateQuery(safeFilter);
+        const sqlPendencia = this.buildConsolidadoPorNomeQuery(safeFilter, '"nomeConsorcio"', pendenciaBase);
+        groupedQueries.push({ query: sqlPendencia, params: pendenciaParams });
+      }
     }
 
     if (includePendentes) {
@@ -197,8 +228,12 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     return mapModaisEConsorcios;
   }
 
-  private buildConsolidadoPorNomeQuery(filter: NormalizedFilter, nomeField: 'nomes' | '"nomeConsorcio"') {
-    const baseQuery = this.buildBaseQuery(filter);
+  private buildConsolidadoPorNomeQuery(
+    filter: NormalizedFilter,
+    nomeField: 'nomes' | '"nomeConsorcio"',
+    baseQueryOverride?: string,
+  ) {
+    const baseQuery = baseQueryOverride ?? this.buildBaseQuery(filter);
     const includeCpf = nomeField === 'nomes';
     const cpfSelect = includeCpf ? '"cpfCnpj"' : 'NULL::text';
     const groupByClause = includeCpf ? `${nomeField}, "cpfCnpj"` : `${nomeField}`;
@@ -213,6 +248,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
   private buildBaseQuery(filter: NormalizedFilter): string {
     const baseQuery = buildBaseQuery({
+      todosVanzeiros: filter.todosVanzeiros,
+      consorcioFilterParamIndex: 5,
+    });
+    return baseQuery.trim();
+  }
+
+  private buildPendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
+    const baseQuery = buildPendenciaPagaSingleDateQuery({
       todosVanzeiros: filter.todosVanzeiros,
       consorcioFilterParamIndex: 5,
     });
@@ -248,6 +291,10 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         ? filter.consorcioNome.map((nome) => nome.toUpperCase().trim())
         : undefined,
     };
+  }
+
+  private isSingleDate(filter: NormalizedFilter): boolean {
+    return format(filter.dataInicio, 'yyyy-MM-dd') === format(filter.dataFim, 'yyyy-MM-dd');
   }
 
   private getStatusParaFiltro(filter: NormalizedFilter): string[] | null {

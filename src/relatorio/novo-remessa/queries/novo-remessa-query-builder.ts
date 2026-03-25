@@ -128,3 +128,46 @@ export const buildPendentesQuery = (params: NovoRemessaPendentesParams) => {
   `;
 };
 
+export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams) => {
+  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
+  return `
+    SELECT DISTINCT
+      oph."dataReferencia" AS "dataReferencia",
+      op_pai.id,
+      pu."fullName" AS nomes,
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${CONSORCIO_CASE} AS "nomeConsorcio",
+      op_pai."valorTotal" AS valor,
+      op_pai."dataPagamento" AS "dataPagamento",
+      ${STATUS_CASE} AS status
+    FROM ordem_pagamento_agrupado op_pai
+    INNER JOIN (
+      SELECT DISTINCT ON ("ordemPagamentoAgrupadoId") *
+      FROM ordem_pagamento_agrupado_historico
+      ORDER BY "ordemPagamentoAgrupadoId", "dataReferencia" DESC, id DESC
+    ) oph
+      ON oph."ordemPagamentoAgrupadoId" = op_pai.id
+    INNER JOIN ordem_pagamento op
+      ON op."ordemPagamentoAgrupadoId" = op_pai.id
+    INNER JOIN public."user" pu
+      ON pu.id = op."userId"
+    INNER JOIN bank bc
+      ON bc.code = pu."bankCode"
+    WHERE
+      oph."statusRemessa" = 5
+      AND op_pai."ordemPagamentoAgrupadoId" IS NULL
+      AND op_pai."dataPagamento"::date = $1::date
+      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
+      AND (
+        ($6::numeric IS NULL OR op_pai."valorTotal" >= $6::numeric)
+        AND ($7::numeric IS NULL OR op_pai."valorTotal" <= $7::numeric)
+      )
+      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+  `;
+};
