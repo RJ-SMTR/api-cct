@@ -93,6 +93,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       SELECT
         COALESCE(SUM(valor), 0) AS "valorTotal",
         COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) AS "valorPago",
+        COALESCE(SUM(CASE WHEN status = 'A Pagar' THEN valor ELSE 0 END), 0) AS "valorAPagar",
         COALESCE(SUM(CASE WHEN status = 'Estorno' THEN valor ELSE 0 END), 0) AS "valorEstornado",
         COALESCE(SUM(CASE WHEN status = 'Rejeitado' THEN valor ELSE 0 END), 0) AS "valorRejeitado",
         COALESCE(SUM(CASE WHEN status = 'Aguardando Pagamento' THEN valor ELSE 0 END), 0) AS "valorAguardandoPagamento",
@@ -104,11 +105,9 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     try {
       const [countRows, aggregateRows] = await Promise.all([
         this.dataSource.query(countQuery, params).then(res => {
-          console.log('COUNT finished');
           return res;
         }),
         this.dataSource.query(aggregatesQuery, params).then(res => {
-          console.log('SUM finished');
           return res;
         }),
       ]);
@@ -119,6 +118,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
         count: totalCount,
         valorTotal: Number.parseFloat((aggregates.valorTotal ?? 0).toString()),
         valorPago: Number(aggregates.valorPago ?? 0),
+        valorAPagar: Number(aggregates.valorAPagar ?? 0),
         valorEstornado: Number(aggregates.valorEstornado ?? 0),
         valorRejeitado: Number(aggregates.valorRejeitado ?? 0),
         valorAguardandoPagamento: Number(aggregates.valorAguardandoPagamento ?? 0),
