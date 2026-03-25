@@ -132,40 +132,58 @@ export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams)
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
   return `
     SELECT DISTINCT
-      oph."dataReferencia" AS "dataReferencia",
-      op_pai.id,
+      da."dataVencimento" AS "dataReferencia",
+      opa.id,
       pu."fullName" AS nomes,
       pu.email,
       pu."bankCode" AS "codBanco",
       bc.name AS "nomeBanco",
       pu."cpfCnpj" AS "cpfCnpj",
       ${CONSORCIO_CASE} AS "nomeConsorcio",
-      op_pai."valorTotal" AS valor,
-      op_pai."dataPagamento" AS "dataPagamento",
+      da."valorLancamento" AS valor,
+      CASE
+        WHEN oph."statusRemessa" = 5
+          AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
+          THEN op_pai."dataPagamento"
+        ELSE opa."dataPagamento"
+      END AS "dataPagamento",
       ${STATUS_CASE} AS status
-    FROM ordem_pagamento_agrupado op_pai
-    INNER JOIN (
-      SELECT DISTINCT ON ("ordemPagamentoAgrupadoId") *
-      FROM ordem_pagamento_agrupado_historico
-      ORDER BY "ordemPagamentoAgrupadoId", "dataReferencia" DESC, id DESC
-    ) oph
-      ON oph."ordemPagamentoAgrupadoId" = op_pai.id
-    INNER JOIN ordem_pagamento op
-      ON op."ordemPagamentoAgrupadoId" = op_pai.id
-    INNER JOIN public."user" pu
-      ON pu.id = op."userId"
-    INNER JOIN bank bc
-      ON bc.code = pu."bankCode"
+      FROM ordem_pagamento op
+      INNER JOIN ordem_pagamento_agrupado opa
+        ON op."ordemPagamentoAgrupadoId" = opa.id
+      LEFT JOIN ordem_pagamento_agrupado op_pai
+        ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+      INNER JOIN ordem_pagamento_agrupado_historico oph
+        ON oph."ordemPagamentoAgrupadoId" = opa.id
+      INNER JOIN detalhe_a da
+        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+      INNER JOIN public."user" pu
+        ON pu.id = op."userId"
+      INNER JOIN bank bc
+        ON bc.code = pu."bankCode"
     WHERE
-      oph."statusRemessa" = 5
-      AND op_pai."ordemPagamentoAgrupadoId" IS NULL
-      AND op_pai."dataPagamento"::date = $1::date
-      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
+       ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR TRUE)
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
       AND (
-        ($6::numeric IS NULL OR op_pai."valorTotal" >= $6::numeric)
-        AND ($7::numeric IS NULL OR op_pai."valorTotal" <= $7::numeric)
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ordem_pagamento_agrupado filha
+        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
+      )
+      AND oph."statusRemessa" = 5
+      AND (
+        (
+          opa."ordemPagamentoAgrupadoId" IS NOT NULL
+          AND op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
+        )
+        OR (
+          opa."ordemPagamentoAgrupadoId" IS NULL
+          AND opa."dataPagamento"::date BETWEEN $1::date AND $2::date
+        )
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
