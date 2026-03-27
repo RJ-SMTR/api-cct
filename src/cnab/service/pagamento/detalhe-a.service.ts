@@ -151,9 +151,7 @@ export class DetalheAService {
     return await this.detalheARepository.getDetalheAHeaderLote(headerLoteId)
   }
 
-  public async getDetalheARetorno(dataVencimento: Date,valorLancamento: number,
-    userBankCode:string,userBankAccount:string){
-    return await this.detalheARepository.getDetalheARetorno(dataVencimento,valorLancamento,userBankCode,
-      userBankAccount)
+  public async getDetalheARetorno(dataVencimento: Date,cpf:String,valorLancamento: number){
+    return await this.detalheARepository.getDetalheARetorno(dataVencimento,cpf,valorLancamento)
   }
 }
