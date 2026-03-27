@@ -80,6 +80,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       valorEstornado: Number(aggregates.valorEstornado ?? 0),
       valorRejeitado: Number(aggregates.valorRejeitado ?? 0),
       valorAguardandoPagamento: Number(aggregates.valorAguardandoPagamento ?? 0),
+      valorAPagar: Number(aggregates.valorAPagar ?? 0),
       valorPendente: Number(aggregates.valorPendente ?? 0),
       valorPendenciaPaga: Number(aggregates.valorPendenciaPaga ?? 0),
     });
@@ -204,6 +205,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
         COALESCE(SUM(CASE WHEN status = 'Estorno' THEN valor ELSE 0 END), 0) AS "valorEstornado",
         COALESCE(SUM(CASE WHEN status = 'Rejeitado' THEN valor ELSE 0 END), 0) AS "valorRejeitado",
         COALESCE(SUM(CASE WHEN status = 'Aguardando Pagamento' THEN valor ELSE 0 END), 0) AS "valorAguardandoPagamento",
+        COALESCE(SUM(CASE WHEN status = 'A Pagar' THEN valor ELSE 0 END), 0) AS "valorAPagar",
         COALESCE(SUM(CASE WHEN status = 'Pendentes' THEN valor ELSE 0 END), 0) AS "valorPendente",
         COALESCE(SUM(CASE WHEN status = 'Pendencia Paga' THEN valor ELSE 0 END), 0) AS "valorPendenciaPaga"
       FROM base

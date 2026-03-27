@@ -56,81 +56,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     const safeFilter = this.normalizeFilter(filter);
     const selectedStatuses = this.getStatusParaFiltro(safeFilter);
-    const includePendenciaPagaSingleDate = this.isSingleDate(safeFilter)
-      && Boolean(selectedStatuses?.includes(StatusPagamento.PENDENCIA_PAGA));
-    const baseStatuses = includePendenciaPagaSingleDate
-      ? selectedStatuses?.filter((status) => status !== StatusPagamento.PENDENCIA_PAGA) ?? null
-      : selectedStatuses;
-    const includeBase = baseStatuses === null ? !includePendenciaPagaSingleDate : baseStatuses.length > 0;
-    const includePendentes = Boolean(
-      safeFilter.pendentes || selectedStatuses?.includes(StatusPagamento.PENDENTES),
-    );
-
-    const includeVanzeiros = Boolean(safeFilter.todosVanzeiros || (safeFilter.userIds && safeFilter.userIds.length > 0));
-    const includeConsorcios = Boolean(safeFilter.todosConsorcios || (safeFilter.consorcioNome && safeFilter.consorcioNome.length > 0));
-    const groupedQueries: Array<{ query: string; params: any[] }> = [];
-
-    if (safeFilter.todosVanzeiros || (safeFilter.userIds && safeFilter.userIds.length > 0)) {
-      const consorcioOverride = safeFilter.userIds && safeFilter.userIds.length > 0
-        ? null
-        : this.PENDENTES_CONSORCIOS;
-      if (includeBase) {
-        const params = this.getQueryParameters(
-          { ...safeFilter, consorcioNome: consorcioOverride ?? safeFilter.consorcioNome },
-          baseStatuses,
-          consorcioOverride,
-        );
-        const sqlModais = this.buildConsolidadoPorNomeQuery(safeFilter, 'nomes');
-        groupedQueries.push({ query: sqlModais, params });
-      }
-      if (includePendenciaPagaSingleDate) {
-        const pendenciaParams = this.getQueryParameters(
-          { ...safeFilter, consorcioNome: consorcioOverride ?? safeFilter.consorcioNome },
-          [StatusPagamento.PENDENCIA_PAGA],
-          consorcioOverride,
-        );
-        const pendenciaBase = this.buildPendenciaPagaSingleDateQuery(safeFilter);
-        const sqlPendencia = this.buildConsolidadoPorNomeQuery(safeFilter, 'nomes', pendenciaBase);
-        groupedQueries.push({ query: sqlPendencia, params: pendenciaParams });
-      }
-    }
-
-    if (safeFilter.todosConsorcios || (safeFilter.consorcioNome && safeFilter.consorcioNome.length > 0)) {
-      const consorcioOverride = safeFilter.todosConsorcios ? this.TODOS_CONSORCIOS : safeFilter.consorcioNome;
-      if (includeBase) {
-        const params = this.getQueryParameters(
-          { ...safeFilter, userIds: undefined },
-          baseStatuses,
-          consorcioOverride,
-        );
-        const sqlConsorcios = this.buildConsolidadoPorNomeQuery(safeFilter, '"nomeConsorcio"');
-        groupedQueries.push({ query: sqlConsorcios, params });
-      }
-      if (includePendenciaPagaSingleDate) {
-        const pendenciaParams = this.getQueryParameters(
-          { ...safeFilter, userIds: undefined },
-          [StatusPagamento.PENDENCIA_PAGA],
-          consorcioOverride,
-        );
-        const pendenciaBase = this.buildPendenciaPagaSingleDateQuery(safeFilter);
-        const sqlPendencia = this.buildConsolidadoPorNomeQuery(safeFilter, '"nomeConsorcio"', pendenciaBase);
-        groupedQueries.push({ query: sqlPendencia, params: pendenciaParams });
-      }
-    }
-
-    if (includePendentes) {
-      const pendentesParams = this.getQueryParameters(
-        {
-          ...safeFilter,
-          consorcioNome: safeFilter.todosVanzeiros ? this.PENDENTES_CONSORCIOS : safeFilter.consorcioNome,
-        },
-        selectedStatuses,
-        safeFilter.todosVanzeiros ? this.PENDENTES_CONSORCIOS : safeFilter.consorcioNome,
-      );
-      const groupByConsorcio = includeConsorcios && !includeVanzeiros;
-      const pendentesQuery = this.buildPendentesQuery(safeFilter, groupByConsorcio);
-      groupedQueries.push({ query: pendentesQuery, params: pendentesParams });
-    }
+    const groupedQueries = this.buildGroupedQueries(safeFilter, selectedStatuses);
 
     const unionData = this.buildUnionQuery(groupedQueries);
     const result = unionData
@@ -161,10 +87,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         )?.[0]?.total ?? 0,
       )
       : 0;
+    const valorAPagar = selectedStatuses?.includes(StatusPagamento.A_PAGAR)
+      ? await this.getTotalPorStatus(queryRunner, safeFilter, [StatusPagamento.A_PAGAR])
+      : 0;
 
     const relatorioConsolidadoDto = new RelatorioConsolidadoNovoRemessaDto();
 
     relatorioConsolidadoDto.valor = parseFloat(String(total.toFixed(2)));
+    relatorioConsolidadoDto.valorAPagar = parseFloat(String(valorAPagar.toFixed(2)));
 
     relatorioConsolidadoDto.count = count;
 
@@ -363,5 +293,110 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   private shiftPlaceholders(query: string, offset: number) {
     if (offset === 0) return query;
     return query.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + offset}`);
+  }
+
+  private buildGroupedQueries(
+    filter: NormalizedFilter,
+    selectedStatuses: string[] | null,
+  ): Array<{ query: string; params: any[] }> {
+    const includePendenciaPagaSingleDate = this.isSingleDate(filter)
+      && Boolean(selectedStatuses?.includes(StatusPagamento.PENDENCIA_PAGA));
+    const baseStatuses = includePendenciaPagaSingleDate
+      ? selectedStatuses?.filter((status) => status !== StatusPagamento.PENDENCIA_PAGA) ?? null
+      : selectedStatuses;
+    const includeBase = baseStatuses === null ? !includePendenciaPagaSingleDate : baseStatuses.length > 0;
+    const includePendentes = Boolean(
+      filter.pendentes || selectedStatuses?.includes(StatusPagamento.PENDENTES),
+    );
+
+    const includeVanzeiros = Boolean(filter.todosVanzeiros || (filter.userIds && filter.userIds.length > 0));
+    const includeConsorcios = Boolean(filter.todosConsorcios || (filter.consorcioNome && filter.consorcioNome.length > 0));
+    const groupedQueries: Array<{ query: string; params: any[] }> = [];
+
+    if (filter.todosVanzeiros || (filter.userIds && filter.userIds.length > 0)) {
+      const consorcioOverride = filter.userIds && filter.userIds.length > 0
+        ? null
+        : this.PENDENTES_CONSORCIOS;
+      if (includeBase) {
+        const params = this.getQueryParameters(
+          { ...filter, consorcioNome: consorcioOverride ?? filter.consorcioNome },
+          baseStatuses,
+          consorcioOverride,
+        );
+        const sqlModais = this.buildConsolidadoPorNomeQuery(filter, 'nomes');
+        groupedQueries.push({ query: sqlModais, params });
+      }
+      if (includePendenciaPagaSingleDate) {
+        const pendenciaParams = this.getQueryParameters(
+          { ...filter, consorcioNome: consorcioOverride ?? filter.consorcioNome },
+          [StatusPagamento.PENDENCIA_PAGA],
+          consorcioOverride,
+        );
+        const pendenciaBase = this.buildPendenciaPagaSingleDateQuery(filter);
+        const sqlPendencia = this.buildConsolidadoPorNomeQuery(filter, 'nomes', pendenciaBase);
+        groupedQueries.push({ query: sqlPendencia, params: pendenciaParams });
+      }
+    }
+
+    if (filter.todosConsorcios || (filter.consorcioNome && filter.consorcioNome.length > 0)) {
+      const consorcioOverride = filter.todosConsorcios ? this.TODOS_CONSORCIOS : filter.consorcioNome;
+      if (includeBase) {
+        const params = this.getQueryParameters(
+          { ...filter, userIds: undefined },
+          baseStatuses,
+          consorcioOverride,
+        );
+        const sqlConsorcios = this.buildConsolidadoPorNomeQuery(filter, '"nomeConsorcio"');
+        groupedQueries.push({ query: sqlConsorcios, params });
+      }
+      if (includePendenciaPagaSingleDate) {
+        const pendenciaParams = this.getQueryParameters(
+          { ...filter, userIds: undefined },
+          [StatusPagamento.PENDENCIA_PAGA],
+          consorcioOverride,
+        );
+        const pendenciaBase = this.buildPendenciaPagaSingleDateQuery(filter);
+        const sqlPendencia = this.buildConsolidadoPorNomeQuery(filter, '"nomeConsorcio"', pendenciaBase);
+        groupedQueries.push({ query: sqlPendencia, params: pendenciaParams });
+      }
+    }
+
+    if (includePendentes) {
+      const pendentesParams = this.getQueryParameters(
+        {
+          ...filter,
+          consorcioNome: filter.todosVanzeiros ? this.PENDENTES_CONSORCIOS : filter.consorcioNome,
+        },
+        selectedStatuses,
+        filter.todosVanzeiros ? this.PENDENTES_CONSORCIOS : filter.consorcioNome,
+      );
+      const groupByConsorcio = includeConsorcios && !includeVanzeiros;
+      const pendentesQuery = this.buildPendentesQuery(filter, groupByConsorcio);
+      groupedQueries.push({ query: pendentesQuery, params: pendentesParams });
+    }
+
+    return groupedQueries;
+  }
+
+  private async getTotalPorStatus(
+    queryRunner: QueryRunner,
+    filter: NormalizedFilter,
+    selectedStatuses: string[],
+  ): Promise<number> {
+    const groupedQueries = this.buildGroupedQueries(filter, selectedStatuses);
+    const unionData = this.buildUnionQuery(groupedQueries);
+    if (!unionData) return 0;
+
+    const result = await queryRunner.query(
+      `
+        SELECT COALESCE(SUM(valor), 0) AS total
+        FROM (
+          ${unionData.query}
+        ) t
+      `,
+      unionData.params,
+    );
+
+    return Number(result?.[0]?.total ?? 0);
   }
 }

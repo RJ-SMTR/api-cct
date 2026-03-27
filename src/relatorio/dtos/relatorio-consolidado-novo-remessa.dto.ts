@@ -9,6 +9,7 @@ export class RelatorioConsolidadoNovoRemessaDto {
 
   count: number;
   valor: number;
+  valorAPagar: number;
   data: RelatorioConsolidadoNovoRemessaData[];
 
 }

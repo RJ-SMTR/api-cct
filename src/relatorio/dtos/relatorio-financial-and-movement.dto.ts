@@ -20,6 +20,7 @@ export class RelatorioFinancialMovementNovoRemessaSummaryDto {
   valorRejeitado: number;
   valorEstornado: number;
   valorAguardandoPagamento: number;
+  valorAPagar: number;
   valorPendente: number;
   valorPendenciaPaga: number;
 }
