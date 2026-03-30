@@ -17,6 +17,7 @@ export class RelatorioFinancialMovementNovoRemessaSummaryDto {
   count: number;
   valorTotal: number;
   valorPago: number;
+  valorAPagar: number;
   valorRejeitado: number;
   valorEstornado: number;
   valorAguardandoPagamento: number;

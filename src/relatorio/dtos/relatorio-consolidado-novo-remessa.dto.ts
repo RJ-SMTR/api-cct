@@ -9,6 +9,7 @@ export class RelatorioConsolidadoNovoRemessaDto {
 
   count: number;
   valor: number;
+  valorAPagar: number;
   data: RelatorioConsolidadoNovoRemessaData[];
 
 }
@@ -21,7 +22,7 @@ export class RelatorioConsolidadoNovoRemessaData {
   }
 
   valor: number;
-
+  cpfCnpj?: string | null;
   nomefavorecido: string;
 
 }
