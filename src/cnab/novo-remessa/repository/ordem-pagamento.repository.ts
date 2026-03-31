@@ -121,10 +121,13 @@ FROM
         SELECT
             op.valor,
             opa."valorTotal",
-            opa."dataPagamento"  as "dataReferencia",
+            CASE
+                WHEN oph."statusRemessa" = 5 THEN oph."dataReferencia"
+                ELSE opa."dataPagamento"
+            END as "dataReferencia",
             oph."statusRemessa",
             oph."motivoStatusRemessa",
-     opa.id AS opa_id,
+            opa.id AS opa_id,
             opa."dataPagamento" AS data_pagamento,
             opa."ordemPagamentoAgrupadoId" AS opa_origem_id
         FROM
