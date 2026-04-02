@@ -104,8 +104,8 @@ export class OrdemPagamentoAgrupadoService {
 
 
   private async agruparOrdensPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, nomes?: string[]) {
-    await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
-    // await this.ordemPagamentoRepository.agruparOrdensDeEstornadosRejeitados(dataInicial, dataFinal, dataPgto, pagador, nomes);
+   // await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
+     await this.ordemPagamentoRepository.agruparOrdensDeEstornadosRejeitados(dataInicial, dataFinal, dataPgto, pagador, nomes);
   }
   private async getPagador(pagadorKey: any) {
     return (await this.pagadorService.getAllPagador())[pagadorKey];
