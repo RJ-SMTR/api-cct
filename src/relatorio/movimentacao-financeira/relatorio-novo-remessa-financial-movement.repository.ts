@@ -6,6 +6,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import {
   buildBaseQuery,
+  buildEleicaoQuery,
   buildPendentesQuery,
   buildPendenciaPagaSingleDateQuery,
   CONSORCIO_CASE,
@@ -261,6 +262,10 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     filter: NormalizedFilter,
     statuses: ResolvedStatuses,
   ): string {
+    if (filter.eleicao) {
+      return this.buildEleicaoQuery(filter);
+    }
+
     const queries: string[] = [];
 
     if (statuses.includeBase) {
@@ -286,6 +291,17 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
   private buildBaseQuery(filter: NormalizedFilter): string {
     const baseQuery = buildBaseQuery({
+      todosVanzeiros: filter.todosVanzeiros,
+      consorcioFilterParamIndex: 5,
+    }).trim();
+    return `
+      ${baseQuery}
+      ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
+    `;
+  }
+
+  private buildEleicaoQuery(filter: NormalizedFilter): string {
+    const baseQuery = buildEleicaoQuery({
       todosVanzeiros: filter.todosVanzeiros,
       consorcioFilterParamIndex: 5,
     }).trim();
