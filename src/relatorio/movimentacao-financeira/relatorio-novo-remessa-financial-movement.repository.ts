@@ -262,7 +262,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     filter: NormalizedFilter,
     statuses: ResolvedStatuses,
   ): string {
-    if (filter.eleicao) {
+    if (filter.eleicao && !this.hasOtherStatusFilters(filter)) {
       return this.buildEleicaoQuery(filter);
     }
 
@@ -336,6 +336,19 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
   private isSingleDate(filter: NormalizedFilter): boolean {
     return format(filter.dataInicio, 'yyyy-MM-dd') === format(filter.dataFim, 'yyyy-MM-dd');
+  }
+
+  private hasOtherStatusFilters(filter: NormalizedFilter): boolean {
+    return Boolean(
+      filter.pago
+      || filter.aPagar
+      || filter.emProcessamento
+      || filter.erro
+      || filter.pendenciaPaga
+      || filter.pendentes
+      || filter.estorno
+      || filter.rejeitado,
+    );
   }
 
   private resolvePagination(filter: NormalizedFilter) {
