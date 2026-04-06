@@ -104,14 +104,13 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-   // await this.sincronizarEAgruparOrdensPagamento()
+    await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {
-    await this.retornoExec()
+  async onModuleLoad() {      
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
@@ -672,8 +671,9 @@ export class CronJobsService {
     const today = new Date();
     let subDaysInt = 0;
 
+    //Rodar desde o dia 02/04
     if (isTuesday(today)) {
-      subDaysInt = 4;
+      subDaysInt = 5;
     } else if (isFriday(today)) {
       subDaysInt = 3;
     } else {
@@ -750,24 +750,24 @@ export class CronJobsService {
 
         // Sincroniza as ordens de pagamento para todos os modais e consorcios
         const today = new Date();
-        let dataInicio = today
-        let dataFim = today
+        let dataInicio = new Date('2026-04-02'); //  today
+        let dataFim =  new Date('2026-04-02'); //today
         let dataPagamento = today;
 
         const dayOfWeek = today.getDay();
 
         // Verifica se é sexta-feira (5), sábado (6), domingo (0) ou segunda-feira (1)
-        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
-          //Se está entre sexta e segunda!  
-          dataInicio = isFriday(today) ? today : this.getPreviousFriday(today);//data inicio sexta
-          dataFim = nextMonday(today);//data fim segunda
-          dataPagamento = nextTuesday(today);//data pagamento terça 
-        } else {
-          //Se está entre terça e quinta!  
-          dataInicio = isTuesday(today) ? today : this.getPreviousTuesday(today); //data inicio terça
-          dataFim = nextThursday(today); //data fim quinta
-          dataPagamento = nextFriday(today);//data pagamento sexta
-        }
+        // if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
+        //   //Se está entre sexta e segunda!  
+        //   dataInicio = isFriday(today) ? today : this.getPreviousFriday(today);//data inicio sexta
+        //   dataFim = nextMonday(today);//data fim segunda
+        //   dataPagamento = nextTuesday(today);//data pagamento terça 
+        // } else {
+        //   //Se está entre terça e quinta!  
+        //   dataInicio = isTuesday(today) ? today : this.getPreviousTuesday(today); //data inicio terça
+        //   dataFim = nextThursday(today); //data fim quinta
+        //   dataPagamento = nextFriday(today);//data pagamento sexta
+        // }
 
         this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`, METHOD);
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
