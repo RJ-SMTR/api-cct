@@ -98,20 +98,20 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     left JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
     left JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
     WHERE da.id = ${detalheAId}
-),
-filhos AS (
-    SELECT id
-    FROM ordem_pagamento_agrupado
-    WHERE "ordemPagamentoAgrupadoId" IN (SELECT id FROM raiz)
-)
-SELECT DISTINCT oph.*
-FROM ordem_pagamento_agrupado_historico oph
-left JOIN detalhe_a da 
-    ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-WHERE da.id = ${detalheAId}
-   OR oph."ordemPagamentoAgrupadoId" IN (SELECT id FROM filhos)
-   and oph."statusRemessa" NOT IN (4,3)
-`)
+    ),
+    filhos AS (
+        SELECT id
+        FROM ordem_pagamento_agrupado
+        WHERE "ordemPagamentoAgrupadoId" IN (SELECT id FROM raiz)
+    )
+    SELECT DISTINCT oph.*
+    FROM ordem_pagamento_agrupado_historico oph
+    left JOIN detalhe_a da 
+        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    WHERE da.id = ${detalheAId}
+      OR oph."ordemPagamentoAgrupadoId" IN (SELECT id FROM filhos)
+      and oph."statusRemessa" NOT IN (4,3)
+    `)
 
     const queryRunner = this.dataSource.createQueryRunner();
 
