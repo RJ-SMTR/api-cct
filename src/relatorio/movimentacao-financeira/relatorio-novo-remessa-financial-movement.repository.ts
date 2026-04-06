@@ -268,6 +268,10 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
     const queries: string[] = [];
 
+    if (filter.eleicao) {
+      queries.push(this.buildEleicaoQuery(filter));
+    }
+
     if (statuses.includeBase) {
       queries.push(this.buildBaseQuery(filter));
     }

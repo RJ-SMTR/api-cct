@@ -349,6 +349,34 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const includeConsorcios = Boolean(filter.todosConsorcios || (filter.consorcioNome && filter.consorcioNome.length > 0));
     const groupedQueries: Array<{ query: string; params: any[] }> = [];
 
+    if (filter.eleicao) {
+      const baseQuery = this.buildEleicaoQuery(filter);
+
+      if (includeVanzeiros) {
+        const consorcioOverride = filter.userIds && filter.userIds.length > 0
+          ? null
+          : this.PENDENTES_CONSORCIOS;
+        const params = this.getQueryParameters(
+          { ...filter, consorcioNome: consorcioOverride ?? filter.consorcioNome },
+          selectedStatuses,
+          consorcioOverride,
+        );
+        const sqlModais = this.buildConsolidadoPorNomeQuery(filter, 'nomes', baseQuery);
+        groupedQueries.push({ query: sqlModais, params });
+      }
+
+      if (includeConsorcios) {
+        const consorcioOverride = filter.todosConsorcios ? this.TODOS_CONSORCIOS : filter.consorcioNome;
+        const params = this.getQueryParameters(
+          { ...filter, userIds: undefined },
+          selectedStatuses,
+          consorcioOverride,
+        );
+        const sqlConsorcios = this.buildConsolidadoPorNomeQuery(filter, '"nomeConsorcio"', baseQuery);
+        groupedQueries.push({ query: sqlConsorcios, params });
+      }
+    }
+
     if (filter.todosVanzeiros || (filter.userIds && filter.userIds.length > 0)) {
       const consorcioOverride = filter.userIds && filter.userIds.length > 0
         ? null
