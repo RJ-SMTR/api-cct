@@ -186,7 +186,7 @@ export class DetalheARepository {
                                 inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
                                 inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
                                 inner join public.user uu on uu.id = op."userId"
-                                where  date_trunc('day',da."dataVencimento")='${dataIso}'  
+                                where oph."statusRemessa" in(1,2)
                                 and uu."cpfCnpj" ilike '%${cpf}'
                                 and da."valorLancamento"=${valorLancamento}`)                     
 
