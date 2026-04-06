@@ -262,11 +262,11 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     filter: NormalizedFilter,
     statuses: ResolvedStatuses,
   ): string {
-    if (filter.eleicao) {
-      return this.buildEleicaoQuery(filter);
-    }
-
     const queries: string[] = [];
+
+    if (filter.eleicao) {
+      queries.push(this.buildEleicaoQuery(filter));
+    }
 
     if (statuses.includeBase) {
       queries.push(this.buildBaseQuery(filter));

@@ -39,6 +39,19 @@ export const ELEICAO_STATUS_CASE = `
   END
 `;
 
+export const ELEICAO_STATUS_FILTER = `
+  (
+    $4::text[] IS NULL
+    OR ${ELEICAO_STATUS_CASE} = ANY($4)
+    OR NOT (
+      'Aguardando Pagamento' = ANY($4)
+      OR 'Pago' = ANY($4)
+      OR 'Estorno' = ANY($4)
+      OR 'Rejeitado' = ANY($4)
+    )
+  )
+`;
+
 export const NOT_CPF_FILTER = `
   AND pu."cpfCnpj" NOT IN (
     '18201378000119',
@@ -132,7 +145,7 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
     WHERE
       da."dataVencimento" BETWEEN $1 AND $2
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
-      AND ($4::text[] IS NULL OR ${ELEICAO_STATUS_CASE} = ANY($4))
+      AND ${ELEICAO_STATUS_FILTER}
       AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))
       AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)

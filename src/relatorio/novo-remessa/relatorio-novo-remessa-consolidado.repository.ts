@@ -302,10 +302,21 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     filter: NormalizedFilter,
     selectedStatuses: string[] | null,
   ): Array<{ query: string; params: any[] }> {
+    const includePendenciaPagaSingleDate = this.isSingleDate(filter)
+      && Boolean(selectedStatuses?.includes(StatusPagamento.PENDENCIA_PAGA));
+    const baseStatuses = includePendenciaPagaSingleDate
+      ? selectedStatuses?.filter((status) => status !== StatusPagamento.PENDENCIA_PAGA) ?? null
+      : selectedStatuses;
+    const includeBase = baseStatuses === null ? !includePendenciaPagaSingleDate : baseStatuses.length > 0;
+    const includePendentes = Boolean(
+      filter.pendentes || selectedStatuses?.includes(StatusPagamento.PENDENTES),
+    );
+
+    const includeVanzeiros = Boolean(filter.todosVanzeiros || (filter.userIds && filter.userIds.length > 0));
+    const includeConsorcios = Boolean(filter.todosConsorcios || (filter.consorcioNome && filter.consorcioNome.length > 0));
+    const groupedQueries: Array<{ query: string; params: any[] }> = [];
+
     if (filter.eleicao) {
-      const groupedQueries: Array<{ query: string; params: any[] }> = [];
-      const includeVanzeiros = Boolean(filter.todosVanzeiros || (filter.userIds && filter.userIds.length > 0));
-      const includeConsorcios = Boolean(filter.todosConsorcios || (filter.consorcioNome && filter.consorcioNome.length > 0));
       const baseQuery = this.buildEleicaoQuery(filter);
 
       if (includeVanzeiros) {
@@ -331,23 +342,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         const sqlConsorcios = this.buildConsolidadoPorNomeQuery(filter, '"nomeConsorcio"', baseQuery);
         groupedQueries.push({ query: sqlConsorcios, params });
       }
-
-      return groupedQueries;
     }
-
-    const includePendenciaPagaSingleDate = this.isSingleDate(filter)
-      && Boolean(selectedStatuses?.includes(StatusPagamento.PENDENCIA_PAGA));
-    const baseStatuses = includePendenciaPagaSingleDate
-      ? selectedStatuses?.filter((status) => status !== StatusPagamento.PENDENCIA_PAGA) ?? null
-      : selectedStatuses;
-    const includeBase = baseStatuses === null ? !includePendenciaPagaSingleDate : baseStatuses.length > 0;
-    const includePendentes = Boolean(
-      filter.pendentes || selectedStatuses?.includes(StatusPagamento.PENDENTES),
-    );
-
-    const includeVanzeiros = Boolean(filter.todosVanzeiros || (filter.userIds && filter.userIds.length > 0));
-    const includeConsorcios = Boolean(filter.todosConsorcios || (filter.consorcioNome && filter.consorcioNome.length > 0));
-    const groupedQueries: Array<{ query: string; params: any[] }> = [];
 
     if (filter.todosVanzeiros || (filter.userIds && filter.userIds.length > 0)) {
       const consorcioOverride = filter.userIds && filter.userIds.length > 0
