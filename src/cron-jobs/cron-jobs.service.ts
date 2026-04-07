@@ -685,7 +685,7 @@ export class CronJobsService {
     // const dataInicio = subDays(today, subDaysInt);
     // const dataFim = subDays(today, 1);
     const consorcios = ['STPC', 'STPL', 'TEC'];
-    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    //await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
   }
