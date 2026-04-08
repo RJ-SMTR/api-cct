@@ -56,9 +56,8 @@ export class OrdemPagamentoRepository {
     SELECT r.data_referencia as data, 
         r.data_inicial_operacoes,
         r.data_final_operacoes, 
-      r."statusRemessa",
-      r."motivoStatusRemessa",
-      r.opaid,
+        r."statusRemessa",
+        r."motivoStatusRemessa",   
         sum(r.valorTotalPagamento) as valor
     FROM (
     WITH datas_base AS (
@@ -92,9 +91,8 @@ export class OrdemPagamentoRepository {
           END
           AND (db.data_referencia - interval '1 day')
         ))::numeric, 2) AS valorTotalPagamento,
-      oph."statusRemessa" ,
-      oph."motivoStatusRemessa",
-      opa.id as opaid
+      oph."statusRemessa",
+      oph."motivoStatusRemessa"    
       
     FROM datas_base db
     LEFT JOIN ordem_pagamento op ON op."userId" = $2
@@ -109,8 +107,7 @@ export class OrdemPagamentoRepository {
         r.data_inicial_operacoes, 
         r.data_final_operacoes,
       r."statusRemessa",
-      r."motivoStatusRemessa",
-      r.opaid
+      r."motivoStatusRemessa"   
       
     ORDER BY r.data_referencia DESC; `;
 
