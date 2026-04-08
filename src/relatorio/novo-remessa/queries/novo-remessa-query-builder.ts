@@ -30,6 +30,28 @@ export const STATUS_CASE = `
   END
 `;
 
+export const ELEICAO_STATUS_CASE = `
+  CASE
+    WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
+    WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
+    WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+    ELSE 'Rejeitado'
+  END
+`;
+
+export const ELEICAO_STATUS_FILTER = `
+  (
+    $4::text[] IS NULL
+    OR ${ELEICAO_STATUS_CASE} = ANY($4)
+    OR NOT (
+      'Aguardando Pagamento' = ANY($4)
+      OR 'Pago' = ANY($4)
+      OR 'Estorno' = ANY($4)
+      OR 'Rejeitado' = ANY($4)
+    )
+  )
+`;
+
 export const NOT_CPF_FILTER = `
   AND pu."cpfCnpj" NOT IN (
     '18201378000119',
@@ -89,6 +111,46 @@ export const buildBaseQuery = (params: NovoRemessaBaseParams) => {
         WHERE filha."ordemPagamentoAgrupadoId" = opa.id
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+  `;
+};
+
+export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
+  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
+  return `
+    SELECT DISTINCT
+      da."dataVencimento" AS "dataReferencia",
+      opa.id,
+      pu."fullName" AS nomes,
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
+      pu."cpfCnpj",
+      opu."consorcio" AS "nomeConsorcio",
+      da."valorLancamento" AS valor,
+      da."dataVencimento" AS "dataPagamento",
+      ${ELEICAO_STATUS_CASE} AS status
+    FROM
+      ordem_pagamento_agrupado opa
+    INNER JOIN ordem_pagamento_agrupado_historico oph
+      ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da
+      ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    INNER JOIN ordem_pagamento_unico opu
+      ON opu."idOrdemPagamento" = opa.id::VARCHAR
+    INNER JOIN public."user" pu
+      ON pu."cpfCnpj" = opu."operadoraCpfCnpj"
+    INNER JOIN bank bc
+      ON bc.code = pu."bankCode"
+    WHERE
+      da."dataVencimento" BETWEEN $1 AND $2
+      AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+      AND ${ELEICAO_STATUS_FILTER}
+      AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))
+      AND (
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+      )
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
   `;
 };
