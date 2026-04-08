@@ -6,6 +6,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import {
   buildBaseQuery,
+  buildEleicaoQuery,
   buildPendentesQuery,
   buildPendenciaPagaSingleDateQuery,
   CONSORCIO_CASE,
@@ -261,7 +262,15 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     filter: NormalizedFilter,
     statuses: ResolvedStatuses,
   ): string {
+    if (filter.eleicao && !this.hasOtherStatusFilters(filter)) {
+      return this.buildEleicaoQuery(filter);
+    }
+
     const queries: string[] = [];
+
+    if (filter.eleicao) {
+      queries.push(this.buildEleicaoQuery(filter));
+    }
 
     if (statuses.includeBase) {
       queries.push(this.buildBaseQuery(filter));
@@ -295,6 +304,17 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     `;
   }
 
+  private buildEleicaoQuery(filter: NormalizedFilter): string {
+    const baseQuery = buildEleicaoQuery({
+      todosVanzeiros: filter.todosVanzeiros,
+      consorcioFilterParamIndex: 5,
+    }).trim();
+    return `
+      ${baseQuery}
+      ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
+    `;
+  }
+
   private buildPendentesQuery(filter: NormalizedFilter): string {
     const pendentesBase = buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros }).trim();
     return `
@@ -316,6 +336,19 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
   private isSingleDate(filter: NormalizedFilter): boolean {
     return format(filter.dataInicio, 'yyyy-MM-dd') === format(filter.dataFim, 'yyyy-MM-dd');
+  }
+
+  private hasOtherStatusFilters(filter: NormalizedFilter): boolean {
+    return Boolean(
+      filter.pago
+      || filter.aPagar
+      || filter.emProcessamento
+      || filter.erro
+      || filter.pendenciaPaga
+      || filter.pendentes
+      || filter.estorno
+      || filter.rejeitado,
+    );
   }
 
   private resolvePagination(filter: NormalizedFilter) {

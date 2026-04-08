@@ -10,12 +10,11 @@ import {
 } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import {
   buildBaseQuery,
+  buildEleicaoQuery,
   buildPendentesQuery,
   buildPendenciaPagaSingleDateQuery,
-  CONSORCIO_CASE,
-  NOT_CPF_FILTER,
-  STATUS_CASE,
 } from './queries/novo-remessa-query-builder';
+
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 
 type NormalizedFilter = IFindPublicacaoRelatorioNovoRemessa & {
@@ -26,10 +25,6 @@ type NormalizedFilter = IFindPublicacaoRelatorioNovoRemessa & {
 @Injectable()
 export class RelatorioNovoRemessaConsolidadoRepository {
   private readonly logger = new CustomLogger(RelatorioNovoRemessaConsolidadoRepository.name, { timestamp: true });
-
-  private readonly CONSORCIO_CASE = CONSORCIO_CASE;
-  private readonly STATUS_CASE = STATUS_CASE;
-  private readonly NOT_CPF_FILTER = NOT_CPF_FILTER;
 
   private readonly PENDENTES_CONSORCIOS = ['STPC', 'STPL', 'TEC'];
   private readonly TODOS_CONSORCIOS = [
@@ -184,6 +179,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     return baseQuery.trim();
   }
 
+  private buildEleicaoQuery(filter: NormalizedFilter): string {
+    const baseQuery = buildEleicaoQuery({
+      todosVanzeiros: filter.todosVanzeiros,
+      consorcioFilterParamIndex: 5,
+    });
+    return baseQuery.trim();
+  }
+
   private buildPendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
     const baseQuery = buildPendenciaPagaSingleDateQuery({
       todosVanzeiros: filter.todosVanzeiros,
@@ -299,6 +302,39 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     filter: NormalizedFilter,
     selectedStatuses: string[] | null,
   ): Array<{ query: string; params: any[] }> {
+    if (filter.eleicao) {
+      const groupedQueries: Array<{ query: string; params: any[] }> = [];
+      const includeVanzeiros = Boolean(filter.todosVanzeiros || (filter.userIds && filter.userIds.length > 0));
+      const includeConsorcios = Boolean(filter.todosConsorcios || (filter.consorcioNome && filter.consorcioNome.length > 0));
+      const baseQuery = this.buildEleicaoQuery(filter);
+
+      if (includeVanzeiros) {
+        const consorcioOverride = filter.userIds && filter.userIds.length > 0
+          ? null
+          : this.PENDENTES_CONSORCIOS;
+        const params = this.getQueryParameters(
+          { ...filter, consorcioNome: consorcioOverride ?? filter.consorcioNome },
+          selectedStatuses,
+          consorcioOverride,
+        );
+        const sqlModais = this.buildConsolidadoPorNomeQuery(filter, 'nomes', baseQuery);
+        groupedQueries.push({ query: sqlModais, params });
+      }
+
+      if (includeConsorcios) {
+        const consorcioOverride = filter.todosConsorcios ? this.TODOS_CONSORCIOS : filter.consorcioNome;
+        const params = this.getQueryParameters(
+          { ...filter, userIds: undefined },
+          selectedStatuses,
+          consorcioOverride,
+        );
+        const sqlConsorcios = this.buildConsolidadoPorNomeQuery(filter, '"nomeConsorcio"', baseQuery);
+        groupedQueries.push({ query: sqlConsorcios, params });
+      }
+
+      return groupedQueries;
+    }
+
     const includePendenciaPagaSingleDate = this.isSingleDate(filter)
       && Boolean(selectedStatuses?.includes(StatusPagamento.PENDENCIA_PAGA));
     const baseStatuses = includePendenciaPagaSingleDate
@@ -312,6 +348,34 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const includeVanzeiros = Boolean(filter.todosVanzeiros || (filter.userIds && filter.userIds.length > 0));
     const includeConsorcios = Boolean(filter.todosConsorcios || (filter.consorcioNome && filter.consorcioNome.length > 0));
     const groupedQueries: Array<{ query: string; params: any[] }> = [];
+
+    if (filter.eleicao) {
+      const baseQuery = this.buildEleicaoQuery(filter);
+
+      if (includeVanzeiros) {
+        const consorcioOverride = filter.userIds && filter.userIds.length > 0
+          ? null
+          : this.PENDENTES_CONSORCIOS;
+        const params = this.getQueryParameters(
+          { ...filter, consorcioNome: consorcioOverride ?? filter.consorcioNome },
+          selectedStatuses,
+          consorcioOverride,
+        );
+        const sqlModais = this.buildConsolidadoPorNomeQuery(filter, 'nomes', baseQuery);
+        groupedQueries.push({ query: sqlModais, params });
+      }
+
+      if (includeConsorcios) {
+        const consorcioOverride = filter.todosConsorcios ? this.TODOS_CONSORCIOS : filter.consorcioNome;
+        const params = this.getQueryParameters(
+          { ...filter, userIds: undefined },
+          selectedStatuses,
+          consorcioOverride,
+        );
+        const sqlConsorcios = this.buildConsolidadoPorNomeQuery(filter, '"nomeConsorcio"', baseQuery);
+        groupedQueries.push({ query: sqlConsorcios, params });
+      }
+    }
 
     if (filter.todosVanzeiros || (filter.userIds && filter.userIds.length > 0)) {
       const consorcioOverride = filter.userIds && filter.userIds.length > 0
