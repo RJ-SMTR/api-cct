@@ -53,121 +53,66 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
     const query = `
-WITH
-    historico_recente AS (
-        SELECT DISTINCT
-            ON ("ordemPagamentoAgrupadoId") *
-        FROM
-            ordem_pagamento_agrupado_historico
-        ORDER BY
-            "ordemPagamentoAgrupadoId",
-            "dataReferencia" DESC
-    ),
- dias_base AS (
-    SELECT
-        dias::DATE AS data,
-        EXTRACT(DOW FROM dias) AS dow
-    FROM generate_series(
-        DATE_TRUNC('month', $1::DATE),
-        DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day',
-        '1 day'::INTERVAL
-    ) AS dias
-),
- dias_relatorio AS (
-    SELECT data
-    FROM dias_base
-    WHERE
-        (
-            EXTRACT(YEAR FROM data) = 2026
-            AND (
-                dow IN (2, 5)
-            )
-        )
-        OR
-        (
-            EXTRACT(YEAR FROM data) <> 2026
-            AND (
-                (
-                    EXTRACT(MONTH FROM data) < 9
-                    AND (
-                        dow = 5
-                    )
-                )
-                OR
-                (
-                    EXTRACT(MONTH FROM data) >= 9
-                    AND (
-                        dow IN (2, 5)
-                    )
-                )
-            )
-        )
-)
-SELECT
-   dr.data,
-    SUM(dp.valor) AS valor,
-    MIN(dp."valorTotal") AS valor_total_agrupado,
-    (dr.data - 1) AS data_final_operacoes,
-    (dr.data - 7) AS data_inicial_operacoes,
-    dp."dataReferencia",
-    dp.opa_id AS opaId,
-    dp."statusRemessa",
-    dp."motivoStatusRemessa",
-    dp.data_pagamento,
-    dp.opa_origem_id
-FROM
-    dias_relatorio dr
-   LEFT JOIN LATERAL (
-        SELECT
-            op.valor,
-            opa."valorTotal",
-            CASE
-                WHEN oph."statusRemessa" = 5 THEN oph."dataReferencia"
-                ELSE opa."dataPagamento"
-            END as "dataReferencia",
-            oph."statusRemessa",
-            oph."motivoStatusRemessa",
-            opa.id AS opa_id,
-            opa."dataPagamento" AS data_pagamento,
-            opa."ordemPagamentoAgrupadoId" AS opa_origem_id
-        FROM
-            ordem_pagamento op
-            JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-            JOIN historico_recente oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-        WHERE
-            op."userId" = $2
-            AND (
-            opa."dataPagamento"::DATE = dr.data
+      SELECT r.data_referencia as data, 
+          r.data_inicial_operacoes,
+          r.data_final_operacoes, 
+        r.statusRemessa,
+        r.motivoStatusRemessa,
+        r.opaid,
+          sum(r.valorTotalPagamento) as valor
+      FROM (
+      WITH datas_base AS (
+          -- Gera as terças (2) e sextas (5) do mês de Abril/2026
+          SELECT 
+              data::date AS data_referencia,
+              extract(dow FROM data) as dia_semana,
+              CASE 
+                  WHEN extract(dow FROM data) = 5 THEN (data::date - interval '3 days')::date 
+                  WHEN extract(dow FROM data) = 2 THEN (data::date - interval '4 days')::date 
+              END AS data_inicial_operacoes,
+              (data::date - interval '1 day')::date AS data_final_operacoes
+          FROM 
+              generate_series(
+              DATE_TRUNC('month', $1::DATE),
+              DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day',
+              '1 day'::INTERVAL
+              ) AS data
+          WHERE 
+              extract(dow FROM data) IN (2, 5)
+      )
+      SELECT DISTINCT
+          db.data_referencia,
+          db.data_inicial_operacoes,
+          db.data_final_operacoes,
+          ROUND(COALESCE(da."valorLancamento", 
+        (select sum("valor") from ordem_pagamento opp where op."userId"=opp."userId"
+        and DATE_TRUNC('day', opp."dataCaptura") BETWEEN 
+            CASE WHEN db.dia_semana = 5 THEN db.data_referencia - interval '3 days' -- Sexta: busca desde terça
+              WHEN db.dia_semana = 2 THEN db.data_referencia - interval '4 days' -- Terça: busca desde sexta anterior
+            END
+            AND (db.data_referencia - interval '1 day')
+          ))::numeric, 2) AS valorTotalPagamento,
+        oph."statusRemessa" as statusRemessa,
+        oph."motivoStatusRemessa" as motivoStatusRemessa,
+        opa.id as opaid
+        
+      FROM datas_base db
+      LEFT JOIN ordem_pagamento op ON op."userId" = $2
+          AND DATE_TRUNC('day', op."dataCaptura") BETWEEN db.data_inicial_operacoes AND db.data_final_operacoes
+      LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+      LEFT JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+      LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+      )r
 
-OR (
-                
-                    opa."ordemPagamentoAgrupadoId" IS NULL
-
-                and    op."dataOrdem"::DATE BETWEEN (
-    dr.data - CASE
-        WHEN EXTRACT(
-            MONTH
-            FROM dr.data
-        ) >= 9 THEN 3
-        ELSE 7
-    END
-) AND (dr.data - 1)
-                    AND oph."statusRemessa" NOT IN (3, 4)
-                    AND opa."dataPagamento"::DATE > dr.data
-                )
-            )
-    ) dp ON TRUE
-GROUP BY
-    dr.data,
-    dp.data_pagamento,
-    dp.opa_origem_id,
-    dp.opa_id,
-    dp."dataReferencia",
-    dp."statusRemessa",
-    dp."motivoStatusRemessa"
-ORDER BY dr.data;
-
-`;
+      GROUP BY 
+          r.data_referencia, 
+          r.data_inicial_operacoes, 
+          r.data_final_operacoes,
+        r.statusRemessa,
+        r.motivoStatusRemessa,
+        r.opaid
+        
+      ORDER BY r.data_referencia DESC; `;
 
     const result = await this.ordemPagamentoRepository.query(query, [targetDate, userId]);
     return result.map((row: any) => {
