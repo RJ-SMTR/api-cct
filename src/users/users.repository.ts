@@ -91,6 +91,17 @@ export class UsersRepository {
     await this.loadLazyAux_invite(users);
   }
 
+  private pickLatestInvite(mailHistories: MailHistory[]): MailHistory | undefined {
+    if (mailHistories.length === 0) {
+      return undefined;
+    }
+    return mailHistories.reduce((latest, current) => {
+      const latestTime = (latest.sentAt ?? latest.createdAt ?? new Date(0)).getTime();
+      const currentTime = (current.sentAt ?? current.createdAt ?? new Date(0)).getTime();
+      return currentTime >= latestTime ? current : latest;
+    });
+  }
+
   private async loadLazyAux_invite(users: User[]) {
     // Find
     const ids = users.map((i) => i.id);
@@ -102,8 +113,8 @@ export class UsersRepository {
     // Set values
     for (const user of users) {
       const mailHistories = mails.filter((i) => i.user.id === user.id);
-      const mailHistory = mailHistories?.[0] as MailHistory | undefined;
-      user.mailHistories = mails.filter((i) => i.user.id === user.id);
+      const mailHistory = this.pickLatestInvite(mailHistories);
+      user.mailHistories = mailHistories;
       user.aux_inviteStatus = mailHistory?.inviteStatus;
       user.aux_inviteHash = mailHistory?.hash;
     }
@@ -309,13 +320,16 @@ export class UsersRepository {
       user.mailHistories.length > 0 &&
       user.email !== dataToUpdate.email
     ) {
-      await this.mailHistoryService.update(
-        user.mailHistories[0].id,
-        {
-          email: dataToUpdate.email,
-        },
-        METHOD,
-      );
+      const latestMailHistory = this.pickLatestInvite(user.mailHistories);
+      if (latestMailHistory) {
+        await this.mailHistoryService.update(
+          latestMailHistory.id,
+          {
+            email: dataToUpdate.email,
+          },
+          METHOD,
+        );
+      }
     }
     if (
       'bankAccount' in dataToUpdate ||

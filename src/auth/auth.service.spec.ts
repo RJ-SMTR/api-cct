@@ -53,6 +53,7 @@ describe('AuthService', () => {
       provide: MailHistoryService,
       useValue: {
         findOne: jest.fn(),
+        findRecentByUser: jest.fn(),
         getOne: jest.fn(),
         getRemainingQuota: jest.fn(),
         update: jest.fn(),
@@ -97,7 +98,9 @@ describe('AuthService', () => {
       });
       const mailHistory = { id: 1, user: user, hash: 'hash_1' } as MailHistory;
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
-      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
+      jest
+        .spyOn(mailHistoryService, 'findRecentByUser')
+        .mockResolvedValue(mailHistory);
       jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(0);
 
       // Act
@@ -139,7 +142,7 @@ describe('AuthService', () => {
       for (let i = 0; i < 3; i++) {
         jest.spyOn(usersService, 'getOne').mockResolvedValue(users[i]);
         jest
-          .spyOn(mailHistoryService, 'findOne')
+          .spyOn(mailHistoryService, 'findRecentByUser')
           .mockResolvedValue(mailHistories[i]);
         jest
           .spyOn(mailHistoryService, 'getRemainingQuota')
@@ -162,6 +165,57 @@ describe('AuthService', () => {
           expect.any(String),
         );
       }
+    });
+  });
+
+  describe('resendRegisterMail (latest invite)', () => {
+    it('should use the latest invite returned by findRecentByUser', async () => {
+      // Arrange
+      const user = new User({
+        id: 1,
+        email: 'user1@mail.com',
+        hash: 'hash_1',
+      });
+      const mailHistory = new MailHistory({
+        id: 99,
+        user: user,
+        hash: 'latest_hash',
+      });
+      mailHistory.setInviteStatus(InviteStatusEnum.queued);
+      const mailResponse = {
+        mailConfirmationLink: 'link',
+        mailSentInfo: {
+          success: true,
+        },
+      } as MailRegistrationInterface;
+      const dateNow = new Date('2023-01-01T10:00:00');
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest
+        .spyOn(mailHistoryService, 'findRecentByUser')
+        .mockResolvedValue(mailHistory);
+      jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
+      jest
+        .spyOn(mailService, 'sendConcludeRegistration')
+        .mockResolvedValue(mailResponse);
+      jest
+        .spyOn(global.Date, 'now')
+        .mockImplementation(() => dateNow.valueOf());
+
+      // Act
+      await authService.resendRegisterMail({ id: 1 });
+
+      // Assert
+      expect(mailHistoryService.findRecentByUser).toBeCalledWith(user);
+      expect(mailHistoryService.findOne).toBeCalledTimes(0);
+      expect(mailHistoryService.update).toBeCalledWith(
+        mailHistory.id,
+        {
+          inviteStatus: mailHistory.inviteStatus,
+          sentAt: dateNow,
+        },
+        expect.any(String),
+      );
     });
   });
 

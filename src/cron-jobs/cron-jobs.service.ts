@@ -594,9 +594,18 @@ export class CronJobsService {
 
       // Success
       if (mailSentInfo.success) {
-        const mailHistory = await this.mailHistoryService.getOne({
-          user: { email: user.email as string },
+        const inviteHash = user.aux_inviteHash as string | null;
+        if (!inviteHash) {
+          this.logger.warn('Email enviado, mas o hash do convite não foi encontrado para atualização.', METHOD);
+          return;
+        }
+        const mailHistory = await this.mailHistoryService.findOne({
+          hash: inviteHash,
         });
+        if (!mailHistory) {
+          this.logger.warn(`Email enviado, mas o convite não foi encontrado (hash: ${inviteHash}).`, METHOD);
+          return;
+        }
         this.logger.log(`Email enviado com sucesso para ${mailSentInfo.envelope.to}. (último envio: ${mailHistory.sentAt?.toISOString()})`, METHOD);
         await this.mailHistoryService.update(mailHistory.id, {
           sentAt: new Date(Date.now()),
