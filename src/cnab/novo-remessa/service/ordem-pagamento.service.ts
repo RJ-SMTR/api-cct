@@ -77,6 +77,7 @@ export class OrdemPagamentoService {
     const ordemPagamentoMensal = new OrdemPagamentoMensalDto();
     ordemPagamentoMensal.ordens = ordensDoMes.map((ordem) => {
       const o = new OrdemPagamentoAgrupadoMensalDto();
+      o.ordemPagamentoAgrupadoIds = ordem.ordemPagamentoAgrupadoIds;
       o.ordemPagamentoAgrupadoId = ordem.ordemPagamentoAgrupadoId;
       o.motivoStatusRemessa = ordem.motivoStatusRemessa;
       o.valorTotal = ordem.valorTotal;
