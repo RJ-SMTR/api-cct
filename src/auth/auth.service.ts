@@ -241,9 +241,7 @@ export class AuthService {
    * @throws `HttpException`
    */
   private async getMailHistory(user: User): Promise<MailHistory> {
-    const invite = await this.mailHistoryService.findOne({
-      user: { id: user.id },
-    });
+    const invite = await this.mailHistoryService.findRecentByUser(user);
     if (!invite) {
       throw new HttpException(
         {
