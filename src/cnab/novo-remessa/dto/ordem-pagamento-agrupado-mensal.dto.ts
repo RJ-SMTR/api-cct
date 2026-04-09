@@ -1,5 +1,6 @@
 export class OrdemPagamentoAgrupadoMensalDto {
   ordemPagamentoAgrupadoId: number | undefined;
+  ordemPagamentoAgrupadoIds: string[];
   data: Date;
   valorTotal: number | undefined;
   statusRemessa: number | undefined;

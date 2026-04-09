@@ -77,6 +77,7 @@ export class OrdemPagamentoService {
     const ordemPagamentoMensal = new OrdemPagamentoMensalDto();
     ordemPagamentoMensal.ordens = ordensDoMes.map((ordem) => {
       const o = new OrdemPagamentoAgrupadoMensalDto();
+      o.ordemPagamentoAgrupadoIds = ordem.ordemPagamentoAgrupadoIds;
       o.ordemPagamentoAgrupadoId = ordem.ordemPagamentoAgrupadoId;
       o.motivoStatusRemessa = ordem.motivoStatusRemessa;
       o.valorTotal = ordem.valorTotal;
@@ -99,12 +100,12 @@ export class OrdemPagamentoService {
     return ordemPagamentoMensal;
   }
 
-  async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId);
+  async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds: string, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds, userId);
   }
 
-  async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number, endDateParam?: Date): Promise<OrdemPagamentoSemanalDto[]> {
-    return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userId, endDateParam);
+  async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds: String, userId: number, endDateParam?: Date): Promise<OrdemPagamentoSemanalDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds, userId, endDateParam);
   }
 
   async findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId?: number | undefined): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
