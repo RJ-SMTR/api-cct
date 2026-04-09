@@ -205,7 +205,7 @@ ORDER BY r.data_referencia DESC;`;
     }
   }
 
-  public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId: number, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
+  public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds: string, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
     const query = `
         SELECT o.id,
                ROUND(valor, 2) valor,
@@ -214,14 +214,14 @@ ORDER BY r.data_referencia DESC;`;
         INNER JOIN ordem_pagamento_agrupado opa
         ON o."ordemPagamentoAgrupadoId" = opa.id
         WHERE 1 = 1
-          AND opa.id = $1
+          AND opa.id in($1)
           AND o."dataCaptura" IS NOT NULL
           AND o."userId" = $2
           AND date_trunc('day', o."dataOrdem") BETWEEN date_trunc('day', "dataPagamento") - INTERVAL '7 days' AND date_trunc('day', "dataPagamento") - INTERVAL '1 day'
         ORDER BY o."dataOrdem" desc
     `;
 
-    const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoId, userId]);
+    const result = await this.ordemPagamentoRepository.query(query, [ordemPagamentoAgrupadoIds.split(',').map(Number), userId]);
     return result.map((row: any) => {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
       ordemPagamento.ordemId = row.id;
@@ -232,11 +232,12 @@ ORDER BY r.data_referencia DESC;`;
   }
 
   public async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(
-    ordemPagamentoAgrupadoId: number,
+    ordemPagamentoAgrupadoIds: String,
     userId: number,
     endDateParam?: Date
   ): Promise<OrdemPagamentoSemanalDto[]> {
-    const params: any[] = [ordemPagamentoAgrupadoId, userId];
+
+    const params: any[] = [ordemPagamentoAgrupadoIds, userId];
     let whereData = '';
 
     if (endDateParam) {
@@ -273,15 +274,15 @@ ORDER BY r.data_referencia DESC;`;
     INNER JOIN ordem_pagamento_agrupado opa
     ON o."ordemPagamentoAgrupadoId" = opa.id
     WHERE 1 = 1
-      AND opa.id = $1
+      AND opa.id = ANY(string_to_array($1, ',')::int[])
       AND o."dataCaptura" IS NOT NULL
       AND o."userId" = $2
       ${whereData}
-    ORDER BY o."dataCaptura" DESC
-  `;
-
+    ORDER BY o."dataCaptura" DESC `;
 
     let result = await this.ordemPagamentoRepository.query(query, params);
+
+    this.logger.log(`${query} - ${params}`)
 
     result = result.map((row: any) => {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
