@@ -86,7 +86,7 @@ export enum OcorrenciaEnum {
   'YD' = 'Código de ocorrência inválido',
   'YE' = 'Complemento de ocorrência inválido',
   'YF' = 'Alegação já informada',
-  'S0HO' = 'Conta inválida',  
+  'HO' = 'Crédito ou Débito Cancelado pelo Pagador',  
   /** As ocorrências iniciadas com'ZA' têm caráter informativo para o cliente  */
   'ZA' = 'Agência/conta do favorecido substituída',
   'ZE' = 'Título bloqueado na base',
