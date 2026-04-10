@@ -104,13 +104,16 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-  //  await this.sincronizarEAgruparOrdensPagamento()
+   await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
   async onModuleLoad() {
+
+    await this.remessaModalExec()
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -679,21 +682,19 @@ export class CronJobsService {
     const today = new Date();
     let subDaysInt = 0;
 
-    // if (isTuesday(today)) {
-    //   subDaysInt = 4;
-    // } else if (isFriday(today)) {
-    //   subDaysInt = 3;
-    // } else {
-    //   return;
-    // }
+    if (isTuesday(today)) {
+      subDaysInt = 4;
+    } else if (isFriday(today)) {
+      subDaysInt = 3;
+    } else {
+      return;
+    }
 
-    const dataInicio = new Date("2026-04-02");
-    const dataFim = new Date("2026-04-02");
 
-    // const dataInicio = subDays(today, subDaysInt);
-    // const dataFim = subDays(today, 1);
+    const dataInicio = subDays(today, subDaysInt);
+    const dataFim = subDays(today, 1);
     const consorcios = ['STPC', 'STPL', 'TEC'];
-    //await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
   }
