@@ -116,6 +116,27 @@ export class SettingsService {
     return updated;
   }
 
+  async upsertBySettingData(settingData: ISettingData, value: string): Promise<SettingEntity> {
+    const existing = await this.findOneBySettingData(settingData);
+    if (!existing) {
+      const lastSetting = await this.settingsRepository.find({
+        order: { id: 'DESC' },
+        take: 1,
+      });
+
+      return this.settingsRepository.save(
+        this.settingsRepository.create({
+          ...new SettingEntity(settingData),
+          id: (lastSetting[0]?.id || 0) + 1,
+          value,
+        }),
+      );
+    }
+
+    await this.settingsRepository.update({ id: existing.id }, { value });
+    return this.getOneByNameVersion(settingData.name, settingData.version);
+  }
+
   async confirmNSR() {
     const currentNsrSequence = await this.getOneBySettingData(cnabSettings.any__cnab_current_nsr_sequence);
     await this.updateBySettingData(cnabSettings.any__cnab_last_nsr_sequence, currentNsrSequence.value);

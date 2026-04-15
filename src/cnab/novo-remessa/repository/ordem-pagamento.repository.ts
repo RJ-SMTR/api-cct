@@ -18,6 +18,17 @@ import { formatDateISODate } from 'src/utils/date-utils';
 import { format, getMonth, getYear, isFriday, isTuesday, max, subDays } from 'date-fns';
 import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
 
+export interface SuspiciousOrdemPagamento {
+  id: number;
+  idOrdemPagamento: string | null;
+  nomeConsorcio: string | null;
+  nomeOperadora: string | null;
+  valor: number;
+  dataOrdem: Date;
+  dataCaptura: Date | null;
+  createdAt: Date;
+}
+
 @Injectable()
 export class OrdemPagamentoRepository {
 
@@ -367,6 +378,43 @@ ORDER BY r.data_referencia DESC;`;
       return parseFloat(result[0].qtde);
     }
     return Promise.resolve(undefined);
+  }
+
+  async findSuspiciousOrdersCreatedBetween(
+    startDateExclusive: Date,
+    endDateInclusive: Date,
+    minimumValue: number,
+    consorcios: string[],
+  ): Promise<SuspiciousOrdemPagamento[]> {
+    const query = `
+      SELECT
+        op.id,
+        op."idOrdemPagamento",
+        op."nomeConsorcio",
+        op."nomeOperadora",
+        op.valor,
+        op."dataOrdem",
+        op."dataCaptura",
+        op."createdAt"
+      FROM ordem_pagamento op
+      WHERE op.valor > $1
+        AND UPPER(TRIM(COALESCE(op."nomeConsorcio", ''))) = ANY($2)
+        AND op."createdAt" > $3
+        AND op."createdAt" <= $4
+      ORDER BY op."createdAt" ASC, op.id ASC
+    `;
+
+    const result = await this.ordemPagamentoRepository.query(query, [
+      minimumValue,
+      consorcios.map((consorcio) => consorcio.trim().toUpperCase()),
+      startDateExclusive,
+      endDateInclusive,
+    ]);
+
+    return result.map((row: SuspiciousOrdemPagamento) => ({
+      ...row,
+      valor: row.valor ? parseFloat(String(row.valor)) : 0,
+    }));
   }
 
 

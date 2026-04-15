@@ -55,7 +55,7 @@ export const appSettings = {
 
   /** EVERY_DAY_AT_9AM */
   any__mail_report_cronjob: {
-    name: 'mail_report_cronjob',  
+    name: 'mail_report_cronjob',
     value: CronExpression.MONDAY_TO_FRIDAY_AT_9AM,
     version: null,
     editable: false,
@@ -86,6 +86,52 @@ export const appSettings = {
         value: 'raphaelrivasbra@gmail.com',
         version: null,
         editable: false,
+        settingType: SettingTypeEnum.string,
+      } as ISettingData,
+    ],
+  } as ISettingDataGroup,
+
+  any__mail_admin_fraud_cronjob: {
+    name: 'mail_admin_fraud_cronjob',
+    value: '0 23 * * MON,THU',
+    version: null,
+    editable: true,
+    settingType: SettingTypeEnum.string,
+  } as ISettingData,
+
+  any__mail_admin_fraud_enabled: {
+    name: 'mail_admin_fraud_enabled',
+    value: 'true',
+    version: null,
+    editable: true,
+    settingType: SettingTypeEnum.boolean,
+  } as ISettingData,
+
+  any__mail_admin_fraud_threshold: {
+    name: 'mail_admin_fraud_threshold',
+    value: '15000',
+    version: null,
+    editable: true,
+    settingType: SettingTypeEnum.number,
+  } as ISettingData,
+
+  any__mail_admin_fraud_last_execution: {
+    name: 'mail_admin_fraud_last_execution',
+    value: '1970-01-01T00:00:00.000Z',
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.string,
+  } as ISettingData,
+
+  any__mail_admin_fraud_recipient: {
+    baseName: 'mail_admin_fraud_recipient',
+    baseVersion: null,
+    data: [
+      {
+        name: 'mail_admin_fraud_recipient_1',
+        value: 'admin_fraud@example.com',
+        version: null,
+        editable: true,
         settingType: SettingTypeEnum.string,
       } as ISettingData,
     ],

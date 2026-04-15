@@ -3,6 +3,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
+import { AntifraudService } from 'src/antifraud/antifraud.service';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
@@ -54,7 +55,8 @@ export enum CronJobsEnum {
   generateRemessaLancamento = 'generateRemessaLancamento',
   sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento',
   sincronizarTransacoesBq = 'sincronizarTransacoesBq',
-  backupSftp = 'backupSftp'
+  backupSftp = 'backupSftp',
+  sendAdminFraudAlert = 'sendAdminFraudAlert'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -90,6 +92,7 @@ export class CronJobsService {
     private configService: ConfigService,
     private settingsService: SettingsService,
     private schedulerRegistry: SchedulerRegistry,
+    private antifraudService: AntifraudService,
     private mailService: MailService,
     private mailHistoryService: MailHistoryService,
     private usersService: UsersService,
@@ -104,16 +107,12 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-   await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
   async onModuleLoad() {
-
-    await this.remessaModalExec()
-    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -263,6 +262,22 @@ export class CronJobsService {
           onTick: async () => {
             await this.fullBackup();
           },
+        },
+      },
+      {
+        /**
+         * Envio de alerta antifraude.
+         *
+         * Segunda e quinta, 20:00 BRT (GMT-3) = 23:00 GMT
+         */
+        name: CronJobsEnum.sendAdminFraudAlert,
+        cronJobParameters: {
+          cronTime: (await this.settingsService.getOneBySettingData(
+            appSettings.any__mail_admin_fraud_cronjob,
+            true,
+            THIS_CLASS_WITH_METHOD,
+          )).getValueAsString(),
+          onTick: async () => await this.sendAdminFraudAlert(),
         },
       },
       // {
@@ -495,6 +510,10 @@ export class CronJobsService {
           setting: appSettings.any__mail_report_cronjob,
           cronJob: CronJobsEnum.sendReport,
         },
+        {
+          setting: appSettings.any__mail_admin_fraud_cronjob,
+          cronJob: CronJobsEnum.sendAdminFraudAlert,
+        },
       ];
       for (const setting of cronjobSettings) {
         await this.handleCronjobSettings(setting, METHOD);
@@ -581,6 +600,15 @@ export class CronJobsService {
     } catch (error) {
       this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
       return HttpStatus.INTERNAL_SERVER_ERROR;
+    }
+  }
+
+  async sendAdminFraudAlert() {
+    const METHOD = this.sendAdminFraudAlert.name;
+    try {
+      await this.antifraudService.runAdminFraudAlertJob();
+    } catch (error) {
+      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
   }
 
