@@ -65,7 +65,7 @@ export class AntifraudService {
       return;
     }
 
-    if (!shouldBypassEmailSend) {
+    if (shouldBypassEmailSend) {
       this.printLocalTestOutput(orders, recipients, threshold, jobReference);
       this.logger.log(
         'Ambiente local detectado. Envio de email e atualizacao do checkpoint ignorados para teste.',

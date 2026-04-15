@@ -107,6 +107,7 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
+    await this.sendAdminFraudAlert();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
