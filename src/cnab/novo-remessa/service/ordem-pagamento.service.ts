@@ -48,7 +48,7 @@ export class OrdemPagamentoService {
           } else {
             user = await this.usersService.getOne({ permitCode: ordem.idConsorcio });
           }
-          if (user) {
+          if (user && !user.bloqueado) {
             this.logger.debug(`Salvando a ordem: ${ordem.idOrdemPagamento} para usuario: ${user.fullName}`, METHOD);
             await this.save(ordem, user.id);
           }

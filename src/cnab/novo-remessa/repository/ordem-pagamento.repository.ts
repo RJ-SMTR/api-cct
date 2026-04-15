@@ -91,7 +91,11 @@ FROM (
                 '1 day'::INTERVAL
             ) AS data
         WHERE 
-            extract(dow FROM data) IN (2, 5)
+          (
+            ($1::date <= DATE '2025-08-31' AND extract(dow FROM data) = 5)
+            OR
+            ($1::date > DATE '2025-08-31' AND extract(dow FROM data) IN (2, 5))
+          )
     )
     SELECT DISTINCT
         db.data_referencia,
