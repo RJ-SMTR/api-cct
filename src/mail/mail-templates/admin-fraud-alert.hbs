@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <style>
+        #tableStyle,
+        #tableStyle td,
+        #tableStyle th {
+            border: 1px solid;
+            border-collapse: collapse;
+            color: #505050;
+        }
+
+        #tableStyle th,
+        #tableStyle td {
+            padding: 5px;
+            text-align: left;
+            vertical-align: top;
+        }
+    </style>
+</head>
+
+<body style="margin:0;font-family:arial">
+    <table style="border:0;width:100%">
+        <tr style="background:rgba(150,150,150,0.2)">
+            <td style="padding:20px;color:#004a80;text-align:left;font-size:30px;font-weight:600;">
+                {{headerTitle}}
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:20px;color:#505050;font-size:16px;font-weight:100">
+                <p><b>Gerado em:</b> {{generatedAt}}</p>
+                <p><b>Limite:</b> {{threshold}}</p>
+                <p><b>Ordens encontradas:</b> {{totalOrders}}</p>
+                <p><b>Valor total:</b> {{totalValue}}</p>
+
+                <table id="tableStyle">
+                    <thead style="text-align: left;">
+                        <tr>
+                            <th>ID</th>
+                            <th>ID Externo</th>
+                            <th>Consórcio</th>
+                            <th>Operadora</th>
+                            <th>Valor</th>
+                            <th>Data da Ordem</th>
+                            <th>Data de Captura</th>
+                            <th>Criado em</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each orders}}
+                        <tr>
+                            <td>{{id}}</td>
+                            <td>{{idOrdemPagamento}}</td>
+                            <td>{{nomeConsorcio}}</td>
+                            <td>{{nomeOperadora}}</td>
+                            <td>{{valor}}</td>
+                            <td>{{dataOrdem}}</td>
+                            <td>{{dataCaptura}}</td>
+                            <td>{{createdAt}}</td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>

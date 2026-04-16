@@ -214,6 +214,65 @@ export class MailService {
     }
   }
 
+  /**
+   * @throws `HttpException`
+   */
+  async sendAdminFraudAlert(
+    mailData: MailData<{
+      generatedAt: string;
+      threshold: string;
+      totalOrders: number;
+      totalValue: string;
+      orders: Array<{
+        id: number;
+        idOrdemPagamento: string | null;
+        nomeConsorcio: string | null;
+        nomeOperadora: string | null;
+        valor: string;
+        dataOrdem: string;
+        dataCaptura: string;
+        createdAt: string;
+      }>;
+    }>,
+  ): Promise<MailSentInfo> {
+    const from = this.configService.get('mail.senderNotification', {
+      infer: true,
+    });
+
+    if (!from) {
+      throw new HttpException(
+        {
+          error: HttpStatus.INTERNAL_SERVER_ERROR,
+          details: {
+            env: `Env 'MAIL_SENDER_NOTIFICATION' not found (got: '${from}')`,
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    try {
+      return await this.safeSendMail({
+        from,
+        to: mailData.to,
+        subject: 'Projeto CCT - Alerta antifraude',
+        text: `Alerta antifraude gerado em ${mailData.data.generatedAt}. ${mailData.data.totalOrders} ordem(ns) acima de ${mailData.data.threshold}.`,
+        template: 'admin-fraud-alert',
+        context: {
+          title: 'Alerta antifraude',
+          headerTitle: 'Alerta antifraude',
+          generatedAt: mailData.data.generatedAt,
+          threshold: mailData.data.threshold,
+          totalOrders: mailData.data.totalOrders,
+          totalValue: mailData.data.totalValue,
+          orders: mailData.data.orders,
+        },
+      });
+    } catch (httpException) {
+      throw httpException;
+    }
+  }
+
   async runStatusReportJob(logger: Logger, METHOD: string): Promise<void> {
     logger.log('Iniciando tarefa.', METHOD);
 
