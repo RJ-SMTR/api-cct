@@ -47,29 +47,16 @@ export class AntifraudService {
         threshold,
         AntifraudService.TARGET_CONSORCIOS,
       );
-    const shouldBypassEmailSend = this.shouldBypassEmailSend();
 
     if (!orders.length) {
       this.logger.log(
         'Nenhuma ordem suspeita encontrada para o intervalo analisado.',
         METHOD,
       );
-      if (shouldBypassEmailSend) {
-        console.log('[ANTIFRAUD][LOCAL BYPASS] No suspicious orders found.');
-        return;
-      }
+
       await this.settingsService.upsertBySettingData(
         appSettings.any__mail_admin_fraud_last_execution,
         jobReference.toISOString(),
-      );
-      return;
-    }
-
-    if (shouldBypassEmailSend) {
-      this.printLocalTestOutput(orders, recipients, threshold, jobReference);
-      this.logger.log(
-        'Ambiente local detectado. Envio de email e atualizacao do checkpoint ignorados para teste.',
-        METHOD,
       );
       return;
     }
