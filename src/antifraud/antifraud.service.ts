@@ -17,6 +17,9 @@ export class AntifraudService {
   });
 
   private static readonly TARGET_CONSORCIOS = ['STPC', 'STPL', 'TEC'];
+  private static readonly LEGACY_PLACEHOLDER_RECIPIENTS = new Set([
+    'admin_fraud@example.com',
+  ]);
 
   constructor(
     private readonly ordemPagamentoRepository: OrdemPagamentoRepository,
@@ -58,6 +61,11 @@ export class AntifraudService {
         appSettings.any__mail_admin_fraud_last_execution,
         jobReference.toISOString(),
       );
+      return;
+    }
+
+    if (this.shouldBypassEmailSend()) {
+      this.printLocalTestOutput(orders, recipients, threshold, jobReference);
       return;
     }
 
@@ -107,16 +115,28 @@ export class AntifraudService {
     const recipientSettings = await this.settingsService.findManyBySettingDataGroup(
       appSettings.any__mail_admin_fraud_recipient,
     );
-    const recipients =
-      recipientSettings.length > 0
-        ? recipientSettings.map((setting) => setting.getValueAsString())
-        : appSettings.any__mail_admin_fraud_recipient.data.map(
-          (setting) => setting.value,
-        );
+    const recipients = [...new Set(
+      recipientSettings
+        .map((setting) => setting.getValueAsString().trim())
+        .filter(Boolean),
+    )];
 
     if (!recipients.length) {
       this.logger.error(
-        'Tarefa cancelada pois nenhum destinatario antifraude foi configurado.',
+        'Tarefa cancelada pois nenhum destinatário antifraude foi configurado no banco de dados.',
+        undefined,
+        method,
+      );
+      return [];
+    }
+
+    const legacyPlaceholderRecipients = recipients.filter((email) =>
+      AntifraudService.LEGACY_PLACEHOLDER_RECIPIENTS.has(email),
+    );
+
+    if (legacyPlaceholderRecipients.length) {
+      this.logger.error(
+        `Tarefa cancelada pois os destinatários antifraude ainda usam valor placeholder legado: ${legacyPlaceholderRecipients.join(', ')}`,
         undefined,
         method,
       );

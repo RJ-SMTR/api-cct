@@ -129,7 +129,7 @@ export const appSettings = {
     data: [
       {
         name: 'mail_admin_fraud_recipient_1',
-        value: 'admin_fraud@example.com',
+        value: 'matthew.araujo@prefeitura.rio',
         version: null,
         editable: true,
         settingType: SettingTypeEnum.string,

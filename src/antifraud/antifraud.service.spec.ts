@@ -91,7 +91,7 @@ describe('AntifraudService', () => {
       .spyOn(settingsService, 'findManyBySettingDataGroup')
       .mockResolvedValue([
         {
-          getValueAsString: () => 'admin_fraud@example.com',
+          getValueAsString: () => 'matthew.araujo@prefeitura.rio',
         } as any,
       ]);
 
@@ -126,7 +126,7 @@ describe('AntifraudService', () => {
     ).toHaveBeenCalled();
     expect(mailService.sendAdminFraudAlert).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: ['admin_fraud@example.com'],
+        to: ['matthew.araujo@prefeitura.rio'],
       }),
     );
     expect(settingsService.upsertBySettingData).toHaveBeenCalledWith(
@@ -160,7 +160,7 @@ describe('AntifraudService', () => {
       .spyOn(settingsService, 'findManyBySettingDataGroup')
       .mockResolvedValue([
         {
-          getValueAsString: () => 'admin_fraud@example.com',
+          getValueAsString: () => 'matthew.araujo@prefeitura.rio',
         } as any,
       ]);
     jest
@@ -211,7 +211,7 @@ describe('AntifraudService', () => {
       .spyOn(settingsService, 'findManyBySettingDataGroup')
       .mockResolvedValue([
         {
-          getValueAsString: () => 'admin_fraud@example.com',
+          getValueAsString: () => 'matthew.araujo@prefeitura.rio',
         } as any,
       ]);
     jest
@@ -241,5 +241,59 @@ describe('AntifraudService', () => {
     expect(consoleLogSpy).toHaveBeenCalled();
 
     consoleLogSpy.mockRestore();
+  });
+
+  it('skips the job when antifraud recipients are missing from the database', async () => {
+    jest
+      .spyOn(settingsService, 'getOneBySettingData')
+      .mockImplementation(async (setting) => {
+        if (setting.name === appSettings.any__mail_admin_fraud_enabled.name) {
+          return {
+            value: 'true',
+            getValueAsBoolean: () => true,
+          } as any;
+        }
+        throw new Error(`Unexpected setting ${setting.name}`);
+      });
+    jest
+      .spyOn(settingsService, 'findManyBySettingDataGroup')
+      .mockResolvedValue([]);
+
+    await service.runAdminFraudAlertJob();
+
+    expect(
+      ordemPagamentoRepository.findSuspiciousOrdersCreatedBetween,
+    ).not.toHaveBeenCalled();
+    expect(mailService.sendAdminFraudAlert).not.toHaveBeenCalled();
+    expect(settingsService.upsertBySettingData).not.toHaveBeenCalled();
+  });
+
+  it('skips the job when antifraud recipients still use the legacy placeholder', async () => {
+    jest
+      .spyOn(settingsService, 'getOneBySettingData')
+      .mockImplementation(async (setting) => {
+        if (setting.name === appSettings.any__mail_admin_fraud_enabled.name) {
+          return {
+            value: 'true',
+            getValueAsBoolean: () => true,
+          } as any;
+        }
+        throw new Error(`Unexpected setting ${setting.name}`);
+      });
+    jest
+      .spyOn(settingsService, 'findManyBySettingDataGroup')
+      .mockResolvedValue([
+        {
+          getValueAsString: () => 'admin_fraud@example.com',
+        } as any,
+      ]);
+
+    await service.runAdminFraudAlertJob();
+
+    expect(
+      ordemPagamentoRepository.findSuspiciousOrdersCreatedBetween,
+    ).not.toHaveBeenCalled();
+    expect(mailService.sendAdminFraudAlert).not.toHaveBeenCalled();
+    expect(settingsService.upsertBySettingData).not.toHaveBeenCalled();
   });
 });
