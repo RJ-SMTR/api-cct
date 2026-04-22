@@ -273,6 +273,56 @@ export class MailService {
     }
   }
 
+  async sendFinancialReportExport(
+    mailData: MailData<{
+      userName: string;
+      filename: string;
+      format: string;
+      periodLabel: string;
+      attachmentPath: string;
+      contentType: string;
+      compressed: boolean;
+    }>,
+  ): Promise<MailSentInfo> {
+    const from = this.configService.get('mail.senderNotification', {
+      infer: true,
+    });
+
+    if (!from) {
+      throw new HttpException(
+        {
+          error: HttpStatus.INTERNAL_SERVER_ERROR,
+          details: {
+            env: `Env 'MAIL_SENDER_NOTIFICATION' not found (got: '${from}')`,
+          },
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const compressedLabel = mailData.data.compressed ? ' compressed and' : '';
+    const subject = `Projeto CCT - Financial report ${mailData.data.format.toUpperCase()}`;
+
+    return this.safeSendMail({
+      from,
+      to: mailData.to,
+      subject,
+      text: `Hello ${mailData.data.userName}, your financial report for ${mailData.data.periodLabel} is attached.`,
+      html: `
+        <p>Hello ${mailData.data.userName},</p>
+        <p>Your financial report for <strong>${mailData.data.periodLabel}</strong> was generated${compressedLabel} is attached to this email.</p>
+        <p>Attachment: <strong>${mailData.data.filename}</strong></p>
+      `,
+      attachments: [
+        {
+          filename: mailData.data.filename,
+          path: mailData.data.attachmentPath,
+          contentType: mailData.data.contentType,
+        },
+      ],
+    });
+  }
+
   async runStatusReportJob(logger: Logger, METHOD: string): Promise<void> {
     logger.log('Iniciando tarefa.', METHOD);
 
