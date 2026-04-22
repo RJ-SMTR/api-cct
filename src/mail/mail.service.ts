@@ -301,17 +301,17 @@ export class MailService {
     }
 
     const compressedLabel = mailData.data.compressed ? ' compressed and' : '';
-    const subject = `Projeto CCT - Financial report ${mailData.data.format.toUpperCase()}`;
+    const subject = `Projeto CCT - Relatório financeiro ${mailData.data.format.toUpperCase()}`;
 
     return this.safeSendMail({
       from,
       to: mailData.to,
       subject,
-      text: `Hello ${mailData.data.userName}, your financial report for ${mailData.data.periodLabel} is attached.`,
+      text: `Olá ${mailData.data.userName}, seu relatório financeiro do período ${mailData.data.periodLabel} segue em anexo.`,
       html: `
-        <p>Hello ${mailData.data.userName},</p>
-        <p>Your financial report for <strong>${mailData.data.periodLabel}</strong> was generated${compressedLabel} is attached to this email.</p>
-        <p>Attachment: <strong>${mailData.data.filename}</strong></p>
+        <p>Olá ${mailData.data.userName},</p>
+        <p>Seu relatório financeiro do período <strong>${mailData.data.periodLabel}</strong> foi gerado${compressedLabel} e segue em anexo neste e-mail.</p>
+        <p>Anexo: <strong>${mailData.data.filename}</strong></p>
       `,
       attachments: [
         {
