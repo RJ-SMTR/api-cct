@@ -76,7 +76,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
     });
 
     return {
-      message: 'Your report is being generated and will be sent to your email.',
+      message: 'Seu relatório está sendo gerado e será enviado para o seu e-mail.',
     };
   }
 
