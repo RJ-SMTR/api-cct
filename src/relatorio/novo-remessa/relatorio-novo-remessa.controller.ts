@@ -1,4 +1,4 @@
-import { Controller, Get, Header, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
@@ -8,8 +8,13 @@ import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { Int32 } from 'typeorm';
 import { ValidationPipe } from '@nestjs/common';
 import { FinancialMovementQueryDto } from '../dtos/pay-and-pending-query.dto';
+import { FinancialMovementExportRequestDto } from '../dtos/financial-movement-export-request.dto';
 import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
 import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
+import { Roles } from 'src/roles/roles.decorator';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
+import { IRequest } from 'src/utils/interfaces/request.interface';
 
 @ApiTags('Cnab')
 @Controller({
@@ -152,5 +157,23 @@ export class RelatorioNovoRemessaController {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
-}
 
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiBearerAuth()
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Post('report/export')
+  async exportFinancialMovementReport(
+    @Body(new ValidationPipe({ transform: true })) body: FinancialMovementExportRequestDto,
+    @Request() request: IRequest,
+  ) {
+    try {
+      return await this.relatorioNovoRemessaFinancialMovementService.requestFinancialMovementExport(
+        body,
+        request.user,
+      );
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+}
