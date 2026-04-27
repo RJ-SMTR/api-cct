@@ -20,7 +20,7 @@ export function buildExportBaseFilename(
   dataInicio: Date,
   dataFim: Date,
 ): string {
-  return `financial-report-${formatFileDate(dataInicio)}-to-${formatFileDate(dataFim)}.${format}`;
+  return `relatorio-financeiro-${formatFileDate(dataInicio)}-a-${formatFileDate(dataFim)}.${format}`;
 }
 
 export function maskCpfCnpj(value: string | null | undefined): string {
@@ -68,8 +68,8 @@ export function buildSummaryLines(summary: RelatorioFinancialMovementNovoRemessa
     ['Total Rejeitado', Number(summary.valorRejeitado ?? 0)],
     ['Total Aguardando Pagamento', Number(summary.valorAguardandoPagamento ?? 0)],
     ['Total A Pagar', Number(summary.valorAPagar ?? 0)],
-    ['Total OPs atrasadas', Number(summary.valorPendente ?? 0)],
-    ['Total Pendencia Paga', Number(summary.valorPendenciaPaga ?? 0)],
+    ['Total OPs Atrasadas', Number(summary.valorPendente ?? 0)],
+    ['Total Pendência Paga', Number(summary.valorPendenciaPaga ?? 0)],
   ];
 
   return [
@@ -97,12 +97,25 @@ export function buildSelectedStatusLabels(args: {
   if (args.estorno) statuses.push('Estorno');
   if (args.rejeitado) statuses.push('Rejeitado');
   if (args.emProcessamento) statuses.push('Aguardando Pagamento');
-  if (args.pendenciaPaga) statuses.push('Pendencia Paga');
-  if (args.pendentes) statuses.push('OPs atrasadas');
+  if (args.pendenciaPaga) statuses.push('Pendência Paga');
+  if (args.pendentes) statuses.push('OPs Atrasadas');
   if (args.aPagar) statuses.push('A Pagar');
 
   return statuses;
 }
+
+export const EXPORT_COLUMNS_PT_BR = [
+  'Data Referência',
+  'Data Pagamento',
+  'Nome',
+  'Email',
+  'Código do Banco',
+  'Banco',
+  'CPF/CNPJ',
+  'Consórcio',
+  'Valor',
+  'Status',
+] as const;
 
 export function truncateText(value: string, maxLength: number): string {
   if (value.length <= maxLength) {
@@ -110,4 +123,10 @@ export function truncateText(value: string, maxLength: number): string {
   }
 
   return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
+}
+
+export function toPdfSafeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 }

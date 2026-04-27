@@ -16,10 +16,12 @@ import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/fil
 import { RelatorioNovoRemessaFinancialMovementRepository } from './relatorio-novo-remessa-financial-movement.repository';
 import {
   buildExportBaseFilename,
+  EXPORT_COLUMNS_PT_BR,
   buildSelectedStatusLabels,
   buildSummaryLines,
   csvEscape,
   formatFileDate,
+  toPdfSafeText,
   toExportRow,
   truncateText,
 } from './financial-movement-export.utils';
@@ -30,6 +32,10 @@ type GeneratedExportFile = {
   filename: string;
   filePath: string;
   compressed: boolean;
+};
+
+type GenerateExportFileOptions = {
+  allowCompression: boolean;
 };
 
 @Injectable()
@@ -80,6 +86,14 @@ export class RelatorioNovoRemessaFinancialMovementService {
     };
   }
 
+  async downloadFinancialMovementExport(
+    args: FinancialMovementExportRequestDto,
+  ): Promise<GeneratedExportFile> {
+    this.ensureValidDateRange(args);
+    const summary = await this.findFinancialMovementSummary(args);
+    return this.generateExportFile(args, summary, { allowCompression: false });
+  }
+
   private ensureValidDateRange(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
     if (args.dataInicio === undefined || args.dataFim === undefined ||
       new Date(args.dataFim) < new Date(args.dataInicio)) {
@@ -92,7 +106,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
     user: User,
   ): Promise<void> {
     const summary = await this.findFinancialMovementSummary(args);
-    const generatedFile = await this.generateExportFile(args, summary);
+    const generatedFile = await this.generateExportFile(args, summary, { allowCompression: true });
 
     try {
       await this.mailService.sendFinancialReportExport({
@@ -108,18 +122,18 @@ export class RelatorioNovoRemessaFinancialMovementService {
         },
       });
     } finally {
-      await rm(generatedFile.filePath, { force: true });
-      await rm(dirname(generatedFile.filePath), { recursive: true, force: true });
+      await this.removeGeneratedExportFile(generatedFile.filePath);
     }
   }
 
   private async generateExportFile(
     args: FinancialMovementExportRequestDto,
     summary: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['findFinancialMovementSummary']>>,
+    options: GenerateExportFileOptions,
   ): Promise<GeneratedExportFile> {
     switch (args.format) {
       case FinancialMovementExportFormat.CSV:
-        return this.generateCsvExport(args, summary);
+        return this.generateCsvExport(args, summary, options.allowCompression);
       case FinancialMovementExportFormat.XLSX:
         return this.generateXlsxExport(args, summary);
       case FinancialMovementExportFormat.PDF:
@@ -133,6 +147,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
     const exportDir = join(tmpdir(), `financial-report-${Date.now()}-${Math.round(Math.random() * 10000)}`);
     await mkdir(exportDir, { recursive: true });
     return exportDir;
+  }
+
+  async removeGeneratedExportFile(filePath: string): Promise<void> {
+    await rm(filePath, { force: true });
+    await rm(dirname(filePath), { recursive: true, force: true });
   }
 
   private async writeChunk(stream: PassThrough, chunk: string): Promise<void> {
@@ -155,21 +174,22 @@ export class RelatorioNovoRemessaFinancialMovementService {
     const summaryLines = buildSummaryLines(summary);
 
     return [
-      `Report Period,${csvEscape(`${formatFileDate(new Date(args.dataInicio))} to ${formatFileDate(new Date(args.dataFim))}`)}`,
-      `Selected Statuses,${csvEscape(selectedStatuses.length ? selectedStatuses.join(', ') : 'Todos')}`,
-      'Data Referencia,Data Pagamento,Nome,Email,Cod Banco,Banco,CPF/CNPJ,Consorcio,Valor,Status',
-      ...summaryLines.map(([label, value]) => `Summary,${csvEscape(label)},${csvEscape(value)}`),
+      `Período do Relatório,${csvEscape(`${formatFileDate(new Date(args.dataInicio))} a ${formatFileDate(new Date(args.dataFim))}`)}`,
+      `Status Selecionados,${csvEscape(selectedStatuses.length ? selectedStatuses.join(', ') : 'Todos')}`,
+      EXPORT_COLUMNS_PT_BR.map(csvEscape).join(','),
+      ...summaryLines.map(([label, value]) => `Resumo,${csvEscape(label)},${csvEscape(value)}`),
       '',
-      'Data Referencia,Data Pagamento,Nome,Email,Cod Banco,Banco,CPF/CNPJ,Consorcio,Valor,Status',
+      EXPORT_COLUMNS_PT_BR.map(csvEscape).join(','),
     ];
   }
 
   private async generateCsvExport(
     args: FinancialMovementExportRequestDto,
     summary: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['findFinancialMovementSummary']>>,
+    allowCompression: boolean,
   ): Promise<GeneratedExportFile> {
     const exportDir = await this.createExportDir();
-    const shouldCompress = summary.count >= 5000;
+    const shouldCompress = allowCompression && summary.count >= 5000;
     const baseFilename = buildExportBaseFilename(
       FinancialMovementExportFormat.CSV,
       new Date(args.dataInicio),
@@ -228,13 +248,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
     );
     const filePath = join(exportDir, filename);
     const metadataRows: Array<Array<string>> = [
-      ['Periodo', `${formatFileDate(new Date(args.dataInicio))} to ${formatFileDate(new Date(args.dataFim))}`],
+      ['Período', `${formatFileDate(new Date(args.dataInicio))} a ${formatFileDate(new Date(args.dataFim))}`],
       ['Status Selecionados', buildSelectedStatusLabels(args).join(', ') || 'Todos'],
       ...buildSummaryLines(summary),
     ];
-    const dataRows: Array<Array<string>> = [
-      ['Data Referencia', 'Data Pagamento', 'Nome', 'Email', 'Cod Banco', 'Banco', 'CPF/CNPJ', 'Consorcio', 'Valor', 'Status'],
-    ];
+    const dataRows: Array<Array<string>> = [Array.from(EXPORT_COLUMNS_PT_BR)];
 
     await this.relatorioNovoRemessaFinancialMovementRepository.streamFinancialMovementRows(args, async (row) => {
       const exportRow = toExportRow(row);
@@ -277,32 +295,32 @@ export class RelatorioNovoRemessaFinancialMovementService {
     );
     const filePath = join(exportDir, filename);
     const lines: string[] = [
-      'Financial Report',
-      `Period: ${formatFileDate(new Date(args.dataInicio))} to ${formatFileDate(new Date(args.dataFim))}`,
-      `Selected Statuses: ${buildSelectedStatusLabels(args).join(', ') || 'Todos'}`,
+      'Relatorio Financeiro',
+      `Periodo: ${formatFileDate(new Date(args.dataInicio))} a ${formatFileDate(new Date(args.dataFim))}`,
+      `Status Selecionados: ${toPdfSafeText(buildSelectedStatusLabels(args).join(', ') || 'Todos')}`,
       '',
-      'Data Ref. | Data Pgto | Nome | Email | Banco | Nome Banco | CPF/CNPJ | Consorcio | Valor | Status',
+      'Dt. Ref. | Dt. Pgto | Nome | Email | Cod. | Banco | CPF/CNPJ | Consorcio | Valor | Status',
     ];
 
     await this.relatorioNovoRemessaFinancialMovementRepository.streamFinancialMovementRows(args, async (row) => {
       const exportRow = toExportRow(row);
       lines.push([
-        truncateText(exportRow.dataReferencia, 10),
-        truncateText(exportRow.dataPagamento, 10),
-        truncateText(exportRow.nomes, 24),
-        truncateText(exportRow.email, 28),
-        truncateText(exportRow.codBanco, 5),
-        truncateText(exportRow.nomeBanco, 16),
-        truncateText(exportRow.cpfCnpj, 18),
-        truncateText(exportRow.consorcio, 14),
-        truncateText(exportRow.valor, 16),
-        truncateText(exportRow.status, 16),
+        truncateText(toPdfSafeText(exportRow.dataReferencia), 10),
+        truncateText(toPdfSafeText(exportRow.dataPagamento), 10),
+        truncateText(toPdfSafeText(exportRow.nomes), 24),
+        truncateText(toPdfSafeText(exportRow.email), 28),
+        truncateText(toPdfSafeText(exportRow.codBanco), 5),
+        truncateText(toPdfSafeText(exportRow.nomeBanco), 16),
+        truncateText(toPdfSafeText(exportRow.cpfCnpj), 18),
+        truncateText(toPdfSafeText(exportRow.consorcio), 14),
+        truncateText(toPdfSafeText(exportRow.valor), 16),
+        truncateText(toPdfSafeText(exportRow.status), 16),
       ].join(' | '));
     });
 
-    lines.push('', 'Summary');
+    lines.push('', 'Resumo');
     for (const [label, value] of buildSummaryLines(summary)) {
-      lines.push(`${label}: ${value}`);
+      lines.push(`${toPdfSafeText(label)}: ${toPdfSafeText(value)}`);
     }
 
     const linesPerPage = 40;

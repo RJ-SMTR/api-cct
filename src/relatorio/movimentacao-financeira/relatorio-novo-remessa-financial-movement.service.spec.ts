@@ -74,7 +74,7 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     );
 
     expect(response).toEqual({
-      message: 'Your report is being generated and will be sent to your email.',
+      message: 'Seu relatório está sendo gerado e será enviado para o seu e-mail.',
     });
 
     jest.runAllTimers();
@@ -101,5 +101,33 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       } as any,
       { id: 10, role: new Role(RoleEnum.admin) },
     )).rejects.toThrow('Usuário autenticado não possui email para envio do relatório');
+  });
+
+  it('generates a direct-download export file without using email delivery', async () => {
+    const summary = { count: 1, data: [] };
+    const generatedFile = {
+      filename: 'financial-report-2026-04-01-to-2026-04-22.csv',
+      filePath: '/tmp/financial-report.csv',
+      contentType: 'text/csv',
+      compressed: false,
+    };
+
+    jest.spyOn(service, 'findFinancialMovementSummary').mockResolvedValue(summary as any);
+    const generateExportFileSpy = jest
+      .spyOn(service as any, 'generateExportFile')
+      .mockResolvedValue(generatedFile);
+
+    const response = await service.downloadFinancialMovementExport({
+      format: FinancialMovementExportFormat.CSV,
+      dataInicio: new Date('2026-04-01'),
+      dataFim: new Date('2026-04-22'),
+    } as any);
+
+    expect(response).toEqual(generatedFile);
+    expect(generateExportFileSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ format: FinancialMovementExportFormat.CSV }),
+      summary,
+      { allowCompression: false },
+    );
   });
 });
