@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Post, Query, Request, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { createReadStream } from 'fs';
@@ -16,7 +16,6 @@ import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-fi
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
-import { IRequest } from 'src/utils/interfaces/request.interface';
 import { Response } from 'express';
 
 @ApiTags('Cnab')
@@ -156,25 +155,6 @@ export class RelatorioNovoRemessaController {
     try {
       const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementPage(queryParams);
       return result;
-    } catch (e) {
-      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
-    }
-  }
-
-  @HttpCode(HttpStatus.ACCEPTED)
-  @ApiBearerAuth()
-  @Roles(RoleEnum.master, RoleEnum.admin)
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Post('report/export')
-  async exportFinancialMovementReport(
-    @Body(new ValidationPipe({ transform: true })) body: FinancialMovementExportRequestDto,
-    @Request() request: IRequest,
-  ) {
-    try {
-      return await this.relatorioNovoRemessaFinancialMovementService.requestFinancialMovementExport(
-        body,
-        request.user,
-      );
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }

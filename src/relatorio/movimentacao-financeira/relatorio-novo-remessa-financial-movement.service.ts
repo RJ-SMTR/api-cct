@@ -1,16 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { createWriteStream } from 'fs';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { PassThrough } from 'stream';
 import { pipeline } from 'stream/promises';
-import { createGzip } from 'zlib';
 import * as xlsx from 'xlsx';
-import { MailService } from 'src/mail/mail.service';
-import { IRequest } from 'src/utils/interfaces/request.interface';
-import { User } from 'src/users/entities/user.entity';
-import { UsersService } from 'src/users/users.service';
 import { FinancialMovementExportFormat, FinancialMovementExportRequestDto } from '../dtos/financial-movement-export-request.dto';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import { RelatorioNovoRemessaFinancialMovementRepository } from './relatorio-novo-remessa-financial-movement.repository';
@@ -31,21 +26,13 @@ type GeneratedExportFile = {
   contentType: string;
   filename: string;
   filePath: string;
-  compressed: boolean;
-};
-
-type GenerateExportFileOptions = {
-  allowCompression: boolean;
+  compressed: false;
 };
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementService {
-  private readonly logger = new Logger(RelatorioNovoRemessaFinancialMovementService.name);
-
   constructor(
     private readonly relatorioNovoRemessaFinancialMovementRepository: RelatorioNovoRemessaFinancialMovementRepository,
-    private readonly usersService: UsersService,
-    private readonly mailService: MailService,
   ) { }
 
   /**
@@ -61,37 +48,12 @@ export class RelatorioNovoRemessaFinancialMovementService {
     return this.relatorioNovoRemessaFinancialMovementRepository.findFinancialMovementPage(args);
   }
 
-  async requestFinancialMovementExport(
-    args: FinancialMovementExportRequestDto,
-    requestUser: IRequest['user'],
-  ) {
-    this.ensureValidDateRange(args);
-    const user = await this.usersService.getOne({ id: requestUser.id });
-
-    if (!user.email) {
-      throw new Error('Usuário autenticado não possui email para envio do relatório');
-    }
-
-    setImmediate(() => {
-      void this.processFinancialMovementExport(args, user).catch((error) => {
-        this.logger.error(
-          `Erro ao processar export do relatório financeiro para o usuário ${user.id}`,
-          error instanceof Error ? error.stack : String(error),
-        );
-      });
-    });
-
-    return {
-      message: 'Seu relatório está sendo gerado e será enviado para o seu e-mail.',
-    };
-  }
-
   async downloadFinancialMovementExport(
     args: FinancialMovementExportRequestDto,
   ): Promise<GeneratedExportFile> {
     this.ensureValidDateRange(args);
     const summary = await this.findFinancialMovementSummary(args);
-    return this.generateExportFile(args, summary, { allowCompression: false });
+    return this.generateExportFile(args, summary);
   }
 
   private ensureValidDateRange(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
@@ -101,39 +63,13 @@ export class RelatorioNovoRemessaFinancialMovementService {
     }
   }
 
-  private async processFinancialMovementExport(
-    args: FinancialMovementExportRequestDto,
-    user: User,
-  ): Promise<void> {
-    const summary = await this.findFinancialMovementSummary(args);
-    const generatedFile = await this.generateExportFile(args, summary, { allowCompression: true });
-
-    try {
-      await this.mailService.sendFinancialReportExport({
-        to: user.email as string,
-        data: {
-          userName: user.fullName ?? user.firstName ?? 'user',
-          filename: generatedFile.filename,
-          format: args.format,
-          periodLabel: `${formatFileDate(new Date(args.dataInicio))} to ${formatFileDate(new Date(args.dataFim))}`,
-          attachmentPath: generatedFile.filePath,
-          contentType: generatedFile.contentType,
-          compressed: generatedFile.compressed,
-        },
-      });
-    } finally {
-      await this.removeGeneratedExportFile(generatedFile.filePath);
-    }
-  }
-
   private async generateExportFile(
     args: FinancialMovementExportRequestDto,
     summary: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['findFinancialMovementSummary']>>,
-    options: GenerateExportFileOptions,
   ): Promise<GeneratedExportFile> {
     switch (args.format) {
       case FinancialMovementExportFormat.CSV:
-        return this.generateCsvExport(args, summary, options.allowCompression);
+        return this.generateCsvExport(args, summary);
       case FinancialMovementExportFormat.XLSX:
         return this.generateXlsxExport(args, summary);
       case FinancialMovementExportFormat.PDF:
@@ -186,23 +122,19 @@ export class RelatorioNovoRemessaFinancialMovementService {
   private async generateCsvExport(
     args: FinancialMovementExportRequestDto,
     summary: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['findFinancialMovementSummary']>>,
-    allowCompression: boolean,
   ): Promise<GeneratedExportFile> {
     const exportDir = await this.createExportDir();
-    const shouldCompress = allowCompression && summary.count >= 5000;
     const baseFilename = buildExportBaseFilename(
       FinancialMovementExportFormat.CSV,
       new Date(args.dataInicio),
       new Date(args.dataFim),
     );
-    const filename = shouldCompress ? `${baseFilename}.gz` : baseFilename;
+    const filename = baseFilename;
     const filePath = join(exportDir, filename);
 
     const input = new PassThrough();
     const output = createWriteStream(filePath);
-    const pipelinePromise = shouldCompress
-      ? pipeline(input, createGzip(), output)
-      : pipeline(input, output);
+    const pipelinePromise = pipeline(input, output);
 
     for (const line of this.buildCsvHeaderLines(args, summary)) {
       await this.writeChunk(input, `${line}\n`);
@@ -231,8 +163,8 @@ export class RelatorioNovoRemessaFinancialMovementService {
     return {
       filename,
       filePath,
-      compressed: shouldCompress,
-      contentType: shouldCompress ? 'application/gzip' : 'text/csv',
+      compressed: false,
+      contentType: 'text/csv',
     };
   }
 
