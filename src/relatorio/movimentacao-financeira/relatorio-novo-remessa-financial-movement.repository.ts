@@ -91,30 +91,12 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     filter: IFindPublicacaoRelatorioNovoFinancialMovement,
   ): Promise<RelatorioFinancialMovementNovoRemessaPageDto> {
     const safeFilter = this.normalizeFilter(filter);
-    const statuses = this.resolveStatuses(safeFilter);
-    const params = this.getQueryParameters(safeFilter, statuses.baseStatuses);
-
-    const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
-    const groupedCte = this.buildGroupedCte(finalBaseQuery);
-
+    const { query, params } = this.buildBaseDataQuery(safeFilter);
     const { currentPage, pageSize } = this.resolvePagination(safeFilter);
-
     const cursor = this.resolveCursor(safeFilter);
 
     const dataQuery = `
-      ${groupedCte}
-      SELECT
-        to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') AS "dataReferencia",
-        to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') AS "dataPagamento",
-        g.nomes,
-        g.email,
-        g."codBanco",
-        g."nomeBanco",
-        g."cpfCnpj",
-        g."nomeConsorcio" AS consorcio,
-        g.valor,
-        g.status
-      FROM grouped g
+      ${query}
       WHERE (
         $8::text IS NULL
         OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text)
@@ -150,6 +132,51 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       data,
       nextCursor,
     });
+  }
+
+  public async streamFinancialMovementRows(
+    filter: IFindPublicacaoRelatorioNovoFinancialMovement,
+    onRow: (row: RelatorioFinancialMovementNovoRemessaData) => Promise<void> | void,
+  ): Promise<void> {
+    const safeFilter = this.normalizeFilter(filter);
+    let cursor: CursorValues = {
+      dataReferencia: null,
+      nome: null,
+      status: null,
+      cpfCnpj: null,
+    };
+    const batchSize = 500;
+
+    try {
+      while (true) {
+        const rows = await this.findFinancialMovementBatchRows(safeFilter, cursor, batchSize, 'EXPORT');
+
+        if (!rows.length) {
+          break;
+        }
+
+        for (const row of rows) {
+          await onRow(new RelatorioFinancialMovementNovoRemessaData(row));
+        }
+
+        const lastRow = rows[rows.length - 1];
+        cursor = {
+          dataReferencia: lastRow.dataReferencia,
+          nome: lastRow.nomes,
+          status: lastRow.status,
+          cpfCnpj: lastRow.cpfCnpj,
+        };
+
+        if (rows.length < batchSize) {
+          break;
+        }
+      }
+
+      this.logger.debug('EXPORT finished');
+    } catch (error) {
+      this.logger.error('Erro ao executar a query (EXPORT)', error);
+      throw error;
+    }
   }
 
   private buildBaseCte(finalBaseQuery: string): string {
@@ -216,6 +243,59 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       countQuery,
       aggregatesQuery,
     };
+  }
+
+  private buildBaseDataQuery(filter: NormalizedFilter) {
+    const statuses = this.resolveStatuses(filter);
+    const params = this.getQueryParameters(filter, statuses.baseStatuses);
+    const finalBaseQuery = this.buildFinalBaseQuery(filter, statuses);
+    const groupedCte = this.buildGroupedCte(finalBaseQuery);
+
+    return {
+      params,
+      query: `
+        ${groupedCte}
+        SELECT
+          to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') AS "dataReferencia",
+          to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') AS "dataPagamento",
+          g.nomes,
+          g.email,
+          g."codBanco",
+          g."nomeBanco",
+          g."cpfCnpj",
+          g."nomeConsorcio" AS consorcio,
+          g.valor,
+          g.status
+        FROM grouped g
+      `,
+    };
+  }
+
+  private async findFinancialMovementBatchRows(
+    filter: NormalizedFilter,
+    cursor: CursorValues,
+    limit: number,
+    label: string,
+  ) {
+    const { query, params } = this.buildBaseDataQuery(filter);
+    const dataQuery = `
+      ${query}
+      WHERE (
+        $8::text IS NULL
+        OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text)
+      )
+      ORDER BY g."dataReferencia" ASC, g.nomes ASC, g.status ASC, g."cpfCnpj" ASC
+      LIMIT $12
+    `;
+
+    return this.executeQuery(dataQuery, [
+      ...params,
+      cursor.dataReferencia,
+      cursor.nome,
+      cursor.status,
+      cursor.cpfCnpj,
+      limit,
+    ], label);
   }
 
   private normalizeFilter(
