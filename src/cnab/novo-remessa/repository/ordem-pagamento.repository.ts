@@ -64,64 +64,117 @@ export class OrdemPagamentoRepository {
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
     const query = `
-    SELECT 
-    r.data_referencia as data, 
-    r.data_inicial_operacoes,
-    r.data_final_operacoes, 
-    r."statusRemessa",
-    r."motivoStatusRemessa",   
-    -- Transforma os IDs em uma string separada por vírgula
-    string_agg(DISTINCT r.opaId::text, ', ') as "opaIds",
-    sum(r.valorTotalPagamento) as valor
-FROM (
-    WITH datas_base AS (
-        -- Gera as terças (2) e sextas (5) do mês de Abril/2026
-        SELECT 
+WITH
+    datas_base AS (
+        SELECT
             data::date AS data_referencia,
             extract(dow FROM data) as dia_semana,
-            CASE 
-                WHEN extract(dow FROM data) = 5 THEN (data::date - interval '3 days')::date 
-                WHEN extract(dow FROM data) = 2 THEN (data::date - interval '4 days')::date 
+            CASE
+                WHEN extract(dow FROM data) = 5 THEN (data::date - interval '3 days')::date
+                WHEN extract(dow FROM data) = 2 THEN (data::date - interval '4 days')::date
             END AS data_inicial_operacoes,
             (data::date - interval '1 day')::date AS data_final_operacoes
-        FROM 
-            generate_series(
+        FROM generate_series(
                 DATE_TRUNC('month',$1::DATE),
                 DATE_TRUNC('month',$1::DATE) + INTERVAL '1 month' - INTERVAL '1 day',
                 '1 day'::INTERVAL
             ) AS data
-        WHERE 
-          (
+        WHERE (
             ($1::date <= DATE '2025-08-31' AND extract(dow FROM data) = 5)
             OR
             ($1::date > DATE '2025-08-31' AND extract(dow FROM data) IN (2, 5))
-          )
+        )
+    ),
+    ordens_por_data AS (
+        SELECT DISTINCT
+            db.data_referencia,
+            db.data_inicial_operacoes,
+            db.data_final_operacoes,
+            ROUND(
+                CASE
+                    WHEN oph."statusRemessa" IN (0, 5) THEN COALESCE(opa."valorTotal", 0)
+                    ELSE COALESCE(
+                        da."valorLancamento",
+                        (
+                            SELECT sum("valor")
+                            FROM ordem_pagamento opp
+                            WHERE
+                                op."userId" = opp."userId"
+                                AND DATE_TRUNC('day', opp."dataCaptura") BETWEEN CASE
+                                    WHEN db.dia_semana = 5 THEN db.data_referencia - interval '3 days'
+                                    WHEN db.dia_semana = 2 THEN db.data_referencia - interval '4 days'
+                                END AND (db.data_referencia - interval '1 day')
+                        )
+                    )
+                END::numeric,
+                2
+            ) AS valorTotalPagamento,
+            oph."statusRemessa",
+            oph."motivoStatusRemessa",
+            opa."id" as opaId
+        FROM datas_base db
+        LEFT JOIN ordem_pagamento op ON op."userId" = $2
+            AND DATE_TRUNC('day', op."dataCaptura") BETWEEN db.data_inicial_operacoes AND db.data_final_operacoes
+        LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+        LEFT JOIN LATERAL (
+            SELECT
+                oph_i.id,
+                oph_i."statusRemessa",
+                oph_i."motivoStatusRemessa"
+            FROM ordem_pagamento_agrupado_historico oph_i
+            WHERE oph_i."ordemPagamentoAgrupadoId" = opa.id
+            ORDER BY oph_i.id DESC
+            LIMIT 1
+        ) oph ON true
+        LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    ),
+    status_5_mais_recente AS (
+        SELECT
+            opd.*,
+            ROW_NUMBER() OVER (
+                PARTITION BY opd.opaId
+                ORDER BY opd.data_referencia DESC
+            ) AS rn
+        FROM ordens_por_data opd
+        WHERE opd."statusRemessa" = 5
+    ),
+    ordens_filtradas AS (
+        SELECT
+            opd.data_referencia,
+            opd.data_inicial_operacoes,
+            opd.data_final_operacoes,
+            opd.valorTotalPagamento,
+            opd."statusRemessa",
+            opd."motivoStatusRemessa",
+            opd.opaId
+        FROM ordens_por_data opd
+        WHERE COALESCE(opd."statusRemessa", -1) <> 5
+
+        UNION ALL
+
+        SELECT
+            s5.data_referencia,
+            s5.data_inicial_operacoes,
+            s5.data_final_operacoes,
+            s5.valorTotalPagamento,
+            s5."statusRemessa",
+            s5."motivoStatusRemessa",
+            s5.opaId
+        FROM status_5_mais_recente s5
+        WHERE s5.rn = 1
     )
-    SELECT DISTINCT
-        db.data_referencia,
-        db.data_inicial_operacoes,
-        db.data_final_operacoes,
-        ROUND(COALESCE(da."valorLancamento", 
-            (SELECT sum("valor") FROM ordem_pagamento opp WHERE op."userId"=opp."userId"
-             AND DATE_TRUNC('day', opp."dataCaptura") BETWEEN 
-                CASE WHEN db.dia_semana = 5 THEN db.data_referencia - interval '3 days'
-                     WHEN db.dia_semana = 2 THEN db.data_referencia - interval '4 days'
-                END
-                AND (db.data_referencia - interval '1 day')
-            ))::numeric, 2) AS valorTotalPagamento,
-        oph."statusRemessa",
-        oph."motivoStatusRemessa",
-        opa."id" as opaId
-    FROM datas_base db
-    LEFT JOIN ordem_pagamento op ON op."userId" = $2
-        AND DATE_TRUNC('day', op."dataCaptura") BETWEEN db.data_inicial_operacoes AND db.data_final_operacoes
-    LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-    LEFT JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-    LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-) r
-GROUP BY 
-    r.data_referencia, 
-    r.data_inicial_operacoes, 
+SELECT
+    r.data_referencia as data,
+    r.data_inicial_operacoes,
+    r.data_final_operacoes,
+    r."statusRemessa",
+    r."motivoStatusRemessa",
+    string_agg(DISTINCT r.opaId::text, ', ') as "opaIds",
+    sum(r.valorTotalPagamento) as valor
+FROM ordens_filtradas r
+GROUP BY
+    r.data_referencia,
+    r.data_inicial_operacoes,
     r.data_final_operacoes,
     r."statusRemessa",
     r."motivoStatusRemessa"
