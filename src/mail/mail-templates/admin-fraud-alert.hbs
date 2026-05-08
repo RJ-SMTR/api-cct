@@ -32,9 +32,16 @@
         </tr>
         <tr>
             <td style="padding:20px;color:#505050;font-size:16px;font-weight:100">
-                <p><b>Gerado em:</b> {{generatedAt}}</p>
-                <p><b>Limite:</b> {{threshold}}</p>
-                <p><b>Ordens encontradas:</b> {{totalOrders}}</p>
+                <p>
+                    <b>Gerado em:</b><br>
+                    <span>{{generatedAtDate}}</span>
+                    <span style="display:block;color:#707070;font-size:14px;">{{generatedAtTime}}</span>
+                </p>
+                <p>
+                    <b>Limite até:</b><br>
+                    <span>{{threshold}}</span>
+                </p>
+                <p><b>Fraude(s) Encontrada(s):</b> {{totalOrders}}</p>
                 <p><b>Valor total:</b> {{totalValue}}</p>
 
                 <table id="tableStyle">
@@ -59,8 +66,16 @@
                             <td>{{nomeOperadora}}</td>
                             <td>{{valor}}</td>
                             <td>{{dataOrdem}}</td>
-                            <td>{{dataCaptura}}</td>
-                            <td>{{createdAt}}</td>
+                            <td>
+                                <span>{{dataCapturaDate}}</span>
+                                {{#if dataCapturaTime}}
+                                <span style="display:block;color:#707070;font-size:13px;">{{dataCapturaTime}}</span>
+                                {{/if}}
+                            </td>
+                            <td>
+                                <span>{{createdAtDate}}</span>
+                                <span style="display:block;color:#707070;font-size:13px;">{{createdAtTime}}</span>
+                            </td>
                         </tr>
                         {{/each}}
                     </tbody>

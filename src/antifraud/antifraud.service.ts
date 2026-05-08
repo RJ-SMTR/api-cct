@@ -202,29 +202,61 @@ export class AntifraudService {
     });
 
     return {
-      generatedAt: generatedAt.toISOString(),
+      generatedAtDate: this.formatDate(generatedAt),
+      generatedAtTime: this.formatTime(generatedAt),
       threshold: currencyFormatter.format(threshold),
       totalOrders: orders.length,
       totalValue: currencyFormatter.format(
         orders.reduce((sum, order) => sum + order.valor, 0),
       ),
-      orders: orders.map((order) => ({
-        id: order.id,
-        idOrdemPagamento: order.idOrdemPagamento,
-        nomeConsorcio: order.nomeConsorcio,
-        nomeOperadora: order.nomeOperadora,
-        valor: currencyFormatter.format(order.valor),
-        dataOrdem: this.toIsoDate(order.dataOrdem),
-        dataCaptura: order.dataCaptura
-          ? new Date(order.dataCaptura).toISOString()
-          : '-',
-        createdAt: new Date(order.createdAt).toISOString(),
-      })),
+      orders: orders.map((order) => {
+        const dataCaptura = this.formatOptionalDateTime(order.dataCaptura);
+        const createdAt = this.formatDateTime(order.createdAt);
+
+        return {
+          id: order.id,
+          idOrdemPagamento: order.idOrdemPagamento,
+          nomeConsorcio: order.nomeConsorcio,
+          nomeOperadora: order.nomeOperadora,
+          valor: currencyFormatter.format(order.valor),
+          dataOrdem: this.formatDate(order.dataOrdem),
+          dataCapturaDate: dataCaptura.date,
+          dataCapturaTime: dataCaptura.time,
+          createdAtDate: createdAt.date,
+          createdAtTime: createdAt.time,
+        };
+      }),
     };
   }
 
-  private toIsoDate(date: Date): string {
-    return new Date(date).toISOString().split('T')[0];
+  private formatDate(date: Date | string): string {
+    return this.formatDateTime(date).date;
+  }
+
+  private formatTime(date: Date | string): string {
+    return this.formatDateTime(date).time;
+  }
+
+  private formatOptionalDateTime(
+    date?: Date | string | null,
+  ): { date: string; time: string | null } {
+    if (!date) {
+      return {
+        date: '-',
+        time: null,
+      };
+    }
+
+    return this.formatDateTime(date);
+  }
+
+  private formatDateTime(date: Date | string): { date: string; time: string } {
+    const [isoDate, isoTime] = new Date(date).toISOString().split('T');
+
+    return {
+      date: isoDate.split('-').reverse().join('-'),
+      time: isoTime.slice(0, 8),
+    };
   }
 
   private shouldBypassEmailSend(): boolean {
@@ -246,29 +278,18 @@ export class AntifraudService {
     threshold: number,
     generatedAt: Date,
   ): void {
-    const formattedOrders = orders.map((order) => ({
-      id: order.id,
-      idOrdemPagamento: order.idOrdemPagamento,
-      nomeConsorcio: order.nomeConsorcio,
-      nomeOperadora: order.nomeOperadora,
-      valor: order.valor,
-      dataOrdem: this.toIsoDate(order.dataOrdem),
-      dataCaptura: order.dataCaptura
-        ? new Date(order.dataCaptura).toISOString()
-        : null,
-      createdAt: new Date(order.createdAt).toISOString(),
-    }));
+    const payload = this.buildMailPayload(orders, threshold, generatedAt);
 
     console.log('[ANTIFRAUD][LOCAL BYPASS] Email send skipped.');
     console.log('[ANTIFRAUD][LOCAL BYPASS] Recipients:', recipients);
-    console.log('[ANTIFRAUD][LOCAL BYPASS] Threshold:', threshold);
+    console.log('[ANTIFRAUD][LOCAL BYPASS] Threshold:', payload.threshold);
     console.log(
       '[ANTIFRAUD][LOCAL BYPASS] Generated at:',
-      generatedAt.toISOString(),
+      `${payload.generatedAtDate} ${payload.generatedAtTime}`,
     );
     console.log(
       '[ANTIFRAUD][LOCAL BYPASS] Orders payload:',
-      JSON.stringify(formattedOrders, null, 2),
+      JSON.stringify(payload.orders, null, 2),
     );
   }
 }

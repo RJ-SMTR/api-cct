@@ -219,7 +219,8 @@ export class MailService {
    */
   async sendAdminFraudAlert(
     mailData: MailData<{
-      generatedAt: string;
+      generatedAtDate: string;
+      generatedAtTime: string;
       threshold: string;
       totalOrders: number;
       totalValue: string;
@@ -230,8 +231,10 @@ export class MailService {
         nomeOperadora: string | null;
         valor: string;
         dataOrdem: string;
-        dataCaptura: string;
-        createdAt: string;
+        dataCapturaDate: string;
+        dataCapturaTime: string | null;
+        createdAtDate: string;
+        createdAtTime: string;
       }>;
     }>,
   ): Promise<MailSentInfo> {
@@ -256,12 +259,13 @@ export class MailService {
         from,
         to: mailData.to,
         subject: 'Projeto CCT - Alerta antifraude',
-        text: `Alerta antifraude gerado em ${mailData.data.generatedAt}. ${mailData.data.totalOrders} ordem(ns) acima de ${mailData.data.threshold}.`,
+        text: `Alerta antifraude gerado em ${mailData.data.generatedAtDate} às ${mailData.data.generatedAtTime}. ${mailData.data.totalOrders} fraude(s) encontrada(s) acima de ${mailData.data.threshold}.`,
         template: 'admin-fraud-alert',
         context: {
           title: 'Alerta antifraude',
           headerTitle: 'Alerta antifraude',
-          generatedAt: mailData.data.generatedAt,
+          generatedAtDate: mailData.data.generatedAtDate,
+          generatedAtTime: mailData.data.generatedAtTime,
           threshold: mailData.data.threshold,
           totalOrders: mailData.data.totalOrders,
           totalValue: mailData.data.totalValue,
