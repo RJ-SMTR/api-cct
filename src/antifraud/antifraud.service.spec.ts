@@ -129,6 +129,20 @@ describe('AntifraudService', () => {
         to: ['matthew.araujo@prefeitura.rio'],
       }),
     );
+    const [{ data: mailPayload }] = jest.mocked(mailService.sendAdminFraudAlert)
+      .mock.calls[0];
+    expect(mailPayload.generatedAtDate).toMatch(/^\d{2}-\d{2}-\d{4}$/);
+    expect(mailPayload.generatedAtTime).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+    expect(mailPayload.threshold).toContain('15.000,00');
+    expect(mailPayload.orders).toEqual([
+      expect.objectContaining({
+        dataOrdem: '05-01-2025',
+        dataCapturaDate: '05-01-2025',
+        dataCapturaTime: '10:00:00',
+        createdAtDate: '06-01-2025',
+        createdAtTime: '12:00:00',
+      }),
+    ]);
     expect(settingsService.upsertBySettingData).toHaveBeenCalledWith(
       appSettings.any__mail_admin_fraud_last_execution,
       expect.any(String),
