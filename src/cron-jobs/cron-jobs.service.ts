@@ -697,7 +697,7 @@ export class CronJobsService {
     this.logger.debug('iniciando o agrupamento pendente')
     //if (dataInicio)
     // AGRUPAR ORDENS POR INDIVIDUO
-    //   await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
+       await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
     // Prepara o remessa
     // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
