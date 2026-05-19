@@ -25,9 +25,6 @@ export function buildAutomationCronJobs(args: BuildAutomationCronJobsArgs): ICro
     if (!shouldIncludeAgenda(agenda, now)) {
       continue;
     }
-    if (!agenda.beneficiarioUsuario) {
-      continue;
-    }
 
     const tipo = agenda.tipoBeneficiario;
     let remessaExistente = listaRemessas.find((r) => r.tipoBeneficiario === tipo);
@@ -62,10 +59,27 @@ function shouldIncludeAgenda(agenda: AgendamentoPagamentoDTO, now: Date): boolea
   if (!agenda.status) {
     return false;
   }
+
+  if (!agenda.beneficiarioUsuario) {
+    return false;
+  }
+
+  if (!hasValidTimeFormat(agenda.horario)) {
+    return false;
+  }
+
   return Boolean(
     verificaDiaSemana(agenda.diaSemana, now) ||
     verificarIntervalo(agenda.diaIntervalo, agenda.createdAt, now),
   );
+}
+
+function hasValidTimeFormat(time?: string): boolean {
+  if (!time) {
+    return false;
+  }
+
+  return /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.test(time);
 }
 
 function remHours(time: string, hoursToAdd: number): string {

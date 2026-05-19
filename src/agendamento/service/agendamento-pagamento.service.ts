@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { ConflictException, Injectable } from "@nestjs/common";
 import { Nullable } from "src/utils/types/nullable.type";
 import { AgendamentoPagamentoDTO } from "../domain/dto/agendamento-pagamento.dto";
 import { AgendamentoPagamentoRepository } from "../repository/agendamento-pagamento.repository";
@@ -51,8 +51,28 @@ export class AgendamentoPagamentoService {
   }
 
   async delete(id: number, LancamentoAuthorizeDto: string, userId: number): Promise<any> {
+    const agendamento = await this.agendamentoPagamentoRepository.findOne({ id });
     const user = await this.usersService.findOne({ id: userId });
-    return await this.agendamentoPagamentoRepository.delete(id, LancamentoAuthorizeDto, user);
+
+    if (!user) {
+      throw new ConflictException('Usuário não encontrado');
+    }
+
+    if (agendamento?.aprovacaoPagamento?.status === AprovacaoEnum.Aprovado) {
+      
+      if (agendamento.aprovacaoPagamento.aprovador?.id !== user.id) {
+        throw new ConflictException('Apenas o aprovador pode excluir um agendamento com pagamento aprovado');
+      }
+    }
+
+    const result = await this.agendamentoPagamentoRepository.delete(id, LancamentoAuthorizeDto, user);
+
+    if (agendamento?.aprovacaoPagamento?.status === AprovacaoEnum.Aprovado) {
+
+      await this.aprovacaoPagamentoRepository.delete(agendamento.aprovacaoPagamento.id);
+    }
+
+    return result;
   }
 
 }
