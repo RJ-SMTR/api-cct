@@ -21,7 +21,8 @@ jobs:
     name: Dockerfiles linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      # Atualizado de v2 para v4
+      - uses: actions/checkout@v4
 
       - name: Run hadolint
         uses: reviewdog/action-hadolint@v1
@@ -34,11 +35,13 @@ jobs:
     name: Build and update deployments
     runs-on: ubuntu-latest
     steps:
+      # Atualizado de v2 para v4
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
+      # Atualizado para v2 (suporta Node20 e autenticação moderna)
       - name: Setup Google Cloud CLI
-        uses: google-github-actions/setup-gcloud@v0.2.1
+        uses: google-github-actions/setup-gcloud@v2
         with:
           service_account_key: ${{ secrets.GKE_SA_KEY }}
           project_id: ${{ secrets.GKE_PROJECT }}
@@ -47,8 +50,9 @@ jobs:
         run: |-
           gcloud --quiet auth configure-docker
 
+      # Atualizado para v2
       - name: Get GKE credentials
-        uses: google-github-actions/get-gke-credentials@v0.2.1
+        uses: google-github-actions/get-gke-credentials@v2
         with:
           cluster_name: ${{ env.GKE_CLUSTER }}
           location: ${{ env.GKE_ZONE }}
@@ -84,5 +88,3 @@ jobs:
           ./kustomize edit set image gcr.io/PROJECT_ID/IMAGE:TAG=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA
           ./kustomize build . | kubectl apply -n cct -f -
           kubectl get services -n cct -o wide
-
-# trigger
