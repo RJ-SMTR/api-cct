@@ -1,4 +1,5 @@
 import { Provider } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForgotService } from 'src/forgot/forgot.service';
@@ -9,6 +10,8 @@ import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { MailRegistrationInterface } from 'src/mail/interfaces/mail-registration.interface';
 import { MailSentInfo } from 'src/mail/interfaces/mail-sent-info.interface';
 import { MailService } from 'src/mail/mail.service';
+import { Role } from 'src/roles/entities/role.entity';
+import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { DeepPartial } from 'typeorm';
@@ -30,6 +33,7 @@ describe('AuthService', () => {
         create: jest.fn(),
         getOne: jest.fn(),
         findOne: jest.fn(),
+        findManyByNormalizedCpf: jest.fn(),
         update: jest.fn(),
         softDelete: jest.fn(),
       },
@@ -272,6 +276,88 @@ describe('AuthService', () => {
 
       // Assert
       expect(mailHistoryService.update).toBeCalledTimes(0);
+    });
+  });
+
+  describe('validateCpfLogin', () => {
+    it('should authenticate a user using a normalized cpf', async () => {
+      const passwordHash = await bcrypt.hash('secret', 10);
+      const user = new User({
+        id: 10,
+        cpfCnpj: '12345678900',
+        password: passwordHash,
+        provider: 'email',
+        role: new Role(RoleEnum.user),
+      });
+      const signSpy = jest
+        .spyOn((authService as any).jwtService, 'sign')
+        .mockReturnValue('jwt-token');
+
+      jest
+        .spyOn(usersService, 'findManyByNormalizedCpf')
+        .mockResolvedValue([user]);
+
+      const response = await authService.validateCpfLogin({
+        cpf: '123.456.789-00',
+        password: 'secret',
+      });
+
+      expect(usersService.findManyByNormalizedCpf).toBeCalledWith('12345678900');
+      expect(signSpy).toBeCalledWith({
+        id: user.id,
+        role: user.role,
+      });
+      expect(response).toEqual({
+        token: 'jwt-token',
+        user,
+      });
+    });
+
+    it('should return a generic unauthorized error when cpf is not found', async () => {
+      jest.spyOn(usersService, 'findManyByNormalizedCpf').mockResolvedValue([]);
+
+      await expect(
+        authService.validateCpfLogin({
+          cpf: '123.456.789-00',
+          password: 'secret',
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          error: 'Unauthorized',
+          details: {
+            credentials: 'invalidCpfOrPassword',
+          },
+        },
+      });
+    });
+
+    it('should return a generic unauthorized error when password is invalid', async () => {
+      const passwordHash = await bcrypt.hash('secret', 10);
+      const user = new User({
+        id: 11,
+        cpfCnpj: '12345678900',
+        password: passwordHash,
+        provider: 'email',
+        role: new Role(RoleEnum.agents),
+      });
+
+      jest
+        .spyOn(usersService, 'findManyByNormalizedCpf')
+        .mockResolvedValue([user]);
+
+      await expect(
+        authService.validateCpfLogin({
+          cpf: '123.456.789-00',
+          password: 'wrong-password',
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          error: 'Unauthorized',
+          details: {
+            credentials: 'invalidCpfOrPassword',
+          },
+        },
+      });
     });
   });
 });

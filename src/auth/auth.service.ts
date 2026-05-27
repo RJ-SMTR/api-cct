@@ -22,8 +22,7 @@ import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { Nullable } from '../utils/types/nullable.type';
 import { AuthProvidersEnum } from './auth-providers.enum';
-import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
-import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
+import { AuthCpfLoginDto } from './dto/auth-cpf-login.dto'; import { AuthEmailLoginDto } from './dto/auth-email-login.dto'; import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
 import { CustomLogger } from 'src/utils/custom-logger';
@@ -31,6 +30,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 @Injectable()
 export class AuthService {
   private logger = new CustomLogger('AuthService', { timestamp: true });
+  private readonly cpfLoginAllowedRoles = [RoleEnum.user, RoleEnum.agents];
 
   constructor(
     private jwtService: JwtService,
@@ -71,41 +71,33 @@ export class AuthService {
       );
     }
 
-    if (user.provider !== AuthProvidersEnum.email) {
-      throw new HttpException(
-        {
-          error: HttpStatusMessage.UNAUTHORIZED,
-          details: {
-            email: `needLoginViaProvider:${user.provider}`,
-          },
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
+    await this.validateEmailProvider(user, 'email');
+    await this.validatePassword(user, loginDto.password, 'password');
+
+    return this.buildLoginResponse(user);
+  }
+
+  async validateCpfLogin(loginDto: AuthCpfLoginDto): Promise<LoginResponseType> {
+    const normalizedCpf = this.normalizeCpf(loginDto.cpf);
+    const users = await this.usersService.findManyByNormalizedCpf(normalizedCpf);
+
+    if (users.length !== 1) {
+      throw this.getInvalidCpfCredentialsException();
     }
 
-    const isValidPassword = await bcrypt.compare(
-      loginDto.password,
-      user.password,
-    );
-
-    if (!isValidPassword) {
-      throw new HttpException(
-        {
-          error: HttpStatusMessage.UNAUTHORIZED,
-          details: {
-            password: 'incorrectPassword',
-          },
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
+    const [user] = users;
+    if (!user?.role || !this.cpfLoginAllowedRoles.includes(user.role.id)) {
+      throw this.getInvalidCpfCredentialsException();
     }
 
-    const token = this.jwtService.sign({
-      id: user.id,
-      role: user.role,
-    });
+    try {
+      await this.validateEmailProvider(user, 'credentials');
+      await this.validatePassword(user, loginDto.password, 'credentials');
+    } catch (error) {
+      throw this.getInvalidCpfCredentialsException();
+    }
 
-    return { token, user };
+    return this.buildLoginResponse(user);
   }
 
   async validateSocialLogin(
@@ -474,5 +466,60 @@ export class AuthService {
     await this.usersService.update(user.id, userProfile);
 
     return userProfile;
+  }
+
+  private normalizeCpf(cpf: string): string {
+    return String(cpf ?? '').replace(/\D/g, '');
+  }
+
+  private async validateEmailProvider(user: User, errorField: string) {
+    if (user.provider !== AuthProvidersEnum.email) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            [errorField]: `needLoginViaProvider:${user.provider}`,
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+  }
+
+  private async validatePassword(user: User, password: string, errorField: string) {
+    const isValidPassword = await bcrypt.compare(password, user.password);
+
+    if (!isValidPassword) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            [errorField]: 'incorrectPassword',
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+  }
+
+  private buildLoginResponse(user: User): LoginResponseType {
+    const token = this.jwtService.sign({
+      id: user.id,
+      role: user.role,
+    });
+
+    return { token, user };
+  }
+
+  private getInvalidCpfCredentialsException(): HttpException {
+    return new HttpException(
+      {
+        error: HttpStatusMessage.UNAUTHORIZED,
+        details: {
+          credentials: 'invalidCpfOrPassword',
+        },
+      },
+      HttpStatus.UNAUTHORIZED,
+    );
   }
 }

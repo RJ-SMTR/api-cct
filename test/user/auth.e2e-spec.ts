@@ -39,6 +39,30 @@ describe('User auth (e2e)', () => {
         .expect(HttpStatus.OK);
     });
 
+    test('Login user with cpf: POST /api/v1/auth/login/cpf', async () => {
+      const loginResponse = await request(app)
+        .post('/api/v1/auth/licensee/login')
+        .send({
+          permitCode: LICENSEE_CPF_PERMIT_CODE,
+          password: LICENSEE_CPF_PASSWORD,
+        })
+        .expect(HttpStatus.OK);
+
+      const cpf = loginResponse.body.user.cpfCnpj;
+
+      await request(app)
+        .post('/api/v1/auth/login/cpf')
+        .send({
+          cpf,
+          password: LICENSEE_CPF_PASSWORD,
+        })
+        .expect(HttpStatus.OK)
+        .expect(({ body }) => {
+          expect(body.token).toBeDefined();
+          expect(body.user.email).toBeDefined();
+        });
+    });
+
     test('Reset user password', async () => {
       await request(APP_URL)
         .post('/api/v1/auth/forgot/password')

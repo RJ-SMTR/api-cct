@@ -147,6 +147,32 @@ export class UsersRepository {
     return users;
   }
 
+  async findAgentUsersByStatus(statusId: number): Promise<User[]> {
+    const users = await this.usersRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.status', 'status')
+      .where('user."statusId" = :statusId', { statusId })
+      .orderBy('user."fullName"', 'ASC')
+      .getMany();
+    await this.loadLazyRelations(users);
+    return users;
+  }
+
+  async findManyByNormalizedCpf(cpf: string): Promise<User[]> {
+    const users = await this.usersRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.status', 'status')
+      .where(
+        `regexp_replace(coalesce("user"."cpfCnpj", ''), '\\D', '', 'g') = :cpf`,
+        { cpf },
+      )
+      .getMany();
+    await this.loadLazyRelations(users);
+    return users;
+  }
+
   // #region findManyWithPagination
 
   async findManyWithPagination(

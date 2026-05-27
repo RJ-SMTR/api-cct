@@ -90,5 +90,20 @@ export class RoleSeedService {
         }),
       );
     }
+
+    const countAgents = await this.roleRepository.count({
+      where: {
+        id: RoleEnum.agents,
+      },
+    });
+
+    if (!countAgents) {
+      await this.roleRepository.save(
+        this.roleRepository.create({
+          id: RoleEnum.agents,
+          name: 'Agentes',
+        }),
+      );
+    }
   }
 }
