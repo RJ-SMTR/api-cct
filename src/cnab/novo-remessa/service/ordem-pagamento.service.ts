@@ -125,8 +125,16 @@ export class OrdemPagamentoService {
     return this.ordemPagamentoRepository.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
   }
 
+  async findOrdensAgrupadasPorUserIds(dataInicio: Date, dataFim: Date, userIds: number[]): Promise<OrdemPagamento[]> {
+    return this.ordemPagamentoRepository.findOrdensAgrupadasPorUserIds(dataInicio, dataFim, userIds);
+  }
+
   async removerAgrupamentos(consorcios: string[], ids: string) {
     await this.ordemPagamentoRepository.removerAgrupamento(consorcios, ids)
+  }
+
+  async removerAgrupamentosPorUserIds(userIds: number[], ids: string) {
+    await this.ordemPagamentoRepository.removerAgrupamentoPorUserIds(userIds, ids)
   }
 
   public async getOrdensPendentes(dataInicio: Date, dataFim: Date, nomes: string[]) {

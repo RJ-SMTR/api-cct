@@ -10,6 +10,12 @@ type BuildAutomationCronJobsArgs = {
   now?: Date;
 };
 
+export type AgendaAutomationDiagnostic = {
+  id?: number;
+  included: boolean;
+  reasons: string[];
+};
+
 export function buildAutomationCronJobs(args: BuildAutomationCronJobsArgs): ICronJob[] {
   const {
     agendamentos,
@@ -34,7 +40,9 @@ export function buildAutomationCronJobs(args: BuildAutomationCronJobsArgs): ICro
       listaRemessas.push(novaRemessa);
       remessaExistente = novaRemessa;
     } else {
-      remessaExistente.beneficiarios.push(agenda.beneficiarioUsuario);
+      if (agenda.beneficiarioUsuario) {
+        remessaExistente.beneficiarios.push(agenda.beneficiarioUsuario);
+      }
     }
   }
 
@@ -55,23 +63,73 @@ export function buildAutomationCronJobs(args: BuildAutomationCronJobsArgs): ICro
   return cronsAutonomos;
 }
 
+export function getAutomationAgendaDiagnostics(
+  agendamentos: AgendamentoPagamentoDTO[],
+  now = new Date(),
+): AgendaAutomationDiagnostic[] {
+  return agendamentos.map((agenda) => {
+    const validation = evaluateAgendaForAutomation(agenda, now);
+    return {
+      id: agenda.id,
+      included: validation.isValid,
+      reasons: validation.reasons,
+    };
+  });
+}
+
 function shouldIncludeAgenda(agenda: AgendamentoPagamentoDTO, now: Date): boolean {
+  return evaluateAgendaForAutomation(agenda, now).isValid;
+}
+
+function evaluateAgendaForAutomation(
+  agenda: AgendamentoPagamentoDTO,
+  now: Date,
+): { isValid: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+
   if (!agenda.status) {
-    return false;
+    reasons.push('status_inativo');
   }
 
   if (!agenda.beneficiarioUsuario) {
-    return false;
+    reasons.push('beneficiario_ausente');
   }
 
   if (!hasValidTimeFormat(agenda.horario)) {
-    return false;
+    reasons.push('horario_invalido');
   }
 
-  return Boolean(
-    verificaDiaSemana(agenda.diaSemana, now) ||
-    verificarIntervalo(agenda.diaIntervalo, agenda.createdAt, now),
-  );
+  const weekdays = normalizeWeekdays(agenda.weekdays);
+  if (weekdays.length > 0 && !weekdays.includes(now.getDay())) {
+    reasons.push(`weekday_nao_compativel_hoje:${now.getDay()}`);
+  }
+
+  if (weekdays.length === 0) {
+    const byDiaSemana = verificaDiaSemana(agenda.diaSemana, now);
+    const byIntervalo = Boolean(verificarIntervalo(agenda.diaIntervalo, agenda.createdAt, now));
+    if (!byDiaSemana && !byIntervalo) {
+      reasons.push('recorrencia_nao_compativel_hoje');
+    }
+  }
+
+  return {
+    isValid: reasons.length === 0,
+    reasons,
+  };
+}
+
+function normalizeWeekdays(weekdays?: number[]): number[] {
+  if (!Array.isArray(weekdays)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      weekdays
+        .map((day) => Number(day))
+        .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6),
+    ),
+  ).sort((a, b) => a - b);
 }
 
 function hasValidTimeFormat(time?: string): boolean {

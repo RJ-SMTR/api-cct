@@ -88,7 +88,15 @@ describe('CronJobs - Autonomous Payment (integration)', () => {
           },
         },
         { provide: RetornoService, useValue: {} },
-        { provide: OrdemPagamentoService, useValue: { findOrdensAgrupadas: jest.fn().mockResolvedValue([]), removerAgrupamentos: jest.fn() } },
+        {
+          provide: OrdemPagamentoService,
+          useValue: {
+            findOrdensAgrupadas: jest.fn().mockResolvedValue([]),
+            removerAgrupamentos: jest.fn(),
+            findOrdensAgrupadasPorUserIds: jest.fn().mockResolvedValue([]),
+            removerAgrupamentosPorUserIds: jest.fn(),
+          },
+        },
         { provide: BigqueryTransacaoService, useValue: {} },
         { provide: DistributedLockService, useValue: { acquireLock: jest.fn(), releaseLock: jest.fn() } },
         { provide: AgendamentoPagamentoService, useValue: { findAll: jest.fn() } },

@@ -84,6 +84,9 @@ export class AgendamentoPagamento extends EntityHelper {
   @Column({ type: Number })
   diaIntervalo: number;
 
+  @Column('int', { array: true, nullable: true })
+  weekdays?: number[];
+
   @Column({ type: Number, unique: false, nullable: true })
   aprovacaoPagamentoId: number;
   

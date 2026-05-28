@@ -234,6 +234,55 @@ describe('CronJobsService.geraCronJob', () => {
     expect(jobs).toEqual([]);
   });
 
+  it('ignores agendamentos with invalid preconditions for automation', async () => {
+    const agendamentos: AgendamentoPagamentoDTO[] = [
+      {
+        status: true,
+        diaSemana: 4,
+        createdAt: new Date('2024-03-01T00:00:00Z'),
+        beneficiarioUsuario: makeUser(1, 'Invalid Time'),
+        tipoBeneficiario: 'Consorcio',
+        horario: '25:99:00',
+        pagador: makePagador(),
+        diaInicioPagar: 1,
+        diaFinalPagar: 5,
+        diaIntervalo: 7,
+        aprovacao: true,
+      },
+      {
+        status: true,
+        createdAt: new Date('2024-03-01T00:00:00Z'),
+        beneficiarioUsuario: makeUser(2, 'No Recurrence'),
+        tipoBeneficiario: 'Consorcio',
+        horario: '10:30:00',
+        pagador: makePagador(),
+        diaInicioPagar: 1,
+        diaFinalPagar: 5,
+        diaIntervalo: undefined as any,
+        aprovacao: true,
+      },
+      {
+        status: true,
+        diaSemana: 4,
+        createdAt: new Date('2024-03-01T00:00:00Z'),
+        beneficiarioUsuario: undefined,
+        tipoBeneficiario: 'Consorcio',
+        horario: '10:30:00',
+        pagador: makePagador(),
+        diaInicioPagar: 1,
+        diaFinalPagar: 5,
+        diaIntervalo: 7,
+        aprovacao: true,
+      },
+    ];
+
+    jest.spyOn(agendamentoPagamentoService, 'findAll').mockResolvedValue(agendamentos);
+
+    const jobs = await cronJobsService.geraCronJob();
+
+    expect(jobs).toEqual([]);
+  });
+
   it('triggers remessaAutomacaoExec without executing deep remessa steps', async () => {
     const rem = {
       beneficiarios: [makeUser(10, 'User Ten'), makeUser(11, 'User Eleven')],

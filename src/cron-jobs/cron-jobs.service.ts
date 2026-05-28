@@ -45,7 +45,7 @@ import { AprovacaoEnum } from 'src/agendamento/enums/aprovacao.enum';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { AprovacaoPagamentoDTO } from 'src/agendamento/domain/dto/aprovacao-pagamento.dto';
 import { TipoBeneficarioEnum } from 'src/agendamento/enums/tipo-beneficiario.enum';
-import { buildAutomationCronJobs } from './cronjob-automation.builder';
+import { buildAutomationCronJobs, getAutomationAgendaDiagnostics } from './cronjob-automation.builder';
 import { ICronJob } from './cron-jobs.interfaces';
 
 
@@ -111,158 +111,165 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento();
+    this.logger.log('Inicializando modulo de cronjobs.');
+    // await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
   async onModuleLoad() {
-
+    this.logger.log(`Iniciando carregamento dos cronjobs. env->CRONJOBS=${process.env.CRONJOBS}`);
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
-      {
-        /**
-         * Job interno.
-         * NÃO REMOVER ESTE JOB, É ÚTIL PARA ALTERAR OS CRONJOBS EM CASO DE URGÊNCIA
-         */
-        name: CronJobsEnum.pollDb,
-        cronJobParameters: {
-          // cronjob: * * * * - A cada minuto
-          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__poll_db_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
-          onTick: async () => await this.pollDb(),
-        },
-      },
-      {
-        /**
-         * Atualizar Retorno - Leitura dos Arquivos Retorno do Banco CEF para CCT - todo dia, a cada 30m
-         *
-         * Não executa quando gerar o remessa.
-         */
-        name: CronJobsEnum.updateRetorno,
-        cronJobParameters: {
-          cronTime: '*/30 * * * *', //  Every 30 min
-          onTick: async () => {
-            await this.retornoExec();
-          },
-        },
-      },
-      {
-        /**
-         * Atualizar Extrato - Leitura dos Arquivos de Extrato Retorno do Banco CEF para CCT - todo dia
-         *
-         * Não executa quando gerar o remessa.
-         */
-        name: CronJobsEnum.updateExtrato,
-        cronJobParameters: {
-          cronTime: '*/30 * * * *', //  Every 30 min
-          onTick: async () => {
-            await this.readRetornoExtrato();
-          },
-        },
-      },
+      // {
+      //   /**
+      //    * Job interno.
+      //    * NÃO REMOVER ESTE JOB, É ÚTIL PARA ALTERAR OS CRONJOBS EM CASO DE URGÊNCIA
+      //    */
+      //   name: CronJobsEnum.pollDb,
+      //   cronJobParameters: {
+      //     // cronjob: * * * * - A cada minuto
+      //     cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__poll_db_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+      //     onTick: async () => await this.pollDb(),
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Atualizar Retorno - Leitura dos Arquivos Retorno do Banco CEF para CCT - todo dia, a cada 30m
+      //    *
+      //    * Não executa quando gerar o remessa.
+      //    */
+      //   name: CronJobsEnum.updateRetorno,
+      //   cronJobParameters: {
+      //     cronTime: '*/30 * * * *', //  Every 30 min
+      //     onTick: async () => {
+      //       await this.retornoExec();
+      //     },
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Atualizar Extrato - Leitura dos Arquivos de Extrato Retorno do Banco CEF para CCT - todo dia
+      //    *
+      //    * Não executa quando gerar o remessa.
+      //    */
+      //   name: CronJobsEnum.updateExtrato,
+      //   cronJobParameters: {
+      //     cronTime: '*/30 * * * *', //  Every 30 min
+      //     onTick: async () => {
+      //       await this.readRetornoExtrato();
+      //     },
+      //   },
+      // },
 
-      {
-        /**
-         * Envio de Relatório Estatística dos Dados - todo dia, 06:00 - 06:01
-         *
-         * NÃO DESABILITAR ENVIO DE REPORT - Every day, 09:00 GMT = 06:00 BRT (GMT-3)
-         *
-         * Envio relatório estatística
-         */
-        name: CronJobsEnum.sendReport,
-        cronJobParameters: {
-          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob,
-            true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
-          onTick: async () => await this.sendStatusReport(),
-        },
-      },
-      {
-        /**
-         * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min       
-         *
-         * Gerar remessa VLT
-         */
-        name: CronJobsEnum.generateRemessaVLT,
-        cronJobParameters: {
-          cronTime: '0 12 * * *', // Every day, 12:00 GMT = 9:00 BRT (GMT-3)
-          onTick: async () => {
-            const today = new Date();
-            if (isSaturday(today) || isSunday(today)) {
-              return;
-            }
-          },
-        },
-      },
-      {
-        /**
-         * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min         
-         *
-         * Gerar remessa vanzeiros
-         */
-        name: CronJobsEnum.generateRemessaVanzeiros,
-        cronJobParameters: {
-          cronTime: '0 13 * * FRI', // Rodar todas as sextas 13:00 GMT = 10:00 BRT (GMT-3)
-          onTick: async () => {
-            // await this.remessaModalExec(); 
-          },
-        },
-      },
-      {
-        /**
-         * Gerar arquivo Remessa dos Consórcios - toda 6a
-         *
-         * Gerar remessa consórcios
-         */
-        name: CronJobsEnum.generateRemessaEmpresa,
-        cronJobParameters: {
-          cronTime: '0 12 * * FRI', // Rodar todas as sextas 12:00 GMT = 09:00 BRT (GMT-3)
-          onTick: async () => {
-            // await this.remessaConsorciosExec();
-          },
-        },
-      },
-      {
-        /**
-         * Reenvio de E-mail para Vanzeiros - 1 aceso ou Cadastro de Contas Bancárias - dia 15 de cada mês, 11:45, duração: 5 min
-         *
-         * Reenvio de emails para vanzeiros
-         */
-        name: CronJobsEnum.bulkResendInvites,
-        cronJobParameters: {
-          cronTime: '45 14 15 * *', // Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
-          onTick: async () => await this.bulkResendInvites(),
-        },
-      },
-      {
-        /**
-         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
-         *
-         * 19:00 BRT (GMT-3) = 22:00 GMT (10PM)
-         */
-        name: CronJobsEnum.bulkSendInvites,
-        cronJobParameters: {
-          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
-          onTick: async () => await this.bulkSendInvites(),
-        },
-      },
-      {
-        /**
-         * Sincroniza e agrupa ordens de pagamento.
-         * */
-        name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
-        cronJobParameters: {
-          cronTime: "0 9-21 * * *", // 06:00 BRT (GMT-3) = 09:00 GMT, 18:00 BRT (GMT-3) = 21:00 GMT
-          onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
-        },
-      },
+      // {
+      //   /**
+      //    * Envio de Relatório Estatística dos Dados - todo dia, 06:00 - 06:01
+      //    *
+      //    * NÃO DESABILITAR ENVIO DE REPORT - Every day, 09:00 GMT = 06:00 BRT (GMT-3)
+      //    *
+      //    * Envio relatório estatística
+      //    */
+      //   name: CronJobsEnum.sendReport,
+      //   cronJobParameters: {
+      //     cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_report_cronjob,
+      //       true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+      //     onTick: async () => await this.sendStatusReport(),
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Gerar arquivo remessa do Consórcio VLT - 2a-6a, 08:00, duração: 15 min       
+      //    *
+      //    * Gerar remessa VLT
+      //    */
+      //   name: CronJobsEnum.generateRemessaVLT,
+      //   cronJobParameters: {
+      //     cronTime: '0 12 * * *', // Every day, 12:00 GMT = 9:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       const today = new Date();
+      //       if (isSaturday(today) || isSunday(today)) {
+      //         return;
+      //       }
+      //     },
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Gerar arquivo remessa dos vanzeiros - toda 6a, 10:00, duração: 15 min         
+      //    *
+      //    * Gerar remessa vanzeiros
+      //    */
+      //   name: CronJobsEnum.generateRemessaVanzeiros,
+      //   cronJobParameters: {
+      //     cronTime: '0 13 * * FRI', // Rodar todas as sextas 13:00 GMT = 10:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       // await this.remessaModalExec(); 
+      //     },
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Gerar arquivo Remessa dos Consórcios - toda 6a
+      //    *
+      //    * Gerar remessa consórcios
+      //    */
+      //   name: CronJobsEnum.generateRemessaEmpresa,
+      //   cronJobParameters: {
+      //     cronTime: '0 12 * * FRI', // Rodar todas as sextas 12:00 GMT = 09:00 BRT (GMT-3)
+      //     onTick: async () => {
+      //       // await this.remessaConsorciosExec();
+      //     },
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Reenvio de E-mail para Vanzeiros - 1 aceso ou Cadastro de Contas Bancárias - dia 15 de cada mês, 11:45, duração: 5 min
+      //    *
+      //    * Reenvio de emails para vanzeiros
+      //    */
+      //   name: CronJobsEnum.bulkResendInvites,
+      //   cronJobParameters: {
+      //     cronTime: '45 14 15 * *', // Day 15, 14:45 GMT = 11:45 BRT (GMT-3)
+      //     onTick: async () => await this.bulkResendInvites(),
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
+      //    *
+      //    * 19:00 BRT (GMT-3) = 22:00 GMT (10PM)
+      //    */
+      //   name: CronJobsEnum.bulkSendInvites,
+      //   cronJobParameters: {
+      //     cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+      //     onTick: async () => await this.bulkSendInvites(),
+      //   },
+      // },
+      // {
+      //   /**
+      //    * Sincroniza e agrupa ordens de pagamento.
+      //    * */
+      //   name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
+      //   cronJobParameters: {
+      //     cronTime: "0 9-21 * * *", // 06:00 BRT (GMT-3) = 09:00 GMT, 18:00 BRT (GMT-3) = 21:00 GMT
+      //     onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
+      //   },
+      // },
     );
 
-    this.jobsConfig.push(...await this.geraCronJob());
+    const automationJobs = await this.geraCronJob();
+    this.jobsConfig.push(...automationJobs);
+    this.logger.log(`Cronjobs de automacao gerados: ${automationJobs.length}`);
+    if (automationJobs.length === 0) {
+      this.logger.warn('Nenhum cronjob de automacao foi gerado a partir dos agendamentos ativos/validos.');
+    }
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
     if (process.env.CRONJOBS != 'false') {
+      this.logger.log(`Total de cronjobs para registrar: ${this.jobsConfig.length}`);
 
       for (const jobConfig of this.jobsConfig) {
         this.startCron(jobConfig);
@@ -660,29 +667,137 @@ export class CronJobsService {
     }
   }
 
-  private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
-    consorcios: string[], rem: AgendamentoPagamentoRemessaDTO) {
+  private async geradorRemessaExec(
+    dataInicio: Date,
+    dataFim: Date,
+    dataPagamento: Date,
+    consorcios: string[],
+    headerName: HeaderName,
+    pagamentoUnico?: boolean,
+  ) {
+    const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
+    const pagador = await this.ordemPagamentoAgrupadoService.getPagador(pagadorKey);
 
-    // Agrupa pagamentos     
-    const headerName = rem.tipoBeneficiario == "Consorcio" ? HeaderName.CONSORCIO : HeaderName.MODAL
     for (let index = 0; index < consorcios.length; index++) {
-      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-        dataFim, dataPagamento, rem.pagador, [consorcios[index]]);
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
+        dataInicio,
+        dataFim,
+        dataPagamento,
+        pagador,
+        [consorcios[index]],
+      );
     }
 
-    //Prepara o remessa
-    const headerArquivo = await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios);
+    await this.remessaService.prepararRemessa(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      consorcios,
+      pagamentoUnico,
+    );
+
+    const txt = await this.remessaService.gerarCnabText(headerName);
+    await this.remessaService.enviarRemessa(txt, headerName);
+  }
+
+  private async geradorRemessaAutomacaoExec(
+    dataInicio: Date,
+    dataFim: Date,
+    dataPagamento: Date,
+    beneficiariosIds: number[],
+    rem: AgendamentoPagamentoRemessaDTO,
+  ) {
+    if (rem.tipoBeneficiario == 'Consorcio') {
+      await this.geradorRemessaAutomacaoConsorcioExec(
+        dataInicio,
+        dataFim,
+        dataPagamento,
+        beneficiariosIds,
+        rem,
+      );
+      return;
+    }
+
+    await this.geradorRemessaAutomacaoModalExec(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      beneficiariosIds,
+      rem,
+    );
+  }
+
+  private async geradorRemessaAutomacaoModalExec(
+    dataInicio: Date,
+    dataFim: Date,
+    dataPagamento: Date,
+    beneficiariosIds: number[],
+    rem: AgendamentoPagamentoRemessaDTO,
+  ) {
+    await this.geradorRemessaAutomacaoPorHeaderExec(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      beneficiariosIds,
+      rem,
+      HeaderName.MODAL,
+    );
+  }
+
+  private async geradorRemessaAutomacaoConsorcioExec(
+    dataInicio: Date,
+    dataFim: Date,
+    dataPagamento: Date,
+    beneficiariosIds: number[],
+    rem: AgendamentoPagamentoRemessaDTO,
+  ) {
+    await this.geradorRemessaAutomacaoPorHeaderExec(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      beneficiariosIds,
+      rem,
+      HeaderName.CONSORCIO,
+    );
+  }
+
+  private async geradorRemessaAutomacaoPorHeaderExec(
+    dataInicio: Date,
+    dataFim: Date,
+    dataPagamento: Date,
+    beneficiariosIds: number[],
+    rem: AgendamentoPagamentoRemessaDTO,
+    headerName: HeaderName,
+  ) {
+
+    for (let index = 0; index < beneficiariosIds.length; index++) {
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
+        dataInicio,
+        dataFim,
+        dataPagamento,
+        rem.pagador,
+        [String(beneficiariosIds[index])],
+      );
+    }
+
+    const headerArquivo = await this.remessaService.prepararRemessa(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      undefined,
+      false,
+      false,
+      undefined,
+      beneficiariosIds,
+    );
 
     let pagamentoAprovado = false;
-
-    if (rem.aprovacao) {//se estiver marcado que necessita de aprovação
-      pagamentoAprovado = await this.verificarAprovacao(rem, headerArquivo) //atualizar o detalhe_a e valor gerado
+    if (rem.aprovacao) {
+      pagamentoAprovado = await this.verificarAprovacao(rem, headerArquivo);
     }
 
-    if (rem.aprovacao == null || rem.aprovacao == false || pagamentoAprovado) {//Se não precisar de aprovação ou tiver aprovado na tabela de
-      //Gera o TXT
+    if (rem.aprovacao == null || rem.aprovacao == false || pagamentoAprovado) {
       const txt = await this.remessaService.gerarCnabText(headerName);
-      //Envia para o SFTP
       await this.remessaService.enviarRemessa(txt, headerName);
     }
   }
@@ -712,25 +827,31 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
-  // async remessaModalExec(pagamentoUnico?: boolean) {
-  //   const today = new Date();
-  //   let subDaysInt = 0;
+  async remessaModalExec(pagamentoUnico?: boolean) {
+    const today = new Date();
+    let subDaysInt = 0;
 
-  //   if (isTuesday(today)) {
-  //     subDaysInt = 4;
-  //   } else if (isFriday(today)) {
-  //     subDaysInt = 3;
-  //   } else {
-  //     return;
-  //   }
+    if (isTuesday(today)) {
+      subDaysInt = 4;
+    } else if (isFriday(today)) {
+      subDaysInt = 3;
+    } else {
+      return;
+    }
 
-  //   const dataInicio = subDays(today, subDaysInt);
-  //   const dataFim = subDays(today, 1);
-  //   const consorcios = ['STPC', 'STPL', 'TEC'];
-  //   await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
-  //   await this.geradorRemessaExec(dataInicio, dataFim, today,
-  //     consorcios, HeaderName.MODAL, pagamentoUnico);
-  // }
+    const dataInicio = subDays(today, subDaysInt);
+    const dataFim = subDays(today, 1);
+    const consorcios = ['STPC', 'STPL', 'TEC'];
+    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    await this.geradorRemessaExec(
+      dataInicio,
+      dataFim,
+      today,
+      consorcios,
+      HeaderName.MODAL,
+      pagamentoUnico,
+    );
+  }
 
   async limparAgrupamentos(dataInicio: Date, dataFim: Date, consorcios: string[]) {
     const ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
@@ -756,10 +877,27 @@ export class CronJobsService {
     const dataInicio = this.getData(today.getDay() + 1, rem.diaInicioPagar);
     const dataFim = this.getData(today.getDay() + 1, rem.diaFinalPagar);
 
-    const beneficiarios = rem.beneficiarios.flatMap(b => b.fullName ? [b.fullName] : [])
-    await this.limparAgrupamentos(dataInicio, dataFim, beneficiarios);
-    await this.geradorRemessaExec(dataInicio, dataFim, today, beneficiarios, rem);
+    const beneficiariosIds = rem.beneficiarios
+      .map((b) => Number((b as any).id))
+      .filter((id) => !Number.isNaN(id));
+
+    await this.limparAgrupamentosPorUserIds(dataInicio, dataFim, beneficiariosIds);
+    await this.geradorRemessaAutomacaoExec(dataInicio, dataFim, today, beneficiariosIds, rem);
     this.logger.log('TERMINO AUTOMAÇÃO');
+  }
+
+  async limparAgrupamentosPorUserIds(dataInicio: Date, dataFim: Date, userIds: number[]) {
+    const ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadasPorUserIds(dataInicio, dataFim, userIds);
+
+    const idsAgrupamentos =
+      ordensAgrupadas.map(f => f.ordemPagamentoAgrupadoId)
+        .join("','");
+
+    if (idsAgrupamentos && idsAgrupamentos.trim() != '') {
+      await this.ordemPagamentoAgrupadoService.excluirHistorico(idsAgrupamentos);
+      await this.ordemPagamentoService.removerAgrupamentosPorUserIds(userIds, idsAgrupamentos);
+      await this.ordemPagamentoAgrupadoService.excluirOrdensAgrupadas(idsAgrupamentos);
+    }
   }
 
   getData(today: number, data: number): Date {
@@ -895,14 +1033,31 @@ export class CronJobsService {
 
   async geraCronJob(): Promise<ICronJob[]> {
     const agendamentos = await this.agendamentoPagamentoService.findAll();
+    this.logger.log(`Agendamentos encontrados para gerar cronjobs: ${agendamentos.length}`);
 
-    return buildAutomationCronJobs({
+    const diagnostics = getAutomationAgendaDiagnostics(agendamentos);
+    const excluded = diagnostics.filter((item) => !item.included);
+    if (excluded.length > 0) {
+      for (const item of excluded) {
+        this.logger.warn(
+          `Agendamento ignorado (id=${item.id ?? 'sem-id'}): ${item.reasons.join(', ')}`,
+        );
+      }
+    }
+
+    const jobs = buildAutomationCronJobs({
       agendamentos,
       jobNamePrefix: CronJobsEnum.automacao,
       onTick: async (remessa) => {
         await this.remessaAutomacaoExec(remessa);
       },
     });
+
+    if (jobs.length > 0) {
+      this.logger.log(`Nomes dos cronjobs gerados: ${jobs.map((j) => j.name).join(', ')}`);
+    }
+
+    return jobs;
   }
 
   async verificarAprovacao(rem: AgendamentoPagamentoRemessaDTO, headerArquivo: HeaderArquivo): Promise<boolean> {
@@ -910,16 +1065,25 @@ export class CronJobsService {
       const aprovacao = await this.aprovacaoService.findById(rem.aprovacaoPagamento.id);
 
       if (aprovacao) {
-        let detalhesA: DetalheA[] = [];
-        for (const headerLote of headerArquivo.headersLote) {
+        const headersLote = Array.isArray(headerArquivo?.headersLote) ? headerArquivo.headersLote : [];
+        if (headersLote.length === 0) {
+          this.logger.warn(
+            `Aprovacao pendente sem headersLote para processamento (aprovacaoId=${aprovacao.id}, headerArquivoId=${headerArquivo?.id ?? 'sem-id'}).`,
+            this.verificarAprovacao.name,
+          );
+          return false;
+        }
+
+        const detalhesA: DetalheA[] = [];
+        for (const headerLote of headersLote) {
           detalhesA.push(... await this.detalheAService.getDetalheAHeaderLote(headerLote.id));
         }
 
-        if (aprovacao.status === AprovacaoEnum.Aprovado) {
-          this.verificarValoresAprovados(detalhesA, rem.beneficiarios, aprovacao);//Se o pagamento estiver aprovado atualiza os valores de lancamento no detalhe_A
+        if (this.isAprovacaoAprovada(aprovacao.status)) {
+          await this.verificarValoresAprovados(detalhesA, rem.beneficiarios, aprovacao);//Se o pagamento estiver aprovado atualiza os valores de lancamento no detalhe_A
           return true;
         } else {
-          this.atualizarValorGeradoBQ(detalhesA, rem.beneficiarios, aprovacao);
+          await this.atualizarValorGeradoBQ(detalhesA, rem.beneficiarios, aprovacao);
         }
       }
     }
@@ -939,16 +1103,27 @@ export class CronJobsService {
   }
 
   async atualizarValorGeradoBQ(detalhesA: DetalheA[], beneficiarios: CreateUserDto[], aprovacao: AprovacaoPagamentoDTO) {
+    if (this.isAprovacaoAprovada(aprovacao.status)) {
+      return;
+    }
+
     for (const detalheA of detalhesA) {
       for (const beneficiario of beneficiarios) {
         if (await this.verificaBeneficiarioPagamento(beneficiario, detalheA)) {
           aprovacao.valorGerado = detalheA.valorLancamento;
+          if (!aprovacao.detalheA) {
+            aprovacao.detalheA = {} as any;
+          }
           aprovacao.detalheA.id = detalheA.id;
           aprovacao.status = AprovacaoEnum.AguardandoAprovacao;
-          this.aprovacaoService.save(aprovacao); // atualiza a aprovação com valor gerado e o detalhe A
+          await this.aprovacaoService.save(aprovacao); // atualiza a aprovação com valor gerado e o detalhe A
         }
       }
     }
+  }
+
+  private isAprovacaoAprovada(status: unknown): boolean {
+    return status === AprovacaoEnum.Aprovado || status === 'Aprovado' || status === String(AprovacaoEnum.Aprovado);
   }
 
   async verificaBeneficiarioPagamento(beneficiario: CreateUserDto, detalheA: DetalheA) {

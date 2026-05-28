@@ -568,6 +568,31 @@ ORDER BY dr.data;
     return result;
   }
 
+  public async findOrdensAgrupadasPorUserIds(dataInicio: Date, dataFim: Date, userIds: number[]) {
+
+    const dtInicialStr = dataInicio.toISOString().split('T')[0];
+    const dtFinalStr = dataFim.toISOString().split('T')[0];
+
+    if (!userIds || userIds.length === 0) {
+      return [];
+    }
+
+    const query = `SELECT distinct op."ordemPagamentoAgrupadoId" FROM ordem_pagamento op
+                    where date_trunc('day', op."dataCaptura") between '${dtInicialStr}' and '${dtFinalStr}'
+                    and op."userId" in (${userIds.join(',')})
+                    and op."ordemPagamentoAgrupadoId" is not null `;
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    let result: any = await queryRunner.query(query);
+
+    queryRunner.release();
+
+    return result;
+  }
+
   async removerAgrupamento(consorcios: string[], ids: string) {
     const consorciosJoin = consorcios.join("','");
     const queryRunner = this.dataSource.createQueryRunner();
@@ -575,6 +600,24 @@ ORDER BY dr.data;
       queryRunner.connect();
       const query = ` update ordem_pagamento set "ordemPagamentoAgrupadoId"=null 
                     where "nomeConsorcio" in('${consorciosJoin}') 
+                    and "ordemPagamentoAgrupadoId" in('${ids}') `;
+
+      await queryRunner.query(query);
+    } finally {
+      queryRunner.release();
+    }
+  }
+
+  async removerAgrupamentoPorUserIds(userIds: number[], ids: string) {
+    if (!userIds || userIds.length === 0) {
+      return;
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    try {
+      queryRunner.connect();
+      const query = ` update ordem_pagamento set "ordemPagamentoAgrupadoId"=null
+                    where "userId" in (${userIds.join(',')})
                     and "ordemPagamentoAgrupadoId" in('${ids}') `;
 
       await queryRunner.query(query);

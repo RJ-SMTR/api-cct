@@ -84,6 +84,11 @@ export class OrdemPagamentoAgrupadoService {
   async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date ) {
     return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio, dataFim, consorcio, dataPagamento);
   }
+
+  async getOrdensByUserIds(dataInicio: Date, dataFim: Date, userIds: number[], dataPagamento?: Date) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllCustomByUserIds(dataInicio, dataFim, userIds, dataPagamento);
+  }
+
   async getOrdensPendentes(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date, idOperadoras?: string[] ) {
     return await this.ordemPagamentoAgrupadoRepository.findAllPendente(dataInicio, dataFim, consorcio, dataPagamento, idOperadoras);
   }

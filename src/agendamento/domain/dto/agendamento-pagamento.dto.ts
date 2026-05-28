@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsBoolean, IsDate, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsDate, IsNumber, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AprovacaoPagamentoDTO } from './aprovacao-pagamento.dto';
 import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
@@ -60,6 +60,11 @@ export class AgendamentoPagamentoDTO {
   @IsOptional()
   @IsNumber()
   diaIntervalo: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  weekdays?: number[];
 
   @IsOptional()
   aprovacaoPagamento?: AprovacaoPagamentoDTO;

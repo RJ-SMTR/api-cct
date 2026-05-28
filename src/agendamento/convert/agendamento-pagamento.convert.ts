@@ -32,6 +32,7 @@ export class AgendamentoPagamentoConvert {
     dto.diaInicioPagar = agendamentoPagamento.diaInicioPagar;
     dto.diaFinalPagar = agendamentoPagamento.diaFinalPagar;
     dto.diaIntervalo = agendamentoPagamento.diaIntervalo;
+    dto.weekdays = agendamentoPagamento.weekdays;
 
     return dto;
   }
