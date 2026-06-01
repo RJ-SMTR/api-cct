@@ -40,7 +40,7 @@ export class AgentesRepository {
       month: '2026-05',
       validPhotosCount: 186,
       rejectedPhotosCount: 29,
-      consolidatedPaymentValue: 18452.67,
+      consolidatedPaymentValue: 186,
       rejectionReasons: [
         { reason: 'Documento ilegível', count: 12 },
         { reason: 'Foto fora do padrão', count: 9 },
@@ -53,14 +53,14 @@ export class AgentesRepository {
           validPhotosCount: 18,
           rejectedPhotosCount: 4,
           paymentStatus: 'Pago parcialmente',
-          totalPaymentValue: 1840.35,
+          totalPaymentValue: 18,
           payments: [
             {
               id: 'PAG-0503-01',
               date: '2026-05-03',
               description: 'Repasse manhã',
               status: 'Pago',
-              amount: 420.15,
+              amount: 9,
               rejectionReason: null,
             },
             {
@@ -68,7 +68,7 @@ export class AgentesRepository {
               date: '2026-05-03',
               description: 'Repasse tarde',
               status: 'Pago',
-              amount: 515.2,
+              amount: 9,
               rejectionReason: null,
             },
             {
@@ -86,14 +86,14 @@ export class AgentesRepository {
           validPhotosCount: 24,
           rejectedPhotosCount: 3,
           paymentStatus: 'Pago parcialmente',
-          totalPaymentValue: 2690.8,
+          totalPaymentValue: 24,
           payments: [
             {
               id: 'PAG-0511-01',
               date: '2026-05-11',
               description: 'Repasse integral',
               status: 'Pago',
-              amount: 1350.4,
+              amount: 12,
               rejectionReason: null,
             },
             {
@@ -101,7 +101,7 @@ export class AgentesRepository {
               date: '2026-05-11',
               description: 'Complemento',
               status: 'Pago',
-              amount: 1340.4,
+              amount: 12,
               rejectionReason: null,
             },
             {
@@ -119,14 +119,14 @@ export class AgentesRepository {
           validPhotosCount: 31,
           rejectedPhotosCount: 5,
           paymentStatus: 'Pago parcialmente',
-          totalPaymentValue: 4135.17,
+          totalPaymentValue: 31,
           payments: [
             {
               id: 'PAG-0519-01',
               date: '2026-05-19',
               description: 'Repasse início de semana',
               status: 'Pago',
-              amount: 1635.17,
+              amount: 15,
               rejectionReason: null,
             },
             {
@@ -134,7 +134,7 @@ export class AgentesRepository {
               date: '2026-05-19',
               description: 'Repasse fim de semana',
               status: 'Pago',
-              amount: 2500,
+              amount: 16,
               rejectionReason: null,
             },
             {
@@ -152,14 +152,14 @@ export class AgentesRepository {
           validPhotosCount: 20,
           rejectedPhotosCount: 2,
           paymentStatus: 'Pago',
-          totalPaymentValue: 2210.55,
+          totalPaymentValue: 20,
           payments: [
             {
               id: 'PAG-0525-01',
               date: '2026-05-25',
               description: 'Repasse consolidado',
               status: 'Pago',
-              amount: 1080.25,
+              amount: 10,
               rejectionReason: null,
             },
             {
@@ -167,7 +167,7 @@ export class AgentesRepository {
               date: '2026-05-25',
               description: 'Complemento operacional',
               status: 'Pago',
-              amount: 1130.3,
+              amount: 10,
               rejectionReason: null,
             },
           ],
@@ -178,7 +178,7 @@ export class AgentesRepository {
       month: '2026-04',
       validPhotosCount: 154,
       rejectedPhotosCount: 21,
-      consolidatedPaymentValue: 15218.11,
+      consolidatedPaymentValue: 154,
       rejectionReasons: [
         { reason: 'Documento ilegível', count: 8 },
         { reason: 'Foto fora do padrão', count: 6 },
@@ -191,14 +191,14 @@ export class AgentesRepository {
           validPhotosCount: 21,
           rejectedPhotosCount: 3,
           paymentStatus: 'Pago',
-          totalPaymentValue: 2018.5,
+          totalPaymentValue: 21,
           payments: [
             {
               id: 'PAG-0408-01',
               date: '2026-04-08',
               description: 'Repasse semanal',
               status: 'Pago',
-              amount: 980.25,
+              amount: 10,
               rejectionReason: null,
             },
             {
@@ -206,7 +206,7 @@ export class AgentesRepository {
               date: '2026-04-08',
               description: 'Complemento',
               status: 'Pago',
-              amount: 1038.25,
+              amount: 11,
               rejectionReason: null,
             },
           ],
@@ -216,14 +216,14 @@ export class AgentesRepository {
           validPhotosCount: 27,
           rejectedPhotosCount: 4,
           paymentStatus: 'Pago parcialmente',
-          totalPaymentValue: 3489.61,
+          totalPaymentValue: 27,
           payments: [
             {
               id: 'PAG-0416-01',
               date: '2026-04-16',
               description: 'Repasse quinzena',
               status: 'Pago',
-              amount: 1989.61,
+              amount: 13,
               rejectionReason: null,
             },
             {
@@ -231,7 +231,7 @@ export class AgentesRepository {
               date: '2026-04-16',
               description: 'Complemento quinzena',
               status: 'Pago',
-              amount: 1500,
+              amount: 14,
               rejectionReason: null,
             },
             {
@@ -249,14 +249,14 @@ export class AgentesRepository {
           validPhotosCount: 19,
           rejectedPhotosCount: 2,
           paymentStatus: 'Pago',
-          totalPaymentValue: 1877.9,
+          totalPaymentValue: 19,
           payments: [
             {
               id: 'PAG-0428-01',
               date: '2026-04-28',
               description: 'Repasse fechamento',
               status: 'Pago',
-              amount: 877.9,
+              amount: 9,
               rejectionReason: null,
             },
             {
@@ -264,7 +264,7 @@ export class AgentesRepository {
               date: '2026-04-28',
               description: 'Complemento fechamento',
               status: 'Pago',
-              amount: 1000,
+              amount: 10,
               rejectionReason: null,
             },
           ],
