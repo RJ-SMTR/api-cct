@@ -45,13 +45,13 @@ describe('UsersRepository', () => {
     );
   });
 
-  it('should build an agent users query without manually quoted user columns', async () => {
+  it('should build an agent users query using quoted user columns', async () => {
     await usersRepository.findAgentUsersByStatus(3);
 
     expect(typeormRepository.createQueryBuilder).toHaveBeenCalledWith('user');
-    expect(queryBuilder.where).toHaveBeenCalledWith('user.statusId = :statusId', {
+    expect(queryBuilder.where).toHaveBeenCalledWith('user."statusId" = :statusId', {
       statusId: 3,
     });
-    expect(queryBuilder.orderBy).toHaveBeenCalledWith('user.fullName', 'ASC');
+    expect(queryBuilder.orderBy).toHaveBeenCalledWith('user."fullName"', 'ASC');
   });
 });

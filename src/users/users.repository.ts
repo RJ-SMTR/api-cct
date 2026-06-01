@@ -142,8 +142,8 @@ export class UsersRepository {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('user.status', 'status')
-      .where('user.statusId = :statusId', { statusId })
-      .orderBy('user.fullName', 'ASC')
+      .where('user."statusId" = :statusId', { statusId })
+      .orderBy('user."fullName"', 'ASC')
       .getMany();
     await this.loadLazyRelations(users);
     return users;
