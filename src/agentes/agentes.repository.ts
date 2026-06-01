@@ -624,8 +624,8 @@ export class AgentesRepository {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('user.status', 'status')
-      .where('user.statusId = :statusId', { statusId: 3 })
-      .orderBy('user.fullName', 'ASC')
+      .where('"user"."statusId" = :statusId', { statusId: 3 })
+      .orderBy('"user"."fullName"', 'ASC')
       .getMany();
   }
 
