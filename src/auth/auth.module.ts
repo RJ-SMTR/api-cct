@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { AuthController } from './controller/auth.controller';
-import { AuthService } from './service/auth.service';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -13,6 +12,7 @@ import { IsExist } from 'src/utils/validators/is-exists.validator';
 import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
 import { IsValidBankCodeConstraint } from 'src/banks/validators/is-valid-bank-code.validator';
 import { MailHistoryModule } from 'src/mail-history/mail-history.module';
+import { AuthService } from './auth.service';
 
 @Module({
   imports: [
@@ -43,4 +43,4 @@ import { MailHistoryModule } from 'src/mail-history/mail-history.module';
   ],
   exports: [AuthService],
 })
-export class AuthModule {}
+export class AuthModule { }
