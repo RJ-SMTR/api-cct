@@ -1,6 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { AuthService } from 'src/auth/service/auth.service';
+import { AuthService } from 'src/auth/auth.service';
 import { AuthAppleLoginDto } from '../dto/auth-apple-login.dto';
 import { LoginResponseType } from 'src/utils/types/auth/login-response.type';
 import { AuthAppleService } from '../service/auth-apple.service';

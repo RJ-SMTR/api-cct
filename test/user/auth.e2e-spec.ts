@@ -39,6 +39,32 @@ describe('User auth (e2e)', () => {
         .expect(HttpStatus.OK);
     });
 
+
+
+    test('Login user with cpf: POST /api/v1/auth/login/cpf', async () => {
+      const loginResponse = await request(app)
+        .post('/api/v1/auth/licensee/login')
+        .send({
+          permitCode: LICENSEE_CPF_PERMIT_CODE,
+          password: LICENSEE_CPF_PASSWORD,
+        })
+        .expect(HttpStatus.OK);
+
+      const cpf = loginResponse.body.user.cpfCnpj;
+
+      await request(app)
+        .post('/api/v1/auth/login/cpf')
+        .send({
+          cpf,
+          password: LICENSEE_CPF_PASSWORD,
+        })
+        .expect(HttpStatus.OK)
+        .expect(({ body }) => {
+          expect(body.token).toBeDefined();
+          expect(body.user.email).toBeDefined();
+        });
+    });
+
     test('Reset user password', async () => {
       await request(APP_URL)
         .post('/api/v1/auth/forgot/password')
@@ -56,10 +82,10 @@ describe('User auth (e2e)', () => {
             .filter(
               (letter: any) =>
                 letter.to[0].address.toLowerCase() ===
-                  LICENSEE_TEST_EMAIL.toLowerCase() &&
+                LICENSEE_TEST_EMAIL.toLowerCase() &&
                 /.*reset\-password\/(\w+).*/g.test(letter.text) &&
                 differenceInSeconds(forgotLocalDate, new Date(letter.date)) <=
-                  10,
+                10,
             )
             .pop()
             ?.text.replace(/.*reset\-password\/(\w+).*/g, '$1'),

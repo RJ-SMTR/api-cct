@@ -9,6 +9,6 @@ export enum RoleEnum {
   'lancador_financeiro' = 3,
   /** Admin da func. financeiro */
   'aprovador_financeiro' = 4,
-  /** Admin da func. financeiro */
-  'consorcios' = 5,
+  /** Usuário da func. agentes */
+  'agents' = 5,
 }

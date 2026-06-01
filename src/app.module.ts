@@ -50,6 +50,7 @@ import { AppLoggerMiddleware } from './utils/logger-middleware';
 import { RelatorioModule } from './relatorio/relatorio.module';
 import { AppService } from './app.service';
 import { AgendamentoPagamentoModule } from './agendamento/agendamento.module';
+import { AgentesModule } from './agentes/agentes.module';
 
 @Module({
   imports: [
@@ -127,6 +128,7 @@ import { AgendamentoPagamentoModule } from './agendamento/agendamento.module';
     SftpModule,
     TransacaoViewModule,
     RelatorioModule,
+    AgentesModule,
     AgendamentoPagamentoModule
   ],
   providers: [TransacaoViewService, AppService],

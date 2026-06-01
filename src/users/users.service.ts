@@ -37,7 +37,7 @@ export enum userUploadEnum {
 export class UsersService {
   private logger = new CustomLogger(UsersService.name, { timestamp: true });
 
-  constructor(private usersRepository: UsersRepository, private mailHistoryService: MailHistoryService) {}
+  constructor(private usersRepository: UsersRepository, private mailHistoryService: MailHistoryService) { }
 
   async create(createProfileDto: CreateUserDto): Promise<User> {
     const createdUser = await this.usersRepository.create(createProfileDto);
@@ -49,6 +49,13 @@ export class UsersService {
     return await this.usersRepository.findMany(options);
   }
 
+  async findAgentUsersByStatus(statusId: number): Promise<User[]> {
+    return await this.usersRepository.findAgentUsersByStatus(statusId);
+  }
+
+  async findManyByNormalizedCpf(cpf: string): Promise<User[]> {
+    return await this.usersRepository.findManyByNormalizedCpf(cpf);
+  }
   async findManyRegisteredUsers() {
     return await this.usersRepository.findManyRegisteredUsers();
   }
@@ -172,10 +179,10 @@ export class UsersService {
     };
     this.logger.log(
       'Tarefa finalizada, resultado:\n' +
-        JSON.stringify({
-          requestUser: reqUser.getLogInfo(),
-          ...result,
-        }),
+      JSON.stringify({
+        requestUser: reqUser.getLogInfo(),
+        ...result,
+      }),
       'createFromFile()',
     );
     return result;

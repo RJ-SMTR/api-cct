@@ -8,7 +8,6 @@ import { RolesGuard } from 'src/roles/roles.guard';
 import { User } from '../../users/entities/user.entity';
 import { LoginResponseType } from '../../utils/types/auth/login-response.type';
 import { Nullable } from '../../utils/types/nullable.type';
-import { AuthService } from '../service/auth.service';
 import { AuthConfirmEmailDto } from '../domain/dto/auth-confirm-email.dto';
 import { AuthEmailLoginDto } from '../domain/dto/auth-email-login.dto';
 import { AuthForgotPasswordDto } from '../domain/dto/auth-forgot-password.dto';
@@ -17,6 +16,8 @@ import { AuthResendEmailDto } from '../domain/dto/auth-resend-mail.dto';
 import { AuthResetPasswordDto } from '../domain/dto/auth-reset-password.dto';
 import { AuthUpdateDto } from '../domain/dto/auth-update.dto';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { AuthCpfLoginDto } from '../dto/auth-cpf-login.dto';
+import { AuthService } from '../auth.service';
 
 @ApiTags('Auth')
 @Controller({
@@ -29,7 +30,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService, //
     private readonly mailHistoryService: MailHistoryService,
-  ) {}
+  ) { }
 
   @SerializeOptions({
     groups: ['me'],
@@ -103,6 +104,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   public me(@Request() request): Promise<Nullable<User>> {
     return this.authService.me(request.user);
+  }
+
+
+  @SerializeOptions({
+    groups: ['me'],
+  })
+  @Post('login/cpf')
+  @HttpCode(HttpStatus.OK)
+  public cpfLogin(@Body() loginDto: AuthCpfLoginDto): Promise<LoginResponseType> {
+    return this.authService.validateCpfLogin(loginDto);
   }
 
   @ApiBearerAuth()
