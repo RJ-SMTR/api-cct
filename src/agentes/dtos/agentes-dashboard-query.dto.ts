@@ -7,10 +7,15 @@ export class AgentesDashboardQueryDto {
   @Matches(/^\d{4}-\d{2}$/)
   month: string;
 
-  @ApiPropertyOptional({ example: '2026-05-19' })
+  @ApiPropertyOptional({ example: '2026-05-20' })
   @IsOptional()
   @IsDateString()
-  date?: string;
+  paymentDate?: string;
+
+  @ApiPropertyOptional({ example: '2026-05-21' })
+  @IsOptional()
+  @IsDateString()
+  workDate?: string;
 
   @ApiPropertyOptional({ example: 123 })
   @IsOptional()
