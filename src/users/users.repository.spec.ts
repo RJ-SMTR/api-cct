@@ -10,6 +10,7 @@ describe('UsersRepository', () => {
   let queryBuilder: {
     leftJoinAndSelect: jest.Mock;
     where: jest.Mock;
+    orderBy: jest.Mock;
     getMany: jest.Mock;
   };
 
@@ -17,6 +18,7 @@ describe('UsersRepository', () => {
     queryBuilder = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([]),
     };
     typeormRepository = {
@@ -41,5 +43,15 @@ describe('UsersRepository', () => {
       `regexp_replace(coalesce("user"."cpfCnpj", ''), '\\D', '', 'g') = :cpf`,
       { cpf: '12345678900' },
     );
+  });
+
+  it('should build an agent users query without manually quoted user columns', async () => {
+    await usersRepository.findAgentUsersByStatus(3);
+
+    expect(typeormRepository.createQueryBuilder).toHaveBeenCalledWith('user');
+    expect(queryBuilder.where).toHaveBeenCalledWith('user.statusId = :statusId', {
+      statusId: 3,
+    });
+    expect(queryBuilder.orderBy).toHaveBeenCalledWith('user.fullName', 'ASC');
   });
 });

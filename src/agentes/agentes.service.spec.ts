@@ -31,28 +31,68 @@ describe('AgentesService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should return selectedDayPayments when date is provided', async () => {
+  it('should return weekly days for a selected tuesday payment date', async () => {
     jest.spyOn(repository, 'findDashboardData').mockResolvedValue({
       month: '2026-05',
-      validPhotosCount: 10,
-      rejectedPhotosCount: 2,
-      consolidatedPaymentValue: 123.45,
-      rejectionReasons: [{ reason: 'Documento ilegível', count: 2 }],
-      dailyPayments: [
+      paymentCycles: [
         {
-          date: '2026-05-10',
-          validPhotosCount: 5,
-          rejectedPhotosCount: 1,
-          paymentStatus: 'Pago',
-          totalPaymentValue: 100,
-          payments: [
+          paymentDate: '2026-05-05',
+          workDays: [
             {
-              id: 'PAY-1',
-              date: '2026-05-10',
-              description: 'Pagamento teste',
-              status: 'Pago',
-              amount: 100,
-              rejectionReason: null,
+              date: '2026-05-01',
+              periodLabel: 'Tarde',
+              photos: [
+                {
+                  id: 'PHOTO-1',
+                  capturedAt: '2026-05-01T14:00:00',
+                  description: 'Foto de sexta-feira',
+                  status: 'Pago',
+                  amount: 1,
+                  rejectionReason: null,
+                },
+              ],
+            },
+            {
+              date: '2026-05-02',
+              periodLabel: 'Integral',
+              photos: [
+                {
+                  id: 'PHOTO-2',
+                  capturedAt: '2026-05-02T10:00:00',
+                  description: 'Foto de sábado',
+                  status: 'Pago',
+                  amount: 1,
+                  rejectionReason: null,
+                },
+              ],
+            },
+            {
+              date: '2026-05-03',
+              periodLabel: 'Integral',
+              photos: [
+                {
+                  id: 'PHOTO-3',
+                  capturedAt: '2026-05-03T10:00:00',
+                  description: 'Foto de domingo',
+                  status: 'Pago',
+                  amount: 1,
+                  rejectionReason: null,
+                },
+              ],
+            },
+            {
+              date: '2026-05-04',
+              periodLabel: 'Integral',
+              photos: [
+                {
+                  id: 'PHOTO-4',
+                  capturedAt: '2026-05-04T10:00:00',
+                  description: 'Foto de segunda',
+                  status: 'Rejeitado',
+                  amount: 0,
+                  rejectionReason: 'Documento ilegível',
+                },
+              ],
             },
           ],
         },
@@ -63,7 +103,7 @@ describe('AgentesService', () => {
     const response = await service.getDashboard(
       {
         month: '2026-05',
-        date: '2026-05-10',
+        paymentDate: '2026-05-05',
         userId: 10,
       },
       {
@@ -74,16 +114,85 @@ describe('AgentesService', () => {
       } as any,
     );
 
-    expect(response.selectedDayPayments).toEqual([
+    expect(response.currentView).toBe('weekly');
+    expect(response.selectedPaymentWeek.paymentDayType).toBe('terça-feira');
+    expect(response.selectedPaymentWeek.days.map((day) => day.date)).toEqual(['2026-05-01', '2026-05-02', '2026-05-03', '2026-05-04']);
+  });
+
+  it('should return daily photos when a work date is selected', async () => {
+    jest.spyOn(repository, 'findDashboardData').mockResolvedValue({
+      month: '2026-05',
+      paymentCycles: [
+        {
+          paymentDate: '2026-05-08',
+          workDays: [
+            {
+              date: '2026-05-06',
+              periodLabel: 'Integral',
+              photos: [
+                {
+                  id: 'PHOTO-10',
+                  capturedAt: '2026-05-06T09:00:00',
+                  description: 'Foto da quarta-feira',
+                  status: 'Pago',
+                  amount: 1,
+                  rejectionReason: null,
+                },
+                {
+                  id: 'PHOTO-11',
+                  capturedAt: '2026-05-06T13:00:00',
+                  description: 'Foto rejeitada',
+                  status: 'Rejeitado',
+                  amount: 0,
+                  rejectionReason: 'Foto fora do padrão',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as any);
+    jest.spyOn(repository, 'getAvailableMonths').mockReturnValue(['2026-05']);
+
+    const response = await service.getDashboard(
       {
-        id: 'PAY-1',
-        date: '2026-05-10',
-        description: 'Pagamento teste',
-        status: 'Pago',
-        amount: 100,
-        rejectionReason: null,
+        month: '2026-05',
+        paymentDate: '2026-05-08',
+        workDate: '2026-05-06',
+        userId: 10,
       },
-    ]);
+      {
+        user: {
+          id: 1,
+          role: new Role(RoleEnum.admin),
+        },
+      } as any,
+    );
+
+    expect(response.currentView).toBe('daily');
+    expect(response.selectedWorkDayPhotos).toEqual({
+      paymentDate: '2026-05-08',
+      date: '2026-05-06',
+      periodLabel: 'Integral',
+      photos: [
+        {
+          id: 'PHOTO-10',
+          capturedAt: '2026-05-06T09:00:00',
+          description: 'Foto da quarta-feira',
+          status: 'Pago',
+          amount: 1,
+          rejectionReason: null,
+        },
+        {
+          id: 'PHOTO-11',
+          capturedAt: '2026-05-06T13:00:00',
+          description: 'Foto rejeitada',
+          status: 'Rejeitado',
+          amount: 0,
+          rejectionReason: 'Foto fora do padrão',
+        },
+      ],
+    });
   });
 
   it('should prevent agents from accessing another user dashboard', async () => {
