@@ -49,9 +49,9 @@ describe('UsersRepository', () => {
     await usersRepository.findAgentUsersByStatus(3);
 
     expect(typeormRepository.createQueryBuilder).toHaveBeenCalledWith('user');
-    expect(queryBuilder.where).toHaveBeenCalledWith('user."statusId" = :statusId', {
+    expect(queryBuilder.where).toHaveBeenCalledWith('"user"."statusId" = :statusId', {
       statusId: 3,
     });
-    expect(queryBuilder.orderBy).toHaveBeenCalledWith('user."fullName"', 'ASC');
+    expect(queryBuilder.orderBy).toHaveBeenCalledWith('"user"."fullName"', 'ASC');
   });
 });
