@@ -68,7 +68,6 @@ describe('UsersRepository', () => {
     });
     expect(queryBuilder.orderBy).toHaveBeenCalledWith('"user"."fullName"', 'ASC');
   });
-
   it('should map invite sentAt into inviteAt when loading lazy invite data', async () => {
     const sentAt = new Date('2026-06-08T10:15:00.000Z');
     const user = new User({ id: 7, email: 'user@test.com' });
