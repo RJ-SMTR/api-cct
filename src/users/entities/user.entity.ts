@@ -21,6 +21,7 @@ export class User extends EntityHelper {
     super();
     this.aux_bank = null;
     this.aux_inviteStatus = null;
+    this.inviteAt = null;
     if (user !== undefined) {
       Object.assign(this, user);
     }
@@ -212,6 +213,9 @@ export class User extends EntityHelper {
   public __has_mailHistories__ = false;
 
   aux_inviteStatus?: InviteStatus | null;
+
+  @Expose({ groups: ['me', 'admin'] })
+  inviteAt?: Date | null;
 
   @Exclude()
   aux_inviteHash?: string | null;

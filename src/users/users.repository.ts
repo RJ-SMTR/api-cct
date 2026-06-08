@@ -105,6 +105,7 @@ export class UsersRepository {
       const mailHistory = mailHistories?.[0] as MailHistory | undefined;
       user.mailHistories = mails.filter((i) => i.user.id === user.id);
       user.aux_inviteStatus = mailHistory?.inviteStatus;
+      user.inviteAt = mailHistory?.sentAt ?? null;
       user.aux_inviteHash = mailHistory?.hash;
     }
   }
