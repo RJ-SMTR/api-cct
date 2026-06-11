@@ -438,6 +438,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       const pendentesQuery = this.buildPendentesQuery(filter, groupByConsorcio);
       groupedQueries.push({ query: pendentesQuery, params: pendentesParams });
     }
+    
+    console.log('Grouped Queries:', groupedQueries.map((q) => q.query).join('\n---\n'));
 
     return groupedQueries;
   }
