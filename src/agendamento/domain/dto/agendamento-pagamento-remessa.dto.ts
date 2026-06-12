@@ -5,6 +5,10 @@ import { CreateUserDto } from 'src/users/dto/create-user.dto';
 
 export class AgendamentoPagamentoRemessaDTO {
 
+  agendamentoIds: number[] = [];
+
+  aprovacaoPagamentoIds: number[] = [];
+
   tipoBeneficiario?: string | null;
   
   beneficiarios: CreateUserDto[]=[];
@@ -17,17 +21,17 @@ export class AgendamentoPagamentoRemessaDTO {
 
   motivoPagamentoUnico?: string;
 
-  horario: string;
+  horario: string = '';
 
-  pagador: PagadorDTO;
+  pagador: PagadorDTO = {} as PagadorDTO;
 
   aprovacao?: boolean;
 
-  diaInicioPagar:number;
+  diaInicioPagar: number = 0;
 
-  diaFinalPagar:number;
+  diaFinalPagar: number = 0;
 
-  diaIntervalo: number;
+  diaIntervalo: number = 0;
 
   @IsOptional()
   aprovacaoPagamento?: AprovacaoPagamentoDTO;

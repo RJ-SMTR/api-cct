@@ -45,6 +45,7 @@ import { AprovacaoEnum } from 'src/agendamento/enums/aprovacao.enum';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { AprovacaoPagamentoDTO } from 'src/agendamento/domain/dto/aprovacao-pagamento.dto';
 import { TipoBeneficarioEnum } from 'src/agendamento/enums/tipo-beneficiario.enum';
+import { HeaderLoteService } from 'src/cnab/service/pagamento/header-lote.service';
 import { buildAutomationCronJobs, getAutomationAgendaDiagnostics } from './cronjob-automation.builder';
 import { ICronJob } from './cron-jobs.interfaces';
 
@@ -107,7 +108,8 @@ export class CronJobsService {
     private distributedLockService: DistributedLockService,
     private agendamentoPagamentoService: AgendamentoPagamentoService,
     private aprovacaoService: AprovacaoPagamentoService,
-    private detalheAService: DetalheAService
+    private detalheAService: DetalheAService,
+    private headerLoteService: HeaderLoteService,
   ) { }
 
   async onModuleInit() {
@@ -767,21 +769,28 @@ export class CronJobsService {
     dataPagamento: Date,
     beneficiariosIds: number[],
     rem: AgendamentoPagamentoRemessaDTO,
-    headerName: HeaderName,
+    _headerName: HeaderName,
   ) {
-
-    for (let index = 0; index < beneficiariosIds.length; index++) {
-      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
-        dataInicio,
-        dataFim,
-        dataPagamento,
-        rem.pagador,
-        [String(beneficiariosIds[index])],
+    if (!beneficiariosIds || beneficiariosIds.length === 0) {
+      this.logger.warn(
+        'Remessa de automacao cancelada: nenhum beneficiario valido para agrupar.',
+        this.geradorRemessaAutomacaoPorHeaderExec.name,
       );
+      return;
     }
+    const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
+    const pagador = await this.ordemPagamentoAgrupadoService.getPagador(pagadorKey);
 
-    const headerArquivo = await this.remessaService.prepararRemessa(
+    // Executa o agrupamento de automacao em lote para os userIds selecionados.
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosAutomacao(
       dataInicio,
+      dataFim,
+      dataPagamento,
+      pagador,
+      beneficiariosIds,
+    );
+
+    const headerArquivo = await this.remessaService.prepararRemessa(dataInicio,
       dataFim,
       dataPagamento,
       undefined,
@@ -791,15 +800,22 @@ export class CronJobsService {
       beneficiariosIds,
     );
 
-    let pagamentoAprovado = false;
     if (rem.aprovacao) {
-      pagamentoAprovado = await this.verificarAprovacao(rem, headerArquivo);
+      const isAprovado = await this.verificarAprovacao(rem);
+      if (!isAprovado) {
+        this.logger.warn(
+          `Remessa de automacao bloqueada por aprovacao pendente (aprovacoes=${(rem.aprovacaoPagamentoIds || []).join(',') || 'sem-id'}).`,
+          this.geradorRemessaAutomacaoPorHeaderExec.name,
+        );
+        return;
+      }
     }
 
-    if (rem.aprovacao == null || rem.aprovacao == false || pagamentoAprovado) {
-      const txt = await this.remessaService.gerarCnabText(headerName);
-      await this.remessaService.enviarRemessa(txt, headerName);
-    }
+    await this.associarDetalheAAprovacaoDuranteGeracao(rem, headerArquivo);
+
+    const txt = await this.remessaService.gerarCnabText(_headerName);
+    await this.remessaService.enviarRemessa(txt, _headerName);
+    await this.resetarAprovacoesPosRemessa(rem);
   }
 
   async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idOperadoras?: string[]) {
@@ -874,16 +890,26 @@ export class CronJobsService {
     this.logger.log('INICIO AUTOMAÇÃO');
 
     const today = new Date();
-    const dataInicio = this.getData(today.getDay() + 1, rem.diaInicioPagar);
-    const dataFim = this.getData(today.getDay() + 1, rem.diaFinalPagar);
+    const hojeNegocio = today.getDay() + 1;
+    const inicioCalculado = this.getData(hojeNegocio, rem.diaInicioPagar);
+    const fimCalculado = this.getData(hojeNegocio, rem.diaFinalPagar);
+
+    // Garante janela valida: quando o inicio cair "a frente" do fim,
+    // desloca o inicio para a semana anterior.
+    const dataInicio = inicioCalculado <= fimCalculado ? inicioCalculado : subDays(inicioCalculado, 7);
+    const dataFim = fimCalculado;
 
     const beneficiariosIds = rem.beneficiarios
       .map((b) => Number((b as any).id))
       .filter((id) => !Number.isNaN(id));
 
+    if (beneficiariosIds.length === 0) {
+      this.logger.warn('Remessa de automacao cancelada: lista de beneficiarios vazia.');
+      return;
+    }
+
     await this.limparAgrupamentosPorUserIds(dataInicio, dataFim, beneficiariosIds);
     await this.geradorRemessaAutomacaoExec(dataInicio, dataFim, today, beneficiariosIds, rem);
-    this.logger.log('TERMINO AUTOMAÇÃO');
   }
 
   async limparAgrupamentosPorUserIds(dataInicio: Date, dataFim: Date, userIds: number[]) {
@@ -901,13 +927,10 @@ export class CronJobsService {
   }
 
   getData(today: number, data: number): Date {
-    let diferenca = 0
-    if (data > today) {
-      diferenca = data - today;
-    } else {
-      diferenca = today - data;
-    }
-    return subDays(new Date(), diferenca);
+    const diferenca = (today - data + 7) % 7;
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    return subDays(base, diferenca);
   }
 
   async retornoExec() {
@@ -1060,34 +1083,110 @@ export class CronJobsService {
     return jobs;
   }
 
-  async verificarAprovacao(rem: AgendamentoPagamentoRemessaDTO, headerArquivo: HeaderArquivo): Promise<boolean> {
-    if (rem.aprovacaoPagamento?.id) {
-      const aprovacao = await this.aprovacaoService.findById(rem.aprovacaoPagamento.id);
+  async verificarAprovacao(rem: AgendamentoPagamentoRemessaDTO): Promise<boolean> {
+    const aprovacaoIds = Array.from(
+      new Set(
+        [
+          ...(Array.isArray(rem.aprovacaoPagamentoIds) ? rem.aprovacaoPagamentoIds : []),
+          ...(rem.aprovacaoPagamento?.id ? [rem.aprovacaoPagamento.id] : []),
+        ].filter((id) => Number.isFinite(Number(id))),
+      ),
+    ) as number[];
 
-      if (aprovacao) {
-        const headersLote = Array.isArray(headerArquivo?.headersLote) ? headerArquivo.headersLote : [];
-        if (headersLote.length === 0) {
-          this.logger.warn(
-            `Aprovacao pendente sem headersLote para processamento (aprovacaoId=${aprovacao.id}, headerArquivoId=${headerArquivo?.id ?? 'sem-id'}).`,
-            this.verificarAprovacao.name,
-          );
-          return false;
-        }
+    if (aprovacaoIds.length === 0) {
+      return false;
+    }
 
-        const detalhesA: DetalheA[] = [];
-        for (const headerLote of headersLote) {
-          detalhesA.push(... await this.detalheAService.getDetalheAHeaderLote(headerLote.id));
-        }
-
-        if (this.isAprovacaoAprovada(aprovacao.status)) {
-          await this.verificarValoresAprovados(detalhesA, rem.beneficiarios, aprovacao);//Se o pagamento estiver aprovado atualiza os valores de lancamento no detalhe_A
-          return true;
-        } else {
-          await this.atualizarValorGeradoBQ(detalhesA, rem.beneficiarios, aprovacao);
-        }
+    for (const aprovacaoId of aprovacaoIds) {
+      const aprovacao = await this.aprovacaoService.findById(aprovacaoId);
+      if (!aprovacao || !this.isAprovacaoAprovada(aprovacao.status)) {
+        return false;
       }
     }
-    return false;
+
+    return true;
+  }
+
+  private async resetarAprovacoesPosRemessa(rem: AgendamentoPagamentoRemessaDTO): Promise<void> {
+    const aprovacaoIds = Array.from(
+      new Set(
+        [
+          ...(Array.isArray(rem.aprovacaoPagamentoIds) ? rem.aprovacaoPagamentoIds : []),
+          ...(rem.aprovacaoPagamento?.id ? [rem.aprovacaoPagamento.id] : []),
+        ].filter((id) => Number.isFinite(Number(id))),
+      ),
+    ) as number[];
+
+    if (aprovacaoIds.length === 0) {
+      return;
+    }
+
+    for (const aprovacaoId of aprovacaoIds) {
+      const aprovacao = await this.aprovacaoService.findById(aprovacaoId);
+      if (!aprovacao || !this.isAprovacaoAprovada(aprovacao.status)) {
+        continue;
+      }
+
+      aprovacao.status = AprovacaoEnum.AguardandoAprovacao;
+      aprovacao.dataAprovacao = null as any;
+      aprovacao.aprovador = null as any;
+      aprovacao.valorAprovado = 0;
+      await this.aprovacaoService.save(aprovacao);
+    }
+  }
+
+  private async associarDetalheAAprovacaoDuranteGeracao(
+    rem: AgendamentoPagamentoRemessaDTO,
+    headerArquivo: HeaderArquivo,
+  ): Promise<void> {
+    const aprovacaoIds = Array.from(
+      new Set(
+        [
+          ...(Array.isArray(rem.aprovacaoPagamentoIds) ? rem.aprovacaoPagamentoIds : []),
+          ...(rem.aprovacaoPagamento?.id ? [rem.aprovacaoPagamento.id] : []),
+        ].filter((id) => Number.isFinite(Number(id))),
+      ),
+    ) as number[];
+
+    if (aprovacaoIds.length === 0) {
+      return;
+    }
+
+    const detalhesA = await this.getDetalhesAByHeaderArquivo(headerArquivo);
+    if (detalhesA.length === 0) {
+      this.logger.warn(
+        `Nao foi possivel associar detalheA na geracao (aprovacoes=${aprovacaoIds.join(',')}, headerArquivoId=${headerArquivo?.id ?? 'sem-id'}).`,
+        this.associarDetalheAAprovacaoDuranteGeracao.name,
+      );
+      return;
+    }
+
+    for (const aprovacaoId of aprovacaoIds) {
+      const aprovacao = await this.aprovacaoService.findById(aprovacaoId);
+      if (!aprovacao || !this.isAprovacaoAprovada(aprovacao.status)) {
+        continue;
+      }
+
+      await this.verificarValoresAprovados(detalhesA, rem.beneficiarios, aprovacao);
+      await this.atualizarValorGeradoBQ(detalhesA, rem.beneficiarios, aprovacao);
+    }
+  }
+
+  private async getDetalhesAByHeaderArquivo(headerArquivo: HeaderArquivo): Promise<DetalheA[]> {
+    if (!headerArquivo?.id) {
+      return [];
+    }
+
+    const headersLote = Array.isArray(headerArquivo.headersLote) && headerArquivo.headersLote.length > 0
+      ? headerArquivo.headersLote
+      : await this.headerLoteService.findAll(headerArquivo.id);
+
+    const detalhesA: DetalheA[] = [];
+    for (const headerLote of headersLote) {
+      detalhesA.push(...await this.detalheAService.getDetalheAHeaderLote(headerLote.id));
+    }
+
+    return detalhesA;
   }
 
   async verificarValoresAprovados(detalhesA: DetalheA[], beneficiarios: CreateUserDto[], aprovacao: AprovacaoPagamentoDTO) {
@@ -1103,10 +1202,6 @@ export class CronJobsService {
   }
 
   async atualizarValorGeradoBQ(detalhesA: DetalheA[], beneficiarios: CreateUserDto[], aprovacao: AprovacaoPagamentoDTO) {
-    if (this.isAprovacaoAprovada(aprovacao.status)) {
-      return;
-    }
-
     for (const detalheA of detalhesA) {
       for (const beneficiario of beneficiarios) {
         if (await this.verificaBeneficiarioPagamento(beneficiario, detalheA)) {
@@ -1115,7 +1210,6 @@ export class CronJobsService {
             aprovacao.detalheA = {} as any;
           }
           aprovacao.detalheA.id = detalheA.id;
-          aprovacao.status = AprovacaoEnum.AguardandoAprovacao;
           await this.aprovacaoService.save(aprovacao); // atualiza a aprovação com valor gerado e o detalhe A
         }
       }
@@ -1127,7 +1221,11 @@ export class CronJobsService {
   }
 
   async verificaBeneficiarioPagamento(beneficiario: CreateUserDto, detalheA: DetalheA) {
-    const res = await this.detalheAService.existsDetalheABeneficiario(detalheA.id, beneficiario.permitCode ? beneficiario.permitCode : "");
+    const res = await this.detalheAService.existsDetalheABeneficiario(
+      detalheA.id,
+      beneficiario.permitCode ? beneficiario.permitCode : '',
+      Number((beneficiario as any)?.id) || undefined,
+    );
     if (res.length > 0) {
       return true;
     }

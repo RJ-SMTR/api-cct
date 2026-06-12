@@ -156,12 +156,18 @@ export class OrdemPagamentoAgrupadoRepository {
   }
 
   public async findAllCustomByUserIds(dataInicio: Date, dataFim: Date, userIds: number[], dataPagamento?: Date): Promise<OrdemPagamentoAgrupado[]> {
-    const dataIniForm = formatDateISODate(dataInicio);
-    const dataFimForm = formatDateISODate(dataFim);
-
     if (!userIds || userIds.length === 0) {
       return [];
     }
+
+    if (dataInicio === undefined || dataFim === undefined) {
+      return [];
+    }
+
+    const inicio = dataInicio <= dataFim ? dataInicio : dataFim;
+    const fim = dataInicio <= dataFim ? dataFim : dataInicio;
+    const dataIniForm = formatDateISODate(inicio);
+    const dataFimForm = formatDateISODate(fim);
 
     let query = ` select distinct opa.* from ordem_pagamento op
                   inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
@@ -173,12 +179,8 @@ export class OrdemPagamentoAgrupadoRepository {
       query = query + `and "dataPagamento" ='${dataPagamentoForm}'`;
     }
 
-    if (dataInicio !== undefined && dataFim !== undefined && dataFim >= dataInicio) {
-      query = query + ` and op."dataCaptura" between '${dataIniForm} 00:00:00' and '${dataFimForm} 23:59:59'
+    query = query + ` and op."dataCaptura" between '${dataIniForm} 00:00:00' and '${dataFimForm} 23:59:59'
        and op."ordemPagamentoAgrupadoId" is not null `;
-    } else {
-      return [];
-    }
 
     query = query + ` and op."userId" in (${userIds.join(',')}) `;
 

@@ -95,7 +95,7 @@ describe('CronJobsService.geraCronJob', () => {
     expect(jobs).toEqual([]);
   });
 
-  it('groups agendamentos by tipoBeneficiario and aggregates beneficiaries', async () => {
+  it('groups agendamentos by tipoBeneficiario and horario, aggregating only same-slot beneficiaries', async () => {
     const ben1 = makeUser(1, 'User One');
     const ben2 = makeUser(2, 'User Two');
     const ben3 = makeUser(3, 'User Three');
@@ -142,6 +142,19 @@ describe('CronJobsService.geraCronJob', () => {
       },
       {
         status: true,
+        diaSemana: 4,
+        createdAt: new Date('2024-03-03T01:00:00Z'),
+        beneficiarioUsuario: makeUser(5, 'User Five'),
+        tipoBeneficiario: 'Consorcio',
+        horario: '12:00:00',
+        pagador: makePagador(),
+        diaInicioPagar: 1,
+        diaFinalPagar: 5,
+        diaIntervalo: 7,
+        aprovacao: true,
+      },
+      {
+        status: true,
         diaSemana: 3,
         createdAt: new Date('2024-05-01T00:00:00Z'),
         beneficiarioUsuario: makeUser(4, 'Ignored'),
@@ -173,12 +186,14 @@ describe('CronJobsService.geraCronJob', () => {
 
     const jobs = await cronJobsService.geraCronJob();
 
-    expect(jobs).toHaveLength(2);
+    expect(jobs).toHaveLength(3);
 
     const consorcioJob = jobs.find(j => j.name === `${CronJobsEnum.automacao}_Consorcio_10:30:00`);
+    const consorcioNoonJob = jobs.find(j => j.name === `${CronJobsEnum.automacao}_Consorcio_12:00:00`);
     const modalJob = jobs.find(j => j.name === `${CronJobsEnum.automacao}_Modal_14:05`);
 
     expect(consorcioJob?.cronJobParameters.cronTime).toBe('30 10 * * *');
+    expect(consorcioNoonJob?.cronJobParameters.cronTime).toBe('0 12 * * *');
     expect(modalJob?.cronJobParameters.cronTime).toBe('5 14 * * *');
 
     const onTick = consorcioJob?.cronJobParameters.onTick;
@@ -193,6 +208,13 @@ describe('CronJobsService.geraCronJob', () => {
         tipoBeneficiario: 'Consorcio',
         horario: '10:30:00',
         beneficiarios: expect.arrayContaining([ben1, ben2]),
+      }),
+    );
+    expect(remessaSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipoBeneficiario: 'Consorcio',
+        horario: '10:30:00',
+        beneficiarios: expect.arrayContaining([expect.objectContaining({ id: 5 })]),
       }),
     );
   });

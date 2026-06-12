@@ -151,8 +151,8 @@ export class DetalheAService {
     return await this.detalheARepository.existsDetalheA(id);
   }
 
-  public async existsDetalheABeneficiario(id: number,permitCode:string) {
-    return await this.detalheARepository.existsDetalheABeneficiario(id,permitCode);
+  public async existsDetalheABeneficiario(id: number, permitCode: string, userId?: number) {
+    return await this.detalheARepository.existsDetalheABeneficiario(id, permitCode, userId);
   }
 
 

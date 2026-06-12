@@ -32,6 +32,16 @@ export class OrdemPagamentoAgrupadoService {
     }
   }
 
+  async prepararPagamentoAgrupadosAutomacao(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
+    pagador:PagadorDTO, userIds: number[]) {
+    this.logger.debug(`Preparando agrupamentos`)    
+    if (pagador) {
+      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, userIds ${userIds}`);
+      await this.agruparOrdensAutomacao(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, userIds);
+      this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+    }
+  }
+
   async prepararPagamentoAgrupadosPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
     pagadorKey: keyof AllPagadorDict, idOperadoras?: string[]) {
 
@@ -75,6 +85,10 @@ export class OrdemPagamentoAgrupadoService {
 
   private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO, consorcios: string[]) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
+  }
+
+  private async agruparOrdensAutomacao(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO, userIds: number[]) {
+    await this.ordemPagamentoRepository.agruparOrdensDePagamentoAutomacao(dataInicial, dataFinal, dataPgto, pagador, userIds);
   }
 
   private async agruparOrdemUnica(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {

@@ -101,38 +101,37 @@ export class DetalheARepository {
 
     const queryRunner = this.dataSource.createQueryRunner();
 
-    queryRunner.connect();
-
-    const result: any[] = await queryRunner.query(query);
-
-    const detalhes = result.map((i) => new DetalheA(i));
-
-    queryRunner.release()
-
-    return detalhes;
+    try {
+      await queryRunner.connect();
+      const result: any[] = await queryRunner.query(query);
+      return result.map((i) => new DetalheA(i));
+    } finally {
+      await queryRunner.release();
+    }
 
   }
 
-  async existsDetalheABeneficiario(id: number, permitCode: string) {
-    const query = (`select distinct da.* 
+  async existsDetalheABeneficiario(id: number, permitCode: string, userId?: number) {
+    const query = (`select distinct da.*
                     from ordem_pagamento op
                     inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
                     inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
-                    inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"=oph.id
-                    where  da."createdAt" >= date_trunc('day', now()) 
-                    and da."id"=${id} and op."idOperadora"=${permitCode} `)
+                    inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+                    and da."id" = $1
+                    and (
+                      ($2::int is not null and op."userId" = $2)
+                      or (nullif($3::text, '') is not null and op."idOperadora"::text = $3::text)
+                    )`);
 
     const queryRunner = this.dataSource.createQueryRunner();
 
-    queryRunner.connect();
-
-    const result: any[] = await queryRunner.query(query);
-
-    const detalhes = result.map((i) => new DetalheA(i));
-
-    queryRunner.release()
-
-    return detalhes;
+    try {
+      await queryRunner.connect();
+      const result: any[] = await queryRunner.query(query, [id, userId ?? null, permitCode ?? '']);
+      return result.map((i) => new DetalheA(i));
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async getDetalheAHeaderLote(id: number) {
@@ -215,15 +214,13 @@ export class DetalheARepository {
 
     const queryRunner = this.dataSource.createQueryRunner();
 
-    queryRunner.connect();
-
-    const result: any[] = await queryRunner.query(query);
-
-    const detalhes = result.map((i) => new DetalheA(i));
-
-    queryRunner.release()
-
-    return detalhes;
+    try {
+      await queryRunner.connect();
+      const result: any[] = await queryRunner.query(query);
+      return result.map((i) => new DetalheA(i));
+    } finally {
+      await queryRunner.release();
+    }
 
   }
 }

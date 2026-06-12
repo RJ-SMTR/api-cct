@@ -28,18 +28,27 @@ export function buildAutomationCronJobs(args: BuildAutomationCronJobsArgs): ICro
   const listaRemessas: AgendamentoPagamentoRemessaDTO[] = [];
 
   for (const agenda of agendamentos) {
-    if (!shouldIncludeAgenda(agenda, now)) {
+    if (!shouldIncludeAgenda(agenda, now, timeZone)) {
       continue;
     }
 
     const tipo = agenda.tipoBeneficiario;
-    let remessaExistente = listaRemessas.find((r) => r.tipoBeneficiario === tipo);
+    const horario = agenda.horario;
+    let remessaExistente = listaRemessas.find(
+      (r) => r.tipoBeneficiario === tipo && r.horario === horario,
+    );
     if (!remessaExistente) {
       const novaRemessa = new AgendamentoPagamentoRemessaDTO();
       instanciaRemessa(novaRemessa, agenda);
       listaRemessas.push(novaRemessa);
       remessaExistente = novaRemessa;
     } else {
+      if (agenda.id != null) {
+        remessaExistente.agendamentoIds.push(agenda.id);
+      }
+      if (agenda.aprovacaoPagamento?.id != null) {
+        remessaExistente.aprovacaoPagamentoIds.push(agenda.aprovacaoPagamento.id);
+      }
       if (agenda.beneficiarioUsuario) {
         remessaExistente.beneficiarios.push(agenda.beneficiarioUsuario);
       }
@@ -66,9 +75,10 @@ export function buildAutomationCronJobs(args: BuildAutomationCronJobsArgs): ICro
 export function getAutomationAgendaDiagnostics(
   agendamentos: AgendamentoPagamentoDTO[],
   now = new Date(),
+  timeZone = 'America/Sao_Paulo',
 ): AgendaAutomationDiagnostic[] {
   return agendamentos.map((agenda) => {
-    const validation = evaluateAgendaForAutomation(agenda, now);
+    const validation = evaluateAgendaForAutomation(agenda, now, timeZone);
     return {
       id: agenda.id,
       included: validation.isValid,
@@ -77,15 +87,17 @@ export function getAutomationAgendaDiagnostics(
   });
 }
 
-function shouldIncludeAgenda(agenda: AgendamentoPagamentoDTO, now: Date): boolean {
-  return evaluateAgendaForAutomation(agenda, now).isValid;
+function shouldIncludeAgenda(agenda: AgendamentoPagamentoDTO, now: Date, timeZone: string): boolean {
+  return evaluateAgendaForAutomation(agenda, now, timeZone).isValid;
 }
 
 function evaluateAgendaForAutomation(
   agenda: AgendamentoPagamentoDTO,
   now: Date,
+  timeZone: string,
 ): { isValid: boolean; reasons: string[] } {
   const reasons: string[] = [];
+  const nowInTimeZone = getNowInTimeZone(now, timeZone);
 
   if (!agenda.status) {
     reasons.push('status_inativo');
@@ -97,16 +109,18 @@ function evaluateAgendaForAutomation(
 
   if (!hasValidTimeFormat(agenda.horario)) {
     reasons.push('horario_invalido');
+  } else if (!isNowOrFutureTime(agenda.horario, nowInTimeZone)) {
+    reasons.push('horario_ja_passou_hoje');
   }
 
   const weekdays = normalizeWeekdays(agenda.weekdays);
-  if (weekdays.length > 0 && !weekdays.includes(now.getDay())) {
-    reasons.push(`weekday_nao_compativel_hoje:${now.getDay()}`);
+  if (weekdays.length > 0 && !weekdays.includes(nowInTimeZone.getDay())) {
+    reasons.push(`weekday_nao_compativel_hoje:${nowInTimeZone.getDay()}`);
   }
 
   if (weekdays.length === 0) {
-    const byDiaSemana = verificaDiaSemana(agenda.diaSemana, now);
-    const byIntervalo = Boolean(verificarIntervalo(agenda.diaIntervalo, agenda.createdAt, now));
+    const byDiaSemana = verificaDiaSemana(agenda.diaSemana, nowInTimeZone);
+    const byIntervalo = Boolean(verificarIntervalo(agenda.diaIntervalo, agenda.createdAt, nowInTimeZone));
     if (!byDiaSemana && !byIntervalo) {
       reasons.push('recorrencia_nao_compativel_hoje');
     }
@@ -116,6 +130,37 @@ function evaluateAgendaForAutomation(
     isValid: reasons.length === 0,
     reasons,
   };
+}
+
+function getNowInTimeZone(now: Date, timeZone: string): Date {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+
+  const values = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+
+  return new Date(
+    Number(values.year),
+    Number(values.month) - 1,
+    Number(values.day),
+    Number(values.hour),
+    Number(values.minute),
+    Number(values.second),
+  );
+}
+
+function isNowOrFutureTime(time: string, now: Date): boolean {
+  const [h, m, s = 0] = time.split(':').map(Number);
+  const scheduleSeconds = h * 3600 + m * 60 + s;
+  const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  return scheduleSeconds >= nowSeconds;
 }
 
 function normalizeWeekdays(weekdays?: number[]): number[] {
@@ -158,6 +203,12 @@ function instanciaRemessa(
   remessa: AgendamentoPagamentoRemessaDTO,
   agenda: AgendamentoPagamentoDTO,
 ) {
+  if (agenda.id != null) {
+    remessa.agendamentoIds.push(agenda.id);
+  }
+  if (agenda.aprovacaoPagamento?.id != null) {
+    remessa.aprovacaoPagamentoIds.push(agenda.aprovacaoPagamento.id);
+  }
   remessa.aprovacao = agenda.aprovacao;
   remessa.aprovacaoPagamento = agenda.aprovacaoPagamento;
   if (agenda.beneficiarioUsuario != null) {
