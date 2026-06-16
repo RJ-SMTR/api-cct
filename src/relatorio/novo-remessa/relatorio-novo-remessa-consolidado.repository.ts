@@ -319,6 +319,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         );
         const sqlModais = this.buildConsolidadoPorNomeQuery(filter, 'nomes', baseQuery);
         groupedQueries.push({ query: sqlModais, params });
+        console.log(params);
       }
 
       if (includeConsorcios) {
@@ -330,6 +331,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         );
         const sqlConsorcios = this.buildConsolidadoPorNomeQuery(filter, '"nomeConsorcio"', baseQuery);
         groupedQueries.push({ query: sqlConsorcios, params });
+        console.log(params);
       }
 
       return groupedQueries;
@@ -388,6 +390,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           consorcioOverride,
         );
         const sqlModais = this.buildConsolidadoPorNomeQuery(filter, 'nomes');
+        console.log(params);
         groupedQueries.push({ query: sqlModais, params });
       }
       if (includePendenciaPagaSingleDate) {
@@ -398,6 +401,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         );
         const pendenciaBase = this.buildPendenciaPagaSingleDateQuery(filter);
         const sqlPendencia = this.buildConsolidadoPorNomeQuery(filter, 'nomes', pendenciaBase);
+        console.log(pendenciaParams);
         groupedQueries.push({ query: sqlPendencia, params: pendenciaParams });
       }
     }
@@ -412,6 +416,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         );
         const sqlConsorcios = this.buildConsolidadoPorNomeQuery(filter, '"nomeConsorcio"');
         groupedQueries.push({ query: sqlConsorcios, params });
+        console.log(params);
       }
       if (includePendenciaPagaSingleDate) {
         const pendenciaParams = this.getQueryParameters(
@@ -422,6 +427,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         const pendenciaBase = this.buildPendenciaPagaSingleDateQuery(filter);
         const sqlPendencia = this.buildConsolidadoPorNomeQuery(filter, '"nomeConsorcio"', pendenciaBase);
         groupedQueries.push({ query: sqlPendencia, params: pendenciaParams });
+        console.log(pendenciaParams);
       }
     }
 
@@ -437,6 +443,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       const groupByConsorcio = includeConsorcios && !includeVanzeiros;
       const pendentesQuery = this.buildPendentesQuery(filter, groupByConsorcio);
       groupedQueries.push({ query: pendentesQuery, params: pendentesParams });
+      console.log(pendentesParams);
     }
     
     console.log('Grouped Queries:', groupedQueries.map((q) => q.query).join('\n---\n'));
