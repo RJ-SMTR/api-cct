@@ -32,4 +32,5 @@ import { UsersModule } from "src/users/users.module";
         AprovacaoPagamentoRepository,
     ],
 })
+    
 export class AgendamentoPagamentoModule { }
