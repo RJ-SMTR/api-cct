@@ -10,6 +10,7 @@ type DashboardMonthlyPayment = {
   validPhotosCount: number;
   rejectedPhotosCount: number;
   paymentStatus: string;
+  pendingReason: string | null;
   totalPaymentValue: number;
   coveredDaysCount: number;
 };
@@ -20,6 +21,7 @@ type DashboardWeeklyDay = {
   validPhotosCount: number;
   rejectedPhotosCount: number;
   paymentStatus: string;
+  pendingReason: string | null;
   totalPaymentValue: number;
 };
 
@@ -38,6 +40,8 @@ type DashboardResponseBase = {
 @Injectable()
 export class AgentesService {
   private readonly agentStatusId = 3;
+  private readonly defaultPendingReason =
+    'Crédito ou Débito Cancelado pelo Pagador';
 
   constructor(private readonly agentesRepository: AgentesRepository) {}
 
@@ -167,13 +171,21 @@ export class AgentesService {
 
   private buildMonthlyPaymentSummary(paymentCycle: DashboardPaymentCycle): DashboardMonthlyPayment {
     const workDaySummaries = paymentCycle.workDays.map((workDay) => this.buildWeeklyDaySummary(workDay));
+    const paymentStatus = this.mergeStatuses(
+      workDaySummaries.map((workDay) => workDay.paymentStatus),
+    );
 
     return {
       paymentDate: paymentCycle.paymentDate,
       paymentDayType: this.getPaymentDayType(paymentCycle.paymentDate),
       validPhotosCount: workDaySummaries.reduce((sum, workDay) => sum + workDay.validPhotosCount, 0),
       rejectedPhotosCount: workDaySummaries.reduce((sum, workDay) => sum + workDay.rejectedPhotosCount, 0),
-      paymentStatus: this.mergeStatuses(workDaySummaries.map((workDay) => workDay.paymentStatus)),
+      paymentStatus,
+      pendingReason: this.resolvePendingReason(
+        paymentStatus,
+        paymentCycle.pendingReason,
+        workDaySummaries.map((workDay) => workDay.pendingReason),
+      ),
       totalPaymentValue: this.roundCurrency(workDaySummaries.reduce((sum, workDay) => sum + workDay.totalPaymentValue, 0)),
       coveredDaysCount: paymentCycle.workDays.length,
     };
@@ -181,13 +193,15 @@ export class AgentesService {
 
   private buildWeeklyDaySummary(workDay: DashboardWorkDay): DashboardWeeklyDay {
     const photoSummary = this.summarizePhotos(workDay.photos);
+    const paymentStatus = photoSummary.paymentStatus;
 
     return {
       date: workDay.date,
       periodLabel: workDay.periodLabel,
       validPhotosCount: photoSummary.validPhotosCount,
       rejectedPhotosCount: photoSummary.rejectedPhotosCount,
-      paymentStatus: photoSummary.paymentStatus,
+      paymentStatus,
+      pendingReason: this.resolvePendingReason(paymentStatus, workDay.pendingReason),
       totalPaymentValue: photoSummary.totalPaymentValue,
     };
   }
@@ -202,6 +216,31 @@ export class AgentesService {
       paymentStatus: this.mergeStatuses(photos.map((photo) => this.normalizePaymentStatus(photo.status)).filter(Boolean)),
       totalPaymentValue: this.roundCurrency(photos.reduce((sum, photo) => sum + (Number(photo.amount) || 0), 0)),
     };
+  }
+
+  private getFirstPendingReason(reasons: Array<string | null | undefined>) {
+    return reasons.find((reason) => Boolean(String(reason || '').trim())) ?? null;
+  }
+
+  private resolvePendingReason(
+    status: string,
+    ...reasons: Array<string | null | undefined | Array<string | null | undefined>>
+  ) {
+    if (!this.isPendingStatus(status)) {
+      return null;
+    }
+
+    const flattenedReasons = reasons.flat();
+
+    return this.getFirstPendingReason(flattenedReasons) ?? this.defaultPendingReason;
+  }
+
+  private isPendingStatus(status: string) {
+    const normalizedStatus = String(status || '')
+      .trim()
+      .toLowerCase();
+
+    return normalizedStatus === 'rejeitado' || normalizedStatus === 'estorno';
   }
 
   private buildRejectionReasons(paymentCycles: DashboardPaymentCycle[]) {

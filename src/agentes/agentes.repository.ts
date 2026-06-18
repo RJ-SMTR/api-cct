@@ -15,11 +15,13 @@ export type DashboardPhotoEntry = {
 export type DashboardWorkDay = {
   date: string;
   periodLabel: string;
+  pendingReason?: string | null;
   photos: DashboardPhotoEntry[];
 };
 
 export type DashboardPaymentCycle = {
   paymentDate: string;
+  pendingReason?: string | null;
   workDays: DashboardWorkDay[];
 };
 
@@ -93,7 +95,7 @@ export class AgentesRepository {
                   description: 'Foto duplicada',
                   status: 'Rejeitado',
                   amount: 0,
-                  rejectionReason: 'Duplicidade',
+                  rejectionReason: 'Documento ilegível',
                 },
               ],
             },
@@ -123,7 +125,7 @@ export class AgentesRepository {
                   description: 'Campo inconsistente',
                   status: 'Rejeitado',
                   amount: 0,
-                  rejectionReason: 'Dado inconsistente',
+                  rejectionReason: 'Documento ilegível',
                 },
               ],
             },
@@ -303,7 +305,7 @@ export class AgentesRepository {
                   description: 'Foto sem enquadramento',
                   status: 'Rejeitado',
                   amount: 0,
-                  rejectionReason: 'Foto fora do padrão',
+                  rejectionReason: 'Documento ilegível',
                 },
               ],
             },
@@ -396,7 +398,7 @@ export class AgentesRepository {
                   description: 'Campo sem assinatura',
                   status: 'Rejeitado',
                   amount: 0,
-                  rejectionReason: 'Dado inconsistente',
+                  rejectionReason: 'Duplicidade',
                 },
               ],
             },
@@ -472,7 +474,7 @@ export class AgentesRepository {
                   description: 'Documento fora do padrão',
                   status: 'Rejeitado',
                   amount: 0,
-                  rejectionReason: 'Foto fora do padrão',
+                  rejectionReason: 'Cadastro incompleto',
                 },
               ],
             },
