@@ -258,7 +258,7 @@ export class MailService {
       return await this.safeSendMail({
         from,
         to: mailData.to,
-        subject: 'Projeto CCT - Alerta antifraude',
+        subject: 'Projeto CCT - ALERTA ANTIFRAUDE 🚫',
         text: `Alerta antifraude gerado em ${mailData.data.generatedAtDate} às ${mailData.data.generatedAtTime}. ${mailData.data.totalOrders} fraude(s) encontrada(s) acima de ${mailData.data.threshold}.`,
         template: 'admin-fraud-alert',
         context: {
@@ -353,7 +353,7 @@ export class MailService {
 
   private async verificaMudancaReport(body: string | IMailHistoryStatusCount): Promise<boolean> {
     const sett = await this.settingsService.getOneByNameVersion('mail_report_send', '1')
-    if ((body !== '' && body !== sett.value) || (sett.value==='')) {   
+    if ((body !== '' && body !== sett.value) || (sett.value === '')) {
       await this.settingsService.update({ name: 'mail_report_send', version: '1', value: body.toString() })
       return true;
     }
