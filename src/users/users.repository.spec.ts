@@ -59,7 +59,7 @@ describe('UsersRepository', () => {
     );
   });
 
-  it('should build an agent users query using quoted user columns', async () => {
+  it('should build an agent users query without manually quoted user columns', async () => {
     await usersRepository.findAgentUsersByStatus(3);
 
     expect(typeormRepository.createQueryBuilder).toHaveBeenCalledWith('user');
