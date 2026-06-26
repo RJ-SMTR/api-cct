@@ -140,6 +140,11 @@ describe('AuthService', () => {
       } as DeepPartial<MailHistory>;
 
       for (let i = 0; i < 3; i++) {
+        const expectedInviteStatus =
+          mailHistories[i].inviteStatus.id === InviteStatusEnum.used
+            ? new InviteStatus(InviteStatusEnum.used)
+            : updatedMailHistory.inviteStatus;
+
         jest.spyOn(usersService, 'getOne').mockResolvedValue(users[i]);
         jest
           .spyOn(mailHistoryService, 'findRecentByUser')
@@ -161,7 +166,10 @@ describe('AuthService', () => {
         await expect(responsePromise).resolves.not.toThrowError();
         expect(mailHistoryService.update).toBeCalledWith(
           i + 1,
-          updatedMailHistory,
+          {
+            ...updatedMailHistory,
+            inviteStatus: expectedInviteStatus,
+          },
           expect.any(String),
         );
       }
@@ -208,6 +216,53 @@ describe('AuthService', () => {
       // Assert
       expect(mailHistoryService.findRecentByUser).toBeCalledWith(user);
       expect(mailHistoryService.findOne).toBeCalledTimes(0);
+      expect(mailHistoryService.update).toBeCalledWith(
+        mailHistory.id,
+        {
+          inviteStatus: mailHistory.inviteStatus,
+          sentAt: dateNow,
+        },
+        expect.any(String),
+      );
+    });
+
+    it('should resend the email without changing status when the latest invite is used', async () => {
+      // Arrange
+      const user = new User({
+        id: 1,
+        email: 'user1@mail.com',
+        hash: 'hash_1',
+      });
+      const mailHistory = new MailHistory({
+        id: 100,
+        user: user,
+        hash: 'used_hash',
+      });
+      mailHistory.setInviteStatus(InviteStatusEnum.used);
+      const mailResponse = {
+        mailConfirmationLink: 'link',
+        mailSentInfo: {
+          success: true,
+        },
+      } as MailRegistrationInterface;
+      const dateNow = new Date('2023-01-01T10:00:00');
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest
+        .spyOn(mailHistoryService, 'findRecentByUser')
+        .mockResolvedValue(mailHistory);
+      jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
+      jest
+        .spyOn(mailService, 'sendConcludeRegistration')
+        .mockResolvedValue(mailResponse);
+      jest
+        .spyOn(global.Date, 'now')
+        .mockImplementation(() => dateNow.valueOf());
+
+      // Act
+      await authService.resendRegisterMail({ id: 1 });
+
+      // Assert
       expect(mailHistoryService.update).toBeCalledWith(
         mailHistory.id,
         {
