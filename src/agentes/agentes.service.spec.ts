@@ -15,6 +15,10 @@ describe('AgentesService', () => {
       findAgentUsers: jest.fn(),
       findDashboardData: jest.fn(),
       getAvailableMonths: jest.fn(),
+      getAgentAssociationOptions: jest.fn().mockReturnValue([
+        { value: 0, label: 'Flamengo' },
+        { value: 1, label: 'Lagoa' },
+      ]),
     },
   } as Provider;
 
@@ -29,6 +33,40 @@ describe('AgentesService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('should return normalized associations for the agent list', async () => {
+    jest.spyOn(repository, 'findAgentUsers').mockResolvedValue([
+      {
+        id: 10,
+        fullName: 'Agente de Teste',
+        email: 'agente@example.com',
+        permitCode: 'AGT-10',
+        cpfCnpj: '12345678900',
+        phone: '21999990000',
+        role: { id: RoleEnum.agents, name: 'Agente' },
+        status: { id: 3, name: 'Agente' },
+        updatedAt: new Date('2026-05-01T10:00:00.000Z'),
+      },
+    ] as any);
+    jest
+      .spyOn(repository, 'getAgentAssociationOptions')
+      .mockReturnValue([
+        { value: 0, label: 'Flamengo' },
+        { value: 1, label: 'Lagoa' },
+      ]);
+
+    const response = await service.getAgentUsers();
+
+    expect(response).toEqual([
+      expect.objectContaining({
+        id: 10,
+        associacoes: [
+          { value: 0, label: 'Flamengo' },
+          { value: 1, label: 'Lagoa' },
+        ],
+      }),
+    ]);
   });
 
   it('should return weekly days for a selected tuesday payment date', async () => {
@@ -115,6 +153,10 @@ describe('AgentesService', () => {
     );
 
     expect(response.currentView).toBe('weekly');
+    expect(response.associacoes).toEqual([
+      { value: 0, label: 'Flamengo' },
+      { value: 1, label: 'Lagoa' },
+    ]);
     expect(response.selectedPaymentWeek.paymentDayType).toBe('terça-feira');
     expect(response.selectedPaymentWeek.days.map((day) => day.date)).toEqual(['2026-05-01', '2026-05-02', '2026-05-03', '2026-05-04']);
   });
