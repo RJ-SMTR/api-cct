@@ -48,6 +48,12 @@ export class AprovacaoPagamento extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_AprovadorUsuario_ManyToOne' })
   aprovador: User;
 
+  @Column({ type: String, unique: false, nullable: true, length: 200 })
+  nomeConsorcio: string | null;
+
+  @Column({ type: Number, unique: false, nullable: true })
+  beneficiarioUserId: number | null;
+
   @Column({
     type: 'enum',
     enum: AprovacaoEnum,

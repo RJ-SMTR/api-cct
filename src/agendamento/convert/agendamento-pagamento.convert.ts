@@ -15,6 +15,7 @@ export class AgendamentoPagamentoConvert {
     dto.id = agendamentoPagamento.id;
     dto.tipoBeneficiario = agendamentoPagamento.tipoBeneficiario;
     dto.beneficiarioUsuario = agendamentoPagamento.beneficiarioUsuario as CreateUserDto;
+    dto.nomeConsorcio = agendamentoPagamento.nomeConsorcio;
     dto.tipoPagamento = agendamentoPagamento.tipoPagamento;
     dto.dataPagamentoUnico = agendamentoPagamento.dataPagamentoUnico;
     dto.valorPagamentoUnico = agendamentoPagamento.valorPagamentoUnico;

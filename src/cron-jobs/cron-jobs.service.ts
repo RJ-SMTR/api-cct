@@ -707,20 +707,29 @@ export class CronJobsService {
     dataFim: Date,
     dataPagamento: Date,
     beneficiariosIds: number[],
+    consorcios: string[],
     rem: AgendamentoPagamentoRemessaDTO,
   ) {
-    if (rem.tipoBeneficiario == 'Consorcio') {
-      await this.geradorRemessaAutomacaoConsorcioExec(
+    if (consorcios.length > 0) {
+      await this.geradorRemessaAutomacaoPorNomeConsorcioExec(
         dataInicio,
         dataFim,
         dataPagamento,
-        beneficiariosIds,
+        consorcios,
         rem,
       );
       return;
     }
 
-    await this.geradorRemessaAutomacaoModalExec(
+    if (!this.isTipoModal(rem.tipoBeneficiario)) {
+      this.logger.warn(
+        'Remessa de automacao cancelada: tipo nao modal sem nomeConsorcio informado.',
+        this.geradorRemessaAutomacaoExec.name,
+      );
+      return;
+    }
+
+    await this.geradorRemessaAutomacaoModalPorUserIdsExec(
       dataInicio,
       dataFim,
       dataPagamento,
@@ -729,7 +738,157 @@ export class CronJobsService {
     );
   }
 
-  private async geradorRemessaAutomacaoModalExec(
+  private async geradorRemessaAutomacaoPorNomeConsorcioExec(
+    dataInicio: Date,
+    dataFim: Date,
+    dataPagamento: Date,
+    consorcios: string[],
+    rem: AgendamentoPagamentoRemessaDTO,
+  ) {
+    const { modais, consorciosNaoModais } = this.separarConsorciosPorHeader(consorcios);
+
+    if (modais.length === 0 && consorciosNaoModais.length === 0) {
+      this.logger.warn(
+        'Remessa de automacao cancelada: nomes de consorcio invalidos para roteamento por header.',
+        this.geradorRemessaAutomacaoPorNomeConsorcioExec.name,
+      );
+      return;
+    }
+
+    if (modais.length > 0) {
+      await this.geradorAutomacaoModal(
+        dataInicio,
+        dataFim,
+        dataPagamento,
+        modais,
+        rem,
+      );
+    }
+
+    if (consorciosNaoModais.length > 0) {
+      await this.geradorRemessaAutomacaoConsorcio(
+        dataInicio,
+        dataFim,
+        dataPagamento,
+        consorciosNaoModais,
+        rem,
+      );
+    }
+  }
+
+  private async geradorRemessaAutomacaoConsorcio(
+    dataInicio: Date,
+    dataFim: Date,
+    dataPagamento: Date,
+    consorcios: string[],
+    rem: AgendamentoPagamentoRemessaDTO,
+  ) {
+    if (!consorcios || consorcios.length === 0) {
+      this.logger.warn(
+        'Remessa de automacao cancelada: lista de nomeConsorcio vazia.',
+        this.geradorRemessaAutomacaoConsorcio.name,
+      );
+      return;
+    }
+
+    const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
+    const pagador = await this.ordemPagamentoAgrupadoService.getPagador(pagadorKey);
+
+    // Reusa o mesmo fluxo de agrupamento por nomeConsorcio da remessa tradicional.
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      pagador,
+      consorcios,
+    );
+
+    const headerArquivo = await this.remessaService.prepararRemessa(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      consorcios,
+      false,
+      false,
+    );
+
+    if (rem.aprovacao) {
+      const isAprovado = await this.verificarAprovacao(rem);
+      if (!isAprovado) {
+        this.logger.warn(
+          `Remessa de automacao bloqueada por aprovacao pendente (aprovacoes=${(rem.aprovacaoPagamentoIds || []).join(',') || 'sem-id'}).`,
+          this.geradorRemessaAutomacaoPorHeaderExec.name,
+        );
+        return;
+      }
+    }
+
+    await this.associarDetalheAAprovacaoDuranteGeracao(rem, headerArquivo);
+
+    const txt = await this.remessaService.gerarCnabText(HeaderName.CONSORCIO);
+    await this.remessaService.enviarRemessa(txt, HeaderName.CONSORCIO);
+    await this.resetarAprovacoesPosRemessa(rem);
+
+   
+  }
+
+  private async geradorAutomacaoModal(
+    dataInicio: Date,
+    dataFim: Date,
+    dataPagamento: Date,
+    consorcios: string[],
+    rem: AgendamentoPagamentoRemessaDTO,
+  ) {
+    if (!consorcios || consorcios.length === 0) {
+      this.logger.warn(
+        'Remessa de automacao cancelada: lista de nomeConsorcio vazia.',
+        this.geradorAutomacaoModal.name,
+      );
+      return;
+    }
+
+    const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
+    const pagador = await this.ordemPagamentoAgrupadoService.getPagador(pagadorKey);
+
+    // Reusa o mesmo fluxo de agrupamento por nomeConsorcio da remessa tradicional.
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      pagador,
+      consorcios,
+    );
+
+    const headerArquivo = await this.remessaService.prepararRemessa(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      consorcios,
+      false,
+      false,
+    );
+
+    if (rem.aprovacao) {
+      const isAprovado = await this.verificarAprovacao(rem);
+      if (!isAprovado) {
+        this.logger.warn(
+          `Remessa de automacao bloqueada por aprovacao pendente (aprovacoes=${(rem.aprovacaoPagamentoIds || []).join(',') || 'sem-id'}).`,
+          this.geradorRemessaAutomacaoPorHeaderExec.name,
+        );
+        return;
+      }
+    }
+
+    await this.associarDetalheAAprovacaoDuranteGeracao(rem, headerArquivo);
+
+    const txt = await this.remessaService.gerarCnabText(HeaderName.MODAL);
+    await this.remessaService.enviarRemessa(txt, HeaderName.MODAL);
+    await this.resetarAprovacoesPosRemessa(rem);
+
+
+  }
+
+  private async geradorRemessaAutomacaoModalPorUserIdsExec(
     dataInicio: Date,
     dataFim: Date,
     dataPagamento: Date,
@@ -743,23 +902,6 @@ export class CronJobsService {
       beneficiariosIds,
       rem,
       HeaderName.MODAL,
-    );
-  }
-
-  private async geradorRemessaAutomacaoConsorcioExec(
-    dataInicio: Date,
-    dataFim: Date,
-    dataPagamento: Date,
-    beneficiariosIds: number[],
-    rem: AgendamentoPagamentoRemessaDTO,
-  ) {
-    await this.geradorRemessaAutomacaoPorHeaderExec(
-      dataInicio,
-      dataFim,
-      dataPagamento,
-      beneficiariosIds,
-      rem,
-      HeaderName.CONSORCIO,
     );
   }
 
@@ -778,9 +920,14 @@ export class CronJobsService {
       );
       return;
     }
+    
     const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
     const pagador = await this.ordemPagamentoAgrupadoService.getPagador(pagadorKey);
 
+    
+
+    
+    
     // Executa o agrupamento de automacao em lote para os userIds selecionados.
     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosAutomacao(
       dataInicio,
@@ -903,13 +1050,155 @@ export class CronJobsService {
       .map((b) => Number((b as any).id))
       .filter((id) => !Number.isNaN(id));
 
+    const isTipoModal = this.isTipoModal(rem.tipoBeneficiario);
+    const consorciosDoPayload = this.extrairNomeConsorciosDoPayload(rem);
+    const consorciosIdentificados = consorciosDoPayload.length > 0
+      ? consorciosDoPayload
+      : await this.identificarNomeConsorciosPorBeneficiarios(rem, beneficiariosIds);
+    const usarNomeConsorcio = this.deveUsarNomeConsorcio(rem, consorciosIdentificados);
+
+    if (usarNomeConsorcio) {
+      await this.limparAgrupamentos(dataInicio, dataFim, consorciosIdentificados);
+      await this.geradorRemessaAutomacaoExec(
+        dataInicio,
+        dataFim,
+        today,
+        beneficiariosIds,
+        consorciosIdentificados,
+        rem,
+      );
+      return;
+    }
+
     if (beneficiariosIds.length === 0) {
       this.logger.warn('Remessa de automacao cancelada: lista de beneficiarios vazia.');
       return;
     }
 
+    if (!isTipoModal) {
+      this.logger.warn('Remessa de automacao cancelada: userIds so sao suportados para tipo modal.');
+      return;
+    }
+
     await this.limparAgrupamentosPorUserIds(dataInicio, dataFim, beneficiariosIds);
-    await this.geradorRemessaAutomacaoExec(dataInicio, dataFim, today, beneficiariosIds, rem);
+    await this.geradorRemessaAutomacaoExec(dataInicio, dataFim, today, beneficiariosIds, [], rem);
+  }
+
+  private isTipoModal(tipoBeneficiario?: string | null): boolean {
+    const tipo = (tipoBeneficiario || '').trim().toLowerCase();
+    return tipo === TipoBeneficarioEnum.Modal.toLowerCase() || tipo === 'modal';
+  }
+
+  private deveUsarNomeConsorcio(rem: AgendamentoPagamentoRemessaDTO, consorcios: string[]): boolean {
+    if (consorcios.length === 0) {
+      return false;
+    }
+
+    const modo = (rem.modoAgrupamento || '').trim().toLowerCase();
+    if (modo === 'userid') {
+      return false;
+    }
+
+    if (modo === 'nomeconsorcio') {
+      return true;
+    }
+
+    // Se vier nomeConsorcio no payload, prioriza agrupamento por nome
+    // inclusive para tipo Modal. userId fica para modo explicito 'userId'.
+    return true;
+  }
+
+  private extrairNomeConsorciosDoPayload(rem: AgendamentoPagamentoRemessaDTO): string[] {
+    const consorcios = (rem.nomeConsorcios || [])
+      .map((value) => this.normalizarNomeConsorcio(value))
+      .filter((value): value is string => Boolean(value));
+
+    return Array.from(new Set(consorcios));
+  }
+
+  private async identificarNomeConsorciosPorBeneficiarios(
+    rem: AgendamentoPagamentoRemessaDTO,
+    beneficiariosIds: number[],
+  ): Promise<string[]> {
+    const nomePorId = new Map<number, string>();
+
+    for (const beneficiario of rem.beneficiarios || []) {
+      const id = Number((beneficiario as any)?.id);
+      const nomeDoPayload = (beneficiario as any)?.nomeConsorcio as string | undefined;
+      const fullName = (beneficiario as any)?.fullName as string | undefined;
+      if (!Number.isNaN(id)) {
+        const valor = (nomeDoPayload || fullName || '').trim();
+        if (valor) {
+          nomePorId.set(id, valor);
+        }
+      }
+    }
+
+    const idsSemNome = beneficiariosIds.filter((id) => !nomePorId.has(id));
+    if (idsSemNome.length > 0) {
+      const usuarios = await this.usersService.findMany({
+        where: idsSemNome.map((id) => ({ id })),
+      });
+
+      for (const usuario of usuarios) {
+        if (usuario?.id && usuario?.fullName) {
+          nomePorId.set(usuario.id, usuario.fullName);
+        }
+      }
+    }
+
+    const consorcios = Array.from(nomePorId.values())
+      .map((value) => this.normalizarNomeConsorcio(value))
+      .filter((value): value is string => Boolean(value));
+
+    return Array.from(new Set(consorcios));
+  }
+
+  private normalizarNomeConsorcio(valor?: string): string | null {
+    const nome = (valor || '').trim();
+    if (!nome) {
+      return null;
+    }
+
+    if (nome.toUpperCase() === 'SPTC') {
+      return 'STPC';
+    }
+
+    if (this.isConsorcioModal(nome)) {
+      return nome.toUpperCase();
+    }
+
+    return nome;
+  }
+
+  private isConsorcioModal(nomeConsorcio?: string | null): boolean {
+    const nome = (nomeConsorcio || '').trim().toUpperCase();
+    return CronJobsService.MODAIS.includes(nome);
+  }
+
+  private separarConsorciosPorHeader(consorcios: string[]): { modais: string[]; consorciosNaoModais: string[] } {
+    const modais: string[] = [];
+    const consorciosNaoModais: string[] = [];
+
+    for (const nome of consorcios || []) {
+      const normalizado = this.normalizarNomeConsorcio(nome);
+      if (!normalizado) {
+        continue;
+      }
+
+      if (this.isConsorcioModal(normalizado)) {
+        if (!modais.includes(normalizado)) {
+          modais.push(normalizado);
+        }
+        continue;
+      }
+
+      if (!consorciosNaoModais.includes(normalizado)) {
+        consorciosNaoModais.push(normalizado);
+      }
+    }
+
+    return { modais, consorciosNaoModais };
   }
 
   async limparAgrupamentosPorUserIds(dataInicio: Date, dataFim: Date, userIds: number[]) {
@@ -1082,6 +1371,7 @@ export class CronJobsService {
 
     return jobs;
   }
+
 
   async verificarAprovacao(rem: AgendamentoPagamentoRemessaDTO): Promise<boolean> {
     const aprovacaoIds = Array.from(

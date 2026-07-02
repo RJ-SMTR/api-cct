@@ -16,6 +16,10 @@ export class AprovacaoPagamentoDTO  {
  
   aprovador: User;
 
+  nomeConsorcio?: string | null;
+
+  beneficiarioUserId?: number | null;
+
   status: AprovacaoEnum;
 
 }

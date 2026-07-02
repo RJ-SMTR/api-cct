@@ -14,6 +14,8 @@ export class AprovacaoPagamentoConvert {
     dto.detalheA = aprovacaoPagamento.detalheA
       ? ({ id: aprovacaoPagamento.detalheA.id } as any)
       : (null as any);
+    dto.nomeConsorcio = aprovacaoPagamento.nomeConsorcio;
+    dto.beneficiarioUserId = aprovacaoPagamento.beneficiarioUserId;
     dto.status = aprovacaoPagamento.status;
     dto.valorAprovado = aprovacaoPagamento.valorAprovado;
     dto.valorGerado = aprovacaoPagamento.valorGerado; 

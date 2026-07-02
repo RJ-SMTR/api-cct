@@ -9,6 +9,7 @@ export class AgendamentoPagamento1762891665531 implements MigrationInterface {
   CREATE TABLE "agendamento_pagamento" (
     "id" SERIAL NOT NULL,
     "tipoBeneficiario" character varying(200),
+    "nomeConsorcio" character varying(200),
     "tipoPagamento" character varying(200),
     "dataPagamentoUnico" date,
     "valorPagamentoUnico" numeric(13,5),

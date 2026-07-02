@@ -17,6 +17,10 @@ export class AgendamentoPagamentoDTO {
 
   @IsOptional()
   @IsString()
+  nomeConsorcio?: string | null;
+
+  @IsOptional()
+  @IsString()
   tipoPagamento?: string | null; // Unico / Recorrente
 
   @IsOptional()

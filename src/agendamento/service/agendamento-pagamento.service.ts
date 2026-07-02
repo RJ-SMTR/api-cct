@@ -34,11 +34,14 @@ export class AgendamentoPagamentoService {
   async save(agendamentoPagamento: AgendamentoPagamentoDTO):Promise<AgendamentoPagamentoDTO> {    
     
     if (agendamentoPagamento.aprovacao) {
+      const beneficiarioUserId = Number((agendamentoPagamento.beneficiarioUsuario as any)?.id);
       const novaAprovacao = await this.aprovacaoPagamentoRepository.save({
         valorGerado: 0,
         valorAprovado: 0,
         dataAprovacao: new Date(),
         status: AprovacaoEnum.AguardandoAprovacao,
+        nomeConsorcio: agendamentoPagamento.nomeConsorcio || null,
+        beneficiarioUserId: Number.isFinite(beneficiarioUserId) ? beneficiarioUserId : null,
       } as any);
 
       const aprovacaoPagamento:AprovacaoPagamentoDTO = new AprovacaoPagamentoDTO();

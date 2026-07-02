@@ -25,6 +25,9 @@ export class AgendamentoPagamento extends EntityHelper {
   beneficiarioUsuario: User;
 
   @Column({ type: String, unique: false, nullable: true, length: 200 })
+  nomeConsorcio: string | null;
+
+  @Column({ type: String, unique: false, nullable: true, length: 200 })
   tipoPagamento: string | null; //Unico/Recorrente
 
 

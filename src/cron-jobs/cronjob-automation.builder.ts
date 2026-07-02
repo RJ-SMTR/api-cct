@@ -2,6 +2,8 @@ import { AgendamentoPagamentoDTO } from 'src/agendamento/domain/dto/agendamento-
 import { AgendamentoPagamentoRemessaDTO } from 'src/agendamento/domain/dto/agendamento-pagamento-remessa.dto';
 import { ICronJob } from './cron-jobs.interfaces';
 
+const MODAIS = ['STPC', 'STPL', 'TEC'];
+
 type BuildAutomationCronJobsArgs = {
   agendamentos: AgendamentoPagamentoDTO[];
   jobNamePrefix: string;
@@ -34,12 +36,23 @@ export function buildAutomationCronJobs(args: BuildAutomationCronJobsArgs): ICro
 
     const tipo = agenda.tipoBeneficiario;
     const horario = agenda.horario;
+    const modoAgrupamento = shouldUseNomeConsorcio(agenda) ? 'nomeConsorcio' : 'userId';
+    const nomeConsorcio = extractNomeConsorcioFromAgenda(agenda);
+    const rotaHeader = getHeaderRouteByNomeConsorcio(nomeConsorcio);
     let remessaExistente = listaRemessas.find(
-      (r) => r.tipoBeneficiario === tipo && r.horario === horario,
+      (r) =>
+        r.tipoBeneficiario === tipo &&
+        r.horario === horario &&
+        r.modoAgrupamento === modoAgrupamento &&
+        getHeaderRouteByRemessa(r) === rotaHeader,
     );
     if (!remessaExistente) {
       const novaRemessa = new AgendamentoPagamentoRemessaDTO();
       instanciaRemessa(novaRemessa, agenda);
+      novaRemessa.modoAgrupamento = modoAgrupamento;
+      if (nomeConsorcio) {
+        novaRemessa.nomeConsorcios = [nomeConsorcio];
+      }
       listaRemessas.push(novaRemessa);
       remessaExistente = novaRemessa;
     } else {
@@ -49,6 +62,9 @@ export function buildAutomationCronJobs(args: BuildAutomationCronJobsArgs): ICro
       if (agenda.aprovacaoPagamento?.id != null) {
         remessaExistente.aprovacaoPagamentoIds.push(agenda.aprovacaoPagamento.id);
       }
+      if (nomeConsorcio && !remessaExistente.nomeConsorcios.includes(nomeConsorcio)) {
+        remessaExistente.nomeConsorcios.push(nomeConsorcio);
+      }
       if (agenda.beneficiarioUsuario) {
         remessaExistente.beneficiarios.push(agenda.beneficiarioUsuario);
       }
@@ -57,8 +73,9 @@ export function buildAutomationCronJobs(args: BuildAutomationCronJobsArgs): ICro
 
   const cronsAutonomos: ICronJob[] = [];
   for (const rem of listaRemessas) {
+    const routeSuffix = getHeaderRouteByRemessa(rem) || 'userid';
     cronsAutonomos.push({
-      name: `${jobNamePrefix}_${rem.tipoBeneficiario}_${rem.horario}`,
+      name: `${jobNamePrefix}_${rem.tipoBeneficiario}_${routeSuffix}_${rem.horario}`,
       cronJobParameters: {
         cronTime: getHorarioFormatado(remHours(rem.horario, 0)),
         onTick: async () => {
@@ -70,6 +87,24 @@ export function buildAutomationCronJobs(args: BuildAutomationCronJobsArgs): ICro
   }
 
   return cronsAutonomos;
+}
+
+function getHeaderRouteByNomeConsorcio(nomeConsorcio?: string | null): 'modal' | 'consorcio' | null {
+  const nome = normalizeNomeConsorcio(nomeConsorcio);
+  if (!nome) {
+    return null;
+  }
+
+  return MODAIS.includes(nome.toUpperCase()) ? 'modal' : 'consorcio';
+}
+
+function getHeaderRouteByRemessa(remessa: AgendamentoPagamentoRemessaDTO): 'modal' | 'consorcio' | null {
+  const nomes = remessa.nomeConsorcios || [];
+  if (nomes.length === 0) {
+    return null;
+  }
+
+  return getHeaderRouteByNomeConsorcio(nomes[0]);
 }
 
 export function getAutomationAgendaDiagnostics(
@@ -103,7 +138,7 @@ function evaluateAgendaForAutomation(
     reasons.push('status_inativo');
   }
 
-  if (!agenda.beneficiarioUsuario) {
+  if (!agenda.beneficiarioUsuario && !extractNomeConsorcioFromAgenda(agenda)) {
     reasons.push('beneficiario_ausente');
   }
 
@@ -214,12 +249,42 @@ function instanciaRemessa(
   if (agenda.beneficiarioUsuario != null) {
     remessa.beneficiarios.push(agenda.beneficiarioUsuario);
   }
+  const nomeConsorcio = extractNomeConsorcioFromAgenda(agenda);
+  if (nomeConsorcio) {
+    remessa.nomeConsorcios.push(nomeConsorcio);
+  }
   remessa.diaIntervalo = agenda.diaIntervalo;
   remessa.diaInicioPagar = agenda.diaInicioPagar;
   remessa.diaFinalPagar = agenda.diaFinalPagar;
   remessa.pagador = agenda.pagador;
   remessa.tipoBeneficiario = agenda.tipoBeneficiario;
   remessa.horario = agenda.horario;
+}
+
+function shouldUseNomeConsorcio(agenda: AgendamentoPagamentoDTO): boolean {
+  if (extractNomeConsorcioFromAgenda(agenda)) {
+    return true;
+  }
+
+  return (agenda.tipoBeneficiario || '').toLowerCase() === 'consorcio';
+}
+
+function extractNomeConsorcioFromAgenda(agenda: AgendamentoPagamentoDTO): string | null {
+  const nomeConsorcio = normalizeNomeConsorcio(agenda.nomeConsorcio || agenda.beneficiarioUsuario?.fullName);
+  return nomeConsorcio;
+}
+
+function normalizeNomeConsorcio(value?: string | null): string | null {
+  const nome = (value || '').trim();
+  if (!nome) {
+    return null;
+  }
+
+  if (nome.toUpperCase() === 'SPTC') {
+    return 'STPC';
+  }
+
+  return MODAIS.includes(nome.toUpperCase()) ? nome.toUpperCase() : nome;
 }
 
 function getHorarioFormatado(time: string): string {
