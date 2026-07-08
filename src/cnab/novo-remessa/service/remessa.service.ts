@@ -55,15 +55,16 @@ export class RemessaService {
     let ordens;
     if (pagamentoUnico) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
-        dataPgto ? dataPgto : new Date());
-    } if (isPendente) {
+        dataPgto ? dataPgto : new Date());        
+    } 
+    
+    if (isPendente) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idOperadoras);
     } else {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
     }
 
-    if (ordens.length > 0) {
-     
+    if (ordens.length > 0) {     
     
       const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId)
       if (!isEmpty(ordens)) {

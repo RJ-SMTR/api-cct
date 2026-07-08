@@ -27,7 +27,11 @@ export class OrdemPagamentoAgrupadoService {
     const pagador = await this.getPagador(pagadorKey);
     if (pagador) {
       this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
-      await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
+      if(consorcios.length>0){
+        await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
+      }else{
+        await this.agruparOrdensGuardador(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
+      }
       this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
     }
   }
@@ -76,6 +80,12 @@ export class OrdemPagamentoAgrupadoService {
   private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
   }
+
+  private async agruparOrdensGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
+    await this.ordemPagamentoRepository.agruparOrdensDePagamentoGuardador(dataInicial, dataFinal, dataPgto, pagador);
+  }
+
+
 
   private async agruparOrdemUnica(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamentoUnico(dataInicial, dataFinal, dataPgto, pagador);

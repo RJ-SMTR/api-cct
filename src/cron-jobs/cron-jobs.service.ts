@@ -675,6 +675,11 @@ export class CronJobsService {
       }
     }
 
+    if(consorcios.length==0){
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+          dataFim, dataPagamento, "contaGuardador", []);
+    }
+
     // //Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     // Gera o TXT
@@ -726,6 +731,26 @@ export class CronJobsService {
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
+  }
+
+
+  async remessaGuardadorExec(pagamentoUnico?: boolean) {
+    const today = new Date();
+    let subDaysInt = 0;
+
+    if (isTuesday(today)) {
+      subDaysInt = 4;
+    } else if (isFriday(today)) {
+      subDaysInt = 3;
+    } else {
+      return;
+    }
+
+    const dataInicio = subDays(today, subDaysInt);
+    const dataFim = subDays(today, 1);
+    const consorcios = [];
+    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    await this.geradorRemessaExec(dataInicio, dataFim, today,consorcios, HeaderName.GUARDADOR, pagamentoUnico);
   }
 
   async limparAgrupamentos(dataInicio: Date, dataFim: Date, consorcios: string[]) {
