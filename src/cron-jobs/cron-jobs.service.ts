@@ -1041,8 +1041,7 @@ export class CronJobsService {
     const inicioCalculado = this.getData(hojeNegocio, rem.diaInicioPagar);
     const fimCalculado = this.getData(hojeNegocio, rem.diaFinalPagar);
 
-    // Garante janela valida: quando o inicio cair "a frente" do fim,
-    // desloca o inicio para a semana anterior.
+ 
     const dataInicio = inicioCalculado <= fimCalculado ? inicioCalculado : subDays(inicioCalculado, 7);
     const dataFim = fimCalculado;
 
@@ -1051,10 +1050,7 @@ export class CronJobsService {
       .filter((id) => !Number.isNaN(id));
 
     const isTipoModal = this.isTipoModal(rem.tipoBeneficiario);
-    const consorciosDoPayload = this.extrairNomeConsorciosDoPayload(rem);
-    const consorciosIdentificados = consorciosDoPayload.length > 0
-      ? consorciosDoPayload
-      : await this.identificarNomeConsorciosPorBeneficiarios(rem, beneficiariosIds);
+    const consorciosIdentificados = this.extrairNomeConsorciosDoPayload(rem);
     const usarNomeConsorcio = this.deveUsarNomeConsorcio(rem, consorciosIdentificados);
 
     if (usarNomeConsorcio) {
@@ -1090,64 +1086,17 @@ export class CronJobsService {
   }
 
   private deveUsarNomeConsorcio(rem: AgendamentoPagamentoRemessaDTO, consorcios: string[]): boolean {
-    if (consorcios.length === 0) {
-      return false;
-    }
-
-    const modo = (rem.modoAgrupamento || '').trim().toLowerCase();
-    if (modo === 'userid') {
-      return false;
-    }
-
-    if (modo === 'nomeconsorcio') {
-      return true;
-    }
-
-    // Se vier nomeConsorcio no payload, prioriza agrupamento por nome
-    // inclusive para tipo Modal. userId fica para modo explicito 'userId'.
-    return true;
+    // Regra de negócio: se vier nomeConsorcio, SEMPRE usa fluxo por consórcio.
+    return consorcios.length > 0;
   }
 
   private extrairNomeConsorciosDoPayload(rem: AgendamentoPagamentoRemessaDTO): string[] {
-    const consorcios = (rem.nomeConsorcios || [])
-      .map((value) => this.normalizarNomeConsorcio(value))
-      .filter((value): value is string => Boolean(value));
+    const origem = [
+      ...(rem.nomeConsorcios || []),
+      ...((rem.beneficiarios || []).map((b) => (b as any)?.nomeConsorcio as string | undefined).filter(Boolean) as string[]),
+    ];
 
-    return Array.from(new Set(consorcios));
-  }
-
-  private async identificarNomeConsorciosPorBeneficiarios(
-    rem: AgendamentoPagamentoRemessaDTO,
-    beneficiariosIds: number[],
-  ): Promise<string[]> {
-    const nomePorId = new Map<number, string>();
-
-    for (const beneficiario of rem.beneficiarios || []) {
-      const id = Number((beneficiario as any)?.id);
-      const nomeDoPayload = (beneficiario as any)?.nomeConsorcio as string | undefined;
-      const fullName = (beneficiario as any)?.fullName as string | undefined;
-      if (!Number.isNaN(id)) {
-        const valor = (nomeDoPayload || fullName || '').trim();
-        if (valor) {
-          nomePorId.set(id, valor);
-        }
-      }
-    }
-
-    const idsSemNome = beneficiariosIds.filter((id) => !nomePorId.has(id));
-    if (idsSemNome.length > 0) {
-      const usuarios = await this.usersService.findMany({
-        where: idsSemNome.map((id) => ({ id })),
-      });
-
-      for (const usuario of usuarios) {
-        if (usuario?.id && usuario?.fullName) {
-          nomePorId.set(usuario.id, usuario.fullName);
-        }
-      }
-    }
-
-    const consorcios = Array.from(nomePorId.values())
+    const consorcios = origem
       .map((value) => this.normalizarNomeConsorcio(value))
       .filter((value): value is string => Boolean(value));
 
