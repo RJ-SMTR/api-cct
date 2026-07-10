@@ -30,7 +30,7 @@ export class OrdemPagamentoAgrupadoService {
       if(consorcios.length>0){
         await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
       }else{
-        await this.agruparOrdensGuardador(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
+        await this.agruparOrdensGuardador(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
       }
       this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
     }
@@ -84,8 +84,6 @@ export class OrdemPagamentoAgrupadoService {
   private async agruparOrdensGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamentoGuardador(dataInicial, dataFinal, dataPgto, pagador);
   }
-
-
 
   private async agruparOrdemUnica(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamentoUnico(dataInicial, dataFinal, dataPgto, pagador);

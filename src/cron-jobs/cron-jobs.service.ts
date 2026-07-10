@@ -676,8 +676,7 @@ export class CronJobsService {
     }
 
     if(consorcios.length==0){
-      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-          dataFim, dataPagamento, "contaGuardador", []);
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaGuardador", []);
     }
 
     // //Prepara o remessa

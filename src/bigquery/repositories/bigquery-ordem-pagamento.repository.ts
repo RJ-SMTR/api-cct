@@ -3,7 +3,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { bigToNumber } from 'src/utils/pipe-utils';
 import { BigqueryService, BigquerySource } from '../bigquery.service';
 import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
-import { IBigqueryFindOrdemPagamento } from '../interfaces/bigquery-find-ordem-pagamento.interface';
+import { IBigqueryFindOrdemPagamento, IBigqueryFindOrdemPagamentoGuardador } from '../interfaces/bigquery-find-ordem-pagamento.interface';
 
 @Injectable()
 export class BigqueryOrdemPagamentoRepository {
@@ -16,10 +16,17 @@ export class BigqueryOrdemPagamentoRepository {
   public async findMany(
     filter: IBigqueryFindOrdemPagamento,
   ): Promise<BigqueryOrdemPagamento[]> {
-    const transacoes: BigqueryOrdemPagamento[] = (await this.queryData(filter))
-      .data;
+    const transacoes: BigqueryOrdemPagamento[] = (await this.queryData(filter)).data;
     return transacoes;
   }
+
+  //   public async findManyGuardador(
+  //   filter: IBigqueryFindOrdemPagamentoGuardador,
+  // ): Promise<BigqueryOrdemPagamentoGuardador[]> {
+  //   const transacoes: BigqueryOrdemPagamentoGuardador[] = (await this.queryDataGuardador(filter)).data;
+  //   return transacoes;
+  // }
+
 
   public async query(
     sql: string,
@@ -74,6 +81,45 @@ export class BigqueryOrdemPagamentoRepository {
       countAll: count,
     };
   }
+  //TODO: Aguardando criação da tabela no BQ
+  // private async queryDataGuardador(
+  //   args: IBigqueryFindOrdemPagamentoGuardador,
+  // ): Promise<{ data: BigqueryOrdemPagamentoGuardador[]; countAll: number }> {
+  //   // TODO: remover tipoFavorecido
+  //   const query = this.getQueryGuardador(args);
+  //   const queryResult = await this.bigqueryService.query(
+  //     BigquerySource.smtr,
+  //     query,
+  //   );
+  //   /**
+  //    *  og.id,og.data_ordem,og.id_status_ordem,og.id_ordem_pagamento_estacionamento,og.qtd_verificado,
+  //                     og.valor_unitario_verificado,og.valor_total_verificado,og.data_pagamento,og.data_inclusao,
+  //                     ac.documento 
+  //    */
+  //   const count: number = queryResult.length;
+  //   // Remove unwanted keys and remove last item (all null if empty)
+  //   const items: BigqueryOrdemPagamentoGuardador[] = queryResult.map((i) => {
+  //     delete i.status;
+  //     delete i.count;
+  //     i.id = bigToNumber(i.id);
+  //     i.data_ordem = i.dataOrdem;
+  //     i.id_status_ordem = bigToNumber(i.id_status_ordem);
+  //     i.id_ordem_pagamento_estacionamento = bigToNumber(i.id_ordem_pagamento_estacionamento);
+  //     i.qtd_verificado = bigToNumber(i.qtd_verificado);
+  //     i.valor_unitario_verificado = bigToNumber(i.valor_unitario_verificado);
+  //     i.valor_total_verificado = bigToNumber(i.valor_total_verificado);
+  //     i.data_pagamento = i.dataPagamento;
+  //     i.data_inclusao = i.dataInclusao;
+  //     i.documento = i.documento;    
+  //     return i;
+  //   });
+
+  //   return {
+  //     data: items,
+  //     countAll: count,
+  //   };
+  // }
+
 
   /**
    * Regra de negócio:
@@ -131,6 +177,23 @@ export class BigqueryOrdemPagamentoRepository {
     return query;
   }
 
+
+  private getQueryGuardador(args: IBigqueryFindOrdemPagamentoGuardador) {
+    const qArgsGuardador = this.getQueryArgsGuardador(args);    
+    //TODO: Aguardar definição de quais campos serão retornados para o guardador
+    const select = ` SELECT og.id,og.data_ordem,og.id_status_ordem,og.id_ordem_pagamento_estacionamento,og.qtd_verificado,
+                      og.valor_unitario_verificado,og.valor_total_verificado,og.data_pagamento,og.data_inclusao,
+                      ac.documento 
+                    FROM \`rj-smtr.cadastro.guardador_ordem_pagamento\` og
+                    LEFT JOIN \rj-smtr-dev.riorotativo.agente_credenciado\` ac on og.id_cliente=ac.id_cliente ` ;
+
+    const query =
+      select +
+      `WHERE ${qArgsGuardador} ` +     
+      `ORDER BY dataOrdem ASC `;
+    return query;
+  }
+
   /**
    * Ao buscar por consórcios, ignorar o STPC.
    * 
@@ -158,6 +221,14 @@ export class BigqueryOrdemPagamentoRepository {
     if (args.consorcioName?.length) {
       qWhere += ` AND c.consorcio IN ('${args.consorcioName.join("', '")}')`;
     }
+    return qWhere;
+  }
+  
+  private getQueryArgsGuardador(args: IBigqueryFindOrdemPagamentoGuardador) {
+    const startDate = args.startDate.toISOString().slice(0, 10);
+    const endDate = args.endDate.toISOString().slice(0, 10);
+    let qWhere =
+      ` date(t.datetime_captura) BETWEEN '${startDate}' AND '${endDate}' AND c.tipo_documento = 'CPF' `;
     return qWhere;
   }
 }

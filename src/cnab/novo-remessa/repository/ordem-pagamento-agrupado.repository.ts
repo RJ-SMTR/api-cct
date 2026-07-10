@@ -120,7 +120,6 @@ export class OrdemPagamentoAgrupadoRepository {
 
     return result;
   }
-
   
   public async findAllCustom(dataInicio: Date, dataFim: Date, nomeConsorcio?: string[], dataPagamento?: Date): Promise<OrdemPagamentoAgrupado[]> {
     const dataIniForm = formatDateISODate(dataInicio)
@@ -129,8 +128,8 @@ export class OrdemPagamentoAgrupadoRepository {
     let query = ` select distinct opa.* from ordem_pagamento op
 					        inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
 							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
-                  where oph."statusRemessa"= 0 
-                  `;
+                  where oph."statusRemessa"= 0 `;
+
     if (dataPagamento) {
       const dataPagamentoForm = formatDateISODate(dataPagamento)
       query = query + `and "dataPagamento" ='${dataPagamentoForm}'`

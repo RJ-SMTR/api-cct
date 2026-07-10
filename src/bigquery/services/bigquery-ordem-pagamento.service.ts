@@ -46,4 +46,36 @@ export class BigqueryOrdemPagamentoService {
     });
     return ordemPgto;
   }
+
+    public async getFromWeekGuardador(dataCapturaInicial: Date, dataCapturaFinal: Date, daysBefore = 0): Promise<BigqueryOrdemPagamentoGuardadorDTO[]> {
+    const today = new Date();
+    let startDate: Date;
+    let endDate: Date;
+
+    if (dataCapturaInicial != undefined && dataCapturaFinal != undefined) {
+      startDate = new Date(dataCapturaInicial);
+      endDate = new Date(dataCapturaFinal);
+    } else if (dataCapturaInicial != undefined && dataCapturaFinal == undefined) {
+      startDate = new Date(dataCapturaInicial);
+      endDate = new Date(dataCapturaInicial);
+    } else {
+      //Sexta a Quinta
+      const friday = isFriday(today) ? today : nextFriday(today);
+      startDate = subDays(friday, 7 + daysBefore);
+      endDate = subDays(friday, 2);
+    }
+    const ordemPgto = (
+      await this.bigqueryOrdemPagamentoRepository.findMany({
+        startDate: startDate,
+        endDate: endDate        
+      })
+    ).map((i) => ({ ...i } as BigqueryOrdemPagamentoGuardadorDTO))
+    .map((ordem) => {
+        if (ordem.dataCaptura) {
+          ordem.dataCaptura = new Date(ordem.dataCaptura);
+        }
+        return ordem;
+    });
+    return ordemPgto;
+  }
 }

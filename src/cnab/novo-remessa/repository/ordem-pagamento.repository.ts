@@ -422,8 +422,7 @@ ORDER BY r.data_referencia DESC;`;
     public async agruparOrdensDePagamentoGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
-    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
-    
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];    
     await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_GUARDADOR($1, $2, $3, $4)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id]);
   }
 
