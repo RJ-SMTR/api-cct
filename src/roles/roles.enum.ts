@@ -5,6 +5,8 @@ export enum RoleEnum {
   'admin' = 1,
   /** Usuário da func. vanzeiros */
   'user' = 2,
+  /** Usuário da func. vanzeiros */
+  'agents' = 3,
   /** Usuário da func. financeiro */
   'lancador_financeiro' = 3,
   /** Admin da func. financeiro */
