@@ -49,6 +49,10 @@ export class UsersService {
     return await this.usersRepository.findMany(options);
   }
 
+  async findManyByNormalizedCpf(cpf: string): Promise<User[]> {
+    return await this.usersRepository.findManyByNormalizedCpf(cpf);
+  }
+
   async findManyRegisteredUsers() {
     return await this.usersRepository.findManyRegisteredUsers();
   }

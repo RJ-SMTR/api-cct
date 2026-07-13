@@ -45,7 +45,7 @@ export class UsersRepository {
     private mailHistoryService: MailHistoryService,
     private banksService: BanksService,
     private readonly entityManager: EntityManager,
-  ) {}
+  ) { }
 
   async findManyRegisteredUsers() {
     const validUsers = await this.usersRepository
@@ -91,17 +91,6 @@ export class UsersRepository {
     await this.loadLazyAux_invite(users);
   }
 
-  private pickLatestInvite(mailHistories: MailHistory[]): MailHistory | undefined {
-    if (mailHistories.length === 0) {
-      return undefined;
-    }
-    return mailHistories.reduce((latest, current) => {
-      const latestTime = (latest.sentAt ?? latest.createdAt ?? new Date(0)).getTime();
-      const currentTime = (current.sentAt ?? current.createdAt ?? new Date(0)).getTime();
-      return currentTime >= latestTime ? current : latest;
-    });
-  }
-
   private async loadLazyAux_invite(users: User[]) {
     // Find
     const ids = users.map((i) => i.id);
@@ -113,9 +102,10 @@ export class UsersRepository {
     // Set values
     for (const user of users) {
       const mailHistories = mails.filter((i) => i.user.id === user.id);
-      const mailHistory = this.pickLatestInvite(mailHistories);
-      user.mailHistories = mailHistories;
+      const mailHistory = mailHistories?.[0] as MailHistory | undefined;
+      user.mailHistories = mails.filter((i) => i.user.id === user.id);
       user.aux_inviteStatus = mailHistory?.inviteStatus;
+      user.inviteAt = mailHistory?.sentAt ?? null;
       user.aux_inviteHash = mailHistory?.hash;
     }
   }
@@ -143,6 +133,33 @@ export class UsersRepository {
 
   async findMany(options?: FindManyOptions<User>): Promise<User[]> {
     const users = await this.usersRepository.find(options);
+    await this.loadLazyRelations(users);
+    return users;
+  }
+
+
+  async findAgentUsersByStatus(statusId: number): Promise<User[]> {
+    const users = await this.usersRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.status', 'status')
+      .where('"user"."statusId" = :statusId', { statusId })
+      .orderBy('"user"."fullName"', 'ASC')
+      .getMany();
+    await this.loadLazyRelations(users);
+    return users;
+  }
+
+  async findManyByNormalizedCpf(cpf: string): Promise<User[]> {
+    const users = await this.usersRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.status', 'status')
+      .where(
+        `regexp_replace(coalesce("user"."cpfCnpj", ''), '\\D', '', 'g') = :cpf`,
+        { cpf },
+      )
+      .getMany();
     await this.loadLazyRelations(users);
     return users;
   }
@@ -203,8 +220,8 @@ export class UsersRepository {
     const andWhere = {
       ...(fields?.role
         ? {
-            role: { id: fields.role.id },
-          }
+          role: { id: fields.role.id },
+        }
         : {}),
     } as FindOptionsWhere<User>;
 
@@ -212,12 +229,12 @@ export class UsersRepository {
       const whereFields = [
         ...(fields?.permitCode || fields?._anyField?.value
           ? [
-              {
-                permitCode: ILike(
-                  `%${fields?.permitCode || fields?._anyField?.value}%`,
-                ),
-              },
-            ]
+            {
+              permitCode: ILike(
+                `%${fields?.permitCode || fields?._anyField?.value}%`,
+              ),
+            },
+          ]
           : []),
 
         ...(fields?.email || fields?._anyField?.value
@@ -226,12 +243,12 @@ export class UsersRepository {
 
         ...(fields?.cpfCnpj || fields?._anyField?.value
           ? [
-              {
-                cpfCnpj: ILike(
-                  `%${fields?.cpfCnpj || fields?._anyField?.value}%`,
-                ),
-              },
-            ]
+            {
+              cpfCnpj: ILike(
+                `%${fields?.cpfCnpj || fields?._anyField?.value}%`,
+              ),
+            },
+          ]
           : []),
 
         ...(isSgtuBlocked === 'true' || isSgtuBlocked === 'false'
@@ -240,12 +257,12 @@ export class UsersRepository {
 
         ...(fields?.passValidatorId || fields?._anyField?.value
           ? [
-              {
-                passValidatorId: ILike(
-                  `%${fields?.passValidatorId || fields?._anyField?.value}%`,
-                ),
-              },
-            ]
+            {
+              passValidatorId: ILike(
+                `%${fields?.passValidatorId || fields?._anyField?.value}%`,
+              ),
+            },
+          ]
           : []),
       ] as FindOptionsWhere<User>[];
 
@@ -320,16 +337,13 @@ export class UsersRepository {
       user.mailHistories.length > 0 &&
       user.email !== dataToUpdate.email
     ) {
-      const latestMailHistory = this.pickLatestInvite(user.mailHistories);
-      if (latestMailHistory) {
-        await this.mailHistoryService.update(
-          latestMailHistory.id,
-          {
-            email: dataToUpdate.email,
-          },
-          METHOD,
-        );
-      }
+      await this.mailHistoryService.update(
+        user.mailHistories[0].id,
+        {
+          email: dataToUpdate.email,
+        },
+        METHOD,
+      );
     }
     if (
       'bankAccount' in dataToUpdate ||
@@ -381,13 +395,13 @@ export class UsersRepository {
   async getNotRegisteredUsers(): Promise<User[]> {
     const results: any[] = await this.entityManager.query(
       'SELECT U."fullName", u.email, u.phone, iv."name", i."sentAt", i."inviteStatusId", i."hash" ' +
-        'FROM public."user" U inner join invite i on  U.id = i."userId" ' +
-        'inner join invite_status iv on iv.id = i."inviteStatusId" ' +
-        'where u."bankCode" is null ' +
-        'and i."sentAt" <= now() - INTERVAL \'30 DAYS\' ' +
-        'and "roleId" != 1 ' +
-        'and i."inviteStatusId" != 2 ' +
-        'order by U."fullName", i."sentAt" ',
+      'FROM public."user" U inner join invite i on  U.id = i."userId" ' +
+      'inner join invite_status iv on iv.id = i."inviteStatusId" ' +
+      'where u."bankCode" is null ' +
+      'and i."sentAt" <= now() - INTERVAL \'30 DAYS\' ' +
+      'and "roleId" != 1 ' +
+      'and i."inviteStatusId" != 2 ' +
+      'order by U."fullName", i."sentAt" ',
     );
     const users: User[] = [];
 

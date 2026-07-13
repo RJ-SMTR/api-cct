@@ -1,6 +1,7 @@
 import { Provider } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import * as bcrypt from 'bcryptjs';
 import { ForgotService } from 'src/forgot/forgot.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
@@ -9,9 +10,12 @@ import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { MailRegistrationInterface } from 'src/mail/interfaces/mail-registration.interface';
 import { MailSentInfo } from 'src/mail/interfaces/mail-sent-info.interface';
 import { MailService } from 'src/mail/mail.service';
+import { Role } from 'src/roles/entities/role.entity';
+import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { DeepPartial } from 'typeorm';
+import { AuthProvidersEnum } from './auth-providers.enum';
 import { AuthService } from './auth.service';
 
 process.env.TZ = 'UTC';
@@ -22,6 +26,7 @@ describe('AuthService', () => {
   let mailService: MailService;
   let mailHistoryService: MailHistoryService;
   let forgotService: ForgotService;
+  let jwtService: JwtService;
 
   beforeEach(async () => {
     const usersServiceMock = {
@@ -30,6 +35,7 @@ describe('AuthService', () => {
         create: jest.fn(),
         getOne: jest.fn(),
         findOne: jest.fn(),
+        findManyByNormalizedCpf: jest.fn(),
         update: jest.fn(),
         softDelete: jest.fn(),
       },
@@ -82,10 +88,42 @@ describe('AuthService', () => {
     forgotService = module.get<ForgotService>(ForgotService);
     mailService = module.get<MailService>(MailService);
     usersService = module.get<UsersService>(UsersService);
+    jwtService = module.get<JwtService>(JwtService);
   });
 
   it('should be defined', () => {
     expect(authService).toBeDefined();
+  });
+
+  describe('validateCpfLogin', () => {
+    it('should authenticate an agent by normalized cpf', async () => {
+      const user = new User({
+        id: 1,
+        cpfCnpj: '16322676313',
+        provider: AuthProvidersEnum.email,
+        password: 'hashed-password',
+      });
+      user.role = new Role(RoleEnum.agents);
+
+      jest
+        .spyOn(usersService, 'findManyByNormalizedCpf')
+        .mockResolvedValue([user]);
+      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      const response = await authService.validateCpfLogin({
+        cpf: '163.226.763-13',
+        password: 'secret',
+      });
+
+      expect(usersService.findManyByNormalizedCpf).toHaveBeenCalledWith(
+        '16322676313',
+      );
+      expect(response).toEqual({
+        token: 'token',
+        user,
+      });
+    });
   });
 
   xdescribe('resendRegisterMail', () => {
