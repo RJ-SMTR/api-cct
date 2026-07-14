@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AgentesModule } from 'src/agentes/agentes.module';
 import { TestController } from './test.controller';
 import { TestEnvironmentsGuard } from './test-environments.guard';
 import { CronJobsModule } from 'src/cron-jobs/cron-jobs.module';
@@ -8,7 +9,7 @@ import { UsersModule } from 'src/users/users.module';
 import { CnabModule } from 'src/cnab/cnab.module';
 
 @Module({
-  imports: [CronJobsModule, MailHistoryModule, UsersModule, CnabModule],
+  imports: [CronJobsModule, MailHistoryModule, UsersModule, CnabModule, AgentesModule],
   controllers: [TestController],
   providers: [TestEnvironmentsGuard, TestService],
 })

@@ -35,4 +35,11 @@ describe('AgentesRepository', () => {
     });
     expect(queryBuilder.orderBy).toHaveBeenCalledWith('user.fullName', 'ASC');
   });
+
+  it('should normalize mock association values into at most two options', () => {
+    expect(repository.getAgentAssociationOptions(123)).toEqual([
+      { value: 0, label: 'Flamengo' },
+      { value: 1, label: 'Lagoa' },
+    ]);
+  });
 });

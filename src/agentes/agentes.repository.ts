@@ -25,6 +25,23 @@ export type DashboardPaymentCycle = {
   workDays: DashboardWorkDay[];
 };
 
+export enum AgentAssociationEnum {
+  Flamengo = 0,
+  Lagoa = 1,
+  Copacabana = 2,
+}
+
+export const agentAssociationLabelMap: Record<AgentAssociationEnum, string> = {
+  [AgentAssociationEnum.Flamengo]: 'Flamengo',
+  [AgentAssociationEnum.Lagoa]: 'Lagoa',
+  [AgentAssociationEnum.Copacabana]: 'Copacabana',
+};
+
+export type AgentAssociationOption = {
+  value: AgentAssociationEnum;
+  label: string;
+};
+
 export type DashboardMonthData = {
   month: string;
   paymentCycles: DashboardPaymentCycle[];
@@ -32,6 +49,10 @@ export type DashboardMonthData = {
 
 @Injectable()
 export class AgentesRepository {
+  private readonly agentAssociationMockData: Record<string, AgentAssociationEnum[]> = {
+    default: [AgentAssociationEnum.Flamengo, AgentAssociationEnum.Lagoa],
+  };
+
   private readonly dashboardMockData: Record<string, DashboardMonthData> = {
     '2026-05': {
       month: '2026-05',
@@ -626,8 +647,8 @@ export class AgentesRepository {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('user.status', 'status')
-      .where('"user"."statusId" = :statusId', { statusId: 3 })
-      .orderBy('"user"."fullName"', 'ASC')
+      .where('user.statusId = :statusId', { statusId: 3 })
+      .orderBy('user.fullName', 'ASC')
       .getMany();
   }
 
@@ -635,9 +656,35 @@ export class AgentesRepository {
     return this.dashboardMockData[month] ?? null;
   }
 
+  getAgentAssociationOptions(userId?: number | string | null): AgentAssociationOption[] {
+    const associationValues = this.normalizeAssociationValues(
+      this.agentAssociationMockData[String(userId ?? '')] ??
+        this.agentAssociationMockData.default,
+    );
+
+    return associationValues.map((value) => ({
+      value,
+      label: agentAssociationLabelMap[value],
+    }));
+  }
+
   getAvailableMonths(): string[] {
     return Object.keys(this.dashboardMockData).sort((left, right) =>
       right.localeCompare(left),
     );
+  }
+
+  private normalizeAssociationValues(values?: AgentAssociationEnum[]) {
+    const normalizedValues = Array.isArray(values)
+      ? values.filter((value): value is AgentAssociationEnum =>
+          Object.prototype.hasOwnProperty.call(agentAssociationLabelMap, value),
+        )
+      : [];
+
+    if (!normalizedValues.length) {
+      return [AgentAssociationEnum.Flamengo];
+    }
+
+    return [...new Set(normalizedValues)].slice(0, 2);
   }
 }

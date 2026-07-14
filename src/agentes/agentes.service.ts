@@ -2,7 +2,14 @@ import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/com
 import { RoleEnum } from 'src/roles/roles.enum';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { AgentesDashboardQueryDto } from './dtos/agentes-dashboard-query.dto';
-import { AgentesRepository, DashboardMonthData, DashboardPaymentCycle, DashboardPhotoEntry, DashboardWorkDay } from './agentes.repository';
+import {
+  AgentAssociationOption,
+  AgentesRepository,
+  DashboardMonthData,
+  DashboardPaymentCycle,
+  DashboardPhotoEntry,
+  DashboardWorkDay,
+} from './agentes.repository';
 
 type DashboardMonthlyPayment = {
   paymentDate: string;
@@ -27,6 +34,7 @@ type DashboardWeeklyDay = {
 
 type DashboardResponseBase = {
   month: string;
+  associacoes: AgentAssociationOption[];
   validPhotosCount: number;
   rejectedPhotosCount: number;
   consolidatedPaymentValue: number;
@@ -69,6 +77,7 @@ export class AgentesService {
               name: user.status.name,
             }
           : null,
+        associacoes: this.agentesRepository.getAgentAssociationOptions(user.id),
         updatedAt: user.updatedAt,
       }));
   }
@@ -80,6 +89,7 @@ export class AgentesService {
     this.validateSelectedDates(query);
 
     const availableMonths = this.agentesRepository.getAvailableMonths();
+    const associacoes = this.agentesRepository.getAgentAssociationOptions(targetUserId);
     const baseData: DashboardMonthData = dashboardData ?? {
       month: query.month,
       paymentCycles: [],
@@ -99,6 +109,7 @@ export class AgentesService {
 
     const baseResponse: DashboardResponseBase = {
       month: baseData.month,
+      associacoes,
       validPhotosCount: monthlyPayments.reduce((sum, payment) => sum + payment.validPhotosCount, 0),
       rejectedPhotosCount: monthlyPayments.reduce((sum, payment) => sum + payment.rejectedPhotosCount, 0),
       consolidatedPaymentValue: this.roundCurrency(monthlyPayments.reduce((sum, payment) => sum + payment.totalPaymentValue, 0)),
@@ -110,6 +121,7 @@ export class AgentesService {
       userId: targetUserId,
       month: baseResponse.month,
       availableMonths,
+      associacoes: baseResponse.associacoes,
       currentView: query.workDate ? 'daily' : query.paymentDate ? 'weekly' : 'monthly',
       validPhotosCount: baseResponse.validPhotosCount,
       rejectedPhotosCount: baseResponse.rejectedPhotosCount,

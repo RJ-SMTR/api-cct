@@ -47,6 +47,7 @@ import { AprovacaoEnum } from 'src/agendamento/enums/aprovacao.enum';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { AprovacaoPagamentoDTO } from 'src/agendamento/domain/dto/aprovacao-pagamento.dto';
 import { TipoBeneficarioEnum } from 'src/agendamento/enums/tipo-beneficiario.enum';
+import { AgentesSyncService } from 'src/agentes/agentes-sync.service';
 
 
 /**
@@ -67,6 +68,8 @@ export enum CronJobsEnum {
   sincronizarTransacoesBq = 'sincronizarTransacoesBq',
   backupSftp = 'backupSftp',
   automacao = 'automacao'
+  ,
+  syncWeeklyAgentUsers = 'syncWeeklyAgentUsers'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -116,7 +119,8 @@ export class CronJobsService {
     private distributedLockService: DistributedLockService,
     private agendamentoPagamentoService: AgendamentoPagamentoService,
     private aprovacaoService: AprovacaoPagamentoService,
-    private detalheAService: DetalheAService
+    private detalheAService: DetalheAService,
+    private agentesSyncService: AgentesSyncService,
   ) { }
 
   async onModuleInit() {
@@ -143,6 +147,16 @@ export class CronJobsService {
           // cronjob: * * * * - A cada minuto
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__poll_db_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: async () => await this.pollDb(),
+        },
+      },
+      {
+        /**
+         * Sincroniza semanalmente novos agentes e associações a partir do BigQuery.
+         */
+        name: CronJobsEnum.syncWeeklyAgentUsers,
+        cronJobParameters: {
+          cronTime: '0 13 * * FRI', // Friday, 13:00 UTC = 10:00 BRT (GMT-3)
+          onTick: async () => await this.syncWeeklyAgentUsers(),
         },
       },
       //!!!!!!! NÃO TIRAR COMENTÁRIOS DOS JOBS!!!!!!
@@ -478,6 +492,20 @@ export class CronJobsService {
       }
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
+    }
+  }
+
+  async syncWeeklyAgentUsers() {
+    const METHOD = this.syncWeeklyAgentUsers.name;
+    try {
+      this.logger.log('Iniciando sincronização semanal de agentes.', METHOD);
+      const result = await this.agentesSyncService.syncWeeklyAgentUsers();
+      this.logger.log(
+        `Sincronização semanal de agentes finalizada: ${JSON.stringify(result)}`,
+        METHOD,
+      );
+    } catch (error) {
+      this.logger.error('Erro ao executar sincronização semanal de agentes.', error?.stack, METHOD);
     }
   }
 
@@ -1122,4 +1150,3 @@ export class CronJobsService {
   }
 }
   
-
