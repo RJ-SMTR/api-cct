@@ -13,6 +13,8 @@ export class AgendamentoPagamentoRemessaDTO {
 
   modoAgrupamento?: 'nomeConsorcio' | 'userId' | null;
 
+  nomeConsorcio?: string | null;
+
   nomeConsorcios: string[] = [];
   
   beneficiarios: CreateUserDto[]=[];

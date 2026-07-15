@@ -1092,8 +1092,8 @@ export class CronJobsService {
 
   private extrairNomeConsorciosDoPayload(rem: AgendamentoPagamentoRemessaDTO): string[] {
     const origem = [
+      ...(rem.nomeConsorcio ? [rem.nomeConsorcio] : []),
       ...(rem.nomeConsorcios || []),
-      ...((rem.beneficiarios || []).map((b) => (b as any)?.nomeConsorcio as string | undefined).filter(Boolean) as string[]),
     ];
 
     const consorcios = origem

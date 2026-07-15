@@ -99,12 +99,7 @@ function getHeaderRouteByNomeConsorcio(nomeConsorcio?: string | null): 'modal' |
 }
 
 function getHeaderRouteByRemessa(remessa: AgendamentoPagamentoRemessaDTO): 'modal' | 'consorcio' | null {
-  const nomes = remessa.nomeConsorcios || [];
-  if (nomes.length === 0) {
-    return null;
-  }
-
-  return getHeaderRouteByNomeConsorcio(nomes[0]);
+  return getHeaderRouteByNomeConsorcio(remessa.nomeConsorcio || remessa.nomeConsorcios?.[0] || null);
 }
 
 export function getAutomationAgendaDiagnostics(
@@ -251,6 +246,7 @@ function instanciaRemessa(
   }
   const nomeConsorcio = extractNomeConsorcioFromAgenda(agenda);
   if (nomeConsorcio) {
+    remessa.nomeConsorcio = nomeConsorcio;
     remessa.nomeConsorcios.push(nomeConsorcio);
   }
   remessa.diaIntervalo = agenda.diaIntervalo;
@@ -270,7 +266,7 @@ function shouldUseNomeConsorcio(agenda: AgendamentoPagamentoDTO): boolean {
 }
 
 function extractNomeConsorcioFromAgenda(agenda: AgendamentoPagamentoDTO): string | null {
-  const nomeConsorcio = normalizeNomeConsorcio(agenda.nomeConsorcio || agenda.beneficiarioUsuario?.fullName);
+  const nomeConsorcio = normalizeNomeConsorcio(agenda.nomeConsorcio);
   return nomeConsorcio;
 }
 
