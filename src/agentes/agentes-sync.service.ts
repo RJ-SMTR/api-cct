@@ -123,7 +123,7 @@ export class AgentesSyncService {
       hash,
       role: new Role(RoleEnum.agents),
       status: new Status(StatusEnum.register),
-      permitCode: this.normalizePermitCode(row.id_cliente),
+      permitCode: this.normalizePermitCode(row.numero_identificacao),
       cpfCnpj: normalizedDocument,
       phone: this.normalizePhone(row.telefone),
     } as DeepPartial<User>);

@@ -101,7 +101,7 @@ export class TestService {
   async syncMockedAgentUsers() {
     const mockRows: AgenteBigqueryUser[] = [
       {
-        id_cliente: '600',
+        numero_identificacao: '600',
         nome: 'Marcia Marques',
         email: 'marques.mcc@gmail.com',
         telefone: '21996428346',
@@ -112,7 +112,7 @@ export class TestService {
         nome_fantasia: 'RIO DE JANEIRO GABINETE DO PREFEITO',
       },
       {
-        id_cliente: '601',
+        numero_identificacao: '601',
         nome: 'Carlos Silva',
         email: 'carlos.silva@example.com',
         telefone: '21998887766',

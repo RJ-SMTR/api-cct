@@ -496,8 +496,10 @@ export class CronJobsService {
         `Sincronização semanal de agentes finalizada: ${JSON.stringify(result)}`,
         METHOD,
       );
+      return result;
     } catch (error) {
       this.logger.error('Erro ao executar sincronização semanal de agentes.', error?.stack, METHOD);
+      throw error;
     }
   }
 

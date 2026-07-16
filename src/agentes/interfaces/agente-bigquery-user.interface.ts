@@ -1,5 +1,5 @@
 export interface AgenteBigqueryUser {
-  id_cliente: string;
+  numero_identificacao: string | null;
   nome: string;
   email: string | null;
   telefone: string | null;
