@@ -393,6 +393,7 @@ export class CronJobsService {
             data: {
               hash: invite.hash,
               userName: user?.fullName as string,
+              roleId: user?.role?.id,
             },
           });
 

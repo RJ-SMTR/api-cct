@@ -268,6 +268,7 @@ export class AuthService {
         data: {
           hash,
           userName: dto.fullName,
+          roleId: RoleEnum.user,
         },
       });
 
@@ -324,12 +325,13 @@ export class AuthService {
     userMailHistory: MailHistory,
     logContext: string,
   ) {
-    const mailData: MailData<{ hash: string; to: string; userName: string }> = {
+    const mailData: MailData<{ hash: string; to: string; userName: string; roleId?: number }> = {
       to: user.email as string,
       data: {
         hash: userMailHistory.hash as string,
         to: user.email as string,
         userName: user.fullName as string,
+        roleId: user.role?.id,
       },
     };
     const mailResponse = await this.mailService.sendConcludeRegistration(
