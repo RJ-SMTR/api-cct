@@ -1,4 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { AgentesSyncService } from 'src/agentes/agentes-sync.service';
+import { AgenteBigqueryUser } from 'src/agentes/interfaces/agente-bigquery-user.interface';
 import { subDays } from 'date-fns';
 import { CronJobsService } from 'src/cron-jobs/cron-jobs.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
@@ -15,6 +17,7 @@ export class TestService {
     private readonly cronjobsService: CronJobsService,
     private readonly mailHistoryService: MailHistoryService,
     private readonly usersService: UsersService,
+    private readonly agentesSyncService: AgentesSyncService,
   ) {}
 
   async getCronJobsBulkSendInvites() {
@@ -93,5 +96,34 @@ export class TestService {
         cpfCnpj: i.cpfCnpj,
       })),
     };
+  }
+
+  async syncMockedAgentUsers() {
+    const mockRows: AgenteBigqueryUser[] = [
+      {
+        id_cliente: '600',
+        nome: 'Marcia Marques',
+        email: 'marques.mcc@gmail.com',
+        telefone: '21996428346',
+        documento: '00036241709',
+        tipo_documento: 'CPF',
+        cnpj: '42498733000148',
+        razao_social: 'MUNICIPIO DE RIO DE JANEIRO',
+        nome_fantasia: 'RIO DE JANEIRO GABINETE DO PREFEITO',
+      },
+      {
+        id_cliente: '601',
+        nome: 'Carlos Silva',
+        email: 'carlos.silva@example.com',
+        telefone: '21998887766',
+        documento: '12345678901',
+        tipo_documento: 'CPF',
+        cnpj: '11222333000144',
+        razao_social: 'ASSOCIACAO OPERACIONAL CENTRO',
+        nome_fantasia: 'AOC CENTRO',
+      },
+    ];
+
+    return this.agentesSyncService.syncWeeklyAgentUsers(mockRows);
   }
 }

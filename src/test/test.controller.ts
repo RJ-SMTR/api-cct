@@ -92,4 +92,14 @@ export class TestController {
     const date = _date as Date;
     return await this.detalheAService.getNextNumeroDocumento(date);
   }
+
+  @Get('agentes/sync-mock')
+  @ApiOperation({
+    description:
+      'Only available in test environments.' +
+      '\n\nRuns the weekly agent sync using mocked BigQuery rows against the current database.',
+  })
+  async getAgentesSyncMock() {
+    return await this.testService.syncMockedAgentUsers();
+  }
 }

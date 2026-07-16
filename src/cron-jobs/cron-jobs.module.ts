@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AgentesModule } from 'src/agentes/agentes.module';
 import { AntifraudModule } from 'src/antifraud/antifraud.module';
 import { CnabModule } from 'src/cnab/cnab.module';
 import { MailCountModule } from 'src/mail-count/mail-count.module';
@@ -15,6 +16,7 @@ import { CronJobsManutencaoController } from './cron-jobs-manutencao.controller'
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    AgentesModule,
     AntifraudModule,
     ConfigModule,
     SettingsModule,
