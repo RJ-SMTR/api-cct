@@ -50,10 +50,6 @@ export type DashboardMonthData = {
 
 @Injectable()
 export class AgentesRepository {
-  private readonly agentAssociationMockData: Record<string, AgentAssociationEnum[]> = {
-    default: [AgentAssociationEnum.Flamengo, AgentAssociationEnum.Lagoa],
-  };
-
   private readonly dashboardMockData: Record<string, DashboardMonthData> = {
     '2026-05': {
       month: '2026-05',
@@ -654,14 +650,17 @@ export class AgentesRepository {
   }
 
   async findDashboardData(month: string): Promise<DashboardMonthData | null> {
-    return this.dashboardMockData[month] ?? null;
+    const monthData = this.dashboardMockData[month];
+
+    if (!monthData) {
+      return null;
+    }
+
+    return this.emptyDashboardData(monthData);
   }
 
   getAgentAssociationOptions(userId?: number | string | null): AgentAssociationOption[] {
-    const associationValues = this.normalizeAssociationValues(
-      this.agentAssociationMockData[String(userId ?? '')] ??
-      this.agentAssociationMockData.default,
-    );
+    const associationValues = this.normalizeAssociationValues([]);
 
     return associationValues.map((value) => ({
       value,
@@ -682,10 +681,13 @@ export class AgentesRepository {
       )
       : [];
 
-    if (!normalizedValues.length) {
-      return [AgentAssociationEnum.Flamengo];
-    }
-
     return [...new Set(normalizedValues)].slice(0, 2);
+  }
+
+  private emptyDashboardData(monthData: DashboardMonthData): DashboardMonthData {
+    return {
+      month: monthData.month,
+      paymentCycles: [],
+    };
   }
 }

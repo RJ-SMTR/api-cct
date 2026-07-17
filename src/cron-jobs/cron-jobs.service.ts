@@ -311,6 +311,7 @@ export class CronJobsService {
         this.startCron(jobConfig);
         this.logger.log(`Tarefa agendada: ${jobConfig.name}, ${jobConfig.cronJobParameters.cronTime}`);
       }
+
     } else {
       this.logger.warn(`env->CRONJOBS = false. Cronjobs inativos.`);
     }

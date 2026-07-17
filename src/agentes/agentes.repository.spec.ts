@@ -36,10 +36,16 @@ describe('AgentesRepository', () => {
     expect(queryBuilder.orderBy).toHaveBeenCalledWith('"user"."fullName"', 'ASC');
   });
 
-  it('should normalize mock association values into at most two options', () => {
-    expect(repository.getAgentAssociationOptions(123)).toEqual([
-      { value: 0, label: 'Flamengo' },
-      { value: 1, label: 'Lagoa' },
-    ]);
+  it('should return no mock associations', () => {
+    expect(repository.getAgentAssociationOptions(123)).toEqual([]);
+  });
+
+  it('should remove mocked dashboard details before returning data', async () => {
+    const dashboardData = await repository.findDashboardData('2026-05');
+
+    expect(dashboardData).toEqual({
+      month: '2026-05',
+      paymentCycles: [],
+    });
   });
 });
