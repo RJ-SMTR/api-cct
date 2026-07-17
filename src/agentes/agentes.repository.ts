@@ -50,10 +50,6 @@ export type DashboardMonthData = {
 
 @Injectable()
 export class AgentesRepository {
-  private readonly agentAssociationMockData: Record<string, AgentAssociationEnum[]> = {
-    default: [AgentAssociationEnum.Flamengo, AgentAssociationEnum.Lagoa],
-  };
-
   private readonly dashboardMockData: Record<string, DashboardMonthData> = {
     '2026-05': {
       month: '2026-05',
@@ -664,10 +660,7 @@ export class AgentesRepository {
   }
 
   getAgentAssociationOptions(userId?: number | string | null): AgentAssociationOption[] {
-    const associationValues = this.normalizeAssociationValues(
-      this.agentAssociationMockData[String(userId ?? '')] ??
-      this.agentAssociationMockData.default,
-    );
+    const associationValues = this.normalizeAssociationValues([]);
 
     return associationValues.map((value) => ({
       value,
@@ -687,10 +680,6 @@ export class AgentesRepository {
         Object.prototype.hasOwnProperty.call(agentAssociationLabelMap, value),
       )
       : [];
-
-    if (!normalizedValues.length) {
-      return [AgentAssociationEnum.Flamengo];
-    }
 
     return [...new Set(normalizedValues)].slice(0, 2);
   }
