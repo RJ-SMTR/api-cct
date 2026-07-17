@@ -10,6 +10,7 @@ import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { Nullable } from '../utils/types/nullable.type';
 import { AuthService } from './auth.service';
 import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
+import { AuthCpfLoginDto } from './dto/auth-cpf-login.dto';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
@@ -29,7 +30,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService, //
     private readonly mailHistoryService: MailHistoryService,
-  ) {}
+  ) { }
 
   @SerializeOptions({
     groups: ['me'],
@@ -103,6 +104,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   public me(@Request() request): Promise<Nullable<User>> {
     return this.authService.me(request.user);
+  }
+
+  @SerializeOptions({
+    groups: ['me'],
+  })
+  @Post('login/cpf')
+  @HttpCode(HttpStatus.OK)
+  public cpfLogin(@Body() loginDto: AuthCpfLoginDto): Promise<LoginResponseType> {
+    return this.authService.validateCpfLogin(loginDto);
   }
 
   @ApiBearerAuth()

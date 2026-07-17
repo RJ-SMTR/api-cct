@@ -22,6 +22,7 @@ import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { Nullable } from '../utils/types/nullable.type';
 import { AuthProvidersEnum } from './auth-providers.enum';
+import { AuthCpfLoginDto } from './dto/auth-cpf-login.dto';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
@@ -83,6 +84,65 @@ export class AuthService {
       );
     }
 
+    const isValidPassword = await bcrypt.compare(
+      loginDto.password,
+      user.password,
+    );
+
+    if (!isValidPassword) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            password: 'incorrectPassword',
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const token = this.jwtService.sign({
+      id: user.id,
+      role: user.role,
+    });
+
+    return { token, user };
+  }
+
+  async validateCpfLogin(loginDto: AuthCpfLoginDto): Promise<LoginResponseType> {
+    const normalizedCpf = String(loginDto.cpf ?? '').replace(/\D/g, '');
+    const users = await this.usersService.findManyByNormalizedCpf(normalizedCpf);
+    const user = users.length === 1 ? users[0] : null;
+    const expectedRoles = [RoleEnum.agents];
+
+    if (!user || (user?.role && !expectedRoles.includes(user.role.id))) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            cpf: users.length > 1 ? 'duplicated' : 'notFound',
+            expectedRoles,
+            role: user?.role,
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    if (user.provider !== AuthProvidersEnum.email) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            cpf: `needLoginViaProvider:${user.provider}`,
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    console.log("user password", user.password)
+    console.log("lgin password", loginDto.password)
     const isValidPassword = await bcrypt.compare(
       loginDto.password,
       user.password,
@@ -208,6 +268,7 @@ export class AuthService {
         data: {
           hash,
           userName: dto.fullName,
+          roleId: RoleEnum.user,
         },
       });
 
@@ -264,12 +325,13 @@ export class AuthService {
     userMailHistory: MailHistory,
     logContext: string,
   ) {
-    const mailData: MailData<{ hash: string; to: string; userName: string }> = {
+    const mailData: MailData<{ hash: string; to: string; userName: string; roleId?: number }> = {
       to: user.email as string,
       data: {
         hash: userMailHistory.hash as string,
         to: user.email as string,
         userName: user.fullName as string,
+        roleId: user.role?.id,
       },
     };
     const mailResponse = await this.mailService.sendConcludeRegistration(

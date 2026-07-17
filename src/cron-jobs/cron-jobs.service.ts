@@ -3,6 +3,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
+import { AgentesSyncService } from 'src/agentes/agentes-sync.service';
 import { AntifraudService } from 'src/antifraud/antifraud.service';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
@@ -56,7 +57,8 @@ export enum CronJobsEnum {
   sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento',
   sincronizarTransacoesBq = 'sincronizarTransacoesBq',
   backupSftp = 'backupSftp',
-  sendAdminFraudAlert = 'sendAdminFraudAlert'
+  sendAdminFraudAlert = 'sendAdminFraudAlert',
+  syncWeeklyAgentUsers = 'syncWeeklyAgentUsers',
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -104,16 +106,17 @@ export class CronJobsService {
     private ordemPagamentoService: OrdemPagamentoService,
     private bigQueryTransacaoService: BigqueryTransacaoService,
     private distributedLockService: DistributedLockService,
+    private agentesSyncService: AgentesSyncService,
   ) { }
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {   
+  async onModuleLoad() {  
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -157,6 +160,16 @@ export class CronJobsService {
         },
       },
 
+      {
+        /**
+         * Sincroniza semanalmente novos agentes e associações a partir do BigQuery.
+         */
+        name: CronJobsEnum.syncWeeklyAgentUsers,
+        cronJobParameters: {
+          cronTime: '0 13 * * FRI', // Friday, 13:00 UTC = 10:00 BRT (GMT-3)
+          onTick: async () => await this.syncWeeklyAgentUsers(),
+        },
+      },
       {
         /**
          * Envio de Relatório Estatística dos Dados - todo dia, 06:00 - 06:01
@@ -394,6 +407,7 @@ export class CronJobsService {
             data: {
               hash: invite.hash,
               userName: user?.fullName as string,
+              roleId: user?.role?.id,
             },
           });
 
@@ -471,6 +485,22 @@ export class CronJobsService {
       }
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
+    }
+  }
+
+  async syncWeeklyAgentUsers() {
+    const METHOD = this.syncWeeklyAgentUsers.name;
+    try {
+      this.logger.log('Iniciando sincronização semanal de agentes.', METHOD);
+      const result = await this.agentesSyncService.syncWeeklyAgentUsers();
+      this.logger.log(
+        `Sincronização semanal de agentes finalizada: ${JSON.stringify(result)}`,
+        METHOD,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error('Erro ao executar sincronização semanal de agentes.', error?.stack, METHOD);
+      throw error;
     }
   }
 
@@ -662,7 +692,7 @@ export class CronJobsService {
 
   private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
-     // Agrupa pagamentos        
+    // Agrupa pagamentos        
 
     for (let index = 0; index < consorcios.length; index++) {
       if (pagamentoUnico) {
@@ -695,7 +725,7 @@ export class CronJobsService {
     this.logger.debug('iniciando o agrupamento pendente')
     //if (dataInicio)
     // AGRUPAR ORDENS POR INDIVIDUO
-       await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
     // Prepara o remessa
     // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);

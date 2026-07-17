@@ -7,6 +7,7 @@ import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-st
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { RoleEnum } from 'src/roles/roles.enum';
 import { appSettings } from 'src/settings/app.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
@@ -73,7 +74,7 @@ export class MailService {
    * @throws `HttpException`
    */
   async sendConcludeRegistration(
-    mailData: MailData<{ hash: string; userName: string }>,
+    mailData: MailData<{ hash: string; userName: string; roleId?: number }>,
   ): Promise<MailRegistrationInterface> {
     const i18n = I18nContext.current();
     let emailConfirmTitle: MaybeType<string>;
@@ -99,11 +100,15 @@ export class MailService {
       );
     }
     try {
+      const template =
+        mailData.data.roleId === RoleEnum.agents
+          ? 'activation-agent'
+          : 'activation';
       const mailSentInfo = await this.safeSendMail({
         to: mailData.to,
         subject: emailConfirmTitle,
         text: `${emailConfirmLink} ${emailConfirmTitle}`,
-        template: 'activation',
+        template,
         context: {
           title: emailConfirmTitle,
           logoSrc: `${frontendDomain}/assets/icons/logoPrefeitura.png`,
@@ -258,7 +263,7 @@ export class MailService {
       return await this.safeSendMail({
         from,
         to: mailData.to,
-        subject: 'Projeto CCT - Alerta antifraude',
+        subject: 'Projeto CCT - ALERTA ANTIFRAUDE 🚫',
         text: `Alerta antifraude gerado em ${mailData.data.generatedAtDate} às ${mailData.data.generatedAtTime}. ${mailData.data.totalOrders} fraude(s) encontrada(s) acima de ${mailData.data.threshold}.`,
         template: 'admin-fraud-alert',
         context: {
@@ -353,7 +358,7 @@ export class MailService {
 
   private async verificaMudancaReport(body: string | IMailHistoryStatusCount): Promise<boolean> {
     const sett = await this.settingsService.getOneByNameVersion('mail_report_send', '1')
-    if ((body !== '' && body !== sett.value) || (sett.value==='')) {   
+    if ((body !== '' && body !== sett.value) || (sett.value === '')) {
       await this.settingsService.update({ name: 'mail_report_send', version: '1', value: body.toString() })
       return true;
     }

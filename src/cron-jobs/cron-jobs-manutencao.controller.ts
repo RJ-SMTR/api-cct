@@ -1,6 +1,6 @@
-import { Controller, Get, HttpCode, HttpStatus, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CustomLogger } from 'src/utils/custom-logger';
 import { CronJobsService } from './cron-jobs.service';
@@ -16,6 +16,27 @@ export class CronJobsManutencaoController {
   constructor(
     private readonly cronJobsService: CronJobsService, //
   ) {}
+
+  @Get('/sync-weekly-agent-users')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Dispara manualmente a sincronização semanal de agentes',
+    description:
+      'Executa o fluxo de sync de agentes fora da agenda do cron. ' +
+      'O fluxo usa a mesma tabela BigQuery fixa da execução agendada. ' +
+      'O endpoint pode criar usuários e enfileirar convites no banco atual.',
+  })
+  async triggerSyncWeeklyAgentUsers() {
+    const result = await this.cronJobsService.syncWeeklyAgentUsers();
+
+    return {
+      success: true,
+      result,
+      triggeredAt: new Date().toISOString(),
+    };
+  }
 
   @Get('/test-backup')
   @HttpCode(HttpStatus.OK)
