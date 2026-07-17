@@ -13,6 +13,7 @@ import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado
 import { replaceUndefinedWithNull } from '../../../utils/type-utils';
 import { endOfDay, startOfDay } from 'date-fns';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
+import { BigqueryOrdemPagamentoGuardadorDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento-guardador.dto';
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -67,8 +68,52 @@ export class OrdemPagamentoService {
     this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
   }
 
+  async sincronizarOrdensPagamentoGuardador(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
+    const METHOD = 'sincronizarOrdensPagamento';
+    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeekOrdemGuardador(dataCapturaInicialDate, dataCapturaFinalDate, 0);
+
+    const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
+    // Verifica se a ultima data de captura é igual a data atual
+    // E se o número de ordens é diferente.
+    if (numOrdensSemana === ordens.length) {
+      this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
+      return;
+    }
+
+    this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
+
+    for (const ordem of ordens) {
+      let user: User | undefined;
+      if (ordem.cpfCnpj) {
+        try {
+          user = await this.usersService.getOne({ cpfCnpj: ordem.cpfCnpj });          
+          if (user && !user.bloqueado) {
+            this.logger.debug(`Salvando a ordem: ${ordem.} para usuario: ${user.fullName}`, METHOD);
+            await this.save(ordem, user.id);
+          }
+        } catch (error) {
+          /***  TODO: Caso o erro lançado seja relacionado ao fato do usuário não ter sido encontrado,
+           ajustar o código para inserir a ordem de pagamento com o usuário nulo
+           ***/
+          if (error instanceof HttpException && !user) {
+            await this.save(ordem, undefined);
+          } else {
+            this.logger.error(`Erro ao sincronizar ordem de pagamento guardador ${ordem.id}: ${error.message}`, METHOD);
+          }
+        }
+      }
+    }
+    this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
+  }
+
+
   async save(ordem: BigqueryOrdemPagamentoDTO, userId: number | undefined) {
     const ordemPagamento = BigQueryToOrdemPagamento.convert(ordem, userId);
+    await this.ordemPagamentoRepository.save(ordemPagamento);
+  }
+
+   async saveOrdemGuardador(ordem: BigqueryOrdemPagamentoGuardadorDTO) {
+    const ordemPagamento = BigQueryToOrdemPagamento.convertOrdemGuardador(ordem);
     await this.ordemPagamentoRepository.save(ordemPagamento);
   }
 

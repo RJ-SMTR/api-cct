@@ -2,6 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { BigqueryOrdemPagamentoDTO } from "src/bigquery/dtos/bigquery-ordem-pagamento.dto";
 import { CustomLogger } from "src/utils/custom-logger";
 import { OrdemPagamento } from "../entity/ordem-pagamento.entity";
+import { BigqueryOrdemPagamentoGuardadorDTO } from "src/bigquery/dtos/bigquery-ordem-pagamento-guardador.dto";
+import { OrdemPagamentoGuardador } from "../entity/ordem-pagamento-guardador.entity";
 
 
 @Injectable()
@@ -27,6 +29,22 @@ export class BigQueryToOrdemPagamento {
         result.valor = ordem.valorTotalTransacaoLiquido;
         result.bqUpdatedAt = new Date(ordem.datetimeUltimaAtualizacao);
         result.dataCaptura = ordem.dataCaptura;
+        return result;
+    }
+
+
+    static convertOrdemGuardador(ordem: BigqueryOrdemPagamentoGuardadorDTO) {
+        const METHOD = 'convert';
+        this.logger.debug(`Sincronizado ${ordem.id} `, METHOD);
+        var result = new OrdemPagamentoGuardador();
+        result.id = ordem.id;
+        result.dataOrdem = new Date(ordem.dataOrdem);
+        result.dataInclusao = new Date(ordem.dataInclusao);
+        result.dataPagamento = new Date(ordem.dataPagamento);
+        result.idCliente = ordem.idCliente;
+        result.idOrdemPagamentoEstacionamento = ordem.idOrdemPagamentoEstacionamento;
+        result.idStatusOrdem = ordem.idStatusOrdem;
+        result.qtdVerificado = ordem.qtdVerificado;       
         return result;
     }
 }
