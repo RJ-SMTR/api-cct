@@ -654,7 +654,13 @@ export class AgentesRepository {
   }
 
   async findDashboardData(month: string): Promise<DashboardMonthData | null> {
-    return this.dashboardMockData[month] ?? null;
+    const monthData = this.dashboardMockData[month];
+
+    if (!monthData) {
+      return null;
+    }
+
+    return this.zeroDashboardAmounts(monthData);
   }
 
   getAgentAssociationOptions(userId?: number | string | null): AgentAssociationOption[] {
@@ -687,5 +693,21 @@ export class AgentesRepository {
     }
 
     return [...new Set(normalizedValues)].slice(0, 2);
+  }
+
+  private zeroDashboardAmounts(monthData: DashboardMonthData): DashboardMonthData {
+    return {
+      month: monthData.month,
+      paymentCycles: monthData.paymentCycles.map((paymentCycle) => ({
+        ...paymentCycle,
+        workDays: paymentCycle.workDays.map((workDay) => ({
+          ...workDay,
+          photos: workDay.photos.map((photo) => ({
+            ...photo,
+            amount: 0,
+          })),
+        })),
+      })),
+    };
   }
 }

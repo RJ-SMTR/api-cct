@@ -42,4 +42,19 @@ describe('AgentesRepository', () => {
       { value: 1, label: 'Lagoa' },
     ]);
   });
+
+  it('should zero all mocked dashboard amounts before returning data', async () => {
+    const dashboardData = await repository.findDashboardData('2026-05');
+
+    expect(dashboardData).not.toBeNull();
+
+    const amounts = dashboardData!.paymentCycles.flatMap((paymentCycle) =>
+      paymentCycle.workDays.flatMap((workDay) =>
+        workDay.photos.map((photo) => photo.amount),
+      ),
+    );
+
+    expect(amounts.length).toBeGreaterThan(0);
+    expect(amounts.every((amount) => amount === 0)).toBe(true);
+  });
 });
