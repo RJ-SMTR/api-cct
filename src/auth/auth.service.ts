@@ -141,8 +141,7 @@ export class AuthService {
       );
     }
 
-    console.log("user password", user.password)
-    console.log("lgin password", loginDto.password)
+
     const isValidPassword = await bcrypt.compare(
       loginDto.password,
       user.password,
