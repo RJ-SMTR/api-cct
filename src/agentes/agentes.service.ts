@@ -161,7 +161,7 @@ export class AgentesService {
     const targetUserId = userId ?? loggedUserId;
     const loggedRoleId = request.user.role?.id;
 
-    if (loggedRoleId === RoleEnum.agents && targetUserId !== loggedUserId) {
+    if (loggedRoleId === RoleEnum.agentes && targetUserId !== loggedUserId) {
       throw new ForbiddenException('Agents can only access their own dashboard.');
     }
 

@@ -101,7 +101,7 @@ export class MailService {
     }
     try {
       const template =
-        mailData.data.roleId === RoleEnum.agents
+        mailData.data.roleId === RoleEnum.agentes
           ? 'activation-agent'
           : 'activation';
       const mailSentInfo = await this.safeSendMail({

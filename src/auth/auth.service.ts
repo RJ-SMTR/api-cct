@@ -113,7 +113,7 @@ export class AuthService {
     const normalizedCpf = String(loginDto.cpf ?? '').replace(/\D/g, '');
     const users = await this.usersService.findManyByNormalizedCpf(normalizedCpf);
     const user = users.length === 1 ? users[0] : null;
-    const expectedRoles = [RoleEnum.agents];
+    const expectedRoles = [RoleEnum.agentes];
 
     if (!user || (user?.role && !expectedRoles.includes(user.role.id))) {
       throw new HttpException(

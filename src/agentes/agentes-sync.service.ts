@@ -121,7 +121,7 @@ export class AgentesSyncService {
       firstName: this.getFirstName(row.nome),
       lastName: this.getLastName(row.nome),
       hash,
-      role: new Role(RoleEnum.agents),
+      role: new Role(RoleEnum.agentes),
       status: new Status(StatusEnum.register),
       permitCode: this.normalizePermitCode(row.numero_identificacao),
       cpfCnpj: normalizedDocument,
