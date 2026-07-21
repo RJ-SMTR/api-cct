@@ -74,7 +74,7 @@ export class AgentesService {
           name: user.status.name,
         }
         : null,
-      associacoes: this.agentesRepository.getAgentAssociationOptions(user.id),
+      associacoes: this.agentesRepository.getAgentAssociationOptionsFromUser(user),
       updatedAt: user.updatedAt,
     }));
   }
@@ -86,7 +86,7 @@ export class AgentesService {
     this.validateSelectedDates(query);
 
     const availableMonths = this.agentesRepository.getAvailableMonths();
-    const associacoes = this.agentesRepository.getAgentAssociationOptions(targetUserId);
+    const associacoes = await this.agentesRepository.getAgentAssociationOptions(targetUserId);
     const baseData: DashboardMonthData = dashboardData ?? {
       month: query.month,
       paymentCycles: [],

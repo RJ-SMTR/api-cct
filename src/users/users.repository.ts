@@ -23,6 +23,7 @@ import {
   WhereExpressionBuilder,
 } from 'typeorm';
 import { UpdateUserRepositoryDto } from './dto/update-user-repository.dto';
+import { UserRelationship } from './entities/user-relationship.entity';
 import { User } from './entities/user.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { Nullable } from 'src/utils/types/nullable.type';
@@ -74,8 +75,12 @@ export class UsersRepository {
    * @returns created user.
    */
   async create(createProfileDto: DeepPartial<User>): Promise<User> {
+    const now = new Date();
     const createdUser = await this.usersRepository.save(
-      this.usersRepository.create(createProfileDto),
+      this.usersRepository.create({
+        updatedAt: now,
+        ...createProfileDto,
+      }),
     );
     this.logger.log(`Usuário criado: ${createdUser.getLogInfo()}`);
     return createdUser;
@@ -162,6 +167,25 @@ export class UsersRepository {
       .getMany();
     await this.loadLazyRelations(users);
     return users;
+  }
+
+  async findUserRelationship(userId: number, relatedUserId: number): Promise<Nullable<UserRelationship>> {
+    return this.entityManager.getRepository(UserRelationship).findOne({
+      where: {
+        userId,
+        relatedUserId,
+      },
+    });
+  }
+
+  async createUserRelationship(userId: number, relatedUserId: number): Promise<UserRelationship> {
+    const relationshipRepository = this.entityManager.getRepository(UserRelationship);
+    return relationshipRepository.save(
+      relationshipRepository.create({
+        userId,
+        relatedUserId,
+      }),
+    );
   }
 
   // #region findManyWithPagination

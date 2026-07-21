@@ -1,6 +1,7 @@
 import { Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { AgentesRepository } from './agentes.repository';
+import { RoleEnum } from 'src/roles/roles.enum';
 
 describe('AgentesRepository', () => {
   let repository: AgentesRepository;
@@ -31,13 +32,35 @@ describe('AgentesRepository', () => {
 
     expect(typeormRepository.createQueryBuilder).toHaveBeenCalledWith('user');
     expect(queryBuilder.where).toHaveBeenCalledWith('"user"."roleId" = :roleId', {
-      roleId: 3,
+      roleId: RoleEnum.agentes,
     });
     expect(queryBuilder.orderBy).toHaveBeenCalledWith('"user"."fullName"', 'ASC');
   });
 
-  it('should return no mock associations', () => {
-    expect(repository.getAgentAssociationOptions(123)).toEqual([]);
+  it('should map real associations from the loaded user relationships', () => {
+    const association = new User({
+      id: 10,
+      fullName: 'MUNICIPIO DE RIO DE JANEIRO',
+      cpfCnpj: '42498733000148',
+    });
+    const agent = new User({
+      id: 20,
+      following: [
+        {
+          userId: 20,
+          relatedUserId: 10,
+          relatedUser: association,
+        } as any,
+      ],
+    });
+
+    expect(repository.getAgentAssociationOptionsFromUser(agent)).toEqual([
+      {
+        value: 10,
+        label: 'MUNICIPIO DE RIO DE JANEIRO',
+        cpfCnpj: '42498733000148',
+      },
+    ]);
   });
 
   it('should remove mocked dashboard details before returning data', async () => {

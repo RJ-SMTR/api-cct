@@ -8,4 +8,5 @@ export interface AgenteBigqueryUser {
   cnpj: string | null;
   razao_social: string | null;
   nome_fantasia: string | null;
+  datetime_ultima_atualizacao?: string | null;
 }

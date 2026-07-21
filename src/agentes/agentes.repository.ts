@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RoleEnum } from 'src/roles/roles.enum';
+import { UserRelationship } from 'src/users/entities/user-relationship.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 
@@ -26,21 +27,10 @@ export type DashboardPaymentCycle = {
   workDays: DashboardWorkDay[];
 };
 
-export enum AgentAssociationEnum {
-  Flamengo = 0,
-  Lagoa = 1,
-  Copacabana = 2,
-}
-
-export const agentAssociationLabelMap: Record<AgentAssociationEnum, string> = {
-  [AgentAssociationEnum.Flamengo]: 'Flamengo',
-  [AgentAssociationEnum.Lagoa]: 'Lagoa',
-  [AgentAssociationEnum.Copacabana]: 'Copacabana',
-};
-
 export type AgentAssociationOption = {
-  value: AgentAssociationEnum;
+  value: number;
   label: string;
+  cpfCnpj: string | null;
 };
 
 export type DashboardMonthData = {
@@ -644,6 +634,8 @@ export class AgentesRepository {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('user.status', 'status')
+      .leftJoinAndSelect('user.following', 'following')
+      .leftJoinAndSelect('following.relatedUser', 'relatedUser')
       .where('"user"."roleId" = :roleId', { roleId: RoleEnum.agentes })
       .orderBy('"user"."fullName"', 'ASC')
       .getMany();
@@ -659,13 +651,19 @@ export class AgentesRepository {
     return this.emptyDashboardData(monthData);
   }
 
-  getAgentAssociationOptions(userId?: number | string | null): AgentAssociationOption[] {
-    const associationValues = this.normalizeAssociationValues([]);
+  async getAgentAssociationOptions(userId?: number | string | null): Promise<AgentAssociationOption[]> {
+    if (!userId) {
+      return [];
+    }
 
-    return associationValues.map((value) => ({
-      value,
-      label: agentAssociationLabelMap[value],
-    }));
+    const agentUser = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.following', 'following')
+      .leftJoinAndSelect('following.relatedUser', 'relatedUser')
+      .where('"user"."id" = :userId', { userId: Number(userId) })
+      .getOne();
+
+    return this.getAgentAssociationOptionsFromUser(agentUser ?? null);
   }
 
   getAvailableMonths(): string[] {
@@ -674,14 +672,33 @@ export class AgentesRepository {
     );
   }
 
-  private normalizeAssociationValues(values?: AgentAssociationEnum[]) {
-    const normalizedValues = Array.isArray(values)
-      ? values.filter((value): value is AgentAssociationEnum =>
-        Object.prototype.hasOwnProperty.call(agentAssociationLabelMap, value),
-      )
-      : [];
+  getAgentAssociationOptionsFromUser(user?: User | null): AgentAssociationOption[] {
+    return this.mapAssociationOptions(user?.following ?? []);
+  }
 
-    return [...new Set(normalizedValues)].slice(0, 2);
+  private mapAssociationOptions(relationships: UserRelationship[]): AgentAssociationOption[] {
+    const associations = relationships
+      .map((relationship) => relationship.relatedUser)
+      .filter((relatedUser): relatedUser is User => Boolean(relatedUser?.id));
+
+    const seen = new Set<number>();
+
+    return associations
+      .filter((association) => {
+        if (seen.has(association.id)) {
+          return false;
+        }
+        seen.add(association.id);
+        return true;
+      })
+      .map((association) => ({
+        value: association.id,
+        label:
+          association.fullName?.trim() ||
+          association.cpfCnpj?.trim() ||
+          `Associacao #${association.id}`,
+        cpfCnpj: association.cpfCnpj ?? null,
+      }));
   }
 
   private emptyDashboardData(monthData: DashboardMonthData): DashboardMonthData {
