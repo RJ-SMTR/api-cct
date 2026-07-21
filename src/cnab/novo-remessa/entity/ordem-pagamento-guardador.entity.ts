@@ -20,45 +20,25 @@ export class OrdemPagamentoGuardador extends EntityHelper {
   @Column({ name: 'data_ordem', type: 'date', unique: false, nullable: false })
   dataOrdem: Date;
 
-  @Column({ name: 'id_status_ordem', type: Number, unique: false, nullable: false })
-  idStatusOrdem: number;
+  @Column({ name: 'quantidade_verificacao_total', type: Number, unique: false, nullable: false })
+  qtdVerificacaoTotal: number;
+
+
+  @Column({ name: 'quantidade_verificacao_valida', type: Number, unique: false, nullable: false })
+  qtdVerificacaoValida: number;
+
+  @Column({ name: 'quantidade_verificacao_invalida', type: Number, unique: false, nullable: false })
+  qtdVerificacaoInvalida: number;
 
   @Column({
-    name: 'id_ordem_pagamento_estacionamento',
-    type: Number,
-    unique: false,
-    nullable: false,
-  })
-  idOrdemPagamentoEstacionamento: number;
-
-  @Column({ name: 'id_cliente', type: Number, unique: false, nullable: false })
-  idCliente: number;
-
-  @Column({ name: 'qtd_verificado', type: Number, unique: false, nullable: false })
-  qtdVerificado: number;
-
-  @Column({
-    name: 'valor_unitario_verificado',
+    name: 'valor_repasse_guardador',
     type: 'decimal',
     unique: false,
     nullable: false,
     precision: 13,
     scale: 5,
   })
-  valorUnitarioVerificado: number;
-
-  @Column({
-    name: 'valor_total_verificado',
-    type: 'decimal',
-    unique: false,
-    nullable: false,
-    precision: 13,
-    scale: 5,
-  })
-  valorTotalVerificado: number;
-
-  @Column({ name: 'data_pagamento', type: 'date', unique: false, nullable: false })
-  dataPagamento: Date;
+  valorRepasseGuardador: number;
 
   @Column({ name: 'data_inclusao', type: 'date', unique: false, nullable: false })
   dataInclusao: Date;
@@ -67,6 +47,4 @@ export class OrdemPagamentoGuardador extends EntityHelper {
   @JoinColumn({ name: 'userId', foreignKeyConstraintName: 'FK_OrdemPagamentoGuardador_user_ManyToOne' })
   user: User;
 
-  @Column({ name: 'userId', type: Number, unique: false, nullable: false })
-  userId: number;
 }
