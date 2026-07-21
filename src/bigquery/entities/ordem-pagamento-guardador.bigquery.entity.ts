@@ -1,12 +1,9 @@
-import { IsDateString } from 'class-validator';
-import { DeepPartial } from 'typeorm';
-
-export class BigqueryOrdemPagamentoGuardadorDTO {
-  constructor(bqOrdem?: DeepPartial<BigqueryOrdemPagamentoGuardadorDTO>) {
-    if (bqOrdem !== undefined) {
-      Object.assign(this, bqOrdem);
-    }
-  }
+/**
+ * table: `ordem_pagamento_guardador_veiculo_dia`
+ *
+*/
+export class BigqueryOrdemPagamentoGuardador {
+  // DATABASE COLUMNS
 
   /** Data da ordem de pagamento (partição) */
   dataOrdem: string;

@@ -12,6 +12,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 
 export enum BigquerySource {
   smtr = 'smtr',
+  smtr_dev = 'smtr-dev',
 }
 
 @Injectable()

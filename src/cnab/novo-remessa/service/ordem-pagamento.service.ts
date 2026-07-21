@@ -14,13 +14,16 @@ import { replaceUndefinedWithNull } from '../../../utils/type-utils';
 import { endOfDay, startOfDay } from 'date-fns';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { BigqueryOrdemPagamentoGuardadorDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento-guardador.dto';
+import { OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
 
 @Injectable()
 export class OrdemPagamentoService {
 
   private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
 
-  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository, private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) { }
+  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository, 
+    private ordemPagamentoGuardadorRepository: OrdemPagamentoGuardadorRepository,
+    private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) { }
 
   async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
     const METHOD = 'sincronizarOrdensPagamento';
@@ -69,7 +72,7 @@ export class OrdemPagamentoService {
   }
 
   async sincronizarOrdensPagamentoGuardador(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
-    const METHOD = 'sincronizarOrdensPagamento';
+    const METHOD = 'sincronizarOrdensPagamentoGuardador';
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeekOrdemGuardador(dataCapturaInicialDate, dataCapturaFinalDate, 0);
 
     const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
@@ -84,12 +87,12 @@ export class OrdemPagamentoService {
 
     for (const ordem of ordens) {
       let user: User | undefined;
-      if (ordem.cpfCnpj) {
+      if (ordem.cpfGuardadorVeiculo) {
         try {
-          user = await this.usersService.getOne({ cpfCnpj: ordem.cpfCnpj });          
+          user = await this.usersService.getOne({ cpfCnpj: ordem.cpfGuardadorVeiculo });          
           if (user && !user.bloqueado) {
-            this.logger.debug(`Salvando a ordem: ${ordem.} para usuario: ${user.fullName}`, METHOD);
-            await this.save(ordem, user.id);
+            this.logger.debug(`Salvando para usuario: ${user.fullName}`, METHOD);
+            await this.saveOrdemGuardador(ordem);
           }
         } catch (error) {
           /***  TODO: Caso o erro lançado seja relacionado ao fato do usuário não ter sido encontrado,
@@ -106,7 +109,6 @@ export class OrdemPagamentoService {
     this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
   }
 
-
   async save(ordem: BigqueryOrdemPagamentoDTO, userId: number | undefined) {
     const ordemPagamento = BigQueryToOrdemPagamento.convert(ordem, userId);
     await this.ordemPagamentoRepository.save(ordemPagamento);
@@ -114,7 +116,7 @@ export class OrdemPagamentoService {
 
    async saveOrdemGuardador(ordem: BigqueryOrdemPagamentoGuardadorDTO) {
     const ordemPagamento = BigQueryToOrdemPagamento.convertOrdemGuardador(ordem);
-    await this.ordemPagamentoRepository.save(ordemPagamento);
+    await this.ordemPagamentoGuardadorRepository.save(ordemPagamento);
   }
 
   async findOrdensPagamentoAgrupadasPorMes(userId: number, yearMonth: Date): Promise<OrdemPagamentoMensalDto> {

@@ -110,6 +110,9 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
+
+    //TODO: descomentar quando terminar o remessa 
+  
    // await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
@@ -938,7 +941,6 @@ export class CronJobsService {
     previousTuesday.setDate(today.getDate() - daysSinceTuesday);
     return previousTuesday;
   }
-
 
   async fullBackup() {
     const METHOD = 'fullBackup';

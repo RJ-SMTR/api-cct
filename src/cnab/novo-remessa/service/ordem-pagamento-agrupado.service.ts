@@ -8,6 +8,7 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
+import { OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {
@@ -16,6 +17,7 @@ export class OrdemPagamentoAgrupadoService {
 
   constructor(
     private ordemPagamentoRepository: OrdemPagamentoRepository,
+     private ordemPagamentoGuardadorRepository: OrdemPagamentoGuardadorRepository,
     private ordemPagamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository,
     private ordemPagamentoAgrupadoHistRepository: OrdemPagamentoAgrupadoHistoricoRepository,
     private pagadorService: PagadorService,
@@ -82,7 +84,7 @@ export class OrdemPagamentoAgrupadoService {
   }
 
   private async agruparOrdensGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
-    await this.ordemPagamentoRepository.agruparOrdensDePagamentoGuardador(dataInicial, dataFinal, dataPgto, pagador);
+    await this.ordemPagamentoGuardadorRepository.agruparOrdensDePagamentoGuardador(dataInicial, dataFinal, dataPgto, pagador);
   }
 
   private async agruparOrdemUnica(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
