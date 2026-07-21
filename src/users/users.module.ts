@@ -8,9 +8,10 @@ import { IsNotExist } from 'src/utils/validators/is-not-exists.validator';
 import { MailHistoryModule } from 'src/mail-history/mail-history.module';
 import { BanksModule } from 'src/banks/banks.module';
 import { UsersRepository } from './users.repository';
+import { UserRelationship } from './entities/user-relationship.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), MailHistoryModule, BanksModule],
+  imports: [TypeOrmModule.forFeature([User, UserRelationship]), MailHistoryModule, BanksModule],
   controllers: [UsersController],
   providers: [IsExist, IsNotExist, UsersService, UsersRepository],
   exports: [UsersService, UsersRepository],

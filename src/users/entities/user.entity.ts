@@ -12,6 +12,7 @@ import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
 import { UserHttpException } from 'src/utils/http-exception/user-http-exception';
 import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
+import { UserRelationship } from './user-relationship.entity';
 
 /** uniqueConstraintName: `UQ_User_email` */
 @Entity()
@@ -120,7 +121,7 @@ export class User extends EntityHelper {
   //@Exclude({ toPlainOnly: true })
   createdAt: Date;
 
-  @Column()
+  @UpdateDateColumn()
   //@Exclude({ toPlainOnly: true })
   updatedAt: Date;
 
@@ -376,6 +377,12 @@ export class User extends EntityHelper {
     }
     return this.permitCode;
   }
+
+  @OneToMany(() => UserRelationship, (rel) => rel.user)
+  following: UserRelationship[];
+
+  @OneToMany(() => UserRelationship, (rel) => rel.relatedUser)
+  followers: UserRelationship[];
 
   @AfterLoad()
   setFieldValues() {

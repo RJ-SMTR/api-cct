@@ -110,6 +110,7 @@ export class TestService {
         cnpj: '42498733000148',
         razao_social: 'MUNICIPIO DE RIO DE JANEIRO',
         nome_fantasia: 'RIO DE JANEIRO GABINETE DO PREFEITO',
+        datetime_ultima_atualizacao: '2026-07-21T12:00:00.000Z',
       },
       {
         numero_identificacao: '601',
@@ -121,6 +122,7 @@ export class TestService {
         cnpj: '11222333000144',
         razao_social: 'ASSOCIACAO OPERACIONAL CENTRO',
         nome_fantasia: 'AOC CENTRO',
+        datetime_ultima_atualizacao: '2026-07-21T13:00:00.000Z',
       },
     ];
 

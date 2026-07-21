@@ -60,7 +60,7 @@ export class AgentesService {
       (user) =>
         new AgenteUserResponseDto(
           user,
-          this.agentesRepository.getAgentAssociationOptions(user.id),
+          this.agentesRepository.getAgentAssociationOptionsFromUser(user),
         ),
     );
   }
@@ -72,7 +72,7 @@ export class AgentesService {
     this.validateSelectedDates(query);
 
     const availableMonths = this.agentesRepository.getAvailableMonths();
-    const associacoes = this.agentesRepository.getAgentAssociationOptions(targetUserId);
+    const associacoes = await this.agentesRepository.getAgentAssociationOptions(targetUserId);
     const baseData: DashboardMonthData = dashboardData ?? {
       month: query.month,
       paymentCycles: [],

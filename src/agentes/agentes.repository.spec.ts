@@ -5,6 +5,7 @@ import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { User } from 'src/users/entities/user.entity';
 import { AgentesRepository } from './agentes.repository';
+import { RoleEnum } from 'src/roles/roles.enum';
 
 describe('AgentesRepository', () => {
   let repository: AgentesRepository;
@@ -42,9 +43,35 @@ describe('AgentesRepository', () => {
 
     expect(typeormRepository.createQueryBuilder).toHaveBeenCalledWith('user');
     expect(queryBuilder.where).toHaveBeenCalledWith('"user"."roleId" = :roleId', {
-      roleId: 3,
+      roleId: RoleEnum.agentes,
     });
     expect(queryBuilder.orderBy).toHaveBeenCalledWith('"user"."fullName"', 'ASC');
+  });
+
+  it('should map real associations from the loaded user relationships', () => {
+    const association = new User({
+      id: 10,
+      fullName: 'MUNICIPIO DE RIO DE JANEIRO',
+      cpfCnpj: '42498733000148',
+    });
+    const agent = new User({
+      id: 20,
+      following: [
+        {
+          userId: 20,
+          relatedUserId: 10,
+          relatedUser: association,
+        } as any,
+      ],
+    });
+
+    expect(repository.getAgentAssociationOptionsFromUser(agent)).toEqual([
+      {
+        value: 10,
+        label: 'MUNICIPIO DE RIO DE JANEIRO',
+        cpfCnpj: '42498733000148',
+      },
+    ]);
   });
 
   it('should map invite sentAt into inviteAt for agent users', async () => {
@@ -69,10 +96,6 @@ describe('AgentesRepository', () => {
     expect(result[0].inviteAt).toEqual(sentAt);
     expect(result[0].aux_inviteHash).toBe('agent_invite_hash');
     expect(result[0].mailHistories).toEqual([mailHistory]);
-  });
-
-  it('should return no mock associations', () => {
-    expect(repository.getAgentAssociationOptions(123)).toEqual([]);
   });
 
   it('should remove mocked dashboard details before returning data', async () => {
