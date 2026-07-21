@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { IRequest } from 'src/utils/interfaces/request.interface';
+import { AgenteUserResponseDto } from './dtos/agente-user-response.dto';
 import { AgentesDashboardQueryDto } from './dtos/agentes-dashboard-query.dto';
 import {
   AgentAssociationOption,
@@ -52,31 +53,16 @@ export class AgentesService {
 
   constructor(private readonly agentesRepository: AgentesRepository) { }
 
-  async getAgentUsers() {
+  async getAgentUsers(): Promise<AgenteUserResponseDto[]> {
     const users = await this.agentesRepository.findAgentUsers();
 
-    return users.map((user) => ({
-      id: user.id,
-      fullName: user.fullName ?? null,
-      email: user.email ?? null,
-      permitCode: user.permitCode ?? null,
-      cpfCnpj: user.cpfCnpj ?? null,
-      phone: user.phone ?? null,
-      role: user.role
-        ? {
-          id: user.role.id,
-          name: user.role.name,
-        }
-        : null,
-      status: user.status
-        ? {
-          id: user.status.id,
-          name: user.status.name,
-        }
-        : null,
-      associacoes: this.agentesRepository.getAgentAssociationOptionsFromUser(user),
-      updatedAt: user.updatedAt,
-    }));
+    return users.map(
+      (user) =>
+        new AgenteUserResponseDto(
+          user,
+          this.agentesRepository.getAgentAssociationOptionsFromUser(user),
+        ),
+    );
   }
 
   async getDashboard(query: AgentesDashboardQueryDto, request: IRequest) {
