@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
+import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 export type DashboardPhotoEntry = {
   id: string;
@@ -50,10 +52,6 @@ export type DashboardMonthData = {
 
 @Injectable()
 export class AgentesRepository {
-  private readonly agentAssociationMockData: Record<string, AgentAssociationEnum[]> = {
-    default: [AgentAssociationEnum.Flamengo, AgentAssociationEnum.Lagoa],
-  };
-
   private readonly dashboardMockData: Record<string, DashboardMonthData> = {
     '2026-05': {
       month: '2026-05',
@@ -641,27 +639,35 @@ export class AgentesRepository {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly mailHistoryService: MailHistoryService,
   ) { }
 
   async findAgentUsers(): Promise<User[]> {
-    return this.userRepository
+    const users = await this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('user.status', 'status')
-      .where('"user"."roleId" = :roleId', { roleId: RoleEnum.agents })
+      .where('"user"."roleId" = :roleId', { roleId: RoleEnum.agentes })
       .orderBy('"user"."fullName"', 'ASC')
       .getMany();
+
+    await this.loadLazyAuxInvite(users);
+
+    return users;
   }
 
   async findDashboardData(month: string): Promise<DashboardMonthData | null> {
-    return this.dashboardMockData[month] ?? null;
+    const monthData = this.dashboardMockData[month];
+
+    if (!monthData) {
+      return null;
+    }
+
+    return this.emptyDashboardData(monthData);
   }
 
   getAgentAssociationOptions(userId?: number | string | null): AgentAssociationOption[] {
-    const associationValues = this.normalizeAssociationValues(
-      this.agentAssociationMockData[String(userId ?? '')] ??
-      this.agentAssociationMockData.default,
-    );
+    const associationValues = this.normalizeAssociationValues([]);
 
     return associationValues.map((value) => ({
       value,
@@ -682,10 +688,32 @@ export class AgentesRepository {
       )
       : [];
 
-    if (!normalizedValues.length) {
-      return [AgentAssociationEnum.Flamengo];
+    return [...new Set(normalizedValues)].slice(0, 2);
+  }
+
+  private emptyDashboardData(monthData: DashboardMonthData): DashboardMonthData {
+    return {
+      month: monthData.month,
+      paymentCycles: [],
+    };
+  }
+
+  private async loadLazyAuxInvite(users: User[]) {
+    if (users.length === 0) {
+      return;
     }
 
-    return [...new Set(normalizedValues)].slice(0, 2);
+    const mails = await this.mailHistoryService.find({
+      user: { id: In(users.map((user) => user.id)) },
+    });
+
+    for (const user of users) {
+      const mailHistories = mails.filter((mail) => mail.user.id === user.id);
+      const mailHistory = mailHistories[0] as MailHistory | undefined;
+      user.mailHistories = mailHistories;
+      user.aux_inviteStatus = mailHistory?.inviteStatus;
+      user.inviteAt = mailHistory?.sentAt ?? null;
+      user.aux_inviteHash = mailHistory?.hash;
+    }
   }
 }

@@ -103,7 +103,7 @@ describe('AuthService', () => {
         provider: AuthProvidersEnum.email,
         password: 'hashed-password',
       });
-      user.role = new Role(RoleEnum.agents);
+      user.role = new Role(RoleEnum.agentes);
 
       jest
         .spyOn(usersService, 'findManyByNormalizedCpf')

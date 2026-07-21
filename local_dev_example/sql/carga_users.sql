@@ -16,7 +16,7 @@ INSERT INTO public."user"(id, email, password, provider, "socialId", "fullName",
                           "createdAt", "updatedAt", "deletedAt", "roleId", "statusId", "permitCode", "cpfCnpj",
                           "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", phone, "isSgtuBlocked", "passValidatorId")
 VALUES
-    (1, 'admin.test@prefeitura.rio', '$2b$12$Fj8WzjBY1fEiPjV42SbtpOKNtr9vgKXQpfpW784Vo7Znh7qVIIpRy', 'email', null, 'Test User', 'Test', 'User', null, now(), now(), null, 1, null, '123456', '9363945131', 001, '0001', '12345678', '9', '5551999999999', false, null),
+    (1, 'matthew.araujo@prefeitura.rio', '$2b$12$Fj8WzjBY1fEiPjV42SbtpOKNtr9vgKXQpfpW784Vo7Znh7qVIIpRy', 'email', null, 'Test User', 'Test', 'User', null, now(), now(), null, 1, null, '123456', '9363945131', 001, '0001', '12345678', '9', '5551999999999', false, null),
     (2, 'user1@example.com', '$2b$12$Fj8WzjBY1fEiPjV42SbtpOKNtr9vgKXQpfpW784Vo7Znh7qVIIpRy', 'email', null, 'John Doe', 'John', 'Doe', null, now(), now(), null, 1, null, '654321', '12345678900', 237, '0002', '87654321', '8', '5551888888888', false, null),
     (3, 'user2@example.com', '$2b$12$Fj8WzjBY1fEiPjV42SbtpOKNtr9vgKXQpfpW784Vo7Znh7qVIIpRy', 'email', null, 'Jane Smith', 'Jane', 'Smith', null, now(), now(), null, 1, null, '987654', '98765432100', 104, '0003', '11223344', '7', '5551777777777', false, null),
     (4, 'user3@example.com', '$2b$12$Fj8WzjBY1fEiPjV42SbtpOKNtr9vgKXQpfpW784Vo7Znh7qVIIpRy', 'email', null, 'Alice Brown', 'Alice', 'Brown', null, now(), now(), null, 1, null, '456789', '12312312399', 341, '0004', '55667788', '6', '5551666666666', false, null),

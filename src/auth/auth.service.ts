@@ -113,7 +113,7 @@ export class AuthService {
     const normalizedCpf = String(loginDto.cpf ?? '').replace(/\D/g, '');
     const users = await this.usersService.findManyByNormalizedCpf(normalizedCpf);
     const user = users.length === 1 ? users[0] : null;
-    const expectedRoles = [RoleEnum.agents];
+    const expectedRoles = [RoleEnum.agentes];
 
     if (!user || (user?.role && !expectedRoles.includes(user.role.id))) {
       throw new HttpException(
@@ -141,8 +141,7 @@ export class AuthService {
       );
     }
 
-    console.log("user password", user.password)
-    console.log("lgin password", loginDto.password)
+
     const isValidPassword = await bcrypt.compare(
       loginDto.password,
       user.password,
@@ -268,6 +267,7 @@ export class AuthService {
         data: {
           hash,
           userName: dto.fullName,
+          roleId: RoleEnum.user,
         },
       });
 
@@ -324,12 +324,13 @@ export class AuthService {
     userMailHistory: MailHistory,
     logContext: string,
   ) {
-    const mailData: MailData<{ hash: string; to: string; userName: string }> = {
+    const mailData: MailData<{ hash: string; to: string; userName: string; roleId?: number }> = {
       to: user.email as string,
       data: {
         hash: userMailHistory.hash as string,
         to: user.email as string,
         userName: user.fullName as string,
+        roleId: user.role?.id,
       },
     };
     const mailResponse = await this.mailService.sendConcludeRegistration(

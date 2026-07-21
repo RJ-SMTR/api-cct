@@ -10,7 +10,7 @@ import { AgentesService } from './agentes.service';
 
 @ApiTags('Agentes')
 @ApiBearerAuth()
-@Roles(RoleEnum.master, RoleEnum.admin, RoleEnum.agents)
+@Roles(RoleEnum.master, RoleEnum.admin, RoleEnum.agentes)
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller({
   path: 'agentes',

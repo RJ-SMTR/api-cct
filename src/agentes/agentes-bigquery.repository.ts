@@ -9,7 +9,7 @@ export class AgentesBigqueryRepository {
   async findUsersToSync(): Promise<AgenteBigqueryUser[]> {
     const query = `
       SELECT
-        CAST(id_cliente AS STRING) AS id_cliente,
+        CAST(numero_identificacao AS STRING) AS numero_identificacao,
         CAST(nome AS STRING) AS nome,
         CAST(email AS STRING) AS email,
         CAST(telefone AS STRING) AS telefone,
@@ -18,7 +18,8 @@ export class AgentesBigqueryRepository {
         CAST(cnpj AS STRING) AS cnpj,
         CAST(razao_social AS STRING) AS razao_social,
         CAST(nome_fantasia AS STRING) AS nome_fantasia
-      FROM \`rj-smtr-dev.cadastro_interno.agente_credenciado_riorotativo\`
+      FROM \`rj-smtr.riorotativo.guardador_veiculo\`
+      WHERE email IS NOT NULL
     `;
 
     const rows = await this.bigqueryService.query(BigquerySource.smtr, query);

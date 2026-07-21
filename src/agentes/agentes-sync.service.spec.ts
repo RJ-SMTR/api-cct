@@ -50,7 +50,7 @@ describe('AgentesSyncService', () => {
 
   it('creates association and agent users and queues invite for the new agent', async () => {
     const row: AgenteBigqueryUser = {
-      id_cliente: '600',
+      numero_identificacao: '600',
       nome: 'Marcia Marques',
       email: 'marques.mcc@gmail.com',
       telefone: '21996428346',
@@ -119,7 +119,7 @@ describe('AgentesSyncService', () => {
 
   it('skips duplicate association and duplicate agent users', async () => {
     const row: AgenteBigqueryUser = {
-      id_cliente: '600',
+      numero_identificacao: '600',
       nome: 'Marcia Marques',
       email: 'marques.mcc@gmail.com',
       telefone: '21996428346',

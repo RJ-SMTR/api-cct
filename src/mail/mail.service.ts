@@ -7,6 +7,7 @@ import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-st
 import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { RoleEnum } from 'src/roles/roles.enum';
 import { appSettings } from 'src/settings/app.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
@@ -73,7 +74,7 @@ export class MailService {
    * @throws `HttpException`
    */
   async sendConcludeRegistration(
-    mailData: MailData<{ hash: string; userName: string }>,
+    mailData: MailData<{ hash: string; userName: string; roleId?: number }>,
   ): Promise<MailRegistrationInterface> {
     const i18n = I18nContext.current();
     let emailConfirmTitle: MaybeType<string>;
@@ -99,11 +100,15 @@ export class MailService {
       );
     }
     try {
+      const template =
+        mailData.data.roleId === RoleEnum.agentes
+          ? 'activation-agent'
+          : 'activation';
       const mailSentInfo = await this.safeSendMail({
         to: mailData.to,
         subject: emailConfirmTitle,
         text: `${emailConfirmLink} ${emailConfirmTitle}`,
-        template: 'activation',
+        template,
         context: {
           title: emailConfirmTitle,
           logoSrc: `${frontendDomain}/assets/icons/logoPrefeitura.png`,
