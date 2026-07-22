@@ -4,7 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { AllConfigType } from 'src/config/config.type';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
-import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
+import {
+  IMailHistoryStatusCount,
+  IMailHistoryStatusGuardadorReport,
+} from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { RoleEnum } from 'src/roles/roles.enum';
@@ -61,7 +64,7 @@ export class MailService {
           details: {
             node: {
               message: String(error),
-              ...error,
+              raw: error,
             },
           },
         },
@@ -174,7 +177,7 @@ export class MailService {
    */
   async sendStatusReport(
     mailData: MailData<{
-      statusCount: IMailHistoryStatusCount;
+      statusCount: IMailHistoryStatusGuardadorReport;
     }>,
   ): Promise<MailSentInfo> {
     const mailTitle = 'Relatório diário';
@@ -200,16 +203,17 @@ export class MailService {
         to: mailData.to,
         subject: 'Projeto CCT - Atualização do relatório diário',
         text: mailTitle,
-        template: 'report',
+        template: 'report-users-agents',
         context: {
           title: mailTitle,
           headerTitle: 'Estatística dos Dados',
-          mailQueued: mailData.data.statusCount.queued,
-          mailSent: mailData.data.statusCount.sent,
-          mailUsed: mailData.data.statusCount.used,
-          mailUsedIncomplete: mailData.data.statusCount.usedIncomplete,
-          mailUsedComplete: mailData.data.statusCount.usedComplete,
-          mailTotal: mailData.data.statusCount.total,
+          guardadorQueued: mailData.data.statusCount.guardador.queued,
+          guardadorSent: mailData.data.statusCount.guardador.sent,
+          guardadorUsed: mailData.data.statusCount.guardador.used,
+          guardadorUsedComplete: mailData.data.statusCount.guardador.usedComplete,
+          guardadorUsedIncomplete: mailData.data.statusCount.guardador.usedIncomplete,
+          guardadorTotal: mailData.data.statusCount.guardador.total,
+          guardadorEmailsNotRegistered: mailData.data.statusCount.emailsNotRegistered,
         },
       });
 
@@ -296,7 +300,7 @@ export class MailService {
       return;
     }
 
-    const body = await this.mailHistoryService.getStatusCount();
+    const body = await this.mailHistoryService.getStatusCountGuardador();
 
     if (!await this.verificaMudancaReport(JSON.stringify(body))) { //se não houver mudanças no report não envia
       return;
@@ -332,7 +336,12 @@ export class MailService {
     return mailRecipients.reduce((l: string[], i) => [...l, i.getValueAsString()], []);
   }
 
-  private async sendStatusReportEmail(logger: Logger, emails: string[], body: IMailHistoryStatusCount, METHOD: string): Promise<void> {
+  private async sendStatusReportEmail(
+    logger: Logger,
+    emails: string[],
+    body: IMailHistoryStatusGuardadorReport,
+    METHOD: string,
+  ): Promise<void> {
     try {
       const mailSentInfo = await this.sendStatusReport({
         to: emails,
@@ -350,13 +359,15 @@ export class MailService {
       else {
         logger.error(`Relatório enviado para os emails ${emails} retornou erro. - ` + `mailSentInfo: ${JSON.stringify(mailSentInfo)}`, new Error().stack, METHOD);
       }
-    } catch (httpException) {
+    } catch (httpException: any) {
       // API error
-      logger.error(`Email falhou ao enviar para ${emails}`, httpException?.stack, METHOD);
+      logger.error(`Email falhou ao enviar para ${emails}`, undefined, METHOD);
     }
   }
 
-  private async verificaMudancaReport(body: string | IMailHistoryStatusCount): Promise<boolean> {
+  private async verificaMudancaReport(
+    body: string | IMailHistoryStatusCount | IMailHistoryStatusGuardadorReport,
+  ): Promise<boolean> {
     const sett = await this.settingsService.getOneByNameVersion('mail_report_send', '1')
     if ((body !== '' && body !== sett.value) || (sett.value === '')) {
       await this.settingsService.update({ name: 'mail_report_send', version: '1', value: body.toString() })
