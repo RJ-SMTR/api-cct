@@ -41,6 +41,12 @@ export class AuthService {
     private mailHistoryService: MailHistoryService,
   ) { }
 
+  private getResetPasswordRedirectTo(user: User): string {
+    return user.role?.id === RoleEnum.agentes
+      ? '/agentes/sign-in'
+      : '/sign-in';
+  }
+
   async validateLogin(
     loginDto: AuthEmailLoginDto,
     onlyAdmin: boolean,
@@ -476,7 +482,7 @@ export class AuthService {
     }
   }
 
-  async resetPassword(hash: string, password: string): Promise<void> {
+  async resetPassword(hash: string, password: string): Promise<{ redirectTo: string }> {
     const forgot = await this.forgotService.findOne({
       where: {
         hash,
@@ -501,6 +507,10 @@ export class AuthService {
 
     await user.save();
     await this.forgotService.softDelete(forgot.id);
+
+    return {
+      redirectTo: this.getResetPasswordRedirectTo(user),
+    };
   }
 
   async me(user: User): Promise<Nullable<User>> {

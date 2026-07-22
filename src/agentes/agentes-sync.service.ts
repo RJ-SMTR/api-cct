@@ -139,7 +139,7 @@ export class AgentesSyncService {
       return { user: existing, created: false, queuedInvite: false };
     }
 
-    const email = this.normalizeEmail(row.email);
+    const { email } = this.resolveAgentEmail(row);
     const hash = email ? await this.mailHistoryService.generateHash() : null;
     const createdUser = await this.usersRepository.create({
       email,
@@ -212,6 +212,20 @@ export class AgentesSyncService {
     return normalized && validateEmail(normalized) ? normalized : null;
   }
 
+  private resolveAgentEmail(
+    row: AgenteBigqueryUser,
+  ): { email: string; isSynthetic: boolean } {
+    const normalizedEmail = this.normalizeEmail(row.email);
+    if (normalizedEmail) {
+      return { email: normalizedEmail, isSynthetic: false };
+    }
+
+    return {
+      email: this.generateFallbackAgentEmail(row.nome, row.documento),
+      isSynthetic: true,
+    };
+  }
+
   private normalizePhone(phone?: string | null): string | undefined {
     const normalized = String(phone ?? '').replace(/\D/g, '');
     return normalized.length > 0 ? normalized : undefined;
@@ -262,5 +276,18 @@ export class AgentesSyncService {
 
   private generateAssociationEmail(): string {
     return `user+${Math.random()}@example.com`;
+  }
+
+  private generateFallbackAgentEmail(
+    name?: string | null,
+    document?: string | null,
+  ): string {
+    const normalizedDocument = this.normalizeDocument(document) ?? 'documento';
+    const firstName = String(this.getFirstName(name) ?? normalizedDocument)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+
+    return `${firstName || normalizedDocument}.${normalizedDocument}@example.com`;
   }
 }
