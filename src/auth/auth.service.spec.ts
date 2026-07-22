@@ -29,6 +29,8 @@ describe('AuthService', () => {
   let jwtService: JwtService;
 
   beforeEach(async () => {
+    global.__localTzOffset = 0;
+
     const usersServiceMock = {
       provide: UsersService,
       useValue: {
@@ -46,6 +48,7 @@ describe('AuthService', () => {
         findOne: jest.fn(),
         create: jest.fn(),
         generateHash: jest.fn(),
+        softDelete: jest.fn(),
       },
     } as Provider;
     const mailServiceMock = {
@@ -108,7 +111,7 @@ describe('AuthService', () => {
       jest
         .spyOn(usersService, 'findManyByNormalizedCpf')
         .mockResolvedValue([user]);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true);
+      jest.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
       jest.spyOn(jwtService, 'sign').mockReturnValue('token');
 
       const response = await authService.validateCpfLogin({
@@ -310,6 +313,58 @@ describe('AuthService', () => {
 
       // Assert
       expect(mailHistoryService.update).toBeCalledTimes(0);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('returns the agent sign-in route after a successful agent password reset', async () => {
+      const user = new User({
+        id: 1,
+        password: 'old-password',
+      });
+      user.role = new Role(RoleEnum.agentes);
+      const forgot = {
+        id: 10,
+        hash: 'hash_1',
+        user,
+      };
+
+      jest.spyOn(forgotService, 'findOne').mockResolvedValue(forgot as any);
+      jest.spyOn(user, 'save').mockResolvedValue(user);
+
+      const response = await authService.resetPassword('hash_1', 'new-password');
+
+      expect(response).toEqual({
+        redirectTo: '/agentes/sign-in',
+      });
+      expect(user.password).toBe('new-password');
+      expect(user.save).toHaveBeenCalled();
+      expect(forgotService.softDelete).toHaveBeenCalledWith(forgot.id);
+    });
+
+    it('returns the default sign-in route after a successful non-agent password reset', async () => {
+      const user = new User({
+        id: 2,
+        password: 'old-password',
+      });
+      user.role = new Role(RoleEnum.user);
+      const forgot = {
+        id: 20,
+        hash: 'hash_2',
+        user,
+      };
+
+      jest.spyOn(forgotService, 'findOne').mockResolvedValue(forgot as any);
+      jest.spyOn(user, 'save').mockResolvedValue(user);
+
+      const response = await authService.resetPassword('hash_2', 'new-password');
+
+      expect(response).toEqual({
+        redirectTo: '/sign-in',
+      });
+      expect(user.password).toBe('new-password');
+      expect(user.save).toHaveBeenCalled();
+      expect(forgotService.softDelete).toHaveBeenCalledWith(forgot.id);
     });
   });
 });
