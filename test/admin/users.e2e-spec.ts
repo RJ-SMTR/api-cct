@@ -342,6 +342,49 @@ describe('Admin managing users (e2e)', () => {
         .expect(HttpStatus.UNPROCESSABLE_ENTITY);
     });
 
+    test('Patch email already in use, throw explicit error', async () => {
+      const userToUpdate = await request(app)
+        .get('/api/v1/users/')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .query({ permitCode: TO_UPDATE_PERMIT_CODE })
+        .expect(({ body }) => {
+          expect(body.data.length).toBe(1);
+        })
+        .then(({ body }) => body.data[0]);
+
+      const existingEmailUser = await request(app)
+        .get('/api/v1/users/')
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .query({ permitCode: LICENSEE_CPF_PERMIT_CODE })
+        .expect(({ body }) => {
+          expect(body.data.length).toBe(1);
+        })
+        .then(({ body }) => body.data[0]);
+
+      expect(existingEmailUser.email).toBeDefined();
+      expect(existingEmailUser.email).not.toEqual(userToUpdate.email);
+
+      await request(app)
+        .patch(`/api/v1/users/${userToUpdate.id}`)
+        .auth(apiToken, {
+          type: 'bearer',
+        })
+        .send({
+          email: existingEmailUser.email,
+        })
+        .expect(HttpStatus.UNPROCESSABLE_ENTITY)
+        .expect(({ body }) => {
+          expect(body.message).toEqual('emailAlreadyExists');
+          expect(body.errors).toMatchObject({
+            email: 'emailAlreadyExists',
+          });
+        });
+    });
+
     test('Patch bankAccount, success', /**
      * Requirement: 2023/11/16 {@link https://github.com/RJ-SMTR/api-cct/issues/94#issuecomment-1815016208 #94, item 3 - GitHub}
      */ async () => {

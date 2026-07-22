@@ -28,6 +28,7 @@ import { User } from './entities/user.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { Nullable } from 'src/utils/types/nullable.type';
 import { RoleEnum } from 'src/roles/roles.enum';
+import { InvalidRows } from 'src/utils/types/invalid-rows.type';
 
 export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
@@ -342,10 +343,21 @@ export class UsersRepository {
     const user = await this.getOne({ where: { id } });
 
     // Validate email, cpfCnpj etc before update
-    await validateDTO(UpdateUserRepositoryDto, {
+    const validationErrors = await validateDTO(UpdateUserRepositoryDto, {
       id: id,
       ...dataToUpdate,
-    } as UpdateUserRepositoryDto);
+    } as UpdateUserRepositoryDto, false);
+
+    if (Object.keys(validationErrors).length > 0) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNPROCESSABLE_ENTITY,
+          message: this.getUpdateValidationMessage(validationErrors),
+          errors: validationErrors,
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
 
     if (
       dataToUpdate.bankCode &&
@@ -389,6 +401,14 @@ export class UsersRepository {
     this.logger.log(logMsg, 'update()');
 
     return updatedUser;
+  }
+
+  private getUpdateValidationMessage(validationErrors: InvalidRows): string {
+    if (validationErrors.email === 'emailAlreadyExists') {
+      return 'emailAlreadyExists';
+    }
+
+    return 'Object failed passing through DTO';
   }
 
   /**
