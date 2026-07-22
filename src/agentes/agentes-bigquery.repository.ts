@@ -7,7 +7,7 @@ export class AgentesBigqueryRepository {
   constructor(private readonly bigqueryService: BigqueryService) { }
 
   async findUsersToSync(updatedSince?: string): Promise<AgenteBigqueryUser[]> {
-    const whereClauses = ['email IS NOT NULL'];
+    const whereClauses = ['1 = 1'];
     if (updatedSince) {
       whereClauses.push(
         `datetime_ultima_atualizacao >= DATETIME(TIMESTAMP('${updatedSince}'))`,
@@ -29,7 +29,6 @@ export class AgentesBigqueryRepository {
       FROM \`rj-smtr.riorotativo.guardador_veiculo\`
       WHERE ${whereClauses.join(' AND ')}
       ORDER BY datetime_ultima_atualizacao ASC
-      LIMIT 1
     `;
 
     const rows = await this.bigqueryService.query(BigquerySource.smtr, query);

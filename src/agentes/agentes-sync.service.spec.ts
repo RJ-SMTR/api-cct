@@ -135,6 +135,110 @@ describe('AgentesSyncService', () => {
     );
   });
 
+  it('creates an agent with a synthetic email when the BigQuery row email is null and queues invite', async () => {
+    const row: AgenteBigqueryUser = {
+      numero_identificacao: '600',
+      nome: 'Marcia Marques',
+      email: null,
+      telefone: '21996428346',
+      documento: '00036241709',
+      tipo_documento: 'CPF',
+      cnpj: '42498733000148',
+      razao_social: 'MUNICIPIO DE RIO DE JANEIRO',
+      nome_fantasia: 'RIO DE JANEIRO GABINETE DO PREFEITO',
+      datetime_ultima_atualizacao: '2026-07-21T12:00:00.000Z',
+    };
+
+    jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValue({
+      getValueAsString: () => '2026-07-20T00:00:00.000Z',
+    } as any);
+    jest
+      .spyOn(usersRepository, 'findManyByNormalizedCpf')
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    jest.spyOn(usersRepository, 'findUserRelationship').mockResolvedValue(null);
+    jest
+      .spyOn(usersRepository, 'create')
+      .mockResolvedValueOnce({ id: 10 } as User)
+      .mockResolvedValueOnce({ id: 20 } as User);
+    jest.spyOn(mailHistoryService, 'generateHash').mockResolvedValue('generated-hash');
+
+    const result = await service.syncWeeklyAgentUsers([row]);
+
+    expect(result).toEqual({
+      processedRows: 1,
+      createdAgentUsers: 1,
+      createdAssociationUsers: 1,
+      queuedInvites: 1,
+      skippedExistingAgents: 0,
+      skippedExistingAssociations: 0,
+    });
+    expect(usersRepository.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        email: 'marcia.00036241709@example.com',
+        fullName: 'MARCIA MARQUES',
+        cpfCnpj: '00036241709',
+        role: expect.objectContaining({ id: RoleEnum.agentes }),
+      }),
+    );
+    expect(mailHistoryService.generateHash).toHaveBeenCalled();
+    expect(mailHistoryService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user: { id: 20 },
+        email: 'marcia.00036241709@example.com',
+        hash: 'generated-hash',
+        inviteStatus: { id: InviteStatusEnum.queued },
+      }),
+      'AgentesSyncService.syncWeeklyAgentUsers()',
+    );
+  });
+
+  it('uses the normalized cpf in place of first name when generating a synthetic email for blank names', async () => {
+    const row: AgenteBigqueryUser = {
+      numero_identificacao: '600',
+      nome: '   ',
+      email: null,
+      telefone: '21996428346',
+      documento: '00036241709',
+      tipo_documento: 'CPF',
+      cnpj: '42498733000148',
+      razao_social: 'MUNICIPIO DE RIO DE JANEIRO',
+      nome_fantasia: 'RIO DE JANEIRO GABINETE DO PREFEITO',
+      datetime_ultima_atualizacao: '2026-07-22T12:00:00.000Z',
+    };
+
+    jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValue({
+      getValueAsString: () => '2026-07-20T00:00:00.000Z',
+    } as any);
+    jest
+      .spyOn(usersRepository, 'findManyByNormalizedCpf')
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    jest.spyOn(usersRepository, 'findUserRelationship').mockResolvedValue(null);
+    jest
+      .spyOn(usersRepository, 'create')
+      .mockResolvedValueOnce({ id: 10 } as User)
+      .mockResolvedValueOnce({ id: 20 } as User);
+    jest.spyOn(mailHistoryService, 'generateHash').mockResolvedValue('generated-hash');
+
+    await service.syncWeeklyAgentUsers([row]);
+
+    expect(usersRepository.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        email: '00036241709.00036241709@example.com',
+        cpfCnpj: '00036241709',
+      }),
+    );
+    expect(mailHistoryService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: '00036241709.00036241709@example.com',
+      }),
+      'AgentesSyncService.syncWeeklyAgentUsers()',
+    );
+  });
+
   it('skips duplicate association, duplicate agent, and duplicate relationship', async () => {
     const row: AgenteBigqueryUser = {
       numero_identificacao: '600',
