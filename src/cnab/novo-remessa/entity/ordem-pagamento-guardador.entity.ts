@@ -1,13 +1,14 @@
 import { EntityHelper } from 'src/utils/entity-helper';
 import { User } from 'src/users/entities/user.entity';
-import { Column, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import { OrdemPagamentoAgrupado } from './ordem-pagamento-agrupado.entity';
 
 @Entity('ordem_pagamento_guardador')
 export class OrdemPagamentoGuardador extends EntityHelper {
-  constructor(dto?: DeepPartial<OrdemPagamentoGuardador>) {
+  constructor(entity?: DeepPartial<OrdemPagamentoGuardador>) {
     super();
-    if (dto) {
-      Object.assign(this, dto);
+    if (entity) {
+      Object.assign(this, entity);
     }
   }
 
@@ -17,21 +18,21 @@ export class OrdemPagamentoGuardador extends EntityHelper {
   })
   id: number;
 
-  @Column({ name: 'data_ordem', type: 'date', unique: false, nullable: false })
+  @Column({ name: 'dataOrdem', type: 'date', unique: false, nullable: false })
   dataOrdem: Date;
 
-  @Column({ name: 'quantidade_verificacao_total', type: Number, unique: false, nullable: false })
+  @Column({ name: 'qtdVerificacaoTotal', type: Number, unique: false, nullable: false })
   qtdVerificacaoTotal: number;
 
 
-  @Column({ name: 'quantidade_verificacao_valida', type: Number, unique: false, nullable: false })
+  @Column({ name: 'qtdVerificacaoValida', type: Number, unique: false, nullable: false })
   qtdVerificacaoValida: number;
 
-  @Column({ name: 'quantidade_verificacao_invalida', type: Number, unique: false, nullable: false })
+  @Column({ name: 'qtdVerificacaoInvalida', type: Number, unique: false, nullable: false })
   qtdVerificacaoInvalida: number;
 
   @Column({
-    name: 'valor_repasse_guardador',
+    name: 'valorRepasseGuardador',
     type: 'decimal',
     unique: false,
     nullable: false,
@@ -40,11 +41,31 @@ export class OrdemPagamentoGuardador extends EntityHelper {
   })
   valorRepasseGuardador: number;
 
-  @Column({ name: 'data_inclusao', type: 'date', unique: false, nullable: false })
+  @Column({ name: 'dataInclusao', type: 'date', unique: false, nullable: false })
   dataInclusao: Date;
 
   @ManyToOne(() => User, { eager: true })
   @JoinColumn({ name: 'userId', foreignKeyConstraintName: 'FK_OrdemPagamentoGuardador_user_ManyToOne' })
   user: User;
+
+  @ManyToOne(() => OrdemPagamentoAgrupado, { eager: true })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupado_ManyToOne' })
+  ordemPagamentoAgrupado: OrdemPagamentoAgrupado;
+
+  @Column({
+    name: 'tipoOrdemPagamento',
+    type: 'varchar',
+    unique: false,
+    nullable: false,
+    precision: 13,
+    scale: 5,
+  })
+  tipoOrdemPagamento: string; /* AUTOMATICA OU MANUAL */
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
 }

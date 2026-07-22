@@ -25,6 +25,7 @@ export class OrdemPagamentoGuardadorRepository {
     if (existing) {
       return existing;
     }
+
     const createdOrdem = this.ordemPagamentoGuardadorRepository.create(dto);
     return this.ordemPagamentoGuardadorRepository.save(createdOrdem);
   }
@@ -44,9 +45,52 @@ export class OrdemPagamentoGuardadorRepository {
   public async agruparOrdensDePagamentoGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
-    const dtPgtoStr = dataPgto.toISOString().split('T')[0];    
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
     await this.ordemPagamentoGuardadorRepository.query(`CALL P_AGRUPAR_ORDENS_GUARDADOR($1, $2, $3, $4)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id]);
   }
 
- 
+
+  async findNumeroOrdensPorIntervaloDataCaptura(startDate: Date, endDate: Date) {
+    // Query max dataCaptura
+    const query = `SELECT COUNT(*) as qtde FROM ordem_pagamento_guardador op 
+                    where date_trunc('day', "dataOrdem") between $1 and $2`;
+    const result = await this.ordemPagamentoGuardadorRepository.query(query, [startDate, endDate]);
+    if (result.length > 0) {
+      return parseFloat(result[0].qtde);
+    }
+    return Promise.resolve(undefined);
+  }
+
+  public async findOrdensAgrupadas(dataInicio: Date, dataFim: Date) {
+
+    const dtInicialStr = dataInicio.toISOString().split('T')[0];
+    const dtFinalStr = dataFim.toISOString().split('T')[0];
+
+    const query = `SELECT distinct op."ordemPagamentoAgrupadoId" FROM ordem_pagamento_guardador op 
+                    where date_trunc('day', op."dataOrdem") between '${dtInicialStr}' and '${dtFinalStr}'                      
+                    and op."ordemPagamentoAgrupadoId" is not null `;
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    let result: any = await queryRunner.query(query);
+
+    queryRunner.release();
+
+    return result;
+  }
+
+  async removerAgrupamento(ids: string) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    try {
+      queryRunner.connect();
+      const query = ` update ordem_pagamento_guardador set "ordemPagamentoAgrupadoId"=null 
+                    where "ordemPagamentoAgrupadoId" in('${ids}') `;
+
+      await queryRunner.query(query);
+    } finally {
+      queryRunner.release();
+    }
+  }
 }

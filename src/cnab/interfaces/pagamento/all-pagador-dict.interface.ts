@@ -17,5 +17,5 @@ export interface AllPagadorDict {
    /**
    * Jaé. Only for items from OrdemPagamento.
    */
-  contaGuardador: Pagador
+  contaRotativo: Pagador
 }

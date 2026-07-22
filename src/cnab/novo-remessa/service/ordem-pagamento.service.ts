@@ -15,9 +15,11 @@ import { endOfDay, startOfDay } from 'date-fns';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { BigqueryOrdemPagamentoGuardadorDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento-guardador.dto';
 import { OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
+import { OrdemPagamentoGuardador } from '../entity/ordem-pagamento-guardador.entity';
 
 @Injectable()
 export class OrdemPagamentoService {
+ 
 
   private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
 
@@ -71,11 +73,11 @@ export class OrdemPagamentoService {
     this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
   }
 
-  async sincronizarOrdensPagamentoGuardador(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
+  async sincronizarOrdensPagamentoGuardador(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date) {
     const METHOD = 'sincronizarOrdensPagamentoGuardador';
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeekOrdemGuardador(dataCapturaInicialDate, dataCapturaFinalDate, 0);
 
-    const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
+    const numOrdensSemana = await this.findNumeroDeOrdensPorIntervaloGuardador(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
     // Verifica se a ultima data de captura é igual a data atual
     // E se o número de ordens é diferente.
     if (numOrdensSemana === ordens.length) {
@@ -99,9 +101,9 @@ export class OrdemPagamentoService {
            ajustar o código para inserir a ordem de pagamento com o usuário nulo
            ***/
           if (error instanceof HttpException && !user) {
-            await this.save(ordem, undefined);
+            await this.saveOrdemGuardador(ordem);
           } else {
-            this.logger.error(`Erro ao sincronizar ordem de pagamento guardador ${ordem.id}: ${error.message}`, METHOD);
+            this.logger.error(`Erro ao sincronizar ordem de pagamento guardador ${ordem.dataOrdem}: ${error.message}`, METHOD);
           }
         }
       }
@@ -167,12 +169,24 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findNumeroOrdensPorIntervaloDataCaptura(startDate, endDate);
   }
 
+  async findNumeroDeOrdensPorIntervaloGuardador(startDate: Date, endDate: Date) {
+    return await this.ordemPagamentoGuardadorRepository.findNumeroOrdensPorIntervaloDataCaptura(startDate, endDate);
+  }
+
   async findOrdensAgrupadas(dataInicio: Date, dataFim: Date, consorcios: string[]): Promise<OrdemPagamento[]> {
     return this.ordemPagamentoRepository.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
   }
 
+  async findOrdensAgrupadasGuardador(dataInicio: Date, dataFim: Date): Promise<OrdemPagamentoGuardador[]> {
+   return this.ordemPagamentoGuardadorRepository.findOrdensAgrupadas(dataInicio, dataFim);
+  }
+
   async removerAgrupamentos(consorcios: string[], ids: string) {
     await this.ordemPagamentoRepository.removerAgrupamento(consorcios, ids)
+  }
+
+   async removerAgrupamentosGuardador(ids: string) {
+    await this.ordemPagamentoGuardadorRepository.removerAgrupamento(ids)
   }
 
   public async getOrdensPendentes(dataInicio: Date, dataFim: Date, nomes: string[]) {

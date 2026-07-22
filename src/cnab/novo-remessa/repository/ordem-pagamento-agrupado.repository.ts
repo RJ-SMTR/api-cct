@@ -125,10 +125,21 @@ export class OrdemPagamentoAgrupadoRepository {
     const dataIniForm = formatDateISODate(dataInicio)
     const dataFimForm = formatDateISODate(dataFim)
 
-    let query = ` select distinct opa.* from ordem_pagamento op
-					        inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
-							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
-                  where oph."statusRemessa"= 0 `;
+
+    let query;
+
+    if(nomeConsorcio && nomeConsorcio.length > 0) {
+    
+      query = ` select distinct opa.* from ordem_pagamento op
+                    inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
+                    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
+                    where oph."statusRemessa"= 0 `;
+    }else{
+      query = ` select distinct opa.* from ordem_pagamento_guardador op
+                    inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
+                    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
+                    where oph."statusRemessa"= 0 `;      
+    }
 
     if (dataPagamento) {
       const dataPagamentoForm = formatDateISODate(dataPagamento)
@@ -136,13 +147,17 @@ export class OrdemPagamentoAgrupadoRepository {
     }
 
     if (dataInicio !== undefined && dataFim !== undefined && dataFim >= dataInicio) {
-      query = query + ` and op."dataCaptura" between '${dataIniForm} 00:00:00' and '${dataFimForm} 23:59:59' 
-       and op."ordemPagamentoAgrupadoId" is not null `;
+      if(nomeConsorcio && nomeConsorcio.length > 0) {
+        query = query + ` and date_trunc('day',op."dataCaptura") between '${dataIniForm}' and '${dataFimForm}' `;
+      }else{
+        query = query + ` and date_trunc('day',op."dataOrdem") between '${dataIniForm}' and '${dataFimForm}' `;
+      }
+      query = query + ` and op."ordemPagamentoAgrupadoId" is not null `;
     } else {
       return [];
     }
 
-    if (nomeConsorcio) {
+    if (nomeConsorcio && nomeConsorcio.length > 0){
       query = query + ` and op."nomeConsorcio" in ('${nomeConsorcio.join("','")}') `;
     }
 

@@ -66,7 +66,9 @@ export class ExtratoHeaderArquivoService {
   }
 
   public async getExtrato(_conta: string, _dt_inicio: string, _dt_fim: string, _tipoLancamento?: string): Promise<ExtratoDto[]> {
-    _conta = _conta === 'cett' ? PagadorContaEnum.CETT : PagadorContaEnum.ContaBilhetagem;
+    _conta = _conta === 'cett' ?
+            PagadorContaEnum.CETT :_conta ==='contaRotaivo'?
+             PagadorContaEnum.ContaRotativo : PagadorContaEnum.ContaBilhetagem;
 
     const query = `
     SELECT ede."dataLancamento",

@@ -89,6 +89,8 @@ import { RetornoService } from './novo-remessa/service/retorno.service';
 import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
 import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+import { OrdemPagamentoGuardadorRepository } from './novo-remessa/repository/ordem-pagamento-guardador.repository';
+import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-guardador.entity';
 
 @Module({
   imports: [
@@ -123,6 +125,7 @@ import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transac
       PagamentoIndevido,
       OrdemPagamento,
       OrdemPagamentoAgrupado,
+      OrdemPagamentoGuardador,
       OrdemPagamentoAgrupadoHistorico
     ]),
   ],
@@ -174,6 +177,7 @@ import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transac
     PagamentoIndevidoService,
     OrdemPagamentoService,
     OrdemPagamentoRepository,
+    OrdemPagamentoGuardadorRepository,
     OrdemPagamentoAgrupadoRepository,
     OrdemPagamentoAgrupadoService,
     OrdemPagamentoAgrupadoHistoricoRepository,
@@ -226,6 +230,7 @@ import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transac
     OrdemPagamentoService,
     OrdemPagamentoRepository,
     OrdemPagamentoAgrupadoRepository,
+    OrdemPagamentoGuardadorRepository,
     OrdemPagamentoAgrupadoService,
     OrdemPagamentoAgrupadoHistoricoRepository,
     RemessaService,

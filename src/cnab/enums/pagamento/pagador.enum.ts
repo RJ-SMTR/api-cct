@@ -9,9 +9,11 @@ export enum PagadorContaEnum {
    * .006........ = CNPJ
    */
   ContaBilhetagem = '000600071084',
+  ContaRotativo = '000566697069',
 }
 
 export enum PgadorContaEnumKeys {
   cett = 'CETT',
   contaBilhetagem = 'ContaBilhetagem',
+  contaRotativo = 'ContaRotativo',
 }

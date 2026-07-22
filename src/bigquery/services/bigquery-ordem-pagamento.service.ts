@@ -1,9 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { isFriday, nextFriday, subDays } from 'date-fns';
 import { BigqueryOrdemPagamentoDTO } from '../dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoRepository } from '../repositories/bigquery-ordem-pagamento.repository';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { AgenteBigqueryUser } from 'src/agentes/interfaces/agente-bigquery-user.interface';
 import { BigqueryOrdemPagamentoGuardadorDTO } from '../dtos/bigquery-ordem-pagamento-guardador.dto';
 import { BigqueryOrdemPagamentoGuardadorRepository } from '../repositories/bigquery-ordem-pagamento-guardador.repository';
 

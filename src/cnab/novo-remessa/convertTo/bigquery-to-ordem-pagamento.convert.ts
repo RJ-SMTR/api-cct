@@ -34,17 +34,17 @@ export class BigQueryToOrdemPagamento {
 
 
     static convertOrdemGuardador(ordem: BigqueryOrdemPagamentoGuardadorDTO) {
-        const METHOD = 'convert';
-        this.logger.debug(`Sincronizado ${ordem.id} `, METHOD);
-        var result = new OrdemPagamentoGuardador();
-        result.id = ordem.id;
+        const METHOD = 'convertOrdemGuardador';
+        this.logger.debug(`Sincronizado ${ordem.dataOrdem} `, METHOD);
+        var result = new OrdemPagamentoGuardador();        
         result.dataOrdem = new Date(ordem.dataOrdem);
-        result.dataInclusao = new Date(ordem.dataInclusao);
-        result.dataPagamento = new Date(ordem.dataPagamento);
-        result.idCliente = ordem.idCliente;
-        result.idOrdemPagamentoEstacionamento = ordem.idOrdemPagamentoEstacionamento;
-        result.idStatusOrdem = ordem.idStatusOrdem;
-        result.qtdVerificado = ordem.qtdVerificado;       
+        result.dataInclusao =  new Date(ordem.dataInclusao);
+        result.qtdVerificacaoTotal = Number(ordem.quantidadeVerificacaoTotal);
+        result.qtdVerificacaoValida = Number(ordem.quantidadeVerificacaoValida);
+        result.qtdVerificacaoInvalida = Number(ordem.quantidadeVerificacaoInvalida);
+        result.valorRepasseGuardador = Number(ordem.valorRepasseGuardadorVeiculo);
+        result.tipoOrdemPagamento = 'automatica';    
+        result.createdAt = new Date();  
         return result;
     }
 }

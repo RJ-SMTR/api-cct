@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { bigToNumber } from 'src/utils/pipe-utils';
 import { BigqueryService, BigquerySource } from '../bigquery.service';
 import { IBigqueryFindOrdemPagamentoGuardador } from '../interfaces/bigquery-find-ordem-pagamento.interface';
 import { BigqueryOrdemPagamentoGuardador } from '../entities/ordem-pagamento-guardador.bigquery.entity';
@@ -19,28 +18,7 @@ export class BigqueryOrdemPagamentoGuardadorRepository {
     const ordens: BigqueryOrdemPagamentoGuardador[] = (await this.queryData(filter)).data;
     return ordens;
   }
-
-  public async query(
-    sql: string,
-  ): Promise<{ data: BigqueryOrdemPagamentoGuardador[]; countAll: number }> {    
-    const queryResult = await this.bigqueryService.query(
-      BigquerySource.smtr_dev,
-      sql,
-    );
-    const count: number = queryResult.length;
-    // Remove unwanted keys and remove last item (all null if empty)
-    const items: BigqueryOrdemPagamentoGuardador[] = queryResult.map((i) => {
-      delete i.status;
-      delete i.count;
-      return i;
-    });
-
-    return {
-      data: items,
-      countAll: count,
-    };
-  }
-
+  
   private async queryData(
     args: IBigqueryFindOrdemPagamentoGuardador,
   ): Promise<{ data: BigqueryOrdemPagamentoGuardador[]; countAll: number }> {    
@@ -54,15 +32,7 @@ export class BigqueryOrdemPagamentoGuardadorRepository {
     // Remove unwanted keys and remove last item (all null if empty)
     const items: BigqueryOrdemPagamentoGuardador[] = queryResult.map((i) => {
       delete i.status;
-      delete i.count;
-      i.id = bigToNumber(i.id);
-      i.data_ordem = i.dataOrdem;            
-      i.cpfGuardadorVeiculo = bigToNumber(i.cpfGuardadorVeiculo);
-      i.quantidadeVerificacaoTotal = bigToNumber(i.quantidadeVerificacaoTotal);
-      i.quantidadeVerificacaoValida = bigToNumber(i.quantidadeVerificacaoValida);
-      i.quantidadeVerificacaoInvalida = bigToNumber(i.quantidadeVerificacaoInvalida);
-      i.valorRepasseGuardadorVeiculo  = i.valorRepasseGuardadorVeiculo;
-      i.data_inclusao = i.dataInclusao;        
+      delete i.count;              
       return i;
     });
 
@@ -75,14 +45,18 @@ export class BigqueryOrdemPagamentoGuardadorRepository {
   private getQuery(args: IBigqueryFindOrdemPagamentoGuardador) {
     const qArgsGuardador = this.getQueryArgs(args);    
    
-    const select = ` SELECT og.id,og.data_ordem,og.id_status_ordem,og.id_ordem_pagamento_estacionamento,og.qtd_verificado,
-                      og.valor_unitario_verificado,og.valor_total_verificado,og.data_pagamento,og.data_inclusao,
-                      ac.documento 
+    const select = ` SELECT  CAST(data_ordem AS STRING) AS dataOrdem,
+                  cpf_guardador_veiculo as cpfGuardadorVeiculo,
+                  quantidade_verificacao_total as quantidadeVerificacaoTotal,
+                  quantidade_verificacao_valida as quantidadeVerificacaoValida,
+                  quantidade_verificacao_invalida as quantidadeVerificacaoInvalida,
+                  valor_repasse_guardador_veiculo as valorRepasseGuardadorVeiculo,
+                  CAST(datetime_inclusao AS STRING) AS dataInclusao
                     FROM \`rj-smtr-dev.projeto_riorotativo_cct.ordem_pagamento_guardador_veiculo_dia\` og ` ;
     const query =
       select +
       `WHERE ${qArgsGuardador} ` +     
-      `ORDER BY dataOrdem ASC `;
+      `ORDER BY data_ordem ASC `;
     return query;
   }
     

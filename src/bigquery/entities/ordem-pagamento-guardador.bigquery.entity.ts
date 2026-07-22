@@ -3,8 +3,7 @@
  *
 */
 export class BigqueryOrdemPagamentoGuardador {
-  // DATABASE COLUMNS
-
+  // DATABASE COLUMNS  
   /** Data da ordem de pagamento (partição) */
   dataOrdem: string;
 
