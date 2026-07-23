@@ -9,7 +9,6 @@ import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum'
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
 import {
-  isMonday,
   isSaturday,
   isSunday,
   isTuesday,
@@ -38,6 +37,7 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+import { OrdemPagamentoAgrupado } from 'src/cnab/novo-remessa/entity/ordem-pagamento-agrupado.entity';
 
 
 /**
@@ -59,6 +59,7 @@ export enum CronJobsEnum {
   backupSftp = 'backupSftp',
   sendAdminFraudAlert = 'sendAdminFraudAlert',
   syncWeeklyAgentUsers = 'syncWeeklyAgentUsers',
+  sincronizarEAgruparOrdensPagamentoGuardador ='sincronizarEAgruparOrdensPagamentoGuardador'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -109,13 +110,17 @@ export class CronJobsService {
     private agentesSyncService: AgentesSyncService,
   ) { }
 
-  async onModuleInit() {
+
+  async onModuleInit() {    
+    await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {
+  async onModuleLoad() { 
+    await this.remessaGuardadorExec();      
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -258,6 +263,16 @@ export class CronJobsService {
          * Sincroniza e agrupa ordens de pagamento.
          * */
         name: CronJobsEnum.sincronizarEAgruparOrdensPagamento,
+        cronJobParameters: {
+          cronTime: "0 9-21 * * *", // 06:00 BRT (GMT-3) = 09:00 GMT, 18:00 BRT (GMT-3) = 21:00 GMT
+          onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
+        },
+      },
+      {
+        /**
+         * Sincroniza e agrupa ordens de pagamento.
+         * */
+        name: CronJobsEnum.sincronizarEAgruparOrdensPagamentoGuardador,
         cronJobParameters: {
           cronTime: "0 9-21 * * *", // 06:00 BRT (GMT-3) = 09:00 GMT, 18:00 BRT (GMT-3) = 21:00 GMT
           onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
@@ -704,6 +719,10 @@ export class CronJobsService {
       }
     }
 
+    if (consorcios.length == 0) {
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
+    }
+
     // //Prepara o remessa
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     // Gera o TXT
@@ -757,8 +776,31 @@ export class CronJobsService {
       consorcios, HeaderName.MODAL, pagamentoUnico);
   }
 
+  async remessaGuardadorExec(pagamentoUnico?: boolean) {
+    const today = new Date();
+    let subDaysInt = 2 ;
+
+    if (isTuesday(today)) {
+      subDaysInt = 4;
+    } else if (isFriday(today)) {
+      subDaysInt = 3;
+    } else {
+      return;
+    }
+
+    const dataInicio = subDays(today, subDaysInt);
+    const dataFim = subDays(today, 1);    
+    await this.limparAgrupamentos(dataInicio, dataFim, []);
+    await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
+  }
+
   async limparAgrupamentos(dataInicio: Date, dataFim: Date, consorcios: string[]) {
-    const ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
+    let ordensAgrupadas;
+    if(consorcios.length > 0) {
+      ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
+    }else{
+      ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadasGuardador(dataInicio, dataFim);
+    }
 
     const idsAgrupamentos =
       ordensAgrupadas.map(f => f.ordemPagamentoAgrupadoId)
@@ -768,7 +810,11 @@ export class CronJobsService {
       //exclui historico
       await this.ordemPagamentoAgrupadoService.excluirHistorico(idsAgrupamentos);
       //atualizar ordens
-      await this.ordemPagamentoService.removerAgrupamentos(consorcios, idsAgrupamentos);
+      if(consorcios.length > 0) {
+        await this.ordemPagamentoService.removerAgrupamentos(consorcios, idsAgrupamentos);
+      }else{
+        await this.ordemPagamentoService.removerAgrupamentosGuardador(idsAgrupamentos);
+      }
       //excluir ordens agrupadas
       await this.ordemPagamentoAgrupadoService.excluirOrdensAgrupadas(idsAgrupamentos);
     }
@@ -809,51 +855,93 @@ export class CronJobsService {
     }
   }
 
-  async sincronizarEAgruparOrdensPagamento() {
-    const METHOD = 'sincronizarEAgruparOrdensPagamento';
-    this.logger.log('Tentando adquirir lock para execução da tarefa de sincronização e agrupamento.');
+  private calcularPeriodoPagamento(today: Date = new Date()) {
+    let dataInicio: Date;
+    let dataFim: Date;
+    let dataPagamento: Date;
+
+    const dayOfWeek = today.getDay();
+    const isFimDeSemanaEstendido = dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1;
+
+    if (isFimDeSemanaEstendido) {
+      // Sexta a Segunda -> paga Terça
+      dataInicio = isFriday(today) ? today : this.getPreviousFriday(today);
+      dataFim = nextMonday(today);
+      dataPagamento = nextTuesday(today);
+    } else {
+      // Terça a Quinta -> paga Sexta
+      dataInicio = isTuesday(today) ? today : this.getPreviousTuesday(today);
+      dataFim = nextThursday(today);
+      dataPagamento = nextFriday(today);
+    }
+
+    return { dataInicio, dataFim, dataPagamento };
+  }
+
+  async executarSincronizacaoEAgrupamento(
+    tipo: 'MODAL' | 'GUARDADOR'
+  ) {
+    const METHOD = tipo === 'MODAL'
+      ? 'sincronizarEAgruparOrdensPagamento'
+      : 'sincronizarEAgruparOrdensPagamentoGuardador';
+
+    this.logger.log(`Tentando adquirir lock para execução da tarefa ${tipo}.`);
     const locked = await this.distributedLockService.acquireLock(METHOD);
-    if (locked) {
-      try {
-        this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
 
-        // Sincroniza as ordens de pagamento para todos os modais e consorcios
-        const today = new Date();
-        let dataInicio = today
-        let dataFim = today
-        let dataPagamento = today;
+    if (!locked) {
+      this.logger.log(`Não foi possível adquirir o lock para a tarefa ${tipo}.`);
+      return;
+    }
 
-        const dayOfWeek = today.getDay();
+    try {
+      this.logger.log(`Lock adquirido para a tarefa ${tipo}.`);
 
-        // Verifica se é sexta-feira (5), sábado (6), domingo (0) ou segunda-feira (1)
-        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
-          //Se está entre sexta e segunda!  
-          dataInicio = isFriday(today) ? today : this.getPreviousFriday(today);//data inicio sexta
-          dataFim = nextMonday(today);//data fim segunda
-          dataPagamento = nextTuesday(today);//data pagamento terça 
-        } else {
-          //Se está entre terça e quinta!  
-          dataInicio = isTuesday(today) ? today : this.getPreviousTuesday(today); //data inicio terça
-          dataFim = nextThursday(today); //data fim quinta
-          dataPagamento = nextFriday(today);//data pagamento sexta
-        }
+      let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
-        this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`, METHOD);
+      dataInicio = new Date("2026-07-23");
+
+      this.logger.log(
+        `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
+        METHOD
+      );
+
+      if (tipo === 'MODAL') {
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
         await this.ordemPagamentoService.sincronizarOrdensPagamento(dataInicio, dataFim, consorciosEModais);
-        this.logger.log('Sincronização finalizada. Iniciando agrupamento para modais.', METHOD);
-        const pagadorKey: keyof AllPagadorDict = 'contaBilhetagem';
-        // Agrupa para os modais
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, pagadorKey, CronJobsService.MODAIS);
-        this.logger.log('Tarefa finalizada com sucesso.', METHOD);
-      } catch (error) {
-        this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
-      } finally {
-        await this.distributedLockService.releaseLock(METHOD);
+      } else {
+        await this.ordemPagamentoService.sincronizarOrdensPagamentoGuardador(dataInicio, dataFim);
       }
-    } else {
-      this.logger.log('Não foi possível adquirir o lock para a tarefa de sincronização e agrupamento.');
+
+      this.logger.log('Sincronização finalizada. Iniciando agrupamento.', METHOD);
+
+      const config = {
+        MODAL: { pagadorKey: 'contaBilhetagem' as const, modais: CronJobsService.MODAIS },
+        GUARDADOR: { pagadorKey: 'contaRotativo' as const, modais: [] as string[] }
+      }[tipo];
+
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
+        dataInicio,
+        dataFim,
+        dataPagamento,
+        config.pagadorKey as keyof AllPagadorDict,
+        config.modais
+      );
+
+      this.logger.log('Tarefa finalizada com sucesso.', METHOD);
+    } catch (error) {
+      this.logger.error(`Erro ao executar tarefa ${tipo}, abortando. - ${error}`, error?.stack, METHOD);
+    } finally {
+      await this.distributedLockService.releaseLock(METHOD);
     }
+  }
+
+  // Métodos públicos viram wrappers - mantém compatibilidade com os cronjobs existentes
+  async sincronizarEAgruparOrdensPagamento() {
+    return this.executarSincronizacaoEAgrupamento('MODAL');
+  }
+
+  async sincronizarEAgruparOrdensPagamentoGuardador() {
+    return this.executarSincronizacaoEAgrupamento('GUARDADOR');
   }
 
   async sincronizarTransacoesBq() {
@@ -912,7 +1000,6 @@ export class CronJobsService {
     previousTuesday.setDate(today.getDate() - daysSinceTuesday);
     return previousTuesday;
   }
-
 
   async fullBackup() {
     const METHOD = 'fullBackup';

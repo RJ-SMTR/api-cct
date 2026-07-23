@@ -8,6 +8,7 @@ import { BigqueryTransacaoService } from './services/bigquery-transacao.service'
 import { BigqueryTransacaoRepository } from './repositories/bigquery-transacao.repository';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BigqueryTransacaoDiario } from './entities/transaca-diario.entity';
+import { BigqueryOrdemPagamentoGuardadorRepository } from './repositories/bigquery-ordem-pagamento-guardador.repository';
 
 @Module({
   imports: [ConfigModule, SettingsModule, TypeOrmModule.forFeature([BigqueryTransacaoDiario])],
@@ -15,12 +16,14 @@ import { BigqueryTransacaoDiario } from './entities/transaca-diario.entity';
     BigqueryService,
     BigqueryOrdemPagamentoService,
     BigqueryOrdemPagamentoRepository,
+    BigqueryOrdemPagamentoGuardadorRepository,
     BigqueryTransacaoRepository,
     BigqueryTransacaoService,
   ],
   exports: [
     BigqueryService,
     BigqueryOrdemPagamentoRepository,
+    BigqueryOrdemPagamentoGuardadorRepository,
     BigqueryOrdemPagamentoService,
     BigqueryTransacaoRepository,
     BigqueryTransacaoService,

@@ -2,6 +2,9 @@ import { Injectable } from "@nestjs/common";
 import { BigqueryOrdemPagamentoDTO } from "src/bigquery/dtos/bigquery-ordem-pagamento.dto";
 import { CustomLogger } from "src/utils/custom-logger";
 import { OrdemPagamento } from "../entity/ordem-pagamento.entity";
+import { BigqueryOrdemPagamentoGuardadorDTO } from "src/bigquery/dtos/bigquery-ordem-pagamento-guardador.dto";
+import { OrdemPagamentoGuardador } from "../entity/ordem-pagamento-guardador.entity";
+import { User } from "src/users/entities/user.entity";
 
 
 @Injectable()
@@ -27,6 +30,24 @@ export class BigQueryToOrdemPagamento {
         result.valor = ordem.valorTotalTransacaoLiquido;
         result.bqUpdatedAt = new Date(ordem.datetimeUltimaAtualizacao);
         result.dataCaptura = ordem.dataCaptura;
+        return result;
+    }
+
+
+    static convertOrdemGuardador(ordem: BigqueryOrdemPagamentoGuardadorDTO, userId: number | undefined) {
+        const METHOD = 'convertOrdemGuardador';
+        this.logger.debug(`Sincronizado ${ordem.dataOrdem} `, METHOD);
+        var result = new OrdemPagamentoGuardador();        
+        result.dataOrdem = new Date(ordem.dataOrdem);
+        result.dataInclusao =  new Date(ordem.dataInclusao);
+        result.qtdVerificacaoTotal = Number(ordem.quantidadeVerificacaoTotal);
+        result.qtdVerificacaoValida = Number(ordem.quantidadeVerificacaoValida);
+        result.qtdVerificacaoInvalida = Number(ordem.quantidadeVerificacaoInvalida);
+        result.valorRepasseGuardador = Number(ordem.valorRepasseGuardadorVeiculo);
+        result.user = { id: userId } as User;
+       // result.idOrdemPagamento = Number(ordem.idOrdemPagamento);
+        result.tipoOrdemPagamento = 'automatica';    
+        result.createdAt = new Date();  
         return result;
     }
 }
