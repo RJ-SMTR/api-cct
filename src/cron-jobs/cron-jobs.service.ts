@@ -789,7 +789,7 @@ export class CronJobsService {
     }
 
     const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 1);    
+    const dataFim = subDays(today, 0);    
     await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
