@@ -176,7 +176,7 @@ export class RemessaService {
         if (isPendente) {
           historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, isPendente);
         } else {
-          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico,consorcios);
+          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico,false,consorcios);
         }
 
         this.logger.debug(`BANK: ${historico.userBankCode} - ${historico.username}`)
