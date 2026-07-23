@@ -121,7 +121,7 @@ export class User extends EntityHelper {
   //@Exclude({ toPlainOnly: true })
   createdAt: Date;
 
-  @Column()
+  @UpdateDateColumn()
   //@Exclude({ toPlainOnly: true })
   updatedAt: Date;
 

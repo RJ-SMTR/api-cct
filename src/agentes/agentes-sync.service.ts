@@ -3,6 +3,8 @@ import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
+import { appSettings } from 'src/settings/app.settings';
+import { SettingsService } from 'src/settings/settings.service';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { User } from 'src/users/entities/user.entity';
@@ -33,13 +35,21 @@ export class AgentesSyncService {
     private readonly agentesBigqueryRepository: AgentesBigqueryRepository,
     private readonly usersRepository: UsersRepository,
     private readonly mailHistoryService: MailHistoryService,
+    private readonly settingsService: SettingsService,
   ) { }
 
   async syncWeeklyAgentUsers(
     rows?: AgenteBigqueryUser[],
   ): Promise<SyncWeeklyAgentUsersResult> {
     const METHOD = this.syncWeeklyAgentUsers.name;
-    const sourceRows = rows ?? (await this.agentesBigqueryRepository.findUsersToSync());
+    const lastExecutionSetting = await this.settingsService.getOneBySettingData(
+      appSettings.any__agentes_sync_last_execution,
+      true,
+      METHOD,
+    );
+    const sourceRows = rows ?? (await this.agentesBigqueryRepository.findUsersToSync(
+      lastExecutionSetting.getValueAsString(),
+    ));
 
     const result: SyncWeeklyAgentUsersResult = {
       processedRows: sourceRows.length,
@@ -49,24 +59,38 @@ export class AgentesSyncService {
       skippedExistingAgents: 0,
       skippedExistingAssociations: 0,
     };
+    let lastProcessedTimestamp: string | null = null;
 
     for (const row of sourceRows) {
-      const associationCreated = await this.ensureAssociationUser(row);
-      if (associationCreated) {
+      const association = await this.ensureAssociationUser(row);
+      if (association.created) {
         result.createdAssociationUsers += 1;
       } else if (this.normalizeDocument(row.cnpj)) {
         result.skippedExistingAssociations += 1;
       }
 
-      const personCreated = await this.ensureAgentUser(row);
-      if (personCreated.createdUser) {
+      const agent = await this.ensureAgentUser(row);
+      if (agent.created) {
         result.createdAgentUsers += 1;
       } else {
         result.skippedExistingAgents += 1;
       }
-      if (personCreated.queuedInvite) {
+      if (agent.queuedInvite) {
         result.queuedInvites += 1;
       }
+
+      await this.ensureUserRelationship(agent.user, association.user);
+      lastProcessedTimestamp = this.getLatestTimestamp(
+        lastProcessedTimestamp,
+        row.datetime_ultima_atualizacao,
+      );
+    }
+
+    if (lastProcessedTimestamp) {
+      await this.settingsService.upsertBySettingData(
+        appSettings.any__agentes_sync_last_execution,
+        lastProcessedTimestamp,
+      );
     }
 
     this.logger.log(`Weekly agent sync finished: ${JSON.stringify(result)}`, METHOD);
@@ -75,18 +99,19 @@ export class AgentesSyncService {
 
   private async ensureAssociationUser(
     row: AgenteBigqueryUser,
-  ): Promise<User | null> {
+  ): Promise<{ user: User | null; created: boolean }> {
     const normalizedCnpj = this.normalizeDocument(row.cnpj);
     if (!normalizedCnpj) {
-      return null;
+      return { user: null, created: false };
     }
 
     const existing = await this.findUserByNormalizedDocument(normalizedCnpj);
     if (existing) {
-      return null;
+      return { user: existing, created: false };
     }
 
-    return this.usersRepository.create({
+    return {
+      user: await this.usersRepository.create({
       email: this.generateAssociationEmail(),
       provider: 'email',
       fullName: this.normalizeName(row.razao_social),
@@ -96,23 +121,25 @@ export class AgentesSyncService {
       role: new Role(RoleEnum.admin),
       permitCode: undefined,
       phone: '5551999999999',
-    });
+      }),
+      created: true,
+    };
   }
 
   private async ensureAgentUser(
     row: AgenteBigqueryUser,
-  ): Promise<{ createdUser: User | null; queuedInvite: boolean }> {
+  ): Promise<{ user: User | null; created: boolean; queuedInvite: boolean }> {
     const normalizedDocument = this.normalizeDocument(row.documento);
     if (!normalizedDocument) {
-      return { createdUser: null, queuedInvite: false };
+      return { user: null, created: false, queuedInvite: false };
     }
 
     const existing = await this.findUserByNormalizedDocument(normalizedDocument);
     if (existing) {
-      return { createdUser: null, queuedInvite: false };
+      return { user: existing, created: false, queuedInvite: false };
     }
 
-    const email = this.normalizeEmail(row.email);
+    const { email } = this.resolveAgentEmail(row);
     const hash = email ? await this.mailHistoryService.generateHash() : null;
     const createdUser = await this.usersRepository.create({
       email,
@@ -140,10 +167,32 @@ export class AgentesSyncService {
         },
         'AgentesSyncService.syncWeeklyAgentUsers()',
       );
-      return { createdUser, queuedInvite: true };
+      return { user: createdUser, created: true, queuedInvite: true };
     }
 
-    return { createdUser, queuedInvite: false };
+    return { user: createdUser, created: true, queuedInvite: false };
+  }
+
+  private async ensureUserRelationship(
+    agentUser: User | null,
+    associationUser: User | null,
+  ): Promise<void> {
+    if (!agentUser?.id || !associationUser?.id) {
+      return;
+    }
+
+    const existingRelationship = await this.usersRepository.findUserRelationship(
+      agentUser.id,
+      associationUser.id,
+    );
+    if (existingRelationship) {
+      return;
+    }
+
+    await this.usersRepository.createUserRelationship(
+      agentUser.id,
+      associationUser.id,
+    );
   }
 
   private async findUserByNormalizedDocument(
@@ -161,6 +210,20 @@ export class AgentesSyncService {
   private normalizeEmail(email?: string | null): string | null {
     const normalized = String(email ?? '').trim().toLowerCase();
     return normalized && validateEmail(normalized) ? normalized : null;
+  }
+
+  private resolveAgentEmail(
+    row: AgenteBigqueryUser,
+  ): { email: string; isSynthetic: boolean } {
+    const normalizedEmail = this.normalizeEmail(row.email);
+    if (normalizedEmail) {
+      return { email: normalizedEmail, isSynthetic: false };
+    }
+
+    return {
+      email: this.generateFallbackAgentEmail(row.nome, row.documento),
+      isSynthetic: true,
+    };
   }
 
   private normalizePhone(phone?: string | null): string | undefined {
@@ -195,7 +258,36 @@ export class AgentesSyncService {
     return parts.length > 1 ? parts.slice(1).join(' ') : null;
   }
 
+  private getLatestTimestamp(
+    currentTimestamp?: string | null,
+    candidateTimestamp?: string | null,
+  ): string | null {
+    if (!candidateTimestamp) {
+      return currentTimestamp ?? null;
+    }
+    if (!currentTimestamp) {
+      return candidateTimestamp;
+    }
+
+    return new Date(candidateTimestamp) > new Date(currentTimestamp)
+      ? candidateTimestamp
+      : currentTimestamp;
+  }
+
   private generateAssociationEmail(): string {
     return `user+${Math.random()}@example.com`;
+  }
+
+  private generateFallbackAgentEmail(
+    name?: string | null,
+    document?: string | null,
+  ): string {
+    const normalizedDocument = this.normalizeDocument(document) ?? 'documento';
+    const firstName = String(this.getFirstName(name) ?? normalizedDocument)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+
+    return `${firstName || normalizedDocument}.${normalizedDocument}@example.com`;
   }
 }

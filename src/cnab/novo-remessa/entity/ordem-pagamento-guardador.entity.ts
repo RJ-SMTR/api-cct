@@ -24,7 +24,6 @@ export class OrdemPagamentoGuardador extends EntityHelper {
   @Column({ name: 'qtdVerificacaoTotal', type: Number, unique: false, nullable: false })
   qtdVerificacaoTotal: number;
 
-
   @Column({ name: 'qtdVerificacaoValida', type: Number, unique: false, nullable: false })
   qtdVerificacaoValida: number;
 
