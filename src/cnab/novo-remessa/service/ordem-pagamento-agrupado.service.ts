@@ -28,13 +28,13 @@ export class OrdemPagamentoAgrupadoService {
     this.logger.debug(`Preparando agrupamentos`)
     const pagador = await this.getPagador(pagadorKey);
     if (pagador) {
-      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
+      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
       if(consorcios.length>0){
         await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
       }else{
         await this.agruparOrdensGuardador(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
       }
-      this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+      this.logger.log(`Ordens agrupadas para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
     }
   }
 
@@ -123,6 +123,10 @@ export class OrdemPagamentoAgrupadoService {
 
   public async getOrdemPagamento(idOrdemPagamentoAg: number) {
     return await this.ordemPagamentoRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
+  }
+
+  public async getOrdemPagamentoGuardador(idOrdemPagamentoAg: number) {
+    return await this.ordemPagamentoGuardadorRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
   }
 
   public async getOrdemPagamentoAgrupado(idOrdemPagamentoAg: number) {

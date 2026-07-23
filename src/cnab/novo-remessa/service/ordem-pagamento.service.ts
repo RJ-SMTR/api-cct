@@ -91,17 +91,17 @@ export class OrdemPagamentoService {
       let user: User | undefined;
       if (ordem.cpfGuardadorVeiculo) {
         try {
-          user = await this.usersService.getOne({ cpfCnpj: ordem.cpfGuardadorVeiculo });          
+          user = await this.usersService.getOne({ cpfCnpj: '05480129708'  /*ordem.cpfGuardadorVeiculo*/ });          
           if (user && !user.bloqueado) {
             this.logger.debug(`Salvando para usuario: ${user.fullName}`, METHOD);
-            await this.saveOrdemGuardador(ordem);
+            await this.saveOrdemGuardador(ordem,user.id);
           }
         } catch (error) {
           /***  TODO: Caso o erro lançado seja relacionado ao fato do usuário não ter sido encontrado,
            ajustar o código para inserir a ordem de pagamento com o usuário nulo
            ***/
           if (error instanceof HttpException && !user) {
-            await this.saveOrdemGuardador(ordem);
+            await this.saveOrdemGuardador(ordem,undefined);
           } else {
             this.logger.error(`Erro ao sincronizar ordem de pagamento guardador ${ordem.dataOrdem}: ${error.message}`, METHOD);
           }
@@ -116,8 +116,8 @@ export class OrdemPagamentoService {
     await this.ordemPagamentoRepository.save(ordemPagamento);
   }
 
-   async saveOrdemGuardador(ordem: BigqueryOrdemPagamentoGuardadorDTO) {
-    const ordemPagamento = BigQueryToOrdemPagamento.convertOrdemGuardador(ordem);
+   async saveOrdemGuardador(ordem: BigqueryOrdemPagamentoGuardadorDTO, userId: number | undefined) {
+    const ordemPagamento = BigQueryToOrdemPagamento.convertOrdemGuardador(ordem, userId);
     await this.ordemPagamentoGuardadorRepository.save(ordemPagamento);
   }
 

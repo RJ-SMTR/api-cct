@@ -36,4 +36,6 @@ export class BigqueryOrdemPagamentoGuardadorDTO {
   dateTimeUltimaAtualizacao: Date;
 
   tipoOrdemPagamento: string;
+
+  userId: number | undefined;
 }
