@@ -13,3 +13,12 @@ export interface IBigqueryFindOrdemPagamento {
   /** Ignore if valorTotalTransacaoLiquido = 0 */
   ignoreTransacaoLiquidoZero?: boolean;
 }
+
+export interface IBigqueryFindOrdemPagamentoGuardador {  
+  startDate: Date;
+  endDate: Date;
+  limit?: number;
+  offset?: number;
+  getToday?: boolean;
+  previousDaysOnly?: boolean;  
+}

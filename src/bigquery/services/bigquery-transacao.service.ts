@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { BigqueryTransacao } from '../entities/transacao.bigquery-entity';
-// import { BigqueryTransacaoDiario } from '../entities/transaca-diario-entity';
 import { BigqueryTransacaoRepository, IBqFindTransacao } from '../repositories/bigquery-transacao.repository';
 import { IRequest } from '../../utils/interfaces/request.interface';
 import { isUser } from '../../utils/request-utils';
@@ -11,7 +10,7 @@ import { BigqueryTransacaoDiario } from '../entities/transaca-diario.entity';
 export class BigqueryTransacaoService {
   private logger = new CustomLogger('BigqueryOrdemPagamentoService', { timestamp: true });
 
-  constructor(private readonly bigqueryTransacaoRepository: BigqueryTransacaoRepository) {}
+  constructor(private readonly bigqueryTransacaoRepository: BigqueryTransacaoRepository) { }
 
   /**
    * Obter dados da semana de pagamento (qui-qua).
@@ -34,7 +33,7 @@ export class BigqueryTransacaoService {
     const transacaoView = transacaoBq.map((i) => i as BigqueryTransacao);
     return transacaoView;
   }
-  
+
 
   public async findManyPaginated(filter: IBqFindTransacao, limit: number, callback: (items: BigqueryTransacao[]) => void) {
     let page = 1;
@@ -78,10 +77,10 @@ export class BigqueryTransacaoService {
   /**
   * Pegar transacoes de hoje
   */
- public async getAllTransacoes(data: Date){
-  const transacoes =  await this.bigqueryTransacaoRepository.syncTransacoes(data)
-  return transacoes;
-}
+  public async getAllTransacoes(data: Date) {
+    const transacoes = await this.bigqueryTransacaoRepository.syncTransacoes(data)
+    return transacoes;
+  }
 
   public async findTransacoesByOp(ordemPagamentoIds: number[]): Promise<BigqueryTransacaoDiario[]> {
     return await this.bigqueryTransacaoRepository.findTransacoesByOp(ordemPagamentoIds);

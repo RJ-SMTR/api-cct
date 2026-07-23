@@ -13,13 +13,19 @@ import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado
 import { replaceUndefinedWithNull } from '../../../utils/type-utils';
 import { endOfDay, startOfDay } from 'date-fns';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
+import { BigqueryOrdemPagamentoGuardadorDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento-guardador.dto';
+import { OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
+import { OrdemPagamentoGuardador } from '../entity/ordem-pagamento-guardador.entity';
 
 @Injectable()
 export class OrdemPagamentoService {
+ 
 
   private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
 
-  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository, private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) { }
+  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository, 
+    private ordemPagamentoGuardadorRepository: OrdemPagamentoGuardadorRepository,
+    private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) { }
 
   async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
     const METHOD = 'sincronizarOrdensPagamento';
@@ -67,9 +73,56 @@ export class OrdemPagamentoService {
     this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
   }
 
+  async sincronizarOrdensPagamentoGuardador(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date) {
+    const METHOD = 'sincronizarOrdensPagamentoGuardador';
+    // const ordens = await this.bigqueryOrdemPagamentoService.getFromWeekOrdemGuardador(dataCapturaInicialDate, dataCapturaFinalDate, 0);
+
+    // const numOrdensSemana = await this.findNumeroDeOrdensPorIntervaloGuardador(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
+    // // Verifica se a ultima data de captura é igual a data atual
+    // // E se o número de ordens é diferente.
+    // if (numOrdensSemana === ordens.length) {
+    //   this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
+    //   return;
+    // }
+
+    const ordens = await this.ordemPagamentoGuardadorRepository.findOrdensPorPeriodo(dataCapturaInicialDate, dataCapturaFinalDate);
+
+    this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
+
+    for (const ordem of ordens) {
+      let user: User | undefined;
+      if (ordem.idOrdemPagamento) {
+        try {
+          user = await this.usersService.getOne({ cpfCnpj: ordem.idOrdemPagamento });          
+          if (user && !user.bloqueado) {
+            this.logger.debug(`Salvando para usuario: ${user.fullName}`, METHOD);
+           // await this.saveOrdemGuardador(ordem,user.id);
+            ordem.user = user;
+            await this.ordemPagamentoGuardadorRepository.save(ordem);
+          }
+        } catch (error) {
+          /***  TODO: Caso o erro lançado seja relacionado ao fato do usuário não ter sido encontrado,
+           ajustar o código para inserir a ordem de pagamento com o usuário nulo
+           ***/
+          if (error instanceof HttpException && !user) {
+            await this.saveOrdemGuardador(ordem,undefined);
+          } else {
+            this.logger.error(`Erro ao sincronizar ordem de pagamento guardador ${ordem.dataOrdem}: ${error.message}`, METHOD);
+          }
+        }
+      }
+    }
+    this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
+  }
+
   async save(ordem: BigqueryOrdemPagamentoDTO, userId: number | undefined) {
     const ordemPagamento = BigQueryToOrdemPagamento.convert(ordem, userId);
     await this.ordemPagamentoRepository.save(ordemPagamento);
+  }
+
+   async saveOrdemGuardador(ordem: BigqueryOrdemPagamentoGuardadorDTO, userId: number | undefined) {
+    const ordemPagamento = BigQueryToOrdemPagamento.convertOrdemGuardador(ordem, userId);
+    await this.ordemPagamentoGuardadorRepository.save(ordemPagamento);
   }
 
   async findOrdensPagamentoAgrupadasPorMes(userId: number, yearMonth: Date): Promise<OrdemPagamentoMensalDto> {
@@ -120,12 +173,24 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findNumeroOrdensPorIntervaloDataCaptura(startDate, endDate);
   }
 
+  async findNumeroDeOrdensPorIntervaloGuardador(startDate: Date, endDate: Date) {
+    return await this.ordemPagamentoGuardadorRepository.findNumeroOrdensPorIntervaloDataCaptura(startDate, endDate);
+  }
+
   async findOrdensAgrupadas(dataInicio: Date, dataFim: Date, consorcios: string[]): Promise<OrdemPagamento[]> {
     return this.ordemPagamentoRepository.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
   }
 
+  async findOrdensAgrupadasGuardador(dataInicio: Date, dataFim: Date): Promise<OrdemPagamentoGuardador[]> {
+   return this.ordemPagamentoGuardadorRepository.findOrdensAgrupadas(dataInicio, dataFim);
+  }
+
   async removerAgrupamentos(consorcios: string[], ids: string) {
     await this.ordemPagamentoRepository.removerAgrupamento(consorcios, ids)
+  }
+
+   async removerAgrupamentosGuardador(ids: string) {
+    await this.ordemPagamentoGuardadorRepository.removerAgrupamento(ids)
   }
 
   public async getOrdensPendentes(dataInicio: Date, dataFim: Date, nomes: string[]) {

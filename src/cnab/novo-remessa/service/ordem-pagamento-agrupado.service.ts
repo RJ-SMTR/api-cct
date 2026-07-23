@@ -8,6 +8,7 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
+import { OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {
@@ -16,6 +17,7 @@ export class OrdemPagamentoAgrupadoService {
 
   constructor(
     private ordemPagamentoRepository: OrdemPagamentoRepository,
+     private ordemPagamentoGuardadorRepository: OrdemPagamentoGuardadorRepository,
     private ordemPagamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository,
     private ordemPagamentoAgrupadoHistRepository: OrdemPagamentoAgrupadoHistoricoRepository,
     private pagadorService: PagadorService,
@@ -26,9 +28,13 @@ export class OrdemPagamentoAgrupadoService {
     this.logger.debug(`Preparando agrupamentos`)
     const pagador = await this.getPagador(pagadorKey);
     if (pagador) {
-      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
-      await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
-      this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
+      if(consorcios.length>0){
+        await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
+      }else{
+        await this.agruparOrdensGuardador(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
+      }
+      this.logger.log(`Ordens agrupadas para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
     }
   }
 
@@ -77,6 +83,10 @@ export class OrdemPagamentoAgrupadoService {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
   }
 
+  private async agruparOrdensGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
+    await this.ordemPagamentoGuardadorRepository.agruparOrdensDePagamentoGuardador(dataInicial, dataFinal, dataPgto, pagador);
+  }
+
   private async agruparOrdemUnica(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamentoUnico(dataInicial, dataFinal, dataPgto, pagador);
   }
@@ -115,6 +125,10 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
   }
 
+  public async getOrdemPagamentoGuardador(idOrdemPagamentoAg: number) {
+    return await this.ordemPagamentoGuardadorRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
+  }
+
   public async getOrdemPagamentoAgrupado(idOrdemPagamentoAg: number) {
     return await this.ordemPagamentoRepository.findCustom(idOrdemPagamentoAg)
   }
@@ -129,8 +143,8 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoRepository.findOrdemUnica(idOrdemPagamentoAg);
   }
 
-  public async getHistoricosOrdemDetalheA(id: number, pagamentoUnico?: boolean, isPendente?: boolean) {
-    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id, pagamentoUnico, isPendente)
+  public async getHistoricosOrdemDetalheA(id: number, pagamentoUnico?: boolean, isPendente?: boolean,consorcios?: string[]) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id, pagamentoUnico, isPendente,consorcios);
   }
 
   public async getHistorico(id: number) {

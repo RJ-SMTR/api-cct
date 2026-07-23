@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { bigToNumber } from 'src/utils/pipe-utils';
 import { BigqueryService, BigquerySource } from '../bigquery.service';
-import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery-entity';
-import { IBigqueryFindOrdemPagamento } from '../interfaces/bigquery-find-ordem-pagamento.interface';
+import { BigqueryOrdemPagamento } from '../entities/ordem-pagamento.bigquery.entity';
+import { IBigqueryFindOrdemPagamento, IBigqueryFindOrdemPagamentoGuardador } from '../interfaces/bigquery-find-ordem-pagamento.interface';
 
 @Injectable()
 export class BigqueryOrdemPagamentoRepository {
@@ -16,10 +16,10 @@ export class BigqueryOrdemPagamentoRepository {
   public async findMany(
     filter: IBigqueryFindOrdemPagamento,
   ): Promise<BigqueryOrdemPagamento[]> {
-    const transacoes: BigqueryOrdemPagamento[] = (await this.queryData(filter))
-      .data;
+    const transacoes: BigqueryOrdemPagamento[] = (await this.queryData(filter)).data;
     return transacoes;
   }
+
 
   public async query(
     sql: string,
@@ -159,5 +159,5 @@ export class BigqueryOrdemPagamentoRepository {
       qWhere += ` AND c.consorcio IN ('${args.consorcioName.join("', '")}')`;
     }
     return qWhere;
-  }
+  }  
 }
