@@ -9,4 +9,6 @@ export interface IALInviteProfile {
   email: string;
   fullName: string;
   inviteStatus: InviteStatus;
+  roleId: number | null;
+  redirectTo: string;
 }
