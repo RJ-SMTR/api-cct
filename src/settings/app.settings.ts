@@ -123,6 +123,14 @@ export const appSettings = {
     settingType: SettingTypeEnum.string,
   } as ISettingData,
 
+  any__agentes_sync_last_execution: {
+    name: 'agentes_sync_last_execution',
+    value: '1970-01-01T00:00:00.000Z',
+    version: null,
+    editable: false,
+    settingType: SettingTypeEnum.string,
+  } as ISettingData,
+
   any__mail_admin_fraud_recipient: {
     baseName: 'mail_admin_fraud_recipient',
     baseVersion: null,

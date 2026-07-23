@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BigqueryModule } from 'src/bigquery/bigquery.module';
 import { MailHistoryModule } from 'src/mail-history/mail-history.module';
+import { SettingsModule } from 'src/settings/settings.module';
 import { User } from 'src/users/entities/user.entity';
 import { UsersModule } from 'src/users/users.module';
 import { AgentesController } from './agentes.controller';
@@ -16,6 +17,7 @@ import { AgentesService } from './agentes.service';
     BigqueryModule,
     UsersModule,
     MailHistoryModule,
+    SettingsModule,
   ],
   controllers: [AgentesController],
   providers: [

@@ -110,6 +110,7 @@ export class CronJobsService {
     private agentesSyncService: AgentesSyncService,
   ) { }
 
+
   async onModuleInit() {    
     await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
@@ -118,7 +119,8 @@ export class CronJobsService {
   }
 
   async onModuleLoad() { 
-    await this.remessaGuardadorExec();       
+    await this.remessaGuardadorExec();      
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -164,11 +166,11 @@ export class CronJobsService {
 
       {
         /**
-         * Sincroniza semanalmente novos agentes e associações a partir do BigQuery.
+         * Sincroniza diariamente novos agentes e associações a partir do BigQuery.
          */
         name: CronJobsEnum.syncWeeklyAgentUsers,
         cronJobParameters: {
-          cronTime: '0 13 * * FRI', // Friday, 13:00 UTC = 10:00 BRT (GMT-3)
+          cronTime: '0 23 * * *', // Every day, 23:00 UTC = 20:00 BRT (GMT-3)
           onTick: async () => await this.syncWeeklyAgentUsers(),
         },
       },

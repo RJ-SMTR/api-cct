@@ -7,11 +7,12 @@ import { AgentesService } from './agentes.service';
 
 describe('AgentesService', () => {
   let service: AgentesService;
-  let agentesRepository: Pick<AgentesRepository, 'findAgentUsers' | 'getAgentAssociationOptions'>;
+  let agentesRepository: Pick<AgentesRepository, 'findAgentUsers' | 'getAgentAssociationOptionsFromUser' | 'getAgentAssociationOptions'>;
 
   beforeEach(() => {
     agentesRepository = {
       findAgentUsers: jest.fn(),
+      getAgentAssociationOptionsFromUser: jest.fn().mockReturnValue([]),
       getAgentAssociationOptions: jest.fn().mockReturnValue([]),
     };
 
@@ -38,8 +39,8 @@ describe('AgentesService', () => {
 
     jest.spyOn(agentesRepository, 'findAgentUsers').mockResolvedValue([user]);
     jest
-      .spyOn(agentesRepository, 'getAgentAssociationOptions')
-      .mockReturnValue([{ value: 0, label: 'Flamengo' }]);
+      .spyOn(agentesRepository, 'getAgentAssociationOptionsFromUser')
+      .mockReturnValue([{ value: 10, label: 'Flamengo', cpfCnpj: '12345678000100' }]);
 
     const result = await service.getAgentUsers();
 
@@ -64,7 +65,7 @@ describe('AgentesService', () => {
           name: 'sent',
         },
         inviteAt,
-        associacoes: [{ value: 0, label: 'Flamengo' }],
+        associacoes: [{ value: 10, label: 'Flamengo', cpfCnpj: '12345678000100' }],
         updatedAt,
       },
     ]);
