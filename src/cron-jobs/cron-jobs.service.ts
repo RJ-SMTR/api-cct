@@ -110,16 +110,15 @@ export class CronJobsService {
     private agentesSyncService: AgentesSyncService,
   ) { }
 
-  async onModuleInit() {
-    //TODO: descomentar quando terminar o remessa 
-    await this.sincronizarEAgruparOrdensPagamentoGuardador()
+  async onModuleInit() {    
+    await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {    
-    await this.remessaGuardadorExec();
+  async onModuleLoad() { 
+    await this.remessaGuardadorExec();       
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -777,21 +776,20 @@ export class CronJobsService {
 
   async remessaGuardadorExec(pagamentoUnico?: boolean) {
     const today = new Date();
-    let subDaysInt = 3 ;
+    let subDaysInt = 2 ;
 
-    // if (isTuesday(today)) {
-    //   subDaysInt = 4;
-    // } else if (isFriday(today)) {
-    //   subDaysInt = 3;
-    // } else {
-    //   return;
-    // }
+    if (isTuesday(today)) {
+      subDaysInt = 4;
+    } else if (isFriday(today)) {
+      subDaysInt = 3;
+    } else {
+      return;
+    }
 
     const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 1);
-    const consorcios = [];
-    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
-    await this.geradorRemessaExec(dataInicio, dataFim, today, consorcios, HeaderName.GUARDADOR, pagamentoUnico);
+    const dataFim = subDays(today, 1);    
+    await this.limparAgrupamentos(dataInicio, dataFim, []);
+    await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
 
   async limparAgrupamentos(dataInicio: Date, dataFim: Date, consorcios: string[]) {
@@ -898,7 +896,7 @@ export class CronJobsService {
 
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
-      dataInicio = new Date("2026-07-20");
+      dataInicio = new Date("2026-07-23");
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,

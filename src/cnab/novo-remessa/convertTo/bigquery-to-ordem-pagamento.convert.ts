@@ -45,6 +45,7 @@ export class BigQueryToOrdemPagamento {
         result.qtdVerificacaoInvalida = Number(ordem.quantidadeVerificacaoInvalida);
         result.valorRepasseGuardador = Number(ordem.valorRepasseGuardadorVeiculo);
         result.user = { id: userId } as User;
+       // result.idOrdemPagamento = Number(ordem.idOrdemPagamento);
         result.tipoOrdemPagamento = 'automatica';    
         result.createdAt = new Date();  
         return result;

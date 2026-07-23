@@ -21,13 +21,13 @@ export class OrdemPagamentoGuardadorRepository {
 
 
   public async save(dto: DeepPartial<OrdemPagamentoGuardador>): Promise<OrdemPagamentoGuardador> {
-    const existing = await this.ordemPagamentoGuardadorRepository.findOneBy({ id: dto.id });
-    if (existing) {
-      return existing;
-    }
+   // const existing = await this.ordemPagamentoGuardadorRepository.findOneBy({ id: dto.id });
+   // if (existing) {
+   //   return existing;
+   // }
 
-    const createdOrdem = this.ordemPagamentoGuardadorRepository.create(dto);
-    return this.ordemPagamentoGuardadorRepository.save(createdOrdem);
+   // const createdOrdem = this.ordemPagamentoGuardadorRepository.create(dto);
+    return this.ordemPagamentoGuardadorRepository.save(dto);
   }
 
   public async findOne(fields: EntityCondition<OrdemPagamentoGuardador>): Promise<Nullable<OrdemPagamentoGuardador>> {
@@ -80,6 +80,27 @@ export class OrdemPagamentoGuardadorRepository {
 
     return result;
   }
+
+    public async findOrdensPorPeriodo(dataInicio: Date, dataFim: Date) {
+
+    const dtInicialStr = dataInicio.toISOString().split('T')[0];
+    const dtFinalStr = dataFim.toISOString().split('T')[0];
+
+    const query = `SELECT distinct op.* FROM ordem_pagamento_guardador op 
+                    where date_trunc('day', op."dataOrdem") between '${dtInicialStr}' and '${dtFinalStr}'                      
+                    `;
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    let result: any = await queryRunner.query(query);
+
+    queryRunner.release();
+
+    return result;
+  }
+  
 
   async removerAgrupamento(ids: string) {
     const queryRunner = this.dataSource.createQueryRunner();

@@ -75,26 +75,30 @@ export class OrdemPagamentoService {
 
   async sincronizarOrdensPagamentoGuardador(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date) {
     const METHOD = 'sincronizarOrdensPagamentoGuardador';
-    const ordens = await this.bigqueryOrdemPagamentoService.getFromWeekOrdemGuardador(dataCapturaInicialDate, dataCapturaFinalDate, 0);
+    // const ordens = await this.bigqueryOrdemPagamentoService.getFromWeekOrdemGuardador(dataCapturaInicialDate, dataCapturaFinalDate, 0);
 
-    const numOrdensSemana = await this.findNumeroDeOrdensPorIntervaloGuardador(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
-    // Verifica se a ultima data de captura é igual a data atual
-    // E se o número de ordens é diferente.
-    if (numOrdensSemana === ordens.length) {
-      this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
-      return;
-    }
+    // const numOrdensSemana = await this.findNumeroDeOrdensPorIntervaloGuardador(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
+    // // Verifica se a ultima data de captura é igual a data atual
+    // // E se o número de ordens é diferente.
+    // if (numOrdensSemana === ordens.length) {
+    //   this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
+    //   return;
+    // }
+
+    const ordens = await this.ordemPagamentoGuardadorRepository.findOrdensPorPeriodo(dataCapturaInicialDate, dataCapturaFinalDate);
 
     this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
 
     for (const ordem of ordens) {
       let user: User | undefined;
-      if (ordem.cpfGuardadorVeiculo) {
+      if (ordem.idOrdemPagamento) {
         try {
-          user = await this.usersService.getOne({ cpfCnpj: '05480129708'  /*ordem.cpfGuardadorVeiculo*/ });          
+          user = await this.usersService.getOne({ cpfCnpj: ordem.idOrdemPagamento });          
           if (user && !user.bloqueado) {
             this.logger.debug(`Salvando para usuario: ${user.fullName}`, METHOD);
-            await this.saveOrdemGuardador(ordem,user.id);
+           // await this.saveOrdemGuardador(ordem,user.id);
+            ordem.user = user;
+            await this.ordemPagamentoGuardadorRepository.save(ordem);
           }
         } catch (error) {
           /***  TODO: Caso o erro lançado seja relacionado ao fato do usuário não ter sido encontrado,

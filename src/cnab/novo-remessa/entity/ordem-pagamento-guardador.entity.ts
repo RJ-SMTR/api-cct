@@ -62,6 +62,9 @@ export class OrdemPagamentoGuardador extends EntityHelper {
   })
   tipoOrdemPagamento: string; /* AUTOMATICA OU MANUAL */
 
+  @Column({ name: 'idOrdemPagamento', type: 'varchar', unique: false, nullable: true })
+  idOrdemPagamento?: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
