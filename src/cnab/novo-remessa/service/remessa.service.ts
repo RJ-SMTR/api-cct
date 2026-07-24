@@ -68,80 +68,87 @@ export class RemessaService {
 
       const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId);
 
-      if (isEmpty(ordens)) {
-        return;
-      }
-
-      const headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio));
-      let nsrTed = 1;
-      let nsrCC = 1;
-      const temConsorcio = (consorcio && consorcio?.length > 0);
-
-      const getOrdemPagamento = (id) => temConsorcio
-        ? this.ordemPagamentoAgrupadoService.getOrdemPagamento(id)
-        : this.ordemPagamentoAgrupadoService.getOrdemPagamentoGuardador(id);
-
-      for (const ordem of ordens) {
-        const isParent = ordem.ordemPagamentoAgrupadoId === null;
-        let op: any = null;
-        let opa: OrdemPagamentoAgrupado | null = null;
-
-        try {
+      if (!isEmpty(ordens)) {
+        const headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio));
+        let nsrTed = 1;
+        let nsrCC = 1;
+        for (let i = 0; i < ordens.length; i++) {
+          let parentOp = (ordens[i].ordemPagamentoAgrupadoId === null);
+          let op;
+          let opaChild;
           if (pagamentoUnico) {
-            op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoUnico(ordem.id);
-            if (op) {
-              opa = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupado(Number(op.ordemPagamentoAgrupadoId));
-            }
-          } else if (isParent) {
-            const opaChild = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoChild(ordem.id);
-            if (opaChild) {
-              op = await getOrdemPagamento(opaChild.id);
-              opa = op?.ordemPagamentoAgrupado ?? null;
+            op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoUnico(ordens[i].id);
+          } else {
+            if (!parentOp) {
+              if (consorcio && consorcio.length > 0) {
+                op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
+              } else {
+                op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGuardador(ordens[i].id);
+              }
             } else {
-              // não tem child, é um agrupado vazio ou ordem simples
-              op = await getOrdemPagamento(ordem.id);
-              opa = (await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoRepo(ordem.id)) ?? null;
+              opaChild = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoChild(ordens[i].id);
+              if (opaChild) {
+                if (consorcio && consorcio.length > 0) {
+                  op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(opaChild.id);
+                } else {
+                  op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGuardador(opaChild.id);
+                }
+              } else {
+                parentOp = false
+                if (consorcio && consorcio.length > 0) {
+                  op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
+                } else {
+                  op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGuardador(ordens[i].id);
+                }
+              }
             }
-          } else {
-            // é child
-            op = await getOrdemPagamento(ordem.id);
-            opa = op?.ordemPagamentoAgrupado ?? null;
           }
 
-          if (!op) continue;
+          if (op != null) {
+            let user
+            if (pagamentoUnico) {
+              user = await this.userService.getOne({ permitCode: op.idOperadora });
+            } else {
 
-          let user = op.user || null;
-          
-          if (!user && pagamentoUnico) {            
-            user = await this.userService.getOne({ permitCode: op.idOperadora });
+              user = await this.userService.getOne({ id: op.userId });
+
+            }
+            if (user.bankCode) {
+              const indevido = await this.pagamentoIndevidoService.findByNome(user.fullName);
+
+              const headerLote = await this.gerarHeaderLote(headerArquivo, pagador, user.bankCode);
+              let detB;
+              let opa;
+              if (pagamentoUnico) {
+                opa = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupado(Number(op.idOrdemPagamento));
+              } else {
+                if (parentOp) {
+                  const opaParent = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoRepo(ordens[i].id);
+                  opa = opaParent
+                } else {
+                  opa = op.ordemPagamentoAgrupado
+                }
+              }
+
+              if (headerLote) {
+                if (headerLote.formaLancamento === '41') {
+                  detB = await this.gerarDetalheAB(headerLote, opa, nsrTed, indevido ? indevido[0] : indevido, pagamentoUnico);
+                  if (detB !== null) {
+                    this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
+                    this.logger.debug(`Remessa preparado para: ${user.fullName} - TED`);
+                    nsrTed = detB.nsr + 1;
+                  }
+                } else {
+                  detB = await this.gerarDetalheAB(headerLote, opa, nsrCC, indevido ? indevido[0] : indevido, pagamentoUnico);
+                  if (detB !== null) {
+                    this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
+                    this.logger.debug(`Remessa preparado para: ${user.fullName} - CC`);
+                    nsrCC = detB.nsr + 1;
+                  }
+                }
+              }
+            }
           }
-
-          if (!user?.bankCode) continue;
-
-          const [indevidoArr, headerLote] = await Promise.all([
-            this.pagamentoIndevidoService.findByNome(user.fullName),
-            this.gerarHeaderLote(headerArquivo, pagador, user.bankCode),
-          ]);
-
-          if (!headerLote) continue;
-
-          const indevido = indevidoArr?.[0] ?? null;
-          const nsrAtual = headerLote.formaLancamento === '41' ? nsrTed : nsrCC;
-
-          const detB = await this.gerarDetalheAB(headerLote, opa!, nsrAtual, indevido, pagamentoUnico);
-          if (!detB) continue;
-
-          await this.atualizaStatusRemessa(ordem, StatusRemessaEnum.PreparadoParaEnvio);
-
-          if (headerLote.formaLancamento === '41') {
-            this.logger.debug(`Remessa preparado para: ${user.fullName} - TED`);
-            nsrTed = detB.nsr + 1;
-          } else {
-            this.logger.debug(`Remessa preparado para: ${user.fullName} - CC`);
-            nsrCC = detB.nsr + 1;
-          }
-        } catch (err) {
-          this.logger.error(`Erro ao processar ordem ${ordem.id}`, String(err));
         }
       }
     }
