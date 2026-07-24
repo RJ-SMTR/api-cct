@@ -112,14 +112,14 @@ export class CronJobsService {
 
 
   async onModuleInit() {    
-    await this.sincronizarEAgruparOrdensPagamento()
+    //await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
   async onModuleLoad() { 
-
+    await this.remessaGuardadorExec()
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
@@ -709,22 +709,22 @@ export class CronJobsService {
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     // Agrupa pagamentos        
 
-    for (let index = 0; index < consorcios.length; index++) {
-      if (pagamentoUnico) {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
-          dataFim, dataPagamento, "cett", [consorcios[index]]);
-      } else {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
-      }
-    }
+    // for (let index = 0; index < consorcios.length; index++) {
+    //   if (pagamentoUnico) {
+    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
+    //       dataFim, dataPagamento, "cett", [consorcios[index]]);
+    //   } else {
+    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+    //       dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+    //   }
+    // }
 
-    if (consorcios.length == 0) {
-      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
-    }
+    // if (consorcios.length == 0) {
+    //   await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
+    // }
 
-    //Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    // //Prepara o remessa
+    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico,false,consorcios);
     //Envia para o SFTP
@@ -778,7 +778,7 @@ export class CronJobsService {
 
   async remessaGuardadorExec(pagamentoUnico?: boolean) {
     const today = new Date();
-    let subDaysInt = 2 ;
+    //let subDaysInt = 2 ;
 
     // if (isTuesday(today)) {
     //   subDaysInt = 4;
@@ -788,8 +788,11 @@ export class CronJobsService {
     //   return;
     // }
 
-    const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 0);    
+    // const dataInicio = subDays(today, subDaysInt);
+    // const dataFim = subDays(today, 0);    
+
+     const dataInicio = today;
+    const dataFim = today;   
   //  await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }

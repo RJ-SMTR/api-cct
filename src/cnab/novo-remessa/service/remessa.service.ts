@@ -109,9 +109,11 @@ export class RemessaService {
             if (pagamentoUnico) {
               user = await this.userService.getOne({ permitCode: op.idOperadora });
             } else {
-
-              user = await this.userService.getOne({ id: op.userId });
-
+              if (consorcio && consorcio.length > 0) {
+                user = await this.userService.getOne({ id: op.userId });
+              } else {
+                user = op.user;
+              }
             }
             if (user.bankCode) {
               const indevido = await this.pagamentoIndevidoService.findByNome(user.fullName);
@@ -155,16 +157,16 @@ export class RemessaService {
   }
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO
-  async gerarCnabText(headerName: HeaderName, pagamentoUnico?: boolean, isPendente?: boolean,consorcios?: string[]): Promise<ICnabInfo[]> {
+  async gerarCnabText(headerName: HeaderName, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[]): Promise<ICnabInfo[]> {
     const headerArquivo = await this.headerArquivoService.getExists(HeaderArquivoStatus._2_remessaGerado, headerName);
     if (headerArquivo[0] !== null && headerArquivo[0] !== undefined) {
       const headerArquivoCnab = CnabHeaderArquivo104DTO.fromDTO(headerArquivo[0]);
-      return await this.gerarListaCnab(headerArquivoCnab, headerArquivo[0], pagamentoUnico, isPendente,consorcios)
+      return await this.gerarListaCnab(headerArquivoCnab, headerArquivo[0], pagamentoUnico, isPendente, consorcios)
     }
     return [];
   }
 
-  private async gerarListaCnab(headerArquivoCnab, headerArquivo: HeaderArquivo, pagamentoUnico?: boolean, isPendente?: boolean,consorcios?: string[]): Promise<ICnabInfo[]> {
+  private async gerarListaCnab(headerArquivoCnab, headerArquivo: HeaderArquivo, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[]): Promise<ICnabInfo[]> {
     const listCnab: ICnabInfo[] = [];
 
     const trailerArquivo104 = structuredClone(Cnab104PgtoTemplates.file104.registros.trailerArquivo);
@@ -183,7 +185,7 @@ export class RemessaService {
         if (isPendente) {
           historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, isPendente);
         } else {
-          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico,false,consorcios);
+          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, false, consorcios);
         }
 
         this.logger.debug(`BANK: ${historico.userBankCode} - ${historico.username}`)
