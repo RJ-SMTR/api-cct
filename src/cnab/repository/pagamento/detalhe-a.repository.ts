@@ -179,8 +179,7 @@ export class DetalheARepository {
   }
 
 
-  async getDetalheARetorno(dataVencimento: Date, cpf:String,valorLancamento:number) {
-    const dataIso = formatDateISODate(dataVencimento);
+  async getDetalheARetorno(cpf:String,valorLancamento:number) {
     const query = (`select distinct da.* from detalhe_a da				
                                 inner join ordem_pagamento_agrupado_historico oph on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
                                 inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
@@ -188,7 +187,17 @@ export class DetalheARepository {
                                 inner join public.user uu on uu.id = op."userId"
                                 where oph."statusRemessa" in(1,2)
                                 and uu."cpfCnpj" ilike '%${cpf}'
-                                and da."valorLancamento"=${valorLancamento}`)                     
+                                and da."valorLancamento"=${valorLancamento}
+                            union all
+                            
+                       select distinct da.* from detalhe_a da				
+                                inner join ordem_pagamento_agrupado_historico oph on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
+                                inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
+                                inner join ordem_pagamento_guardador op on op."ordemPagamentoAgrupadoId" = opa.id
+                                inner join public.user uu on uu.id = op."userId"
+                                where oph."statusRemessa" in(1,2)
+                                and uu."cpfCnpj" ilike '%${cpf}'
+                                and da."valorLancamento"=${valorLancamento} `)                     
 
     const queryRunner = this.dataSource.createQueryRunner();
 
