@@ -170,7 +170,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.syncWeeklyAgentUsers,
         cronJobParameters: {
-          cronTime: '30 21 * * *', // Every day, 21:30 UTC = 18:30 BRT (GMT-3)
+          cronTime: '0 22 * * *', // Every day, 22:30 UTC = 19:00 BRT (GMT-3)
           onTick: async () => await this.syncWeeklyAgentUsers(),
         },
       },
