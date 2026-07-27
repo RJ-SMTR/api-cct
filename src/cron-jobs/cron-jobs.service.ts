@@ -133,9 +133,7 @@ export class CronJobsService {
 
 
   async onModuleLoad() {
-
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
-
     this.jobsConfig.push(
       {
         /**
@@ -163,7 +161,7 @@ export class CronJobsService {
 
 
 
-      
+
       // {
       //   /**
       //    * Atualizar Retorno - Leitura dos Arquivos Retorno do Banco CEF para CCT - todo dia, a cada 30m
@@ -958,9 +956,9 @@ export class CronJobsService {
     previousTuesday.setDate(today.getDate() - daysSinceTuesday);
     return previousTuesday;
   }
-  
-  
-    async fullBackup() {
+
+
+  async fullBackup() {
     const METHOD = 'fullBackup';
     try {
       this.logger.log('Iniciando BACKUP selecionado do SFTP', METHOD);
@@ -1149,4 +1147,4 @@ export class CronJobsService {
     return false;
   }
 }
-  
+
