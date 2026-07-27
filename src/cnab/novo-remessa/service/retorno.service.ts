@@ -31,8 +31,7 @@ export class RetornoService {
         try {
             for (const cnabLote of retorno104.lotes) {
                 for (const registro of cnabLote.registros) {                    
-                    const detalheA = await this.detalheAService.getDetalheARetorno(
-                        registro.detalheA.dataVencimento.convertedValue,
+                    const detalheA = await this.detalheAService.getDetalheARetorno(                        
                         registro.detalheB.numeroInscricao.convertedValue,
                         registro.detalheA.valorLancamento.convertedValue
                     )

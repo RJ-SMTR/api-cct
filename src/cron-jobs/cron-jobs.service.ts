@@ -37,7 +37,7 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
-import { OrdemPagamentoAgrupado } from 'src/cnab/novo-remessa/entity/ordem-pagamento-agrupado.entity';
+
 
 
 /**
@@ -110,14 +110,14 @@ export class CronJobsService {
     private agentesSyncService: AgentesSyncService,
   ) { }
 
-
   async onModuleInit() {
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {
+  async onModuleLoad() {     
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
