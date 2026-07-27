@@ -136,8 +136,7 @@ export class CronJobsService {
         /**
          * Atualizar Retorno - Leitura dos Arquivos Retorno do Banco CEF para CCT - todo dia, a cada 30m
          *
-         * Não executa quando gerar o remessa.
-         */
+         * Não executa quando gerar o remessa. */
         name: CronJobsEnum.updateRetorno,
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
