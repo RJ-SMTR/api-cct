@@ -5,7 +5,7 @@ on:
     branches:
       - "release/*"
       - "devops"
-      - "homol"
+      - "hmg"
     paths-ignore:
       - 'README.md'
       - 'docs/**'
