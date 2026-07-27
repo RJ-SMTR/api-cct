@@ -5,7 +5,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { startOfDay } from 'date-fns';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
-import { IMailHistoryStatusCount } from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
+import {
+  IMailHistoryStatusCount,
+  IMailHistoryStatusGuardadorReport,
+} from 'src/mail-history-statuses/interfaces/mail-history-status-group.interface';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
@@ -223,6 +226,22 @@ export class MailHistoryService {
   }
 
   async getStatusCount(): Promise<IMailHistoryStatusCount> {
+    return this.getStatusCountByRole(RoleEnum.user);
+  }
+
+  async getStatusCountGuardador(): Promise<IMailHistoryStatusGuardadorReport> {
+    const [guardador, emailsNotRegistered] = await Promise.all([
+      this.getStatusCountByRole(RoleEnum.agentes),
+      this.getUsersWithoutEmailByRole(RoleEnum.agentes),
+    ]);
+
+    return {
+      guardador,
+      emailsNotRegistered,
+    };
+  }
+
+  private async getStatusCountByRole(roleId: RoleEnum): Promise<IMailHistoryStatusCount> {
     const result: any[] = await this.mailHistoryRepository
       .createQueryBuilder('invite')
       .select([
@@ -246,7 +265,7 @@ export class MailHistoryService {
       ])
       .leftJoin('invite.user', 'user')
       .leftJoin('user.role', 'role')
-      .where('role.id = :roleId', { roleId: RoleEnum.user })
+      .where('role.id = :roleId', { roleId })
       .groupBy('invite.inviteStatusId')
       .addGroupBy('is_filled')
       .getRawMany();
@@ -292,5 +311,14 @@ export class MailHistoryService {
     resultReturn.total =
       resultReturn.queued + resultReturn.sent + resultReturn.used;
     return resultReturn;
+  }
+
+  private async getUsersWithoutEmailByRole(roleId: RoleEnum): Promise<number> {
+    return this.entityManager
+      .createQueryBuilder(User, 'user')
+      .leftJoin('user.role', 'role')
+      .where('role.id = :roleId', { roleId })
+      .andWhere(`("user"."email" IS NULL OR TRIM("user"."email") = '')`)
+      .getCount();
   }
 }

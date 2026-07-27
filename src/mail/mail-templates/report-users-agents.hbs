@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #2f2f2f;
+        }
+
+        .header {
+            background: #d8d8d8;
+            color: #1f1f1f;
+            padding: 12px 18px;
+            font-size: 38px;
+            font-weight: 500;
+            line-height: 1.1;
+        }
+
+        .container {
+            padding: 14px 18px 10px 18px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 760px;
+            font-size: 32px;
+            line-height: 1.2;
+        }
+
+        th,
+        td {
+            border: 2px solid #7d7d7d;
+            padding: 8px 10px;
+        }
+
+        thead th {
+            background: #efefef;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        td.status {
+            font-weight: 700;
+            width: 44%;
+        }
+
+        td.number {
+            text-align: right;
+            font-weight: 700;
+            width: 28%;
+        }
+
+        tr.sub-row td.status {
+            font-style: italic;
+            font-weight: 500;
+            padding-left: 44px;
+        }
+
+        tr.sub-row td.number {
+            font-weight: 500;
+        }
+
+        tr.total-row td {
+            font-weight: 800;
+        }
+
+        .footnote {
+            font-size: 14px;
+            color: #4a4a4a;
+            margin-top: 12px;
+            max-width: 760px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">{{headerTitle}}</div>
+    <div class="container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Contagem Guardador</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="status">Na Fila</td>
+                    <td class="number">{{guardadorQueued}}</td>
+                </tr>
+                <tr>
+                    <td class="status">Enviado</td>
+                    <td class="number">{{guardadorSent}}</td>
+                </tr>
+                <tr>
+                    <td class="status">Acessado</td>
+                    <td class="number">{{guardadorUsed}}</td>
+                </tr>
+                <tr class="sub-row">
+                    <td class="status">Conta Cadastrada</td>
+                    <td class="number">{{guardadorUsedComplete}}</td>
+                </tr>
+                <tr class="sub-row">
+                    <td class="status">Conta Não Cadastrada</td>
+                    <td class="number">{{guardadorUsedIncomplete}}</td>
+                </tr>
+                <tr class="total-row">
+                    <td class="status">TOTAL</td>
+                    <td class="number">{{guardadorTotal}}</td>
+                </tr>
+                <tr>
+                    <td class="status">E-mails Não Cadastrados</td>
+                    <td class="number">{{guardadorEmailsNotRegistered}}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footnote">
+            <strong>Na fila:</strong> usuários aguardando envio de convite.<br>
+            <strong>Enviado:</strong> convite encaminhado por e-mail.<br>
+            <strong>Acessado:</strong> usuários que concluíram o primeiro acesso.
+        </div>
+    </div>
+</body>
+
+</html>

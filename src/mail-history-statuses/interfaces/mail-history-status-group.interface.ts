@@ -6,3 +6,8 @@ export interface IMailHistoryStatusCount {
   usedComplete: number;
   total: number;
 }
+
+export interface IMailHistoryStatusGuardadorReport {
+  guardador: IMailHistoryStatusCount;
+  emailsNotRegistered: number;
+}
