@@ -117,8 +117,7 @@ export class CronJobsService {
       throw error;
     });
   }
-  async onModuleLoad() {     
-    await this.remessaGuardadorExec()
+  async onModuleLoad() {         
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
