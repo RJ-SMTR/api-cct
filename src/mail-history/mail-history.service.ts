@@ -223,8 +223,8 @@ export class MailHistoryService {
   }
 
   async getStatusCount(): Promise<IMailHistoryStatusCount> {
-    const roleIds = [RoleEnum.lancador_financeiro, RoleEnum.agentes];
-
+    const roleIds = [RoleEnum.user, RoleEnum.agentes];
+      const roleIds = [RoleEnum.user, RoleEnum.agentes];
     const result: any[] = await this.mailHistoryRepository
       .createQueryBuilder('invite')
       .select([
@@ -264,8 +264,8 @@ export class MailHistoryService {
     const getRoleKey = (
       roleId: number,
     ): 'vanzeiro' | 'guardador' | null => {
-      if (roleId === RoleEnum.lancador_financeiro) {
-        return 'vanzeiro';
+      if (roleId === RoleEnum.user) {
+        if (roleId === RoleEnum.user) {
       }
       if (roleId === RoleEnum.agentes) {
         return 'guardador';
