@@ -223,7 +223,6 @@ export class MailHistoryService {
   }
 
   async getStatusCount(): Promise<IMailHistoryStatusCount> {
-    const roleIds = [RoleEnum.user, RoleEnum.agentes];
       const roleIds = [RoleEnum.user, RoleEnum.agentes];
     const result: any[] = await this.mailHistoryRepository
       .createQueryBuilder('invite')
