@@ -35,33 +35,60 @@
                     <thead style="text-align: left;">
                         <tr>
                             <th>STATUS</th>
-                            <th>CONTAGEM</th>
+                            <th>CONTAGEM PERMISSIONARIO (VANZEIRO)</th>
+                            <th>CONTAGEM GUARDADOR</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td>Na fila</td>
-                            <td>{{mailQueued}}</td>
+                            <td>{{mailQueued.vanzeiro}}</td>
+                            <td>{{mailQueued.guardador}}</td>
                         </tr>
                         <tr>
                             <td>Enviado</td>
-                            <td>{{mailSent}}</td>
+                            <td>{{mailSent.vanzeiro}}</td>
+                            <td>{{mailSent.guardador}}</td>
                         </tr>
                         <tr>
                             <td>Acessado</td>
-                            <td>{{mailUsed}}</td>
+                            <td>{{mailUsed.vanzeiro}}</td>
+                            <td>{{mailUsed.guardador}}</td>
                         </tr>
                         <tr>
                             <td style="font-style: italic;">&nbsp;&nbsp;&nbsp;&nbsp;Conta cadastrada</td>
-                            <td>{{mailUsedComplete}}</td>
+                            <td>{{mailUsedComplete.vanzeiro}}</td>
+                            <td>{{mailUsedComplete.guardador}}</td>
                         </tr>
                         <tr>
                             <td style="font-style: italic;">&nbsp;&nbsp;&nbsp;&nbsp;Conta não cadastrada</td>
-                            <td>{{mailUsedIncomplete}}</td>
+                            <td>{{mailUsedIncomplete.vanzeiro}}</td>
+                            <td>{{mailUsedIncomplete.guardador}}</td>
                         </tr>
                         <tr>
                             <td style="font-weight: bold;">TOTAL</td>
-                            <td style="font-weight: bold;">{{mailTotal}}</td>
+                            <td style="font-weight: bold;">{{mailTotal.vanzeiro}}</td>
+                            <td style="font-weight: bold;">{{mailTotal.guardador}}</td>
+                        </tr>
+                        <tr>
+                            <td>E-mails nao cadastrados</td>
+                            <td>{{mailNoEmail.vanzeiro}}</td>
+                            <td>{{mailNoEmail.guardador}}</td>
+                        </tr>
+                        <tr>
+                            <td>Pessoas sem nome completo</td>
+                            <td>{{mailNoFullName.vanzeiro}}</td>
+                            <td>{{mailNoFullName.guardador}}</td>
+                        </tr>
+                        <tr>
+                            <td>Pessoas sem telefone</td>
+                            <td>{{mailNoPhone.vanzeiro}}</td>
+                            <td>{{mailNoPhone.guardador}}</td>
+                        </tr>
+                        <tr>
+                            <td>Pessoas sem email</td>
+                            <td>{{mailNoEmail.vanzeiro}}</td>
+                            <td>{{mailNoEmail.guardador}}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -81,6 +108,9 @@
             <div style="margin-left: 42px;">
                 <b>Conta não cadastrada:</b> Usuários com acesso, mas não normalizado o Cadastro dos Dados Bancários. Há pendência de Cadastro.
             </div>
+            <b>Pessoas sem nome completo:</b> Usuários sem preenchimento do campo nome completo.<br>
+            <b>Pessoas sem telefone:</b> Usuários sem preenchimento do campo telefone.<br>
+            <b>Pessoas sem email:</b> Usuários sem preenchimento do campo email.
     
         </p>
     </div>
