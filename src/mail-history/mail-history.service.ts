@@ -263,8 +263,8 @@ export class MailHistoryService {
     const getRoleKey = (
       roleId: number,
     ): 'vanzeiro' | 'guardador' | null => {
-      if (roleId === RoleEnum.user) {
         if (roleId === RoleEnum.user) {
+          return 'vanzeiro';
       }
       if (roleId === RoleEnum.agentes) {
         return 'guardador';
