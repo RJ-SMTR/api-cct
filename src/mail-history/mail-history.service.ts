@@ -228,7 +228,7 @@ export class MailHistoryService {
       .createQueryBuilder('invite')
       .select([
         'invite.inviteStatusId as status_id',
-        'role.id as role_id',
+        'user.roleId as role_id',
         'COUNT(invite.id) as status_count',
         `CASE ` +
           `WHEN ( ` +
@@ -250,10 +250,9 @@ export class MailHistoryService {
         `CASE WHEN "user"."email" IS NOT NULL AND "user"."email" != '' THEN true ELSE false END AS has_email`,
       ])
       .leftJoin('invite.user', 'user')
-      .leftJoin('user.role', 'role')
-      .where('role.id IN (:...roleIds)', { roleIds })
+      .where('user.roleId IN (:...roleIds)', { roleIds })
       .groupBy('invite.inviteStatusId')
-      .addGroupBy('role.id')
+      .addGroupBy('user.roleId')
       .addGroupBy('is_filled')
       .addGroupBy('has_full_name')
       .addGroupBy('has_phone')
