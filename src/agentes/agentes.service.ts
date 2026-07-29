@@ -6,6 +6,7 @@ import { AgentesDashboardQueryDto } from './dtos/agentes-dashboard-query.dto';
 import {
   AgentAssociationOption,
   AgentesRepository,
+  DashboardDataQuery,
   DashboardMonthData,
   DashboardPaymentCycle,
   DashboardPhotoEntry,
@@ -67,11 +68,16 @@ export class AgentesService {
 
   async getDashboard(query: AgentesDashboardQueryDto, request: IRequest) {
     const targetUserId = this.resolveTargetUserId(query.userId, request);
-    const dashboardData = await this.agentesRepository.findDashboardData(query.month);
-
     this.validateSelectedDates(query);
+    const dashboardQuery: DashboardDataQuery = {
+      month: query.month,
+      userId: targetUserId,
+      paymentDate: query.paymentDate,
+      workDate: query.workDate,
+    };
+    const dashboardData = await this.agentesRepository.findDashboardData(dashboardQuery);
 
-    const availableMonths = this.agentesRepository.getAvailableMonths();
+    const availableMonths = await this.agentesRepository.getAvailableMonths(targetUserId);
     const associacoes = await this.agentesRepository.getAgentAssociationOptions(targetUserId);
     const baseData: DashboardMonthData = dashboardData ?? {
       month: query.month,

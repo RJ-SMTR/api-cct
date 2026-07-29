@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
@@ -11,6 +11,7 @@ describe('AgentesRepository', () => {
   let repository: AgentesRepository;
   let typeormRepository: Pick<Repository<User>, 'createQueryBuilder'>;
   let mailHistoryService: Pick<MailHistoryService, 'find'>;
+  let dataSource: Pick<DataSource, 'query'>;
   let queryBuilder: {
     leftJoinAndSelect: jest.Mock;
     where: jest.Mock;
@@ -31,10 +32,14 @@ describe('AgentesRepository', () => {
     mailHistoryService = {
       find: jest.fn().mockResolvedValue([]),
     };
+    dataSource = {
+      query: jest.fn(),
+    };
 
     repository = new AgentesRepository(
       typeormRepository as Repository<User>,
       mailHistoryService as MailHistoryService,
+      dataSource as DataSource,
     );
   });
 
@@ -98,12 +103,81 @@ describe('AgentesRepository', () => {
     expect(result[0].mailHistories).toEqual([mailHistory]);
   });
 
-  it('should remove mocked dashboard details before returning data', async () => {
-    const dashboardData = await repository.findDashboardData('2026-05');
+  it('should build dashboard data from monthly, weekly and daily query rows', async () => {
+    jest
+      .spyOn(dataSource, 'query')
+      .mockResolvedValueOnce([
+        {
+          paymentDate: '2026-05-12',
+          statusRemessa: 3,
+          motivoStatusRemessa: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          paymentDate: '2026-05-12',
+          workDate: '2026-05-11',
+          statusRemessa: 3,
+          motivoStatusRemessa: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          photoId: 'GUARDADOR-1',
+          paymentDate: '2026-05-12',
+          workDate: '2026-05-11',
+          description: 'Repasse do guardador #100',
+          amount: '15.50',
+          statusRemessa: 3,
+          motivoStatusRemessa: null,
+        },
+      ]);
 
-    expect(dashboardData).toEqual({
+    const dashboardData = await repository.findDashboardData({
       month: '2026-05',
-      paymentCycles: [],
+      userId: 7,
     });
+
+    expect(dashboardData).toEqual(
+      {
+        month: '2026-05',
+        paymentCycles: [
+          {
+            paymentDate: '2026-05-12',
+            pendingReason: null,
+            workDays: [
+              {
+                date: '2026-05-11',
+                periodLabel: 'Integral',
+                pendingReason: null,
+                photos: [
+                  {
+                    id: 'GUARDADOR-1',
+                    capturedAt: '2026-05-11T12:00:00.000Z',
+                    description: 'Repasse do guardador #100',
+                    status: 'Pago',
+                    amount: 15.5,
+                    rejectionReason: null,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    );
+    expect(dataSource.query).toHaveBeenCalledTimes(3);
+  });
+
+  it('should return available months from persisted dashboard data', async () => {
+    jest.spyOn(dataSource, 'query').mockResolvedValue([
+      { month: '2026-06' },
+      { month: '2026-05' },
+    ]);
+
+    await expect(repository.getAvailableMonths(7)).resolves.toEqual([
+      '2026-06',
+      '2026-05',
+    ]);
   });
 });
