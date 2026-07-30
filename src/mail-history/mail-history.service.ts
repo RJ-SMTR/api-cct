@@ -223,11 +223,13 @@ export class MailHistoryService {
   }
 
   async getStatusCount(): Promise<IMailHistoryStatusCount> {
+      const roleIds = [RoleEnum.user, RoleEnum.agentes];
     const result: any[] = await this.mailHistoryRepository
       .createQueryBuilder('invite')
       .select([
-        'invite.inviteStatus as status_id',
-        'COUNT(invite.inviteStatus) as status_count',
+        'invite.inviteStatusId as status_id',
+        'user.roleId as role_id',
+        'COUNT(invite.id) as status_count',
         `CASE ` +
           `WHEN ( ` +
           `"user"."fullName" IS NOT NULL AND "user"."fullName" != '' AND ` +
@@ -243,54 +245,90 @@ export class MailHistoryService {
           'THEN true ' +
           'ELSE false ' +
           'END AS is_filled',
+        `CASE WHEN "user"."fullName" IS NOT NULL AND "user"."fullName" != '' THEN true ELSE false END AS has_full_name`,
+        `CASE WHEN "user"."phone" IS NOT NULL AND "user"."phone" != '' THEN true ELSE false END AS has_phone`,
+        `CASE WHEN "user"."email" IS NOT NULL AND "user"."email" != '' THEN true ELSE false END AS has_email`,
       ])
       .leftJoin('invite.user', 'user')
-      .leftJoin('user.role', 'role')
-      .where('role.id = :roleId', { roleId: RoleEnum.user })
+      .where('user.roleId IN (:...roleIds)', { roleIds })
       .groupBy('invite.inviteStatusId')
+      .addGroupBy('user.roleId')
       .addGroupBy('is_filled')
+      .addGroupBy('has_full_name')
+      .addGroupBy('has_phone')
+      .addGroupBy('has_email')
       .getRawMany();
 
-    const resultReturn = {
-      queued: result.reduce(
-        (sum, i) =>
-          i.status_id === InviteStatusEnum.queued
-            ? sum + Number(i.status_count)
-            : sum,
-        0,
-      ),
-      sent: result.reduce(
-        (sum, i) =>
-          i.status_id === InviteStatusEnum.sent
-            ? sum + Number(i.status_count)
-            : sum,
-        0,
-      ),
-      used: result.reduce(
-        (sum, i) =>
-          i.status_id === InviteStatusEnum.used
-            ? sum + Number(i.status_count)
-            : sum,
-        0,
-      ),
-      usedIncomplete: result.reduce(
-        (sum, i) =>
-          i.status_id === InviteStatusEnum.used && i.is_filled === false
-            ? sum + Number(i.status_count)
-            : sum,
-        0,
-      ),
-      usedComplete: result.reduce(
-        (sum, i) =>
-          i.status_id === InviteStatusEnum.used && i.is_filled === true
-            ? sum + Number(i.status_count)
-            : sum,
-        0,
-      ),
-      total: 0,
+    const getRoleKey = (
+      roleId: number,
+    ): 'vanzeiro' | 'guardador' | null => {
+        if (roleId === RoleEnum.user) {
+          return 'vanzeiro';
+      }
+      if (roleId === RoleEnum.agentes) {
+        return 'guardador';
+      }
+      return null;
     };
-    resultReturn.total =
-      resultReturn.queued + resultReturn.sent + resultReturn.used;
+
+    const toBoolean = (value: unknown): boolean =>
+      value === true || value === 'true' || value === 't' || value === 1;
+
+    const createCount = () => ({ vanzeiro: 0, guardador: 0 });
+
+    const resultReturn = {
+      queued: createCount(),
+      sent: createCount(),
+      used: createCount(),
+      usedIncomplete: createCount(),
+      usedComplete: createCount(),
+      total: createCount(),
+      noFullName: createCount(),
+      noPhone: createCount(),
+      noEmail: createCount(),
+    };
+
+    for (const row of result) {
+      const roleKey = getRoleKey(Number(row.role_id));
+      if (!roleKey) {
+        continue;
+      }
+
+      const count = Number(row.status_count);
+      const statusId = Number(row.status_id);
+      const isFilled = toBoolean(row.is_filled);
+      const hasFullName = toBoolean(row.has_full_name);
+      const hasPhone = toBoolean(row.has_phone);
+      const hasEmail = toBoolean(row.has_email);
+
+      if (statusId === InviteStatusEnum.queued) {
+        resultReturn.queued[roleKey] += count;
+      }
+      if (statusId === InviteStatusEnum.sent) {
+        resultReturn.sent[roleKey] += count;
+      }
+      if (statusId === InviteStatusEnum.used) {
+        resultReturn.used[roleKey] += count;
+        if (isFilled) {
+          resultReturn.usedComplete[roleKey] += count;
+        } else {
+          resultReturn.usedIncomplete[roleKey] += count;
+        }
+      }
+
+      resultReturn.total[roleKey] += count;
+
+      if (!hasFullName) {
+        resultReturn.noFullName[roleKey] += count;
+      }
+      if (!hasPhone) {
+        resultReturn.noPhone[roleKey] += count;
+      }
+      if (!hasEmail) {
+        resultReturn.noEmail[roleKey] += count;
+      }
+    }
+
     return resultReturn;
   }
 }
