@@ -59,7 +59,7 @@ export enum CronJobsEnum {
   backupSftp = 'backupSftp',
   sendAdminFraudAlert = 'sendAdminFraudAlert',
   syncWeeklyAgentUsers = 'syncWeeklyAgentUsers',
-  sincronizarEAgruparOrdensPagamentoGuardador ='sincronizarEAgruparOrdensPagamentoGuardador'
+  sincronizarEAgruparOrdensPagamentoGuardador = 'sincronizarEAgruparOrdensPagamentoGuardador'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -111,15 +111,14 @@ export class CronJobsService {
   ) { }
 
 
-  async onModuleInit() {    
-    //await this.sincronizarEAgruparOrdensPagamento()
+  async onModuleInit() {
+    await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() { 
-    await this.remessaGuardadorExec()
+  async onModuleLoad() {
 
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
@@ -726,7 +725,7 @@ export class CronJobsService {
     // //Prepara o remessa
     // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
     // Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico,false,consorcios);
+    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
   }
@@ -791,17 +790,17 @@ export class CronJobsService {
     // const dataInicio = subDays(today, subDaysInt);
     // const dataFim = subDays(today, 0);    
 
-     const dataInicio = today;
-    const dataFim = today;   
-  //  await this.limparAgrupamentos(dataInicio, dataFim, []);
+    const dataInicio = today;
+    const dataFim = today;
+    //  await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
 
   async limparAgrupamentos(dataInicio: Date, dataFim: Date, consorcios: string[]) {
     let ordensAgrupadas;
-    if(consorcios.length > 0) {
+    if (consorcios.length > 0) {
       ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
-    }else{
+    } else {
       ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadasGuardador(dataInicio, dataFim);
     }
 
@@ -813,9 +812,9 @@ export class CronJobsService {
       //exclui historico
       await this.ordemPagamentoAgrupadoService.excluirHistorico(idsAgrupamentos);
       //atualizar ordens
-      if(consorcios.length > 0) {
+      if (consorcios.length > 0) {
         await this.ordemPagamentoService.removerAgrupamentos(consorcios, idsAgrupamentos);
-      }else{
+      } else {
         await this.ordemPagamentoService.removerAgrupamentosGuardador(idsAgrupamentos);
       }
       //excluir ordens agrupadas
