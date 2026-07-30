@@ -192,6 +192,7 @@ export class AuthLicenseeService {
       fullName: user.fullName as string,
       permitCode: user.permitCode,
       email: user.email,
+      cpfCnpj: user.cpfCnpj,
       hash: invite.hash,
       inviteStatus: invite.inviteStatus,
       roleId: user.role?.id ?? null,

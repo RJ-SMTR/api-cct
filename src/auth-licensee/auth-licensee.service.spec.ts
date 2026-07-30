@@ -126,6 +126,7 @@ describe('AuthLicenseeService', () => {
         email: 'agent@example.com',
         fullName: 'Agent Name',
         permitCode: 'permit-1',
+        cpfCnpj: '12345678901',
       });
       user.role = new Role(RoleEnum.agentes);
       const mailHistory = {
@@ -144,6 +145,7 @@ describe('AuthLicenseeService', () => {
         fullName: 'Agent Name',
         permitCode: 'permit-1',
         email: 'agent@example.com',
+        cpfCnpj: '12345678901',
         hash: 'hash_2',
         inviteStatus: mailHistory.inviteStatus,
         roleId: RoleEnum.agentes,
