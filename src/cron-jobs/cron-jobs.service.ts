@@ -112,6 +112,7 @@ export class CronJobsService {
 
 
   async onModuleInit() {    
+    await this.sincronizarEAgruparOrdensPagamento()
     await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
@@ -900,11 +901,11 @@ export class CronJobsService {
 
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
-      dataInicio = new Date("2026-07-28");
+      // dataInicio = new Date("2026-07-28");
 
-      dataFim = new Date("2026-07-28");
+      // dataFim = new Date("2026-07-28");
 
-      dataPagamento = new Date("2026-07-28");
+      // dataPagamento = new Date("2026-07-28");
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
