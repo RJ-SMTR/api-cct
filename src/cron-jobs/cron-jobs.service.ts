@@ -113,14 +113,14 @@ export class CronJobsService {
 
   async onModuleInit() {    
     await this.sincronizarEAgruparOrdensPagamento()
-    await this.sincronizarEAgruparOrdensPagamentoGuardador()
+    //await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {
-    await this.remessaModalExec()
+  async onModuleLoad() {    
+    await this.remessaGuardadorExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -901,11 +901,13 @@ export class CronJobsService {
 
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
-      // dataInicio = new Date("2026-07-28");
+       if (tipo === 'GUARDADOR') {
+          dataInicio = new Date("2026-07-31");
 
-      // dataFim = new Date("2026-07-28");
+          dataFim = new Date("2026-07-31");
 
-      // dataPagamento = new Date("2026-07-28");
+          dataPagamento = new Date("2026-07-31");
+       }
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
