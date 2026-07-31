@@ -87,8 +87,7 @@ export class OrdemPagamentoGuardadorRepository {
     const dtFinalStr = dataFim.toISOString().split('T')[0];
 
     const query = `SELECT distinct op.* FROM ordem_pagamento_guardador op 
-                    where date_trunc('day', op."dataOrdem") between '${dtInicialStr}' and '${dtFinalStr}'                      
-                    `;
+                    where date_trunc('day', op."dataOrdem") between '${dtInicialStr}' and '${dtFinalStr}' `;
 
     const queryRunner = this.dataSource.createQueryRunner();
 

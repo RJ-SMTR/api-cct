@@ -159,7 +159,7 @@ export class AgentesRepository {
         description: row.description,
         status: this.mapStatusRemessaToDashboardStatus(row.statusRemessa),
         amount: Number(row.amount) || 0,
-        rejectionReason: this.resolvePendingReason(row.statusRemessa, row.motivoStatusRemessa),
+        rejectionReason: this.resolvePhotoRejectionReason(row.statusRemessa, row.motivoStatusRemessa),
       });
     }
 
@@ -283,9 +283,29 @@ export class AgentesRepository {
   }
 
   private mapStatusRemessaToDashboardStatus(statusRemessa: number | null) {
-    return Number(statusRemessa) === StatusRemessaEnum.Efetivado
-      ? 'Pago'
-      : 'Rejeitado';
+    if (Number(statusRemessa) === StatusRemessaEnum.Efetivado) {
+      return 'Pago';
+    }
+
+    if (Number(statusRemessa) === StatusRemessaEnum.AguardandoPagamento) {
+      return 'Aguardando Pagamento';
+    }
+
+    return 'Rejeitado';
+  }
+
+  private resolvePhotoRejectionReason(
+    statusRemessa: number | null,
+    motivoStatusRemessa: string | null,
+  ) {
+    if (
+      Number(statusRemessa) === StatusRemessaEnum.Efetivado ||
+      Number(statusRemessa) === StatusRemessaEnum.AguardandoPagamento
+    ) {
+      return null;
+    }
+
+    return this.resolvePendingReason(statusRemessa, motivoStatusRemessa);
   }
 
   private resolvePendingReason(
@@ -302,6 +322,10 @@ export class AgentesRepository {
 
     if (statusRemessa == null) {
       return null;
+    }
+
+    if (Number(statusRemessa) === StatusRemessaEnum.AguardandoPagamento) {
+      return 'Aguardando Pagamento';
     }
 
     return getStatusRemessaEnumByValue(statusRemessa as StatusRemessaEnum) ?? null;
