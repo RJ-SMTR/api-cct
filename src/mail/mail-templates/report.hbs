@@ -51,6 +51,24 @@
         #tableStyle thead th:not(:first-child) {
             text-align: center;
         }
+
+        #tableStyle tr.post-total td:nth-child(2),
+        #tableStyle tr.post-total td:nth-child(3) {
+            font-size: 11px;
+            font-style: italic;
+        }
+
+        #tableStyle tr.section-separator td {
+            padding-top: 6px;
+            padding-bottom: 6px;
+            background: #f7f7f7;
+            border-top: 2px solid #bdbdbd;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            text-align: left;
+        }
     </style>
 </head>
 
@@ -102,22 +120,20 @@
                             <td style="font-weight: bold;">{{mailTotal.vanzeiro}}</td>
                             <td style="font-weight: bold;">{{mailTotal.guardador}}</td>
                         </tr>
-                        <tr>
-                            <td>E-mails nao cadastrados</td>
-                            <td>{{mailNoEmail.vanzeiro}}</td>
-                            <td>{{mailNoEmail.guardador}}</td>
+                        <tr class="section-separator">
+                            <td colspan="3">Pendencias cadastrais</td>
                         </tr>
-                        <tr>
+                        <tr class="post-total">
                             <td>Pessoas sem nome completo</td>
                             <td>{{mailNoFullName.vanzeiro}}</td>
                             <td>{{mailNoFullName.guardador}}</td>
                         </tr>
-                        <tr>
+                        <tr class="post-total">
                             <td>Pessoas sem telefone</td>
                             <td>{{mailNoPhone.vanzeiro}}</td>
                             <td>{{mailNoPhone.guardador}}</td>
                         </tr>
-                        <tr>
+                        <tr class="post-total">
                             <td>Pessoas sem email</td>
                             <td>{{mailNoEmail.vanzeiro}}</td>
                             <td>{{mailNoEmail.guardador}}</td>
