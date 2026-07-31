@@ -899,13 +899,6 @@ export class CronJobsService {
 
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
-      if (tipo === 'GUARDADOR') {
-        dataInicio = new Date("2026-07-31");
-
-        dataFim = new Date("2026-07-31");
-
-        dataPagamento = new Date("2026-07-31");
-      }
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
