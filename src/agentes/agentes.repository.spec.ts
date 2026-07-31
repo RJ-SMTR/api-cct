@@ -204,7 +204,7 @@ describe('AgentesRepository', () => {
       userId: 7,
     });
 
-    expect(dashboardData).toEqual({
+    const dashboardData = await repository.findDashboardData({
       month: '2026-05',
       paymentCycles: [
         {
@@ -230,6 +230,48 @@ describe('AgentesRepository', () => {
         },
       ],
     });
+
+    expect(dashboardData).toEqual(
+      {
+        month: '2026-05',
+        paymentCycles: [
+          {
+            paymentDate: '2026-05-12',
+            pendingReason: null,
+            workDays: [
+              {
+                date: '2026-05-11',
+                periodLabel: 'Integral',
+                pendingReason: null,
+                photos: [
+                  {
+                    id: 'GUARDADOR-1',
+                    capturedAt: '2026-05-11T12:00:00.000Z',
+                    description: 'Repasse do guardador #100',
+                    status: 'Pago',
+                    amount: 15.5,
+                    rejectionReason: null,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    );
+    expect(dataSource.query).toHaveBeenCalledTimes(3);
+  });
+
+  it('should return available months from persisted dashboard data', async () => {
+    jest.spyOn(dataSource, 'query').mockResolvedValue([
+      { month: '2026-06' },
+      { month: '2026-05' },
+    ]);
+
+    await expect(repository.getAvailableMonths(7)).resolves.toEqual([
+      '2026-06',
+      '2026-05',
+    ]);
   });
 
   it('should return available months from persisted dashboard data', async () => {
