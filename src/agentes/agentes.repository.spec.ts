@@ -169,6 +169,69 @@ describe('AgentesRepository', () => {
     expect(dataSource.query).toHaveBeenCalledTimes(3);
   });
 
+  it('should preserve aguardando pagamento status in dashboard data', async () => {
+    jest
+      .spyOn(dataSource, 'query')
+      .mockResolvedValueOnce([
+        {
+          paymentDate: '2026-05-16',
+          statusRemessa: 2,
+          motivoStatusRemessa: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          paymentDate: '2026-05-16',
+          workDate: '2026-05-15',
+          statusRemessa: 2,
+          motivoStatusRemessa: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          photoId: 'GUARDADOR-2',
+          paymentDate: '2026-05-16',
+          workDate: '2026-05-15',
+          description: 'Repasse do guardador #101',
+          amount: '22.10',
+          statusRemessa: 2,
+          motivoStatusRemessa: null,
+        },
+      ]);
+
+    const dashboardData = await repository.findDashboardData({
+      month: '2026-05',
+      userId: 7,
+    });
+
+    expect(dashboardData).toEqual({
+      month: '2026-05',
+      paymentCycles: [
+        {
+          paymentDate: '2026-05-16',
+          pendingReason: 'Aguardando Pagamento',
+          workDays: [
+            {
+              date: '2026-05-15',
+              periodLabel: 'Integral',
+              pendingReason: 'Aguardando Pagamento',
+              photos: [
+                {
+                  id: 'GUARDADOR-2',
+                  capturedAt: '2026-05-15T12:00:00.000Z',
+                  description: 'Repasse do guardador #101',
+                  status: 'Aguardando Pagamento',
+                  amount: 22.1,
+                  rejectionReason: null,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it('should return available months from persisted dashboard data', async () => {
     jest.spyOn(dataSource, 'query').mockResolvedValue([
       { month: '2026-06' },
