@@ -112,7 +112,8 @@ export class CronJobsService {
 
 
   async onModuleInit() {    
-    await this.sincronizarEAgruparOrdensPagamentoGuardador()
+    await this.sincronizarEAgruparOrdensPagamento()
+    //await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
