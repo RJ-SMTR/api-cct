@@ -109,8 +109,6 @@ export class CronJobsService {
     private distributedLockService: DistributedLockService,
     private agentesSyncService: AgentesSyncService,
   ) { }
-
-
   async onModuleInit() {
     //await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
@@ -137,8 +135,7 @@ export class CronJobsService {
         /**
          * Atualizar Retorno - Leitura dos Arquivos Retorno do Banco CEF para CCT - todo dia, a cada 30m
          *
-         * Não executa quando gerar o remessa.
-         */
+         * Não executa quando gerar o remessa. */
         name: CronJobsEnum.updateRetorno,
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
