@@ -329,6 +329,9 @@ export class AuthService {
     user: User,
     userMailHistory: MailHistory,
     logContext: string,
+    options?: {
+      preserveUsedInviteStatus?: boolean;
+    },
   ) {
     const mailData: MailData<{ hash: string; to: string; userName: string; roleId?: number }> = {
       to: user.email as string,
@@ -343,7 +346,14 @@ export class AuthService {
       mailData,
     );
     if (mailResponse.mailSentInfo.success === true) {
-      userMailHistory.setInviteStatus(InviteStatusEnum.sent);
+      const shouldPreserveUsedInviteStatus =
+        options?.preserveUsedInviteStatus === true &&
+        userMailHistory.inviteStatus?.id === InviteStatusEnum.used;
+
+      if (!shouldPreserveUsedInviteStatus) {
+        userMailHistory.setInviteStatus(InviteStatusEnum.sent);
+      }
+
       userMailHistory.sentAt = new Date(Date.now());
       await this.mailHistoryService.update(
         userMailHistory.id,
@@ -402,7 +412,9 @@ export class AuthService {
     const user = await this.getUser(args.id);
     const userMailHsitory = await this.getMailHistory(user);
     await this.validateQuota();
-    await this.performSendRegisterEmail(user, userMailHsitory, THIS_METHOD);
+    await this.performSendRegisterEmail(user, userMailHsitory, THIS_METHOD, {
+      preserveUsedInviteStatus: true,
+    });
   }
 
   async confirmEmail(hash: string): Promise<void> {
