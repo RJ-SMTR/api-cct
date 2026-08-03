@@ -68,7 +68,7 @@ export class RelatorioSinteticoRepository {
            && (['Todos'].some(i=>args.favorecidoNome?.includes(i))) || 
            ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))){
             query = query +` AND tv."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
-           'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
+           'Internorte','Intersul','Transcarioca','MobiRio','MOBI-Rio BUM','TEC') `;
         }else if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
           query = query +` AND tv."nomeConsorcio" in('STPC','STPL') `;
         }

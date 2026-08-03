@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 
 import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import { RelatorioNovoRemessaRepository } from './relatorio-novo-remessa.repository';
+import { RelatorioNovoRemessaConsolidadoRepository } from './relatorio-novo-remessa-consolidado.repository';
 
 @Injectable()
 export class RelatorioNovoRemessaService {
-  constructor(private relatorioNovoRemessaRepository: RelatorioNovoRemessaRepository) {}
+  constructor(
+    private relatorioNovoRemessaRepository: RelatorioNovoRemessaRepository,
+    private relatorioNovoRemessaConsolidadoRepository: RelatorioNovoRemessaConsolidadoRepository,
+  ) {}
 
   /**
    * Gerar relatórios consolidados - agrupados por Favorecido.
@@ -15,7 +19,7 @@ export class RelatorioNovoRemessaService {
       throw new Error('Parametro de data inválido');
     }
 
-    return this.relatorioNovoRemessaRepository.findConsolidado(args);
+    return this.relatorioNovoRemessaConsolidadoRepository.findConsolidado(args);
   }
 
   ///////SINTETICO //////

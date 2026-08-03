@@ -12,6 +12,7 @@ import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
 import { UserHttpException } from 'src/utils/http-exception/user-http-exception';
 import { Lancamento } from 'src/lancamento/entities/lancamento.entity';
+import { UserRelationship } from './user-relationship.entity';
 
 /** uniqueConstraintName: `UQ_User_email` */
 @Entity()
@@ -21,6 +22,7 @@ export class User extends EntityHelper {
     super();
     this.aux_bank = null;
     this.aux_inviteStatus = null;
+    this.inviteAt = null;
     if (user !== undefined) {
       Object.assign(this, user);
     }
@@ -119,7 +121,7 @@ export class User extends EntityHelper {
   //@Exclude({ toPlainOnly: true })
   createdAt: Date;
 
-  @Column()
+  @UpdateDateColumn()
   //@Exclude({ toPlainOnly: true })
   updatedAt: Date;
 
@@ -136,7 +138,7 @@ export class User extends EntityHelper {
   @Column({ type: Number, nullable: true })
   bankCode?: number;
 
-  @Column({ type: String, nullable: true, length: 4 })
+  @Column({ type: String, nullable: true, length: 5 })
   bankAgency?: string;
 
   @Column({ type: String, nullable: true, length: 20 })
@@ -150,7 +152,7 @@ export class User extends EntityHelper {
 
   @Column({ type: Boolean, nullable: true })
   isSgtuBlocked?: boolean;
-  
+
   @Column({ type: Boolean, nullable: true })
   bloqueado?: boolean;
 
@@ -159,7 +161,7 @@ export class User extends EntityHelper {
 
   @Column({ type: Number, nullable: true })
   previousBankCode?: number;
-  
+
   @ManyToMany(() => Lancamento, (lancamento) => lancamento)
   lancamentos: Lancamento[];
 
@@ -212,6 +214,9 @@ export class User extends EntityHelper {
   public __has_mailHistories__ = false;
 
   aux_inviteStatus?: InviteStatus | null;
+
+  @Expose({ groups: ['me', 'admin'] })
+  inviteAt?: Date | null;
 
   @Exclude()
   aux_inviteHash?: string | null;
@@ -372,6 +377,12 @@ export class User extends EntityHelper {
     }
     return this.permitCode;
   }
+
+  @OneToMany(() => UserRelationship, (rel) => rel.user)
+  following: UserRelationship[];
+
+  @OneToMany(() => UserRelationship, (rel) => rel.relatedUser)
+  followers: UserRelationship[];
 
   @AfterLoad()
   setFieldValues() {

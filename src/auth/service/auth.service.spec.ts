@@ -1,6 +1,7 @@
 import { Provider } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import * as bcrypt from 'bcryptjs';
 import { ForgotService } from 'src/forgot/forgot.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
@@ -9,9 +10,12 @@ import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { MailRegistrationInterface } from 'src/mail/interfaces/mail-registration.interface';
 import { MailSentInfo } from 'src/mail/interfaces/mail-sent-info.interface';
 import { MailService } from 'src/mail/mail.service';
+import { Role } from 'src/roles/entities/role.entity';
+import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { DeepPartial } from 'typeorm';
+import { AuthProvidersEnum } from './auth-providers.enum';
 import { AuthService } from './auth.service';
 
 process.env.TZ = 'UTC';
@@ -22,14 +26,18 @@ describe('AuthService', () => {
   let mailService: MailService;
   let mailHistoryService: MailHistoryService;
   let forgotService: ForgotService;
+  let jwtService: JwtService;
 
   beforeEach(async () => {
+    global.__localTzOffset = 0;
+
     const usersServiceMock = {
       provide: UsersService,
       useValue: {
         create: jest.fn(),
         getOne: jest.fn(),
         findOne: jest.fn(),
+        findManyByNormalizedCpf: jest.fn(),
         update: jest.fn(),
         softDelete: jest.fn(),
       },
@@ -40,6 +48,7 @@ describe('AuthService', () => {
         findOne: jest.fn(),
         create: jest.fn(),
         generateHash: jest.fn(),
+        softDelete: jest.fn(),
       },
     } as Provider;
     const mailServiceMock = {
@@ -53,6 +62,7 @@ describe('AuthService', () => {
       provide: MailHistoryService,
       useValue: {
         findOne: jest.fn(),
+        findRecentByUser: jest.fn(),
         getOne: jest.fn(),
         getRemainingQuota: jest.fn(),
         update: jest.fn(),
@@ -81,10 +91,42 @@ describe('AuthService', () => {
     forgotService = module.get<ForgotService>(ForgotService);
     mailService = module.get<MailService>(MailService);
     usersService = module.get<UsersService>(UsersService);
+    jwtService = module.get<JwtService>(JwtService);
   });
 
   it('should be defined', () => {
     expect(authService).toBeDefined();
+  });
+
+  describe('validateCpfLogin', () => {
+    it('should authenticate an agent by normalized cpf', async () => {
+      const user = new User({
+        id: 1,
+        cpfCnpj: '16322676313',
+        provider: AuthProvidersEnum.email,
+        password: 'hashed-password',
+      });
+      user.role = new Role(RoleEnum.agentes);
+
+      jest
+        .spyOn(usersService, 'findManyByNormalizedCpf')
+        .mockResolvedValue([user]);
+      jest.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      const response = await authService.validateCpfLogin({
+        cpf: '163.226.763-13',
+        password: 'secret',
+      });
+
+      expect(usersService.findManyByNormalizedCpf).toHaveBeenCalledWith(
+        '16322676313',
+      );
+      expect(response).toEqual({
+        token: 'token',
+        user,
+      });
+    });
   });
 
   xdescribe('resendRegisterMail', () => {
@@ -97,7 +139,9 @@ describe('AuthService', () => {
       });
       const mailHistory = { id: 1, user: user, hash: 'hash_1' } as MailHistory;
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
-      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
+      jest
+        .spyOn(mailHistoryService, 'findRecentByUser')
+        .mockResolvedValue(mailHistory);
       jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(0);
 
       // Act
@@ -139,7 +183,7 @@ describe('AuthService', () => {
       for (let i = 0; i < 3; i++) {
         jest.spyOn(usersService, 'getOne').mockResolvedValue(users[i]);
         jest
-          .spyOn(mailHistoryService, 'findOne')
+          .spyOn(mailHistoryService, 'findRecentByUser')
           .mockResolvedValue(mailHistories[i]);
         jest
           .spyOn(mailHistoryService, 'getRemainingQuota')
@@ -162,6 +206,57 @@ describe('AuthService', () => {
           expect.any(String),
         );
       }
+    });
+  });
+
+  describe('resendRegisterMail (latest invite)', () => {
+    it('should use the latest invite returned by findRecentByUser', async () => {
+      // Arrange
+      const user = new User({
+        id: 1,
+        email: 'user1@mail.com',
+        hash: 'hash_1',
+      });
+      const mailHistory = new MailHistory({
+        id: 99,
+        user: user,
+        hash: 'latest_hash',
+      });
+      mailHistory.setInviteStatus(InviteStatusEnum.queued);
+      const mailResponse = {
+        mailConfirmationLink: 'link',
+        mailSentInfo: {
+          success: true,
+        },
+      } as MailRegistrationInterface;
+      const dateNow = new Date('2023-01-01T10:00:00');
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest
+        .spyOn(mailHistoryService, 'findRecentByUser')
+        .mockResolvedValue(mailHistory);
+      jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
+      jest
+        .spyOn(mailService, 'sendConcludeRegistration')
+        .mockResolvedValue(mailResponse);
+      jest
+        .spyOn(global.Date, 'now')
+        .mockImplementation(() => dateNow.valueOf());
+
+      // Act
+      await authService.resendRegisterMail({ id: 1 });
+
+      // Assert
+      expect(mailHistoryService.findRecentByUser).toBeCalledWith(user);
+      expect(mailHistoryService.findOne).toBeCalledTimes(0);
+      expect(mailHistoryService.update).toBeCalledWith(
+        mailHistory.id,
+        {
+          inviteStatus: mailHistory.inviteStatus,
+          sentAt: dateNow,
+        },
+        expect.any(String),
+      );
     });
   });
 
@@ -218,6 +313,58 @@ describe('AuthService', () => {
 
       // Assert
       expect(mailHistoryService.update).toBeCalledTimes(0);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('returns the agent sign-in route after a successful agent password reset', async () => {
+      const user = new User({
+        id: 1,
+        password: 'old-password',
+      });
+      user.role = new Role(RoleEnum.agentes);
+      const forgot = {
+        id: 10,
+        hash: 'hash_1',
+        user,
+      };
+
+      jest.spyOn(forgotService, 'findOne').mockResolvedValue(forgot as any);
+      jest.spyOn(user, 'save').mockResolvedValue(user);
+
+      const response = await authService.resetPassword('hash_1', 'new-password');
+
+      expect(response).toEqual({
+        redirectTo: '/agentes/sign-in',
+      });
+      expect(user.password).toBe('new-password');
+      expect(user.save).toHaveBeenCalled();
+      expect(forgotService.softDelete).toHaveBeenCalledWith(forgot.id);
+    });
+
+    it('returns the default sign-in route after a successful non-agent password reset', async () => {
+      const user = new User({
+        id: 2,
+        password: 'old-password',
+      });
+      user.role = new Role(RoleEnum.user);
+      const forgot = {
+        id: 20,
+        hash: 'hash_2',
+        user,
+      };
+
+      jest.spyOn(forgotService, 'findOne').mockResolvedValue(forgot as any);
+      jest.spyOn(user, 'save').mockResolvedValue(user);
+
+      const response = await authService.resetPassword('hash_2', 'new-password');
+
+      expect(response).toEqual({
+        redirectTo: '/sign-in',
+      });
+      expect(user.password).toBe('new-password');
+      expect(user.save).toHaveBeenCalled();
+      expect(forgotService.softDelete).toHaveBeenCalledWith(forgot.id);
     });
   });
 });

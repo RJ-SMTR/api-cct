@@ -57,7 +57,9 @@ export class RemessaService {
     if (pagamentoUnico) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
         dataPgto ? dataPgto : new Date());
-    } if (isPendente) {
+    }
+
+    if (isPendente) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idOperadoras);
     } else {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
@@ -70,21 +72,33 @@ export class RemessaService {
         let nsrTed = 1;
         let nsrCC = 1;
         for (let i = 0; i < ordens.length; i++) {
-        let parentOp = (ordens[i].ordemPagamentoAgrupadoId === null);
+          let parentOp = (ordens[i].ordemPagamentoAgrupadoId === null);
           let op;
           let opaChild;
           if (pagamentoUnico) {
             op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoUnico(ordens[i].id);
           } else {
-            if(!parentOp){
-              op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
+            if (!parentOp) {
+              if (consorcio && consorcio.length > 0) {
+                op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
+              } else {
+                op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGuardador(ordens[i].id);
+              }
             } else {
               opaChild = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoChild(ordens[i].id);
-              if(opaChild){
-                op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(opaChild.id);
+              if (opaChild) {
+                if (consorcio && consorcio.length > 0) {
+                  op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(opaChild.id);
+                } else {
+                  op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGuardador(opaChild.id);
+                }
               } else {
                 parentOp = false
-                op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
+                if (consorcio && consorcio.length > 0) {
+                  op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
+                } else {
+                  op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGuardador(ordens[i].id);
+                }
               }
             }
           }
@@ -94,9 +108,11 @@ export class RemessaService {
             if (pagamentoUnico) {
               user = await this.userService.getOne({ permitCode: op.idOperadora });
             } else {
-            
+              if (consorcio && consorcio.length > 0) {
                 user = await this.userService.getOne({ id: op.userId });
-            
+              } else {
+                user = op.user;
+              }
             }
             if (user.bankCode) {
               const indevido = await this.pagamentoIndevidoService.findByNome(user.fullName);
@@ -106,13 +122,13 @@ export class RemessaService {
               let opa;
               if (pagamentoUnico) {
                 opa = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupado(Number(op.idOrdemPagamento));
-              } else  {
-                  if(parentOp){
-                    const opaParent = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoRepo(ordens[i].id);
-                    opa = opaParent
-                  } else {
-                    opa = op.ordemPagamentoAgrupado
-                  }
+              } else {
+                if (parentOp) {
+                  const opaParent = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoRepo(ordens[i].id);
+                  opa = opaParent
+                } else {
+                  opa = op.ordemPagamentoAgrupado
+                }
               }
 
               if (headerLote) {
@@ -141,16 +157,16 @@ export class RemessaService {
   }
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO
-  public async gerarCnabText(headerName: HeaderName, pagamentoUnico?: boolean, isPendente?: boolean): Promise<ICnabInfo[]> {
+  async gerarCnabText(headerName: HeaderName, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[]): Promise<ICnabInfo[]> {
     const headerArquivo = await this.headerArquivoService.getExists(HeaderArquivoStatus._2_remessaGerado, headerName);
     if (headerArquivo[0] !== null && headerArquivo[0] !== undefined) {
       const headerArquivoCnab = CnabHeaderArquivo104DTO.fromDTO(headerArquivo[0]);
-      return await this.gerarListaCnab(headerArquivoCnab, headerArquivo[0], pagamentoUnico, isPendente)
+      return await this.gerarListaCnab(headerArquivoCnab, headerArquivo[0], pagamentoUnico, isPendente, consorcios)
     }
     return [];
   }
 
-  private async gerarListaCnab(headerArquivoCnab, headerArquivo: HeaderArquivo, pagamentoUnico?: boolean, isPendente?: boolean) {
+  private async gerarListaCnab(headerArquivoCnab, headerArquivo: HeaderArquivo, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[]): Promise<ICnabInfo[]> {
     const listCnab: ICnabInfo[] = [];
 
     const trailerArquivo104 = structuredClone(Cnab104PgtoTemplates.file104.registros.trailerArquivo);
@@ -166,10 +182,10 @@ export class RemessaService {
       for (let index = 0; index < detalhesA.length; index++) {
         let historico;
         this.logger.debug(`NSR: ${detalhesA[index].nsr}`)
-        if(isPendente){
-           historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, isPendente);
+        if (isPendente) {
+          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, isPendente);
         } else {
-          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico);
+          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, false, consorcios);
         }
 
         this.logger.debug(`BANK: ${historico.userBankCode} - ${historico.username}`)
@@ -297,8 +313,10 @@ export class RemessaService {
   private getHeaderName(consorcio: string[] | undefined): HeaderName {
     if (['STPC', 'STPL', 'TEC'].some(i => consorcio?.includes(i))) {
       return HeaderName.MODAL;
-    } else {
+    } else if (consorcio && consorcio.length > 0) {
       return HeaderName.CONSORCIO;
+    } else {
+      return HeaderName.GUARDADOR;
     }
   }
 

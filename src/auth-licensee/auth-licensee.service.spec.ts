@@ -119,6 +119,39 @@ describe('AuthLicenseeService', () => {
       // Assert
       await expect(response).rejects.toThrowError();
     });
+
+    it('returns role metadata and redirect for the invited user', async () => {
+      const user = new User({
+        id: 2,
+        email: 'agent@example.com',
+        fullName: 'Agent Name',
+        permitCode: 'permit-1',
+        cpfCnpj: '12345678901',
+      });
+      user.role = new Role(RoleEnum.agentes);
+      const mailHistory = {
+        id: 2,
+        user,
+        hash: 'hash_2',
+        inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+      } as MailHistory;
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
+
+      const response = await authLicenseeService.getInviteProfile('hash_2');
+
+      expect(response).toEqual({
+        fullName: 'Agent Name',
+        permitCode: 'permit-1',
+        email: 'agent@example.com',
+        cpfCnpj: '12345678901',
+        hash: 'hash_2',
+        inviteStatus: mailHistory.inviteStatus,
+        roleId: RoleEnum.agentes,
+        redirectTo: '/agentes/sign-in',
+      });
+    });
   });
 
   describe('concludeRegistration', () => {
@@ -165,6 +198,41 @@ describe('AuthLicenseeService', () => {
         },
         expect.any(String),
       );
+    });
+
+    it('returns role metadata and redirect after successful registration', async () => {
+      const dateNow = new Date('2023-01-01T10:00:00');
+      const user = new User({
+        id: 3,
+        email: 'admin@example.com',
+        hash: 'hash_3',
+        permitCode: 'permitCode3',
+        role: new Role(RoleEnum.admin),
+      });
+      const mailHistory = {
+        id: 3,
+        user,
+        hash: 'hash_3',
+        inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+        sentAt: dateNow,
+      } as MailHistory;
+
+      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(usersService, 'update').mockResolvedValue(user);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      const response = await authLicenseeService.concludeRegistration(
+        { password: 'secret' },
+        'hash_3',
+      );
+
+      expect(response).toEqual({
+        token: 'token',
+        user,
+        roleId: RoleEnum.admin,
+        redirectTo: '/sign-in',
+      });
     });
   });
 });

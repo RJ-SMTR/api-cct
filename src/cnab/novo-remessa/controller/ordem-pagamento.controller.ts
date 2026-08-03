@@ -61,26 +61,34 @@ export class OrdemPagamentoController {
   }
 
 
-  @Get('semanal/:ordemPagamentoAgrupadoId')
+  @Get('semanal') 
   @UseGuards(AuthGuard('jwt'))
   @SerializeOptions({ groups: ['me'] })
   @ApiBearerAuth()
-  @ApiParam(CommonApiParams.ordemPagamentoAgrupadoId)
+  // Alterado para ApiQuery, pois o dado virá na URL
+  @ApiQuery({ name: 'ordemPagamentoAgrupadoIds', type: String, required: true })
   @ApiQuery(CommonApiParams.userId)
   @HttpCode(HttpStatus.OK)
   async getSemanal(
-    @Request() request: IRequest, //
-    @Param('ordemPagamentoAgrupadoId', new ParseNumberPipe({ min: 1, optional: false })) ordemPagamentoAgrupadoId: number,
+    @Request() request: IRequest,
+    // Agora recebemos via @Query
+    @Query('ordemPagamentoAgrupadoIds') ordemPagamentoAgrupadoIds: string, 
     @Query(...DateQueryParams.yearMonth) yearMonth: string,
     @Query(...DateQueryParams.endDate) endDate: Date,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
   ): Promise<OrdemPagamentoSemanalDto[]> {
     this.logger.log(getRequestLog(request));
+
     const isUserIdNumber = userId !== null && !isNaN(Number(userId));
     const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
-   
+
     canProceed(request, Number(userId));
-    return this.ordemPagamentoService.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userIdNum,  endDate);
+
+    return this.ordemPagamentoService.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(
+      ordemPagamentoAgrupadoIds,
+      userIdNum,
+      endDate,
+    );
   }
 
 
@@ -123,16 +131,16 @@ export class OrdemPagamentoController {
   }
 
 
-  @Get('transacoes-semana/:ordemPagamentoAgrupadoId')
+  @Get('transacoes-semana/:ordemPagamentoAgrupadoIds')
   @UseGuards(AuthGuard('jwt'))
   @SerializeOptions({ groups: ['me'] })
   @ApiBearerAuth()
-  @ApiParam(CommonApiParams.ordemPagamentoAgrupadoId)
+  @ApiParam(CommonApiParams.ordemPagamentoAgrupadoIds)
   @ApiQuery(CommonApiParams.userId)
   @HttpCode(HttpStatus.OK)
   async getTransacoesSemana(
     @Request() request: IRequest, //
-    @Param('ordemPagamentoAgrupadoId', new ParseNumberPipe({ min: 1, optional: false })) ordemPagamentoAgrupadoId: number,
+    @Param('ordemPagamentoAgrupadoIds', new ParseNumberPipe({ min: 1, optional: false })) ordemPagamentoAgrupadoIds: string,
     @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
   ): Promise<BigqueryTransacao[]> {
     this.logger.log(getRequestLog(request));
@@ -140,7 +148,7 @@ export class OrdemPagamentoController {
     const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
     canProceed(request, Number(userId));
 
-    const ordensPagamento = await this.ordemPagamentoService.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoId, userIdNum);
+    const ordensPagamento = await this.ordemPagamentoService.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds, userIdNum);
     const ordemPagamentoIds = ordensPagamento.map((ordem) => ordem.ordemId);
 
     const user = await this.usersService.findOne({ id: userIdNum})

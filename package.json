@@ -32,6 +32,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.350.0",
     "@google-cloud/bigquery": "^7.3.0",
+    "@google-cloud/storage": "^7.18.0",
     "@nestjs-modules/mailer": "1.8.1",
     "@nestjs/axios": "^3.0.0",
     "@nestjs/common": "9.4.2",

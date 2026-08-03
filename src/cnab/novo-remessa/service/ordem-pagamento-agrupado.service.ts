@@ -9,6 +9,7 @@ import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-p
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
+import { OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {
@@ -17,6 +18,7 @@ export class OrdemPagamentoAgrupadoService {
 
   constructor(
     private ordemPagamentoRepository: OrdemPagamentoRepository,
+     private ordemPagamentoGuardadorRepository: OrdemPagamentoGuardadorRepository,
     private ordemPagamentoAgrupadoRepository: OrdemPagamentoAgrupadoRepository,
     private ordemPagamentoAgrupadoHistRepository: OrdemPagamentoAgrupadoHistoricoRepository,
     private pagadorService: PagadorService,
@@ -26,9 +28,13 @@ export class OrdemPagamentoAgrupadoService {
     pagador:PagadorDTO, consorcios: string[]) {
     this.logger.debug(`Preparando agrupamentos`)    
     if (pagador) {
-      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
-      await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
-      this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+      this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
+      if(consorcios.length>0){
+        await this.agruparOrdens(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
+      }else{
+        await this.agruparOrdensGuardador(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
+      }
+      this.logger.log(`Ordens agrupadas para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
     }
   }
 
@@ -40,19 +46,19 @@ export class OrdemPagamentoAgrupadoService {
 
     if (pagador) {
       if (dataOrdemInicial.getFullYear() === 2024 && dataOrdemFinal.getFullYear() === 2025) {
-        this.logger.log(`Detectado período entre anos (2024-2025). Executando agrupamento em duas etapas.`);
+        // this.logger.log(`Detectado período entre anos (2024-2025). Executando agrupamento em duas etapas.`);
 
-        // First grouping: from initial date to end of 2024
-        const endOf2024 = new Date(2024, 11, 31); // December 31, 2024
-        this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${endOf2024}, idOperadoras ${idOperadoras} (Período 2024)`);
-        await this.agruparOrdensPendentes(dataOrdemInicial, endOf2024, dataPgto, pagador, idOperadoras);
-        this.logger.log(`Ordens agrupadas para o pagador ${pagador} - Período 2024 concluído`);
+        // // First grouping: from initial date to end of 2024
+        // const endOf2024 = new Date(2024, 11, 31); // December 31, 2024
+        // this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${endOf2024}, idOperadoras ${idOperadoras} (Período 2024)`);
+        // await this.agruparOrdensPendentes(dataOrdemInicial, endOf2024, dataPgto, pagador, idOperadoras);
+        // this.logger.log(`Ordens agrupadas para o pagador ${pagador} - Período 2024 concluído`);
 
-        // Second grouping: from start of 2025 to final date
-        const startOf2025 = new Date(2025, 0, 1); // January 1, 2025
-        this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${startOf2025}, data de ordem final ${dataOrdemFinal}, idOperadoras ${idOperadoras} (Período 2025)`);
-        await this.agruparOrdensPendentes(startOf2025, dataOrdemFinal, dataPgto, pagador, idOperadoras);
-        this.logger.log(`Ordens agrupadas para o pagador ${pagador} - Período 2025 concluído`);
+        // // Second grouping: from start of 2025 to final date
+        // const startOf2025 = new Date(2025, 0, 1); // January 1, 2025
+        // this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${startOf2025}, data de ordem final ${dataOrdemFinal}, idOperadoras ${idOperadoras} (Período 2025)`);
+        // await this.agruparOrdensPendentes(startOf2025, dataOrdemFinal, dataPgto, pagador, idOperadoras);
+        // this.logger.log(`Ordens agrupadas para o pagador ${pagador} - Período 2025 concluído`);
       } else {
         // Normal single grouping for same year or other cases
         this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, idOperadoras ${idOperadoras}`);
@@ -75,6 +81,10 @@ export class OrdemPagamentoAgrupadoService {
 
   private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO, consorcios: string[]) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
+  }
+
+  private async agruparOrdensGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
+    await this.ordemPagamentoGuardadorRepository.agruparOrdensDePagamentoGuardador(dataInicial, dataFinal, dataPgto, pagador);
   }
 
   private async agruparOrdemUnica(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
@@ -104,8 +114,8 @@ export class OrdemPagamentoAgrupadoService {
 
 
   private async agruparOrdensPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, nomes?: string[]) {
-    await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
-    // await this.ordemPagamentoRepository.agruparOrdensDeEstornadosRejeitados(dataInicial, dataFinal, dataPgto, pagador, nomes);
+   // await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
+     await this.ordemPagamentoRepository.agruparOrdensDeEstornadosRejeitados(dataInicial, dataFinal, dataPgto, pagador, nomes);
   }
   public async getPagador(pagadorKey: any) {
     return (await this.pagadorService.getAllPagador())[pagadorKey];
@@ -113,6 +123,10 @@ export class OrdemPagamentoAgrupadoService {
 
   public async getOrdemPagamento(idOrdemPagamentoAg: number) {
     return await this.ordemPagamentoRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
+  }
+
+  public async getOrdemPagamentoGuardador(idOrdemPagamentoAg: number) {
+    return await this.ordemPagamentoGuardadorRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
   }
 
   public async getOrdemPagamentoAgrupado(idOrdemPagamentoAg: number) {
@@ -129,8 +143,8 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoRepository.findOrdemUnica(idOrdemPagamentoAg);
   }
 
-  public async getHistoricosOrdemDetalheA(id: number, pagamentoUnico?: boolean, isPendente?: boolean) {
-    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id, pagamentoUnico, isPendente)
+  public async getHistoricosOrdemDetalheA(id: number, pagamentoUnico?: boolean, isPendente?: boolean,consorcios?: string[]) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id, pagamentoUnico, isPendente,consorcios);
   }
 
   public async getHistorico(id: number) {

@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-
 import { CustomLogger } from 'src/utils/custom-logger';
 import { RelatorioConsolidadoDto } from '../dtos/relatorio-consolidado.dto';
 import { IFindPublicacaoRelatorio } from '../interfaces/find-publicacao-relatorio.interface';
@@ -33,7 +32,7 @@ export class RelatorioConsolidadoRepository {
 
    if(['Todos'].some(i=>nomeConsorcio?.includes(i))) {
       query = query +` AND tv."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
-           'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
+           'Internorte','Intersul','Transcarioca','MobiRio','TEC','MOBI-Rio BUM') `;
    }else if((nomeConsorcio!==undefined) && !(['Todos'].some(i=>nomeConsorcio?.includes(i))))
       query = query +` and tv."nomeConsorcio" in('${nomeConsorcio?.join("','")}')`;                      
   

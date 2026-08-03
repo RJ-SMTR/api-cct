@@ -8,5 +8,8 @@ export interface IALInviteProfile {
   permitCode: string;
   email: string;
   fullName: string;
+  cpfCnpj: string | null | undefined;
   inviteStatus: InviteStatus;
+  roleId: number | null;
+  redirectTo: string;
 }

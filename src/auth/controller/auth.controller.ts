@@ -5,6 +5,7 @@ import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
+<<<<<<< HEAD:src/auth/controller/auth.controller.ts
 import { User } from '../../users/entities/user.entity';
 import { LoginResponseType } from '../../utils/types/auth/login-response.type';
 import { Nullable } from '../../utils/types/nullable.type';
@@ -16,6 +17,20 @@ import { AuthRegisterLoginDto } from '../domain/dto/auth-register-login.dto';
 import { AuthResendEmailDto } from '../domain/dto/auth-resend-mail.dto';
 import { AuthResetPasswordDto } from '../domain/dto/auth-reset-password.dto';
 import { AuthUpdateDto } from '../domain/dto/auth-update.dto';
+=======
+import { User } from '../users/entities/user.entity';
+import { LoginResponseType } from '../utils/types/auth/login-response.type';
+import { Nullable } from '../utils/types/nullable.type';
+import { AuthService } from './auth.service';
+import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
+import { AuthCpfLoginDto } from './dto/auth-cpf-login.dto';
+import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
+import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
+import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
+import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
+import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
+import { AuthUpdateDto } from './dto/auth-update.dto';
+>>>>>>> 8bf6063024c948248c1c9039fbf74ee1319f22b2:src/auth/auth.controller.ts
 import { CustomLogger } from 'src/utils/custom-logger';
 
 @ApiTags('Auth')
@@ -29,7 +44,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService, //
     private readonly mailHistoryService: MailHistoryService,
-  ) {}
+  ) { }
 
   @SerializeOptions({
     groups: ['me'],
@@ -89,8 +104,8 @@ export class AuthController {
   }
 
   @Post('reset/password')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  resetPassword(@Body() resetPasswordDto: AuthResetPasswordDto): Promise<void> {
+  @HttpCode(HttpStatus.OK)
+  resetPassword(@Body() resetPasswordDto: AuthResetPasswordDto): Promise<{ redirectTo: string }> {
     return this.authService.resetPassword(resetPasswordDto.hash, resetPasswordDto.password);
   }
 
@@ -103,6 +118,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   public me(@Request() request): Promise<Nullable<User>> {
     return this.authService.me(request.user);
+  }
+
+  @SerializeOptions({
+    groups: ['me'],
+  })
+  @Post('login/cpf')
+  @HttpCode(HttpStatus.OK)
+  public cpfLogin(@Body() loginDto: AuthCpfLoginDto): Promise<LoginResponseType> {
+    return this.authService.validateCpfLogin(loginDto);
   }
 
   @ApiBearerAuth()

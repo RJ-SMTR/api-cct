@@ -8,4 +8,6 @@ export interface IFindPublicacaoRelatorio {
   pago?: boolean;
   aPagar?: boolean;
   emProcessamento?:boolean;
+  rejeitado?: boolean;
+  estorno?: boolean;
 }

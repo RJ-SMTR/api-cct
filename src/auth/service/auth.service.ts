@@ -18,6 +18,7 @@ import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { logLog, logWarn } from 'src/utils/log-utils';
+<<<<<<< HEAD:src/auth/service/auth.service.ts
 import { User } from '../../users/entities/user.entity';
 import { LoginResponseType } from '../../utils/types/auth/login-response.type';
 import { Nullable } from '../../utils/types/nullable.type';
@@ -26,6 +27,17 @@ import { AuthEmailLoginDto } from '../domain/dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from '../domain/dto/auth-register-login.dto';
 import { AuthResendEmailDto } from '../domain/dto/auth-resend-mail.dto';
 import { AuthUpdateDto } from '../domain/dto/auth-update.dto';
+=======
+import { User } from '../users/entities/user.entity';
+import { LoginResponseType } from '../utils/types/auth/login-response.type';
+import { Nullable } from '../utils/types/nullable.type';
+import { AuthProvidersEnum } from './auth-providers.enum';
+import { AuthCpfLoginDto } from './dto/auth-cpf-login.dto';
+import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
+import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
+import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
+import { AuthUpdateDto } from './dto/auth-update.dto';
+>>>>>>> 8bf6063024c948248c1c9039fbf74ee1319f22b2:src/auth/auth.service.ts
 import { CustomLogger } from 'src/utils/custom-logger';
 
 @Injectable()
@@ -39,6 +51,12 @@ export class AuthService {
     private mailService: MailService,
     private mailHistoryService: MailHistoryService,
   ) { }
+
+  private getResetPasswordRedirectTo(user: User): string {
+    return user.role?.id === RoleEnum.agentes
+      ? '/agentes/sign-in'
+      : '/sign-in';
+  }
 
   async validateLogin(
     loginDto: AuthEmailLoginDto,
@@ -82,6 +100,64 @@ export class AuthService {
         HttpStatus.UNAUTHORIZED,
       );
     }
+
+    const isValidPassword = await bcrypt.compare(
+      loginDto.password,
+      user.password,
+    );
+
+    if (!isValidPassword) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            password: 'incorrectPassword',
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const token = this.jwtService.sign({
+      id: user.id,
+      role: user.role,
+    });
+
+    return { token, user };
+  }
+
+  async validateCpfLogin(loginDto: AuthCpfLoginDto): Promise<LoginResponseType> {
+    const normalizedCpf = String(loginDto.cpf ?? '').replace(/\D/g, '');
+    const users = await this.usersService.findManyByNormalizedCpf(normalizedCpf);
+    const user = users.length === 1 ? users[0] : null;
+    const expectedRoles = [RoleEnum.agentes];
+
+    if (!user || (user?.role && !expectedRoles.includes(user.role.id))) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            cpf: users.length > 1 ? 'duplicated' : 'notFound',
+            expectedRoles,
+            role: user?.role,
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    if (user.provider !== AuthProvidersEnum.email) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            cpf: `needLoginViaProvider:${user.provider}`,
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
 
     const isValidPassword = await bcrypt.compare(
       loginDto.password,
@@ -208,6 +284,7 @@ export class AuthService {
         data: {
           hash,
           userName: dto.fullName,
+          roleId: RoleEnum.user,
         },
       });
 
@@ -241,9 +318,7 @@ export class AuthService {
    * @throws `HttpException`
    */
   private async getMailHistory(user: User): Promise<MailHistory> {
-    const invite = await this.mailHistoryService.findOne({
-      user: { id: user.id },
-    });
+    const invite = await this.mailHistoryService.findRecentByUser(user);
     if (!invite) {
       throw new HttpException(
         {
@@ -266,12 +341,13 @@ export class AuthService {
     userMailHistory: MailHistory,
     logContext: string,
   ) {
-    const mailData: MailData<{ hash: string; to: string; userName: string }> = {
+    const mailData: MailData<{ hash: string; to: string; userName: string; roleId?: number }> = {
       to: user.email as string,
       data: {
         hash: userMailHistory.hash as string,
         to: user.email as string,
         userName: user.fullName as string,
+        roleId: user.role?.id,
       },
     };
     const mailResponse = await this.mailService.sendConcludeRegistration(
@@ -417,7 +493,7 @@ export class AuthService {
     }
   }
 
-  async resetPassword(hash: string, password: string): Promise<void> {
+  async resetPassword(hash: string, password: string): Promise<{ redirectTo: string }> {
     const forgot = await this.forgotService.findOne({
       where: {
         hash,
@@ -442,6 +518,10 @@ export class AuthService {
 
     await user.save();
     await this.forgotService.softDelete(forgot.id);
+
+    return {
+      redirectTo: this.getResetPasswordRedirectTo(user),
+    };
   }
 
   async me(user: User): Promise<Nullable<User>> {

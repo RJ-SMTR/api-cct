@@ -23,6 +23,7 @@ import { AllConfigType } from './config/config.type';
 import databaseConfig from './config/database.config';
 import facebookConfig from './config/facebook.config';
 import fileConfig from './config/file.config';
+import gcsConfig from './config/gcs.config';
 import googleConfig from './config/google.config';
 import mailConfig from './config/mail.config';
 import sftpConfig from './config/sftp.config';
@@ -48,7 +49,11 @@ import { TransacaoViewModule } from './transacao-view/transacao-view.module';
 import { AppLoggerMiddleware } from './utils/logger-middleware';
 import { RelatorioModule } from './relatorio/relatorio.module';
 import { AppService } from './app.service';
+<<<<<<< HEAD
 import { AgendamentoPagamentoModule } from './agendamento/agendamento.module';
+=======
+import { AgentesModule } from './agentes/agentes.module';
+>>>>>>> 8bf6063024c948248c1c9039fbf74ee1319f22b2
 
 @Module({
   imports: [
@@ -65,6 +70,7 @@ import { AgendamentoPagamentoModule } from './agendamento/agendamento.module';
         twitterConfig,
         appleConfig,
         sftpConfig,
+        gcsConfig,
       ],
       envFilePath: ['.env'],
     }),
@@ -125,7 +131,11 @@ import { AgendamentoPagamentoModule } from './agendamento/agendamento.module';
     SftpModule,
     TransacaoViewModule,
     RelatorioModule,
+<<<<<<< HEAD
     AgendamentoPagamentoModule
+=======
+    AgentesModule,
+>>>>>>> 8bf6063024c948248c1c9039fbf74ee1319f22b2
   ],
   providers: [TransacaoViewService, AppService],
 })

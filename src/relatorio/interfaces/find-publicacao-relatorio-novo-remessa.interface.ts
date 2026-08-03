@@ -15,4 +15,8 @@ export interface IFindPublicacaoRelatorioNovoRemessa {
   desativados?: boolean;
   pendentes?: boolean;
   pendenciaPaga?: boolean;
+  rejeitado?: boolean;
+  estorno?: boolean;
+
+
 }

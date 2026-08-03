@@ -31,6 +31,12 @@ export class AuthLicenseeService {
     private mailHistoryService: MailHistoryService,
   ) { }
 
+  private getLoginRedirectTo(roleId?: number | null): string {
+    return roleId === RoleEnum.agentes
+      ? '/agentes/sign-in'
+      : '/sign-in';
+  }
+
   async validateLogin(
     loginDto: AuthLicenseeLoginDto,
     role: RoleEnum,
@@ -186,8 +192,11 @@ export class AuthLicenseeService {
       fullName: user.fullName as string,
       permitCode: user.permitCode,
       email: user.email,
+      cpfCnpj: user.cpfCnpj,
       hash: invite.hash,
       inviteStatus: invite.inviteStatus,
+      roleId: user.role?.id ?? null,
+      redirectTo: this.getLoginRedirectTo(user.role?.id),
     };
 
     return inviteResponse;
@@ -282,6 +291,8 @@ export class AuthLicenseeService {
     return {
       token,
       user: updatedUser,
+      roleId: updatedUser.role?.id ?? null,
+      redirectTo: this.getLoginRedirectTo(updatedUser.role?.id),
     };
   }
 }

@@ -13,6 +13,7 @@ export enum OcorrenciaUserEnum {
   'ZA' = 'Agência/conta do favorecido substituída',
   'ZY' = 'Pagamento Rejeitado - Beneficiário Divergente',
   '02' = 'Crédito ou Débito Cancelado pelo Pagador/Credor',
+  'HO' = 'Crédito ou Débito Cancelado pelo Pagador',  
 }
 
 export type ocorrenciaUserTyppe =
@@ -25,4 +26,5 @@ export type ocorrenciaUserTyppe =
   | 'BG'
   | 'DA'
   | 'DB'
+  | 'HO'
   | '  ';

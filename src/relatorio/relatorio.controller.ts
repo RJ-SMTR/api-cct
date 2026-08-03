@@ -44,11 +44,13 @@ export class RelatorioController {
     valorMax: number | undefined,
     @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
     @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
-    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined
+    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
+    @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined
   ) {
     try {
       const result = await this.relatorioService.findConsolidado({
-        dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento
+        dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, rejeitado, estorno
       });
       return result;
     } catch (e) {

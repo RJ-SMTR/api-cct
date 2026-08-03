@@ -93,6 +93,10 @@ export type SftpConfig = {
   rootFolder: string;
 };
 
+export type GcsConfig = {
+  bucketName?: string;
+};
+
 export type AllConfigType = {
   app: AppConfig;
   apple: AppleConfig;
@@ -104,4 +108,5 @@ export type AllConfigType = {
   mail: MailConfig;
   twitter: TwitterConfig;
   sftp: SftpConfig;
+  gcs: GcsConfig;
 };

@@ -37,7 +37,7 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     });
   }
 
-  public async getHistoricoDetalheA(detalheAId: number, pagamentoUnico?: boolean, isPendente?: boolean): Promise<OrdemPagamentoAgrupadoHistoricoDTO> {
+  public async getHistoricoDetalheA(detalheAId: number, pagamentoUnico?: boolean, isPendente?: boolean,consorcios?: string[]): Promise<OrdemPagamentoAgrupadoHistoricoDTO> {
 
     let query = '';
     if (pagamentoUnico) {
@@ -68,13 +68,23 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     LEFT JOIN public.user u ON u."id" = op."userId"` +
     `where da."id" = ${detalheAId}`)
     } else {
-      query = (`select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
-                      oph.* from ordem_pagamento_agrupado_historico oph 
-                      inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id 
-                      left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
-                      left join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
-                      left join public.user u on u."id" = op."userId"` +
-        ` where da."id" = ${detalheAId}`)
+      if(consorcios && consorcios.length > 0){
+          query = (`select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
+                          oph.* from ordem_pagamento_agrupado_historico oph 
+                          inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id 
+                          left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
+                          left join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
+                          left join public.user u on u."id" = op."userId"` +
+            ` where da."id" = ${detalheAId}`)
+        }else{
+          query = (`select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
+                        oph.* from ordem_pagamento_agrupado_historico oph 
+                        inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id 
+                        left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
+                        left join ordem_pagamento_guardador op on op."ordemPagamentoAgrupadoId" = opa.id
+                        left join public.user u on u."id" = op."userId"` +
+          ` where da."id" = ${detalheAId}`)
+        }
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -98,20 +108,20 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     left JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
     left JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
     WHERE da.id = ${detalheAId}
-),
-filhos AS (
-    SELECT id
-    FROM ordem_pagamento_agrupado
-    WHERE "ordemPagamentoAgrupadoId" IN (SELECT id FROM raiz)
-)
-SELECT DISTINCT oph.*
-FROM ordem_pagamento_agrupado_historico oph
-left JOIN detalhe_a da 
-    ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-WHERE da.id = ${detalheAId}
-   OR oph."ordemPagamentoAgrupadoId" IN (SELECT id FROM filhos)
-   and oph."statusRemessa" NOT IN (4,3)
-`)
+    ),
+    filhos AS (
+        SELECT id
+        FROM ordem_pagamento_agrupado
+        WHERE "ordemPagamentoAgrupadoId" IN (SELECT id FROM raiz)
+    )
+    SELECT DISTINCT oph.*
+    FROM ordem_pagamento_agrupado_historico oph
+    left JOIN detalhe_a da 
+        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    WHERE da.id = ${detalheAId}
+      OR oph."ordemPagamentoAgrupadoId" IN (SELECT id FROM filhos)
+      and oph."statusRemessa" NOT IN (4,3)
+    `)
 
     const queryRunner = this.dataSource.createQueryRunner();
 

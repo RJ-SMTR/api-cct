@@ -21,7 +21,7 @@ export class SettingSeedService {
   }
 
   async run() {
-    let id = 1;
+    let nextId = await this.getNextId();
     console.log('SEED', process.env.NODE_ENV);
     console.log(
       'VALUE',
@@ -47,7 +47,7 @@ export class SettingSeedService {
         if (!itemFound) {
           await this.repository.save(
             this.repository.create({
-              id: id,
+              id: nextId,
               name: setting.name,
               value: setting.value,
               version: setting.version,
@@ -58,9 +58,18 @@ export class SettingSeedService {
               },
             }),
           );
+          nextId++;
         }
-        id++;
       }
     }
+  }
+
+  private async getNextId(): Promise<number> {
+    const lastSetting = await this.repository.find({
+      order: { id: 'DESC' },
+      take: 1,
+    });
+
+    return (lastSetting[0]?.id ?? 0) + 1;
   }
 }

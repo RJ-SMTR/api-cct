@@ -3,6 +3,7 @@ import * as SftpClient from 'ssh2-sftp-client';
 import { ConnectConfig } from '../interfaces/connect-config.interface';
 import { FileInfo } from '../interfaces/file-info.interface';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { PassThrough } from 'stream';
 
 @Injectable()
 export class SftpClientService {
@@ -32,6 +33,13 @@ export class SftpClientService {
       }
     }
   }
+
+
+async getStream(remoteFilePath: string): Promise < NodeJS.ReadableStream > {
+  const stream = new PassThrough();
+  await this.sftpClient.get(remoteFilePath, stream);
+  return stream;
+}
 
   /**
    * Closes the current connection.
@@ -178,7 +186,6 @@ export class SftpClientService {
   async connect(config: ConnectConfig) {
     await this.sftpClient.connect(config);
   }
-
   removeFilename(path: string) {
     if (!path.length) {
       throw new Error('Ao remover o nome de arquivo SFTP, o nome do diretório não pode estar vazio');

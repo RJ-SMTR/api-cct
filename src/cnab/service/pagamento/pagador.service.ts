@@ -19,6 +19,7 @@ export class PagadorService {
     return {
       cett: await this.getOneByConta(PagadorContaEnum.CETT),
       contaBilhetagem: await this.getOneByConta(PagadorContaEnum.ContaBilhetagem),
+      contaRotativo: await this.getOneByConta(PagadorContaEnum.ContaRotativo)
     }
   }
 

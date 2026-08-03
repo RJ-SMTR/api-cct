@@ -1,7 +1,10 @@
+import { SftpService } from 'src/sftp/sftp.service';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
+import { AgentesSyncService } from 'src/agentes/agentes-sync.service';
+import { AntifraudService } from 'src/antifraud/antifraud.service';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
 import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
@@ -29,7 +32,6 @@ import { SettingsService } from 'src/settings/settings.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { validateEmail } from 'validations-br';
 import { OrdemPagamentoAgrupadoService } from '../cnab/novo-remessa/service/ordem-pagamento-agrupado.service';
 import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.interface';
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
@@ -65,6 +67,10 @@ export enum CronJobsEnum {
   sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento',
   sincronizarTransacoesBq = 'sincronizarTransacoesBq',
   automacao = 'automacao'
+  backupSftp = 'backupSftp',
+  sendAdminFraudAlert = 'sendAdminFraudAlert',
+  syncWeeklyAgentUsers = 'syncWeeklyAgentUsers',
+  sincronizarEAgruparOrdensPagamentoGuardador = 'sincronizarEAgruparOrdensPagamentoGuardador'
 }
 interface ICronjobDebug {
   /** Define uma data customizada para 'hoje' */
@@ -88,34 +94,35 @@ interface ICronJobSetting {
  */
 @Injectable()
 export class CronJobsService {
+
   private logger = new CustomLogger(CronJobsService.name, { timestamp: true });
 
   public jobsConfig: ICronJob[] = [];
 
   private static readonly MODAIS = ['STPC', 'STPL', 'TEC'];
-  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz'];
+  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM'];
 
   constructor(
     private configService: ConfigService,
     private settingsService: SettingsService,
     private schedulerRegistry: SchedulerRegistry,
+    private antifraudService: AntifraudService,
     private mailService: MailService,
     private mailHistoryService: MailHistoryService,
     private usersService: UsersService,
     private cnabService: CnabService,
     private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
     private remessaService: RemessaService,
-    private retornoService: RetornoService,
     private ordemPagamentoService: OrdemPagamentoService,
     private bigQueryTransacaoService: BigqueryTransacaoService,
     private distributedLockService: DistributedLockService,
     private agendamentoPagamentoService: AgendamentoPagamentoService,
     private aprovacaoService: AprovacaoPagamentoService,
-    private detalheAService: DetalheAService
+    private detalheAService: DetalheAService,
+    private agentesSyncService: AgentesSyncService,
   ) { }
-
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento();
+    //await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -141,8 +148,7 @@ export class CronJobsService {
         /**
          * Atualizar Retorno - Leitura dos Arquivos Retorno do Banco CEF para CCT - todo dia, a cada 30m
          *
-         * Não executa quando gerar o remessa.
-         */
+         * Não executa quando gerar o remessa. */
         name: CronJobsEnum.updateRetorno,
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
@@ -166,6 +172,16 @@ export class CronJobsService {
         },
       },
 
+      {
+        /**
+         * Sincroniza diariamente novos agentes e associações a partir do BigQuery.
+         */
+        name: CronJobsEnum.syncWeeklyAgentUsers,
+        cronJobParameters: {
+          cronTime: '0 22 * * *', // Every day, 22:30 UTC = 19:00 BRT (GMT-3)
+          onTick: async () => await this.syncWeeklyAgentUsers(),
+        },
+      },
       {
         /**
          * Envio de Relatório Estatística dos Dados - todo dia, 06:00 - 06:01
@@ -366,6 +382,7 @@ export class CronJobsService {
             data: {
               hash: invite.hash,
               userName: user?.fullName as string,
+              roleId: user?.role?.id,
             },
           });
 
@@ -446,66 +463,29 @@ export class CronJobsService {
     }
   }
 
+  async syncWeeklyAgentUsers() {
+    const METHOD = this.syncWeeklyAgentUsers.name;
+    try {
+      this.logger.log('Iniciando sincronização semanal de agentes.', METHOD);
+      const result = await this.agentesSyncService.syncWeeklyAgentUsers();
+      this.logger.log(
+        `Sincronização semanal de agentes finalizada: ${JSON.stringify(result)}`,
+        METHOD,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error('Erro ao executar sincronização semanal de agentes.', error?.stack, METHOD);
+      throw error;
+    }
+  }
+
   async sendStatusReport() {
     const METHOD = this.sendStatusReport.name;
     try {
       if (!(await this.getIsProd(METHOD))) {
         return;
       }
-      this.logger.log('Iniciando tarefa.', METHOD);
-
-      const isEnabledFlag = await this.settingsService.findOneBySettingData(appSettings.any__mail_report_enabled);
-      if (!isEnabledFlag) {
-        this.logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' ` + 'não foi encontrado no banco.', undefined, METHOD);
-        return;
-      } else if (isEnabledFlag.getValueAsBoolean() === false) {
-        this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
-        return;
-      }
-
-      if (!isEnabledFlag) {
-        this.logger.error(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' ` + 'não foi encontrado no banco.', undefined, METHOD);
-        return;
-      } else if (isEnabledFlag.getValueAsBoolean() === false) {
-        this.logger.log(`Tarefa cancelada pois 'setting.${appSettings.any__mail_report_enabled.name}' = 'false'.` + ` Para ativar, altere na tabela 'setting'`, METHOD);
-        return;
-      }
-
-      const mailRecipients = await this.settingsService.findManyBySettingDataGroup(appSettings.any__mail_report_recipient);
-
-      if (!mailRecipients) {
-        this.logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não foi encontrada (retornou: ${mailRecipients}).`, undefined, METHOD);
-        return;
-      } else if (mailRecipients.some((i) => !validateEmail(i.getValueAsString()))) {
-        this.logger.error(`Tarefa cancelada pois a configuração 'mail.statusReportRecipients'` + ` não contém uma lista de emails válidos. Retornou: ${mailRecipients}.`, undefined, METHOD);
-        return;
-      }
-
-      // Send mail
-      const emails = mailRecipients.reduce((l: string[], i) => [...l, i.getValueAsString()], []);
-      try {
-        const mailSentInfo = await this.mailService.sendStatusReport({
-          to: emails,
-          data: {
-            statusCount: await this.mailHistoryService.getStatusCount(),
-          },
-        } as any);
-
-        // Success
-        if (mailSentInfo.success === true) {
-          this.logger.log(`Relatório enviado com sucesso para os emails ${emails}`, METHOD);
-        }
-
-        // SMTP error
-        else {
-          this.logger.error(`Relatório enviado para os emails ${emails} retornou erro. - ` + `mailSentInfo: ${JSON.stringify(mailSentInfo)}`, new Error().stack, METHOD);
-        }
-
-        // API error
-      } catch (httpException) {
-        this.logger.error(`Email falhou ao enviar para ${emails}`, httpException?.stack, METHOD);
-      }
-      this.logger.log('Tarefa finalizada.', METHOD);
+      await this.mailService.runStatusReportJob(this.logger, METHOD);
     } catch (error) {
       this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
     }
@@ -535,6 +515,10 @@ export class CronJobsService {
         {
           setting: appSettings.any__mail_report_cronjob,
           cronJob: CronJobsEnum.sendReport,
+        },
+        {
+          setting: appSettings.any__mail_admin_fraud_cronjob,
+          cronJob: CronJobsEnum.sendAdminFraudAlert,
         },
       ];
       for (const setting of cronjobSettings) {
@@ -625,6 +609,15 @@ export class CronJobsService {
     }
   }
 
+  async sendAdminFraudAlert() {
+    const METHOD = this.sendAdminFraudAlert.name;
+    try {
+      await this.antifraudService.runAdminFraudAlertJob();
+    } catch (error) {
+      this.logger.error('Erro ao executar tarefa.', error?.stack, METHOD);
+    }
+  }
+
   async resendInvite(user: User, outerMethod: string) {
     const METHOD = `${outerMethod} > ${this.resendInvite.name}`;
     try {
@@ -638,9 +631,18 @@ export class CronJobsService {
 
       // Success
       if (mailSentInfo.success) {
-        const mailHistory = await this.mailHistoryService.getOne({
-          user: { email: user.email as string },
+        const inviteHash = user.aux_inviteHash as string | null;
+        if (!inviteHash) {
+          this.logger.warn('Email enviado, mas o hash do convite não foi encontrado para atualização.', METHOD);
+          return;
+        }
+        const mailHistory = await this.mailHistoryService.findOne({
+          hash: inviteHash,
         });
+        if (!mailHistory) {
+          this.logger.warn(`Email enviado, mas o convite não foi encontrado (hash: ${inviteHash}).`, METHOD);
+          return;
+        }
         this.logger.log(`Email enviado com sucesso para ${mailSentInfo.envelope.to}. (último envio: ${mailHistory.sentAt?.toISOString()})`, METHOD);
         await this.mailHistoryService.update(mailHistory.id, {
           sentAt: new Date(Date.now()),
@@ -706,7 +708,7 @@ export class CronJobsService {
       await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
     // Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
+    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
@@ -736,7 +738,12 @@ export class CronJobsService {
   // }
 
   async limparAgrupamentos(dataInicio: Date, dataFim: Date, consorcios: string[]) {
-    const ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
+    let ordensAgrupadas;
+    if (consorcios.length > 0) {
+      ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadas(dataInicio, dataFim, consorcios);
+    } else {
+      ordensAgrupadas = await this.ordemPagamentoService.findOrdensAgrupadasGuardador(dataInicio, dataFim);
+    }
 
     const idsAgrupamentos =
       ordensAgrupadas.map(f => f.ordemPagamentoAgrupadoId)
@@ -746,7 +753,11 @@ export class CronJobsService {
       //exclui historico
       await this.ordemPagamentoAgrupadoService.excluirHistorico(idsAgrupamentos);
       //atualizar ordens
-      await this.ordemPagamentoService.removerAgrupamentos(consorcios, idsAgrupamentos);
+      if (consorcios.length > 0) {
+        await this.ordemPagamentoService.removerAgrupamentos(consorcios, idsAgrupamentos);
+      } else {
+        await this.ordemPagamentoService.removerAgrupamentosGuardador(idsAgrupamentos);
+      }
       //excluir ordens agrupadas
       await this.ordemPagamentoAgrupadoService.excluirOrdensAgrupadas(idsAgrupamentos);
     }
@@ -791,36 +802,63 @@ export class CronJobsService {
     // }
   }
 
-  async sincronizarEAgruparOrdensPagamento() {
-    const METHOD = 'sincronizarEAgruparOrdensPagamento';
-    this.logger.log('Tentando adquirir lock para execução da tarefa de sincronização e agrupamento.');
+  private calcularPeriodoPagamento(today: Date = new Date()) {
+    let dataInicio: Date;
+    let dataFim: Date;
+    let dataPagamento: Date;
+
+    const dayOfWeek = today.getDay();
+    const isFimDeSemanaEstendido = dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1;
+
+    if (isFimDeSemanaEstendido) {
+      // Sexta a Segunda -> paga Terça
+      dataInicio = isFriday(today) ? today : this.getPreviousFriday(today);
+      dataFim = nextMonday(today);
+      dataPagamento = nextTuesday(today);
+    } else {
+      // Terça a Quinta -> paga Sexta
+      dataInicio = isTuesday(today) ? today : this.getPreviousTuesday(today);
+      dataFim = nextThursday(today);
+      dataPagamento = nextFriday(today);
+    }
+
+    return { dataInicio, dataFim, dataPagamento };
+  }
+
+  async executarSincronizacaoEAgrupamento(
+    tipo: 'MODAL' | 'GUARDADOR'
+  ) {
+    const METHOD = tipo === 'MODAL'
+      ? 'sincronizarEAgruparOrdensPagamento'
+      : 'sincronizarEAgruparOrdensPagamentoGuardador';
+
+    this.logger.log(`Tentando adquirir lock para execução da tarefa ${tipo}.`);
     const locked = await this.distributedLockService.acquireLock(METHOD);
-    if (locked) {
-      try {
-        this.logger.log('Lock adquirido para a tarefa de sincronização e agrupamento.');
 
-        // Sincroniza as ordens de pagamento para todos os modais e consorcios
-        const today = new Date();
-        let dataInicio = today
-        let dataFim = today
-        let dataPagamento = today;
+    if (!locked) {
+      this.logger.log(`Não foi possível adquirir o lock para a tarefa ${tipo}.`);
+      return;
+    }
 
-        const dayOfWeek = today.getDay();
+    try {
+      this.logger.log(`Lock adquirido para a tarefa ${tipo}.`);
 
-        // Verifica se é sexta-feira (5), sábado (6), domingo (0) ou segunda-feira (1)
-        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
-          //Se está entre sexta e segunda!  
-          dataInicio = isFriday(today) ? today : this.getPreviousFriday(today);//data inicio sexta
-          dataFim = nextMonday(today);//data fim segunda
-          dataPagamento = nextTuesday(today);//data pagamento terça 
-        } else {
-          //Se está entre terça e quinta!  
-          dataInicio = isTuesday(today) ? today : this.getPreviousTuesday(today); //data inicio terça
-          dataFim = nextThursday(today); //data fim quinta
-          dataPagamento = nextFriday(today);//data pagamento sexta
-        }
+      let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
-        this.logger.log(`Iniciando sincronização das ordens de pagamento do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`, METHOD);
+      if (tipo === 'GUARDADOR') {
+        dataInicio = new Date("2026-07-31");
+
+        dataFim = new Date("2026-07-31");
+
+        dataPagamento = new Date("2026-07-31");
+      }
+
+      this.logger.log(
+        `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
+        METHOD
+      );
+
+      if (tipo === 'MODAL') {
         const consorciosEModais = [...CronJobsService.CONSORCIOS, ...CronJobsService.MODAIS];
         await this.ordemPagamentoService.sincronizarOrdensPagamento(dataInicio, dataFim, consorciosEModais);
         this.logger.log('Sincronização finalizada. Iniciando agrupamento para modais.', METHOD);
@@ -834,9 +872,38 @@ export class CronJobsService {
       } finally {
         await this.distributedLockService.releaseLock(METHOD);
       }
-    } else {
-      this.logger.log('Não foi possível adquirir o lock para a tarefa de sincronização e agrupamento.');
+
+      this.logger.log('Sincronização finalizada. Iniciando agrupamento.', METHOD);
+
+      const config = {
+        MODAL: { pagadorKey: 'contaBilhetagem' as const, modais: CronJobsService.MODAIS },
+        GUARDADOR: { pagadorKey: 'contaRotativo' as const, modais: [] as string[] }
+      }[tipo];
+
+      const pagador = await this.ordemPagamentoAgrupadoService.getPagador(config.pagadorKey);
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(
+        dataInicio,
+        dataFim,
+        dataPagamento,
+        pagador,
+        config.modais
+      );
+
+      this.logger.log('Tarefa finalizada com sucesso.', METHOD);
+    } catch (error) {
+      this.logger.error(`Erro ao executar tarefa ${tipo}, abortando. - ${error}`, error?.stack, METHOD);
+    } finally {
+      await this.distributedLockService.releaseLock(METHOD);
     }
+  }
+
+  // Métodos públicos viram wrappers - mantém compatibilidade com os cronjobs existentes
+  async sincronizarEAgruparOrdensPagamento() {
+    return this.executarSincronizacaoEAgrupamento('MODAL');
+  }
+
+  async sincronizarEAgruparOrdensPagamentoGuardador() {
+    return this.executarSincronizacaoEAgrupamento('GUARDADOR');
   }
 
   async sincronizarTransacoesBq() {

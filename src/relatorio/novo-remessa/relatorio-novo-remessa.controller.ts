@@ -1,15 +1,22 @@
-import { Controller, Get, Header, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpException, HttpStatus, ParseArrayPipe, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { createReadStream } from 'fs';
 import { ApiDescription } from 'src/utils/api-param/description-api-param';
 import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { Int32 } from 'typeorm';
 import { ValidationPipe } from '@nestjs/common';
+import { pipeline } from 'stream/promises';
 import { FinancialMovementQueryDto } from '../dtos/pay-and-pending-query.dto';
-import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
+import { FinancialMovementExportRequestDto } from '../dtos/financial-movement-export-request.dto';
 import { RelatorioNovoRemessaService } from './relatorio-novo-remessa.service';
+import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
+import { Roles } from 'src/roles/roles.decorator';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
+import { Response } from 'express';
 
 @ApiTags('Cnab')
 @Controller({
@@ -62,10 +69,13 @@ export class RelatorioNovoRemessaController {
     @Query('eleicao', new ParseBooleanPipe({ optional: true })) eleicao: boolean | undefined,
     @Query('desativados', new ParseBooleanPipe({ optional: true })) desativados: boolean | undefined,
     @Query('pendentes', new ParseBooleanPipe({ optional: true })) pendentes: boolean | undefined,
+    @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
+    @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
+    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined
   ) {
     try {
       const result = await this.relatorioNovoRemessaService.findConsolidado({
-        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes
+        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes, rejeitado, estorno, pendenciaPaga
       });
       return result;
     } catch (e) {
@@ -123,16 +133,61 @@ export class RelatorioNovoRemessaController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('financial-movement')
-  async getFinancialMovement(
+  @Get('report/summary')
+  async getFinancialMovementSummary(
     @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
   ) {
     try {
-      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovement(queryParams);
+      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementSummary(queryParams);
       return result;
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
-}
 
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('report/page')
+  async getFinancialMovementPage(
+    @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
+  ) {
+    try {
+      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementPage(queryParams);
+      return result;
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Post('report/export/download')
+  async downloadFinancialMovementReport(
+    @Body(new ValidationPipe({ transform: true })) body: FinancialMovementExportRequestDto,
+    @Res() response: Response,
+  ) {
+    let generatedFile: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['downloadFinancialMovementExport']>> | undefined;
+
+    try {
+      generatedFile = await this.relatorioNovoRemessaFinancialMovementService.downloadFinancialMovementExport(body);
+      const file = generatedFile;
+
+      response.setHeader('Cache-Control', 'no-store');
+      response.setHeader('Content-Type', file.contentType);
+      response.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+
+      await pipeline(createReadStream(file.filePath), response);
+    } catch (e) {
+      if (!response.headersSent) {
+        response.status(HttpStatus.BAD_REQUEST).json({ error: e.message });
+      }
+    } finally {
+      if (generatedFile) {
+        await this.relatorioNovoRemessaFinancialMovementService.removeGeneratedExportFile(generatedFile.filePath);
+      }
+    }
+  }
+}
