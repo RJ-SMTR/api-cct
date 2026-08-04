@@ -6,10 +6,12 @@ import { Nullable } from 'src/utils/types/nullable.type';
 import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
 import { OrdemPagamentoGuardador } from '../entity/ordem-pagamento-guardador.entity';
+import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 
 
 @Injectable()
 export class OrdemPagamentoGuardadorRepository {
+  
 
   private logger = new CustomLogger(OrdemPagamentoGuardadorRepository.name, { timestamp: true });
 
@@ -42,13 +44,19 @@ export class OrdemPagamentoGuardadorRepository {
     });
   }
 
-  public async agruparOrdensDePagamentoGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO): Promise<void> {
+  async agruparOrdensDePagamentoGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
     await this.ordemPagamentoGuardadorRepository.query(`CALL P_AGRUPAR_ORDENS_GUARDADOR($1, $2, $3, $4)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id]);
   }
 
+  async agruparOrdensDePagamentoGuardadorPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
+    const dtInicialStr = dataInicial.toISOString().split('T')[0];
+    const dtFinalStr = dataFinal.toISOString().split('T')[0];
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
+    await this.ordemPagamentoGuardadorRepository.query(`CALL P_AGRUPAR_ORDENS_GUARDADOR_PENDENTE($1, $2, $3, $4)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id]);
+  }
 
   async findNumeroOrdensPorIntervaloDataCaptura(startDate: Date, endDate: Date) {
     // Query max dataCaptura

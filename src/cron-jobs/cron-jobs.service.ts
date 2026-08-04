@@ -1,4 +1,3 @@
-import { SftpService } from 'src/sftp/sftp.service';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
@@ -7,7 +6,6 @@ import { AgentesSyncService } from 'src/agentes/agentes-sync.service';
 import { AntifraudService } from 'src/antifraud/antifraud.service';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { RemessaService } from 'src/cnab/novo-remessa/service/remessa.service';
-import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
 import {
   isSaturday,
   isSunday,
@@ -47,7 +45,6 @@ import { AprovacaoPagamentoService } from 'src/agendamento/service/aprovacao-pag
 import { AprovacaoEnum } from 'src/agendamento/enums/aprovacao.enum';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { AprovacaoPagamentoDTO } from 'src/agendamento/domain/dto/aprovacao-pagamento.dto';
-import { TipoBeneficarioEnum } from 'src/agendamento/enums/tipo-beneficiario.enum';
 
 
 /**
@@ -66,7 +63,7 @@ export enum CronJobsEnum {
   generateRemessaLancamento = 'generateRemessaLancamento',
   sincronizarEAgruparOrdensPagamento = 'sincronizarEAgruparOrdensPagamento',
   sincronizarTransacoesBq = 'sincronizarTransacoesBq',
-  automacao = 'automacao'
+  automacao = 'automacao',
   backupSftp = 'backupSftp',
   sendAdminFraudAlert = 'sendAdminFraudAlert',
   syncWeeklyAgentUsers = 'syncWeeklyAgentUsers',
@@ -122,7 +119,7 @@ export class CronJobsService {
     private agentesSyncService: AgentesSyncService,
   ) { }
   async onModuleInit() {
-    //await this.sincronizarEAgruparOrdensPagamentoGuardador()
+    //await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -698,6 +695,29 @@ export class CronJobsService {
     const dataFim = new Date(dtFim);
     await this.geradorRemessaPendenteExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
       HeaderName.MODAL, idOperadoras);
+  }
+
+  async remessaPendenteGuardadorExec(dtInicio: string, dtFim: string, dataPagamento?: string) {
+    const today = new Date();
+    const dataInicio = new Date(dtInicio);
+    const dataFim = new Date(dtFim);
+    await this.geradorRemessaPendenteGuardadorExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
+      HeaderName.GUARDADOR);
+  }
+
+  async geradorRemessaPendenteGuardadorExec(dataInicio: Date, dataFim: Date, dataPagamento: Date, GUARDADOR: HeaderName) {
+     if (dataInicio)
+      // AGRUPAR ORDENS POR INDIVIDUO
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentesGuardador(dataInicio, dataFim, dataPagamento, "contaBilhetagem");
+
+    // Prepara o remessa
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
+
+    // Gera o TXT
+    const txt = await this.remessaService.gerarCnabText(GUARDADOR, undefined, true);
+
+    //Envia para o SFTP
+    await this.remessaService.enviarRemessa(txt, GUARDADOR);
   }
 
   private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,

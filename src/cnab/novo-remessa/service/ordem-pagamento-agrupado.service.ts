@@ -12,7 +12,7 @@ import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
 import { OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
 
 @Injectable()
-export class OrdemPagamentoAgrupadoService {
+export class OrdemPagamentoAgrupadoService {  
 
   private logger = new CustomLogger(OrdemPagamentoAgrupadoService.name, { timestamp: true });
 
@@ -68,6 +68,15 @@ export class OrdemPagamentoAgrupadoService {
     }
   }
 
+  async prepararPagamentoAgrupadosPendentesGuardador(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date, pagadorKey: keyof AllPagadorDict) {
+    this.logger.debug(`Preparando agrupamentos Pendentes`)
+    const pagador = await this.getPagador(pagadorKey);
+
+    this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, idOperadoras ${idOperadoras}`);
+    await this.agruparOrdensPendentesGuardador(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
+    this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+  }
+
   async prepararPagamentoAgrupadosUnico(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
     pagadorKey: keyof AllPagadorDict, consorcios: string[]) {
     this.logger.debug(`Preparando agrupamentos pagamento único`)
@@ -117,6 +126,12 @@ export class OrdemPagamentoAgrupadoService {
    // await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
      await this.ordemPagamentoRepository.agruparOrdensDeEstornadosRejeitados(dataInicial, dataFinal, dataPgto, pagador, nomes);
   }
+
+  private async agruparOrdensPendentesGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
+    await this.ordemPagamentoGuardadorRepository.agruparOrdensDePagamentoGuardadorPendentes(dataInicial, dataFinal, dataPgto, pagador);
+  }
+
+
   public async getPagador(pagadorKey: any) {
     return (await this.pagadorService.getAllPagador())[pagadorKey];
   }
