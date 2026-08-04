@@ -13,11 +13,12 @@ import { RelatorioSinteticoRepository } from './sintetico/relatorio-sintetico.re
 import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio-extrato-bancario.repository';
 import { RelatorioNovoRemessaFinancialMovementService } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
 import { RelatorioNovoRemessaFinancialMovementRepository } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.repository';
+import { RelatorioGuardadorConsolidadoRepository } from './consolidado/relatorio-guardador-consolidado.repository';
 
 @Module({
   imports: [CnabModule],
   controllers: [RelatorioController, RelatorioNovoRemessaController],
-  providers: [RelatorioService, RelatorioNovoRemessaService, RelatorioConsolidadoRepository,
+  providers: [RelatorioService, RelatorioNovoRemessaService, RelatorioConsolidadoRepository,RelatorioGuardadorConsolidadoRepository,
     RelatorioSinteticoRepository, RelatorioAnaliticoRepository, RelatorioNovoRemessaRepository,
     RelatorioNovoRemessaConsolidadoRepository,
     RelatorioExtratoBancarioRepository,

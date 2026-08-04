@@ -109,8 +109,10 @@ export class CronJobsService {
     private distributedLockService: DistributedLockService,
     private agentesSyncService: AgentesSyncService,
   ) { }
-  async onModuleInit() {
-    //await this.sincronizarEAgruparOrdensPagamentoGuardador()
+
+
+  async onModuleInit() {    
+   // await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
