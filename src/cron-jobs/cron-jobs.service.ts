@@ -110,9 +110,8 @@ export class CronJobsService {
     private agentesSyncService: AgentesSyncService,
   ) { }
 
-
-  async onModuleInit() {    
-   // await this.sincronizarEAgruparOrdensPagamento()
+  async onModuleInit() {
+    // await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -272,7 +271,7 @@ export class CronJobsService {
         name: CronJobsEnum.sincronizarEAgruparOrdensPagamentoGuardador,
         cronJobParameters: {
           cronTime: "0 9-21 * * *", // 06:00 BRT (GMT-3) = 09:00 GMT, 18:00 BRT (GMT-3) = 21:00 GMT
-          onTick: async () => await this.sincronizarEAgruparOrdensPagamento(),
+          onTick: async () => await this.sincronizarEAgruparOrdensPagamentoGuardador(),
         },
       },
       {
@@ -897,14 +896,6 @@ export class CronJobsService {
       this.logger.log(`Lock adquirido para a tarefa ${tipo}.`);
 
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
-
-      if (tipo === 'GUARDADOR') {
-        dataInicio = new Date("2026-07-31");
-
-        dataFim = new Date("2026-07-31");
-
-        dataPagamento = new Date("2026-07-31");
-      }
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
