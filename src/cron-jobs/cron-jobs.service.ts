@@ -118,8 +118,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {     
-
+  async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -138,8 +137,7 @@ export class CronJobsService {
         /**
          * Atualizar Retorno - Leitura dos Arquivos Retorno do Banco CEF para CCT - todo dia, a cada 30m
          *
-         * Não executa quando gerar o remessa.
-         */
+         * Não executa quando gerar o remessa. */
         name: CronJobsEnum.updateRetorno,
         cronJobParameters: {
           cronTime: '*/30 * * * *', //  Every 30 min
@@ -708,22 +706,22 @@ export class CronJobsService {
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     // Agrupa pagamentos        
 
-    // for (let index = 0; index < consorcios.length; index++) {
-    //   if (pagamentoUnico) {
-    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
-    //       dataFim, dataPagamento, "cett", [consorcios[index]]);
-    //   } else {
-    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-    //       dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
-    //   }
-    // }
+    for (let index = 0; index < consorcios.length; index++) {
+      if (pagamentoUnico) {
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
+          dataFim, dataPagamento, "cett", [consorcios[index]]);
+      } else {
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+      }
+    }
 
-    // if (consorcios.length == 0) {
-    //   await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
-    // }
+    if (consorcios.length == 0) {
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
+    }
 
-    // //Prepara o remessa
-    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
     //Envia para o SFTP
@@ -792,7 +790,7 @@ export class CronJobsService {
 
     const dataInicio = today;
     const dataFim = today;
-    //  await this.limparAgrupamentos(dataInicio, dataFim, []);
+    await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
 
@@ -900,7 +898,13 @@ export class CronJobsService {
 
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
-      dataInicio = new Date("2026-07-23");
+      if (tipo === 'GUARDADOR') {
+        dataInicio = new Date("2026-07-31");
+
+        dataFim = new Date("2026-07-31");
+
+        dataPagamento = new Date("2026-07-31");
+      }
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,

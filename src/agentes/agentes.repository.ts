@@ -1,11 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
+import {
+  getStatusRemessaEnumByValue,
+  StatusRemessaEnum,
+} from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { UserRelationship } from 'src/users/entities/user-relationship.entity';
 import { User } from 'src/users/entities/user.entity';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 
 export type DashboardPhotoEntry = {
   id: string;
@@ -40,596 +45,44 @@ export type DashboardMonthData = {
   paymentCycles: DashboardPaymentCycle[];
 };
 
+export type DashboardDataQuery = {
+  month: string;
+  userId: number;
+  paymentDate?: string;
+  workDate?: string;
+};
+
+type DashboardMonthlyRow = {
+  paymentDate: string;
+  statusRemessa: number | null;
+  motivoStatusRemessa: string | null;
+};
+
+type DashboardWeeklyRow = {
+  paymentDate: string;
+  workDate: string;
+  statusRemessa: number | null;
+  motivoStatusRemessa: string | null;
+};
+
+type DashboardDailyRow = {
+  photoId: string;
+  paymentDate: string;
+  workDate: string;
+  description: string;
+  amount: string | number;
+  statusRemessa: number | null;
+  motivoStatusRemessa: string | null;
+};
+
 @Injectable()
 export class AgentesRepository {
-  private readonly dashboardMockData: Record<string, DashboardMonthData> = {
-    '2026-05': {
-      month: '2026-05',
-      paymentCycles: [
-        {
-          paymentDate: '2026-05-12',
-          workDays: [
-            {
-              date: '2026-05-11',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260511-02',
-                  capturedAt: '2026-05-11T16:20:00',
-                  description: 'Campo sem assinatura',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Duplicidade',
-                },
-                {
-                  id: 'PHOTO-20260511-01',
-                  capturedAt: '2026-05-11T08:50:00',
-                  description: 'Foto da segunda-feira',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-05-10',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260510-02',
-                  capturedAt: '2026-05-10T15:30:00',
-                  description: 'Confirmação manual',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260510-01',
-                  capturedAt: '2026-05-10T13:15:00',
-                  description: 'Foto do domingo',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-05-09',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260509-02',
-                  capturedAt: '2026-05-09T10:55:00',
-                  description: 'Documento duplicado',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Duplicidade',
-                },
-                {
-                  id: 'PHOTO-20260509-01',
-                  capturedAt: '2026-05-09T09:40:00',
-                  description: 'Foto do sábado',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-05-08',
-              periodLabel: 'Tarde',
-              photos: [
-                {
-                  id: 'PHOTO-20260508-TARDE-02',
-                  capturedAt: '2026-05-08T17:05:00',
-                  description: 'Documento conferido',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260508-TARDE-01',
-                  capturedAt: '2026-05-08T14:10:00',
-                  description: 'Foto de fechamento',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          paymentDate: '2026-05-08',
-          workDays: [
-            {
-              date: '2026-05-08',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260508-03',
-                  capturedAt: '2026-05-08T16:45:00',
-                  description: 'Foto sem enquadramento',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Documento ilegível',
-                },
-                {
-                  id: 'PHOTO-20260508-02',
-                  capturedAt: '2026-05-08T11:15:00',
-                  description: 'Registro complementar',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260508-01',
-                  capturedAt: '2026-05-08T09:25:00',
-                  description: 'Foto do caixa',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-05-07',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260507-02',
-                  capturedAt: '2026-05-07T15:55:00',
-                  description: 'Documento em baixa qualidade',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Documento ilegível',
-                },
-                {
-                  id: 'PHOTO-20260507-01',
-                  capturedAt: '2026-05-07T08:35:00',
-                  description: 'Checklist concluído',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-05-06',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260506-02',
-                  capturedAt: '2026-05-06T11:20:00',
-                  description: 'Comprovante de visita',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260506-01',
-                  capturedAt: '2026-05-06T09:10:00',
-                  description: 'Foto da quarta-feira',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          paymentDate: '2026-05-05',
-          workDays: [
-            {
-              date: '2026-05-04',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260504-02',
-                  capturedAt: '2026-05-04T13:05:00',
-                  description: 'Documento assinado',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260504-01',
-                  capturedAt: '2026-05-04T08:45:00',
-                  description: 'Foto de abertura',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-05-03',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260503-02',
-                  capturedAt: '2026-05-03T17:00:00',
-                  description: 'Comprovante cortado',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Foto fora do padrão',
-                },
-                {
-                  id: 'PHOTO-20260503-01',
-                  capturedAt: '2026-05-03T10:30:00',
-                  description: 'Foto do domingo',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-05-02',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260502-03',
-                  capturedAt: '2026-05-02T16:45:00',
-                  description: 'Cadastro confirmado',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260502-02',
-                  capturedAt: '2026-05-02T11:50:00',
-                  description: 'Foto fora do padrão',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Foto fora do padrão',
-                },
-                {
-                  id: 'PHOTO-20260502-01',
-                  capturedAt: '2026-05-02T09:00:00',
-                  description: 'Foto do sábado',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-05-01',
-              periodLabel: 'Tarde',
-              photos: [
-                {
-                  id: 'PHOTO-20260501-TARDE-02',
-                  capturedAt: '2026-05-01T15:35:00',
-                  description: 'Documento da tarde',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260501-TARDE-01',
-                  capturedAt: '2026-05-01T14:10:00',
-                  description: 'Foto da vitrine',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          paymentDate: '2026-05-01',
-          workDays: [
-            {
-              date: '2026-05-01',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260501-03',
-                  capturedAt: '2026-05-01T17:20:00',
-                  description: 'Campo inconsistente',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Documento ilegível',
-                },
-                {
-                  id: 'PHOTO-20260501-02',
-                  capturedAt: '2026-05-01T12:10:00',
-                  description: 'Documento validado',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260501-01',
-                  capturedAt: '2026-05-01T09:05:00',
-                  description: 'Foto do atendimento',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-04-30',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260430-03',
-                  capturedAt: '2026-04-30T14:30:00',
-                  description: 'Foto duplicada',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Documento ilegível',
-                },
-                {
-                  id: 'PHOTO-20260430-02',
-                  capturedAt: '2026-04-30T10:45:00',
-                  description: 'Selfie do local',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260430-01',
-                  capturedAt: '2026-04-30T08:20:00',
-                  description: 'Foto de painel',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-04-29',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260429-03',
-                  capturedAt: '2026-04-29T16:05:00',
-                  description: 'Comprovante ilegível',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Documento ilegível',
-                },
-                {
-                  id: 'PHOTO-20260429-02',
-                  capturedAt: '2026-04-29T11:40:00',
-                  description: 'Documento complementar',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260429-01',
-                  capturedAt: '2026-04-29T09:15:00',
-                  description: 'Foto de fachada',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    '2026-04': {
-      month: '2026-04',
-      paymentCycles: [
-        {
-          paymentDate: '2026-04-24',
-          workDays: [
-            {
-              date: '2026-04-24',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260424-02',
-                  capturedAt: '2026-04-24T11:50:00',
-                  description: 'Documento final',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260424-01',
-                  capturedAt: '2026-04-24T09:35:00',
-                  description: 'Foto de fechamento',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-04-23',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260423-02',
-                  capturedAt: '2026-04-23T17:10:00',
-                  description: 'Foto inconsistente',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Dado inconsistente',
-                },
-                {
-                  id: 'PHOTO-20260423-01',
-                  capturedAt: '2026-04-23T13:05:00',
-                  description: 'Foto da quinta-feira',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-04-22',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260422-01',
-                  capturedAt: '2026-04-22T09:15:00',
-                  description: 'Foto da quarta-feira',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          paymentDate: '2026-04-21',
-          workDays: [
-            {
-              date: '2026-04-20',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260420-02',
-                  capturedAt: '2026-04-20T15:20:00',
-                  description: 'Documento inválido',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Documento ilegível',
-                },
-                {
-                  id: 'PHOTO-20260420-01',
-                  capturedAt: '2026-04-20T08:25:00',
-                  description: 'Foto da segunda-feira',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-04-19',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260419-01',
-                  capturedAt: '2026-04-19T10:10:00',
-                  description: 'Foto do domingo',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-04-18',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260418-01',
-                  capturedAt: '2026-04-18T09:50:00',
-                  description: 'Foto do sábado',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-04-17',
-              periodLabel: 'Tarde',
-              photos: [
-                {
-                  id: 'PHOTO-20260417-TARDE-01',
-                  capturedAt: '2026-04-17T14:15:00',
-                  description: 'Foto da tarde',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          paymentDate: '2026-04-17',
-          workDays: [
-            {
-              date: '2026-04-17',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260417-02',
-                  capturedAt: '2026-04-17T16:40:00',
-                  description: 'Documento fora do padrão',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Cadastro incompleto',
-                },
-                {
-                  id: 'PHOTO-20260417-01',
-                  capturedAt: '2026-04-17T10:05:00',
-                  description: 'Registro financeiro',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-04-16',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260416-02',
-                  capturedAt: '2026-04-16T12:15:00',
-                  description: 'Foto da equipe',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-                {
-                  id: 'PHOTO-20260416-01',
-                  capturedAt: '2026-04-16T08:40:00',
-                  description: 'Foto do balcão',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-            {
-              date: '2026-04-15',
-              periodLabel: 'Integral',
-              photos: [
-                {
-                  id: 'PHOTO-20260415-02',
-                  capturedAt: '2026-04-15T14:35:00',
-                  description: 'Documento incompleto',
-                  status: 'Rejeitado',
-                  amount: 0,
-                  rejectionReason: 'Cadastro incompleto',
-                },
-                {
-                  id: 'PHOTO-20260415-01',
-                  capturedAt: '2026-04-15T09:00:00',
-                  description: 'Foto da quarta-feira',
-                  status: 'Pago',
-                  amount: 1,
-                  rejectionReason: null,
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  };
-
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly mailHistoryService: MailHistoryService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) { }
 
   async findAgentUsers(): Promise<User[]> {
@@ -648,14 +101,86 @@ export class AgentesRepository {
     return users;
   }
 
-  async findDashboardData(month: string): Promise<DashboardMonthData | null> {
-    const monthData = this.dashboardMockData[month];
+  async findDashboardData(params: DashboardDataQuery): Promise<DashboardMonthData | null> {
+    const [monthlyRows, weeklyRows, dailyRows] = await Promise.all([
+      this.dataSource.query(this.buildMonthlyDashboardQuery(), [
+        params.month,
+        params.userId,
+      ]) as Promise<DashboardMonthlyRow[]>,
+      this.dataSource.query(this.buildWeeklyDashboardQuery(), [
+        params.month,
+        params.userId,
+        params.paymentDate ?? null,
+      ]) as Promise<DashboardWeeklyRow[]>,
+      this.dataSource.query(this.buildDailyDashboardQuery(), [
+        params.month,
+        params.userId,
+        params.paymentDate ?? null,
+        params.workDate ?? null,
+      ]) as Promise<DashboardDailyRow[]>,
+    ]);
 
-    if (!monthData) {
+    if (monthlyRows.length === 0) {
       return null;
     }
 
-    return this.emptyDashboardData(monthData);
+    const paymentCyclesMap = new Map<string, DashboardPaymentCycle>();
+
+    for (const row of monthlyRows) {
+      paymentCyclesMap.set(row.paymentDate, {
+        paymentDate: row.paymentDate,
+        pendingReason: this.resolvePendingReason(row.statusRemessa, row.motivoStatusRemessa),
+        workDays: [],
+      });
+    }
+
+    for (const row of weeklyRows) {
+      const paymentCycle = this.ensurePaymentCycle(paymentCyclesMap, row.paymentDate, row.statusRemessa, row.motivoStatusRemessa);
+
+      if (paymentCycle.workDays.some((workDay) => workDay.date === row.workDate)) {
+        continue;
+      }
+
+      paymentCycle.workDays.push({
+        date: row.workDate,
+        periodLabel: 'Integral',
+        pendingReason: this.resolvePendingReason(row.statusRemessa, row.motivoStatusRemessa),
+        photos: [],
+      });
+    }
+
+    for (const row of dailyRows) {
+      const paymentCycle = this.ensurePaymentCycle(paymentCyclesMap, row.paymentDate, row.statusRemessa, row.motivoStatusRemessa);
+      const workDay = this.ensureWorkDay(paymentCycle, row.workDate, row.statusRemessa, row.motivoStatusRemessa);
+
+      workDay.photos.push({
+        id: row.photoId,
+        capturedAt: this.toCapturedAt(row.workDate),
+        description: row.description,
+        status: this.mapStatusRemessaToDashboardStatus(row.statusRemessa),
+        amount: Number(row.amount) || 0,
+        rejectionReason: this.resolvePhotoRejectionReason(row.statusRemessa, row.motivoStatusRemessa),
+      });
+    }
+
+    const paymentCycles = [...paymentCyclesMap.values()]
+      .map((paymentCycle) => ({
+        ...paymentCycle,
+        workDays: [...paymentCycle.workDays]
+          .map((workDay) => ({
+            ...workDay,
+            photos: [...workDay.photos].sort((left, right) =>
+              right.capturedAt.localeCompare(left.capturedAt),
+            ),
+          }))
+          .sort((left, right) => right.date.localeCompare(left.date)),
+      }))
+      .sort((left, right) => right.paymentDate.localeCompare(left.paymentDate));
+
+    return {
+      month: params.month,
+      paymentCycles,
+    };
   }
 
   async getAgentAssociationOptions(userId?: number | string | null): Promise<AgentAssociationOption[]> {
@@ -673,10 +198,12 @@ export class AgentesRepository {
     return this.getAgentAssociationOptionsFromUser(agentUser ?? null);
   }
 
-  getAvailableMonths(): string[] {
-    return Object.keys(this.dashboardMockData).sort((left, right) =>
-      right.localeCompare(left),
-    );
+  async getAvailableMonths(userId: number): Promise<string[]> {
+    const result = await this.dataSource.query(this.buildAvailableMonthsQuery(), [
+      userId,
+    ]) as Array<{ month: string }>;
+
+    return result.map((row) => row.month);
   }
 
   getAgentAssociationOptionsFromUser(user?: User | null): AgentAssociationOption[] {
@@ -708,11 +235,215 @@ export class AgentesRepository {
       }));
   }
 
-  private emptyDashboardData(monthData: DashboardMonthData): DashboardMonthData {
-    return {
-      month: monthData.month,
-      paymentCycles: [],
+  private ensurePaymentCycle(
+    paymentCyclesMap: Map<string, DashboardPaymentCycle>,
+    paymentDate: string,
+    statusRemessa: number | null,
+    motivoStatusRemessa: string | null,
+  ) {
+    const existing = paymentCyclesMap.get(paymentDate);
+
+    if (existing) {
+      return existing;
+    }
+
+    const paymentCycle: DashboardPaymentCycle = {
+      paymentDate,
+      pendingReason: this.resolvePendingReason(statusRemessa, motivoStatusRemessa),
+      workDays: [],
     };
+
+    paymentCyclesMap.set(paymentDate, paymentCycle);
+
+    return paymentCycle;
+  }
+
+  private ensureWorkDay(
+    paymentCycle: DashboardPaymentCycle,
+    workDate: string,
+    statusRemessa: number | null,
+    motivoStatusRemessa: string | null,
+  ) {
+    const existing = paymentCycle.workDays.find((workDay) => workDay.date === workDate);
+
+    if (existing) {
+      return existing;
+    }
+
+    const workDay: DashboardWorkDay = {
+      date: workDate,
+      periodLabel: 'Integral',
+      pendingReason: this.resolvePendingReason(statusRemessa, motivoStatusRemessa),
+      photos: [],
+    };
+
+    paymentCycle.workDays.push(workDay);
+
+    return workDay;
+  }
+
+  private mapStatusRemessaToDashboardStatus(statusRemessa: number | null) {
+    if (Number(statusRemessa) === StatusRemessaEnum.Efetivado) {
+      return 'Pago';
+    }
+
+    if (Number(statusRemessa) === StatusRemessaEnum.AguardandoPagamento) {
+      return 'Aguardando Pagamento';
+    }
+
+    return 'Rejeitado';
+  }
+
+  private resolvePhotoRejectionReason(
+    statusRemessa: number | null,
+    motivoStatusRemessa: string | null,
+  ) {
+    if (
+      Number(statusRemessa) === StatusRemessaEnum.Efetivado ||
+      Number(statusRemessa) === StatusRemessaEnum.AguardandoPagamento
+    ) {
+      return null;
+    }
+
+    return this.resolvePendingReason(statusRemessa, motivoStatusRemessa);
+  }
+
+  private resolvePendingReason(
+    statusRemessa: number | null,
+    motivoStatusRemessa: string | null,
+  ) {
+    if (Number(statusRemessa) === StatusRemessaEnum.Efetivado) {
+      return null;
+    }
+
+    if (motivoStatusRemessa) {
+      return OcorrenciaEnum[motivoStatusRemessa as keyof typeof OcorrenciaEnum] ?? motivoStatusRemessa;
+    }
+
+    if (statusRemessa == null) {
+      return null;
+    }
+
+    if (Number(statusRemessa) === StatusRemessaEnum.AguardandoPagamento) {
+      return 'Aguardando Pagamento';
+    }
+
+    return getStatusRemessaEnumByValue(statusRemessa as StatusRemessaEnum) ?? null;
+  }
+
+  private toCapturedAt(workDate: string) {
+    return `${workDate}T12:00:00.000Z`;
+  }
+
+  private buildAvailableMonthsQuery() {
+    return `
+      SELECT DISTINCT
+        TO_CHAR(opa."dataPagamento", 'YYYY-MM') AS month
+      FROM ordem_pagamento_guardador opg
+      INNER JOIN ordem_pagamento_agrupado opa
+        ON opa.id = opg."ordemPagamentoAgrupadoId"
+      WHERE opg."ordemPagamentoAgrupadoId" IS NOT NULL
+        AND opg."userId" = $1
+      ORDER BY month DESC
+    `;
+  }
+
+  private buildMonthlyDashboardQuery() {
+    return `
+      WITH latest_history AS (
+        SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
+          oph."ordemPagamentoAgrupadoId",
+          oph."statusRemessa",
+          oph."motivoStatusRemessa"
+        FROM ordem_pagamento_agrupado_historico oph
+        ORDER BY oph."ordemPagamentoAgrupadoId", oph.id DESC
+      )
+      SELECT
+        TO_CHAR(opa."dataPagamento", 'YYYY-MM-DD') AS "paymentDate",
+        latest_history."statusRemessa" AS "statusRemessa",
+        latest_history."motivoStatusRemessa" AS "motivoStatusRemessa"
+      FROM ordem_pagamento_guardador opg
+      INNER JOIN ordem_pagamento_agrupado opa
+        ON opa.id = opg."ordemPagamentoAgrupadoId"
+      LEFT JOIN latest_history
+        ON latest_history."ordemPagamentoAgrupadoId" = opa.id
+      WHERE opg."ordemPagamentoAgrupadoId" IS NOT NULL
+        AND TO_CHAR(opa."dataPagamento", 'YYYY-MM') = $1
+        AND opg."userId" = $2
+      GROUP BY
+        opa."dataPagamento",
+        latest_history."statusRemessa",
+        latest_history."motivoStatusRemessa"
+      ORDER BY opa."dataPagamento" DESC
+    `;
+  }
+
+  private buildWeeklyDashboardQuery() {
+    return `
+      WITH latest_history AS (
+        SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
+          oph."ordemPagamentoAgrupadoId",
+          oph."statusRemessa",
+          oph."motivoStatusRemessa"
+        FROM ordem_pagamento_agrupado_historico oph
+        ORDER BY oph."ordemPagamentoAgrupadoId", oph.id DESC
+      )
+      SELECT
+        TO_CHAR(opa."dataPagamento", 'YYYY-MM-DD') AS "paymentDate",
+        TO_CHAR(opg."dataInclusao", 'YYYY-MM-DD') AS "workDate",
+        latest_history."statusRemessa" AS "statusRemessa",
+        latest_history."motivoStatusRemessa" AS "motivoStatusRemessa"
+      FROM ordem_pagamento_guardador opg
+      INNER JOIN ordem_pagamento_agrupado opa
+        ON opa.id = opg."ordemPagamentoAgrupadoId"
+      LEFT JOIN latest_history
+        ON latest_history."ordemPagamentoAgrupadoId" = opa.id
+      WHERE opg."ordemPagamentoAgrupadoId" IS NOT NULL
+        AND TO_CHAR(opa."dataPagamento", 'YYYY-MM') = $1
+        AND opg."userId" = $2
+        AND ($3::date IS NULL OR opa."dataPagamento" = $3::date)
+      GROUP BY
+        opa."dataPagamento",
+        opg."dataInclusao",
+        latest_history."statusRemessa",
+        latest_history."motivoStatusRemessa"
+      ORDER BY opa."dataPagamento" DESC, opg."dataInclusao" DESC
+    `;
+  }
+
+  private buildDailyDashboardQuery() {
+    return `
+      WITH latest_history AS (
+        SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
+          oph."ordemPagamentoAgrupadoId",
+          oph."statusRemessa",
+          oph."motivoStatusRemessa"
+        FROM ordem_pagamento_agrupado_historico oph
+        ORDER BY oph."ordemPagamentoAgrupadoId", oph.id DESC
+      )
+      SELECT
+        COALESCE(NULLIF(TRIM(opg."idOrdemPagamento"), ''), CONCAT('GUARDADOR-', opg.id::text)) AS "photoId",
+        TO_CHAR(opa."dataPagamento", 'YYYY-MM-DD') AS "paymentDate",
+        TO_CHAR(opg."dataInclusao", 'YYYY-MM-DD') AS "workDate",
+        CONCAT(
+          COALESCE(NULLIF(TRIM(opg."tipoOrdemPagamento"), ''), 'Repasse do guardador'),
+          COALESCE(CONCAT(' #', NULLIF(TRIM(opg."idOrdemPagamento"), '')), '')
+        ) AS description,
+        ROUND(COALESCE(opg."valorRepasseGuardador", 0)::numeric, 2) AS amount,
+        latest_history."statusRemessa" AS "statusRemessa",
+        latest_history."motivoStatusRemessa" AS "motivoStatusRemessa"
+      FROM ordem_pagamento_guardador opg
+      INNER JOIN ordem_pagamento_agrupado opa
+        ON opa.id = opg."ordemPagamentoAgrupadoId"
+      LEFT JOIN latest_history
+        ON latest_history."ordemPagamentoAgrupadoId" = opa.id
+      WHERE opg."ordemPagamentoAgrupadoId" IS NOT NULL
+        AND TO_CHAR(opa."dataPagamento", 'YYYY-MM') = $1
+        AND opg."userId" = $2
+        AND ($3::date IS NULL OR opa."dataPagamento" = $3::date)
+        AND ($4::date IS NULL OR opg."dataInclusao" = $4::date)
+      ORDER BY opa."dataPagamento" DESC, opg."dataInclusao" DESC, opg.id DESC
+    `;
   }
 
   private async loadLazyAuxInvite(users: User[]) {

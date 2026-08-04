@@ -1,8 +1,16 @@
+export interface IMailHistoryRoleCount {
+  vanzeiro: number;
+  guardador: number;
+}
+
 export interface IMailHistoryStatusCount {
-  queued: number;
-  sent: number;
-  used: number;
-  usedIncomplete: number;
-  usedComplete: number;
-  total: number;
+  queued: IMailHistoryRoleCount;
+  sent: IMailHistoryRoleCount;
+  used: IMailHistoryRoleCount;
+  usedIncomplete: IMailHistoryRoleCount;
+  usedComplete: IMailHistoryRoleCount;
+  total: IMailHistoryRoleCount;
+  noFullName: IMailHistoryRoleCount;
+  noPhone: IMailHistoryRoleCount;
+  noEmail: IMailHistoryRoleCount;
 }

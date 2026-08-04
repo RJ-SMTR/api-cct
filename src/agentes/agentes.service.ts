@@ -6,6 +6,7 @@ import { AgentesDashboardQueryDto } from './dtos/agentes-dashboard-query.dto';
 import {
   AgentAssociationOption,
   AgentesRepository,
+  DashboardDataQuery,
   DashboardMonthData,
   DashboardPaymentCycle,
   DashboardPhotoEntry,
@@ -67,11 +68,16 @@ export class AgentesService {
 
   async getDashboard(query: AgentesDashboardQueryDto, request: IRequest) {
     const targetUserId = this.resolveTargetUserId(query.userId, request);
-    const dashboardData = await this.agentesRepository.findDashboardData(query.month);
-
     this.validateSelectedDates(query);
+    const dashboardQuery: DashboardDataQuery = {
+      month: query.month,
+      userId: targetUserId,
+      paymentDate: query.paymentDate,
+      workDate: query.workDate,
+    };
+    const dashboardData = await this.agentesRepository.findDashboardData(dashboardQuery);
 
-    const availableMonths = this.agentesRepository.getAvailableMonths();
+    const availableMonths = await this.agentesRepository.getAvailableMonths(targetUserId);
     const associacoes = await this.agentesRepository.getAgentAssociationOptions(targetUserId);
     const baseData: DashboardMonthData = dashboardData ?? {
       month: query.month,
@@ -235,6 +241,19 @@ export class AgentesService {
       .trim()
       .toLowerCase();
 
+    return (
+      normalizedStatus === 'rejeitado' ||
+      normalizedStatus === 'estorno' ||
+      normalizedStatus === 'aguardandopagamento' ||
+      normalizedStatus === 'aguardando pagamento'
+    );
+  }
+
+  private isRejectedStatus(status: string) {
+    const normalizedStatus = String(status || '')
+      .trim()
+      .toLowerCase();
+
     return normalizedStatus === 'rejeitado' || normalizedStatus === 'estorno';
   }
 
@@ -244,7 +263,7 @@ export class AgentesService {
     paymentCycles.forEach((paymentCycle) => {
       paymentCycle.workDays.forEach((workDay) => {
         workDay.photos.forEach((photo) => {
-          if (!photo.rejectionReason) {
+          if (!photo.rejectionReason || !this.isRejectedStatus(photo.status)) {
             return;
           }
 
@@ -268,8 +287,15 @@ export class AgentesService {
 
   private mergeStatuses(statuses: string[]) {
     const normalizedStatuses = statuses.filter(Boolean);
+    const uniqueStatuses = [...new Set(normalizedStatuses)];
+
+    if (uniqueStatuses.length === 1) {
+      return uniqueStatuses[0];
+    }
+
     const hasPaid = normalizedStatuses.includes('Pago');
     const hasRejected = normalizedStatuses.includes('Rejeitado');
+    const hasAwaitingPayment = normalizedStatuses.includes('Aguardando Pagamento');
 
     if (hasPaid && hasRejected) {
       return 'Estorno';
@@ -277,6 +303,10 @@ export class AgentesService {
 
     if (hasPaid) {
       return 'Pago';
+    }
+
+    if (hasAwaitingPayment) {
+      return 'Aguardando Pagamento';
     }
 
     if (hasRejected) {
@@ -297,6 +327,13 @@ export class AgentesService {
 
     if (normalizedStatus === 'rejeitado') {
       return 'Rejeitado';
+    }
+
+    if (
+      normalizedStatus === 'aguardandopagamento' ||
+      normalizedStatus === 'aguardando pagamento'
+    ) {
+      return 'Aguardando Pagamento';
     }
 
     return '';

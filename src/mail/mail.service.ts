@@ -210,6 +210,9 @@ export class MailService {
           mailUsedIncomplete: mailData.data.statusCount.usedIncomplete,
           mailUsedComplete: mailData.data.statusCount.usedComplete,
           mailTotal: mailData.data.statusCount.total,
+          mailNoFullName: mailData.data.statusCount.noFullName,
+          mailNoPhone: mailData.data.statusCount.noPhone,
+          mailNoEmail: mailData.data.statusCount.noEmail,
         },
       });
 
