@@ -126,6 +126,8 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    await this.remessaPendenteGuardadorExec('2026-07-01', '2026-08-04', '2026-08-05');
+    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
     this.jobsConfig.push(
@@ -708,13 +710,13 @@ export class CronJobsService {
   async geradorRemessaPendenteGuardadorExec(dataInicio: Date, dataFim: Date, dataPagamento: Date, GUARDADOR: HeaderName) {
      if (dataInicio)
       // AGRUPAR ORDENS POR INDIVIDUO
-      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentesGuardador(dataInicio, dataFim, dataPagamento, "contaBilhetagem");
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentesGuardador(dataInicio, dataFim, dataPagamento, "contaRotativo");
 
     // Prepara o remessa
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, [], false, true);
 
     // Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(GUARDADOR, undefined, true);
+    const txt = await this.remessaService.gerarCnabText(GUARDADOR, false, true);
 
     //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, GUARDADOR);
@@ -886,11 +888,7 @@ export class CronJobsService {
         const pagador = await this.ordemPagamentoAgrupadoService.getPagador(pagadorKey)
         // Agrupa para os modais
         await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, pagador, CronJobsService.MODAIS);
-        this.logger.log('Tarefa finalizada com sucesso.', METHOD);
-      } catch (error) {
-        this.logger.error(`Erro ao executar tarefa, abortando. - ${error}`, error?.stack, METHOD);
-      } finally {
-        await this.distributedLockService.releaseLock(METHOD);
+        this.logger.log('Tarefa finalizada com sucesso.', METHOD);      
       }
 
       this.logger.log('Sincronização finalizada. Iniciando agrupamento.', METHOD);
@@ -914,7 +912,7 @@ export class CronJobsService {
       this.logger.error(`Erro ao executar tarefa ${tipo}, abortando. - ${error}`, error?.stack, METHOD);
     } finally {
       await this.distributedLockService.releaseLock(METHOD);
-    }
+    }  
   }
 
   // Métodos públicos viram wrappers - mantém compatibilidade com os cronjobs existentes

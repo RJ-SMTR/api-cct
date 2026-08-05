@@ -18,7 +18,6 @@ import { StatusEnum } from 'src/statuses/statuses.enum';
 import { UsersService } from 'src/users/users.service';
 import { HttpStatusMessage } from 'src/utils/enums/http-error-message.enum';
 import { logLog, logWarn } from 'src/utils/log-utils';
-<<<<<<< HEAD:src/auth/service/auth.service.ts
 import { User } from '../../users/entities/user.entity';
 import { LoginResponseType } from '../../utils/types/auth/login-response.type';
 import { Nullable } from '../../utils/types/nullable.type';
@@ -27,18 +26,8 @@ import { AuthEmailLoginDto } from '../domain/dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from '../domain/dto/auth-register-login.dto';
 import { AuthResendEmailDto } from '../domain/dto/auth-resend-mail.dto';
 import { AuthUpdateDto } from '../domain/dto/auth-update.dto';
-=======
-import { User } from '../users/entities/user.entity';
-import { LoginResponseType } from '../utils/types/auth/login-response.type';
-import { Nullable } from '../utils/types/nullable.type';
-import { AuthProvidersEnum } from './auth-providers.enum';
-import { AuthCpfLoginDto } from './dto/auth-cpf-login.dto';
-import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
-import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
-import { AuthResendEmailDto } from './dto/auth-resend-mail.dto';
-import { AuthUpdateDto } from './dto/auth-update.dto';
->>>>>>> 8bf6063024c948248c1c9039fbf74ee1319f22b2:src/auth/auth.service.ts
 import { CustomLogger } from 'src/utils/custom-logger';
+import { AuthCpfLoginDto } from '../domain/dto/auth-cpf-login.dto';
 
 @Injectable()
 export class AuthService {

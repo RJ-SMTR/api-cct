@@ -60,7 +60,11 @@ export class RemessaService {
     }
 
     if (isPendente) {
-      ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idOperadoras);
+      if(consorcio && consorcio.length > 0) {
+        ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idOperadoras);
+      }else{
+        ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentesGuardador(dataInicio, dataFim, dataPgto);
+      }
     } else {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
     }
@@ -183,7 +187,11 @@ export class RemessaService {
         let historico;
         this.logger.debug(`NSR: ${detalhesA[index].nsr}`)
         if (isPendente) {
-          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, isPendente);
+            if(consorcios && consorcios.length > 0) {
+              historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, isPendente);
+            }else{
+              historico = await this.ordemPagamentoAgrupadoService.getHistoricoDetalheAGuardador(detalhesA[index].id, isPendente);
+            }
         } else {
           historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, false, consorcios);
         }

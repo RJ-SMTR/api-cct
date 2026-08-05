@@ -89,7 +89,6 @@ import { RetornoService } from './novo-remessa/service/retorno.service';
 import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
 import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
-<<<<<<< HEAD
 import { AgendamentoPagamentoService } from 'src/agendamento/service/agendamento-pagamento.service';
 import { AprovacaoPagamentoService } from 'src/agendamento/service/aprovacao-pagamento.service';
 import { AgendamentoPagamentoRepository } from 'src/agendamento/repository/agendamento-pagamento.repository';
@@ -98,10 +97,7 @@ import { AgendamentoPagamentoConvert } from 'src/agendamento/convert/agendamento
 import { AprovacaoPagamentoConvert } from 'src/agendamento/convert/aprovacao-pagamento.convert';
 import { AgendamentoPagamento } from 'src/agendamento/domain/entity/agendamento-pagamento.entity';
 import { AprovacaoPagamento } from 'src/agendamento/domain/entity/aprovacao-pagamento.entity';
-=======
 import { OrdemPagamentoGuardadorRepository } from './novo-remessa/repository/ordem-pagamento-guardador.repository';
-import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-guardador.entity';
->>>>>>> 8bf6063024c948248c1c9039fbf74ee1319f22b2
 
 @Module({
   imports: [
@@ -136,14 +132,9 @@ import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-g
       PagamentoIndevido,
       OrdemPagamento,
       OrdemPagamentoAgrupado,
-<<<<<<< HEAD
       OrdemPagamentoAgrupadoHistorico,
       AgendamentoPagamento,
       AprovacaoPagamento
-=======
-      OrdemPagamentoGuardador,
-      OrdemPagamentoAgrupadoHistorico
->>>>>>> 8bf6063024c948248c1c9039fbf74ee1319f22b2
     ]),
   ],
   providers: [

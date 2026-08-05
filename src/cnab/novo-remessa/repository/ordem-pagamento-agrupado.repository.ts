@@ -9,7 +9,7 @@ import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.en
 import { formatDateISODate } from 'src/utils/date-utils';
 
 @Injectable()
-export class OrdemPagamentoAgrupadoRepository {
+export class OrdemPagamentoAgrupadoRepository {  
 
   private logger = new CustomLogger(OrdemPagamentoAgrupadoRepository.name, { timestamp: true });
 
@@ -67,7 +67,6 @@ export class OrdemPagamentoAgrupadoRepository {
   }
 
 
-
   public async findAllPendente(
     dataInicio: Date,
     dataFim: Date,
@@ -107,6 +106,46 @@ export class OrdemPagamentoAgrupadoRepository {
     }
     if(idOperadoras && idOperadoras.length){
       query += ` AND op."userId" IN ('${idOperadoras.join("','")}')`;
+    }
+
+    this.logger.debug(query);
+
+    const childRows: any[] = await queryRunnerChild.query(query);
+    await queryRunnerChild.release();
+
+    const childResult = childRows.map(r => new OrdemPagamentoAgrupado(r));
+
+    result = [...result, ...childResult];
+
+    return result;
+  }
+
+  async findAllPendenteGuardador(dataInicio: Date, dataFim: Date, dataPgto: Date | undefined): Promise<OrdemPagamentoAgrupado[]> {
+    const dataIniForm = formatDateISODate(dataInicio);
+    const dataFimForm = formatDateISODate(dataFim);
+
+    const paiResult = await this.findParent(dataPgto);
+    let result: OrdemPagamentoAgrupado[] = [...paiResult];
+
+    const queryRunnerChild = this.dataSource.createQueryRunner();
+    await queryRunnerChild.connect();
+
+    let query = `SELECT DISTINCT opa.* 
+               FROM ordem_pagamento_agrupado opa
+               INNER JOIN ordem_pagamento_guardador op ON opa.id = op."ordemPagamentoAgrupadoId"
+               INNER JOIN ordem_pagamento_agrupado_historico oph ON opa.id = oph."ordemPagamentoAgrupadoId"
+               WHERE oph."statusRemessa" = 0`;
+
+    if (dataPgto) {
+      const dataPagamentoForm = formatDateISODate(dataPgto);
+      query += ` AND opa."dataPagamento" = '${dataPagamentoForm}'`;
+    }
+
+    if (dataInicio && dataFim && dataFim >= dataInicio) {
+      query += ` AND op."dataOrdem" BETWEEN '${dataIniForm} 00:00:00' AND '${dataFimForm} 23:59:59'`;
+    } else {
+      await queryRunnerChild.release();
+      return result;
     }
 
     this.logger.debug(query);

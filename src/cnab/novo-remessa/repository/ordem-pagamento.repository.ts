@@ -17,8 +17,6 @@ import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entit
 import { formatDateISODate } from 'src/utils/date-utils';
 import { format, getMonth, getYear, isFriday, isTuesday, max, subDays } from 'date-fns';
 import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
-<<<<<<< HEAD
-=======
 
 export interface SuspiciousOrdemPagamento {
   id: number;
@@ -30,7 +28,6 @@ export interface SuspiciousOrdemPagamento {
   dataCaptura: Date | null;
   createdAt: Date;
 }
->>>>>>> 8bf6063024c948248c1c9039fbf74ee1319f22b2
 
 @Injectable()
 export class OrdemPagamentoRepository {

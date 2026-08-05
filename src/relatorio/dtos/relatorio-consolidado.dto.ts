@@ -8,7 +8,7 @@ export class RelatorioConsolidadoDto {
       Object.assign(this, consolidado);
     }
   }
-  @SetValue(val=>+val.toFixed(2))
+  
   valor: number = 0;
   nome: String;
   @Exclude()
