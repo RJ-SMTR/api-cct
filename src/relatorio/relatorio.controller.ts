@@ -53,10 +53,52 @@ export class RelatorioController {
         dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, rejeitado, estorno
       });
       return result;
+    } catch (e: any) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
+  @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
+  @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome parcial dos favorecidos, sem distinção de acento ou maiúsculas.', required: false, type: String })
+  @ApiQuery({ name: 'consorcioNome', description: ApiDescription({ _: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas.', 'STPC/STPL': 'Agrupa todos os vanzeiros sob o consórcio' }), required: false, type: String })
+  @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto.', required: false, type: Number })
+  @ApiQuery({ name: 'valorMax', description: 'Somatório do valor bruto.', required: false, type: Number })
+  @ApiQuery({ name: 'pago', required: false, type: Boolean, description: ApiDescription({ _: 'Se o pagamento foi pago com sucesso.', default: false }) })
+  @ApiQuery({ name: 'aPagar', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a pagar', default: false }) })
+  @ApiQuery({ name: 'emProcessamento', required: false, type: Boolean, description: ApiDescription({ _: 'Se o status for a emProcessamento', default: false }) })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('consolidadoGuardador')
+  async getConsolidadoGuardador(
+    @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
+    dataInicio: Date,
+    @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
+    dataFim: Date,
+    @Query('favorecidoNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
+    favorecidoNome: string[],
+    @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
+    consorcioNome: string[],
+    @Query('valorMin', new ParseNumberPipe({ optional: true }))
+    valorMin: number | undefined,
+    @Query('valorMax', new ParseNumberPipe({ optional: true }))
+    valorMax: number | undefined,
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
+    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
+    @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined
+  ) {
+    try {
+      const result = await this.relatorioService.findConsolidadoGuardador({
+        dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, rejeitado, estorno
+      });
+      return result;
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
+
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
@@ -93,7 +135,7 @@ export class RelatorioController {
         dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento
       });
       return result;
-    } catch (e) {
+    } catch (e: any) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
@@ -141,7 +183,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
   @ApiQuery({ name: 'tipo', description: 'Debito ou Credito', required: false, type: String })
   @ApiQuery({ name: 'operacao', description: 'Tipos de Operação', required: false, type: String })
- 
+
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -156,7 +198,7 @@ export class RelatorioController {
     @Query('conta') conta: string
   ) {
     try {
-      const result = await this.relatorioService.findExtrato ({
+      const result = await this.relatorioService.findExtrato({
         dataInicio, dataFim, tipo, operacao, conta
       });
       return result;
