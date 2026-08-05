@@ -1,6 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsDateString, IsInt, IsOptional, Matches } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsOptional, Matches } from 'class-validator';
+import {
+  DASHBOARD_DATE_TYPES,
+  DEFAULT_DASHBOARD_DATE_TYPE,
+} from '../agentes-dashboard-date-type';
 
 export class AgentesDashboardQueryDto {
   @ApiProperty({ example: '2026-05' })
@@ -16,6 +20,14 @@ export class AgentesDashboardQueryDto {
   @IsOptional()
   @IsDateString()
   workDate?: string;
+
+  @ApiPropertyOptional({
+    enum: DASHBOARD_DATE_TYPES,
+    default: DEFAULT_DASHBOARD_DATE_TYPE,
+  })
+  @IsOptional()
+  @IsIn(DASHBOARD_DATE_TYPES)
+  dateType?: 'tentative' | 'effective';
 
   @ApiPropertyOptional({ example: 123 })
   @IsOptional()

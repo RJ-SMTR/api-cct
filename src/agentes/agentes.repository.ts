@@ -11,6 +11,10 @@ import { RoleEnum } from 'src/roles/roles.enum';
 import { UserRelationship } from 'src/users/entities/user-relationship.entity';
 import { User } from 'src/users/entities/user.entity';
 import { DataSource, In, Repository } from 'typeorm';
+import {
+  DashboardDateType,
+  DEFAULT_DASHBOARD_DATE_TYPE,
+} from './agentes-dashboard-date-type';
 
 export type DashboardPhotoEntry = {
   id: string;
@@ -50,6 +54,7 @@ export type DashboardDataQuery = {
   userId: number;
   paymentDate?: string;
   workDate?: string;
+  dateType?: DashboardDateType;
 };
 
 type DashboardMonthlyRow = {
@@ -102,17 +107,18 @@ export class AgentesRepository {
   }
 
   async findDashboardData(params: DashboardDataQuery): Promise<DashboardMonthData | null> {
+    const dateType = params.dateType ?? DEFAULT_DASHBOARD_DATE_TYPE;
     const [monthlyRows, weeklyRows, dailyRows] = await Promise.all([
-      this.dataSource.query(this.buildMonthlyDashboardQuery(), [
+      this.dataSource.query(this.buildMonthlyDashboardQuery(dateType), [
         params.month,
         params.userId,
       ]) as Promise<DashboardMonthlyRow[]>,
-      this.dataSource.query(this.buildWeeklyDashboardQuery(), [
+      this.dataSource.query(this.buildWeeklyDashboardQuery(dateType), [
         params.month,
         params.userId,
         params.paymentDate ?? null,
       ]) as Promise<DashboardWeeklyRow[]>,
-      this.dataSource.query(this.buildDailyDashboardQuery(), [
+      this.dataSource.query(this.buildDailyDashboardQuery(dateType), [
         params.month,
         params.userId,
         params.paymentDate ?? null,
@@ -198,8 +204,11 @@ export class AgentesRepository {
     return this.getAgentAssociationOptionsFromUser(agentUser ?? null);
   }
 
-  async getAvailableMonths(userId: number): Promise<string[]> {
-    const result = await this.dataSource.query(this.buildAvailableMonthsQuery(), [
+  async getAvailableMonths(
+    userId: number,
+    dateType: DashboardDateType = DEFAULT_DASHBOARD_DATE_TYPE,
+  ): Promise<string[]> {
+    const result = await this.dataSource.query(this.buildAvailableMonthsQuery(dateType), [
       userId,
     ]) as Array<{ month: string }>;
 
@@ -335,7 +344,32 @@ export class AgentesRepository {
     return `${workDate}T12:00:00.000Z`;
   }
 
-  private buildAvailableMonthsQuery() {
+  private buildAvailableMonthsQuery(dateType: DashboardDateType) {
+    if (dateType === 'effective') {
+      return `
+        WITH latest_history AS (
+          SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
+            oph.id,
+            oph."ordemPagamentoAgrupadoId"
+          FROM ordem_pagamento_agrupado_historico oph
+          ORDER BY oph."ordemPagamentoAgrupadoId", oph.id DESC
+        )
+        SELECT DISTINCT
+          TO_CHAR(da."dataEfetivacao", 'YYYY-MM') AS month
+        FROM ordem_pagamento_guardador opg
+        INNER JOIN ordem_pagamento_agrupado opa
+          ON opa.id = opg."ordemPagamentoAgrupadoId"
+        INNER JOIN latest_history
+          ON latest_history."ordemPagamentoAgrupadoId" = opa.id
+        INNER JOIN detalhe_a da
+          ON da."ordemPagamentoAgrupadoHistoricoId" = latest_history.id
+        WHERE opg."ordemPagamentoAgrupadoId" IS NOT NULL
+          AND da."dataEfetivacao" IS NOT NULL
+          AND opg."userId" = $1
+        ORDER BY month DESC
+      `;
+    }
+
     return `
       SELECT DISTINCT
         TO_CHAR(opa."dataPagamento", 'YYYY-MM') AS month
@@ -348,7 +382,41 @@ export class AgentesRepository {
     `;
   }
 
-  private buildMonthlyDashboardQuery() {
+  private buildMonthlyDashboardQuery(dateType: DashboardDateType) {
+    if (dateType === 'effective') {
+      return `
+        WITH latest_history AS (
+          SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
+            oph.id,
+            oph."ordemPagamentoAgrupadoId",
+            oph."statusRemessa",
+            oph."motivoStatusRemessa"
+          FROM ordem_pagamento_agrupado_historico oph
+          ORDER BY oph."ordemPagamentoAgrupadoId", oph.id DESC
+        )
+        SELECT
+          TO_CHAR(da."dataEfetivacao", 'YYYY-MM-DD') AS "paymentDate",
+          latest_history."statusRemessa" AS "statusRemessa",
+          latest_history."motivoStatusRemessa" AS "motivoStatusRemessa"
+        FROM ordem_pagamento_guardador opg
+        INNER JOIN ordem_pagamento_agrupado opa
+          ON opa.id = opg."ordemPagamentoAgrupadoId"
+        INNER JOIN latest_history
+          ON latest_history."ordemPagamentoAgrupadoId" = opa.id
+        INNER JOIN detalhe_a da
+          ON da."ordemPagamentoAgrupadoHistoricoId" = latest_history.id
+        WHERE opg."ordemPagamentoAgrupadoId" IS NOT NULL
+          AND da."dataEfetivacao" IS NOT NULL
+          AND TO_CHAR(da."dataEfetivacao", 'YYYY-MM') = $1
+          AND opg."userId" = $2
+        GROUP BY
+          da."dataEfetivacao",
+          latest_history."statusRemessa",
+          latest_history."motivoStatusRemessa"
+        ORDER BY da."dataEfetivacao" DESC
+      `;
+    }
+
     return `
       WITH latest_history AS (
         SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
@@ -378,7 +446,44 @@ export class AgentesRepository {
     `;
   }
 
-  private buildWeeklyDashboardQuery() {
+  private buildWeeklyDashboardQuery(dateType: DashboardDateType) {
+    if (dateType === 'effective') {
+      return `
+        WITH latest_history AS (
+          SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
+            oph.id,
+            oph."ordemPagamentoAgrupadoId",
+            oph."statusRemessa",
+            oph."motivoStatusRemessa"
+          FROM ordem_pagamento_agrupado_historico oph
+          ORDER BY oph."ordemPagamentoAgrupadoId", oph.id DESC
+        )
+        SELECT
+          TO_CHAR(da."dataEfetivacao", 'YYYY-MM-DD') AS "paymentDate",
+          TO_CHAR(opg."dataInclusao", 'YYYY-MM-DD') AS "workDate",
+          latest_history."statusRemessa" AS "statusRemessa",
+          latest_history."motivoStatusRemessa" AS "motivoStatusRemessa"
+        FROM ordem_pagamento_guardador opg
+        INNER JOIN ordem_pagamento_agrupado opa
+          ON opa.id = opg."ordemPagamentoAgrupadoId"
+        INNER JOIN latest_history
+          ON latest_history."ordemPagamentoAgrupadoId" = opa.id
+        INNER JOIN detalhe_a da
+          ON da."ordemPagamentoAgrupadoHistoricoId" = latest_history.id
+        WHERE opg."ordemPagamentoAgrupadoId" IS NOT NULL
+          AND da."dataEfetivacao" IS NOT NULL
+          AND TO_CHAR(da."dataEfetivacao", 'YYYY-MM') = $1
+          AND opg."userId" = $2
+          AND ($3::date IS NULL OR da."dataEfetivacao" = $3::date)
+        GROUP BY
+          da."dataEfetivacao",
+          opg."dataInclusao",
+          latest_history."statusRemessa",
+          latest_history."motivoStatusRemessa"
+        ORDER BY da."dataEfetivacao" DESC, opg."dataInclusao" DESC
+      `;
+    }
+
     return `
       WITH latest_history AS (
         SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
@@ -411,7 +516,46 @@ export class AgentesRepository {
     `;
   }
 
-  private buildDailyDashboardQuery() {
+  private buildDailyDashboardQuery(dateType: DashboardDateType) {
+    if (dateType === 'effective') {
+      return `
+        WITH latest_history AS (
+          SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
+            oph.id,
+            oph."ordemPagamentoAgrupadoId",
+            oph."statusRemessa",
+            oph."motivoStatusRemessa"
+          FROM ordem_pagamento_agrupado_historico oph
+          ORDER BY oph."ordemPagamentoAgrupadoId", oph.id DESC
+        )
+        SELECT
+          COALESCE(NULLIF(TRIM(opg."idOrdemPagamento"), ''), CONCAT('GUARDADOR-', opg.id::text)) AS "photoId",
+          TO_CHAR(da."dataEfetivacao", 'YYYY-MM-DD') AS "paymentDate",
+          TO_CHAR(opg."dataInclusao", 'YYYY-MM-DD') AS "workDate",
+          CONCAT(
+            COALESCE(NULLIF(TRIM(opg."tipoOrdemPagamento"), ''), 'Repasse do guardador'),
+            COALESCE(CONCAT(' #', NULLIF(TRIM(opg."idOrdemPagamento"), '')), '')
+          ) AS description,
+          ROUND(COALESCE(opg."valorRepasseGuardador", 0)::numeric, 2) AS amount,
+          latest_history."statusRemessa" AS "statusRemessa",
+          latest_history."motivoStatusRemessa" AS "motivoStatusRemessa"
+        FROM ordem_pagamento_guardador opg
+        INNER JOIN ordem_pagamento_agrupado opa
+          ON opa.id = opg."ordemPagamentoAgrupadoId"
+        INNER JOIN latest_history
+          ON latest_history."ordemPagamentoAgrupadoId" = opa.id
+        INNER JOIN detalhe_a da
+          ON da."ordemPagamentoAgrupadoHistoricoId" = latest_history.id
+        WHERE opg."ordemPagamentoAgrupadoId" IS NOT NULL
+          AND da."dataEfetivacao" IS NOT NULL
+          AND TO_CHAR(da."dataEfetivacao", 'YYYY-MM') = $1
+          AND opg."userId" = $2
+          AND ($3::date IS NULL OR da."dataEfetivacao" = $3::date)
+          AND ($4::date IS NULL OR opg."dataInclusao" = $4::date)
+        ORDER BY da."dataEfetivacao" DESC, opg."dataInclusao" DESC, opg.id DESC
+      `;
+    }
+
     return `
       WITH latest_history AS (
         SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")

@@ -2,6 +2,7 @@ import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-st
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { User } from 'src/users/entities/user.entity';
+import { DEFAULT_DASHBOARD_DATE_TYPE } from './agentes-dashboard-date-type';
 import { AgentesRepository } from './agentes.repository';
 import { AgentesService } from './agentes.service';
 
@@ -140,5 +141,84 @@ describe('AgentesService', () => {
       },
     ]);
     expect(result.rejectionReasons).toEqual([]);
+  });
+
+  it('should expose effective date mode when requested', async () => {
+    jest.spyOn(agentesRepository, 'findDashboardData').mockResolvedValue({
+      month: '2026-05',
+      paymentCycles: [
+        {
+          paymentDate: '2026-05-20',
+          pendingReason: null,
+          workDays: [
+            {
+              date: '2026-05-15',
+              periodLabel: 'Integral',
+              pendingReason: null,
+              photos: [
+                {
+                  id: 'GUARDADOR-3',
+                  capturedAt: '2026-05-15T12:00:00.000Z',
+                  description: 'Repasse do guardador #102',
+                  status: 'Pago',
+                  amount: 30,
+                  rejectionReason: null,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    jest.spyOn(agentesRepository, 'getAvailableMonths').mockResolvedValue(['2026-05']);
+    jest.spyOn(agentesRepository, 'getAgentAssociationOptions').mockResolvedValue([]);
+
+    const result = await service.getDashboard(
+      { month: '2026-05', dateType: 'effective' } as any,
+      {
+        user: {
+          id: 12,
+          role: { id: RoleEnum.agentes },
+        },
+      } as any,
+    );
+
+    expect(agentesRepository.findDashboardData).toHaveBeenCalledWith({
+      month: '2026-05',
+      userId: 12,
+      paymentDate: undefined,
+      workDate: undefined,
+      dateType: 'effective',
+    });
+    expect(agentesRepository.getAvailableMonths).toHaveBeenCalledWith(12, 'effective');
+    expect(result.dateType).toBe('effective');
+  });
+
+  it('should default dashboard date mode to tentative', async () => {
+    jest.spyOn(agentesRepository, 'findDashboardData').mockResolvedValue({
+      month: '2026-05',
+      paymentCycles: [],
+    });
+    jest.spyOn(agentesRepository, 'getAvailableMonths').mockResolvedValue([]);
+    jest.spyOn(agentesRepository, 'getAgentAssociationOptions').mockResolvedValue([]);
+
+    const result = await service.getDashboard(
+      { month: '2026-05' } as any,
+      {
+        user: {
+          id: 12,
+          role: { id: RoleEnum.agentes },
+        },
+      } as any,
+    );
+
+    expect(agentesRepository.findDashboardData).toHaveBeenCalledWith({
+      month: '2026-05',
+      userId: 12,
+      paymentDate: undefined,
+      workDate: undefined,
+      dateType: DEFAULT_DASHBOARD_DATE_TYPE,
+    });
+    expect(result.dateType).toBe(DEFAULT_DASHBOARD_DATE_TYPE);
   });
 });

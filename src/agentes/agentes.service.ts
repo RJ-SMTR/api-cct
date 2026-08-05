@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { IRequest } from 'src/utils/interfaces/request.interface';
+import { DEFAULT_DASHBOARD_DATE_TYPE } from './agentes-dashboard-date-type';
 import { AgenteUserResponseDto } from './dtos/agente-user-response.dto';
 import { AgentesDashboardQueryDto } from './dtos/agentes-dashboard-query.dto';
 import {
@@ -68,16 +69,18 @@ export class AgentesService {
 
   async getDashboard(query: AgentesDashboardQueryDto, request: IRequest) {
     const targetUserId = this.resolveTargetUserId(query.userId, request);
+    const dateType = query.dateType ?? DEFAULT_DASHBOARD_DATE_TYPE;
     this.validateSelectedDates(query);
     const dashboardQuery: DashboardDataQuery = {
       month: query.month,
       userId: targetUserId,
       paymentDate: query.paymentDate,
       workDate: query.workDate,
+      dateType,
     };
     const dashboardData = await this.agentesRepository.findDashboardData(dashboardQuery);
 
-    const availableMonths = await this.agentesRepository.getAvailableMonths(targetUserId);
+    const availableMonths = await this.agentesRepository.getAvailableMonths(targetUserId, dateType);
     const associacoes = await this.agentesRepository.getAgentAssociationOptions(targetUserId);
     const baseData: DashboardMonthData = dashboardData ?? {
       month: query.month,
@@ -109,6 +112,7 @@ export class AgentesService {
     return {
       userId: targetUserId,
       month: baseResponse.month,
+      dateType,
       availableMonths,
       associacoes: baseResponse.associacoes,
       currentView: query.workDate ? 'daily' : query.paymentDate ? 'weekly' : 'monthly',
