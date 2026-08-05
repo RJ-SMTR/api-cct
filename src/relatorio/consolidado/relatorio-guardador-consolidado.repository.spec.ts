@@ -79,4 +79,17 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
     expect(queryRunner.release).toHaveBeenCalled();
     expect(result).toHaveLength(1);
   });
+
+  it('should classify motivoStatusRemessa ANHO as rejected', async () => {
+    await repository.findConsolidado({
+      dataInicio: new Date('2026-08-01T00:00:00.000Z'),
+      dataFim: new Date('2026-08-05T00:00:00.000Z'),
+      rejeitado: true,
+    });
+
+    const [query, params] = queryRunner.query.mock.calls[0];
+
+    expect(query).toContain('oph."motivoStatusRemessa" = ANY(');
+    expect(params).toContainEqual(['AL', 'ANHO']);
+  });
 });

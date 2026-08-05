@@ -38,8 +38,8 @@ export class RelatorioGuardadorConsolidadoRepository {
       clause += ` AND  oph."statusRemessa" = 4 AND oph."motivoStatusRemessa" = $${idx++}`;
       params.push('02');
     } else if (status.rejeitado) {
-      clause += ` AND oph."statusRemessa" = 4 AND oph."motivoStatusRemessa" = $${idx++}`;
-      params.push('AL');
+      clause += ` AND oph."statusRemessa" = 4 AND oph."motivoStatusRemessa" = ANY($${idx++}::text[])`;
+      params.push(['AL', 'ANHO']);
     }
     return { clause, nextIdx: idx };
   }
