@@ -61,7 +61,7 @@ export class MailService {
           details: {
             node: {
               message: String(error),
-              ...error,
+              ...(error instanceof Object ? error : { error }),
             },
           },
         },

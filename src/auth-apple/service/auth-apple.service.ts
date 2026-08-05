@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import appleSigninAuth from 'apple-signin-auth';
 import { ConfigService } from '@nestjs/config';
-import { SocialInterface } from '../social/interfaces/social.interface';
-import { AuthAppleLoginDto } from './dto/auth-apple-login.dto';
 import { AllConfigType } from 'src/config/config.type';
+import { SocialInterface } from 'src/social/interfaces/social.interface';
+import { AuthAppleLoginDto } from '../dto/auth-apple-login.dto';
 
 @Injectable()
 export class AuthAppleService {

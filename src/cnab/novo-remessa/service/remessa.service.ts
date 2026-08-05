@@ -53,23 +53,26 @@ export class RemessaService {
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
   public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idOperadoras?: string[]) {
     let ordens;
+    let headerArquivo: HeaderArquivo = new HeaderArquivo;
     if (pagamentoUnico) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
         dataPgto ? dataPgto : new Date());
     }
 
     if (isPendente) {
-      ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idOperadoras);
+      if(consorcio && consorcio.length > 0) {
+        ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idOperadoras);
+      }else{
+        ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentesGuardador(dataInicio, dataFim, dataPgto);
+      }
     } else {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
     }
 
-    if (ordens.length > 0) {
-
-      const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId);
-
+    if (ordens.length > 0) { 
+      const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId)
       if (!isEmpty(ordens)) {
-        const headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio));
+        headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio));
         let nsrTed = 1;
         let nsrCC = 1;
         for (let i = 0; i < ordens.length; i++) {
@@ -154,6 +157,7 @@ export class RemessaService {
         }
       }
     }
+    return headerArquivo;
   }
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO
@@ -183,7 +187,11 @@ export class RemessaService {
         let historico;
         this.logger.debug(`NSR: ${detalhesA[index].nsr}`)
         if (isPendente) {
-          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, isPendente);
+            if(consorcios && consorcios.length > 0) {
+              historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, isPendente);
+            }else{
+              historico = await this.ordemPagamentoAgrupadoService.getHistoricoDetalheAGuardador(detalhesA[index].id, isPendente);
+            }
         } else {
           historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, false, consorcios);
         }
@@ -224,18 +232,18 @@ export class RemessaService {
 
   //PEGA O ARQUIVO TXT GERADO E ENVIA PARA O SFTP
   public async enviarRemessa(listCnab: ICnabInfo[], headerName?: string) {
-    for (const cnab of listCnab) {
-      cnab.name = await this.sftpService.submitCnabRemessa(cnab.content, headerName);
-      if (cnab.name !== '') {
-        const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
-        await this.headerArquivoService.save({
-          id: cnab.headerArquivo.id, remessaName,
-          status: HeaderArquivoStatus._3_remessaEnviado
-        });
-      } else {
-        this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
-      }
-    }
+    // for (const cnab of listCnab) {
+    //   cnab.name = await this.sftpService.submitCnabRemessa(cnab.content, headerName);
+    //   if (cnab.name !== '') {
+    //     const remessaName = ((l = cnab.name.split('/')) => l.slice(l.length - 1)[0])();
+    //     await this.headerArquivoService.save({
+    //       id: cnab.headerArquivo.id, remessaName,
+    //       status: HeaderArquivoStatus._3_remessaEnviado
+    //     });
+    //   } else {
+    //     this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
+    //   }
+    // }
   }
 
   private async gerarHeaderArquivo(pagador: Pagador, remessaName: HeaderName) {

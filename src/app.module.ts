@@ -49,7 +49,7 @@ import { TransacaoViewModule } from './transacao-view/transacao-view.module';
 import { AppLoggerMiddleware } from './utils/logger-middleware';
 import { RelatorioModule } from './relatorio/relatorio.module';
 import { AppService } from './app.service';
-import { AgentesModule } from './agentes/agentes.module';
+import { AgendamentoPagamentoModule } from './agendamento/agendamento.module';
 
 @Module({
   imports: [
@@ -127,7 +127,7 @@ import { AgentesModule } from './agentes/agentes.module';
     SftpModule,
     TransacaoViewModule,
     RelatorioModule,
-    AgentesModule,
+    AgendamentoPagamentoModule
   ],
   providers: [TransacaoViewService, AppService],
 })

@@ -60,10 +60,7 @@ export class ItemTransacaoAgrupado extends EntityHelper {
 
   @ManyToOne(() => TransacaoAgrupado, {
     eager: true,
-  })
-  @JoinColumn({
-    foreignKeyConstraintName: 'FK_ItemTransacaoAgrupado_transacaoAgrupado_ManyToOne',
-  })
+  })    
   transacaoAgrupado: TransacaoAgrupado;
 
   @CreateDateColumn()

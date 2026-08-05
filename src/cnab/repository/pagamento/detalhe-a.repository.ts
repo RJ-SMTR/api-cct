@@ -20,7 +20,7 @@ export interface IDetalheARawWhere {
 
 @Injectable()
 export class DetalheARepository {
-
+  
   private logger: Logger = new Logger('DetalheARepository', { timestamp: true });
 
   constructor(
@@ -111,6 +111,28 @@ export class DetalheARepository {
 
     return detalhes;
 
+  }
+
+  async existsDetalheABeneficiario(id: number, permitCode: string) {
+    const query = (`select distinct da.* 
+                    from ordem_pagamento op
+                    inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
+                    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
+                    inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"=oph.id
+                    where  da."createdAt" >= date_trunc('day', now()) 
+                    and da."id"=${id} and op."idOperadora"=${permitCode} `)
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    const result: any[] = await queryRunner.query(query);
+
+    const detalhes = result.map((i) => new DetalheA(i));
+
+    queryRunner.release()
+
+    return detalhes;
   }
 
   async getDetalheAHeaderLote(id: number) {

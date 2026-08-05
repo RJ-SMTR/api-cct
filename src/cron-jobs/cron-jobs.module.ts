@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { AgentesModule } from 'src/agentes/agentes.module';
-import { AntifraudModule } from 'src/antifraud/antifraud.module';
+import { AgendamentoPagamentoModule } from 'src/agendamento/agendamento.module';
 import { CnabModule } from 'src/cnab/cnab.module';
 import { MailCountModule } from 'src/mail-count/mail-count.module';
 import { MailHistoryModule } from 'src/mail-history/mail-history.module';
@@ -12,6 +11,8 @@ import { SftpModule } from 'src/sftp/sftp.module';
 import { UsersModule } from 'src/users/users.module';
 import { CronJobsService } from './cron-jobs.service';
 import { CronJobsManutencaoController } from './cron-jobs-manutencao.controller';
+import { AntifraudModule } from 'src/antifraud/antifraud.module';
+import { AgentesModule } from 'src/agentes/agentes.module';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { CronJobsManutencaoController } from './cron-jobs-manutencao.controller'
     UsersModule,
     MailCountModule,
     CnabModule,
-    SftpModule,
+    AgendamentoPagamentoModule,
+    SftpModule
   ],
   controllers: [CronJobsManutencaoController],
   providers: [CronJobsService],

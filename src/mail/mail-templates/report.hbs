@@ -68,6 +68,33 @@
             text-transform: uppercase;
             letter-spacing: 0.3px;
             text-align: left;
+            vertical-align: middle;
+            line-height: 1.15;
+            font-size: 13px;
+        }
+
+        #tableStyle th:first-child,
+        #tableStyle td:first-child {
+            min-width: 200px;
+        }
+
+        #tableStyle th:nth-child(2),
+        #tableStyle td:nth-child(2),
+        #tableStyle th:nth-child(3),
+        #tableStyle td:nth-child(3) {
+            width: 96px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #tableStyle thead th {
+            line-height: 1.1;
+            white-space: normal;
+            font-size: 12px;
+        }
+
+        #tableStyle thead th:not(:first-child) {
+            text-align: center;
         }
     </style>
 </head>

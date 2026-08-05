@@ -89,6 +89,14 @@ import { RetornoService } from './novo-remessa/service/retorno.service';
 import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
 import { DistributedLockRepository } from './novo-remessa/repository/distributed-lock.repository';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+import { AgendamentoPagamentoService } from 'src/agendamento/service/agendamento-pagamento.service';
+import { AprovacaoPagamentoService } from 'src/agendamento/service/aprovacao-pagamento.service';
+import { AgendamentoPagamentoRepository } from 'src/agendamento/repository/agendamento-pagamento.repository';
+import { AprovacaoPagamentoRepository } from 'src/agendamento/repository/aprovacao-pagamento.repository';
+import { AgendamentoPagamentoConvert } from 'src/agendamento/convert/agendamento-pagamento.convert';
+import { AprovacaoPagamentoConvert } from 'src/agendamento/convert/aprovacao-pagamento.convert';
+import { AgendamentoPagamento } from 'src/agendamento/domain/entity/agendamento-pagamento.entity';
+import { AprovacaoPagamento } from 'src/agendamento/domain/entity/aprovacao-pagamento.entity';
 import { OrdemPagamentoGuardadorRepository } from './novo-remessa/repository/ordem-pagamento-guardador.repository';
 import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-guardador.entity';
 
@@ -124,9 +132,11 @@ import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-g
       ExtratoDetalheE,
       PagamentoIndevido,
       OrdemPagamento,
-      OrdemPagamentoAgrupado,
       OrdemPagamentoGuardador,
-      OrdemPagamentoAgrupadoHistorico
+      OrdemPagamentoAgrupado,
+      OrdemPagamentoAgrupadoHistorico,
+      AgendamentoPagamento,
+      AprovacaoPagamento
     ]),
   ],
   providers: [
@@ -184,7 +194,13 @@ import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-g
     RemessaService,
     RetornoService,
     DistributedLockService,
-    DistributedLockRepository
+    DistributedLockRepository,
+    AgendamentoPagamentoService,
+    AprovacaoPagamentoService,
+    AgendamentoPagamentoRepository,
+    AprovacaoPagamentoRepository,
+    AgendamentoPagamentoConvert,
+    AprovacaoPagamentoConvert
   ],
   exports: [
     CnabService, //
@@ -236,7 +252,13 @@ import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-g
     RemessaService,
     RetornoService,
     DistributedLockService,
-    DistributedLockRepository
+    DistributedLockRepository,
+    AgendamentoPagamentoService,
+    AprovacaoPagamentoService,
+    AgendamentoPagamentoRepository,
+    AprovacaoPagamentoRepository,
+    AgendamentoPagamentoConvert,
+    AprovacaoPagamentoConvert
   ],
   controllers: [CnabController, OrdemPagamentoController],
 })

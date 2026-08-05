@@ -8,10 +8,12 @@ import { Pagador } from 'src/cnab/entity/pagamento/pagador.entity';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
+import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
 import { OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoService {
+  
 
   private logger = new CustomLogger(OrdemPagamentoAgrupadoService.name, { timestamp: true });
 
@@ -24,9 +26,8 @@ export class OrdemPagamentoAgrupadoService {
   ) { }
 
   async prepararPagamentoAgrupados(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
-    pagadorKey: keyof AllPagadorDict, consorcios: string[]) {
-    this.logger.debug(`Preparando agrupamentos`)
-    const pagador = await this.getPagador(pagadorKey);
+    pagador:PagadorDTO, consorcios: string[]) {
+    this.logger.debug(`Preparando agrupamentos`)    
     if (pagador) {
       this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
       if(consorcios.length>0){
@@ -68,6 +69,15 @@ export class OrdemPagamentoAgrupadoService {
     }
   }
 
+  async prepararPagamentoAgrupadosPendentesGuardador(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date, pagadorKey: keyof AllPagadorDict) {
+    this.logger.debug(`Preparando agrupamentos Pendentes`)
+    const pagador = await this.getPagador(pagadorKey);
+
+    this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+    await this.agruparOrdensPendentesGuardador(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
+    this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
+  }
+
   async prepararPagamentoAgrupadosUnico(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
     pagadorKey: keyof AllPagadorDict, consorcios: string[]) {
     this.logger.debug(`Preparando agrupamentos pagamento único`)
@@ -79,11 +89,11 @@ export class OrdemPagamentoAgrupadoService {
     }
   }
 
-  private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]) {
+  private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO, consorcios: string[]) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
   }
 
-  private async agruparOrdensGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
+  private async agruparOrdensGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO) {
     await this.ordemPagamentoGuardadorRepository.agruparOrdensDePagamentoGuardador(dataInicial, dataFinal, dataPgto, pagador);
   }
 
@@ -97,6 +107,10 @@ export class OrdemPagamentoAgrupadoService {
   async getOrdensPendentes(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date, idOperadoras?: string[] ) {
     return await this.ordemPagamentoAgrupadoRepository.findAllPendente(dataInicio, dataFim, consorcio, dataPagamento, idOperadoras);
   }
+
+  async getOrdensPendentesGuardador(dataInicio: Date, dataFim: Date, dataPgto?: Date ) {
+     return await this.ordemPagamentoAgrupadoRepository.findAllPendenteGuardador(dataInicio, dataFim, dataPgto);
+  }  
 
   async getOrdensUnicas(dataInicio: Date, dataFim: Date, dataPgto: Date) {
     return await this.ordemPagamentoAgrupadoRepository.findAllUnica(dataInicio, dataFim, dataPgto);
@@ -117,7 +131,13 @@ export class OrdemPagamentoAgrupadoService {
    // await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
      await this.ordemPagamentoRepository.agruparOrdensDeEstornadosRejeitados(dataInicial, dataFinal, dataPgto, pagador, nomes);
   }
-  private async getPagador(pagadorKey: any) {
+
+  private async agruparOrdensPendentesGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador) {
+    await this.ordemPagamentoGuardadorRepository.agruparOrdensDePagamentoGuardadorPendentes(dataInicial, dataFinal, dataPgto, pagador);
+  }
+
+
+  public async getPagador(pagadorKey: any) {
     return (await this.pagadorService.getAllPagador())[pagadorKey];
   }
 
@@ -145,6 +165,10 @@ export class OrdemPagamentoAgrupadoService {
 
   public async getHistoricosOrdemDetalheA(id: number, pagamentoUnico?: boolean, isPendente?: boolean,consorcios?: string[]) {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id, pagamentoUnico, isPendente,consorcios);
+  }
+
+  public async getHistoricoDetalheAGuardador(detalheAId: number,isPendente?: boolean) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheAGuardador(detalheAId, isPendente);
   }
 
   public async getHistorico(id: number) {

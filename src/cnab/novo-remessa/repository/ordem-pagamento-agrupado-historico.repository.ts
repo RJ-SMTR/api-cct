@@ -100,6 +100,52 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     return oph[0];
   }
 
+  public async getHistoricoDetalheAGuardador(detalheAId: number,isPendente?: boolean): Promise<OrdemPagamentoAgrupadoHistoricoDTO> {
+
+    let query = '';
+   if(isPendente){
+      query = (`select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
+                      oph.* from ordem_pagamento_agrupado_historico oph
+    INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    LEFT JOIN ordem_pagamento_agrupado opa ON opa."id" = oph."ordemPagamentoAgrupadoId"
+    LEFT JOIN LATERAL (
+        SELECT *
+        FROM ordem_pagamento_agrupado
+        WHERE
+            "ordemPagamentoAgrupadoId" = opa.id
+    ) filhos ON true
+    LEFT JOIN LATERAL (
+        SELECT *
+        FROM ordem_pagamento_guardador op2
+        WHERE
+            op2."ordemPagamentoAgrupadoId" = COALESCE(filhos.id, opa.id)
+    ) op ON true
+    LEFT JOIN public.user u ON u."id" = op."userId"` +
+    `where da."id" = ${detalheAId}`)
+    } else {     
+        query = (`select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
+                      oph.* from ordem_pagamento_agrupado_historico oph 
+                      inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id 
+                      left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
+                      left join ordem_pagamento_guardador op on op."ordemPagamentoAgrupadoId" = opa.id
+                      left join public.user u on u."id" = op."userId"` +
+        ` where da."id" = ${detalheAId}`)
+        
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    queryRunner.connect();
+
+    const result: any[] = await queryRunner.manager.query(query);
+
+    const oph = result.map((i) => new OrdemPagamentoAgrupadoHistoricoDTO(i));
+
+    queryRunner.release()
+
+    return oph[0];
+  }
+
   public async getHistorico(detalheAId: number): Promise<OrdemPagamentoAgrupadoHistorico[]> {
 
     const query = (`WITH raiz AS (

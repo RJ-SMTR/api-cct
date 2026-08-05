@@ -1,7 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { Exclude, Expose } from 'class-transformer';
-import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
+import { AuthProvidersEnum } from 'src/auth/domain/enums/auth-providers.enum';
 import { Bank } from 'src/banks/entities/bank.entity';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
