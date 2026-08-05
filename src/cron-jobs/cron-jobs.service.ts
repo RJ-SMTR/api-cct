@@ -45,6 +45,8 @@ import { AprovacaoPagamentoService } from 'src/agendamento/service/aprovacao-pag
 import { AprovacaoEnum } from 'src/agendamento/enums/aprovacao.enum';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { AprovacaoPagamentoDTO } from 'src/agendamento/domain/dto/aprovacao-pagamento.dto';
+import { RetornoService } from 'src/cnab/novo-remessa/service/retorno.service';
+import { SftpService } from 'src/sftp/sftp.service';
 
 
 /**
@@ -110,23 +112,25 @@ export class CronJobsService {
     private cnabService: CnabService,
     private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
     private remessaService: RemessaService,
+    private retornoService: RetornoService,
+    private sftpService: SftpService,
     private ordemPagamentoService: OrdemPagamentoService,
     private bigQueryTransacaoService: BigqueryTransacaoService,
     private distributedLockService: DistributedLockService,
-    private agendamentoPagamentoService: AgendamentoPagamentoService,
-    private aprovacaoService: AprovacaoPagamentoService,
-    private detalheAService: DetalheAService,
     private agentesSyncService: AgentesSyncService,
+    private detalheAService: DetalheAService,
+    private aprovacaoService: AprovacaoPagamentoService,
+    private agendamentoPagamentoService: AgendamentoPagamentoService
   ) { }
   async onModuleInit() {
-    //await this.sincronizarEAgruparOrdensPagamento()
+    await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
   async onModuleLoad() {
-    await this.remessaPendenteGuardadorExec('2026-07-01', '2026-08-04', '2026-08-05');
+   // await this.remessaPendenteGuardadorExec('2026-07-01', '2026-08-04', '2026-08-05');
     
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
@@ -1146,5 +1150,22 @@ export class CronJobsService {
       return true;
     }
     return false;
+  }
+
+   async fullBackup() {
+    const METHOD = 'fullBackup';
+    try {
+      this.logger.log('Iniciando BACKUP selecionado do SFTP', METHOD);
+      await this.sftpService.backupSelectedFoldersToGcs([
+        '/backup/extrato/success/2026',
+        '/backup/remessa/2026',
+        '/backup/retorno/success/2026',
+        '/enviados',
+        '/retorno'
+      ]);
+      this.logger.log('BACKUP selecionado finalizado', METHOD);
+    } catch (error) {
+      this.logger.error(`Erro ao executar backup selecionado: ${error.message}`, error?.stack, METHOD);
+    }
   }
 }

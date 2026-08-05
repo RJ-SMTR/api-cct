@@ -61,7 +61,7 @@ export class MailService {
           details: {
             node: {
               message: String(error),
-              ...error,
+              ...(error instanceof Object ? error : { error }),
             },
           },
         },
@@ -194,6 +194,26 @@ export class MailService {
       );
     }
 
+    const formatCountNumber = (value: number): string =>
+      new Intl.NumberFormat('pt-BR').format(Number(value || 0));
+
+    const formatRoleCount = (count: { vanzeiro: number; guardador: number }) => ({
+      vanzeiro: formatCountNumber(count.vanzeiro),
+      guardador: formatCountNumber(count.guardador),
+    });
+
+    const formattedStatusCount = {
+      queued: formatRoleCount(mailData.data.statusCount.queued),
+      sent: formatRoleCount(mailData.data.statusCount.sent),
+      used: formatRoleCount(mailData.data.statusCount.used),
+      usedIncomplete: formatRoleCount(mailData.data.statusCount.usedIncomplete),
+      usedComplete: formatRoleCount(mailData.data.statusCount.usedComplete),
+      total: formatRoleCount(mailData.data.statusCount.total),
+      noFullName: formatRoleCount(mailData.data.statusCount.noFullName),
+      noPhone: formatRoleCount(mailData.data.statusCount.noPhone),
+      noEmail: formatRoleCount(mailData.data.statusCount.noEmail),
+    };
+
     try {
       const response = await this.safeSendMail({
         from,
@@ -204,15 +224,15 @@ export class MailService {
         context: {
           title: mailTitle,
           headerTitle: 'Estatística dos Dados',
-          mailQueued: mailData.data.statusCount.queued,
-          mailSent: mailData.data.statusCount.sent,
-          mailUsed: mailData.data.statusCount.used,
-          mailUsedIncomplete: mailData.data.statusCount.usedIncomplete,
-          mailUsedComplete: mailData.data.statusCount.usedComplete,
-          mailTotal: mailData.data.statusCount.total,
-          mailNoFullName: mailData.data.statusCount.noFullName,
-          mailNoPhone: mailData.data.statusCount.noPhone,
-          mailNoEmail: mailData.data.statusCount.noEmail,
+          mailQueued: formattedStatusCount.queued,
+          mailSent: formattedStatusCount.sent,
+          mailUsed: formattedStatusCount.used,
+          mailUsedIncomplete: formattedStatusCount.usedIncomplete,
+          mailUsedComplete: formattedStatusCount.usedComplete,
+          mailTotal: formattedStatusCount.total,
+          mailNoFullName: formattedStatusCount.noFullName,
+          mailNoPhone: formattedStatusCount.noPhone,
+          mailNoEmail: formattedStatusCount.noEmail,
         },
       });
 

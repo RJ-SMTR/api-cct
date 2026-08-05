@@ -27,6 +27,7 @@ import { AgentesModule } from 'src/agentes/agentes.module';
     MailCountModule,
     CnabModule,
     AgendamentoPagamentoModule,
+    SftpModule
   ],
   controllers: [CronJobsManutencaoController],
   providers: [CronJobsService],

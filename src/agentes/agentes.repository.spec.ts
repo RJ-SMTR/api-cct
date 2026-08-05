@@ -12,6 +12,7 @@ describe('AgentesRepository', () => {
   let typeormRepository: Pick<Repository<User>, 'createQueryBuilder'>;
   let mailHistoryService: Pick<MailHistoryService, 'find'>;
   let dataSource: Pick<DataSource, 'query'>;
+  let dataSource: Pick<DataSource, 'query'>;
   let queryBuilder: {
     leftJoinAndSelect: jest.Mock;
     where: jest.Mock;
@@ -35,10 +36,14 @@ describe('AgentesRepository', () => {
     dataSource = {
       query: jest.fn(),
     };
+    dataSource = {
+      query: jest.fn(),
+    };
 
     repository = new AgentesRepository(
       typeormRepository as Repository<User>,
       mailHistoryService as MailHistoryService,
+      dataSource as DataSource,
       dataSource as DataSource,
     );
   });
@@ -203,9 +208,132 @@ describe('AgentesRepository', () => {
       month: '2026-05',
       userId: 7,
     });
+  it('should build dashboard data from monthly, weekly and daily query rows', async () => {
+    jest
+      .spyOn(dataSource, 'query')
+      .mockResolvedValueOnce([
+        {
+          paymentDate: '2026-05-12',
+          statusRemessa: 3,
+          motivoStatusRemessa: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          paymentDate: '2026-05-12',
+          workDate: '2026-05-11',
+          statusRemessa: 3,
+          motivoStatusRemessa: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          photoId: 'GUARDADOR-1',
+          paymentDate: '2026-05-12',
+          workDate: '2026-05-11',
+          description: 'Repasse do guardador #100',
+          amount: '15.50',
+          statusRemessa: 3,
+          motivoStatusRemessa: null,
+        },
+      ]);
 
     const dashboardData = await repository.findDashboardData({
       month: '2026-05',
+      userId: 7,
+    });
+
+    expect(dashboardData).toEqual(
+      {
+        month: '2026-05',
+        paymentCycles: [
+          {
+            paymentDate: '2026-05-12',
+            pendingReason: null,
+            workDays: [
+              {
+                date: '2026-05-11',
+                periodLabel: 'Integral',
+                pendingReason: null,
+                photos: [
+                  {
+                    id: 'GUARDADOR-1',
+                    capturedAt: '2026-05-11T12:00:00.000Z',
+                    description: 'Repasse do guardador #100',
+                    status: 'Pago',
+                    amount: 15.5,
+                    rejectionReason: null,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    );
+    expect(dataSource.query).toHaveBeenCalledTimes(3);
+  });
+
+  it('should preserve aguardando pagamento status in dashboard data', async () => {
+    jest
+      .spyOn(dataSource, 'query')
+      .mockResolvedValueOnce([
+        {
+          paymentDate: '2026-05-16',
+          statusRemessa: 2,
+          motivoStatusRemessa: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          paymentDate: '2026-05-16',
+          workDate: '2026-05-15',
+          statusRemessa: 2,
+          motivoStatusRemessa: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          photoId: 'GUARDADOR-2',
+          paymentDate: '2026-05-16',
+          workDate: '2026-05-15',
+          description: 'Repasse do guardador #101',
+          amount: '22.10',
+          statusRemessa: 2,
+          motivoStatusRemessa: null,
+        },
+      ]);
+
+    const dashboardData = await repository.findDashboardData({
+      month: '2026-05',
+      userId: 7,
+    });
+
+    const dashboardData = await repository.findDashboardData({
+      month: '2026-05',
+      paymentCycles: [
+        {
+          paymentDate: '2026-05-16',
+          pendingReason: 'Aguardando Pagamento',
+          workDays: [
+            {
+              date: '2026-05-15',
+              periodLabel: 'Integral',
+              pendingReason: 'Aguardando Pagamento',
+              photos: [
+                {
+                  id: 'GUARDADOR-2',
+                  capturedAt: '2026-05-15T12:00:00.000Z',
+                  description: 'Repasse do guardador #101',
+                  status: 'Aguardando Pagamento',
+                  amount: 22.1,
+                  rejectionReason: null,
+                },
+              ],
+            },
+          ],
+        },
+      ],
       paymentCycles: [
         {
           paymentDate: '2026-05-16',

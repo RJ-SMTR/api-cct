@@ -98,6 +98,7 @@ import { AprovacaoPagamentoConvert } from 'src/agendamento/convert/aprovacao-pag
 import { AgendamentoPagamento } from 'src/agendamento/domain/entity/agendamento-pagamento.entity';
 import { AprovacaoPagamento } from 'src/agendamento/domain/entity/aprovacao-pagamento.entity';
 import { OrdemPagamentoGuardadorRepository } from './novo-remessa/repository/ordem-pagamento-guardador.repository';
+import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-guardador.entity';
 
 @Module({
   imports: [
@@ -131,6 +132,7 @@ import { OrdemPagamentoGuardadorRepository } from './novo-remessa/repository/ord
       ExtratoDetalheE,
       PagamentoIndevido,
       OrdemPagamento,
+      OrdemPagamentoGuardador,
       OrdemPagamentoAgrupado,
       OrdemPagamentoAgrupadoHistorico,
       AgendamentoPagamento,
