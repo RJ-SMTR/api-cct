@@ -7,6 +7,7 @@ import {
   ValidationPipeOptions,
 } from '@nestjs/common';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { StatusEnum } from 'src/statuses/statuses.enum';
 import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { MailHistoryService } from '../mail-history.service';
 
@@ -38,7 +39,10 @@ export class MailHistoryValidationPipe extends ValidationPipe {
         },
         HttpStatus.UNAUTHORIZED,
       );
-    } else if (inviteFound.getMailStatus() === InviteStatusEnum.used) {
+    } else if (
+      inviteFound.getMailStatus() === InviteStatusEnum.used &&
+      inviteFound.user?.status?.id === StatusEnum.active
+    ) {
       throw new HttpException(
         {
           message: HttpStatusMessage.UNAUTHORIZED,
