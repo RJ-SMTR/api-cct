@@ -100,11 +100,7 @@ export const buildBaseQuery = (params: NovoRemessaBaseParams) => {
       da."dataVencimento" BETWEEN $1 AND $2
       AND ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR ${STATUS_CASE} = ANY($4))
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
-      AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-      )
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))     
       AND NOT EXISTS (
         SELECT 1
         FROM ordem_pagamento_agrupado filha
@@ -146,11 +142,7 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
       da."dataVencimento" BETWEEN $1 AND $2
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
       AND ${ELEICAO_STATUS_FILTER}
-      AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))
-      AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-      )
+      AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))      
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
   `;
 };
@@ -226,11 +218,7 @@ export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams)
     WHERE
        ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR TRUE)
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
-      AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-      )
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))    
       AND NOT EXISTS (
         SELECT 1
         FROM ordem_pagamento_agrupado filha
