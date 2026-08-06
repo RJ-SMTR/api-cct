@@ -166,8 +166,10 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       SELECT ${nomeField} AS nome, ${cpfSelect} AS "cpfCnpj", SUM(valor) AS valor
       FROM (
         ${baseQuery}
-      ) base
+      ) base     
       GROUP BY ${groupByClause}
+       ${filter.valorMin !== undefined? ' HAVING SUM(valor) >= $6' : ''}  
+      ${filter.valorMax !== undefined? ' AND SUM(valor) <= $7' : ''}  
     `;
   }
 
