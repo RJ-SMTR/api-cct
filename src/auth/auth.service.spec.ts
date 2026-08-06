@@ -12,6 +12,8 @@ import { MailSentInfo } from 'src/mail/interfaces/mail-sent-info.interface';
 import { MailService } from 'src/mail/mail.service';
 import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
+import { Status } from 'src/statuses/entities/status.entity';
+import { StatusEnum } from 'src/statuses/statuses.enum';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { DeepPartial } from 'typeorm';
@@ -249,6 +251,51 @@ describe('AuthService', () => {
       // Assert
       expect(mailHistoryService.findRecentByUser).toBeCalledWith(user);
       expect(mailHistoryService.findOne).toBeCalledTimes(0);
+      expect(mailHistoryService.update).toBeCalledWith(
+        mailHistory.id,
+        {
+          inviteStatus: mailHistory.inviteStatus,
+          sentAt: dateNow,
+        },
+        expect.any(String),
+      );
+    });
+
+    it('preserves used when resending an invite that was already accessed', async () => {
+      const user = new User({
+        id: 2,
+        email: 'user2@mail.com',
+        hash: 'hash_2',
+        status: new Status(StatusEnum.register),
+      });
+      const mailHistory = new MailHistory({
+        id: 100,
+        user,
+        hash: 'accessed_hash',
+      });
+      mailHistory.setInviteStatus(InviteStatusEnum.used);
+      const mailResponse = {
+        mailConfirmationLink: 'link',
+        mailSentInfo: {
+          success: true,
+        },
+      } as MailRegistrationInterface;
+      const dateNow = new Date('2023-01-01T11:00:00');
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest
+        .spyOn(mailHistoryService, 'findRecentByUser')
+        .mockResolvedValue(mailHistory);
+      jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
+      jest
+        .spyOn(mailService, 'sendConcludeRegistration')
+        .mockResolvedValue(mailResponse);
+      jest
+        .spyOn(global.Date, 'now')
+        .mockImplementation(() => dateNow.valueOf());
+
+      await authService.resendRegisterMail({ id: 2 });
+
       expect(mailHistoryService.update).toBeCalledWith(
         mailHistory.id,
         {
