@@ -5,6 +5,8 @@ import {
   getStatusRemessaEnumByValue,
   StatusRemessaEnum,
 } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
+import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
+import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { RoleEnum } from 'src/roles/roles.enum';
@@ -459,7 +461,17 @@ export class AgentesRepository {
       const mailHistories = mails.filter((mail) => mail.user.id === user.id);
       const mailHistory = mailHistories[0] as MailHistory | undefined;
       user.mailHistories = mailHistories;
-      user.aux_inviteStatus = mailHistory?.inviteStatus;
+      const hasBankAccount =
+        user.bankCode !== null &&
+        user.bankCode !== undefined &&
+        Boolean(user.bankAgency) &&
+        Boolean(user.bankAccount) &&
+        Boolean(user.bankAccountDigit);
+
+      user.aux_inviteStatus =
+        user.role?.id === RoleEnum.agentes && hasBankAccount && !user.password
+          ? new InviteStatus(InviteStatusEnum.prov)
+          : mailHistory?.inviteStatus;
       user.inviteAt = mailHistory?.sentAt ?? null;
       user.aux_inviteHash = mailHistory?.hash;
     }
