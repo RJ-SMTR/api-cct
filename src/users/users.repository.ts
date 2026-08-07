@@ -109,10 +109,30 @@ export class UsersRepository {
       const mailHistories = mails.filter((i) => i.user.id === user.id);
       const mailHistory = mailHistories?.[0] as MailHistory | undefined;
       user.mailHistories = mails.filter((i) => i.user.id === user.id);
-      user.aux_inviteStatus = mailHistory?.inviteStatus;
+      user.aux_inviteStatus = this.hasBankAccountWithoutPassword(user)
+        ? new InviteStatus(InviteStatusEnum.prov)
+        : mailHistory?.inviteStatus;
       user.inviteAt = mailHistory?.sentAt ?? null;
       user.aux_inviteHash = mailHistory?.hash;
     }
+  }
+
+  private hasBankAccountWithoutPassword(user: User): boolean {
+    const roleId = user.role?.id;
+    const isGuardadorOrPermissionario =
+      roleId === RoleEnum.agentes || roleId === RoleEnum.user;
+    if (!isGuardadorOrPermissionario) {
+      return false;
+    }
+
+    const hasBankAccount =
+      user.bankCode !== null &&
+      user.bankCode !== undefined &&
+      Boolean(user.bankAgency) &&
+      Boolean(user.bankAccount) &&
+      Boolean(user.bankAccountDigit);
+
+    return hasBankAccount && !user.password;
   }
 
   private async loadLazyAux_bank(users: User[]) {
@@ -222,6 +242,13 @@ export class UsersRepository {
       },
     });
     await this.loadLazyRelations(users);
+
+    if (inviteStatus?.id === InviteStatusEnum.prov) {
+      return users.filter(
+        (user) =>
+          user.aux_inviteStatus?.id === InviteStatusEnum.prov,
+      );
+    }
 
     let invites: Nullable<MailHistory[]> = null;
     if (inviteStatus) {
