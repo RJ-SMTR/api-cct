@@ -38,8 +38,6 @@ import { DistributedLockService } from '../cnab/novo-remessa/service/distributed
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 
-
-
 /**
  * Enum CronJobServicesJobs
  */
@@ -112,7 +110,7 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento()
+   // await this.sincronizarEAgruparOrdensPagamento()
     // await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
       throw error;

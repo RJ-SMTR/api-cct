@@ -113,6 +113,9 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       cursor.cpfCnpj,
       pageSize,
     ];
+    this.logger.debug(JSON.stringify(dataParams));
+    this.logger.debug(dataQuery);
+
     const rows = await this.executeQuery(dataQuery, dataParams, 'PAGE');
 
     const data = rows.map((row) => new RelatorioFinancialMovementNovoRemessaData(row));
