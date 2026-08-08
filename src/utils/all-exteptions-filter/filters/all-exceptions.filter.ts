@@ -52,7 +52,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ...(customResponse || (typeof httpResponse === 'string' ? { message: httpResponse } : httpResponse)),
       };
     }
-    if (responseData?.message) {
+    if (responseData?.message && responseData?.errors) {
+      responseData.clientMessage = {
+        message: responseData.message,
+        errors: responseData.errors,
+      };
+    } else if (responseData?.message) {
       responseData.clientMessage = { message: responseData.message };
     } else if (responseData?.response) {
       responseData.clientMessage = responseData.response;
