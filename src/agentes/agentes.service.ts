@@ -1,4 +1,9 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
+import { getStatusRemessaEnumByValue } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
+import { OrdemPagamentoAgrupadoMensalDto } from 'src/cnab/novo-remessa/dto/ordem-pagamento-agrupado-mensal.dto';
+import { OrdemPagamentoMensalDto } from 'src/cnab/novo-remessa/dto/ordem-pagamento-mensal.dto';
+import { OrdemPagamentoSemanalDto } from 'src/cnab/novo-remessa/dto/ordem-pagamento-semanal.dto';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { AgenteUserResponseDto } from './dtos/agente-user-response.dto';
@@ -15,6 +20,8 @@ import {
 
 type DashboardMonthlyPayment = {
   paymentDate: string;
+  dataTentativaPagamento: string | null;
+  dataEfetivaPagamento: string | null;
   paymentDayType: 'terça-feira' | 'sexta-feira' | 'outro';
   validPhotosCount: number;
   rejectedPhotosCount: number;
@@ -64,6 +71,128 @@ export class AgentesService {
           this.agentesRepository.getAgentAssociationOptionsFromUser(user),
         ),
     );
+  }
+
+  async getMonthly(
+    yearMonth: string,
+    userId: number,
+  ): Promise<OrdemPagamentoMensalDto> {
+    const normalizedYearMonth = String(yearMonth || '').trim();
+    const yearMonthAsDate = /^\d{4}-\d{2}$/.test(normalizedYearMonth)
+      ? `${normalizedYearMonth}-01`
+      : normalizedYearMonth;
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(yearMonthAsDate)) {
+      throw new BadRequestException('yearMonth deve estar no formato YYYY-MM');
+    }
+
+    const rows = await this.agentesRepository.findMonthlyByUserId(
+      yearMonthAsDate,
+      userId,
+    );
+
+    const result = new OrdemPagamentoMensalDto();
+    result.ordens = rows.map((row) => {
+      const dto = new OrdemPagamentoAgrupadoMensalDto();
+      const ordemPagamentoAgrupadoIds = row.ordemPagamentoAgrupadoIds
+        ? String(row.ordemPagamentoAgrupadoIds).trim()
+        : '';
+      const ordemPagamentoAgrupadoId = ordemPagamentoAgrupadoIds
+        ? Number(ordemPagamentoAgrupadoIds.split(',')[0])
+        : null;
+
+      dto.ordemPagamentoAgrupadoIds =
+        ordemPagamentoAgrupadoIds || (null as any);
+      dto.ordemPagamentoAgrupadoId = ordemPagamentoAgrupadoId as any;
+      dto.data = new Date(row.dataTentativaPagamento || row.data) as any;
+      dto.valorTotal = Number(row.valorTotal || 0);
+      dto.statusRemessa =
+        row.statusRemessa === null ? (null as any) : Number(row.statusRemessa);
+      dto.motivoStatusRemessa =
+        row.motivoStatusRemessa === null
+          ? (null as any)
+          : row.motivoStatusRemessa;
+      dto.descricaoStatusRemessa =
+        row.statusRemessa === null
+          ? (null as any)
+          : getStatusRemessaEnumByValue(Number(row.statusRemessa) as any) ??
+            (null as any);
+      dto.descricaoMotivoStatusRemessa = row.motivoStatusRemessa
+        ? OcorrenciaEnum[row.motivoStatusRemessa as keyof typeof OcorrenciaEnum]
+        : (null as any);
+      dto.dataPagamento = row.dataEfetivaPagamento
+        ? (new Date(row.dataEfetivaPagamento) as any)
+        : (null as any);
+      (dto as any).dataTentativaPagamento = row.data ?? null;
+      (dto as any).dataEfetivaPagamento = row.dataEfetivaPagamento ?? null;
+      return dto;
+    });
+
+    result.valorTotal = result.ordens.reduce(
+      (sum, item) => sum + Number(item.valorTotal || 0),
+      0,
+    );
+    result.valorTotalPago = result.ordens.reduce((sum, item) => {
+      if (
+        item.motivoStatusRemessa &&
+        ['00', 'BD'].includes(String(item.motivoStatusRemessa))
+      ) {
+        return sum + Number(item.valorTotal || 0);
+      }
+      return sum;
+    }, 0);
+
+    return result;
+  }
+
+  async getWeekly(
+    ordemPagamentoAgrupadoIds: string,
+    userId: number,
+    endDate?: string,
+  ): Promise<OrdemPagamentoSemanalDto[]> {
+    const parsedEndDate = endDate ? new Date(endDate) : undefined;
+    const rows = await this.agentesRepository.findWeeklyByAgrupadoIds(
+      ordemPagamentoAgrupadoIds,
+      userId,
+      parsedEndDate,
+    );
+
+    return rows.map((row) => {
+      const dto = new OrdemPagamentoSemanalDto();
+      dto.dataCaptura = row.dataCaptura as any;
+      dto.valor = Number(row.valor || 0);
+      dto.ids = row.ids;
+      return dto;
+    });
+  }
+
+  getDaily(
+    ordemPagamentoIds: string,
+    userId: number,
+  ): Promise<Record<string, unknown>[]> {
+    return this.agentesRepository.findDailyByOrdemIds(
+      ordemPagamentoIds,
+      userId,
+    );
+  }
+
+  async getPreviousDays(
+    ordemPagamentoAgrupadoIds: string,
+    userId: number,
+  ): Promise<OrdemPagamentoSemanalDto[]> {
+    const rows =
+      await this.agentesRepository.findPreviousDaysByAgrupadoIds(
+        ordemPagamentoAgrupadoIds,
+        userId,
+      );
+
+    return rows.map((row) => {
+      const dto = new OrdemPagamentoSemanalDto();
+      dto.valor = Number(row.valor || 0);
+      dto.dataOrdem = row.dataOrdem as any;
+      dto.dataCaptura = row.dataCaptura as any;
+      return dto;
+    });
   }
 
   async getDashboard(query: AgentesDashboardQueryDto, request: IRequest) {
@@ -178,6 +307,8 @@ export class AgentesService {
 
     return {
       paymentDate: paymentCycle.paymentDate,
+      dataTentativaPagamento: paymentCycle.tentativePaymentDate,
+      dataEfetivaPagamento: paymentCycle.effectivePaymentDate,
       paymentDayType: this.getPaymentDayType(paymentCycle.paymentDate),
       validPhotosCount: workDaySummaries.reduce((sum, workDay) => sum + workDay.validPhotosCount, 0),
       rejectedPhotosCount: workDaySummaries.reduce((sum, workDay) => sum + workDay.rejectedPhotosCount, 0),
