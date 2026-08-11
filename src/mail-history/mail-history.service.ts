@@ -280,6 +280,9 @@ export class MailHistoryService {
       queued: createCount(),
       sent: createCount(),
       used: createCount(),
+      prov: createCount(),
+      provDescription:
+        'Guardador inserido diretamente no sistema, sem necessidade de login.',
       usedIncomplete: createCount(),
       usedComplete: createCount(),
       total: createCount(),
@@ -327,6 +330,34 @@ export class MailHistoryService {
       if (!hasEmail) {
         resultReturn.noEmail[roleKey] += count;
       }
+    }
+
+    const provByRole: Array<{ role_id: number; status_count: string }> =
+      await this.entityManager
+        .getRepository(User)
+        .createQueryBuilder('user')
+        .select([
+          'user.roleId as role_id',
+          'COUNT(user.id) as status_count',
+        ])
+        .where('user.roleId IN (:...roleIds)', { roleIds })
+        .andWhere('user.deletedAt IS NULL')
+        .andWhere('user.bankCode IS NOT NULL')
+        .andWhere("user.bankAgency IS NOT NULL AND user.bankAgency != ''")
+        .andWhere("user.bankAccount IS NOT NULL AND user.bankAccount != ''")
+        .andWhere(
+          "user.bankAccountDigit IS NOT NULL AND user.bankAccountDigit != ''",
+        )
+        .andWhere('(user.password IS NULL OR user.password = \'\')')
+        .groupBy('user.roleId')
+        .getRawMany();
+
+    for (const row of provByRole) {
+      const roleKey = getRoleKey(Number(row.role_id));
+      if (!roleKey) {
+        continue;
+      }
+      resultReturn.prov[roleKey] += Number(row.status_count);
     }
 
     return resultReturn;
