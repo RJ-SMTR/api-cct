@@ -527,7 +527,7 @@ export class AgentesRepository {
             op."dataOrdem",
             da."dataVencimento" as data_efetiva,
             ROUND(
-                da."valorLancamento"::numeric,
+                op."valorRepasseGuardador"::numeric,
                 2
             ) AS valorTotalPagamento,
             oph."statusRemessa",
