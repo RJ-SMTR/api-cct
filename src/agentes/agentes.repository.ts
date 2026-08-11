@@ -570,12 +570,13 @@ export class AgentesRepository {
         WHERE
             s5.rn = 1
     )
-SELECT r.data_referencia as data,r."dataOrdem", r.data_efetiva as "dataEfetivaPagamento", r."statusRemessa", r."motivoStatusRemessa", string_agg(DISTINCT r.opaId::text, ', ') as "ordemPagamentoAgrupadoIds", sum(r.valorTotalPagamento) as "valorTotal"
+SELECT r.data_referencia as data,r."dataOrdem", r.data_efetiva as "dataEfetivaPagamento", r."statusRemessa", r."motivoStatusRemessa", string_agg(DISTINCT r.opaId::text, ', ') as "ordemPagamentoAgrupadoIds", r.valorTotalPagamento as "valorTotal"
 FROM ordens_filtradas r
 GROUP BY
     r.data_referencia,
     r."dataOrdem",
     r."statusRemessa",
+     r.valorTotalPagamento,
     r."motivoStatusRemessa",
     r.data_efetiva
 ORDER BY r.data_referencia DESC;`; 
