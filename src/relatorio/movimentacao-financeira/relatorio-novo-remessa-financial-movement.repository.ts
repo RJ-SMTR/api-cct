@@ -9,9 +9,6 @@ import {
   buildEleicaoQuery,
   buildPendentesQuery,
   buildPendenciaPagaSingleDateQuery,
-  CONSORCIO_CASE,
-  NOT_CPF_FILTER,
-  STATUS_CASE,
 } from '../novo-remessa/queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import {
@@ -48,42 +45,43 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     { timestamp: true },
   );
 
-  private readonly CONSORCIO_CASE = CONSORCIO_CASE;
-  private readonly STATUS_CASE = STATUS_CASE;
-  private readonly NOT_CPF_FILTER = NOT_CPF_FILTER;
-
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
-  ) { }
+  ) {}
 
   public async findFinancialMovementSummary(
     filter: IFindPublicacaoRelatorioNovoFinancialMovement,
   ): Promise<RelatorioFinancialMovementNovoRemessaSummaryDto> {
     const safeFilter = this.normalizeFilter(filter);
     const statuses = this.resolveStatuses(safeFilter);
-    const params = this.getQueryParameters(safeFilter, statuses.baseStatuses);
 
+    // Params internos com valorMin/Max = null para não filtrar dentro da base
+    const innerParams = this.getInnerQueryParameters(safeFilter, statuses.baseStatuses);
     const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
     const { countQuery, aggregatesQuery } = this.buildSummaryQueries(finalBaseQuery);
+
+    // Params externos: inner (7) + outerValorMin + outerValorMax
+    const outerParams = [safeFilter.valorMin?? null, safeFilter.valorMax?? null];
+    const params = [...innerParams,...outerParams];
 
     const [countRows, aggregateRows] = await Promise.all([
       this.executeQuery(countQuery, params, 'COUNT'),
       this.executeQuery(aggregatesQuery, params, 'SUM'),
     ]);
 
-    const totalCount = Number(countRows?.[0]?.count ?? 0);
-    const aggregates = aggregateRows?.[0] ?? {};
+    const totalCount = Number(countRows?.[0]?.count?? 0);
+    const aggregates = aggregateRows?.[0]?? {};
     return new RelatorioFinancialMovementNovoRemessaSummaryDto({
       count: totalCount,
-      valorTotal: Number.parseFloat((aggregates.valorTotal ?? 0).toString()),
-      valorPago: Number(aggregates.valorPago ?? 0),
-      valorEstornado: Number(aggregates.valorEstornado ?? 0),
-      valorRejeitado: Number(aggregates.valorRejeitado ?? 0),
-      valorAguardandoPagamento: Number(aggregates.valorAguardandoPagamento ?? 0),
-      valorAPagar: Number(aggregates.valorAPagar ?? 0),
-      valorPendente: Number(aggregates.valorPendente ?? 0),
-      valorPendenciaPaga: Number(aggregates.valorPendenciaPaga ?? 0),
+      valorTotal: Number.parseFloat((aggregates.valorTotal?? 0).toString()),
+      valorPago: Number(aggregates.valorPago?? 0),
+      valorEstornado: Number(aggregates.valorEstornado?? 0),
+      valorRejeitado: Number(aggregates.valorRejeitado?? 0),
+      valorAguardandoPagamento: Number(aggregates.valorAguardandoPagamento?? 0),
+      valorAPagar: Number(aggregates.valorAPagar?? 0),
+      valorPendente: Number(aggregates.valorPendente?? 0),
+      valorPendenciaPaga: Number(aggregates.valorPendenciaPaga?? 0),
     });
   }
 
@@ -97,22 +95,23 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
     const dataQuery = `
       ${query}
-      WHERE (
-        $8::text IS NULL
-        OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text)
+      AND (
+        $10::text IS NULL
+        OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($10, 'DD/MM/YYYY'), $11::text, $12::text, $13::text)
       )
       ORDER BY g."dataReferencia" ASC, g.nomes ASC, g.status ASC, g."cpfCnpj" ASC
-      LIMIT $12
+      LIMIT $14
     `;
 
     const dataParams = [
-      ...params,
+     ...params,
       cursor.dataReferencia,
       cursor.nome,
       cursor.status,
       cursor.cpfCnpj,
       pageSize,
     ];
+
     this.logger.debug(JSON.stringify(dataParams));
     this.logger.debug(dataQuery);
 
@@ -121,12 +120,12 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     const data = rows.map((row) => new RelatorioFinancialMovementNovoRemessaData(row));
     const lastRow = rows?.[rows.length - 1];
     const nextCursor = lastRow
-      ? {
-        dataReferencia: lastRow.dataReferencia,
-        nomes: lastRow.nomes,
-        status: lastRow.status,
-        cpfCnpj: lastRow.cpfCnpj,
-      }
+     ? {
+          dataReferencia: lastRow.dataReferencia,
+          nomes: lastRow.nomes,
+          status: lastRow.status,
+          cpfCnpj: lastRow.cpfCnpj,
+        }
       : null;
 
     return new RelatorioFinancialMovementNovoRemessaPageDto({
@@ -222,14 +221,19 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
   private buildSummaryQueries(finalBaseQuery: string) {
     const groupedCte = this.buildGroupedCte(finalBaseQuery);
+
+    // $8 = valorMin externo, $9 = valorMax externo
     const countQuery = `
       ${groupedCte}
       SELECT COUNT(*)::int AS count
       FROM grouped
+      WHERE 1=1
+        AND ($8::numeric IS NULL OR grouped.valor >= $8::numeric)
+        AND ($9::numeric IS NULL OR grouped.valor <= $9::numeric)
     `;
 
     const aggregatesQuery = `
-      ${this.buildBaseCte(finalBaseQuery)}
+      ${groupedCte}
       SELECT
         COALESCE(SUM(valor), 0) AS "valorTotal",
         COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) AS "valorPago",
@@ -239,7 +243,10 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
         COALESCE(SUM(CASE WHEN status = 'A Pagar' THEN valor ELSE 0 END), 0) AS "valorAPagar",
         COALESCE(SUM(CASE WHEN status = 'Pendentes' THEN valor ELSE 0 END), 0) AS "valorPendente",
         COALESCE(SUM(CASE WHEN status = 'Pendencia Paga' THEN valor ELSE 0 END), 0) AS "valorPendenciaPaga"
-      FROM base
+      FROM grouped
+      WHERE 1=1
+        AND ($8::numeric IS NULL OR grouped.valor >= $8::numeric)
+        AND ($9::numeric IS NULL OR grouped.valor <= $9::numeric)
     `;
 
     return {
@@ -250,7 +257,10 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
   private buildBaseDataQuery(filter: NormalizedFilter) {
     const statuses = this.resolveStatuses(filter);
-    const params = this.getQueryParameters(filter, statuses.baseStatuses);
+    const innerParams = this.getInnerQueryParameters(filter, statuses.baseStatuses);
+    const outerValorParams = [filter.valorMin?? null, filter.valorMax?? null];
+    const params = [...innerParams,...outerValorParams];
+
     const finalBaseQuery = this.buildFinalBaseQuery(filter, statuses);
     const groupedCte = this.buildGroupedCte(finalBaseQuery);
 
@@ -270,6 +280,9 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
           g.valor,
           g.status
         FROM grouped g
+        WHERE 1=1
+          AND ($8::numeric IS NULL OR g.valor >= $8::numeric)
+          AND ($9::numeric IS NULL OR g.valor <= $9::numeric)
       `,
     };
   }
@@ -283,16 +296,16 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     const { query, params } = this.buildBaseDataQuery(filter);
     const dataQuery = `
       ${query}
-      WHERE (
-        $8::text IS NULL
-        OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text)
+      AND (
+        $10::text IS NULL
+        OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($10, 'DD/MM/YYYY'), $11::text, $12::text, $13::text)
       )
       ORDER BY g."dataReferencia" ASC, g.nomes ASC, g.status ASC, g."cpfCnpj" ASC
-      LIMIT $12
+      LIMIT $14
     `;
 
     return this.executeQuery(dataQuery, [
-      ...params,
+     ...params,
       cursor.dataReferencia,
       cursor.nome,
       cursor.status,
@@ -305,11 +318,11 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     filter: IFindPublicacaoRelatorioNovoFinancialMovement,
   ): NormalizedFilter {
     return {
-      ...filter,
+     ...filter,
       dataInicio: new Date(filter.dataInicio),
       dataFim: new Date(filter.dataFim),
-      page: filter.page ? Number(filter.page) : undefined,
-      pageSize: filter.pageSize ? Number(filter.pageSize) : undefined,
+      page: filter.page? Number(filter.page) : undefined,
+      pageSize: filter.pageSize? Number(filter.pageSize) : undefined,
     };
   }
 
@@ -325,16 +338,19 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       };
     }
 
+    const isSingle = this.isSingleDate(filter);
     const includePendentes = allSelectedStatuses.includes(StatusPagamento.PENDENTES);
-    const includePendenciaPagaSingleDate = this.isSingleDate(filter)
-      && allSelectedStatuses.includes(StatusPagamento.PENDENCIA_PAGA);
-    const baseStatuses = allSelectedStatuses.filter((status) =>
-      status !== StatusPagamento.PENDENTES
-      && (!includePendenciaPagaSingleDate || status !== StatusPagamento.PENDENCIA_PAGA),
-    );
+    const includePendenciaPagaSingleDate = isSingle && allSelectedStatuses.includes(StatusPagamento.PENDENCIA_PAGA);
+
+    let baseStatuses = allSelectedStatuses.filter((s) => s!== StatusPagamento.PENDENTES);
+    if (!isSingle) {
+      baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
+    } else if (includePendenciaPagaSingleDate) {
+      baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
+    }
 
     return {
-      baseStatuses: baseStatuses.length ? baseStatuses : null,
+      baseStatuses: baseStatuses.length? baseStatuses : null,
       includePendentes,
       includeBase: baseStatuses.length > 0,
       includePendenciaPagaSingleDate,
@@ -345,7 +361,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     filter: NormalizedFilter,
     statuses: ResolvedStatuses,
   ): string {
-    if (filter.eleicao && !this.hasOtherStatusFilters(filter)) {
+    if (filter.eleicao &&!this.hasOtherStatusFilters(filter)) {
       return this.buildEleicaoQuery(filter);
     }
 
@@ -368,8 +384,6 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     }
 
     if (!queries.length) {
-      // case: user selected only Pendentes? handled above
-      // safety fallback to base query
       return this.buildBaseQuery(filter);
     }
 
@@ -383,7 +397,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     }).trim();
     return `
       ${baseQuery}
-      ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${filter.desativados? 'AND pu.bloqueado = true' : ''}
     `;
   }
 
@@ -394,15 +408,15 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     }).trim();
     return `
       ${baseQuery}
-      ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${filter.desativados? 'AND pu.bloqueado = true' : ''}
     `;
   }
 
   private buildPendentesQuery(filter: NormalizedFilter): string {
-    const pendentesBase = buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros }).trim();
+    const pendentesBase = buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 } as any).trim();
     return `
     ${pendentesBase}
-      ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${filter.desativados? 'AND pu.bloqueado = true' : ''}
   `;
   }
 
@@ -413,7 +427,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     }).trim();
     return `
       ${baseQuery}
-      ${filter.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${filter.desativados? 'AND pu.bloqueado = true' : ''}
     `;
   }
 
@@ -439,10 +453,10 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     const pageSizeRaw = Number(filter.pageSize);
 
     const currentPage =
-      Number.isInteger(currentPageRaw) && currentPageRaw > 0 ? currentPageRaw : 1;
+      Number.isInteger(currentPageRaw) && currentPageRaw > 0? currentPageRaw : 1;
 
     const pageSize =
-      Number.isInteger(pageSizeRaw) && pageSizeRaw > 0 ? pageSizeRaw : 50;
+      Number.isInteger(pageSizeRaw) && pageSizeRaw > 0? pageSizeRaw : 50;
 
     return {
       currentPage,
@@ -467,10 +481,10 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
     }
 
     return {
-      dataReferencia: filter.cursorDataReferencia ?? null,
-      nome: filter.cursorNome ?? null,
-      status: filter.cursorStatus ?? null,
-      cpfCnpj: filter.cursorCpfCnpj ?? null,
+      dataReferencia: filter.cursorDataReferencia?? null,
+      nome: filter.cursorNome?? null,
+      status: filter.cursorStatus?? null,
+      cpfCnpj: filter.cursorCpfCnpj?? null,
     };
   }
 
@@ -488,7 +502,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
 
     const mapping: { cond?: boolean; vals: StatusPagamento[] }[] = [
       { cond: filter.pago, vals: [StatusPagamento.PAGO] },
-      { cond: filter.erro, vals: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO, StatusPagamento.PENDENTES] },
+      { cond: filter.erro, vals: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] },
       { cond: filter.estorno, vals: [StatusPagamento.ERRO_ESTORNO] },
       { cond: filter.rejeitado, vals: [StatusPagamento.ERRO_REJEITADO] },
       { cond: filter.emProcessamento, vals: [StatusPagamento.AGUARDANDO_PAGAMENTO] },
@@ -501,26 +515,35 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       if (item.cond) statuses.push(...item.vals);
     }
 
-    return statuses.length ? [...new Set(statuses)] : null;
+    return statuses.length? [...new Set(statuses)] : null;
   }
 
-  private getQueryParameters(
+  // Params internos: $1..$7 com valorMin/Max = null para não filtrar dentro
+  private getInnerQueryParameters(
     filter: NormalizedFilter,
     selectedStatuses: string[] | null,
   ): any[] {
     const consorcioNome = filter.consorcioNome?.length
-      ? filter.consorcioNome.map((nome) => nome.toUpperCase().trim())
+     ? filter.consorcioNome.map((nome) => nome.toUpperCase().trim())
       : null;
 
     return [
       format(filter.dataInicio, 'yyyy-MM-dd'),
       format(filter.dataFim, 'yyyy-MM-dd'),
-      filter.userIds?.length ? filter.userIds : null,
+      filter.userIds?.length? filter.userIds : null,
       selectedStatuses,
       consorcioNome,
-      filter.valorMin ?? null,
-      filter.valorMax ?? null,
+      null, // $6 inner valorMin desabilitado
+      null, // $7 inner valorMax desabilitado
     ];
+  }
+
+  // Mantido para compatibilidade caso o service use, mas agora o real é o externo
+  private getQueryParameters(
+    filter: NormalizedFilter,
+    selectedStatuses: string[] | null,
+  ): any[] {
+    return this.getInnerQueryParameters(filter, selectedStatuses);
   }
 
   private async executeQuery<T = any>(
