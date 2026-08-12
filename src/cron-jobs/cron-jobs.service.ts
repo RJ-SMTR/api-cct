@@ -130,7 +130,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-   // await this.remessaPendenteGuardadorExec('2026-07-01', '2026-08-04', '2026-08-05');
+    //await this.remessaPendenteGuardadorExec('2026-07-01', '2026-08-12', '2026-08-12');
     
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
 
