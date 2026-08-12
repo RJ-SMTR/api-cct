@@ -137,7 +137,7 @@ export class UsersController {
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   getId(@Param('id') id: string): Promise<Nullable<User>> {
-    return this.usersService.findOne({ id: +id });
+    return this.usersService.findOneWithAssociacoes(+id);
   }
 
   @SerializeOptions({
