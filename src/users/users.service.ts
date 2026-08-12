@@ -83,6 +83,17 @@ export class UsersService {
     return this.usersRepository.findOne({ where: fields });
   }
 
+  async findOneWithAssociacoes(id: number): Promise<Nullable<User>> {
+    return this.usersRepository.findOne({
+      where: { id },
+      relations: {
+        following: {
+          relatedUser: true,
+        },
+      },
+    });
+  }
+
   /**
    * @param id Valid user ID
    * @param logContext Upper method who called this one
