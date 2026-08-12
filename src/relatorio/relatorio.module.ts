@@ -21,6 +21,10 @@ import { RelatorioNovoRemessaFinancialMovementRepository } from './movimentacao-
     RelatorioSinteticoRepository, RelatorioAnaliticoRepository, RelatorioNovoRemessaRepository,
     RelatorioNovoRemessaConsolidadoRepository,
     RelatorioExtratoBancarioRepository,
-    RelatorioNovoRemessaFinancialMovementRepository, RelatorioNovoRemessaFinancialMovementService]
+    RelatorioNovoRemessaFinancialMovementRepository, RelatorioNovoRemessaFinancialMovementService],
+  exports: [
+    RelatorioNovoRemessaFinancialMovementService,
+    RelatorioNovoRemessaFinancialMovementRepository,
+  ],
 })
 export class RelatorioModule { }
