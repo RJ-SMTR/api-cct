@@ -330,20 +330,36 @@ export class AuthService {
     userMailHistory: MailHistory,
     logContext: string,
   ) {
-    const mailData: MailData<{ hash: string; to: string; userName: string; roleId?: number }> = {
-      to: user.email as string,
-      data: {
-        hash: userMailHistory.hash as string,
+    let mailSentInfo;
+    if (user.status?.id === StatusEnum.active) {
+      mailSentInfo = await this.mailService.reSendEmailBank({
         to: user.email as string,
-        userName: user.fullName as string,
-        roleId: user.role?.id,
-      },
-    };
-    const mailResponse = await this.mailService.sendConcludeRegistration(
-      mailData,
-    );
-    if (mailResponse.mailSentInfo.success === true) {
-      userMailHistory.setInviteStatus(InviteStatusEnum.sent);
+        data: {
+          hash: userMailHistory.hash as string,
+          inviteStatus: userMailHistory.inviteStatus,
+        },
+      });
+    } else {
+      const mailData: MailData<{ hash: string; to: string; userName: string; roleId?: number }> = {
+        to: user.email as string,
+        data: {
+          hash: userMailHistory.hash as string,
+          to: user.email as string,
+          userName: user.fullName as string,
+          roleId: user.role?.id,
+        },
+      };
+      const mailResponse = await this.mailService.sendConcludeRegistration(
+        mailData,
+      );
+      mailSentInfo = mailResponse.mailSentInfo;
+    }
+    if (mailSentInfo.success === true) {
+      if (user.status?.id === StatusEnum.active) {
+        userMailHistory.setInviteStatus(InviteStatusEnum.used);
+      } else if (userMailHistory.inviteStatus.id === InviteStatusEnum.queued) {
+        userMailHistory.setInviteStatus(InviteStatusEnum.sent);
+      }
       userMailHistory.sentAt = new Date(Date.now());
       await this.mailHistoryService.update(
         userMailHistory.id,
@@ -361,7 +377,7 @@ export class AuthService {
         {
           error: HttpStatus.INTERNAL_SERVER_ERROR,
           details: {
-            mailResponse: mailResponse,
+            mailSentInfo,
           },
         },
         HttpStatus.INTERNAL_SERVER_ERROR,

@@ -1,11 +1,22 @@
-import { Controller, Get, HttpCode, HttpStatus, Query, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseArrayPipe,
+  Query,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/roles/roles.decorator';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { IRequest } from 'src/utils/interfaces/request.interface';
-import { AgentesDashboardQueryDto } from './dtos/agentes-dashboard-query.dto';
+import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
+import { canProceed } from 'src/utils/request-utils';
 import { AgentesService } from './agentes.service';
 
 @ApiTags('Agentes')
@@ -25,12 +36,62 @@ export class AgentesController {
     return this.agentesService.getAgentUsers();
   }
 
-  @Get('dashboard')
+  @Get('ordem-pagamento/mensal')
   @HttpCode(HttpStatus.OK)
-  async getDashboard(
-    @Query() query: AgentesDashboardQueryDto,
+  async getMonthly(
     @Request() request: IRequest,
+    @Query('yearMonth') yearMonth: string,
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
+    userId: number,
   ) {
-    return this.agentesService.getDashboard(query, request);
+    canProceed(request, Number(userId));
+    return this.agentesService.getMonthly(yearMonth, Number(userId));
+  }
+
+  @Get('ordem-pagamento/semanal')
+  @HttpCode(HttpStatus.OK)
+  async getWeekly(
+    @Request() request: IRequest,
+    @Query('ordemPagamentoAgrupadoIds') ordemPagamentoAgrupadoIds: string,
+    @Query('endDate') endDate: string,
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
+    userId: number,
+  ) {
+    canProceed(request, Number(userId));
+    return this.agentesService.getWeekly(
+      ordemPagamentoAgrupadoIds,
+      Number(userId),
+      endDate,
+    );
+  }
+
+  @Get('ordem-pagamento/diario')
+  @HttpCode(HttpStatus.OK)
+  async getDaily(
+    @Request() request: IRequest,
+    @Query('ordemPagamentoIds', new ParseArrayPipe()) ordemPagamentoIds: number[],
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
+    userId: number,
+  ) {
+    canProceed(request, Number(userId));
+    return this.agentesService.getDaily(
+      ordemPagamentoIds.join(','),
+      Number(userId),
+    );
+  }
+
+  @Get('ordem-pagamento/transacoes-dias-anteriores/:ordemPagamentoAgrupadoIds')
+  @HttpCode(HttpStatus.OK)
+  async getPreviousDays(
+    @Request() request: IRequest,
+    @Param('ordemPagamentoAgrupadoIds') ordemPagamentoAgrupadoIds: string,
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
+    userId: number,
+  ) {
+    canProceed(request, Number(userId));
+    return this.agentesService.getPreviousDays(
+      ordemPagamentoAgrupadoIds,
+      Number(userId),
+    );
   }
 }

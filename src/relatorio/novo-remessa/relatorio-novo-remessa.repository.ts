@@ -50,8 +50,7 @@ export class RelatorioNovoRemessaRepository {
                                   '12464553000184',
                                   '44520687000161',
                                   '12464577000133')         
-          and (op.valor >= $5 or $5 is null)
-          and (op.valor <= $6 or $6 is null)
+         
    
       union
 
@@ -94,9 +93,7 @@ export class RelatorioNovoRemessaRepository {
                                 '12464539000180',
                                 '12464553000184',
                                 '44520687000161',
-                                '12464577000133')
-        and (da."valorLancamento" >= $5 or $5 is null)
-        and (da."valorLancamento" <= $6 or $6 is null)
+                                '12464577000133')       
       order by "nomeConsorcio", "nomeFavorecido", "dataCaptura"
       `;
 
@@ -135,9 +132,7 @@ export class RelatorioNovoRemessaRepository {
             and (date_trunc('day', op."dataCaptura") BETWEEN $2 and $3 or $2 is null or $3 is null)
             and ("statusRemessa" = any($4) or $4 is null)
             and ("statusRemessa" not in (2, 3, 4))
-            and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))    
-            and (op.valor >= $5 or $5 is null)
-            and (op.valor <= $6 or $6 is null)
+            and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))             
    
       union
 
@@ -176,8 +171,7 @@ export class RelatorioNovoRemessaRepository {
         and ("statusRemessa" = any($4) or $4 is null)
         and ("statusRemessa" in (2, 3, 4))
         and (op."nomeConsorcio" not in ('STPC', 'STPL', 'TEC'))
-        and (da."valorLancamento" >= $5 or $5 is null)
-        and (da."valorLancamento" <= $6 or $6 is null)
+      
       order by "nomeConsorcio", "nomeFavorecido", "dataCaptura"
       `;
 

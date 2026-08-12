@@ -162,13 +162,25 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const includeCpf = nomeField === 'nomes';
     const cpfSelect = includeCpf ? '"cpfCnpj"' : 'NULL::text';
     const groupByClause = includeCpf ? `${nomeField}, "cpfCnpj"` : `${nomeField}`;
+
+    let havingSQL = '';
+    if ((filter.valorMin !== undefined && filter.valorMax !== undefined) || (filter.valorMin === undefined && filter.valorMax === undefined)){
+      havingSQL = 'HAVING SUM(valor) >= $6 AND SUM(valor) <= $7';
+    } else if (filter.valorMin !== undefined) {
+      havingSQL = 'HAVING SUM(valor) >= $6';
+    } else if (filter.valorMax !== undefined) {
+      havingSQL = 'HAVING SUM(valor) <= $7';
+    }
+
     return `
       SELECT ${nomeField} AS nome, ${cpfSelect} AS "cpfCnpj", SUM(valor) AS valor
       FROM (
         ${baseQuery}
-      ) base
+      ) base     
       GROUP BY ${groupByClause}
+       ${havingSQL}
     `;
+
   }
 
   private buildBaseQuery(filter: NormalizedFilter): string {
@@ -267,8 +279,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       filter.userIds?.length ? filter.userIds : null,
       selectedStatuses,
       consorcioNome,
-      filter.valorMin ?? null,
-      filter.valorMax ?? null,
+      filter.valorMin ?? 0,
+      filter.valorMax ?? 10000000000,
     ];
   }
 

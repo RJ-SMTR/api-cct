@@ -10,6 +10,7 @@ import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { appSettings } from 'src/settings/app.settings';
 import { SettingsService } from 'src/settings/settings.service';
+import { StatusEnum } from 'src/statuses/statuses.enum';
 import { SmtpStatus } from 'src/utils/enums/smtp-status.enum';
 import { logWarn } from 'src/utils/log-utils';
 import { MaybeType } from '../utils/types/maybe.type';
@@ -206,6 +207,7 @@ export class MailService {
       queued: formatRoleCount(mailData.data.statusCount.queued),
       sent: formatRoleCount(mailData.data.statusCount.sent),
       used: formatRoleCount(mailData.data.statusCount.used),
+      prov: formatRoleCount(mailData.data.statusCount.prov),
       usedIncomplete: formatRoleCount(mailData.data.statusCount.usedIncomplete),
       usedComplete: formatRoleCount(mailData.data.statusCount.usedComplete),
       total: formatRoleCount(mailData.data.statusCount.total),
@@ -227,6 +229,8 @@ export class MailService {
           mailQueued: formattedStatusCount.queued,
           mailSent: formattedStatusCount.sent,
           mailUsed: formattedStatusCount.used,
+          mailProv: formattedStatusCount.prov,
+          mailProvDescription: mailData.data.statusCount.provDescription,
           mailUsedIncomplete: formattedStatusCount.usedIncomplete,
           mailUsedComplete: formattedStatusCount.usedComplete,
           mailTotal: formattedStatusCount.total,
@@ -406,6 +410,10 @@ export class MailService {
       infer: true,
     });
     const inviteStatus = mailData.data.inviteStatus;
+    const invite =
+      mailData.data.hash
+        ? await this.mailHistoryService.findOne({ hash: mailData.data.hash })
+        : null;
     if (!from) {
       throw new HttpException(
         {
@@ -422,8 +430,11 @@ export class MailService {
       const appName = this.configService.get('app.name', {
         infer: true,
       });
+      const isRegistrationConcluded =
+        invite?.user?.status?.id === StatusEnum.active;
       const userLink =
-        inviteStatus.id === InviteStatusEnum.used
+        isRegistrationConcluded ||
+        (!invite && inviteStatus.id === InviteStatusEnum.used)
           ? `${frontendDomain}sign-in`
           : `${frontendDomain}conclude-registration/${mailData.data.hash}`;
       const response = await this.safeSendMail({

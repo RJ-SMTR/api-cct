@@ -18,6 +18,7 @@ import { AuthRegisterLicenseeDto } from './dto/auth-register-licensee.dto';
 import { IALConcludeRegistration } from './interfaces/al-conclude-registration.interface';
 import { IALInviteProfile } from './interfaces/al-invite-profile.interface';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 
 @Injectable()
 export class AuthLicenseeService {
@@ -30,6 +31,31 @@ export class AuthLicenseeService {
     private usersService: UsersService,
     private mailHistoryService: MailHistoryService,
   ) { }
+
+  private isRegistrationConcluded(user: User | null | undefined): boolean {
+    return user?.status?.id === StatusEnum.active;
+  }
+
+  private async markInviteAsUsed(
+    invite: MailHistory,
+    logContext: string,
+  ): Promise<void> {
+    if (invite.inviteStatus.id === InviteStatusEnum.used) {
+      return;
+    }
+
+    await this.mailHistoryService.update(
+      invite.id,
+      {
+        inviteStatus: {
+          id: InviteStatusEnum.used,
+        },
+      },
+      logContext,
+    );
+    invite.inviteStatus.id = InviteStatusEnum.used;
+    invite.inviteStatus.name = 'used';
+  }
 
   private getLoginRedirectTo(roleId?: number | null): string {
     return roleId === RoleEnum.agentes
@@ -147,8 +173,30 @@ export class AuthLicenseeService {
 
   async getInviteProfile(hash: string): Promise<IALInviteProfile> {
     const invite = await this.mailHistoryService.getOne({ hash });
+    const user = await this.usersService.getOne({ id: invite.user.id });
 
-    if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
+    if (this.isRegistrationConcluded(user)) {
+      await this.markInviteAsUsed(
+        invite,
+        'AuthLicenseeService.getInviteProfile()',
+      );
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            invite: {
+              inviteStatus: `inviteAlreadyUsed'`,
+            },
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    if (
+      invite.inviteStatus.id !== InviteStatusEnum.sent &&
+      invite.inviteStatus.id !== InviteStatusEnum.used
+    ) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,
@@ -162,7 +210,7 @@ export class AuthLicenseeService {
       );
     }
 
-    const user = await this.usersService.getOne({ id: invite.user.id });
+    await this.markInviteAsUsed(invite, 'AuthLicenseeService.getInviteProfile()');
 
     if (
       user.id !== invite.user.id ||
@@ -221,7 +269,13 @@ export class AuthLicenseeService {
       );
     }
 
-    if (invite.inviteStatus.id !== InviteStatusEnum.sent) {
+    const user = await this.usersService.getOne({ id: invite.user.id });
+
+    if (this.isRegistrationConcluded(user)) {
+      await this.markInviteAsUsed(
+        invite,
+        'AuthLicenseeService.concludeRegistration()',
+      );
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,
@@ -235,7 +289,22 @@ export class AuthLicenseeService {
       );
     }
 
-    const user = await this.usersService.getOne({ id: invite.user.id });
+    if (
+      invite.inviteStatus.id !== InviteStatusEnum.sent &&
+      invite.inviteStatus.id !== InviteStatusEnum.used
+    ) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            invite: {
+              inviteStatus: `inviteAlreadyUsed'`,
+            },
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
 
     if (
       user.id !== invite.user.id ||
@@ -261,13 +330,8 @@ export class AuthLicenseeService {
       );
     }
 
-    await this.mailHistoryService.update(
-      invite.id,
-      {
-        inviteStatus: {
-          id: InviteStatusEnum.used,
-        },
-      },
+    await this.markInviteAsUsed(
+      invite,
       'AuthLicenseeService.concludeRegistration()',
     );
 

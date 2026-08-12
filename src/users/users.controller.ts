@@ -154,6 +154,7 @@ export class UsersController {
       id,
       updateProfileDto,
       'UsersController.patchId()',
+      request.user,
     );
   }
 

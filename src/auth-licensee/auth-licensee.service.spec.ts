@@ -9,6 +9,8 @@ import { MailHistoryService } from 'src/mail-history/mail-history.service';
 import { MailService } from 'src/mail/mail.service';
 import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
+import { Status } from 'src/statuses/entities/status.entity';
+import { StatusEnum } from 'src/statuses/statuses.enum';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { BaseValidator } from 'src/utils/validators/base-validator';
@@ -127,6 +129,7 @@ describe('AuthLicenseeService', () => {
         fullName: 'Agent Name',
         permitCode: 'permit-1',
         cpfCnpj: '12345678901',
+        status: new Status(StatusEnum.register),
       });
       user.role = new Role(RoleEnum.agentes);
       const mailHistory = {
@@ -141,16 +144,60 @@ describe('AuthLicenseeService', () => {
 
       const response = await authLicenseeService.getInviteProfile('hash_2');
 
+      expect(mailHistoryService.update).toHaveBeenCalledWith(
+        2,
+        {
+          inviteStatus: {
+            id: InviteStatusEnum.used,
+          },
+        },
+        expect.any(String),
+      );
       expect(response).toEqual({
         fullName: 'Agent Name',
         permitCode: 'permit-1',
         email: 'agent@example.com',
         cpfCnpj: '12345678901',
         hash: 'hash_2',
-        inviteStatus: mailHistory.inviteStatus,
+        inviteStatus: expect.objectContaining({
+          id: InviteStatusEnum.used,
+        }),
         roleId: RoleEnum.agentes,
         redirectTo: '/agentes/sign-in',
       });
+    });
+
+    it('rejects an already active user even when the invite status is stale sent', async () => {
+      const user = new User({
+        id: 4,
+        email: 'active@example.com',
+        fullName: 'Active User',
+        permitCode: 'permit-4',
+        status: new Status(StatusEnum.active),
+      });
+      const mailHistory = {
+        id: 4,
+        user,
+        hash: 'hash_4',
+        inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+      } as MailHistory;
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
+
+      await expect(
+        authLicenseeService.getInviteProfile('hash_4'),
+      ).rejects.toThrowError();
+
+      expect(mailHistoryService.update).toHaveBeenCalledWith(
+        4,
+        {
+          inviteStatus: {
+            id: InviteStatusEnum.used,
+          },
+        },
+        expect.any(String),
+      );
     });
   });
 
@@ -233,6 +280,46 @@ describe('AuthLicenseeService', () => {
         roleId: RoleEnum.admin,
         redirectTo: '/sign-in',
       });
+    });
+
+    it('allows registration when the invite was already marked used but the user is not active yet', async () => {
+      const dateNow = new Date('2023-01-01T10:00:00');
+      const user = new User({
+        id: 5,
+        email: 'pending@example.com',
+        hash: 'hash_5',
+        permitCode: 'permitCode5',
+        role: new Role(RoleEnum.user),
+        status: new Status(StatusEnum.register),
+      });
+      const mailHistory = {
+        id: 5,
+        user,
+        hash: 'hash_5',
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+        sentAt: dateNow,
+      } as MailHistory;
+
+      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(usersService, 'update').mockResolvedValue(user);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      await authLicenseeService.concludeRegistration(
+        { password: 'secret' },
+        'hash_5',
+      );
+
+      expect(usersService.update).toBeCalledWith(
+        5,
+        expect.objectContaining({
+          password: 'secret',
+          status: expect.objectContaining({
+            id: StatusEnum.active,
+          }),
+        }),
+        expect.any(String),
+      );
     });
   });
 });

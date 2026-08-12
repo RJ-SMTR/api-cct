@@ -33,6 +33,24 @@ export enum userUploadEnum {
   FIELD_EXISTS = 'Campo existe no banco de dados',
 }
 
+const AGENT_PRIVILEGED_EDITOR_EMAILS = new Set([
+  'jessicasimas.smtr@gmail.com',
+  'felipe.ribeiro@prefeitura.rio',
+  'gabriel.guimaraes@prefeitura.rio',
+  'matthew.araujo@prefeitura.rio',
+  'williamfl2007@gmail.com',
+  'bernardo.marcos64@gmail.com'
+]);
+
+const AGENT_EXCEPTION_EDITABLE_FIELDS: Array<keyof User> = [
+  'permitCode',
+  'phone',
+  'bankCode',
+  'bankAgency',
+  'bankAccount',
+  'bankAccountDigit',
+];
+
 @Injectable()
 export class UsersService {
   private logger = new CustomLogger(UsersService.name, { timestamp: true });
@@ -72,7 +90,35 @@ export class UsersService {
    * @returns Updated user
    */
   async update(id: number, dataToUpdate: DeepPartial<User>, logContext?: string, requestUser?: DeepPartial<User>): Promise<User> {
-    return this.usersRepository.update(id, dataToUpdate, logContext, requestUser);
+    const safeDataToUpdate: DeepPartial<User> = {
+      ...dataToUpdate,
+    };
+
+    const requesterId = Number(requestUser?.id);
+
+    if (Number.isFinite(requesterId) && requesterId > 0) {
+      const [requester, targetUser] = await Promise.all([
+        this.findOne({ id: requesterId }),
+        this.findOne({ id }),
+      ]);
+
+      const isTargetAgent = Number(targetUser?.role?.id) === RoleEnum.agentes;
+      const isOwnUpdate = requesterId === Number(id);
+      const requesterEmail = String(requester?.email || '').trim().toLowerCase();
+      const hasAgentExceptionAccess =
+        (Number(requester?.role?.id) === RoleEnum.admin || Number(requester?.role?.id) === RoleEnum.master) &&
+        AGENT_PRIVILEGED_EDITOR_EMAILS.has(requesterEmail);
+
+      if (isTargetAgent && !isOwnUpdate && !hasAgentExceptionAccess) {
+        AGENT_EXCEPTION_EDITABLE_FIELDS.forEach((field) => {
+          if (field in safeDataToUpdate) {
+            delete safeDataToUpdate[field];
+          }
+        });
+      }
+    }
+
+    return this.usersRepository.update(id, safeDataToUpdate, logContext, requestUser);
   }
 
   /**
