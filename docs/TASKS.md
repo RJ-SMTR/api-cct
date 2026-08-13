@@ -22,7 +22,9 @@ Allow the weekly guardador sync to enrich missing basic profile data for existin
 | Acceptance Criterion | Task(s) | Test(s) | Status |
 | --- | --- | --- | --- |
 | Existing agent users with missing basic profile fields are enriched from BigQuery data | T1, T2 | service spec regression for existing user backfill | planned |
-| Existing non-empty profile fields are preserved | T1, T2 | service spec regression asserting partial update payload | planned |
+| Existing ghost fallback emails are replaced when BigQuery provides a valid email | T1, T2 | service spec regression asserting ghost email replacement | planned |
+| Existing users are corrected to the guardador role and registration status | T1, T2 | service spec regression asserting role/status correction | planned |
+| Existing non-empty profile fields are preserved except for the ghost email correction rule | T1, T2 | service spec regression asserting partial update payload | planned |
 | Duplicate detection by document remains unchanged | T2 | existing duplicate-agent spec | planned |
 | Invite behavior remains unchanged for this fix | T2 | regression spec asserting no invite creation for existing user backfill | planned |
 
@@ -37,7 +39,7 @@ Affected files / areas:
 `src/agentes/agentes-sync.service.spec.ts`
 
 Test-first plan:
-Add a failing spec that runs `syncWeeklyAgentUsers` with an existing agent user and asserts a partial repository update using only missing fields plus no new invite.
+Add a failing spec that runs `syncWeeklyAgentUsers` with an existing agent user and asserts a partial repository update for missing fields, ghost-email replacement, role/status correction, and no new invite.
 
 Implementation notes:
 Reuse the existing service seam and repository mocks already used by the spec file.
@@ -60,7 +62,7 @@ Test-first plan:
 Make the new regression pass without breaking the existing creation and duplicate specs.
 
 Implementation notes:
-Build a minimal partial update payload for missing fields only and persist it through the existing `UsersRepository.update` path.
+Build a minimal partial update payload for missing fields, ghost-email replacement, and guardador role/status correction, then persist it through the existing `UsersRepository.update` path.
 
 Dependencies:
 T1.
@@ -84,6 +86,8 @@ Mitigation: only include null/blank fields in the update payload and assert this
 Mitigation: use only normalized real BigQuery email for backfill; keep synthetic email generation restricted to creation flow.
 - Risk: persisting malformed phone values
 Mitigation: reuse the existing phone normalization before adding `phone` to the backfill payload and cover it in the regression scenario.
+- Risk: incorrectly changing users that already have the correct role/status
+Mitigation: add role/status only when the current metadata differs from the expected guardador values and keep a no-update duplicate scenario in the spec.
 - Risk: unintended invite side effects
 Mitigation: do not add invite creation logic to the existing-user branch and cover that expectation in the regression test.
 

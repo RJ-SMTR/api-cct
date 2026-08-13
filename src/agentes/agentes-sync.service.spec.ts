@@ -261,6 +261,8 @@ describe('AgentesSyncService', () => {
       lastName: 'MARQUES',
       fullName: 'MARCIA MARQUES',
       phone: '21996428346',
+      role: { id: RoleEnum.agentes } as any,
+      status: { id: StatusEnum.register } as any,
     } as User;
 
     jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValue({
@@ -288,7 +290,7 @@ describe('AgentesSyncService', () => {
     expect(mailHistoryService.create).not.toHaveBeenCalled();
   });
 
-  it('fills only missing existing agent profile fields from BigQuery data', async () => {
+  it('fills missing fields, replaces ghost email, and corrects existing agent metadata from BigQuery data', async () => {
     const row: AgenteBigqueryUser = {
       numero_identificacao: '600',
       nome: 'Marcia Marques',
@@ -304,11 +306,13 @@ describe('AgentesSyncService', () => {
 
     const existingAgent = {
       id: 20,
-      email: null,
+      email: 'marcia.00036241709@example.com',
       firstName: '  ',
       lastName: 'LEGADO',
       fullName: null,
       phone: '   ',
+      role: { id: RoleEnum.user } as any,
+      status: { id: StatusEnum.active } as any,
     } as User;
 
     jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValue({
@@ -325,6 +329,8 @@ describe('AgentesSyncService', () => {
       lastName: 'LEGADO',
       fullName: 'MARCIA MARQUES',
       phone: '21996428346',
+      role: { id: RoleEnum.agentes } as any,
+      status: { id: StatusEnum.register } as any,
     } as User);
     jest.spyOn(usersRepository, 'findUserRelationship').mockResolvedValue(null);
 
@@ -345,6 +351,8 @@ describe('AgentesSyncService', () => {
         firstName: 'MARCIA',
         fullName: 'MARCIA MARQUES',
         phone: '21996428346',
+        role: expect.objectContaining({ id: RoleEnum.agentes }),
+        status: expect.objectContaining({ id: StatusEnum.register }),
       },
       'AgentesSyncService.syncWeeklyAgentUsers()',
     );
@@ -375,6 +383,8 @@ describe('AgentesSyncService', () => {
       lastName: 'MARQUES',
       fullName: 'MARCIA MARQUES',
       phone: '21996428346',
+      role: { id: RoleEnum.agentes } as any,
+      status: { id: StatusEnum.register } as any,
     } as User;
 
     jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValue({
@@ -389,6 +399,7 @@ describe('AgentesSyncService', () => {
     await service.syncWeeklyAgentUsers([row]);
 
     expect(usersRepository.create).not.toHaveBeenCalled();
+    expect(usersRepository.update).not.toHaveBeenCalled();
     expect(usersRepository.createUserRelationship).toHaveBeenCalledWith(20, 10);
   });
 

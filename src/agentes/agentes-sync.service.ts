@@ -199,12 +199,19 @@ export class AgentesSyncService {
   ): DeepPartial<User> {
     const dataToUpdate: DeepPartial<User> = {};
     const normalizedEmail = this.normalizeEmail(row.email);
+    const existingEmail = this.normalizeEmail(existing.email);
     const normalizedFullName = this.normalizeName(row.nome);
     const firstName = this.getFirstName(row.nome);
     const lastName = this.getLastName(row.nome);
     const phone = this.normalizePhone(row.telefone);
 
-    if (this.isBlankValue(existing.email) && normalizedEmail) {
+    if (
+      normalizedEmail &&
+      (
+        this.isBlankValue(existing.email) ||
+        (this.isGhostEmail(existingEmail) && existingEmail !== normalizedEmail)
+      )
+    ) {
       dataToUpdate.email = normalizedEmail;
     }
     if (this.isBlankValue(existing.fullName) && normalizedFullName) {
@@ -218,6 +225,12 @@ export class AgentesSyncService {
     }
     if (this.isBlankValue(existing.phone) && phone) {
       dataToUpdate.phone = phone;
+    }
+    if (existing.role?.id !== RoleEnum.agentes) {
+      dataToUpdate.role = new Role(RoleEnum.agentes);
+    }
+    if (existing.status?.id !== StatusEnum.register) {
+      dataToUpdate.status = new Status(StatusEnum.register);
     }
 
     return dataToUpdate;
@@ -293,6 +306,11 @@ export class AgentesSyncService {
 
   private isBlankValue(value?: string | null): boolean {
     return String(value ?? '').trim().length === 0;
+  }
+
+  private isGhostEmail(email?: string | null): boolean {
+    const normalized = this.normalizeEmail(email);
+    return normalized?.endsWith('@example.com') ?? false;
   }
 
   private getFirstName(name?: string | null): string | null {
