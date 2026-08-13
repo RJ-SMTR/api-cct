@@ -35,6 +35,7 @@ describe('AgentesSyncService', () => {
           useValue: {
             findManyByNormalizedCpf: jest.fn(),
             create: jest.fn(),
+            update: jest.fn(),
             findUserRelationship: jest.fn(),
             createUserRelationship: jest.fn(),
           },
@@ -253,13 +254,22 @@ describe('AgentesSyncService', () => {
       datetime_ultima_atualizacao: '2026-07-21T12:00:00.000Z',
     };
 
+    const existingAgent = {
+      id: 20,
+      email: 'marques.mcc@gmail.com',
+      firstName: 'MARCIA',
+      lastName: 'MARQUES',
+      fullName: 'MARCIA MARQUES',
+      phone: '21996428346',
+    } as User;
+
     jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValue({
       getValueAsString: () => '2026-07-20T00:00:00.000Z',
     } as any);
     jest
       .spyOn(usersRepository, 'findManyByNormalizedCpf')
       .mockResolvedValueOnce([{ id: 10 } as User])
-      .mockResolvedValueOnce([{ id: 20 } as User]);
+      .mockResolvedValueOnce([existingAgent]);
     jest.spyOn(usersRepository, 'findUserRelationship').mockResolvedValue({ userId: 20, relatedUserId: 10 } as any);
 
     const result = await service.syncWeeklyAgentUsers([row]);
@@ -273,7 +283,74 @@ describe('AgentesSyncService', () => {
       skippedExistingAssociations: 1,
     });
     expect(usersRepository.create).not.toHaveBeenCalled();
+    expect(usersRepository.update).not.toHaveBeenCalled();
     expect(usersRepository.createUserRelationship).not.toHaveBeenCalled();
+    expect(mailHistoryService.create).not.toHaveBeenCalled();
+  });
+
+  it('fills only missing existing agent profile fields from BigQuery data', async () => {
+    const row: AgenteBigqueryUser = {
+      numero_identificacao: '600',
+      nome: 'Marcia Marques',
+      email: 'marques.mcc@gmail.com',
+      telefone: '21996428346',
+      documento: '00036241709',
+      tipo_documento: 'CPF',
+      cnpj: '42498733000148',
+      razao_social: 'MUNICIPIO DE RIO DE JANEIRO',
+      nome_fantasia: 'RIO DE JANEIRO GABINETE DO PREFEITO',
+      datetime_ultima_atualizacao: '2026-07-21T12:00:00.000Z',
+    };
+
+    const existingAgent = {
+      id: 20,
+      email: null,
+      firstName: '  ',
+      lastName: 'LEGADO',
+      fullName: null,
+      phone: '   ',
+    } as User;
+
+    jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValue({
+      getValueAsString: () => '2026-07-20T00:00:00.000Z',
+    } as any);
+    jest
+      .spyOn(usersRepository, 'findManyByNormalizedCpf')
+      .mockResolvedValueOnce([{ id: 10 } as User])
+      .mockResolvedValueOnce([existingAgent]);
+    jest.spyOn(usersRepository, 'update').mockResolvedValue({
+      ...existingAgent,
+      email: 'marques.mcc@gmail.com',
+      firstName: 'MARCIA',
+      lastName: 'LEGADO',
+      fullName: 'MARCIA MARQUES',
+      phone: '21996428346',
+    } as User);
+    jest.spyOn(usersRepository, 'findUserRelationship').mockResolvedValue(null);
+
+    const result = await service.syncWeeklyAgentUsers([row]);
+
+    expect(result).toEqual({
+      processedRows: 1,
+      createdAgentUsers: 0,
+      createdAssociationUsers: 0,
+      queuedInvites: 0,
+      skippedExistingAgents: 1,
+      skippedExistingAssociations: 1,
+    });
+    expect(usersRepository.update).toHaveBeenCalledWith(
+      20,
+      {
+        email: 'marques.mcc@gmail.com',
+        firstName: 'MARCIA',
+        fullName: 'MARCIA MARQUES',
+        phone: '21996428346',
+      },
+      'AgentesSyncService.syncWeeklyAgentUsers()',
+    );
+    expect(usersRepository.create).not.toHaveBeenCalled();
+    expect(usersRepository.createUserRelationship).toHaveBeenCalledWith(20, 10);
+    expect(mailHistoryService.generateHash).not.toHaveBeenCalled();
     expect(mailHistoryService.create).not.toHaveBeenCalled();
   });
 
@@ -291,13 +368,22 @@ describe('AgentesSyncService', () => {
       datetime_ultima_atualizacao: '2026-07-21T12:00:00.000Z',
     };
 
+    const existingAgent = {
+      id: 20,
+      email: 'marques.mcc@gmail.com',
+      firstName: 'MARCIA',
+      lastName: 'MARQUES',
+      fullName: 'MARCIA MARQUES',
+      phone: '21996428346',
+    } as User;
+
     jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValue({
       getValueAsString: () => '2026-07-20T00:00:00.000Z',
     } as any);
     jest
       .spyOn(usersRepository, 'findManyByNormalizedCpf')
       .mockResolvedValueOnce([{ id: 10 } as User])
-      .mockResolvedValueOnce([{ id: 20 } as User]);
+      .mockResolvedValueOnce([existingAgent]);
     jest.spyOn(usersRepository, 'findUserRelationship').mockResolvedValue(null);
 
     await service.syncWeeklyAgentUsers([row]);

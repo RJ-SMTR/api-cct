@@ -136,7 +136,11 @@ export class AgentesSyncService {
 
     const existing = await this.findUserByNormalizedDocument(normalizedDocument);
     if (existing) {
-      return { user: existing, created: false, queuedInvite: false };
+      return {
+        user: await this.backfillExistingAgentUser(existing, row),
+        created: false,
+        queuedInvite: false,
+      };
     }
 
     const { email } = this.resolveAgentEmail(row);
@@ -171,6 +175,52 @@ export class AgentesSyncService {
     }
 
     return { user: createdUser, created: true, queuedInvite: false };
+  }
+
+  private async backfillExistingAgentUser(
+    existing: User,
+    row: AgenteBigqueryUser,
+  ): Promise<User> {
+    const dataToUpdate = this.buildExistingAgentBackfillData(existing, row);
+    if (Object.keys(dataToUpdate).length === 0) {
+      return existing;
+    }
+
+    return this.usersRepository.update(
+      existing.id,
+      dataToUpdate,
+      'AgentesSyncService.syncWeeklyAgentUsers()',
+    );
+  }
+
+  private buildExistingAgentBackfillData(
+    existing: User,
+    row: AgenteBigqueryUser,
+  ): DeepPartial<User> {
+    const dataToUpdate: DeepPartial<User> = {};
+    const normalizedEmail = this.normalizeEmail(row.email);
+    const normalizedFullName = this.normalizeName(row.nome);
+    const firstName = this.getFirstName(row.nome);
+    const lastName = this.getLastName(row.nome);
+    const phone = this.normalizePhone(row.telefone);
+
+    if (this.isBlankValue(existing.email) && normalizedEmail) {
+      dataToUpdate.email = normalizedEmail;
+    }
+    if (this.isBlankValue(existing.fullName) && normalizedFullName) {
+      dataToUpdate.fullName = normalizedFullName;
+    }
+    if (this.isBlankValue(existing.firstName) && firstName) {
+      dataToUpdate.firstName = firstName;
+    }
+    if (this.isBlankValue(existing.lastName) && lastName) {
+      dataToUpdate.lastName = lastName;
+    }
+    if (this.isBlankValue(existing.phone) && phone) {
+      dataToUpdate.phone = phone;
+    }
+
+    return dataToUpdate;
   }
 
   private async ensureUserRelationship(
@@ -239,6 +289,10 @@ export class AgentesSyncService {
   private normalizeName(name?: string | null): string | null {
     const normalized = String(name ?? '').trim();
     return normalized.length > 0 ? parseStringUpperUnaccent(normalized) : null;
+  }
+
+  private isBlankValue(value?: string | null): boolean {
+    return String(value ?? '').trim().length === 0;
   }
 
   private getFirstName(name?: string | null): string | null {
