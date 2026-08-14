@@ -111,14 +111,14 @@ export class CronJobsService {
 
   async onModuleInit() {
     await this.sincronizarEAgruparOrdensPagamento()
-    //await this.sincronizarEAgruparOrdensPagamentoGuardador()
+   // await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {
-    await this.remessaModalExec()
+  async onModuleLoad() {  
+    await this.remessaGuardadorExec()  
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -900,9 +900,9 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        dataInicio = new Date('2026-08-11')
-        dataFim = new Date('2026-08-11')
-        dataPagamento = new Date('2026-08-11')
+        dataInicio = new Date('2026-08-14')
+        dataFim = new Date('2026-08-14')
+        dataPagamento = new Date('2026-08-14')
       }
 
       this.logger.log(
