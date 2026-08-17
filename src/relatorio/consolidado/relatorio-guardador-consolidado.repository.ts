@@ -31,16 +31,16 @@ export class RelatorioGuardadorConsolidadoRepository {
     } else if (status.pago === true) {
       clause += ` AND oph."statusRemessa" = $${idx++}`;
       params.push(3);
+    } else if (status.estornado === true) {
+      clause += ` AND  oph."statusRemessa" = 4 AND oph."motivoStatusRemessa" = $${idx++}`;
+      params.push('02');
+    } else if (status.rejeitado === true) {
+      clause += ` AND oph."statusRemessa" = 4 AND oph."motivoStatusRemessa" = ANY($${idx++}::text[])`;
+      params.push(['AL', 'ANHO']);
     } else if (status.pago === false) {
       clause += ` AND oph."statusRemessa" = $${idx++}`;
       params.push(4);
-    } else if (status.estornado === true) {
-      clause += ` AND  oph."statusRemessa" = 4 AND oph."motivoStatus" = $${idx++}`;
-      params.push('02');
-    } else if (status.rejeitado) {
-      clause += ` AND oph."statusRemessa" = 4 AND oph."motivoStatus" = $${idx++}`;
-      params.push('AL');
-    }  
+    }
     return { clause, nextIdx: idx };
   }
 
