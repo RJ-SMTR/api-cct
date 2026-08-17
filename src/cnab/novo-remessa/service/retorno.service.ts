@@ -9,6 +9,7 @@ import { DetalheA } from "src/cnab/entity/pagamento/detalhe-a.entity";
 import { CnabRegistros104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface";
 import { CnabLote104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface";
 import { SftpBackupFolder } from "src/sftp/enums/sftp-backup-folder.enum";
+import { OrdemPagamentoAgrupadoHistorico } from "../entity/ordem-pagamento-agrupado-historico.entity";
 
 @Injectable()
 export class RetornoService {
@@ -61,12 +62,21 @@ export class RetornoService {
             if (detalheA && historico) {
                 if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio) {
                     historico.dataReferencia = detalheA.dataVencimento;
+                    const teveTentativaAnterior = this.teveTentativaPagamentoAnterior(
+                        historicos,
+                        historico,
+                        detalheA.dataVencimento,
+                    );
+                    const statusFalha = teveTentativaAnterior
+                        ? StatusRemessaEnum.PendenciaDePagamento
+                        : StatusRemessaEnum.NaoEfetivado;
+
                     //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
                     if (cnabLote.headerLote.ocorrencias.value.trim() !== 'BD' && cnabLote.headerLote.ocorrencias.value.trim() !== '00') {
                         historico.motivoStatusRemessa = cnabLote.headerLote.ocorrencias.value.trim();
                         await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                             historico,
-                            StatusRemessaEnum.NaoEfetivado
+                            statusFalha
                         );
                         return;
                     }
@@ -81,7 +91,7 @@ export class RetornoService {
                         historico.motivoStatusRemessa = registro.detalheA.ocorrencias.value.trim();
                         await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                             historico,
-                            StatusRemessaEnum.NaoEfetivado,
+                            statusFalha,
                         );
                     }                  
                 } else if (historico.statusRemessa === StatusRemessaEnum.AguardandoPagamento) {
@@ -92,7 +102,7 @@ export class RetornoService {
                         historico.motivoStatusRemessa = cnabLote.headerLote.ocorrencias.value;
                         await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                             historico,
-                            StatusRemessaEnum.NaoEfetivado
+                            StatusRemessaEnum.PendenciaDePagamento
                         )
                     } else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
 
@@ -104,10 +114,45 @@ export class RetornoService {
                         );
                     } else {
                         await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
-                            historico, StatusRemessaEnum.NaoEfetivado);
+                            historico, StatusRemessaEnum.PendenciaDePagamento);
                     }
                 }
             }
         }
+    }
+
+    private teveTentativaPagamentoAnterior(
+        historicos: OrdemPagamentoAgrupadoHistorico[],
+        historicoAtual: OrdemPagamentoAgrupadoHistorico,
+        dataReferenciaAtual: Date,
+    ) {
+        const statusTentativa = [
+            StatusRemessaEnum.AguardandoPagamento,
+            StatusRemessaEnum.Efetivado,
+            StatusRemessaEnum.PendenciaPaga,
+            StatusRemessaEnum.PendenciaDePagamento,
+        ];
+
+        const dataAtual = this.normalizarData(dataReferenciaAtual);
+
+        return historicos.some((historico) => {
+            if (historico.id === historicoAtual.id) {
+                return false;
+            }
+
+            const ehTentativa = statusTentativa.includes(historico.statusRemessa);
+            const dataHistorico = this.normalizarData(historico.dataReferencia);
+            const ehOutraData = dataHistorico !== dataAtual;
+
+            return ehTentativa && ehOutraData;
+        });
+    }
+
+    private normalizarData(data?: Date) {
+        if (!data) {
+            return '';
+        }
+
+        return new Date(data).toISOString().slice(0, 10);
     }
 }  
