@@ -19,27 +19,37 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM'];
 
   private readonly headerQueryConsorciosApagar = ` CASE
-                    WHEN pu."permitCode" = '8'  THEN 'VLT'
-                      WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
-                      WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
-                      WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
-                      ELSE op."nomeConsorcio"
-                    END AS "nome" ,                   
-                    op."valor" AS valor	`;
+                                                    WHEN pu."permitCode" = '8'  THEN 'VLT'
+                                                      WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+                                                      WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+                                                      WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+                                                      ELSE op."nomeConsorcio"
+                                                    END AS "nome" ,  
+                                                    pu."fullName" AS "nome2",                 
+                                                    op."valor" AS valor	`;
 
-  private readonly headerQueryConsorcios = ` CASE
-                    WHEN pu."permitCode" = '8' OR puu."permitCode" = '8' THEN 'VLT'
-                      WHEN pu."permitCode" LIKE '4%' OR puu."permitCode" LIKE '4%' THEN 'STPC'
-                      WHEN pu."permitCode" LIKE '81%' OR puu."permitCode" LIKE '81%' THEN 'STPL'
-                      WHEN pu."permitCode" LIKE '7%' OR puu."permitCode" LIKE '7%' THEN 'TEC'
-                      ELSE COALESCE(op."nomeConsorcio", opp."nomeConsorcio")
-                    END AS "nome" ,                    
-                    da."valorLancamento" AS valor	`;
+  private readonly headerQueryConsorcios =  ` CASE
+                                                WHEN pu."permitCode" = '8' OR puu."permitCode" = '8' THEN 'VLT'
+                                                WHEN pu."permitCode" LIKE '4%' OR puu."permitCode" LIKE '4%' THEN 'STPC'
+                                                WHEN pu."permitCode" LIKE '81%' OR puu."permitCode" LIKE '81%' THEN 'STPL'
+                                                WHEN pu."permitCode" LIKE '7%' OR puu."permitCode" LIKE '7%' THEN 'TEC'
+                                                ELSE COALESCE(op."nomeConsorcio", opp."nomeConsorcio")
+                                              END AS "nome" ,            
+                                              coalesce(pu."fullName", puu."fullName") AS "nome2",        
+                                              da."valorLancamento" AS valor	`;
 
-  private readonly headerQueryVanzeirosAPagar = ` pu."fullName" AS "nome",                                                  
+  private readonly headerQueryVanzeirosAPagar = ` pu."fullName" AS "nome",
+                                                  op."nomeConsorcio" AS "nome2",                                                  
                                                   op."valor" AS valor	`;
 
-  private readonly headerQueryVanzeiros = ` coalesce(pu."fullName", puu."fullName") AS "nome",                                           
+  private readonly headerQueryVanzeiros = ` coalesce(pu."fullName", puu."fullName") AS "nome",
+                                            CASE
+                                              WHEN pu."permitCode" = '8' OR puu."permitCode" = '8' THEN 'VLT'
+                                              WHEN pu."permitCode" LIKE '4%' OR puu."permitCode" LIKE '4%' THEN 'STPC'
+                                              WHEN pu."permitCode" LIKE '81%' OR puu."permitCode" LIKE '81%' THEN 'STPL'
+                                              WHEN pu."permitCode" LIKE '7%' OR puu."permitCode" LIKE '7%' THEN 'TEC'
+                                              ELSE COALESCE(op."nomeConsorcio", opp."nomeConsorcio")
+                                            END AS "nome2",                                           
                                             da."valorLancamento" AS valor	`;
 
 
@@ -104,7 +114,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     //filtro principal 
 
     //data: filter.dataInicio,filter.dataFim    
-    if (filter.aPagar === undefined && filter.emProcessamento === undefined && filter.pago === undefined && filter.erro === undefined) {
+    if (filter.aPagar === undefined && filter.emProcessamento === undefined && filter.pago === undefined 
+      && filter.erro === undefined) {
       queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim);
       queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim);
       queryConsorcios += this.getQueryConsorcios(dataInicio, dataFim);
@@ -130,7 +141,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       }else{
         const consorcioPlaceholders = this.MODAIS.join(`','`);
         queryAPagarVanzeiros += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
-        queryVanzeiros += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
+        queryVanzeiros += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) 
+                            AND (length(op."operadoraCpfCnpj")<=11  or length(opp."operadoraCpfCnpj")<=11) `;
       }
     }
 
@@ -155,16 +167,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     const status: number[] = [];
     const subErroStatus: string[] = [];
-    if (filter.pago || filter.emProcessamento || filter.erro || filter.pendenciaPaga) {
-      if (filter.emProcessamento) status.push(2);
-      if (filter.pago) status.push(3);
-      if (filter.erro) {
-        if (filter.estorno) subErroStatus.push('02');
-        if (filter.rejeitado) subErroStatus.push('AL');
-        status.push(4);
-      }
-      if (filter.pendenciaPaga) status.push(5);
-    }
+    
+    if (filter.emProcessamento) status.push(2);
+    if (filter.pago) status.push(3);
+    if (filter.erro) status.push(4); 
+    if (filter.estorno) subErroStatus.push('02');
+    if (filter.rejeitado) subErroStatus.push('AL');
+    if (filter.pendenciaPaga) status.push(5);
+    
 
     if (status.length > 0) {
       queryConsorcios += ` AND oph."statusRemessa" IN (${status.join(',')}) `;
@@ -172,8 +182,10 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
 
     if (subErroStatus.length > 0) {
-      queryConsorcios += ` AND oph."motivoStatus" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}) `;
-      queryVanzeiros += ` AND oph."motivoStatus" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}) `;
+      queryConsorcios += ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})
+                              or (oph."statusRemessa"= 4 and oph."motivoStatusRemessa"<>'02') ) `;
+      queryVanzeiros += ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}) 
+                              or (oph."statusRemessa"= 4 and oph."motivoStatusRemessa"<>'02') ) `;
     }
 
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``;
@@ -192,11 +204,11 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     const temFiltroConsorcio = (filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios;
     const temFiltroVanzeiros = (filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros;
-    const temFiltroStatus = filter.aPagar || filter.emProcessamento || filter.pago || filter.pendenciaPaga;
+    const temFiltroStatus = filter.emProcessamento || filter.pago || filter.pendenciaPaga || filter.erro || filter.estorno || filter.rejeitado;
 
     // Se nenhum status foi selecionado, inclui tudo
-    const incluirAPagar = !temFiltroStatus || filter.aPagar;
-    const incluirOutros = !temFiltroStatus || filter.emProcessamento || filter.pago || filter.pendenciaPaga;
+    const incluirAPagar = filter.aPagar || !temFiltroStatus;
+    const incluirOutros = temFiltroStatus || (temFiltroStatus == undefined && !filter.aPagar);
 
     if (temFiltroConsorcio) {
       if (incluirAPagar) queries.push(queryAPagarConsorcios);
@@ -255,7 +267,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     return new RelatorioConsolidadoNovoRemessaDto({
       data: mappedResults,
       count: mappedResults.length,
-      valor: mappedResults.reduce((acc, curr) => acc + curr.valor, 0),
+      valor: mappedResults.reduce((acc: any, curr: { valor: any; }) => acc + curr.valor, 0),
     });
   }
 }
