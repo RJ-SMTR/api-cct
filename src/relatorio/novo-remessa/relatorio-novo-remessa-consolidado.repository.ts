@@ -8,6 +8,7 @@ import {
   RelatorioConsolidadoNovoRemessaData,
   RelatorioConsolidadoNovoRemessaDto,
 } from '../dtos/relatorio-consolidado-novo-remessa.dto';
+import { da } from 'date-fns/locale';
 
 
 @Injectable()
@@ -18,7 +19,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
   private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM'];
 
-  private readonly headerQueryConsorciosApagar = ` CASE
+  private readonly headerQueryConsorciosApagar = ` select distinct CASE
                                                     WHEN pu."permitCode" = '8'  THEN 'VLT'
                                                       WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
                                                       WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
@@ -28,7 +29,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                                     pu."fullName" AS "nome2",                 
                                                     op."valor" AS valor	`;
 
-  private readonly headerQueryConsorcios =  ` CASE
+  private readonly headerQueryConsorcios = ` select distinct CASE
                                                 WHEN pu."permitCode" = '8' OR puu."permitCode" = '8' THEN 'VLT'
                                                 WHEN pu."permitCode" LIKE '4%' OR puu."permitCode" LIKE '4%' THEN 'STPC'
                                                 WHEN pu."permitCode" LIKE '81%' OR puu."permitCode" LIKE '81%' THEN 'STPL'
@@ -38,11 +39,11 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               coalesce(pu."fullName", puu."fullName") AS "nome2",        
                                               da."valorLancamento" AS valor	`;
 
-  private readonly headerQueryVanzeirosAPagar = ` pu."fullName" AS "nome",
+  private readonly headerQueryVanzeirosAPagar = ` select distinct pu."fullName" AS "nome",
                                                   op."nomeConsorcio" AS "nome2",                                                  
                                                   op."valor" AS valor	`;
 
-  private readonly headerQueryVanzeiros = ` coalesce(pu."fullName", puu."fullName") AS "nome",
+  private readonly headerQueryVanzeiros = ` select distinct coalesce(pu."fullName", puu."fullName") AS "nome",
                                             CASE
                                               WHEN pu."permitCode" = '8' OR puu."permitCode" = '8' THEN 'VLT'
                                               WHEN pu."permitCode" LIKE '4%' OR puu."permitCode" LIKE '4%' THEN 'STPC'
@@ -52,22 +53,50 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                             END AS "nome2",                                           
                                             da."valorLancamento" AS valor	`;
 
+  private readonly headerQueryEleicaoApagar = ` select distinct pu."fullName" AS "nome",
+                                            CASE
+                                              WHEN pu."permitCode" = '8' THEN 'VLT'
+                                              WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+                                              WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+                                              WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+                                              ELSE opu."consorcio" 
+                                            END AS "nome2", 
+                                            opu."valorTotalTransacaoLiquido" AS valor`
+
+  private readonly headerQueryEleicao = ` select distinct pu."fullName" AS "nome",
+                                            CASE
+                                              WHEN pu."permitCode" = '8' THEN 'VLT'
+                                              WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+                                              WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+                                              WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+                                              ELSE opu."consorcio" 
+                                            END AS "nome2",                                           
+                                            da."valorLancamento" AS valor	`;
 
   private readonly fromQueryApagar = ` from ordem_pagamento op
-              left join ordem_pagamento_agrupado opa  on op."ordemPagamentoAgrupadoId"=opa.id
-              left join public.user pu on pu."id"=op."userId"	              
-              left join ordem_pagamento_agrupado_historico oph on opa."id"= oph."ordemPagamentoAgrupadoId"
-              left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-              where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))  `;
+                                        left join ordem_pagamento_agrupado opa  on op."ordemPagamentoAgrupadoId"=opa.id
+                                        left join public.user pu on pu."id"=op."userId"	              
+                                        left join ordem_pagamento_agrupado_historico oph on opa."id"= oph."ordemPagamentoAgrupadoId"
+                                        left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph.id`;
 
   private readonly fromQueryPrincipal = ` from detalhe_a da
-                left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"		 
-                left join ordem_pagamento_agrupado opafi on opafi."id"=oph."ordemPagamentoAgrupadoId"
-                left join ordem_pagamento_agrupado opai on opai."ordemPagamentoAgrupadoId"=oph."ordemPagamentoAgrupadoId"
-                left join ordem_pagamento op on op."ordemPagamentoAgrupadoId"=opafi.id
-                left join public.user pu on pu."id"=op."userId"
-                left join ordem_pagamento opp on opp."ordemPagamentoAgrupadoId"=opai.id
-                left join public.user puu on puu."id"=opp."userId" `;
+                                          left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"		 
+                                          left join ordem_pagamento_agrupado opafi on opafi."id"=oph."ordemPagamentoAgrupadoId"
+                                          left join ordem_pagamento_agrupado opai on opai."ordemPagamentoAgrupadoId"=oph."ordemPagamentoAgrupadoId"
+                                          left join ordem_pagamento op on op."ordemPagamentoAgrupadoId"=opafi.id
+                                          left join public.user pu on pu."id"=op."userId"
+                                          left join ordem_pagamento opp on opp."ordemPagamentoAgrupadoId"=opai.id
+                                          left join public.user puu on puu."id"=opp."userId" `;
+
+  private readonly fromQueryEleicaoAPagar = ` from ordem_pagamento_unico opu 
+                                             left join public.user pu on pu."cpfCnpj"=opu."operadoraCpfCnpj" `
+
+  private readonly fromQueryEleicao = ` from detalhe_a da
+                                        left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"
+                                        left join ordem_pagamento_agrupado opa on opa."id"=oph."ordemPagamentoAgrupadoId"
+                                        left join ordem_pagamento_unico opu on opu."idOrdemPagamento"=opa."id"::varchar
+                                        left join public.user pu on pu."cpfCnpj"=opu."operadoraCpfCnpj" `;
+
 
   constructor(
     @InjectDataSource()
@@ -75,27 +104,44 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   ) { }
 
   private getQueryApagarConsorcios(dataInicio: String, dataFim: String): string {
-    return `select distinct ${this.headerQueryConsorciosApagar}                    
-              ${this.fromQueryApagar}
-              and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+    return ` ${this.headerQueryConsorciosApagar}                    
+             ${this.fromQueryApagar}
+             ${this.getWhereApagar(dataInicio, dataFim)} `;
   }
 
   private getQueryApagarVanzeiros(dataInicio: String, dataFim: String): string {
-    return `select distinct ${this.headerQueryVanzeirosAPagar}                    
-              ${this.fromQueryApagar}              
-              and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+    return ` ${this.headerQueryVanzeirosAPagar}                    
+             ${this.fromQueryApagar}  
+             ${this.getWhereApagar(dataInicio, dataFim)} `;
+  }
+
+  private getWhereApagar(dataInicio: String, dataFim: String): string {
+    return ` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))           
+             and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+  }
+
+  private getQueryApagarEleicao(dataInicio: String, dataFim: String): string {
+    return ` ${this.headerQueryEleicaoApagar}                    
+             ${this.fromQueryEleicaoAPagar}               
+             where opu."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' and opu."idOrdemPagamento" is null`;
   }
 
   private getQueryConsorcios(dataInicio: String, dataFim: String): string {
-    return `  select distinct ${this.headerQueryConsorcios}                   
-                ${this.fromQueryPrincipal}
-                where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+    return `   ${this.headerQueryConsorcios}                   
+               ${this.fromQueryPrincipal}
+               where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
   }
 
   private getQueryVanzeiros(dataInicio: String, dataFim: String): string {
-    return `  select distinct ${this.headerQueryVanzeiros}                   
-                ${this.fromQueryPrincipal}
-                where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+    return `  ${this.headerQueryVanzeiros}                   
+              ${this.fromQueryPrincipal}
+              where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+  }
+
+  private getQueryEleicao(dataInicio: String, dataFim: String): string {
+    return `  ${this.headerQueryEleicao}                   
+              ${this.fromQueryEleicao}
+              where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' AND '${dataFim}' `;
   }
 
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
@@ -111,34 +157,44 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     let queryVanzeiros = ``;
 
+    let queryAPagarEleicao = ``;
+
+    let queryEleicao = ``;
+
     //filtro principal 
 
     //data: filter.dataInicio,filter.dataFim    
-    if (filter.aPagar === undefined && filter.emProcessamento === undefined && filter.pago === undefined 
-      && filter.erro === undefined) {
+    if (filter.aPagar === undefined && filter.emProcessamento === undefined && filter.pago === undefined
+      && filter.erro === undefined && filter.eleicao == undefined) {
       queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim);
       queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim);
       queryConsorcios += this.getQueryConsorcios(dataInicio, dataFim);
       queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);
+      queryAPagarEleicao += this.getQueryApagarEleicao(dataInicio, dataFim);
+      queryEleicao += this.getQueryEleicao(dataInicio, dataFim);
     }
 
     if (filter.aPagar) {
       queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim);
       queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim);
+      queryAPagarEleicao += this.getQueryApagarEleicao(dataInicio, dataFim);
     }
 
-    if (filter.emProcessamento || filter.pago || filter.erro) {
+    if (filter.emProcessamento || filter.pago || filter.erro || filter.eleicao) {
       queryConsorcios += this.getQueryConsorcios(dataInicio, dataFim);
       queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);
+      queryEleicao += this.getQueryEleicao(dataInicio, dataFim);
     }
 
     //Tipo de pesquisa: filter.todosVanzeiros,filter.todosConsorcios,filter.consorcioNome,filter.userIds    
     if ((filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros) {
-      if(!filter.todosVanzeiros){
+      if (!filter.todosVanzeiros) {
         const userPlaceholders = filter.userIds?.join(`','`);
-        queryAPagarVanzeiros += ` AND pu."id" IN('${userPlaceholders}') `;      
+        queryAPagarVanzeiros += ` AND pu."id" IN('${userPlaceholders}') `;
         queryVanzeiros += ` AND pu."id" IN('${userPlaceholders}') `;
-      }else{
+        queryAPagarEleicao += ` AND pu."id" IN('${userPlaceholders}') `;
+        queryEleicao += ` AND pu."id" IN('${userPlaceholders}') `;
+      } else {
         const consorcioPlaceholders = this.MODAIS.join(`','`);
         queryAPagarVanzeiros += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
         queryVanzeiros += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) 
@@ -147,11 +203,11 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
 
     if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
-      if(!filter.todosConsorcios){
+      if (!filter.todosConsorcios) {
         const consorcioPlaceholders = filter.consorcioNome?.join(`','`);
         queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
         queryConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-      }else{
+      } else {
         const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
         queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
         queryConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
@@ -167,28 +223,31 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     const status: number[] = [];
     const subErroStatus: string[] = [];
-    
+
     if (filter.emProcessamento) status.push(2);
     if (filter.pago) status.push(3);
-    if (filter.erro) status.push(4); 
+    if (filter.erro) status.push(4);
     if (filter.estorno) subErroStatus.push('02');
     if (filter.rejeitado) subErroStatus.push('AL');
     if (filter.pendenciaPaga) status.push(5);
-    
 
     if (status.length > 0) {
-      queryConsorcios += ` AND oph."statusRemessa" IN (${status.join(',')}) `;
-      queryVanzeiros += ` AND oph."statusRemessa" IN (${status.join(',')}) `;
+      const statusRemessa = ` AND oph."statusRemessa" IN (${status.join(',')}) `;
+      queryConsorcios += statusRemessa;
+      queryVanzeiros += statusRemessa;
+      queryEleicao += statusRemessa;
     }
 
     if (subErroStatus.length > 0) {
-      queryConsorcios += ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})
+      const motivoStatus = ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})
                               or (oph."statusRemessa"= 4 and oph."motivoStatusRemessa"<>'02') ) `;
-      queryVanzeiros += ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}) 
-                              or (oph."statusRemessa"= 4 and oph."motivoStatusRemessa"<>'02') ) `;
+      queryConsorcios += motivoStatus;
+      queryVanzeiros += motivoStatus;
+      queryEleicao += motivoStatus;
     }
 
-    const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``;
+    const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
+      || queryEleicao !== `` || queryAPagarEleicao !== ``;
     if (!hasQuery) {
       return new RelatorioConsolidadoNovoRemessaDto({
         data: [],
@@ -208,7 +267,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     // Se nenhum status foi selecionado, inclui tudo
     const incluirAPagar = filter.aPagar || !temFiltroStatus;
-    const incluirOutros = temFiltroStatus || (temFiltroStatus == undefined && !filter.aPagar);
+    const incluirOutros = (temFiltroStatus && !filter.eleicao) || (temFiltroStatus == undefined && !filter.aPagar);
 
     if (temFiltroConsorcio) {
       if (incluirAPagar) queries.push(queryAPagarConsorcios);
@@ -216,8 +275,22 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
 
     if (temFiltroVanzeiros) {
-      if (incluirAPagar) queries.push(queryAPagarVanzeiros);
-      if (incluirOutros) queries.push(queryVanzeiros);
+      if (incluirAPagar){
+        if (!filter.eleicao) {
+          queries.push(queryVanzeiros)
+        } else {
+          queries.push(queryEleicao)
+        }
+      }else if(incluirOutros){
+        if (!filter.eleicao) {
+          queries.push(queryVanzeiros)
+        }else if(!filter.eleicao){
+          queries.push(queryEleicao)          
+        }
+      }
+    }else if(!incluirAPagar){
+      queries.push(queryEleicao)        
+      queries.push(queryVanzeiros)      
     }
 
     // Junta só as queries que realmente existem
