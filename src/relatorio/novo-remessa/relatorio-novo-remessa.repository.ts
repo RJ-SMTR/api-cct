@@ -181,7 +181,7 @@ export class RelatorioNovoRemessaRepository {
     private readonly relatorioNovoRemessaConsolidadoRepository: RelatorioNovoRemessaConsolidadoRepository,
   ) { }
 
-  public async findSintetico(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioSinteticoNovoRemessaDto> {
+ /* public async findSintetico(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioSinteticoNovoRemessaDto> {
     if (filter.consorcioNome) {
 
       filter.consorcioNome = filter.consorcioNome.map((c) => { return c.toUpperCase().trim(); });
@@ -311,4 +311,6 @@ export class RelatorioNovoRemessaRepository {
     }
     return statuses;
   }
+}
+*/
 }

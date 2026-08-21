@@ -25,10 +25,10 @@ export class RelatorioNovoRemessaService {
   ///////SINTETICO //////
 
   async findSintetico(args: IFindPublicacaoRelatorioNovoRemessa) {
-    if (args.dataInicio === undefined || args.dataFim === undefined || new Date(args.dataFim) < new Date(args.dataInicio)) {
-      throw new Error('Parametro de data inválido');
-    }
+    // if (args.dataInicio === undefined || args.dataFim === undefined || new Date(args.dataFim) < new Date(args.dataInicio)) {
+    //   throw new Error('Parametro de data inválido');
+    // }
 
-    return await this.relatorioNovoRemessaRepository.findSintetico(args);
+   // return await this.relatorioNovoRemessaRepository.findSintetico(args);
   }
 }
