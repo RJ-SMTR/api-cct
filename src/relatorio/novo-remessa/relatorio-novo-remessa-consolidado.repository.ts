@@ -103,21 +103,34 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     private readonly dataSource: DataSource,
   ) { }
 
-  private getQueryApagarConsorcios(dataInicio: String, dataFim: String): string {
+  private getQueryApagarConsorcios(dataInicio: string, dataFim: string,aPagar?:boolean,pendente?:boolean): string {
     return ` ${this.headerQueryConsorciosApagar}                    
              ${this.fromQueryApagar}
-             ${this.getWhereApagar(dataInicio, dataFim)} `;
+             ${this.getWhereApagar(dataInicio, dataFim,aPagar,pendente)} `;
   }
 
-  private getQueryApagarVanzeiros(dataInicio: String, dataFim: String): string {
+  private getQueryApagarVanzeiros(dataInicio: string, dataFim: string,aPagar?:boolean,pendente?:boolean): string {
     return ` ${this.headerQueryVanzeirosAPagar}                    
              ${this.fromQueryApagar}  
-             ${this.getWhereApagar(dataInicio, dataFim)} `;
+             ${this.getWhereApagar(dataInicio, dataFim,aPagar,pendente)} `;
   }
 
-  private getWhereApagar(dataInicio: String, dataFim: String): string {
-    return ` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))           
-             and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+  private getWhereApagar(dataInicio: string, dataFim: string,aPagar?:boolean,pendente?:boolean): string {
+    const dataMinima = this.getDataMinima();
+    const dataInicioDate = new Date(dataInicio);
+
+    if(aPagar){
+      if (dataMinima && (dataMinima.getTime() >= dataInicioDate.getTime())) {
+        dataInicio = dataMinima.toISOString();      
+      }
+    }else if(pendente){
+      if (dataMinima && (dataMinima.getTime() < new Date(dataFim).getTime())) {
+        dataFim = dataMinima.toISOString();      
+      }
+    } 
+
+    return ` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))
+               and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
   }
 
   private getQueryApagarEleicao(dataInicio: String, dataFim: String): string {
@@ -161,22 +174,27 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     let queryEleicao = ``;
 
+    let queryPendentes =``;
+
     //filtro principal 
 
     //data: filter.dataInicio,filter.dataFim    
     if (filter.aPagar === undefined && filter.emProcessamento === undefined && filter.pago === undefined
-      && filter.erro === undefined && filter.eleicao == undefined) {
-      queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim);
-      queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim);
+      && filter.erro === undefined && filter.eleicao == undefined && filter.pendentes==undefined) {
+      queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim,true);
+      queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim,true);     
+      queryPendentes += this.getQueryApagarVanzeiros(dataInicio, dataFim,undefined,true);   
+      queryAPagarEleicao += this.getQueryApagarEleicao(dataInicio, dataFim);   
       queryConsorcios += this.getQueryConsorcios(dataInicio, dataFim);
-      queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);
-      queryAPagarEleicao += this.getQueryApagarEleicao(dataInicio, dataFim);
+      queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);     
       queryEleicao += this.getQueryEleicao(dataInicio, dataFim);
+      
     }
 
-    if (filter.aPagar) {
-      queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim);
-      queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim);
+    if (filter.aPagar || filter.pendentes) {
+      queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim,true);
+      queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim,true);     
+      queryPendentes += this.getQueryApagarVanzeiros(dataInicio, dataFim,undefined,true);   
       queryAPagarEleicao += this.getQueryApagarEleicao(dataInicio, dataFim);
     }
 
@@ -193,10 +211,12 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         queryAPagarVanzeiros += ` AND pu."id" IN('${userPlaceholders}') `;
         queryVanzeiros += ` AND pu."id" IN('${userPlaceholders}') `;
         queryAPagarEleicao += ` AND pu."id" IN('${userPlaceholders}') `;
+        queryPendentes += ` AND pu."id" IN('${userPlaceholders}') `;
         queryEleicao += ` AND pu."id" IN('${userPlaceholders}') `;
       } else {
         const consorcioPlaceholders = this.MODAIS.join(`','`);
         queryAPagarVanzeiros += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
+        queryPendentes += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
         queryVanzeiros += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) 
                             AND (length(op."operadoraCpfCnpj")<=11  or length(opp."operadoraCpfCnpj")<=11) `;
       }
@@ -239,15 +259,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
 
     if (subErroStatus.length > 0) {
-      const motivoStatus = ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})
-                              or (oph."statusRemessa"= 4 and oph."motivoStatusRemessa"<>'02') ) `;
+      const motivoStatus = ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;
       queryConsorcios += motivoStatus;
       queryVanzeiros += motivoStatus;
       queryEleicao += motivoStatus;
     }
 
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
-      || queryEleicao !== `` || queryAPagarEleicao !== ``;
+      || queryEleicao !== `` || queryAPagarEleicao !== `` || queryPendentes!=``;
     if (!hasQuery) {
       return new RelatorioConsolidadoNovoRemessaDto({
         data: [],
@@ -266,8 +285,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const temFiltroStatus = filter.emProcessamento || filter.pago || filter.pendenciaPaga || filter.erro || filter.estorno || filter.rejeitado;
 
     // Se nenhum status foi selecionado, inclui tudo
-    const incluirAPagar = filter.aPagar || !temFiltroStatus;
-    const incluirOutros = (temFiltroStatus && !filter.eleicao) || (temFiltroStatus == undefined && !filter.aPagar);
+    const incluirAPagar = filter.aPagar || filter.pendentes || !temFiltroStatus;
+    const incluirOutros = (temFiltroStatus && !filter.eleicao) || (temFiltroStatus == undefined && (!filter.aPagar && !filter.pendentes));
 
     if (temFiltroConsorcio) {
       if (incluirAPagar) queries.push(queryAPagarConsorcios);
@@ -275,23 +294,27 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
 
     if (temFiltroVanzeiros) {
-      if (incluirAPagar){
+      if (incluirAPagar) {
         if (!filter.eleicao) {
-          queries.push(queryVanzeiros)
+          if(filter.pendentes){
+            queries.push(queryPendentes);
+          }   
+          if(filter.aPagar){       
+            queries.push(queryAPagarVanzeiros)
+          }
         } else {
-          queries.push(queryEleicao)
-        }
-      }else if(incluirOutros){
-        if (!filter.eleicao) {
-          queries.push(queryVanzeiros)
-        }else if(!filter.eleicao){
-          queries.push(queryEleicao)          
+          queries.push(queryAPagarEleicao)
         }
       }
-    }else if(!incluirAPagar){
-      queries.push(queryEleicao)        
-      queries.push(queryVanzeiros)      
-    }
+
+      if (incluirOutros) {
+        if (!filter.eleicao) {
+          queries.push(queryVanzeiros)
+        }else {        
+          queries.push(queryEleicao)
+        }
+      }
+    } 
 
     // Junta só as queries que realmente existem
     const parts = queries.filter(q => q !== ``);
@@ -342,5 +365,46 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       count: mappedResults.length,
       valor: mappedResults.reduce((acc: any, curr: { valor: any; }) => acc + curr.valor, 0),
     });
+  }
+
+  getDataMinima(hoje = new Date())  {
+    const dia = hoje.getDay(); // 0=Dom, 2=Ter, 6=Sab
+    const data = new Date(hoje);
+    data.setHours(0, 0, 0, 0);
+
+    // TERÇA, QUARTA, QUINTA -> mínima é TERÇA
+    if ([2, 3, 4].includes(dia)) {
+      data.setDate(data.getDate() - (dia - 2));
+      return data;
+    }
+
+    // SEXTA ,SÁBADO, DOMINGO, SEGUNDA -> mínima é SEXTA
+    if ([6, 0, 1, 5].includes(dia)) {
+      let diff = 0;
+      if (dia === 0) diff = 1; // Dom -> volta 1
+      if (dia === 1) diff = 2; // Seg -> volta 2
+      if (dia === 5) diff = 3; // Seg -> volta 3
+      data.setDate(data.getDate() - diff);
+      return data;
+    }
+  }
+
+  getDataMaxima(hoje = new Date()) {
+    const dia = hoje.getDay();
+    const minima = this.getDataMinima(hoje);
+    if (!minima) return null;
+
+    const maxima = new Date(minima);
+
+    if ([2, 3, 4].includes(dia)) {
+      // Terça -> Quarta
+      maxima.setDate(minima.getDate() + 1);
+    } else if ([6, 0, 1].includes(dia)) {
+      // Sábado -> Segunda
+      maxima.setDate(minima.getDate() + 2);
+    }
+
+    maxima.setHours(23, 59, 59, 999);
+    return maxima;
   }
 }
