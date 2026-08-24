@@ -139,20 +139,24 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   private getWhereApagar(dataInicio: string, dataFim: string,aPagar?:boolean,pendente?:boolean): string {
     const dataMinima = this.getDataMinima();
     const dataInicioDate = new Date(dataInicio);
-
+    let where =``;
     if(aPagar){
       if (dataMinima && (dataMinima.getTime() >= dataInicioDate.getTime())) {
         dataInicio = dataMinima.toISOString();      
       }
+      where +=` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))
+               and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date`;
+
     }else if(pendente){
       if (dataMinima && (new Date(dataMinima.getDate()-2)).getTime() < new Date(dataFim).getTime()) {
         dataMinima.setDate(dataMinima.getDate() - 2);  
         dataFim = dataMinima.toISOString();      
       }
-    } 
+      where +=` where (op."ordemPagamentoAgrupadoId" is null)
+               and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date`;
 
-    return ` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))
-               and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+    } 
+    return where;
   }
 
   private getQueryApagarEleicaoConsorcio(dataInicio: String, dataFim: String): string {
@@ -272,7 +276,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       if (!filter.todosConsorcios) {
         const consorcioPlaceholders = filter.consorcioNome?.join(`','`);
         queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryConsorcios += ` (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))  `;
+        queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))  `;
         queryAPagarEleicaoConsorcio+= ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
         queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
         queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
@@ -375,6 +379,12 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         } 
       }          
     } 
+
+    if(!temFiltroVanzeiros && !temFiltroConsorcio){
+      if(filter.eleicao){
+        queries.push(queryEleicaoVanzeiro);
+      }
+    }
 
     // Junta só as queries que realmente existem
     const parts = queries.filter(q => q !== ``);
