@@ -117,7 +117,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {      
+  async onModuleLoad() {    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -790,7 +790,7 @@ export class CronJobsService {
 
     const dataInicio = today;
     const dataFim = today;
-    //await this.limparAgrupamentos(dataInicio, dataFim, []);
+    await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
 
@@ -835,7 +835,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    //await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
@@ -899,9 +899,9 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        dataInicio = new Date('2026-08-14')
-        dataFim = new Date('2026-08-14')
-        dataPagamento = new Date('2026-08-14')
+        dataInicio = new Date('2026-08-21')
+        dataFim = new Date('2026-08-21')
+        dataPagamento = new Date('2026-08-21')
       }
 
       this.logger.log(
