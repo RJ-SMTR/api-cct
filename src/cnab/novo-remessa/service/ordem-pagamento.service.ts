@@ -49,8 +49,12 @@ export class OrdemPagamentoService {
               Caso sejam modais, obtemos o usuário pelo CPF/CNPJ.
               Caso contrário, obtemos pelo idConsorcio === permitCode
            */
-          if (ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio === 'TEC') {
-            user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
+          const consorcio = String(ordem.consorcio ?? '').trim().toUpperCase();
+          const consorciosModais = ['STPC', 'STPL', 'TEC', 'SPTC'];
+          if (consorciosModais.includes(consorcio)) {
+            const cpfCnpj = String(ordem.operadoraCpfCnpj).replace(/\D/g, '');
+            const users = await this.usersService.findManyByNormalizedCpf(cpfCnpj);
+            user = users.length === 1 ? users[0] : undefined;
           } else {
             user = await this.usersService.getOne({ permitCode: ordem.idConsorcio });
           }
