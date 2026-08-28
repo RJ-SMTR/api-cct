@@ -132,7 +132,7 @@ export class RelatorioNovoRemessaFinancialMovementRepository {
       currentPage,
       pageSize,
       data,
-      nextCursor,
+      nextCursor      
     });
   }
 
