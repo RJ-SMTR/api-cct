@@ -5,7 +5,6 @@ import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-paga
 import { BigqueryTransacao } from 'src/bigquery/entities/transacao.bigquery-entity';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
-// import { LancamentoStatus } from 'src/lancamento/enums/lancamento-status.enum';
 import { SettingsService } from 'src/settings/settings.service';
 import { SftpBackupFolder } from 'src/sftp/enums/sftp-backup-folder.enum';
 import { SftpService } from 'src/sftp/sftp.service';

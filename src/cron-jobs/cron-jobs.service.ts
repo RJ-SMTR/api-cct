@@ -87,7 +87,7 @@ export class CronJobsService {
   public jobsConfig: ICronJob[] = [];
 
   private static readonly MODAIS = ['STPC', 'STPL', 'TEC'];
-  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM'];
+  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM','GTU'];
 
   constructor(
     private configService: ConfigService,
@@ -901,9 +901,9 @@ export class CronJobsService {
 
       if (tipo === 'GUARDADOR') {
         dataInicio = new Date('2026-08-25')
-        dataFim = new Date('2026-08-25')
-        dataPagamento = new Date('2026-08-25')
-      }
+        dataFim = new Date('2026-08-27')
+        dataPagamento = new Date('2026-08-28')
+      }    
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
