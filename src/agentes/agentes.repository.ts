@@ -489,98 +489,159 @@ export class AgentesRepository {
 
   private buildLegacyMonthlyQuery() {
     return `
-   WITH
+    WITH
+    efetivacao_por_agrupado AS (
+      SELECT
+        oph."ordemPagamentoAgrupadoId",
+        MAX(da."dataVencimento") AS data_efetiva
+      FROM ordem_pagamento_agrupado_historico oph
+      INNER JOIN detalhe_a da
+        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+      GROUP BY oph."ordemPagamentoAgrupadoId"
+    ),
+
     datas_base AS (
-        SELECT
-            data::date AS data_referencia,
-            extract(
-                dow
-                FROM data
-            ) as dia_semana
-        FROM generate_series(
-                DATE_TRUNC('month', $1::DATE), DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day', '1 day'::INTERVAL
-            ) AS data
-        WHERE (
-                (
-                    $1::date <= DATE '2025-12-31'
-                    AND extract(
-                        dow
-                        FROM data
-                    ) = 5
-                )
-                OR (
-                    $1::date > DATE '2025-12-31'
-                    AND extract(
-                        dow
-                        FROM data
-                    ) IN (2, 5)
-                )
-                OR (
-                  DATE_TRUNC('month', $1::date) = DATE '2026-07-01'
-                  AND data::date = DATE '2026-07-23'
-                )
-            )
+      SELECT
+        data::date AS data_referencia,
+        EXTRACT(dow FROM data) AS dia_semana
+      FROM generate_series(
+        DATE_TRUNC('month', $1::DATE),
+        DATE_TRUNC('month', $1::DATE) + INTERVAL '1 month' - INTERVAL '1 day',
+        '1 day'::INTERVAL
+      ) AS data
+      WHERE (
+        (
+          $1::date <= DATE '2025-12-31'
+          AND EXTRACT(dow FROM data) = 5
+        )
+        OR (
+          $1::date > DATE '2025-12-31'
+          AND EXTRACT(dow FROM data) IN (2, 5)
+        )
+        OR (
+          DATE_TRUNC('month', $1::date) = DATE '2026-07-01'
+          AND data::date = DATE '2026-07-23'
+        )
+      )
     ),
+
     ordens_por_data AS (
-        SELECT DISTINCT
-            db.data_referencia,
-            op."dataOrdem",
-            da."dataVencimento" as data_efetiva,
-            ROUND(
-                op."valorRepasseGuardador"::numeric,
-                2
-            ) AS valorTotalPagamento,
-            oph."statusRemessa",
-            oph."motivoStatusRemessa",
-            opa."id" as opaId
-        FROM
-            datas_base db
-            LEFT JOIN ordem_pagamento_guardador op ON op."userId" = $2
-            AND DATE_TRUNC('day', op."dataOrdem") = db.data_referencia
-            LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
-            LEFT JOIN LATERAL (
-                SELECT oph_i.id, oph_i."statusRemessa", oph_i."motivoStatusRemessa"
-                FROM
-                    ordem_pagamento_agrupado_historico oph_i
-                WHERE
-                    oph_i."ordemPagamentoAgrupadoId" = opa.id
-                ORDER BY oph_i.id DESC
-                LIMIT 1
-            ) oph ON true
-            LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+      SELECT DISTINCT
+        db.data_referencia,
+
+        -- Identifica individualmente cada ordem de guardador
+        op.id AS "ordemGuardadorId",
+
+        op."dataOrdem",
+
+        COALESCE(
+          da."dataEfetivacao",
+          efetivacao_por_agrupado.data_efetiva
+        ) AS data_efetiva,
+
+        ROUND(
+          op."valorRepasseGuardador"::numeric,
+          2
+        ) AS valorTotalPagamento,
+
+        oph."statusRemessa",
+        oph."motivoStatusRemessa",
+
+        opa.id AS opaId
+
+      FROM datas_base db
+
+      LEFT JOIN ordem_pagamento_guardador op
+        ON op."userId" = $2
+        AND DATE_TRUNC('day', op."dataOrdem") = db.data_referencia
+
+      LEFT JOIN ordem_pagamento_agrupado opa
+        ON op."ordemPagamentoAgrupadoId" = opa.id
+
+      LEFT JOIN efetivacao_por_agrupado
+        ON efetivacao_por_agrupado."ordemPagamentoAgrupadoId" = opa.id
+
+      LEFT JOIN LATERAL (
+        SELECT
+          oph_i.id,
+          oph_i."statusRemessa",
+          oph_i."motivoStatusRemessa"
+        FROM ordem_pagamento_agrupado_historico oph_i
+        WHERE oph_i."ordemPagamentoAgrupadoId" = opa.id
+        ORDER BY
+          oph_i."dataReferencia" DESC,
+          oph_i.id DESC
+        LIMIT 1
+      ) oph ON TRUE
+
+      LEFT JOIN detalhe_a da
+        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
     ),
+
     status_5_mais_recente AS (
-        SELECT opd.*, ROW_NUMBER() OVER (
-                PARTITION BY
-                    opd.opaId
-                ORDER BY opd.data_referencia DESC
-            ) AS rn
-        FROM ordens_por_data opd
-        WHERE
-            opd."statusRemessa" = 5
+      SELECT
+        opd.*,
+        ROW_NUMBER() OVER (
+          PARTITION BY opd."ordemGuardadorId"
+          ORDER BY opd.data_referencia DESC
+        ) AS rn
+      FROM ordens_por_data opd
+      WHERE opd."statusRemessa" = 5
     ),
+
     ordens_filtradas AS (
-        SELECT opd.data_referencia, opd.data_efetiva, opd."dataOrdem",opd.valorTotalPagamento, opd."statusRemessa", opd."motivoStatusRemessa", opd.opaId
-        FROM ordens_por_data opd
-        WHERE
-            COALESCE(opd."statusRemessa", -1) <> 5
-        UNION ALL
-        SELECT s5.data_referencia, s5.data_referencia, s5.data_referencia, s5.valorTotalPagamento, s5."statusRemessa", s5."motivoStatusRemessa", s5.opaId
-        FROM status_5_mais_recente s5
-        WHERE
-            s5.rn = 1
+      SELECT
+        opd."ordemGuardadorId",
+        opd.data_referencia,
+        opd.data_efetiva,
+        opd."dataOrdem",
+        opd.valorTotalPagamento,
+        opd."statusRemessa",
+        opd."motivoStatusRemessa",
+        opd.opaId
+      FROM ordens_por_data opd
+      WHERE COALESCE(opd."statusRemessa", -1) <> 5
+
+      UNION ALL
+
+      SELECT
+        s5."ordemGuardadorId",
+        s5.data_referencia,
+        s5.data_efetiva,
+        s5."dataOrdem",
+        s5.valorTotalPagamento,
+        s5."statusRemessa",
+        s5."motivoStatusRemessa",
+        s5.opaId
+      FROM status_5_mais_recente s5
+      WHERE s5.rn = 1
     )
-SELECT r.data_referencia as data,r."dataOrdem", r.data_efetiva as "dataEfetivaPagamento", r."statusRemessa", r."motivoStatusRemessa", string_agg(DISTINCT r.opaId::text, ', ') as "ordemPagamentoAgrupadoIds", r.valorTotalPagamento as "valorTotal"
-FROM ordens_filtradas r
-GROUP BY
-    r.data_referencia,
-    r."dataOrdem",
-    r."statusRemessa",
-     r.valorTotalPagamento,
-    r."motivoStatusRemessa",
-    r.data_efetiva
-ORDER BY r.data_referencia DESC;`; 
-   
+
+    SELECT
+      r.data_referencia AS data,
+      r."dataOrdem",
+      r.data_efetiva AS "dataEfetivaPagamento",
+      r."statusRemessa",
+      r."motivoStatusRemessa",
+      STRING_AGG(
+        DISTINCT r.opaId::text,
+        ', '
+      ) AS "ordemPagamentoAgrupadoIds",
+      r.valorTotalPagamento AS "valorTotal"
+
+    FROM ordens_filtradas r
+
+    GROUP BY
+      r."ordemGuardadorId",
+      r.data_referencia,
+      r."dataOrdem",
+      r."statusRemessa",
+      r.valorTotalPagamento,
+      r."motivoStatusRemessa",
+      r.data_efetiva
+
+    ORDER BY r.data_referencia DESC;
+  `;
   }
 
   private buildLegacyDailyQuery() {
@@ -647,25 +708,27 @@ ORDER BY r.data_referencia DESC;`;
     return `
       WITH latest_history AS (
         SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
+          oph.id,
           oph."ordemPagamentoAgrupadoId",
+          oph."dataReferencia",
           oph."statusRemessa",
           oph."motivoStatusRemessa"
         FROM ordem_pagamento_agrupado_historico oph
-        ORDER BY oph."ordemPagamentoAgrupadoId", oph.id DESC
+        ORDER BY oph."ordemPagamentoAgrupadoId", oph."dataReferencia" DESC, oph.id DESC
       ),
-      efetivacao AS (
+      latest_effective_payment AS (
         SELECT
-          oph."ordemPagamentoAgrupadoId",
+          latest_history."ordemPagamentoAgrupadoId",
           MAX(da."dataEfetivacao") AS "dataEfetivaPagamento"
-        FROM ordem_pagamento_agrupado_historico oph
+        FROM latest_history
         INNER JOIN detalhe_a da
-          ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-        GROUP BY oph."ordemPagamentoAgrupadoId"
+          ON da."ordemPagamentoAgrupadoHistoricoId" = latest_history.id
+        GROUP BY latest_history."ordemPagamentoAgrupadoId"
       )
       SELECT
         TO_CHAR(opa."dataPagamento", 'YYYY-MM-DD') AS "paymentDate",
         TO_CHAR(opa."dataPagamento", 'YYYY-MM-DD') AS "dataTentativaPagamento",
-        TO_CHAR(efetivacao."dataEfetivaPagamento", 'YYYY-MM-DD') AS "dataEfetivaPagamento",
+        TO_CHAR(latest_effective_payment."dataEfetivaPagamento", 'YYYY-MM-DD') AS "dataEfetivaPagamento",
         latest_history."statusRemessa" AS "statusRemessa",
         latest_history."motivoStatusRemessa" AS "motivoStatusRemessa"
       FROM ordem_pagamento_guardador opg
@@ -673,14 +736,14 @@ ORDER BY r.data_referencia DESC;`;
         ON opa.id = opg."ordemPagamentoAgrupadoId"
       LEFT JOIN latest_history
         ON latest_history."ordemPagamentoAgrupadoId" = opa.id
-      LEFT JOIN efetivacao
-        ON efetivacao."ordemPagamentoAgrupadoId" = opa.id
+      LEFT JOIN latest_effective_payment
+        ON latest_effective_payment."ordemPagamentoAgrupadoId" = opa.id
       WHERE opg."ordemPagamentoAgrupadoId" IS NOT NULL
         AND TO_CHAR(opa."dataPagamento", 'YYYY-MM') = $1
         AND opg."userId" = $2
       GROUP BY
         opa."dataPagamento",
-        efetivacao."dataEfetivaPagamento",
+        latest_effective_payment."dataEfetivaPagamento",
         latest_history."statusRemessa",
         latest_history."motivoStatusRemessa"
       ORDER BY opa."dataPagamento" DESC
@@ -692,10 +755,11 @@ ORDER BY r.data_referencia DESC;`;
       WITH latest_history AS (
         SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
           oph."ordemPagamentoAgrupadoId",
+          oph."dataReferencia",
           oph."statusRemessa",
           oph."motivoStatusRemessa"
         FROM ordem_pagamento_agrupado_historico oph
-        ORDER BY oph."ordemPagamentoAgrupadoId", oph.id DESC
+        ORDER BY oph."ordemPagamentoAgrupadoId", oph."dataReferencia" DESC, oph.id DESC
       )
       SELECT
         TO_CHAR(opa."dataPagamento", 'YYYY-MM-DD') AS "paymentDate",
@@ -725,10 +789,11 @@ ORDER BY r.data_referencia DESC;`;
       WITH latest_history AS (
         SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
           oph."ordemPagamentoAgrupadoId",
+          oph."dataReferencia",
           oph."statusRemessa",
           oph."motivoStatusRemessa"
         FROM ordem_pagamento_agrupado_historico oph
-        ORDER BY oph."ordemPagamentoAgrupadoId", oph.id DESC
+        ORDER BY oph."ordemPagamentoAgrupadoId", oph."dataReferencia" DESC, oph.id DESC
       )
       SELECT
         COALESCE(NULLIF(TRIM(opg."idOrdemPagamento"), ''), CONCAT('GUARDADOR-', opg.id::text)) AS "photoId",
