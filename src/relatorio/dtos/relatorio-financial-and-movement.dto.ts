@@ -8,34 +8,43 @@ export type RelatorioFinancialMovementNovoRemessaCursor = {
 };
 
 export class RelatorioFinancialMovementNovoRemessaSummaryDto {
-  constructor(consolidado?: DeepPartial<RelatorioFinancialMovementNovoRemessaSummaryDto>) {
-    if (consolidado !== undefined) {
-      Object.assign(this, consolidado);
+  constructor(movimentacao?: DeepPartial<RelatorioFinancialMovementNovoRemessaSummaryDto>) {
+    if (movimentacao !== undefined) {
+      Object.assign(this, movimentacao);
     }
   }
 
-  count: number;
-  valorTotal: number;
-  valorPago: number;
-  valorRejeitado: number;
-  valorEstornado: number;
-  valorAguardandoPagamento: number;
-  valorAPagar: number;
-  valorPendente: number;
-  valorPendenciaPaga: number;
+  count?: number;
+  valorTotal?: number;
+  valorPago?: number;
+  valorRejeitado?: number;
+  valorEstornado?: number;
+  valorAguardandoPagamento?: number;
+  valorAPagar?: number;
+  valorPendente?: number;
+  valorPendenciaPaga?: number;
 }
 
 export class RelatorioFinancialMovementNovoRemessaPageDto {
-  constructor(consolidado?: DeepPartial<RelatorioFinancialMovementNovoRemessaPageDto>) {
-    if (consolidado !== undefined) {
-      Object.assign(this, consolidado);
+  constructor(movimentacao?: DeepPartial<RelatorioFinancialMovementNovoRemessaPageDto>) {
+    if (movimentacao !== undefined) {
+      Object.assign(this, movimentacao);
     }
   }
 
-  currentPage: number;
-  pageSize: number;
-  data: RelatorioFinancialMovementNovoRemessaData[];
-  nextCursor?: RelatorioFinancialMovementNovoRemessaCursor | null;
+  currentPage?: number;
+  pageSize?: number;
+  data?: RelatorioFinancialMovementNovoRemessaData[];
+  nextCursor?: RelatorioFinancialMovementNovoRemessaCursor | string | null ;
+  count?: Number;
+  valorTotal?: Number;
+  valorPago?: Number;
+  valorRejeitado?: Number;
+  valorEstornado?: Number;
+  valorAguardandoPagamento?: Number;
+  valorAPagar?: Number;
+  valorPendente?: Number;
+  valorPendenciaPaga?: Number;
 }
 
 export class RelatorioFinancialMovementNovoRemessaData {
@@ -45,15 +54,14 @@ export class RelatorioFinancialMovementNovoRemessaData {
     }
   }
 
-
-  dataReferencia: string;
-  dataPagamento: string;
-  nomes: string;
-  email: string;
-  codBanco: number;
-  nomeBanco: string;
-  cpfCnpj: string;
-  consorcio: string;
-  valor: number;
-  status: string;
+  dataReferencia?: string;
+  dataPagamento?: string;
+  nomes?: string;
+  email?: string;
+  codBanco?: number;
+  nomeBanco?: string;
+  cpfCnpj?: string;
+  consorcio?: string;
+  valor?: number;
+  status?: string;
 }

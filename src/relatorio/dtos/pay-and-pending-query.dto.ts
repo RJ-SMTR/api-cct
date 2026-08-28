@@ -89,6 +89,14 @@ export class FinancialMovementQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   todosVanzeiros?: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Pesquisa todos os consorcios.', default: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  todosConsorcios?: boolean;
+
 
   @ApiPropertyOptional({
     description: 'Pesquisa todos os pendentes.', default: false

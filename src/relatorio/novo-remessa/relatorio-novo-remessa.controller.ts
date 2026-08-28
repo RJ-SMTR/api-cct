@@ -121,10 +121,10 @@ export class RelatorioNovoRemessaController {
     @Query('todosConsorcios', new ParseBooleanPipe({ optional: true })) todosConsorcios: boolean | undefined,
   ) {
     try {
-      const result = await this.relatorioNovoRemessaService.findSintetico({
-        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios
-      });
-      return result;
+      // const result = await this.relatorioNovoRemessaService.findSintetico({
+      //   dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios
+      // });
+      return '';
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
@@ -153,7 +153,7 @@ export class RelatorioNovoRemessaController {
     @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
   ) {
     try {
-      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementPage(queryParams);
+      const result = await this.relatorioNovoRemessaService.findMovimentacaoFinanceira(queryParams);
       return result;
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);

@@ -22,4 +22,5 @@ export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   rejeitado?: boolean;
   pendenciaPaga?: boolean;
   aPagar?: boolean;
+  todosConsorcios?:boolean;
 }
