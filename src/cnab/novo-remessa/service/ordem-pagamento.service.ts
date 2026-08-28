@@ -105,7 +105,7 @@ export class OrdemPagamentoService {
            ajustar o código para inserir a ordem de pagamento com o usuário nulo
            ***/
           if (error instanceof HttpException && !user) {
-            await this.saveOrdemGuardador(ordem,undefined);
+           // await this.saveOrdemGuardador(ordem,undefined);
           } else {
             this.logger.error(`Erro ao sincronizar ordem de pagamento guardador ${ordem.dataOrdem}: ${error.message}`, METHOD);
           }
