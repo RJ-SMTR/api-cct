@@ -273,7 +273,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.bulkSendInvitesFixedTime,
         cronJobParameters: {
-          cronTime: '0 15 * * *',
+          cronTime: '30 15 * * *',
           onTick: async () => await this.bulkSendInvites(),
         },
       },
