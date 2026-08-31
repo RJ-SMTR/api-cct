@@ -16,7 +16,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
   private readonly MODAIS = ['STPC', 'STPL', 'TEC'];
 
-  private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM','STPC', 'STPL', 'TEC'];
+  private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'STPC', 'STPL', 'TEC', 'GTU'];
 
   private readonly headerQueryConsorciosApagar = ` select distinct CASE
                                                     WHEN pu."permitCode" = '8'  THEN 'VLT'
@@ -71,7 +71,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
                                               ELSE op."consorcio" 
                                             END AS "nome",pu."fullName" AS "nome2",                                             
-                                            op."valorTotalTransacaoLiquido" AS valor`;                                            
+                                            op."valorTotalTransacaoLiquido" AS valor`;
 
   private readonly headerQueryEleicaoVanzeiro = ` select distinct pu."fullName" AS "nome",
                                             CASE
@@ -124,38 +124,38 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     private readonly dataSource: DataSource,
   ) { }
 
-  private getQueryApagarConsorcios(dataInicio: string, dataFim: string,aPagar?:boolean,pendente?:boolean): string {
+  private getQueryApagarConsorcios(dataInicio: string, dataFim: string, aPagar?: boolean, pendente?: boolean): string {
     return ` ${this.headerQueryConsorciosApagar}                    
              ${this.fromQueryApagar}
-             ${this.getWhereApagar(dataInicio, dataFim,aPagar,pendente)} `;
+             ${this.getWhereApagar(dataInicio, dataFim, aPagar, pendente)} `;
   }
 
-  private getQueryApagarVanzeiros(dataInicio: string, dataFim: string,aPagar?:boolean,pendente?:boolean): string {
+  private getQueryApagarVanzeiros(dataInicio: string, dataFim: string, aPagar?: boolean, pendente?: boolean): string {
     return ` ${this.headerQueryVanzeirosAPagar}                    
              ${this.fromQueryApagar}  
-             ${this.getWhereApagar(dataInicio, dataFim,aPagar,pendente)} `;
+             ${this.getWhereApagar(dataInicio, dataFim, aPagar, pendente)} `;
   }
 
-  private getWhereApagar(dataInicio: string, dataFim: string,aPagar?:boolean,pendente?:boolean): string {
+  private getWhereApagar(dataInicio: string, dataFim: string, aPagar?: boolean, pendente?: boolean): string {
     const dataMinima = this.getDataMinima();
     const dataInicioDate = new Date(dataInicio);
-    let where =``;
-    if(aPagar){
+    let where = ``;
+    if (aPagar) {
       if (dataMinima && (dataMinima.getTime() >= dataInicioDate.getTime())) {
-        dataInicio = dataMinima.toISOString();      
+        dataInicio = dataMinima.toISOString();
       }
-      where +=` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))
+      where += ` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))
                and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date`;
 
-    }else if(pendente){
-      if (dataMinima && (new Date(dataMinima.getDate()-2)).getTime() < new Date(dataFim).getTime()) {
-        dataMinima.setDate(dataMinima.getDate() - 2);  
-        dataFim = dataMinima.toISOString();      
+    } else if (pendente) {
+      if (dataMinima && (new Date(dataMinima.getDate() - 2)).getTime() < new Date(dataFim).getTime()) {
+        dataMinima.setDate(dataMinima.getDate() - 2);
+        dataFim = dataMinima.toISOString();
       }
-      where +=` where (op."ordemPagamentoAgrupadoId" is null)
+      where += ` where (op."ordemPagamentoAgrupadoId" is null)
                and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date`;
 
-    } 
+    }
     return where;
   }
 
@@ -165,7 +165,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
              where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' and op."idOrdemPagamento" is null`;
   }
 
-   private getQueryApagarEleicaoVanzeiro(dataInicio: String, dataFim: String): string {
+  private getQueryApagarEleicaoVanzeiro(dataInicio: String, dataFim: String): string {
     return ` ${this.headerQueryEleicaoVanzereiroApagar}                    
              ${this.fromQueryEleicaoAPagar}               
              where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' and op."idOrdemPagamento" is null`;
@@ -216,40 +216,40 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     let queryEleicaoVanzeiro = ``;
 
-    let queryPendentesConsorcio =``;
+    let queryPendentesConsorcio = ``;
 
-    let queryPendentesVanzeiro =``;
+    let queryPendentesVanzeiro = ``;
 
     //filtro principal 
     //data: filter.dataInicio,filter.dataFim    
     if (filter.aPagar === undefined && filter.emProcessamento === undefined && filter.pago === undefined
-      && filter.erro === undefined && filter.eleicao == undefined && filter.pendentes==undefined) {
-      queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim,true);
-      queryPendentesConsorcio += this.getQueryApagarConsorcios(dataInicio, dataFim,undefined,true);
-      queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim,true);     
-      queryPendentesVanzeiro += this.getQueryApagarVanzeiros(dataInicio, dataFim,undefined,true);   
-      queryAPagarEleicaoConsorcio += this.getQueryApagarEleicaoConsorcio(dataInicio, dataFim);   
-      queryAPagarEleicaoVanzeiro += this.getQueryApagarEleicaoVanzeiro(dataInicio, dataFim);  
+      && filter.erro === undefined && filter.eleicao == undefined && filter.pendentes == undefined) {
+      queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim, true);
+      queryPendentesConsorcio += this.getQueryApagarConsorcios(dataInicio, dataFim, undefined, true);
+      queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim, true);
+      queryPendentesVanzeiro += this.getQueryApagarVanzeiros(dataInicio, dataFim, undefined, true);
+      queryAPagarEleicaoConsorcio += this.getQueryApagarEleicaoConsorcio(dataInicio, dataFim);
+      queryAPagarEleicaoVanzeiro += this.getQueryApagarEleicaoVanzeiro(dataInicio, dataFim);
       queryConsorcios += this.getQueryConsorcios(dataInicio, dataFim);
-      queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);     
+      queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);
       queryEleicaoConsorcio += this.getQueryEleicaoConsorcio(dataInicio, dataFim);
-      queryEleicaoVanzeiro += this.getQueryEleicaoVanzeiro(dataInicio,dataFim);      
+      queryEleicaoVanzeiro += this.getQueryEleicaoVanzeiro(dataInicio, dataFim);
     }
 
-    if (filter.aPagar || filter.pendentes) {      
-      queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim,true);
-      queryPendentesConsorcio += this.getQueryApagarConsorcios(dataInicio, dataFim,undefined,true);
-      queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim,true);     
-      queryPendentesVanzeiro += this.getQueryApagarVanzeiros(dataInicio, dataFim,undefined,true);   
-      queryAPagarEleicaoConsorcio += this.getQueryApagarEleicaoConsorcio(dataInicio, dataFim);   
-      queryAPagarEleicaoVanzeiro += this.getQueryApagarEleicaoVanzeiro(dataInicio, dataFim);  
+    if (filter.aPagar || filter.pendentes) {
+      queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim, true);
+      queryPendentesConsorcio += this.getQueryApagarConsorcios(dataInicio, dataFim, undefined, true);
+      queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim, true);
+      queryPendentesVanzeiro += this.getQueryApagarVanzeiros(dataInicio, dataFim, undefined, true);
+      queryAPagarEleicaoConsorcio += this.getQueryApagarEleicaoConsorcio(dataInicio, dataFim);
+      queryAPagarEleicaoVanzeiro += this.getQueryApagarEleicaoVanzeiro(dataInicio, dataFim);
     }
 
     if (filter.emProcessamento || filter.pago || filter.erro || filter.eleicao) {
       queryConsorcios += this.getQueryConsorcios(dataInicio, dataFim);
       queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);
       queryEleicaoConsorcio += this.getQueryEleicaoConsorcio(dataInicio, dataFim);
-      queryEleicaoVanzeiro += this.getQueryEleicaoVanzeiro(dataInicio,dataFim);      
+      queryEleicaoVanzeiro += this.getQueryEleicaoVanzeiro(dataInicio, dataFim);
     }
 
     //Tipo de pesquisa: filter.todosVanzeiros,filter.todosConsorcios,filter.consorcioNome,filter.userIds    
@@ -259,16 +259,16 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         const usersVanzeiros = ` AND pu."id" IN('${userPlaceholders}') `
         queryAPagarVanzeiros += usersVanzeiros;
         queryVanzeiros += usersVanzeiros;
-        queryAPagarEleicaoVanzeiro += usersVanzeiros;        
-        queryPendentesVanzeiro +=  usersVanzeiros;
+        queryAPagarEleicaoVanzeiro += usersVanzeiros;
+        queryPendentesVanzeiro += usersVanzeiros;
         queryEleicaoVanzeiro += usersVanzeiros;
       } else {
-        const consorcioPlaceholders = this.MODAIS.join(`','`);        
+        const consorcioPlaceholders = this.MODAIS.join(`','`);
         queryPendentesVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
         queryVanzeiros += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) 
                             AND (length(op."operadoraCpfCnpj")<=11  or length(opp."operadoraCpfCnpj")<=11) `;
         queryAPagarVanzeiros += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
-        queryAPagarEleicaoVanzeiro +=` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
+        queryAPagarEleicaoVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
       }
     }
 
@@ -277,14 +277,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         const consorcioPlaceholders = filter.consorcioNome?.join(`','`);
         queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
         queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))  `;
-        queryAPagarEleicaoConsorcio+= ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        queryAPagarEleicaoConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
         queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
         queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
       } else {
         const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
         queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
         queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) `;
-        queryAPagarEleicaoConsorcio+= ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        queryAPagarEleicaoConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
         queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
         queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
       }
@@ -324,8 +324,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
 
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
-    || queryAPagarEleicaoConsorcio!==`` || queryAPagarConsorcios!==``  || queryEleicaoConsorcio !== `` || queryAPagarEleicaoVanzeiro !== `` 
-    || queryPendentesConsorcio!==`` || queryPendentesVanzeiro!==`` ;
+      || queryAPagarEleicaoConsorcio !== `` || queryAPagarConsorcios !== `` || queryEleicaoConsorcio !== `` || queryAPagarEleicaoVanzeiro !== ``
+      || queryPendentesConsorcio !== `` || queryPendentesVanzeiro !== ``;
     if (!hasQuery) {
       return new RelatorioConsolidadoNovoRemessaDto({
         data: [],
@@ -340,48 +340,48 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const queries: string[] = [];
 
     const temFiltroConsorcio = (filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios;
-    const temFiltroVanzeiros = (filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros;    
+    const temFiltroVanzeiros = (filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros;
 
     // Se nenhum status foi selecionado, inclui tudo
     const incluirAPagar = filter.aPagar || filter.pendentes;
-    
+
 
     if (temFiltroConsorcio) {
-      if (incluirAPagar) {        
-        if(filter.eleicao){
+      if (incluirAPagar) {
+        if (filter.eleicao) {
           queries.push(queryAPagarEleicaoConsorcio);
-        }else{
-          if(filter.aPagar)queries.push(queryAPagarConsorcios);     
-          if(filter.pendentes) queries.push(queryPendentesConsorcio);          
+        } else {
+          if (filter.aPagar) queries.push(queryAPagarConsorcios);
+          if (filter.pendentes) queries.push(queryPendentesConsorcio);
         }
-      }else{
-        if(filter.eleicao) {
+      } else {
+        if (filter.eleicao) {
           queries.push(queryEleicaoConsorcio);
-        }else {        
+        } else {
           queries.push(queryConsorcios);
-        } 
-      }      
+        }
+      }
     }
 
     if (temFiltroVanzeiros) {
       if (incluirAPagar) {
-        if(filter.eleicao) {
-          queries.push(queryAPagarEleicaoVanzeiro);                   
-        }else {
-          if(filter.aPagar) queries.push(queryAPagarVanzeiros);          
-          if(filter.pendentes) queries.push(queryPendentesVanzeiro); 
+        if (filter.eleicao) {
+          queries.push(queryAPagarEleicaoVanzeiro);
+        } else {
+          if (filter.aPagar) queries.push(queryAPagarVanzeiros);
+          if (filter.pendentes) queries.push(queryPendentesVanzeiro);
         }
-      }else{
-        if(filter.eleicao) {
+      } else {
+        if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
-        }else {        
+        } else {
           queries.push(queryVanzeiros);
-        } 
-      }          
-    } 
+        }
+      }
+    }
 
-    if(!temFiltroVanzeiros && !temFiltroConsorcio){
-      if(filter.eleicao){
+    if (!temFiltroVanzeiros && !temFiltroConsorcio) {
+      if (filter.eleicao) {
         queries.push(queryEleicaoVanzeiro);
       }
     }
@@ -437,7 +437,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     });
   }
 
-  getDataMinima(hoje = new Date())  {
+  getDataMinima(hoje = new Date()) {
     const dia = hoje.getDay(); // 0=Dom, 2=Ter, 6=Sab
     const data = new Date(hoje);
     data.setHours(0, 0, 0, 0);
