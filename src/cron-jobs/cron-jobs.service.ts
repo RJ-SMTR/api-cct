@@ -255,11 +255,11 @@ export class CronJobsService {
       },
       {
         /**
-         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
+         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 20:30, duração: 5 min
          *
-         * 19:00 BRT (GMT-3) = 22:00 GMT (10PM)
+         * 20:30 BRT (GMT-3) = 23:30 GMT (10PM)
          */
-        name: CronJobsEnum.bulkSendInvitesFixedTime,
+        name: CronJobsEnum.bulkSendInvites,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: async () => await this.bulkSendInvites(),
@@ -267,11 +267,11 @@ export class CronJobsService {
       },
       {
         /**
-         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
+         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 07:30, duração: 5 min
          *
          * 07:30 BRT (GMT-3) = 10:30 GMT (10AM)
          */
-        name: CronJobsEnum.bulkSendInvites,
+        name: CronJobsEnum.bulkSendInvitesFixedTime,
         cronJobParameters: {
           cronTime: '0 15 * * *',
           onTick: async () => await this.bulkSendInvites(),
