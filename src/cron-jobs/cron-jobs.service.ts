@@ -43,6 +43,7 @@ import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transac
  */
 export enum CronJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
+  bulkSendInvitesFixedTime = 'bulkSendInvitesFixedTime',
   sendReport = 'sendReport',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
@@ -111,8 +112,7 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento()
-    //await this.sincronizarEAgruparOrdensPagamentoGuardador()
+    await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -259,9 +259,9 @@ export class CronJobsService {
          *
          * 19:00 BRT (GMT-3) = 22:00 GMT (10PM)
          */
-        name: CronJobsEnum.bulkSendInvites,
+        name: CronJobsEnum.bulkSendInvitesFixedTime,
         cronJobParameters: {
-          cronTime: '0 15 * * *',
+          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
           onTick: async () => await this.bulkSendInvites(),
         },
       },
@@ -269,11 +269,11 @@ export class CronJobsService {
         /**
          * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
          *
-         * 19:00 BRT (GMT-3) = 22:00 GMT (10PM)
+         * 07:30 BRT (GMT-3) = 10:30 GMT (10AM)
          */
         name: CronJobsEnum.bulkSendInvites,
         cronJobParameters: {
-          cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+          cronTime: '0 15 * * *',
           onTick: async () => await this.bulkSendInvites(),
         },
       },
