@@ -57,6 +57,7 @@ export enum CronJobsEnum {
   backupSftp = 'backupSftp',
   sendAdminFraudAlert = 'sendAdminFraudAlert',
   syncWeeklyAgentUsers = 'syncWeeklyAgentUsers',
+  syncWeeklyAgentUsers2 = 'syncWeeklyAgentUsers2',
   sincronizarEAgruparOrdensPagamentoGuardador = 'sincronizarEAgruparOrdensPagamentoGuardador'
 }
 interface ICronjobDebug {
@@ -168,17 +169,17 @@ export class CronJobsService {
         cronJobParameters: {
           cronTime: '0 10 * * *', // Every day, 10:00 UTC = 07:00 BRT (GMT-3)
           onTick: async () => await this.syncWeeklyAgentUsers(),
-        },
+        }
       },
       {
         /**
          * Sincroniza diariamente novos agentes e associações a partir do BigQuery.
          */
-        name: CronJobsEnum.syncWeeklyAgentUsers,
+        name: CronJobsEnum.syncWeeklyAgentUsers2,
         cronJobParameters: {
           cronTime: '0 22 * * *', // Every day, 22:00 UTC = 19:00 BRT (GMT-3)
           onTick: async () => await this.syncWeeklyAgentUsers(),
-        },
+        }
       },
       {
         /**
