@@ -117,7 +117,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {
+  async onModuleLoad() {        
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -160,14 +160,23 @@ export class CronJobsService {
           },
         },
       },
-
       {
         /**
          * Sincroniza diariamente novos agentes e associações a partir do BigQuery.
          */
         name: CronJobsEnum.syncWeeklyAgentUsers,
         cronJobParameters: {
-          cronTime: '0 22 * * *', // Every day, 22:30 UTC = 19:00 BRT (GMT-3)
+          cronTime: '0 10 * * *', // Every day, 10:00 UTC = 07:00 BRT (GMT-3)
+          onTick: async () => await this.syncWeeklyAgentUsers(),
+        },
+      },
+      {
+        /**
+         * Sincroniza diariamente novos agentes e associações a partir do BigQuery.
+         */
+        name: CronJobsEnum.syncWeeklyAgentUsers,
+        cronJobParameters: {
+          cronTime: '0 22 * * *', // Every day, 22:00 UTC = 19:00 BRT (GMT-3)
           onTick: async () => await this.syncWeeklyAgentUsers(),
         },
       },
