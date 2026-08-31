@@ -88,7 +88,7 @@ export class CronJobsService {
   public jobsConfig: ICronJob[] = [];
 
   private static readonly MODAIS = ['STPC', 'STPL', 'TEC'];
-  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM','GTU'];
+  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'GTU'];
 
   constructor(
     private configService: ConfigService,
@@ -845,7 +845,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-   // await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    // await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
@@ -912,7 +912,7 @@ export class CronJobsService {
         dataInicio = new Date('2026-08-28')
         dataFim = new Date('2026-08-28')
         dataPagamento = new Date('2026-08-28')
-      }    
+      }
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
@@ -943,7 +943,7 @@ export class CronJobsService {
 
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
-      this. logger.error(`Erro ao executar tarefa ${tipo}, abortando. - ${error}`, error?.stack, METHOD);
+      this.logger.error(`Erro ao executar tarefa ${tipo}, abortando. - ${error}`, error?.stack, METHOD);
     } finally {
       await this.distributedLockService.releaseLock(METHOD);
     }
