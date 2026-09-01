@@ -43,6 +43,7 @@ import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transac
  */
 export enum CronJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
+  bulkSendInvitesFixedTime = 'bulkSendInvitesFixedTime',
   sendReport = 'sendReport',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
@@ -57,6 +58,7 @@ export enum CronJobsEnum {
   backupSftp = 'backupSftp',
   sendAdminFraudAlert = 'sendAdminFraudAlert',
   syncWeeklyAgentUsers = 'syncWeeklyAgentUsers',
+  syncWeeklyAgentUsers2 = 'syncWeeklyAgentUsers2',
   sincronizarEAgruparOrdensPagamentoGuardador = 'sincronizarEAgruparOrdensPagamentoGuardador'
 }
 interface ICronjobDebug {
@@ -87,7 +89,7 @@ export class CronJobsService {
   public jobsConfig: ICronJob[] = [];
 
   private static readonly MODAIS = ['STPC', 'STPL', 'TEC'];
-  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM','GTU'];
+  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'GTU'];
 
   constructor(
     private configService: ConfigService,
@@ -111,7 +113,6 @@ export class CronJobsService {
 
   async onModuleInit() {
     await this.sincronizarEAgruparOrdensPagamento()
-    //await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -161,16 +162,25 @@ export class CronJobsService {
           },
         },
       },
-
       {
         /**
          * Sincroniza diariamente novos agentes e associações a partir do BigQuery.
          */
         name: CronJobsEnum.syncWeeklyAgentUsers,
         cronJobParameters: {
-          cronTime: '0 22 * * *', // Every day, 22:30 UTC = 19:00 BRT (GMT-3)
+          cronTime: '0 10 * * *', // Every day, 10:00 UTC = 07:00 BRT (GMT-3)
           onTick: async () => await this.syncWeeklyAgentUsers(),
-        },
+        }
+      },
+      {
+        /**
+         * Sincroniza diariamente novos agentes e associações a partir do BigQuery.
+         */
+        name: CronJobsEnum.syncWeeklyAgentUsers2,
+        cronJobParameters: {
+          cronTime: '0 22 * * *', // Every day, 22:00 UTC = 19:00 BRT (GMT-3)
+          onTick: async () => await this.syncWeeklyAgentUsers(),
+        }
       },
       {
         /**
@@ -246,13 +256,25 @@ export class CronJobsService {
       },
       {
         /**
-         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
+         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 20:30, duração: 5 min
          *
-         * 19:00 BRT (GMT-3) = 22:00 GMT (10PM)
+         * 20:30 BRT (GMT-3) = 23:30 GMT (10PM)
          */
         name: CronJobsEnum.bulkSendInvites,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+          onTick: async () => await this.bulkSendInvites(),
+        },
+      },
+      {
+        /**
+         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 07:30, duração: 5 min
+         *
+         * 07:30 BRT (GMT-3) = 10:30 GMT (10AM)
+         */
+        name: CronJobsEnum.bulkSendInvitesFixedTime,
+        cronJobParameters: {
+          cronTime: '30 15 * * *',
           onTick: async () => await this.bulkSendInvites(),
         },
       },
@@ -836,7 +858,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-   // await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    // await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
@@ -903,7 +925,7 @@ export class CronJobsService {
         dataInicio = new Date('2026-08-28')
         dataFim = new Date('2026-08-28')
         dataPagamento = new Date('2026-08-28')
-      }    
+      }
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
@@ -934,7 +956,7 @@ export class CronJobsService {
 
       this.logger.log('Tarefa finalizada com sucesso.', METHOD);
     } catch (error) {
-      this. logger.error(`Erro ao executar tarefa ${tipo}, abortando. - ${error}`, error?.stack, METHOD);
+      this.logger.error(`Erro ao executar tarefa ${tipo}, abortando. - ${error}`, error?.stack, METHOD);
     } finally {
       await this.distributedLockService.releaseLock(METHOD);
     }

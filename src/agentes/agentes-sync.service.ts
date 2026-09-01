@@ -62,28 +62,35 @@ export class AgentesSyncService {
     let lastProcessedTimestamp: string | null = null;
 
     for (const row of sourceRows) {
-      const association = await this.ensureAssociationUser(row);
-      if (association.created) {
-        result.createdAssociationUsers += 1;
-      } else if (this.normalizeDocument(row.cnpj)) {
-        result.skippedExistingAssociations += 1;
+      try {
+        const association = await this.ensureAssociationUser(row);
+        if (association.created) {
+          result.createdAssociationUsers += 1;
+        } else if (this.normalizeDocument(row.cnpj)) {
+          result.skippedExistingAssociations += 1;
+        }
+
+        const agent = await this.ensureAgentUser(row);
+        this.logger.debug("Atualizando Guardador " + agent?.user?.fullName)
+
+        if (agent.created) {
+          result.createdAgentUsers += 1;
+        } else {
+          result.skippedExistingAgents += 1;
+        }
+        if (agent.queuedInvite) {
+          result.queuedInvites += 1;
+        }
+
+        await this.ensureUserRelationship(agent.user, association.user);
+        lastProcessedTimestamp = this.getLatestTimestamp(
+          lastProcessedTimestamp,
+          row.datetime_ultima_atualizacao,
+        );
+      } catch (error) {
+        this.logger.debug('Ocorreu o seguinte erro ao tentar atualizar o Guardador: ' + row.nome, error instanceof Error ? error.stack : String(error))
       }
 
-      const agent = await this.ensureAgentUser(row);
-      if (agent.created) {
-        result.createdAgentUsers += 1;
-      } else {
-        result.skippedExistingAgents += 1;
-      }
-      if (agent.queuedInvite) {
-        result.queuedInvites += 1;
-      }
-
-      await this.ensureUserRelationship(agent.user, association.user);
-      lastProcessedTimestamp = this.getLatestTimestamp(
-        lastProcessedTimestamp,
-        row.datetime_ultima_atualizacao,
-      );
     }
 
     if (lastProcessedTimestamp) {
@@ -112,15 +119,15 @@ export class AgentesSyncService {
 
     return {
       user: await this.usersRepository.create({
-      email: this.generateAssociationEmail(),
-      provider: 'email',
-      fullName: this.normalizeName(row.razao_social),
-      firstName: this.getFirstName(row.razao_social),
-      lastName: this.getLastName(row.razao_social),
-      cpfCnpj: normalizedCnpj,
-      role: new Role(RoleEnum.admin),
-      permitCode: undefined,
-      phone: '5551999999999',
+        email: this.generateAssociationEmail(),
+        provider: 'email',
+        fullName: this.normalizeName(row.razao_social),
+        firstName: this.getFirstName(row.razao_social),
+        lastName: this.getLastName(row.razao_social),
+        cpfCnpj: normalizedCnpj,
+        role: new Role(RoleEnum.admin),
+        permitCode: undefined,
+        phone: '5551999999999',
       }),
       created: true,
     };
