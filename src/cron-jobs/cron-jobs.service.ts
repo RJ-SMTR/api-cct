@@ -729,26 +729,26 @@ export class CronJobsService {
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     // Agrupa pagamentos        
 
-    for (let index = 0; index < consorcios.length; index++) {
-      if (pagamentoUnico) {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
-          dataFim, dataPagamento, "cett", [consorcios[index]]);
-      } else {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
-      }
-    }
+    // for (let index = 0; index < consorcios.length; index++) {
+    //   if (pagamentoUnico) {
+    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
+    //       dataFim, dataPagamento, "cett", [consorcios[index]]);
+    //   } else {
+    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+    //       dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+    //   }
+    // }
 
-    if (consorcios.length == 0) {
-      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
-    }
+    // if (consorcios.length == 0) {
+    //   await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
+    // }
 
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
 
-    // // Gera o TXT
-    // const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
-    // //Envia para o SFTP
-    // await this.remessaService.enviarRemessa(txt, headerName);
+    // Gera o TXT
+    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
+    //Envia para o SFTP
+    await this.remessaService.enviarRemessa(txt, headerName);
   }
 
   async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idOperadoras?: string[]) {
@@ -858,7 +858,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    //await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
