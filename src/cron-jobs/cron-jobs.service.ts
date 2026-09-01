@@ -118,8 +118,8 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {    
-    await this.remessaModalExec();
+  async onModuleLoad() {   
+    await this.remessaGuardadorExec()     
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -922,9 +922,10 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        dataInicio = new Date('2026-08-28')
-        dataFim = new Date('2026-08-28')
-        dataPagamento = new Date('2026-08-28')
+        const dataHoje = new Date('2026-09-01');
+        dataInicio = dataHoje 
+        dataFim = dataHoje
+        dataPagamento = dataHoje
       }
 
       this.logger.log(
