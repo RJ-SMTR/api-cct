@@ -222,8 +222,9 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     //filtro principal 
     //data: filter.dataInicio,filter.dataFim    
-    if (filter.aPagar === undefined && filter.emProcessamento === undefined && filter.pago === undefined
-      && filter.erro === undefined && filter.eleicao == undefined && filter.pendentes == undefined) {
+     if (filter.aPagar === undefined && filter.emProcessamento === undefined && filter.pago === undefined
+      && filter.erro === undefined && filter.eleicao == undefined && filter.pendentes == undefined 
+      && filter.rejeitado === undefined && filter.estorno === undefined) {
       queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim, true);
       queryPendentesConsorcio += this.getQueryApagarConsorcios(dataInicio, dataFim, undefined, true);
       queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim, true);
@@ -236,7 +237,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       queryEleicaoVanzeiro += this.getQueryEleicaoVanzeiro(dataInicio, dataFim);
     }
 
-    if (filter.aPagar || filter.pendentes) {
+     if (filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) {
       queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim, true);
       queryPendentesConsorcio += this.getQueryApagarConsorcios(dataInicio, dataFim, undefined, true);
       queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim, true);
@@ -245,7 +246,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       queryAPagarEleicaoVanzeiro += this.getQueryApagarEleicaoVanzeiro(dataInicio, dataFim);
     }
 
-    if (filter.emProcessamento || filter.pago || filter.erro || filter.eleicao) {
+    if (filter.emProcessamento || filter.pago ||filter.rejeitado || filter.estorno || filter.erro || filter.eleicao) {
       queryConsorcios += this.getQueryConsorcios(dataInicio, dataFim);
       queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);
       queryEleicaoConsorcio += this.getQueryEleicaoConsorcio(dataInicio, dataFim);
@@ -359,7 +360,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const temFiltroVanzeiros = (filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros;
 
     // Se nenhum status foi selecionado, inclui tudo
-    const incluirAPagar = filter.aPagar || filter.pendentes;
+    const incluirAPagar = filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno);
 
     if (temFiltroConsorcio) {
       if (incluirAPagar) {
@@ -367,12 +368,12 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           queries.push(queryAPagarEleicaoConsorcio);
         } else {
           if (filter.aPagar) queries.push(queryAPagarConsorcios);
-          if (filter.pendentes) queries.push(queryPendentesConsorcio);
+          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) queries.push(queryPendentesConsorcio);
           if (filter.erro) queries.push(queryConsorcios);
         }
       }
       
-      if(filter.pago || filter.emProcessamento) {
+      if(filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoConsorcio);
         } else {
@@ -387,12 +388,12 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           queries.push(queryAPagarEleicaoVanzeiro);
         } else {
           if (filter.aPagar) queries.push(queryAPagarVanzeiros);
-          if (filter.pendentes) queries.push(queryPendentesVanzeiro);
+          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) queries.push(queryPendentesVanzeiro);
           if (filter.erro)queries.push(queryVanzeiros);
         }
       }
       
-      if(filter.pago || filter.emProcessamento){
+      if(filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
         } else {
