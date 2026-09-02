@@ -304,7 +304,11 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     if (filter.pago) status.push(3);
     if (filter.erro) status.push(4);
     if (filter.estorno) subErroStatus.push('02');
-    if (filter.rejeitado) subErroStatus.push('AL');
+    if (filter.rejeitado) {
+      subErroStatus.push('00');
+      subErroStatus.push('0BD');
+      subErroStatus.push('02');
+    }
     if (filter.pendenciaPaga) status.push(5);
 
     if (status.length > 0) {
@@ -313,10 +317,22 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       queryVanzeiros += statusRemessa;
       queryEleicaoConsorcio += statusRemessa;
       queryEleicaoVanzeiro += statusRemessa;
+      if(filter.erro){
+        const motivoStatus = ` AND (oph."motivoStatusRemessa" NOT IN ('00','0BD')) `;
+        queryConsorcios += motivoStatus;
+        queryVanzeiros += motivoStatus;
+        queryEleicaoConsorcio += motivoStatus;
+        queryEleicaoVanzeiro += motivoStatus;
+      }
     }
 
     if (subErroStatus.length > 0) {
-      const motivoStatus = ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;
+      let motivoStatus =``;
+      if (filter.rejeitado) {
+        motivoStatus = `AND (oph."motivoStatusRemessa" NOT IN (${subErroStatus.map((s) => `'${s}'`).join(',')})) `;
+      }else{
+        motivoStatus = ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;
+      }
       queryConsorcios += motivoStatus;
       queryVanzeiros += motivoStatus;
       queryEleicaoConsorcio += motivoStatus;
@@ -352,8 +368,11 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         } else {
           if (filter.aPagar) queries.push(queryAPagarConsorcios);
           if (filter.pendentes) queries.push(queryPendentesConsorcio);
+          if (filter.erro) queries.push(queryConsorcios);
         }
-      } else {
+      }
+      
+      if(filter.pago || filter.emProcessamento) {
         if (filter.eleicao) {
           queries.push(queryEleicaoConsorcio);
         } else {
@@ -369,8 +388,11 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         } else {
           if (filter.aPagar) queries.push(queryAPagarVanzeiros);
           if (filter.pendentes) queries.push(queryPendentesVanzeiro);
+          if (filter.erro)queries.push(queryVanzeiros);
         }
-      } else {
+      }
+      
+      if(filter.pago || filter.emProcessamento){
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
         } else {
@@ -398,7 +420,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       });
     }
 
-    query = `SELECT "nome", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE (R."nome" is not null) `;
+    query = `SELECT "nome", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE  (R."nome" is not null AND R."nome2" is not null)  `;
 
     
     query += ` GROUP BY "nome" `;    
