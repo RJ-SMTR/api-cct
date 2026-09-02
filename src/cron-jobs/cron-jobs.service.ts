@@ -87,7 +87,7 @@ export class CronJobsService {
   public jobsConfig: ICronJob[] = [];
 
   private static readonly MODAIS = ['STPC', 'STPL', 'TEC'];
-  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'GTU'];
+  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'GTU'];
 
   constructor(
     private configService: ConfigService,
@@ -110,8 +110,6 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento()
-    //await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });

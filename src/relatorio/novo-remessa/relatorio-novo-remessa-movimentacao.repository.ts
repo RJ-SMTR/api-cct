@@ -20,7 +20,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
 
   private readonly MODAIS = ['STPC', 'STPL', 'TEC'];
 
-  private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'STPC', 'STPL', 'TEC'];
+  private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'STPC', 'STPL', 'TEC'];
 
   private readonly headerQueryConsorciosApagar = ` select distinct op."dataOrdem" AS "dataReferencia",
                                                     opa.id,
