@@ -111,18 +111,17 @@ export class CronJobsService {
   async onModuleLoad() {    
     // Antes de rodar ops atrasadas rodar procedure associar user ordem
     // dataInicio Captura, dataFinal captura, dataPagamento, userIds
-    // await this.remessaPendenteExec('2026-01-01', '2026-03-03', '2026-03-05', [
-    //  '51',
-    //  '1716',
-    //  '932',
-    //  '2270', 
-    //  '418',
-    //  '1999',
-    //  '2245'
+
+    // await this.remessaPendenteExec('2026-07-02', '2026-08-04', '2026-08-06',
+    //   ['2186', '2366', '663', '1716' ]);
+   
+
+
+    await this.remessaPendenteExec('2026-01-01', '2026-08-03', '2026-08-06',
+      ['2420']);
 
 
 
-    
     // ])
     // const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     // this.jobsConfig.push(

@@ -49,7 +49,7 @@ export class OrdemPagamentoAgrupadoRepository {
     let queryPai = `
     select distinct opa.* from ordem_pagamento_agrupado opa
 							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
-                  where oph."statusRemessa" = 0
+                  where oph."statusRemessa" = 1
                   and EXISTS (
                   SELECT 1 from ordem_pagamento_agrupado 
                     where "ordemPagamentoAgrupadoId" = opa.id
@@ -78,9 +78,10 @@ export class OrdemPagamentoAgrupadoRepository {
     const dataIniForm = formatDateISODate(dataInicio);
     const dataFimForm = formatDateISODate(dataFim);
 
-    const paiResult = await this.findParent(dataPagamento);
-    let result: OrdemPagamentoAgrupado[] = [...paiResult];
-
+    // const paiResult = await this.findParent(dataPagamento);
+    // let result: OrdemPagamentoAgrupado[] = [...paiResult];
+    let result: OrdemPagamentoAgrupado[] = [];
+// 
     const queryRunnerChild = this.dataSource.createQueryRunner();
     await queryRunnerChild.connect();
 
@@ -88,7 +89,7 @@ export class OrdemPagamentoAgrupadoRepository {
                FROM ordem_pagamento_agrupado opa
                INNER JOIN ordem_pagamento op ON opa.id = op."ordemPagamentoAgrupadoId"
                INNER JOIN ordem_pagamento_agrupado_historico oph ON opa.id = oph."ordemPagamentoAgrupadoId"
-               WHERE oph."statusRemessa" = 0`;
+               WHERE oph."statusRemessa" = 1`;
 
     if (dataPagamento) {
       const dataPagamentoForm = formatDateISODate(dataPagamento);
