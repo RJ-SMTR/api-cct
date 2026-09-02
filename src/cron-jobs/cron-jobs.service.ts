@@ -118,7 +118,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {           
+  async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -273,7 +273,7 @@ export class CronJobsService {
          */
         name: CronJobsEnum.bulkSendInvitesFixedTime,
         cronJobParameters: {
-          cronTime: '30 15 * * *',
+          cronTime: '30 7 * * *',
           onTick: async () => await this.bulkSendInvites(),
         },
       },
@@ -922,7 +922,7 @@ export class CronJobsService {
 
       if (tipo === 'GUARDADOR') {
         const dataHoje = new Date('2026-09-01');
-        dataInicio = dataHoje 
+        dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
       }
