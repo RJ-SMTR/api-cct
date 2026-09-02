@@ -89,7 +89,7 @@ export class CronJobsService {
   public jobsConfig: ICronJob[] = [];
 
   private static readonly MODAIS = ['STPC', 'STPL', 'TEC'];
-  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'GTU','TUSE'];
+  private static readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'GTU'];
 
   constructor(
     private configService: ConfigService,

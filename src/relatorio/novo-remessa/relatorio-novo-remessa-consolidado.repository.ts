@@ -16,7 +16,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
   private readonly MODAIS = ['STPC', 'STPL', 'TEC'];
 
-  private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'STPC', 'STPL', 'TEC', 'GTU'];
+  private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'STPC', 'STPL', 'TEC', 'GTU'];
 
   private readonly headerQueryConsorciosApagar = ` select distinct CASE
                                                     WHEN pu."permitCode" = '8'  THEN 'VLT'
