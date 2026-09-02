@@ -43,6 +43,7 @@ import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transac
  */
 export enum CronJobsEnum {
   bulkSendInvites = 'bulkSendInvites',
+  bulkSendInvitesFixedTime = 'bulkSendInvitesFixedTime',
   sendReport = 'sendReport',
   pollDb = 'pollDb',
   bulkResendInvites = 'bulkResendInvites',
@@ -57,6 +58,7 @@ export enum CronJobsEnum {
   backupSftp = 'backupSftp',
   sendAdminFraudAlert = 'sendAdminFraudAlert',
   syncWeeklyAgentUsers = 'syncWeeklyAgentUsers',
+  syncWeeklyAgentUsers2 = 'syncWeeklyAgentUsers2',
   sincronizarEAgruparOrdensPagamentoGuardador = 'sincronizarEAgruparOrdensPagamentoGuardador'
 }
 interface ICronjobDebug {
@@ -110,12 +112,13 @@ export class CronJobsService {
 
 
   async onModuleInit() {
+    await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {
+  async onModuleLoad() {           
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -158,16 +161,25 @@ export class CronJobsService {
           },
         },
       },
-
       {
         /**
          * Sincroniza diariamente novos agentes e associações a partir do BigQuery.
          */
         name: CronJobsEnum.syncWeeklyAgentUsers,
         cronJobParameters: {
-          cronTime: '0 22 * * *', // Every day, 22:30 UTC = 19:00 BRT (GMT-3)
+          cronTime: '0 10 * * *', // Every day, 10:00 UTC = 07:00 BRT (GMT-3)
           onTick: async () => await this.syncWeeklyAgentUsers(),
-        },
+        }
+      },
+      {
+        /**
+         * Sincroniza diariamente novos agentes e associações a partir do BigQuery.
+         */
+        name: CronJobsEnum.syncWeeklyAgentUsers2,
+        cronJobParameters: {
+          cronTime: '0 22 * * *', // Every day, 22:00 UTC = 19:00 BRT (GMT-3)
+          onTick: async () => await this.syncWeeklyAgentUsers(),
+        }
       },
       {
         /**
@@ -243,13 +255,25 @@ export class CronJobsService {
       },
       {
         /**
-         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 19:00, duração: 5 min
+         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 20:30, duração: 5 min
          *
-         * 19:00 BRT (GMT-3) = 22:00 GMT (10PM)
+         * 20:30 BRT (GMT-3) = 23:30 GMT (10PM)
          */
         name: CronJobsEnum.bulkSendInvites,
         cronJobParameters: {
           cronTime: (await this.settingsService.getOneBySettingData(appSettings.any__mail_invite_cronjob, true, THIS_CLASS_WITH_METHOD)).getValueAsString(),
+          onTick: async () => await this.bulkSendInvites(),
+        },
+      },
+      {
+        /**
+         * Envio do E-mail - Convite para o usuário realizar o 1o acesso no Sistema CCT - todo dia, 07:30, duração: 5 min
+         *
+         * 07:30 BRT (GMT-3) = 10:30 GMT (10AM)
+         */
+        name: CronJobsEnum.bulkSendInvitesFixedTime,
+        cronJobParameters: {
+          cronTime: '30 15 * * *',
           onTick: async () => await this.bulkSendInvites(),
         },
       },
@@ -704,21 +728,21 @@ export class CronJobsService {
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     // Agrupa pagamentos        
 
-    for (let index = 0; index < consorcios.length; index++) {
-      if (pagamentoUnico) {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
-          dataFim, dataPagamento, "cett", [consorcios[index]]);
-      } else {
-        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
-      }
-    }
+    // for (let index = 0; index < consorcios.length; index++) {
+    //   if (pagamentoUnico) {
+    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
+    //       dataFim, dataPagamento, "cett", [consorcios[index]]);
+    //   } else {
+    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+    //       dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+    //   }
+    // }
 
-    if (consorcios.length == 0) {
-      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
-    }
+    // if (consorcios.length == 0) {
+    //   await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
+    // }
 
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
@@ -833,7 +857,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    // await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    //await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
@@ -897,9 +921,10 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        dataInicio = new Date('2026-08-28')
-        dataFim = new Date('2026-08-28')
-        dataPagamento = new Date('2026-08-28')
+        const dataHoje = new Date('2026-09-01');
+        dataInicio = dataHoje 
+        dataFim = dataHoje
+        dataPagamento = dataHoje
       }
 
       this.logger.log(

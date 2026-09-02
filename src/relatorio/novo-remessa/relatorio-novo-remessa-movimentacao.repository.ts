@@ -565,7 +565,6 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       params.push(filter.valorMax);
     }
 
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
 

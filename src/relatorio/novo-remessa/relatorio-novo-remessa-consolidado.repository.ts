@@ -345,7 +345,6 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     // Se nenhum status foi selecionado, inclui tudo
     const incluirAPagar = filter.aPagar || filter.pendentes;
 
-
     if (temFiltroConsorcio) {
       if (incluirAPagar) {
         if (filter.eleicao) {
@@ -401,18 +400,23 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     query = `SELECT "nome", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE (R."nome" is not null) `;
 
+    
+    query += ` GROUP BY "nome" `;    
+    
     // valor: filter.valorMin, filter.valorMax
     if (filter.valorMin !== undefined && filter.valorMax !== undefined) {
-      query += ` AND R.valor >= $${paramIndex++} AND R.valor <= $${paramIndex++}`;
+      query += ` HAVING SUM(valor) between $${paramIndex++} AND $${paramIndex++}`;
       params.push(filter.valorMin, filter.valorMax);
     } else if (filter.valorMin !== undefined) {
-      query += ` AND R.valor >= $${paramIndex++}`;
+      query += ` HAVING SUM(valor) >= $${paramIndex++}`;
       params.push(filter.valorMin);
     } else if (filter.valorMax !== undefined) {
-      query += ` AND R.valor <= $${paramIndex++}`;
+      query += `HAVING SUM(valor) <= $${paramIndex++}`;
       params.push(filter.valorMax);
     }
-    query += ` GROUP BY "nome" ORDER BY "nome" ASC `;
+
+    query += ` ORDER BY "nome" ASC `;
+
     this.logger.debug(`Executing query: ${query} with params: ${params.join(', ')}`, RelatorioNovoRemessaConsolidadoRepository.name);
 
     const queryRunner = this.dataSource.createQueryRunner();
