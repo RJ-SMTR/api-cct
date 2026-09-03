@@ -780,19 +780,19 @@ export class CronJobsService {
     const today = new Date();
     let subDaysInt = 0;
 
-    if (isTuesday(today)) {
-      subDaysInt = 4;
-    } else if (isFriday(today)) {
-      subDaysInt = 3;
-    } else {
-      return;
-    }
+    // if (isTuesday(today)) {
+    //   subDaysInt = 4;
+    // } else if (isFriday(today)) {
+    //   subDaysInt = 3;
+    // } else {
+    //   return;
+    // }
 
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
     const consorcios = ['STPC', 'STPL', 'TEC'];
    // await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
-    await this.geradorRemessaExec(dataInicio, dataFim, today,
+    await this.geradorRemessaExec(today, today, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
   }
 
