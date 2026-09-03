@@ -119,8 +119,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    //Gerar rejeitados
-    await this.remessaModalExec();
+    await this.remessaGuardadorExec()    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -814,7 +813,7 @@ export class CronJobsService {
 
     const dataInicio = today;
     const dataFim = today;
-    await this.limparAgrupamentos(dataInicio, dataFim, []);
+    //await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
 
