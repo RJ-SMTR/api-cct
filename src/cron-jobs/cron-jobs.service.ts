@@ -112,7 +112,7 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento()
+    //await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -921,7 +921,7 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date('2026-09-04');
+        const dataHoje = new Date('2026-08-28');
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje

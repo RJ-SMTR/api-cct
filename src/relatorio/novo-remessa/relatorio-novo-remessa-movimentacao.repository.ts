@@ -497,7 +497,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
           if (filter.erro) queries.push(queryConsorcios);
         }
       } 
-      if(filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+      if(filter.todosConsorcios || filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoConsorcio);
         } else {
@@ -517,7 +517,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
         }
       }
 
-      if(filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+      if(filter.todosVanzeiros || filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
         } else {
