@@ -487,6 +487,10 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     // Se nenhum status foi selecionado, inclui tudo
     const incluirAPagar = filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno);
 
+    const algumStatus = filter.todosConsorcios || filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno
+
+    const todosStatus =  (!filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno)
+
     if (temFiltroConsorcio) {
       if (incluirAPagar) {
         if (filter.eleicao) {
@@ -497,7 +501,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
           if (filter.erro) queries.push(queryConsorcios);
         }
       } 
-      if(filter.todosConsorcios || filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+      if(algumStatus || todosStatus) {
         if (filter.eleicao) {
           queries.push(queryEleicaoConsorcio);
         } else {

@@ -362,18 +362,23 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     // Se nenhum status foi selecionado, inclui tudo
     const incluirAPagar = filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno);
 
+    const algumStatus = filter.todosConsorcios || filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno
+
+    const todosStatus =  (!filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno)
+
     if (temFiltroConsorcio) {
-      if (incluirAPagar) {
+      if (incluirAPagar || todosStatus) {
         if (filter.eleicao) {
           queries.push(queryAPagarEleicaoConsorcio);
         } else {
-          if (filter.aPagar) queries.push(queryAPagarConsorcios);
-          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) queries.push(queryPendentesConsorcio);
-          if (filter.erro) queries.push(queryConsorcios);
+          if (filter.aPagar || todosStatus) queries.push(queryAPagarConsorcios);
+          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesConsorcio);
+          if (filter.erro || todosStatus) queries.push(queryConsorcios);
         }
       }
       
-      if(filter.todosConsorcios || filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+      if(algumStatus || todosStatus
+      ) {
         if (filter.eleicao) {
           queries.push(queryEleicaoConsorcio);
         } else {
@@ -383,17 +388,17 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
 
     if (temFiltroVanzeiros) {
-      if (incluirAPagar) {
+      if (incluirAPagar || todosStatus) {
         if (filter.eleicao) {
           queries.push(queryAPagarEleicaoVanzeiro);
         } else {
-          if (filter.aPagar) queries.push(queryAPagarVanzeiros);
-          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) queries.push(queryPendentesVanzeiro);
-          if (filter.erro)queries.push(queryVanzeiros);
+          if (filter.aPagar || todosStatus) queries.push(queryAPagarVanzeiros);
+          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesVanzeiro);
+          if (filter.erro  || todosStatus)queries.push(queryVanzeiros);
         }
       }
       
-      if(filter.todosVanzeiros || filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+      if(algumStatus || todosStatus) {
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
         } else {
@@ -423,7 +428,6 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     query = `SELECT "nome", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE  (R."nome" is not null AND R."nome2" is not null)  `;
 
-    
     query += ` GROUP BY "nome" `;    
     
     // valor: filter.valorMin, filter.valorMax
