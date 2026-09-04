@@ -112,14 +112,14 @@ export class CronJobsService {
 
 
   async onModuleInit() {
-    //await this.sincronizarEAgruparOrdensPagamento()
+    await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
   async onModuleLoad() {
-    await this.remessaGuardadorExec()    
+    await this.remessaModalExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -729,21 +729,21 @@ export class CronJobsService {
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     // Agrupa pagamentos        
 
-    // for (let index = 0; index < consorcios.length; index++) {
-    //   if (pagamentoUnico) {
-    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
-    //       dataFim, dataPagamento, "cett", [consorcios[index]]);
-    //   } else {
-    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-    //       dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
-    //   }
-    // }
+    for (let index = 0; index < consorcios.length; index++) {
+      if (pagamentoUnico) {
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
+          dataFim, dataPagamento, "cett", [consorcios[index]]);
+      } else {
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+      }
+    }
 
-    // if (consorcios.length == 0) {
-    //   await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
-    // }
+    if (consorcios.length == 0) {
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
+    }
 
-    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
@@ -780,18 +780,18 @@ export class CronJobsService {
     const today = new Date();
     let subDaysInt = 0;
 
-    // if (isTuesday(today)) {
-    //   subDaysInt = 4;
-    // } else if (isFriday(today)) {
-    //   subDaysInt = 3;
-    // } else {
-    //   return;
-    // }
+    if (isTuesday(today)) {
+      subDaysInt = 4;
+    } else if (isFriday(today)) {
+      subDaysInt = 3;
+    } else {
+      return;
+    }
 
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
     const consorcios = ['STPC', 'STPL', 'TEC'];
-   // await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(today, today, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
   }
