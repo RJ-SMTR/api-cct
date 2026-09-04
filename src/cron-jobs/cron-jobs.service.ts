@@ -118,8 +118,12 @@ export class CronJobsService {
     });
   }
 
+<<<<<<< HEAD
   async onModuleLoad() {
     await this.remessaModalExec();
+=======
+  async onModuleLoad() {   
+>>>>>>> cdc100b78204f0ebeef23fb86cf8231f193c2d95
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
