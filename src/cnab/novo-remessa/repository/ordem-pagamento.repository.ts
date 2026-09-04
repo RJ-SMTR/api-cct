@@ -100,6 +100,7 @@ WITH
                             FROM ordem_pagamento opp
                             WHERE
                                 op."userId" = opp."userId"
+                                AND opp."ordemPagamentoAgrupadoId" IS NULL
                                 AND DATE_TRUNC('day', opp."dataCaptura") BETWEEN CASE
                                     WHEN db.dia_semana = 5 THEN db.data_referencia - interval '3 days'
                                     WHEN db.dia_semana = 2 THEN db.data_referencia - interval '4 days'
