@@ -22,8 +22,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
 
   private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'STPC', 'STPL', 'TEC'];
 
-  private readonly headerQueryConsorciosApagar = ` select distinct op."dataOrdem" AS "dataReferencia",
-                                                    opa.id,
+  private readonly headerQueryConsorciosApagar = ` select distinct TO_CHAR( op."dataOrdem"::date, 'DD/MM/YYYY')  AS "dataReferencia",
+                                                    op."ordemPagamentoAgrupadoId" AS id,
                                                     pu."fullName" AS nomes,
                                                     pu.email,
                                                     pu."bankCode" AS "codBanco",
@@ -37,10 +37,10 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                       ELSE op."nomeConsorcio"
                                                     END AS consorcio,
                                                     round(op."valor",2) AS valor,
-                                                    null AS dataPagamento,
+                                                    null::text AS dataPagamento,
                                                    'A Pagar' AS status	`;
 
-  private readonly headerQueryConsorcios = ` select distinct da."dataVencimento" AS "dataReferencia",
+  private readonly headerQueryConsorcios = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     oph."ordemPagamentoAgrupadoId" as id,
                                                     coalesce(pu."fullName", puu."fullName") AS nomes,
                                                     coalesce(pu."email",puu."email") as email,
@@ -55,7 +55,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                       ELSE COALESCE(op."nomeConsorcio", opp."nomeConsorcio")
                                                     END AS consorcio,
                                                     da."valorLancamento" AS valor,
-                                                    da."dataVencimento" AS dataPagamento,
+                                                    da."dataVencimento"::text AS dataPagamento,
                                                   CASE
                                                     WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
                                                     WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
@@ -65,8 +65,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     ELSE 'Rejeitado'
                                                   END AS status	`;
 
-  private readonly headerQueryVanzeirosAPagar = ` select distinct op."dataOrdem" AS "dataReferencia",
-                                                    opa.id,
+  private readonly headerQueryVanzeirosAPagar = ` select distinct TO_CHAR( op."dataOrdem"::date, 'DD/MM/YYYY') AS "dataReferencia",
+                                                    op."ordemPagamentoAgrupadoId" AS id,
                                                     pu."fullName" AS nomes,
                                                     pu.email,
                                                     pu."bankCode" AS "codBanco",
@@ -80,10 +80,10 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                       ELSE op."nomeConsorcio"
                                                     END AS consorcio,
                                                     round(op."valor",2) AS valor,
-                                                    null AS dataPagamento,
+                                                    null::text AS dataPagamento,
                                                    'A Pagar' AS status	`;
 
-  private readonly headerQueryVanzeiros = ` select distinct da."dataVencimento" AS "dataReferencia",
+  private readonly headerQueryVanzeiros = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     oph."ordemPagamentoAgrupadoId" as id,
                                                     coalesce(pu."fullName", puu."fullName") AS nomes,
                                                     coalesce(pu."email",puu."email") as email,
@@ -98,7 +98,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                       ELSE COALESCE(op."nomeConsorcio", opp."nomeConsorcio")
                                                     END AS consorcio,
                                                     da."valorLancamento" AS valor,
-                                                    da."dataVencimento" AS dataPagamento,
+                                                    da."dataVencimento"::text AS dataPagamento,
                                                   CASE
                                                     WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
                                                     WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
@@ -108,8 +108,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     ELSE 'Rejeitado'
                                                   END AS status	`;
 
-  private readonly headerQueryEleicaoVanzereiroApagar = ` select distinct op."dataOrdem" AS "dataReferencia",
-                                                          opa.id,
+  private readonly headerQueryEleicaoVanzereiroApagar = ` select distinct TO_CHAR(op."dataOrdem"::date, 'DD/MM/YYYY') AS "dataReferencia",
+                                                          op."ordemPagamentoAgrupadoId" AS id,
                                                           pu."fullName" AS nomes,
                                                           pu.email,
                                                           pu."bankCode" AS "codBanco",
@@ -123,12 +123,12 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                             ELSE op."consorcio"
                                                           END AS consorcio,
                                                           round(op."valor",2) AS valor,
-                                                          null AS dataPagamento,
+                                                          null::text AS dataPagamento,
                                                         'A Pagar' AS status `;
 
 
-  private readonly headerQueryEleicaoConsorcioApagar = ` select distinct op."dataOrdem" AS "dataReferencia",
-                                                            opa.id,
+  private readonly headerQueryEleicaoConsorcioApagar = ` select distinct TO_CHAR(op."dataOrdem"::date, 'DD/MM/YYYY') AS "dataReferencia",
+                                                            op."ordemPagamentoAgrupadoId" AS id,
                                                             pu."fullName" AS nomes,
                                                             pu.email,
                                                             pu."bankCode" AS "codBanco",
@@ -142,11 +142,11 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                               ELSE op."consorcio"
                                                             END AS consorcio,
                                                             round(op."valor",2) AS valor,
-                                                            null AS dataPagamento,
+                                                            null::text AS dataPagamento,
                                                           'A Pagar' AS status `;
 
-  private readonly headerQueryEleicaoVanzeiro = ` select distinct da."dataVencimento" AS "dataReferencia",
-                                                    opa.id,
+  private readonly headerQueryEleicaoVanzeiro = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
+                                                    oph."ordemPagamentoAgrupadoId" AS id,
                                                     pu."fullName" AS nomes,
                                                     pu."email" as email,
                                                     pu."bankCode" AS "codBanco",
@@ -160,7 +160,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                       ELSE op."consorcio"
                                                     END AS consorcio,
                                                     da."valorLancamento" AS valor,
-                                                    da."dataVencimento" AS dataPagamento,
+                                                    da."dataVencimento"::text AS dataPagamento,
                                                   CASE
                                                     WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
                                                     WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
@@ -170,8 +170,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     ELSE 'Rejeitado'
                                                   END AS status	`;
 
-  private readonly headerQueryEleicaoConsorcio = ` select distinct da."dataVencimento" AS "dataReferencia",
-                                                    opa.id,
+  private readonly headerQueryEleicaoConsorcio = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
+                                                    oph."ordemPagamentoAgrupadoId" AS id,
                                                     pu."fullName" AS nomes,
                                                     pu."email" as email,
                                                     pu."bankCode" AS "codBanco",
@@ -185,7 +185,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                       ELSE op."consorcio"
                                                     END AS consorcio,
                                                     da."valorLancamento" AS valor,
-                                                    da."dataVencimento" AS dataPagamento,
+                                                    da."dataVencimento"::text AS dataPagamento,
                                                   CASE
                                                     WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
                                                     WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
@@ -199,7 +199,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                         left join ordem_pagamento_agrupado opa  on op."ordemPagamentoAgrupadoId"=opa.id
                                         left join public.user pu on pu."id"=op."userId"	              
                                         left join ordem_pagamento_agrupado_historico oph on opa."id"= oph."ordemPagamentoAgrupadoId"
-                                        left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph.id`;
+                                        left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+                                        left join bank bc on bc.code = pu."bankCode" `;
 
   private readonly fromQueryPrincipal = ` from detalhe_a da
                                           left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"		 
@@ -213,7 +214,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                           left join bank bbc on bbc.code = puu."bankCode" `;
 
   private readonly fromQueryEleicaoAPagar = ` from ordem_pagamento_unico op 
-                                             left join public.user pu on pu."cpfCnpj"=op."operadoraCpfCnpj" `
+                                             left join public.user pu on pu."cpfCnpj"=op."operadoraCpfCnpj" 
+                                             left join bank bc on bc.code = pu."bankCode"`
 
   private readonly fromQueryEleicao = ` from detalhe_a da
                                         left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"
@@ -327,7 +329,6 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
 
     let queryPendentesVanzeiro = ``;
 
-
     let count = 0;
     let valorTotal:Number = 0;
     let valorPago:Number = 0;
@@ -341,7 +342,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     //filtro principal 
     //data: filter.dataInicio,filter.dataFim    
     if (filter.aPagar === undefined && filter.emProcessamento === undefined && filter.pago === undefined
-      && filter.erro === undefined && filter.eleicao == undefined && filter.pendentes == undefined) {
+      && filter.erro === undefined && filter.eleicao == undefined && filter.pendentes == undefined 
+      && filter.rejeitado === undefined && filter.estorno === undefined) {
       queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim, true);
       queryPendentesConsorcio += this.getQueryApagarConsorcios(dataInicio, dataFim, undefined, true);
       queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim, true);
@@ -354,7 +356,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       queryEleicaoVanzeiro += this.getQueryEleicaoVanzeiro(dataInicio, dataFim);
     }
 
-    if (filter.aPagar || filter.pendentes) {
+    if (filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) {
       queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim, true);
       queryPendentesConsorcio += this.getQueryApagarConsorcios(dataInicio, dataFim, undefined, true);
       queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim, true);
@@ -363,7 +365,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       queryAPagarEleicaoVanzeiro += this.getQueryApagarEleicaoVanzeiro(dataInicio, dataFim);
     }
 
-    if (filter.emProcessamento || filter.pago || filter.erro || filter.eleicao) {
+    if (filter.emProcessamento || filter.pago ||filter.rejeitado || filter.estorno || filter.erro || filter.eleicao) {
       queryConsorcios += this.getQueryConsorcios(dataInicio, dataFim);
       queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);
       queryEleicaoConsorcio += this.getQueryEleicaoConsorcio(dataInicio, dataFim);
@@ -422,7 +424,11 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     if (filter.pago) status.push(3);
     if (filter.erro) status.push(4);
     if (filter.estorno) subErroStatus.push('02');
-    if (filter.rejeitado) subErroStatus.push('AL');
+    if (filter.rejeitado) {
+      subErroStatus.push('00');
+      subErroStatus.push('0BD');
+      subErroStatus.push('02');
+    }
     if (filter.pendenciaPaga) status.push(5);
 
     if (status.length > 0) {
@@ -431,10 +437,22 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       queryVanzeiros += statusRemessa;
       queryEleicaoConsorcio += statusRemessa;
       queryEleicaoVanzeiro += statusRemessa;
+      if(filter.erro){
+        const motivoStatus = ` AND (oph."motivoStatusRemessa" NOT IN ('00','0BD')) `;
+        queryConsorcios += motivoStatus;
+        queryVanzeiros += motivoStatus;
+        queryEleicaoConsorcio += motivoStatus;
+        queryEleicaoVanzeiro += motivoStatus;
+      }
     }
 
     if (subErroStatus.length > 0) {
-      const motivoStatus = ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;
+      let motivoStatus =``;
+      if (filter.rejeitado) {
+        motivoStatus = `AND (oph."motivoStatusRemessa" NOT IN (${subErroStatus.map((s) => `'${s}'`).join(',')})) `;
+      }else{
+        motivoStatus = ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;
+      }
       queryConsorcios += motivoStatus;
       queryVanzeiros += motivoStatus;
       queryEleicaoConsorcio += motivoStatus;
@@ -467,21 +485,19 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     const temFiltroVanzeiros = (filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros;
 
     // Se nenhum status foi selecionado, inclui tudo
-    const incluirAPagar = filter.aPagar || filter.pendentes;
+    const incluirAPagar = filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno);
 
     if (temFiltroConsorcio) {
       if (incluirAPagar) {
         if (filter.eleicao) {
           queries.push(queryAPagarEleicaoConsorcio);
         } else {
-          if (filter.aPagar) {
-            queries.push(queryAPagarConsorcios);
-          }
-          if (filter.pendentes) {
-            queries.push(queryPendentesConsorcio);
-          }
+          if (filter.aPagar) queries.push(queryAPagarConsorcios);
+          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) queries.push(queryPendentesConsorcio);
+          if (filter.erro) queries.push(queryConsorcios);
         }
-      } else {
+      } 
+      if(filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoConsorcio);
         } else {
@@ -495,14 +511,13 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
         if (filter.eleicao) {
           queries.push(queryAPagarEleicaoVanzeiro);
         } else {
-          if (filter.aPagar) {
-            queries.push(queryAPagarVanzeiros);
-          }
-          if (filter.pendentes) {
-            queries.push(queryPendentesVanzeiro);
-          }
+          if (filter.aPagar ) queries.push(queryAPagarVanzeiros);
+          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) queries.push(queryPendentesVanzeiro);
+          if (filter.erro)queries.push(queryVanzeiros);
         }
-      } else {
+      }
+
+      if(filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
         } else {
@@ -525,6 +540,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
 
     // Junta só as queries que realmente existem
     const parts = queries.filter(q => q !== ``);
+
+    this.logger.debug(`Constructed query: ${queries[0]} parts`);
 
     let query = ``;
 
@@ -569,40 +586,41 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     await queryRunner.connect();
 
     try {
+
       // 1. Count total para paginação real
       const countQuery = `SELECT COUNT(*) as total FROM (${baseUnion + whereValor}) AS count_q`;
 
-      this.logger.debug(`Executing query: ${countQuery} with params: ${params.join(', ')}`);
+      this.logger.debug(`Executing count query: ${countQuery} with params: ${params.join(', ')}`);
 
       const countResult = await queryRunner.query(countQuery, params);
 
       count = parseInt(countResult[0]?.total ?? '0', 10);
 
-      valorTotal = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r`);   
+      valorTotal = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r`, params);   
 
       if(filter.pago)
-      valorPago = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor}) r where status='Pago' `)
+      valorPago = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor}) r where status='Pago' `, params)
 
-      if(filter.rejeitado)
-      valorRejeitado = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where status='Rejeitado' `)
+      if(filter.rejeitado || (filter.erro && !filter.estorno && !filter.pendentes))
+      valorRejeitado = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where r.status='Rejeitado' `, params)
 
-      if(filter.estorno)
-      valorEstornado = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where status='Estorno' `)
+      if(filter.estorno || (filter.erro && !filter.rejeitado && !filter.pendentes))
+      valorEstornado = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where r.status='Estorno' `, params)
       
       if(filter.emProcessamento)
-      valorAguardandoPagamento =  await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where status='Aguardando Pagamento' `)
+      valorAguardandoPagamento =  await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where status='Aguardando Pagamento' `, params)
 
       if(filter.aPagar)
-      valorAPagar = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where dataPagamento is null `)
+      valorAPagar = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where dataPagamento is null `, params)
 
-      if(filter.pendentes)
-      valorPendente = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where dataPagamento is null `)
+      if(filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno))
+      valorPendente = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where dataPagamento is null `, params)
 
       if(filter.pendenciaPaga)
-      valorPendenciaPaga = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where dataPagamento is null `)
+      valorPendenciaPaga = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where r.status='Pendencia Paga' `)
 
       // 2. Query paginada
-      const dataQuery = `${baseUnion + whereValor} ORDER BY "nomes" ASC LIMIT ${pageSize} OFFSET ${offset}`;
+      const dataQuery = `${baseUnion + whereValor} ORDER BY "dataReferencia","nomes" ASC LIMIT ${pageSize} OFFSET ${offset}`;
 
       this.logger.debug(`Executing query: ${dataQuery} with params: ${params.join(', ')}`);
 
@@ -638,12 +656,12 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     }
 
   }
-  async getValorPorQuery(query: string): Promise<Number> {
+  async getValorPorQuery(query: string,params?:any[]): Promise<Number> {
     this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();    
     try{
       await queryRunner.connect();
-      const result = await queryRunner.query(query)
+      const result = await queryRunner.query(query,params);
       return Number(result?.[0]?.total?? 0); 
     }finally{
       await queryRunner.release();
