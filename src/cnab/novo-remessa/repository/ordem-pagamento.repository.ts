@@ -111,7 +111,8 @@ WITH
             ) AS valorTotalPagamento,
             oph."statusRemessa",
             oph."motivoStatusRemessa",
-            opa."id" as opaId
+            opa."id" as opaId,
+            opa."dataPagamento" as "opaDataPagamento"
         FROM datas_base db
         LEFT JOIN ordem_pagamento op ON op."userId" = $2
             AND DATE_TRUNC('day', op."dataCaptura") BETWEEN db.data_inicial_operacoes AND db.data_final_operacoes
@@ -146,7 +147,8 @@ WITH
             opd.valorTotalPagamento,
             opd."statusRemessa",
             opd."motivoStatusRemessa",
-            opd.opaId
+            opd.opaId,
+            opd."opaDataPagamento"
         FROM ordens_por_data opd
         WHERE COALESCE(opd."statusRemessa", -1) <> 5
 
@@ -159,7 +161,8 @@ WITH
             s5.valorTotalPagamento,
             s5."statusRemessa",
             s5."motivoStatusRemessa",
-            s5.opaId
+            s5.opaId,
+            s5."opaDataPagamento"
         FROM status_5_mais_recente s5
         WHERE s5.rn = 1
     )
@@ -170,7 +173,8 @@ SELECT
     r."statusRemessa",
     r."motivoStatusRemessa",
     string_agg(DISTINCT r.opaId::text, ', ') as "opaIds",
-    sum(r.valorTotalPagamento) as valor
+    sum(r.valorTotalPagamento) as valor,
+    max(r."opaDataPagamento") as "dataPagamento"
 FROM ordens_filtradas r
 GROUP BY
     r.data_referencia,
@@ -185,7 +189,7 @@ ORDER BY r.data_referencia DESC;`;
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoIds = row.opaIds;
-      dto.dataPagamento = row.dataReferencia;
+      dto.dataPagamento = row.dataPagamento;
       dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;
