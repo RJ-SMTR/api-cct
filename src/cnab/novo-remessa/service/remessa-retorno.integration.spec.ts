@@ -1,13 +1,15 @@
 /**
- * Integração REAL (banco LOCAL) do fluxo de REMESSA de pendentes, montando o
+ * Integração REAL (banco LOCAL) do fluxo REMESSA -> RETORNO, montando o
  * CnabModule via Test.createTestingModule. BigQuery e SFTP são MOCKADOS.
+ * Cobre os dois caminhos:
+ *  - pagamento PENDENTE (p_agrupar_ordens_estornos_rejeitados, pai/filha);
+ *  - pagamento NORMAL de consorcio (p_agrupar_ordens, sem filhas).
  *
  *   RUN_RETORNO_DB_TESTS=1 npx env-cmd -f .env \
- *     jest src/cnab/novo-remessa/service/remessa-pendentes.integration.spec
+ *     jest src/cnab/novo-remessa/service/remessa-retorno.integration.spec
  *
- * Datas em 2099 => a procedure de agrupamento nao encosta em nenhum dado real.
- * Limpa tudo que criou (fixtures id >= 990000000 + linhas novas por id) e
- * restaura o NSA.
+ * Datas em 2099 => as procedures de agrupamento nao encostam em dado real.
+ * Fixtures em id base 991_000_000; limpeza por relacionamento; restaura o NSA.
  */
 import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
@@ -61,7 +63,7 @@ const VALOR = 150;
 
 const stub = () => ({} as any);
 
-suite('Remessa de pendentes (integração, CnabModule, BQ+SFTP mockados)', () => {
+suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
   let app: any;
   let ds: DataSource;
   let remessa: RemessaService;
@@ -120,18 +122,33 @@ suite('Remessa de pendentes (integração, CnabModule, BQ+SFTP mockados)', () =>
   });
 
   /**
-   * Limpeza por RELACIONAMENTO (nao por faixa de id): o prepararRemessa cria
-   * header_arquivo/lote/detalhe_a/b com id de sequencia. Parte do grafo das OPAs
-   * de teste (OPA_FALHA + a pai que a procedure criar).
+   * Limpeza por RELACIONAMENTO a partir do(s) user(s) de teste [B, B+1M).
+   * prepararRemessa e as procedures criam OPAs/header/detalhe com id de
+   * sequencia; alcancamos tudo pelo grafo user -> ordem_pagamento -> OPA
+   * (+ pai + filhas) -> oph -> detalhe_a/b, header_lote, header_arquivo.
    */
   async function limpar() {
-    const pai = (await ds.query(`SELECT "ordemPagamentoAgrupadoId" p FROM ordem_pagamento_agrupado WHERE id = $1`, [OPA_FALHA]))[0]?.p;
-    const opaIds = [OPA_FALHA, ...(pai ? [Number(pai)] : [])].join(',');
+    const opas: number[] = (await ds.query(
+      `WITH RECURSIVE base AS (
+         SELECT DISTINCT opa.id
+         FROM ordem_pagamento op
+         JOIN ordem_pagamento_agrupado opa ON opa.id = op."ordemPagamentoAgrupadoId"
+         WHERE op."userId" >= $1 AND op."userId" < $2
+       ),
+       tree AS (
+         SELECT id FROM base
+         UNION
+         SELECT o.id FROM ordem_pagamento_agrupado o
+         JOIN tree t ON o.id = (SELECT "ordemPagamentoAgrupadoId" FROM ordem_pagamento_agrupado WHERE id = t.id)
+                     OR o."ordemPagamentoAgrupadoId" = t.id
+       )
+       SELECT id FROM tree`, [B, B + 1000000])).map((r: any) => Number(r.id));
+    const inOpa = opas.length ? opas.join(',') : '-1';
 
     const hlIds: number[] = (await ds.query(
       `SELECT DISTINCT da."headerLoteId" hl FROM detalhe_a da
        JOIN ordem_pagamento_agrupado_historico oph ON oph.id = da."ordemPagamentoAgrupadoHistoricoId"
-       WHERE oph."ordemPagamentoAgrupadoId" IN (${opaIds}) AND da."headerLoteId" IS NOT NULL`)).map((r: any) => Number(r.hl));
+       WHERE oph."ordemPagamentoAgrupadoId" IN (${inOpa}) AND da."headerLoteId" IS NOT NULL`)).map((r: any) => Number(r.hl));
     const haIds: number[] = hlIds.length
       ? (await ds.query(`SELECT DISTINCT "headerArquivoId" ha FROM header_lote WHERE id IN (${hlIds.join(',')})`)).map((r: any) => Number(r.ha))
       : [];
@@ -139,17 +156,32 @@ suite('Remessa de pendentes (integração, CnabModule, BQ+SFTP mockados)', () =>
     await ds.query(
       `DELETE FROM detalhe_b WHERE "detalheAId" IN (
          SELECT da.id FROM detalhe_a da JOIN ordem_pagamento_agrupado_historico oph ON oph.id = da."ordemPagamentoAgrupadoHistoricoId"
-         WHERE oph."ordemPagamentoAgrupadoId" IN (${opaIds}))`);
+         WHERE oph."ordemPagamentoAgrupadoId" IN (${inOpa}))`);
     await ds.query(
       `DELETE FROM detalhe_a WHERE "ordemPagamentoAgrupadoHistoricoId" IN (
-         SELECT id FROM ordem_pagamento_agrupado_historico WHERE "ordemPagamentoAgrupadoId" IN (${opaIds}))`);
+         SELECT id FROM ordem_pagamento_agrupado_historico WHERE "ordemPagamentoAgrupadoId" IN (${inOpa}))`);
     if (hlIds.length) await ds.query(`DELETE FROM header_lote WHERE id IN (${hlIds.join(',')})`);
     if (haIds.length) await ds.query(`DELETE FROM header_arquivo WHERE id IN (${haIds.join(',')})`);
-    await ds.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE "ordemPagamentoAgrupadoId" IN (${opaIds})`);
+    await ds.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE "ordemPagamentoAgrupadoId" IN (${inOpa})`);
     await ds.query(`DELETE FROM ordem_pagamento WHERE id >= $1 AND id < $2`, [B, B + 1000000]);
-    await ds.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id IN (${opaIds})`);
-    await ds.query(`DELETE FROM ordem_pagamento_agrupado WHERE id IN (${opaIds})`);
+    await ds.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id IN (${inOpa})`);
+    await ds.query(`DELETE FROM ordem_pagamento_agrupado WHERE id IN (${inOpa})`);
     await ds.query(`DELETE FROM public."user" WHERE id >= $1 AND id < $2`, [B, B + 1000000]);
+  }
+
+  async function criarUser(id: number, nome = 'TESTE E2E') {
+    await ds.query(
+      `INSERT INTO public."user"(id, provider, "fullName", "cpfCnpj", "bankCode", "bankAccount", "bankAgency", "bankAccountDigit", "bloqueado", "createdAt", "updatedAt")
+       VALUES ($1,'email',$2,$3,104,'99990001','0001','1',false,now(),now())`, [id, nome, CPF]);
+  }
+
+  /** Pagamento NORMAL: uma ordem_pagamento solta (sem OPA), consorcio STPC, na janela. */
+  async function seedNormal() {
+    await limpar();
+    await criarUser(USER_ID, 'TESTE NORMAL');
+    await ds.query(
+      `INSERT INTO ordem_pagamento(id, "userId", "ordemPagamentoAgrupadoId", valor, "dataOrdem", "dataCaptura", "nomeConsorcio", "nomeOperadora", "createdAt", "updatedAt", "bqUpdatedAt")
+       VALUES ($1,$2,NULL,$3,'2099-01-10','2099-01-10','STPC','TESTE NORMAL', now(), now(), now())`, [OP_FALHA, USER_ID, VALOR]);
   }
 
   async function seed() {
@@ -309,6 +341,80 @@ suite('Remessa de pendentes (integração, CnabModule, BQ+SFTP mockados)', () =>
       expect(await ophPaiStatus(pid)).toBe(StatusRemessaEnum.NaoEfetivado);
       const ophFilha4 = (await ds.query(`SELECT "statusRemessa" s FROM ordem_pagamento_agrupado_historico WHERE id = $1`, [OPH_FALHA]))[0];
       expect(ophFilha4.s).toBe(StatusRemessaEnum.NaoEfetivado); // filha nao propagada
+    });
+  });
+
+  // ---- PAGAMENTO NORMAL de consorcio (p_agrupar_ordens, sem filhas) ----
+  describe('pagamento normal (consorcio STPC, sem filhas)', () => {
+    /** id da OPA que o p_agrupar_ordens cria para o user de teste */
+    const opaNormalId = async (): Promise<number> =>
+      (await ds.query(
+        `SELECT DISTINCT op."ordemPagamentoAgrupadoId" id FROM ordem_pagamento op
+         WHERE op."userId" = $1 AND op."ordemPagamentoAgrupadoId" IS NOT NULL`, [USER_ID]))[0]?.id;
+    const statusOph = async (opaId: number): Promise<number> =>
+      (await ds.query(`SELECT "statusRemessa" s FROM ordem_pagamento_agrupado_historico WHERE "ordemPagamentoAgrupadoId"=$1 ORDER BY id DESC LIMIT 1`, [opaId]))[0]?.s;
+    async function esperarStatus(opaId: number, alvo: number): Promise<number> {
+      for (let i = 0; i < 40; i++) {
+        if ((await statusOph(opaId)) === alvo) return alvo;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return statusOph(opaId);
+    }
+
+    async function gerarRemessaNormal(): Promise<{ opaId: number; cnabRemessa: string }> {
+      await seedNormal();
+      await opaService.prepararPagamentoAgrupados(new Date(DI), new Date(DF), new Date(DP), 'contaBilhetagem', ['STPC', 'STPL', 'TEC']);
+      await remessa.prepararRemessa(new Date(DI), new Date(DF), new Date(DP), ['STPC', 'STPL', 'TEC'], false);
+      const txt = await remessa.gerarCnabText(HeaderName.MODAL, false, false, ['STPC', 'STPL', 'TEC']);
+      const opaId = await opaNormalId();
+      await esperarStatus(opaId, StatusRemessaEnum.PreparadoParaEnvio);
+      return { opaId, cnabRemessa: txt[0].content };
+    }
+
+    it('p_agrupar_ordens agrupa a ordem solta numa OPA (oph status 0, sem filhas)', async () => {
+      await seedNormal();
+      await opaService.prepararPagamentoAgrupados(new Date(DI), new Date(DF), new Date(DP), 'contaBilhetagem', ['STPC', 'STPL', 'TEC']);
+
+      const opaId = await opaNormalId();
+      expect(opaId).toBeTruthy();
+      expect(await statusOph(opaId)).toBe(StatusRemessaEnum.Criado);
+      const filhas = await ds.query(`SELECT 1 FROM ordem_pagamento_agrupado WHERE "ordemPagamentoAgrupadoId" = $1`, [opaId]);
+      expect(filhas.length).toBe(0);
+    });
+
+    it('prepararRemessa (normal): gera detalhe_a e move o oph para PreparadoParaEnvio', async () => {
+      const { opaId } = await gerarRemessaNormal();
+      expect(await statusOph(opaId)).toBe(StatusRemessaEnum.PreparadoParaEnvio);
+      const da = await ds.query(
+        `SELECT da.* FROM detalhe_a da JOIN ordem_pagamento_agrupado_historico oph ON oph.id = da."ordemPagamentoAgrupadoHistoricoId"
+         WHERE oph."ordemPagamentoAgrupadoId" = $1`, [opaId]);
+      expect(da.length).toBeGreaterThan(0);
+    });
+
+    it('gerarCnabText produz um CNAB 240 valido', async () => {
+      const { cnabRemessa } = await gerarRemessaNormal();
+      const linhas = cnabRemessa.split(/\r?\n/).filter(Boolean);
+      expect(linhas.length).toBeGreaterThan(4);
+      expect(linhas.every((l) => l.length === 240)).toBe(true);
+    });
+
+    it('ciclo completo: remessa real -> 2 retornos "00" -> Efetivado (sem propagacao)', async () => {
+      const { opaId, cnabRemessa } = await gerarRemessaNormal();
+      const ret = remessaParaRetorno(cnabRemessa, { ocorrenciaDetalheA: '00' });
+
+      await retorno.salvarRetorno({ name: 'r1.ret', content: ret });
+      expect(await statusOph(opaId)).toBe(StatusRemessaEnum.AguardandoPagamento);
+
+      await retorno.salvarRetorno({ name: 'r2.ret', content: ret });
+      expect(await statusOph(opaId)).toBe(StatusRemessaEnum.Efetivado);
+    });
+
+    it('retorno com ocorrencia de erro -> NaoEfetivado', async () => {
+      const { opaId, cnabRemessa } = await gerarRemessaNormal();
+      const ret = remessaParaRetorno(cnabRemessa, { ocorrenciaDetalheA: 'AI' });
+
+      await retorno.salvarRetorno({ name: 'r.ret', content: ret });
+      expect(await statusOph(opaId)).toBe(StatusRemessaEnum.NaoEfetivado);
     });
   });
 });
