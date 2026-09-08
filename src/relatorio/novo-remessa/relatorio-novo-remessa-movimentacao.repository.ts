@@ -420,7 +420,10 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     const status: number[] = [];
     const subErroStatus: string[] = [];
 
-    if (filter.emProcessamento) status.push(2);
+    if (filter.emProcessamento){ 
+      status.push(1);
+      status.push(2);
+    }
     if (filter.pago) status.push(3);
     if (filter.erro) status.push(4);
     if (filter.estorno) subErroStatus.push('02');
@@ -487,9 +490,9 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     // Se nenhum status foi selecionado, inclui tudo
     const incluirAPagar = filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno);
 
-    const algumStatus = filter.todosConsorcios || filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno
+     const algumStatus = filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno || filter.pendentes;
 
-    const todosStatus =  (!filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno)
+    const todosStatus = (!filter.aPagar && !filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno);
 
     if (temFiltroConsorcio) {
       if (incluirAPagar) {
