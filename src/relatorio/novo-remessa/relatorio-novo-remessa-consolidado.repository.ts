@@ -306,37 +306,32 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       status.push(2);
     }
     if (filter.pago) status.push(3);
-    if (filter.erro) status.push(4);
-    if (filter.estorno) subErroStatus.push('02');
-    if (filter.rejeitado) {
-      subErroStatus.push('00');
-      subErroStatus.push('0BD');
-      subErroStatus.push('02');
-    }
+
     if (filter.pendenciaPaga) status.push(5);
+
+    if (filter.erro && filter.pendentes && !filter.rejeitado && !filter.estorno) {
+      subErroStatus.push('AL');
+      subErroStatus.push('HO');      
+      subErroStatus.push('ANHO');
+      subErroStatus.push('02');
+    }else if (filter.estorno){
+      subErroStatus.push('02');
+    }else if (filter.rejeitado) {
+      subErroStatus.push('AL');
+      subErroStatus.push('HO');      
+      subErroStatus.push('ANHO');
+    }   
 
     if (status.length > 0) {
       const statusRemessa = ` AND oph."statusRemessa" IN (${status.join(',')}) `;
       queryConsorcios += statusRemessa;
       queryVanzeiros += statusRemessa;
       queryEleicaoConsorcio += statusRemessa;
-      queryEleicaoVanzeiro += statusRemessa;
-      if(filter.erro){
-        const motivoStatus = ` AND (oph."motivoStatusRemessa" NOT IN ('00','0BD')) `;
-        queryConsorcios += motivoStatus;
-        queryVanzeiros += motivoStatus;
-        queryEleicaoConsorcio += motivoStatus;
-        queryEleicaoVanzeiro += motivoStatus;
-      }
+      queryEleicaoVanzeiro += statusRemessa;     
     }
 
     if (subErroStatus.length > 0) {
-      let motivoStatus =``;
-      if (filter.rejeitado) {
-        motivoStatus = `AND (oph."motivoStatusRemessa" NOT IN (${subErroStatus.map((s) => `'${s}'`).join(',')})) `;
-      }else{
-        motivoStatus = ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;
-      }
+      let motivoStatus =` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;      
       queryConsorcios += motivoStatus;
       queryVanzeiros += motivoStatus;
       queryEleicaoConsorcio += motivoStatus;
@@ -365,7 +360,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     // Se nenhum status foi selecionado, inclui tudo
     const incluirAPagar = filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno);
 
-    const algumStatus = filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno || filter.pendentes;
+    const algumStatus = filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno;
 
     const todosStatus = (!filter.aPagar && !filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno);
 
