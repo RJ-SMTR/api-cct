@@ -117,7 +117,7 @@
     "globals": {
       "ts-jest": {
         "tsConfig": "tsconfig.test.json",
-        "isolatedModules": true
+        "diagnostics": false
       }
     },
     "moduleFileExtensions": [
