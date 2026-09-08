@@ -130,10 +130,17 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
   async function limpar() {
     const opas: number[] = (await ds.query(
       `WITH RECURSIVE base AS (
-         SELECT DISTINCT opa.id
+         SELECT id FROM ordem_pagamento_agrupado WHERE id >= $1 AND id < $2
+         UNION
+         SELECT opa.id
          FROM ordem_pagamento op
          JOIN ordem_pagamento_agrupado opa ON opa.id = op."ordemPagamentoAgrupadoId"
          WHERE op."userId" >= $1 AND op."userId" < $2
+         UNION
+         SELECT opa.id
+         FROM ordem_pagamento_guardador og
+         JOIN ordem_pagamento_agrupado opa ON opa.id = og."ordemPagamentoAgrupadoId"
+         WHERE og."userId" >= $1 AND og."userId" < $2
        ),
        tree AS (
          SELECT id FROM base
@@ -164,6 +171,7 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
     if (haIds.length) await ds.query(`DELETE FROM header_arquivo WHERE id IN (${haIds.join(',')})`);
     await ds.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE "ordemPagamentoAgrupadoId" IN (${inOpa})`);
     await ds.query(`DELETE FROM ordem_pagamento WHERE id >= $1 AND id < $2`, [B, B + 1000000]);
+    await ds.query(`DELETE FROM ordem_pagamento_guardador WHERE id >= $1 AND id < $2`, [B, B + 1000000]);
     await ds.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id IN (${inOpa})`);
     await ds.query(`DELETE FROM ordem_pagamento_agrupado WHERE id IN (${inOpa})`);
     await ds.query(`DELETE FROM public."user" WHERE id >= $1 AND id < $2`, [B, B + 1000000]);
@@ -415,6 +423,98 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
 
       await retorno.salvarRetorno({ name: 'r.ret', content: ret });
       expect(await statusOph(opaId)).toBe(StatusRemessaEnum.NaoEfetivado);
+    });
+  });
+
+  // ---- PENDENTE de GUARDADOR - fase 1: p_agrupar_ordens_guardador_pendente ----
+  describe('pagamento pendente guardador (procedure)', () => {
+    /** cria uma OPA "falha" de guardador: OPA + oph status 4 + detalhe_a + ordem_pagamento_guardador */
+    async function criarFalhaGuardador(opaId: number, ophId: number, daId: number, opgId: number, valor: number) {
+      await ds.query(
+        `INSERT INTO ordem_pagamento_agrupado(id, "dataPagamento", "valorTotal", "createdAt", "updatedAt")
+         VALUES ($1, '2099-01-10', $2, now(), now())`, [opaId, valor]);
+      await ds.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico(id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+         VALUES ($1,$2, now(), '104','0001','99990001','1', $3, '02')`, [ophId, opaId, StatusRemessaEnum.NaoEfetivado]);
+      await ds.query(
+        `INSERT INTO ordem_pagamento_guardador(id, "userId", "ordemPagamentoAgrupadoId", "dataOrdem", "dataInclusao", "tipoOrdemPagamento",
+           "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida", "valorRepasseGuardador", "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE
+         VALUES ($1,$2,$3,'2099-01-10','2099-01-10','pendente', 0,0,0,$4, now(), now())`, [opgId, USER_ID, opaId, valor]);
+      await ds.query(
+        `INSERT INTO detalhe_a(id, "ordemPagamentoAgrupadoHistoricoId", "valorLancamento", "valorRealEfetivado", "dataVencimento", nsr, "numeroDocumentoEmpresa", "createdAt", "updatedAt")
+         VALUES ($1,$2,$3,$3,'2099-01-15', 1, 1, now(), now())`, [daId, ophId, valor]);
+    }
+    async function rodarProcedure() {
+      const pagador = (await ds.query(`SELECT id FROM pagador WHERE conta = '000600071084'`))[0].id;
+      await ds.query(`CALL p_agrupar_ordens_guardador_pendente($1::date, $2::date, $3::date, $4)`, [DI, DF, DP, pagador]);
+    }
+    const paiDe = async (opaFilha: number): Promise<number> =>
+      (await ds.query(`SELECT "ordemPagamentoAgrupadoId" p FROM ordem_pagamento_agrupado WHERE id = $1`, [opaFilha]))[0]?.p;
+    const ophsDe = async (opaId: number): Promise<any[]> =>
+      ds.query(`SELECT "statusRemessa" s FROM ordem_pagamento_agrupado_historico WHERE "ordemPagamentoAgrupadoId" = $1`, [opaId]);
+
+    it('1 OPA falha -> nova OPA pai (pai/filha), 1 oph pai status 0, filha ganha 1 oph novo', async () => {
+      await limpar();
+      await criarUser(USER_ID, 'TESTE GUARD PEND');
+      await criarFalhaGuardador(B + 10, B + 20, B + 40, B + 60, 150);
+
+      await rodarProcedure();
+
+      const pid = await paiDe(B + 10);
+      expect(pid).toBeTruthy();
+      expect(pid).not.toBe(B + 10);
+
+      const opaPai = (await ds.query(`SELECT * FROM ordem_pagamento_agrupado WHERE id=$1`, [pid]))[0];
+      expect(Number(opaPai.valorTotal)).toBe(150); // sem double-count
+
+      const ophsPai = await ophsDe(pid);
+      expect(ophsPai).toHaveLength(1);
+      expect(ophsPai[0].s).toBe(StatusRemessaEnum.Criado);
+
+      const ophsFilha = await ophsDe(B + 10);
+      expect(ophsFilha.filter((o) => o.s === StatusRemessaEnum.Criado)).toHaveLength(1); // 1 oph novo
+      expect(ophsFilha).toHaveLength(2); // o antigo (4) + o novo (0)
+
+      // ordem_pagamento_guardador NAO e re-vinculada
+      const opg = (await ds.query(`SELECT "ordemPagamentoAgrupadoId" o FROM ordem_pagamento_guardador WHERE id = $1`, [B + 60]))[0];
+      expect(opg.o).toBe(B + 10);
+    });
+
+    it('2 OPAs falha do mesmo user -> UMA pai, valorTotal = soma, 1 oph pai (nao multiplos)', async () => {
+      await limpar();
+      await criarUser(USER_ID, 'TESTE GUARD PEND 2');
+      await criarFalhaGuardador(B + 10, B + 20, B + 40, B + 60, 100);
+      await criarFalhaGuardador(B + 11, B + 21, B + 41, B + 61, 250);
+
+      await rodarProcedure();
+
+      const pid1 = await paiDe(B + 10);
+      const pid2 = await paiDe(B + 11);
+      expect(pid1).toBeTruthy();
+      expect(pid1).toBe(pid2); // mesma pai
+
+      const opaPai = (await ds.query(`SELECT * FROM ordem_pagamento_agrupado WHERE id=$1`, [pid1]))[0];
+      expect(Number(opaPai.valorTotal)).toBe(350); // 100 + 250, sem multiplicar
+
+      const ophsPai = await ophsDe(pid1);
+      expect(ophsPai).toHaveLength(1); // <- o bug antigo criava 1 por ordem
+      expect(ophsPai[0].s).toBe(StatusRemessaEnum.Criado);
+
+      // cada filha ganha exatamente 1 oph novo
+      expect((await ophsDe(B + 10)).filter((o) => o.s === StatusRemessaEnum.Criado)).toHaveLength(1);
+      expect((await ophsDe(B + 11)).filter((o) => o.s === StatusRemessaEnum.Criado)).toHaveLength(1);
+    });
+
+    it('OPA ja efetivada (statusRemessa 3) nao entra no agrupamento', async () => {
+      await limpar();
+      await criarUser(USER_ID, 'TESTE GUARD OK');
+      await criarFalhaGuardador(B + 10, B + 20, B + 40, B + 60, 100);
+      await ds.query(`UPDATE ordem_pagamento_agrupado_historico SET "statusRemessa" = $1, "motivoStatusRemessa" = '00' WHERE id = $2`,
+        [StatusRemessaEnum.Efetivado, B + 20]);
+
+      await rodarProcedure();
+      expect(await paiDe(B + 10)).toBeFalsy();
     });
   });
 });
