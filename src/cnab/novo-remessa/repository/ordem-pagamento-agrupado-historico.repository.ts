@@ -50,6 +50,8 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
                       left join public.user u on u."permitCode" = ou."idOperadora" `+          
                 ` where da."id" = ${detalheAId} `;
     } else if(isPendente){
+      // resolve o usuario pela ordem "filha" (consorcio OU guardador), ou pela
+      // propria opa se ela nao for pai
       query = (`select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
                       oph.* from ordem_pagamento_agrupado_historico oph
     INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -61,10 +63,13 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
             "ordemPagamentoAgrupadoId" = opa.id
     ) filhos ON true
     LEFT JOIN LATERAL (
-        SELECT *
+        SELECT op2."userId"
         FROM ordem_pagamento op2
-        WHERE
-            op2."ordemPagamentoAgrupadoId" = COALESCE(filhos.id, opa.id)
+        WHERE op2."ordemPagamentoAgrupadoId" = COALESCE(filhos.id, opa.id)
+        UNION ALL
+        SELECT og2."userId"
+        FROM ordem_pagamento_guardador og2
+        WHERE og2."ordemPagamentoAgrupadoId" = COALESCE(filhos.id, opa.id)
     ) op ON true
     LEFT JOIN public.user u ON u."id" = op."userId"` +
     `where da."id" = ${detalheAId}`)

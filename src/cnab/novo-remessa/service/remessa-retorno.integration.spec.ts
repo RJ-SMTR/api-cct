@@ -528,5 +528,44 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
       const ordens = await opaService.getOrdensPendentes(new Date(DI), new Date(DF), [], new Date(DP));
       expect(ordens.map((o: any) => o.id)).toContain(pid);
     });
+
+    // ---- fase 3+4+5: ciclo completo do pendente guardador ----
+    const ophPaiStatusGuard = async (pid: number): Promise<number> =>
+      (await ds.query(`SELECT "statusRemessa" s FROM ordem_pagamento_agrupado_historico WHERE "ordemPagamentoAgrupadoId"=$1 ORDER BY id DESC LIMIT 1`, [pid]))[0]?.s;
+
+    async function gerarRemessaGuardadorPendente() {
+      await limpar();
+      await criarUser(USER_ID, 'TESTE GUARD CICLO');
+      await criarFalhaGuardador(B + 10, B + 20, B + 40, B + 60, 150);
+      await rodarProcedure();
+      await remessa.prepararRemessa(new Date(DI), new Date(DF), new Date(DP), [], false, true);
+      const txt = await remessa.gerarCnabText(HeaderName.GUARDADOR, undefined, true);
+      const pid = await paiDe(B + 10);
+      await esperarStatusPai(pid, StatusRemessaEnum.PreparadoParaEnvio);
+      return { pid, cnabRemessa: txt[0].content };
+    }
+
+    it('gerarCnabText do pendente guardador tem o CPF/nome do favorecido (getHistoricoDetalheA guardador)', async () => {
+      const { cnabRemessa } = await gerarRemessaGuardadorPendente();
+      const parsed: any = require('src/cnab/utils/cnab/cnab-104-utils').parseCnab240Pagamento(
+        remessaParaRetorno(cnabRemessa, { ocorrenciaDetalheA: '00' }));
+      const reg = parsed.lotes[0].registros[0];
+      expect(reg.detalheB.numeroInscricao.convertedValue.toString()).toBe(CPF); // <- vinha vazio sem o fix
+      expect(reg.detalheA.nomeTerceiro.value.trim()).not.toBe('');
+    });
+
+    it('ciclo completo guardador: remessa real -> 2 retornos "00" -> pai e filha PendenciaPaga', async () => {
+      const { pid, cnabRemessa } = await gerarRemessaGuardadorPendente();
+      const ret = remessaParaRetorno(cnabRemessa, { ocorrenciaDetalheA: '00' });
+
+      await retorno.salvarRetorno({ name: 'g1.ret', content: ret });
+      expect(await ophPaiStatusGuard(pid)).toBe(StatusRemessaEnum.AguardandoPagamento);
+
+      await retorno.salvarRetorno({ name: 'g2.ret', content: ret });
+      expect([StatusRemessaEnum.Efetivado, StatusRemessaEnum.PendenciaPaga]).toContain(await ophPaiStatusGuard(pid));
+
+      const ophFilha4 = (await ds.query(`SELECT "statusRemessa" s FROM ordem_pagamento_agrupado_historico WHERE id = $1`, [B + 20]))[0];
+      expect(ophFilha4.s).toBe(StatusRemessaEnum.PendenciaPaga);
+    });
   });
 });

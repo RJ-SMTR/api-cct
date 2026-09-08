@@ -181,33 +181,31 @@ export class DetalheARepository {
 
   async getDetalheARetorno(cpf: String, valorLancamento: number) {
     // Casa o registro do retorno (CPF do detalheB + valor do detalheA) com o
-    // detalhe_a local. O usuario e resolvido por ordem_pagamento."userId"
-    // (estavel mesmo se o vanzeiro trocar de conta apos a remessa).
-    //  - 1a uniao: ordem de pagamento agrupada "normal" (tem ordem_pagamento direto);
-    //  - 2a uniao: ordem "pai" do agrupamento de pendentes, cujo ordem_pagamento
-    //    fica nas ordens "filhas".
-    const query = `
+    // detalhe_a local. O usuario e resolvido por "userId" (estavel mesmo se o
+    // vanzeiro trocar de conta apos a remessa). 4 unioes:
+    // {consorcio | guardador} x {ordem "normal" (tem ordem direto) |
+    //  ordem "pai" de pendente (a ordem fica nas OPAs "filhas")}.
+    const casar = (joins: string) => `
       select distinct da.* from detalhe_a da
-      inner join ordem_pagamento_agrupado_historico oph
-        on oph.id = da."ordemPagamentoAgrupadoHistoricoId"
+      inner join ordem_pagamento_agrupado_historico oph on oph.id = da."ordemPagamentoAgrupadoHistoricoId"
       inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
-      inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
-      inner join public."user" uu on uu.id = op."userId"
+      ${joins}
       where oph."statusRemessa" in (1, 2)
         and uu."cpfCnpj" ilike '%' || $1
-        and da."valorLancamento" = $2
-      union
-      select distinct da.* from detalhe_a da
-      inner join ordem_pagamento_agrupado_historico oph
-        on oph.id = da."ordemPagamentoAgrupadoHistoricoId"
-      inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
-      inner join ordem_pagamento_agrupado filha on filha."ordemPagamentoAgrupadoId" = opa.id
-      inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = filha.id
-      inner join public."user" uu on uu.id = op."userId"
-      where oph."statusRemessa" in (1, 2)
-        and uu."cpfCnpj" ilike '%' || $1
-        and da."valorLancamento" = $2
-    `;
+        and da."valorLancamento" = $2`;
+
+    const query = [
+      casar(`inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
+             inner join public."user" uu on uu.id = op."userId"`),
+      casar(`inner join ordem_pagamento_agrupado filha on filha."ordemPagamentoAgrupadoId" = opa.id
+             inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = filha.id
+             inner join public."user" uu on uu.id = op."userId"`),
+      casar(`inner join ordem_pagamento_guardador og on og."ordemPagamentoAgrupadoId" = opa.id
+             inner join public."user" uu on uu.id = og."userId"`),
+      casar(`inner join ordem_pagamento_agrupado filha on filha."ordemPagamentoAgrupadoId" = opa.id
+             inner join ordem_pagamento_guardador og on og."ordemPagamentoAgrupadoId" = filha.id
+             inner join public."user" uu on uu.id = og."userId"`),
+    ].join('\n      union\n');
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
