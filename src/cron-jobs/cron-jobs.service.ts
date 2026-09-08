@@ -863,19 +863,24 @@ export class CronJobsService {
   }
 
   async retornoExec() {
+    const METHOD = 'retornoExec';
     let arq = true;
+    let processados = 0;
     while (arq) {
       const txt = await this.retornoService.lerRetornoSftp();
       if (txt) {
+        this.logger.log(`Processando arquivo de retorno: ${txt.name}`, METHOD);
         try {
           await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
+          processados++;
         } catch (err) {
-          console.log(err);
+          this.logger.error(`Erro ao processar retorno ${txt?.name} - ${err?.message}`, err?.stack, METHOD);
         }
       } else {
         arq = false;
       }
     }
+    this.logger.log(`retornoExec finalizado - arquivos processados: ${processados}`, METHOD);
   }
 
   private calcularPeriodoPagamento(today: Date = new Date()) {
