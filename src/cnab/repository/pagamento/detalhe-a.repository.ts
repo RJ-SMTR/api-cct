@@ -181,16 +181,29 @@ export class DetalheARepository {
 
   async getDetalheARetorno(cpf: String, valorLancamento: number) {
     // Casa o registro do retorno (CPF do detalheB + valor do detalheA) com o
-    // detalhe_a local pelos dados bancários gravados no proprio historico.
-    // Nao depende de ordem_pagamento, entao funciona tambem para a ordem "pai"
-    // do agrupamento de pendentes (que nao tem linhas em ordem_pagamento).
+    // detalhe_a local. O usuario e resolvido por ordem_pagamento."userId"
+    // (estavel mesmo se o vanzeiro trocar de conta apos a remessa).
+    //  - 1a uniao: ordem de pagamento agrupada "normal" (tem ordem_pagamento direto);
+    //  - 2a uniao: ordem "pai" do agrupamento de pendentes, cujo ordem_pagamento
+    //    fica nas ordens "filhas".
     const query = `
       select distinct da.* from detalhe_a da
       inner join ordem_pagamento_agrupado_historico oph
         on oph.id = da."ordemPagamentoAgrupadoHistoricoId"
-      inner join public."user" uu
-        on uu."bankAccount" = oph."userBankAccount"
-       and uu."bankCode"::text = oph."userBankCode"
+      inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
+      inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
+      inner join public."user" uu on uu.id = op."userId"
+      where oph."statusRemessa" in (1, 2)
+        and uu."cpfCnpj" ilike '%' || $1
+        and da."valorLancamento" = $2
+      union
+      select distinct da.* from detalhe_a da
+      inner join ordem_pagamento_agrupado_historico oph
+        on oph.id = da."ordemPagamentoAgrupadoHistoricoId"
+      inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
+      inner join ordem_pagamento_agrupado filha on filha."ordemPagamentoAgrupadoId" = opa.id
+      inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = filha.id
+      inner join public."user" uu on uu.id = op."userId"
       where oph."statusRemessa" in (1, 2)
         and uu."cpfCnpj" ilike '%' || $1
         and da."valorLancamento" = $2
