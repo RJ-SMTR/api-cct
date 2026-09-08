@@ -20,6 +20,7 @@ import { RetornoService } from './retorno.service';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { buildRetornoCnab } from '../test/build-retorno-cnab';
+import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-agrupado.repository';
 
 const RUN = !!process.env.RUN_RETORNO_DB_TESTS;
 const suite = RUN ? describe : describe.skip;
@@ -100,10 +101,10 @@ suite('RetornoService (integração - banco real)', () => {
        VALUES ($1,'email','TEST RETORNO',$2,$3,$4,'0001','1', now(), now())`,
       [id, CPF, opts.bankCode ?? BANK_CODE, opts.bankAcc ?? BANK_ACC]);
   }
-  async function criarOpa(id: number, paiId: number | null = null) {
+  async function criarOpa(id: number, paiId: number | null = null, dataPagamento = '2026-09-08') {
     await ds.query(
       `INSERT INTO ordem_pagamento_agrupado(id, "dataPagamento", "valorTotal", "createdAt", "updatedAt", "ordemPagamentoAgrupadoId")
-       VALUES ($1, now(), 100, now(), now(), $2)`, [id, paiId]);
+       VALUES ($1, $3::date, 100, now(), now(), $2)`, [id, paiId, dataPagamento]);
   }
   async function criarOph(id: number, opaId: number, status: StatusRemessaEnum) {
     await ds.query(
@@ -263,6 +264,34 @@ suite('RetornoService (integração - banco real)', () => {
       const cnab = buildRetornoCnab([{ registros: [{ cpf: CPF, valor: 99999.99, ocorrenciaDetalheA: '00' }] }]);
       await retornoService.salvarRetorno({ name: 'r.ret', content: cnab });
       expect(await statusOph(B + 20)).toBe(StatusRemessaEnum.AguardandoPagamento);
+    });
+  });
+
+  // ---- 0/1: findAllPendente enxerga a ordem pai criada pela procedure ----
+  describe('agrupamento de pendentes -> findAllPendente', () => {
+    const opaRepo = () => new OrdemPagamentoAgrupadoRepository({} as any, ds);
+    const DP = '2026-09-08';
+
+    it('acha a ordem PAI quando o historico esta em statusRemessa = 0', async () => {
+      await criarUser(B + 1);
+      await criarOpa(B + 100, null, DP);          // pai, dataPagamento = DP
+      await criarOpa(B + 101, B + 100, '2026-06-01'); // filha (data antiga)
+      await criarOph(B + 110, B + 100, StatusRemessaEnum.Criado); // 0
+
+      const ordens = await opaRepo().findAllPendente(
+        new Date('2026-06-01'), new Date('2026-09-30'), ['STPC', 'STPL', 'TEC'], new Date(DP));
+      expect(ordens.map((o: any) => o.id)).toContain(B + 100);
+    });
+
+    it('NAO acha a ordem pai quando o historico esta em statusRemessa = 1 (era o bug)', async () => {
+      await criarUser(B + 1);
+      await criarOpa(B + 100, null, DP);
+      await criarOpa(B + 101, B + 100, '2026-06-01');
+      await criarOph(B + 110, B + 100, StatusRemessaEnum.PreparadoParaEnvio); // 1
+
+      const ordens = await opaRepo().findAllPendente(
+        new Date('2026-06-01'), new Date('2026-09-30'), ['STPC', 'STPL', 'TEC'], new Date(DP));
+      expect(ordens.map((o: any) => o.id)).not.toContain(B + 100);
     });
   });
 });

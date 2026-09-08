@@ -766,8 +766,9 @@ export class CronJobsService {
     // AGRUPAR ORDENS POR INDIVIDUO
     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
-    // Prepara o remessa
-    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
+    // Prepara o remessa (gera header_arquivo / header_lote / detalhe_a e move os
+    // historicos das ordens pai para PreparadoParaEnvio)
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
