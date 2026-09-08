@@ -19,6 +19,7 @@ import { DetalheAService } from 'src/cnab/service/pagamento/detalhe-a.service';
 import { RetornoService } from './retorno.service';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { buildRetornoCnab } from '../test/build-retorno-cnab';
 
 const RUN = !!process.env.RUN_RETORNO_DB_TESTS;
 const suite = RUN ? describe : describe.skip;
@@ -203,5 +204,65 @@ suite('RetornoService (integração - banco real)', () => {
 
     expect(await statusOph(B + 110)).toBe(StatusRemessaEnum.NaoEfetivado); // pai
     expect(await statusOph(B + 111)).toBe(StatusRemessaEnum.NaoEfetivado); // filha nao mudou
+  });
+
+  // ---- salvarRetorno de ponta a ponta: CNAB de verdade -> parseCnab240Pagamento real ----
+  describe('salvarRetorno (arquivo CNAB real, parse real)', () => {
+    it('NORMAL: 1a volta BD, depois 00 => AguardandoPagamento => Efetivado', async () => {
+      await criarUser(B + 1);
+      await criarOpa(B + 10);
+      await criarOph(B + 20, B + 10, StatusRemessaEnum.PreparadoParaEnvio);
+      await criarOrdemPagamento(B + 30, B + 1, B + 10);
+      await criarDetalheA(B + 40, B + 20, 4497.6);
+
+      const cnabBD = buildRetornoCnab([{ ocorrenciaHeaderLote: '00', registros: [{ cpf: CPF, valor: 4497.6, ocorrenciaDetalheA: 'BD' }] }]);
+      await retornoService.salvarRetorno({ name: 'r1.ret', content: cnabBD });
+      expect(await statusOph(B + 20)).toBe(StatusRemessaEnum.AguardandoPagamento);
+
+      const cnab00 = buildRetornoCnab([{ ocorrenciaHeaderLote: '00', registros: [{ cpf: CPF, valor: 4497.6, ocorrenciaDetalheA: '00' }] }]);
+      await retornoService.salvarRetorno({ name: 'r2.ret', content: cnab00 });
+      expect(await statusOph(B + 20)).toBe(StatusRemessaEnum.Efetivado);
+    });
+
+    it('NORMAL: ocorrencia de erro no detalheA => NaoEfetivado', async () => {
+      await criarUser(B + 1);
+      await criarOpa(B + 10);
+      await criarOph(B + 20, B + 10, StatusRemessaEnum.AguardandoPagamento);
+      await criarOrdemPagamento(B + 30, B + 1, B + 10);
+      await criarDetalheA(B + 40, B + 20, 4497.6);
+
+      const cnab = buildRetornoCnab([{ ocorrenciaHeaderLote: '00', registros: [{ cpf: CPF, valor: 4497.6, ocorrenciaDetalheA: 'AI' }] }]);
+      await retornoService.salvarRetorno({ name: 'r.ret', content: cnab });
+      expect(await statusOph(B + 20)).toBe(StatusRemessaEnum.NaoEfetivado);
+    });
+
+    it('PENDENCIA: pai paga (00) => pai e filhas viram PendenciaPaga', async () => {
+      await criarUser(B + 1);
+      await criarOpa(B + 100);
+      await criarOpa(B + 101, B + 100);
+      await criarOph(B + 110, B + 100, StatusRemessaEnum.AguardandoPagamento);
+      await criarOph(B + 111, B + 101, StatusRemessaEnum.NaoEfetivado);
+      await criarOrdemPagamento(B + 130, B + 1, B + 101);
+      await criarDetalheA(B + 140, B + 110, 4497.6);
+
+      const cnab = buildRetornoCnab([{ ocorrenciaHeaderLote: '00', registros: [{ cpf: CPF, valor: 4497.6, ocorrenciaDetalheA: '00' }] }]);
+      await retornoService.salvarRetorno({ name: 'r.ret', content: cnab });
+
+      expect([StatusRemessaEnum.Efetivado, StatusRemessaEnum.PendenciaPaga]).toContain(await statusOph(B + 110));
+      expect(await statusOph(B + 111)).toBe(StatusRemessaEnum.PendenciaPaga);
+    });
+
+    it('registro sem correspondente no banco => nao altera nada (e nao explode)', async () => {
+      await criarUser(B + 1);
+      await criarOpa(B + 10);
+      await criarOph(B + 20, B + 10, StatusRemessaEnum.AguardandoPagamento);
+      await criarOrdemPagamento(B + 30, B + 1, B + 10);
+      await criarDetalheA(B + 40, B + 20, 4497.6);
+
+      // valor que nao casa com nenhum detalhe_a
+      const cnab = buildRetornoCnab([{ registros: [{ cpf: CPF, valor: 99999.99, ocorrenciaDetalheA: '00' }] }]);
+      await retornoService.salvarRetorno({ name: 'r.ret', content: cnab });
+      expect(await statusOph(B + 20)).toBe(StatusRemessaEnum.AguardandoPagamento);
+    });
   });
 });
