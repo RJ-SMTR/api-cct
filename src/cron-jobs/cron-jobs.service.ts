@@ -759,6 +759,27 @@ export class CronJobsService {
       HeaderName.MODAL, idOperadoras);
   }
 
+  /**
+   * Pendencia de GUARDADOR: reagrupa as ordens de guardador que ja foram para
+   * remessa e falharam, gera a remessa e envia. Sem cron/endpoint - chamar
+   * manualmente (ex.: no onModuleLoad) e rodar a aplicacao uma vez.
+   */
+  async pagamentoPendentesGuardadoresExec(dtInicio: string, dtFim: string, dataPagamento?: string) {
+    const dataInicio = new Date(dtInicio);
+    const dataFim = new Date(dtFim);
+    const dataPgto = dataPagamento ? new Date(dataPagamento) : new Date();
+
+    this.logger.debug('iniciando o agrupamento pendente de guardador');
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGuardadorPendentes(dataInicio, dataFim, dataPgto, 'contaBilhetagem');
+
+    // guardador -> consorcio vazio; gera header_arquivo/lote/detalhe_a e move
+    // os historicos das ordens pai para PreparadoParaEnvio
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPgto, [], false, true);
+
+    const txt = await this.remessaService.gerarCnabText(HeaderName.GUARDADOR, undefined, true);
+    await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
+  }
+
   private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
     headerName: HeaderName, idOperadoras?: string[]) {
     this.logger.debug('iniciando o agrupamento pendente')
