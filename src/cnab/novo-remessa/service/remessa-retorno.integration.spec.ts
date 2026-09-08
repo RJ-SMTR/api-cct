@@ -516,5 +516,17 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
       await rodarProcedure();
       expect(await paiDe(B + 10)).toBeFalsy();
     });
+
+    // ---- fase 2: findAllPendente acha a ordem PAI de guardador ----
+    it('getOrdensPendentes (consorcio vazio) retorna a ordem PAI de guardador', async () => {
+      await limpar();
+      await criarUser(USER_ID, 'TESTE GUARD F2');
+      await criarFalhaGuardador(B + 10, B + 20, B + 40, B + 60, 150);
+      await rodarProcedure();
+      const pid = await paiDe(B + 10);
+
+      const ordens = await opaService.getOrdensPendentes(new Date(DI), new Date(DF), [], new Date(DP));
+      expect(ordens.map((o: any) => o.id)).toContain(pid);
+    });
   });
 });
