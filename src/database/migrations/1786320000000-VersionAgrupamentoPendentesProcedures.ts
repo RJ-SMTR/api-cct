@@ -8,11 +8,12 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Definicoes capturadas do banco de referencia em 2026-09-08. Guardadores ficam de
  * fora (terao processo proprio).
  *
- * Ajuste em p_agrupar_ordens_estornos_rejeitados: o historico do agrupamento e
- * criado com statusRemessa = 0 (Criado), nao 1. Todas as demais procedures de
- * agrupamento (p_agrupar_ordens, p_agrupar_ordens_pendentes) usam 0, e o
- * findAllPendente / findAllCustom filtram statusRemessa = 0 - o 1 impedia o
- * prepararRemessa de encontrar a ordem pai.
+ * Ajuste: o historico do agrupamento e criado com statusRemessa = 0 (Criado),
+ * nao 1, tanto em p_agrupar_ordens_estornos_rejeitados quanto em
+ * p_agrupar_ordens_pendentes. p_agrupar_ordens / p_agrupar_ordens_guardador ja
+ * usavam 0, e findAllPendente / findAllCustom filtram statusRemessa = 0 - o 1
+ * impedia o prepararRemessa de encontrar a ordem pai.
+ * (p_agrupar_ordens_pendentes hoje esta sem caller - o ajuste e por consistencia.)
  *
  * `up` usa CREATE OR REPLACE: em ambientes que ja tem a procedure, alinha a definicao
  * com esta; onde nao existe, cria. **Antes de rodar em producao, conferir que a
@@ -217,7 +218,7 @@ BEGIN
                 u."bankAccount",
                 u."bankAgency",
                 u."bankCode",
-                1
+                0
             FROM public."user" u
             WHERE u.id = ordem."userId";
 
