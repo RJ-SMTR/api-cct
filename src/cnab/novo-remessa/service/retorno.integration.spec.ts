@@ -25,7 +25,8 @@ import { OrdemPagamentoAgrupadoRepository } from '../repository/ordem-pagamento-
 const RUN = !!process.env.RUN_RETORNO_DB_TESTS;
 const suite = RUN ? describe : describe.skip;
 
-const B = 990000000; // base dos ids de fixture
+const B = 990000000; // base dos ids de fixture (remessa-pendentes.integration usa 991_000_000)
+const B_MAX = 991000000; // limite superior das fixtures deste spec
 const CPF = '99999999901';
 const BANK_CODE = '104';
 const BANK_ACC = '99990001';
@@ -88,11 +89,12 @@ suite('RetornoService (integração - banco real)', () => {
   beforeEach(limpar);
 
   async function limpar() {
-    await ds.query(`DELETE FROM detalhe_a WHERE id >= $1`, [B]);
-    await ds.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE id >= $1`, [B]);
-    await ds.query(`DELETE FROM ordem_pagamento WHERE id >= $1`, [B]);
-    await ds.query(`DELETE FROM ordem_pagamento_agrupado WHERE id >= $1`, [B]);
-    await ds.query(`DELETE FROM public."user" WHERE id >= $1`, [B]);
+    const range = `id >= ${B} AND id < ${B_MAX}`;
+    await ds.query(`DELETE FROM detalhe_a WHERE ${range}`);
+    await ds.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE ${range}`);
+    await ds.query(`DELETE FROM ordem_pagamento WHERE ${range}`);
+    await ds.query(`DELETE FROM ordem_pagamento_agrupado WHERE ${range}`);
+    await ds.query(`DELETE FROM public."user" WHERE ${range}`);
   }
 
   async function criarUser(id: number, opts: { bankCode?: string; bankAcc?: string } = {}) {
