@@ -118,7 +118,8 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {        
+  async onModuleLoad() {  
+    await this.remessaGuardadorExec();          
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -797,17 +798,17 @@ export class CronJobsService {
 
   async remessaGuardadorExec(pagamentoUnico?: boolean) {
     const today = new Date();
-    let subDaysInt = 2 ;
+   // let subDaysInt = 2 ;
 
-    if (isTuesday(today)) {
-      subDaysInt = 4;
-    } else if (isFriday(today)) {
-      subDaysInt = 3;
-    } else {
-      return;
-    }
+    // if (isTuesday(today)) {
+    //   subDaysInt = 4;
+    // } else if (isFriday(today)) {
+    //   subDaysInt = 3;
+    // } else {
+    //   return;
+    // }
 
-    const dataInicio = subDays(today, subDaysInt);
+    const dataInicio = subDays(today, 0);
     const dataFim = subDays(today, 0);    
 
     // const dataInicio = today;
@@ -921,7 +922,7 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date('2026-08-28');
+        const dataHoje = new Date('2026-09-08');
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
