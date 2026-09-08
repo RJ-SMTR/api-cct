@@ -207,8 +207,12 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const result: any[] = await queryRunner.query(query, [detalheAId]);
-      return Array.isArray(result) ? result.length : 0;
+      // useStructuredResult=true => { records, affected, raw }
+      const result: any = await queryRunner.query(query, [detalheAId], true);
+      if (Array.isArray(result?.records)) {
+        return result.records.length;
+      }
+      return typeof result?.affected === 'number' ? result.affected : 0;
     } finally {
       await queryRunner.release();
     }

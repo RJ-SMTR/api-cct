@@ -179,37 +179,30 @@ export class DetalheARepository {
   }
 
 
-  async getDetalheARetorno(cpf:String,valorLancamento:number) {
-    const query = (`select distinct da.* from detalhe_a da				
-                                inner join ordem_pagamento_agrupado_historico oph on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
-                                inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
-                                inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
-                                inner join public.user uu on uu.id = op."userId"
-                                where oph."statusRemessa" in(1,2)
-                                and uu."cpfCnpj" ilike '%${cpf}'
-                                and da."valorLancamento"=${valorLancamento}
-                            union all
-                            
-                       select distinct da.* from detalhe_a da				
-                                inner join ordem_pagamento_agrupado_historico oph on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
-                                inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
-                                inner join ordem_pagamento_guardador op on op."ordemPagamentoAgrupadoId" = opa.id
-                                inner join public.user uu on uu.id = op."userId"
-                                where oph."statusRemessa" in(1,2)
-                                and uu."cpfCnpj" ilike '%${cpf}'
-                                and da."valorLancamento"=${valorLancamento} `)                     
+  async getDetalheARetorno(cpf: String, valorLancamento: number) {
+    // Casa o registro do retorno (CPF do detalheB + valor do detalheA) com o
+    // detalhe_a local pelos dados bancários gravados no proprio historico.
+    // Nao depende de ordem_pagamento, entao funciona tambem para a ordem "pai"
+    // do agrupamento de pendentes (que nao tem linhas em ordem_pagamento).
+    const query = `
+      select distinct da.* from detalhe_a da
+      inner join ordem_pagamento_agrupado_historico oph
+        on oph.id = da."ordemPagamentoAgrupadoHistoricoId"
+      inner join public."user" uu
+        on uu."bankAccount" = oph."userBankAccount"
+       and uu."bankCode"::text = oph."userBankCode"
+      where oph."statusRemessa" in (1, 2)
+        and uu."cpfCnpj" ilike '%' || $1
+        and da."valorLancamento" = $2
+    `;
 
     const queryRunner = this.dataSource.createQueryRunner();
-
-    queryRunner.connect();
-
-    const result: any[] = await queryRunner.query(query);
-
-    const detalhes = result.map((i) => new DetalheA(i));
-
-    queryRunner.release()
-
-    return detalhes;
-
+    await queryRunner.connect();
+    try {
+      const result: any[] = await queryRunner.query(query, [cpf, valorLancamento]);
+      return result.map((i) => new DetalheA(i));
+    } finally {
+      await queryRunner.release();
+    }
   }
 }
