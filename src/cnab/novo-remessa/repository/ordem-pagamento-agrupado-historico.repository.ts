@@ -6,6 +6,7 @@ import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { OrdemPagamentoAgrupadoHistoricoDTO } from '../dto/ordem-pagamento-agrupado-historico.dto';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
+import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoHistoricoRepository {
@@ -164,9 +165,53 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
 
     queryRunner.connect();
 
-    await queryRunner.manager.query(query);   
+    await queryRunner.manager.query(query);
 
     queryRunner.release()
+  }
+
+  /**
+   * Retorno de pendentes (consórcios): quando a ordem de pagamento agrupada "pai"
+   * (agrupamento de pendentes) é paga, o pagamento cobre também as ordens "filhas".
+   * O relatório lê o histórico das filhas, então o status precisa ser propagado.
+   *
+   * Marca TODOS os históricos das ordens filhas como PendenciaPaga (5), inclusive
+   * os que já estão Efetivado (3). Só executa quando o histórico da pai vinculado
+   * ao detalheA está pago (Efetivado ou PendenciaPaga); se a pai foi rejeitada ou
+   * estornada, nada é alterado.
+   *
+   * @returns quantidade de históricos de ordens filhas atualizados
+   */
+  public async propagarPagamentoPaiParaFilhas(detalheAId: number): Promise<number> {
+    const query = `
+      WITH pai AS (
+        SELECT oph."ordemPagamentoAgrupadoId" AS opa_id, oph."statusRemessa" AS status
+        FROM detalhe_a da
+        JOIN ordem_pagamento_agrupado_historico oph ON oph.id = da."ordemPagamentoAgrupadoHistoricoId"
+        WHERE da.id = $1
+      ),
+      filhas AS (
+        SELECT opa.id AS opa_id
+        FROM ordem_pagamento_agrupado opa
+        WHERE opa."ordemPagamentoAgrupadoId" = (SELECT opa_id FROM pai)
+      )
+      UPDATE ordem_pagamento_agrupado_historico oph
+      SET "statusRemessa" = ${StatusRemessaEnum.PendenciaPaga},
+          "dataReferencia" = now()
+      WHERE oph."ordemPagamentoAgrupadoId" IN (SELECT opa_id FROM filhas)
+        AND (SELECT status FROM pai) IN (${StatusRemessaEnum.Efetivado}, ${StatusRemessaEnum.PendenciaPaga})
+        AND oph."statusRemessa" <> ${StatusRemessaEnum.PendenciaPaga}
+      RETURNING oph.id
+    `;
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      const result: any[] = await queryRunner.query(query, [detalheAId]);
+      return Array.isArray(result) ? result.length : 0;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
 }

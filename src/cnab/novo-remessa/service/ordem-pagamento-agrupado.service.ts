@@ -151,6 +151,14 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistorico(id)
   }
 
+  /**
+   * Retorno de pendentes: propaga o pagamento da ordem pai para os históricos
+   * das ordens filhas (marca como PendenciaPaga). Só age se a pai estiver paga.
+   */
+  public async propagarPagamentoPaiParaFilhas(detalheAId: number): Promise<number> {
+    return await this.ordemPagamentoAgrupadoHistRepository.propagarPagamentoPaiParaFilhas(detalheAId);
+  }
+
   public async getHistoricoUnico(id: number) {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoUnico(id)
   }

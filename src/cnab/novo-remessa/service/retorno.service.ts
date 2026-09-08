@@ -133,5 +133,17 @@ export class RetornoService {
                 );
             }
         }
+
+        // Retorno de pendentes: se a ordem pai foi paga, o pagamento cobre as
+        // ordens filhas. O relatório lê o histórico das filhas, então propagamos
+        // PendenciaPaga para todos os históricos delas. Não faz nada se a pai foi
+        // rejeitada/estornada ou ainda não foi paga.
+        const filhasAtualizadas = await this.ordemPagamentoAgrupadoService.propagarPagamentoPaiParaFilhas(detalheA.id);
+        if (filhasAtualizadas > 0) {
+            this.logger.debug(
+                `Retorno: ordem pai paga - propagado PendenciaPaga para ${filhasAtualizadas} ` +
+                `historico(s) de ordens filhas (detalheA ${detalheA.id})`,
+            );
+        }
     }
 }
