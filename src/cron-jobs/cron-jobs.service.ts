@@ -110,7 +110,6 @@ export class CronJobsService {
     private agentesSyncService: AgentesSyncService,
   ) { }
 
-
   async onModuleInit() {
     await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
