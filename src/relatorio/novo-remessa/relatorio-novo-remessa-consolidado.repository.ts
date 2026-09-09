@@ -376,7 +376,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         }
       }
       
-      if(filter.todosVanzeiros || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+      if((filter.todosConsorcios && !filter.pendentes) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoConsorcio);
         } else {
@@ -396,7 +396,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         }
       }
       
-     if(filter.todosVanzeiros || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+     if((filter.todosVanzeiros && !filter.pendentes) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
         } else {
