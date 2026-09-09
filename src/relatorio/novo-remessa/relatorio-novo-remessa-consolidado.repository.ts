@@ -144,7 +144,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       if (dataMinima && (dataMinima.getTime() >= dataInicioDate.getTime())) {
         dataInicio = dataMinima.toISOString();
       }
-      where += ` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))
+      where += ` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null) and (pu."bloqueado" is null OR pu."bloqueado" = false))
                and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date`;
 
     } else if (pendente) {
@@ -152,7 +152,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         dataMinima.setDate(dataMinima.getDate() - 2);
         dataFim = dataMinima.toISOString();
       }
-      where += ` where (op."ordemPagamentoAgrupadoId" is null)
+      where += ` where (op."ordemPagamentoAgrupadoId" is null) and (pu."bloqueado" is null OR pu."bloqueado" = false)
                and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date`;
 
     }
@@ -162,25 +162,27 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   private getQueryApagarEleicaoConsorcio(dataInicio: String, dataFim: String): string {
     return ` ${this.headerQueryEleicaoConsorcioApagar}                    
              ${this.fromQueryEleicaoAPagar}               
-             where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' and op."idOrdemPagamento" is null`;
+             where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' AND op."idOrdemPagamento" is null`;
   }
 
   private getQueryApagarEleicaoVanzeiro(dataInicio: String, dataFim: String): string {
     return ` ${this.headerQueryEleicaoVanzereiroApagar}                    
              ${this.fromQueryEleicaoAPagar}               
-             where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' and op."idOrdemPagamento" is null`;
+             where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' AND op."idOrdemPagamento" is null`;
   }
 
   private getQueryConsorcios(dataInicio: String, dataFim: String): string {
     return `   ${this.headerQueryConsorcios}                   
                ${this.fromQueryPrincipal}
-               where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+               where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date 
+                AND (pu."bloqueado" is null OR pu."bloqueado" = false)`;
   }
 
   private getQueryVanzeiros(dataInicio: String, dataFim: String): string {
     return `  ${this.headerQueryVanzeiros}                   
               ${this.fromQueryPrincipal}
-              where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+              where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date 
+               AND (pu."bloqueado" is null OR pu."bloqueado" = false) `;
   }
 
   private getQueryEleicaoConsorcio(dataInicio: String, dataFim: String): string {
@@ -192,7 +194,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   private getQueryEleicaoVanzeiro(dataInicio: String, dataFim: String): string {
     return `  ${this.headerQueryEleicaoVanzeiro}                   
               ${this.fromQueryEleicao}
-              where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' AND '${dataFim}' `;
+              where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' AND '${dataFim} ' `;
   }
 
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
@@ -360,9 +362,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     // Se nenhum status foi selecionado, inclui tudo
     const incluirAPagar = filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno);
 
-    const algumStatus = filter.pago || filter.emProcessamento ||filter.rejeitado || filter.estorno;
-
-    const todosStatus = (!filter.aPagar && !filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno);
+    const todosStatus = (!filter.aPagar && !filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno
+      && !filter.pendenciaPaga );
 
     if (temFiltroConsorcio) {
       if (incluirAPagar || todosStatus) {
@@ -375,7 +376,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         }
       }
       
-      if(algumStatus || todosStatus) {
+      if(filter.todosVanzeiros || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoConsorcio);
         } else {
@@ -395,7 +396,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         }
       }
       
-      if(algumStatus || todosStatus) {
+     if(filter.todosVanzeiros || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
         } else {
