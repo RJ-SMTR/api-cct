@@ -118,7 +118,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {           
+  async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -797,7 +797,7 @@ export class CronJobsService {
 
   async remessaGuardadorExec(pagamentoUnico?: boolean) {
     const today = new Date();
-   // let subDaysInt = 2 ;
+    let subDaysInt = 2;
 
     // if (isTuesday(today)) {
     //   subDaysInt = 4;
@@ -807,8 +807,8 @@ export class CronJobsService {
     //   return;
     // }
 
-    const dataInicio = subDays(today, 0);
-    const dataFim = subDays(today, 0);    
+    const dataInicio = subDays(today, subDaysInt);
+    const dataFim = subDays(today, 0);
 
     // const dataInicio = today;
     // const dataFim = today;
@@ -857,7 +857,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-  //  await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    //  await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
