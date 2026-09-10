@@ -117,9 +117,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {
-    //Geracao TXT rejeitados Novamente
-    await this.remessaModalExec()
+  async onModuleLoad() {  
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
