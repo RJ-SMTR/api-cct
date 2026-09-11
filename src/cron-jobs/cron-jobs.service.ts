@@ -118,7 +118,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {  
-    await this.remessaModalExec()
+    await this.remessaConsorciosExec()
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -745,9 +745,9 @@ export class CronJobsService {
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
 
     //Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
-    //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt, headerName);
+    // const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
+    // //Envia para o SFTP
+    // await this.remessaService.enviarRemessa(txt, headerName);
   }
 
   async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idOperadoras?: string[]) {
@@ -857,7 +857,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    //  await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
@@ -921,7 +921,7 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date('2026-09-08');
+        const dataHoje = new Date('2026-09-11');
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
