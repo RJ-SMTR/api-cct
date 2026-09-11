@@ -111,8 +111,8 @@ export class CronJobsService {
     private agentesSyncService: AgentesSyncService,
   ) { }
 
-
   async onModuleInit() {
+    await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -830,19 +830,19 @@ export class CronJobsService {
     const today = new Date();
     let subDaysInt = 2;
 
-    if (isTuesday(today)) {
-      subDaysInt = 4;
-    } else if (isFriday(today)) {
-      subDaysInt = 3;
-    } else {
-      return;
-    }
+    // if (isTuesday(today)) {
+    //   subDaysInt = 4;
+    // } else if (isFriday(today)) {
+    //   subDaysInt = 3;
+    // } else {
+    //   return;
+    // }
 
-    const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 0);
+    // const dataInicio = subDays(today, subDaysInt);
+    // const dataFim = subDays(today, 0);
 
-    // const dataInicio = today;
-    // const dataFim = today;
+    const dataInicio = today;
+    const dataFim = today;
     await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
@@ -976,7 +976,7 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date('2026-08-28');
+        const dataHoje = new Date('2026-09-11');
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
