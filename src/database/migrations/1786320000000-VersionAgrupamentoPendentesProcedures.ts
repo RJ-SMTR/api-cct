@@ -18,6 +18,28 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * `up` usa CREATE OR REPLACE: em ambientes que ja tem a procedure, alinha a definicao
  * com esta; onde nao existe, cria. **Antes de rodar em producao, conferir que a
  * definicao de la e igual a este arquivo** (ex.: `\sf public.p_agrupar_ordens_estornos_rejeitados`).
+ *
+ * Fix 2026-09-11 (mesmos 2 bugs achados e corrigidos no guardador - ver
+ * 1786400000000 - confirmados com dado real tambem pro consorcio):
+ *
+ *  - "pu.bloqueado = FALSE" excluia silenciosamente usuario com bloqueado NULL
+ *    (NULL = FALSE avalia NULL em SQL, nao TRUE). No consorcio o impacto e
+ *    menor que no guardador (~1% dos usuarios), mas real: 3 dos 10 candidatos
+ *    reais a pendente na janela 01/07-08/09 tinham bloqueado NULL. Trocado
+ *    para "bloqueado IS NOT TRUE".
+ *
+ *  - "pendente" so pegava ordem_pagamento que ja tinha sido agrupada e
+ *    falhado - ordem NUNCA agrupada (userId nunca recebeu nada) ficava de
+ *    fora. Achado real: 75 ordem_pagamento nunca agrupadas, 22 usuarios,
+ *    R$ 418.705,44 na mesma janela. PASSO 0 novo: agrupa ordem_pagamento
+ *    solta (ordemPagamentoAgrupadoId IS NULL, mesma janela de dataCaptura e
+ *    filtro de consorcio/idOperadoras que o fluxo normal usa) numa OPA nova
+ *    por usuario, com o mesmo cuidado do guardador - checa dado bancario
+ *    completo, e so entra quem NUNCA teve nenhuma ordem agrupada antes
+ *    (NOT EXISTS), pra nao confundir "nunca pago" com "ainda nao processado
+ *    pelo ciclo normal desta semana". A existente p_agrupar_ordens_pendentes
+ *    (sem caller) fazia algo parecido mas sem essa estrutura pai/filha - nao
+ *    reaproveitada, so serviu de referencia.
  */
 export class VersionAgrupamentoPendentesProcedures1786320000000 implements MigrationInterface {
   name = 'VersionAgrupamentoPendentesProcedures1786320000000';
@@ -31,9 +53,96 @@ CREATE OR REPLACE PROCEDURE public.p_agrupar_ordens_estornos_rejeitados(IN datai
 AS $procedure$
 DECLARE
     rec RECORD;
+    fresh RECORD;
     novoAgrupadoId BIGINT;
+    freshOpaId BIGINT;
+    freshOpaIds BIGINT[] := '{}';
 BEGIN
-    -- Agrupar ordens encontradas na primeira query
+    -- PASSO 0: ordem_pagamento que nunca foi agrupada tambem e pendente (era
+    -- pago pela primeira vez e nunca entrou em nenhuma remessa). Cria 1 OPA +
+    -- 1 oph (status 0) por usuario, somando o valor das ordens soltas na
+    -- janela, e linka nelas - igual o fluxo normal (p_agrupar_ordens) faria -
+    -- pra virarem filha no PASSO 1.
+    FOR fresh IN (
+        SELECT
+            op."userId",
+            SUM(op.valor) AS total_valor
+        FROM ordem_pagamento op
+        INNER JOIN public."user" pu ON pu.id = op."userId"
+        WHERE op."ordemPagamentoAgrupadoId" IS NULL
+          AND date_trunc('day', op."dataCaptura") BETWEEN datainicial AND datafinal
+          AND op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
+          AND (idOperadoras IS NULL OR pu."id" = ANY(idOperadoras))
+          AND pu."bloqueado" IS NOT TRUE
+          AND op."userId" IS NOT NULL
+          AND op.valor <> 0
+          AND pu."bankAccount" IS NOT NULL
+          AND pu."bankAgency" IS NOT NULL
+          AND pu."bankCode" IS NOT NULL
+          AND pu."bankAccountDigit" IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM ordem_pagamento op2
+              WHERE op2."userId" = op."userId"
+                AND op2."ordemPagamentoAgrupadoId" IS NOT NULL
+          )
+        GROUP BY op."userId"
+    )
+    LOOP
+        INSERT INTO public.ordem_pagamento_agrupado
+            (id, "dataPagamento", "valorTotal", "createdAt", "updatedAt", "pagadorId")
+        VALUES
+            (nextval('ordem_pagamento_agrupado_id_seq'),
+             datapagamento,
+             fresh.total_valor,
+             current_timestamp,
+             current_timestamp,
+             pagadorid)
+        RETURNING id INTO freshOpaId;
+
+        UPDATE public.ordem_pagamento
+        SET "ordemPagamentoAgrupadoId" = freshOpaId
+        WHERE "userId" = fresh."userId"
+          AND "ordemPagamentoAgrupadoId" IS NULL
+          AND date_trunc('day', "dataCaptura") BETWEEN datainicial AND datafinal
+          AND "nomeConsorcio" IN ('STPC', 'STPL', 'TEC');
+
+        INSERT INTO public.ordem_pagamento_agrupado_historico (
+            id, "ordemPagamentoAgrupadoId", "dataReferencia",
+            "userBankAccountDigit", "userBankAccount", "userBankAgency",
+            "userBankCode", "statusRemessa"
+        )
+        SELECT
+            nextval('ordem_pagamento_agrupado_historico_id_seq'),
+            freshOpaId,
+            datapagamento,
+            u."bankAccountDigit",
+            u."bankAccount",
+            u."bankAgency",
+            u."bankCode",
+            0
+        FROM public."user" u
+        WHERE u.id = fresh."userId";
+
+        freshOpaIds := array_append(freshOpaIds, freshOpaId);
+
+        RAISE INFO 'Estornos/rejeitados: ordem nunca agrupada -> OPA % criada para usuario %, total %',
+            freshOpaId, fresh."userId", fresh.total_valor;
+    END LOOP;
+
+    -- PASSO 1: agrupamento pai/filha de sempre. "agrupado" agora e UNION ALL
+    -- de falhas antigas (com detalhe_a, como antes) + OPAs frescas do PASSO 0
+    -- (sem detalhe_a, valor vem da propria OPA) - disjuntas por construcao.
+    --
+    -- Falha real (branch de baixo, com detalhe_a) NAO tem corte de data - nem
+    -- datainicial nem datafinal. Motivo: falha real deve ser paga sempre que
+    -- rodar o pendentes, nao importa ha quanto tempo aconteceu (achado real
+    -- em 11/09/2026: usuario com falhas nao resolvidas desde janeiro/2026 -
+    -- limitar a janela deixava R$16k+ de historico antigo de fora, so pegando
+    -- o mes corrente). O corte de ciclo em curso (Terca-Quinta/Sexta-Segunda)
+    -- so faz sentido pro PASSO 0 (nunca pago) - so ali "datainicial/datafinal"
+    -- ainda sao usados, pra decidir SE algo e pendente. Falha real (status
+    -- 4, motivo != codigo de sucesso) ja e pendente por definicao, o "quando"
+    -- nao importa.
     FOR rec IN (
    WITH
     agrupado AS (
@@ -49,8 +158,7 @@ BEGIN
             INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
             INNER JOIN public."user" pu ON pu."id" = op."userId"
         WHERE
-            da."dataVencimento" BETWEEN datainicial AND datafinal
-    AND (
+    (
         idOperadoras IS NULL
         OR pu."id" = ANY (idOperadoras)
     )
@@ -58,9 +166,23 @@ BEGIN
 			-- and opa."ordemPagamentoAgrupadoId" is NULL
             AND oph."motivoStatusRemessa" NOT IN ('AM', '00', 'BD')
             AND oph."statusRemessa" NOT IN ('3', '5')
-			AND pu."bloqueado" = FALSE
+			AND pu."bloqueado" IS NOT TRUE
             AND op."userId" IS NOT NULL
             AND da."valorLancamento" <> '0.00'
+
+        UNION ALL
+
+        SELECT DISTINCT
+            pu.id AS "userId",
+            opa."valorTotal" AS valor,
+            opa."dataPagamento" AS data_pagamento,
+            opa.id AS opa_id
+        FROM
+            ordem_pagamento op
+            INNER JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+            INNER JOIN public."user" pu ON pu."id" = op."userId"
+        WHERE
+            opa.id = ANY(freshOpaIds)
     )
 SELECT
     t."userId",

@@ -572,15 +572,24 @@ ORDER BY r.data_referencia DESC;`;
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
-    const ipOperadorasJoin = idOperadoras ? idOperadoras.join(',') : '';
-    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${ipOperadorasJoin}}`]);
+    // A procedure trata idOperadoras como "sem filtro" só quando o parâmetro
+    // é NULL - "{}" (array vazio) faz "pu.id = ANY('{}')" ser sempre falso,
+    // o que descartava toda e qualquer linha quando idOperadoras não era
+    // informado (o caso normal de uso). Achado ao vivo em 11/09/2026: a
+    // procedure irmã (estornos_rejeitados) rodava sem erro e sem agrupar
+    // absolutamente nada.
+    const idOperadorasParam = idOperadoras && idOperadoras.length ? `{${idOperadoras.join(',')}}` : null;
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, idOperadorasParam]);
   }
   public async agruparOrdensDeEstornadosRejeitados(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idOperadoras?: string[]): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
-    const ipOperadorasJoin = idOperadoras ? idOperadoras.join(',') : '';
-    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_ESTORNOS_REJEITADOS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${ipOperadorasJoin}}`]);
+    // Ver comentário em agruparOrdensDePagamentoPendentes acima - mesmo bug,
+    // mesma correção: NULL (sem filtro) em vez de "{}" (filtro que nunca bate
+    // com nada).
+    const idOperadorasParam = idOperadoras && idOperadoras.length ? `{${idOperadoras.join(',')}}` : null;
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_ESTORNOS_REJEITADOS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, idOperadorasParam]);
   }
 
   public async findOrdensAgrupadas(dataInicio: Date, dataFim: Date, consorcios: string[]) {

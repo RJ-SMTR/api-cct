@@ -156,6 +156,12 @@ BEGIN
     -- PASSO 1: agrupamento pai/filha de sempre. "agrupado" agora e UNION ALL de
     -- falhas antigas (com detalhe_a) + OPAs frescas do PASSO 0 (sem detalhe_a,
     -- valor vem da propria OPA) - disjuntas por construcao.
+    --
+    -- Falha real (branch de baixo, com detalhe_a) NAO tem corte de data - ver
+    -- comentario equivalente em p_agrupar_ordens_estornos_rejeitados (mesmo
+    -- fix, mesmo motivo: falha real e sempre pendente, independente de ha
+    -- quanto tempo aconteceu. O corte de ciclo em curso so faz sentido pro
+    -- PASSO 0, que ainda usa datainicial/datafinal).
     FOR rec IN (
    WITH
     agrupado AS (
@@ -171,8 +177,7 @@ BEGIN
             INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
             INNER JOIN public."user" pu ON pu."id" = op."userId"
         WHERE
-            da."dataVencimento" BETWEEN datainicial AND datafinal
-            AND oph."motivoStatusRemessa" NOT IN ('AM', '00', 'BD')
+            oph."motivoStatusRemessa" NOT IN ('AM', '00', 'BD')
             AND oph."statusRemessa" NOT IN ('3', '5')
             AND pu."bloqueado" IS NOT TRUE
             AND op."userId" IS NOT NULL

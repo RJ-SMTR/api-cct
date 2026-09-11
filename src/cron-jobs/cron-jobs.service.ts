@@ -40,6 +40,7 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+import { formatDateISODate } from 'src/utils/date-utils';
 
 /**
  * Enum CronJobServicesJobs
@@ -340,6 +341,15 @@ export class CronJobsService {
       //   },
       // }
     );
+
+    // TESTE MANUAL (fix/retorno-pendentes) - dispara o agrupamento/remessa dos
+    // pendentes de permissionários (consórcio) uma vez ao subir a aplicação,
+    // pra validar contra dados reais como já foi feito com guardador. Usa
+    // salvarRemessaLocalTeste (ver geradorRemessaPendenteExec) - NUNCA envia
+    // por SFTP. REVERTER (remover este bloco) antes de mesclar.
+    this.remessaPendenteExec('2026-07-01', '2026-09-08').catch((error: Error) => {
+      this.logger.error('[TESTE] Falha no remessaPendenteExec manual (consórcio)', error?.stack);
+    });
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
     if (process.env.CRONJOBS != 'false') {
@@ -767,8 +777,16 @@ export class CronJobsService {
    */
   async pagamentoPendentesGuardadoresExec(dtInicio: string, dtFim: string, dataPagamento?: string) {
     const dataInicio = new Date(dtInicio);
-    const dataFim = new Date(dtFim);
     const dataPgto = dataPagamento ? new Date(dataPagamento) : new Date();
+
+    // Nunca deixa o pendentes alcançar o ciclo de pagamento normal ainda em
+    // curso - ver getLimiteSeguroPendentes().
+    const limiteSeguro = this.getLimiteSeguroPendentes();
+    const dataFimSolicitada = new Date(dtFim);
+    const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
+    if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
+      this.logger.warn(`Pendentes guardador: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
+    }
 
     this.logger.debug('iniciando o agrupamento pendente de guardador');
     // guardador usa a mesma conta do fluxo normal (contaRotativo) - o pagamento
@@ -806,10 +824,18 @@ export class CronJobsService {
     }
   }
 
-  private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
+  private async geradorRemessaPendenteExec(dataInicio: Date, dataFimSolicitada: Date, dataPagamento: Date,
     headerName: HeaderName, idOperadoras?: string[]) {
     this.logger.debug('iniciando o agrupamento pendente')
-    //if (dataInicio)
+
+    // Nunca deixa o pendentes alcançar o ciclo de pagamento normal ainda em
+    // curso - ver getLimiteSeguroPendentes().
+    const limiteSeguro = this.getLimiteSeguroPendentes();
+    const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
+    if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
+      this.logger.warn(`Pendentes consórcio: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
+    }
+
     // AGRUPAR ORDENS POR INDIVIDUO
     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
@@ -820,8 +846,11 @@ export class CronJobsService {
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
-    //Envia para o SFTP
-    await this.remessaService.enviarRemessa(txt, headerName);
+    // TESTE MANUAL (fix/retorno-pendentes) - NUNCA enviar por SFTP aqui.
+    // enviarRemessa() trocado por gravação local só pra inspecionar o CNAB
+    // gerado. REVERTER antes de mesclar.
+    // await this.remessaService.enviarRemessa(txt, headerName);
+    this.salvarRemessaLocalTeste(txt, 'consorcio-pendentes');
   }
 
   async remessaModalExec(pagamentoUnico?: boolean) {
@@ -929,6 +958,48 @@ export class CronJobsService {
       }
     }
     this.logger.log(`retornoExec finalizado - arquivos processados: ${processados}`, METHOD);
+  }
+
+  /**
+   * Pendentes (guardador e consórcio): limite (exclusivo) de dataCaptura que
+   * ainda pertence ao ciclo de pagamento normal em curso (Terça->Quinta paga
+   * Sexta, Sexta->Segunda paga Terça) - nunca deve ser tratado como "nunca
+   * pago"/pendente, senão o pendentes rouba do fluxo normal ordens que ainda
+   * serão pagas nesta mesma semana.
+   *
+   * Não é simplesmente "o ciclo que contém hoje": no primeiro dia de um
+   * ciclo (terça ou sexta), o ciclo ANTERIOR ainda está sendo pago hoje pelo
+   * fluxo normal (ex.: sexta paga o terça->quinta que acabou de fechar
+   * ontem). Nesse caso o limite recua pro início do ciclo anterior.
+   *
+   * Descoberto ao vivo em 11/09/2026 com dados reais: 1.077 usuários cuja
+   * captura era de terça (08/09, ciclo Terça->Quinta ainda em curso, pago
+   * nesta mesma sexta) foram varridos pro pendentes porque o dtFim usado
+   * alcançava aquela data. Falha real (status 4) não é afetada por este
+   * limite: dataVencimento de uma falha real só existe depois que a remessa
+   * já foi enviada, e isso só acontece após o fim do ciclo em que a ordem
+   * foi capturada - então sempre cai antes deste limite de qualquer forma.
+   */
+  private getLimiteSeguroPendentes(hoje: Date = new Date()): Date {
+    // getPreviousTuesday/getPreviousFriday preservam a hora-do-dia do Date
+    // recebido (usam setDate, não zeram a hora) - normaliza tudo pra
+    // meia-noite logo de cara.
+    const hojeNormalizado = startOfDay(hoje);
+    const cicloAtual = this.calcularPeriodoPagamento(hojeNormalizado);
+    const dataInicioCicloAtual = startOfDay(cicloAtual.dataInicio);
+    const primeiroDiaDoCiclo = dataInicioCicloAtual.getTime() === hojeNormalizado.getTime();
+    const limiteLocal = primeiroDiaDoCiclo
+      ? startOfDay(this.calcularPeriodoPagamento(subDays(dataInicioCicloAtual, 1)).dataInicio)
+      : dataInicioCicloAtual;
+
+    // startOfDay() acima usa o fuso LOCAL do processo (aqui BRT, UTC-3), então
+    // "meia-noite" sai como "...T03:00:00.000Z". Quem chama monta dtFim via
+    // "new Date('AAAA-MM-DD')", que o JS sempre interpreta como meia-noite
+    // UTC ("...T00:00:00.000Z") - 3h antes. Sem reancorar aqui, a comparação
+    // "dtFim >= limite" nunca bate (foi exatamente o que aconteceu na
+    // primeira tentativa desse fix: o clamp nunca disparava e os 1.077
+    // usuários do ciclo em curso continuaram entrando no pendentes).
+    return new Date(formatDateISODate(limiteLocal));
   }
 
   private calcularPeriodoPagamento(today: Date = new Date()) {
