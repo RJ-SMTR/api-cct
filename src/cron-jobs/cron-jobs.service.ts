@@ -750,12 +750,12 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
-  async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idOperadoras?: string[]) {
+  async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idsFavorecidos?: string[]) {
     const today = new Date();
     const dataInicio = new Date(dtInicio);
     const dataFim = new Date(dtFim);
     await this.geradorRemessaPendenteExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
-      HeaderName.MODAL, idOperadoras);
+      HeaderName.MODAL, idsFavorecidos);
   }
 
   /** Group eligible guardador pendencies, prepare the CNAB and send it. */
@@ -784,7 +784,7 @@ export class CronJobsService {
   }
 
   private async geradorRemessaPendenteExec(dataInicio: Date, dataFimSolicitada: Date, dataPagamento: Date,
-    headerName: HeaderName, idOperadoras?: string[]) {
+    headerName: HeaderName, idsFavorecidos?: string[]) {
     this.logger.debug('iniciando o agrupamento pendente')
 
     // Exclude the current normal payment cycle from never-paid candidates.
@@ -795,10 +795,10 @@ export class CronJobsService {
     }
 
     // AGRUPAR ORDENS POR INDIVIDUO
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idsFavorecidos);
 
     // Create bank details and prepare parent histories for sending.
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idsFavorecidos);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);

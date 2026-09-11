@@ -13,7 +13,7 @@ export class VersionAgrupamentoPendentesProcedures1786320000000 implements Migra
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Active consortium pending-payment grouping.
     await queryRunner.query(`
-CREATE OR REPLACE PROCEDURE public.p_agrupar_ordens_estornos_rejeitados(IN datainicial date, IN datafinal date, IN datapagamento date, IN pagadorid integer, IN idoperadoras integer[])
+CREATE OR REPLACE PROCEDURE public.p_agrupar_ordens_consorcio_pendentes(IN datainicial date, IN datafinal date, IN datapagamento date, IN pagadorid integer, IN idsfavorecidos integer[])
  LANGUAGE plpgsql
 AS $procedure$
 DECLARE
@@ -37,7 +37,7 @@ BEGIN
         WHERE op."ordemPagamentoAgrupadoId" IS NULL
           AND date_trunc('day', op."dataCaptura") BETWEEN datainicial AND datafinal
           AND op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
-          AND (idOperadoras IS NULL OR pu."id" = ANY(idOperadoras))
+          AND (idsfavorecidos IS NULL OR pu."id" = ANY(idsfavorecidos))
           AND pu."bloqueado" IS NOT TRUE
           AND op."userId" IS NOT NULL
           AND op.valor <> 0
@@ -90,7 +90,7 @@ BEGIN
 
         freshOpaIds := array_append(freshOpaIds, freshOpaId);
 
-        RAISE INFO 'Estornos/rejeitados: ordem nunca agrupada -> OPA % criada para usuario %, total %',
+        RAISE INFO 'Consórcio pendente: ordem nunca agrupada -> OPA % criada para usuario %, total %',
             freshOpaId, fresh."userId", fresh.total_valor;
     END LOOP;
 
@@ -124,8 +124,8 @@ BEGIN
             INNER JOIN public."user" pu ON pu."id" = op."userId"
         WHERE
     (
-        idOperadoras IS NULL
-        OR pu."id" = ANY (idOperadoras)
+        idsfavorecidos IS NULL
+        OR pu."id" = ANY (idsfavorecidos)
     )
             AND op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
 			-- and opa."ordemPagamentoAgrupadoId" is NULL
@@ -413,7 +413,7 @@ BEGIN
     -- valor vem da propria OPA) - disjuntas por construcao.
     --
     -- Falha real (branch de baixo, com detalhe_a) NAO tem corte de data - ver
-    -- comentario equivalente em p_agrupar_ordens_estornos_rejeitados (mesmo
+    -- comentario equivalente em p_agrupar_ordens_consorcio_pendentes (mesmo
     -- fix, mesmo motivo: falha real e sempre pendente, independente de ha
     -- quanto tempo aconteceu. O corte de ciclo em curso so faz sentido pro
     -- PASSO 0, que ainda usa datainicial/datafinal).
@@ -530,7 +530,7 @@ $procedure$
       `DROP PROCEDURE IF EXISTS public.p_agrupar_ordens_pendentes(date, date, date, integer, integer[])`,
     );
     await queryRunner.query(
-      `DROP PROCEDURE IF EXISTS public.p_agrupar_ordens_estornos_rejeitados(date, date, date, integer, integer[])`,
+      `DROP PROCEDURE IF EXISTS public.p_agrupar_ordens_consorcio_pendentes(date, date, date, integer, integer[])`,
     );
   }
 }
