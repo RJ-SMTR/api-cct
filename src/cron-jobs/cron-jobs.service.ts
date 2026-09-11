@@ -1,6 +1,6 @@
 import { SftpService } from 'src/sftp/sftp.service';
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { writeFileSync, mkdirSync } from 'fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { ICnabInfo } from 'src/cnab/cnab.service';
 import { ConfigService } from '@nestjs/config';
@@ -342,13 +342,29 @@ export class CronJobsService {
       // }
     );
 
-    // TESTE MANUAL (fix/retorno-pendentes) - dispara o agrupamento/remessa dos
-    // pendentes de permissionários (consórcio) uma vez ao subir a aplicação,
-    // pra validar contra dados reais como já foi feito com guardador. Usa
-    // salvarRemessaLocalTeste (ver geradorRemessaPendenteExec) - NUNCA envia
-    // por SFTP. REVERTER (remover este bloco) antes de mesclar.
-    this.remessaPendenteExec('2026-07-01', '2026-09-08').catch((error: Error) => {
-      this.logger.error('[TESTE] Falha no remessaPendenteExec manual (consórcio)', error?.stack);
+    // TESTE MANUAL (fix/retorno-pendentes) - le o retorno real (arquivo local
+    // fornecido pelo usuário) usando o retornoExec() de verdade, mesmo
+    // caminho de código que o cron updateRetorno chama. Só o SftpService é
+    // mockado (instância injetada, não o service em si) pra servir o
+    // conteúdo local em vez de bater no SFTP real - NUNCA toca SFTP de
+    // verdade, NUNCA envia nada. REVERTER (remover este bloco) antes de
+    // mesclar.
+    (() => {
+      const nomeArquivoRetorno = 'segundo-ret-permissionario.ret';
+      const conteudoRetorno = readFileSync(join(process.cwd(), nomeArquivoRetorno), 'utf8');
+      let servido = false;
+      this.sftpService.getFirstRetornoPagamento = async () => {
+        if (servido) return null;
+        servido = true;
+        this.logger.log(`[TESTE] Servindo retorno local mockado: ${nomeArquivoRetorno}`);
+        return { name: nomeArquivoRetorno, content: conteudoRetorno };
+      };
+      this.sftpService.moveToBackup = async (nome: string) => {
+        this.logger.log(`[TESTE] moveToBackup mockado (NÃO mexe no SFTP real): ${nome}`);
+      };
+    })();
+    this.retornoExec().catch((error: Error) => {
+      this.logger.error('[TESTE] Falha no retornoExec manual', error?.stack);
     });
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
