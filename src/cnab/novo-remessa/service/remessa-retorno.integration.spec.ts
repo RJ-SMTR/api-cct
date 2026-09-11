@@ -1,15 +1,9 @@
 /**
- * Integração REAL (banco LOCAL) do fluxo REMESSA -> RETORNO, montando o
- * CnabModule via Test.createTestingModule. BigQuery e SFTP são MOCKADOS.
- * Cobre os dois caminhos:
- *  - pagamento PENDENTE (p_agrupar_ordens_estornos_rejeitados, pai/filha);
- *  - pagamento NORMAL de consorcio (p_agrupar_ordens, sem filhas).
- *
- *   RUN_RETORNO_DB_TESTS=1 npx env-cmd -f .env \
- *     jest src/cnab/novo-remessa/service/remessa-retorno.integration.spec
- *
- * Datas em 2099 => as procedures de agrupamento nao encostam em dado real.
- * Fixtures em id base 991_000_000; limpeza por relacionamento; restaura o NSA.
+ * End-to-end remittance and return coverage for normal and pending payments.
+ * Run with RUN_RETORNO_DB_TESTS=1 against an isolated disposable database only.
+ * Grouping procedures commit internally and select failures without a date cutoff;
+ * future fixture dates cannot isolate shared data. External services are mocked.
+ * Run database suites serially because fixtures share the NSA setting.
  */
 import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
@@ -341,14 +335,14 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
       expect(ophFilha4.s).toBe(StatusRemessaEnum.PendenciaPaga);
     });
 
-    it('remessa real -> retorno com ocorrencia de erro no detalheA -> NaoEfetivado, filha intacta', async () => {
+    it('generated remittance with detail error leaves parent and child NaoEfetivado', async () => {
       const { pid, cnabRemessa } = await gerarRemessaPendente();
       const ret = remessaParaRetorno(cnabRemessa, { ocorrenciaDetalheA: 'AI' });
 
       await retorno.salvarRetorno({ name: 'r.ret', content: ret });
       expect(await ophPaiStatus(pid)).toBe(StatusRemessaEnum.NaoEfetivado);
       const ophFilha4 = (await ds.query(`SELECT "statusRemessa" s FROM ordem_pagamento_agrupado_historico WHERE id = $1`, [OPH_FALHA]))[0];
-      expect(ophFilha4.s).toBe(StatusRemessaEnum.NaoEfetivado); // filha nao propagada
+      expect(ophFilha4.s).toBe(StatusRemessaEnum.NaoEfetivado); // The existing child history was already NaoEfetivado.
     });
   });
 
@@ -426,7 +420,7 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
     });
   });
 
-  // ---- PENDENTE de GUARDADOR - fase 1: p_agrupar_ordens_guardador_pendente ----
+  // Guardador pending-payment grouping.
   describe('pagamento pendente guardador (procedure)', () => {
     /** cria uma OPA "falha" de guardador: OPA + oph status 4 + detalhe_a + ordem_pagamento_guardador */
     async function criarFalhaGuardador(opaId: number, ophId: number, daId: number, opgId: number, valor: number) {
@@ -517,7 +511,7 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
       expect(await paiDe(B + 10)).toBeFalsy();
     });
 
-    // ---- fase 2: findAllPendente acha a ordem PAI de guardador ----
+    // Pending selection includes the guardador parent.
     it('getOrdensPendentes (consorcio vazio) retorna a ordem PAI de guardador', async () => {
       await limpar();
       await criarUser(USER_ID, 'TESTE GUARD F2');
@@ -529,7 +523,7 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
       expect(ordens.map((o: any) => o.id)).toContain(pid);
     });
 
-    // ---- fase 3+4+5: ciclo completo do pendente guardador ----
+    // Complete guardador pending-payment cycle.
     const ophPaiStatusGuard = async (pid: number): Promise<number> =>
       (await ds.query(`SELECT "statusRemessa" s FROM ordem_pagamento_agrupado_historico WHERE "ordemPagamentoAgrupadoId"=$1 ORDER BY id DESC LIMIT 1`, [pid]))[0]?.s;
 
@@ -537,7 +531,7 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
       await limpar();
       await criarUser(USER_ID, 'TESTE GUARD CICLO');
       await criarFalhaGuardador(B + 10, B + 20, B + 40, B + 60, 150);
-      // fase 4: pela camada de servico, nao CALL direto
+      // Exercise grouping through the service boundary.
       await opaService.prepararPagamentoAgrupadosGuardadorPendentes(new Date(DI), new Date(DF), new Date(DP), 'contaRotativo');
       await remessa.prepararRemessa(new Date(DI), new Date(DF), new Date(DP), [], false, true);
       const txt = await remessa.gerarCnabText(HeaderName.GUARDADOR, undefined, true);

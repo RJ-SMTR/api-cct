@@ -572,12 +572,7 @@ ORDER BY r.data_referencia DESC;`;
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
-    // A procedure trata idOperadoras como "sem filtro" só quando o parâmetro
-    // é NULL - "{}" (array vazio) faz "pu.id = ANY('{}')" ser sempre falso,
-    // o que descartava toda e qualquer linha quando idOperadoras não era
-    // informado (o caso normal de uso). Achado ao vivo em 11/09/2026: a
-    // procedure irmã (estornos_rejeitados) rodava sem erro e sem agrupar
-    // absolutamente nada.
+    // NULL disables filtering; an empty SQL array would exclude every beneficiary.
     const idOperadorasParam = idOperadoras && idOperadoras.length ? `{${idOperadoras.join(',')}}` : null;
     await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, idOperadorasParam]);
   }
@@ -585,9 +580,7 @@ ORDER BY r.data_referencia DESC;`;
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
-    // Ver comentário em agruparOrdensDePagamentoPendentes acima - mesmo bug,
-    // mesma correção: NULL (sem filtro) em vez de "{}" (filtro que nunca bate
-    // com nada).
+    // NULL disables filtering for an omitted or empty operator list.
     const idOperadorasParam = idOperadoras && idOperadoras.length ? `{${idOperadoras.join(',')}}` : null;
     await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_ESTORNOS_REJEITADOS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, idOperadorasParam]);
   }

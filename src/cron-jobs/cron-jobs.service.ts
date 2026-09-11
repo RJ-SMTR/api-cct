@@ -1,8 +1,5 @@
 import { SftpService } from 'src/sftp/sftp.service';
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { writeFileSync, mkdirSync, readFileSync } from 'fs';
-import { join } from 'path';
-import { ICnabInfo } from 'src/cnab/cnab.service';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
@@ -341,31 +338,6 @@ export class CronJobsService {
       //   },
       // }
     );
-
-    // TESTE MANUAL (fix/retorno-pendentes) - le o retorno real (arquivo local
-    // fornecido pelo usuário) usando o retornoExec() de verdade, mesmo
-    // caminho de código que o cron updateRetorno chama. Só o SftpService é
-    // mockado (instância injetada, não o service em si) pra servir o
-    // conteúdo local em vez de bater no SFTP real - NUNCA toca SFTP de
-    // verdade, NUNCA envia nada. REVERTER (remover este bloco) antes de
-    // mesclar.
-    (() => {
-      const nomeArquivoRetorno = 'segundo-ret-permissionario.ret';
-      const conteudoRetorno = readFileSync(join(process.cwd(), nomeArquivoRetorno), 'utf8');
-      let servido = false;
-      this.sftpService.getFirstRetornoPagamento = async () => {
-        if (servido) return null;
-        servido = true;
-        this.logger.log(`[TESTE] Servindo retorno local mockado: ${nomeArquivoRetorno}`);
-        return { name: nomeArquivoRetorno, content: conteudoRetorno };
-      };
-      this.sftpService.moveToBackup = async (nome: string) => {
-        this.logger.log(`[TESTE] moveToBackup mockado (NÃO mexe no SFTP real): ${nome}`);
-      };
-    })();
-    this.retornoExec().catch((error: Error) => {
-      this.logger.error('[TESTE] Falha no retornoExec manual', error?.stack);
-    });
 
     /** NÃO COMENTE ISTO, É A GERAÇÃO DE JOBS */
     if (process.env.CRONJOBS != 'false') {
@@ -786,17 +758,12 @@ export class CronJobsService {
       HeaderName.MODAL, idOperadoras);
   }
 
-  /**
-   * Pendencia de GUARDADOR: reagrupa as ordens de guardador que ja foram para
-   * remessa e falharam, gera a remessa e envia. Sem cron/endpoint - chamar
-   * manualmente (ex.: no onModuleLoad) e rodar a aplicacao uma vez.
-   */
+  /** Group eligible guardador pendencies, prepare the CNAB and send it. */
   async pagamentoPendentesGuardadoresExec(dtInicio: string, dtFim: string, dataPagamento?: string) {
     const dataInicio = new Date(dtInicio);
     const dataPgto = dataPagamento ? new Date(dataPagamento) : new Date();
 
-    // Nunca deixa o pendentes alcançar o ciclo de pagamento normal ainda em
-    // curso - ver getLimiteSeguroPendentes().
+    // Exclude the current normal payment cycle from never-paid candidates.
     const limiteSeguro = this.getLimiteSeguroPendentes();
     const dataFimSolicitada = new Date(dtFim);
     const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
@@ -805,47 +772,22 @@ export class CronJobsService {
     }
 
     this.logger.debug('iniciando o agrupamento pendente de guardador');
-    // guardador usa a mesma conta do fluxo normal (contaRotativo) - o pagamento
-    // NUNCA usou contaBilhetagem pra guardador, isso era herdado por engano do
-    // padrao do consorcio.
+    // Use the same payer as normal guardador payments.
     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGuardadorPendentes(dataInicio, dataFim, dataPgto, 'contaRotativo');
 
-    // guardador -> consorcio vazio; gera header_arquivo/lote/detalhe_a e move
-    // os historicos das ordens pai para PreparadoParaEnvio
+    // An empty consortium list selects guardadores; prepare parent histories for sending.
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPgto, [], false, true);
 
     const txt = await this.remessaService.gerarCnabText(HeaderName.GUARDADOR, undefined, true);
 
-    // TESTE MANUAL (fix/retorno-pendentes) - NUNCA enviar por SFTP aqui.
-    // enviarRemessa() trocado por gravação local só pra inspecionar o CNAB
-    // gerado. REVERTER antes de mesclar.
-    // await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
-    this.salvarRemessaLocalTeste(txt, 'guardador-pendentes');
-  }
-
-  /**
-   * TESTE MANUAL (fix/retorno-pendentes) - grava o CNAB de remessa localmente
-   * em vez de enviar por SFTP, pra inspecionar o arquivo antes de decidir o
-   * que fazer com o retorno real. REVERTER (remover) antes de mesclar.
-   */
-  private salvarRemessaLocalTeste(listCnab: ICnabInfo[], prefixo: string) {
-    const dir = join(process.cwd(), 'local_dev', 'remessas-teste');
-    mkdirSync(dir, { recursive: true });
-    for (const cnab of listCnab) {
-      const carimbo = new Date().toISOString().replace(/[:.]/g, '-');
-      const nome = `${prefixo}-headerArquivo${cnab.headerArquivo?.id ?? 's-id'}-${carimbo}.txt`;
-      const caminho = join(dir, nome);
-      writeFileSync(caminho, cnab.content, 'utf8');
-      this.logger.log(`[TESTE] Remessa gravada localmente (NÃO enviada por SFTP): ${caminho}`);
-    }
+    await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
   }
 
   private async geradorRemessaPendenteExec(dataInicio: Date, dataFimSolicitada: Date, dataPagamento: Date,
     headerName: HeaderName, idOperadoras?: string[]) {
     this.logger.debug('iniciando o agrupamento pendente')
 
-    // Nunca deixa o pendentes alcançar o ciclo de pagamento normal ainda em
-    // curso - ver getLimiteSeguroPendentes().
+    // Exclude the current normal payment cycle from never-paid candidates.
     const limiteSeguro = this.getLimiteSeguroPendentes();
     const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
     if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
@@ -855,18 +797,13 @@ export class CronJobsService {
     // AGRUPAR ORDENS POR INDIVIDUO
     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
-    // Prepara o remessa (gera header_arquivo / header_lote / detalhe_a e move os
-    // historicos das ordens pai para PreparadoParaEnvio)
+    // Create bank details and prepare parent histories for sending.
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
-    // TESTE MANUAL (fix/retorno-pendentes) - NUNCA enviar por SFTP aqui.
-    // enviarRemessa() trocado por gravação local só pra inspecionar o CNAB
-    // gerado. REVERTER antes de mesclar.
-    // await this.remessaService.enviarRemessa(txt, headerName);
-    this.salvarRemessaLocalTeste(txt, 'consorcio-pendentes');
+    await this.remessaService.enviarRemessa(txt, headerName);
   }
 
   async remessaModalExec(pagamentoUnico?: boolean) {
@@ -977,29 +914,12 @@ export class CronJobsService {
   }
 
   /**
-   * Pendentes (guardador e consórcio): limite (exclusivo) de dataCaptura que
-   * ainda pertence ao ciclo de pagamento normal em curso (Terça->Quinta paga
-   * Sexta, Sexta->Segunda paga Terça) - nunca deve ser tratado como "nunca
-   * pago"/pendente, senão o pendentes rouba do fluxo normal ordens que ainda
-   * serão pagas nesta mesma semana.
-   *
-   * Não é simplesmente "o ciclo que contém hoje": no primeiro dia de um
-   * ciclo (terça ou sexta), o ciclo ANTERIOR ainda está sendo pago hoje pelo
-   * fluxo normal (ex.: sexta paga o terça->quinta que acabou de fechar
-   * ontem). Nesse caso o limite recua pro início do ciclo anterior.
-   *
-   * Descoberto ao vivo em 11/09/2026 com dados reais: 1.077 usuários cuja
-   * captura era de terça (08/09, ciclo Terça->Quinta ainda em curso, pago
-   * nesta mesma sexta) foram varridos pro pendentes porque o dtFim usado
-   * alcançava aquela data. Falha real (status 4) não é afetada por este
-   * limite: dataVencimento de uma falha real só existe depois que a remessa
-   * já foi enviada, e isso só acontece após o fim do ciclo em que a ordem
-   * foi capturada - então sempre cai antes deste limite de qualquer forma.
+   * Exclusive cutoff for never-paid orders. On Tuesday and Friday, protect
+   * the previous cycle as well because its payment is due that day.
+   * Failed attempts remain eligible without a date cutoff in the procedures.
    */
   private getLimiteSeguroPendentes(hoje: Date = new Date()): Date {
-    // getPreviousTuesday/getPreviousFriday preservam a hora-do-dia do Date
-    // recebido (usam setDate, não zeram a hora) - normaliza tudo pra
-    // meia-noite logo de cara.
+    // Calendar helpers preserve the time of day; compare local midnights.
     const hojeNormalizado = startOfDay(hoje);
     const cicloAtual = this.calcularPeriodoPagamento(hojeNormalizado);
     const dataInicioCicloAtual = startOfDay(cicloAtual.dataInicio);
@@ -1008,13 +928,7 @@ export class CronJobsService {
       ? startOfDay(this.calcularPeriodoPagamento(subDays(dataInicioCicloAtual, 1)).dataInicio)
       : dataInicioCicloAtual;
 
-    // startOfDay() acima usa o fuso LOCAL do processo (aqui BRT, UTC-3), então
-    // "meia-noite" sai como "...T03:00:00.000Z". Quem chama monta dtFim via
-    // "new Date('AAAA-MM-DD')", que o JS sempre interpreta como meia-noite
-    // UTC ("...T00:00:00.000Z") - 3h antes. Sem reancorar aqui, a comparação
-    // "dtFim >= limite" nunca bate (foi exatamente o que aconteceu na
-    // primeira tentativa desse fix: o clamp nunca disparava e os 1.077
-    // usuários do ciclo em curso continuaram entrando no pendentes).
+    // Match the UTC date-only representation used by the callers.
     return new Date(formatDateISODate(limiteLocal));
   }
 

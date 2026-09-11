@@ -163,8 +163,8 @@ export class OrdemPagamentoAgrupadoService {
   }
 
   /**
-   * Retorno de pendentes: propaga o pagamento da ordem pai para os históricos
-   * das ordens filhas (marca como PendenciaPaga). Só age se a pai estiver paga.
+   * Propagate a resolved parent outcome to child histories: paid -> status 5,
+   * failed -> status 4. Unresolved parents do not trigger propagation.
    */
   public async propagarPagamentoPaiParaFilhas(detalheAId: number): Promise<number> {
     return await this.ordemPagamentoAgrupadoHistRepository.propagarPagamentoPaiParaFilhas(detalheAId);

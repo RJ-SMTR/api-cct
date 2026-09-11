@@ -1,15 +1,9 @@
 /**
- * Testes de INTEGRACAO do fluxo de retorno contra um banco Postgres REAL.
- *
- * Nao roda por padrao (precisa de banco). Para rodar:
- *   RUN_RETORNO_DB_TESTS=1 npx env-cmd -f .env jest src/cnab/novo-remessa/service/retorno.integration.spec
- *
- * Cria suas proprias fixtures (ids >= 990000000) e limpa tudo no fim.
- * Exercita as queries onde os bugs reais aconteceram:
- *  - getDetalheARetorno acha ordem normal E ordem "pai" de pendencia
- *  - getDetalheARetorno resiste a troca de conta bancaria do usuario
- *  - propagarPagamentoPaiParaFilhas propaga so quando a pai foi paga
- *  - fluxo completo: normal 1->2->3 ; pendencia pai+filhas -> 5 ; estorno -> 4 sem tocar filhas
+ * PostgreSQL integration coverage for beneficiary matching and return processing.
+ * Run with RUN_RETORNO_DB_TESTS=1 against an isolated disposable database only.
+ * These tests insert/update/delete fixtures; they must not use a shared database.
+ * Covers normal and parent OPAs, bank-account changes, success/failure propagation
+ * and CNAB parsing. Run database suites serially.
  */
 import { DataSource } from 'typeorm';
 import { OrdemPagamentoAgrupadoHistoricoRepository } from '../repository/ordem-pagamento-agrupado-historico.repository';
@@ -193,7 +187,7 @@ suite('RetornoService (integração - banco real)', () => {
     expect(await statusOph(B + 112)).toBe(StatusRemessaEnum.PendenciaPaga); // filha antes PreparadoParaEnvio (1) -> 5
   });
 
-  it('fluxo PENDENCIA: pai estornada ("02") => pai NaoEfetivado, filhas INTACTAS', async () => {
+  it('pending return with reversal: parent and already-failed child remain NaoEfetivado', async () => {
     await criarUser(B + 1);
     await criarOpa(B + 100);
     await criarOpa(B + 101, B + 100);
@@ -206,7 +200,7 @@ suite('RetornoService (integração - banco real)', () => {
     await (retornoService as any).atualizarStatusRemessaHistorico(lote('00'), registro('02'), da);
 
     expect(await statusOph(B + 110)).toBe(StatusRemessaEnum.NaoEfetivado); // pai
-    expect(await statusOph(B + 111)).toBe(StatusRemessaEnum.NaoEfetivado); // filha nao mudou
+    expect(await statusOph(B + 111)).toBe(StatusRemessaEnum.NaoEfetivado); // The child was already NaoEfetivado.
   });
 
   // ---- salvarRetorno de ponta a ponta: CNAB de verdade -> parseCnab240Pagamento real ----

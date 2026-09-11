@@ -1,25 +1,9 @@
 /**
- * Regressão do fluxo de RETORNO de pendentes (docs/test-strategy-retorno-pendentes.md §7).
- *
- * Trava, como teste automático, o que o harness de golden-diff prova a fundo:
- *  - risco A: um retorno NUNCA altera uma OPH fora da família de pendentes que
- *    está sendo paga (assertivo via assertSemDanoColateral() — nenhuma OPH pré-existente muda);
- *  - propagação pai->filha só quando o pai foi pago;
- *  - idempotência: reprocessar o mesmo .ret não muda mais nada;
- *  - erro no header do lote não propaga;
- *  - o CNAB de remessa gerado tem 240 chars/linha e CPF + nome + valor do
- *    favorecido preenchidos (inclusive no pai pendente).
- *
- *   RUN_RETORNO_DB_TESTS=1 npx env-cmd -f .env \
- *     npx jest src/cnab/novo-remessa/service/retorno-pendentes.regression.integration.spec
- *
- * Banco LOCAL, com as migrations do branch aplicadas (`npm run migration:run`).
- * Datas 2099 => procedures de agrupamento não encostam em dado real. Fixtures em
- * id base 992_000_000; limpeza por relacionamento; restaura o NSA.
- *
- * Rodar a pasta inteira em SÉRIE — estes specs de integração compartilham o banco
- * e a linha `setting` do NSA, e colidem se o jest paralelizar as suítes:
- *   RUN_RETORNO_DB_TESTS=1 npx env-cmd -f .env npx jest src/cnab/novo-remessa --runInBand
+ * Pending-return regression coverage: parent/child outcomes, unrelated histories,
+ * replay after completion and generated CNAB fields.
+ * Run with RUN_RETORNO_DB_TESTS=1 against an isolated disposable database only.
+ * Future fixture dates do not isolate real failures: grouping has no failure-date
+ * cutoff. These tests modify fixtures and the NSA setting; run suites serially.
  */
 import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
@@ -309,14 +293,14 @@ suite('Retorno de pendentes — regressão (banco local, BQ+SFTP mockados)', () 
     expect(await snapshotFamilia(pid)).toEqual(depoisDe2);
   }, 120000);
 
-  it('estorno no pai pendente: pai NaoEfetivado, filha INTACTA, resto do banco intacto', async () => {
+  it('parent reversal marks the family NaoEfetivado without changing unrelated histories', async () => {
     const antes = await snapshotTodasOph();
     const { pid, cnab } = await gerarRemessaPendenteConsorcio();
     const ret = remessaParaRetorno(cnab, { ocorrenciaDetalheA: '02' });
 
     await retorno.salvarRetorno({ name: 'r.ret', content: ret });
     expect(await ophPaiStatus(pid)).toBe(StatusRemessaEnum.NaoEfetivado);
-    expect(await ophFilhaStatus()).toBe(StatusRemessaEnum.NaoEfetivado); // filha não propagada (era 4)
+    expect(await ophFilhaStatus()).toBe(StatusRemessaEnum.NaoEfetivado); // The existing child history was already NaoEfetivado.
     await assertSemDanoColateral(antes);
   }, 120000);
 
@@ -356,7 +340,7 @@ suite('Retorno de pendentes — regressão (banco local, BQ+SFTP mockados)', () 
     await assertSemDanoColateral(antes);
   }, 120000);
 
-  it('erro no header do lote (AM): tudo NaoEfetivado, sem propagação, resto intacto', async () => {
+  it('second return with header error marks the family NaoEfetivado without changing unrelated histories', async () => {
     const antes = await snapshotTodasOph();
     const { pid, cnab } = await gerarRemessaPendenteConsorcio();
     // move o pai para AguardandoPagamento com uma 1a volta ok
@@ -366,7 +350,7 @@ suite('Retorno de pendentes — regressão (banco local, BQ+SFTP mockados)', () 
     await retorno.salvarRetorno({ name: '2.ret', content: remessaParaRetorno(cnab, { ocorrenciaDetalheA: '00', ocorrenciaHeaderLote: 'AM' }) });
 
     expect(await ophPaiStatus(pid)).toBe(StatusRemessaEnum.NaoEfetivado);
-    expect(await ophFilhaStatus()).toBe(StatusRemessaEnum.NaoEfetivado); // não propagou
+    expect(await ophFilhaStatus()).toBe(StatusRemessaEnum.NaoEfetivado); // The existing child history remains NaoEfetivado.
     await assertSemDanoColateral(antes);
   }, 120000);
 
