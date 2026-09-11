@@ -37,6 +37,7 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+import { formatDateISODate } from 'src/utils/date-utils';
 
 /**
  * Enum CronJobServicesJobs
@@ -117,7 +118,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {      
+  async onModuleLoad() {
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -749,28 +750,59 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
-  async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idOperadoras?: string[]) {
+  async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idsFavorecidos?: string[]) {
     const today = new Date();
     const dataInicio = new Date(dtInicio);
     const dataFim = new Date(dtFim);
     await this.geradorRemessaPendenteExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
-      HeaderName.MODAL, idOperadoras);
+      HeaderName.MODAL, idsFavorecidos);
   }
 
-  private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
-    headerName: HeaderName, idOperadoras?: string[]) {
-    this.logger.debug('iniciando o agrupamento pendente')
-    //if (dataInicio)
-    // AGRUPAR ORDENS POR INDIVIDUO
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
+  /** Group eligible guardador pendencies, prepare the CNAB and send it. */
+  async pagamentoPendentesGuardadoresExec(dtInicio: string, dtFim: string, dataPagamento?: string) {
+    const dataInicio = new Date(dtInicio);
+    const dataPgto = dataPagamento ? new Date(dataPagamento) : new Date();
 
-    // Prepara o remessa
-    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
+    // Exclude the current normal payment cycle from never-paid candidates.
+    const limiteSeguro = this.getLimiteSeguroPendentes();
+    const dataFimSolicitada = new Date(dtFim);
+    const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
+    if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
+      this.logger.warn(`Pendentes guardador: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
+    }
+
+    this.logger.debug('iniciando o agrupamento pendente de guardador');
+    // Use the same payer as normal guardador payments.
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGuardadorPendentes(dataInicio, dataFim, dataPgto, 'contaRotativo');
+
+    // An empty consortium list selects guardadores; prepare parent histories for sending.
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPgto, [], false, true);
+
+    const txt = await this.remessaService.gerarCnabText(HeaderName.GUARDADOR, undefined, true);
+
+    await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
+  }
+
+  private async geradorRemessaPendenteExec(dataInicio: Date, dataFimSolicitada: Date, dataPagamento: Date,
+    headerName: HeaderName, idsFavorecidos?: string[]) {
+    this.logger.debug('iniciando o agrupamento pendente')
+
+    // Exclude the current normal payment cycle from never-paid candidates.
+    const limiteSeguro = this.getLimiteSeguroPendentes();
+    const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
+    if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
+      this.logger.warn(`Pendentes consórcio: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
+    }
+
+    // AGRUPAR ORDENS POR INDIVIDUO
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idsFavorecidos);
+
+    // Create bank details and prepare parent histories for sending.
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idsFavorecidos);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
-    //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
@@ -856,24 +888,48 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-   // await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    //  await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
   async retornoExec() {
+    const METHOD = 'retornoExec';
     let arq = true;
+    let processados = 0;
     while (arq) {
       const txt = await this.retornoService.lerRetornoSftp();
       if (txt) {
+        this.logger.log(`Processando arquivo de retorno: ${txt.name}`, METHOD);
         try {
           await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
+          processados++;
         } catch (err) {
-          console.log(err);
+          this.logger.error(`Erro ao processar retorno ${txt?.name} - ${err?.message}`, err?.stack, METHOD);
         }
       } else {
         arq = false;
       }
     }
+    this.logger.log(`retornoExec finalizado - arquivos processados: ${processados}`, METHOD);
+  }
+
+  /**
+   * Exclusive cutoff for never-paid orders. On Tuesday and Friday, protect
+   * the previous cycle as well because its payment is due that day.
+   * Failed attempts remain eligible without a date cutoff in the procedures.
+   */
+  private getLimiteSeguroPendentes(hoje: Date = new Date()): Date {
+    // Calendar helpers preserve the time of day; compare local midnights.
+    const hojeNormalizado = startOfDay(hoje);
+    const cicloAtual = this.calcularPeriodoPagamento(hojeNormalizado);
+    const dataInicioCicloAtual = startOfDay(cicloAtual.dataInicio);
+    const primeiroDiaDoCiclo = dataInicioCicloAtual.getTime() === hojeNormalizado.getTime();
+    const limiteLocal = primeiroDiaDoCiclo
+      ? startOfDay(this.calcularPeriodoPagamento(subDays(dataInicioCicloAtual, 1)).dataInicio)
+      : dataInicioCicloAtual;
+
+    // Match the UTC date-only representation used by the callers.
+    return new Date(formatDateISODate(limiteLocal));
   }
 
   private calcularPeriodoPagamento(today: Date = new Date()) {

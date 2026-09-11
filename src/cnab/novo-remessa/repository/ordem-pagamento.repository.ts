@@ -568,19 +568,21 @@ ORDER BY r.data_referencia DESC;`;
     return result.map((r: DeepPartial<OrdemPagamentoAgrupado> | undefined) => new OrdemPagamentoAgrupado(r))[0];
   }
 
-  public async agruparOrdensDePagamentoPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idOperadoras?: string[]): Promise<void> {
+  public async agruparOrdensDePagamentoPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idsFavorecidos?: string[]): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
-    const ipOperadorasJoin = idOperadoras ? idOperadoras.join(',') : '';
-    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${ipOperadorasJoin}}`]);
+    // NULL disables filtering; an empty SQL array would exclude every beneficiary.
+    const idsFavorecidosParam = idsFavorecidos && idsFavorecidos.length ? `{${idsFavorecidos.join(',')}}` : null;
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, idsFavorecidosParam]);
   }
-  public async agruparOrdensDeEstornadosRejeitados(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idOperadoras?: string[]): Promise<void> {
+  public async agruparOrdensPendentesConsorcio(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idsFavorecidos?: string[]): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
-    const ipOperadorasJoin = idOperadoras ? idOperadoras.join(',') : '';
-    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_ESTORNOS_REJEITADOS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${ipOperadorasJoin}}`]);
+    // NULL disables filtering for an omitted or empty operator list.
+    const idsFavorecidosParam = idsFavorecidos && idsFavorecidos.length ? `{${idsFavorecidos.join(',')}}` : null;
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_CONSORCIO_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, idsFavorecidosParam]);
   }
 
   public async findOrdensAgrupadas(dataInicio: Date, dataFim: Date, consorcios: string[]) {

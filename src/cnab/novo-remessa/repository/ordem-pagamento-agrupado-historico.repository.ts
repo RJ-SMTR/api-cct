@@ -6,6 +6,7 @@ import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamentoAgrupadoHistorico } from '../entity/ordem-pagamento-agrupado-historico.entity';
 import { OrdemPagamentoAgrupadoHistoricoDTO } from '../dto/ordem-pagamento-agrupado-historico.dto';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
+import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 
 @Injectable()
 export class OrdemPagamentoAgrupadoHistoricoRepository {
@@ -49,6 +50,8 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
                       left join public.user u on u."permitCode" = ou."idOperadora" `+          
                 ` where da."id" = ${detalheAId} `;
     } else if(isPendente){
+      // resolve o usuario pela ordem "filha" (consorcio OU guardador), ou pela
+      // propria opa se ela nao for pai
       query = (`select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
                       oph.* from ordem_pagamento_agrupado_historico oph
     INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -60,10 +63,13 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
             "ordemPagamentoAgrupadoId" = opa.id
     ) filhos ON true
     LEFT JOIN LATERAL (
-        SELECT *
+        SELECT op2."userId"
         FROM ordem_pagamento op2
-        WHERE
-            op2."ordemPagamentoAgrupadoId" = COALESCE(filhos.id, opa.id)
+        WHERE op2."ordemPagamentoAgrupadoId" = COALESCE(filhos.id, opa.id)
+        UNION ALL
+        SELECT og2."userId"
+        FROM ordem_pagamento_guardador og2
+        WHERE og2."ordemPagamentoAgrupadoId" = COALESCE(filhos.id, opa.id)
     ) op ON true
     LEFT JOIN public.user u ON u."id" = op."userId"` +
     `where da."id" = ${detalheAId}`)
@@ -164,9 +170,74 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
 
     queryRunner.connect();
 
-    await queryRunner.manager.query(query);   
+    await queryRunner.manager.query(query);
 
     queryRunner.release()
+  }
+
+  /**
+   * Retorno de pendentes (consórcios e guardador): quando a ordem de pagamento
+   * agrupada "pai" (agrupamento de pendentes) tem seu retorno resolvido, o
+   * resultado cobre também as ordens "filhas". O relatório lê o histórico das
+   * filhas, então o status precisa ser propagado nos dois desfechos:
+   *
+   *  - pai Efetivado/PendenciaPaga (3/5) -> filhas viram PendenciaPaga (5),
+   *    inclusive as que já estão Efetivado (3);
+   *  - pai NaoEfetivado (4) -> filhas viram NaoEfetivado (4) com o mesmo
+   *    motivoStatusRemessa do pai (a tentativa falhou de novo).
+   *
+   * Se a pai ainda não foi resolvida (Criado/PreparadoParaEnvio/AguardandoPagamento),
+   * nada é alterado - ainda não há o que propagar.
+   *
+   * @returns quantidade de históricos de ordens filhas atualizados
+   */
+  public async propagarPagamentoPaiParaFilhas(detalheAId: number): Promise<number> {
+    const query = `
+      WITH pai AS (
+        SELECT oph."ordemPagamentoAgrupadoId" AS opa_id, oph."statusRemessa" AS status,
+               oph."motivoStatusRemessa" AS motivo
+        FROM detalhe_a da
+        JOIN ordem_pagamento_agrupado_historico oph ON oph.id = da."ordemPagamentoAgrupadoHistoricoId"
+        WHERE da.id = $1
+      ),
+      alvo AS (
+        SELECT opa_id, motivo,
+          CASE
+            WHEN status IN (${StatusRemessaEnum.Efetivado}, ${StatusRemessaEnum.PendenciaPaga}) THEN ${StatusRemessaEnum.PendenciaPaga}
+            WHEN status = ${StatusRemessaEnum.NaoEfetivado} THEN ${StatusRemessaEnum.NaoEfetivado}
+          END AS status_alvo
+        FROM pai
+      ),
+      filhas AS (
+        SELECT opa.id AS opa_id
+        FROM ordem_pagamento_agrupado opa
+        WHERE opa."ordemPagamentoAgrupadoId" = (SELECT opa_id FROM alvo)
+      )
+      UPDATE ordem_pagamento_agrupado_historico oph
+      SET "statusRemessa" = (SELECT status_alvo FROM alvo),
+          "motivoStatusRemessa" = CASE
+            WHEN (SELECT status_alvo FROM alvo) = ${StatusRemessaEnum.NaoEfetivado} THEN (SELECT motivo FROM alvo)
+            ELSE oph."motivoStatusRemessa"
+          END,
+          "dataReferencia" = now()
+      WHERE oph."ordemPagamentoAgrupadoId" IN (SELECT opa_id FROM filhas)
+        AND (SELECT status_alvo FROM alvo) IS NOT NULL
+        AND oph."statusRemessa" <> (SELECT status_alvo FROM alvo)
+      RETURNING oph.id
+    `;
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      // useStructuredResult=true => { records, affected, raw }
+      const result: any = await queryRunner.query(query, [detalheAId], true);
+      if (Array.isArray(result?.records)) {
+        return result.records.length;
+      }
+      return typeof result?.affected === 'number' ? result.affected : 0;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
 }

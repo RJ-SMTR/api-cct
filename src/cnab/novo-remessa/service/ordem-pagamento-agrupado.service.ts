@@ -39,7 +39,7 @@ export class OrdemPagamentoAgrupadoService {
   }
 
   async prepararPagamentoAgrupadosPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
-    pagadorKey: keyof AllPagadorDict, idOperadoras?: string[]) {
+    pagadorKey: keyof AllPagadorDict, idsFavorecidos?: string[]) {
 
     this.logger.debug(`Preparando agrupamentos Pendentes`)
     const pagador = await this.getPagador(pagadorKey);
@@ -50,21 +50,32 @@ export class OrdemPagamentoAgrupadoService {
 
         // // First grouping: from initial date to end of 2024
         // const endOf2024 = new Date(2024, 11, 31); // December 31, 2024
-        // this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${endOf2024}, idOperadoras ${idOperadoras} (Período 2024)`);
-        // await this.agruparOrdensPendentes(dataOrdemInicial, endOf2024, dataPgto, pagador, idOperadoras);
+        // this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${endOf2024}, idsFavorecidos ${idsFavorecidos} (Período 2024)`);
+        // await this.agruparOrdensPendentes(dataOrdemInicial, endOf2024, dataPgto, pagador, idsFavorecidos);
         // this.logger.log(`Ordens agrupadas para o pagador ${pagador} - Período 2024 concluído`);
 
         // // Second grouping: from start of 2025 to final date
         // const startOf2025 = new Date(2025, 0, 1); // January 1, 2025
-        // this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${startOf2025}, data de ordem final ${dataOrdemFinal}, idOperadoras ${idOperadoras} (Período 2025)`);
-        // await this.agruparOrdensPendentes(startOf2025, dataOrdemFinal, dataPgto, pagador, idOperadoras);
+        // this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${startOf2025}, data de ordem final ${dataOrdemFinal}, idsFavorecidos ${idsFavorecidos} (Período 2025)`);
+        // await this.agruparOrdensPendentes(startOf2025, dataOrdemFinal, dataPgto, pagador, idsFavorecidos);
         // this.logger.log(`Ordens agrupadas para o pagador ${pagador} - Período 2025 concluído`);
       } else {
         // Normal single grouping for same year or other cases
-        this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, idOperadoras ${idOperadoras}`);
-        await this.agruparOrdensPendentes(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, idOperadoras);
+        this.logger.log(`Agrupando ordens de pagamento para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, idsFavorecidos ${idsFavorecidos}`);
+        await this.agruparOrdensPendentes(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, idsFavorecidos);
         this.logger.log(`Ordens agrupadas para o pagador ${pagador}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}`);
       }
+    }
+  }
+
+  async prepararPagamentoAgrupadosGuardadorPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
+    pagadorKey: keyof AllPagadorDict) {
+    this.logger.debug(`Preparando agrupamentos pendentes de guardador`);
+    const pagador = await this.getPagador(pagadorKey);
+    if (pagador) {
+      this.logger.log(`Agrupando pendentes de guardador para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, ${dataOrdemInicial} a ${dataOrdemFinal}`);
+      await this.ordemPagamentoGuardadorRepository.agruparOrdensDePagamentoGuardadorPendentes(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
+      this.logger.log(`Pendentes de guardador agrupados para o pagador ${pagador.nomeEmpresa}`);
     }
   }
 
@@ -94,8 +105,8 @@ export class OrdemPagamentoAgrupadoService {
   async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date ) {
     return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio, dataFim, consorcio, dataPagamento);
   }
-  async getOrdensPendentes(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date, idOperadoras?: string[] ) {
-    return await this.ordemPagamentoAgrupadoRepository.findAllPendente(dataInicio, dataFim, consorcio, dataPagamento, idOperadoras);
+  async getOrdensPendentes(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date, idsFavorecidos?: string[] ) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllPendente(dataInicio, dataFim, consorcio, dataPagamento, idsFavorecidos);
   }
 
   async getOrdensUnicas(dataInicio: Date, dataFim: Date, dataPgto: Date) {
@@ -113,9 +124,8 @@ export class OrdemPagamentoAgrupadoService {
   }
 
 
-  private async agruparOrdensPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, nomes?: string[]) {
-   // await this.ordemPagamentoRepository.agruparOrdensDePagamentoPendentes(dataInicial, dataFinal, dataPgto, pagador, nomes);
-     await this.ordemPagamentoRepository.agruparOrdensDeEstornadosRejeitados(dataInicial, dataFinal, dataPgto, pagador, nomes);
+  private async agruparOrdensPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idsFavorecidos?: string[]) {
+     await this.ordemPagamentoRepository.agruparOrdensPendentesConsorcio(dataInicial, dataFinal, dataPgto, pagador, idsFavorecidos);
   }
   private async getPagador(pagadorKey: any) {
     return (await this.pagadorService.getAllPagador())[pagadorKey];
@@ -149,6 +159,14 @@ export class OrdemPagamentoAgrupadoService {
 
   public async getHistorico(id: number) {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistorico(id)
+  }
+
+  /**
+   * Propagate a resolved parent outcome to child histories: paid -> status 5,
+   * failed -> status 4. Unresolved parents do not trigger propagation.
+   */
+  public async propagarPagamentoPaiParaFilhas(detalheAId: number): Promise<number> {
+    return await this.ordemPagamentoAgrupadoHistRepository.propagarPagamentoPaiParaFilhas(detalheAId);
   }
 
   public async getHistoricoUnico(id: number) {
