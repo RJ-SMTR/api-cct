@@ -176,36 +176,53 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
   }
 
   /**
-   * Retorno de pendentes (consórcios): quando a ordem de pagamento agrupada "pai"
-   * (agrupamento de pendentes) é paga, o pagamento cobre também as ordens "filhas".
-   * O relatório lê o histórico das filhas, então o status precisa ser propagado.
+   * Retorno de pendentes (consórcios e guardador): quando a ordem de pagamento
+   * agrupada "pai" (agrupamento de pendentes) tem seu retorno resolvido, o
+   * resultado cobre também as ordens "filhas". O relatório lê o histórico das
+   * filhas, então o status precisa ser propagado nos dois desfechos:
    *
-   * Marca TODOS os históricos das ordens filhas como PendenciaPaga (5), inclusive
-   * os que já estão Efetivado (3). Só executa quando o histórico da pai vinculado
-   * ao detalheA está pago (Efetivado ou PendenciaPaga); se a pai foi rejeitada ou
-   * estornada, nada é alterado.
+   *  - pai Efetivado/PendenciaPaga (3/5) -> filhas viram PendenciaPaga (5),
+   *    inclusive as que já estão Efetivado (3);
+   *  - pai NaoEfetivado (4) -> filhas viram NaoEfetivado (4) com o mesmo
+   *    motivoStatusRemessa do pai (a tentativa falhou de novo).
+   *
+   * Se a pai ainda não foi resolvida (Criado/PreparadoParaEnvio/AguardandoPagamento),
+   * nada é alterado - ainda não há o que propagar.
    *
    * @returns quantidade de históricos de ordens filhas atualizados
    */
   public async propagarPagamentoPaiParaFilhas(detalheAId: number): Promise<number> {
     const query = `
       WITH pai AS (
-        SELECT oph."ordemPagamentoAgrupadoId" AS opa_id, oph."statusRemessa" AS status
+        SELECT oph."ordemPagamentoAgrupadoId" AS opa_id, oph."statusRemessa" AS status,
+               oph."motivoStatusRemessa" AS motivo
         FROM detalhe_a da
         JOIN ordem_pagamento_agrupado_historico oph ON oph.id = da."ordemPagamentoAgrupadoHistoricoId"
         WHERE da.id = $1
       ),
+      alvo AS (
+        SELECT opa_id, motivo,
+          CASE
+            WHEN status IN (${StatusRemessaEnum.Efetivado}, ${StatusRemessaEnum.PendenciaPaga}) THEN ${StatusRemessaEnum.PendenciaPaga}
+            WHEN status = ${StatusRemessaEnum.NaoEfetivado} THEN ${StatusRemessaEnum.NaoEfetivado}
+          END AS status_alvo
+        FROM pai
+      ),
       filhas AS (
         SELECT opa.id AS opa_id
         FROM ordem_pagamento_agrupado opa
-        WHERE opa."ordemPagamentoAgrupadoId" = (SELECT opa_id FROM pai)
+        WHERE opa."ordemPagamentoAgrupadoId" = (SELECT opa_id FROM alvo)
       )
       UPDATE ordem_pagamento_agrupado_historico oph
-      SET "statusRemessa" = ${StatusRemessaEnum.PendenciaPaga},
+      SET "statusRemessa" = (SELECT status_alvo FROM alvo),
+          "motivoStatusRemessa" = CASE
+            WHEN (SELECT status_alvo FROM alvo) = ${StatusRemessaEnum.NaoEfetivado} THEN (SELECT motivo FROM alvo)
+            ELSE oph."motivoStatusRemessa"
+          END,
           "dataReferencia" = now()
       WHERE oph."ordemPagamentoAgrupadoId" IN (SELECT opa_id FROM filhas)
-        AND (SELECT status FROM pai) IN (${StatusRemessaEnum.Efetivado}, ${StatusRemessaEnum.PendenciaPaga})
-        AND oph."statusRemessa" <> ${StatusRemessaEnum.PendenciaPaga}
+        AND (SELECT status_alvo FROM alvo) IS NOT NULL
+        AND oph."statusRemessa" <> (SELECT status_alvo FROM alvo)
       RETURNING oph.id
     `;
 

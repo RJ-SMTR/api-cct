@@ -134,14 +134,15 @@ export class RetornoService {
             }
         }
 
-        // Retorno de pendentes: se a ordem pai foi paga, o pagamento cobre as
-        // ordens filhas. O relatório lê o histórico das filhas, então propagamos
-        // PendenciaPaga para todos os históricos delas. Não faz nada se a pai foi
-        // rejeitada/estornada ou ainda não foi paga.
+        // Retorno de pendentes: se a ordem pai foi resolvida (paga ou falhou de
+        // novo), o resultado cobre as ordens filhas. O relatório lê o histórico
+        // das filhas, então propagamos: pai paga -> filhas PendenciaPaga; pai
+        // falhou -> filhas NaoEfetivado (mesmo motivo). Não faz nada se a pai
+        // ainda não foi resolvida.
         const filhasAtualizadas = await this.ordemPagamentoAgrupadoService.propagarPagamentoPaiParaFilhas(detalheA.id);
         if (filhasAtualizadas > 0) {
             this.logger.debug(
-                `Retorno: ordem pai paga - propagado PendenciaPaga para ${filhasAtualizadas} ` +
+                `Retorno: ordem pai resolvida - propagado status para ${filhasAtualizadas} ` +
                 `historico(s) de ordens filhas (detalheA ${detalheA.id})`,
             );
         }

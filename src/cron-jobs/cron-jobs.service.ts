@@ -1,5 +1,8 @@
 import { SftpService } from 'src/sftp/sftp.service';
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { ICnabInfo } from 'src/cnab/cnab.service';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob, CronJobParameters } from 'cron';
@@ -768,14 +771,39 @@ export class CronJobsService {
     const dataPgto = dataPagamento ? new Date(dataPagamento) : new Date();
 
     this.logger.debug('iniciando o agrupamento pendente de guardador');
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGuardadorPendentes(dataInicio, dataFim, dataPgto, 'contaBilhetagem');
+    // guardador usa a mesma conta do fluxo normal (contaRotativo) - o pagamento
+    // NUNCA usou contaBilhetagem pra guardador, isso era herdado por engano do
+    // padrao do consorcio.
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGuardadorPendentes(dataInicio, dataFim, dataPgto, 'contaRotativo');
 
     // guardador -> consorcio vazio; gera header_arquivo/lote/detalhe_a e move
     // os historicos das ordens pai para PreparadoParaEnvio
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPgto, [], false, true);
 
     const txt = await this.remessaService.gerarCnabText(HeaderName.GUARDADOR, undefined, true);
-    await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
+
+    // TESTE MANUAL (fix/retorno-pendentes) - NUNCA enviar por SFTP aqui.
+    // enviarRemessa() trocado por gravação local só pra inspecionar o CNAB
+    // gerado. REVERTER antes de mesclar.
+    // await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
+    this.salvarRemessaLocalTeste(txt, 'guardador-pendentes');
+  }
+
+  /**
+   * TESTE MANUAL (fix/retorno-pendentes) - grava o CNAB de remessa localmente
+   * em vez de enviar por SFTP, pra inspecionar o arquivo antes de decidir o
+   * que fazer com o retorno real. REVERTER (remover) antes de mesclar.
+   */
+  private salvarRemessaLocalTeste(listCnab: ICnabInfo[], prefixo: string) {
+    const dir = join(process.cwd(), 'local_dev', 'remessas-teste');
+    mkdirSync(dir, { recursive: true });
+    for (const cnab of listCnab) {
+      const carimbo = new Date().toISOString().replace(/[:.]/g, '-');
+      const nome = `${prefixo}-headerArquivo${cnab.headerArquivo?.id ?? 's-id'}-${carimbo}.txt`;
+      const caminho = join(dir, nome);
+      writeFileSync(caminho, cnab.content, 'utf8');
+      this.logger.log(`[TESTE] Remessa gravada localmente (NÃO enviada por SFTP): ${caminho}`);
+    }
   }
 
   private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,

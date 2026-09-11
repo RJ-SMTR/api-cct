@@ -85,87 +85,54 @@ WITH
             ($1::date > DATE '2025-08-31' AND extract(dow FROM data) IN (2, 5))
         )
     ),
+    capturas_com_referencia AS (
+        SELECT
+            op."valor",
+            op."ordemPagamentoAgrupadoId",
+            op."dataCaptura"::date + CASE EXTRACT(dow FROM op."dataCaptura")
+                WHEN 0 THEN 2
+                WHEN 1 THEN 1
+                WHEN 2 THEN 3
+                WHEN 3 THEN 2
+                WHEN 4 THEN 1
+                WHEN 5 THEN 4
+                WHEN 6 THEN 3
+            END AS data_referencia
+        FROM ordem_pagamento op
+        WHERE op."userId" = $2
+    ),
+    capturas_com_exibicao AS (
+        SELECT
+            c.*,
+            -- Choose one display window across months, before selecting the report month.
+            MAX(c.data_referencia) OVER (
+                PARTITION BY c."ordemPagamentoAgrupadoId"
+            ) AS data_exibicao_opa
+        FROM capturas_com_referencia c
+        WHERE c.data_referencia > DATE '2025-08-31'
+            OR EXTRACT(dow FROM c.data_referencia) = 5
+    ),
     ordens_por_data AS (
-        SELECT DISTINCT
+        SELECT
             db.data_referencia,
             db.data_inicial_operacoes,
             db.data_final_operacoes,
-            ROUND(
-                CASE
-                    WHEN oph."statusRemessa" IN (0, 5) THEN COALESCE(opa."valorTotal", 0)
-                    ELSE COALESCE(
-                        da."valorLancamento",
-                        (
-                            SELECT sum("valor")
-                            FROM ordem_pagamento opp
-                            WHERE
-                                op."userId" = opp."userId"
-                                AND opp."ordemPagamentoAgrupadoId" IS NULL
-                                AND DATE_TRUNC('day', opp."dataCaptura") BETWEEN CASE
-                                    WHEN db.dia_semana = 5 THEN db.data_referencia - interval '3 days'
-                                    WHEN db.dia_semana = 2 THEN db.data_referencia - interval '4 days'
-                                END AND (db.data_referencia - interval '1 day')
-                        )
-                    )
-                END::numeric,
-                2
-            ) AS valorTotalPagamento,
+            op."valor" AS valorTotalPagamento,
             oph."statusRemessa",
             oph."motivoStatusRemessa",
-            opa."id" as opaId,
-            opa."dataPagamento" as "opaDataPagamento"
+            CASE WHEN db.data_referencia = op.data_exibicao_opa
+                THEN opa.id END AS opaId,
+            opa."dataPagamento" AS "opaDataPagamento"
         FROM datas_base db
-        LEFT JOIN ordem_pagamento op ON op."userId" = $2
-            AND DATE_TRUNC('day', op."dataCaptura") BETWEEN db.data_inicial_operacoes AND db.data_final_operacoes
+        LEFT JOIN capturas_com_exibicao op ON op.data_referencia = db.data_referencia
         LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
         LEFT JOIN LATERAL (
-            SELECT
-                oph_i.id,
-                oph_i."statusRemessa",
-                oph_i."motivoStatusRemessa"
+            SELECT oph_i."statusRemessa", oph_i."motivoStatusRemessa"
             FROM ordem_pagamento_agrupado_historico oph_i
             WHERE oph_i."ordemPagamentoAgrupadoId" = opa.id
             ORDER BY oph_i.id DESC
             LIMIT 1
         ) oph ON true
-        LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-    ),
-    status_5_mais_recente AS (
-        SELECT
-            opd.*,
-            ROW_NUMBER() OVER (
-                PARTITION BY opd.opaId
-                ORDER BY opd.data_referencia DESC
-            ) AS rn
-        FROM ordens_por_data opd
-        WHERE opd."statusRemessa" = 5
-    ),
-    ordens_filtradas AS (
-        SELECT
-            opd.data_referencia,
-            opd.data_inicial_operacoes,
-            opd.data_final_operacoes,
-            opd.valorTotalPagamento,
-            opd."statusRemessa",
-            opd."motivoStatusRemessa",
-            opd.opaId,
-            opd."opaDataPagamento"
-        FROM ordens_por_data opd
-        WHERE COALESCE(opd."statusRemessa", -1) <> 5
-
-        UNION ALL
-
-        SELECT
-            s5.data_referencia,
-            s5.data_inicial_operacoes,
-            s5.data_final_operacoes,
-            s5.valorTotalPagamento,
-            s5."statusRemessa",
-            s5."motivoStatusRemessa",
-            s5.opaId,
-            s5."opaDataPagamento"
-        FROM status_5_mais_recente s5
-        WHERE s5.rn = 1
     )
 SELECT
     r.data_referencia as data,
@@ -174,9 +141,9 @@ SELECT
     r."statusRemessa",
     r."motivoStatusRemessa",
     string_agg(DISTINCT r.opaId::text, ', ') as "opaIds",
-    sum(r.valorTotalPagamento) as valor,
+    ROUND(SUM(r.valorTotalPagamento)::numeric, 2) as valor,
     max(r."opaDataPagamento") as "dataPagamento"
-FROM ordens_filtradas r
+FROM ordens_por_data r
 GROUP BY
     r.data_referencia,
     r.data_inicial_operacoes,

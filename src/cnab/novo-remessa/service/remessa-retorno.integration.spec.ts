@@ -538,7 +538,7 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
       await criarUser(USER_ID, 'TESTE GUARD CICLO');
       await criarFalhaGuardador(B + 10, B + 20, B + 40, B + 60, 150);
       // fase 4: pela camada de servico, nao CALL direto
-      await opaService.prepararPagamentoAgrupadosGuardadorPendentes(new Date(DI), new Date(DF), new Date(DP), 'contaBilhetagem');
+      await opaService.prepararPagamentoAgrupadosGuardadorPendentes(new Date(DI), new Date(DF), new Date(DP), 'contaRotativo');
       await remessa.prepararRemessa(new Date(DI), new Date(DF), new Date(DP), [], false, true);
       const txt = await remessa.gerarCnabText(HeaderName.GUARDADOR, undefined, true);
       const pid = await paiDe(B + 10);
