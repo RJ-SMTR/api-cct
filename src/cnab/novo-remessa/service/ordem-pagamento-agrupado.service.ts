@@ -151,6 +151,14 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistorico(id)
   }
 
+  /**
+   * Propagate a resolved parent outcome to child histories: paid -> status 5,
+   * failed -> status 4. Unresolved parents do not trigger propagation.
+   */
+  public async propagarPagamentoPaiParaFilhas(detalheAId: number): Promise<number> {
+    return await this.ordemPagamentoAgrupadoHistRepository.propagarPagamentoPaiParaFilhas(detalheAId);
+  }
+
   public async getHistoricoUnico(id: number) {
     return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoUnico(id)
   }

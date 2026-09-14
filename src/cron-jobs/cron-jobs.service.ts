@@ -37,6 +37,7 @@ import { AllPagadorDict } from '../cnab/interfaces/pagamento/all-pagador-dict.in
 import { DistributedLockService } from '../cnab/novo-remessa/service/distributed-lock.service';
 import { nextFriday, nextThursday, previousFriday, isFriday, isThursday } from 'date-fns';
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
+import { formatDateISODate } from 'src/utils/date-utils';
 
 /**
  * Enum CronJobServicesJobs
@@ -861,19 +862,43 @@ export class CronJobsService {
   }
 
   async retornoExec() {
+    const METHOD = 'retornoExec';
     let arq = true;
+    let processados = 0;
     while (arq) {
       const txt = await this.retornoService.lerRetornoSftp();
       if (txt) {
+        this.logger.log(`Processando arquivo de retorno: ${txt.name}`, METHOD);
         try {
           await this.retornoService.salvarRetorno({ name: txt?.name, content: txt?.content });
+          processados++;
         } catch (err) {
-          console.log(err);
+          this.logger.error(`Erro ao processar retorno ${txt?.name} - ${err?.message}`, err?.stack, METHOD);
         }
       } else {
         arq = false;
       }
     }
+    this.logger.log(`retornoExec finalizado - arquivos processados: ${processados}`, METHOD);
+  }
+
+  /**
+   * Exclusive cutoff for never-paid orders. On Tuesday and Friday, protect
+   * the previous cycle as well because its payment is due that day.
+   * Failed attempts remain eligible without a date cutoff in the procedures.
+   */
+  private getLimiteSeguroPendentes(hoje: Date = new Date()): Date {
+    // Calendar helpers preserve the time of day; compare local midnights.
+    const hojeNormalizado = startOfDay(hoje);
+    const cicloAtual = this.calcularPeriodoPagamento(hojeNormalizado);
+    const dataInicioCicloAtual = startOfDay(cicloAtual.dataInicio);
+    const primeiroDiaDoCiclo = dataInicioCicloAtual.getTime() === hojeNormalizado.getTime();
+    const limiteLocal = primeiroDiaDoCiclo
+      ? startOfDay(this.calcularPeriodoPagamento(subDays(dataInicioCicloAtual, 1)).dataInicio)
+      : dataInicioCicloAtual;
+
+    // Match the UTC date-only representation used by the callers.
+    return new Date(formatDateISODate(limiteLocal));
   }
 
   private calcularPeriodoPagamento(today: Date = new Date()) {
