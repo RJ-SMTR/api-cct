@@ -490,16 +490,6 @@ export class AgentesRepository {
   private buildLegacyMonthlyQuery() {
     return `
     WITH
-    efetivacao_por_agrupado AS (
-      SELECT
-        oph."ordemPagamentoAgrupadoId",
-        MAX(da."dataVencimento") AS data_efetiva
-      FROM ordem_pagamento_agrupado_historico oph
-      INNER JOIN detalhe_a da
-        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-      GROUP BY oph."ordemPagamentoAgrupadoId"
-    ),
-
     datas_base AS (
       SELECT
         data::date AS data_referencia,
@@ -558,8 +548,13 @@ export class AgentesRepository {
       LEFT JOIN ordem_pagamento_agrupado opa
         ON op."ordemPagamentoAgrupadoId" = opa.id
 
-      LEFT JOIN efetivacao_por_agrupado
-        ON efetivacao_por_agrupado."ordemPagamentoAgrupadoId" = opa.id
+      LEFT JOIN LATERAL (
+        SELECT MAX(da_ea."dataVencimento") AS data_efetiva
+        FROM ordem_pagamento_agrupado_historico oph_ea
+        INNER JOIN detalhe_a da_ea
+          ON da_ea."ordemPagamentoAgrupadoHistoricoId" = oph_ea.id
+        WHERE oph_ea."ordemPagamentoAgrupadoId" = opa.id
+      ) efetivacao_por_agrupado ON TRUE
 
       LEFT JOIN LATERAL (
         SELECT
