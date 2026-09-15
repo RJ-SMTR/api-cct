@@ -190,4 +190,65 @@ export class RelatorioNovoRemessaController {
       }
     }
   }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('guardador/report/summary')
+  async getGuardadorFinancialMovementSummary(
+    @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
+  ) {
+    try {
+      const result = await this.relatorioNovoRemessaFinancialMovementService.findGuardadorFinancialMovementSummary(queryParams);
+      return result;
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('guardador/report/page')
+  async getGuardadorFinancialMovementPage(
+    @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
+  ) {
+    try {
+      const result = await this.relatorioNovoRemessaFinancialMovementService.findGuardadorFinancialMovementPage(queryParams);
+      return result;
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Post('guardador/report/export/download')
+  async downloadGuardadorFinancialMovementReport(
+    @Body(new ValidationPipe({ transform: true })) body: FinancialMovementExportRequestDto,
+    @Res() response: Response,
+  ) {
+    let generatedFile: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['downloadGuardadorFinancialMovementExport']>> | undefined;
+
+    try {
+      generatedFile = await this.relatorioNovoRemessaFinancialMovementService.downloadGuardadorFinancialMovementExport(body);
+      const file = generatedFile;
+
+      response.setHeader('Cache-Control', 'no-store');
+      response.setHeader('Content-Type', file.contentType);
+      response.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+
+      await pipeline(createReadStream(file.filePath), response);
+    } catch (e) {
+      if (!response.headersSent) {
+        response.status(HttpStatus.BAD_REQUEST).json({ error: e.message });
+      }
+    } finally {
+      if (generatedFile) {
+        await this.relatorioNovoRemessaFinancialMovementService.removeGeneratedExportFile(generatedFile.filePath);
+      }
+    }
+  }
 }

@@ -13,6 +13,7 @@ import { RelatorioSinteticoRepository } from './sintetico/relatorio-sintetico.re
 import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio-extrato-bancario.repository';
 import { RelatorioNovoRemessaFinancialMovementService } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
 import { RelatorioNovoRemessaFinancialMovementRepository } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.repository';
+import { RelatorioGuardadorFinancialMovementRepository } from './movimentacao-financeira/relatorio-guardador-financial-movement.repository';
 import { RelatorioGuardadorConsolidadoRepository } from './consolidado/relatorio-guardador-consolidado.repository';
 
 @Module({
@@ -22,6 +23,6 @@ import { RelatorioGuardadorConsolidadoRepository } from './consolidado/relatorio
     RelatorioSinteticoRepository, RelatorioAnaliticoRepository, RelatorioNovoRemessaRepository,
     RelatorioNovoRemessaConsolidadoRepository,
     RelatorioExtratoBancarioRepository,
-    RelatorioNovoRemessaFinancialMovementRepository, RelatorioNovoRemessaFinancialMovementService]
+    RelatorioNovoRemessaFinancialMovementRepository, RelatorioGuardadorFinancialMovementRepository, RelatorioNovoRemessaFinancialMovementService]
 })
 export class RelatorioModule { }

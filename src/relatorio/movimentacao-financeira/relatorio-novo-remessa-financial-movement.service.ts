@@ -9,6 +9,7 @@ import * as xlsx from 'xlsx';
 import { FinancialMovementExportFormat, FinancialMovementExportRequestDto } from '../dtos/financial-movement-export-request.dto';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import { RelatorioNovoRemessaFinancialMovementRepository } from './relatorio-novo-remessa-financial-movement.repository';
+import { RelatorioGuardadorFinancialMovementRepository } from './relatorio-guardador-financial-movement.repository';
 import {
   buildExportBaseFilename,
   EXPORT_COLUMNS_PT_BR,
@@ -33,6 +34,7 @@ type GeneratedExportFile = {
 export class RelatorioNovoRemessaFinancialMovementService {
   constructor(
     private readonly relatorioNovoRemessaFinancialMovementRepository: RelatorioNovoRemessaFinancialMovementRepository,
+    private readonly relatorioGuardadorFinancialMovementRepository: RelatorioGuardadorFinancialMovementRepository,
   ) { }
 
   /**
@@ -53,7 +55,25 @@ export class RelatorioNovoRemessaFinancialMovementService {
   ): Promise<GeneratedExportFile> {
     this.ensureValidDateRange(args);
     const summary = await this.findFinancialMovementSummary(args);
-    return this.generateExportFile(args, summary);
+    return this.generateExportFile(args, summary, false);
+  }
+
+  async findGuardadorFinancialMovementSummary(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
+    this.ensureValidDateRange(args);
+    return this.relatorioGuardadorFinancialMovementRepository.findFinancialMovementSummary(args);
+  }
+
+  async findGuardadorFinancialMovementPage(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
+    this.ensureValidDateRange(args);
+    return this.relatorioGuardadorFinancialMovementRepository.findFinancialMovementPage(args);
+  }
+
+  async downloadGuardadorFinancialMovementExport(
+    args: FinancialMovementExportRequestDto,
+  ): Promise<GeneratedExportFile> {
+    this.ensureValidDateRange(args);
+    const summary = await this.findGuardadorFinancialMovementSummary(args);
+    return this.generateExportFile(args, summary, true);
   }
 
   private ensureValidDateRange(args: IFindPublicacaoRelatorioNovoFinancialMovement) {
@@ -66,14 +86,15 @@ export class RelatorioNovoRemessaFinancialMovementService {
   private async generateExportFile(
     args: FinancialMovementExportRequestDto,
     summary: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['findFinancialMovementSummary']>>,
+    isGuardador = false,
   ): Promise<GeneratedExportFile> {
     switch (args.format) {
       case FinancialMovementExportFormat.CSV:
-        return this.generateCsvExport(args, summary);
+        return this.generateCsvExport(args, summary, isGuardador);
       case FinancialMovementExportFormat.XLSX:
-        return this.generateXlsxExport(args, summary);
+        return this.generateXlsxExport(args, summary, isGuardador);
       case FinancialMovementExportFormat.PDF:
-        return this.generatePdfExport(args, summary);
+        return this.generatePdfExport(args, summary, isGuardador);
       default:
         throw new Error(`Formato não suportado: ${args.format}`);
     }
@@ -122,6 +143,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
   private async generateCsvExport(
     args: FinancialMovementExportRequestDto,
     summary: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['findFinancialMovementSummary']>>,
+    isGuardador = false,
   ): Promise<GeneratedExportFile> {
     const exportDir = await this.createExportDir();
     const baseFilename = buildExportBaseFilename(
@@ -129,7 +151,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       new Date(args.dataInicio),
       new Date(args.dataFim),
     );
-    const filename = baseFilename;
+    const filename = isGuardador ? `guardadores-${baseFilename}` : baseFilename;
     const filePath = join(exportDir, filename);
 
     const input = new PassThrough();
@@ -140,7 +162,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
       await this.writeChunk(input, `${line}\n`);
     }
 
-    await this.relatorioNovoRemessaFinancialMovementRepository.streamFinancialMovementRows(args, async (row) => {
+    const repository = isGuardador
+      ? this.relatorioGuardadorFinancialMovementRepository
+      : this.relatorioNovoRemessaFinancialMovementRepository;
+
+    await repository.streamFinancialMovementRows(args, async (row) => {
       const exportRow = toExportRow(row);
       const line = [
         exportRow.dataReferencia,
@@ -171,13 +197,15 @@ export class RelatorioNovoRemessaFinancialMovementService {
   private async generateXlsxExport(
     args: FinancialMovementExportRequestDto,
     summary: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['findFinancialMovementSummary']>>,
+    isGuardador = false,
   ): Promise<GeneratedExportFile> {
     const exportDir = await this.createExportDir();
-    const filename = buildExportBaseFilename(
+    const baseFilename = buildExportBaseFilename(
       FinancialMovementExportFormat.XLSX,
       new Date(args.dataInicio),
       new Date(args.dataFim),
     );
+    const filename = isGuardador ? `guardadores-${baseFilename}` : baseFilename;
     const filePath = join(exportDir, filename);
     const metadataRows: Array<Array<string>> = [
       ['Período', `${formatFileDate(new Date(args.dataInicio))} a ${formatFileDate(new Date(args.dataFim))}`],
@@ -186,7 +214,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
     ];
     const dataRows: Array<Array<string>> = [Array.from(EXPORT_COLUMNS_PT_BR)];
 
-    await this.relatorioNovoRemessaFinancialMovementRepository.streamFinancialMovementRows(args, async (row) => {
+    const repository = isGuardador
+      ? this.relatorioGuardadorFinancialMovementRepository
+      : this.relatorioNovoRemessaFinancialMovementRepository;
+
+    await repository.streamFinancialMovementRows(args, async (row) => {
       const exportRow = toExportRow(row);
       dataRows.push([
         exportRow.dataReferencia,
@@ -218,23 +250,29 @@ export class RelatorioNovoRemessaFinancialMovementService {
   private async generatePdfExport(
     args: FinancialMovementExportRequestDto,
     summary: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['findFinancialMovementSummary']>>,
+    isGuardador = false,
   ): Promise<GeneratedExportFile> {
     const exportDir = await this.createExportDir();
-    const filename = buildExportBaseFilename(
+    const baseFilename = buildExportBaseFilename(
       FinancialMovementExportFormat.PDF,
       new Date(args.dataInicio),
       new Date(args.dataFim),
     );
+    const filename = isGuardador ? `guardadores-${baseFilename}` : baseFilename;
     const filePath = join(exportDir, filename);
     const lines: string[] = [
-      'Relatorio Financeiro',
+      'Relatorio Financeiro Guardadores',
       `Periodo: ${formatFileDate(new Date(args.dataInicio))} a ${formatFileDate(new Date(args.dataFim))}`,
       `Status Selecionados: ${toPdfSafeText(buildSelectedStatusLabels(args).join(', ') || 'Todos')}`,
       '',
-      'Dt. Ref. | Dt. Pgto | Nome | Email | Cod. | Banco | CPF/CNPJ | Consorcio | Valor | Status',
+      'Dt. Ref. | Dt. Pgto | Nome | Email | Cod. | Banco | CPF/CNPJ | Associacao | Valor | Status',
     ];
 
-    await this.relatorioNovoRemessaFinancialMovementRepository.streamFinancialMovementRows(args, async (row) => {
+    const repository = isGuardador
+      ? this.relatorioGuardadorFinancialMovementRepository
+      : this.relatorioNovoRemessaFinancialMovementRepository;
+
+    await repository.streamFinancialMovementRows(args, async (row) => {
       const exportRow = toExportRow(row);
       lines.push([
         truncateText(toPdfSafeText(exportRow.dataReferencia), 10),

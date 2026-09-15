@@ -87,11 +87,12 @@ export class RelatorioController {
     @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
     @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
     @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
-    @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined
+    @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
+    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined
   ) {
     try {
       const result = await this.relatorioService.findConsolidadoGuardador({
-        dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, rejeitado, estorno
+        dataInicio, dataFim, favorecidoNome, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, rejeitado, estorno, pendenciaPaga
       });
       return result;
     } catch (e) {
