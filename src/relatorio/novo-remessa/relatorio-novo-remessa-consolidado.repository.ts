@@ -175,15 +175,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   private getQueryConsorcios(dataInicio: String, dataFim: String): string {
     return `   ${this.headerQueryConsorcios}
                ${this.fromQueryPrincipal}
-               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
-                AND (pu."bloqueado" is null OR pu."bloqueado" = false)`;
+               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
   }
 
   private getQueryVanzeiros(dataInicio: String, dataFim: String): string {
     return `  ${this.headerQueryVanzeiros}
               ${this.fromQueryPrincipal}
-              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
-               AND (pu."bloqueado" is null OR pu."bloqueado" = false) `;
+              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
   }
 
   private getQueryEleicaoConsorcio(dataInicio: String, dataFim: String): string {
@@ -377,7 +375,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         }
       }
       
-      if((filter.todosConsorcios && !filter.pendentes && !filter.aPagar) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+      if((filter.todosConsorcios && !filter.pendentes && !filter.aPagar && !filter.erro) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoConsorcio);
         } else {
