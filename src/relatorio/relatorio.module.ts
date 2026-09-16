@@ -10,10 +10,11 @@ import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio
 import { RelatorioNovoRemessaFinancialMovementService } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
 import { RelatorioNovoRemessaFinancialMovementRepository } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.repository';
 import { RelatorioNovoRemessaMovimentacaoRepository } from './novo-remessa/relatorio-novo-remessa-movimentacao.repository';
+import { RelatorioController } from './relatorio.controller';
 
 @Module({
   imports: [CnabModule],
-  controllers: [RelatorioNovoRemessaController],
+  controllers: [RelatorioNovoRemessaController,RelatorioController],
   providers: [RelatorioNovoRemessaService,
     RelatorioSinteticoRepository, RelatorioAnaliticoRepository,
     RelatorioNovoRemessaConsolidadoRepository,
