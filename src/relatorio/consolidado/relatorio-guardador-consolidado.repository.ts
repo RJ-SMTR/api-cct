@@ -10,6 +10,7 @@ type StatusFiltro = {
   emProcessamento?: boolean;
   rejeitado?: boolean;
   estornado?: boolean;
+  pendenciaPaga?: boolean;
 }
 
 @Injectable()
@@ -28,6 +29,9 @@ export class RelatorioGuardadorConsolidadoRepository {
     if (status.emProcessamento === true) {
       clause += ` AND oph."statusRemessa" = $${idx++}`;
       params.push(2);
+    } else if (status.pendenciaPaga === true) {
+      clause += ` AND oph."statusRemessa" = $${idx++}`;
+      params.push(5);
     } else if (status.pago === true) {
       clause += ` AND oph."statusRemessa" = $${idx++}`;
       params.push(3);
@@ -129,68 +133,106 @@ export class RelatorioGuardadorConsolidadoRepository {
   return { query, params };
 }
 
-  public async findConsolidado(args: IFindPublicacaoRelatorio): Promise < RelatorioConsolidadoDto[] > {
-  const dataInicio = args.dataInicio.toISOString().slice(0, 10);
-  const dataFim = args.dataFim.toISOString().slice(0, 10);
+  public async findConsolidado(args: IFindPublicacaoRelatorio): Promise<RelatorioConsolidadoDto[]> {
+    const dataInicio = args.dataInicio.toISOString().slice(0, 10);
+    const dataFim = args.dataFim.toISOString().slice(0, 10);
 
-  const queries: string[] = [];
-  const allParams: any[] = [];
-  let globalIdx = 1;
+    const queries: string[] = [];
+    const allParams: any[] = [];
+    let globalIdx = 1;
 
-  const status: StatusFiltro = {
-    pago: args.pago,
-    emProcessamento: args.emProcessamento,
-    rejeitado: args.rejeitado,
-    estornado: args.estorno,
-  };
+    const requestedStatus = (args as any).status;
+    let pago = args.pago;
+    let aPagar = args.aPagar;
+    let emProcessamento = args.emProcessamento;
+    let rejeitado = args.rejeitado;
+    let estornado = args.estorno;
+    let pendenciaPaga = (args as any).pendenciaPaga;
 
-  const isAPagar = args.aPagar === true;
+    if (requestedStatus && pago === undefined && aPagar === undefined && emProcessamento === undefined && pendenciaPaga === undefined) {
+      if (requestedStatus === 'pago') {
+        pago = true;
+      } else if (requestedStatus === 'aPagar') {
+        aPagar = true;
+      } else if (requestedStatus === 'erros') {
+        pago = false;
+      }
+    }
 
-  // Decide o que buscar - simplificado e sem bug
-  const buscarAssociacao = isAPagar ? args.favorecidoNome === undefined : (args.consorcioNome !== undefined || args.favorecidoNome === undefined);
-  const buscarGuardadores = isAPagar ? args.consorcioNome === undefined : (args.consorcioNome === undefined || args.favorecidoNome !== undefined);
+    const status: StatusFiltro = {
+      pago,
+      emProcessamento,
+      rejeitado,
+      estornado,
+      pendenciaPaga,
+    };
 
-  if(buscarAssociacao) {
-    const result = isAPagar
-      ? this.getQueryAPagar(dataInicio, dataFim, true, { valorMin: args.valorMin, valorMax: args.valorMax, nomes: args.consorcioNome })
-      : this.getQueryPago(dataInicio, dataFim, true, status, { valorMin: args.valorMin, valorMax: args.valorMax, nomes: args.consorcioNome });
+    const isAPagarOnly = aPagar === true;
+    const isPagoOnly = (pago !== undefined || emProcessamento === true || rejeitado === true || estornado === true || pendenciaPaga === true) && aPagar !== true;
+    const shouldIncludeAPagar = isAPagarOnly || !isPagoOnly;
+    const shouldIncludePago = !isAPagarOnly;
 
-    // Reindexa params para union
-    const reindexed = result.query.replace(/\$\d+/g, () => `$${globalIdx++}`);
-    queries.push(reindexed);
-    allParams.push(...result.params);
+    // Decide o que buscar
+    const buscarAssociacao = args.favorecidoNome === undefined;
+    const buscarGuardadores = args.consorcioNome === undefined || args.favorecidoNome !== undefined;
+
+    if (buscarAssociacao) {
+      if (shouldIncludeAPagar) {
+        const resultAPagar = this.getQueryAPagar(dataInicio, dataFim, true, { valorMin: args.valorMin, valorMax: args.valorMax, nomes: args.consorcioNome });
+        const reindexed = resultAPagar.query.replace(/\$\d+/g, () => `$${globalIdx++}`);
+        queries.push(reindexed);
+        allParams.push(...resultAPagar.params);
+      }
+      if (shouldIncludePago) {
+        const resultPago = this.getQueryPago(dataInicio, dataFim, true, status, { valorMin: args.valorMin, valorMax: args.valorMax, nomes: args.consorcioNome });
+        const reindexed = resultPago.query.replace(/\$\d+/g, () => `$${globalIdx++}`);
+        queries.push(reindexed);
+        allParams.push(...resultPago.params);
+      }
+    }
+
+    if (buscarGuardadores) {
+      if (shouldIncludeAPagar) {
+        const resultAPagar = this.getQueryAPagar(dataInicio, dataFim, false, { valorMin: args.valorMin, valorMax: args.valorMax, nomes: args.favorecidoNome });
+        const reindexed = resultAPagar.query.replace(/\$\d+/g, () => `$${globalIdx++}`);
+        queries.push(reindexed);
+        allParams.push(...resultAPagar.params);
+      }
+      if (shouldIncludePago) {
+        const resultPago = this.getQueryPago(dataInicio, dataFim, false, status, { valorMin: args.valorMin, valorMax: args.valorMax, nomes: args.favorecidoNome });
+        const reindexed = resultPago.query.replace(/\$\d+/g, () => `$${globalIdx++}`);
+        queries.push(reindexed);
+        allParams.push(...resultPago.params);
+      }
+    }
+
+    if (queries.length === 0) return [];
+
+    let finalQuery = queries.join(' UNION ALL ');
+
+    finalQuery = `SELECT r.nome, ROUND(SUM(r.valor)::numeric, 2) AS valor FROM (${finalQuery}) r GROUP BY r.nome`;
+    const havingClauses: string[] = [];
+    if (args.valorMin !== undefined) {
+      havingClauses.push(`ROUND(SUM(r.valor)::numeric, 2) >= $${globalIdx++}`);
+      allParams.push(args.valorMin);
+    }
+    if (args.valorMax !== undefined) {
+      havingClauses.push(`ROUND(SUM(r.valor)::numeric, 2) <= $${globalIdx++}`);
+      allParams.push(args.valorMax);
+    }
+    if (havingClauses.length > 0) {
+      finalQuery += ` HAVING ${havingClauses.join(' AND ')}`;
+    }
+    finalQuery += ` ORDER BY r.nome ASC`;
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      this.logger.debug(finalQuery);
+      const result = await queryRunner.query(finalQuery, allParams);
+      return result.map((r) => new RelatorioConsolidadoDto(r));
+    } finally {
+      await queryRunner.release();
+    }
   }
-
-    if(buscarGuardadores) {
-    const result = isAPagar
-      ? this.getQueryAPagar(dataInicio, dataFim, false, { valorMin: args.valorMin, valorMax: args.valorMax, nomes: args.favorecidoNome })
-      : this.getQueryPago(dataInicio, dataFim, false, status, { valorMin: args.valorMin, valorMax: args.valorMax, nomes: args.favorecidoNome });
-
-    const reindexed = result.query.replace(/\$\d+/g, () => `$${globalIdx++}`);
-    queries.push(reindexed);
-    allParams.push(...result.params);
-  }
-
-    if(queries.length === 0) return [];
-
-  let finalQuery = queries.join(' UNION ALL ');
-
-  finalQuery = `select r.nome,sum(valor) valor from(${finalQuery}) r group by r.nome `;
-  if (args.valorMin !== undefined) {
-    finalQuery += ` AND round(r."valor",2) >= ${args.valorMin}`;    
-  }
-  if (args.valorMax !== undefined) {
-    finalQuery += ` AND AND round(r."valor",2) <= ${args.valorMax}`;    
-  }
-
-  const queryRunner = this.dataSource.createQueryRunner();
-  await queryRunner.connect();
-  try {
-    this.logger.debug(finalQuery);
-    const result = await queryRunner.query(finalQuery, allParams);
-    return result.map((r) => new RelatorioConsolidadoDto(r));
-  } finally {
-    await queryRunner.release();
-  }
-}
 }
