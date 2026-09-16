@@ -528,7 +528,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
         }
       }
 
-      if((filter.todosVanzeiros && !filter.pendentes) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+      if((filter.todosVanzeiros && !filter.pendentes && !filter.aPagar) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
         } else {

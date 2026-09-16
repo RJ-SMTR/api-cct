@@ -189,5 +189,5 @@ export class RelatorioNovoRemessaController {
         await this.relatorioNovoRemessaFinancialMovementService.removeGeneratedExportFile(generatedFile.filePath);
       }
     }
-  }
+  } 
 }
