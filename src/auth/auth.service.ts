@@ -330,30 +330,19 @@ export class AuthService {
     userMailHistory: MailHistory,
     logContext: string,
   ) {
-    let mailSentInfo;
-    if (user.status?.id === StatusEnum.active) {
-      mailSentInfo = await this.mailService.reSendEmailBank({
+    const mailData: MailData<{ hash: string; to: string; userName: string; roleId?: number }> = {
+      to: user.email as string,
+      data: {
+        hash: userMailHistory.hash as string,
         to: user.email as string,
-        data: {
-          hash: userMailHistory.hash as string,
-          inviteStatus: userMailHistory.inviteStatus,
-        },
-      });
-    } else {
-      const mailData: MailData<{ hash: string; to: string; userName: string; roleId?: number }> = {
-        to: user.email as string,
-        data: {
-          hash: userMailHistory.hash as string,
-          to: user.email as string,
-          userName: user.fullName as string,
-          roleId: user.role?.id,
-        },
-      };
-      const mailResponse = await this.mailService.sendConcludeRegistration(
-        mailData,
-      );
-      mailSentInfo = mailResponse.mailSentInfo;
-    }
+        userName: user.fullName as string,
+        roleId: user.role?.id,
+      },
+    };
+    const mailResponse = await this.mailService.sendConcludeRegistration(
+      mailData,
+    );
+    const mailSentInfo = mailResponse.mailSentInfo;
     if (mailSentInfo.success === true) {
       if (user.status?.id === StatusEnum.active) {
         userMailHistory.setInviteStatus(InviteStatusEnum.used);
