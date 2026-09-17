@@ -30,8 +30,8 @@ export class RetornoService {
         const retorno104 = parseCnab240Pagamento(cnab.content);
         try {
             for (const cnabLote of retorno104.lotes) {
-                for (const registro of cnabLote.registros) {                    
-                    const detalheA = await this.detalheAService.getDetalheARetorno(                        
+                for (const registro of cnabLote.registros) {
+                    const detalheA = await this.detalheAService.getDetalheARetorno(
                         registro.detalheB.numeroInscricao.convertedValue,
                         registro.detalheA.valorLancamento.convertedValue
                     )
@@ -105,7 +105,7 @@ export class RetornoService {
                             historico,
                             StatusRemessaEnum.NaoEfetivado,
                         );
-                    }                  
+                    }
                 } else if (historico.statusRemessa === StatusRemessaEnum.AguardandoPagamento) {
                     historico.motivoStatusRemessa = registro.detalheA.ocorrencias.value.trim();
                     //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
@@ -117,7 +117,13 @@ export class RetornoService {
                         )
                     } else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
 
-                        const status = i === 0 ? StatusRemessaEnum.Efetivado : StatusRemessaEnum.PendenciaPaga;
+                        // historicos = a linha desta OPA + qualquer filha dela
+                        // ainda em aberto (ver getHistorico). Se existe filha,
+                        // esta resolução é de uma pendência - a OPA (pai ou
+                        // filha) vira PendenciaPaga, não Efetivado. Só fica
+                        // Efetivado quando não há relação pai/filha nenhuma
+                        // (pagamento normal, nunca foi pendente).
+                        const status = historicos.length > 1 ? StatusRemessaEnum.PendenciaPaga : StatusRemessaEnum.Efetivado;
 
                         await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                             historico,
