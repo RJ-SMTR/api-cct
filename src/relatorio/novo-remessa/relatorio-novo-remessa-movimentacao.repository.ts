@@ -250,8 +250,9 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       if (dataMinima && (dataMinima.getTime() >= dataInicioDate.getTime())) {
         dataInicio = dataMinima.toISOString();
       }
-      where += ` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null) and (pu."bloqueado" is null OR pu."bloqueado" = false))
-               and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date `;
+      where += ` where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))
+               and (pu."bloqueado" is null OR pu."bloqueado" = false)
+               and op."dataCaptura" >= '${dataInicio}'::date AND op."dataCaptura" < '${dataFim}'::date + interval '1 day' `;
 
     } else if (pendente) {
       if (dataMinima && (new Date(dataMinima.getDate() - 2)).getTime() < new Date(dataFim).getTime()) {
@@ -259,7 +260,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
         dataFim = dataMinima.toISOString();
       }
       where += ` where (op."ordemPagamentoAgrupadoId" is null) and (pu."bloqueado" is null OR pu."bloqueado" = false)
-               and date_trunc('day', op."dataCaptura") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date`;
+               and op."dataCaptura" >= '${dataInicio}'::date AND op."dataCaptura" < '${dataFim}'::date + interval '1 day'`;
 
     }
     return where;
@@ -280,29 +281,29 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
   }
 
   private getQueryConsorcios(dataInicio: String, dataFim: String): string {
-    return `   ${this.headerQueryConsorcios}                   
+    return `   ${this.headerQueryConsorcios}
                ${this.fromQueryPrincipal}
-               where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date 
+               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
                and (pu."bloqueado" is null OR pu."bloqueado" = false) `;
   }
 
   private getQueryVanzeiros(dataInicio: String, dataFim: String): string {
-    return `  ${this.headerQueryVanzeiros}                   
+    return `  ${this.headerQueryVanzeiros}
               ${this.fromQueryPrincipal}
-              where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}'::date AND '${dataFim}'::date 
+              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
                and (pu."bloqueado" is null OR pu."bloqueado" = false) `;
   }
 
   private getQueryEleicaoConsorcio(dataInicio: String, dataFim: String): string {
-    return `  ${this.headerQueryEleicaoConsorcio}                   
+    return `  ${this.headerQueryEleicaoConsorcio}
               ${this.fromQueryEleicao}
-              where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' AND '${dataFim}' `;
+              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
   }
 
   private getQueryEleicaoVanzeiro(dataInicio: String, dataFim: String): string {
-    return `  ${this.headerQueryEleicaoVanzeiro}                   
+    return `  ${this.headerQueryEleicaoVanzeiro}
               ${this.fromQueryEleicao}
-              where date_trunc('day', da."dataVencimento") BETWEEN '${dataInicio}' AND '${dataFim}' `;
+              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
   }
 
   public async findMovimentacao(filter: IFindPublicacaoRelatorioNovoFinancialMovement): Promise<RelatorioFinancialMovementNovoRemessaPageDto> {
@@ -527,7 +528,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
         }
       }
 
-      if((filter.todosVanzeiros && !filter.pendentes) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+      if((filter.todosVanzeiros && !filter.pendentes && !filter.aPagar) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
         } else {
@@ -597,37 +598,39 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
 
     try {
 
-      // 1. Count total para paginação real
-      const countQuery = `SELECT COUNT(*) as total FROM (${baseUnion + whereValor}) AS count_q`;
+      // 1. Agregados (count + todos os SUM condicionais) numa única query, com FILTER,
+      // em vez de uma query de count + até 6 queries de SUM separadas sobre o mesmo baseUnion.
+      const aggQuery = `
+        WITH r AS (${baseUnion + whereValor})
+        SELECT
+          COUNT(*) AS total,
+          COALESCE(SUM(valor), 0) AS "valorTotal",
+          COALESCE(SUM(valor) FILTER (WHERE status = 'Pago'), 0) AS "valorPago",
+          COALESCE(SUM(valor) FILTER (WHERE status = 'Rejeitado'), 0) AS "valorRejeitado",
+          COALESCE(SUM(valor) FILTER (WHERE status = 'Estorno'), 0) AS "valorEstornado",
+          COALESCE(SUM(valor) FILTER (WHERE status = 'Aguardando Pagamento'), 0) AS "valorAguardandoPagamento",
+          COALESCE(SUM(valor) FILTER (WHERE dataPagamento IS NULL), 0) AS "valorApagarOuPendente",
+          COALESCE(SUM(valor) FILTER (WHERE status = 'Pendencia Paga'), 0) AS "valorPendenciaPaga"
+        FROM r`;
 
-      this.logger.debug(`Executing count query: ${countQuery} with params: ${params.join(', ')}`);
+      this.logger.debug(`Executing aggregate query: ${aggQuery} with params: ${params.join(', ')}`);
 
-      const countResult = await queryRunner.query(countQuery, params);
+      const [agg] = await queryRunner.query(aggQuery, params);
 
-      count = parseInt(countResult[0]?.total ?? '0', 10);
+      count = parseInt(agg?.total ?? '0', 10);
+      valorTotal = Number(agg?.valorTotal ?? 0);
 
-      valorTotal = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r`, params);   
+      // valorAPagar e valorPendente são a mesma condição (dataPagamento IS NULL);
+      // qual variável recebe o valor depende de qual filtro foi pedido.
+      const valorApagarOuPendente = Number(agg?.valorApagarOuPendente ?? 0);
 
-      if(filter.pago)
-      valorPago = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor}) r where status='Pago' `, params)
-
-      if(filter.rejeitado || (filter.erro && !filter.estorno && !filter.pendentes))
-      valorRejeitado = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where r.status='Rejeitado' `, params)
-
-      if(filter.estorno || (filter.erro && !filter.rejeitado && !filter.pendentes))
-      valorEstornado = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where r.status='Estorno' `, params)
-      
-      if(filter.emProcessamento)
-      valorAguardandoPagamento =  await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where status='Aguardando Pagamento' `, params)
-
-      if(filter.aPagar)
-      valorAPagar = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where dataPagamento is null `, params)
-
-      if(filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno))
-      valorPendente = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where dataPagamento is null `, params)
-
-      if(filter.pendenciaPaga)
-      valorPendenciaPaga = await this.getValorPorQuery(`SELECT SUM(valor) as total FROM (${baseUnion + whereValor})r  where r.status='Pendencia Paga' `)
+      if (filter.pago) valorPago = Number(agg?.valorPago ?? 0);
+      if (filter.rejeitado || (filter.erro && !filter.estorno && !filter.pendentes)) valorRejeitado = Number(agg?.valorRejeitado ?? 0);
+      if (filter.estorno || (filter.erro && !filter.rejeitado && !filter.pendentes)) valorEstornado = Number(agg?.valorEstornado ?? 0);
+      if (filter.emProcessamento) valorAguardandoPagamento = Number(agg?.valorAguardandoPagamento ?? 0);
+      if (filter.aPagar) valorAPagar = valorApagarOuPendente;
+      if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) valorPendente = valorApagarOuPendente;
+      if (filter.pendenciaPaga) valorPendenciaPaga = Number(agg?.valorPendenciaPaga ?? 0);
 
       // 2. Query paginada
       const dataQuery = `${baseUnion + whereValor} ORDER BY "dataReferencia","nomes" ASC LIMIT ${pageSize} OFFSET ${offset}`;
@@ -665,17 +668,6 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       await queryRunner.release();
     }
 
-  }
-  async getValorPorQuery(query: string,params?:any[]): Promise<Number> {
-    this.logger.debug(query);
-    const queryRunner = this.dataSource.createQueryRunner();    
-    try{
-      await queryRunner.connect();
-      const result = await queryRunner.query(query,params);
-      return Number(result?.[0]?.total?? 0); 
-    }finally{
-      await queryRunner.release();
-    }    
   }
 
   getDataMinima(hoje = new Date()) {
