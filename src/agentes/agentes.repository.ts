@@ -489,15 +489,40 @@ export class AgentesRepository {
 
   private buildLegacyMonthlyQuery() {
     return `
-    WITH
+    WITH RECURSIVE
+    -- Pai/filha: uma ordem agrupada nunca-enviada (filha) pode ser
+    -- reparenteada sob uma nova OPA (pai) pelo fluxo de pendentes, e o
+    -- detalhe_a real só é criado no pai (a filha nunca tem o seu próprio).
+    -- Sobe a cadeia ordemPagamentoAgrupadoId (pode ter mais de uma camada)
+    -- pra achar o detalhe_a de qualquer ancestral, não só o da folha.
+    linhagem_opa AS (
+      SELECT opa.id AS folha_id, opa.id AS ancestral_id, opa."ordemPagamentoAgrupadoId" AS proximo_pai
+      FROM ordem_pagamento_agrupado opa
+      INNER JOIN ordem_pagamento_guardador og ON og."ordemPagamentoAgrupadoId" = opa.id
+      WHERE og."userId" = $2
+
+      UNION ALL
+
+      SELECT l.folha_id, pai.id, pai."ordemPagamentoAgrupadoId"
+      FROM linhagem_opa l
+      INNER JOIN ordem_pagamento_agrupado pai ON pai.id = l.proximo_pai
+    ),
     efetivacao_por_agrupado AS (
-      SELECT
-        oph."ordemPagamentoAgrupadoId",
-        MAX(da."dataVencimento") AS data_efetiva
-      FROM ordem_pagamento_agrupado_historico oph
+      SELECT DISTINCT ON (l.folha_id)
+        l.folha_id AS "ordemPagamentoAgrupadoId",
+        da."dataEfetivacao",
+        da."dataVencimento" AS data_efetiva
+      FROM linhagem_opa l
+      INNER JOIN ordem_pagamento_agrupado_historico oph
+        ON oph."ordemPagamentoAgrupadoId" = l.ancestral_id
       INNER JOIN detalhe_a da
         ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-      GROUP BY oph."ordemPagamentoAgrupadoId"
+      -- dataReferencia não serve de desempate aqui: a propagação
+      -- pai->filhas sobrescreve "dataReferencia" em TODO o histórico já
+      -- existente da folha (comportamento correto), então uma tentativa
+      -- antiga e a nova ficam com dataReferencia quase idênticas. oph.id é
+      -- sequencial e nunca é reescrito, é o único critério confiável.
+      ORDER BY l.folha_id, oph.id DESC
     ),
 
     datas_base AS (
@@ -535,7 +560,7 @@ export class AgentesRepository {
         op."dataOrdem",
 
         COALESCE(
-          da."dataEfetivacao",
+          efetivacao_por_agrupado."dataEfetivacao",
           efetivacao_por_agrupado.data_efetiva
         ) AS data_efetiva,
 
@@ -573,9 +598,6 @@ export class AgentesRepository {
           oph_i.id DESC
         LIMIT 1
       ) oph ON TRUE
-
-      LEFT JOIN detalhe_a da
-        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
     ),
 
     status_5_mais_recente AS (
@@ -706,7 +728,7 @@ export class AgentesRepository {
 
   private buildMonthlyDashboardQuery() {
     return `
-      WITH latest_history AS (
+      WITH RECURSIVE latest_history AS (
         SELECT DISTINCT ON (oph."ordemPagamentoAgrupadoId")
           oph.id,
           oph."ordemPagamentoAgrupadoId",
@@ -716,14 +738,36 @@ export class AgentesRepository {
         FROM ordem_pagamento_agrupado_historico oph
         ORDER BY oph."ordemPagamentoAgrupadoId", oph."dataReferencia" DESC, oph.id DESC
       ),
+      -- Pai/filha: o detalhe_a real só existe no pai que efetivamente foi
+      -- enviado/retornado; a folha nunca tem o seu próprio. Sobe a cadeia
+      -- ordemPagamentoAgrupadoId (pode ter mais de uma camada) pra achar o
+      -- detalhe_a de qualquer ancestral.
+      linhagem_opa AS (
+        SELECT opa.id AS folha_id, opa.id AS ancestral_id, opa."ordemPagamentoAgrupadoId" AS proximo_pai
+        FROM ordem_pagamento_agrupado opa
+        INNER JOIN ordem_pagamento_guardador og ON og."ordemPagamentoAgrupadoId" = opa.id
+        WHERE og."userId" = $2
+
+        UNION ALL
+
+        SELECT l.folha_id, pai.id, pai."ordemPagamentoAgrupadoId"
+        FROM linhagem_opa l
+        INNER JOIN ordem_pagamento_agrupado pai ON pai.id = l.proximo_pai
+      ),
       latest_effective_payment AS (
-        SELECT
-          latest_history."ordemPagamentoAgrupadoId",
-          MAX(da."dataEfetivacao") AS "dataEfetivaPagamento"
-        FROM latest_history
+        SELECT DISTINCT ON (l.folha_id)
+          l.folha_id AS "ordemPagamentoAgrupadoId",
+          da."dataEfetivacao" AS "dataEfetivaPagamento"
+        FROM linhagem_opa l
+        INNER JOIN ordem_pagamento_agrupado_historico oph
+          ON oph."ordemPagamentoAgrupadoId" = l.ancestral_id
         INNER JOIN detalhe_a da
-          ON da."ordemPagamentoAgrupadoHistoricoId" = latest_history.id
-        GROUP BY latest_history."ordemPagamentoAgrupadoId"
+          ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+        -- dataReferencia não serve de desempate: a propagação pai->filhas
+        -- sobrescreve "dataReferencia" em todo o histórico já existente da
+        -- folha, então uma tentativa antiga e a nova ficam quase idênticas.
+        -- oph.id é sequencial e nunca é reescrito.
+        ORDER BY l.folha_id, oph.id DESC
       )
       SELECT
         TO_CHAR(opa."dataPagamento", 'YYYY-MM-DD') AS "paymentDate",
