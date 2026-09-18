@@ -20,6 +20,8 @@ import {
   RelatorioFinancialMovementNovoRemessaSummaryDto,
 } from '../dtos/relatorio-financial-and-movement.dto';
 
+import { RelatorioGuardadorFinancialMovementRepository } from './relatorio-guardador-financial-movement.repository';
+
 type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
   dataInicio: Date;
   dataFim: Date;
@@ -45,7 +47,42 @@ type CursorValues = {
 export class RelatorioNovoRemessaFinancialMovementService {
   private readonly logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementService.name, { timestamp: true });
 
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly relatorioGuardadorFinancialMovementRepository: RelatorioGuardadorFinancialMovementRepository,
+  ) {}
+
+  public async findGuardadorFinancialMovementSummary(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
+    return this.relatorioGuardadorFinancialMovementRepository.findFinancialMovementSummary(filter);
+  }
+
+  public async findGuardadorFinancialMovementPage(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
+    return this.relatorioGuardadorFinancialMovementRepository.findFinancialMovementPage(filter);
+  }
+
+  public async downloadGuardadorFinancialMovementExport(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
+    const fileName = `financial-movement-guardadores-${Date.now()}.csv`;
+    const filePath = path.join(os.tmpdir(), fileName);
+    const header = 'dataReferencia;dataPagamento;nomes;email;codBanco;nomeBanco;cpfCnpj;consorcio;valor;status\n';
+    const ws = fs.createWriteStream(filePath, { encoding: 'utf8' });
+    ws.write(header);
+    await this.relatorioGuardadorFinancialMovementRepository.streamFinancialMovementRows(filter, (row) => {
+      ws.write([
+        row.dataReferencia,
+        row.dataPagamento,
+        `"${(row.nomes ?? '').replace(/"/g, '""')}"`,
+        row.email,
+        row.codBanco,
+        row.nomeBanco,
+        row.cpfCnpj,
+        row.consorcio,
+        String(row.valor).replace('.', ','),
+        row.status,
+      ].join(';') + '\n');
+    });
+    await new Promise<void>((res, rej) => ws.end((e) => (e ? rej(e) : res())));
+    return { filePath, fileName, filename: fileName, contentType: 'text/csv; charset=utf-8' };
+  }
 
   public async findFinancialMovementSummary(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
     const safeFilter = this.normalizeFilter(filter);

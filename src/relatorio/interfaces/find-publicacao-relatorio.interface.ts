@@ -10,4 +10,6 @@ export interface IFindPublicacaoRelatorio {
   emProcessamento?:boolean;
   rejeitado?: boolean;
   estorno?: boolean;
+  pendenciaPaga?: boolean;
+  status?: string;
 }
