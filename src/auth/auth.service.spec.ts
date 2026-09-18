@@ -133,6 +133,53 @@ describe('AuthService', () => {
         user,
       });
     });
+
+    it('should authenticate an agent whose provider is local', async () => {
+      const user = new User({
+        id: 2,
+        cpfCnpj: '16322676313',
+        provider: AuthProvidersEnum.local,
+        password: 'hashed-password',
+      });
+      user.role = new Role(RoleEnum.agentes);
+
+      jest
+        .spyOn(usersService, 'findManyByNormalizedCpf')
+        .mockResolvedValue([user]);
+      jest.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      const response = await authService.validateCpfLogin({
+        cpf: '163.226.763-13',
+        password: 'secret',
+      });
+
+      expect(response).toEqual({
+        token: 'token',
+        user,
+      });
+    });
+
+    it('should reject an agent whose provider is neither email nor local', async () => {
+      const user = new User({
+        id: 3,
+        cpfCnpj: '16322676313',
+        provider: AuthProvidersEnum.google,
+        password: 'hashed-password',
+      });
+      user.role = new Role(RoleEnum.agentes);
+
+      jest
+        .spyOn(usersService, 'findManyByNormalizedCpf')
+        .mockResolvedValue([user]);
+
+      await expect(
+        authService.validateCpfLogin({
+          cpf: '163.226.763-13',
+          password: 'secret',
+        }),
+      ).rejects.toThrowError();
+    });
   });
 
   xdescribe('resendRegisterMail', () => {
