@@ -167,7 +167,11 @@ describe('AuthLicenseeService', () => {
       });
     });
 
-    it('allows an active user to view a freshly resent invite (not yet consumed)', async () => {
+    it('allows an active user to view a freshly resent invite without consuming it', async () => {
+      // Viewing must not burn the single-use hash: MailHistoryValidationPipe
+      // rejects register/:hash as "already used" once the invite flips to
+      // `used` for an active user, so the actual conclude-registration POST
+      // (not this GET-equivalent view) must be the only thing marking used.
       const user = new User({
         id: 4,
         email: 'active@example.com',
@@ -188,15 +192,7 @@ describe('AuthLicenseeService', () => {
       const response = await authLicenseeService.getInviteProfile('hash_4');
 
       expect(response.email).toBe('active@example.com');
-      expect(mailHistoryService.update).toHaveBeenCalledWith(
-        4,
-        {
-          inviteStatus: {
-            id: InviteStatusEnum.used,
-          },
-        },
-        expect.any(String),
-      );
+      expect(mailHistoryService.update).not.toHaveBeenCalled();
     });
 
     it('rejects an active user when this specific invite hash was already consumed', async () => {

@@ -205,7 +205,15 @@ export class AuthLicenseeService {
       );
     }
 
-    await this.markInviteAsUsed(invite, 'AuthLicenseeService.getInviteProfile()');
+    if (user.status?.id !== StatusEnum.active) {
+      // For an active user, marking used here (mere viewing) would make the
+      // subsequent register/:hash POST get rejected by
+      // MailHistoryValidationPipe as "already used". Only the actual
+      // conclusion (concludeRegistration) should consume the invite in that
+      // case; pending users keep the existing "viewed" tracking used by the
+      // usedComplete/usedIncomplete report.
+      await this.markInviteAsUsed(invite, 'AuthLicenseeService.getInviteProfile()');
+    }
 
     if (
       user.id !== invite.user.id ||
