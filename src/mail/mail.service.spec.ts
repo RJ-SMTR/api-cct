@@ -140,4 +140,106 @@ describe('MailService', () => {
       }),
     );
   });
+
+  it('sends guardador users to the agentes sign-in link when already active', async () => {
+    const user = new User({
+      id: 2,
+      status: new Status(StatusEnum.active),
+      role: { id: RoleEnum.agentes } as any,
+    });
+    const invite = new MailHistory({
+      id: 2,
+      hash: 'hash-guardador-active',
+      user,
+      inviteStatus: new InviteStatus(InviteStatusEnum.used),
+    });
+
+    jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(invite);
+    jest.spyOn(mailerService, 'sendMail').mockResolvedValue({
+      response: '250 OK',
+      ehlo: [],
+    } as any);
+
+    await service.reSendEmailBank({
+      to: 'guardador@example.com',
+      data: {
+        hash: 'hash-guardador-active',
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+      },
+    });
+
+    expect(mailerService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining(
+          'https://frontend.example/agentes/sign-in',
+        ),
+      }),
+    );
+  });
+
+  it('sends vanzeiro users to the default sign-in link when already active', async () => {
+    const user = new User({
+      id: 3,
+      status: new Status(StatusEnum.active),
+      role: { id: RoleEnum.user } as any,
+    });
+    const invite = new MailHistory({
+      id: 3,
+      hash: 'hash-vanzeiro-active',
+      user,
+      inviteStatus: new InviteStatus(InviteStatusEnum.used),
+    });
+
+    jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(invite);
+    jest.spyOn(mailerService, 'sendMail').mockResolvedValue({
+      response: '250 OK',
+      ehlo: [],
+    } as any);
+
+    await service.reSendEmailBank({
+      to: 'vanzeiro@example.com',
+      data: {
+        hash: 'hash-vanzeiro-active',
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+      },
+    });
+
+    expect(mailerService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('https://frontend.example/sign-in'),
+      }),
+    );
+    expect(mailerService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.not.stringContaining('agentes/sign-in'),
+      }),
+    );
+  });
+
+  it('falls back to the default sign-in link when the invite cannot be resolved by hash', async () => {
+    jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(undefined as any);
+    jest.spyOn(mailerService, 'sendMail').mockResolvedValue({
+      response: '250 OK',
+      ehlo: [],
+    } as any);
+
+    await service.reSendEmailBank({
+      to: 'unknown@example.com',
+      data: {
+        hash: 'hash-unresolvable',
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+      },
+    });
+
+    expect(mailerService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('https://frontend.example/sign-in'),
+      }),
+    );
+    expect(mailerService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.not.stringContaining('agentes/sign-in'),
+      }),
+    );
+  });
 });

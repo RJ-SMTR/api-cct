@@ -58,6 +58,7 @@ describe('AuthService', () => {
       useValue: {
         sendConcludeRegistration: jest.fn(),
         sendForgotPassword: jest.fn(),
+        reSendEmailBank: jest.fn(),
       },
     } as Provider;
     const mailHistoryServiceMock = {
@@ -304,6 +305,45 @@ describe('AuthService', () => {
         },
         expect.any(String),
       );
+    });
+
+    it('sends the registration email, not the bank-data reminder, for an already active user', async () => {
+      const user = new User({
+        id: 2538,
+        email: 'guardador@mail.com',
+        hash: 'hash_2538',
+        status: new Status(StatusEnum.active),
+      });
+      const mailHistory = new MailHistory({
+        id: 200,
+        user,
+        hash: 'active_hash',
+      });
+      mailHistory.setInviteStatus(InviteStatusEnum.sent);
+      const mailResponse = {
+        mailConfirmationLink: 'link',
+        mailSentInfo: {
+          success: true,
+        },
+      } as MailRegistrationInterface;
+      const dateNow = new Date('2023-01-01T12:00:00');
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest
+        .spyOn(mailHistoryService, 'findRecentByUser')
+        .mockResolvedValue(mailHistory);
+      jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
+      jest
+        .spyOn(mailService, 'sendConcludeRegistration')
+        .mockResolvedValue(mailResponse);
+      jest
+        .spyOn(global.Date, 'now')
+        .mockImplementation(() => dateNow.valueOf());
+
+      await authService.resendRegisterMail({ id: 2538 });
+
+      expect(mailService.sendConcludeRegistration).toBeCalled();
+      expect(mailService.reSendEmailBank).not.toBeCalled();
     });
   });
 
