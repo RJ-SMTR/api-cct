@@ -177,7 +177,11 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpStatusMessage.UNAUTHORIZED,
+          error: {
+            message: HttpStatusMessage.UNAUTHORIZED,
+            roleId: user.role?.id ?? null,
+            redirectTo: this.getLoginRedirectTo(user.role?.id),
+          },
           details: {
             invite: {
               inviteStatus: `inviteAlreadyUsed'`,
@@ -194,7 +198,11 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpStatusMessage.UNAUTHORIZED,
+          error: {
+            message: HttpStatusMessage.UNAUTHORIZED,
+            roleId: user.role?.id ?? null,
+            redirectTo: this.getLoginRedirectTo(user.role?.id),
+          },
           details: {
             invite: {
               inviteStatus: `Invite is not 'sent' yet`,
@@ -223,7 +231,11 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpStatusMessage.UNAUTHORIZED,
+          error: {
+            message: HttpStatusMessage.UNAUTHORIZED,
+            roleId: user.role?.id ?? null,
+            redirectTo: this.getLoginRedirectTo(user.role?.id),
+          },
           details: {
             user: {
               ...(user.id !== invite.user.id && {
