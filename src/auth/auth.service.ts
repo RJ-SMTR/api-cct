@@ -330,10 +330,15 @@ export class AuthService {
     userMailHistory: MailHistory,
     logContext: string,
   ) {
+    const isActiveUser = user.status?.id === StatusEnum.active;
+    const hash = isActiveUser
+      ? await this.mailHistoryService.generateHash()
+      : (userMailHistory.hash as string);
+
     const mailData: MailData<{ hash: string; to: string; userName: string; roleId?: number }> = {
       to: user.email as string,
       data: {
-        hash: userMailHistory.hash as string,
+        hash,
         to: user.email as string,
         userName: user.fullName as string,
         roleId: user.role?.id,
@@ -344,22 +349,38 @@ export class AuthService {
     );
     const mailSentInfo = mailResponse.mailSentInfo;
     if (mailSentInfo.success === true) {
-      if (user.status?.id === StatusEnum.active) {
-        userMailHistory.setInviteStatus(InviteStatusEnum.used);
-      } else if (userMailHistory.inviteStatus.id === InviteStatusEnum.queued) {
-        userMailHistory.setInviteStatus(InviteStatusEnum.sent);
+      let sentMailHistory = userMailHistory;
+      if (isActiveUser) {
+        // The user already concluded registration once; a stale/reused hash
+        // would be dead on arrival (see AuthLicenseeService), so a resend
+        // mints a fresh single-use invite and retires the old one.
+        sentMailHistory = await this.mailHistoryService.create(
+          {
+            user: { id: user.id },
+            hash,
+            email: user.email as string,
+            inviteStatus: { id: InviteStatusEnum.sent },
+            sentAt: new Date(Date.now()),
+          },
+          `AuthService.${logContext}`,
+        );
+        await this.mailHistoryService.softDelete(userMailHistory.id);
+      } else {
+        if (userMailHistory.inviteStatus.id === InviteStatusEnum.queued) {
+          userMailHistory.setInviteStatus(InviteStatusEnum.sent);
+        }
+        userMailHistory.sentAt = new Date(Date.now());
+        await this.mailHistoryService.update(
+          userMailHistory.id,
+          {
+            inviteStatus: userMailHistory.inviteStatus,
+            sentAt: userMailHistory.sentAt,
+          },
+          `AuthService.${logContext}`,
+        );
       }
-      userMailHistory.sentAt = new Date(Date.now());
-      await this.mailHistoryService.update(
-        userMailHistory.id,
-        {
-          inviteStatus: userMailHistory.inviteStatus,
-          sentAt: userMailHistory.sentAt,
-        },
-        `AuthService.${logContext}`,
-      );
       logLog(this.logger,
-        `Email de cadastro enviado com sucesso (${userMailHistory.getLogInfoStr()})`,
+        `Email de cadastro enviado com sucesso (${sentMailHistory.getLogInfoStr()})`,
         logContext);
     } else {
       throw new HttpException(

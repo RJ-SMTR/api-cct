@@ -32,10 +32,6 @@ export class AuthLicenseeService {
     private mailHistoryService: MailHistoryService,
   ) { }
 
-  private isRegistrationConcluded(user: User | null | undefined): boolean {
-    return user?.status?.id === StatusEnum.active;
-  }
-
   private async markInviteAsUsed(
     invite: MailHistory,
     logContext: string,
@@ -175,11 +171,10 @@ export class AuthLicenseeService {
     const invite = await this.mailHistoryService.getOne({ hash });
     const user = await this.usersService.getOne({ id: invite.user.id });
 
-    if (this.isRegistrationConcluded(user)) {
-      await this.markInviteAsUsed(
-        invite,
-        'AuthLicenseeService.getInviteProfile()',
-      );
+    if (
+      invite.inviteStatus.id === InviteStatusEnum.used &&
+      user.status?.id === StatusEnum.active
+    ) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,
@@ -271,11 +266,10 @@ export class AuthLicenseeService {
 
     const user = await this.usersService.getOne({ id: invite.user.id });
 
-    if (this.isRegistrationConcluded(user)) {
-      await this.markInviteAsUsed(
-        invite,
-        'AuthLicenseeService.concludeRegistration()',
-      );
+    if (
+      invite.inviteStatus.id === InviteStatusEnum.used &&
+      user.status?.id === StatusEnum.active
+    ) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,

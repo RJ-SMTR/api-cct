@@ -167,7 +167,7 @@ describe('AuthLicenseeService', () => {
       });
     });
 
-    it('rejects an already active user even when the invite status is stale sent', async () => {
+    it('allows an active user to view a freshly resent invite (not yet consumed)', async () => {
       const user = new User({
         id: 4,
         email: 'active@example.com',
@@ -185,10 +185,9 @@ describe('AuthLicenseeService', () => {
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
       jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
 
-      await expect(
-        authLicenseeService.getInviteProfile('hash_4'),
-      ).rejects.toThrowError();
+      const response = await authLicenseeService.getInviteProfile('hash_4');
 
+      expect(response.email).toBe('active@example.com');
       expect(mailHistoryService.update).toHaveBeenCalledWith(
         4,
         {
@@ -198,6 +197,29 @@ describe('AuthLicenseeService', () => {
         },
         expect.any(String),
       );
+    });
+
+    it('rejects an active user when this specific invite hash was already consumed', async () => {
+      const user = new User({
+        id: 6,
+        email: 'already-consumed@example.com',
+        fullName: 'Already Consumed',
+        permitCode: 'permit-6',
+        status: new Status(StatusEnum.active),
+      });
+      const mailHistory = {
+        id: 6,
+        user,
+        hash: 'hash_6',
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+      } as MailHistory;
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
+
+      await expect(
+        authLicenseeService.getInviteProfile('hash_6'),
+      ).rejects.toThrowError();
     });
   });
 
@@ -320,6 +342,71 @@ describe('AuthLicenseeService', () => {
         }),
         expect.any(String),
       );
+    });
+
+    it('allows an already active user to conclude registration through a freshly resent invite', async () => {
+      const dateNow = new Date('2023-01-01T10:00:00');
+      const user = new User({
+        id: 7,
+        email: 'active-resend@example.com',
+        hash: 'hash_7',
+        permitCode: 'permitCode7',
+        role: new Role(RoleEnum.user),
+        status: new Status(StatusEnum.active),
+      });
+      const mailHistory = {
+        id: 7,
+        user,
+        hash: 'hash_7',
+        inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+        sentAt: dateNow,
+      } as MailHistory;
+
+      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(usersService, 'update').mockResolvedValue(user);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      const response = await authLicenseeService.concludeRegistration(
+        { password: 'new-secret' },
+        'hash_7',
+      );
+
+      expect(response.token).toBe('token');
+      expect(usersService.update).toBeCalledWith(
+        7,
+        expect.objectContaining({ password: 'new-secret' }),
+        expect.any(String),
+      );
+    });
+
+    it('rejects an already active user when this specific invite hash was already consumed', async () => {
+      const user = new User({
+        id: 8,
+        email: 'active-used@example.com',
+        hash: 'hash_8',
+        permitCode: 'permitCode8',
+        role: new Role(RoleEnum.user),
+        status: new Status(StatusEnum.active),
+      });
+      const mailHistory = {
+        id: 8,
+        user,
+        hash: 'hash_8',
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+      } as MailHistory;
+
+      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+
+      await expect(
+        authLicenseeService.concludeRegistration(
+          { password: 'new-secret' },
+          'hash_8',
+        ),
+      ).rejects.toThrowError();
+
+      expect(usersService.update).not.toBeCalled();
     });
   });
 });
