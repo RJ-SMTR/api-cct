@@ -10,20 +10,30 @@ import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio
 import { RelatorioNovoRemessaFinancialMovementService } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
 import { RelatorioNovoRemessaFinancialMovementRepository } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.repository';
 import { RelatorioNovoRemessaMovimentacaoRepository } from './novo-remessa/relatorio-novo-remessa-movimentacao.repository';
+import { RelatorioGuardadorConsolidadoRepository } from './consolidado/relatorio-guardador-consolidado.repository';
+import { RelatorioGuardadorFinancialMovementRepository } from './movimentacao-financeira/relatorio-guardador-financial-movement.repository';
 import { RelatorioController } from './relatorio.controller';
 
 @Module({
   imports: [CnabModule],
-  controllers: [RelatorioNovoRemessaController,RelatorioController],
-  providers: [RelatorioNovoRemessaService,
-    RelatorioSinteticoRepository, RelatorioAnaliticoRepository,
+  controllers: [RelatorioNovoRemessaController, RelatorioController],
+  providers: [
+    RelatorioNovoRemessaService,
+    RelatorioSinteticoRepository,
+    RelatorioAnaliticoRepository,
     RelatorioNovoRemessaConsolidadoRepository,
     RelatorioNovoRemessaMovimentacaoRepository,
     RelatorioExtratoBancarioRepository,
-    RelatorioNovoRemessaFinancialMovementRepository, RelatorioNovoRemessaFinancialMovementService],
+    RelatorioNovoRemessaFinancialMovementRepository,
+    RelatorioNovoRemessaFinancialMovementService,
+    RelatorioGuardadorConsolidadoRepository,
+    RelatorioGuardadorFinancialMovementRepository,
+  ],
   exports: [
     RelatorioNovoRemessaFinancialMovementService,
     RelatorioNovoRemessaFinancialMovementRepository,
+    RelatorioGuardadorConsolidadoRepository,
+    RelatorioGuardadorFinancialMovementRepository,
   ],
 })
 export class RelatorioModule { }
