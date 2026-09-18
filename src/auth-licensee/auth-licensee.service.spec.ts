@@ -217,6 +217,106 @@ describe('AuthLicenseeService', () => {
         authLicenseeService.getInviteProfile('hash_6'),
       ).rejects.toThrowError();
     });
+
+    it('includes role metadata in the already-used invite error so the frontend can redirect correctly', async () => {
+      expect.assertions(1);
+
+      const user = new User({
+        id: 5,
+        email: 'agent5@example.com',
+        fullName: 'Agent Five',
+        permitCode: 'permit-5',
+        status: new Status(StatusEnum.active),
+      });
+      user.role = new Role(RoleEnum.agentes);
+      const mailHistory = {
+        id: 5,
+        user,
+        hash: 'hash_5',
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+      } as MailHistory;
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
+
+      try {
+        await authLicenseeService.getInviteProfile('hash_5');
+      } catch (exception) {
+        expect(exception.getResponse()).toMatchObject({
+          error: {
+            roleId: RoleEnum.agentes,
+            redirectTo: '/agentes/sign-in',
+          },
+        });
+      }
+    });
+
+    it('includes non-agente role metadata in the not-yet-sent invite error', async () => {
+      expect.assertions(1);
+
+      const user = new User({
+        id: 6,
+        email: 'user6@example.com',
+        fullName: 'User Six',
+        permitCode: 'permit-6',
+        status: new Status(StatusEnum.register),
+      });
+      user.role = new Role(RoleEnum.user);
+      const mailHistory = {
+        id: 6,
+        user,
+        hash: 'hash_6',
+        inviteStatus: new InviteStatus(InviteStatusEnum.queued),
+      } as MailHistory;
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
+
+      try {
+        await authLicenseeService.getInviteProfile('hash_6');
+      } catch (exception) {
+        expect(exception.getResponse()).toMatchObject({
+          error: {
+            roleId: RoleEnum.user,
+            redirectTo: '/sign-in',
+          },
+        });
+      }
+    });
+
+    it('includes role metadata in the invalid-user-for-hash error', async () => {
+      expect.assertions(1);
+
+      const invitedUser = new User({ id: 7 });
+      const mismatchedUser = new User({
+        id: 8,
+        email: 'agent8@example.com',
+        fullName: 'Agent Eight',
+        permitCode: 'permit-8',
+        status: new Status(StatusEnum.register),
+      });
+      mismatchedUser.role = new Role(RoleEnum.agentes);
+      const mailHistory = {
+        id: 7,
+        user: invitedUser,
+        hash: 'hash_7',
+        inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+      } as MailHistory;
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(mismatchedUser);
+      jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
+
+      try {
+        await authLicenseeService.getInviteProfile('hash_7');
+      } catch (exception) {
+        expect(exception.getResponse()).toMatchObject({
+          error: {
+            roleId: RoleEnum.agentes,
+            redirectTo: '/agentes/sign-in',
+          },
+        });
+      }
+    });
   });
 
   describe('concludeRegistration', () => {
