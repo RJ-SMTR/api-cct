@@ -32,10 +32,6 @@ export class AuthLicenseeService {
     private mailHistoryService: MailHistoryService,
   ) { }
 
-  private isRegistrationConcluded(user: User | null | undefined): boolean {
-    return user?.status?.id === StatusEnum.active;
-  }
-
   private async markInviteAsUsed(
     invite: MailHistory,
     logContext: string,
@@ -175,11 +171,10 @@ export class AuthLicenseeService {
     const invite = await this.mailHistoryService.getOne({ hash });
     const user = await this.usersService.getOne({ id: invite.user.id });
 
-    if (this.isRegistrationConcluded(user)) {
-      await this.markInviteAsUsed(
-        invite,
-        'AuthLicenseeService.getInviteProfile()',
-      );
+    if (
+      invite.inviteStatus.id === InviteStatusEnum.used &&
+      user.status?.id === StatusEnum.active
+    ) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,
@@ -210,7 +205,15 @@ export class AuthLicenseeService {
       );
     }
 
-    await this.markInviteAsUsed(invite, 'AuthLicenseeService.getInviteProfile()');
+    if (user.status?.id !== StatusEnum.active) {
+      // For an active user, marking used here (mere viewing) would make the
+      // subsequent register/:hash POST get rejected by
+      // MailHistoryValidationPipe as "already used". Only the actual
+      // conclusion (concludeRegistration) should consume the invite in that
+      // case; pending users keep the existing "viewed" tracking used by the
+      // usedComplete/usedIncomplete report.
+      await this.markInviteAsUsed(invite, 'AuthLicenseeService.getInviteProfile()');
+    }
 
     if (
       user.id !== invite.user.id ||
@@ -271,11 +274,10 @@ export class AuthLicenseeService {
 
     const user = await this.usersService.getOne({ id: invite.user.id });
 
-    if (this.isRegistrationConcluded(user)) {
-      await this.markInviteAsUsed(
-        invite,
-        'AuthLicenseeService.concludeRegistration()',
-      );
+    if (
+      invite.inviteStatus.id === InviteStatusEnum.used &&
+      user.status?.id === StatusEnum.active
+    ) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,

@@ -69,6 +69,9 @@ describe('AuthService', () => {
         getOne: jest.fn(),
         getRemainingQuota: jest.fn(),
         update: jest.fn(),
+        generateHash: jest.fn(),
+        create: jest.fn(),
+        softDelete: jest.fn(),
       },
     } as Provider;
     const jwtServiceMock = {
@@ -334,6 +337,10 @@ describe('AuthService', () => {
         .mockResolvedValue(mailHistory);
       jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
       jest
+        .spyOn(mailHistoryService, 'generateHash')
+        .mockResolvedValue('new_hash_for_2538');
+      jest.spyOn(mailHistoryService, 'create').mockResolvedValue(mailHistory);
+      jest
         .spyOn(mailService, 'sendConcludeRegistration')
         .mockResolvedValue(mailResponse);
       jest
@@ -344,6 +351,77 @@ describe('AuthService', () => {
 
       expect(mailService.sendConcludeRegistration).toBeCalled();
       expect(mailService.reSendEmailBank).not.toBeCalled();
+    });
+
+    it('mints a fresh single-use hash for an already active user instead of reusing the stale one', async () => {
+      const user = new User({
+        id: 2538,
+        email: 'guardador@mail.com',
+        hash: 'hash_2538',
+        status: new Status(StatusEnum.active),
+      });
+      const staleInvite = new MailHistory({
+        id: 200,
+        user,
+        hash: 'stale_hash',
+      });
+      staleInvite.setInviteStatus(InviteStatusEnum.used);
+      const freshInvite = new MailHistory({
+        id: 201,
+        user,
+        hash: 'fresh_hash',
+      });
+      freshInvite.setInviteStatus(InviteStatusEnum.sent);
+      const mailResponse = {
+        mailConfirmationLink: 'link',
+        mailSentInfo: {
+          success: true,
+        },
+      } as MailRegistrationInterface;
+      const dateNow = new Date('2023-01-01T12:00:00');
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest
+        .spyOn(mailHistoryService, 'findRecentByUser')
+        .mockResolvedValue(staleInvite);
+      jest.spyOn(mailHistoryService, 'getRemainingQuota').mockResolvedValue(1);
+      jest
+        .spyOn(mailHistoryService, 'generateHash')
+        .mockResolvedValue('fresh_hash');
+      jest
+        .spyOn(mailHistoryService, 'create')
+        .mockResolvedValue(freshInvite);
+      jest
+        .spyOn(mailService, 'sendConcludeRegistration')
+        .mockResolvedValue(mailResponse);
+      jest
+        .spyOn(global.Date, 'now')
+        .mockImplementation(() => dateNow.valueOf());
+
+      await authService.resendRegisterMail({ id: 2538 });
+
+      expect(mailService.sendConcludeRegistration).toBeCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ hash: 'fresh_hash' }),
+        }),
+      );
+      expect(mailHistoryService.create).toBeCalledWith(
+        expect.objectContaining({
+          user: { id: 2538 },
+          hash: 'fresh_hash',
+          email: 'guardador@mail.com',
+          inviteStatus: { id: InviteStatusEnum.sent },
+        }),
+        expect.any(String),
+      );
+      expect(mailHistoryService.softDelete).toBeCalledWith(200);
+      expect(mailHistoryService.update).not.toBeCalledWith(
+        200,
+        expect.objectContaining({
+          inviteStatus: expect.objectContaining({ id: InviteStatusEnum.used }),
+        }),
+        expect.any(String),
+      );
     });
   });
 
@@ -452,6 +530,79 @@ describe('AuthService', () => {
       expect(user.password).toBe('new-password');
       expect(user.save).toHaveBeenCalled();
       expect(forgotService.softDelete).toHaveBeenCalledWith(forgot.id);
+    });
+  });
+
+  describe('getResetPasswordRole', () => {
+    it('resolves the guardador roleId for a valid hash', async () => {
+      const user = new User({ id: 1 });
+      user.role = new Role(RoleEnum.agentes);
+      const forgot = {
+        id: 10,
+        hash: 'hash_1',
+        user,
+      };
+
+      jest.spyOn(forgotService, 'findOne').mockResolvedValue(forgot as any);
+
+      const response = await authService.getResetPasswordRole('hash_1');
+
+      expect(response).toEqual({ roleId: RoleEnum.agentes });
+      expect(forgotService.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('resolves the permissionário roleId for a valid hash', async () => {
+      const user = new User({ id: 2 });
+      user.role = new Role(RoleEnum.user);
+      const forgot = {
+        id: 20,
+        hash: 'hash_2',
+        user,
+      };
+
+      jest.spyOn(forgotService, 'findOne').mockResolvedValue(forgot as any);
+
+      const response = await authService.getResetPasswordRole('hash_2');
+
+      expect(response).toEqual({ roleId: RoleEnum.user });
+      expect(forgotService.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('rejects with the same "hash not found" shape as resetPassword for an unresolvable hash', async () => {
+      jest.spyOn(forgotService, 'findOne').mockResolvedValue(undefined as any);
+
+      const responsePromise = authService.getResetPasswordRole('unknown_hash');
+
+      await expect(responsePromise).rejects.toMatchObject({
+        status: 401,
+        response: {
+          error: 'Unauthorized',
+          details: {
+            error: 'hash not found',
+            hash: 'unknown_hash',
+          },
+        },
+      });
+      expect(forgotService.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('is safe to call twice in a row for the same hash, with no mutation between calls', async () => {
+      const user = new User({ id: 1 });
+      user.role = new Role(RoleEnum.agentes);
+      const forgot = {
+        id: 10,
+        hash: 'hash_1',
+        user,
+      };
+
+      jest.spyOn(forgotService, 'findOne').mockResolvedValue(forgot as any);
+
+      const firstResponse = await authService.getResetPasswordRole('hash_1');
+      const secondResponse = await authService.getResetPasswordRole('hash_1');
+
+      expect(firstResponse).toEqual({ roleId: RoleEnum.agentes });
+      expect(secondResponse).toEqual({ roleId: RoleEnum.agentes });
+      expect(forgotService.softDelete).not.toHaveBeenCalled();
     });
   });
 });
