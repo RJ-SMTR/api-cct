@@ -80,7 +80,10 @@ export class AuthLicenseeService {
       );
     }
 
-    if (user.provider !== AuthProvidersEnum.email) {
+    if (
+      user.provider !== AuthProvidersEnum.email &&
+      user.provider !== AuthProvidersEnum.local
+    ) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,

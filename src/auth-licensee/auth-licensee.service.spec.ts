@@ -1,6 +1,8 @@
 import { Provider } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import * as bcrypt from 'bcryptjs';
+import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { ForgotService } from 'src/forgot/forgot.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
@@ -30,6 +32,7 @@ describe('AuthLicenseeService', () => {
         create: jest.fn(),
         getOne: jest.fn(),
         findOne: jest.fn(),
+        findMany: jest.fn(),
         update: jest.fn(),
         softDelete: jest.fn(),
       },
@@ -316,6 +319,75 @@ describe('AuthLicenseeService', () => {
           },
         });
       }
+    });
+  });
+
+  describe('validateLogin', () => {
+    it('authenticates a licensee whose provider is email', async () => {
+      const user = new User({
+        id: 10,
+        permitCode: 'permit-10',
+        provider: AuthProvidersEnum.email,
+        password: 'hashed-password',
+        status: new Status(StatusEnum.active),
+      });
+      user.role = new Role(RoleEnum.user);
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(usersService, 'findMany').mockResolvedValue([]);
+      jest.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      const response = await authLicenseeService.validateLogin(
+        { permitCode: 'permit-10', password: 'secret' },
+        RoleEnum.user,
+      );
+
+      expect(response).toEqual({ token: 'token', user });
+    });
+
+    it('authenticates a licensee whose provider is local', async () => {
+      const user = new User({
+        id: 11,
+        permitCode: 'permit-11',
+        provider: AuthProvidersEnum.local,
+        password: 'hashed-password',
+        status: new Status(StatusEnum.active),
+      });
+      user.role = new Role(RoleEnum.user);
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(usersService, 'findMany').mockResolvedValue([]);
+      jest.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      const response = await authLicenseeService.validateLogin(
+        { permitCode: 'permit-11', password: 'secret' },
+        RoleEnum.user,
+      );
+
+      expect(response).toEqual({ token: 'token', user });
+    });
+
+    it('rejects a licensee whose provider is neither email nor local', async () => {
+      const user = new User({
+        id: 12,
+        permitCode: 'permit-12',
+        provider: AuthProvidersEnum.google,
+        password: 'hashed-password',
+        status: new Status(StatusEnum.active),
+      });
+      user.role = new Role(RoleEnum.user);
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(usersService, 'findMany').mockResolvedValue([]);
+
+      await expect(
+        authLicenseeService.validateLogin(
+          { permitCode: 'permit-12', password: 'secret' },
+          RoleEnum.user,
+        ),
+      ).rejects.toThrowError();
     });
   });
 
