@@ -7,6 +7,7 @@ import {
   ValidationPipeOptions,
 } from '@nestjs/common';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
+import { getLoginRedirectTo } from 'src/roles/get-login-redirect-to';
 import { StatusEnum } from 'src/statuses/statuses.enum';
 import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { MailHistoryService } from '../mail-history.service';
@@ -45,7 +46,11 @@ export class MailHistoryValidationPipe extends ValidationPipe {
     ) {
       throw new HttpException(
         {
-          message: HttpStatusMessage.UNAUTHORIZED,
+          error: {
+            message: HttpStatusMessage.UNAUTHORIZED,
+            roleId: inviteFound.user?.role?.id ?? null,
+            redirectTo: getLoginRedirectTo(inviteFound.user?.role?.id),
+          },
           details: {
             inviteStatus: "is already 'sent'. Cant be reused.",
           },

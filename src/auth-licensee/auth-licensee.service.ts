@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { getLoginRedirectTo } from 'src/roles/get-login-redirect-to';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
@@ -51,12 +52,6 @@ export class AuthLicenseeService {
     );
     invite.inviteStatus.id = InviteStatusEnum.used;
     invite.inviteStatus.name = 'used';
-  }
-
-  private getLoginRedirectTo(roleId?: number | null): string {
-    return roleId === RoleEnum.agentes
-      ? '/agentes/sign-in'
-      : '/sign-in';
   }
 
   async validateLogin(
@@ -180,7 +175,7 @@ export class AuthLicenseeService {
           error: {
             message: HttpStatusMessage.UNAUTHORIZED,
             roleId: user.role?.id ?? null,
-            redirectTo: this.getLoginRedirectTo(user.role?.id),
+            redirectTo: getLoginRedirectTo(user.role?.id),
           },
           details: {
             invite: {
@@ -201,7 +196,7 @@ export class AuthLicenseeService {
           error: {
             message: HttpStatusMessage.UNAUTHORIZED,
             roleId: user.role?.id ?? null,
-            redirectTo: this.getLoginRedirectTo(user.role?.id),
+            redirectTo: getLoginRedirectTo(user.role?.id),
           },
           details: {
             invite: {
@@ -234,7 +229,7 @@ export class AuthLicenseeService {
           error: {
             message: HttpStatusMessage.UNAUTHORIZED,
             roleId: user.role?.id ?? null,
-            redirectTo: this.getLoginRedirectTo(user.role?.id),
+            redirectTo: getLoginRedirectTo(user.role?.id),
           },
           details: {
             user: {
@@ -259,7 +254,7 @@ export class AuthLicenseeService {
       hash: invite.hash,
       inviteStatus: invite.inviteStatus,
       roleId: user.role?.id ?? null,
-      redirectTo: this.getLoginRedirectTo(user.role?.id),
+      redirectTo: getLoginRedirectTo(user.role?.id),
     };
 
     return inviteResponse;
@@ -370,7 +365,7 @@ export class AuthLicenseeService {
       token,
       user: updatedUser,
       roleId: updatedUser.role?.id ?? null,
-      redirectTo: this.getLoginRedirectTo(updatedUser.role?.id),
+      redirectTo: getLoginRedirectTo(updatedUser.role?.id),
     };
   }
 }
