@@ -41,6 +41,17 @@ const GUARDADOR_DATA_REFERENCIA = `
         ELSE da."dataVencimento"
       END`;
 
+// Orders that were regrouped under a parent have children and are not listed themselves.
+// The uncorrelated NOT IN is evaluated once, as a hashed SubPlan. The correlated NOT EXISTS
+// let the planner pick a nested-loop anti join that scans the ~280k ordem_pagamento_agrupado
+// rows once per outer row whenever a filter (status, consorcio) made it underestimate the
+// rows, which took 30s+ per query.
+const GUARDADOR_OPA_WITHOUT_CHILDREN = `opa.id NOT IN (
+        SELECT filha."ordemPagamentoAgrupadoId"
+        FROM ordem_pagamento_agrupado filha
+        WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL
+      )`;
+
 // A guardador can be linked to more than one association. Joining
 // user_relationships directly would yield one row (and repeat the value) per
 // association, so the associations are aggregated into a single row here.
@@ -119,11 +130,7 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
       )
-      AND NOT EXISTS (
-        SELECT 1
-        FROM ordem_pagamento_agrupado filha
-        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
-      )
+      AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       AND pu."roleId" = ${GUARDADOR_ROLE_ID}
       ${favorecidoClause}
@@ -218,11 +225,7 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
       )
-      AND NOT EXISTS (
-        SELECT 1
-        FROM ordem_pagamento_agrupado filha
-        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
-      )
+      AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
       AND oph."statusRemessa" = 5
       AND (
         (

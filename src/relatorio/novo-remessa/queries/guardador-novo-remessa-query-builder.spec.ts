@@ -72,4 +72,20 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(build()).toContain('ELSE da."dataVencimento"');
     });
   });
+  // A correlated NOT EXISTS over ordem_pagamento_agrupado let the planner choose a nested-loop
+  // anti join that scans ~280k rows per outer row as soon as a filter (status, consorcio)
+  // made it underestimate the rows: 30s+ per query. An uncorrelated NOT IN is hashed once.
+  describe.each([
+    ['base', buildGuardadorBaseQuery],
+    ['pendenciaPagaSingleDate', buildGuardadorPendenciaPagaSingleDateQuery],
+  ])('%s query orders without children', (_name, build) => {
+    it('uses an uncorrelated NOT IN instead of a correlated NOT EXISTS', () => {
+      const sql = build();
+
+      expect(sql).not.toMatch(/NOT EXISTS/i);
+      expect(sql).toMatch(
+        /opa\.id NOT IN \(\s*SELECT filha\."ordemPagamentoAgrupadoId"\s+FROM ordem_pagamento_agrupado filha\s+WHERE filha\."ordemPagamentoAgrupadoId" IS NOT NULL\s*\)/,
+      );
+    });
+  });
 });
