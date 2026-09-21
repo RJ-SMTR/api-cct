@@ -67,4 +67,19 @@ describe('RelatorioNovoRemessaService.findConsolidadoGuardador', () => {
       expect(pagoCall.pendenciaPaga).toBeUndefined();
     });
   });
+  // The guardador selector sends the user ids, not the names.
+  describe('userIds', () => {
+    it('treats userIds as a specific filter and returns only the todos block', async () => {
+      const result = await service.findConsolidadoGuardador({ ...baseArgs, userIds: [7, 9] });
+
+      expect(blockStatuses(result)).toEqual(['todos']);
+    });
+
+    it('passes the userIds to the repository', async () => {
+      await service.findConsolidadoGuardador({ ...baseArgs, userIds: [7, 9] });
+
+      const args = guardadorConsolidadoRepository.findConsolidado.mock.calls[0][0];
+      expect(args.userIds).toEqual([7, 9]);
+    });
+  });
 });
