@@ -21,22 +21,33 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(sql).not.toMatch(/LEFT JOIN\s+public\."user"\s+assoc/i);
     });
 
-    it('aggregates the associations of a guardador into a single joined row', () => {
-      expect(build()).toMatch(/LEFT JOIN LATERAL/i);
-    });
-
-    // Purely visual: joining both names would make the column too long for the front.
-    it('displays a single association name instead of concatenating them', () => {
+    // A guardador can belong to several associations. They are aggregated once per user
+    // (GROUP BY user_id) in a MATERIALIZED CTE, so it is computed once whatever plan the
+    // planner picks, and joined on that key: one row per payment, no repeated value.
+    it('aggregates every association of a guardador once per user in a materialized CTE', () => {
       const sql = build();
 
-      expect(sql).not.toMatch(/STRING_AGG/i);
-      expect(sql).toMatch(/\)\[1\] AS "fullName"/);
+      expect(sql).toMatch(/WITH assoc AS MATERIALIZED/i);
+      expect(sql).toMatch(/STRING_AGG\(/i);
+      expect(sql).toMatch(/GROUP BY ur\.user_id/i);
+      expect(sql).toMatch(/LEFT JOIN assoc\s+ON assoc\.user_id = pu\.id/i);
     });
 
-    it('displays the association selected in the consorcio filter first', () => {
-      const sql = build({ consorcioFilterParamIndex: 5 });
+    // The builders are used inside UNION ALL and CTEs, so each one is a parenthesized select.
+    it('returns a parenthesized select so it can be used in a UNION ALL', () => {
+      const sql = build();
 
-      expect(sql).toContain('ORDER BY COALESCE(UPPER(TRIM(a."fullName")) = ANY($5::text[]), false) DESC');
+      expect(sql.startsWith('(WITH assoc AS MATERIALIZED')).toBe(true);
+      expect(sql.endsWith(')')).toBe(true);
+    });
+
+    // The join must not be correlated: a per-row LATERAL scans user_relationships once per payment.
+    it('does not use a correlated LATERAL join for the associations', () => {
+      expect(build()).not.toMatch(/LATERAL/i);
+    });
+
+    it('shows all the associations joined by a separator', () => {
+      expect(build()).toContain("' / '");
     });
 
     it('matches the consorcio filter against any association of the guardador', () => {
