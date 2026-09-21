@@ -55,4 +55,21 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(build()).toContain("'Guardador Autônomo'");
     });
   });
+  // "Data Tentativa Pagamento" of a Pendencia Paga without a parent order is the date of
+  // the order(s) it regroups, not the vencimento of the payment that settled them.
+  describe.each([
+    ['base', buildGuardadorBaseQuery],
+    ['pendenciaPagaSingleDate', buildGuardadorPendenciaPagaSingleDateQuery],
+  ])('%s query dataReferencia', (_name, build) => {
+    it('uses the oldest dataOrdem of the opg for a Pendencia Paga without parent order', () => {
+      const sql = build();
+
+      expect(sql).toMatch(/oph\."statusRemessa" = 5\s+AND opa\."ordemPagamentoAgrupadoId" IS NULL/);
+      expect(sql).toContain('MIN(g."dataOrdem")');
+    });
+
+    it('keeps the vencimento as dataReferencia for every other row', () => {
+      expect(build()).toContain('ELSE da."dataVencimento"');
+    });
+  });
 });

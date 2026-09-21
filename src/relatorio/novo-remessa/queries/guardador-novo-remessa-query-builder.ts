@@ -26,6 +26,21 @@ export const GUARDADOR_CONSORCIO_CASE = `
 // rows in ordem_pagamento_guardador but are not guardadores.
 const GUARDADOR_ROLE_ID = 6;
 
+// "Data Tentativa Pagamento". A Pendencia Paga without a parent order is a pending payment
+// that was regrouped into a single OPA, so it shows the oldest dataOrdem of its opg rows
+// (the first attempt); every other row keeps the vencimento of the detalhe_a.
+const GUARDADOR_DATA_REFERENCIA = `
+      CASE
+        WHEN oph."statusRemessa" = 5
+          AND opa."ordemPagamentoAgrupadoId" IS NULL
+          THEN (
+            SELECT MIN(g."dataOrdem")
+            FROM ordem_pagamento_guardador g
+            WHERE g."ordemPagamentoAgrupadoId" = opa.id
+          )::timestamp
+        ELSE da."dataVencimento"
+      END`;
+
 // A guardador can be linked to more than one association. Joining
 // user_relationships directly would yield one row (and repeat the value) per
 // association, so the associations are aggregated into a single row here.
@@ -65,7 +80,7 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
 
   return `
     SELECT DISTINCT
-      da."dataVencimento" AS "dataReferencia",
+      ${GUARDADOR_DATA_REFERENCIA} AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
       COALESCE(pu.email, '') AS email,
@@ -165,7 +180,7 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
 
   return `
     SELECT DISTINCT
-      da."dataVencimento" AS "dataReferencia",
+      ${GUARDADOR_DATA_REFERENCIA} AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
       COALESCE(pu.email, '') AS email,
