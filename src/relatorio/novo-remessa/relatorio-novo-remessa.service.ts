@@ -91,7 +91,9 @@ export class RelatorioNovoRemessaService {
   }
 
   private resolveStatus(args: IFindPublicacaoRelatorio): string[] {
-    const hasFiltroEspecifico = Boolean(args.favorecidoNome?.length || args.consorcioNome?.length);
+    const hasFiltroEspecifico = Boolean(
+      args.userIds?.length || args.favorecidoNome?.length || args.consorcioNome?.length,
+    );
 
     const pendenciaPaga = args.pendenciaPaga === true ? ['pendenciaPaga'] : [];
 

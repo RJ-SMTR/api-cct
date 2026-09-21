@@ -52,25 +52,28 @@ const GUARDADOR_OPA_WITHOUT_CHILDREN = `opa.id NOT IN (
         WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL
       )`;
 
-// A guardador can be linked to more than one association. Joining
-// user_relationships directly would yield one row (and repeat the value) per
-// association, so the associations are aggregated into a single row here.
-// "fullName" is the one association shown in the report (the front has no room
-// for several): the one selected in the consorcio filter, else the first linked.
-// "nomesUpper" keeps all of them so the consorcio filter still matches any.
-const buildAssociacaoJoin = (consorcioParam: string) => `
-    LEFT JOIN LATERAL (
+// A guardador can be linked to more than one association. Joining user_relationships
+// directly would yield one row (and repeat the value) per association, so they are
+// aggregated once per user (GROUP BY user_id) and joined on that key: one row per payment.
+// "fullName" lists all of them (the front shortens each name); "nomesUpper" is what the
+// consorcio filter matches against. The CTE is MATERIALIZED so it is computed exactly once
+// whatever plan is chosen: a per-row LATERAL scanned user_relationships once per payment,
+// and a plain aggregated join was re-run per row when a filter made the planner underestimate.
+// Each builder returns a parenthesized select so it stays valid inside UNION ALL and CTEs.
+const GUARDADOR_ASSOCIACAO_CTE = `WITH assoc AS MATERIALIZED (
       SELECT
-        (ARRAY_AGG(
-          a."fullName"
-          ORDER BY COALESCE(UPPER(TRIM(a."fullName")) = ANY(${consorcioParam}::text[]), false) DESC, ur."createdAt", a."fullName"
-        ) FILTER (WHERE a."fullName" IS NOT NULL))[1] AS "fullName",
-        ARRAY_AGG(DISTINCT UPPER(TRIM(a."fullName"))) FILTER (WHERE a."fullName" IS NOT NULL) AS "nomesUpper"
+        ur.user_id,
+        STRING_AGG(a."fullName", ' / ' ORDER BY a."fullName") AS "fullName",
+        ARRAY_AGG(UPPER(TRIM(a."fullName"))) AS "nomesUpper"
       FROM user_relationships ur
       INNER JOIN public."user" a
         ON a.id = ur.related_user_id
-      WHERE ur.user_id = pu.id
-    ) assoc ON TRUE`;
+      WHERE a."fullName" IS NOT NULL
+      GROUP BY ur.user_id
+    )`;
+
+const GUARDADOR_ASSOCIACAO_JOIN = `LEFT JOIN assoc
+      ON assoc.user_id = pu.id`;
 
 const GUARDADOR_CONSORCIO_FILTER_NAMES = `
   CASE
@@ -89,7 +92,7 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
     ? `AND ($${params.favorecidoFilterParamIndex}::text[] IS NULL OR UPPER(TRIM(pu."fullName")) = ANY($${params.favorecidoFilterParamIndex}))`
     : '';
 
-  return `
+  return `(${GUARDADOR_ASSOCIACAO_CTE}
     SELECT DISTINCT
       ${GUARDADOR_DATA_REFERENCIA} AS "dataReferencia",
       opa.id,
@@ -120,7 +123,7 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
       ON pu.id = opg."userId"
     LEFT JOIN bank bc
       ON bc.code = pu."bankCode"
-    ${buildAssociacaoJoin(consorcioParam)}
+    ${GUARDADOR_ASSOCIACAO_JOIN}
     WHERE
       da."dataVencimento" BETWEEN $1 AND $2
       AND ($3::integer[] IS NULL OR pu.id = ANY($3))
@@ -135,7 +138,7 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
       AND pu."roleId" = ${GUARDADOR_ROLE_ID}
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
-  `.trim();
+  )`.trim();
 };
 
 export const buildGuardadorAPagarQuery = (params: GuardadorBaseQueryParams = {}) => {
@@ -144,7 +147,7 @@ export const buildGuardadorAPagarQuery = (params: GuardadorBaseQueryParams = {})
     ? `AND ($${params.favorecidoFilterParamIndex}::text[] IS NULL OR UPPER(TRIM(pu."fullName")) = ANY($${params.favorecidoFilterParamIndex}))`
     : '';
 
-  return `
+  return `(${GUARDADOR_ASSOCIACAO_CTE}
     SELECT DISTINCT
       opg."dataOrdem" AS "dataReferencia",
       NULL::integer AS id,
@@ -162,7 +165,7 @@ export const buildGuardadorAPagarQuery = (params: GuardadorBaseQueryParams = {})
       ON pu.id = opg."userId"
     LEFT JOIN bank bc
       ON bc.code = pu."bankCode"
-    ${buildAssociacaoJoin(consorcioParam)}
+    ${GUARDADOR_ASSOCIACAO_JOIN}
     WHERE
       opg."ordemPagamentoAgrupadoId" IS NULL
       AND opg."dataOrdem" BETWEEN $1 AND $2
@@ -176,7 +179,7 @@ export const buildGuardadorAPagarQuery = (params: GuardadorBaseQueryParams = {})
       AND pu."roleId" = ${GUARDADOR_ROLE_ID}
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
-  `.trim();
+  )`.trim();
 };
 
 export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBaseQueryParams = {}) => {
@@ -185,7 +188,7 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
     ? `AND ($${params.favorecidoFilterParamIndex}::text[] IS NULL OR UPPER(TRIM(pu."fullName")) = ANY($${params.favorecidoFilterParamIndex}))`
     : '';
 
-  return `
+  return `(${GUARDADOR_ASSOCIACAO_CTE}
     SELECT DISTINCT
       ${GUARDADOR_DATA_REFERENCIA} AS "dataReferencia",
       opa.id,
@@ -216,7 +219,7 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
       ON pu.id = opg."userId"
     LEFT JOIN bank bc
       ON bc.code = pu."bankCode"
-    ${buildAssociacaoJoin(consorcioParam)}
+    ${GUARDADOR_ASSOCIACAO_JOIN}
     WHERE
       ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR TRUE)
@@ -241,5 +244,5 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
       AND pu."roleId" = ${GUARDADOR_ROLE_ID}
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
-  `.trim();
+  )`.trim();
 };
