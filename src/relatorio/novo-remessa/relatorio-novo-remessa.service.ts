@@ -65,10 +65,22 @@ export class RelatorioNovoRemessaService {
     args: IFindPublicacaoRelatorio,
     status: string,
   ): Promise<RelatorioConsolidadoResultDto> {
-    const data = await this.relatorioGuardadorConsolidadoRepository.findConsolidado({
-      ...args,
-      status,
-    } as any);
+    // The repository lets specific flags override `status`, so each block must carry
+    // only its own status or it would also return the rows of the other blocks.
+    const { pendenciaPaga, ...argsWithoutPendenciaPaga } = args;
+    const blockArgs = status === 'pendenciaPaga'
+      ? {
+        ...argsWithoutPendenciaPaga,
+        pago: undefined,
+        aPagar: undefined,
+        emProcessamento: undefined,
+        rejeitado: undefined,
+        estorno: undefined,
+        pendenciaPaga: true,
+      }
+      : { ...argsWithoutPendenciaPaga, status };
+
+    const data = await this.relatorioGuardadorConsolidadoRepository.findConsolidado(blockArgs as any);
 
     const result = new RelatorioConsolidadoResultDto();
     result.count = data.length;
@@ -81,17 +93,19 @@ export class RelatorioNovoRemessaService {
   private resolveStatus(args: IFindPublicacaoRelatorio): string[] {
     const hasFiltroEspecifico = Boolean(args.favorecidoNome?.length || args.consorcioNome?.length);
 
-    if (!hasFiltroEspecifico && args.pago === undefined && args.aPagar === undefined) {
+    const pendenciaPaga = args.pendenciaPaga === true ? ['pendenciaPaga'] : [];
+
+    if (!hasFiltroEspecifico && args.pago === undefined && args.aPagar === undefined && !pendenciaPaga.length) {
       return ['todos', 'pago', 'erros', 'aPagar'];
     }
     if (args.pago === true && args.aPagar === true) {
-      return ['pago', 'aPagar'];
+      return ['pago', 'aPagar', ...pendenciaPaga];
     }
-    if (args.pago === true) return ['pago'];
-    if (args.pago === false) return ['erros'];
-    if (args.aPagar === true) return ['aPagar'];
+    if (args.pago === true) return ['pago', ...pendenciaPaga];
+    if (args.pago === false) return ['erros', ...pendenciaPaga];
+    if (args.aPagar === true) return ['aPagar', ...pendenciaPaga];
 
-    return ['todos'];
+    return pendenciaPaga.length ? pendenciaPaga : ['todos'];
   }
 
   async findMovimentacaoFinanceira(args: IFindPublicacaoRelatorioNovoRemessa) {

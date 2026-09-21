@@ -7,6 +7,11 @@ describe('RelatorioGuardadorFinancialMovementRepository', () => {
   let mockQueryRunner: Partial<QueryRunner>;
   let mockDataSource: Partial<DataSource>;
 
+  // CustomLogger reads this global (set in main.ts) to format timestamps.
+  beforeAll(() => {
+    (global as any).__localTzOffset = 0;
+  });
+
   beforeEach(() => {
     mockQueryRunner = {
       connect: jest.fn().mockResolvedValue(undefined),
