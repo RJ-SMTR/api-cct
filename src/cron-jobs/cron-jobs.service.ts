@@ -750,12 +750,12 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
-  async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idOperadoras?: string[]) {
+  async remessaPendenteExec(dtInicio: string, dtFim: string, dataPagamento?: string, idsFavorecidos?: string[]) {
     const today = new Date();
     const dataInicio = new Date(dtInicio);
     const dataFim = new Date(dtFim);
     await this.geradorRemessaPendenteExec(dataInicio, dataFim, dataPagamento ? new Date(dataPagamento) : today,
-      HeaderName.MODAL, idOperadoras);
+      HeaderName.MODAL, idsFavorecidos);
   }
 
   /** Group eligible guardador pendencies, prepare the CNAB and send it. */
@@ -783,20 +783,26 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
   }
 
-  private async geradorRemessaPendenteExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
-    headerName: HeaderName, idOperadoras?: string[]) {
+  private async geradorRemessaPendenteExec(dataInicio: Date, dataFimSolicitada: Date, dataPagamento: Date,
+    headerName: HeaderName, idsFavorecidos?: string[]) {
     this.logger.debug('iniciando o agrupamento pendente')
-    //if (dataInicio)
-    // AGRUPAR ORDENS POR INDIVIDUO
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idOperadoras);
 
-    // Prepara o remessa
-    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idOperadoras);
+    // Exclude the current normal payment cycle from never-paid candidates.
+    const limiteSeguro = this.getLimiteSeguroPendentes();
+    const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
+    if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
+      this.logger.warn(`Pendentes consórcio: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
+    }
+
+    // AGRUPAR ORDENS POR INDIVIDUO
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idsFavorecidos);
+
+    // Create bank details and prepare parent histories for sending.
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idsFavorecidos);
 
     // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
-    //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
