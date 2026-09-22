@@ -50,15 +50,46 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(build()).toContain("' / '");
     });
 
-    it('matches the consorcio filter against any association of the guardador', () => {
+    // Associations (SINGAERJ, ANGLAE) are payees in ordem_pagamento_guardador too. Selecting
+    // a consorcio must show that association's own payment, not the payments of every
+    // guardador linked to it.
+    it('matches the consorcio filter only against the association itself, not the guardadores linked to it', () => {
       const sql = build({ consorcioFilterParamIndex: 5 });
 
-      expect(sql).toContain('&& $5::text[]');
+      expect(sql).toContain('pu."permitCode" IS NULL');
+      expect(sql).toContain('UPPER(TRIM(pu."fullName")) = ANY($5::text[])');
+      expect(sql).not.toContain('&& $5::text[]');
+    });
+
+    // "Todas as Associações" must show every association's own payment, still excluding
+    // the guardadores linked to them, regardless of which names $5 would hold.
+    it('matches every association and excludes guardadores when todosConsorcios is set', () => {
+      const sql = build({ consorcioFilterParamIndex: 5, todosConsorcios: true });
+
+      expect(sql).toContain('pu."permitCode" IS NULL');
+      expect(sql).not.toContain('$5::text[] IS NULL');
+      expect(sql).not.toContain('= ANY($5::text[])');
+    });
+
+    // The two known associations (SINGAERJ, ANGLAE) are real rows in ordem_pagamento_guardador
+    // with roleId 1, not 6 — requiring roleId = 6 unconditionally would make a selected
+    // consorcio always return zero rows, even though its own payment exists.
+    it('does not require the guardador role for the association itself, only for the default guardador view', () => {
+      const withConsorcio = build({ consorcioFilterParamIndex: 5 });
+      const roleIdOccurrences = withConsorcio.match(/pu\."roleId" = 6/g) ?? [];
+
+      expect(roleIdOccurrences).toHaveLength(1);
+    });
+
+    it('does not require the guardador role when todosConsorcios is set', () => {
+      const sql = build({ consorcioFilterParamIndex: 5, todosConsorcios: true });
+
+      expect(sql).not.toContain('pu."roleId" = 6');
     });
 
     // Associations (SINGAERJ, ANGLAE) have rows in ordem_pagamento_guardador but
-    // are not guardadores: only users with roleId 6 belong to this report.
-    it('only includes users with the guardador role', () => {
+    // are not guardadores: the default view (no consorcio selected) keeps to roleId 6.
+    it('only includes users with the guardador role in the default view', () => {
       expect(build()).toContain('pu."roleId" = 6');
     });
 

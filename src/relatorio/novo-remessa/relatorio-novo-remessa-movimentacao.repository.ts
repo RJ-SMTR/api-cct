@@ -230,6 +230,27 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     private readonly dataSource: DataSource,
   ) { }
 
+  // Matches pu."permitCode" (and puu."permitCode" for the branch that joins a second user)
+  // against every selected STPC/STPL/TEC prefix — the same rule the header CASE expressions
+  // use to derive the "consorcio" column, so a row is filtered and grouped by the same value.
+  private buildModaisPermitCodeCondition(consorcioValues: string[], includeSecondUser = false): string {
+    const prefixByModal: Record<string, string> = {
+      STPC: `4%`,
+      STPL: `81%`,
+      TEC: `7%`,
+    };
+
+    const clauses = consorcioValues
+      .filter((nome) => prefixByModal[nome])
+      .flatMap((nome) => {
+        const prefix = prefixByModal[nome];
+        const columns = includeSecondUser ? [`pu`, `puu`] : [`pu`];
+        return columns.map((column) => `${column}."permitCode" LIKE '${prefix}'`);
+      });
+
+    return `(${clauses.join(' OR ')})`;
+  }
+
   private getQueryApagarConsorcios(dataInicio: string, dataFim: string, aPagar?: boolean, pendente?: boolean): string {
     return ` ${this.headerQueryConsorciosApagar}                    
              ${this.fromQueryApagar}
@@ -397,8 +418,22 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       }
     }
 
+    const consorcioValues = (filter.consorcioNome ?? []).map((nome) => nome.trim().toUpperCase());
+    const isModaisOnlySelection = consorcioValues.length > 0
+      && consorcioValues.every((nome) => this.MODAIS.includes(nome));
+
     if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
-      if (!filter.todosConsorcios) {
+      if (isModaisOnlySelection) {
+        // STPC/STPL/TEC are derived from pu."permitCode", not the raw nomeConsorcio column
+        // (op."nomeConsorcio" disagrees with that derivation for a small slice of rows in
+        // production) — match the same permitCode rule used to label/group the "consorcio"
+        // column below, so what is filtered and what is grouped stay consistent.
+        queryAPagarConsorcios += ` AND ${this.buildModaisPermitCodeCondition(consorcioValues)} `;
+        queryConsorcios += ` AND ${this.buildModaisPermitCodeCondition(consorcioValues, true)} `;
+        queryAPagarEleicaoConsorcio += ` AND ${this.buildModaisPermitCodeCondition(consorcioValues)} `;
+        queryEleicaoConsorcio += ` AND ${this.buildModaisPermitCodeCondition(consorcioValues)} `;
+        queryPendentesConsorcio += ` AND ${this.buildModaisPermitCodeCondition(consorcioValues)} `;
+      } else if (!filter.todosConsorcios) {
         const consorcioPlaceholders = filter.consorcioNome?.join(`','`);
         queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
         queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))  `;
@@ -600,10 +635,16 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
 
       // 1. Agregados (count + todos os SUM condicionais) numa única query, com FILTER,
       // em vez de uma query de count + até 6 queries de SUM separadas sobre o mesmo baseUnion.
+      // Os SUMs valem tanto agrupado quanto não (somam as mesmas linhas de r de qualquer
+      // forma); só o "total" muda, porque a paginação abaixo passa a contar grupos, não linhas.
+      const totalExpression = isModaisOnlySelection
+        ? `COUNT(DISTINCT ("dataReferencia", consorcio, status))`
+        : `COUNT(*)`;
+
       const aggQuery = `
         WITH r AS (${baseUnion + whereValor})
         SELECT
-          COUNT(*) AS total,
+          ${totalExpression} AS total,
           COALESCE(SUM(valor), 0) AS "valorTotal",
           COALESCE(SUM(valor) FILTER (WHERE status = 'Pago'), 0) AS "valorPago",
           COALESCE(SUM(valor) FILTER (WHERE status = 'Rejeitado'), 0) AS "valorRejeitado",
@@ -632,8 +673,28 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) valorPendente = valorApagarOuPendente;
       if (filter.pendenciaPaga) valorPendenciaPaga = Number(agg?.valorPendenciaPaga ?? 0);
 
-      // 2. Query paginada
-      const dataQuery = `${baseUnion + whereValor} ORDER BY "dataReferencia","nomes" ASC LIMIT ${pageSize} OFFSET ${offset}`;
+      // 2. Query paginada — STPC/STPL/TEC mostram uma linha por data/status somando o valor
+      // de todo mundo daquele modal, em vez de uma linha por vanzeiro.
+      const dataQuery = isModaisOnlySelection
+        ? `
+          WITH r AS (${baseUnion + whereValor})
+          SELECT
+            "dataReferencia",
+            consorcio AS nomes,
+            NULL::text AS email,
+            NULL::text AS "codBanco",
+            NULL::text AS "nomeBanco",
+            NULL::text AS "cpfCnpj",
+            consorcio,
+            SUM(valor) AS valor,
+            NULL::text AS "dataPagamento",
+            status
+          FROM r
+          GROUP BY "dataReferencia", consorcio, status
+          ORDER BY "dataReferencia", consorcio ASC
+          LIMIT ${pageSize} OFFSET ${offset}
+        `
+        : `${baseUnion + whereValor} ORDER BY "dataReferencia","nomes" ASC LIMIT ${pageSize} OFFSET ${offset}`;
 
       this.logger.debug(`Executing query: ${dataQuery} with params: ${params.join(', ')}`);
 

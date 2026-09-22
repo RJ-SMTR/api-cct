@@ -2,6 +2,7 @@ export type GuardadorBaseQueryParams = {
   desativados?: boolean;
   consorcioFilterParamIndex?: number;
   favorecidoFilterParamIndex?: number;
+  todosConsorcios?: boolean;
 };
 
 export const GUARDADOR_STATUS_CASE = `
@@ -55,16 +56,15 @@ const GUARDADOR_OPA_WITHOUT_CHILDREN = `opa.id NOT IN (
 // A guardador can be linked to more than one association. Joining user_relationships
 // directly would yield one row (and repeat the value) per association, so they are
 // aggregated once per user (GROUP BY user_id) and joined on that key: one row per payment.
-// "fullName" lists all of them (the front shortens each name); "nomesUpper" is what the
-// consorcio filter matches against. The CTE is MATERIALIZED so it is computed exactly once
-// whatever plan is chosen: a per-row LATERAL scanned user_relationships once per payment,
-// and a plain aggregated join was re-run per row when a filter made the planner underestimate.
+// "fullName" lists all of them for display (the front shortens each name). The CTE is
+// MATERIALIZED so it is computed exactly once whatever plan is chosen: a per-row LATERAL
+// scanned user_relationships once per payment, and a plain aggregated join was re-run per
+// row when a filter made the planner underestimate.
 // Each builder returns a parenthesized select so it stays valid inside UNION ALL and CTEs.
 const GUARDADOR_ASSOCIACAO_CTE = `WITH assoc AS MATERIALIZED (
       SELECT
         ur.user_id,
-        STRING_AGG(a."fullName", ' / ' ORDER BY a."fullName") AS "fullName",
-        ARRAY_AGG(UPPER(TRIM(a."fullName"))) AS "nomesUpper"
+        STRING_AGG(a."fullName", ' / ' ORDER BY a."fullName") AS "fullName"
       FROM user_relationships ur
       INNER JOIN public."user" a
         ON a.id = ur.related_user_id
@@ -75,16 +75,24 @@ const GUARDADOR_ASSOCIACAO_CTE = `WITH assoc AS MATERIALIZED (
 const GUARDADOR_ASSOCIACAO_JOIN = `LEFT JOIN assoc
       ON assoc.user_id = pu.id`;
 
-const GUARDADOR_CONSORCIO_FILTER_NAMES = `
-  CASE
-    WHEN pu."permitCode" IS NULL THEN ARRAY[UPPER(TRIM(pu."fullName"))]
-    ELSE COALESCE(assoc."nomesUpper", ARRAY[UPPER(TRIM('Guardador Autônomo'))])
-  END
-`;
+// Associations (SINGAERJ, ANGLAE) are payees in ordem_pagamento_guardador too, with their
+// own "user" row: roleId 1 (not GUARDADOR_ROLE_ID) and no permitCode (every guardador has
+// one). The default view (no consorcio selected) keeps to actual guardadores, so it still
+// requires the guardador role. Selecting a consorcio switches to that association's own
+// payment instead — its roleId does not matter, only that it is the association itself
+// (permitCode IS NULL) with a matching name, so the guardador-role check does not apply
+// there. todosConsorcios shows every association's own payment the same way, regardless
+// of name, and also without requiring the guardador role.
+const buildConsorcioFilter = (consorcioParam: string, todosConsorcios?: boolean) => {
+  if (todosConsorcios) {
+    return `pu."permitCode" IS NULL`;
+  }
 
-// Matches when any association of the guardador is among the selected consorcios.
-const buildConsorcioFilter = (consorcioParam: string) =>
-  `(${consorcioParam}::text[] IS NULL OR (${GUARDADOR_CONSORCIO_FILTER_NAMES}) && ${consorcioParam}::text[])`;
+  return `(
+    (${consorcioParam}::text[] IS NULL AND pu."roleId" = ${GUARDADOR_ROLE_ID})
+    OR (${consorcioParam}::text[] IS NOT NULL AND pu."permitCode" IS NULL AND UPPER(TRIM(pu."fullName")) = ANY(${consorcioParam}::text[]))
+  )`;
+};
 
 export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) => {
   const consorcioParam = `$${params.consorcioFilterParamIndex ?? 5}`;
@@ -128,14 +136,13 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
       da."dataVencimento" BETWEEN $1 AND $2
       AND ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR ${GUARDADOR_STATUS_CASE} = ANY($4))
-      AND ${buildConsorcioFilter(consorcioParam)}
+      AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
       AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
       )
       AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-      AND pu."roleId" = ${GUARDADOR_ROLE_ID}
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
@@ -171,12 +178,11 @@ export const buildGuardadorAPagarQuery = (params: GuardadorBaseQueryParams = {})
       AND opg."dataOrdem" BETWEEN $1 AND $2
       AND ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR 'A Pagar' = ANY($4))
-      AND ${buildConsorcioFilter(consorcioParam)}
+      AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
       AND (
         ($6::numeric IS NULL OR opg."valorRepasseGuardador" >= $6::numeric)
         AND ($7::numeric IS NULL OR opg."valorRepasseGuardador" <= $7::numeric)
       )
-      AND pu."roleId" = ${GUARDADOR_ROLE_ID}
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
@@ -223,7 +229,7 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
     WHERE
       ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR TRUE)
-      AND ${buildConsorcioFilter(consorcioParam)}
+      AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
       AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
@@ -241,7 +247,6 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
         )
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-      AND pu."roleId" = ${GUARDADOR_ROLE_ID}
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();

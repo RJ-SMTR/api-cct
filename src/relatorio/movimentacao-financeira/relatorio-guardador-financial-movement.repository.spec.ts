@@ -60,6 +60,22 @@ describe('RelatorioGuardadorFinancialMovementRepository', () => {
       expect(result.valorEstornado).toBe(500.00);
       expect(result.valorRejeitado).toBe(500.50);
     });
+
+    it('builds a query that only matches the association itself when todosConsorcios is set', async () => {
+      (mockQueryRunner.query as jest.Mock)
+        .mockResolvedValueOnce([{ count: '0' }])
+        .mockResolvedValueOnce([{}]);
+
+      await repository.findFinancialMovementSummary({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        todosConsorcios: true,
+      });
+
+      const [countQuery] = (mockQueryRunner.query as jest.Mock).mock.calls[0];
+      expect(countQuery).toContain('pu."permitCode" IS NULL');
+      expect(countQuery).not.toContain('&& $5::text[]');
+    });
   });
 
   describe('findFinancialMovementPage', () => {
