@@ -361,15 +361,24 @@ export class RelatorioGuardadorFinancialMovementRepository {
   }
 
   private buildBaseQuery(filter: NormalizedFilter): string {
-    return buildGuardadorBaseQuery({ desativados: filter.desativados });
+    return buildGuardadorBaseQuery({
+      desativados: filter.desativados,
+      todosConsorcios: filter.todosConsorcios,
+    });
   }
 
   private buildAPagarQuery(filter: NormalizedFilter): string {
-    return buildGuardadorAPagarQuery({ desativados: filter.desativados });
+    return buildGuardadorAPagarQuery({
+      desativados: filter.desativados,
+      todosConsorcios: filter.todosConsorcios,
+    });
   }
 
   private buildPendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
-    return buildGuardadorPendenciaPagaSingleDateQuery({ desativados: filter.desativados });
+    return buildGuardadorPendenciaPagaSingleDateQuery({
+      desativados: filter.desativados,
+      todosConsorcios: filter.todosConsorcios,
+    });
   }
 
   private isSingleDate(filter: NormalizedFilter): boolean {

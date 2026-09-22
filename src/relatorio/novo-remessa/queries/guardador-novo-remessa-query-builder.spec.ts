@@ -50,10 +50,25 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(build()).toContain("' / '");
     });
 
-    it('matches the consorcio filter against any association of the guardador', () => {
+    // Associations (SINGAERJ, ANGLAE) are payees in ordem_pagamento_guardador too. Selecting
+    // a consorcio must show that association's own payment, not the payments of every
+    // guardador linked to it.
+    it('matches the consorcio filter only against the association itself, not the guardadores linked to it', () => {
       const sql = build({ consorcioFilterParamIndex: 5 });
 
-      expect(sql).toContain('&& $5::text[]');
+      expect(sql).toContain('pu."permitCode" IS NULL');
+      expect(sql).toContain('UPPER(TRIM(pu."fullName")) = ANY($5::text[])');
+      expect(sql).not.toContain('&& $5::text[]');
+    });
+
+    // "Todas as Associações" must show every association's own payment, still excluding
+    // the guardadores linked to them, regardless of which names $5 would hold.
+    it('matches every association and excludes guardadores when todosConsorcios is set', () => {
+      const sql = build({ consorcioFilterParamIndex: 5, todosConsorcios: true });
+
+      expect(sql).toContain('pu."permitCode" IS NULL');
+      expect(sql).not.toContain('$5::text[] IS NULL');
+      expect(sql).not.toContain('= ANY($5::text[])');
     });
 
     // Associations (SINGAERJ, ANGLAE) have rows in ordem_pagamento_guardador but
