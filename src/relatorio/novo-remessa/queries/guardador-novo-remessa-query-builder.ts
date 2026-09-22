@@ -75,17 +75,23 @@ const GUARDADOR_ASSOCIACAO_CTE = `WITH assoc AS MATERIALIZED (
 const GUARDADOR_ASSOCIACAO_JOIN = `LEFT JOIN assoc
       ON assoc.user_id = pu.id`;
 
-// Associations (SINGAERJ, ANGLAE) are payees in ordem_pagamento_guardador too, identified
-// by permitCode IS NULL (every guardador has one). Selecting a consorcio must show that
-// association's own payment, never the payments of the guardadores linked to it — those
-// only show up when the guardador itself is selected. todosConsorcios shows every
-// association's own payment regardless of name, still excluding every guardador.
+// Associations (SINGAERJ, ANGLAE) are payees in ordem_pagamento_guardador too, with their
+// own "user" row: roleId 1 (not GUARDADOR_ROLE_ID) and no permitCode (every guardador has
+// one). The default view (no consorcio selected) keeps to actual guardadores, so it still
+// requires the guardador role. Selecting a consorcio switches to that association's own
+// payment instead — its roleId does not matter, only that it is the association itself
+// (permitCode IS NULL) with a matching name, so the guardador-role check does not apply
+// there. todosConsorcios shows every association's own payment the same way, regardless
+// of name, and also without requiring the guardador role.
 const buildConsorcioFilter = (consorcioParam: string, todosConsorcios?: boolean) => {
   if (todosConsorcios) {
     return `pu."permitCode" IS NULL`;
   }
 
-  return `(${consorcioParam}::text[] IS NULL OR (pu."permitCode" IS NULL AND UPPER(TRIM(pu."fullName")) = ANY(${consorcioParam}::text[])))`;
+  return `(
+    (${consorcioParam}::text[] IS NULL AND pu."roleId" = ${GUARDADOR_ROLE_ID})
+    OR (${consorcioParam}::text[] IS NOT NULL AND pu."permitCode" IS NULL AND UPPER(TRIM(pu."fullName")) = ANY(${consorcioParam}::text[]))
+  )`;
 };
 
 export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) => {
@@ -137,7 +143,6 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
       )
       AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-      AND pu."roleId" = ${GUARDADOR_ROLE_ID}
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
@@ -178,7 +183,6 @@ export const buildGuardadorAPagarQuery = (params: GuardadorBaseQueryParams = {})
         ($6::numeric IS NULL OR opg."valorRepasseGuardador" >= $6::numeric)
         AND ($7::numeric IS NULL OR opg."valorRepasseGuardador" <= $7::numeric)
       )
-      AND pu."roleId" = ${GUARDADOR_ROLE_ID}
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
@@ -243,7 +247,6 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
         )
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-      AND pu."roleId" = ${GUARDADOR_ROLE_ID}
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
