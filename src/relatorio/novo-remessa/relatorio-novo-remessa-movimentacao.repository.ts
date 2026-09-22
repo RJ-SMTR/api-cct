@@ -230,23 +230,44 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     private readonly dataSource: DataSource,
   ) { }
 
-  // Matches pu."permitCode" (and puu."permitCode" for the branch that joins a second user)
-  // against every selected STPC/STPL/TEC prefix — the same rule the header CASE expressions
-  // use to derive the "consorcio" column, so a row is filtered and grouped by the same value.
-  private buildModaisPermitCodeCondition(consorcioValues: string[], includeSecondUser = false): string {
-    const prefixByModal: Record<string, string> = {
-      STPC: `4%`,
-      STPL: `81%`,
-      TEC: `7%`,
-    };
+  // Every consorcio selection matches by the same value it is filtered and grouped/labeled
+  // by: STPC/STPL/TEC/VLT are derived from pu."permitCode" (same rule the header CASE
+  // expressions use), everything else (Internorte, Santa Cruz, ...) has no permitCode rule —
+  // its own row IS the raw nomeConsorcio/consorcio column, so that stays the match for those.
+  // rawColumn differs for the "eleicao" branch (op."consorcio" instead of op."nomeConsorcio").
+  private buildConsorcioMatchCondition(
+    consorcioValues: string[],
+    options: { includeSecondUser?: boolean; rawColumn?: string } = {},
+  ): string {
+    const { includeSecondUser = false, rawColumn = 'nomeConsorcio' } = options;
 
-    const clauses = consorcioValues
-      .filter((nome) => prefixByModal[nome])
-      .flatMap((nome) => {
-        const prefix = prefixByModal[nome];
-        const columns = includeSecondUser ? [`pu`, `puu`] : [`pu`];
-        return columns.map((column) => `${column}."permitCode" LIKE '${prefix}'`);
-      });
+    const conditionByModal: Record<string, (column: string) => string> = {
+      VLT: (column) => `${column}."permitCode" = '8'`,
+      STPC: (column) => `${column}."permitCode" LIKE '4%'`,
+      STPL: (column) => `${column}."permitCode" LIKE '81%'`,
+      TEC: (column) => `${column}."permitCode" LIKE '7%'`,
+    };
+    const columns = includeSecondUser ? [`pu`, `puu`] : [`pu`];
+
+    const clauses: string[] = [];
+    const namedValues: string[] = [];
+
+    consorcioValues.forEach((nome) => {
+      const buildCondition = conditionByModal[nome.trim().toUpperCase()];
+      if (buildCondition) {
+        columns.forEach((column) => clauses.push(buildCondition(column)));
+      } else {
+        namedValues.push(nome);
+      }
+    });
+
+    if (namedValues.length > 0) {
+      const placeholders = namedValues.join(`','`);
+      clauses.push(`op."${rawColumn}" IN('${placeholders}')`);
+      if (includeSecondUser) {
+        clauses.push(`opp."${rawColumn}" IN('${placeholders}')`);
+      }
+    }
 
     return `(${clauses.join(' OR ')})`;
   }
@@ -418,36 +439,23 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       }
     }
 
-    const consorcioValues = (filter.consorcioNome ?? []).map((nome) => nome.trim().toUpperCase());
-    const isModaisOnlySelection = consorcioValues.length > 0
-      && consorcioValues.every((nome) => this.MODAIS.includes(nome));
+    const hasExplicitConsorcio = Boolean(filter.consorcioNome && filter.consorcioNome.length > 0);
+    // Any consorcio selection — a modal (STPC/STPL/TEC/VLT), a real consórcio (Internorte,
+    // Santa Cruz...), a mix, or "Todos" — shows one grouped row per date/status from here on.
+    const isGroupedConsorcioSelection = hasExplicitConsorcio || Boolean(filter.todosConsorcios);
 
-    if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
-      if (isModaisOnlySelection) {
-        // STPC/STPL/TEC are derived from pu."permitCode", not the raw nomeConsorcio column
-        // (op."nomeConsorcio" disagrees with that derivation for a small slice of rows in
-        // production) — match the same permitCode rule used to label/group the "consorcio"
-        // column below, so what is filtered and what is grouped stay consistent.
-        queryAPagarConsorcios += ` AND ${this.buildModaisPermitCodeCondition(consorcioValues)} `;
-        queryConsorcios += ` AND ${this.buildModaisPermitCodeCondition(consorcioValues, true)} `;
-        queryAPagarEleicaoConsorcio += ` AND ${this.buildModaisPermitCodeCondition(consorcioValues)} `;
-        queryEleicaoConsorcio += ` AND ${this.buildModaisPermitCodeCondition(consorcioValues)} `;
-        queryPendentesConsorcio += ` AND ${this.buildModaisPermitCodeCondition(consorcioValues)} `;
-      } else if (!filter.todosConsorcios) {
-        const consorcioPlaceholders = filter.consorcioNome?.join(`','`);
-        queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))  `;
-        queryAPagarEleicaoConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
-        queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-      } else {
-        const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
-        queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) `;
-        queryAPagarEleicaoConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
-        queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-      }
+    if (hasExplicitConsorcio || filter.todosConsorcios) {
+      // Whatever was selected is filtered and grouped/labeled by the exact same value:
+      // permitCode for the modais (same rule the header CASE uses to derive "consorcio"),
+      // the raw nomeConsorcio/consorcio column for everything else — that IS their own row,
+      // there is no permitCode rule for a named consórcio.
+      const consorcioValues = hasExplicitConsorcio ? filter.consorcioNome! : this.CONSORCIOS;
+
+      queryAPagarConsorcios += ` AND ${this.buildConsorcioMatchCondition(consorcioValues)} `;
+      queryConsorcios += ` AND ${this.buildConsorcioMatchCondition(consorcioValues, { includeSecondUser: true })} `;
+      queryAPagarEleicaoConsorcio += ` AND ${this.buildConsorcioMatchCondition(consorcioValues)} `;
+      queryEleicaoConsorcio += ` AND ${this.buildConsorcioMatchCondition(consorcioValues, { rawColumn: 'consorcio' })} `;
+      queryPendentesConsorcio += ` AND ${this.buildConsorcioMatchCondition(consorcioValues)} `;
     }
 
     //status: filter.aPagar, filter.pago, filter.emProcessamento ,filter.erro
@@ -637,7 +645,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       // em vez de uma query de count + até 6 queries de SUM separadas sobre o mesmo baseUnion.
       // Os SUMs valem tanto agrupado quanto não (somam as mesmas linhas de r de qualquer
       // forma); só o "total" muda, porque a paginação abaixo passa a contar grupos, não linhas.
-      const totalExpression = isModaisOnlySelection
+      const totalExpression = isGroupedConsorcioSelection
         ? `COUNT(DISTINCT ("dataReferencia", consorcio, status))`
         : `COUNT(*)`;
 
@@ -673,9 +681,9 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) valorPendente = valorApagarOuPendente;
       if (filter.pendenciaPaga) valorPendenciaPaga = Number(agg?.valorPendenciaPaga ?? 0);
 
-      // 2. Query paginada — STPC/STPL/TEC mostram uma linha por data/status somando o valor
-      // de todo mundo daquele modal, em vez de uma linha por vanzeiro.
-      const dataQuery = isModaisOnlySelection
+      // 2. Query paginada — qualquer consorcio selecionado mostra uma linha por data/status
+      // somando o valor de todo mundo daquele consorcio, em vez de uma linha por vanzeiro.
+      const dataQuery = isGroupedConsorcioSelection
         ? `
           WITH r AS (${baseUnion + whereValor})
           SELECT
