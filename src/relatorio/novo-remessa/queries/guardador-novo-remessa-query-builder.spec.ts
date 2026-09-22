@@ -67,8 +67,18 @@ describe('guardador-novo-remessa-query-builder', () => {
       const sql = build({ consorcioFilterParamIndex: 5, todosConsorcios: true });
 
       expect(sql).toContain('pu."permitCode" IS NULL');
-      expect(sql).not.toContain('$5::text[] IS NULL');
       expect(sql).not.toContain('= ANY($5::text[])');
+    });
+
+    // Postgres infers a bind parameter's type from how it is used in the query text. When
+    // todosConsorcios dropped $5 entirely, the planner had no ::text[] cast or comparison to
+    // infer it from — since $6/$7 are still used further down, that raised "could not
+    // determine data type of parameter $5" and the whole query failed (reported as "Todas as
+    // Associações" returning nobody). $5 must still appear somewhere, even as a no-op.
+    it('still references $5 in the SQL text when todosConsorcios is set, so Postgres can type it', () => {
+      const sql = build({ consorcioFilterParamIndex: 5, todosConsorcios: true });
+
+      expect(sql).toContain('$5::text[]');
     });
 
     // The two known associations (SINGAERJ, ANGLAE) are real rows in ordem_pagamento_guardador

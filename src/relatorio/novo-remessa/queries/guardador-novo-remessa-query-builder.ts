@@ -85,7 +85,11 @@ const GUARDADOR_ASSOCIACAO_JOIN = `LEFT JOIN assoc
 // of name, and also without requiring the guardador role.
 const buildConsorcioFilter = (consorcioParam: string, todosConsorcios?: boolean) => {
   if (todosConsorcios) {
-    return `pu."permitCode" IS NULL`;
+    // $6/$7 are bound further down, so Postgres still expects a type for $5 even though it
+    // is not a real filter here — reference it as a no-op (always true) so it can infer
+    // ::text[]. Dropping it entirely raises "could not determine data type of parameter $5"
+    // and fails the whole query.
+    return `(${consorcioParam}::text[] IS NULL OR ${consorcioParam}::text[] IS NOT NULL) AND pu."permitCode" IS NULL`;
   }
 
   return `(
