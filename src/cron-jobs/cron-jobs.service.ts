@@ -857,7 +857,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+   // await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
@@ -945,7 +945,7 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date('2026-09-18');
+        const dataHoje = new Date('2026-09-22');
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
