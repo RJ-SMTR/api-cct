@@ -1,6 +1,7 @@
 export interface IFindPublicacaoRelatorio {
   dataInicio: Date;
   dataFim: Date;
+  userIds?: number[];
   favorecidoNome?: string[];  
   consorcioNome?: string[];
   valorMin?: number;

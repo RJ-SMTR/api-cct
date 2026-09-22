@@ -7,6 +7,11 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
   let mockQueryRunner: Partial<QueryRunner>;
   let mockDataSource: Partial<DataSource>;
 
+  // CustomLogger reads this global (set in main.ts) to format timestamps.
+  beforeAll(() => {
+    (global as any).__localTzOffset = 0;
+  });
+
   beforeEach(() => {
     mockQueryRunner = {
       connect: jest.fn().mockResolvedValue(undefined),
@@ -201,6 +206,31 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
           null,
         ],
       );
+    });
+  });
+
+  describe('userIds filter', () => {
+    it('should pass the selected user ids as the third query parameter', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-09-01'),
+        dataFim: new Date('2026-09-21'),
+        userIds: [7, 9],
+        status: 'todos',
+      } as any);
+
+      const params = (mockQueryRunner.query as jest.Mock).mock.calls[0][1];
+      expect(params[2]).toEqual([7, 9]);
+    });
+
+    it('should not filter by user when no ids are selected', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-09-01'),
+        dataFim: new Date('2026-09-21'),
+        status: 'todos',
+      } as any);
+
+      const params = (mockQueryRunner.query as jest.Mock).mock.calls[0][1];
+      expect(params[2]).toBeNull();
     });
   });
 
