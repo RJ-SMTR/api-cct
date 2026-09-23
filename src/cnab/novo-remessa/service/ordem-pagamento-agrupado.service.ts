@@ -68,6 +68,17 @@ export class OrdemPagamentoAgrupadoService {
     }
   }
 
+  async prepararPagamentoAgrupadosGuardadorPendentes(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
+    pagadorKey: keyof AllPagadorDict) {
+    this.logger.debug(`Preparando agrupamentos pendentes de guardador`);
+    const pagador = await this.getPagador(pagadorKey);
+    if (pagador) {
+      this.logger.log(`Agrupando pendentes de guardador para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, ${dataOrdemInicial} a ${dataOrdemFinal}`);
+      await this.ordemPagamentoGuardadorRepository.agruparOrdensDePagamentoGuardadorPendentes(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador);
+      this.logger.log(`Pendentes de guardador agrupados para o pagador ${pagador.nomeEmpresa}`);
+    }
+  }
+
   async prepararPagamentoAgrupadosUnico(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
     pagadorKey: keyof AllPagadorDict, consorcios: string[]) {
     this.logger.debug(`Preparando agrupamentos pagamento único`)
