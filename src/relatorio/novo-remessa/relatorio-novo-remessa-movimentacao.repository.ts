@@ -475,49 +475,22 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     // filter.pago: 
     //    filter.pendenciaPaga
 
-    const status: number[] = [];
-    const subErroStatus: string[] = [];
+    // Each selected status widens the result set, so their predicates are OR-ed together.
+    const statusPredicates: string[] = [];
 
-    if (filter.emProcessamento){ 
-      status.push(1);
-      status.push(2);
-    }
-    if (filter.pago) status.push(3);
-    if (filter.erro) status.push(4);
-    if (filter.estorno) subErroStatus.push('02');
-    if (filter.rejeitado) {
-      subErroStatus.push('00');
-      subErroStatus.push('0BD');
-      subErroStatus.push('02');
-    }
-    if (filter.pendenciaPaga) status.push(5);
+    if (filter.emProcessamento) statusPredicates.push(`oph."statusRemessa" IN (1,2)`);
+    if (filter.pago) statusPredicates.push(`oph."statusRemessa" = 3`);
+    if (filter.erro) statusPredicates.push(`(oph."statusRemessa" = 4 AND oph."motivoStatusRemessa" NOT IN ('00','0BD'))`);
+    if (filter.pendenciaPaga) statusPredicates.push(`oph."statusRemessa" = 5`);
+    if (filter.estorno) statusPredicates.push(`oph."motivoStatusRemessa" IN ('02')`);
+    if (filter.rejeitado) statusPredicates.push(`oph."motivoStatusRemessa" NOT IN ('00','0BD','02')`);
 
-    if (status.length > 0) {
-      const statusRemessa = ` AND oph."statusRemessa" IN (${status.join(',')}) `;
-      queryConsorcios += statusRemessa;
-      queryVanzeiros += statusRemessa;
-      queryEleicaoConsorcio += statusRemessa;
-      queryEleicaoVanzeiro += statusRemessa;
-      if(filter.erro){
-        const motivoStatus = ` AND (oph."motivoStatusRemessa" NOT IN ('00','0BD')) `;
-        queryConsorcios += motivoStatus;
-        queryVanzeiros += motivoStatus;
-        queryEleicaoConsorcio += motivoStatus;
-        queryEleicaoVanzeiro += motivoStatus;
-      }
-    }
-
-    if (subErroStatus.length > 0) {
-      let motivoStatus =``;
-      if (filter.rejeitado) {
-        motivoStatus = `AND (oph."motivoStatusRemessa" NOT IN (${subErroStatus.map((s) => `'${s}'`).join(',')})) `;
-      }else{
-        motivoStatus = ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;
-      }
-      queryConsorcios += motivoStatus;
-      queryVanzeiros += motivoStatus;
-      queryEleicaoConsorcio += motivoStatus;
-      queryEleicaoVanzeiro += motivoStatus;
+    if (statusPredicates.length > 0) {
+      const statusFilter = ` AND (${statusPredicates.join(' OR ')}) `;
+      queryConsorcios += statusFilter;
+      queryVanzeiros += statusFilter;
+      queryEleicaoConsorcio += statusFilter;
+      queryEleicaoVanzeiro += statusFilter;
     }
 
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
