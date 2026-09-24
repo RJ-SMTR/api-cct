@@ -1,4 +1,5 @@
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
+import { buildCodigoErroSql } from './descricao-erro';
 
 export type NovoRemessaBaseParams = {
   todosVanzeiros?: boolean;
@@ -82,7 +83,8 @@ export const buildBaseQuery = (params: NovoRemessaBaseParams) => {
           THEN op_pai."dataPagamento"
         ELSE opa."dataPagamento"
       END AS "dataPagamento",
-      ${STATUS_CASE} AS status
+      ${STATUS_CASE} AS status,
+      ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"
     FROM ordem_pagamento op
     INNER JOIN ordem_pagamento_agrupado opa
       ON op."ordemPagamentoAgrupadoId" = opa.id
@@ -125,7 +127,8 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
       opu."consorcio" AS "nomeConsorcio",
       da."valorLancamento" AS valor,
       da."dataVencimento" AS "dataPagamento",
-      ${ELEICAO_STATUS_CASE} AS status
+      ${ELEICAO_STATUS_CASE} AS status,
+      ${buildCodigoErroSql(ELEICAO_STATUS_CASE)} AS "codigoErro"
     FROM
       ordem_pagamento_agrupado opa
     INNER JOIN ordem_pagamento_agrupado_historico oph
@@ -160,7 +163,8 @@ export const buildPendentesQuery = (params: NovoRemessaPendentesParams) => {
       ${CONSORCIO_CASE} AS "nomeConsorcio",
       op.valor AS valor,
       op."dataOrdem" AS "dataPagamento",
-      '${StatusPagamento.PENDENTES}' AS status
+      '${StatusPagamento.PENDENTES}' AS status,
+      NULL::text AS "codigoErro"
     FROM ordem_pagamento op
     INNER JOIN public."user" pu
       ON pu.id = op."userId"
@@ -201,7 +205,8 @@ export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams)
           THEN op_pai."dataPagamento"
         ELSE opa."dataPagamento"
       END AS "dataPagamento",
-      ${STATUS_CASE} AS status
+      ${STATUS_CASE} AS status,
+      NULL::text AS "codigoErro"
       FROM ordem_pagamento op
       INNER JOIN ordem_pagamento_agrupado opa
         ON op."ordemPagamentoAgrupadoId" = opa.id

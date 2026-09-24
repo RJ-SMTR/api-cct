@@ -5,6 +5,8 @@ import { DataSource } from 'typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNovoRemessaPageDto } from '../dtos/relatorio-financial-and-movement.dto';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
+import { buildCodigoErroSql } from './queries/descricao-erro';
+import { STATUS_CASE } from './queries/novo-remessa-query-builder';
 
 
 type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
@@ -38,7 +40,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     END AS consorcio,
                                                     round(op."valor",2) AS valor,
                                                     null::text AS dataPagamento,
-                                                   'A Pagar' AS status	`;
+                                                   'A Pagar' AS status,
+                                                  NULL::text AS "codigoErro"`;
 
   private readonly headerQueryConsorcios = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     oph."ordemPagamentoAgrupadoId" as id,
@@ -63,7 +66,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                                                     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                                                     ELSE 'Rejeitado'
-                                                  END AS status	`;
+                                                  END AS status,
+                                                  ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
 
   private readonly headerQueryVanzeirosAPagar = ` select distinct TO_CHAR( op."dataOrdem"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     op."ordemPagamentoAgrupadoId" AS id,
@@ -81,7 +85,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     END AS consorcio,
                                                     round(op."valor",2) AS valor,
                                                     null::text AS dataPagamento,
-                                                   'A Pagar' AS status	`;
+                                                   'A Pagar' AS status,
+                                                  NULL::text AS "codigoErro"`;
 
   private readonly headerQueryVanzeiros = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     oph."ordemPagamentoAgrupadoId" as id,
@@ -106,7 +111,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                                                     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                                                     ELSE 'Rejeitado'
-                                                  END AS status	`;
+                                                  END AS status,
+                                                  ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
 
   private readonly headerQueryEleicaoVanzereiroApagar = ` select distinct TO_CHAR(op."dataOrdem"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                           op."ordemPagamentoAgrupadoId" AS id,
@@ -124,7 +130,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                           END AS consorcio,
                                                           round(op."valor",2) AS valor,
                                                           null::text AS dataPagamento,
-                                                        'A Pagar' AS status `;
+                                                        'A Pagar' AS status,
+                                                  NULL::text AS "codigoErro"`;
 
 
   private readonly headerQueryEleicaoConsorcioApagar = ` select distinct TO_CHAR(op."dataOrdem"::date, 'DD/MM/YYYY') AS "dataReferencia",
@@ -143,7 +150,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                             END AS consorcio,
                                                             round(op."valor",2) AS valor,
                                                             null::text AS dataPagamento,
-                                                          'A Pagar' AS status `;
+                                                          'A Pagar' AS status,
+                                                  NULL::text AS "codigoErro"`;
 
   private readonly headerQueryEleicaoVanzeiro = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     oph."ordemPagamentoAgrupadoId" AS id,
@@ -168,7 +176,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                                                     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                                                     ELSE 'Rejeitado'
-                                                  END AS status	`;
+                                                  END AS status,
+                                                  ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
 
   private readonly headerQueryEleicaoConsorcio = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     oph."ordemPagamentoAgrupadoId" AS id,
@@ -193,7 +202,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                                                     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                                                     ELSE 'Rejeitado'
-                                                  END AS status	`;
+                                                  END AS status,
+                                                  ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
 
   private readonly fromQueryApagar = ` from ordem_pagamento op
                                         left join ordem_pagamento_agrupado opa  on op."ordemPagamentoAgrupadoId"=opa.id
@@ -696,7 +706,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
             consorcio,
             SUM(valor) AS valor,
             NULL::text AS "dataPagamento",
-            status
+            status,
+            STRING_AGG(DISTINCT "codigoErro", ',') AS "codigoErro"
           FROM r
           GROUP BY "dataReferencia", consorcio, status
           ORDER BY "dataReferencia", consorcio ASC
